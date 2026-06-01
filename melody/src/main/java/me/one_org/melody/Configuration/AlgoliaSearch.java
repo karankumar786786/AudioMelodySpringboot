@@ -1,0 +1,22 @@
+package me.one_org.melody.Configuration;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import com.algolia.api.SearchClient;
+
+import org.springframework.beans.factory.annotation.Value;
+
+@Configuration
+public class AlgoliaSearch {
+    @Value("${algolia.app-id}")
+    private String appId;
+    @Value("${algolia.api-key}")
+    private String apiKey;
+    
+
+    @Bean
+    public SearchClient searchClient() {
+        return new SearchClient(appId, apiKey);
+    }
+}

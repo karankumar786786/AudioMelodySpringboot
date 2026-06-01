@@ -1,0 +1,12 @@
+[project]
+name = "audioprocessing"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "dotenv>=0.9.9",
+    "fastapi>=0.136.1",
+    "inngest>=0.5.18",
+    "uvicorn>=0.47.0",
+]
