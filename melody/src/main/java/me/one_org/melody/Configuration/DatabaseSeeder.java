@@ -23,7 +23,7 @@ public class DatabaseSeeder implements CommandLineRunner {
     public void run(String... args) throws Exception {
         if (adminId == null) {
             throw new Exception();
-        }
+        };
         if (!usersRepository.existsById(adminId)) {
             Users admin = Users.builder()
                     .id(adminId)
@@ -33,8 +33,8 @@ public class DatabaseSeeder implements CommandLineRunner {
                     .build();
             if (admin == null) {
                 throw new Exception();
-            }
+            };
             usersRepository.save(admin);
-        }
+        };
     }
 }

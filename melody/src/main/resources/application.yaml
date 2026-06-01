@@ -1,9 +1,11 @@
 spring:
+
   config:
     import: optional:file:.env[.properties]
+
   mail:
-    host: smtp.gmail.com
-    port: 587
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}
     username: ${MAIL_USERNAME}
     password: ${MAIL_PASSWORD}
     properties:
@@ -12,8 +14,9 @@ spring:
           auth: true
           starttls:
             enable: true
+
   application:
-    name: melody
+    name: ${APPLICATION_NAME}
     admin:
       id: ${ADMIN_ID}
       name: ${ADMIN_NAME}
@@ -27,9 +30,11 @@ spring:
 
   data:
     redis:
-      host: ${REDIS_HOST:127.0.0.1}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+      ssl:
+        enabled: true
 
   jpa:
     hibernate:
@@ -38,6 +43,7 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
 jwt:
   secret: ${JWT_SECRET}
 server:
