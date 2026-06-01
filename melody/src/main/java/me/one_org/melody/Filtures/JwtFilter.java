@@ -28,15 +28,19 @@ public class JwtFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
+        if (SecurityContextHolder.getContext().getAuthentication() != null) {
+            filterChain.doFilter(request, response);
+            return;
+        };
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
             try {
                 JwtPayloadDto jwtDto = jwtUtil.validateAndGetPayload(token);
                 if (jwtDto != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    List<GrantedAuthority> authorities = jwtDto.role() != null 
-                        ? Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + jwtDto.role().name()))
-                        : Collections.emptyList();
+                    List<GrantedAuthority> authorities = jwtDto.role() != null
+                            ? Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + jwtDto.role().name()))
+                            : Collections.emptyList();
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             jwtDto, null, authorities);
                     SecurityContextHolder.getContext().setAuthentication(authToken);

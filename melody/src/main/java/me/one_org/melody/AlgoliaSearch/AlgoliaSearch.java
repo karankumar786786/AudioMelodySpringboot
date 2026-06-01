@@ -1,4 +1,4 @@
-package me.one_org.melody.Utils;
+package me.one_org.melody.AlgoliaSearch;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -20,7 +20,7 @@ import me.one_org.melody.Entity.Playlists;
 import me.one_org.melody.Entity.Songs;
 
 @Component
-public class SearchUtil {
+public class AlgoliaSearch {
 
     @Autowired
     private SearchClient searchClient;

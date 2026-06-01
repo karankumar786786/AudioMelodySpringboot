@@ -8,7 +8,7 @@ import com.algolia.api.SearchClient;
 import org.springframework.beans.factory.annotation.Value;
 
 @Configuration
-public class AlgoliaSearch {
+public class AlgoliaSearchConfig {
     @Value("${algolia.app-id}")
     private String appId;
     @Value("${algolia.api-key}")

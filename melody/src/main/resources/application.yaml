@@ -43,3 +43,8 @@ algolia:
   app-id: LOWAZ3II2M
   api-key: 054d85a27810806030908e1d92bdb60e
   index-name: prod_music
+
+recombee:
+  database-id:
+  secret-token:
+  region:

@@ -1,4 +1,4 @@
-package me.one_org.melody.S3;
+package me.one_org.melody.BlobStrorage;
 
 import java.time.Duration;
 

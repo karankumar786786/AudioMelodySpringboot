@@ -1,4 +1,4 @@
-package me.one_org.melody.imagekit;
+package me.one_org.melody.ImageStorage;
 
 import java.util.Map;
 
