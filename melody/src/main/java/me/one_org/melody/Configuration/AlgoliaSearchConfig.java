@@ -13,7 +13,6 @@ public class AlgoliaSearchConfig {
     private String appId;
     @Value("${algolia.api-key}")
     private String apiKey;
-    
 
     @Bean
     public SearchClient searchClient() {

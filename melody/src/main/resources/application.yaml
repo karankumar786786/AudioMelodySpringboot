@@ -37,14 +37,18 @@ spring:
 jwt:
   secret: ${JWT_SECRET}
 server:
-  port: 5000
+  port: ${PORT}
 
 algolia:
-  app-id: LOWAZ3II2M
-  api-key: 054d85a27810806030908e1d92bdb60e
-  index-name: prod_music
+  app-id: ${ALGOLIA_APP_ID}
+  api-key: ${ALGOLIA_API_KEY}
+  index-name: ${ALGOLIA_INDEX_NAME}
 
 recombee:
-  database-id:
-  secret-token:
-  region:
+  database-id: ${RECOMBEE_DATBASE_ID}
+  secret-token: ${RECOMBEE_DATBASE_SECRET}
+  region: ${RECOMBEE_DATBASE_REGION}
+
+audio-processing:
+  api:
+    key: ${AUDIO_PROCESSING_API_KEY}
