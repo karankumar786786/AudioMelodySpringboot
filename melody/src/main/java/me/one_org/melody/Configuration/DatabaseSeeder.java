@@ -5,6 +5,7 @@ import me.one_org.melody.Enums.Role;
 import me.one_org.melody.Repository.UsersRepository;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
@@ -12,15 +13,27 @@ import org.springframework.stereotype.Component;
 public class DatabaseSeeder implements CommandLineRunner {
     @Autowired
     private  UsersRepository usersRepository;
+    @Value("${spring.application.admin.id}")
+    private String adminId;
+    @Value("${spring.application.admin.name}")
+    private String adminName;
+    @Value("${spring.application.admin.email}")
+    private String adminEmail;
     @Override
     public void run(String... args) throws Exception {
-        if (!usersRepository.existsById("admin")) {
+        if (adminId == null) {
+            throw new Exception();
+        }
+        if (!usersRepository.existsById(adminId)) {
             Users admin = Users.builder()
-                    .id("admin")
-                    .userName("karan")
-                    .email("ks1802276@melody.com")
+                    .id(adminId)
+                    .userName(adminName)
+                    .email(adminEmail)
                     .role(Role.ADMIN)
                     .build();
+            if (admin == null) {
+                throw new Exception();
+            }
             usersRepository.save(admin);
         }
     }

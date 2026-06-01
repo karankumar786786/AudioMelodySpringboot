@@ -21,10 +21,8 @@ import java.util.List;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
-
     @Autowired
     private JwtUtil jwtUtil;
-
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {

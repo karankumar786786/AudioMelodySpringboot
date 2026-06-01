@@ -14,6 +14,10 @@ spring:
             enable: true
   application:
     name: melody
+    admin:
+      id: ${ADMIN_ID}
+      name: ${ADMIN_NAME}
+      email: ${ADMIN_EMAIL}
 
   datasource:
     url: ${DB_URL}
