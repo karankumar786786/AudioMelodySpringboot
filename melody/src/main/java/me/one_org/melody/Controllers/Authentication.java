@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
+import me.one_org.melody.Dto.RegisterAndLoginResponse;
 import me.one_org.melody.Dto.RegisterRequestDto;
 import me.one_org.melody.Dto.VerifyOtpResponse;
 import me.one_org.melody.Dto.VerifyOtpRequest;
@@ -22,22 +24,32 @@ public class Authentication {
     private AuthenticationService authenticationService;
 
     @PostMapping("/register")
-    public ResponseEntity<String> register(@jakarta.validation.Valid @RequestBody RegisterRequestDto request) {
+    public ResponseEntity<RegisterAndLoginResponse> register(@Valid @RequestBody RegisterRequestDto request) {
         String tempToken = authenticationService.register(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(tempToken);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(new RegisterAndLoginResponse(tempToken));
     }
 
     @PostMapping("/verify-otp")
     public ResponseEntity<VerifyOtpResponse> verifyOtp(
             @RequestHeader("X-TEMP-TOKEN") String tempToken,
-            @jakarta.validation.Valid @RequestBody VerifyOtpRequest verifyRequest) {
+            @Valid @RequestBody VerifyOtpRequest verifyRequest
+        ) {
         VerifyOtpResponse response = authenticationService.verifyOtp(tempToken, verifyRequest);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @PostMapping("/resend-otp")
-    public ResponseEntity<Void> resendOtp(@RequestHeader("X-TEMP-TOKEN") String tempToken) {
+    public ResponseEntity<Void> resendOtp(
+        @RequestHeader("X-TEMP-TOKEN") String tempToken
+    ) {
         authenticationService.resendOtp(tempToken);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.status(HttpStatus.OK).body(null);
     }
+
+    @PostMapping("/login")
+    public ResponseEntity<RegisterAndLoginResponse> postMethodName(@RequestBody String entity) {
+        
+        return null;
+    }
+    
 }

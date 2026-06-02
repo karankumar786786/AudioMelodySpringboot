@@ -3,7 +3,7 @@ package me.one_org.melody.Controllers;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import me.one_org.melody.Dto.RegisterRequestDto;
 import me.one_org.melody.Dto.VerifyOtpRequest;
-import me.one_org.melody.Dto.RegisterUserCacheDto;
+import me.one_org.melody.Dto.OtpDataDto;
 import me.one_org.melody.Redis.Redis;
 import me.one_org.melody.Repository.UsersRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,7 +65,7 @@ public class AuthenticationFlowTest {
         Object cachedObj = redis.get(tempToken);
         assertNotNull(cachedObj);
         
-        RegisterUserCacheDto cacheDto = objectMapper.convertValue(cachedObj, RegisterUserCacheDto.class);
+        OtpDataDto cacheDto = objectMapper.convertValue(cachedObj, OtpDataDto.class);
         String firstOtp = cacheDto.otp();
         assertNotNull(firstOtp);
 
@@ -77,7 +77,7 @@ public class AuthenticationFlowTest {
         // 4. Fetch the updated cached registration details
         Object updatedCachedObj = redis.get(tempToken);
         assertNotNull(updatedCachedObj);
-        RegisterUserCacheDto updatedCacheDto = objectMapper.convertValue(updatedCachedObj, RegisterUserCacheDto.class);
+        OtpDataDto updatedCacheDto = objectMapper.convertValue(updatedCachedObj, OtpDataDto.class);
         String secondOtp = updatedCacheDto.otp();
         assertNotNull(secondOtp);
 

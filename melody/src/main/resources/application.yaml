@@ -17,6 +17,7 @@ spring:
 
   application:
     name: ${APPLICATION_NAME}
+    api-key: ${APPLICATION_API_KEY}
     admin:
       id: ${ADMIN_ID}
       name: ${ADMIN_NAME}
@@ -60,5 +61,6 @@ recombee:
   region: ${RECOMBEE_DATBASE_REGION}
 
 audio-processing:
-  api:
-    key: ${AUDIO_PROCESSING_API_KEY}
+    api:
+      key: ${AUDIO_PROCESSING_API_KEY}
+      url: ${AUDIO_PROCESSING_URL}

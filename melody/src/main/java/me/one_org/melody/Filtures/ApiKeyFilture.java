@@ -18,7 +18,7 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class ApiKeyFilture extends OncePerRequestFilter{
 
-    @Value("${audioProcessing.api.key}")
+    @Value("${application.api-key}")
     private String apiKeyFromEnv;
 
     @Override
