@@ -1,5 +1,15 @@
 spring:
 
+  cloud:
+    openfeign:
+      client:
+        config:
+          audioProcessingApi:
+            # retryer: feign.Retryer.Default
+            # max-attempts: 3
+            # period: 100
+            # max-period: 1000
+
   config:
     import: optional:file:.env[.properties]
 
