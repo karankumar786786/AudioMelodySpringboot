@@ -11,6 +11,8 @@
 		<relativePath />
 	</parent>
 
+	
+
 	<groupId>me.oneorg</groupId>
 	<artifactId>melody</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
