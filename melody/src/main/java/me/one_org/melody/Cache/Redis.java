@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class Redis<T> {
 
+    
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
 

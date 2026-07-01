@@ -1,121 +1,16 @@
- <?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">.   
-	
-	
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 
-        
-
-
-
-
-	
-
-
-
-
-
-
-
-
-
-	
-
-
-
-
-
-
-
-
-
-
-
-
-	
-	</>
-
-
-
-
-
-
-	
-
-	
-
-
-
-
-
-
-
-
-
-	
 	<modelVersion>4.0.0</modelVersion>
 
-
-
-
-
-
-
-
-
-
-
-
-	
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	
-
-
-
-	
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
 		<version>3.4.5</version>
 		<relativePath />
 	</parent>
-
-
-
-
-
-
-
-	
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 	<groupId>me.oneorg</groupId>
 	<artifactId>melody</artifactId>
@@ -214,11 +109,13 @@
 			<optional>true</optional>
 		</dependency>
 
+		<!-- Mail -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
 
+		<!-- Algolia -->
 		<dependency>
 			<groupId>com.algolia</groupId>
 			<artifactId>algoliasearch</artifactId>
@@ -237,6 +134,7 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- JWT -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-api</artifactId>
@@ -253,17 +151,18 @@
 			<version>0.11.5</version>
 		</dependency>
 
+		<!-- Recombee -->
 		<dependency>
 			<groupId>com.github.recombee</groupId>
 			<artifactId>java-api-client</artifactId>
 			<version>4.1.0</version>
 		</dependency>
 
+		<!-- OpenFeign -->
 		<dependency>
 			<groupId>org.springframework.cloud</groupId>
 			<artifactId>spring-cloud-starter-openfeign</artifactId>
 		</dependency>
-
 
 	</dependencies>
 
