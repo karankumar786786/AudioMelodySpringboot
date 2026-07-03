@@ -20,16 +20,13 @@ import me.one_org.melody.Services.AuthenticationService;
 @RequestMapping("/api/v1/Authentication")
 public class Authentication {
 
-    
-
-
     @Autowired
     private AuthenticationService authenticationService;
 
     @PostMapping("/register")
     public ResponseEntity<RegisterAndLoginResponse> register(@Valid @RequestBody RegisterRequestDto request) {
         String tempToken = authenticationService.register(request);
-        return ResponseEntity.status(HttpStatus.ACCEPTED).body(new RegisterAndLoginResponse(tempToken));
+        return ResponseEntity.status(HttpStatus.CREATED).body(new RegisterAndLoginResponse(tempToken));
     }
 
     @PostMapping("/verify-otp")
@@ -37,7 +34,7 @@ public class Authentication {
             @RequestHeader("X-TEMP-TOKEN") String tempToken,
             @Valid @RequestBody VerifyOtpRequest verifyRequest
         ) {
-        VerifyOtpResponse response = authenticationService.verifyOtp(tempToken, verifyRequest);
+        VerifyOtpResponse response = authenticationService.verifyOtp(tempToken, verifyRequest.otp());
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 

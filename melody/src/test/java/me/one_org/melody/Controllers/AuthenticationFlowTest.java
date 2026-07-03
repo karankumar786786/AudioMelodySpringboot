@@ -1,10 +1,11 @@
 package me.one_org.melody.Controllers;
 
+import java.util.Optional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import me.one_org.melody.Dto.RegisterRequestDto;
 import me.one_org.melody.Dto.VerifyOtpRequest;
 import me.one_org.melody.Dto.OtpDataDto;
-import me.one_org.melody.Redis.Redis;
+import me.one_org.melody.Cache.Redis;
 import me.one_org.melody.Repository.UsersRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,7 +28,7 @@ public class AuthenticationFlowTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private Redis redis;
+    private Redis<OtpDataDto> redis;
 
     @Autowired
     private UsersRepository usersRepository;
@@ -39,6 +40,7 @@ public class AuthenticationFlowTest {
 
     @BeforeEach
     public void setup() {
+        redis.of("otp", OtpDataDto.class);
         if (usersRepository.existsByEmail(testEmail)) {
             usersRepository.findAll().stream()
                     .filter(u -> testEmail.equalsIgnoreCase(u.getEmail()))
@@ -62,10 +64,9 @@ public class AuthenticationFlowTest {
         assertTrue(tempToken.contains(":"));
 
         // 2. Fetch the cached registration details from Redis to get the generated OTP
-        Object cachedObj = redis.get(tempToken);
-        assertNotNull(cachedObj);
-        
-        OtpDataDto cacheDto = objectMapper.convertValue(cachedObj, OtpDataDto.class);
+        Optional<OtpDataDto> cachedObj = redis.get(testEmail);
+        assertTrue(cachedObj.isPresent());
+        OtpDataDto cacheDto = cachedObj.get();
         String firstOtp = cacheDto.otp();
         assertNotNull(firstOtp);
 
@@ -75,9 +76,9 @@ public class AuthenticationFlowTest {
                 .andExpect(status().isOk());
 
         // 4. Fetch the updated cached registration details
-        Object updatedCachedObj = redis.get(tempToken);
-        assertNotNull(updatedCachedObj);
-        OtpDataDto updatedCacheDto = objectMapper.convertValue(updatedCachedObj, OtpDataDto.class);
+        Optional<OtpDataDto> updatedCachedObj = redis.get(testEmail);
+        assertTrue(updatedCachedObj.isPresent());
+        OtpDataDto updatedCacheDto = updatedCachedObj.get();
         String secondOtp = updatedCacheDto.otp();
         assertNotNull(secondOtp);
 
@@ -106,6 +107,6 @@ public class AuthenticationFlowTest {
         assertTrue(usersRepository.existsByEmail(testEmail));
 
         // 8. Redis key should be cleaned up
-        assertFalse(redis.hasKey(tempToken));
+        assertFalse(redis.exists(testEmail));
     }
 }

@@ -17,7 +17,7 @@ class HmacUtilTest {
     @Test
     void testGenerateAndValidateSuccess() {
         String message = "helloWorld_123";
-        String token = hmacUtil.generate(message);
+        String token = hmacUtil.hash(message);
 
         assertNotNull(token);
         assertTrue(token.contains(":"));
@@ -35,7 +35,7 @@ class HmacUtilTest {
     void testValidateFailure() {
         String message = "helloWorld_123";
         String incorrectMessage = "helloWorld_124";
-        String token = hmacUtil.generate(message);
+        String token = hmacUtil.hash(message);
 
         assertFalse(hmacUtil.validate(incorrectMessage, token));
         assertNull(hmacUtil.getMessageIfValid("invalidtoken"));

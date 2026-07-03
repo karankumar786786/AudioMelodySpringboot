@@ -7,6 +7,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import jakarta.annotation.PostConstruct;
 import me.one_org.melody.Cache.Redis;
 import me.one_org.melody.Dto.JwtPayloadDto;
 import me.one_org.melody.Dto.OtpDataDto;
@@ -38,6 +39,11 @@ public class AuthenticationService {
     @Autowired
     private Redis<OtpDataDto> cache;
 
+    @PostConstruct
+    public void init() {
+        cache.of("otp", OtpDataDto.class);
+    }
+
 
     public String register(RegisterRequestDto request) {
         if (usersRepository.existsByEmail(request.email())) {
@@ -51,13 +57,16 @@ public class AuthenticationService {
         return tempToken;
     }
     public VerifyOtpResponse verifyOtp(String tempToken, String otp) {
-        String email = hmacUtil.extractMessage(tempToken);
+        String email = hmacUtil.getMessageIfValid(tempToken);
+        if (email == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token validation failed");
+        }
         Optional<OtpDataDto> otpDto = cache.get(email);
         if (otpDto.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.GATEWAY_TIMEOUT, "otp is already expired try to start fresh");
         };
         OtpDataDto data = otpDto.get();
-        if (!hmacUtil.validate(data.email(), tempToken)) {
+        if (!data.email().equals(email)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token validation failed");
         }
         // Verify OTP
@@ -90,32 +99,23 @@ public class AuthenticationService {
         return new VerifyOtpResponse(accessToken, refreshToken);
     }
     public void resendOtp(String tempToken) {
-        String email = hmacUtil.extractMessage(tempToken);
+        String email = hmacUtil.getMessageIfValid(tempToken);
+        if (email == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired verification token");
+        }
         Optional<OtpDataDto> otpDto = cache.get(email);
         if (otpDto.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired verification token");
         }
-        if (cachedObj == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired verification token");
-        }
-        RegisterUserCacheDto cacheDto;
-        if (cachedObj instanceof RegisterUserCacheDto) {
-            cacheDto = (RegisterUserCacheDto) cachedObj;
-        } else {
-            try {
-                cacheDto = objectMapper.convertValue(cachedObj, RegisterUserCacheDto.class);
-            } catch (Exception e) {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to process cached registration details", e);
-            }
-        }
-        if (!hmacUtil.validate(cacheDto.registerRequest().email(), tempToken)) {
+        OtpDataDto data = otpDto.get();
+        if (!hmacUtil.validate(data.email(), tempToken)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token validation failed");
         }
-        String newOtp = String.format("%06d", new Random().nextInt(1000000));
+        String newOtp = otpUtil.generateOtp();
         System.out.println("============================================");
-        System.out.println("NEW OTP (Resent) for " + cacheDto.registerRequest().email() + ": " + newOtp);
+        System.out.println("NEW OTP (Resent) for " + data.email() + ": " + newOtp);
         System.out.println("============================================");
-        RegisterUserCacheDto updatedCacheDto = new RegisterUserCacheDto(newOtp, cacheDto.registerRequest());
-        redis.set(tempToken, updatedCacheDto, 15, TimeUnit.MINUTES);
+        OtpDataDto updatedData = new OtpDataDto(newOtp, tempToken, data.email(), data.userName());
+        cache.set(data.email(), updatedData, 10, TimeUnit.MINUTES);
     }
 }
