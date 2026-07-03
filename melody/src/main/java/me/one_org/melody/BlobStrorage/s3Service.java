@@ -1,8 +1,6 @@
 package me.one_org.melody.BlobStrorage;
 
 import java.time.Duration;
-
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 
@@ -13,10 +11,13 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 @Service
 public class s3Service {
-    @Autowired
-    private S3Client s3Client;
-    @Autowired
-    private S3Presigner s3Presigner;
+    private final S3Client s3Client;
+    private final S3Presigner s3Presigner;
+
+    public s3Service(S3Client s3Client,S3Presigner s3Presigner){
+        this.s3Client = s3Client;
+        this.s3Presigner = s3Presigner;
+    }
 
     public void deleteObject(String key,String bucketName){
         s3Client.deleteObject(DeleteObjectRequest.builder().bucket(bucketName).key(key).build());

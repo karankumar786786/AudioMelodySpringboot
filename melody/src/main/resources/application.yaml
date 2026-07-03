@@ -14,10 +14,10 @@ spring:
     import: optional:file:.env[.properties]
 
   mail:
-    host: ${MAIL_HOST}
-    port: ${MAIL_PORT}
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:user}
+    password: ${MAIL_PASSWORD:pass}
     properties:
       mail:
         smtp:
@@ -26,26 +26,26 @@ spring:
             enable: true
 
   application:
-    name: ${APPLICATION_NAME}
-    api-key: ${APPLICATION_API_KEY}
+    name: ${APPLICATION_NAME:melody}
+    api-key: ${APPLICATION_API_KEY:default_api_key}
     admin:
-      id: ${ADMIN_ID}
-      name: ${ADMIN_NAME}
-      email: ${ADMIN_EMAIL}
+      id: ${ADMIN_ID:default_admin_id}
+      name: ${ADMIN_NAME:default_admin_name}
+      email: ${ADMIN_EMAIL:admin@melody.com}
 
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/melody}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
 
   data:
     redis:
-      host: ${REDIS_HOST}
-      port: ${REDIS_PORT}
-      password: ${REDIS_PASSWORD}
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
       ssl:
-        enabled: true
+        enabled: false
 
   jpa:
     hibernate:
@@ -56,21 +56,21 @@ spring:
         format_sql: true
 
 jwt:
-  secret: ${JWT_SECRET}
+  secret: ${JWT_SECRET:default_jwt_secret_key_which_should_be_long_enough_to_work_properly}
 server:
-  port: ${PORT}
+  port: ${PORT:8080}
 
 algolia:
-  app-id: ${ALGOLIA_APP_ID}
-  api-key: ${ALGOLIA_API_KEY}
-  index-name: ${ALGOLIA_INDEX_NAME}
+  app-id: ${ALGOLIA_APP_ID:default_algolia_app_id}
+  api-key: ${ALGOLIA_API_KEY:default_algolia_api_key}
+  index-name: ${ALGOLIA_INDEX_NAME:default_algolia_index_name}
 
 recombee:
-  database-id: ${RECOMBEE_DATBASE_ID}
-  secret-token: ${RECOMBEE_DATBASE_SECRET}
-  region: ${RECOMBEE_DATBASE_REGION}
+  database-id: ${RECOMBEE_DATBASE_ID:default_recombee_db_id}
+  secret-token: ${RECOMBEE_DATBASE_SECRET:default_recombee_token}
+  region: ${RECOMBEE_DATBASE_REGION:ap-south-1}
 
 audio-processing:
     api:
-      key: ${AUDIO_PROCESSING_API_KEY}
-      url: ${AUDIO_PROCESSING_URL}
+      key: ${AUDIO_PROCESSING_API_KEY:default_audio_processing_key}
+      url: ${AUDIO_PROCESSING_URL:http://localhost:8000}
