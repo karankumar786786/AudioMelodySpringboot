@@ -20,9 +20,9 @@ import me.one_org.melody.Utils.HmacUtil;
 import me.one_org.melody.Utils.JwtUtil;
 import me.one_org.melody.Utils.OtpUtil;
 
+import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 
 @Service
 public class AuthenticationService {
@@ -56,7 +56,7 @@ public class AuthenticationService {
         String otp = otpUtil.generateOtp();
         // send real mail
         OtpDataDto data = new OtpDataDto(otp,tempToken,request.email(),request.userName());
-        cache.set(data.email(),data, 10, TimeUnit.MINUTES);
+        cache.set(data.email(),data, Duration.ofMinutes(10));
         return tempToken;
     }
     @SuppressWarnings("null")
@@ -120,6 +120,6 @@ public class AuthenticationService {
         System.out.println("NEW OTP (Resent) for " + data.email() + ": " + newOtp);
         System.out.println("============================================");
         OtpDataDto updatedData = new OtpDataDto(newOtp, tempToken, data.email(), data.userName());
-        cache.set(data.email(), updatedData, 10, TimeUnit.MINUTES);
+        cache.set(data.email(), updatedData, Duration.ofMinutes(10));
     }
 }
