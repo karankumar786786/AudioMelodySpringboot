@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -22,11 +21,14 @@ import me.one_org.melody.Entity.Songs;
 @Component
 public class AlgoliaSearch {
 
-    @Autowired
-    private SearchClient searchClient;
+    private final SearchClient searchClient;
 
     @Value("${algolia.index-name}")
     private String indexName;
+
+    public AlgoliaSearch(SearchClient searchClient){
+        this.searchClient = searchClient;
+    }
 
     @PostConstruct
     public void configureIndex() throws Exception {

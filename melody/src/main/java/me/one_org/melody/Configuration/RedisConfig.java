@@ -38,6 +38,7 @@ public class RedisConfig {
         return template;
     }
     
+    @SuppressWarnings("null")
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory factory){
          ObjectMapper mapper = new ObjectMapper();

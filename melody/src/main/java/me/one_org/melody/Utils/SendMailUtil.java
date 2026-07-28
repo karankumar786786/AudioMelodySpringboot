@@ -1,6 +1,6 @@
 package me.one_org.melody.Utils;
 
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -8,10 +8,12 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class SendMailUtil {
-    @Autowired
-    private JavaMailSender mailSender;
+    private final JavaMailSender mailSender;
     @Value("${spring.mail.username}")
     private String from;
+    public SendMailUtil(JavaMailSender mailSender) {
+        this.mailSender = mailSender;
+    }
     public void mail(String to,String subject,String body){
         SimpleMailMessage mail = new SimpleMailMessage();
         mail.setFrom(from);

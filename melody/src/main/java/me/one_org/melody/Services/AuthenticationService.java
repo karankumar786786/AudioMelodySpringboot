@@ -5,7 +5,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+
 
 import jakarta.annotation.PostConstruct;
 import me.one_org.melody.Cache.Redis;
@@ -13,7 +13,6 @@ import me.one_org.melody.Dto.JwtPayloadDto;
 import me.one_org.melody.Dto.OtpDataDto;
 import me.one_org.melody.Dto.RegisterRequestDto;
 import me.one_org.melody.Dto.VerifyOtpResponse;
-import me.one_org.melody.Dto.VerifyOtpRequest;
 import me.one_org.melody.Entity.Users;
 import me.one_org.melody.Enums.Role;
 import me.one_org.melody.Repository.UsersRepository;
@@ -22,22 +21,26 @@ import me.one_org.melody.Utils.JwtUtil;
 import me.one_org.melody.Utils.OtpUtil;
 
 import java.util.Optional;
-import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
 public class AuthenticationService {
-    @Autowired
-    private UsersRepository usersRepository;
-    @Autowired
-    private JwtUtil jwtUtil;
-    @Autowired
-    private HmacUtil hmacUtil;
-    @Autowired
-    private OtpUtil otpUtil;
-    @Autowired
-    private Redis<OtpDataDto> cache;
+    
+    private final UsersRepository usersRepository;
+    private final JwtUtil jwtUtil;
+    private final HmacUtil hmacUtil;
+    private final OtpUtil otpUtil;
+    private final Redis<OtpDataDto> cache;
+
+    public AuthenticationService(UsersRepository usersRepository, JwtUtil jwtUtil, HmacUtil hmacUtil, OtpUtil otpUtil,
+            Redis<OtpDataDto> cache) {
+        this.usersRepository = usersRepository;
+        this.jwtUtil = jwtUtil;
+        this.hmacUtil = hmacUtil;
+        this.otpUtil = otpUtil;
+        this.cache = cache;
+    }
 
     @PostConstruct
     public void init() {

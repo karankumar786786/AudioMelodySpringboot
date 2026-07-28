@@ -1,6 +1,6 @@
 package me.one_org.melody.Controllers;
 
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,8 +20,11 @@ import me.one_org.melody.Services.AuthenticationService;
 @RequestMapping("/api/v1/Authentication")
 public class Authentication {
 
-    @Autowired
-    private AuthenticationService authenticationService;
+    private final AuthenticationService authenticationService;
+
+    public Authentication(AuthenticationService authenticationService){
+        this.authenticationService = authenticationService;
+    }
 
     @PostMapping("/register")
     public ResponseEntity<RegisterAndLoginResponse> register(@Valid @RequestBody RegisterRequestDto request) {

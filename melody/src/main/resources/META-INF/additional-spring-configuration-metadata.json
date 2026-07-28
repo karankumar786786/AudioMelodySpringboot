@@ -1,0 +1,22 @@
+{"properties": [
+  {
+    "name": "spring.application.api-key",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.application.api-key'"
+  },
+  {
+    "name": "spring.application.admin.id",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.application.admin.id'"
+  },
+  {
+    "name": "spring.application.admin.name",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.application.admin.name'"
+  },
+  {
+    "name": "spring.application.admin.email",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.application.admin.email'"
+  }
+]}

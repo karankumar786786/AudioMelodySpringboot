@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.stereotype.Component;
 
 import com.recombee.api_client.RecombeeClient;
@@ -40,9 +40,13 @@ import me.one_org.melody.Entity.Songs;
 @Slf4j
 public class Recombee {
 
-    @Autowired
-    private RecombeeClient recombeeClient;
 
+    private final RecombeeClient recombeeClient;
+
+
+    public Recombee(RecombeeClient recombeeClient) {
+        this.recombeeClient = recombeeClient;
+    }
 
     @PostConstruct
     public void configureSchema() throws Exception {
