@@ -1,6 +1,6 @@
 package me.one_org.melody.Services;
 
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -54,11 +54,12 @@ public class AuthenticationService {
         };
         String tempToken = hmacUtil.hash(request.email()); // tempToken
         String otp = otpUtil.generateOtp();
-        // TODO send mail here
+        // send real mail
         OtpDataDto data = new OtpDataDto(otp,tempToken,request.email(),request.userName());
         cache.set(data.email(),data, 10, TimeUnit.MINUTES);
         return tempToken;
     }
+    @SuppressWarnings("null")
     public VerifyOtpResponse verifyOtp(String tempToken, String otp) {
         String email = hmacUtil.getMessageIfValid(tempToken);
         if (email == null) {

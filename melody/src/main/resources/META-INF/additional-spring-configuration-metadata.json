@@ -18,5 +18,50 @@
     "name": "spring.application.admin.email",
     "type": "java.lang.String",
     "description": "A description for 'spring.application.admin.email'"
+  },
+  {
+    "name": "jwt.secret",
+    "type": "java.lang.String",
+    "description": "A description for 'jwt.secret'"
+  },
+  {
+    "name": "algolia.app-id",
+    "type": "java.lang.String",
+    "description": "A description for 'algolia.app-id'"
+  },
+  {
+    "name": "algolia.api-key",
+    "type": "java.lang.String",
+    "description": "A description for 'algolia.api-key'"
+  },
+  {
+    "name": "algolia.index-name",
+    "type": "java.lang.String",
+    "description": "A description for 'algolia.index-name'"
+  },
+  {
+    "name": "recombee.database-id",
+    "type": "java.lang.String",
+    "description": "A description for 'recombee.database-id'"
+  },
+  {
+    "name": "recombee.secret-token",
+    "type": "java.lang.String",
+    "description": "A description for 'recombee.secret-token'"
+  },
+  {
+    "name": "recombee.region",
+    "type": "java.lang.String",
+    "description": "A description for 'recombee.region'"
+  },
+  {
+    "name": "audio-processing.api.key",
+    "type": "java.lang.String",
+    "description": "A description for 'audio-processing.api.key'"
+  },
+  {
+    "name": "audio-processing.api.url",
+    "type": "java.lang.String",
+    "description": "A description for 'audio-processing.api.url'"
   }
 ]}
