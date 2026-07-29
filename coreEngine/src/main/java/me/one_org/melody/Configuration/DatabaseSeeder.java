@@ -24,7 +24,6 @@ public class DatabaseSeeder implements CommandLineRunner {
     }
 
 
-    @SuppressWarnings("null")
     @Override
     public void run(String... args) throws Exception {
         if (adminId == null) {

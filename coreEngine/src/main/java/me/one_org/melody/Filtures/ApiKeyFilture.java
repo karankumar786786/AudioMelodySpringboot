@@ -21,7 +21,6 @@ public class ApiKeyFilture extends OncePerRequestFilter{
     @Value("${application.api-key}")
     private String apiKeyFromEnv;
 
-    @SuppressWarnings("null")
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)throws ServletException, IOException {
             String apiKey = request.getHeader("X-API-KEY");

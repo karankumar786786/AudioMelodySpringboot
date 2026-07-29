@@ -59,7 +59,6 @@ public class AuthenticationService {
         cache.set(data.email(),data, Duration.ofMinutes(10));
         return tempToken;
     }
-    @SuppressWarnings("null")
     public VerifyOtpResponse verifyOtp(String tempToken, String otp) {
         String email = hmacUtil.getMessageIfValid(tempToken);
         if (email == null) {
