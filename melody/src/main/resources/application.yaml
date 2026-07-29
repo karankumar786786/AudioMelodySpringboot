@@ -44,8 +44,10 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+      mailqueue: ${REDIS_MAIL_QUEUE}
+      audioprocessingqueue: ${REDIS_AUDIO_PROCESSING_QUEUE}
       ssl:
-        enabled: false
+        enabled: ${REDIS_SSL_ENABLED:true}
 
   jpa:
     hibernate:
@@ -74,3 +76,9 @@ audio-processing:
     api:
       key: ${AUDIO_PROCESSING_API_KEY:default_audio_processing_key}
       url: ${AUDIO_PROCESSING_URL:http://localhost:8000}
+
+imagekit:
+  public-key: ${IMAGEKIT_PUBLIC_KEY:default_public_key}
+  private-key: ${IMAGEKIT_PRIVATE_KEY:default_private_key}
+  url-endpoint: ${IMAGEKIT_URL_ENDPOINT:https://ik.imagekit.io/default}
+

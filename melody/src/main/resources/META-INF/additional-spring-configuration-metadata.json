@@ -63,5 +63,35 @@
     "name": "audio-processing.api.url",
     "type": "java.lang.String",
     "description": "A description for 'audio-processing.api.url'"
+  },
+  {
+    "name": "imagekit.public-key",
+    "type": "java.lang.String",
+    "description": "A description for 'imagekit.public-key'"
+  },
+  {
+    "name": "imagekit.private-key",
+    "type": "java.lang.String",
+    "description": "A description for 'imagekit.private-key'"
+  },
+  {
+    "name": "imagekit.url-endpoint",
+    "type": "java.lang.String",
+    "description": "A description for 'imagekit.url-endpoint'"
+  },
+  {
+    "name": "spring.data.redis.emailqueue",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.data.redis.emailqueue'"
+  },
+  {
+    "name": "spring.data.redis.audioprocessingqueue",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.data.redis.audioprocessingqueue'"
+  },
+  {
+    "name": "spring.data.redis.mailqueue",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.data.redis.mailqueue'"
   }
 ]}

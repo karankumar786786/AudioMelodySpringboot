@@ -2,9 +2,11 @@ package me.one_org.melody.ImageStorage;
 
 import java.util.Map;
 
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-@Service
+
+
+@Component
 public class ImageKit {
 
     private final io.imagekit.sdk.ImageKit imageKitSdk;

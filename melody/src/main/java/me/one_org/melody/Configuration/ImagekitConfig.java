@@ -9,11 +9,11 @@ import io.imagekit.sdk.ImageKit;
 
 @Configuration
 public class ImagekitConfig {
-    @Value("${IMAGEKIT_PUBLIC_KEY}")
+    @Value("${imagekit.public-key:${IMAGEKIT_PUBLIC_KEY:}}")
     private String publicKey;
-    @Value("${IMAGEKIT_PRIVATE_KEY}")
+    @Value("${imagekit.private-key:${IMAGEKIT_PRIVATE_KEY:}}")
     private String privateKey;
-    @Value("${IMAGEKIT_URL_ENDPOINT}")
+    @Value("${imagekit.url-endpoint:${IMAGEKIT_URL_ENDPOINT:}}")
     private String urlEndpoint;
 
     @Bean
