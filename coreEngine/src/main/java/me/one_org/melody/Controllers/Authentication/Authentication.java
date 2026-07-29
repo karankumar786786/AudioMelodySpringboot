@@ -1,4 +1,4 @@
-package me.one_org.melody.Controllers;
+package me.one_org.melody.Controllers.Authentication;
 
 
 import org.springframework.http.HttpStatus;
@@ -17,7 +17,7 @@ import me.one_org.melody.Dto.VerifyOtpRequest;
 import me.one_org.melody.Services.AuthenticationService;
 
 @RestController
-@RequestMapping("/api/v1/Authentication")
+@RequestMapping("/auth")
 public class Authentication {
 
     private final AuthenticationService authenticationService;
