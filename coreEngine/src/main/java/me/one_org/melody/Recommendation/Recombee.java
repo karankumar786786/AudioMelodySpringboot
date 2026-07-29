@@ -74,33 +74,7 @@ public class Recombee {
         record.put("duration", job.getDuration());
         record.put("songKey", job.getSongKey());
         record.put("imageKey", job.getImageKey());
-
-        if (Boolean.TRUE.equals(job.getExtractedFeatures())) {
-            if (job.getSampleRate() != null){
-                record.put("sampleRate", job.getSampleRate());
-            };
-            if (job.getLoudness() != null){
-                record.put("loudness", job.getLoudness());
-            };
-            if (job.getDynamicComplexity() != null){
-                record.put("dynamicComplexity", job.getDynamicComplexity());
-            };
-            if (job.getBpm() != null){
-                record.put("bpm", job.getBpm());
-            };
-            if (job.getSpectralCentroid() != null){
-                record.put("spectralCentroid", job.getSpectralCentroid());
-            };
-            if (job.getSpectralFlux() != null){
-                record.put("spectralFlux", job.getSpectralFlux());
-            };
-            if (job.getZeroCrossingRate() != null){
-                record.put("zeroCrossingRate", job.getZeroCrossingRate());
-            };
-        };
-        recombeeClient.send(new SetItemValues(job.getSongId(), record).setCascadeCreate(true));
     }
-
     public void delete(String songId) throws Exception {
         recombeeClient.send(new DeleteItem(songId));
     }

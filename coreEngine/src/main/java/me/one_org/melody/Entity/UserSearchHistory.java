@@ -5,10 +5,8 @@ import lombok.*;
 
 @Entity
 @Table(name = "user_search_history")
-@Getter
-@Setter
+@Data
 @AllArgsConstructor
-@NoArgsConstructor
 @Builder
 public class UserSearchHistory {
 

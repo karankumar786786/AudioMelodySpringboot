@@ -2,5 +2,6 @@ package me.one_org.melody.Enums;
 
 public enum Role {
     ADMIN,
-    USER
+    USER,
+    SUPER_ADMIN
 }

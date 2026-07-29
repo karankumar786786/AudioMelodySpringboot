@@ -5,10 +5,8 @@ import lombok.*;
 
 @Entity
 @Table(name = "user_playlists")
-@Getter
-@Setter
+@Data
 @AllArgsConstructor
-@NoArgsConstructor
 @Builder
 public class UserPlaylists {
 

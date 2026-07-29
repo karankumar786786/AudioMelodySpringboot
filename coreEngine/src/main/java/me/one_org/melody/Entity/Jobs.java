@@ -26,20 +26,12 @@ public class Jobs {
     @Column(nullable = false)
     private String imageKey;
     private String language;
-    private Integer sampleRate;
-    private Double loudness;
-    private Double dynamicComplexity;
-    private Integer bpm;
-    private Double spectralCentroid;
-    private Double spectralFlux;
-    private Double zeroCrossingRate;
     private String transcodingId;
     private Integer transcodingAttempt;
     private String transcribingId;
     private Integer transcribingAttempt;
     private Boolean transcoded;
     private Boolean transcribed;
-    private Boolean extractedFeatures;
     private Boolean savedInSearch;
     private Boolean savedInRecommendation;
     @Column(nullable = false)

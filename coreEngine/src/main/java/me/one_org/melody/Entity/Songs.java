@@ -10,11 +10,9 @@ import java.util.Set;
 
 @Entity
 @Table(name = "songs")
-@Getter
-@Setter
-@AllArgsConstructor
-@NoArgsConstructor
 @Builder
+@Data
+@AllArgsConstructor
 public class Songs implements Serializable{
 
     @Id

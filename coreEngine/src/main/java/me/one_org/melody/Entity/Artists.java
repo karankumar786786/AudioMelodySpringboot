@@ -9,10 +9,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "artists")
-@Getter
-@Setter
+@Data
 @AllArgsConstructor
-@NoArgsConstructor
 @Builder
 public class Artists implements Serializable {
 
