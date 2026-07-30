@@ -18,13 +18,13 @@ import jakarta.servlet.http.HttpServletResponse;
 @Component
 public class ApiKeyFilture extends OncePerRequestFilter{
 
-    @Value("${application.api-key}")
+    @Value("${spring.application.api-key}")
     private String apiKeyFromEnv;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)throws ServletException, IOException {
             String apiKey = request.getHeader("X-API-KEY");
-            if (apiKey != null && apiKeyFromEnv == apiKey) {
+            if (apiKey != null && apiKeyFromEnv.equals(apiKey)) {
                 SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(apiKey, null,List.of(new SimpleGrantedAuthority("ROLE_API"))));
             }
             filterChain.doFilter(request, response);

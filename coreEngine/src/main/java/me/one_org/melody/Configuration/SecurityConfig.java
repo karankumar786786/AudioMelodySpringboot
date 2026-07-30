@@ -1,5 +1,6 @@
 package me.one_org.melody.Configuration;
 
+import me.one_org.melody.Filtures.ApiKeyFilture;
 import me.one_org.melody.Filtures.JwtFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,9 +19,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
+    private final ApiKeyFilture apiKeyFilter;
 
-    public SecurityConfig(JwtFilter jwtFilter){
+    public SecurityConfig(JwtFilter jwtFilter, ApiKeyFilture apiKeyFilter){
         this.jwtFilter = jwtFilter;
+        this.apiKeyFilter = apiKeyFilter;
     }
 
     @Bean
@@ -28,7 +31,10 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/api/v1/Authentication/**").permitAll() // Public endpoints
+                .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/webhook/**").permitAll()  // Secured by API key filter
+                .requestMatchers("/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/**", "/app/**").authenticated()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

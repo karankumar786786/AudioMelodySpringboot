@@ -45,6 +45,7 @@ public class JwtFilter extends OncePerRequestFilter {
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             jwtDto, null, authorities);
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                    request.setAttribute("userId", jwtDto.id());
                 }
             } catch (Exception e) {
                 // Ignore invalid tokens, request will just remain unauthenticated
