@@ -2,6 +2,7 @@ package me.one_org.melody.Services.App;
 
 import java.util.List;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import me.one_org.melody.Entity.ArtistsEntity;
@@ -29,10 +30,12 @@ public class ArtistAppService {
         return paginationMetaDataService.getMetaData("ArtistsEntity");
     }
 
+    @Cacheable(value = "artist_lists", key = "'all'")
     public List<ArtistsEntity> getAllArtists() {
         return artistsRepository.findAll();
     }
 
+    @Cacheable(value = "artists", key = "#id")
     public ArtistsEntity getArtistById(String id) {
         return artistsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Artist not found with id: " + id));

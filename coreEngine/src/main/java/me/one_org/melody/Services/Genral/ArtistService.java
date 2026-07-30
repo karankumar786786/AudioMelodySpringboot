@@ -3,6 +3,9 @@ package me.one_org.melody.Services.Genral;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +36,7 @@ public class ArtistService {
     }
 
     @Transactional
+    @CacheEvict(value = "artist_lists", allEntries = true)
     public ArtistsEntity createArtist(CreateArtistRequestDto data) {
         String id = UUID.randomUUID().toString();
         ArtistsEntity artist = ArtistsEntity.builder()
@@ -53,6 +57,10 @@ public class ArtistService {
     }
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "artists", key = "#id"),
+        @CacheEvict(value = "artist_lists", allEntries = true)
+    })
     public ArtistsEntity updateArtist(String id, UpdateArtistRequestDto data) {
         ArtistsEntity artist = artistsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Artist not found with id: " + id));
@@ -84,6 +92,10 @@ public class ArtistService {
     }
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "artists", key = "#id"),
+        @CacheEvict(value = "artist_lists", allEntries = true)
+    })
     public void deleteArtist(String id) {
         ArtistsEntity artist = artistsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Artist not found with id: " + id));
@@ -94,6 +106,7 @@ public class ArtistService {
         paginationMetaDataService.decrementStatus("ArtistsEntity", artist.getStatus());
     }
 
+    @Cacheable(value = "artists", key = "#id")
     public ArtistsEntity getArtistById(String id) {
         return artistsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Artist not found with id: " + id));
@@ -107,6 +120,7 @@ public class ArtistService {
         return paginationMetaDataService.getMetaData("ArtistsEntity");
     }
 
+    @Cacheable(value = "artist_lists", key = "'all'")
     public List<ArtistsEntity> getAllArtists() {
         return artistsRepository.findAll();
     }

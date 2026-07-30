@@ -2,6 +2,7 @@ package me.one_org.melody.Services.App;
 
 import java.util.List;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
@@ -25,6 +26,7 @@ public class SongsAppService {
         return songsRepository.findAllPaginated(page, size);
     }
 
+    @Cacheable(value = "songs", key = "#id")
     public SongsEntity getSongById(String id) {
         return songsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + id));

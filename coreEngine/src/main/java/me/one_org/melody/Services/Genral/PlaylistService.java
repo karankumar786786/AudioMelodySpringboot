@@ -4,6 +4,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,6 +42,7 @@ public class PlaylistService {
     }
 
     @Transactional
+    @CacheEvict(value = "playlist_lists", allEntries = true)
     public PlaylistsEntity createPlaylist(CreatePlaylistRequestDto data) {
         String id = UUID.randomUUID().toString();
         PlaylistsEntity playlist = PlaylistsEntity.builder()
@@ -61,6 +65,10 @@ public class PlaylistService {
     }
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "playlists", key = "#id"),
+        @CacheEvict(value = "playlist_lists", allEntries = true)
+    })
     public PlaylistsEntity updatePlaylist(String id, UpdatePlaylistRequestDto data) {
         PlaylistsEntity playlist = playlistsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + id));
@@ -81,6 +89,10 @@ public class PlaylistService {
     }
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "playlists", key = "#id"),
+        @CacheEvict(value = "playlist_lists", allEntries = true)
+    })
     public void deletePlaylist(String id) {
         PlaylistsEntity playlist = playlistsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + id));
@@ -91,6 +103,7 @@ public class PlaylistService {
         paginationMetaDataService.decrementStatus("PlaylistsEntity", playlist.getStatus());
     }
 
+    @Cacheable(value = "playlists", key = "#id")
     public PlaylistsEntity getPlaylistById(String id) {
         return playlistsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + id));
@@ -104,11 +117,16 @@ public class PlaylistService {
         return paginationMetaDataService.getMetaData("PlaylistsEntity");
     }
 
+    @Cacheable(value = "playlist_lists", key = "'all'")
     public List<PlaylistsEntity> getAllPlaylists() {
         return playlistsRepository.findAll();
     }
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "playlists", key = "#playlistId"),
+        @CacheEvict(value = "playlist_lists", allEntries = true)
+    })
     public PlaylistsEntity addSongToPlaylist(String playlistId, String songId) {
         PlaylistsEntity playlist = playlistsRepository.findById(playlistId)
                 .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + playlistId));
@@ -121,6 +139,10 @@ public class PlaylistService {
     }
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "playlists", key = "#playlistId"),
+        @CacheEvict(value = "playlist_lists", allEntries = true)
+    })
     public PlaylistsEntity removeSongFromPlaylist(String playlistId, String songId) {
         PlaylistsEntity playlist = playlistsRepository.findById(playlistId)
                 .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + playlistId));

@@ -3,6 +3,8 @@ package me.one_org.melody.Services.Genral;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +21,7 @@ public class PaginationMetaDataService {
         this.repository = repository;
     }
 
+    @Cacheable(value = "paginationMetaData", key = "#entityName")
     public PaginationMetaDataEntity getMetaData(String entityName) {
         Optional<PaginationMetaDataEntity> existing = repository.findByEntityName(entityName);
 
@@ -39,6 +42,7 @@ public class PaginationMetaDataService {
     }
 
     @Transactional
+    @CacheEvict(value = "paginationMetaData", key = "#entityName")
     public void updateCounts(String entityName, long totalCount, long activeCount, long blockedCount, long deletedCount) {
         Optional<PaginationMetaDataEntity> existing = repository.findByEntityName(entityName);
 
@@ -63,6 +67,7 @@ public class PaginationMetaDataService {
     }
 
     @Transactional
+    @CacheEvict(value = "paginationMetaData", key = "#entityName")
     public void incrementStatus(String entityName, StatusEnum status) {
         PaginationMetaDataEntity meta = getMetaData(entityName);
         meta.setTotalCount(meta.getTotalCount() + 1);
@@ -80,6 +85,7 @@ public class PaginationMetaDataService {
     }
 
     @Transactional
+    @CacheEvict(value = "paginationMetaData", key = "#entityName")
     public void decrementStatus(String entityName, StatusEnum status) {
         PaginationMetaDataEntity meta = getMetaData(entityName);
         meta.setTotalCount(Math.max(0L, meta.getTotalCount() - 1));
@@ -97,6 +103,7 @@ public class PaginationMetaDataService {
     }
 
     @Transactional
+    @CacheEvict(value = "paginationMetaData", key = "#entityName")
     public void transitionStatus(String entityName, StatusEnum oldStatus, StatusEnum newStatus) {
         if (oldStatus == newStatus) return;
 

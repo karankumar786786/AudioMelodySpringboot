@@ -4,6 +4,9 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -88,16 +91,22 @@ public class SongService {
         return new CreateSongResponseDto(jobId, JobStatusEnum.PENDING.name());
     }
 
+    @Cacheable(value = "song_lists", key = "'all'")
     public List<SongsEntity> getAllSongs() {
         return songsRepository.findAll();
     }
 
+    @Cacheable(value = "songs", key = "#id")
     public SongsEntity getSongById(String id) {
         return songsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + id));
     }
 
     @Transactional
+    @Caching(evict = {
+        @CacheEvict(value = "songs", key = "#id"),
+        @CacheEvict(value = "song_lists", allEntries = true)
+    })
     public void deleteSong(String id) {
         SongsEntity song = songsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + id));

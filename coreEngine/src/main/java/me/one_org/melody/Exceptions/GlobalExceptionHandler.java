@@ -45,7 +45,7 @@ public class GlobalExceptionHandler {
         );
         return new ResponseEntity<>(response, status);
     }
-
+    @SuppressWarnings("null")
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponseDto> handleValidationException(MethodArgumentNotValidException ex, WebRequest request) {
         String path = getPath(request);
