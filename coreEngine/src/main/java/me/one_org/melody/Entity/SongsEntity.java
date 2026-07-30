@@ -7,6 +7,9 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
+import lombok.Builder.Default;
+import me.one_org.melody.Enums.StatusEnum;
+
 @Entity
 @Table(name = "songs")
 @Builder
@@ -35,6 +38,11 @@ public class SongsEntity implements Serializable{
 
     @Column(nullable = false)
     private String language;
+
+    @Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private StatusEnum status = StatusEnum.ACTIVE;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "job_id", nullable = false)

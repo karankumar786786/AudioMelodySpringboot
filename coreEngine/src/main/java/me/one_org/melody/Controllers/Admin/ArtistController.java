@@ -28,15 +28,14 @@ public class ArtistController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ArtistsEntity> updateArtist(@PathVariable String id,
-                                                       @Valid @RequestBody UpdateArtistRequestDto data) {
-        return ResponseEntity.ok(artistService.updateArtist(id, data));
+    public ResponseEntity<ArtistsEntity> updateArtist(@PathVariable String id,@Valid @RequestBody UpdateArtistRequestDto data) {
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(artistService.updateArtist(id, data));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteArtist(@PathVariable String id) {
         artistService.deleteArtist(id);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(null);
     }
 
     @GetMapping

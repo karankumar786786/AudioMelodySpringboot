@@ -9,6 +9,9 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.Set;
 
+import lombok.Builder.Default;
+import me.one_org.melody.Enums.StatusEnum;
+
 @Entity
 @Table(name = "playlists")
 @Data
@@ -26,6 +29,10 @@ public class PlaylistsEntity implements Serializable{
     private String coverImageKey;
     @Column(nullable = false)
     private String bannerImageKey;
+    @Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private StatusEnum status = StatusEnum.ACTIVE;
     @CreationTimestamp
     private LocalDateTime createdAt;
     @UpdateTimestamp

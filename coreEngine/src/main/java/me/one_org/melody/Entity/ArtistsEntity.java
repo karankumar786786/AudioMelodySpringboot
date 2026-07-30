@@ -7,6 +7,9 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
+import lombok.Builder.Default;
+import me.one_org.melody.Enums.StatusEnum;
+
 @Entity
 @Table(name = "artists")
 @Data
@@ -28,6 +31,11 @@ public class ArtistsEntity implements Serializable {
     private String coverImageKey;
 
     private String bannerImageKey;
+
+    @Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private StatusEnum status = StatusEnum.ACTIVE;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

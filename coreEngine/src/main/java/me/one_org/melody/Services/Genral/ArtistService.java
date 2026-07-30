@@ -62,8 +62,7 @@ public class ArtistService {
         if (data.coverImageKey() != null) {
             oldCoverImageKey = artist.getCoverImageKey();
             artist.setCoverImageKey(data.coverImageKey());
-        }
-        ;
+        };
         if (data.bannerImageKey() != null) {
             oldBannerImageKey = artist.getBannerImageKey();
             artist.setBannerImageKey(data.bannerImageKey());

@@ -26,13 +26,13 @@ public class AccountController {
     //     return ResponseEntity.ok(accountService.getAllAccounts());
     // }
 
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{email}")
     public ResponseEntity<Void> deleteAccount(@PathVariable String email) {
         accountService.deleteAccount(email);
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping
+    @PostMapping("/{email}")
     public ResponseEntity<Void> upgradeToAdmin(@PathVariable String email) {
         accountService.upgradeToAdmin(email);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(null);

@@ -4,6 +4,8 @@ import java.util.Set;
 
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.Builder.Default;
+import me.one_org.melody.Enums.StatusEnum;
 
 @Entity
 @Table(name = "user_playlists")
@@ -18,6 +20,11 @@ public class UserPlaylistsEntity {
 
     @Column(nullable = false)
     private String name;
+
+    @Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private StatusEnum status = StatusEnum.ACTIVE;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

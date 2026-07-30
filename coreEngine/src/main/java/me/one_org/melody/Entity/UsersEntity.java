@@ -6,6 +6,7 @@ import lombok.*;
 import lombok.Builder.Default;
 import org.hibernate.annotations.CreationTimestamp;
 import me.one_org.melody.Enums.RoleEnum;
+import me.one_org.melody.Enums.StatusEnum;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,6 +32,11 @@ public class UsersEntity {
     @Default
     @Enumerated(EnumType.STRING)
     private RoleEnum role = RoleEnum.USER;
+
+    @Default
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private StatusEnum status = StatusEnum.ACTIVE;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
