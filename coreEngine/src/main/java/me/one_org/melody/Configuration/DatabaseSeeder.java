@@ -34,7 +34,7 @@ public class DatabaseSeeder implements CommandLineRunner {
                     .id(adminId)
                     .userName(adminName)
                     .email(adminEmail)
-                    .role(RoleEnum.ADMIN)
+                    .role(RoleEnum.SUPER_ADMIN)
                     .build();
             if (admin == null) {
                 throw new Exception();
