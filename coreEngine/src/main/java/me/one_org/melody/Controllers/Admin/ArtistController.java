@@ -10,7 +10,7 @@ import jakarta.validation.Valid;
 import me.one_org.melody.Dto.Controllers.Admin.CreateArtistRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.UpdateArtistRequestDto;
 import me.one_org.melody.Entity.ArtistsEntity;
-import me.one_org.melody.Services.Admin.ArtistService;
+import me.one_org.melody.Services.Genral.ArtistService;
 
 @RestController
 @RequestMapping("/admin/artist")

@@ -11,7 +11,7 @@ import me.one_org.melody.Dto.Controllers.Admin.CreateSongRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.CreateSongResponseDto;
 import me.one_org.melody.Entity.JobsEntity;
 import me.one_org.melody.Entity.SongsEntity;
-import me.one_org.melody.Services.Admin.SongService;
+import me.one_org.melody.Services.Genral.SongService;
 
 @RestController
 @RequestMapping("/admin/song")

@@ -53,9 +53,9 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
+    # properties:
+    #   hibernate:
+    #     format_sql: true
 
 jwt:
   secret: ${JWT_SECRET:default_jwt_secret_key_which_should_be_long_enough_to_work_properly}

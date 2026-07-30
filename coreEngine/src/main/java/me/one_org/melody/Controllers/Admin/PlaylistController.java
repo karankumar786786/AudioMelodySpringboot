@@ -11,7 +11,7 @@ import me.one_org.melody.Dto.Controllers.Admin.AddSongToPlaylistRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.CreatePlaylistRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.UpdatePlaylistRequestDto;
 import me.one_org.melody.Entity.PlaylistsEntity;
-import me.one_org.melody.Services.Admin.PlaylistService;
+import me.one_org.melody.Services.Genral.PlaylistService;
 
 @RestController
 @RequestMapping("/admin/playlist")
