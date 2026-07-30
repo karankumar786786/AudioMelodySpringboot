@@ -12,6 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
 import me.one_org.melody.Dto.Controllers.Admin.CreatePlaylistRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.UpdatePlaylistRequestDto;
+import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.PlaylistsEntity;
 import me.one_org.melody.Entity.SongsEntity;
 import me.one_org.melody.ImageStorage.ImageKit;
@@ -25,13 +26,16 @@ public class PlaylistService {
     private final SongsRepository songsRepository;
     private final AlgoliaSearch algoliaSearch;
     private final ImageKit imageKit;
+    private final PaginationMetaDataService paginationMetaDataService;
 
     public PlaylistService(PlaylistsRepository playlistsRepository, SongsRepository songsRepository,
-                           AlgoliaSearch algoliaSearch,ImageKit imageKit) {
+                           AlgoliaSearch algoliaSearch, ImageKit imageKit,
+                           PaginationMetaDataService paginationMetaDataService) {
         this.playlistsRepository = playlistsRepository;
         this.songsRepository = songsRepository;
         this.algoliaSearch = algoliaSearch;
         this.imageKit = imageKit;
+        this.paginationMetaDataService = paginationMetaDataService;
     }
 
     @Transactional
@@ -46,6 +50,7 @@ public class PlaylistService {
                 .songs(new HashSet<>())
                 .build();
         playlistsRepository.save(playlist);
+        paginationMetaDataService.incrementStatus("PlaylistsEntity", playlist.getStatus());
 
         try {
             algoliaSearch.save(playlist);
@@ -84,11 +89,20 @@ public class PlaylistService {
         imageKit.deleteByKey(playlist.getCoverImageKey());
         algoliaSearch.delete(id);
         playlistsRepository.deleteById(id);
+        paginationMetaDataService.decrementStatus("PlaylistsEntity", playlist.getStatus());
     }
 
     public PlaylistsEntity getPlaylistById(String id) {
         return playlistsRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
+    }
+
+    public List<PlaylistsEntity> getPlaylistsPaginated(int page, int size) {
+        return playlistsRepository.findAllPaginated(page, size);
+    }
+
+    public PaginationMetaDataEntity getPaginationMetaData() {
+        return paginationMetaDataService.getMetaData("PlaylistsEntity");
     }
 
     public List<PlaylistsEntity> getAllPlaylists() {

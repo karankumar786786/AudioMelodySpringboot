@@ -34,6 +34,18 @@ public class JobsRepository {
                 .getResultList();
     }
 
+    public List<JobsEntity> findAllPaginated(int page, int size) {
+        return entityManager.createQuery("SELECT j FROM JobsEntity j", JobsEntity.class)
+                .setFirstResult(page * size)
+                .setMaxResults(size)
+                .getResultList();
+    }
+
+    public long count() {
+        return entityManager.createQuery("SELECT COUNT(j) FROM JobsEntity j", Long.class)
+                .getSingleResult();
+    }
+
     public List<JobsEntity> findByStatus(JobStatusEnum status) {
         return entityManager.createQuery(
                 "SELECT j FROM JobsEntity j WHERE j.status = :status", JobsEntity.class)

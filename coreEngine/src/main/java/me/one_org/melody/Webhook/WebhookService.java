@@ -20,6 +20,8 @@ import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.JobsRepository;
 import me.one_org.melody.Repository.SongsRepository;
 
+import me.one_org.melody.Services.Genral.PaginationMetaDataService;
+
 @Service
 @Slf4j
 public class WebhookService {
@@ -28,13 +30,16 @@ public class WebhookService {
     private final SongsRepository songsRepository;
     private final AlgoliaSearch algoliaSearch;
     private final Recombee recombee;
+    private final PaginationMetaDataService paginationMetaDataService;
 
     public WebhookService(JobsRepository jobsRepository, SongsRepository songsRepository,
-                          AlgoliaSearch algoliaSearch, Recombee recombee) {
+                          AlgoliaSearch algoliaSearch, Recombee recombee,
+                          PaginationMetaDataService paginationMetaDataService) {
         this.jobsRepository = jobsRepository;
         this.songsRepository = songsRepository;
         this.algoliaSearch = algoliaSearch;
         this.recombee = recombee;
+        this.paginationMetaDataService = paginationMetaDataService;
     }
 
     private JobsEntity getJob(String jobId) {
@@ -120,6 +125,7 @@ public class WebhookService {
                 .job(job)
                 .build();
         songsRepository.save(song);
+        paginationMetaDataService.incrementStatus("SongsEntity", song.getStatus());
 
         // Save to Algolia
         try {

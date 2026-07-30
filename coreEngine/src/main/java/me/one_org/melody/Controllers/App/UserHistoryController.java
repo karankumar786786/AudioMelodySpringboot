@@ -5,6 +5,8 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
+import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.UserHistoryEntity;
 import me.one_org.melody.Services.App.UserHistoryAppService;
 
@@ -19,11 +21,13 @@ public class UserHistoryController {
     }
 
     @GetMapping
-    public ResponseEntity<List<UserHistoryEntity>> getHistory(
+    public ResponseEntity<PaginatedResponseDto<UserHistoryEntity>> getHistory(
             @RequestAttribute("userId") String userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(userHistoryAppService.getHistory(userId, page, size));
+        List<UserHistoryEntity> history = userHistoryAppService.getHistory(userId, page, size);
+        PaginationMetaDataEntity metaData = userHistoryAppService.getPaginationMetaData(userId);
+        return ResponseEntity.ok(new PaginatedResponseDto<>(history, page, size, metaData));
     }
 
     @DeleteMapping

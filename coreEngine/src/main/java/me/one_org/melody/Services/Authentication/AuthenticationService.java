@@ -24,6 +24,8 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
 
+import me.one_org.melody.Services.Genral.PaginationMetaDataService;
+
 @Service
 public class AuthenticationService {
     
@@ -32,14 +34,16 @@ public class AuthenticationService {
     private final HmacUtil hmacUtil;
     private final OtpUtil otpUtil;
     private final Redis<OtpDataDto> cache;
+    private final PaginationMetaDataService paginationMetaDataService;
 
     public AuthenticationService(UsersRepository usersRepository, JwtUtil jwtUtil, HmacUtil hmacUtil, OtpUtil otpUtil,
-            Redis<OtpDataDto> cache) {
+            Redis<OtpDataDto> cache, PaginationMetaDataService paginationMetaDataService) {
         this.usersRepository = usersRepository;
         this.jwtUtil = jwtUtil;
         this.hmacUtil = hmacUtil;
         this.otpUtil = otpUtil;
         this.cache = cache;
+        this.paginationMetaDataService = paginationMetaDataService;
     }
 
     @PostConstruct
@@ -88,6 +92,7 @@ public class AuthenticationService {
                 .role(RoleEnum.USER)
                 .build();
         usersRepository.save(user);
+        paginationMetaDataService.incrementStatus("UsersEntity", user.getStatus());
         // Clean up cache
         cache.delete(email);
         // Generate access token (1 hour) and refresh token (168 hours / 7 days)

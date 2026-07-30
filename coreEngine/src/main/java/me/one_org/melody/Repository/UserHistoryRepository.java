@@ -39,6 +39,13 @@ public class UserHistoryRepository {
                 .getResultList();
     }
 
+    public long countByUser(UsersEntity user) {
+        return entityManager.createQuery(
+                "SELECT COUNT(h) FROM UserHistoryEntity h WHERE h.user = :user", Long.class)
+                .setParameter("user", user)
+                .getSingleResult();
+    }
+
     @Transactional
     public void deleteByUser(UsersEntity user) {
         entityManager.createQuery("DELETE FROM UserHistoryEntity h WHERE h.user = :user")

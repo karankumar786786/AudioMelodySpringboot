@@ -17,6 +17,8 @@ import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserHistoryRepository;
 import me.one_org.melody.Repository.UsersRepository;
 
+import me.one_org.melody.Services.Genral.PaginationMetaDataService;
+
 @Service
 @Slf4j
 public class InteractionAppService {
@@ -25,13 +27,16 @@ public class InteractionAppService {
     private final UsersRepository usersRepository;
     private final SongsRepository songsRepository;
     private final UserHistoryRepository userHistoryRepository;
+    private final PaginationMetaDataService paginationMetaDataService;
 
     public InteractionAppService(Recombee recombee, UsersRepository usersRepository,
-                                  SongsRepository songsRepository, UserHistoryRepository userHistoryRepository) {
+                                  SongsRepository songsRepository, UserHistoryRepository userHistoryRepository,
+                                  PaginationMetaDataService paginationMetaDataService) {
         this.recombee = recombee;
         this.usersRepository = usersRepository;
         this.songsRepository = songsRepository;
         this.userHistoryRepository = userHistoryRepository;
+        this.paginationMetaDataService = paginationMetaDataService;
     }
 
     @Transactional
@@ -51,6 +56,7 @@ public class InteractionAppService {
                 .part(part)
                 .build();
         userHistoryRepository.save(history);
+        paginationMetaDataService.incrementStatus("UserHistory_" + userId, null);
 
         // Track in Recombee
         try {

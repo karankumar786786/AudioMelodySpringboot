@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.SongsEntity;
 import me.one_org.melody.Entity.UserPlaylistsEntity;
 import me.one_org.melody.Entity.UsersEntity;
@@ -16,6 +17,7 @@ import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserPlaylistsRepository;
 import me.one_org.melody.Repository.UsersRepository;
+import me.one_org.melody.Services.Genral.PaginationMetaDataService;
 
 @Service
 public class UserPlaylistAppService {
@@ -24,19 +26,30 @@ public class UserPlaylistAppService {
     private final SongsRepository songsRepository;
     private final UsersRepository usersRepository;
     private final Recombee recombee;
+    private final PaginationMetaDataService paginationMetaDataService;
 
     public UserPlaylistAppService(UserPlaylistsRepository userPlaylistsRepository,
                                    SongsRepository songsRepository, UsersRepository usersRepository,
-                                   Recombee recombee) {
+                                   Recombee recombee, PaginationMetaDataService paginationMetaDataService) {
         this.userPlaylistsRepository = userPlaylistsRepository;
         this.songsRepository = songsRepository;
         this.usersRepository = usersRepository;
         this.recombee = recombee;
+        this.paginationMetaDataService = paginationMetaDataService;
     }
 
     public List<UserPlaylistsEntity> getUserPlaylists(String userId) {
         UsersEntity user = getUser(userId);
         return userPlaylistsRepository.findByUser(user);
+    }
+
+    public List<UserPlaylistsEntity> getUserPlaylistsPaginated(String userId, int page, int size) {
+        UsersEntity user = getUser(userId);
+        return userPlaylistsRepository.findByUserPaginated(user, page, size);
+    }
+
+    public PaginationMetaDataEntity getPaginationMetaData(String userId) {
+        return paginationMetaDataService.getMetaData("UserPlaylists_" + userId);
     }
 
     @Transactional
@@ -49,6 +62,7 @@ public class UserPlaylistAppService {
                 .songs(new HashSet<>())
                 .build();
         userPlaylistsRepository.save(playlist);
+        paginationMetaDataService.incrementStatus("UserPlaylists_" + userId, playlist.getStatus());
         return playlist;
     }
 
@@ -62,8 +76,9 @@ public class UserPlaylistAppService {
 
     @Transactional
     public void deletePlaylist(String userId, String playlistId) {
-        getPlaylistOwnedBy(userId, playlistId);
+        UserPlaylistsEntity playlist = getPlaylistOwnedBy(userId, playlistId);
         userPlaylistsRepository.deleteById(playlistId);
+        paginationMetaDataService.decrementStatus("UserPlaylists_" + userId, playlist.getStatus());
     }
 
     @Transactional

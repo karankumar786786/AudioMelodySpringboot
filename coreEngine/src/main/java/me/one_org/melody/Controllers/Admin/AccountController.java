@@ -1,15 +1,15 @@
 package me.one_org.melody.Controllers.Admin;
 
-// import java.util.List;
+import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-// import me.one_org.melody.Entity.UsersEntity;
+import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
+import me.one_org.melody.Entity.PaginationMetaDataEntity;
+import me.one_org.melody.Entity.UsersEntity;
 import me.one_org.melody.Services.Admin.AccountService;
-import org.springframework.web.bind.annotation.PostMapping;
-
 
 @RestController
 @RequestMapping("/admin/account")
@@ -21,10 +21,14 @@ public class AccountController {
         this.accountService = accountService;
     }
 
-    // @GetMapping
-    // public ResponseEntity<List<UsersEntity>> getAllAccounts() {
-    //     return ResponseEntity.ok(accountService.getAllAccounts());
-    // }
+    @GetMapping
+    public ResponseEntity<PaginatedResponseDto<UsersEntity>> getAllAccounts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        List<UsersEntity> users = accountService.getAccountsPaginated(page, size);
+        PaginationMetaDataEntity metaData = accountService.getPaginationMetaData();
+        return ResponseEntity.ok(new PaginatedResponseDto<>(users, page, size, metaData));
+    }
 
     @DeleteMapping("/{email}")
     public ResponseEntity<Void> deleteAccount(@PathVariable String email) {
@@ -37,5 +41,4 @@ public class AccountController {
         accountService.upgradeToAdmin(email);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(null);
     }
-    
 }

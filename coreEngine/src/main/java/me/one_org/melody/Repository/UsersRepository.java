@@ -53,6 +53,18 @@ public class UsersRepository {
                 .getResultList();
     }
 
+    public List<UsersEntity> findAllPaginated(int page, int size) {
+        return entityManager.createQuery("SELECT u FROM UsersEntity u ORDER BY u.createdAt DESC", UsersEntity.class)
+                .setFirstResult(page * size)
+                .setMaxResults(size)
+                .getResultList();
+    }
+
+    public long count() {
+        return entityManager.createQuery("SELECT COUNT(u) FROM UsersEntity u", Long.class)
+                .getSingleResult();
+    }
+
     @Transactional
     public void deleteById(String id) {
         UsersEntity user = entityManager.find(UsersEntity.class, id);

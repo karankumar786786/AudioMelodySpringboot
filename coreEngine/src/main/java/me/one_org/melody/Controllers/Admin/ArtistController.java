@@ -9,7 +9,9 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import me.one_org.melody.Dto.Controllers.Admin.CreateArtistRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.UpdateArtistRequestDto;
+import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Entity.ArtistsEntity;
+import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Services.Genral.ArtistService;
 
 @RestController
@@ -28,7 +30,7 @@ public class ArtistController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ArtistsEntity> updateArtist(@PathVariable String id,@Valid @RequestBody UpdateArtistRequestDto data) {
+    public ResponseEntity<ArtistsEntity> updateArtist(@PathVariable String id, @Valid @RequestBody UpdateArtistRequestDto data) {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(artistService.updateArtist(id, data));
     }
 
@@ -39,8 +41,12 @@ public class ArtistController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ArtistsEntity>> getAllArtists() {
-        return ResponseEntity.ok(artistService.getAllArtists());
+    public ResponseEntity<PaginatedResponseDto<ArtistsEntity>> getAllArtists(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        List<ArtistsEntity> artists = artistService.getArtistsPaginated(page, size);
+        PaginationMetaDataEntity metaData = artistService.getPaginationMetaData();
+        return ResponseEntity.ok(new PaginatedResponseDto<>(artists, page, size, metaData));
     }
 
     @GetMapping("/{id}")

@@ -10,6 +10,8 @@ import jakarta.validation.Valid;
 import me.one_org.melody.Dto.Controllers.Admin.AddSongToPlaylistRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.CreatePlaylistRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.UpdatePlaylistRequestDto;
+import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
+import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.PlaylistsEntity;
 import me.one_org.melody.Services.Genral.PlaylistService;
 
@@ -41,8 +43,12 @@ public class PlaylistController {
     }
 
     @GetMapping
-    public ResponseEntity<List<PlaylistsEntity>> getAllPlaylists() {
-        return ResponseEntity.ok(playlistService.getAllPlaylists());
+    public ResponseEntity<PaginatedResponseDto<PlaylistsEntity>> getAllPlaylists(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        List<PlaylistsEntity> playlists = playlistService.getPlaylistsPaginated(page, size);
+        PaginationMetaDataEntity metaData = playlistService.getPaginationMetaData();
+        return ResponseEntity.ok(new PaginatedResponseDto<>(playlists, page, size, metaData));
     }
 
     @GetMapping("/{id}")

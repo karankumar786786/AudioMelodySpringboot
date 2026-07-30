@@ -5,7 +5,9 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Entity.ArtistsEntity;
+import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Services.App.ArtistAppService;
 
 @RestController
@@ -19,8 +21,12 @@ public class ArtistController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ArtistsEntity>> getAllArtists() {
-        return ResponseEntity.ok(artistAppService.getAllArtists());
+    public ResponseEntity<PaginatedResponseDto<ArtistsEntity>> getAllArtists(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        List<ArtistsEntity> artists = artistAppService.getArtistsPaginated(page, size);
+        PaginationMetaDataEntity metaData = artistAppService.getPaginationMetaData();
+        return ResponseEntity.ok(new PaginatedResponseDto<>(artists, page, size, metaData));
     }
 
     @GetMapping("/{id}")

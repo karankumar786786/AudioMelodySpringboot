@@ -36,6 +36,22 @@ public class UserPlaylistsRepository {
                 .getResultList();
     }
 
+    public List<UserPlaylistsEntity> findByUserPaginated(UsersEntity user, int page, int size) {
+        return entityManager.createQuery(
+                "SELECT up FROM UserPlaylistsEntity up WHERE up.user = :user", UserPlaylistsEntity.class)
+                .setParameter("user", user)
+                .setFirstResult(page * size)
+                .setMaxResults(size)
+                .getResultList();
+    }
+
+    public long countByUser(UsersEntity user) {
+        return entityManager.createQuery(
+                "SELECT COUNT(up) FROM UserPlaylistsEntity up WHERE up.user = :user", Long.class)
+                .setParameter("user", user)
+                .getSingleResult();
+    }
+
     @Transactional
     public void deleteById(String id) {
         UserPlaylistsEntity playlist = entityManager.find(UserPlaylistsEntity.class, id);

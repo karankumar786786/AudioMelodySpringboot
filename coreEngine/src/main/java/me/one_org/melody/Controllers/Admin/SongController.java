@@ -9,7 +9,9 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import me.one_org.melody.Dto.Controllers.Admin.CreateSongRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.CreateSongResponseDto;
+import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Entity.JobsEntity;
+import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.SongsEntity;
 import me.one_org.melody.Services.Genral.SongService;
 
@@ -30,8 +32,12 @@ public class SongController {
     }
 
     @GetMapping
-    public ResponseEntity<List<SongsEntity>> getAllSongs() {
-        return ResponseEntity.ok(songService.getAllSongs());
+    public ResponseEntity<PaginatedResponseDto<SongsEntity>> getAllSongs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        List<SongsEntity> songs = songService.getSongsPaginated(page, size);
+        PaginationMetaDataEntity metaData = songService.getSongsPaginationMetaData();
+        return ResponseEntity.ok(new PaginatedResponseDto<>(songs, page, size, metaData));
     }
 
     @GetMapping("/{id}")
@@ -51,7 +57,11 @@ public class SongController {
     }
 
     @GetMapping("/jobs")
-    public ResponseEntity<List<JobsEntity>> getAllJobs() {
-        return ResponseEntity.ok(songService.getAllJobs());
+    public ResponseEntity<PaginatedResponseDto<JobsEntity>> getAllJobs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        List<JobsEntity> jobs = songService.getJobsPaginated(page, size);
+        PaginationMetaDataEntity metaData = songService.getJobsPaginationMetaData();
+        return ResponseEntity.ok(new PaginatedResponseDto<>(jobs, page, size, metaData));
     }
 }

@@ -15,17 +15,22 @@ import me.one_org.melody.Entity.ArtistsEntity;
 import me.one_org.melody.ImageStorage.ImageKit;
 import me.one_org.melody.Repository.ArtistsRepository;
 
+import me.one_org.melody.Entity.PaginationMetaDataEntity;
+
 @Service
 public class ArtistService {
 
     private final ArtistsRepository artistsRepository;
     private final AlgoliaSearch algoliaSearch;
     private final ImageKit imageKit;
+    private final PaginationMetaDataService paginationMetaDataService;
 
-    public ArtistService(ArtistsRepository artistsRepository, AlgoliaSearch algoliaSearch, ImageKit imageKit) {
+    public ArtistService(ArtistsRepository artistsRepository, AlgoliaSearch algoliaSearch,
+                         ImageKit imageKit, PaginationMetaDataService paginationMetaDataService) {
         this.artistsRepository = artistsRepository;
         this.algoliaSearch = algoliaSearch;
         this.imageKit = imageKit;
+        this.paginationMetaDataService = paginationMetaDataService;
     }
 
     @Transactional
@@ -39,6 +44,7 @@ public class ArtistService {
                 .bannerImageKey(data.bannerImageKey())
                 .build();
         artistsRepository.save(artist);
+        paginationMetaDataService.incrementStatus("ArtistsEntity", artist.getStatus());
         try {
             algoliaSearch.save(artist);
         } catch (Exception e) {
@@ -89,11 +95,20 @@ public class ArtistService {
         imageKit.deleteByKey(artist.getCoverImageKey());
         algoliaSearch.delete(id);
         artistsRepository.deleteById(id);
+        paginationMetaDataService.decrementStatus("ArtistsEntity", artist.getStatus());
     }
 
     public ArtistsEntity getArtistById(String id) {
         return artistsRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Artist not found"));
+    }
+
+    public List<ArtistsEntity> getArtistsPaginated(int page, int size) {
+        return artistsRepository.findAllPaginated(page, size);
+    }
+
+    public PaginationMetaDataEntity getPaginationMetaData() {
+        return paginationMetaDataService.getMetaData("ArtistsEntity");
     }
 
     public List<ArtistsEntity> getAllArtists() {

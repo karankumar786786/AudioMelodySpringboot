@@ -33,6 +33,18 @@ public class PlaylistsRepository {
                 .getResultList();
     }
 
+    public List<PlaylistsEntity> findAllPaginated(int page, int size) {
+        return entityManager.createQuery("SELECT p FROM PlaylistsEntity p ORDER BY p.createdAt DESC", PlaylistsEntity.class)
+                .setFirstResult(page * size)
+                .setMaxResults(size)
+                .getResultList();
+    }
+
+    public long count() {
+        return entityManager.createQuery("SELECT COUNT(p) FROM PlaylistsEntity p", Long.class)
+                .getSingleResult();
+    }
+
     public List<PlaylistsEntity> findAllByIds(List<String> ids) {
         if (ids == null || ids.isEmpty()) return List.of();
         return entityManager.createQuery(
