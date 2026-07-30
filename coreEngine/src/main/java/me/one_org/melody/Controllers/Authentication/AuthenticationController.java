@@ -13,16 +13,16 @@ import jakarta.validation.Valid;
 import me.one_org.melody.Dto.RegisterAndLoginResponse;
 import me.one_org.melody.Dto.RegisterRequestDto;
 import me.one_org.melody.Dto.VerifyOtpResponse;
+import me.one_org.melody.Services.Authentication.AuthenticationService;
 import me.one_org.melody.Dto.VerifyOtpRequest;
-import me.one_org.melody.Services.AuthenticationService;
 
 @RestController
 @RequestMapping("/auth")
-public class Authentication {
+public class AuthenticationController {
 
     private final AuthenticationService authenticationService;
 
-    public Authentication(AuthenticationService authenticationService){
+    public AuthenticationController(AuthenticationService authenticationService){
         this.authenticationService = authenticationService;
     }
 

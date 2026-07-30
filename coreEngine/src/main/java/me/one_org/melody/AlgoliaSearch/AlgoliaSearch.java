@@ -14,9 +14,9 @@ import com.algolia.model.search.*;
 
 import jakarta.annotation.PostConstruct;
 import me.one_org.melody.Dto.SearchResult;
-import me.one_org.melody.Entity.Artists;
-import me.one_org.melody.Entity.Playlists;
-import me.one_org.melody.Entity.Songs;
+import me.one_org.melody.Entity.ArtistsEntity;
+import me.one_org.melody.Entity.PlaylistsEntity;
+import me.one_org.melody.Entity.SongsEntity;
 
 @Component
 public class AlgoliaSearch {
@@ -39,7 +39,7 @@ public class AlgoliaSearch {
                 "name")));
     }
 
-    public void save(Songs songs) throws Exception {
+    public void save(SongsEntity songs) throws Exception {
         Map<String, Object> record = new HashMap<>();
         record.put("objectID", songs.getId()); // capital ID is required by Algolia
         record.put("type", "song");
@@ -52,7 +52,7 @@ public class AlgoliaSearch {
         searchClient.saveObject(indexName, record);
     }
 
-    public void save(Artists artists) throws Exception {
+    public void save(ArtistsEntity artists) throws Exception {
         Map<String, Object> record = new HashMap<>();
         record.put("objectID", artists.getId());
         record.put("type", "artist");
@@ -64,7 +64,7 @@ public class AlgoliaSearch {
         searchClient.saveObject(indexName, record);
     }
 
-    public void save(Playlists playlists) throws Exception {
+    public void save(PlaylistsEntity playlists) throws Exception {
         Map<String, Object> record = new HashMap<>();
         record.put("objectID", playlists.getId());
         record.put("type", "playlist");
@@ -80,9 +80,9 @@ public class AlgoliaSearch {
     }
 
     public SearchResult search(String query) {
-        List<Songs> songs = new ArrayList<>();
-        List<Artists> artists = new ArrayList<>();
-        List<Playlists> playlists = new ArrayList<>();
+        List<SongsEntity> songs = new ArrayList<>();
+        List<ArtistsEntity> artists = new ArrayList<>();
+        List<PlaylistsEntity> playlists = new ArrayList<>();
 
         try {
             var response = searchClient.searchSingleIndex(
@@ -98,7 +98,7 @@ public class AlgoliaSearch {
                     continue;
                 switch (type) {
                     case "song" -> {
-                        Songs song = Songs.builder()
+                        SongsEntity song = SongsEntity.builder()
                                 .id((String) h.get("objectID"))
                                 .title((String) h.get("title"))
                                 .artistName((String) h.get("artistName"))
@@ -110,7 +110,7 @@ public class AlgoliaSearch {
                         songs.add(song);
                     }
                     case "artist" -> {
-                        Artists artist = Artists.builder()
+                        ArtistsEntity artist = ArtistsEntity.builder()
                                 .id((String) h.get("objectID"))
                                 .name((String) h.get("name"))
                                 .about((String) h.get("about"))
@@ -124,7 +124,7 @@ public class AlgoliaSearch {
                         artists.add(artist);
                     }
                     case "playlist" -> {
-                        Playlists playlist = Playlists.builder()
+                        PlaylistsEntity playlist = PlaylistsEntity.builder()
                                 .id((String) h.get("objectID"))
                                 .name((String) h.get("name"))
                                 .description((String) h.get("description"))

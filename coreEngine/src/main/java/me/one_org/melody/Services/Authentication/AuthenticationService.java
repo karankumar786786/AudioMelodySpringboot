@@ -1,4 +1,4 @@
-package me.one_org.melody.Services;
+package me.one_org.melody.Services.Authentication;
 
 
 import org.springframework.http.HttpStatus;
@@ -13,8 +13,8 @@ import me.one_org.melody.Dto.JwtPayloadDto;
 import me.one_org.melody.Dto.OtpDataDto;
 import me.one_org.melody.Dto.RegisterRequestDto;
 import me.one_org.melody.Dto.VerifyOtpResponse;
-import me.one_org.melody.Entity.Users;
-import me.one_org.melody.Enums.Role;
+import me.one_org.melody.Entity.UsersEntity;
+import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Repository.UsersRepository;
 import me.one_org.melody.Utils.HmacUtil;
 import me.one_org.melody.Utils.JwtUtil;
@@ -81,11 +81,11 @@ public class AuthenticationService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already in use");
         }
         // Create and save User
-        Users user = Users.builder()
+        UsersEntity user = UsersEntity.builder()
                 .id(UUID.randomUUID().toString())
                 .userName(data.userName())
                 .email(data.email())
-                .role(Role.USER)
+                .role(RoleEnum.USER)
                 .build();
         usersRepository.save(user);
         // Clean up cache

@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @Builder
-public class Artists implements Serializable {
+public class ArtistsEntity implements Serializable {
 
     @Id
     private String id;

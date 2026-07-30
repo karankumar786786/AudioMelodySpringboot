@@ -42,7 +42,7 @@ public class JwtUtil {
             claims.get("id", String.class),
             claims.get("userName", String.class),
             claims.get("email", String.class),
-            claims.get("role") != null ? me.one_org.melody.Enums.Role.valueOf(claims.get("role", String.class)) : null
+            claims.get("role") != null ? me.one_org.melody.Enums.RoleEnum.valueOf(claims.get("role", String.class)) : null
         );
     }
 }

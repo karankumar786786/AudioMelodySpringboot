@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/admin/playlist")
-public class Playlist {
+public class PlaylistController {
     public void createPlaylist(){
 
     }

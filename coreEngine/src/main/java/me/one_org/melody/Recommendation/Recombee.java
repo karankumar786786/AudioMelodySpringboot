@@ -15,8 +15,8 @@ import com.recombee.api_client.bindings.RecommendationResponse;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import me.one_org.melody.Entity.Jobs;
-import me.one_org.melody.Entity.Songs;
+import me.one_org.melody.Entity.JobsEntity;
+import me.one_org.melody.Entity.SongsEntity;
 
 /*
  * ╔══════════════════════════════════════════════════════════════╗
@@ -66,7 +66,7 @@ public class Recombee {
         log.debug("properties are set in recombee");
     }
 
-    public void save(Jobs job) throws Exception {
+    public void save(JobsEntity job) throws Exception {
         Map<String, Object> record = new HashMap<>();
         record.put("title", job.getTitle());
         record.put("artistName", job.getArtistName());
@@ -126,14 +126,14 @@ public class Recombee {
     public void trackPlaylistRemove(String userId, String songId) throws Exception {
         recombeeClient.send(new AddRating(userId, songId, -0.4).setCascadeCreate(true));
     }
-    public List<Songs> recommendForUser(String userId, int count) throws Exception {
+    public List<SongsEntity> recommendForUser(String userId, int count) throws Exception {
         RecommendationResponse response = recombeeClient.send(
                 new RecommendItemsToUser(userId, count)
                         .setCascadeCreate(true)
                         .setReturnProperties(true));
-        List<Songs> songs = new ArrayList<>();
+        List<SongsEntity> songs = new ArrayList<>();
         for (Recommendation hit : response) {
-            songs.add(Songs.builder()
+            songs.add(SongsEntity.builder()
                     .id(hit.getId())
                     .title((String) hit.getValues().get("title"))
                     .artistName((String) hit.getValues().get("artistName"))
@@ -148,14 +148,14 @@ public class Recombee {
         return songs;
     }
 
-    public List<Songs> recommendSimilar(String songId, int count) throws Exception {
+    public List<SongsEntity> recommendSimilar(String songId, int count) throws Exception {
         RecommendationResponse response = recombeeClient.send(
                 new RecommendItemsToItem(songId, null, count)
                         .setReturnProperties(true));
 
-        List<Songs> songs = new ArrayList<>();
+        List<SongsEntity> songs = new ArrayList<>();
         for (Recommendation hit : response) {
-            songs.add(Songs.builder()
+            songs.add(SongsEntity.builder()
                     .id(hit.getId())
                     .title((String) hit.getValues().get("title"))
                     .artistName((String) hit.getValues().get("artistName"))

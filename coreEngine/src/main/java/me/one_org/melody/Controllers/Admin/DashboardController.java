@@ -1,5 +1,5 @@
 package me.one_org.melody.Controllers.Admin;
 
-public class Dashboard {
+public class DashboardController {
     
 }

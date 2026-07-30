@@ -8,7 +8,7 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @Builder
-public class UserPlaylists {
+public class UserPlaylistsEntity {
 
     @Id
     private String id;
@@ -18,7 +18,7 @@ public class UserPlaylists {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private Users user;
+    private UsersEntity user;
 
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
@@ -26,6 +26,6 @@ public class UserPlaylists {
         joinColumns = @JoinColumn(name = "user_playlist_id"),
         inverseJoinColumns = @JoinColumn(name = "song_id")
     )
-    private java.util.Set<Songs> songs;
+    private java.util.Set<SongsEntity> songs;
 }
 

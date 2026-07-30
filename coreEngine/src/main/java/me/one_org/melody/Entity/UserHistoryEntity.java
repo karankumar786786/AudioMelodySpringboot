@@ -11,18 +11,18 @@ import java.time.LocalDateTime;
 @Data
 @AllArgsConstructor
 @Builder
-public class UserHistory {
+public class UserHistoryEntity {
 
     @Id
     private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private Users user;
+    private UsersEntity user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "song_id", nullable = false)
-    private Songs song;
+    private SongsEntity song;
 
     @Column(nullable = false)
     private Integer part;

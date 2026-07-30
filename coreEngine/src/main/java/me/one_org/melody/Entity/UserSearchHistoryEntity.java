@@ -8,14 +8,14 @@ import lombok.*;
 @Data
 @AllArgsConstructor
 @Builder
-public class UserSearchHistory {
+public class UserSearchHistoryEntity {
 
     @Id
     private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private Users user;
+    private UsersEntity user;
 
     @Column(nullable = false)
     private String searchedText;

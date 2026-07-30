@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/admin/artist")
-public class Artist {
+public class ArtistController {
     public void createArtist(){}
     public void updateArtist(){}
     public void deleteArtist(){}

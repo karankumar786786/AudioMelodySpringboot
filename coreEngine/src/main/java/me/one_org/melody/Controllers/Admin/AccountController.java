@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/admin/account")
-public class Account {
+public class AccountController {
     public void createAccount(){}
     public void deleteAccount(){}
     public void getAllAccounts(){}

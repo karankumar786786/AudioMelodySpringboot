@@ -1,5 +1,5 @@
 package me.one_org.melody.Enums;
 
-public enum JobStatus {
+public enum JobStatusEnum {
     PENDING, PROCESSING, COMPLETED, FAILED
 }

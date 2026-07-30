@@ -5,7 +5,7 @@ import jakarta.validation.constraints.Email;
 import lombok.*;
 import lombok.Builder.Default;
 import org.hibernate.annotations.CreationTimestamp;
-import me.one_org.melody.Enums.Role;
+import me.one_org.melody.Enums.RoleEnum;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -16,7 +16,7 @@ import java.util.Set;
 @Data
 @AllArgsConstructor
 @Builder
-public class Users {
+public class UsersEntity {
 
     @Id
     private String id;
@@ -29,7 +29,7 @@ public class Users {
 
     @Default
     @Enumerated(EnumType.STRING)
-    private Role role = Role.USER;
+    private RoleEnum role = RoleEnum.USER;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
@@ -40,14 +40,14 @@ public class Users {
         joinColumns = @JoinColumn(name = "user_id"),
         inverseJoinColumns = @JoinColumn(name = "song_id")
     )
-    private Set<Songs> favouriteSongs;
+    private Set<SongsEntity> favouriteSongs;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<UserPlaylists> playlists;
+    private List<UserPlaylistsEntity> playlists;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<UserHistory> listeningHistory;
+    private List<UserHistoryEntity> listeningHistory;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<UserSearchHistory> searchHistory;
+    private List<UserSearchHistoryEntity> searchHistory;
 }

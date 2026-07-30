@@ -1,7 +1,7 @@
 package me.one_org.melody.Dto;
 
 import jakarta.validation.constraints.NotBlank;
-import me.one_org.melody.Enums.Role;
+import me.one_org.melody.Enums.RoleEnum;
 
 public record JwtPayloadDto(
     @NotBlank
@@ -11,5 +11,5 @@ public record JwtPayloadDto(
     @NotBlank
     String email,
     @NotBlank
-    Role role
+    RoleEnum role
 ) {}

@@ -1,7 +1,7 @@
 package me.one_org.melody.Configuration;
 
-import me.one_org.melody.Entity.Users;
-import me.one_org.melody.Enums.Role;
+import me.one_org.melody.Entity.UsersEntity;
+import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Repository.UsersRepository;
 
 
@@ -30,11 +30,11 @@ public class DatabaseSeeder implements CommandLineRunner {
             throw new Exception();
         };
         if (!usersRepository.existsById(adminId)) {
-            Users admin = Users.builder()
+            UsersEntity admin = UsersEntity.builder()
                     .id(adminId)
                     .userName(adminName)
                     .email(adminEmail)
-                    .role(Role.ADMIN)
+                    .role(RoleEnum.ADMIN)
                     .build();
             if (admin == null) {
                 throw new Exception();

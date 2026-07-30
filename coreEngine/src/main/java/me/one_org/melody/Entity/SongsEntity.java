@@ -13,7 +13,7 @@ import java.util.Set;
 @Builder
 @Data
 @AllArgsConstructor
-public class Songs implements Serializable{
+public class SongsEntity implements Serializable{
 
     @Id
     private String id;
@@ -38,17 +38,17 @@ public class Songs implements Serializable{
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "job_id", nullable = false)
-    private Jobs jobId;
+    private JobsEntity jobId;
 
     @CreationTimestamp
     private LocalDateTime createdAt;
 
     @ManyToMany(mappedBy = "favouriteSongs", fetch = FetchType.LAZY)
-    private Set<Users> favouritedBy;
+    private Set<UsersEntity> favouritedBy;
 
     @ManyToMany(mappedBy = "songs", fetch = FetchType.LAZY)
-    private Set<Playlists> playlists;
+    private Set<PlaylistsEntity> playlists;
 
     @ManyToMany(mappedBy = "songs", fetch = FetchType.LAZY)
-    private Set<UserPlaylists> userPlaylists;
+    private Set<UserPlaylistsEntity> userPlaylists;
 }

@@ -14,7 +14,7 @@ import java.util.Set;
 @Data
 @AllArgsConstructor
 @Builder
-public class Playlists implements Serializable{
+public class PlaylistsEntity implements Serializable{
 
     @Id
     private String id;
@@ -35,6 +35,6 @@ public class Playlists implements Serializable{
         joinColumns = @JoinColumn(name = "playlist_id"),
         inverseJoinColumns = @JoinColumn(name = "song_id")
     )
-    private Set<Songs> songs;
+    private Set<SongsEntity> songs;
 }
 

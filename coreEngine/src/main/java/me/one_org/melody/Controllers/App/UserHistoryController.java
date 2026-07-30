@@ -1,5 +1,5 @@
 package me.one_org.melody.Controllers.App;
 
-public class Artist {
+public class UserHistoryController {
     
 }
