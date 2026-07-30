@@ -1,4 +1,4 @@
-package me.one_org.melody.Dto;
+package me.one_org.melody.Dto.AlgoliaSearch;
 
 import java.util.List;
 

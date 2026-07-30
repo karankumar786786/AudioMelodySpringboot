@@ -1,4 +1,4 @@
-package me.one_org.melody.Dto;
+package me.one_org.melody.Dto.Controllers.Authentication;
 
 public record ResponseDto<T>(
     boolean success,

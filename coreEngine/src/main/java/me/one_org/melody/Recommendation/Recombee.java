@@ -50,30 +50,11 @@ public class Recombee {
 
     @PostConstruct
     public void configureSchema() throws Exception {
-        recombeeClient.send(new AddItemProperty("title", "string"));
-        recombeeClient.send(new AddItemProperty("artistName", "string"));
-        recombeeClient.send(new AddItemProperty("duration", "int"));
-        recombeeClient.send(new AddItemProperty("songKey", "string"));
-        recombeeClient.send(new AddItemProperty("imageKey", "string"));
-        recombeeClient.send(new AddItemProperty("language", "string"));
-        recombeeClient.send(new AddItemProperty("sampleRate", "int"));
-        recombeeClient.send(new AddItemProperty("loudness", "double"));
-        recombeeClient.send(new AddItemProperty("dynamicComplexity", "double"));
-        recombeeClient.send(new AddItemProperty("bpm", "int"));
-        recombeeClient.send(new AddItemProperty("spectralCentroid", "double"));
-        recombeeClient.send(new AddItemProperty("spectralFlux", "double"));
-        recombeeClient.send(new AddItemProperty("zeroCrossingRate", "double"));
         log.debug("properties are set in recombee");
     }
 
     public void save(JobsEntity job) throws Exception {
         Map<String, Object> record = new HashMap<>();
-        record.put("title", job.getTitle());
-        record.put("artistName", job.getArtistName());
-        record.put("language", job.getLanguage());
-        record.put("duration", job.getDuration());
-        record.put("songKey", job.getSongKey());
-        record.put("imageKey", job.getImageKey());
     }
     public void delete(String songId) throws Exception {
         recombeeClient.send(new DeleteItem(songId));

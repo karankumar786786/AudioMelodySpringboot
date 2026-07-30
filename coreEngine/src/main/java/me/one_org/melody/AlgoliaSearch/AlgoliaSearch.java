@@ -13,7 +13,7 @@ import com.algolia.api.SearchClient;
 import com.algolia.model.search.*;
 
 import jakarta.annotation.PostConstruct;
-import me.one_org.melody.Dto.SearchResult;
+import me.one_org.melody.Dto.AlgoliaSearch.SearchResult;
 import me.one_org.melody.Entity.ArtistsEntity;
 import me.one_org.melody.Entity.PlaylistsEntity;
 import me.one_org.melody.Entity.SongsEntity;
@@ -45,9 +45,6 @@ public class AlgoliaSearch {
         record.put("type", "song");
         record.put("title", songs.getTitle());
         record.put("artistName", songs.getArtistName());
-        record.put("duration", songs.getDuration());
-        record.put("songKey", songs.getSongKey());
-        record.put("imageKey", songs.getImageKey());
         record.put("language", songs.getLanguage());
         searchClient.saveObject(indexName, record);
     }
@@ -57,10 +54,6 @@ public class AlgoliaSearch {
         record.put("objectID", artists.getId());
         record.put("type", "artist");
         record.put("name", artists.getName());
-        record.put("about", artists.getAbout());
-        record.put("dob", artists.getDob() != null ? artists.getDob().toEpochSecond(java.time.ZoneOffset.UTC) : null);
-        record.put("coverImageKey", artists.getCoverImageKey());
-        record.put("bannerImageKey", artists.getBannerImageKey());
         searchClient.saveObject(indexName, record);
     }
 
@@ -69,9 +62,6 @@ public class AlgoliaSearch {
         record.put("objectID", playlists.getId());
         record.put("type", "playlist");
         record.put("name", playlists.getName());
-        record.put("description", playlists.getDescription());
-        record.put("coverImageKey", playlists.getCoverImageKey());
-        record.put("bannerImageKey", playlists.getBannerImageKey());
         searchClient.saveObject(indexName, record);
     }
 

@@ -2,7 +2,7 @@ package me.one_org.melody.Utils;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import me.one_org.melody.Dto.JwtPayloadDto;
+import me.one_org.melody.Dto.Internal.JwtPayloadDto;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;

@@ -6,7 +6,6 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
-import java.util.Set;
 
 @Entity
 @Table(name = "songs")
@@ -42,13 +41,4 @@ public class SongsEntity implements Serializable{
 
     @CreationTimestamp
     private LocalDateTime createdAt;
-
-    @ManyToMany(mappedBy = "favouriteSongs", fetch = FetchType.LAZY)
-    private Set<UsersEntity> favouritedBy;
-
-    @ManyToMany(mappedBy = "songs", fetch = FetchType.LAZY)
-    private Set<PlaylistsEntity> playlists;
-
-    @ManyToMany(mappedBy = "songs", fetch = FetchType.LAZY)
-    private Set<UserPlaylistsEntity> userPlaylists;
 }

@@ -1,5 +1,7 @@
 package me.one_org.melody.Entity;
 
+import java.util.Set;
+
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -26,6 +28,6 @@ public class UserPlaylistsEntity {
         joinColumns = @JoinColumn(name = "user_playlist_id"),
         inverseJoinColumns = @JoinColumn(name = "song_id")
     )
-    private java.util.Set<SongsEntity> songs;
+    private Set<SongsEntity> songs;
 }
 

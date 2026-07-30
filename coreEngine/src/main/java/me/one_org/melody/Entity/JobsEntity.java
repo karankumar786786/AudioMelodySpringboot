@@ -13,8 +13,7 @@ import me.one_org.melody.Enums.JobStatusEnum;
 @Builder
 public class JobsEntity {
     @Id
-    private String jobId;
-    private String songId; // track id
+    private String id;
     @Column(nullable = false)
     private String title;
     @Column(nullable = false)

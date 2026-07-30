@@ -9,10 +9,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.annotation.PostConstruct;
 import me.one_org.melody.Cache.Redis;
-import me.one_org.melody.Dto.JwtPayloadDto;
-import me.one_org.melody.Dto.OtpDataDto;
-import me.one_org.melody.Dto.RegisterRequestDto;
-import me.one_org.melody.Dto.VerifyOtpResponse;
+import me.one_org.melody.Dto.Controllers.Authentication.RegisterRequestDto;
+import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpResponse;
+import me.one_org.melody.Dto.Internal.JwtPayloadDto;
+import me.one_org.melody.Dto.Internal.OtpDataDto;
 import me.one_org.melody.Entity.UsersEntity;
 import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Repository.UsersRepository;

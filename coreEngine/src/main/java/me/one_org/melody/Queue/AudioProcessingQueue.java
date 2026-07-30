@@ -4,7 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
-import me.one_org.melody.Dto.AudioProcessingQueueDto;
+import me.one_org.melody.Dto.Queue.AudioProcessingQueueDto;
 
 @Component
 public class AudioProcessingQueue {

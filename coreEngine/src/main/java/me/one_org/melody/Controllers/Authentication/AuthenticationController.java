@@ -10,11 +10,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
-import me.one_org.melody.Dto.RegisterAndLoginResponse;
-import me.one_org.melody.Dto.RegisterRequestDto;
-import me.one_org.melody.Dto.VerifyOtpResponse;
+import me.one_org.melody.Dto.Controllers.Authentication.RegisterAndLoginResponse;
+import me.one_org.melody.Dto.Controllers.Authentication.RegisterRequestDto;
+import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpRequest;
+import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpResponse;
 import me.one_org.melody.Services.Authentication.AuthenticationService;
-import me.one_org.melody.Dto.VerifyOtpRequest;
 
 @RestController
 @RequestMapping("/auth")

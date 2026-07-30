@@ -1,13 +1,12 @@
 package me.one_org.melody.Services.Admin;
 
-import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
-import me.one_org.melody.Dto.CreateSongRequestDto;
-import me.one_org.melody.Dto.CreateSongResponseDto;
+import me.one_org.melody.Dto.Controllers.Admin.CreateSongRequestDto;
+import me.one_org.melody.Dto.Controllers.Admin.CreateSongResponseDto;
 
 @Service
 public class SongService {

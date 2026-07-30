@@ -3,8 +3,8 @@ package me.one_org.melody.Controllers.Admin;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import me.one_org.melody.Dto.CreateSongRequestDto;
-import me.one_org.melody.Dto.CreateSongResponseDto;
+import me.one_org.melody.Dto.Controllers.Admin.CreateSongRequestDto;
+import me.one_org.melody.Dto.Controllers.Admin.CreateSongResponseDto;
 import me.one_org.melody.Services.Admin.SongService;
 
 import org.springframework.http.HttpStatus;
