@@ -1,0 +1,12 @@
+package me.one_org.melody.Dto.Controllers.Admin;
+
+import jakarta.validation.constraints.NotBlank;
+
+public record CreatePlaylistRequestDto(
+    @NotBlank String id,
+    @NotBlank String name,
+    String description,
+    @NotBlank String coverImageKey,
+    @NotBlank String bannerImageKey
+) {
+}
