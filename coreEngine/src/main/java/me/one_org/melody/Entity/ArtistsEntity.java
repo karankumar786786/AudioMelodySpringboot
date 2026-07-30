@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 @Table(name = "artists")
 @Data
 @AllArgsConstructor
+@NoArgsConstructor
 @Builder
 public class ArtistsEntity implements Serializable {
 

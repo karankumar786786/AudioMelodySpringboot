@@ -1,11 +1,14 @@
 package me.one_org.melody.Dto.Controllers.Admin;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+
 public record CreateSongRequestDto(
-    String title,
-    String artistName,
-    String duration,
-    String songTempKey,
-    String imageTempKey
+    @NotBlank String title,
+    @NotBlank String artistName,
+    @NotNull Integer duration,
+    @NotBlank String tempSongKey,
+    @NotBlank String imageKey,
+    String language
 ) {
-    
 }

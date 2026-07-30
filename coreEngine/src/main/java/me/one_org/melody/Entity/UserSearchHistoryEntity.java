@@ -7,6 +7,7 @@ import lombok.*;
 @Table(name = "user_search_history")
 @Data
 @AllArgsConstructor
+@NoArgsConstructor
 @Builder
 public class UserSearchHistoryEntity {
 

@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 @Table(name = "user_history")
 @Data
 @AllArgsConstructor
+@NoArgsConstructor
 @Builder
 public class UserHistoryEntity {
 

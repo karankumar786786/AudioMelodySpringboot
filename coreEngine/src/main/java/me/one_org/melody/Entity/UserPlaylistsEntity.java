@@ -9,6 +9,7 @@ import lombok.*;
 @Table(name = "user_playlists")
 @Data
 @AllArgsConstructor
+@NoArgsConstructor
 @Builder
 public class UserPlaylistsEntity {
 

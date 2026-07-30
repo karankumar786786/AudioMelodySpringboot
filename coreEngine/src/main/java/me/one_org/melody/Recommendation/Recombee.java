@@ -15,7 +15,6 @@ import com.recombee.api_client.bindings.RecommendationResponse;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import me.one_org.melody.Entity.JobsEntity;
 import me.one_org.melody.Entity.SongsEntity;
 
 /*
@@ -50,12 +49,36 @@ public class Recombee {
 
     @PostConstruct
     public void configureSchema() throws Exception {
-        log.debug("properties are set in recombee");
+        // Register item properties — these define what metadata Recombee knows about each song
+        try {
+            recombeeClient.send(new AddItemProperty("title", "string"));
+            recombeeClient.send(new AddItemProperty("artistName", "string"));
+            recombeeClient.send(new AddItemProperty("language", "string"));
+            log.info("Recombee item properties registered successfully");
+        } catch (Exception e) {
+            // Properties may already exist — Recombee throws if re-adding
+            log.debug("Recombee properties may already exist: {}", e.getMessage());
+        }
     }
 
-    public void save(JobsEntity job) throws Exception {
-        Map<String, Object> record = new HashMap<>();
+    // ── Save song item with properties ──
+
+    public void saveSong(SongsEntity song) throws Exception {
+        Map<String, Object> values = new HashMap<>();
+        values.put("title", song.getTitle());
+        values.put("artistName", song.getArtistName());
+        values.put("language", song.getLanguage());
+        recombeeClient.send(new SetItemValues(song.getId(), values).setCascadeCreate(true));
     }
+
+    public void saveSong(String songId, String title, String artistName, String language) throws Exception {
+        Map<String, Object> values = new HashMap<>();
+        values.put("title", title);
+        values.put("artistName", artistName);
+        values.put("language", language);
+        recombeeClient.send(new SetItemValues(songId, values).setCascadeCreate(true));
+    }
+
     public void delete(String songId) throws Exception {
         recombeeClient.send(new DeleteItem(songId));
     }
@@ -67,6 +90,8 @@ public class Recombee {
     public void deleteUser(String userId) throws Exception {
         recombeeClient.send(new DeleteUser(userId));
     }
+
+    // ── Interaction tracking ──
 
     // percentage: 0.0 - 1.0 (e.g. 0.87 means 87% of song was listened)
     public void trackPlay(String userId, String songId, double percentage) throws Exception {
@@ -107,47 +132,44 @@ public class Recombee {
     public void trackPlaylistRemove(String userId, String songId) throws Exception {
         recombeeClient.send(new AddRating(userId, songId, -0.4).setCascadeCreate(true));
     }
-    public List<SongsEntity> recommendForUser(String userId, int count) throws Exception {
+
+    // ── Recommendations — return only IDs, caller fetches from DB ──
+
+    public List<String> recommendForUser(String userId, int count) throws Exception {
         RecommendationResponse response = recombeeClient.send(
                 new RecommendItemsToUser(userId, count)
-                        .setCascadeCreate(true)
-                        .setReturnProperties(true));
-        List<SongsEntity> songs = new ArrayList<>();
+                        .setCascadeCreate(true));
+        List<String> songIds = new ArrayList<>();
         for (Recommendation hit : response) {
-            songs.add(SongsEntity.builder()
-                    .id(hit.getId())
-                    .title((String) hit.getValues().get("title"))
-                    .artistName((String) hit.getValues().get("artistName"))
-                    .songKey((String) hit.getValues().get("songKey"))
-                    .imageKey((String) hit.getValues().get("imageKey"))
-                    .language((String) hit.getValues().get("language"))
-                    .duration(hit.getValues().get("duration") != null
-                            ? ((Number) hit.getValues().get("duration")).intValue()
-                            : null)
-                    .build());
+            songIds.add(hit.getId());
         }
-        return songs;
+        return songIds;
     }
 
-    public List<SongsEntity> recommendSimilar(String songId, int count) throws Exception {
+    public List<String> recommendSimilar(String songId, int count) throws Exception {
         RecommendationResponse response = recombeeClient.send(
-                new RecommendItemsToItem(songId, null, count)
-                        .setReturnProperties(true));
-
-        List<SongsEntity> songs = new ArrayList<>();
+                new RecommendItemsToItem(songId, null, count));
+        List<String> songIds = new ArrayList<>();
         for (Recommendation hit : response) {
-            songs.add(SongsEntity.builder()
-                    .id(hit.getId())
-                    .title((String) hit.getValues().get("title"))
-                    .artistName((String) hit.getValues().get("artistName"))
-                    .songKey((String) hit.getValues().get("songKey"))
-                    .imageKey((String) hit.getValues().get("imageKey"))
-                    .language((String) hit.getValues().get("language"))
-                    .duration(hit.getValues().get("duration") != null
-                            ? ((Number) hit.getValues().get("duration")).intValue()
-                            : null)
-                    .build());
+            songIds.add(hit.getId());
         }
-        return songs;
+        return songIds;
+    }
+
+    // ── Bulk resync ──
+
+    public void reindexAll(List<SongsEntity> songs) throws Exception {
+        ArrayList<Request> requests = new ArrayList<>();
+        for (SongsEntity song : songs) {
+            Map<String, Object> values = new HashMap<>();
+            values.put("title", song.getTitle());
+            values.put("artistName", song.getArtistName());
+            values.put("language", song.getLanguage());
+            requests.add(new SetItemValues(song.getId(), values).setCascadeCreate(true));
+        }
+        if (!requests.isEmpty()) {
+            recombeeClient.send(new Batch(requests));
+        }
+        log.info("Reindexed {} songs in Recombee", songs.size());
     }
 }

@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 @Builder
 @Data
 @AllArgsConstructor
+@NoArgsConstructor
 public class SongsEntity implements Serializable{
 
     @Id
@@ -37,7 +38,7 @@ public class SongsEntity implements Serializable{
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "job_id", nullable = false)
-    private JobsEntity jobId;
+    private JobsEntity job;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

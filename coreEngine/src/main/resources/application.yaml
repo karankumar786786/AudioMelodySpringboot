@@ -68,9 +68,19 @@ algolia:
   index-name: ${ALGOLIA_INDEX_NAME:default_algolia_index_name}
 
 recombee:
-  database-id: ${RECOMBEE_DATBASE_ID:default_recombee_db_id}
-  secret-token: ${RECOMBEE_DATBASE_SECRET:default_recombee_token}
-  region: ${RECOMBEE_DATBASE_REGION:ap-south-1}
+  database-id: ${RECOMBEE_DATABASE_ID:default_recombee_db_id}
+  secret-token: ${RECOMBEE_DATABASE_SECRET:default_recombee_token}
+  region: ${RECOMBEE_DATABASE_REGION:EU_WEST}
+
+aws:
+  accesskeyid: ${AWS_ACCESS_KEY_ID:default_access_key}
+  secretkey: ${AWS_SECRET_ACCESS_KEY:default_secret_key}
+  region: ${AWS_REGION:ap-south-1}
+  endpoint: ${AWS_ENDPOINT:}
+
+s3:
+  temp-bucket: ${S3_TEMP_BUCKET:melody-temp}
+  song-bucket: ${S3_SONG_BUCKET:melody-songs}
 
 audio-processing:
     api:

@@ -80,9 +80,9 @@
     "description": "A description for 'imagekit.url-endpoint'"
   },
   {
-    "name": "spring.data.redis.emailqueue",
+    "name": "spring.data.redis.mailqueue",
     "type": "java.lang.String",
-    "description": "A description for 'spring.data.redis.emailqueue'"
+    "description": "A description for 'spring.data.redis.mailqueue'"
   },
   {
     "name": "spring.data.redis.audioprocessingqueue",
@@ -90,8 +90,33 @@
     "description": "A description for 'spring.data.redis.audioprocessingqueue'"
   },
   {
-    "name": "spring.data.redis.mailqueue",
+    "name": "aws.accesskeyid",
     "type": "java.lang.String",
-    "description": "A description for 'spring.data.redis.mailqueue'"
+    "description": "AWS access key ID for S3"
+  },
+  {
+    "name": "aws.secretkey",
+    "type": "java.lang.String",
+    "description": "AWS secret access key for S3"
+  },
+  {
+    "name": "aws.region",
+    "type": "java.lang.String",
+    "description": "AWS region for S3"
+  },
+  {
+    "name": "aws.endpoint",
+    "type": "java.lang.String",
+    "description": "Custom S3-compatible endpoint URL (optional)"
+  },
+  {
+    "name": "s3.temp-bucket",
+    "type": "java.lang.String",
+    "description": "S3 bucket for temporary song uploads"
+  },
+  {
+    "name": "s3.song-bucket",
+    "type": "java.lang.String",
+    "description": "S3 bucket for processed songs"
   }
 ]}

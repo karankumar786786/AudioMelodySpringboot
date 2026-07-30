@@ -13,6 +13,7 @@ import java.util.Set;
 @Table(name = "playlists")
 @Data
 @AllArgsConstructor
+@NoArgsConstructor
 @Builder
 public class PlaylistsEntity implements Serializable{
 
