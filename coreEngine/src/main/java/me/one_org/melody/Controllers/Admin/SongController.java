@@ -1,7 +1,6 @@
 package me.one_org.melody.Controllers.Admin;
 
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -44,12 +43,6 @@ public class SongController {
     public ResponseEntity<Void> deleteSong(@PathVariable String id) {
         songService.deleteSong(id);
         return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/upload-url")
-    public ResponseEntity<Map<String, String>> getUploadUrl(@RequestParam String fileName) {
-        String url = songService.getUploadUrl(fileName);
-        return ResponseEntity.ok(Map.of("uploadUrl", url));
     }
 
     @GetMapping("/job/{id}")

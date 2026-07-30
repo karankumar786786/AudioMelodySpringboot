@@ -81,6 +81,7 @@ aws:
 s3:
   temp-bucket: ${S3_TEMP_BUCKET:melody-temp}
   song-bucket: ${S3_SONG_BUCKET:melody-songs}
+  temp-url-validity-min: 30
 
 audio-processing:
     api:

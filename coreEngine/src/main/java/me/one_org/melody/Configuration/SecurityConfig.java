@@ -19,11 +19,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
-    private final ApiKeyFilture apiKeyFilter;
+    // private final ApiKeyFilture apiKeyFilter;
 
     public SecurityConfig(JwtFilter jwtFilter, ApiKeyFilture apiKeyFilter){
         this.jwtFilter = jwtFilter;
-        this.apiKeyFilter = apiKeyFilter;
+        // this.apiKeyFilter = apiKeyFilter;
     }
 
     @Bean

@@ -10,11 +10,11 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 @Component
-public class s3 {
+public class S3 {
     private final S3Client s3Client;
     private final S3Presigner s3Presigner;
 
-    public s3(S3Client s3Client,S3Presigner s3Presigner){
+    public S3(S3Client s3Client,S3Presigner s3Presigner){
         this.s3Client = s3Client;
         this.s3Presigner = s3Presigner;
     }

@@ -20,4 +20,12 @@ public class ImageKit {
         Map<String, String> params = (Map<String, String>) (Map<?, ?>) imageKitSdk.getAuthenticationParameters();
         return params;
     }
+
+    public void deleteByKey(String key){
+        try {
+            imageKitSdk.deleteFile(key);
+        } catch (Exception e) {
+            // handle exception
+        }
+    }
 }

@@ -1,6 +1,6 @@
 package me.one_org.melody.Services.Admin;
 
-import java.time.Duration;
+
 import java.util.List;
 import java.util.UUID;
 
@@ -10,20 +10,23 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
-import me.one_org.melody.BlobStrorage.s3;
+import me.one_org.melody.BlobStrorage.S3;
 import me.one_org.melody.Dto.Controllers.Admin.CreateSongRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.CreateSongResponseDto;
 import me.one_org.melody.Dto.Queue.AudioProcessingQueueDto;
 import me.one_org.melody.Entity.JobsEntity;
 import me.one_org.melody.Entity.SongsEntity;
 import me.one_org.melody.Enums.JobStatusEnum;
+import me.one_org.melody.ImageStorage.ImageKit;
 import me.one_org.melody.Queue.AudioProcessingQueue;
 import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.JobsRepository;
 import me.one_org.melody.Repository.SongsRepository;
 
 @Service
+@Slf4j
 public class SongService {
 
     private final JobsRepository jobsRepository;
@@ -31,20 +34,26 @@ public class SongService {
     private final AudioProcessingQueue audioProcessingQueue;
     private final AlgoliaSearch algoliaSearch;
     private final Recombee recombee;
-    private final s3 s3Client;
+    private final S3 s3Client;
+    private final ImageKit imageKit;
 
     @Value("${s3.temp-bucket}")
     private String tempBucket;
+    @Value("${s3.temp-url-validity-min}")
+    private int tempUrlValidityMin;
+    @Value("${s3.song-bucket}")
+    private String productionBucket;
 
     public SongService(JobsRepository jobsRepository, SongsRepository songsRepository,
                        AudioProcessingQueue audioProcessingQueue, AlgoliaSearch algoliaSearch,
-                       Recombee recombee, s3 s3Client) {
+                       Recombee recombee, S3 s3Client,ImageKit imageKit) {
         this.jobsRepository = jobsRepository;
         this.songsRepository = songsRepository;
         this.audioProcessingQueue = audioProcessingQueue;
         this.algoliaSearch = algoliaSearch;
         this.recombee = recombee;
         this.s3Client = s3Client;
+        this.imageKit = imageKit;
     }
 
     @Transactional
@@ -88,21 +97,23 @@ public class SongService {
     public void deleteSong(String id) {
         SongsEntity song = songsRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Song not found"));
-
-        // Remove from Algolia
         try {
             algoliaSearch.delete(id);
         } catch (Exception e) {
-            // Log but don't fail
+            log.debug(e.getStackTrace().toString());
+            log.error(e.getMessage());
         }
-
-        // Remove from Recombee
         try {
             recombee.delete(id);
         } catch (Exception e) {
-            // Log but don't fail
+            log.debug(e.getStackTrace().toString());
+            log.error(e.getMessage());
         }
-
+        try {
+            s3Client.deleteObject(song.getSongKey(),productionBucket);
+        } catch (Exception e) {
+        }
+        imageKit.deleteByKey(song.getImageKey());
         songsRepository.deleteById(id);
     }
 
@@ -115,8 +126,4 @@ public class SongService {
         return jobsRepository.findAll();
     }
 
-    public String getUploadUrl(String fileName) {
-        String key = "uploads/" + UUID.randomUUID() + "/" + fileName;
-        return s3Client.preSignedUrl(key, tempBucket, Duration.ofMinutes(30));
-    }
 }

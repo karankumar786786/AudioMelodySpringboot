@@ -2,6 +2,7 @@ package me.one_org.melody.Services.Admin;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -13,6 +14,7 @@ import me.one_org.melody.Dto.Controllers.Admin.CreatePlaylistRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.UpdatePlaylistRequestDto;
 import me.one_org.melody.Entity.PlaylistsEntity;
 import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.ImageStorage.ImageKit;
 import me.one_org.melody.Repository.PlaylistsRepository;
 import me.one_org.melody.Repository.SongsRepository;
 
@@ -22,18 +24,21 @@ public class PlaylistService {
     private final PlaylistsRepository playlistsRepository;
     private final SongsRepository songsRepository;
     private final AlgoliaSearch algoliaSearch;
+    private final ImageKit imageKit;
 
     public PlaylistService(PlaylistsRepository playlistsRepository, SongsRepository songsRepository,
-                           AlgoliaSearch algoliaSearch) {
+                           AlgoliaSearch algoliaSearch,ImageKit imageKit) {
         this.playlistsRepository = playlistsRepository;
         this.songsRepository = songsRepository;
         this.algoliaSearch = algoliaSearch;
+        this.imageKit = imageKit;
     }
 
     @Transactional
     public PlaylistsEntity createPlaylist(CreatePlaylistRequestDto data) {
+        String id = UUID.randomUUID().toString();
         PlaylistsEntity playlist = PlaylistsEntity.builder()
-                .id(data.id())
+                .id(id)
                 .name(data.name())
                 .description(data.description())
                 .coverImageKey(data.coverImageKey())
@@ -73,8 +78,10 @@ public class PlaylistService {
 
     @Transactional
     public void deletePlaylist(String id) {
-        playlistsRepository.findById(id)
+        PlaylistsEntity playlist =  playlistsRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
+        imageKit.deleteByKey(playlist.getBannerImageKey());
+        imageKit.deleteByKey(playlist.getCoverImageKey());
         algoliaSearch.delete(id);
         playlistsRepository.deleteById(id);
     }
