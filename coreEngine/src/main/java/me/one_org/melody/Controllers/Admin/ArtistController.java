@@ -12,7 +12,7 @@ import me.one_org.melody.Dto.Controllers.Admin.UpdateArtistRequestDto;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Entity.ArtistsEntity;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
-import me.one_org.melody.Services.Genral.ArtistService;
+import me.one_org.melody.Services.General.ArtistService;
 
 @RestController
 @RequestMapping("/admin/artist")

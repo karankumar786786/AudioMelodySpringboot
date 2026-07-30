@@ -17,9 +17,8 @@ import me.one_org.melody.Enums.JobStatusEnum;
 import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.JobsRepository;
 import me.one_org.melody.Repository.SongsRepository;
-
+import me.one_org.melody.Services.General.PaginationMetaDataService;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
-import me.one_org.melody.Services.Genral.PaginationMetaDataService;
 
 @Service
 @Slf4j

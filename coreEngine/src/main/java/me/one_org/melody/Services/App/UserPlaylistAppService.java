@@ -17,7 +17,7 @@ import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserPlaylistsRepository;
 import me.one_org.melody.Repository.UsersRepository;
-import me.one_org.melody.Services.Genral.PaginationMetaDataService;
+import me.one_org.melody.Services.General.PaginationMetaDataService;
 
 @Service
 public class UserPlaylistAppService {

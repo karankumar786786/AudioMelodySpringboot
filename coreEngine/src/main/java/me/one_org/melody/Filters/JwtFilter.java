@@ -1,4 +1,4 @@
-package me.one_org.melody.Filtures;
+package me.one_org.melody.Filters;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;

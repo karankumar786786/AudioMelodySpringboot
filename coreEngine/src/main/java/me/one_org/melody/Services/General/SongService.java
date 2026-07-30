@@ -1,4 +1,4 @@
-package me.one_org.melody.Services.Genral;
+package me.one_org.melody.Services.General;
 
 import java.util.List;
 import java.util.UUID;
@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
-import me.one_org.melody.BlobStrorage.S3;
+import me.one_org.melody.BlobStorage.S3;
 import me.one_org.melody.Dto.Controllers.Admin.CreateSongRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.CreateSongResponseDto;
 import me.one_org.melody.Dto.Queue.AudioProcessingQueueDto;

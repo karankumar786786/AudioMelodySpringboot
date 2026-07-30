@@ -7,7 +7,7 @@ import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import me.one_org.melody.BlobStrorage.S3;
+import me.one_org.melody.BlobStorage.S3;
 import me.one_org.melody.ImageStorage.ImageKit;
 
 @Service

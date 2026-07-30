@@ -13,7 +13,7 @@ import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Entity.JobsEntity;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.SongsEntity;
-import me.one_org.melody.Services.Genral.SongService;
+import me.one_org.melody.Services.General.SongService;
 
 @RestController
 @RequestMapping("/admin/song")

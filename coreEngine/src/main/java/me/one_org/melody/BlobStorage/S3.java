@@ -1,4 +1,4 @@
-package me.one_org.melody.BlobStrorage;
+package me.one_org.melody.BlobStorage;
 
 import java.time.Duration;
 

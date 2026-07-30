@@ -9,7 +9,7 @@ import me.one_org.melody.Entity.ArtistsEntity;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Repository.ArtistsRepository;
-import me.one_org.melody.Services.Genral.PaginationMetaDataService;
+import me.one_org.melody.Services.General.PaginationMetaDataService;
 
 @Service
 public class ArtistAppService {

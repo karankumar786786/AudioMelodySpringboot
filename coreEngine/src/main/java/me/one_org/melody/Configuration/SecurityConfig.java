@@ -1,7 +1,5 @@
 package me.one_org.melody.Configuration;
 
-import me.one_org.melody.Filtures.ApiKeyFilture;
-import me.one_org.melody.Filtures.JwtFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -14,6 +12,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import me.one_org.melody.Filters.ApiKeyFilter;
+import me.one_org.melody.Filters.JwtFilter;
+
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -21,7 +22,7 @@ public class SecurityConfig {
     private final JwtFilter jwtFilter;
     // private final ApiKeyFilture apiKeyFilter;
 
-    public SecurityConfig(JwtFilter jwtFilter, ApiKeyFilture apiKeyFilter){
+    public SecurityConfig(JwtFilter jwtFilter, ApiKeyFilter apiKeyFilter){
         this.jwtFilter = jwtFilter;
         // this.apiKeyFilter = apiKeyFilter;
     }

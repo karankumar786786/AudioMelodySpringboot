@@ -12,7 +12,7 @@ import me.one_org.melody.Entity.UserHistoryEntity;
 import me.one_org.melody.Entity.UsersEntity;
 import me.one_org.melody.Repository.UserHistoryRepository;
 import me.one_org.melody.Repository.UsersRepository;
-import me.one_org.melody.Services.Genral.PaginationMetaDataService;
+import me.one_org.melody.Services.General.PaginationMetaDataService;
 
 @Service
 public class UserHistoryAppService {

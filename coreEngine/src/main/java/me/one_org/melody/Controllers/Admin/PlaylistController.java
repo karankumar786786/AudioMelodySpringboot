@@ -13,7 +13,7 @@ import me.one_org.melody.Dto.Controllers.Admin.UpdatePlaylistRequestDto;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.PlaylistsEntity;
-import me.one_org.melody.Services.Genral.PlaylistService;
+import me.one_org.melody.Services.General.PlaylistService;
 
 @RestController
 @RequestMapping("/admin/playlist")

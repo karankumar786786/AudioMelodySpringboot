@@ -1,4 +1,4 @@
-package me.one_org.melody.Filtures;
+package me.one_org.melody.Filters;
 
 import java.io.IOException;
 import java.util.List;
@@ -16,7 +16,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 @Component
-public class ApiKeyFilture extends OncePerRequestFilter{
+public class ApiKeyFilter extends OncePerRequestFilter{
 
     @Value("${spring.application.api-key}")
     private String apiKeyFromEnv;

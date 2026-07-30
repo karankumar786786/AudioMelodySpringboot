@@ -17,7 +17,7 @@ import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Exceptions.BadRequestException;
 import me.one_org.melody.Exceptions.ConflictException;
 import me.one_org.melody.Repository.UsersRepository;
-import me.one_org.melody.Services.Genral.PaginationMetaDataService;
+import me.one_org.melody.Services.General.PaginationMetaDataService;
 import me.one_org.melody.Utils.HmacUtil;
 import me.one_org.melody.Utils.JwtUtil;
 import me.one_org.melody.Utils.OtpUtil;

@@ -1,4 +1,4 @@
-package me.one_org.melody.Services.Genral;
+package me.one_org.melody.Services.General;
 
 import java.util.HashSet;
 import java.util.List;

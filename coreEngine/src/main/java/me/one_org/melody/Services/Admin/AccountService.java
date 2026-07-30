@@ -12,7 +12,7 @@ import me.one_org.melody.Exceptions.ConflictException;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.UsersRepository;
-import me.one_org.melody.Services.Genral.PaginationMetaDataService;
+import me.one_org.melody.Services.General.PaginationMetaDataService;
 
 @Service
 public class AccountService {
