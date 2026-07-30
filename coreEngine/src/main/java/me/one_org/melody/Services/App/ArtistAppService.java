@@ -2,12 +2,11 @@ package me.one_org.melody.Services.App;
 
 import java.util.List;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import me.one_org.melody.Entity.ArtistsEntity;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
+import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Repository.ArtistsRepository;
 import me.one_org.melody.Services.Genral.PaginationMetaDataService;
 
@@ -36,6 +35,6 @@ public class ArtistAppService {
 
     public ArtistsEntity getArtistById(String id) {
         return artistsRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Artist not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Artist not found with id: " + id));
     }
 }

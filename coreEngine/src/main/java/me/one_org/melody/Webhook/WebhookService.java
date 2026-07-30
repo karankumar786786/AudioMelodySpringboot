@@ -2,10 +2,8 @@ package me.one_org.melody.Webhook;
 
 import java.util.UUID;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
@@ -20,6 +18,7 @@ import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.JobsRepository;
 import me.one_org.melody.Repository.SongsRepository;
 
+import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Services.Genral.PaginationMetaDataService;
 
 @Service
@@ -44,7 +43,7 @@ public class WebhookService {
 
     private JobsEntity getJob(String jobId) {
         return jobsRepository.findById(jobId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Job not found: " + jobId));
+                .orElseThrow(() -> new ResourceNotFoundException("Job not found with id: " + jobId));
     }
 
     @Transactional

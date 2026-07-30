@@ -1,14 +1,11 @@
 package me.one_org.melody.Services.Genral;
 
-
 import java.util.List;
 import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
@@ -21,12 +18,12 @@ import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.SongsEntity;
 import me.one_org.melody.Enums.JobStatusEnum;
 import me.one_org.melody.Enums.StatusEnum;
+import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.ImageStorage.ImageKit;
 import me.one_org.melody.Queue.AudioProcessingQueue;
 import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.JobsRepository;
 import me.one_org.melody.Repository.SongsRepository;
-
 
 @Service
 @Slf4j
@@ -50,7 +47,7 @@ public class SongService {
 
     public SongService(JobsRepository jobsRepository, SongsRepository songsRepository,
                        AudioProcessingQueue audioProcessingQueue, AlgoliaSearch algoliaSearch,
-                       Recombee recombee, S3 s3Client,ImageKit imageKit,
+                       Recombee recombee, S3 s3Client, ImageKit imageKit,
                        PaginationMetaDataService paginationMetaDataService) {
         this.jobsRepository = jobsRepository;
         this.songsRepository = songsRepository;
@@ -97,28 +94,27 @@ public class SongService {
 
     public SongsEntity getSongById(String id) {
         return songsRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Song not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + id));
     }
 
     @Transactional
     public void deleteSong(String id) {
         SongsEntity song = songsRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Song not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + id));
         try {
             algoliaSearch.delete(id);
         } catch (Exception e) {
-            log.debug(e.getStackTrace().toString());
-            log.error(e.getMessage());
+            log.error("Failed to delete song from Algolia", e);
         }
         try {
             recombee.delete(id);
         } catch (Exception e) {
-            log.debug(e.getStackTrace().toString());
-            log.error(e.getMessage());
+            log.error("Failed to delete song from Recombee", e);
         }
         try {
-            s3Client.deleteObject(song.getSongKey(),productionBucket);
+            s3Client.deleteObject(song.getSongKey(), productionBucket);
         } catch (Exception e) {
+            log.error("Failed to delete song object from S3", e);
         }
         imageKit.deleteByKey(song.getImageKey());
         songsRepository.deleteById(id);
@@ -127,7 +123,7 @@ public class SongService {
 
     public JobsEntity getJobById(String id) {
         return jobsRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Job not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Job not found with id: " + id));
     }
 
     public List<SongsEntity> getSongsPaginated(int page, int size) {
@@ -149,5 +145,4 @@ public class SongService {
     public List<JobsEntity> getAllJobs() {
         return jobsRepository.findAll();
     }
-
 }

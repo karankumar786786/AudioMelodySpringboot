@@ -4,10 +4,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
 import me.one_org.melody.Dto.Controllers.Admin.CreatePlaylistRequestDto;
@@ -15,6 +13,8 @@ import me.one_org.melody.Dto.Controllers.Admin.UpdatePlaylistRequestDto;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.PlaylistsEntity;
 import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.Exceptions.ExternalServiceException;
+import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.ImageStorage.ImageKit;
 import me.one_org.melody.Repository.PlaylistsRepository;
 import me.one_org.melody.Repository.SongsRepository;
@@ -55,8 +55,7 @@ public class PlaylistService {
         try {
             algoliaSearch.save(playlist);
         } catch (Exception e) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Playlist saved but Algolia sync failed: " + e.getMessage());
+            throw new ExternalServiceException("Playlist saved but Algolia sync failed: " + e.getMessage(), e);
         }
         return playlist;
     }
@@ -64,7 +63,7 @@ public class PlaylistService {
     @Transactional
     public PlaylistsEntity updatePlaylist(String id, UpdatePlaylistRequestDto data) {
         PlaylistsEntity playlist = playlistsRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + id));
 
         if (data.name() != null) playlist.setName(data.name());
         if (data.description() != null) playlist.setDescription(data.description());
@@ -83,8 +82,8 @@ public class PlaylistService {
 
     @Transactional
     public void deletePlaylist(String id) {
-        PlaylistsEntity playlist =  playlistsRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
+        PlaylistsEntity playlist = playlistsRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + id));
         imageKit.deleteByKey(playlist.getBannerImageKey());
         imageKit.deleteByKey(playlist.getCoverImageKey());
         algoliaSearch.delete(id);
@@ -94,7 +93,7 @@ public class PlaylistService {
 
     public PlaylistsEntity getPlaylistById(String id) {
         return playlistsRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + id));
     }
 
     public List<PlaylistsEntity> getPlaylistsPaginated(int page, int size) {
@@ -112,9 +111,9 @@ public class PlaylistService {
     @Transactional
     public PlaylistsEntity addSongToPlaylist(String playlistId, String songId) {
         PlaylistsEntity playlist = playlistsRepository.findById(playlistId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + playlistId));
         SongsEntity song = songsRepository.findById(songId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Song not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + songId));
 
         playlist.getSongs().add(song);
         playlistsRepository.save(playlist);
@@ -124,7 +123,7 @@ public class PlaylistService {
     @Transactional
     public PlaylistsEntity removeSongFromPlaylist(String playlistId, String songId) {
         PlaylistsEntity playlist = playlistsRepository.findById(playlistId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + playlistId));
 
         playlist.getSongs().removeIf(s -> s.getId().equals(songId));
         playlistsRepository.save(playlist);

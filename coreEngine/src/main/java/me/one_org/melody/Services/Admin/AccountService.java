@@ -2,14 +2,14 @@ package me.one_org.melody.Services.Admin;
 
 import java.util.List;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.UsersEntity;
 import me.one_org.melody.Enums.RoleEnum;
+import me.one_org.melody.Exceptions.ConflictException;
+import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.UsersRepository;
 import me.one_org.melody.Services.Genral.PaginationMetaDataService;
@@ -43,7 +43,7 @@ public class AccountService {
     @Transactional
     public void deleteAccount(String email) {
         UsersEntity user = usersRepository.findByEmail(email)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
 
         try {
             recombee.deleteUser(user.getId());
@@ -57,9 +57,10 @@ public class AccountService {
 
     @Transactional
     public void upgradeToAdmin(String email){
-        UsersEntity user = usersRepository.findByEmail(email).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        UsersEntity user = usersRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
         if (user.getRole() == RoleEnum.ADMIN || user.getRole() == RoleEnum.SUPER_ADMIN) {
-            return;
+            throw new ConflictException("User with email " + email + " is already an Admin or Super Admin");
         }
         user.setRole(RoleEnum.ADMIN);
     }

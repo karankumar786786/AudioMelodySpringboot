@@ -1,11 +1,10 @@
 package me.one_org.melody.Services.Authentication;
 
+import java.time.Duration;
+import java.util.Optional;
+import java.util.UUID;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
-
-
 
 import jakarta.annotation.PostConstruct;
 import me.one_org.melody.Cache.Redis;
@@ -15,16 +14,13 @@ import me.one_org.melody.Dto.Internal.JwtPayloadDto;
 import me.one_org.melody.Dto.Internal.OtpDataDto;
 import me.one_org.melody.Entity.UsersEntity;
 import me.one_org.melody.Enums.RoleEnum;
+import me.one_org.melody.Exceptions.BadRequestException;
+import me.one_org.melody.Exceptions.ConflictException;
 import me.one_org.melody.Repository.UsersRepository;
+import me.one_org.melody.Services.Genral.PaginationMetaDataService;
 import me.one_org.melody.Utils.HmacUtil;
 import me.one_org.melody.Utils.JwtUtil;
 import me.one_org.melody.Utils.OtpUtil;
-
-import java.time.Duration;
-import java.util.Optional;
-import java.util.UUID;
-
-import me.one_org.melody.Services.Genral.PaginationMetaDataService;
 
 @Service
 public class AuthenticationService {
@@ -51,40 +47,36 @@ public class AuthenticationService {
         cache.of("otp", OtpDataDto.class);
     }
 
-
     public String register(RegisterRequestDto request) {
         if (usersRepository.existsByEmail(request.email())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already in use");
-        };
-        String tempToken = hmacUtil.hash(request.email()); // tempToken
+            throw new ConflictException("Email already in use");
+        }
+        String tempToken = hmacUtil.hash(request.email());
         String otp = otpUtil.generateOtp();
-        // send real mail
-        OtpDataDto data = new OtpDataDto(otp,tempToken,request.email(),request.userName());
-        cache.set(data.email(),data, Duration.ofMinutes(10));
+        OtpDataDto data = new OtpDataDto(otp, tempToken, request.email(), request.userName());
+        cache.set(data.email(), data, Duration.ofMinutes(10));
         return tempToken;
     }
+
     public VerifyOtpResponse verifyOtp(String tempToken, String otp) {
         String email = hmacUtil.getMessageIfValid(tempToken);
         if (email == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token validation failed");
+            throw new BadRequestException("Token validation failed");
         }
         Optional<OtpDataDto> otpDto = cache.get(email);
         if (otpDto.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.GATEWAY_TIMEOUT, "otp is already expired try to start fresh");
-        };
+            throw new BadRequestException("OTP has expired. Please request a new verification code");
+        }
         OtpDataDto data = otpDto.get();
         if (!data.email().equals(email)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token validation failed");
+            throw new BadRequestException("Token validation failed");
         }
-        // Verify OTP
         if (!data.otp().equals(otp)){
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid OTP");
+            throw new BadRequestException("Invalid OTP");
         }
-        // Check again to ensure user hasn't registered during validation window
         if (usersRepository.existsByEmail(data.email())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email already in use");
+            throw new ConflictException("Email already in use");
         }
-        // Create and save User
         UsersEntity user = UsersEntity.builder()
                 .id(UUID.randomUUID().toString())
                 .userName(data.userName())
@@ -93,9 +85,8 @@ public class AuthenticationService {
                 .build();
         usersRepository.save(user);
         paginationMetaDataService.incrementStatus("UsersEntity", user.getStatus());
-        // Clean up cache
         cache.delete(email);
-        // Generate access token (1 hour) and refresh token (168 hours / 7 days)
+
         JwtPayloadDto payload = new JwtPayloadDto(
                 user.getId(),
                 user.getUserName(),
@@ -106,18 +97,19 @@ public class AuthenticationService {
         String refreshToken = jwtUtil.generateToken(payload, 168);
         return new VerifyOtpResponse(accessToken, refreshToken);
     }
+
     public void resendOtp(String tempToken) {
         String email = hmacUtil.getMessageIfValid(tempToken);
         if (email == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired verification token");
+            throw new BadRequestException("Invalid or expired verification token");
         }
         Optional<OtpDataDto> otpDto = cache.get(email);
         if (otpDto.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid or expired verification token");
+            throw new BadRequestException("Invalid or expired verification token");
         }
         OtpDataDto data = otpDto.get();
         if (!hmacUtil.validate(data.email(), tempToken)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Token validation failed");
+            throw new BadRequestException("Token validation failed");
         }
         String newOtp = otpUtil.generateOtp();
         System.out.println("============================================");
