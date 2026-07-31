@@ -29,7 +29,6 @@ spring:
     name: ${APPLICATION_NAME:melody}
     api-key: ${APPLICATION_API_KEY:default_api_key}
     admin:
-      id: ${ADMIN_ID:default_admin_id}
       name: ${ADMIN_NAME:default_admin_name}
       email: ${ADMIN_EMAIL:admin@melody.com}
 
