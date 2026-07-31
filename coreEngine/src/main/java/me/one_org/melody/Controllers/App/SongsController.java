@@ -21,7 +21,7 @@ public class SongsController {
     }
 
     @GetMapping
-    public ResponseEntity<PaginatedResponseDto<SongsEntity>> browseSongs(
+    public ResponseEntity<PaginatedResponseDto<SongsEntity>> getAllSongs(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         List<SongsEntity> songs = songsAppService.browseSongs(page, size);

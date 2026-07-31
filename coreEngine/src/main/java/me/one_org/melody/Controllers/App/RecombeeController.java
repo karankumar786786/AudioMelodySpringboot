@@ -1,4 +1,4 @@
-package me.one_org.melody.Controllers.Api;
+package me.one_org.melody.Controllers.App;
 
 import java.util.List;
 
