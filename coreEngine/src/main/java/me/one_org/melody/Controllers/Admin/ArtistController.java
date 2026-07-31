@@ -14,7 +14,7 @@ import me.one_org.melody.Entity.ArtistsEntity;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Services.General.ArtistService;
 
-@RestController("adminArtistController")
+@RestController
 @RequestMapping("/admin/artist")
 public class ArtistController {
 
