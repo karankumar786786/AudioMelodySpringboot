@@ -4,7 +4,6 @@ import me.one_org.melody.Entity.UsersEntity;
 import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Repository.UsersRepository;
 
-import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -13,6 +12,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class DatabaseSeeder implements CommandLineRunner {
     private final  UsersRepository usersRepository;
+    @Value("${spring.application.admin.id}")
+    private String adminId;
     @Value("${spring.application.admin.name}")
     private String adminName;
     @Value("${spring.application.admin.email}")
@@ -25,7 +26,10 @@ public class DatabaseSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        String adminId = UUID.randomUUID().toString();
+        if (adminId == null) {
+            throw new Exception();
+        };
+        if (!usersRepository.existsById(adminId)) {
             UsersEntity admin = UsersEntity.builder()
                     .id(adminId)
                     .userName(adminName)
@@ -37,4 +41,5 @@ public class DatabaseSeeder implements CommandLineRunner {
             };
             usersRepository.save(admin);
         };
+    }
 }
