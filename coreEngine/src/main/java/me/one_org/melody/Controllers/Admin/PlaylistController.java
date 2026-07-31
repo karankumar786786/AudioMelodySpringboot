@@ -15,7 +15,7 @@ import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.PlaylistsEntity;
 import me.one_org.melody.Services.General.PlaylistService;
 
-@RestController("adminPlaylistController")
+@RestController
 @RequestMapping("/admin/playlist")
 public class PlaylistController {
 

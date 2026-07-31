@@ -64,8 +64,8 @@ public class ArtistService {
     public ArtistsEntity updateArtist(String id, UpdateArtistRequestDto data) {
         ArtistsEntity artist = artistsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Artist not found with id: " + id));
-        String oldCoverImageKey = "";
-        String oldBannerImageKey = "";
+        String oldCoverImageKey = null;
+        String oldBannerImageKey = null;
         if (data.name() != null)
             artist.setName(data.name());
         if (data.about() != null)
@@ -79,8 +79,12 @@ public class ArtistService {
             artist.setBannerImageKey(data.bannerImageKey());
         }
         artistsRepository.save(artist);
-        imageKit.deleteByKey(oldBannerImageKey);
-        imageKit.deleteByKey(oldCoverImageKey);
+        if (oldBannerImageKey != null && !oldBannerImageKey.isBlank()) {
+            imageKit.deleteByKey(oldBannerImageKey);
+        }
+        if (oldCoverImageKey != null && !oldCoverImageKey.isBlank()) {
+            imageKit.deleteByKey(oldCoverImageKey);
+        }
         if (data.name() != null) {
             try {
                 algoliaSearch.save(artist);

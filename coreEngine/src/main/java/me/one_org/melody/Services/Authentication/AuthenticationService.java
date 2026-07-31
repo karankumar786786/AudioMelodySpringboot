@@ -10,6 +10,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.Cache.Redis;
 import me.one_org.melody.Dto.Controllers.Authentication.LoginRequestDto;
+import me.one_org.melody.Dto.Controllers.Authentication.RefreshTokenResponseDto;
 import me.one_org.melody.Dto.Controllers.Authentication.RegisterRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpResponse;
 import me.one_org.melody.Dto.Internal.JwtPayloadDto;
@@ -19,6 +20,7 @@ import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Exceptions.BadRequestException;
 import me.one_org.melody.Exceptions.ConflictException;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
+import me.one_org.melody.Exceptions.UnauthorizedException;
 import me.one_org.melody.Repository.UsersRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 import me.one_org.melody.Utils.HmacUtil;
@@ -137,5 +139,29 @@ public class AuthenticationService {
         System.out.println("============================================");
         OtpDataDto updatedData = new OtpDataDto(newOtp, tempToken, data.email(), data.userName());
         cache.set(data.email(), updatedData, Duration.ofMinutes(10));
+    }
+
+    public RefreshTokenResponseDto refreshToken(String refreshToken) {
+        try {
+            JwtPayloadDto payload = jwtUtil.validateAndGetPayload(refreshToken);
+            UsersEntity user = usersRepository.findById(payload.id())
+                    .orElseThrow(() -> new UnauthorizedException("User not found or inactive"));
+
+            JwtPayloadDto newPayload = new JwtPayloadDto(
+                    user.getId(),
+                    user.getUserName(),
+                    user.getEmail(),
+                    user.getRole()
+            );
+
+            String newAccessToken = jwtUtil.generateToken(newPayload, 1);
+            String newRefreshToken = jwtUtil.generateToken(newPayload, 168);
+
+            return new RefreshTokenResponseDto(newAccessToken, newRefreshToken);
+        } catch (UnauthorizedException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new UnauthorizedException("Invalid or expired refresh token");
+        }
     }
 }

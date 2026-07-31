@@ -22,6 +22,7 @@ public class ImageKit {
     }
 
     public void deleteByKey(String key){
+        if (key == null || key.isBlank()) return;
         try {
             imageKitSdk.deleteFile(key);
         } catch (Exception e) {

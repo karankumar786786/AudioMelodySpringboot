@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 import me.one_org.melody.Dto.Controllers.Authentication.LoginRequestDto;
+import me.one_org.melody.Dto.Controllers.Authentication.RefreshTokenRequestDto;
+import me.one_org.melody.Dto.Controllers.Authentication.RefreshTokenResponseDto;
 import me.one_org.melody.Dto.Controllers.Authentication.RegisterAndLoginResponse;
 import me.one_org.melody.Dto.Controllers.Authentication.RegisterRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpRequest;
@@ -54,5 +56,11 @@ public class AuthenticationController {
     public ResponseEntity<RegisterAndLoginResponse> login(@Valid @RequestBody LoginRequestDto request) {
         String tempToken = authenticationService.login(request);
         return ResponseEntity.status(HttpStatus.OK).body(new RegisterAndLoginResponse(tempToken));
+    }
+
+    @PostMapping("/refresh-token")
+    public ResponseEntity<RefreshTokenResponseDto> refreshToken(@Valid @RequestBody RefreshTokenRequestDto request) {
+        RefreshTokenResponseDto response = authenticationService.refreshToken(request.refreshToken());
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 }
