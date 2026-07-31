@@ -10,7 +10,7 @@ import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.PlaylistsEntity;
 import me.one_org.melody.Services.App.PlaylistAppService;
 
-@RestController
+@RestController("appPlaylistController")
 @RequestMapping("/app/playlists")
 public class PlaylistController {
 
