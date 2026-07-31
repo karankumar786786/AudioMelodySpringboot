@@ -3,17 +3,20 @@ package me.one_org.melody.Cache;
 import java.time.Duration;
 import java.util.Optional;
 
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
+
+import tools.jackson.databind.ObjectMapper;
 
 @Component
 public class Redis<T> {
 
-    
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
 
-    public Redis(RedisTemplate<String,Object> redisTemplate){
+    public Redis(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
         this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
     }
 
     private String group;
@@ -26,24 +29,37 @@ public class Redis<T> {
     }
 
     private String buildKey(String key) {
-        return group + ":" + key;
+        return group != null ? group + ":" + key : key;
     }
 
     public void set(String key, T value) {
-        redisTemplate.opsForValue().set(buildKey(key), value);
+        try {
+            String json = objectMapper.writeValueAsString(value);
+            redisTemplate.opsForValue().set(buildKey(key), json);
+        } catch (Exception e) {
+            throw new RuntimeException("Redis serialization error", e);
+        }
     }
+
     public void set(String key, T value, Duration ttl) {
-        redisTemplate.opsForValue().set(buildKey(key), value, ttl);
+        try {
+            String json = objectMapper.writeValueAsString(value);
+            redisTemplate.opsForValue().set(buildKey(key), json, ttl);
+        } catch (Exception e) {
+            throw new RuntimeException("Redis serialization error", e);
+        }
     }
 
-
-    @SuppressWarnings({ "unchecked" })
     public Optional<T> get(String key) {
-        Object value = redisTemplate.opsForValue().get(buildKey(key));
-        if (value == null) return Optional.empty();
-        if (type.isInstance(value)) return Optional.of((T) value);
-        return Optional.empty();
+        String json = redisTemplate.opsForValue().get(buildKey(key));
+        if (json == null || json.isBlank()) return Optional.empty();
+        try {
+            return Optional.of(objectMapper.readValue(json, type));
+        } catch (Exception e) {
+            return Optional.empty();
+        }
     }
+
     public boolean delete(String key) {
         return Boolean.TRUE.equals(redisTemplate.delete(buildKey(key)));
     }
@@ -51,6 +67,7 @@ public class Redis<T> {
     public void deleteIfExists(String key) {
         redisTemplate.delete(buildKey(key));
     }
+
     public boolean exists(String key) {
         return Boolean.TRUE.equals(redisTemplate.hasKey(buildKey(key)));
     }

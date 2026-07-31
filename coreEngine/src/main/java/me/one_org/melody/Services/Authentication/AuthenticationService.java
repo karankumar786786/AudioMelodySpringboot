@@ -7,7 +7,9 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.Cache.Redis;
+import me.one_org.melody.Dto.Controllers.Authentication.LoginRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.RegisterRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpResponse;
 import me.one_org.melody.Dto.Internal.JwtPayloadDto;
@@ -16,6 +18,7 @@ import me.one_org.melody.Entity.UsersEntity;
 import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Exceptions.BadRequestException;
 import me.one_org.melody.Exceptions.ConflictException;
+import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Repository.UsersRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 import me.one_org.melody.Utils.HmacUtil;
@@ -23,6 +26,7 @@ import me.one_org.melody.Utils.JwtUtil;
 import me.one_org.melody.Utils.OtpUtil;
 
 @Service
+@Slf4j
 public class AuthenticationService {
     
     private final UsersRepository usersRepository;
@@ -54,6 +58,18 @@ public class AuthenticationService {
         String tempToken = hmacUtil.hash(request.email());
         String otp = otpUtil.generateOtp();
         OtpDataDto data = new OtpDataDto(otp, tempToken, request.email(), request.userName());
+        log.info(otp);
+        cache.set(data.email(), data, Duration.ofMinutes(10));
+        return tempToken;
+    }
+
+    public String login(LoginRequestDto request) {
+        UsersEntity user = usersRepository.findByEmail(request.email())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + request.email()));
+        String tempToken = hmacUtil.hash(user.getEmail());
+        String otp = otpUtil.generateOtp();
+        OtpDataDto data = new OtpDataDto(otp, tempToken, user.getEmail(), user.getUserName());
+        log.info("OTP for login ({}): {}", user.getEmail(), otp);
         cache.set(data.email(), data, Duration.ofMinutes(10));
         return tempToken;
     }
@@ -74,17 +90,21 @@ public class AuthenticationService {
         if (!data.otp().equals(otp)){
             throw new BadRequestException("Invalid OTP");
         }
-        if (usersRepository.existsByEmail(data.email())) {
-            throw new ConflictException("Email already in use");
+
+        Optional<UsersEntity> existingUser = usersRepository.findByEmail(data.email());
+        UsersEntity user;
+        if (existingUser.isPresent()) {
+            user = existingUser.get();
+        } else {
+            user = UsersEntity.builder()
+                    .id(UUID.randomUUID().toString())
+                    .userName(data.userName())
+                    .email(data.email())
+                    .role(RoleEnum.USER)
+                    .build();
+            usersRepository.save(user);
+            paginationMetaDataService.incrementStatus("UsersEntity", user.getStatus());
         }
-        UsersEntity user = UsersEntity.builder()
-                .id(UUID.randomUUID().toString())
-                .userName(data.userName())
-                .email(data.email())
-                .role(RoleEnum.USER)
-                .build();
-        usersRepository.save(user);
-        paginationMetaDataService.incrementStatus("UsersEntity", user.getStatus());
         cache.delete(email);
 
         JwtPayloadDto payload = new JwtPayloadDto(

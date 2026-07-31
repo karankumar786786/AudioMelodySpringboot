@@ -99,6 +99,19 @@
 			<groupId>com.github.imagekit-developer</groupId>
 			<artifactId>imagekit-java</artifactId>
 			<version>2.0.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>com.squareup.okio</groupId>
+					<artifactId>okio</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<!-- Okio 3.x for OkHttp 4.x compatibility -->
+		<dependency>
+			<groupId>com.squareup.okio</groupId>
+			<artifactId>okio</artifactId>
+			<version>3.9.0</version>
 		</dependency>
 
 		<!-- Dotenv -->

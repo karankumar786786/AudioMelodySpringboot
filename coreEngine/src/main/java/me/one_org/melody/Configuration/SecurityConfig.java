@@ -12,6 +12,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Filters.ApiKeyFilter;
 import me.one_org.melody.Filters.JwtFilter;
 
@@ -33,8 +34,8 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/**").permitAll()
-                .requestMatchers("/webhook/**").permitAll()  // Secured by API key filter
-                .requestMatchers("/admin/**").hasRole("ADMIN")
+                .requestMatchers("/webhook/**").permitAll()
+                .requestMatchers("/admin/**").hasAnyRole(RoleEnum.ADMIN.name(), RoleEnum.SUPER_ADMIN.name())
                 .requestMatchers("/api/**", "/app/**").authenticated()
                 .anyRequest().authenticated()
             )

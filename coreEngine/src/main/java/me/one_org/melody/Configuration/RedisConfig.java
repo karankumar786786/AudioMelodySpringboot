@@ -13,12 +13,9 @@ import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializ
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
-import tools.jackson.databind.DefaultTyping;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.cfg.DateTimeFeature;
 import tools.jackson.databind.json.JsonMapper;
-import tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
-
 
 @Configuration
 public class RedisConfig {
@@ -26,12 +23,6 @@ public class RedisConfig {
     private ObjectMapper redisObjectMapper() {
         return JsonMapper.builder()
                 .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
-                .activateDefaultTyping(
-                        BasicPolymorphicTypeValidator.builder()
-                                .allowIfBaseType(Object.class)
-                                .build(),
-                        DefaultTyping.NON_FINAL
-                )
                 .build();
     }
 

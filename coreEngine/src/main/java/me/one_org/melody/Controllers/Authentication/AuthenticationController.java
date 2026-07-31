@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
+import me.one_org.melody.Dto.Controllers.Authentication.LoginRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.RegisterAndLoginResponse;
 import me.one_org.melody.Dto.Controllers.Authentication.RegisterRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpRequest;
@@ -50,9 +51,8 @@ public class AuthenticationController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<RegisterAndLoginResponse> postMethodName(@RequestBody String entity) {
-        
-        return null;
+    public ResponseEntity<RegisterAndLoginResponse> login(@Valid @RequestBody LoginRequestDto request) {
+        String tempToken = authenticationService.login(request);
+        return ResponseEntity.status(HttpStatus.OK).body(new RegisterAndLoginResponse(tempToken));
     }
-    
 }

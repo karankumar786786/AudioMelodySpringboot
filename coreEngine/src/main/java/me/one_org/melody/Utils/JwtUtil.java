@@ -15,8 +15,11 @@ public class JwtUtil {
     @Value("${jwt.secret:defaultSecretKeyWhichShouldBeLongEnoughToWorkProperly}")
     private String secret;
 
-    private Key getKey(){
-        return Keys.hmacShaKeyFor(secret.getBytes());
+    private Key getKey() {
+        String effectiveSecret = (secret != null && secret.trim().length() >= 32)
+                ? secret
+                : "super_secret_jwt_key_that_is_at_least_32_bytes_long_and_very_secure_12345";
+        return Keys.hmacShaKeyFor(effectiveSecret.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     public String generateToken(JwtPayloadDto payload,int expiryInHr){

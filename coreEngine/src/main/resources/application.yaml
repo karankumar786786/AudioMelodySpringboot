@@ -11,7 +11,9 @@ spring:
             # max-period: 1000
 
   config:
-    import: optional:file:.env[.properties]
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:coreEngine/.env[.properties]
 
   mail:
     host: ${MAIL_HOST:localhost}
@@ -44,21 +46,23 @@ spring:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
-      mailqueue: ${REDIS_MAIL_QUEUE}
-      audioprocessingqueue: ${REDIS_AUDIO_PROCESSING_QUEUE}
+      mailqueue: ${REDIS_MAIL_QUEUE:mail_queue}
+      audioprocessingqueue: ${REDIS_AUDIO_PROCESSING_QUEUE:audio_processing_queue}
       ssl:
         enabled: ${REDIS_SSL_ENABLED:true}
 
   jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
     show-sql: true
-    # properties:
-    #   hibernate:
-    #     format_sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
 
 jwt:
-  secret: ${JWT_SECRET:default_jwt_secret_key_which_should_be_long_enough_to_work_properly}
+  secret: ${JWT_SECRET:super_secret_jwt_key_that_is_at_least_32_bytes_long_and_very_secure_12345}
 server:
   port: ${PORT:8080}
 
