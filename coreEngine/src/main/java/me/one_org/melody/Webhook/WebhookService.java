@@ -40,7 +40,7 @@ public class WebhookService {
         this.paginationMetaDataService = paginationMetaDataService;
     }
 
-    private JobsEntity getJob(String jobId) {
+    public JobsEntity getJob(String jobId) {
         return jobsRepository.findById(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("Job not found with id: " + jobId));
     }

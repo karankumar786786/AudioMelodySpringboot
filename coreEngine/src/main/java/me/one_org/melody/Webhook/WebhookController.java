@@ -8,6 +8,7 @@ import me.one_org.melody.Dto.Webhook.JobFailedRequestDto;
 import me.one_org.melody.Dto.Webhook.JobStartedRequestDto;
 import me.one_org.melody.Dto.Webhook.TranscodedRequestDto;
 import me.one_org.melody.Dto.Webhook.TranscribedRequestDto;
+import me.one_org.melody.Entity.JobsEntity;
 
 @RestController
 @RequestMapping("/webhook/job")
@@ -17,6 +18,12 @@ public class WebhookController {
 
     public WebhookController(WebhookService webhookService) {
         this.webhookService = webhookService;
+    }
+
+    @GetMapping("/{jobId}")
+    public ResponseEntity<JobsEntity> getJob(@PathVariable String jobId) {
+        JobsEntity job = webhookService.getJob(jobId);
+        return ResponseEntity.ok(job);
     }
 
     @PostMapping("/{jobId}/transcoding-started")
