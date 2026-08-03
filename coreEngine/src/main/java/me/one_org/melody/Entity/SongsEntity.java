@@ -39,6 +39,8 @@ public class SongsEntity implements Serializable{
     @Column(nullable = false)
     private String language;
 
+    private String lrclibId;
+
     @Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

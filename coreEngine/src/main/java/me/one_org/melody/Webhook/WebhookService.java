@@ -10,7 +10,6 @@ import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
 import me.one_org.melody.Dto.Webhook.JobFailedRequestDto;
 import me.one_org.melody.Dto.Webhook.JobStartedRequestDto;
 import me.one_org.melody.Dto.Webhook.TranscodedRequestDto;
-import me.one_org.melody.Dto.Webhook.TranscribedRequestDto;
 import me.one_org.melody.Entity.JobsEntity;
 import me.one_org.melody.Entity.SongsEntity;
 import me.one_org.melody.Enums.JobStatusEnum;
@@ -68,28 +67,6 @@ public class WebhookService {
     }
 
     @Transactional
-    public void transcribingStarted(String jobId, JobStartedRequestDto data) {
-        JobsEntity job = getJob(jobId);
-        job.setTranscribingId(data.processingId());
-        job.setTranscribingAttempt(job.getTranscribingAttempt() != null ? job.getTranscribingAttempt() + 1 : 1);
-        job.setStatus(JobStatusEnum.PROCESSING);
-        jobsRepository.save(job);
-        log.info("Job {} transcribing started (attempt {})", jobId, job.getTranscribingAttempt());
-    }
-
-    @Transactional
-    public void transcribed(String jobId, TranscribedRequestDto data) {
-        JobsEntity job = getJob(jobId);
-        job.setLanguage(data.language());
-        job.setTranscribed(true);
-        jobsRepository.save(job);
-        log.info("Job {} transcribed successfully, language: {}", jobId, data.language());
-
-        // Check if both steps are done
-        checkAndFinalize(job);
-    }
-
-    @Transactional
     public void failed(String jobId, JobFailedRequestDto data) {
         JobsEntity job = getJob(jobId);
         job.setStatus(JobStatusEnum.FAILED);
@@ -98,14 +75,14 @@ public class WebhookService {
     }
 
     /**
-     * When both transcoded and transcribed are true:
-     * 1. Save to Algolia
-     * 2. Save to Recombee
-     * 3. Create SongsEntity in DB
+     * When transcoded is true:
+     * 1. Create SongsEntity in DB
+     * 2. Save to Algolia
+     * 3. Save to Recombee
      * 4. Mark job as COMPLETED
      */
     private void checkAndFinalize(JobsEntity job) {
-        if (!Boolean.TRUE.equals(job.getTranscoded()) || !Boolean.TRUE.equals(job.getTranscribed())) {
+        if (!Boolean.TRUE.equals(job.getTranscoded())) {
             return; // Not ready yet
         }
 
@@ -119,7 +96,8 @@ public class WebhookService {
                 .duration(job.getDuration())
                 .songKey(job.getSongKey())
                 .imageKey(job.getImageKey())
-                .language(job.getLanguage())
+                .language(job.getLanguage() != null ? job.getLanguage() : "unknown")
+                .lrclibId(job.getLrclibId())
                 .job(job)
                 .build();
         songsRepository.save(song);

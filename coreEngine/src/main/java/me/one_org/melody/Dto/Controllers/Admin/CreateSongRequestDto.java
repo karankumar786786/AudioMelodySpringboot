@@ -9,6 +9,9 @@ public record CreateSongRequestDto(
     @NotNull Integer duration,
     @NotBlank String tempSongKey,
     @NotBlank String imageKey,
-    String language
+    @NotBlank
+    String language,
+    @NotBlank
+    String lrclibId
 ) {
 }

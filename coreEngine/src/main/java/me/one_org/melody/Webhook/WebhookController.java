@@ -7,7 +7,6 @@ import jakarta.validation.Valid;
 import me.one_org.melody.Dto.Webhook.JobFailedRequestDto;
 import me.one_org.melody.Dto.Webhook.JobStartedRequestDto;
 import me.one_org.melody.Dto.Webhook.TranscodedRequestDto;
-import me.one_org.melody.Dto.Webhook.TranscribedRequestDto;
 import me.one_org.melody.Entity.JobsEntity;
 
 @RestController
@@ -42,21 +41,7 @@ public class WebhookController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/{jobId}/transcribing-started")
-    public ResponseEntity<Void> transcribingStarted(
-            @PathVariable String jobId,
-            @Valid @RequestBody JobStartedRequestDto data) {
-        webhookService.transcribingStarted(jobId, data);
-        return ResponseEntity.ok().build();
-    }
 
-    @PostMapping("/{jobId}/transcribed")
-    public ResponseEntity<Void> transcribed(
-            @PathVariable String jobId,
-            @Valid @RequestBody TranscribedRequestDto data) {
-        webhookService.transcribed(jobId, data);
-        return ResponseEntity.ok().build();
-    }
 
     @PostMapping("/{jobId}/failed")
     public ResponseEntity<Void> failed(

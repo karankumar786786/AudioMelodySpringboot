@@ -25,12 +25,10 @@ public class JobsEntity {
     @Column(nullable = false)
     private String imageKey;
     private String language;
+    private String lrclibId;
     private String transcodingId;
     private Integer transcodingAttempt;
-    private String transcribingId;
-    private Integer transcribingAttempt;
     private Boolean transcoded;
-    private Boolean transcribed;
     private Boolean savedInSearch;
     private Boolean savedInRecommendation;
     @Column(nullable = false)

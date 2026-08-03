@@ -1,5 +1,6 @@
 import { inngest } from "../inngest";
 import { api } from "../axios";
+import { transcodeFunction } from "./transcode";
 
 export const fetchJob = inngest.createFunction(
     {
@@ -12,8 +13,19 @@ export const fetchJob = inngest.createFunction(
             throw new Error("Missing jobId in event data");
         }
         const jobId = data.jobId;
-        const response = await api.get(jobId);
-        console.log("Fetched job details:", response.data);
-        return response.data;
+        const jobDetails = await step.run("fetch-job-details", async () => {
+            const response = await api.get(`/${jobId}`);
+            return response.data;
+        });
+        console.log("Fetched job details:", jobDetails);
+
+        await step.invoke("invoke-transcode", {
+            function: transcodeFunction,
+            data: {
+                jobId: jobDetails.id || jobId,
+                tempSongKey: jobDetails.tempSongKey || data.tempSongKey,
+            },
+        });
+        return jobDetails;
     }
 );
