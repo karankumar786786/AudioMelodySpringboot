@@ -1,10 +1,9 @@
 import { inngest } from "../inngest";
 import { api } from "../axios";
-import { transcodeFunction } from "./transcode";
 
 export const fetchJob = inngest.createFunction(
     {
-        id: "Fetch Audio",
+        id: "fetch-job",
         triggers: [{ event: "audio/fetchjob" }]
     },
     async ({ event, step }) => {
@@ -19,13 +18,13 @@ export const fetchJob = inngest.createFunction(
         });
         console.log("Fetched job details:", jobDetails);
 
-        await step.invoke("invoke-transcode", {
-            function: transcodeFunction,
+        await step.sendEvent("trigger-transcode", {
+            name: "audio/song.transcode",
             data: {
                 jobId: jobDetails.id || jobId,
                 tempSongKey: jobDetails.tempSongKey || data.tempSongKey,
             },
         });
-        return jobDetails;
+        return { status: "success", jobId };
     }
 );

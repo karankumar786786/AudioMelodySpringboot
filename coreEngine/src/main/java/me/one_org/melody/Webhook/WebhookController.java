@@ -41,7 +41,23 @@ public class WebhookController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/{jobId}/save-recommendation")
+    public ResponseEntity<Void> saveRecommendation(@PathVariable String jobId) {
+        webhookService.saveRecommendation(jobId);
+        return ResponseEntity.ok().build();
+    }
 
+    @PostMapping("/{jobId}/save-search")
+    public ResponseEntity<Void> saveSearch(@PathVariable String jobId) {
+        webhookService.saveSearch(jobId);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{jobId}/finalize")
+    public ResponseEntity<Void> finalizeJob(@PathVariable String jobId) {
+        webhookService.finalizeJob(jobId);
+        return ResponseEntity.ok().build();
+    }
 
     @PostMapping("/{jobId}/failed")
     public ResponseEntity<Void> failed(

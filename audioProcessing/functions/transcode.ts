@@ -7,7 +7,7 @@ import * as fs from "node:fs";
 import { config } from "dotenv";
 config();
 
-export const transcodeFunction = inngest.createFunction(
+export const transcodeSong = inngest.createFunction(
     {
         id: "transcode-song",
         triggers: [{ event: "audio/song.transcode" }]
@@ -61,6 +61,12 @@ export const transcodeFunction = inngest.createFunction(
                 await api.post(`/${jobId}/transcoded`, {
                     songKey: songKey,
                 });
+            });
+
+            // Trigger next step: Recombee indexing
+            await step.sendEvent("trigger-recombee-indexing", {
+                name: "audio/song.index.recombee",
+                data: { jobId }
             });
 
             return { status: "success", jobId, songKey };

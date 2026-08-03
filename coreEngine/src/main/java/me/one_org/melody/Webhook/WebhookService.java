@@ -61,34 +61,53 @@ public class WebhookService {
         job.setTranscoded(true);
         jobsRepository.save(job);
         log.info("Job {} transcoded successfully, songKey: {}", jobId, data.songKey());
-
-        // Check if both steps are done
-        checkAndFinalize(job);
     }
 
     @Transactional
-    public void failed(String jobId, JobFailedRequestDto data) {
+    public void saveRecommendation(String jobId) {
         JobsEntity job = getJob(jobId);
-        job.setStatus(JobStatusEnum.FAILED);
-        jobsRepository.save(job);
-        log.error("Job {} failed: {}", jobId, data.reason());
+        try {
+            recombee.saveSong(job.getId(), job.getTitle(), job.getArtistName(), job.getLanguage() != null ? job.getLanguage() : "unknown");
+            job.setSavedInRecommendation(true);
+            jobsRepository.save(job);
+            log.info("Job {} indexed in Recombee successfully", jobId);
+        } catch (Exception e) {
+            log.error("Failed to save job {} to Recombee: {}", jobId, e.getMessage(), e);
+            throw new RuntimeException("Recombee indexing failed: " + e.getMessage(), e);
+        }
     }
 
-    /**
-     * When transcoded is true:
-     * 1. Create SongsEntity in DB
-     * 2. Save to Algolia
-     * 3. Save to Recombee
-     * 4. Mark job as COMPLETED
-     */
-    private void checkAndFinalize(JobsEntity job) {
-        if (!Boolean.TRUE.equals(job.getTranscoded())) {
-            return; // Not ready yet
+    @Transactional
+    public void saveSearch(String jobId) {
+        JobsEntity job = getJob(jobId);
+        try {
+            // Save search record to Algolia
+            SongsEntity tempSong = SongsEntity.builder()
+                    .id(job.getId())
+                    .title(job.getTitle())
+                    .artistName(job.getArtistName())
+                    .duration(job.getDuration())
+                    .songKey(job.getSongKey() != null ? job.getSongKey() : "")
+                    .imageKey(job.getImageKey())
+                    .language(job.getLanguage() != null ? job.getLanguage() : "unknown")
+                    .lrclibId(job.getLrclibId())
+                    .build();
+            algoliaSearch.save(tempSong);
+            job.setSavedInSearch(true);
+            jobsRepository.save(job);
+            log.info("Job {} indexed in Algolia successfully", jobId);
+        } catch (Exception e) {
+            log.error("Failed to save job {} to Algolia: {}", jobId, e.getMessage(), e);
+            throw new RuntimeException("Algolia search indexing failed: " + e.getMessage(), e);
         }
+    }
 
+    @Transactional
+    public void finalizeJob(String jobId) {
+        JobsEntity job = getJob(jobId);
         String songId = UUID.randomUUID().toString();
 
-        // Create SongsEntity
+        // Create permanent SongsEntity
         SongsEntity song = SongsEntity.builder()
                 .id(songId)
                 .title(job.getTitle())
@@ -103,24 +122,16 @@ public class WebhookService {
         songsRepository.save(song);
         paginationMetaDataService.incrementStatus("SongsEntity", song.getStatus());
 
-        // Save to Algolia
-        try {
-            algoliaSearch.save(song);
-            job.setSavedInSearch(true);
-        } catch (Exception e) {
-            log.error("Failed to save song {} to Algolia: {}", songId, e.getMessage());
-        }
-
-        // Save to Recombee
-        try {
-            recombee.saveSong(song);
-            job.setSavedInRecommendation(true);
-        } catch (Exception e) {
-            log.error("Failed to save song {} to Recombee: {}", songId, e.getMessage());
-        }
-
         job.setStatus(JobStatusEnum.COMPLETED);
         jobsRepository.save(job);
-        log.info("Job {} finalized — song {} created and synced to Algolia/Recombee", job.getId(), songId);
+        log.info("Job {} finalized — song {} created successfully", job.getId(), songId);
+    }
+
+    @Transactional
+    public void failed(String jobId, JobFailedRequestDto data) {
+        JobsEntity job = getJob(jobId);
+        job.setStatus(JobStatusEnum.FAILED);
+        jobsRepository.save(job);
+        log.error("Job {} failed: {}", jobId, data.reason());
     }
 }
