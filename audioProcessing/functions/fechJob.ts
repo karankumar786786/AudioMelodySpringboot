@@ -23,6 +23,7 @@ export const fetchJob = inngest.createFunction(
             data: {
                 jobId: jobDetails.id || jobId,
                 tempSongKey: jobDetails.tempSongKey || data.tempSongKey,
+                songId: jobDetails.songId,
             },
         });
         return { status: "success", jobId };

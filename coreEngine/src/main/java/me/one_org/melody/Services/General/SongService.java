@@ -65,6 +65,7 @@ public class SongService {
     @Transactional
     public CreateSongResponseDto createSong(CreateSongRequestDto data) {
         String jobId = UUID.randomUUID().toString();
+        String songId = UUID.randomUUID().toString();
         JobsEntity job = JobsEntity.builder()
                 .id(jobId)
                 .title(data.title())
@@ -74,6 +75,7 @@ public class SongService {
                 .imageKey(data.imageKey())
                 .language(data.language())
                 .lrclibId(data.lrclibId())
+                .songId(songId)
                 .transcodingAttempt(0)
                 .transcoded(false)
                 .savedInSearch(false)

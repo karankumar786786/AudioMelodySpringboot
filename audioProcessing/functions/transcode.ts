@@ -14,10 +14,10 @@ export const transcodeSong = inngest.createFunction(
         triggers: [{ event: "audio/song.transcode" }]
     },
     async ({ step, event }) => {
-        const { jobId, tempSongKey } = event.data;
+        const { jobId, tempSongKey, songId } = event.data;
 
-        if (!jobId || !tempSongKey) {
-            throw new Error("Missing jobId or tempSongKey in event data");
+        if (!jobId || !tempSongKey || !songId) {
+            throw new Error("Missing jobId, tempSongKey, or songId in event data");
         }
 
         const tempBucket = process.env.TEMP_BUCKET_NAME || "videotranscodetemp";
@@ -25,16 +25,17 @@ export const transcodeSong = inngest.createFunction(
         const basePath = process.env.BASE_PATH || "audios";
 
         const baseTmpDir = path.join(process.cwd(), "tmp");
-        const songKey = `${basePath}/${jobId}`;
+        // S3 directory uses songId for traceability and consistency with Algolia/Recombee
+        const songKey = `${basePath}/${songId}`;
 
         // Notify Spring Boot transcoding started
         await step.run("notify-transcoding-started", async () => {
             await api.post(`/${jobId}/transcoding-started`, {
-                processingId: jobId,
+                processingId: songId,
             });
         });
 
-        // Run transcoding process (download, transcode, upload to S3 under jobId directory, cleanup)
+        // Run transcoding process (download, transcode, upload to S3 under songId directory, cleanup)
         await step.run("transcode-process", async () => {
             if (!fs.existsSync(baseTmpDir)) {
                 fs.mkdirSync(baseTmpDir, { recursive: true });
@@ -48,15 +49,15 @@ export const transcodeSong = inngest.createFunction(
                 console.log(`[TRANSCODE] Downloading raw audio for job ${jobId}...`);
                 await downloadObject(tempBucket, tempSongKey, localDownloadPath);
 
-                console.log(`[TRANSCODE] Starting transcoding for job ${jobId} (local dir: ${outputDir}, S3 dir: ${songKey})...`);
+                console.log(`[TRANSCODE] Starting transcoding for job ${jobId} (songId: ${songId}, S3 dir: ${songKey})...`);
                 const transcoder = new AudioTranscoder(
                     4,
                     s3Client,
                     basePath,
                     prodBucket,
                 );
-                // Pass jobId as the 3rd argument so S3 upload path is audios/<jobId>/...
-                await transcoder.transcode(localDownloadPath, outputDir, jobId);
+                // Pass songId as the S3 dir name so upload path is audios/<songId>/...
+                await transcoder.transcode(localDownloadPath, outputDir, songId);
             } finally {
                 // Cleanup local temp files
                 if (fs.existsSync(localDownloadPath)) {
@@ -81,6 +82,6 @@ export const transcodeSong = inngest.createFunction(
             data: { jobId }
         });
 
-        return { status: "success", jobId, songKey };
+        return { status: "success", jobId, songId, songKey };
     }
 );

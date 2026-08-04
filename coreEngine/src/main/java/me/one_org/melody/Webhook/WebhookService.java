@@ -67,7 +67,7 @@ public class WebhookService {
     public void saveRecommendation(String jobId) {
         JobsEntity job = getJob(jobId);
         try {
-            recombee.saveSong(job.getId(), job.getTitle(), job.getArtistName(),
+            recombee.saveSong(job.getSongId(), job.getTitle(), job.getArtistName(),
                     job.getLanguage() != null ? job.getLanguage() : "unknown");
             job.setSavedInRecommendation(true);
             jobsRepository.save(job);
@@ -84,7 +84,7 @@ public class WebhookService {
         try {
             // Save search record to Algolia
             SongsEntity tempSong = SongsEntity.builder()
-                    .id(job.getId())
+                    .id(job.getSongId())
                     .title(job.getTitle())
                     .artistName(job.getArtistName())
                     .duration(job.getDuration())
@@ -106,7 +106,7 @@ public class WebhookService {
     @Transactional
     public void finalizeJob(String jobId) {
         JobsEntity job = getJob(jobId);
-        String songId = UUID.randomUUID().toString();
+        String songId = job.getSongId();
 
         // Create permanent SongsEntity
         SongsEntity song = SongsEntity.builder()

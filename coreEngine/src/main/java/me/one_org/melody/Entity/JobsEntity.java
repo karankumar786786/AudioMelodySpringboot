@@ -26,6 +26,8 @@ public class JobsEntity {
     private String imageKey;
     private String language;
     private String lrclibId;
+    @Column(nullable = false, unique = true)
+    private String songId;
     private String transcodingId;
     private Integer transcodingAttempt;
     private Boolean transcoded;
