@@ -1,5 +1,6 @@
 import { inngest } from "../inngest";
 import { api } from "../axios";
+import { NonRetriableError } from "inngest";
 
 export const fetchJob = inngest.createFunction(
     {
@@ -9,12 +10,19 @@ export const fetchJob = inngest.createFunction(
     async ({ event, step }) => {
         const data = event.data;
         if (!data.jobId) {
-            throw new Error("Missing jobId in event data");
+            throw new NonRetriableError("Missing jobId in event data");
         }
         const jobId = data.jobId;
         const jobDetails = await step.run("fetch-job-details", async () => {
-            const response = await api.get(`/${jobId}`);
-            return response.data;
+            try {
+                const response = await api.get(`/${jobId}`);
+                return response.data;
+            } catch (err: any) {
+                if (err?.response?.status === 404) {
+                    throw new NonRetriableError(`Job not found in database: ${jobId}`);
+                }
+                throw err;
+            }
         });
         console.log("Fetched job details:", jobDetails);
 
