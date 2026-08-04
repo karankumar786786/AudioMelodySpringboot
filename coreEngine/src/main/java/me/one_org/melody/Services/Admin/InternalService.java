@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import me.one_org.melody.BlobStorage.S3;
+import me.one_org.melody.Dto.Controllers.Admin.ImageUploadParamsResponseDto;
+import me.one_org.melody.Dto.Controllers.Admin.SongUploadPreSignedUrlResponseDto;
 import me.one_org.melody.ImageStorage.ImageKit;
 
 @Service
@@ -24,13 +26,16 @@ public class InternalService {
         this.s3client = s3Client;
         this.imageKit = imageKit;
     }
-    public String getSongUploadPreSignedUrl(){
+    public SongUploadPreSignedUrlResponseDto getSongUploadPreSignedUrl(){
         String key = UUID.randomUUID().toString();
-        return s3client.preSignedUrl(key, tempBucket, Duration.ofMinutes(tempUrlValidityMin));
+        String preSignedUrl = s3client.preSignedUrl(key, tempBucket, Duration.ofMinutes(tempUrlValidityMin));
+        return new SongUploadPreSignedUrlResponseDto(key, preSignedUrl);
     }
 
-    public Map<String,String> getImageUploadParams(){
-        return imageKit.preSignedToken();
+    public ImageUploadParamsResponseDto getImageUploadParams(){
+        String key = UUID.randomUUID().toString();
+        Map<String,String> param = imageKit.preSignedToken();
+        return new ImageUploadParamsResponseDto(key, param);
     }
 
 }
