@@ -1,11 +1,13 @@
 package me.one_org.melody.Webhook;
 
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
+import me.one_org.melody.BlobStorage.S3;
 import me.one_org.melody.Dto.Webhook.JobFailedRequestDto;
 import me.one_org.melody.Dto.Webhook.JobStartedRequestDto;
 import me.one_org.melody.Dto.Webhook.TranscodedRequestDto;
@@ -22,20 +24,25 @@ import me.one_org.melody.Exceptions.ResourceNotFoundException;
 @Slf4j
 public class WebhookService {
 
+    @Value("${s3.temp-bucket}")
+    private String tempBucket;
+
     private final JobsRepository jobsRepository;
     private final SongsRepository songsRepository;
     private final AlgoliaSearch algoliaSearch;
     private final Recombee recombee;
     private final PaginationMetaDataService paginationMetaDataService;
+    private final S3 s3;
 
     public WebhookService(JobsRepository jobsRepository, SongsRepository songsRepository,
             AlgoliaSearch algoliaSearch, Recombee recombee,
-            PaginationMetaDataService paginationMetaDataService) {
+            PaginationMetaDataService paginationMetaDataService,S3 s3) {
         this.jobsRepository = jobsRepository;
         this.songsRepository = songsRepository;
         this.algoliaSearch = algoliaSearch;
         this.recombee = recombee;
         this.paginationMetaDataService = paginationMetaDataService;
+        this.s3 = s3;
     }
 
     public JobsEntity getJob(String jobId) {
@@ -58,6 +65,8 @@ public class WebhookService {
         JobsEntity job = getJob(jobId);
         job.setSongKey(data.songKey());
         job.setTranscoded(true);
+        String tempSongKey = job.getTempSongKey();
+        s3.deleteObject(tempSongKey, tempBucket);
         jobsRepository.save(job);
         log.info("Job {} transcoded successfully, songKey: {}", jobId, data.songKey());
     }

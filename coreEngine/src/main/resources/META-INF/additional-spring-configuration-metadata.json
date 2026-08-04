@@ -123,5 +123,10 @@
     "name": "s3.temp-url-validity-min",
     "type": "java.lang.String",
     "description": "A description for 's3.temp-url-validity-min'"
+  },
+  {
+    "name": "s3.production-bucket",
+    "type": "java.lang.String",
+    "description": "A description for 's3.production-bucket'"
   }
 ]}
