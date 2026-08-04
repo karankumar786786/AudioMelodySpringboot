@@ -17,7 +17,9 @@ public class ImageKit {
 
     @SuppressWarnings("unchecked")
     public Map<String,String> preSignedToken(){
-        Map<String, String> params = (Map<String, String>) (Map<?, ?>) imageKitSdk.getAuthenticationParameters();
+        String token = java.util.UUID.randomUUID().toString();
+        long expireInSeconds = (System.currentTimeMillis() / 1000) + 1800;
+        Map<String, String> params = (Map<String, String>) (Map<?, ?>) imageKitSdk.getAuthenticationParameters(token, expireInSeconds);
         return params;
     }
 
