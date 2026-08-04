@@ -1,7 +1,6 @@
 package me.one_org.melody.Dto.Queue;
 
 public record AudioProcessingQueueDto(
-    String jobId,
-    String tempSongKey
+    String jobId
 ) {
 }

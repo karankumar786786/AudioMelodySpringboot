@@ -87,7 +87,7 @@ public class SongService {
 
         // Push to audio processing queue
         audioProcessingQueue.queueAudioProcessing(
-                new AudioProcessingQueueDto(jobId, data.tempSongKey()));
+                new AudioProcessingQueueDto(jobId));
 
         return new CreateSongResponseDto(jobId, JobStatusEnum.PENDING.name());
     }

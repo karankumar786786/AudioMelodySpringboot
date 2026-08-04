@@ -22,7 +22,7 @@ export const fetchJob = inngest.createFunction(
             name: "audio/song.transcode",
             data: {
                 jobId: jobDetails.id || jobId,
-                tempSongKey: jobDetails.tempSongKey || data.tempSongKey,
+                tempSongKey: jobDetails.tempSongKey,
                 songId: jobDetails.songId,
             },
         });
