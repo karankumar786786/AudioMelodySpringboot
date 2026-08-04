@@ -22,6 +22,13 @@ public class ApiKeyFilter extends OncePerRequestFilter{
     private String apiKeyFromEnv;
 
     @Override
+    protected boolean shouldNotFilter(HttpServletRequest request){
+        String path = request.getServletPath();
+
+        return !path.startsWith("/webhook");
+    }
+
+    @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)throws ServletException, IOException {
             String apiKey = request.getHeader("X-API-KEY");
             if (apiKey != null && apiKeyFromEnv.equals(apiKey)) {

@@ -21,12 +21,14 @@ import me.one_org.melody.Filters.JwtFilter;
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
-    // private final ApiKeyFilture apiKeyFilter;
+    private final ApiKeyFilter apiKeyFilter;
 
     public SecurityConfig(JwtFilter jwtFilter, ApiKeyFilter apiKeyFilter){
         this.jwtFilter = jwtFilter;
-        // this.apiKeyFilter = apiKeyFilter;
+        this.apiKeyFilter = apiKeyFilter;
     }
+
+
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -34,13 +36,13 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/**").permitAll()
-                .requestMatchers("/webhook/**").permitAll()
                 .requestMatchers("/admin/**").hasAnyRole(RoleEnum.ADMIN.name(), RoleEnum.SUPER_ADMIN.name())
-                .requestMatchers("/api/**", "/app/**").authenticated()
+                .requestMatchers("/api/**", "/app/**","/webhook/**").authenticated()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(apiKeyFilter, JwtFilter.class);
 
         return http.build();
     }
