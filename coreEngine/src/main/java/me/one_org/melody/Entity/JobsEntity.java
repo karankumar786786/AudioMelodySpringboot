@@ -36,7 +36,5 @@ public class JobsEntity {
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private JobStatusEnum status;
-    @com.fasterxml.jackson.annotation.JsonIgnore
-    @OneToOne(mappedBy = "job", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private SongsEntity song;
+
 }

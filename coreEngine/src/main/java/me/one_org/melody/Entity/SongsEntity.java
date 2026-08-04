@@ -47,9 +47,8 @@ public class SongsEntity implements Serializable{
     @Column(nullable = false)
     private StatusEnum status = StatusEnum.ACTIVE;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "job_id", nullable = false)
-    private JobsEntity job;
+    @Column(name = "job_id", nullable = false)
+    private String jobId;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

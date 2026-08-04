@@ -100,6 +100,7 @@ public class WebhookJobService {
                     .imageKey(job.getImageKey())
                     .language(job.getLanguage() != null ? job.getLanguage() : "unknown")
                     .lrclibId(job.getLrclibId())
+                    .jobId(job.getId())
                     .build();
             algoliaSearch.save(tempSong);
             job.setSavedInSearch(true);
@@ -126,7 +127,7 @@ public class WebhookJobService {
                 .imageKey(job.getImageKey())
                 .language(job.getLanguage() != null ? job.getLanguage() : "unknown")
                 .lrclibId(job.getLrclibId())
-                .job(job)
+                .jobId(job.getId())
                 .build();
         songsRepository.save(song);
         paginationMetaDataService.incrementStatus("SongsEntity", song.getStatus());
