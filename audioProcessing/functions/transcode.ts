@@ -4,6 +4,7 @@ import { s3Client, downloadObject } from "../lib/s3";
 import { AudioTranscoder } from "../lib/transcode";
 import * as path from "node:path";
 import * as fs from "node:fs";
+import * as crypto from "node:crypto";
 import { config } from "dotenv";
 config();
 
@@ -24,39 +25,40 @@ export const transcodeSong = inngest.createFunction(
         const basePath = process.env.BASE_PATH || "audios";
 
         const baseTmpDir = path.join(process.cwd(), "tmp");
-        const audioName = `t_${jobId}`;
-        const songKey = `${basePath}/${audioName}`;
+        const songKey = `${basePath}/${jobId}`;
 
         // Notify Spring Boot transcoding started
         await step.run("notify-transcoding-started", async () => {
             await api.post(`/${jobId}/transcoding-started`, {
-                processingId: audioName,
+                processingId: jobId,
             });
         });
 
-        // Run transcoding process (download, transcode, upload to S3, cleanup — all in one step)
+        // Run transcoding process (download, transcode, upload to S3 under jobId directory, cleanup)
         await step.run("transcode-process", async () => {
             if (!fs.existsSync(baseTmpDir)) {
                 fs.mkdirSync(baseTmpDir, { recursive: true });
             }
 
-            const localDownloadPath = path.join(baseTmpDir, `${path.basename(jobId)}`);
-            const outputDir = path.join(baseTmpDir, audioName);
+            const localUuid = crypto.randomUUID();
+            const localDownloadPath = path.join(baseTmpDir, `raw_${localUuid}`);
+            const outputDir = path.join(baseTmpDir, `transcoded_${localUuid}`);
 
             try {
                 console.log(`[TRANSCODE] Downloading raw audio for job ${jobId}...`);
                 await downloadObject(tempBucket, tempSongKey, localDownloadPath);
 
-                console.log(`[TRANSCODE] Starting transcoding for job ${jobId}...`);
+                console.log(`[TRANSCODE] Starting transcoding for job ${jobId} (local dir: ${outputDir}, S3 dir: ${songKey})...`);
                 const transcoder = new AudioTranscoder(
                     4,
                     s3Client,
                     basePath,
                     prodBucket,
                 );
-                await transcoder.transcode(localDownloadPath, outputDir);
+                // Pass jobId as the 3rd argument so S3 upload path is audios/<jobId>/...
+                await transcoder.transcode(localDownloadPath, outputDir, jobId);
             } finally {
-                // Cleanup local files inside the step where they were created
+                // Cleanup local temp files
                 if (fs.existsSync(localDownloadPath)) {
                     fs.unlinkSync(localDownloadPath);
                 }

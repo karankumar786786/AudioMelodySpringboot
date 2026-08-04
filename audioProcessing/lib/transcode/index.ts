@@ -41,7 +41,7 @@ export class AudioTranscoder {
         this.bucketName = bucketName;
     }
 
-    async transcode(inputAudio: string, outputDir: string): Promise<void> {
+    async transcode(inputAudio: string, outputDir: string, s3DirName?: string): Promise<void> {
         console.log(`--- Starting Audio Transcoding Process ---`);
         console.log(`Input:  ${inputAudio}`);
         console.log(`Output: ${outputDir}`);
@@ -53,7 +53,7 @@ export class AudioTranscoder {
 
         console.log(`Duration: ${duration.toFixed(2)}s — segment size: ${this.segmentTime}s`);
 
-        const audioName = path.basename(outputDir);
+        const audioName = s3DirName || path.basename(outputDir);
 
         // STEP 1 — Transcode input -> multi-bitrate AACs
         const audioDir = path.join(outputDir, "audio");
@@ -67,7 +67,7 @@ export class AudioTranscoder {
         const allFiles = this.getAllFiles(outputDir);
         const filesToUpload = allFiles.filter(fp => !/raw_audio_.*\.m4a$/.test(fp));
 
-        console.log(`Uploading ${filesToUpload.length} files to S3 bucket "${this.bucketName}"...`);
+        console.log(`Uploading ${filesToUpload.length} files to S3 bucket "${this.bucketName}" under prefix "${this.basePath}/${audioName}"...`);
         const uploadPromises = filesToUpload.map(fp =>
             this.limit(() => this.uploadFileToS3(fp, outputDir, audioName, this.bucketName))
         );
