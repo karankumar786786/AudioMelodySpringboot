@@ -30,8 +30,8 @@ public class WebhookService {
     private final PaginationMetaDataService paginationMetaDataService;
 
     public WebhookService(JobsRepository jobsRepository, SongsRepository songsRepository,
-                          AlgoliaSearch algoliaSearch, Recombee recombee,
-                          PaginationMetaDataService paginationMetaDataService) {
+            AlgoliaSearch algoliaSearch, Recombee recombee,
+            PaginationMetaDataService paginationMetaDataService) {
         this.jobsRepository = jobsRepository;
         this.songsRepository = songsRepository;
         this.algoliaSearch = algoliaSearch;
@@ -67,7 +67,8 @@ public class WebhookService {
     public void saveRecommendation(String jobId) {
         JobsEntity job = getJob(jobId);
         try {
-            recombee.saveSong(job.getId(), job.getTitle(), job.getArtistName(), job.getLanguage() != null ? job.getLanguage() : "unknown");
+            recombee.saveSong(job.getId(), job.getTitle(), job.getArtistName(),
+                    job.getLanguage() != null ? job.getLanguage() : "unknown");
             job.setSavedInRecommendation(true);
             jobsRepository.save(job);
             log.info("Job {} indexed in Recombee successfully", jobId);

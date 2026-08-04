@@ -49,9 +49,9 @@ public class SongService {
     private String productionBucket;
 
     public SongService(JobsRepository jobsRepository, SongsRepository songsRepository,
-                       AudioProcessingQueue audioProcessingQueue, AlgoliaSearch algoliaSearch,
-                       Recombee recombee, S3 s3Client, ImageKit imageKit,
-                       PaginationMetaDataService paginationMetaDataService) {
+            AudioProcessingQueue audioProcessingQueue, AlgoliaSearch algoliaSearch,
+            Recombee recombee, S3 s3Client, ImageKit imageKit,
+            PaginationMetaDataService paginationMetaDataService) {
         this.jobsRepository = jobsRepository;
         this.songsRepository = songsRepository;
         this.audioProcessingQueue = audioProcessingQueue;
@@ -103,8 +103,8 @@ public class SongService {
 
     @Transactional
     @Caching(evict = {
-        @CacheEvict(value = "songs", key = "#id"),
-        @CacheEvict(value = "song_lists", allEntries = true)
+            @CacheEvict(value = "songs", key = "#id"),
+            @CacheEvict(value = "song_lists", allEntries = true)
     })
     public void deleteSong(String id) {
         SongsEntity song = songsRepository.findById(id)

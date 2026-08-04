@@ -24,25 +24,26 @@ export const transcodeSong = inngest.createFunction(
         const basePath = process.env.BASE_PATH || "audios";
 
         const baseTmpDir = path.join(process.cwd(), "tmp");
-        if (!fs.existsSync(baseTmpDir)) {
-            fs.mkdirSync(baseTmpDir, { recursive: true });
-        }
-
-        const localDownloadPath = path.join(baseTmpDir, `${path.basename(jobId)}`);
-        const outputDir = path.join(baseTmpDir, `t_${jobId}`);
-        const audioName = path.basename(outputDir);
+        const audioName = `t_${jobId}`;
         const songKey = `${basePath}/${audioName}`;
 
-        try {
-            // Notify Spring Boot transcoding started
-            await step.run("notify-transcoding-started", async () => {
-                await api.post(`/${jobId}/transcoding-started`, {
-                    processingId: audioName,
-                });
+        // Notify Spring Boot transcoding started
+        await step.run("notify-transcoding-started", async () => {
+            await api.post(`/${jobId}/transcoding-started`, {
+                processingId: audioName,
             });
+        });
 
-            // Run transcoding process
-            await step.run("transcode-process", async () => {
+        // Run transcoding process (download, transcode, upload to S3, cleanup — all in one step)
+        await step.run("transcode-process", async () => {
+            if (!fs.existsSync(baseTmpDir)) {
+                fs.mkdirSync(baseTmpDir, { recursive: true });
+            }
+
+            const localDownloadPath = path.join(baseTmpDir, `${path.basename(jobId)}`);
+            const outputDir = path.join(baseTmpDir, audioName);
+
+            try {
                 console.log(`[TRANSCODE] Downloading raw audio for job ${jobId}...`);
                 await downloadObject(tempBucket, tempSongKey, localDownloadPath);
 
@@ -54,39 +55,30 @@ export const transcodeSong = inngest.createFunction(
                     prodBucket,
                 );
                 await transcoder.transcode(localDownloadPath, outputDir);
-            });
-
-            // Notify Spring Boot transcoded
-            await step.run("notify-transcoded", async () => {
-                await api.post(`/${jobId}/transcoded`, {
-                    songKey: songKey,
-                });
-            });
-
-            // Trigger next step: Recombee indexing
-            await step.sendEvent("trigger-recombee-indexing", {
-                name: "audio/song.index.recombee",
-                data: { jobId }
-            });
-
-            return { status: "success", jobId, songKey };
-        } catch (error: any) {
-            console.error(`[TRANSCODE] Job ${jobId} failed:`, error);
-            try {
-                await api.post(`/${jobId}/failed`, {
-                    reason: error.message || "Transcoding failed",
-                });
-            } catch (notifyErr) {
-                console.error(`Failed to notify failure to webhook for job ${jobId}:`, notifyErr);
+            } finally {
+                // Cleanup local files inside the step where they were created
+                if (fs.existsSync(localDownloadPath)) {
+                    fs.unlinkSync(localDownloadPath);
+                }
+                if (fs.existsSync(outputDir)) {
+                    fs.rmSync(outputDir, { recursive: true, force: true });
+                }
             }
-            throw error;
-        } finally {
-            if (fs.existsSync(localDownloadPath)) {
-                fs.unlinkSync(localDownloadPath);
-            }
-            if (fs.existsSync(outputDir)) {
-                fs.rmSync(outputDir, { recursive: true, force: true });
-            }
-        }
+        });
+
+        // Notify Spring Boot transcoded
+        await step.run("notify-transcoded", async () => {
+            await api.post(`/${jobId}/transcoded`, {
+                songKey: songKey,
+            });
+        });
+
+        // Trigger next step: Recombee indexing
+        await step.sendEvent("trigger-recombee-indexing", {
+            name: "audio/song.index.recombee",
+            data: { jobId }
+        });
+
+        return { status: "success", jobId, songKey };
     }
 );

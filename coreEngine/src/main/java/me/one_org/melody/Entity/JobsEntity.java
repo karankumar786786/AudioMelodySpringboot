@@ -38,4 +38,3 @@ public class JobsEntity {
     @OneToOne(mappedBy = "job", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private SongsEntity song;
 }
-
