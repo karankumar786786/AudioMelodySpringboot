@@ -1,4 +1,4 @@
-package me.one_org.melody.Webhook;
+package me.one_org.melody.Controllers.Webhook;
 
 import org.springframework.cloud.openfeign.FeignClient;
 

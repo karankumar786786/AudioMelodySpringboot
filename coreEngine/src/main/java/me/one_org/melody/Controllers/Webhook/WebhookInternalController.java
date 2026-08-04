@@ -1,4 +1,4 @@
-package me.one_org.melody.Controllers.Admin;
+package me.one_org.melody.Controllers.Webhook;
 
 
 
@@ -10,16 +10,16 @@ import org.springframework.web.bind.annotation.RestController;
 
 import me.one_org.melody.Dto.Controllers.Admin.ImageUploadParamsResponseDto;
 import me.one_org.melody.Dto.Controllers.Admin.SongUploadPreSignedUrlResponseDto;
-import me.one_org.melody.Services.Admin.InternalService;
+import me.one_org.melody.Services.Webhook.WebhookInternalService;
 
 
 @RestController
-@RequestMapping("/admin/internal")
-public class InternalController {
+@RequestMapping("/webhook/internal")
+public class WebhookInternalController {
 
-    private final InternalService inInternalService;
+    private final WebhookInternalService inInternalService;
 
-    InternalController(InternalService internalService){
+    WebhookInternalController(WebhookInternalService internalService){
         this.inInternalService = internalService;
     }
     @GetMapping("/song-upload-url")

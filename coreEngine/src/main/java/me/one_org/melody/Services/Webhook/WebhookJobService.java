@@ -1,4 +1,4 @@
-package me.one_org.melody.Webhook;
+package me.one_org.melody.Services.Webhook;
 
 
 import org.springframework.beans.factory.annotation.Value;
@@ -22,7 +22,7 @@ import me.one_org.melody.Exceptions.ResourceNotFoundException;
 
 @Service
 @Slf4j
-public class WebhookService {
+public class WebhookJobService {
 
     @Value("${s3.temp-bucket}")
     private String tempBucket;
@@ -34,7 +34,7 @@ public class WebhookService {
     private final PaginationMetaDataService paginationMetaDataService;
     private final S3 s3;
 
-    public WebhookService(JobsRepository jobsRepository, SongsRepository songsRepository,
+    public WebhookJobService(JobsRepository jobsRepository, SongsRepository songsRepository,
             AlgoliaSearch algoliaSearch, Recombee recombee,
             PaginationMetaDataService paginationMetaDataService,S3 s3) {
         this.jobsRepository = jobsRepository;

@@ -41,11 +41,11 @@ public class SongService {
     private final ImageKit imageKit;
     private final PaginationMetaDataService paginationMetaDataService;
 
-    @Value("${s3.temp-bucket}")
+    @Value("${s3.temp-bucket:${S3_TEMP_BUCKET:audiomelodyspringboottemp}}")
     private String tempBucket;
-    @Value("${s3.temp-url-validity-min}")
+    @Value("${s3.temp-url-validity-min:30}")
     private int tempUrlValidityMin;
-    @Value("${s3.song-bucket}")
+    @Value("${s3.production-bucket:${S3_SONG_BUCKET:audiomelodyspringboot}}")
     private String productionBucket;
 
     public SongService(JobsRepository jobsRepository, SongsRepository songsRepository,

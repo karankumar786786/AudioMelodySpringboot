@@ -1,4 +1,4 @@
-package me.one_org.melody.Services.Admin;
+package me.one_org.melody.Services.Webhook;
 
 import java.time.Duration;
 import java.util.Map;
@@ -13,16 +13,16 @@ import me.one_org.melody.Dto.Controllers.Admin.SongUploadPreSignedUrlResponseDto
 import me.one_org.melody.ImageStorage.ImageKit;
 
 @Service
-public class InternalService {
+public class WebhookInternalService {
     private final S3 s3client;
     private final ImageKit imageKit;
 
-    @Value("${s3.temp-bucket}")
+    @Value("${s3.temp-bucket:${S3_TEMP_BUCKET:audiomelodyspringboottemp}}")
     private String tempBucket;
-    @Value("${s3.temp-url-validity-min}")
+    @Value("${s3.temp-url-validity-min:30}")
     private int tempUrlValidityMin;
 
-    public InternalService(S3 s3Client,ImageKit imageKit){
+    public WebhookInternalService(S3 s3Client,ImageKit imageKit){
         this.s3client = s3Client;
         this.imageKit = imageKit;
     }

@@ -1,4 +1,4 @@
-package me.one_org.melody.Webhook;
+package me.one_org.melody.Controllers.Webhook;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -8,14 +8,15 @@ import me.one_org.melody.Dto.Webhook.JobFailedRequestDto;
 import me.one_org.melody.Dto.Webhook.JobStartedRequestDto;
 import me.one_org.melody.Dto.Webhook.TranscodedRequestDto;
 import me.one_org.melody.Entity.JobsEntity;
+import me.one_org.melody.Services.Webhook.WebhookJobService;
 
 @RestController
 @RequestMapping("/webhook/job")
-public class WebhookController {
+public class WebhookJobController {
 
-    private final WebhookService webhookService;
+    private final WebhookJobService webhookService;
 
-    public WebhookController(WebhookService webhookService) {
+    public WebhookJobController(WebhookJobService webhookService) {
         this.webhookService = webhookService;
     }
 
