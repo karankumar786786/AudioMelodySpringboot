@@ -7,10 +7,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
-import me.one_org.melody.Dto.Controllers.Apps.AddSongToUserPlaylistRequestDto;
-import me.one_org.melody.Dto.Controllers.Apps.CreateUserPlaylistRequestDto;
-import me.one_org.melody.Dto.Controllers.Apps.RenameUserPlaylistRequestDto;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
+import me.one_org.melody.Dto.Controllers.Api.AddSongToUserPlaylistRequestDto;
+import me.one_org.melody.Dto.Controllers.Api.CreateUserPlaylistRequestDto;
+import me.one_org.melody.Dto.Controllers.Api.RenameUserPlaylistRequestDto;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.UserPlaylistsEntity;
 import me.one_org.melody.Services.Api.UserPlaylistApiService;

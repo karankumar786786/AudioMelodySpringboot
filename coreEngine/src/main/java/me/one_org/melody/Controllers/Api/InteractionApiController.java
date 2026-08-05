@@ -6,8 +6,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
-import me.one_org.melody.Dto.Controllers.Apps.TrackPlayRequestDto;
-import me.one_org.melody.Dto.Controllers.Apps.TrackSkipRequestDto;
+import me.one_org.melody.Dto.Controllers.Api.TrackPlayRequestDto;
+import me.one_org.melody.Dto.Controllers.Api.TrackSkipRequestDto;
 import me.one_org.melody.Entity.SongsEntity;
 import me.one_org.melody.Services.Api.InteractionApiService;
 

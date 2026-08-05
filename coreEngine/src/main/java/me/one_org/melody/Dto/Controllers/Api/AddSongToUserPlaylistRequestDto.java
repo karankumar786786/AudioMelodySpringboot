@@ -1,4 +1,4 @@
-package me.one_org.melody.Dto.Controllers.Apps;
+package me.one_org.melody.Dto.Controllers.Api;
 
 import jakarta.validation.constraints.NotBlank;
 
