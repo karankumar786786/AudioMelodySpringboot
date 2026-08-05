@@ -4,7 +4,6 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
@@ -43,22 +42,10 @@ public class UserHistoryApiService {
         return paginationMetaDataService.getMetaData("UserHistory_" + userId);
     }
 
-    @Transactional
-    public void clearHistory(String userId) {
-        UsersEntity user = getUser(userId);
-        userHistoryRepository.deleteByUser(user);
-        paginationMetaDataService.updateCounts("UserHistory_" + userId, 0L, 0L, 0L, 0L);
-    }
 
     public List<UserSearchHistoryEntity> getSearchHistory(String userId) {
         UsersEntity user = getUser(userId);
         return searchHistoryRepository.findByUser(user);
-    }
-
-    @Transactional
-    public void clearSearchHistory(String userId) {
-        UsersEntity user = getUser(userId);
-        searchHistoryRepository.deleteByUser(user);
     }
 
     private UsersEntity getUser(String userId) {

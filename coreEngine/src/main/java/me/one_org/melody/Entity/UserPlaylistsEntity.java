@@ -2,6 +2,7 @@ package me.one_org.melody.Entity;
 
 import java.util.Set;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.Builder.Default;
@@ -28,6 +29,7 @@ public class UserPlaylistsEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonIgnore
     private UsersEntity user;
 
     @ManyToMany(fetch = FetchType.LAZY)

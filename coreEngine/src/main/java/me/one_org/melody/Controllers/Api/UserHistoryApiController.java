@@ -31,23 +31,10 @@ public class UserHistoryApiController {
         return ResponseEntity.ok(new PaginatedResponseDto<>(history, page, size, metaData));
     }
 
-    @DeleteMapping
-    public ResponseEntity<Void> clearHistory(
-            @RequestAttribute("userId") String userId) {
-        userHistoryAppService.clearHistory(userId);
-        return ResponseEntity.noContent().build();
-    }
 
     @GetMapping("/search")
     public ResponseEntity<List<UserSearchHistoryEntity>> getSearchHistory(
             @RequestAttribute("userId") String userId) {
         return ResponseEntity.ok(userHistoryAppService.getSearchHistory(userId));
-    }
-
-    @DeleteMapping("/search")
-    public ResponseEntity<Void> clearSearchHistory(
-            @RequestAttribute("userId") String userId) {
-        userHistoryAppService.clearSearchHistory(userId);
-        return ResponseEntity.noContent().build();
     }
 }
