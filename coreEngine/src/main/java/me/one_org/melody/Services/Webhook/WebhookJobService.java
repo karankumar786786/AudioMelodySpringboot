@@ -64,11 +64,14 @@ public class WebhookJobService {
     public void transcoded(String jobId, TranscodedRequestDto data) {
         JobsEntity job = getJob(jobId);
         job.setSongKey(data.songKey());
+        if (data.duration() != null) {
+            job.setDuration(data.duration());
+        }
         job.setTranscoded(true);
         String tempSongKey = job.getTempSongKey();
         s3.deleteObject(tempSongKey, tempBucket);
         jobsRepository.save(job);
-        log.info("Job {} transcoded successfully, songKey: {}", jobId, data.songKey());
+        log.info("Job {} transcoded successfully, songKey: {}, duration: {}", jobId, data.songKey(), data.duration());
     }
 
     @Transactional

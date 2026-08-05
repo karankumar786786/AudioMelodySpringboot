@@ -70,7 +70,6 @@ public class SongService {
                 .id(jobId)
                 .title(data.title())
                 .artistName(data.artistName())
-                .duration(data.duration())
                 .tempSongKey(data.tempSongKey())
                 .imageKey(data.imageKey())
                 .language(data.language())

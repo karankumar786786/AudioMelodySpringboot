@@ -36,7 +36,7 @@ export const transcodeSong = inngest.createFunction(
         });
 
         // Run transcoding process (download, transcode, upload to S3 under songId directory, cleanup)
-        await step.run("transcode-process", async () => {
+        const { duration } = await step.run("transcode-process", async () => {
             if (!fs.existsSync(baseTmpDir)) {
                 fs.mkdirSync(baseTmpDir, { recursive: true });
             }
@@ -57,7 +57,8 @@ export const transcodeSong = inngest.createFunction(
                     prodBucket,
                 );
                 // Pass songId as the S3 dir name so upload path is audios/<songId>/...
-                await transcoder.transcode(localDownloadPath, outputDir, songId);
+                const res = await transcoder.transcode(localDownloadPath, outputDir, songId);
+                return { duration: Math.round(res.duration) };
             } finally {
                 // Cleanup local temp files
                 if (fs.existsSync(localDownloadPath)) {
@@ -73,6 +74,7 @@ export const transcodeSong = inngest.createFunction(
         await step.run("notify-transcoded", async () => {
             await api.post(`/${jobId}/transcoded`, {
                 songKey: songKey,
+                duration: duration,
             });
         });
 

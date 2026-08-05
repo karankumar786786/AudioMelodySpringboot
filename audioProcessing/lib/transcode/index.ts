@@ -41,7 +41,7 @@ export class AudioTranscoder {
         this.bucketName = bucketName;
     }
 
-    async transcode(inputAudio: string, outputDir: string, s3DirName?: string): Promise<void> {
+    async transcode(inputAudio: string, outputDir: string, s3DirName?: string): Promise<{ duration: number }> {
         console.log(`--- Starting Audio Transcoding Process ---`);
         console.log(`Input:  ${inputAudio}`);
         console.log(`Output: ${outputDir}`);
@@ -78,6 +78,8 @@ export class AudioTranscoder {
         fs.rmSync(outputDir, { recursive: true, force: true });
         console.log(`Local transcoding directory cleaned up: ${outputDir}`);
         console.log(`--- Audio Transcoding Completed ---`);
+
+        return { duration };
     }
 
     private async getAudioDuration(audioPath: string): Promise<number> {
