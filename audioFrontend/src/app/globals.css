@@ -1,0 +1,363 @@
+@import "tailwindcss";
+
+:root {
+  --background: oklch(0 0 0);
+  --foreground: oklch(1 0 0);
+  --primary: oklch(0.75 0.25 142);
+  --primary-foreground: oklch(0 0 0);
+  --accent: oklch(0.75 0.25 140 / 12%);
+  --border: oklch(1 0 0 / 10%);
+  --sidebar: oklch(0 0 0);
+  --radius: 0.75rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-border: var(--border);
+  --color-sidebar: var(--sidebar);
+}
+
+body {
+  background: black;
+  color: white;
+  font-family: Inter, system-ui, sans-serif;
+  overflow: hidden;
+  min-height: 100vh;
+  background-image: radial-gradient(
+    circle at 50% -20%,
+    oklch(0.75 0.25 142 / 12%),
+    transparent 75%
+  );
+}
+
+/* ─── Landing Page Theme ─── */
+
+.landing-bg {
+  background-color: #080a08;
+  background-image:
+    radial-gradient(
+      ellipse 70% 45% at 50% -5%,
+      oklch(0.75 0.25 142 / 12%),
+      transparent 65%
+    ),
+    radial-gradient(
+      ellipse 50% 35% at 90% 100%,
+      oklch(0.65 0.22 142 / 07%),
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 40% 30% at 10% 60%,
+      oklch(0.7 0.2 142 / 05%),
+      transparent 60%
+    );
+}
+
+/* ─── Modern Utilities ─── */
+
+@utility glass-effect {
+  @apply bg-white/3 backdrop-blur-2xl border border-white/8;
+}
+
+@utility glass-effect-strong {
+  @apply bg-black/60 backdrop-blur-3xl border border-white/12;
+}
+
+/* Premium white card */
+@utility glass-light {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(24px) saturate(1.5);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.06),
+    0 8px 32px rgba(0, 0, 0, 0.07),
+    0 1px 0 rgba(255, 255, 255, 1) inset;
+}
+
+/* Dark frosted card */
+@utility glass-dark {
+  background: rgba(10, 11, 10, 0.94);
+  backdrop-filter: blur(40px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.5),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+@utility hover-scale {
+  @apply transition-all duration-300 hover:scale-[1.02] active:scale-[0.98];
+}
+
+@utility text-glow-green {
+  text-shadow: 0 0 20px oklch(0.75 0.25 142 / 40%);
+}
+
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@utility vinyl-glow {
+  box-shadow:
+    0 0 50px oklch(0.75 0.25 142 / 15%),
+    0 0 100px oklch(0.75 0.25 142 / 5%);
+}
+
+@utility glass-border-glow {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 0 30px rgba(0, 0, 0, 0.5),
+    inset 0 0 20px rgba(255, 255, 255, 0.02);
+}
+
+/* ─── Scrollbar Polish ─── */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
+}
+
+/* ─── Lyrics Polish ─── */
+.lyrics-scrollbar::-webkit-scrollbar {
+  width: 3px;
+}
+
+.lyrics-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+
+.lyrics-mask {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 15%,
+    black 85%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 15%,
+    black 85%,
+    transparent 100%
+  );
+}
+
+/* ─── Progress Bar ─── */
+.progress-track {
+  position: relative;
+  cursor: pointer;
+  transition: height 0.2s ease;
+}
+
+.progress-thumb {
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: white;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: all 0.2s ease;
+}
+
+.progress-track:hover .progress-thumb {
+  width: 12px;
+  height: 12px;
+}
+
+/* ─── Smooth Background Drift ─── */
+@keyframes ambient-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  33% {
+    transform: translate(10px, -15px) scale(1.03);
+  }
+
+  66% {
+    transform: translate(-10px, 10px) scale(0.97);
+  }
+}
+
+.ambient-drift {
+  animation: ambient-drift 25s ease-in-out infinite;
+}
+
+/* ─── Form Elements ─── */
+.modern-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  outline: none;
+  cursor: pointer;
+  background-image: linear-gradient(var(--primary), var(--primary));
+  background-size: 0% 100%;
+  background-repeat: no-repeat;
+  transition: height 0.2s ease;
+}
+
+.modern-slider:hover {
+  height: 5px;
+}
+
+.modern-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0;
+  height: 0;
+  background: white;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 15px var(--primary);
+  transition: all 0.2s ease;
+}
+
+.modern-slider:hover::-webkit-slider-thumb {
+  width: 12px;
+  height: 12px;
+}
+
+/* Specific overrides for volume slider */
+.volume-slider {
+  background: transparent !important;
+  height: 24px !important;
+}
+
+/* Chrome/Safari Thumb */
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: white;
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0;
+  border: 2px solid var(--primary);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+  margin-top: 0;
+}
+
+/* Firefox Thumb */
+.volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: white;
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0;
+  border: 2px solid var(--primary);
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+/* Show thumb on container hover/active */
+.volume-slider:hover::-webkit-slider-thumb,
+.volume-slider:active::-webkit-slider-thumb,
+.volume-slider:hover::-moz-range-thumb,
+.volume-slider:active::-moz-range-thumb {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* Specific overrides for progress slider */
+.progress-slider {
+  background: transparent !important;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+}
+
+.progress-slider::-webkit-slider-runnable-track {
+  background: transparent;
+}
+
+/* ─── Extra Custom Utilities ─── */
+@utility mask-fade-right {
+  mask-image: linear-gradient(to right, black 85%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 15s linear infinite;
+}
+
+/* Scaled App Helper */
+.app-zoom-95 {
+  zoom: 0.95;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.shimmer-loader {
+  background: linear-gradient(
+    90deg,
+    oklch(0.12 0 0) 25%,
+    oklch(0.2 0 0) 50%,
+    oklch(0.12 0 0) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s infinite linear;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.premium-gradient-text {
+  background: linear-gradient(135deg, #ffffff 0%, oklch(0.8 0.15 142) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}

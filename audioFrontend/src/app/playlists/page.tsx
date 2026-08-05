@@ -1,0 +1,95 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { musicApi } from "@/lib/api";
+import { PlaylistCard } from "../../components/PlaylistCard";
+import { ListMusic, Sparkles } from "lucide-react";
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+
+export default function PlaylistsPage() {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const { data: systemPlaylistsResponse, isLoading: isSystemLoading } =
+    useQuery({
+      queryKey: ["system-playlists"],
+      queryFn: () => musicApi.playlists.list(1, 20),
+    });
+
+  const systemPlaylists = systemPlaylistsResponse?.data?.data || [];
+
+  if (!isMounted) return null;
+
+  return (
+    <div className="px-10 pb-20 pt-6 space-y-12">
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="flex items-center gap-6"
+      >
+        <div className="p-2.5 bg-primary/10 rounded-xl border border-primary/20">
+          <ListMusic className="text-primary" size={24} />
+        </div>
+        <div>
+          <h2 className="text-3xl font-black italic tracking-tight uppercase text-white flex items-center gap-2">
+            Playlists{" "}
+            <Sparkles size={20} className="text-primary animate-pulse" />
+          </h2>
+          <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 italic mt-0.5">
+            Curated acoustic collections for optimal resonance
+          </p>
+        </div>
+      </motion.div>
+
+      {isSystemLoading ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="space-y-4 animate-pulse">
+              <div className="aspect-square rounded-[2rem] bg-zinc-900/60 border border-white/5 shimmer-loader" />
+              <div className="h-3.5 w-2/3 bg-zinc-900/60 rounded" />
+              <div className="h-2.5 w-1/3 bg-zinc-900/60 rounded" />
+            </div>
+          ))}
+        </div>
+      ) : systemPlaylists.length > 0 ? (
+        <motion.div
+          initial="hidden"
+          animate="show"
+          variants={{
+            hidden: { opacity: 0 },
+            show: {
+              opacity: 1,
+              transition: { staggerChildren: 0.04 },
+            },
+          }}
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-8"
+        >
+          {systemPlaylists.map((playlist: any) => (
+            <motion.div
+              key={playlist.id}
+              variants={{
+                hidden: { opacity: 0, y: 15 },
+                show: {
+                  opacity: 1,
+                  y: 0,
+                  transition: { type: "spring", stiffness: 100 },
+                },
+              }}
+            >
+              <PlaylistCard playlist={playlist} />
+            </motion.div>
+          ))}
+        </motion.div>
+      ) : (
+        <div className="py-32 text-center text-zinc-700 border-2 border-dashed border-zinc-900 rounded-[4rem] font-bold italic tracking-tight uppercase">
+          No Playlists found
+        </div>
+      )}
+    </div>
+  );
+}
