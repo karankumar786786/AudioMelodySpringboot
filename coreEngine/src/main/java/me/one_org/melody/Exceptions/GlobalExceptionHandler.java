@@ -69,6 +69,7 @@ public class GlobalExceptionHandler {
                 return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
         }
 
+        @SuppressWarnings("null")
         @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
         public ResponseEntity<ErrorResponseDto> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex,
                         WebRequest request) {
