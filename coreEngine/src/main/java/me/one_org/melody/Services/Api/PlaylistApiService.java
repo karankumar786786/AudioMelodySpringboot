@@ -11,7 +11,6 @@ import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Repository.PlaylistsRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 
-import java.util.Set;
 import org.springframework.transaction.annotation.Transactional;
 import me.one_org.melody.Entity.SongsEntity;
 
