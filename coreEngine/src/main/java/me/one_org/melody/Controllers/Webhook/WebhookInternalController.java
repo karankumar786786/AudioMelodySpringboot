@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import me.one_org.melody.Dto.Controllers.Admin.ImageUploadParamsResponseDto;
-import me.one_org.melody.Dto.Controllers.Admin.SongUploadPreSignedUrlResponseDto;
+import me.one_org.melody.Dto.Controllers.Webhook.ImageUploadParamsResponseDto;
+import me.one_org.melody.Dto.Controllers.Webhook.SongUploadPreSignedUrlResponseDto;
 import me.one_org.melody.Services.Webhook.WebhookInternalService;
 
 

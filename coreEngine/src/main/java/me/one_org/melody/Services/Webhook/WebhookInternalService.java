@@ -8,8 +8,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import me.one_org.melody.BlobStorage.S3;
-import me.one_org.melody.Dto.Controllers.Admin.ImageUploadParamsResponseDto;
-import me.one_org.melody.Dto.Controllers.Admin.SongUploadPreSignedUrlResponseDto;
+import me.one_org.melody.Dto.Controllers.Webhook.ImageUploadParamsResponseDto;
+import me.one_org.melody.Dto.Controllers.Webhook.SongUploadPreSignedUrlResponseDto;
 import me.one_org.melody.ImageStorage.ImageKit;
 
 @Service

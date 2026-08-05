@@ -10,7 +10,7 @@ import me.one_org.melody.Entity.ArtistsEntity;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Services.App.ArtistAppService;
 
-@RestController("appArtistController")
+@RestController
 @RequestMapping("/app/artists")
 public class ArtistController {
 

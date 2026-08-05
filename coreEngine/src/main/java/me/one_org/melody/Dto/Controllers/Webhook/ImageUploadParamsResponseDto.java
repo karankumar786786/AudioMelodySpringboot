@@ -1,4 +1,4 @@
-package me.one_org.melody.Dto.Controllers.Admin;
+package me.one_org.melody.Dto.Controllers.Webhook;
 
 import java.util.Map;
 
