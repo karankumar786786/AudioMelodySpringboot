@@ -21,10 +21,14 @@ public class UserHistoryEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     @JsonIgnore
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private UsersEntity user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "song_id", nullable = false)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private SongsEntity song;
 
     @Column(nullable = false)
