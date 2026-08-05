@@ -2,7 +2,6 @@ package me.one_org.melody.Exceptions;
 
 import java.util.List;
 
-
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -74,30 +73,41 @@ public class GlobalExceptionHandler {
         public ResponseEntity<ErrorResponseDto> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex,
                         WebRequest request) {
                 String path = getPath(request);
-                String message = String.format(
-                                "HTTP method '%s' is not supported for this endpoint. Supported methods: %s",
-                                ex.getMethod(), ex.getSupportedHttpMethods());
+                List<String> supportedMethods = ex.getSupportedHttpMethods() != null
+                                ? ex.getSupportedHttpMethods().stream().map(org.springframework.http.HttpMethod::name).toList()
+                                : List.of();
+                String message = String.format("HTTP method '%s' is not supported for this endpoint", ex.getMethod());
+                List<String> details = supportedMethods.isEmpty()
+                                ? List.of("No supported HTTP methods identified for this path")
+                                : List.of("Supported HTTP methods: " + String.join(", ", supportedMethods));
+
                 log.warn("Method not allowed at path {}: {}", path, message);
                 ErrorResponseDto response = new ErrorResponseDto(
                                 HttpStatus.METHOD_NOT_ALLOWED.value(),
                                 HttpStatus.METHOD_NOT_ALLOWED.getReasonPhrase(),
                                 message,
-                                path);
-                return new ResponseEntity<>(response, HttpStatus.METHOD_NOT_ALLOWED);
+                                path,
+                                details);
+                return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                                .allow(ex.getSupportedHttpMethods() != null 
+                                        ? ex.getSupportedHttpMethods().toArray(org.springframework.http.HttpMethod[]::new) 
+                                        : new org.springframework.http.HttpMethod[0])
+                                .body(response);
         }
 
         @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
         public ResponseEntity<ErrorResponseDto> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex,
                         WebRequest request) {
                 String path = getPath(request);
-                String message = String.format("Content-Type '%s' is not supported. Supported media types: %s",
-                                ex.getContentType(), ex.getSupportedMediaTypes());
+                String message = String.format("Content-Type '%s' is not supported", ex.getContentType());
+                List<String> details = List.of("Supported media types: " + ex.getSupportedMediaTypes());
                 log.warn("Unsupported media type at path {}: {}", path, message);
                 ErrorResponseDto response = new ErrorResponseDto(
                                 HttpStatus.UNSUPPORTED_MEDIA_TYPE.value(),
                                 HttpStatus.UNSUPPORTED_MEDIA_TYPE.getReasonPhrase(),
                                 message,
-                                path);
+                                path,
+                                details);
                 return new ResponseEntity<>(response, HttpStatus.UNSUPPORTED_MEDIA_TYPE);
         }
 
@@ -119,7 +129,7 @@ public class GlobalExceptionHandler {
                         WebRequest request) {
                 String path = getPath(request);
                 List<String> details = ex.getBindingResult().getFieldErrors().stream()
-                                .map(error -> error.getDefaultMessage())
+                                .map(error -> error.getField() + ": " + error.getDefaultMessage())
                                 .toList();
                 log.warn("Validation failed for request at path {}: {}", path, details);
                 ErrorResponseDto response = new ErrorResponseDto(
@@ -153,7 +163,9 @@ public class GlobalExceptionHandler {
                         WebRequest request) {
                 String path = getPath(request);
                 List<String> details = ex.getAllErrors().stream()
-                                .map(err -> err.getDefaultMessage())
+                                .map(err -> (err instanceof org.springframework.validation.FieldError fe)
+                                                ? fe.getField() + ": " + err.getDefaultMessage()
+                                                : err.getDefaultMessage())
                                 .toList();
                 log.warn("Handler method validation failed at path {}: {}", path, details);
                 ErrorResponseDto response = new ErrorResponseDto(
@@ -200,11 +212,24 @@ public class GlobalExceptionHandler {
                         WebRequest request) {
                 String path = getPath(request);
                 log.warn("Malformed JSON request at path {}: {}", path, ex.getMessage());
+                String message = "Malformed JSON request body or unparseable payload";
+                String detail = ex.getMessage();
+
+                if (detail != null && detail.contains("Required request body is missing")) {
+                        message = "Required request body is missing";
+                        detail = "Request body is missing. Please provide the required JSON payload in the request body.";
+                } else if (detail != null && detail.contains(":")) {
+                        // Extract concise Jackson parsing error message if available
+                        detail = detail.split(":")[0];
+                }
+
+                List<String> details = detail != null ? List.of(detail) : null;
                 ErrorResponseDto response = new ErrorResponseDto(
                                 HttpStatus.BAD_REQUEST.value(),
                                 HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                                "Malformed JSON request body or unparseable payload",
-                                path);
+                                message,
+                                path,
+                                details);
                 return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
 
@@ -221,7 +246,8 @@ public class GlobalExceptionHandler {
         }
 
         @ExceptionHandler(ServletRequestBindingException.class)
-        public ResponseEntity<ErrorResponseDto> handleRequestBindingException(ServletRequestBindingException ex, WebRequest request) {
+        public ResponseEntity<ErrorResponseDto> handleRequestBindingException(ServletRequestBindingException ex,
+                        WebRequest request) {
                 String path = getPath(request);
                 log.warn("Request binding error at path {}: {}", path, ex.getMessage());
                 ErrorResponseDto response = new ErrorResponseDto(

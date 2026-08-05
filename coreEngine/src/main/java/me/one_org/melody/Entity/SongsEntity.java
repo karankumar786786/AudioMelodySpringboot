@@ -54,6 +54,8 @@ public class SongsEntity implements Serializable{
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "job_id", insertable = false, updatable = false)
     @JsonIgnore
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private JobsEntity job;
 
     @CreationTimestamp
