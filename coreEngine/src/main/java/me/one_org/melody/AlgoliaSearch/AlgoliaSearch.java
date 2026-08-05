@@ -110,6 +110,35 @@ public class AlgoliaSearch {
         return new AlgoliaSearchResult(songs, artists, playlists);
     }
 
+    public List<String> searchSongsByArtist(String query) {
+        List<String> songIds = new ArrayList<>();
+        if (query == null || query.isBlank()) {
+            return songIds;
+        }
+        try {
+            var response = searchClient.searchSingleIndex(
+                    indexName,
+                    new SearchParamsObject().setQuery(query).setHitsPerPage(50),
+                    Map.class);
+
+            for (var hit : response.getHits()) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> h = (Map<String, Object>) hit;
+                String type = (String) h.get("type");
+                if ("song".equals(type)) {
+                    String objectId = (String) h.get("objectID");
+                    if (objectId != null) {
+                        songIds.add(objectId);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Algolia search for artist songs failed: {}", e.getMessage(), e);
+            throw new RuntimeException("Algolia search failed: " + e.getMessage(), e);
+        }
+        return songIds;
+    }
+
     // ── Bulk resync ──
 
     public void reindexAllSongs(List<SongsEntity> songs) throws Exception {

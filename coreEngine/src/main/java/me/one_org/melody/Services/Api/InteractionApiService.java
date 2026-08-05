@@ -1,4 +1,4 @@
-package me.one_org.melody.Services.App;
+package me.one_org.melody.Services.Api;
 
 import java.util.Set;
 import java.util.UUID;
@@ -20,7 +20,7 @@ import me.one_org.melody.Services.General.PaginationMetaDataService;
 
 @Service
 @Slf4j
-public class InteractionAppService {
+public class InteractionApiService {
 
     private final Recombee recombee;
     private final UsersRepository usersRepository;
@@ -28,7 +28,7 @@ public class InteractionAppService {
     private final UserHistoryRepository userHistoryRepository;
     private final PaginationMetaDataService paginationMetaDataService;
 
-    public InteractionAppService(Recombee recombee, UsersRepository usersRepository,
+    public InteractionApiService(Recombee recombee, UsersRepository usersRepository,
                                   SongsRepository songsRepository, UserHistoryRepository userHistoryRepository,
                                   PaginationMetaDataService paginationMetaDataService) {
         this.recombee = recombee;

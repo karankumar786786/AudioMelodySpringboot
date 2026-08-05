@@ -1,4 +1,4 @@
-package me.one_org.melody.Controllers.App;
+package me.one_org.melody.Controllers.Api;
 
 import java.util.List;
 
@@ -10,11 +10,11 @@ import me.one_org.melody.Services.Api.RecommendationApiService;
 
 @RestController
 @RequestMapping("/api/recommendations")
-public class RecombeeController {
+public class RecombeeApiController {
 
     private final RecommendationApiService recommendationApiService;
 
-    public RecombeeController(RecommendationApiService recommendationApiService) {
+    public RecombeeApiController(RecommendationApiService recommendationApiService) {
         this.recommendationApiService = recommendationApiService;
     }
 

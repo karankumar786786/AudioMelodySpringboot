@@ -1,4 +1,4 @@
-package me.one_org.melody.Controllers.App;
+package me.one_org.melody.Controllers.Api;
 
 import java.util.List;
 
@@ -8,15 +8,15 @@ import org.springframework.web.bind.annotation.*;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.PlaylistsEntity;
-import me.one_org.melody.Services.App.PlaylistAppService;
+import me.one_org.melody.Services.Api.PlaylistApiService;
 
 @RestController
-@RequestMapping("/app/playlists")
-public class PlaylistController {
+@RequestMapping("/api/playlists")
+public class PlaylistApiController {
 
-    private final PlaylistAppService playlistAppService;
+    private final PlaylistApiService playlistAppService;
 
-    public PlaylistController(PlaylistAppService playlistAppService) {
+    public PlaylistApiController(PlaylistApiService playlistAppService) {
         this.playlistAppService = playlistAppService;
     }
 

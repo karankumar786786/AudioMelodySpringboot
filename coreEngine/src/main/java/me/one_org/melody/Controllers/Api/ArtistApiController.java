@@ -1,4 +1,4 @@
-package me.one_org.melody.Controllers.App;
+package me.one_org.melody.Controllers.Api;
 
 import java.util.List;
 
@@ -8,15 +8,16 @@ import org.springframework.web.bind.annotation.*;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Entity.ArtistsEntity;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
-import me.one_org.melody.Services.App.ArtistAppService;
+import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.Services.Api.ArtistApiService;
 
 @RestController
-@RequestMapping("/app/artists")
-public class ArtistController {
+@RequestMapping("/api/artists")
+public class ArtistApiController {
 
-    private final ArtistAppService artistAppService;
+    private final ArtistApiService artistAppService;
 
-    public ArtistController(ArtistAppService artistAppService) {
+    public ArtistApiController(ArtistApiService artistAppService) {
         this.artistAppService = artistAppService;
     }
 
@@ -32,5 +33,18 @@ public class ArtistController {
     @GetMapping("/{id}")
     public ResponseEntity<ArtistsEntity> getArtistById(@PathVariable String id) {
         return ResponseEntity.ok(artistAppService.getArtistById(id));
+    }
+
+    @GetMapping("/{id}/songs")
+    public ResponseEntity<List<SongsEntity>> getArtistSongs(@PathVariable String id) {
+        return ResponseEntity.ok(artistAppService.getArtistSongs(id));
+    }
+
+    @GetMapping("/songs")
+    public ResponseEntity<List<SongsEntity>> searchArtistSongs(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String name) {
+        String searchQuery = query != null ? query : name;
+        return ResponseEntity.ok(artistAppService.getArtistSongs(searchQuery));
     }
 }

@@ -1,4 +1,4 @@
-package me.one_org.melody.Controllers.App;
+package me.one_org.melody.Controllers.Api;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -8,11 +8,11 @@ import me.one_org.melody.Services.Api.SearchApiService;
 
 @RestController
 @RequestMapping("/api/search")
-public class AlgoliaController {
+public class AlgoliaApiController {
 
     private final SearchApiService searchApiService;
 
-    public AlgoliaController(SearchApiService searchApiService) {
+    public AlgoliaApiController(SearchApiService searchApiService) {
         this.searchApiService = searchApiService;
     }
 

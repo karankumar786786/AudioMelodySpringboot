@@ -1,4 +1,4 @@
-package me.one_org.melody.Controllers.App;
+package me.one_org.melody.Controllers.Api;
 
 import java.util.List;
 
@@ -8,15 +8,15 @@ import org.springframework.web.bind.annotation.*;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.UserHistoryEntity;
-import me.one_org.melody.Services.App.UserHistoryAppService;
+import me.one_org.melody.Services.Api.UserHistoryApiService;
 
 @RestController
-@RequestMapping("/app/user/history")
-public class UserHistoryController {
+@RequestMapping("/api/user/history")
+public class UserHistoryApiController {
 
-    private final UserHistoryAppService userHistoryAppService;
+    private final UserHistoryApiService userHistoryAppService;
 
-    public UserHistoryController(UserHistoryAppService userHistoryAppService) {
+    public UserHistoryApiController(UserHistoryApiService userHistoryAppService) {
         this.userHistoryAppService = userHistoryAppService;
     }
 

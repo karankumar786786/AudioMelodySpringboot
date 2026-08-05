@@ -1,4 +1,4 @@
-package me.one_org.melody.Services.App;
+package me.one_org.melody.Services.Api;
 
 import java.util.List;
 
@@ -12,12 +12,12 @@ import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 
 @Service
-public class SongsAppService {
+public class SongsApiService {
 
     private final SongsRepository songsRepository;
     private final PaginationMetaDataService paginationMetaDataService;
 
-    public SongsAppService(SongsRepository songsRepository, PaginationMetaDataService paginationMetaDataService) {
+    public SongsApiService(SongsRepository songsRepository, PaginationMetaDataService paginationMetaDataService) {
         this.songsRepository = songsRepository;
         this.paginationMetaDataService = paginationMetaDataService;
     }

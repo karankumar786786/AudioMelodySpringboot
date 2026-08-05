@@ -1,4 +1,4 @@
-package me.one_org.melody.Services.App;
+package me.one_org.melody.Services.Api;
 
 import java.util.List;
 
@@ -15,13 +15,13 @@ import me.one_org.melody.Repository.UsersRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 
 @Service
-public class UserHistoryAppService {
+public class UserHistoryApiService {
 
     private final UserHistoryRepository userHistoryRepository;
     private final UsersRepository usersRepository;
     private final PaginationMetaDataService paginationMetaDataService;
 
-    public UserHistoryAppService(UserHistoryRepository userHistoryRepository,
+    public UserHistoryApiService(UserHistoryRepository userHistoryRepository,
                                  UsersRepository usersRepository,
                                  PaginationMetaDataService paginationMetaDataService) {
         this.userHistoryRepository = userHistoryRepository;

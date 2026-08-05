@@ -1,4 +1,4 @@
-package me.one_org.melody.Controllers.App;
+package me.one_org.melody.Controllers.Api;
 
 import java.util.List;
 
@@ -13,15 +13,15 @@ import me.one_org.melody.Dto.Controllers.Apps.RenameUserPlaylistRequestDto;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.UserPlaylistsEntity;
-import me.one_org.melody.Services.App.UserPlaylistAppService;
+import me.one_org.melody.Services.Api.UserPlaylistApiService;
 
 @RestController
-@RequestMapping("/app/user/playlists")
-public class UserPlaylistController {
+@RequestMapping("/api/user/playlists")
+public class UserPlaylistApiController {
 
-    private final UserPlaylistAppService userPlaylistAppService;
+    private final UserPlaylistApiService userPlaylistAppService;
 
-    public UserPlaylistController(UserPlaylistAppService userPlaylistAppService) {
+    public UserPlaylistApiController(UserPlaylistApiService userPlaylistAppService) {
         this.userPlaylistAppService = userPlaylistAppService;
     }
 

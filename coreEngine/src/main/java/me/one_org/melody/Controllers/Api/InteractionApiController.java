@@ -1,4 +1,4 @@
-package me.one_org.melody.Controllers.App;
+package me.one_org.melody.Controllers.Api;
 
 import java.util.Set;
 
@@ -9,15 +9,15 @@ import jakarta.validation.Valid;
 import me.one_org.melody.Dto.Controllers.Apps.TrackPlayRequestDto;
 import me.one_org.melody.Dto.Controllers.Apps.TrackSkipRequestDto;
 import me.one_org.melody.Entity.SongsEntity;
-import me.one_org.melody.Services.App.InteractionAppService;
+import me.one_org.melody.Services.Api.InteractionApiService;
 
 @RestController
-@RequestMapping("/app/interaction")
-public class InteractionController {
+@RequestMapping("/api/interaction")
+public class InteractionApiController {
 
-    private final InteractionAppService interactionAppService;
+    private final InteractionApiService interactionAppService;
 
-    public InteractionController(InteractionAppService interactionAppService) {
+    public InteractionApiController(InteractionApiService interactionAppService) {
         this.interactionAppService = interactionAppService;
     }
 
