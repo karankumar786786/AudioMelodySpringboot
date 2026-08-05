@@ -52,7 +52,8 @@ public class ArtistApiService {
                 .orElseThrow(() -> new ResourceNotFoundException("Artist not found with id: " + id));
     }
 
-    public List<SongsEntity> getArtistSongs(String artistIdOrQuery) {
+    @Cacheable(value = "artist_songs", key = "#artistIdOrQuery + '_' + #page + '_' + #size")
+    public List<SongsEntity> getArtistSongsPaginated(String artistIdOrQuery, int page, int size) {
         if (artistIdOrQuery == null || artistIdOrQuery.isBlank()) {
             return List.of();
         }
@@ -62,6 +63,16 @@ public class ArtistApiService {
             searchQuery = artistOpt.get().getName();
         }
         List<String> songIds = algoliaSearch.searchSongsByArtist(searchQuery);
-        return songsRepository.findAllByIds(songIds);
+        if (songIds.isEmpty()) {
+            return List.of();
+        }
+        int fromIndex = Math.min(page * size, songIds.size());
+        int toIndex = Math.min(fromIndex + size, songIds.size());
+        List<String> pageIds = songIds.subList(fromIndex, toIndex);
+        return songsRepository.findAllByIds(pageIds);
+    }
+
+    public PaginationMetaDataEntity getArtistSongsPaginationMetaData(String artistId) {
+        return paginationMetaDataService.getMetaData("ArtistSongs_" + artistId);
     }
 }

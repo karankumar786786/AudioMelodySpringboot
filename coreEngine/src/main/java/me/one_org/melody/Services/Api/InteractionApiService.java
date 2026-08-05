@@ -1,5 +1,6 @@
 package me.one_org.melody.Services.Api;
 
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -79,8 +80,10 @@ public class InteractionApiService {
         SongsEntity song = songsRepository.findById(songId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Song not found"));
 
-        user.getFavouriteSongs().add(song);
-        usersRepository.save(user);
+        if (user.getFavouriteSongs().add(song)) {
+            usersRepository.save(user);
+            paginationMetaDataService.incrementStatus("UserFavourites_" + userId, null);
+        }
 
         try {
             recombee.trackFavouriteAdd(userId, songId);
@@ -92,8 +95,10 @@ public class InteractionApiService {
     @Transactional
     public void removeFavourite(String userId, String songId) {
         UsersEntity user = getUser(userId);
-        user.getFavouriteSongs().removeIf(s -> s.getId().equals(songId));
-        usersRepository.save(user);
+        if (user.getFavouriteSongs().removeIf(s -> s.getId().equals(songId))) {
+            usersRepository.save(user);
+            paginationMetaDataService.decrementStatus("UserFavourites_" + userId, null);
+        }
 
         try {
             recombee.trackFavouriteRemove(userId, songId);
@@ -102,9 +107,14 @@ public class InteractionApiService {
         }
     }
 
-    public Set<SongsEntity> getFavourites(String userId) {
-        UsersEntity user = getUser(userId);
-        return user.getFavouriteSongs();
+    @Transactional(readOnly = true)
+    public List<SongsEntity> getFavouritesPaginated(String userId, int page, int size) {
+        getUser(userId);
+        return usersRepository.findFavouriteSongsPaginated(userId, page, size);
+    }
+
+    public me.one_org.melody.Entity.PaginationMetaDataEntity getFavouritesPaginationMetaData(String userId) {
+        return paginationMetaDataService.getMetaData("UserFavourites_" + userId);
     }
 
     private UsersEntity getUser(String userId) {

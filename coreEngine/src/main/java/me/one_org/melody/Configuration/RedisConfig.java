@@ -20,6 +20,9 @@ import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import tools.jackson.databind.jsontype.PolymorphicTypeValidator;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Configuration
 public class RedisConfig {
 
@@ -57,7 +60,7 @@ public class RedisConfig {
         GenericJacksonJsonRedisSerializer serializer =
                 new GenericJacksonJsonRedisSerializer(redisObjectMapper());
 
-        RedisCacheConfiguration configuration = RedisCacheConfiguration
+        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration
                 .defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(10))
                 .serializeKeysWith(
@@ -69,6 +72,17 @@ public class RedisConfig {
                         RedisSerializationContext.SerializationPair.fromSerializer(serializer)
                 );
 
-        return RedisCacheManager.builder(factory).cacheDefaults(configuration).build();
+        Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
+        cacheConfigurations.put("songs", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+        cacheConfigurations.put("artists", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+        cacheConfigurations.put("playlists", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+        cacheConfigurations.put("artist_lists", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+        cacheConfigurations.put("playlist_lists", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+        cacheConfigurations.put("paginationMetaData", defaultConfig.entryTtl(Duration.ofMinutes(5)));
+
+        return RedisCacheManager.builder(factory)
+                .cacheDefaults(defaultConfig)
+                .withInitialCacheConfigurations(cacheConfigurations)
+                .build();
     }
 }

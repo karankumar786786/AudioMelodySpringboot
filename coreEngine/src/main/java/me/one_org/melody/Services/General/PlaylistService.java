@@ -110,10 +110,13 @@ public class PlaylistService {
     }
 
     @Transactional(readOnly = true)
-    public java.util.Set<SongsEntity> getPlaylistSongs(String id) {
-        PlaylistsEntity playlist = playlistsRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + id));
-        return playlist.getSongs();
+    public List<SongsEntity> getPlaylistSongsPaginated(String id, int page, int size) {
+        getPlaylistById(id);
+        return playlistsRepository.findSongsByPlaylistIdPaginated(id, page, size);
+    }
+
+    public PaginationMetaDataEntity getPlaylistSongsPaginationMetaData(String id) {
+        return paginationMetaDataService.getMetaData("PlaylistSongs_" + id);
     }
 
     public List<PlaylistsEntity> getPlaylistsPaginated(int page, int size) {
@@ -140,8 +143,10 @@ public class PlaylistService {
         SongsEntity song = songsRepository.findById(songId)
                 .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + songId));
 
-        playlist.getSongs().add(song);
-        playlistsRepository.save(playlist);
+        if (playlist.getSongs().add(song)) {
+            playlistsRepository.save(playlist);
+            paginationMetaDataService.incrementStatus("PlaylistSongs_" + playlistId, null);
+        }
         return playlist;
     }
 
@@ -154,8 +159,10 @@ public class PlaylistService {
         PlaylistsEntity playlist = playlistsRepository.findById(playlistId)
                 .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + playlistId));
 
-        playlist.getSongs().removeIf(s -> s.getId().equals(songId));
-        playlistsRepository.save(playlist);
+        if (playlist.getSongs().removeIf(s -> s.getId().equals(songId))) {
+            playlistsRepository.save(playlist);
+            paginationMetaDataService.decrementStatus("PlaylistSongs_" + playlistId, null);
+        }
         return playlist;
     }
 }

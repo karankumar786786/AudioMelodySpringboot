@@ -29,8 +29,8 @@ public class UserPlaylistApiService {
     private final PaginationMetaDataService paginationMetaDataService;
 
     public UserPlaylistApiService(UserPlaylistsRepository userPlaylistsRepository,
-                                   SongsRepository songsRepository, UsersRepository usersRepository,
-                                   Recombee recombee, PaginationMetaDataService paginationMetaDataService) {
+            SongsRepository songsRepository, UsersRepository usersRepository,
+            Recombee recombee, PaginationMetaDataService paginationMetaDataService) {
         this.userPlaylistsRepository = userPlaylistsRepository;
         this.songsRepository = songsRepository;
         this.usersRepository = usersRepository;
@@ -105,9 +105,13 @@ public class UserPlaylistApiService {
     }
 
     @Transactional(readOnly = true)
-    public java.util.Set<SongsEntity> getPlaylistSongs(String userId, String playlistId) {
-        UserPlaylistsEntity playlist = getPlaylistOwnedBy(userId, playlistId);
-        return playlist.getSongs();
+    public List<SongsEntity> getPlaylistSongsPaginated(String userId, String playlistId, int page, int size) {
+        getPlaylistOwnedBy(userId, playlistId);
+        return userPlaylistsRepository.findSongsByUserPlaylistIdPaginated(playlistId, page, size);
+    }
+
+    public PaginationMetaDataEntity getPlaylistSongsPaginationMetaData(String playlistId) {
+        return paginationMetaDataService.getMetaData("UserPlaylistSongs_" + playlistId);
     }
 
     @Transactional

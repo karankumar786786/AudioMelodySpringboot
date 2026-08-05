@@ -26,9 +26,10 @@ public class UserSearchHistoryRepository {
 
     public List<UserSearchHistoryEntity> findByUser(UsersEntity user) {
         return entityManager.createQuery(
-                "SELECT h FROM UserSearchHistoryEntity h WHERE h.user = :user",
+                "SELECT h FROM UserSearchHistoryEntity h WHERE h.user = :user ORDER BY h.createdAt DESC",
                 UserSearchHistoryEntity.class)
                 .setParameter("user", user)
+                .setMaxResults(5)
                 .getResultList();
     }
 

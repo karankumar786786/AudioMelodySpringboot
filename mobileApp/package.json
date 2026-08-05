@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "dependencies": {
     "@expo/ui": "~57.0.9",
+    "axios": "^1.19.0",
     "expo": "~57.0.10",
     "expo-constants": "~57.0.9",
     "expo-device": "~57.0.1",

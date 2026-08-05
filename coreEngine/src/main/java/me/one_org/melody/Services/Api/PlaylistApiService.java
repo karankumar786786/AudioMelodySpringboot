@@ -46,9 +46,12 @@ public class PlaylistApiService {
     }
 
     @Transactional(readOnly = true)
-    public Set<SongsEntity> getPlaylistSongs(String id) {
-        PlaylistsEntity playlist = playlistsRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + id));
-        return playlist.getSongs();
+    public List<SongsEntity> getPlaylistSongsPaginated(String id, int page, int size) {
+        getPlaylistById(id);
+        return playlistsRepository.findSongsByPlaylistIdPaginated(id, page, size);
+    }
+
+    public PaginationMetaDataEntity getPlaylistSongsPaginationMetaData(String id) {
+        return paginationMetaDataService.getMetaData("PlaylistSongs_" + id);
     }
 }

@@ -38,7 +38,12 @@ public class PlaylistApiController {
     }
 
     @GetMapping("/{id}/songs")
-    public ResponseEntity<Set<SongsEntity>> getPlaylistSongs(@PathVariable String id) {
-        return ResponseEntity.ok(playlistAppService.getPlaylistSongs(id));
+    public ResponseEntity<PaginatedResponseDto<SongsEntity>> getPlaylistSongs(
+            @PathVariable String id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        List<SongsEntity> songs = playlistAppService.getPlaylistSongsPaginated(id, page, size);
+        PaginationMetaDataEntity metaData = playlistAppService.getPlaylistSongsPaginationMetaData(id);
+        return ResponseEntity.ok(new PaginatedResponseDto<>(songs, page, size, metaData));
     }
 }

@@ -57,8 +57,13 @@ public class PlaylistController {
     }
 
     @GetMapping("/{id}/songs")
-    public ResponseEntity<java.util.Set<me.one_org.melody.Entity.SongsEntity>> getPlaylistSongs(@PathVariable String id) {
-        return ResponseEntity.ok(playlistService.getPlaylistSongs(id));
+    public ResponseEntity<PaginatedResponseDto<me.one_org.melody.Entity.SongsEntity>> getPlaylistSongs(
+            @PathVariable String id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        List<me.one_org.melody.Entity.SongsEntity> songs = playlistService.getPlaylistSongsPaginated(id, page, size);
+        PaginationMetaDataEntity metaData = playlistService.getPlaylistSongsPaginationMetaData(id);
+        return ResponseEntity.ok(new PaginatedResponseDto<>(songs, page, size, metaData));
     }
 
     @PostMapping("/{id}/songs")

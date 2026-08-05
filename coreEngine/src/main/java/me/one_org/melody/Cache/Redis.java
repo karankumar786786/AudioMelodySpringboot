@@ -13,19 +13,22 @@ public class Redis<T> {
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final String group;
+    private final Class<T> type;
 
     public Redis(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
-        this.redisTemplate = redisTemplate;
-        this.objectMapper = objectMapper;
+        this(redisTemplate, objectMapper, null, null);
     }
 
-    private String group;
-    private Class<T> type;
-
-    public Redis<T> of(String group, Class<T> type) {
+    private Redis(StringRedisTemplate redisTemplate, ObjectMapper objectMapper, String group, Class<T> type) {
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = objectMapper;
         this.group = group;
         this.type = type;
-        return this;
+    }
+
+    public Redis<T> of(String group, Class<T> type) {
+        return new Redis<>(this.redisTemplate, this.objectMapper, group, type);
     }
 
     private String buildKey(String key) {

@@ -45,6 +45,16 @@ public class PlaylistsRepository {
                 .getSingleResult();
     }
 
+    public List<me.one_org.melody.Entity.SongsEntity> findSongsByPlaylistIdPaginated(String playlistId, int page, int size) {
+        return entityManager.createQuery(
+                "SELECT s FROM PlaylistsEntity p JOIN p.songs s WHERE p.id = :playlistId ORDER BY s.createdAt DESC",
+                me.one_org.melody.Entity.SongsEntity.class)
+                .setParameter("playlistId", playlistId)
+                .setFirstResult(page * size)
+                .setMaxResults(size)
+                .getResultList();
+    }
+
     public List<PlaylistsEntity> findAllByIds(List<String> ids) {
         if (ids == null || ids.isEmpty()) return List.of();
         return entityManager.createQuery(

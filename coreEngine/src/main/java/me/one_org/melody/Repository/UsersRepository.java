@@ -65,6 +65,16 @@ public class UsersRepository {
                 .getSingleResult();
     }
 
+    public List<me.one_org.melody.Entity.SongsEntity> findFavouriteSongsPaginated(String userId, int page, int size) {
+        return entityManager.createQuery(
+                "SELECT s FROM UsersEntity u JOIN u.favouriteSongs s WHERE u.id = :userId ORDER BY s.title ASC",
+                me.one_org.melody.Entity.SongsEntity.class)
+                .setParameter("userId", userId)
+                .setFirstResult(page * size)
+                .setMaxResults(size)
+                .getResultList();
+    }
+
     @Transactional
     public void deleteById(String id) {
         UsersEntity user = entityManager.find(UsersEntity.class, id);

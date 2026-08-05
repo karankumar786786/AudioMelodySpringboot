@@ -6,7 +6,6 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
-import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.Cache.Redis;
 import me.one_org.melody.Dto.Controllers.Authentication.LoginRequestDto;
@@ -44,13 +43,8 @@ public class AuthenticationService {
         this.jwtUtil = jwtUtil;
         this.hmacUtil = hmacUtil;
         this.otpUtil = otpUtil;
-        this.cache = cache;
+        this.cache = cache.of("otp", OtpDataDto.class);
         this.paginationMetaDataService = paginationMetaDataService;
-    }
-
-    @PostConstruct
-    public void init() {
-        cache.of("otp", OtpDataDto.class);
     }
 
     public String register(RegisterRequestDto request) {

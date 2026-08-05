@@ -1,6 +1,5 @@
 package me.one_org.melody.Controllers.Api;
 
-import java.util.Set;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,6 +9,10 @@ import me.one_org.melody.Dto.Controllers.Api.TrackPlayRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.TrackSkipRequestDto;
 import me.one_org.melody.Entity.SongsEntity;
 import me.one_org.melody.Services.Api.InteractionApiService;
+
+import java.util.List;
+import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
+import me.one_org.melody.Entity.PaginationMetaDataEntity;
 
 @RestController
 @RequestMapping("/api/interaction")
@@ -54,8 +57,12 @@ public class InteractionApiController {
     }
 
     @GetMapping("/favourites")
-    public ResponseEntity<Set<SongsEntity>> getFavourites(
-            @RequestAttribute("userId") String userId) {
-        return ResponseEntity.ok(interactionAppService.getFavourites(userId));
+    public ResponseEntity<PaginatedResponseDto<SongsEntity>> getFavourites(
+            @RequestAttribute("userId") String userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        List<SongsEntity> favourites = interactionAppService.getFavouritesPaginated(userId, page, size);
+        PaginationMetaDataEntity metaData = interactionAppService.getFavouritesPaginationMetaData(userId);
+        return ResponseEntity.ok(new PaginatedResponseDto<>(favourites, page, size, metaData));
     }
 }

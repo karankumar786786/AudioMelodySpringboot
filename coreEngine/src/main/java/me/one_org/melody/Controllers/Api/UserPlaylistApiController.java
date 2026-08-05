@@ -12,6 +12,7 @@ import me.one_org.melody.Dto.Controllers.Api.AddSongToUserPlaylistRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.CreateUserPlaylistRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.RenameUserPlaylistRequestDto;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
+import me.one_org.melody.Entity.SongsEntity;
 import me.one_org.melody.Entity.UserPlaylistsEntity;
 import me.one_org.melody.Services.Api.UserPlaylistApiService;
 
@@ -59,10 +60,14 @@ public class UserPlaylistApiController {
     }
 
     @GetMapping("/{id}/songs")
-    public ResponseEntity<java.util.Set<me.one_org.melody.Entity.SongsEntity>> getPlaylistSongs(
+    public ResponseEntity<PaginatedResponseDto<me.one_org.melody.Entity.SongsEntity>> getPlaylistSongs(
             @RequestAttribute("userId") String userId,
-            @PathVariable String id) {
-        return ResponseEntity.ok(userPlaylistAppService.getPlaylistSongs(userId, id));
+            @PathVariable String id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        List<SongsEntity> songs = userPlaylistAppService.getPlaylistSongsPaginated(userId, id, page, size);
+        PaginationMetaDataEntity metaData = userPlaylistAppService.getPlaylistSongsPaginationMetaData(id);
+        return ResponseEntity.ok(new PaginatedResponseDto<>(songs, page, size, metaData));
     }
 
     @DeleteMapping("/{id}")
