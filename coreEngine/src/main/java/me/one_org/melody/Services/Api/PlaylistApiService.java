@@ -11,6 +11,10 @@ import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Repository.PlaylistsRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 
+import java.util.Set;
+import org.springframework.transaction.annotation.Transactional;
+import me.one_org.melody.Entity.SongsEntity;
+
 @Service
 public class PlaylistApiService {
 
@@ -39,5 +43,12 @@ public class PlaylistApiService {
     public PlaylistsEntity getPlaylistById(String id) {
         return playlistsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + id));
+    }
+
+    @Transactional(readOnly = true)
+    public Set<SongsEntity> getPlaylistSongs(String id) {
+        PlaylistsEntity playlist = playlistsRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + id));
+        return playlist.getSongs();
     }
 }

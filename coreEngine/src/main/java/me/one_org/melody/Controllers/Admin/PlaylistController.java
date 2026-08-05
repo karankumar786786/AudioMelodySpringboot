@@ -56,6 +56,11 @@ public class PlaylistController {
         return ResponseEntity.ok(playlistService.getPlaylistById(id));
     }
 
+    @GetMapping("/{id}/songs")
+    public ResponseEntity<java.util.Set<me.one_org.melody.Entity.SongsEntity>> getPlaylistSongs(@PathVariable String id) {
+        return ResponseEntity.ok(playlistService.getPlaylistSongs(id));
+    }
+
     @PostMapping("/{id}/songs")
     public ResponseEntity<PlaylistsEntity> addSong(@PathVariable String id,
                                                     @Valid @RequestBody AddSongToPlaylistRequestDto data) {

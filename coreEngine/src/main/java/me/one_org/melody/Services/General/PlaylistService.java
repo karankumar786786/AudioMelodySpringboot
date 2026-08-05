@@ -109,6 +109,13 @@ public class PlaylistService {
                 .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + id));
     }
 
+    @Transactional(readOnly = true)
+    public java.util.Set<SongsEntity> getPlaylistSongs(String id) {
+        PlaylistsEntity playlist = playlistsRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + id));
+        return playlist.getSongs();
+    }
+
     public List<PlaylistsEntity> getPlaylistsPaginated(int page, int size) {
         return playlistsRepository.findAllPaginated(page, size);
     }

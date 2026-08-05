@@ -99,6 +99,17 @@ public class UserPlaylistApiService {
         return playlist;
     }
 
+    @Transactional(readOnly = true)
+    public UserPlaylistsEntity getPlaylistById(String userId, String playlistId) {
+        return getPlaylistOwnedBy(userId, playlistId);
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.Set<SongsEntity> getPlaylistSongs(String userId, String playlistId) {
+        UserPlaylistsEntity playlist = getPlaylistOwnedBy(userId, playlistId);
+        return playlist.getSongs();
+    }
+
     @Transactional
     public UserPlaylistsEntity removeSong(String userId, String playlistId, String songId) {
         UserPlaylistsEntity playlist = getPlaylistOwnedBy(userId, playlistId);

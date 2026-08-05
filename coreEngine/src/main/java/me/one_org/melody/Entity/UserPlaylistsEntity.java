@@ -38,6 +38,9 @@ public class UserPlaylistsEntity {
         joinColumns = @JoinColumn(name = "user_playlist_id"),
         inverseJoinColumns = @JoinColumn(name = "song_id")
     )
+    @JsonIgnore
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
     private Set<SongsEntity> songs;
 }
 

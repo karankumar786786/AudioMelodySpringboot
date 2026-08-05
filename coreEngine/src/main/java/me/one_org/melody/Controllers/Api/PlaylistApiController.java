@@ -10,6 +10,9 @@ import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.PlaylistsEntity;
 import me.one_org.melody.Services.Api.PlaylistApiService;
 
+import java.util.Set;
+import me.one_org.melody.Entity.SongsEntity;
+
 @RestController
 @RequestMapping("/api/playlists")
 public class PlaylistApiController {
@@ -32,5 +35,10 @@ public class PlaylistApiController {
     @GetMapping("/{id}")
     public ResponseEntity<PlaylistsEntity> getPlaylistById(@PathVariable String id) {
         return ResponseEntity.ok(playlistAppService.getPlaylistById(id));
+    }
+
+    @GetMapping("/{id}/songs")
+    public ResponseEntity<Set<SongsEntity>> getPlaylistSongs(@PathVariable String id) {
+        return ResponseEntity.ok(playlistAppService.getPlaylistSongs(id));
     }
 }

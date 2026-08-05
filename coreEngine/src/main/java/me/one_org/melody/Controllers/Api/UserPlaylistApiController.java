@@ -51,6 +51,20 @@ public class UserPlaylistApiController {
         return ResponseEntity.ok(userPlaylistAppService.renamePlaylist(userId, id, data.name()));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<UserPlaylistsEntity> getPlaylistById(
+            @RequestAttribute("userId") String userId,
+            @PathVariable String id) {
+        return ResponseEntity.ok(userPlaylistAppService.getPlaylistById(userId, id));
+    }
+
+    @GetMapping("/{id}/songs")
+    public ResponseEntity<java.util.Set<me.one_org.melody.Entity.SongsEntity>> getPlaylistSongs(
+            @RequestAttribute("userId") String userId,
+            @PathVariable String id) {
+        return ResponseEntity.ok(userPlaylistAppService.getPlaylistSongs(userId, id));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePlaylist(
             @RequestAttribute("userId") String userId,

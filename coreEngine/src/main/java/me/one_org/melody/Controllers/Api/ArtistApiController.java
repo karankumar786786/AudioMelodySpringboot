@@ -40,11 +40,4 @@ public class ArtistApiController {
         return ResponseEntity.ok(artistAppService.getArtistSongs(id));
     }
 
-    @GetMapping("/songs")
-    public ResponseEntity<List<SongsEntity>> searchArtistSongs(
-            @RequestParam(required = false) String query,
-            @RequestParam(required = false) String name) {
-        String searchQuery = query != null ? query : name;
-        return ResponseEntity.ok(artistAppService.getArtistSongs(searchQuery));
-    }
 }
