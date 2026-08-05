@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.UserHistoryEntity;
+import me.one_org.melody.Entity.UserSearchHistoryEntity;
 import me.one_org.melody.Services.Api.UserHistoryApiService;
 
 @RestController
@@ -34,6 +35,19 @@ public class UserHistoryApiController {
     public ResponseEntity<Void> clearHistory(
             @RequestAttribute("userId") String userId) {
         userHistoryAppService.clearHistory(userId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<UserSearchHistoryEntity>> getSearchHistory(
+            @RequestAttribute("userId") String userId) {
+        return ResponseEntity.ok(userHistoryAppService.getSearchHistory(userId));
+    }
+
+    @DeleteMapping("/search")
+    public ResponseEntity<Void> clearSearchHistory(
+            @RequestAttribute("userId") String userId) {
+        userHistoryAppService.clearSearchHistory(userId);
         return ResponseEntity.noContent().build();
     }
 }

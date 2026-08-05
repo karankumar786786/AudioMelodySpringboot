@@ -9,8 +9,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.UserHistoryEntity;
+import me.one_org.melody.Entity.UserSearchHistoryEntity;
 import me.one_org.melody.Entity.UsersEntity;
 import me.one_org.melody.Repository.UserHistoryRepository;
+import me.one_org.melody.Repository.UserSearchHistoryRepository;
 import me.one_org.melody.Repository.UsersRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 
@@ -20,13 +22,16 @@ public class UserHistoryApiService {
     private final UserHistoryRepository userHistoryRepository;
     private final UsersRepository usersRepository;
     private final PaginationMetaDataService paginationMetaDataService;
+    private final UserSearchHistoryRepository searchHistoryRepository;
 
     public UserHistoryApiService(UserHistoryRepository userHistoryRepository,
                                  UsersRepository usersRepository,
-                                 PaginationMetaDataService paginationMetaDataService) {
+                                 PaginationMetaDataService paginationMetaDataService,
+                                 UserSearchHistoryRepository searchHistoryRepository) {
         this.userHistoryRepository = userHistoryRepository;
         this.usersRepository = usersRepository;
         this.paginationMetaDataService = paginationMetaDataService;
+        this.searchHistoryRepository = searchHistoryRepository;
     }
 
     public List<UserHistoryEntity> getHistory(String userId, int page, int size) {
@@ -43,6 +48,17 @@ public class UserHistoryApiService {
         UsersEntity user = getUser(userId);
         userHistoryRepository.deleteByUser(user);
         paginationMetaDataService.updateCounts("UserHistory_" + userId, 0L, 0L, 0L, 0L);
+    }
+
+    public List<UserSearchHistoryEntity> getSearchHistory(String userId) {
+        UsersEntity user = getUser(userId);
+        return searchHistoryRepository.findByUser(user);
+    }
+
+    @Transactional
+    public void clearSearchHistory(String userId) {
+        UsersEntity user = getUser(userId);
+        searchHistoryRepository.deleteByUser(user);
     }
 
     private UsersEntity getUser(String userId) {
