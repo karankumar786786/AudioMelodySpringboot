@@ -62,11 +62,17 @@ async function request<T = any>(endpoint: string, options: RequestInit = {}): Pr
 
   if (!response.ok) {
     let errMessage = `HTTP error ${response.status}`;
+    let errData: any = null;
     try {
-      const errData = await response.json();
+      errData = await response.json();
       errMessage = errData.message || errMessage;
     } catch {}
-    throw new Error(errMessage);
+    const error: any = new Error(errMessage);
+    error.response = {
+      status: response.status,
+      data: errData,
+    };
+    throw error;
   }
 
   if (response.status === 204) {
@@ -250,7 +256,7 @@ export const musicApi = {
     register: async (name: string, email: string) => {
       const data = await request("/auth/register", {
         method: "POST",
-        body: JSON.stringify({ name, email, password: "password" }),
+        body: JSON.stringify({ userName: name, email, password: "password" }),
       });
       return { data };
     },

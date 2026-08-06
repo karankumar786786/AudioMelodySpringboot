@@ -47,7 +47,7 @@ export const sessionActions = {
       playerStore.setState((s) => ({ ...s, favourites: new Set(ids) }));
     } catch (err: any) {
       console.error("[PlayerStore] Failed to fetch favourites:", err);
-      if (err?.response?.status === 400 || err?.response?.status === 401) {
+      if (err?.response?.status === 400 || err?.response?.status === 401 || err?.response?.status === 403) {
         sessionActions.clearSystemSession();
       }
     }
@@ -76,7 +76,7 @@ export const sessionActions = {
       }
     } catch (err: any) {
       console.error("[PlayerStore] Toggle favourite failed:", err);
-      if (err?.response?.status === 400 || err?.response?.status === 401) {
+      if (err?.response?.status === 400 || err?.response?.status === 401 || err?.response?.status === 403) {
         sessionActions.clearSystemSession();
       }
       throw err;
