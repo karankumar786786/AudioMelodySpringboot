@@ -15,6 +15,7 @@ export const sessionActions = {
   },
 
   clearSystemSession: () => {
+    console.log("[PlayerStore] clearSystemSession called - purging storage & state");
     localStorage.removeItem("system_token");
     localStorage.removeItem("system_refresh_token");
     localStorage.removeItem("system_user");

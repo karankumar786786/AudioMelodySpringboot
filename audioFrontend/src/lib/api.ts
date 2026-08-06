@@ -251,24 +251,45 @@ export const musicApi = {
         method: "POST",
         body: JSON.stringify({ email, password: "password" }),
       });
-      return { data };
+      return { data: { token: data.tempToken } };
     },
     register: async (name: string, email: string) => {
       const data = await request("/auth/register", {
         method: "POST",
         body: JSON.stringify({ userName: name, email, password: "password" }),
       });
-      return { data };
+      return { data: { token: data.tempToken } };
     },
     resendOtp: async (token: string) => {
-      return { data: { token: token || "session-token" } };
+      await request("/auth/resend-otp", {
+        method: "POST",
+        headers: { "X-TEMP-TOKEN": token },
+      });
+      return { data: { token } };
     },
     verifyOtp: async (token: string, code: string) => {
+      const verifyRes = await request("/auth/verify-otp", {
+        method: "POST",
+        headers: { "X-TEMP-TOKEN": token },
+        body: JSON.stringify({ otp: code }),
+      });
+      
+      const { accessToken, refreshToken } = verifyRes;
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("system_token", accessToken);
+      }
+
+      const profile = await request("/api/user/profile");
+
       return {
         data: {
-          accessToken: token || "mock-access-token",
-          refreshToken: "mock-refresh-token",
-          user: { id: "user1", email: "user@example.com", name: "User" },
+          accessToken,
+          refreshToken,
+          user: {
+            ...profile,
+            name: profile.userName || "User",
+          },
         },
       };
     },

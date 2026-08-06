@@ -3,7 +3,7 @@ import { getImageUrl } from "./image-utils";
 
 const S3_BASE_URL =
   process.env.NEXT_PUBLIC_S3_BASE_URL ||
-  "https://audioprocessingproduction.s3.ap-south-1.amazonaws.com";
+  "https://audiomelodyspringboot.s3.ap-south-1.amazonaws.com";
 
 export interface PlayerSong extends Song {
   queueId: string; // Unique ID for this specific queue entry
