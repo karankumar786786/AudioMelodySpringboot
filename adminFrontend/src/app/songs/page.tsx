@@ -11,7 +11,8 @@ interface Song {
   duration: number;
   language: string;
   imageKey: string;
-  createdAt: string;
+  lrclibId?: string;
+  createdAt?: string;
 }
 
 export default function SongsPage() {
@@ -21,23 +22,25 @@ export default function SongsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Form State
-  const [uploadMode, setUploadMode] = useState<"file" | "youtube">("file");
   const [formData, setFormData] = useState({
     title: "",
     artistName: "",
+    language: "English",
+    lrclibId: "",
     songFile: null as File | null,
     imageFile: null as File | null,
-    ytUrl: "",
   });
   const [uploading, setUploading] = useState(false);
-  const [fetchingYt, setFetchingYt] = useState(false);
 
   const fetchSongs = async () => {
     try {
-      const response = await adminFetch(`${process.env.NEXT_PUBLIC_API_URL}/songs`);
-      const result = await response.json();
-      if (result.success) {
-        setSongs(result.data.items || result.data.data || []);
+      setLoading(true);
+      const response = await adminFetch("/admin/song?page=0&size=100");
+      if (response.ok) {
+        const result = await response.json();
+        setSongs(result.content || result.data?.content || result.data || []);
+      } else {
+        setError("Failed to fetch songs");
       }
     } catch (err) {
       setError("Failed to fetch songs");
@@ -53,11 +56,13 @@ export default function SongsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this song?")) return;
     try {
-      const res = await adminFetch(`${process.env.NEXT_PUBLIC_API_URL}/songs/${id}`, {
+      const res = await adminFetch(`/admin/song/${id}`, {
         method: "DELETE",
       });
       if (res.ok) {
         setSongs(songs.filter(s => s.id !== id));
+      } else {
+        alert("Failed to delete song");
       }
     } catch (err) {
       alert("Failed to delete song");
@@ -66,119 +71,80 @@ export default function SongsPage() {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (uploadMode === "file" && (!formData.songFile || !formData.imageFile)) {
+    if (!formData.songFile || !formData.imageFile) {
       return alert("Please select both audio and image files");
-    }
-    if (uploadMode === "youtube" && !formData.ytUrl) {
-      return alert("Please enter a YouTube URL");
     }
 
     setUploading(true);
     try {
-      if (uploadMode === "youtube") {
-        const finalizeRes = await adminFetch(`${process.env.NEXT_PUBLIC_API_URL}/songs/youtube`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: formData.title,
-            artistName: formData.artistName,
-            ytUrl: formData.ytUrl,
-          }),
-        });
-
-        const finalData = await finalizeRes.json();
-        if (finalData.success) {
-          setIsModalOpen(false);
-          setFormData({ title: "", artistName: "", songFile: null, imageFile: null, ytUrl: "" });
-          fetchSongs();
-        } else {
-          throw new Error(finalData.message);
-        }
-        return;
-      }
-      // 1. Get Pre-signed URLs
+      // 1. Get Presigned URLs & Upload Token from coreEngine
       const [songUrlRes, imageUrlRes] = await Promise.all([
-        adminFetch(`${process.env.NEXT_PUBLIC_API_URL}/misc/presigned-url/song`),
-        adminFetch(`${process.env.NEXT_PUBLIC_API_URL}/misc/presigned-url/image`),
+        adminFetch("/webhook/internal/song-upload-url"),
+        adminFetch("/webhook/internal/image-upload-param"),
       ]);
+
+      if (!songUrlRes.ok || !imageUrlRes.ok) {
+        throw new Error("Failed to get upload authorization from server");
+      }
 
       const songUrlData = await songUrlRes.json();
       const imageUrlData = await imageUrlRes.json();
 
-      if (!songUrlData.success || !imageUrlData.success) throw new Error("Failed to get upload URLs");
-
-      if (!formData.songFile || !formData.imageFile) throw new Error("Missing files");
-
-      // 2. Upload Files
-      // S3 Upload for Song
-      await adminFetch(songUrlData.data.url, {
+      // 2. Upload Song file to S3
+      const songUploadRes = await fetch(songUrlData.preSignedUrl, {
         method: "PUT",
         body: formData.songFile,
-        headers: { "Content-Type": formData.songFile.type },
+        headers: { "Content-Type": formData.songFile.type || "audio/mpeg" },
       });
 
-      // Simple upload logic for ImageKit (assuming direct upload with signature)
+      if (!songUploadRes.ok) throw new Error("Audio upload to S3 failed");
+
+      // 3. Upload Cover Image to ImageKit using params from coreEngine
       const imageFormData = new FormData();
       imageFormData.append("file", formData.imageFile);
-      imageFormData.append("publicKey", process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY || "");
-      imageFormData.append("signature", imageUrlData.data.signature);
-      imageFormData.append("expire", imageUrlData.data.expire.toString());
-      imageFormData.append("token", imageUrlData.data.token);
+      imageFormData.append("publicKey", process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY || "public_ck50bJ3UfF9eCOXhwXQTQFP693o=");
+      imageFormData.append("signature", imageUrlData.param.signature);
+      imageFormData.append("expire", imageUrlData.param.expire.toString());
+      imageFormData.append("token", imageUrlData.param.token);
       imageFormData.append("folder", "/songs/images");
       const extension = formData.imageFile.name.split('.').pop();
-      const fileNameWithExt = `${imageUrlData.data.tempKey}.${extension}`;
-
+      const fileNameWithExt = `${imageUrlData.key}.${extension}`;
       imageFormData.append("fileName", fileNameWithExt);
 
-      const ikRes = await adminFetch("https://upload.imagekit.io/api/v1/files/upload", {
+      const ikRes = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
         method: "POST",
         body: imageFormData,
       });
-      const ikData = await ikRes.json();
-      if (!ikRes.ok) throw new Error(ikData.message || "ImageKit upload failed");
 
-      // 3. Finalize in Backend
-      const finalizeRes = await adminFetch(`${process.env.NEXT_PUBLIC_API_URL}/songs`, {
+      const ikData = await ikRes.json();
+      if (!ikRes.ok) throw new Error(ikData.message || "Image upload failed");
+
+      // 4. Create Song record in coreEngine
+      const finalizeRes = await adminFetch("/admin/song", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: formData.title,
           artistName: formData.artistName,
-          tempSongKey: songUrlData.data.key,
-          imageKey: ikData.filePath,
+          tempSongKey: songUrlData.key,
+          imageKey: ikData.filePath || imageUrlData.key,
+          language: formData.language || "English",
+          lrclibId: formData.lrclibId || "",
         }),
       });
 
-      const finalData = await finalizeRes.json();
-      if (finalData.success) {
+      if (finalizeRes.ok) {
         setIsModalOpen(false);
-        setFormData({ title: "", artistName: "", songFile: null, imageFile: null, ytUrl: "" });
+        setFormData({ title: "", artistName: "", language: "English", lrclibId: "", songFile: null, imageFile: null });
         fetchSongs();
       } else {
-        throw new Error(finalData.message);
+        const errData = await finalizeRes.json();
+        throw new Error(errData.message || "Failed to create song record");
       }
     } catch (err: any) {
       alert("Upload failed: " + err.message);
     } finally {
       setUploading(false);
-    }
-  };
-
-  const fetchYtInfo = async () => {
-    if (!formData.ytUrl) return;
-    setFetchingYt(true);
-    try {
-      const res = await adminFetch(`${process.env.NEXT_PUBLIC_API_URL}/misc/yt-info?url=${encodeURIComponent(formData.ytUrl)}`);
-      const data = await res.json();
-      if (data.success && data.data?.title) {
-        setFormData({ ...formData, title: data.data.title });
-      } else {
-        alert("Could not fetch YouTube info");
-      }
-    } catch {
-      alert("Error fetching YouTube info");
-    } finally {
-      setFetchingYt(false);
     }
   };
 
@@ -208,7 +174,7 @@ export default function SongsPage() {
               <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-zinc-500">Track Detail</th>
               <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-zinc-500">Artist</th>
               <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-zinc-500">Language</th>
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-zinc-500">Duration</th>
+              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-zinc-500">LRCLIB ID</th>
               <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-zinc-500 text-right">Actions</th>
             </tr>
           </thead>
@@ -245,13 +211,8 @@ export default function SongsPage() {
                   <td className="px-8 py-5">
                     <span className="px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-xs font-bold">{song.language}</span>
                   </td>
-                  <td className="px-8 py-5 text-zinc-500 font-mono">
-                    {(() => {
-                      const durationInSeconds = Math.floor(song.duration / 1000);
-                      const mins = Math.floor(durationInSeconds / 60);
-                      const secs = durationInSeconds % 60;
-                      return `${mins}:${secs.toString().padStart(2, '0')}`;
-                    })()}
+                  <td className="px-8 py-5 text-zinc-500 font-mono text-xs">
+                    {song.lrclibId || "N/A"}
                   </td>
                   <td className="px-8 py-5 text-right">
                     <button 
@@ -284,49 +245,7 @@ export default function SongsPage() {
             </div>
             
             <form onSubmit={handleUpload} className="p-8 space-y-6">
-              {/* Tabs */}
-              <div className="flex gap-4 p-1 bg-zinc-100 dark:bg-zinc-800 rounded-2xl">
-                <button
-                  type="button"
-                  className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${uploadMode === 'file' ? 'bg-white dark:bg-zinc-700 text-indigo-600 shadow-sm' : 'text-zinc-500'}`}
-                  onClick={() => setUploadMode('file')}
-                >
-                  Direct Upload
-                </button>
-                <button
-                  type="button"
-                  className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${uploadMode === 'youtube' ? 'bg-white dark:bg-zinc-700 text-red-600 shadow-sm' : 'text-zinc-500'}`}
-                  onClick={() => setUploadMode('youtube')}
-                >
-                  Import from YouTube
-                </button>
-              </div>
-
               <div className="space-y-4">
-                {uploadMode === "youtube" && (
-                  <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-2xl border border-red-100 dark:border-red-900/20">
-                    <label className="block text-sm font-bold text-red-700 dark:text-red-300 mb-2 uppercase tracking-wider">YouTube URL</label>
-                    <div className="flex gap-2">
-                      <input 
-                        type="url" 
-                        value={formData.ytUrl}
-                        onChange={e => setFormData({...formData, ytUrl: e.target.value})}
-                        placeholder="https://youtube.com/..."
-                        className="flex-1 bg-white dark:bg-zinc-800 border-none rounded-xl p-3 focus:ring-2 focus:ring-red-500 transition-all text-sm"
-                        required={uploadMode === "youtube"}
-                      />
-                      <button 
-                        type="button"
-                        onClick={fetchYtInfo}
-                        disabled={fetchingYt || !formData.ytUrl}
-                        className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white px-4 rounded-xl text-sm font-bold transition-all"
-                      >
-                        {fetchingYt ? "Fetching..." : "Get Info"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
                 <div>
                   <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Song Title</label>
                   <input 
@@ -350,30 +269,52 @@ export default function SongsPage() {
                   />
                 </div>
 
-                {uploadMode === "file" && (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Audio File</label>
-                      <input 
-                        required={uploadMode === "file"} 
-                        type="file" 
-                        accept="audio/*"
-                        onChange={e => setFormData({...formData, songFile: e.target.files?.[0] || null})}
-                        className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Cover Image</label>
-                      <input 
-                        required={uploadMode === "file"} 
-                        type="file" 
-                        accept="image/*"
-                        onChange={e => setFormData({...formData, imageFile: e.target.files?.[0] || null})}
-                        className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-600 hover:file:bg-purple-100"
-                      />
-                    </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Language</label>
+                    <input 
+                      required 
+                      type="text" 
+                      value={formData.language}
+                      onChange={e => setFormData({...formData, language: e.target.value})}
+                      placeholder="English"
+                      className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-2xl p-4 focus:ring-2 focus:ring-indigo-500 transition-all"
+                    />
                   </div>
-                )}
+                  <div>
+                    <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">LRCLIB ID</label>
+                    <input 
+                      type="text" 
+                      value={formData.lrclibId}
+                      onChange={e => setFormData({...formData, lrclibId: e.target.value})}
+                      placeholder="e.g. 123456"
+                      className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-2xl p-4 focus:ring-2 focus:ring-indigo-500 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Audio File</label>
+                    <input 
+                      required 
+                      type="file" 
+                      accept="audio/*"
+                      onChange={e => setFormData({...formData, songFile: e.target.files?.[0] || null})}
+                      className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Cover Image</label>
+                    <input 
+                      required 
+                      type="file" 
+                      accept="image/*"
+                      onChange={e => setFormData({...formData, imageFile: e.target.files?.[0] || null})}
+                      className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-600 hover:file:bg-purple-100"
+                    />
+                  </div>
+                </div>
               </div>
 
               <button 

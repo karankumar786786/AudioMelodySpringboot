@@ -24,7 +24,7 @@ const functions = [
 
 app.use("/api/inngest", serve({ client: inngest, functions }));
 
-app.listen(3000, () => {
-    console.log("Server running on http://localhost:3000");
+app.listen(5010, () => {
+    console.log("Server running on http://localhost:5010");
     fetchJobsFromList();
 });

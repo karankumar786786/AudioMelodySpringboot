@@ -60,7 +60,7 @@ export default function PlaylistPage() {
       } else {
         try {
           const res = await musicApi.playlists.getSongs(id as string);
-          if (res.success && res.data.data.length > 0) return res;
+          if (res.data?.data && res.data.data.length > 0) return res;
           return res;
         } catch (err) {
           return await musicApi.users.getPlaylistSongs(id as string);

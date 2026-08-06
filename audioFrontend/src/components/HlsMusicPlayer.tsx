@@ -61,7 +61,7 @@ export function HlsMusicPlayer() {
   );
 
   const { currentCaption, transcriptions } = useLyrics(
-    currentSong?.captionUrl,
+    currentSong?.lrclibId || currentSong?.captionUrl,
     localTime,
   );
 

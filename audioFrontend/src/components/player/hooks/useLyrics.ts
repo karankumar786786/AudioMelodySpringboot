@@ -13,79 +13,125 @@ export interface TranscriptionEntry {
   words: WordEntry[];
 }
 
-export function useLyrics(captionUrl: string | undefined, currentTime: number) {
-  const [transcriptions, setTranscriptions] = useState<TranscriptionEntry[]>(
-    [],
-  );
-  const [currentCaption, setCurrentCaption] =
-    useState<TranscriptionEntry | null>(null);
+export function parseLrcToTranscriptions(lrcText: string): TranscriptionEntry[] {
+  if (!lrcText) return [];
+  const lines = lrcText.split("\n");
+  const parsedLines: { time: number; text: string }[] = [];
+
+  for (const line of lines) {
+    const match = line.match(/\[(\d+):(\d+(?:\.\d+)?)\](.*)/);
+    if (match) {
+      const minutes = parseFloat(match[1]);
+      const seconds = parseFloat(match[2]);
+      const text = match[3].trim();
+      const time = minutes * 60 + seconds;
+      if (text) {
+        parsedLines.push({ time, text });
+      }
+    }
+  }
+
+  parsedLines.sort((a, b) => a.time - b.time);
+
+  return parsedLines.map((item, idx) => {
+    const nextTime = idx < parsedLines.length - 1 ? parsedLines[idx + 1].time : item.time + 5;
+    return {
+      transcript: item.text,
+      start_time_seconds: item.time,
+      end_time_seconds: nextTime,
+      words: [],
+    };
+  });
+}
+
+export function useLyrics(
+  lrclibIdOrCaptionUrl: string | undefined,
+  currentTime: number
+) {
+  const [transcriptions, setTranscriptions] = useState<TranscriptionEntry[]>([]);
+  const [currentCaption, setCurrentCaption] = useState<TranscriptionEntry | null>(null);
 
   useEffect(() => {
-    if (!captionUrl) {
+    if (!lrclibIdOrCaptionUrl) {
       setTranscriptions([]);
       return;
     }
-    fetch(captionUrl)
-      .then(async (r) => {
-        const text = await r.text();
-        const lines = text.split("\n");
-        const chunks: TranscriptionEntry[] = [];
-        let currentChunk: TranscriptionEntry | null = null;
-        const timeToSec = (t: string) => {
-          const p = t.split(":");
-          return p.length === 3
-            ? parseInt(p[0]) * 3600 + parseInt(p[1]) * 60 + parseFloat(p[2])
-            : parseInt(p[0]) * 60 + parseFloat(p[1]);
-        };
-        for (const line of lines) {
-          const l = line.trim();
-          if (!l || l.startsWith("WEBVTT")) continue;
-          if (l.includes("-->")) {
-            const [s, e] = l.split("-->").map((x) => x.trim());
-            currentChunk = {
-              start_time_seconds: timeToSec(s),
-              end_time_seconds: timeToSec(e),
-              transcript: "",
-              words: [],
+
+    const input = lrclibIdOrCaptionUrl.trim();
+
+    // Check if input is a direct URL or an LRCLIB ID
+    if (input.startsWith("http://") || input.startsWith("https://")) {
+      fetch(input)
+        .then(async (r) => {
+          const text = await r.text();
+          if (text.includes("WEBVTT")) {
+            const lines = text.split("\n");
+            const chunks: TranscriptionEntry[] = [];
+            let currentChunk: TranscriptionEntry | null = null;
+            const timeToSec = (t: string) => {
+              const p = t.split(":");
+              return p.length === 3
+                ? parseInt(p[0]) * 3600 + parseInt(p[1]) * 60 + parseFloat(p[2])
+                : parseInt(p[0]) * 60 + parseFloat(p[1]);
             };
-            chunks.push(currentChunk);
-          } else if (currentChunk) {
-            const wordMatches = Array.from(
-              l.matchAll(/<([\d:.]+)>\s*([^<]+)/g),
-            );
-            if (wordMatches.length > 0) {
-              wordMatches.forEach((m, idx) => {
-                const wStart = timeToSec(m[1]);
-                const wText = m[2].trim();
-                let wEnd = currentChunk!.end_time_seconds;
-                if (idx < wordMatches.length - 1)
-                  wEnd = timeToSec(wordMatches[idx + 1][1]);
-                currentChunk!.words.push({
-                  text: wText,
-                  start: wStart,
-                  end: wEnd,
-                });
-              });
-              currentChunk.transcript += l.replace(/<[^>]+>/g, "").trim();
-            } else {
-              currentChunk.transcript +=
-                (currentChunk.transcript ? " " : "") + l;
+            for (const line of lines) {
+              const l = line.trim();
+              if (!l || l.startsWith("WEBVTT")) continue;
+              if (l.includes("-->")) {
+                const [s, e] = l.split("-->").map((x) => x.trim());
+                currentChunk = {
+                  start_time_seconds: timeToSec(s),
+                  end_time_seconds: timeToSec(e),
+                  transcript: "",
+                  words: [],
+                };
+                chunks.push(currentChunk);
+              } else if (currentChunk) {
+                const wordMatches = Array.from(l.matchAll(/<([\d:.]+)>\s*([^<]+)/g));
+                if (wordMatches.length > 0) {
+                  wordMatches.forEach((m, idx) => {
+                    const wStart = timeToSec(m[1]);
+                    const wText = m[2].trim();
+                    let wEnd = currentChunk!.end_time_seconds;
+                    if (idx < wordMatches.length - 1)
+                      wEnd = timeToSec(wordMatches[idx + 1][1]);
+                    currentChunk!.words.push({ text: wText, start: wStart, end: wEnd });
+                  });
+                  currentChunk.transcript += l.replace(/<[^>]+>/g, "").trim();
+                } else {
+                  currentChunk.transcript += (currentChunk.transcript ? " " : "") + l;
+                }
+              }
             }
+            setTranscriptions(chunks);
+          } else {
+            setTranscriptions(parseLrcToTranscriptions(text));
           }
-        }
-        setTranscriptions(chunks);
-      })
-      .catch(() => setTranscriptions([]));
-  }, [captionUrl]);
+        })
+        .catch(() => setTranscriptions([]));
+    } else {
+      // Fetch from LRCLIB API as in test/app/hls/page.tsx
+      fetch(`https://lrclib.net/api/get/${encodeURIComponent(input)}`)
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        })
+        .then((data) => {
+          if (data.syncedLyrics && typeof data.syncedLyrics === "string") {
+            setTranscriptions(parseLrcToTranscriptions(data.syncedLyrics));
+          } else {
+            setTranscriptions([]);
+          }
+        })
+        .catch(() => setTranscriptions([]));
+    }
+  }, [lrclibIdOrCaptionUrl]);
 
   useEffect(() => {
     let active: TranscriptionEntry | null = null;
     for (let i = transcriptions.length - 1; i >= 0; i--) {
       const e = transcriptions[i];
-      if (
-        currentTime >= e.start_time_seconds &&
-        currentTime <= e.end_time_seconds
-      ) {
+      if (currentTime >= e.start_time_seconds) {
         active = e;
         break;
       }

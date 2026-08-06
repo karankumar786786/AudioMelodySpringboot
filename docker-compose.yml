@@ -5,4 +5,4 @@ services:
       - "8288:8288"
     command: >
       inngest dev
-      -u http://host.docker.internal:3000/api/inngest
+      -u http://host.docker.internal:5010/api/inngest

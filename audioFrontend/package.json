@@ -10,7 +10,6 @@
     "format": "biome format --write"
   },
   "dependencies": {
-    "@onemelody/api": "workspace:*",
     "@tanstack/react-query": "^5.99.0",
     "@tanstack/react-store": "^0.10.0",
     "axios": "^1.15.0",

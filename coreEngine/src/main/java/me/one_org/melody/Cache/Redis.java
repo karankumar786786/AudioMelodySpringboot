@@ -3,6 +3,7 @@ package me.one_org.melody.Cache;
 import java.time.Duration;
 import java.util.Optional;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +17,7 @@ public class Redis<T> {
     private final String group;
     private final Class<T> type;
 
+    @Autowired
     public Redis(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
         this(redisTemplate, objectMapper, null, null);
     }

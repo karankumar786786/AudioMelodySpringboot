@@ -16,21 +16,21 @@ export default function DashboardPage() {
     const fetchStats = async () => {
       try {
         const [songsRes, artistsRes, playlistsRes] = await Promise.all([
-          adminFetch(`${process.env.NEXT_PUBLIC_API_URL}/songs?limit=1`),
-          adminFetch(`${process.env.NEXT_PUBLIC_API_URL}/artists?limit=1`),
-          adminFetch(`${process.env.NEXT_PUBLIC_API_URL}/playlists?limit=1`),
+          adminFetch("/admin/song?page=0&size=1"),
+          adminFetch("/admin/artist?page=0&size=1"),
+          adminFetch("/admin/playlist?page=0&size=1"),
         ]);
 
         const [songs, artists, playlists] = await Promise.all([
-          songsRes.json(),
-          artistsRes.json(),
-          playlistsRes.json(),
+          songsRes.ok ? songsRes.json() : null,
+          artistsRes.ok ? artistsRes.json() : null,
+          playlistsRes.ok ? playlistsRes.json() : null,
         ]);
 
         setStats({
-          songs: songs.data?.pagination?.total || 0,
-          artists: artists.data?.pagination?.total || 0,
-          playlists: playlists.data?.pagination?.total || 0,
+          songs: songs?.paginationMetaData?.activeCount || songs?.paginationMetaData?.totalCount || songs?.content?.length || 0,
+          artists: artists?.paginationMetaData?.activeCount || artists?.paginationMetaData?.totalCount || artists?.content?.length || 0,
+          playlists: playlists?.paginationMetaData?.activeCount || playlists?.paginationMetaData?.totalCount || playlists?.content?.length || 0,
         });
       } catch (err) {
         console.error("Failed to fetch stats", err);
@@ -98,12 +98,8 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50">
-              <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Backend API</span>
-              <span className="px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 text-xs font-bold uppercase tracking-wider">Online</span>
-            </div>
-            <div className="flex items-center justify-between p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50">
-              <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Database Connection</span>
-              <span className="px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600 text-xs font-bold uppercase tracking-wider">Healthy</span>
+              <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">Core Engine API</span>
+              <span className="px-3 py-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 font-bold text-xs rounded-full">Operational</span>
             </div>
           </div>
         </div>

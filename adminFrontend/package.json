@@ -10,7 +10,6 @@
     "format": "biome format --write"
   },
   "dependencies": {
-    "@onemelody/api": "workspace:*",
     "@next/swc-wasm-nodejs": "latest",
     "framer-motion": "^12.40.0",
     "lucide-react": "^1.16.0",
