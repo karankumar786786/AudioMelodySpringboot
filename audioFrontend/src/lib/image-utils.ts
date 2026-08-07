@@ -1,4 +1,4 @@
-const IMAGEKIT_URL_ENDPOINT = "https://ik.imagekit.io/zaa6pbi9f";
+const IMAGEKIT_URL_ENDPOINT = "https://ik.imagekit.io/hc29ms4ul";
 
 export type ImageTransformation = {
   width?: number;
