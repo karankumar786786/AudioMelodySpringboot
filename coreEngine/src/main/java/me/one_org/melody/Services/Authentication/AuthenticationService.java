@@ -14,12 +14,15 @@ import me.one_org.melody.Dto.Controllers.Authentication.RegisterRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpResponse;
 import me.one_org.melody.Dto.Internal.JwtPayloadDto;
 import me.one_org.melody.Dto.Internal.OtpDataDto;
+import me.one_org.melody.Dto.Queue.MailQueueDto;
 import me.one_org.melody.Entity.UsersEntity;
+import me.one_org.melody.Enums.PurposeEnum;
 import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Exceptions.BadRequestException;
 import me.one_org.melody.Exceptions.ConflictException;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Exceptions.UnauthorizedException;
+import me.one_org.melody.Queue.MailQueue;
 import me.one_org.melody.Repository.UsersRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 import me.one_org.melody.Utils.HmacUtil;
@@ -36,15 +39,17 @@ public class AuthenticationService {
     private final OtpUtil otpUtil;
     private final Redis<OtpDataDto> cache;
     private final PaginationMetaDataService paginationMetaDataService;
+    private final MailQueue mailQueue;
 
     public AuthenticationService(UsersRepository usersRepository, JwtUtil jwtUtil, HmacUtil hmacUtil, OtpUtil otpUtil,
-            Redis<OtpDataDto> cache, PaginationMetaDataService paginationMetaDataService) {
+            Redis<OtpDataDto> cache, PaginationMetaDataService paginationMetaDataService,MailQueue mailQueue) {
         this.usersRepository = usersRepository;
         this.jwtUtil = jwtUtil;
         this.hmacUtil = hmacUtil;
         this.otpUtil = otpUtil;
         this.cache = cache.of("otp", OtpDataDto.class);
         this.paginationMetaDataService = paginationMetaDataService;
+        this.mailQueue = mailQueue;
     }
 
     public String register(RegisterRequestDto request) {
@@ -53,7 +58,9 @@ public class AuthenticationService {
         }
         String tempToken = hmacUtil.hash(request.email());
         String otp = otpUtil.generateOtp();
-        OtpDataDto data = new OtpDataDto(otp, tempToken, request.email(), request.userName());
+        OtpDataDto data = new OtpDataDto(otp, tempToken, request.email(), request.userName(),PurposeEnum.REGISTER);
+        MailQueueDto mqd = new MailQueueDto(request.email(), tempToken, otp);
+        mailQueue.queueMail(mqd);
         log.info(otp);
         cache.set(data.email(), data, Duration.ofMinutes(10));
         return tempToken;
@@ -64,7 +71,9 @@ public class AuthenticationService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + request.email()));
         String tempToken = hmacUtil.hash(user.getEmail());
         String otp = otpUtil.generateOtp();
-        OtpDataDto data = new OtpDataDto(otp, tempToken, user.getEmail(), user.getUserName());
+        OtpDataDto data = new OtpDataDto(otp, tempToken, user.getEmail(), user.getUserName(),PurposeEnum.LOGIN);
+        MailQueueDto mqd = new MailQueueDto(user.getEmail(),PurposeEnum.LOGIN.name(), otp);
+        mailQueue.queueMail(mqd);
         log.info("OTP for login ({}): {}", user.getEmail(), otp);
         cache.set(data.email(), data, Duration.ofMinutes(10));
         return tempToken;
@@ -131,7 +140,15 @@ public class AuthenticationService {
         System.out.println("============================================");
         System.out.println("NEW OTP (Resent) for " + data.email() + ": " + newOtp);
         System.out.println("============================================");
-        OtpDataDto updatedData = new OtpDataDto(newOtp, tempToken, data.email(), data.userName());
+        PurposeEnum purpose = PurposeEnum.SECURITY;
+        if (PurposeEnum.LOGIN == data.Purpose()) {
+            purpose = PurposeEnum.LOGIN;
+        }else if(PurposeEnum.REGISTER == data.Purpose()){
+            purpose = PurposeEnum.REGISTER;
+        }
+        OtpDataDto updatedData = new OtpDataDto(newOtp, tempToken, data.email(), data.userName(),purpose);
+        MailQueueDto mqd = new MailQueueDto(data.email(), "resend-otp", newOtp);
+        mailQueue.queueMail(mqd);
         cache.set(data.email(), updatedData, Duration.ofMinutes(10));
     }
 

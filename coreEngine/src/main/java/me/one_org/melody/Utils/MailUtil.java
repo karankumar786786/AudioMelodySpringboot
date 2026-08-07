@@ -7,11 +7,11 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
 @Service
-public class SendMailUtil {
+public class MailUtil {
     private final JavaMailSender mailSender;
     @Value("${spring.mail.username}")
     private String from;
-    public SendMailUtil(JavaMailSender mailSender) {
+    public MailUtil(JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
     public void mail(String to,String subject,String body){
