@@ -3,6 +3,8 @@ package me.one_org.melody.Repository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import me.one_org.melody.Entity.PlaylistsEntity;
+import me.one_org.melody.Entity.SongsEntity;
+
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,10 +47,10 @@ public class PlaylistsRepository {
                 .getSingleResult();
     }
 
-    public List<me.one_org.melody.Entity.SongsEntity> findSongsByPlaylistIdPaginated(String playlistId, int page, int size) {
+    public List<SongsEntity> findSongsByPlaylistIdPaginated(String playlistId, int page, int size) {
         return entityManager.createQuery(
                 "SELECT s FROM PlaylistsEntity p JOIN p.songs s WHERE p.id = :playlistId ORDER BY s.createdAt DESC",
-                me.one_org.melody.Entity.SongsEntity.class)
+                SongsEntity.class)
                 .setParameter("playlistId", playlistId)
                 .setFirstResult(page * size)
                 .setMaxResults(size)

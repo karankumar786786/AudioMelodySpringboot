@@ -5,9 +5,10 @@ import { NonRetriableError } from "inngest";
 export const fetchJob = inngest.createFunction(
     {
         id: "fetch-job",
-        triggers: [{ event: "audio/fetchjob" }]
+        triggers: [{ event: "audio/fetchjob" }],
+        retries: 3
     },
-    async ({ event, step }) => {
+    async ({ event, step ,attempt}) => {
         const data = event.data;
         if (!data.jobId) {
             throw new NonRetriableError("Missing jobId in event data");

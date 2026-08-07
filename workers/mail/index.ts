@@ -16,7 +16,6 @@ interface Data{
             const result = await redis.blpop(mailQueue,5); //5 sec wait untill null
             if (result && result[1]) {
                 const data:Data = JSON.parse(result[1]);
-                console.table(data);
                 try {
                     await sendMail(data.to,data.subject,data.otp);
                 } catch (error) {

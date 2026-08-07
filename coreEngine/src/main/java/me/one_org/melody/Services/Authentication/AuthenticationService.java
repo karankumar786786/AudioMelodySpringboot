@@ -61,7 +61,6 @@ public class AuthenticationService {
         OtpDataDto data = new OtpDataDto(otp, tempToken, request.email(), request.userName(),PurposeEnum.REGISTER);
         MailQueueDto mqd = new MailQueueDto(request.email(), tempToken, otp);
         mailQueue.queueMail(mqd);
-        log.info(otp);
         cache.set(data.email(), data, Duration.ofMinutes(10));
         return tempToken;
     }
@@ -74,7 +73,6 @@ public class AuthenticationService {
         OtpDataDto data = new OtpDataDto(otp, tempToken, user.getEmail(), user.getUserName(),PurposeEnum.LOGIN);
         MailQueueDto mqd = new MailQueueDto(user.getEmail(),PurposeEnum.LOGIN.name(), otp);
         mailQueue.queueMail(mqd);
-        log.info("OTP for login ({}): {}", user.getEmail(), otp);
         cache.set(data.email(), data, Duration.ofMinutes(10));
         return tempToken;
     }
@@ -137,9 +135,6 @@ public class AuthenticationService {
             throw new BadRequestException("Token validation failed");
         }
         String newOtp = otpUtil.generateOtp();
-        System.out.println("============================================");
-        System.out.println("NEW OTP (Resent) for " + data.email() + ": " + newOtp);
-        System.out.println("============================================");
         PurposeEnum purpose = PurposeEnum.SECURITY;
         if (PurposeEnum.LOGIN == data.Purpose()) {
             purpose = PurposeEnum.LOGIN;
