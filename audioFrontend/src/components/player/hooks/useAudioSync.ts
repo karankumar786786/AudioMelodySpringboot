@@ -118,12 +118,9 @@ export function useAudioSync(
     const last = lastStateRef.current;
     if (currentSong?.id !== last.id) {
       if (last.id && last.duration > 0) {
-        const part = Math.min(
-          100,
-          Math.floor((last.time / last.duration) * 100),
-        );
-        if (part > 1 || last.time > 5) {
-          playerActions.recordListen(last.id, part);
+        const ratio = Math.min(1, last.time / last.duration);
+        if (ratio > 0.01 || last.time > 5) {
+          playerActions.recordListen(last.id, ratio);
         }
       }
       lastStateRef.current = {
@@ -139,12 +136,9 @@ export function useAudioSync(
     return () => {
       const last = lastStateRef.current;
       if (last.id && last.duration > 0) {
-        const part = Math.min(
-          100,
-          Math.floor((last.time / last.duration) * 100),
-        );
-        if (part > 1 || last.time > 5) {
-          playerActions.recordListen(last.id, part);
+        const ratio = Math.min(1, last.time / last.duration);
+        if (ratio > 0.01 || last.time > 5) {
+          playerActions.recordListen(last.id, ratio);
         }
       }
     };

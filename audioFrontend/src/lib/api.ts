@@ -43,8 +43,58 @@ export interface User {
   role?: string;
 }
 
-async function request<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
-  const token = typeof window !== "undefined" ? localStorage.getItem("system_token") : null;
+function getStoredItem(key: string) {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(key);
+}
+
+function saveSessionTokens(accessToken: string, refreshToken: string) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem("system_token", accessToken);
+  localStorage.setItem("system_refresh_token", refreshToken);
+}
+
+function clearSessionStorage() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("system_token");
+  localStorage.removeItem("system_refresh_token");
+  localStorage.removeItem("system_user");
+}
+
+async function refreshAccessToken(): Promise<string> {
+  const refreshToken = getStoredItem("system_refresh_token");
+  if (!refreshToken) {
+    throw new Error("No refresh token available");
+  }
+
+  const url = `${API_BASE_URL}/auth/refresh-token`;
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ refreshToken }),
+  });
+
+  if (!response.ok) {
+    clearSessionStorage();
+    let errMessage = `HTTP error ${response.status}`;
+    try {
+      const errData = await response.json();
+      errMessage = errData.message || errMessage;
+    } catch {}
+    const error: any = new Error(errMessage);
+    error.response = { status: response.status };
+    throw error;
+  }
+
+  const data = await response.json();
+  saveSessionTokens(data.accessToken, data.refreshToken);
+  return data.accessToken;
+}
+
+async function request<T = any>(endpoint: string, options: RequestInit = {}, retry = true): Promise<T> {
+  const token = getStoredItem("system_token");
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(options.headers as Record<string, string>),
@@ -61,6 +111,40 @@ async function request<T = any>(endpoint: string, options: RequestInit = {}): Pr
   });
 
   if (!response.ok) {
+    if (response.status === 401 && retry && !endpoint.startsWith("/auth/refresh-token") && !endpoint.startsWith("/auth/login") && !endpoint.startsWith("/auth/register") && !endpoint.startsWith("/auth/verify-otp") && !endpoint.startsWith("/auth/resend-otp")) {
+      try {
+        const refreshedToken = await refreshAccessToken();
+        headers["Authorization"] = `Bearer ${refreshedToken}`;
+        const retryResponse = await fetch(url, {
+          ...options,
+          headers,
+        });
+
+        if (!retryResponse.ok) {
+          let errMessage = `HTTP error ${retryResponse.status}`;
+          let errData: any = null;
+          try {
+            errData = await retryResponse.json();
+            errMessage = errData.message || errMessage;
+          } catch {}
+          const retryError: any = new Error(errMessage);
+          retryError.response = {
+            status: retryResponse.status,
+            data: errData,
+          };
+          throw retryError;
+        }
+
+        if (retryResponse.status === 204) {
+          return {} as T;
+        }
+        return retryResponse.json();
+      } catch (err) {
+        clearSessionStorage();
+        throw err;
+      }
+    }
+
     let errMessage = `HTTP error ${response.status}`;
     let errData: any = null;
     try {

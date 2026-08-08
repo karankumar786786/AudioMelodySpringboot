@@ -29,16 +29,22 @@ const _initSystemUser = (() => {
     const saved = localStorage.getItem("system_user");
     if (!saved) return null;
     const parsed = JSON.parse(saved);
-    if (parsed && parsed.id && typeof parsed.id === "string") {
-      const parts = parsed.id.split(".");
-      if (parts.length === 2 && parts[0] && parts[1]) {
-        return parsed;
-      }
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      typeof parsed.id === "string" &&
+      typeof parsed.email === "string"
+    ) {
+      return parsed;
     }
     localStorage.removeItem("system_user");
     localStorage.removeItem("system_token");
+    localStorage.removeItem("system_refresh_token");
     return null;
   } catch {
+    localStorage.removeItem("system_user");
+    localStorage.removeItem("system_token");
+    localStorage.removeItem("system_refresh_token");
     return null;
   }
 })();
