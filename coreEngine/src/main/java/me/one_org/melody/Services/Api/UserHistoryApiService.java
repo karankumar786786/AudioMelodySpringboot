@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import me.one_org.melody.Dto.Controllers.Api.UserHistoryResponseDto;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.UserHistoryEntity;
 import me.one_org.melody.Entity.UserSearchHistoryEntity;
@@ -33,9 +34,12 @@ public class UserHistoryApiService {
         this.searchHistoryRepository = searchHistoryRepository;
     }
 
-    public List<UserHistoryEntity> getHistory(String userId, int page, int size) {
+    public List<UserHistoryResponseDto> getHistory(String userId, int page, int size) {
         UsersEntity user = getUser(userId);
-        return userHistoryRepository.findByUserOrderByListenedAtDesc(user, page, size);
+        List<UserHistoryEntity> history = userHistoryRepository.findByUserOrderByListenedAtDesc(user, page, size);
+        return history.stream()
+                .map(this::mapToDto)
+                .toList();
     }
 
     public PaginationMetaDataEntity getPaginationMetaData(String userId) {
@@ -51,5 +55,24 @@ public class UserHistoryApiService {
     private UsersEntity getUser(String userId) {
         return usersRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+    }
+
+    private UserHistoryResponseDto mapToDto(UserHistoryEntity history) {
+        var song = history.getSong();
+        return new UserHistoryResponseDto(
+                history.getId(),
+                song.getId(),
+                song.getTitle(),
+                song.getArtistName(),
+                song.getDuration(),
+                song.getSongKey(),
+                song.getImageKey(),
+                song.getLanguage(),
+                song.getLrclibId(),
+                song.getStatus() != null ? song.getStatus().name() : null,
+                song.getCreatedAt(),
+                history.getPart(),
+                history.getListenedAt()
+        );
     }
 }

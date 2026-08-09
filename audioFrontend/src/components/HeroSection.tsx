@@ -64,7 +64,7 @@ export function HeroSection({
 
   if (isLoading) {
     return (
-      <div className="w-full h-[450px] rounded-[3rem] bg-zinc-950/40 backdrop-blur-md border border-white/5 overflow-hidden relative flex items-center justify-between p-16 animate-pulse">
+      <div className="w-full h-112.5 rounded-[3rem] bg-zinc-950/40 backdrop-blur-md border border-white/5 overflow-hidden relative flex items-center justify-between p-16 animate-pulse">
         <div className="space-y-6 w-1/2">
           <div className="h-4 w-24 bg-white/5 rounded-full" />
           <div className="space-y-3">
@@ -74,7 +74,7 @@ export function HeroSection({
           <div className="h-6 w-32 bg-white/5 rounded-full" />
           <div className="h-14 w-40 bg-white/5 rounded-full pt-4" />
         </div>
-        <div className="w-[240px] h-[240px] rounded-4xl bg-white/5 hidden md:block" />
+        <div className="w-60 h-60 rounded-4xl bg-white/5 hidden md:block" />
       </div>
     );
   }
@@ -82,7 +82,7 @@ export function HeroSection({
   if (!currentSong) return null;
 
   return (
-    <section className="relative w-full h-[450px] rounded-[3rem] overflow-hidden group shadow-2xl border border-white/5 bg-zinc-950/20 backdrop-blur-sm">
+    <section className="relative w-full h-112.5 rounded-[3rem] overflow-hidden group shadow-2xl border border-white/5 bg-zinc-950/20 backdrop-blur-sm">
       {/* Blurred ambient background image */}
       <div className="absolute inset-0 z-0 bg-black">
         <AnimatePresence mode="wait">
@@ -110,7 +110,7 @@ export function HeroSection({
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-size-[32px_32px] pointer-events-none opacity-40 z-0" />
 
       {/* Color accent glow */}
-      <div className="absolute top-1/2 right-[15%] -translate-y-1/2 w-[350px] h-[350px] rounded-full bg-primary/10 blur-[120px] pointer-events-none z-0" />
+      <div className="absolute top-1/2 right-[15%] -translate-y-1/2 w-87.5 h-87.5 rounded-full bg-primary/10 blur-[120px] pointer-events-none z-0" />
 
       {/* Content Grid */}
       <div className="relative z-10 h-full w-full grid grid-cols-1 md:grid-cols-12 gap-8 items-center px-16 py-8">
@@ -131,7 +131,7 @@ export function HeroSection({
               by{" "}
               <span className="text-white font-bold hover:text-primary transition-colors cursor-pointer relative group">
                 {currentSong.artistName}
-                <span className="absolute bottom-0 left-0 w-0 h-[2px] bg-primary group-hover:w-full transition-all duration-300" />
+                <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-primary group-hover:w-full transition-all duration-300" />
               </span>
             </p>
 
@@ -184,7 +184,7 @@ export function HeroSection({
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
               transition={{ duration: 0.6, ease: "easeOut" }}
-              className="relative w-[240px] h-[240px] cursor-pointer"
+              className="relative w-60 h-60 cursor-pointer"
               whileHover="hover"
             >
               {/* Vinyl Record */}

@@ -54,7 +54,7 @@ export const playerStore = new Store<PlayerState>({
   isPlaying: false,
   currentTime: 0,
   duration: 0,
-  volume: 0.8,
+  volume: 1,
   isMuted: false,
   queue: [],
   lastQueueIndex: -1,

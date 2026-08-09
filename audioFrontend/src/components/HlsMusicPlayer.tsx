@@ -89,7 +89,10 @@ export function HlsMusicPlayer() {
   }, [storeCurrentTime, setLocalTime]);
 
   // 3. User Actions
-  const isFavourite = currentSong ? favourites.has(currentSong.id) : false;
+  // Use robust string comparison to avoid mismatch between ID types
+  const isFavourite = currentSong
+    ? Array.from(favourites).some((id) => String(id) === String(currentSong.id))
+    : false;
 
   useEffect(() => {
     if (systemUser?.id) {

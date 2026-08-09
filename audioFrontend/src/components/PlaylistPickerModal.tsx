@@ -118,7 +118,7 @@ export function PlaylistPickerModal({
             </div>
 
             {/* Body */}
-            <div className="max-h-[320px] overflow-y-auto lyrics-scrollbar p-4 space-y-2">
+            <div className="max-h-80 overflow-y-auto lyrics-scrollbar p-4 space-y-2">
               {isCreating ? (
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}

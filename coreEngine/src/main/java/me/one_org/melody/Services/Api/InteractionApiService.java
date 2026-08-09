@@ -55,7 +55,6 @@ public class InteractionApiService {
                 .part(part)
                 .build();
         userHistoryRepository.save(history);
-        paginationMetaDataService.incrementStatus("UserHistory_" + userId, null);
 
         // Track in Recombee
         try {

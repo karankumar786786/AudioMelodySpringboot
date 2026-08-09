@@ -83,7 +83,7 @@ export function SongCard({
         onClick={handlePlay}
         className={`glass-effect p-3.5 rounded-[1.8rem] group cursor-pointer relative overflow-hidden transition-all duration-300 ${
           isActiveSong
-            ? "ring-2 ring-primary/60 bg-gradient-to-b from-primary/5 to-transparent shadow-[0_12px_30px_rgba(120,240,142,0.15)]"
+            ? "ring-2 ring-primary/60 bg-linear-to-b from-primary/5 to-transparent shadow-[0_12px_30px_rgba(120,240,142,0.15)]"
             : "hover:border-white/15 hover:shadow-[0_20px_40px_rgba(0,0,0,0.6),0_0_30px_rgba(120,240,142,0.06)] hover:bg-white/5"
         } ${className || ""}`}
       >
@@ -111,44 +111,6 @@ export function SongCard({
               <Play fill="black" size={20} className="translate-x-0.5" />
             </motion.div>
           </div>
-
-          {/* Micro Equalizer Overlay on playing song cover art */}
-          {isActiveSong && isPlaying && (
-            <div className="absolute bottom-3 right-3 bg-black/85 backdrop-blur-md px-2.5 py-2 rounded-xl flex items-end gap-[3.5px] border border-white/10 z-20 shadow-lg">
-              <motion.div
-                animate={{ height: [4, 14, 4] }}
-                transition={{
-                  duration: 1.1,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                }}
-                className="w-[2.5px] bg-primary rounded-full"
-                style={{ height: 4 }}
-              />
-              <motion.div
-                animate={{ height: [8, 18, 8] }}
-                transition={{
-                  duration: 0.7,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 0.25,
-                }}
-                className="w-[2.5px] bg-primary rounded-full"
-                style={{ height: 8 }}
-              />
-              <motion.div
-                animate={{ height: [5, 12, 5] }}
-                transition={{
-                  duration: 1.3,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 0.55,
-                }}
-                className="w-[2.5px] bg-primary rounded-full"
-                style={{ height: 5 }}
-              />
-            </div>
-          )}
         </div>
 
         <div className="space-y-1.5 px-1.5 pb-1">

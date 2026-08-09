@@ -45,7 +45,7 @@ export const sessionActions = {
     if (!systemUser?.id) return;
     try {
       const res = await musicApi.users.getFavourites(1, 100);
-      const ids = res.data.data.map((s: any) => s.id);
+      const ids = res.data.data.map((s: any) => String(s.id));
       playerStore.setState((s) => ({ ...s, favourites: new Set(ids) }));
     } catch (err: any) {
       console.error("[PlayerStore] Failed to fetch favourites:", err);
@@ -60,21 +60,22 @@ export const sessionActions = {
     const { systemUser, favourites } = playerStore.state;
     if (!systemUser?.id) return;
 
-    const isFav = favourites.has(songId);
-    const optimisticNext = new Set(favourites);
+    const sid = String(songId);
+    const isFav = favourites.has(sid);
+    const optimisticNext = new Set<string>(Array.from(favourites).map((id) => String(id)));
     if (isFav) {
-      optimisticNext.delete(songId);
+      optimisticNext.delete(sid);
     } else {
-      optimisticNext.add(songId);
+      optimisticNext.add(sid);
     }
 
     playerStore.setState((s) => ({ ...s, favourites: optimisticNext }));
 
     try {
       if (isFav) {
-        await musicApi.users.removeFavourite(songId);
+        await musicApi.users.removeFavourite(sid);
       } else {
-        await musicApi.users.addFavourite(songId);
+        await musicApi.users.addFavourite(sid);
       }
     } catch (err: any) {
       console.error("[PlayerStore] Toggle favourite failed:", err);

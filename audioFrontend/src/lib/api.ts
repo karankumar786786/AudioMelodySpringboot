@@ -272,7 +272,14 @@ export const musicApi = {
     },
     getHistory: async () => {
       const res = await request("/api/user/history");
-      const list = res.content || (Array.isArray(res) ? res : []);
+      const historyRecords = res.content || (Array.isArray(res) ? res : []);
+      const list = historyRecords.map((record: any) => {
+        const song = record.song ? { ...record.song } : { ...record };
+        return {
+          ...song,
+          historyId: record.id || record.historyId,
+        };
+      });
       return { data: { data: list } };
     },
     getFavourites: async (page = 1, size = 100) => {

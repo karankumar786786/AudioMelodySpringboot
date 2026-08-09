@@ -82,7 +82,7 @@ export function useAudioSync(
 
       const last = lastStateRef.current;
       if (last.id) {
-        playerActions.recordListen(last.id, 100);
+        playerActions.recordListen(last.id, 1);
         lastStateRef.current = { id: "", time: 0, duration: 0 };
       }
       playerActions.next();
