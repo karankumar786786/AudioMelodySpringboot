@@ -1,10 +1,19 @@
 import React from "react";
-import { Shuffle, Repeat1, VolumeX, Volume1, Volume2 } from "lucide-react";
+import {
+  ListMusic,
+  Shuffle,
+  Repeat1,
+  VolumeX,
+  Volume1,
+  Volume2,
+} from "lucide-react";
 import { PlayerQualitySelector } from "./PlayerQualitySelector";
 
 interface PlayerUtilityRowProps {
   isShuffle: boolean;
   repeatMode: string;
+  queueLength: number;
+  onToggleQueue: () => void;
   onToggleShuffle: () => void;
   onToggleRepeat: () => void;
   selectedQuality: "auto" | number;
@@ -21,6 +30,8 @@ interface PlayerUtilityRowProps {
 export const PlayerUtilityRow: React.FC<PlayerUtilityRowProps> = ({
   isShuffle,
   repeatMode,
+  queueLength,
+  onToggleQueue,
   onToggleShuffle,
   onToggleRepeat,
   selectedQuality,
@@ -40,6 +51,14 @@ export const PlayerUtilityRow: React.FC<PlayerUtilityRowProps> = ({
   return (
     <div className="flex items-center justify-between px-1 gap-4 select-none">
       <div className="flex items-center gap-1 shrink-0">
+        <button
+          onClick={onToggleQueue}
+          className="p-1.5 rounded-lg transition-all cursor-pointer text-zinc-600 hover:text-white hover:bg-white/5 relative"
+          title="Open Queue"
+        >
+          <ListMusic size={14} />
+        </button>
+
         <button
           onClick={onToggleShuffle}
           className={`p-1.5 rounded-lg transition-all cursor-pointer ${
@@ -73,7 +92,7 @@ export const PlayerUtilityRow: React.FC<PlayerUtilityRowProps> = ({
         />
       </div>
 
-      <div className="flex-1 flex items-center gap-2.5 min-w-[100px] max-w-[160px]">
+      <div className="flex-1 flex items-center gap-2.5 min-w-25 max-w-40">
         <button
           onClick={onToggleMute}
           className="text-zinc-600 hover:text-white transition-colors shrink-0 cursor-pointer p-1 rounded hover:bg-white/5"
@@ -82,9 +101,9 @@ export const PlayerUtilityRow: React.FC<PlayerUtilityRowProps> = ({
         </button>
 
         <div className="relative flex-1 group h-4 flex items-center">
-          <div className="absolute top-1/2 -translate-y-1/2 left-0 w-full h-[3px] bg-white/5 rounded-full" />
+          <div className="absolute top-1/2 -translate-y-1/2 left-0 w-full h-0.75 bg-white/5 rounded-full" />
           <div
-            className="absolute top-1/2 -translate-y-1/2 left-0 h-[3px] bg-zinc-500 rounded-full group-hover:bg-primary transition-all pointer-events-none"
+            className="absolute top-1/2 -translate-y-1/2 left-0 h-0.75 bg-zinc-500 rounded-full group-hover:bg-primary transition-all pointer-events-none"
             style={{ width: `${volumePct}%` }}
           />
           <input

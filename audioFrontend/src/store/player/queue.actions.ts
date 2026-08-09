@@ -2,62 +2,187 @@ import { playerStore } from "./index";
 import { musicApi } from "@/lib/api";
 import { mapListToPlayerSongs, type PlayerSong } from "@/lib/player-utils";
 
+const persistQueue = (queue: PlayerSong[], currentIndex: number) => {
+  if (typeof window === "undefined") return;
+  localStorage.setItem("last_queue", JSON.stringify(queue));
+  localStorage.setItem("last_queue_index", currentIndex.toString());
+};
+
+const dedupeBySongId = (songs: PlayerSong[]) => {
+  const seen = new Set<string>();
+  return songs.filter((song) => {
+    if (seen.has(song.id)) return false;
+    seen.add(song.id);
+    return true;
+  });
+};
+
 export const queueActions = {
   setQueue: (songs: PlayerSong[]) => {
+    const nextQueue = dedupeBySongId(songs);
+    const nextIndex = nextQueue.length > 0 ? 0 : -1;
     playerStore.setState((s) => {
-      if (typeof window !== "undefined") {
-        localStorage.setItem("last_queue", JSON.stringify(songs));
-      }
-      console.log(`[Queue] Setting queue: ${songs.length} songs`);
-      return { ...s, queue: songs, lastQueueIndex: -1 };
+      console.log(`[Queue] Setting queue: ${nextQueue.length} songs`);
+      persistQueue(nextQueue, nextIndex);
+      return {
+        ...s,
+        queue: nextQueue,
+        currentSong: nextQueue[0] || null,
+        lastQueueIndex: nextIndex,
+      };
     });
   },
 
   playAll: (songs: PlayerSong[], startPlaying = true) => {
     if (songs.length === 0) return;
 
+    const nextQueue = dedupeBySongId(songs);
+
     playerStore.setState((s) => {
-      const currentIdx = s.lastQueueIndex;
-      const existingIds = new Set(s.queue.map((sq) => sq.id));
-      const uniqueNewSongs = songs.filter((ns) => !existingIds.has(ns.id));
-
-      if (uniqueNewSongs.length === 0 && songs.length > 0) {
-        console.log(
-          "[Queue] All songs in playAll are already in queue. Skipping append.",
-        );
-        return s;
-      }
-
-      const newQueue = [...s.queue];
-      newQueue.splice(currentIdx + 1, 0, ...uniqueNewSongs);
-
-      if (typeof window !== "undefined") {
-        localStorage.setItem("last_queue", JSON.stringify(newQueue));
-      }
-
       console.log(
-        `[Queue] Added ${songs.length} songs to queue after current. New total: ${newQueue.length}`,
+        `[Queue] Replacing queue with ${nextQueue.length} songs from playAll`,
       );
-      return { ...s, queue: newQueue };
+      persistQueue(nextQueue, nextQueue.length > 0 ? 0 : -1);
+      return {
+        ...s,
+        queue: nextQueue,
+        currentSong: nextQueue[0] || null,
+        lastQueueIndex: nextQueue.length > 0 ? 0 : -1,
+      };
     });
 
     if (startPlaying) {
       import("@/store/player/playback.actions").then(({ playbackActions }) => {
-        playbackActions.play(songs[0]);
+        playbackActions.play(nextQueue[0]);
       });
     }
   },
 
+  enqueue: (songs: PlayerSong[]) => {
+    if (songs.length === 0) return;
+
+    playerStore.setState((s) => {
+      const existingIds = new Set(s.queue.map((item) => item.id));
+      const uniqueNewSongs = songs.filter((song) => !existingIds.has(song.id));
+
+      if (uniqueNewSongs.length === 0) return s;
+
+      const nextQueue = [...s.queue, ...uniqueNewSongs];
+      persistQueue(nextQueue, s.lastQueueIndex);
+
+      console.log(
+        `[Queue] Enqueued ${uniqueNewSongs.length} songs. Total queue length: ${nextQueue.length}`,
+      );
+
+      return {
+        ...s,
+        queue: nextQueue,
+      };
+    });
+  },
+
+  playQueueItem: (index: number) => {
+    const { queue } = playerStore.state;
+    if (index < 0 || index >= queue.length) return;
+
+    import("@/store/player/playback.actions").then(({ playbackActions }) => {
+      playbackActions.play(queue[index]);
+    });
+  },
+
+  removeFromQueue: (index: number) => {
+    playerStore.setState((s) => {
+      if (index < 0 || index >= s.queue.length) return s;
+
+      const nextQueue = [...s.queue];
+      nextQueue.splice(index, 1);
+
+      let nextIndex = s.lastQueueIndex;
+      let nextCurrent = s.currentSong;
+      let isPlaying = s.isPlaying;
+
+      if (nextQueue.length === 0) {
+        nextIndex = -1;
+        nextCurrent = null;
+        isPlaying = false;
+      } else if (index === s.lastQueueIndex) {
+        nextIndex = Math.min(index, nextQueue.length - 1);
+        nextCurrent = nextQueue[nextIndex] || null;
+      } else if (s.currentSong?.queueId) {
+        const foundIdx = nextQueue.findIndex(
+          (song) => song.queueId === s.currentSong?.queueId,
+        );
+
+        if (foundIdx >= 0) {
+          nextIndex = foundIdx;
+          nextCurrent = nextQueue[foundIdx];
+        } else if (index < s.lastQueueIndex) {
+          nextIndex = Math.max(0, s.lastQueueIndex - 1);
+          nextCurrent = nextQueue[nextIndex] || null;
+        } else {
+          nextIndex = s.lastQueueIndex;
+          nextCurrent = nextQueue[nextIndex] || null;
+        }
+      } else if (index < s.lastQueueIndex) {
+        nextIndex = s.lastQueueIndex - 1;
+      } else if (index === s.lastQueueIndex) {
+        nextIndex = Math.min(index, nextQueue.length - 1);
+        nextCurrent = nextQueue[nextIndex] || null;
+      }
+
+      persistQueue(nextQueue, nextIndex);
+
+      return {
+        ...s,
+        queue: nextQueue,
+        currentSong: nextCurrent,
+        lastQueueIndex: nextIndex,
+        isPlaying,
+      };
+    });
+  },
+
+  moveQueueItem: (fromIndex: number, toIndex: number) => {
+    playerStore.setState((s) => {
+      if (
+        fromIndex < 0 ||
+        fromIndex >= s.queue.length ||
+        toIndex < 0 ||
+        toIndex >= s.queue.length ||
+        fromIndex === toIndex
+      ) {
+        return s;
+      }
+
+      const nextQueue = [...s.queue];
+      const [item] = nextQueue.splice(fromIndex, 1);
+      nextQueue.splice(toIndex, 0, item);
+
+      let nextIndex = s.lastQueueIndex;
+      if (s.currentSong?.queueId) {
+        const foundIdx = nextQueue.findIndex(
+          (song) => song.queueId === s.currentSong?.queueId,
+        );
+        if (foundIdx >= 0) nextIndex = foundIdx;
+      } else if (s.lastQueueIndex >= 0 && s.lastQueueIndex < nextQueue.length) {
+        nextIndex = s.lastQueueIndex;
+      }
+
+      persistQueue(nextQueue, nextIndex);
+
+      return {
+        ...s,
+        queue: nextQueue,
+        lastQueueIndex: nextIndex,
+        currentSong: nextIndex >= 0 ? nextQueue[nextIndex] || null : null,
+      };
+    });
+  },
+
   /**
-   * Refills the internal queue with recommended/trending songs.
-   * Called automatically when:
-   * - Queue is initialized empty (isInit=true)
-   * - Remaining songs in queue drop to ≤2 (after playing or skipping)
-   *
-   * The queue acts as a FIFO-like buffer:
-   * - Songs are appended at the end
-   * - Old played songs are pruned when queue grows too large
-   * - Duplicates are filtered out to avoid replaying the same song
+    * Refills the queue with recommended/trending songs.
+    * Used as a bootstrap when the queue is empty, or as a manual fallback.
+    * Duplicates are filtered out to avoid replaying the same song.
    */
   refillQueue: async (isInit = false) => {
     const { queue, currentSong, systemUser, isRefilling, lastQueueIndex } =
@@ -170,13 +295,6 @@ export const queueActions = {
     const { queue } = playerStore.state;
     if (queue.length === 0) {
       await queueActions.refillQueue(true);
-    } else {
-      // Even if queue has songs, check if we need more
-      const { lastQueueIndex } = playerStore.state;
-      const remaining = queue.length - (lastQueueIndex + 1);
-      if (remaining <= 2) {
-        await queueActions.refillQueue();
-      }
     }
   },
 
@@ -244,54 +362,21 @@ export const queueActions = {
     }
 
     if (nextIdx < queue.length) {
-      if (typeof window !== "undefined") {
-        localStorage.setItem("last_queue_index", nextIdx.toString());
-      }
+      persistQueue(queue, nextIdx);
       import("@/store/player/playback.actions").then(({ playbackActions }) =>
         playbackActions.play(queue[nextIdx]),
       );
-
-      // Check if we need to refill: 2 or fewer songs remaining after this one
-      const remaining = queue.length - (nextIdx + 1);
-      if (remaining <= 2) {
-        console.log(
-          `[Queue] Only ${remaining} songs remaining after current. Triggering refill...`,
-        );
-        queueActions.refillQueue();
-      }
     } else if (repeatMode === "all") {
       // Wrap around to beginning
-      if (typeof window !== "undefined") {
-        localStorage.setItem("last_queue_index", "0");
-      }
+      persistQueue(queue, 0);
       import("@/store/player/playback.actions").then(({ playbackActions }) =>
         playbackActions.play(queue[0]),
       );
     } else {
-      // Queue exhausted, no repeat — try to fetch more songs before stopping
-      console.log(
-        "[Queue] Queue exhausted. Attempting to refill before stopping...",
+      console.log("[Queue] Queue exhausted. Stopping playback.");
+      import("@/store/player/playback.actions").then(({ playbackActions }) =>
+        playbackActions.setIsPlaying(false),
       );
-      queueActions.refillQueue().then(() => {
-        const { queue: refreshed, lastQueueIndex: currentIdx } =
-          playerStore.state;
-        const nextAvailable = currentIdx + 1;
-        if (nextAvailable < refreshed.length) {
-          if (typeof window !== "undefined") {
-            localStorage.setItem("last_queue_index", nextAvailable.toString());
-          }
-          import("@/store/player/playback.actions").then(
-            ({ playbackActions }) =>
-              playbackActions.play(refreshed[nextAvailable]),
-          );
-        } else {
-          // Truly exhausted
-          console.log("[Queue] No more songs available. Stopping playback.");
-          import("@/store/player/playback.actions").then(
-            ({ playbackActions }) => playbackActions.setIsPlaying(false),
-          );
-        }
-      });
     }
   },
 
@@ -307,9 +392,7 @@ export const queueActions = {
 
     const prevIdx = lastQueueIndex - 1;
     if (prevIdx >= 0) {
-      if (typeof window !== "undefined") {
-        localStorage.setItem("last_queue_index", prevIdx.toString());
-      }
+      persistQueue(queue, prevIdx);
       import("@/store/player/playback.actions").then(({ playbackActions }) =>
         playbackActions.play(queue[prevIdx]),
       );

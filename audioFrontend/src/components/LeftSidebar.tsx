@@ -4,7 +4,6 @@ import {
   Home,
   Library,
   Heart,
-  History,
   PlusSquare,
   Mic2,
   ListMusic,
@@ -29,7 +28,6 @@ const menuItems = [
 
 const libraryItems = [
   { icon: Heart, label: "Favourites", href: "/favourites" },
-  { icon: History, label: "History", href: "/history" },
 ];
 
 export function LeftSidebar() {

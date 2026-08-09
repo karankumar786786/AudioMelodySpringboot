@@ -270,18 +270,6 @@ export const musicApi = {
       await request(`/api/user/playlists/${id}`, { method: "DELETE" });
       return { success: true };
     },
-    getHistory: async () => {
-      const res = await request("/api/user/history");
-      const historyRecords = res.content || (Array.isArray(res) ? res : []);
-      const list = historyRecords.map((record: any) => {
-        const song = record.song ? { ...record.song } : { ...record };
-        return {
-          ...song,
-          historyId: record.id || record.historyId,
-        };
-      });
-      return { data: { data: list } };
-    },
     getFavourites: async (page = 1, size = 100) => {
       const res = await request(`/api/interaction/favourites?page=${page - 1}&size=${size}`);
       const list = res.content || (Array.isArray(res) ? res : []);

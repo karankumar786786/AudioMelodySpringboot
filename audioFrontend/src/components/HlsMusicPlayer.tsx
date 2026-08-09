@@ -21,6 +21,7 @@ import { PlayerLyricsOverlay } from "./player/PlayerLyricsOverlay";
 import { PlayerProgressBar } from "./player/PlayerProgressBar";
 import { PlayerMainControls } from "./player/PlayerMainControls";
 import { PlayerUtilityRow } from "./player/PlayerUtilityRow";
+import { PlayerQueuePanel } from "./player/PlayerQueuePanel";
 
 export function HlsMusicPlayer() {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -33,6 +34,7 @@ export function HlsMusicPlayer() {
     duration,
     repeatMode,
     isShuffle,
+    queue,
     qualityTracks,
     selectedQuality,
     favourites,
@@ -43,12 +45,14 @@ export function HlsMusicPlayer() {
   const [localTime, setLocalTime] = useState(0);
   const [buffered, setBuffered] = useState(0);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const [showQueuePanel, setShowQueuePanel] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isTogglingFav, setIsTogglingFav] = useState(false);
 
   // 1. Initialize Player State
   useEffect(() => {
     playerActions.hydrate();
+    playerActions.initQueue();
   }, []);
 
   // 2. Custom Hooks for Logic
@@ -139,7 +143,7 @@ export function HlsMusicPlayer() {
   // ─── Render ───
   if (!currentSong) {
     return (
-      <div className="w-[380px] glass-heavy flex flex-col items-center justify-center p-10 text-center flex-none">
+      <div className="w-95 glass-heavy flex flex-col items-center justify-center p-10 text-center flex-none">
         <div className="w-20 h-20 rounded-3xl bg-zinc-900/80 border border-white/5 flex items-center justify-center mb-6">
           <Music className="h-8 w-8 text-zinc-700" />
         </div>
@@ -164,7 +168,7 @@ export function HlsMusicPlayer() {
 
   return (
     <>
-      <div className="w-[340px] glass-effect-strong border-l border-white/4 flex flex-col h-screen overflow-hidden flex-none relative z-50">
+      <div className="w-85 glass-effect-strong border-l border-white/4 flex flex-col h-screen overflow-hidden flex-none relative z-50">
         <PlayerBackground posterUrl={optimizedPosterUrl} />
 
         <audio ref={audioRef} className="hidden" />
@@ -247,6 +251,8 @@ export function HlsMusicPlayer() {
             <PlayerUtilityRow
               isShuffle={isShuffle}
               repeatMode={repeatMode}
+              queueLength={queue.length}
+              onToggleQueue={() => setShowQueuePanel((v) => !v)}
               onToggleShuffle={() => {
                 playerActions.toggleShuffle();
                 toast.success(isShuffle ? "Shuffle Off" : "Shuffle On");
@@ -280,6 +286,11 @@ export function HlsMusicPlayer() {
         onClose={() => setIsPlaylistModalOpen(false)}
         songId={currentSong.id}
         songTitle={currentSong.title}
+      />
+
+      <PlayerQueuePanel
+        open={showQueuePanel}
+        onClose={() => setShowQueuePanel(false)}
       />
     </>
   );
