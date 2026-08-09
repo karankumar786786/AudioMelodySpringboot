@@ -33,7 +33,10 @@ export function HeroSection({
   const systemUser = useStore(playerStore, (s) => s.systemUser);
   const favourites = useStore(playerStore, (s) => s.favourites);
 
-  const isFavourite = currentSong ? favourites.has(currentSong.id) : false;
+  // Normalize IDs to strings when checking favourites to avoid type mismatches
+  const isFavourite = currentSong
+    ? Array.from(favourites).some((id) => String(id) === String(currentSong.id))
+    : false;
 
   const handleToggleFavourite = async (e: React.MouseEvent) => {
     e.stopPropagation();

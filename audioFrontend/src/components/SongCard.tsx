@@ -28,7 +28,8 @@ export function SongCard({
   const isPlaying = useStore(playerStore, (s) => s.isPlaying);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
 
-  const isFavourite = favourites.has(song.id);
+  // Normalize IDs to strings when checking favourites to avoid type mismatches
+  const isFavourite = Array.from(favourites).some((id) => String(id) === String(song.id));
   const isActiveSong = currentSong?.id === song.id;
 
   const handlePlay = (e: React.MouseEvent) => {
