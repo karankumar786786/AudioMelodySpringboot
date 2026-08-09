@@ -54,11 +54,18 @@ function saveSessionTokens(accessToken: string, refreshToken: string) {
   localStorage.setItem("system_refresh_token", refreshToken);
 }
 
+function notifySessionCleared() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("session:cleared"));
+  }
+}
+
 function clearSessionStorage() {
   if (typeof window === "undefined") return;
   localStorage.removeItem("system_token");
   localStorage.removeItem("system_refresh_token");
   localStorage.removeItem("system_user");
+  notifySessionCleared();
 }
 
 async function refreshAccessToken(): Promise<string> {

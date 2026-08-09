@@ -1,5 +1,6 @@
 import { playerStore } from "./index";
 import { musicApi } from "@/lib/api";
+import { toast } from "sonner";
 
 export const sessionActions = {
   setSystemSession: (token: string, refreshToken: string, user: any) => {
@@ -48,7 +49,8 @@ export const sessionActions = {
       playerStore.setState((s) => ({ ...s, favourites: new Set(ids) }));
     } catch (err: any) {
       console.error("[PlayerStore] Failed to fetch favourites:", err);
-      if (err?.response?.status === 400 || err?.response?.status === 401 || err?.response?.status === 403) {
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
+        toast.error("Session expired. Please log in again.");
         sessionActions.clearSystemSession();
       }
     }
@@ -59,25 +61,26 @@ export const sessionActions = {
     if (!systemUser?.id) return;
 
     const isFav = favourites.has(songId);
+    const optimisticNext = new Set(favourites);
+    if (isFav) {
+      optimisticNext.delete(songId);
+    } else {
+      optimisticNext.add(songId);
+    }
+
+    playerStore.setState((s) => ({ ...s, favourites: optimisticNext }));
+
     try {
       if (isFav) {
         await musicApi.users.removeFavourite(songId);
-        playerStore.setState((s) => {
-          const next = new Set(s.favourites);
-          next.delete(songId);
-          return { ...s, favourites: next };
-        });
       } else {
         await musicApi.users.addFavourite(songId);
-        playerStore.setState((s) => {
-          const next = new Set(s.favourites);
-          next.add(songId);
-          return { ...s, favourites: next };
-        });
       }
     } catch (err: any) {
       console.error("[PlayerStore] Toggle favourite failed:", err);
-      if (err?.response?.status === 400 || err?.response?.status === 401 || err?.response?.status === 403) {
+      playerStore.setState((s) => ({ ...s, favourites }));
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
+        toast.error("Session expired. Please log in again.");
         sessionActions.clearSystemSession();
       }
       throw err;
