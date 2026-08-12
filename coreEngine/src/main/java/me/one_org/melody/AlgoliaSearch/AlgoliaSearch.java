@@ -98,6 +98,7 @@ public class AlgoliaSearch {
                 if (type == null) continue;
                 String objectId = (String) h.get("objectID");
 
+                
                 switch (type) {
                     case "song" -> songs.add(new AlgoliaSearchSongDto(objectId));
                     case "artist" -> artists.add(new AlgoliaSearchArtistDto(objectId));
