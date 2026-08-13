@@ -118,7 +118,10 @@ async function request<T = any>(endpoint: string, options: RequestInit = {}, ret
   });
 
   if (!response.ok) {
-    if (response.status === 401 && retry && !endpoint.startsWith("/auth/refresh-token") && !endpoint.startsWith("/auth/login") && !endpoint.startsWith("/auth/register") && !endpoint.startsWith("/auth/verify-otp") && !endpoint.startsWith("/auth/resend-otp")) {
+    const isAuthFailure = response.status === 401 || response.status === 403;
+    const isAuthEndpoint = endpoint.includes("/auth/");
+
+    if (isAuthFailure && retry && !isAuthEndpoint) {
       try {
         const refreshedToken = await refreshAccessToken();
         headers["Authorization"] = `Bearer ${refreshedToken}`;
@@ -148,6 +151,16 @@ async function request<T = any>(endpoint: string, options: RequestInit = {}, ret
         return retryResponse.json();
       } catch (err) {
         clearSessionStorage();
+
+        // If public endpoint (like /api/songs, /api/artists, /api/playlists), retry without Authorization header
+        if (endpoint.startsWith("/api/songs") || endpoint.startsWith("/api/artists") || endpoint.startsWith("/api/playlists")) {
+          delete headers["Authorization"];
+          const publicRetryRes = await fetch(url, { ...options, headers });
+          if (publicRetryRes.ok) {
+            if (publicRetryRes.status === 204) return {} as T;
+            return publicRetryRes.json();
+          }
+        }
         throw err;
       }
     }

@@ -94,3 +94,9 @@ export const sessionActions = {
     playerStore.setState((s) => ({ ...s, isAuthModalOpen: false }));
   },
 };
+
+if (typeof window !== "undefined") {
+  window.addEventListener("session:cleared", () => {
+    sessionActions.clearSystemSession();
+  });
+}

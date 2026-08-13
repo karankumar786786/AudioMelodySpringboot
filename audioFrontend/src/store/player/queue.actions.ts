@@ -183,69 +183,72 @@ export const queueActions = {
 
   /**
    * Refills the queue with recommended or trending songs.
-   * Logs details of API call and fetched catalog size for debugging.
+   * Logs details of trigger reason, API call, and fetched catalog size for debugging.
    */
-  refillQueue: async (isInit = false) => {
+  refillQueue: async (isInit = false, reason = "Auto-refill") => {
     const { queue, currentSong, systemUser, isRefilling, lastQueueIndex } =
       playerStore.state;
+
     if (isRefilling) {
-      console.log("[Queue Refill] Already refilling. Skipping concurrent call.");
+      console.log(`[Queue Refill] Refill already in progress. Skipping trigger (Reason: ${reason}).`);
       return;
     }
 
     const remaining = queue.length - (lastQueueIndex + 1);
     if (!isInit && remaining > 2) {
-      console.log(`[Queue Refill] ${remaining} songs remaining ahead. Refill not needed.`);
+      console.log(`[Queue Refill] ${remaining} songs remaining ahead. Skipping refill.`);
       return;
     }
 
     try {
       playerStore.setState((s) => ({ ...s, isRefilling: true }));
       const isLoggedIn = Boolean(systemUser?.id);
-      console.log(`[Queue Refill] Triggering refill. User authenticated: ${isLoggedIn}`);
+
+      console.group(`🎵 [Queue Refill Triggered] Reason: ${reason}`);
+      console.log(`📊 Queue status: ${queue.length} total songs | Current index: ${lastQueueIndex} | Remaining ahead: ${Math.max(0, remaining)}`);
+      console.log(`👤 User authentication: ${isLoggedIn ? `Logged in (${systemUser.name || systemUser.email || systemUser.id})` : "Unauthenticated (Guest)"}`);
 
       let res: any;
       if (isLoggedIn) {
         try {
-          console.log("[Queue Refill] Fetching user recommendations from /api/recommendations/user...");
+          console.log("📡 Endpoint: Requesting recommendations from GET /api/recommendations/user...");
           res = await musicApi.interactions.getRecommendations();
           const data = res?.data?.data || res?.data;
           if (!data || (Array.isArray(data) && data.length === 0)) {
-            console.log("[Queue Refill] Recommendations empty. Fallback to trending songs...");
+            console.log("⚠️ Recommendations returned 0 tracks. Fallback: Requesting trending songs from GET /api/songs...");
             res = await musicApi.interactions.getTrending(1, 20);
           }
         } catch (err) {
-          console.warn("[Queue Refill] Recommendations failed. Fallback to trending songs...", err);
+          console.warn("⚠️ Recommendations request failed. Fallback: Requesting trending songs from GET /api/songs...", err);
           res = await musicApi.interactions.getTrending(1, 20);
         }
       } else {
-        console.log("[Queue Refill] Unauthenticated user. Fetching trending songs...");
+        console.log("📡 Endpoint: Requesting trending songs for guest user from GET /api/songs...");
         res = await musicApi.interactions.getTrending(1, 20);
       }
-
-      console.log("[Queue Refill] API Raw Response:", res);
 
       if (res?.data) {
         const rawData = Array.isArray(res.data)
           ? res.data
           : res.data.data || [];
         
-        console.log(`[Queue Refill] Fetched ${rawData.length} tracks from backend catalog.`);
-        const newSongs = mapListToPlayerSongs(rawData);
+        console.log(`🎵 [FETCH SUMMARY] Raw songs fetched from API: ${rawData.length} tracks.`);
+        if (rawData.length > 0) {
+          console.log(`📋 [FETCHED SONGS LIST]:`, rawData.map((s: any) => `"${s.title || s.name}" by ${s.artistName || s.artist?.name || "Unknown"}`));
+        }
 
+        const newSongs = mapListToPlayerSongs(rawData);
         const { queue: latestQueue } = playerStore.state;
         const existingIds = new Set(latestQueue.map((s) => s.id));
         if (currentSong?.id) existingIds.add(currentSong.id);
 
         const uniqueNewSongs = newSongs.filter((s) => !existingIds.has(s.id));
-        console.log(`[Queue Refill] ${uniqueNewSongs.length} unique new songs found out of ${newSongs.length} fetched.`);
+        console.log(`✨ [UNIQUE FILTERED]: ${uniqueNewSongs.length} new songs added to queue (filtered out ${newSongs.length - uniqueNewSongs.length} duplicates).`);
 
         if (uniqueNewSongs.length > 0) {
           playerStore.setState((s) => {
             const updatedQueue = [...s.queue, ...uniqueNewSongs];
-            console.log(
-              `[Queue Refill] Appended ${uniqueNewSongs.length} songs. New total queue length: ${updatedQueue.length}.`,
-            );
+            console.log(`📈 [QUEUE SIZE UPDATE]: Previous: ${s.queue.length} songs ➔ New total: ${updatedQueue.length} songs.`);
             persistQueue(updatedQueue, s.lastQueueIndex);
             return { ...s, queue: updatedQueue };
           });
@@ -253,7 +256,7 @@ export const queueActions = {
           // If no song is loaded in player, set first song as current (without auto-playing)
           const { currentSong: activeSong } = playerStore.state;
           if (!activeSong && uniqueNewSongs.length > 0) {
-            console.log(`[Queue Refill] Loading first recommended song into player: "${uniqueNewSongs[0].title}"`);
+            console.log(`▶️ [PLAYER LOAD]: Auto-loading first song into player bar: "${uniqueNewSongs[0].title}"`);
             playerStore.setState((s) => ({
               ...s,
               currentSong: uniqueNewSongs[0],
@@ -263,13 +266,15 @@ export const queueActions = {
             persistQueue(playerStore.state.queue, 0);
           }
         } else {
-          console.warn("[Queue Refill] No new unique songs were returned (catalog may be small or already in queue).");
+          console.warn(`⚠️ [CATALOG WARNING]: API returned ${newSongs.length} tracks, but all of them are already in your queue! (Catalog may be small or recommendations returned already-queued tracks).`);
         }
       } else {
-        console.warn("[Queue Refill] Response received but contains no data object.", res);
+        console.warn("⚠️ API response received but contains no data array.", res);
       }
+      console.groupEnd();
     } catch (err) {
-      console.error("[Queue Refill] Exception during refill:", err);
+      console.error("❌ Exception during queue refill:", err);
+      console.groupEnd();
     } finally {
       playerStore.setState((s) => ({ ...s, isRefilling: false }));
     }
@@ -296,7 +301,7 @@ export const queueActions = {
   initQueue: async () => {
     const { queue } = playerStore.state;
     if (queue.length === 0) {
-      await queueActions.refillQueue(true);
+      await queueActions.refillQueue(true, "App initialisation (empty queue)");
     }
   },
 
@@ -312,7 +317,7 @@ export const queueActions = {
     // If queue is empty, attempt refill
     if (queue.length === 0) {
       console.log("[Queue Next] Queue is empty. Triggering refill...");
-      queueActions.refillQueue().then(() => {
+      queueActions.refillQueue(false, "next() called on empty queue").then(() => {
         const { queue: refilled } = playerStore.state;
         if (refilled.length > 0) {
           import("@/store/player/playback.actions").then(({ playbackActions }) => {
@@ -360,7 +365,7 @@ export const queueActions = {
       const remaining = queue.length - (nextIdx + 1);
       if (remaining <= 2) {
         console.log(`[Queue Next] Only ${remaining} songs remaining ahead. Triggering refill in background.`);
-        queueActions.refillQueue();
+        queueActions.refillQueue(false, `Low queue threshold reached (${remaining} songs left ahead)`);
       }
     } else if (repeatMode === "all" && queue.length > 0) {
       console.log("[Queue Next] Reached end of queue. Repeat Mode is 'all', looping to index 0.");
@@ -370,7 +375,7 @@ export const queueActions = {
       );
     } else {
       console.log("[Queue Next] Reached end of queue. Attempting refill before stopping...");
-      queueActions.refillQueue().then(() => {
+      queueActions.refillQueue(false, "End of queue reached").then(() => {
         const { queue: refilled, lastQueueIndex: idx } = playerStore.state;
         if (refilled.length > idx + 1) {
           const nextRefillIdx = idx + 1;
