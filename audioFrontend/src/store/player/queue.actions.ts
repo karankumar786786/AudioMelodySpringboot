@@ -58,6 +58,32 @@ export const queueActions = {
     }
   },
 
+  playAllFrom: (songs: PlayerSong[], startIndex: number, startPlaying = true) => {
+    if (songs.length === 0) return;
+
+    const nextQueue = dedupeBySongId(songs);
+    const safeIndex = Math.min(Math.max(0, startIndex), nextQueue.length - 1);
+
+    playerStore.setState((s) => {
+      console.log(
+        `[Queue] playAllFrom: ${nextQueue.length} songs, starting at index ${safeIndex}`,
+      );
+      persistQueue(nextQueue, safeIndex);
+      return {
+        ...s,
+        queue: nextQueue,
+        currentSong: nextQueue[safeIndex] || null,
+        lastQueueIndex: safeIndex,
+      };
+    });
+
+    if (startPlaying && nextQueue[safeIndex]) {
+      import("@/store/player/playback.actions").then(({ playbackActions }) => {
+        playbackActions.play(nextQueue[safeIndex]);
+      });
+    }
+  },
+
   enqueue: (songs: PlayerSong[]) => {
     if (songs.length === 0) return;
 
@@ -251,13 +277,18 @@ export const queueActions = {
             return { ...s, queue: updatedQueue, lastQueueIndex: updatedIdx };
           });
 
-          if (isInit && !currentSong && uniqueNewSongs.length > 0) {
-            import("@/store/player/playback.actions").then(
-              ({ playbackActions }) => {
-                playbackActions.play(uniqueNewSongs[0]);
-                playbackActions.setIsPlaying(false);
-              },
-            );
+          if (!currentSong && uniqueNewSongs.length > 0) {
+            // Set the first song as current directly (without requiring auth)
+            // so the player shows it. Don't auto-play.
+            playerStore.setState((s) => ({
+              ...s,
+              currentSong: uniqueNewSongs[0],
+              lastQueueIndex: s.lastQueueIndex < 0 ? 0 : s.lastQueueIndex,
+              isPlaying: false,
+            }));
+            if (typeof window !== "undefined") {
+              localStorage.setItem("last_queue_index", "0");
+            }
           }
         } else if (newSongs.length === 0) {
           // API returned no songs at all — nothing we can do
@@ -366,6 +397,15 @@ export const queueActions = {
       import("@/store/player/playback.actions").then(({ playbackActions }) =>
         playbackActions.play(queue[nextIdx]),
       );
+
+      // Proactively refill when ≤2 songs remain ahead
+      const remaining = queue.length - (nextIdx + 1);
+      if (remaining <= 2) {
+        console.log(
+          `[Queue] Only ${remaining} songs ahead after next(). Triggering refill...`,
+        );
+        queueActions.refillQueue();
+      }
     } else if (repeatMode === "all") {
       // Wrap around to beginning
       persistQueue(queue, 0);
@@ -373,10 +413,26 @@ export const queueActions = {
         playbackActions.play(queue[0]),
       );
     } else {
-      console.log("[Queue] Queue exhausted. Stopping playback.");
-      import("@/store/player/playback.actions").then(({ playbackActions }) =>
-        playbackActions.setIsPlaying(false),
+      // Queue exhausted — try refilling before giving up
+      console.log(
+        "[Queue] Queue exhausted. Attempting refill before stopping...",
       );
+      queueActions.refillQueue().then(() => {
+        const { queue: refilled, lastQueueIndex: idx } = playerStore.state;
+        if (refilled.length > idx + 1) {
+          const nextRefillIdx = idx + 1;
+          persistQueue(refilled, nextRefillIdx);
+          import("@/store/player/playback.actions").then(
+            ({ playbackActions }) => {
+              playbackActions.play(refilled[nextRefillIdx]);
+            },
+          );
+        } else {
+          import("@/store/player/playback.actions").then(
+            ({ playbackActions }) => playbackActions.setIsPlaying(false),
+          );
+        }
+      });
     }
   },
 

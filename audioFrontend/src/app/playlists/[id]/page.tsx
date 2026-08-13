@@ -15,7 +15,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { playerActions, playerStore } from "@/store/player.store";
-import { mapListToPlayerSongs, mapToPlayerSong } from "@/lib/player-utils";
+import { mapListToPlayerSongs } from "@/lib/player-utils";
 import { useStore } from "@tanstack/react-store";
 import { toast } from "sonner";
 import { getImageUrl } from "@/lib/image-utils";
@@ -260,7 +260,8 @@ export default function PlaylistPage() {
                       if (isActive) {
                         playerActions.setIsPlaying(!isPlaying);
                       } else {
-                        playerActions.playSong(mapToPlayerSong(song));
+                        const allPlayerSongs = mapListToPlayerSongs(songs);
+                        playerActions.playAllFrom(allPlayerSongs, index);
                       }
                     }}
                     className={`group grid grid-cols-12 items-center gap-4 p-4 rounded-[1.8rem] border transition-all duration-300 text-left cursor-pointer ${

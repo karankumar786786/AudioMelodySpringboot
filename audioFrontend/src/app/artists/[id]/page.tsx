@@ -8,7 +8,7 @@ import { useStore } from "@tanstack/react-store";
 import { getImageUrl } from "@/lib/image-utils";
 import { Play, Pause, ArrowLeft, Clock, Music, Sparkles } from "lucide-react";
 import { playerStore, playerActions } from "@/store/player.store";
-import { mapToPlayerSong, mapListToPlayerSongs } from "@/lib/player-utils";
+import { mapListToPlayerSongs } from "@/lib/player-utils";
 import { toast } from "sonner";
 
 export default function ArtistPage() {
@@ -183,7 +183,8 @@ export default function ArtistPage() {
                       if (isActive) {
                         playerActions.setIsPlaying(!isPlaying);
                       } else {
-                        playerActions.playSong(mapToPlayerSong(song));
+                        const allPlayerSongs = mapListToPlayerSongs(songs);
+                        playerActions.playAllFrom(allPlayerSongs, index);
                       }
                     }}
                     className={`group grid grid-cols-12 items-center gap-4 p-4 rounded-[1.8rem] border transition-all duration-300 text-left cursor-pointer ${

@@ -8,7 +8,7 @@ interface User {
   id: string;
   email: string;
   name: string;
-  role: "user" | "admin" | "superadmin";
+  role: string;
 }
 
 interface AuthContextType {
@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Hydrate session from localStorage
+    // Hydrate session from localStorage and validate the token
     const savedUser = localStorage.getItem("admin_user");
     const savedToken = localStorage.getItem("admin_token");
     if (savedUser && savedToken) {
@@ -39,6 +39,91 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const parsedUser = JSON.parse(savedUser);
         setUser(parsedUser);
         setToken(savedToken);
+
+        // Validate the token against the backend
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9090";
+        fetch(`${apiBase}/api/user/profile`, {
+          headers: { "Authorization": `Bearer ${savedToken}` },
+        }).then(async (res) => {
+          if (!res.ok) {
+            // Token is invalid or expired — try refreshing
+            const refreshToken = localStorage.getItem("admin_refresh_token");
+            if (refreshToken) {
+              try {
+                const refreshRes = await fetch(`${apiBase}/auth/refresh-token`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ refreshToken }),
+                });
+                if (refreshRes.ok) {
+                  const refreshData = await refreshRes.json();
+                  localStorage.setItem("admin_token", refreshData.accessToken);
+                  localStorage.setItem("admin_refresh_token", refreshData.refreshToken);
+                  setToken(refreshData.accessToken);
+                  // Re-fetch profile with new token
+                  const profileRes = await fetch(`${apiBase}/api/user/profile`, {
+                    headers: { "Authorization": `Bearer ${refreshData.accessToken}` },
+                  });
+                  if (profileRes.ok) {
+                    const profile = await profileRes.json();
+                    const updatedUser = {
+                      id: profile.id,
+                      email: profile.email,
+                      name: profile.userName || profile.name || "Admin",
+                      role: profile.role || "user",
+                    };
+                    localStorage.setItem("admin_user", JSON.stringify(updatedUser));
+                    setUser(updatedUser as User);
+                  } else {
+                    // Still failing — clear session
+                    console.warn("[Admin Auth] Token refresh succeeded but profile fetch failed. Clearing session.");
+                    localStorage.removeItem("admin_token");
+                    localStorage.removeItem("admin_refresh_token");
+                    localStorage.removeItem("admin_user");
+                    setUser(null);
+                    setToken(null);
+                  }
+                } else {
+                  // Refresh failed — clear session
+                  console.warn("[Admin Auth] Token refresh failed. Clearing stale session.");
+                  localStorage.removeItem("admin_token");
+                  localStorage.removeItem("admin_refresh_token");
+                  localStorage.removeItem("admin_user");
+                  setUser(null);
+                  setToken(null);
+                }
+              } catch {
+                localStorage.removeItem("admin_token");
+                localStorage.removeItem("admin_refresh_token");
+                localStorage.removeItem("admin_user");
+                setUser(null);
+                setToken(null);
+              }
+            } else {
+              // No refresh token — clear session
+              console.warn("[Admin Auth] No refresh token available. Clearing stale session.");
+              localStorage.removeItem("admin_token");
+              localStorage.removeItem("admin_refresh_token");
+              localStorage.removeItem("admin_user");
+              setUser(null);
+              setToken(null);
+            }
+          } else {
+            // Token valid — update profile from server
+            res.json().then((profile) => {
+              const updatedUser = {
+                id: profile.id,
+                email: profile.email,
+                name: profile.userName || profile.name || "Admin",
+                role: profile.role || "user",
+              };
+              localStorage.setItem("admin_user", JSON.stringify(updatedUser));
+              setUser(updatedUser as User);
+            }).catch(() => {});
+          }
+        }).catch(() => {
+          // Network error — keep existing session (might be offline)
+        });
       } catch (err) {
         console.error("Failed to parse admin_user", err);
         localStorage.removeItem("admin_user");
@@ -49,12 +134,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }, []);
 
+  // Listen for session-expired events from adminFetch
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      console.warn("[Admin Auth] Session expired event received. Clearing session.");
+      localStorage.removeItem("admin_token");
+      localStorage.removeItem("admin_refresh_token");
+      localStorage.removeItem("admin_user");
+      setUser(null);
+      setToken(null);
+    };
+    window.addEventListener("admin:session-expired", handleSessionExpired);
+    return () => window.removeEventListener("admin:session-expired", handleSessionExpired);
+  }, []);
+
   const login = async (email: string) => {
     try {
       const res = await adminClient.auth.login(email);
       return { success: true, token: res.data.token };
     } catch (err: any) {
-      throw new Error(err.response?.data?.message || "Failed to log in");
+      throw new Error(err.message || "Failed to log in");
     }
   };
 
@@ -63,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await adminClient.auth.register(name, email);
       return { success: true, token: res.data.token };
     } catch (err: any) {
-      throw new Error(err.response?.data?.message || "Failed to register");
+      throw new Error(err.message || "Failed to register");
     }
   };
 
@@ -79,7 +178,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(accessToken);
       return { success: true };
     } catch (err: any) {
-      throw new Error(err.response?.data?.message || "Failed to verify OTP");
+      throw new Error(err.message || "Failed to verify OTP");
     }
   };
 
@@ -88,7 +187,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await adminClient.auth.resendOtp(emailToken, email);
       return { success: true, token: res.data.token };
     } catch (err: any) {
-      throw new Error(err.response?.data?.message || "Failed to resend OTP");
+      throw new Error(err.message || "Failed to resend OTP");
     }
   };
 

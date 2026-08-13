@@ -17,7 +17,8 @@ export function Sidebar() {
 
   // Only superadmin can manage other admins
   const visibleNavItems = [...navItems];
-  if (user?.role === "superadmin") {
+  const roleUpper = user?.role?.toUpperCase() || "";
+  if (roleUpper === "SUPERADMIN" || roleUpper === "SUPER_ADMIN") {
     visibleNavItems.push({
       name: "Admins",
       href: "/users",

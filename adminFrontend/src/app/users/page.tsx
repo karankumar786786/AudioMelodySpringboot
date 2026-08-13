@@ -208,7 +208,7 @@ export default function UsersPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                        u.role === "admin" 
+                        (u.role?.toUpperCase() === "ADMIN" || u.role?.toUpperCase() === "SUPER_ADMIN" || u.role?.toUpperCase() === "SUPERADMIN")
                           ? "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300"
                           : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
                       }`}>

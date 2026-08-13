@@ -24,7 +24,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   // Restrict access to admin/superadmin roles
-  if (user.role !== "admin" && user.role !== "superadmin") {
+  const roleUpper = user.role?.toUpperCase() || "";
+  const isAuthorized = roleUpper === "ADMIN" || roleUpper === "SUPERADMIN" || roleUpper === "SUPER_ADMIN";
+  if (!isAuthorized) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-950 text-white font-sans p-6">
         <div className="max-w-md w-full text-center space-y-6 p-8 bg-zinc-900/60 border border-zinc-800 rounded-3xl backdrop-blur-xl shadow-2xl">
