@@ -50,7 +50,7 @@ export default function PlaylistsPage() {
 
   const fetchPlaylistSongs = async (id: string) => {
     try {
-      const res = await adminFetch(`/api/playlists/${id}/songs`);
+      const res = await adminFetch(`/admin/playlist/${id}/songs`);
       if (res.ok) {
         const data = await res.json();
         const songs = data.content || data.data?.content || (Array.isArray(data.data) ? data.data : []);
@@ -174,8 +174,10 @@ export default function PlaylistsPage() {
   const handleAddSongToPlaylist = async (songId: string) => {
     if (!selectedPlaylist) return;
     try {
-      const res = await adminFetch(`/admin/playlist/${selectedPlaylist.id}/song/${songId}`, {
+      const res = await adminFetch(`/admin/playlist/${selectedPlaylist.id}/songs`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ songId }),
       });
       if (res.ok) {
         fetchPlaylistSongs(selectedPlaylist.id);
@@ -190,7 +192,7 @@ export default function PlaylistsPage() {
   const handleRemoveSongFromPlaylist = async (songId: string) => {
     if (!selectedPlaylist) return;
     try {
-      const res = await adminFetch(`/admin/playlist/${selectedPlaylist.id}/song/${songId}`, {
+      const res = await adminFetch(`/admin/playlist/${selectedPlaylist.id}/songs/${songId}`, {
         method: "DELETE",
       });
       if (res.ok) {

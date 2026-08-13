@@ -94,7 +94,7 @@ export default function UsersPage() {
     setSuccess(null);
 
     try {
-      const res = await adminFetch(`/admin/account/${id}`, {
+      const res = await adminFetch(`/admin/account/${encodeURIComponent(userEmail)}`, {
         method: "DELETE",
       });
 

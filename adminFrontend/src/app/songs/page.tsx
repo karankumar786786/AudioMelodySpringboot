@@ -129,7 +129,7 @@ export default function SongsPage() {
           tempSongKey: songUrlData.key,
           imageKey: ikData.filePath || imageUrlData.key,
           language: formData.language || "English",
-          lrclibId: formData.lrclibId || "",
+          lrclibId: formData.lrclibId.trim() || "0",
         }),
       });
 

@@ -69,7 +69,7 @@ export function GlobalSearch() {
   const performSearch = async () => {
     setLoading(true);
     try {
-      const res = await adminFetch(`${process.env.NEXT_PUBLIC_API_URL}/search?q=${encodeURIComponent(query)}`);
+      const res = await adminFetch(`/api/search?q=${encodeURIComponent(query)}`);
       if (res.ok) {
         const data = await res.json();
         setResults(data.data);
@@ -84,10 +84,11 @@ export function GlobalSearch() {
   const fetchPlaylists = async () => {
     setPlaylistLoading(true);
     try {
-      const res = await adminFetch(`${process.env.NEXT_PUBLIC_API_URL}/playlists?limit=100`);
+      const res = await adminFetch("/admin/playlist?page=0&size=100");
       if (res.ok) {
         const data = await res.json();
-        setPlaylists(data.data.data || []);
+        const list = data.content || data.data?.content || (Array.isArray(data.data) ? data.data : []);
+        setPlaylists(list);
       }
     } catch (err) {
       console.error("Failed to fetch playlists", err);
@@ -103,7 +104,7 @@ export function GlobalSearch() {
     if (!confirm("Are you sure you want to delete this song? This cannot be undone.")) return;
 
     try {
-      const res = await adminFetch(`${process.env.NEXT_PUBLIC_API_URL}/songs/${id}`, {
+      const res = await adminFetch(`/admin/song/${id}`, {
         method: "DELETE",
       });
       if (res.ok) {
@@ -124,10 +125,10 @@ export function GlobalSearch() {
 
   const handleAddToPlaylist = async (playlistId: string, songId: string) => {
     try {
-      const res = await adminFetch(`${process.env.NEXT_PUBLIC_API_URL}/playlists/songs`, {
+      const res = await adminFetch(`/admin/playlist/${playlistId}/songs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playlistId, songId }),
+        body: JSON.stringify({ songId }),
       });
       if (res.ok) {
         alert("Song added to playlist!");
