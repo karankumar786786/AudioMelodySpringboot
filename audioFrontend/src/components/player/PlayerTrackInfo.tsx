@@ -1,7 +1,5 @@
 import React from "react";
-import { Heart, Plus, Mic2 } from "lucide-react";
-import { useStore } from "@tanstack/react-store";
-import { playerStore } from "../../store/player.store";
+import { Heart, Plus } from "lucide-react";
 
 interface PlayerTrackInfoProps {
   title: string;
@@ -20,9 +18,6 @@ export const PlayerTrackInfo: React.FC<PlayerTrackInfoProps> = ({
   onAddToPlaylist,
   isCollapsed = false,
 }) => {
-  const isLyricsOpen = useStore(playerStore, (s) => s.isLyricsOpen);
-  const isPlaying = useStore(playerStore, (s) => s.isPlaying);
-
   return (
     <div
       className={`relative z-10 flex-1 min-w-0 transition-all duration-500 ease-in-out ${
@@ -68,25 +63,6 @@ export const PlayerTrackInfo: React.FC<PlayerTrackInfoProps> = ({
             title="Add to playlist"
           >
             <Plus size={isCollapsed ? 13 : 15} />
-          </button>
-          <button
-            onClick={() => {
-              playerStore.setState((s) => ({
-                ...s,
-                isLyricsOpen: !s.isLyricsOpen,
-              }));
-            }}
-            className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-              isLyricsOpen
-                ? "text-primary bg-primary/10 shadow-[0_0_12px_rgba(120,240,142,0.2)] border border-primary/20"
-                : "text-zinc-600 hover:text-primary hover:bg-white/5"
-            }`}
-            title={isLyricsOpen ? "Show Album Cover" : "Show Synced Lyrics"}
-          >
-            <Mic2
-              size={isCollapsed ? 13 : 15}
-              className={isPlaying && isLyricsOpen ? "animate-pulse" : ""}
-            />
           </button>
         </div>
       </div>

@@ -2,10 +2,7 @@
 
 import {
   Home,
-  Library,
   Heart,
-  PlusSquare,
-  Mic2,
   ListMusic,
   Users2,
   Plus,

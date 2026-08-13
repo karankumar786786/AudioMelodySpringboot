@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { adminFetch } from "@/lib/adminFetch";
+import { getImageUrl } from "@/lib/image-utils";
 
 interface SearchResult {
   id: string;
@@ -72,7 +73,7 @@ export function GlobalSearch() {
       const res = await adminFetch(`/api/search?q=${encodeURIComponent(query)}`);
       if (res.ok) {
         const data = await res.json();
-        setResults(data.data);
+        setResults(data.data || data);
       }
     } catch (err) {
       console.error("Search failed:", err);
@@ -188,7 +189,7 @@ export function GlobalSearch() {
                     <div key={song.id} className="relative group/item">
                        <Link href="/songs" className="flex items-center gap-3 p-3 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-2xl transition-colors pr-24">
                         <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 overflow-hidden shrink-0">
-                          {song.imageKey && <img src={`https://ik.imagekit.io/zaa6pbi9f${song.imageKey}`} className="w-full h-full object-cover" />}
+                          {song.imageKey && <img src={getImageUrl(song.imageKey)} className="w-full h-full object-cover" />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-bold text-zinc-900 dark:text-white truncate">{song.title}</div>
@@ -247,7 +248,7 @@ export function GlobalSearch() {
                   {results.artists.map(artist => (
                     <Link key={artist.id} href={`/artists/${artist.id}/songs`} className="flex items-center gap-3 p-3 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-2xl transition-colors">
                       <div className="w-10 h-10 rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden shrink-0 border border-zinc-200 dark:border-zinc-700">
-                        {artist.coverImageKey && <img src={`https://ik.imagekit.io/zaa6pbi9f${artist.coverImageKey}`} className="w-full h-full object-cover" />}
+                        {artist.coverImageKey && <img src={getImageUrl(artist.coverImageKey)} className="w-full h-full object-cover" />}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-bold text-zinc-900 dark:text-white truncate">{artist.name}</div>
@@ -264,7 +265,7 @@ export function GlobalSearch() {
                   {results.playlists.map(playlist => (
                     <Link key={playlist.id} href="/playlists" className="flex items-center gap-3 p-3 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-2xl transition-colors">
                       <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center overflow-hidden shrink-0">
-                         {playlist.coverImageKey ? <img src={`https://ik.imagekit.io/zaa6pbi9f${playlist.coverImageKey}`} className="w-full h-full object-cover" /> : <svg className="w-5 h-5 text-indigo-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>}
+                         {playlist.coverImageKey ? <img src={getImageUrl(playlist.coverImageKey)} className="w-full h-full object-cover" /> : <svg className="w-5 h-5 text-indigo-500" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/></svg>}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-bold text-zinc-900 dark:text-white truncate">{playlist.name}</div>

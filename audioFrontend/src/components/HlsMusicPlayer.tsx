@@ -39,7 +39,6 @@ export function HlsMusicPlayer() {
     selectedQuality,
     favourites,
     systemUser,
-    isLyricsOpen,
   } = state;
 
   const [localTime, setLocalTime] = useState(0);
@@ -173,19 +172,12 @@ export function HlsMusicPlayer() {
 
         <audio ref={audioRef} className="hidden" />
 
-        {/* Morphing Header Layout (Artwork + Song Info) */}
-        <div
-          className={`flex-none flex transition-all duration-500 ease-in-out ${
-            isLyricsOpen
-              ? "flex-row items-center px-6 py-4 border-b border-white/5 bg-white/2 gap-4"
-              : "flex-col"
-          }`}
-        >
+        {/* Header Layout (Artwork + Song Info) */}
+        <div className="flex-none flex flex-col">
           <PlayerAlbumArt
             songId={currentSong.id}
             posterUrl={optimizedPosterUrl}
             title={currentSong.title}
-            isCollapsed={isLyricsOpen}
           />
 
           <PlayerTrackInfo
@@ -200,7 +192,6 @@ export function HlsMusicPlayer() {
               }
               setIsPlaylistModalOpen(true);
             }}
-            isCollapsed={isLyricsOpen}
           />
         </div>
 
@@ -208,7 +199,6 @@ export function HlsMusicPlayer() {
           currentCaption={currentCaption}
           transcriptions={transcriptions}
           localTime={localTime}
-          isLyricsOpen={isLyricsOpen}
           onSeek={(time) => {
             if (audioRef.current) {
               audioRef.current.currentTime = time;

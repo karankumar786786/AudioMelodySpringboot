@@ -89,10 +89,6 @@ export const playbackActions = {
     playerStore.setState((s) => ({ ...s, selectedQuality: quality }));
   },
 
-  toggleLyrics: () => {
-    playerStore.setState((s) => ({ ...s, isLyricsOpen: !s.isLyricsOpen }));
-  },
-
   toggleShuffle: () => {
     playerStore.setState((s) => ({ ...s, isShuffle: !s.isShuffle }));
   },

@@ -14,7 +14,6 @@ export interface PlayerState {
   isShuffle: boolean;
   qualityTracks: any[];
   selectedQuality: "auto" | number;
-  isLyricsOpen: boolean;
   isAuthModalOpen: boolean;
   systemToken: string | null;
   systemRefreshToken: string | null;
@@ -62,7 +61,6 @@ export const playerStore = new Store<PlayerState>({
   isShuffle: false,
   qualityTracks: [],
   selectedQuality: "auto",
-  isLyricsOpen: false,
   isAuthModalOpen: false,
   systemToken: null,
   systemRefreshToken: null,

@@ -8,7 +8,6 @@ import {
   ListMusic,
   Loader2,
   LogOut,
-  Mic2,
   Play,
   Search,
   Sparkles,
@@ -273,7 +272,7 @@ export function AppNavbar() {
                                   alt=""
                                 />
                               ) : (
-                                <Mic2 size={16} className="text-zinc-700" />
+                                <User size={16} className="text-zinc-700" />
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
