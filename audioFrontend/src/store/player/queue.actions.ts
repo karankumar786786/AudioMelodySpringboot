@@ -233,7 +233,9 @@ export const queueActions = {
           : res.data.data || [];
         
         console.log(`🎵 [FETCH SUMMARY] Raw songs fetched from API: ${rawData.length} tracks.`);
-        if (rawData.length > 0) {
+        if (rawData.length === 0) {
+          console.warn("⚠️ [FETCH EMPTY]: API returned 0 songs from backend! Backend database catalog or recommendations engine returned no available tracks.");
+        } else {
           console.log(`📋 [FETCHED SONGS LIST]:`, rawData.map((s: any) => `"${s.title || s.name}" by ${s.artistName || s.artist?.name || "Unknown"}`));
         }
 
