@@ -17,17 +17,14 @@ import { Interactive3DTiltCard } from "./Interactive3DTiltCard";
 
 // ── Shared dark card style ──────────────────────────────────────
 const card: React.CSSProperties = {
-  background:
-    "linear-gradient(160deg, rgba(16,18,16,0.95) 0%, rgba(10,12,10,0.98) 100%)",
-  border: "1px solid rgba(255,255,255,0.07)",
-  boxShadow:
-    "0 1px 0 rgba(255,255,255,0.04) inset, 0 16px 48px rgba(0,0,0,0.40)",
+  background: "#181818",
+  border: "1px solid #282828",
 };
 
 const innerPanel: React.CSSProperties = {
-  background: "rgba(255,255,255,0.03)",
-  border: "1px solid rgba(255,255,255,0.06)",
-  borderRadius: "0.875rem",
+  background: "#282828",
+  border: "1px solid #383838",
+  borderRadius: "0.5rem",
 };
 
 function IconBox({ children }: { children: React.ReactNode }) {

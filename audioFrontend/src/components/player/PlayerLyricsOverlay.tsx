@@ -52,7 +52,7 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
                 repeat: Infinity,
                 ease: "easeInOut",
               }}
-              className="w-1 bg-gradient-to-t from-primary/30 to-primary rounded-full shadow-[0_0_10px_rgba(120,240,142,0.3)]"
+              className="w-1 bg-primary rounded-full"
               style={{ height: 8 }}
             />
           );
@@ -60,8 +60,8 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
       </div>
 
       <div className="text-center space-y-1">
-        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-          {isPlaying ? "Lossless audio streaming" : "Playback paused"}
+        <p className="text-xs font-medium text-zinc-400">
+          {isPlaying ? "Streaming High Quality Audio" : "Playback paused"}
         </p>
       </div>
     </motion.div>
@@ -74,10 +74,10 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
           {currentCaption ? (
             <motion.div
               key={currentCaption.start_time_seconds}
-              initial={{ opacity: 0, y: 12, filter: "blur(4px)" }}
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, y: -12, filter: "blur(4px)" }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
               className="text-center px-2 w-full select-none"
             >
               {currentCaption.words.length > 0 ? (
@@ -94,11 +94,11 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
                             ? "#ffffff"
                             : isPast
                               ? "rgba(255,255,255,0.4)"
-                              : "rgba(255,255,255,0.12)",
-                          scale: isActive ? 1.06 : 1,
+                              : "rgba(255,255,255,0.15)",
+                          scale: isActive ? 1.05 : 1,
                         }}
                         transition={{ duration: 0.12 }}
-                        className="text-base font-black italic tracking-tight leading-relaxed text-white"
+                        className="text-sm font-semibold tracking-normal leading-relaxed text-white"
                       >
                         {word.text}
                       </motion.span>
@@ -106,7 +106,7 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
                   })}
                 </div>
               ) : (
-                <p className="text-base font-black italic tracking-tight text-white/85 leading-relaxed">
+                <p className="text-sm font-semibold tracking-normal text-white leading-relaxed">
                   {currentCaption.transcript}
                 </p>
               )}

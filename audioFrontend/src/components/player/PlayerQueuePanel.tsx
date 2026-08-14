@@ -19,46 +19,43 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
   const upcoming = queue.slice(Math.max(0, currentIndex + 1));
 
   return (
-    <div className="fixed right-90 bottom-6 z-80 w-90 max-h-[70vh] glass-effect-strong border border-white/10 rounded-4xl shadow-[0_30px_90px_rgba(0,0,0,0.65)] overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-white/5 bg-black/30 backdrop-blur-md">
+    <div className="fixed right-90 bottom-6 z-50 w-80 max-h-[70vh] bg-[#181818] border border-[#282828] rounded-xl shadow-2xl overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-[#282828] bg-[#181818]">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 italic">
-            Playback Queue
-          </p>
-          <h3 className="text-lg font-black italic uppercase tracking-tight text-white">
-            Up Next
+          <h3 className="text-sm font-semibold text-white">
+            Queue
           </h3>
         </div>
         <button
           onClick={onClose}
-          className="p-2 rounded-xl text-zinc-500 hover:text-white hover:bg-white/5 transition-colors"
+          className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-[#282828] transition-colors"
           title="Close queue"
         >
           <ChevronDown size={16} />
         </button>
       </div>
 
-      <div className="px-5 py-4 space-y-4 overflow-y-auto custom-scrollbar max-h-[calc(70vh-74px)]">
+      <div className="px-4 py-3 space-y-3 overflow-y-auto no-scrollbar max-h-[calc(70vh-60px)]">
         {currentSong && (
-          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
-            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary/70 mb-2">
+          <div className="rounded-lg border border-[#282828] bg-[#282828] p-3">
+            <p className="text-[11px] font-semibold text-primary mb-1">
               Now Playing
             </p>
-            <p className="text-sm font-black text-white truncate">
+            <p className="text-xs font-semibold text-white truncate">
               {currentSong.title}
             </p>
-            <p className="text-[10px] uppercase tracking-[0.15em] text-zinc-500 truncate">
+            <p className="text-[11px] text-zinc-400 truncate">
               {currentSong.artistName}
             </p>
           </div>
         )}
 
         {queue.length === 0 ? (
-          <div className="py-10 text-center text-zinc-500 text-xs font-bold italic uppercase tracking-widest">
+          <div className="py-8 text-center text-zinc-500 text-xs font-normal">
             Queue is empty
           </div>
         ) : upcoming.length === 0 ? (
-          <div className="py-10 text-center text-zinc-500 text-xs font-bold italic uppercase tracking-widest">
+          <div className="py-8 text-center text-zinc-500 text-xs font-normal">
             No upcoming tracks
           </div>
         ) : (

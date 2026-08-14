@@ -28,48 +28,48 @@ export const PlayerQualitySelector: React.FC<PlayerQualitySelectorProps> = ({
       <button
         type="button"
         onClick={() => setShowQualityMenu(!showQualityMenu)}
-        className={`flex items-center gap-1 px-1.5 py-1 rounded-lg transition-all cursor-pointer text-[10px] font-black italic tracking-wider ${
+        className={`flex items-center gap-1 px-2 py-1 rounded-md transition-all cursor-pointer text-xs font-semibold ${
           showQualityMenu
-            ? "text-primary bg-primary/10 shadow-[0_0_12px_rgba(120,240,142,0.15)]"
-            : "text-zinc-600 hover:text-zinc-400"
+            ? "text-primary bg-[#282828]"
+            : "text-zinc-400 hover:text-white"
         }`}
       >
         <span>
           {selectedQuality === "auto"
-            ? "HD"
-            : `${Math.round((selectedQuality as number) / 1000)}K`}
+            ? "Auto"
+            : `${Math.round((selectedQuality as number) / 1000)}k`}
         </span>
         <ChevronDown
-          size={10}
-          className={`transition-transform duration-300 shrink-0 ${showQualityMenu ? "rotate-180" : ""}`}
+          size={12}
+          className={`transition-transform duration-200 shrink-0 ${showQualityMenu ? "rotate-180" : ""}`}
         />
       </button>
 
       <AnimatePresence>
         {showQualityMenu && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            initial={{ opacity: 0, scale: 0.95, y: 5 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            className="absolute bottom-full left-0 mb-3 w-40 glass-effect-strong border border-white/10 rounded-2xl p-2 shadow-2xl z-100"
+            exit={{ opacity: 0, scale: 0.95, y: 5 }}
+            className="absolute bottom-full left-0 mb-2 w-40 bg-[#181818] border border-[#282828] rounded-lg p-1.5 shadow-2xl z-50"
           >
-            <p className="text-xs font-semibold text-zinc-400 px-3 py-2 border-b border-white/5 mb-1.5">
-              Stream Quality
+            <p className="text-xs font-semibold text-zinc-400 px-2 py-1.5 border-b border-[#282828] mb-1">
+              Audio Quality
             </p>
-            <div className="max-h-[200px] overflow-y-auto custom-scrollbar">
+            <div className="max-h-[200px] overflow-y-auto no-scrollbar">
               <button
                 type="button"
                 onClick={() => {
                   onSelectQuality("auto");
                   setShowQualityMenu(false);
                 }}
-                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black italic transition-all mb-1 ${
+                className={`w-full text-left px-2 py-1.5 rounded-md text-xs font-medium transition-all mb-1 ${
                   selectedQuality === "auto"
-                    ? "bg-primary text-black"
-                    : "text-zinc-400 hover:text-white hover:bg-white/5"
+                    ? "bg-[#282828] text-primary font-semibold"
+                    : "text-zinc-400 hover:text-white hover:bg-[#282828]"
                 }`}
               >
-                AUTO
+                Auto
               </button>
               {qualityTracks.map((t) => (
                 <button
@@ -79,10 +79,10 @@ export const PlayerQualitySelector: React.FC<PlayerQualitySelectorProps> = ({
                     onSelectQuality(t.bandwidth);
                     setShowQualityMenu(false);
                   }}
-                  className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-black italic transition-all mb-1 ${
+                  className={`w-full text-left px-2 py-1.5 rounded-md text-xs font-medium transition-all mb-1 ${
                     selectedQuality === t.bandwidth
-                      ? "bg-primary text-black"
-                      : "text-zinc-400 hover:text-white hover:bg-white/5"
+                      ? "bg-[#282828] text-primary font-semibold"
+                      : "text-zinc-400 hover:text-white hover:bg-[#282828]"
                   }`}
                 >
                   {(() => {

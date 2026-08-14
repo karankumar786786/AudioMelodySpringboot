@@ -87,31 +87,31 @@ export function PlaylistPickerModal({
 
           {/* Modal */}
           <motion.div
-            initial={{ scale: 0.92, opacity: 0, y: 20 }}
+            initial={{ scale: 0.95, opacity: 0, y: 15 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.92, opacity: 0, y: 20 }}
+            exit={{ scale: 0.95, opacity: 0, y: 15 }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="relative w-full max-w-sm bg-zinc-950 border  rounded-4xlshadow-[0_25px_80px_rgba(0,0,0,0.8)] overflow-hidden"
+            className="relative w-full max-w-sm bg-[#181818] border border-[#282828] rounded-xl shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="p-6 pb-4 border-b bg-white/4 flex items-center justify-between">
+            <div className="p-5 pb-4 border-b border-[#282828] flex items-center justify-between">
               <div className="flex items-center gap-3 min-w-0">
-                <div className="p-2.5 bg-primary/10 text-primary rounded-xl shrink-0">
-                  <ListMusic size={18} />
+                <div className="p-2 bg-primary/10 text-primary rounded-md shrink-0">
+                  <ListMusic size={20} />
                 </div>
                 <div className="min-w-0">
-                  <h2 className="text-base font-black text-white italic uppercase tracking-tight leading-tight">
+                  <h2 className="text-base font-bold text-white tracking-tight">
                     Add to Playlist
                   </h2>
-                  <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-wider truncate mt-0.5">
+                  <p className="text-xs text-zinc-400 truncate mt-0.5 font-normal">
                     {songTitle}
                   </p>
                 </div>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 text-zinc-600 hover:text-white hover:bg-white/5 rounded-xl transition-all shrink-0"
+                className="p-1.5 text-zinc-400 hover:text-white hover:bg-[#282828] rounded-full transition-colors shrink-0 cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -121,36 +121,42 @@ export function PlaylistPickerModal({
             <div className="max-h-80 overflow-y-auto lyrics-scrollbar p-4 space-y-2">
               {isCreating ? (
                 <motion.div
-                  initial={{ opacity: 0, y: 8 }}
+                  initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="space-y-3 p-2"
+                  className="space-y-4 p-1"
                 >
-                  <input
-                    autoFocus
-                    placeholder="Playlist name..."
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && newName.trim()) {
-                        toast.promise(createAndAdd.mutateAsync(), {
-                          loading: "Creating Playlist...",
-                          success: (playlist) =>
-                            `Playlist "${playlist.name}" Created`,
-                          error: "Failed to create playlist",
-                          description: (playlist: any) =>
-                            playlist?.name
-                              ? `Created "${playlist.name}" and added "${songTitle}".`
-                              : "Failed to create new playlist.",
-                        });
-                      }
-                      if (e.key === "Escape") setIsCreating(false);
-                    }}
-                    className="w-full bg-zinc-900 border border-white/6 p-4 rounded-xl text-white text-sm font-bold outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/30 transition-all placeholder-zinc-600"
-                  />
-                  <div className="flex gap-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-zinc-300">
+                      Playlist Name
+                    </label>
+                    <input
+                      autoFocus
+                      placeholder="My Playlist #1"
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && newName.trim()) {
+                          toast.promise(createAndAdd.mutateAsync(), {
+                            loading: "Creating Playlist...",
+                            success: (playlist) =>
+                              `Playlist "${playlist.name}" Created`,
+                            error: "Failed to create playlist",
+                            description: (playlist: any) =>
+                              playlist?.name
+                                ? `Created "${playlist.name}" and added "${songTitle}".`
+                                : "Failed to create new playlist.",
+                          });
+                        }
+                        if (e.key === "Escape") setIsCreating(false);
+                      }}
+                      className="w-full bg-[#282828] border border-[#383838] px-4 py-2.5 rounded-md text-white text-sm outline-none focus:border-primary transition-colors placeholder-zinc-500"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-1">
                     <button
                       onClick={() => setIsCreating(false)}
-                      className="flex-1 py-3 bg-zinc-900 text-zinc-500 rounded-xl font-bold text-[11px] uppercase tracking-wider hover:bg-zinc-800 transition-all"
+                      className="flex-1 py-2.5 bg-[#282828] text-zinc-300 rounded-full font-semibold text-xs hover:bg-[#333333] transition-colors cursor-pointer border border-[#383838]"
                     >
                       Cancel
                     </button>
@@ -170,7 +176,7 @@ export function PlaylistPickerModal({
                         }
                       }}
                       disabled={!newName.trim() || createAndAdd.isPending}
-                      className="flex-1 py-3 bg-primary text-black rounded-xl font-black text-[11px] uppercase tracking-widest hover:brightness-110 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 py-2.5 bg-primary text-black rounded-full font-bold text-xs hover:scale-105 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
                       {createAndAdd.isPending ? "Creating..." : "Create & Add"}
                     </button>
@@ -181,24 +187,24 @@ export function PlaylistPickerModal({
                   {/* Create New Button */}
                   <button
                     onClick={() => setIsCreating(true)}
-                    className="w-full flex items-center gap-3 p-3.5 rounded-xl bg-white/3 hover:bg-white/6 border  hover:border-primary/20 transition-all group"
+                    className="w-full flex items-center gap-3 p-3 rounded-md bg-[#282828] hover:bg-[#333333] border border-[#383838] transition-colors cursor-pointer group"
                   >
-                    <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-black shadow group-hover:scale-105 transition-transform shrink-0">
+                    <div className="w-9 h-9 bg-primary rounded-md flex items-center justify-center text-black shadow group-hover:scale-105 transition-transform shrink-0">
                       <Plus size={18} />
                     </div>
-                    <span className="text-sm font-bold text-white">
-                      Create New Playlist
+                    <span className="text-sm font-semibold text-white">
+                      New Playlist
                     </span>
                   </button>
 
                   {/* Divider */}
                   {(playlists?.data?.data?.length ?? 0) > 0 && (
                     <div className="flex items-center gap-3 py-2 px-1">
-                      <div className="h-px flex-1 bg-white/4" />
-                      <span className="text-[9px] font-bold text-zinc-700 uppercase tracking-widest">
+                      <div className="h-px flex-1 bg-[#282828]" />
+                      <span className="text-xs font-semibold text-zinc-400">
                         Your Playlists
                       </span>
-                      <div className="h-px flex-1 bg-white/4" />
+                      <div className="h-px flex-1 bg-[#282828]" />
                     </div>
                   )}
 
@@ -208,12 +214,12 @@ export function PlaylistPickerModal({
                       {[1, 2, 3].map((i) => (
                         <div
                           key={i}
-                          className="h-14 bg-zinc-900/30 rounded-xl animate-pulse"
+                          className="h-12 bg-zinc-900 rounded-md animate-pulse"
                         />
                       ))}
                     </div>
                   ) : (playlists?.data?.data?.length ?? 0) === 0 ? (
-                    <div className="py-8 text-center text-zinc-700 font-bold italic text-xs">
+                    <div className="py-6 text-center text-zinc-400 font-medium text-xs">
                       No playlists found
                     </div>
                   ) : (
@@ -232,10 +238,10 @@ export function PlaylistPickerModal({
                           );
                         }}
                         disabled={addToPlaylist.isPending}
-                        className="w-full flex items-center justify-between p-3.5 rounded-xl  border border-transparent hover:bg-white/4 transition-all group disabled:opacity-50"
+                        className="w-full flex items-center justify-between p-2.5 rounded-md hover:bg-[#282828] transition-colors group disabled:opacity-50 cursor-pointer"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-10 h-10 bg-zinc-900 rounded-lg overflow-hidden flex items-center justify-center text-zinc-700 group-hover:text-primary transition-colors shrink-0">
+                          <div className="w-9 h-9 bg-zinc-900 rounded-md overflow-hidden flex items-center justify-center text-zinc-500 group-hover:text-primary transition-colors shrink-0">
                             {playlist.coverImageKey ? (
                               <img
                                 src={getImageUrl(playlist.coverImageKey, {
@@ -251,13 +257,13 @@ export function PlaylistPickerModal({
                               <ListMusic size={16} />
                             )}
                           </div>
-                          <span className="text-sm font-bold text-zinc-300 group-hover:text-white truncate transition-colors">
+                          <span className="text-sm font-semibold text-zinc-200 group-hover:text-white truncate transition-colors">
                             {playlist.name}
                           </span>
                         </div>
                         <ChevronRight
-                          size={14}
-                          className="text-zinc-800 group-hover:text-zinc-400 transition-colors shrink-0"
+                          size={16}
+                          className="text-zinc-500 group-hover:text-zinc-300 transition-colors shrink-0"
                         />
                       </button>
                     ))

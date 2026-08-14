@@ -132,14 +132,10 @@ export function LandingHero() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-8 text-[10px] font-semibold text-zinc-500 uppercase tracking-[0.2em]"
-        style={{
-          background: "rgba(255,255,255,0.05)",
-          border: "1px solid rgba(255,255,255,0.08)",
-        }}
+        className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-8 text-xs font-medium text-zinc-300 bg-[#181818] border border-[#282828]"
       >
-        <Sparkles className="w-3 h-3 text-primary" />
-        Precision Audio • HLS Streaming
+        <Sparkles className="w-3.5 h-3.5 text-primary" />
+        High Fidelity Music • Real-Time Lyrics
       </motion.div>
 
       {/* Heading */}
@@ -148,21 +144,12 @@ export function LandingHero() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1, duration: 0.7 }}
-          className="text-5xl sm:text-6xl md:text-7xl font-black tracking-tight leading-[0.92] text-white"
+          className="text-5xl sm:text-6xl md:text-7xl font-bold tracking-tight text-white leading-tight"
         >
-          Acoustic Depth.
+          Music for every moment.
           <br />
-          <span
-            className="italic"
-            style={{
-              background:
-                "linear-gradient(90deg, var(--primary) 0%, #34d399 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}
-          >
-            Impeccably Synced.
+          <span className="text-primary">
+            Stream seamlessly.
           </span>
         </motion.h1>
 
@@ -170,10 +157,9 @@ export function LandingHero() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25, duration: 0.6 }}
-          className="text-base text-zinc-500 max-w-lg mx-auto leading-relaxed"
+          className="text-base text-zinc-400 max-w-lg mx-auto leading-relaxed"
         >
-          Decoded natively. Streamed adaptively. Real-time lyric sync with
-          zero-buffer adaptive HLS audio.
+          Listen to your favorite songs with synchronized lyrics, high quality streaming, and personalized playlists.
         </motion.p>
       </div>
 
@@ -182,27 +168,19 @@ export function LandingHero() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.35, duration: 0.6 }}
-        className="flex flex-col sm:flex-row items-center gap-3 mb-16"
+        className="flex flex-col sm:flex-row items-center gap-4 mb-16"
       >
         <button
           type="button"
           onClick={() => playerActions.openAuthModal()}
-          className="px-7 py-3.5 rounded-xl bg-primary text-black font-bold text-sm hover:brightness-110 transition-all active:scale-95 flex items-center gap-2 group cursor-pointer"
-          style={{
-            boxShadow:
-              "0 0 24px rgba(120,240,142,0.25), 0 4px 16px rgba(0,0,0,0.30)",
-          }}
+          className="px-8 py-3.5 rounded-full bg-primary text-black font-bold text-sm hover:scale-105 transition-all flex items-center gap-2 group cursor-pointer shadow-md"
         >
-          Enter Console
+          Start Listening
           <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
         </button>
         <a
           href="#features"
-          className="px-7 py-3.5 rounded-xl text-sm font-bold text-zinc-500 hover:text-white transition-colors cursor-pointer"
-          style={{
-            background: "rgba(255,255,255,0.04)",
-            border: "1px solid rgba(255,255,255,0.08)",
-          }}
+          className="px-8 py-3.5 rounded-full text-sm font-semibold text-zinc-300 hover:text-white bg-[#181818] border border-[#282828] hover:bg-[#282828] transition-all cursor-pointer"
         >
           Explore Features
         </a>

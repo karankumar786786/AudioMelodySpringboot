@@ -119,30 +119,24 @@ export default function HomePage() {
       <div className="h-px bg-linear-to-r from-white/10 via-white/5 to-transparent" />
 
       {/* 2. Top Artists Section */}
-      <section className="space-y-6">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-primary/10 rounded-xl border border-primary/20">
-              <Users2 className="text-primary" size={18} />
-            </div>
-            <h2 className="text-2xl font-black italic tracking-tight uppercase text-white">
-              Top Artists
-            </h2>
-          </div>
-          <div className="h-px flex-1 mx-8 bg-linear-to-r from-white/6 to-transparent" />
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white tracking-tight">
+            Top Artists
+          </h2>
         </div>
 
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="flex flex-row overflow-x-auto gap-12 pb-6 no-scrollbar mask-fade-right px-1 py-2"
+          transition={{ duration: 0.4 }}
+          className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar px-1"
         >
           {isArtistsLoading
             ? [1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="flex-none w-[160px] space-y-4">
-                  <div className="aspect-square rounded-full bg-zinc-900/60 animate-pulse border border-white/5" />
-                  <div className="h-3 w-3/4 bg-zinc-900/60 rounded mx-auto animate-pulse" />
+                <div key={i} className="flex-none w-[160px] space-y-3">
+                  <div className="aspect-square rounded-full bg-zinc-900 animate-pulse" />
+                  <div className="h-3 w-3/4 bg-zinc-900 rounded mx-auto animate-pulse" />
                 </div>
               ))
             : artists?.data?.data?.map((artist: Artist) => (
@@ -151,33 +145,27 @@ export default function HomePage() {
         </motion.div>
       </section>
 
-      <div className="h-px bg-linear-to-r from-white/10 via-white/5 to-transparent" />
+      <div className="h-px bg-[#282828]" />
 
       {/* 3. Featured Playlists Section */}
-      <section className="space-y-6">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-primary/10 rounded-xl border border-primary/20">
-              <ListMusic className="text-primary" size={18} />
-            </div>
-            <h2 className="text-2xl font-black italic tracking-tight uppercase text-white">
-              Featured Playlists
-            </h2>
-          </div>
-          <div className="h-px flex-1 mx-8 bg-linear-to-r from-white/6 to-transparent" />
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white tracking-tight">
+            Featured Playlists
+          </h2>
         </div>
 
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.3 }}
-          className="flex flex-row overflow-x-auto gap-8 pb-6 no-scrollbar mask-fade-right px-1 py-2"
+          transition={{ duration: 0.4 }}
+          className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar px-1"
         >
           {isPlaylistsLoading
             ? [1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="flex-none w-[180px] space-y-4">
-                  <div className="aspect-square rounded-[2.5rem] bg-zinc-900/60 animate-pulse border border-white/5" />
-                  <div className="h-3 w-1/2 bg-zinc-900/60 rounded animate-pulse" />
+                <div key={i} className="flex-none w-[180px] space-y-3">
+                  <div className="aspect-square rounded-md bg-zinc-900 animate-pulse" />
+                  <div className="h-3 w-1/2 bg-zinc-900 rounded animate-pulse" />
                 </div>
               ))
             : playlists?.data?.data?.map((playlist: Playlist) => (
@@ -191,31 +179,25 @@ export default function HomePage() {
         recommendations?.data?.data &&
         recommendations.data.data.length > 0 && (
           <>
-            <div className="h-px bg-linear-to-r from-white/10 via-white/5 to-transparent" />
-            <section className="space-y-6">
-              <div className="flex items-center gap-4 px-1">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-primary/10 rounded-xl border border-primary/20">
-                    <Zap className="text-primary fill-primary" size={18} />
-                  </div>
-                  <h2 className="text-2xl font-black italic tracking-tight uppercase text-white">
-                    Recommendations
-                  </h2>
-                </div>
-                <div className="h-px flex-1 bg-linear-to-r from-white/6 to-transparent" />
+            <div className="h-px bg-[#282828]" />
+            <section className="space-y-4">
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-bold text-white tracking-tight">
+                  Recommended for You
+                </h2>
               </div>
 
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.35 }}
-                className="flex flex-row overflow-x-auto gap-6 pb-6 no-scrollbar mask-fade-right px-1 py-2"
+                transition={{ duration: 0.4 }}
+                className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar px-1"
               >
                 {recommendations.data.data.slice(0, 10).map((song: Song) => (
                   <SongCard
                     key={`rec-${song.id}`}
                     song={song}
-                    className="flex-none w-[220px]"
+                    className="flex-none w-[200px]"
                   />
                 ))}
               </motion.div>
@@ -223,22 +205,14 @@ export default function HomePage() {
           </>
         )}
 
-      <div className="h-px bg-linear-to-r from-white/10 via-white/5 to-transparent" />
+      <div className="h-px bg-[#282828]" />
 
       {/* 5. Discovery Feed */}
-      <section className="space-y-6">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-zinc-800/60 rounded-xl border border-white/4">
-                <Clock className="text-zinc-400" size={18} />
-              </div>
-              <h2 className="text-2xl font-black italic tracking-tight uppercase text-white">
-                All Tracks
-              </h2>
-            </div>
-            <div className="h-px w-16 bg-linear-to-r from-white/6 to-transparent" />
-          </div>
+      <section className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-white tracking-tight">
+            Explore All Tracks
+          </h2>
         </div>
 
         {status === "pending" ? (
@@ -246,12 +220,12 @@ export default function HomePage() {
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
               <div
                 key={i}
-                className="aspect-square bg-zinc-900/30 border border-white/3 rounded-[1.8rem] animate-pulse shimmer-loader"
+                className="aspect-square bg-zinc-900 rounded-md animate-pulse"
               />
             ))}
           </div>
         ) : status === "error" ? (
-          <div className="p-20 text-center text-zinc-600 border border-dashed border-zinc-800 rounded-4xl font-bold italic tracking-tight uppercase">
+          <div className="p-16 text-center text-zinc-500 border border-dashed border-[#282828] rounded-xl font-medium">
             Failed to load tracks
           </div>
         ) : (

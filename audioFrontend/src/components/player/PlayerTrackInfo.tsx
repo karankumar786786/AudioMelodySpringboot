@@ -27,15 +27,15 @@ export const PlayerTrackInfo: React.FC<PlayerTrackInfoProps> = ({
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <h2
-            className={`font-black text-white italic uppercase tracking-tight truncate leading-tight transition-all duration-500 ${
-              isCollapsed ? "text-[13px]" : "text-base"
+            className={`font-semibold text-white truncate leading-tight transition-all duration-300 ${
+              isCollapsed ? "text-xs" : "text-sm"
             }`}
           >
             {title}
           </h2>
           <p
-            className={`font-black text-primary/70 uppercase tracking-[0.15em] italic truncate transition-all duration-500 ${
-              isCollapsed ? "text-[8px] mt-0" : "text-[10px] mt-0.5"
+            className={`font-normal text-zinc-400 truncate transition-all duration-300 ${
+              isCollapsed ? "text-[10px]" : "text-xs mt-0.5"
             }`}
           >
             {artistName}

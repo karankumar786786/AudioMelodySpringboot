@@ -27,35 +27,32 @@ export default function FavouritesPage() {
   if (!isMounted) return null;
 
   return (
-    <div className="px-10 pb-20">
+    <div className="px-10 pb-20 pt-6">
       <section>
-        <div className="flex items-center justify-between mb-12 px-2">
-          <div className="flex items-center gap-6">
-            <h2 className="text-3xl font-black italic tracking-tighter uppercase text-white">
-              Your Favourite Songs
-            </h2>
-            <div className="h-px w-24 bg-linear-to-r from-rose-500 to-transparent" />
-          </div>
+        <div className="flex items-center justify-between mb-8">
+          <h2 className="text-2xl font-bold text-white tracking-tight">
+            Your Favourites
+          </h2>
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
             {[1, 2, 3, 4, 5].map((i) => (
               <div
                 key={i}
-                className="aspect-square bg-zinc-900/40 border border-white/5 rounded-[3rem] animate-pulse"
+                className="aspect-square bg-zinc-900 rounded-md animate-pulse"
               />
             ))}
           </div>
         ) : songs.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
             {songs.map((song: Song) => (
               <SongCard key={song.id} song={song} />
             ))}
           </div>
         ) : (
-          <div className="py-32 text-center text-zinc-500 border-2 border-dashed border-zinc-900 rounded-[4rem] font-bold italic tracking-tight uppercase px-10">
-            {systemUser ? "No Songs Found" : "Authentication is required"}
+          <div className="py-20 text-center text-zinc-500 border border-dashed border-[#282828] rounded-xl font-medium px-10">
+            {systemUser ? "No favourite songs added yet" : "Sign in to view your favourites"}
           </div>
         )}
       </section>

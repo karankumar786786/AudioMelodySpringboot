@@ -214,7 +214,7 @@ export function AuthModal() {
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/80 p-8 shadow-2xl backdrop-blur-xl"
+          className="relative w-full max-w-md overflow-hidden rounded-xl border border-[#282828] bg-[#181818] p-8 shadow-2xl"
         >
           {/* Close Button */}
           <button

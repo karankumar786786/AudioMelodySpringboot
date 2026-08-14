@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Play, Heart, Plus, X } from "lucide-react";
+import { Play, Plus, X } from "lucide-react";
 import { type Song } from "../lib/api";
 import { playerActions, playerStore } from "../store/player.store";
 import { mapToPlayerSong } from "../lib/player-utils";
@@ -23,43 +23,14 @@ export function SongCard({
   className,
 }: SongCardProps) {
   const systemUser = useStore(playerStore, (s) => s.systemUser);
-  const favourites = useStore(playerStore, (s) => s.favourites);
   const currentSong = useStore(playerStore, (s) => s.currentSong);
-  const isPlaying = useStore(playerStore, (s) => s.isPlaying);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
 
-  // Normalize IDs to strings when checking favourites to avoid type mismatches
-  const isFavourite = Array.from(favourites).some((id) => String(id) === String(song.id));
   const isActiveSong = currentSong?.id === song.id;
 
   const handlePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
     playerActions.play(mapToPlayerSong(song));
-  };
-
-  const handleToggleFavourite = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!systemUser?.id) {
-      toast.error("Sign in required", {
-        description: "Please sign in to save songs to your library.",
-      });
-      return;
-    }
-
-    toast.promise(playerActions.toggleFavourite(song.id), {
-      loading: isFavourite
-        ? "Removing from Favourites..."
-        : "Adding to Favourites...",
-      success: () => {
-        return isFavourite ? "Removed from Favourites" : "Added to Favourites";
-      },
-      error: "Failed to update favourites",
-      description: () => {
-        return isFavourite
-          ? `"${song.title}" removed from your collection.`
-          : `"${song.title}" added to your collection.`;
-      },
-    });
   };
 
   const handleOpenPlaylistPicker = (e: React.MouseEvent) => {
@@ -77,18 +48,15 @@ export function SongCard({
   return (
     <>
       <motion.div
-        initial={{ opacity: 0, y: 12 }}
+        initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: "easeOut" }}
-        whileHover={{ y: -6 }}
+        transition={{ duration: 0.3 }}
         onClick={handlePlay}
-        className={`glass-effect p-3.5 rounded-[1.8rem] group cursor-pointer relative overflow-hidden transition-all duration-300 ${
-          isActiveSong
-            ? "ring-2 ring-primary/60 bg-linear-to-b from-primary/5 to-transparent shadow-[0_12px_30px_rgba(120,240,142,0.15)]"
-            : "hover:border-white/15 hover:shadow-[0_20px_40px_rgba(0,0,0,0.6),0_0_30px_rgba(120,240,142,0.06)] hover:bg-white/5"
+        className={`bg-[#181818] p-4 rounded-md group cursor-pointer relative transition-all duration-300 hover:bg-[#282828] ${
+          isActiveSong ? "bg-[#282828] border border-primary/30" : ""
         } ${className || ""}`}
       >
-        <div className="aspect-square bg-zinc-950 rounded-[1.4rem] mb-4 relative shadow-2xl overflow-hidden ring-1 ring-white/6">
+        <div className="aspect-square bg-zinc-900 rounded-md mb-3 relative shadow-md overflow-hidden">
           <img
             src={getImageUrl(song.imageKey, {
               width: 400,
@@ -96,72 +64,56 @@ export function SongCard({
               focus: "auto",
               aspectRatio: "1-1",
             })}
-            className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-700 ease-out"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
             alt={song.title}
             loading={priority ? "eager" : "lazy"}
           />
 
-          <div className="absolute inset-0 bg-black/45 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center backdrop-blur-[3px] z-10">
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-black shadow-xl shadow-primary/20 transition-all duration-300"
+          {/* Spotify Green Play Button Overlay on Cover Art */}
+          <div className="absolute bottom-2 right-2 translate-y-2 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10">
+            <button
+              onClick={handlePlay}
+              className="w-12 h-12 rounded-full bg-primary hover:scale-105 flex items-center justify-center text-black shadow-xl cursor-pointer transition-transform"
+              title="Play"
             >
               <Play fill="black" size={20} className="translate-x-0.5" />
-            </motion.div>
+            </button>
           </div>
         </div>
 
-        <div className="space-y-1.5 px-1.5 pb-1">
+        <div className="space-y-1">
           <h3
-            className={`font-black truncate text-[0.9rem] uppercase italic tracking-tighter transition-colors duration-300 ${
+            className={`font-semibold truncate text-sm transition-colors ${
               isActiveSong ? "text-primary" : "text-white"
             }`}
           >
             {song.title}
           </h3>
-          <p
-            className={`text-[10px] font-black uppercase tracking-[0.15em] truncate transition-colors italic ${
-              isActiveSong
-                ? "text-primary/70"
-                : "text-zinc-500 group-hover:text-primary"
-            }`}
-          >
+          <p className="text-xs font-normal text-zinc-400 truncate">
             {song.artistName}
           </p>
         </div>
 
-        {/* Quick Actions */}
-        <div className="absolute top-5 right-5 flex flex-col gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-3 group-hover:translate-x-0 duration-300">
+        {/* Quick Actions Bar */}
+        <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
           {onRemove && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onRemove();
               }}
-              className="w-9 h-9 rounded-xl bg-red-500 text-white flex items-center justify-center hover:brightness-110 transition-all shadow-2xl"
+              className="w-8 h-8 rounded-full bg-black/60 hover:bg-black text-white flex items-center justify-center transition-all shadow-md cursor-pointer"
               title="Remove"
             >
-              <X size={15} />
+              <X size={14} />
             </button>
           )}
           <button
-            onClick={handleToggleFavourite}
-            className={`w-9 h-9 rounded-xl bg-black/60 backdrop-blur-xl border border-white/10 flex items-center justify-center transition-all shadow-2xl ${
-              isFavourite
-                ? "text-primary border-primary/20"
-                : "text-zinc-400 hover:text-primary"
-            }`}
-          >
-            <Heart size={15} fill={isFavourite ? "currentColor" : "none"} />
-          </button>
-          <button
             onClick={handleOpenPlaylistPicker}
-            className="w-9 h-9 rounded-xl bg-black/60 backdrop-blur-xl border border-white/10 flex items-center justify-center text-zinc-400 hover:text-primary transition-all shadow-2xl"
+            className="w-8 h-8 rounded-full bg-black/60 hover:bg-black flex items-center justify-center text-zinc-300 hover:text-white transition-all shadow-md cursor-pointer"
+            title="Add to playlist"
           >
-            <Plus size={15} />
+            <Plus size={14} />
           </button>
         </div>
       </motion.div>

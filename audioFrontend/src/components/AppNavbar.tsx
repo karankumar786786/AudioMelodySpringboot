@@ -115,7 +115,7 @@ export function AppNavbar() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 w-full px-5 py-6 flex items-center justify-between pointer-events-none">
+    <header className="sticky top-0 z-40 w-full px-8 py-4 flex items-center justify-between pointer-events-none bg-[#121212]/90 backdrop-blur-md border-b border-[#282828]">
       {/* Search Input Container */}
       <div
         className="flex items-center gap-6 pointer-events-auto relative"
@@ -123,66 +123,66 @@ export function AppNavbar() {
       >
         <form
           onSubmit={handleSearch}
-          className="relative group rounded-2xl w-96"
+          className="relative group rounded-full w-96"
         >
           <input
             type="text"
-            placeholder="Search for tracks, artists..."
+            placeholder="What do you want to listen to?"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setIsFocused(true)}
-            className="bg-black/60 backdrop-blur-3xl border border-white/10 rounded-2xl py-3 pl-14 pr-8 text-xs font-black focus:ring-2 focus:ring-primary/50 transition-all outline-none w-full text-white placeholder-zinc-700 shadow-2xl relative z-10"
+            className="bg-[#282828] border border-transparent hover:border-[#383838] focus:border-white rounded-full py-2.5 pl-11 pr-8 text-xs font-medium focus:ring-0 transition-all outline-none w-full text-white placeholder-zinc-400 shadow-md relative z-10"
           />
-          <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none text-zinc-500 group-focus-within:text-primary transition-colors z-20">
-            <Search size={18} />
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-400 group-focus-within:text-white transition-colors z-20">
+            <Search size={16} />
           </div>
         </form>
 
         <AnimatePresence>
           {isFocused && (
             <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              initial={{ opacity: 0, y: 8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="absolute top-full left-0 mt-4 w-[480px] glass-effect-strong rounded-3xl shadow-[0_40px_100px_rgba(0,0,0,0.8)] overflow-hidden pointer-events-auto"
+              exit={{ opacity: 0, y: 8, scale: 0.98 }}
+              className="absolute top-full left-0 mt-2 w-[480px] bg-[#181818] border border-[#282828] rounded-xl shadow-2xl overflow-hidden pointer-events-auto z-50"
             >
               {!query.trim() ? (
                 /* RECENT SEARCHES */
                 <>
-                  <div className="p-4 border-b border-white/5 flex items-center justify-between">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 italic">
+                  <div className="p-3 border-b border-[#282828] flex items-center justify-between">
+                    <span className="text-xs font-semibold text-zinc-400">
                       Recent Searches
                     </span>
                     {systemUser && (
                       <button
                         onClick={() => clearHistory.mutate()}
-                        className="text-[10px] font-black text-primary hover:text-white transition-colors"
+                        className="text-xs font-semibold text-primary hover:underline"
                       >
-                        CLEAR ALL
+                        Clear all
                       </button>
                     )}
                   </div>
                   <div className="p-2">
                     {!systemUser ? (
-                      <div className="p-4 text-center text-zinc-600 text-[10px] font-bold italic">
-                        Sign in to sync frequencies.
+                      <div className="p-4 text-center text-zinc-500 text-xs font-normal">
+                        Sign in to save your search history.
                       </div>
                     ) : searchHistory?.data?.data.length === 0 ? (
-                      <div className="p-4 text-center text-zinc-600 text-[10px] font-bold italic">
-                        Memory empty.
+                      <div className="p-4 text-center text-zinc-500 text-xs font-normal">
+                        No recent searches.
                       </div>
                     ) : (
                       searchHistory?.data?.data.map((item: any) => (
                         <button
                           key={item.id}
                           onClick={() => handleRecentClick(item.searchedText)}
-                          className="w-full flex items-center gap-3 p-3 hover:bg-white/5 rounded-xl transition-all text-left group"
+                          className="w-full flex items-center gap-3 p-2.5 hover:bg-[#282828] rounded-lg transition-all text-left group"
                         >
                           <History
-                            size={14}
-                            className="text-zinc-600 group-hover:text-primary"
+                            size={16}
+                            className="text-zinc-400 group-hover:text-white"
                           />
-                          <span className="text-xs font-black text-zinc-300 group-hover:text-white truncate">
+                          <span className="text-xs font-medium text-zinc-300 group-hover:text-white truncate">
                             {item.searchedText}
                           </span>
                         </button>
@@ -192,14 +192,14 @@ export function AppNavbar() {
                 </>
               ) : (
                 /* LIVE SEARCH RESULTS */
-                <div className="max-h-[60vh] overflow-y-auto custom-scrollbar">
-                  <div className="p-4 border-b border-white/5 flex items-center justify-between sticky top-0 bg-zinc-950/80 backdrop-blur-md z-10">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500 italic">
-                      Live Results
+                <div className="max-h-[60vh] overflow-y-auto no-scrollbar">
+                  <div className="p-3 border-b border-[#282828] flex items-center justify-between sticky top-0 bg-[#181818] z-10">
+                    <span className="text-xs font-semibold text-zinc-400">
+                      Search Results
                     </span>
                     {isSearching && (
                       <Loader2
-                        size={12}
+                        size={14}
                         className="text-primary animate-spin"
                       />
                     )}
@@ -208,17 +208,17 @@ export function AppNavbar() {
                   <div className="p-2 space-y-1">
                     {/* Songs */}
                     {(searchResults?.data?.songs?.length ?? 0) > 0 && (
-                      <div className="mb-4">
-                        <h4 className="px-3 py-2 text-[9px] font-black text-zinc-600 uppercase tracking-widest">
-                          Tracks
+                      <div className="mb-3">
+                        <h4 className="px-3 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+                          Songs
                         </h4>
                         {searchResults?.data?.songs.map((song: any) => (
                           <button
                             key={song.id}
                             onClick={() => handlePlaySong(song)}
-                            className="w-full flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl transition-all text-left group"
+                            className="w-full flex items-center gap-3 p-2 hover:bg-[#282828] rounded-lg transition-all text-left group"
                           >
-                            <div className="w-10 h-10 rounded-lg bg-zinc-900 overflow-hidden shrink-0 border border-white/5">
+                            <div className="w-10 h-10 rounded-md bg-zinc-900 overflow-hidden shrink-0">
                               <img
                                 src={getImageUrl(song.imageKey, {
                                   width: 100,
@@ -231,16 +231,16 @@ export function AppNavbar() {
                               />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-black text-white truncate">
+                              <p className="text-xs font-semibold text-white truncate">
                                 {song.title}
                               </p>
-                              <p className="text-[10px] text-zinc-500 font-medium truncate uppercase tracking-wider">
+                              <p className="text-[11px] text-zinc-400 font-normal truncate">
                                 {song.artistName}
                               </p>
                             </div>
                             <Play
-                              size={14}
-                              className="text-zinc-600 opacity-0 group-hover:opacity-100 group-hover:text-primary transition-all mr-2"
+                              size={16}
+                              className="text-primary opacity-0 group-hover:opacity-100 transition-all mr-2"
                             />
                           </button>
                         ))}
@@ -249,17 +249,17 @@ export function AppNavbar() {
 
                     {/* Artists */}
                     {(searchResults?.data?.artists?.length ?? 0) > 0 && (
-                      <div className="mb-4">
-                        <h4 className="px-3 py-2 text-[9px] font-black text-zinc-600 uppercase tracking-widest">
-                          Nodes
+                      <div className="mb-3">
+                        <h4 className="px-3 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+                          Artists
                         </h4>
                         {searchResults?.data?.artists.map((artist: any) => (
                           <button
                             key={artist.id}
                             onClick={() => handleArtistClick(artist)}
-                            className="w-full flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl transition-all text-left group"
+                            className="w-full flex items-center gap-3 p-2 hover:bg-[#282828] rounded-lg transition-all text-left group"
                           >
-                            <div className="w-10 h-10 rounded-full bg-zinc-900 overflow-hidden shrink-0 border border-white/5 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-full bg-zinc-900 overflow-hidden shrink-0 flex items-center justify-center">
                               {artist.coverImageKey ? (
                                 <img
                                   src={getImageUrl(artist.coverImageKey, {
@@ -272,18 +272,17 @@ export function AppNavbar() {
                                   alt=""
                                 />
                               ) : (
-                                <User size={16} className="text-zinc-700" />
+                                <User size={16} className="text-zinc-500" />
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold text-white truncate">
+                              <p className="text-xs font-semibold text-white truncate">
                                 {artist.name}
                               </p>
-                              <p className="text-[10px] text-zinc-500 font-black uppercase tracking-wider italic">
+                              <p className="text-[11px] text-zinc-400 font-normal">
                                 Artist
                               </p>
                             </div>
-                            <Sparkles size={12} className="text-primary mr-2" />
                           </button>
                         ))}
                       </div>
@@ -292,16 +291,16 @@ export function AppNavbar() {
                     {/* Playlists */}
                     {(searchResults?.data?.playlists?.length ?? 0) > 0 && (
                       <div>
-                        <h4 className="px-3 py-2 text-[9px] font-black text-zinc-600 uppercase tracking-widest">
-                          Clusters
+                        <h4 className="px-3 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+                          Playlists
                         </h4>
                         {searchResults?.data?.playlists.map((playlist: any) => (
                           <button
                             key={playlist.id}
                             onClick={() => handlePlaylistClick(playlist)}
-                            className="w-full flex items-center gap-3 p-2 hover:bg-white/5 rounded-xl transition-all text-left group"
+                            className="w-full flex items-center gap-3 p-2 hover:bg-[#282828] rounded-lg transition-all text-left group"
                           >
-                            <div className="w-10 h-10 rounded-lg bg-zinc-900 overflow-hidden shrink-0 border border-white/5 flex items-center justify-center">
+                            <div className="w-10 h-10 rounded-md bg-zinc-900 overflow-hidden shrink-0 flex items-center justify-center">
                               {playlist.coverImageKey ? (
                                 <img
                                   src={getImageUrl(playlist.coverImageKey, {
@@ -316,15 +315,15 @@ export function AppNavbar() {
                               ) : (
                                 <ListMusic
                                   size={16}
-                                  className="text-zinc-700"
+                                  className="text-zinc-500"
                                 />
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-bold text-white truncate">
+                              <p className="text-xs font-semibold text-white truncate">
                                 {playlist.name}
                               </p>
-                              <p className="text-[10px] text-zinc-500 font-medium tracking-wider uppercase">
+                              <p className="text-[11px] text-zinc-400 font-normal">
                                 Playlist
                               </p>
                             </div>
@@ -338,13 +337,13 @@ export function AppNavbar() {
                       !searchResults?.data?.songs?.length &&
                       !searchResults?.data?.artists?.length &&
                       !searchResults?.data?.playlists?.length && (
-                        <div className="p-8 text-center bg-white/5 rounded-2xl m-2">
+                        <div className="p-6 text-center bg-[#282828]/50 rounded-lg m-2">
                           <Search
-                            size={24}
-                            className="mx-auto mb-3 text-zinc-700 opacity-50"
+                            size={20}
+                            className="mx-auto mb-2 text-zinc-500"
                           />
-                          <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest italic">
-                            No frequencies matching "{query}"
+                          <p className="text-xs font-medium text-zinc-400">
+                            No results found for "{query}"
                           </p>
                         </div>
                       )}
@@ -359,11 +358,11 @@ export function AppNavbar() {
       {/* User & Actions */}
       <div className="flex items-center gap-4 pointer-events-auto">
         {mounted && !!systemUser ? (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             {/* Welcome Greeting */}
-            <span className="text-xs font-bold text-zinc-400">
-              Hi,{" "}
-              <span className="text-white font-black">
+            <span className="text-xs font-medium text-zinc-400">
+              Welcome,{" "}
+              <span className="text-white font-semibold">
                 {systemUser?.name || "User"}
               </span>
             </span>
@@ -377,18 +376,18 @@ export function AppNavbar() {
                   description: "You have been successfully logged out.",
                 });
               }}
-              className="px-4 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/35 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-xl flex items-center gap-2 cursor-pointer active:scale-95"
+              className="px-4 py-2 bg-[#282828] hover:bg-[#333333] text-zinc-200 border border-[#383838] rounded-full text-xs font-semibold transition-all flex items-center gap-2 cursor-pointer active:scale-95"
             >
-              <LogOut size={12} />
+              <LogOut size={14} />
               Log Out
             </button>
           </div>
         ) : (
           <button
             onClick={() => playerActions.openAuthModal()}
-            className="px-6 py-3 bg-primary text-black rounded-2xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all shadow-2xl flex items-center gap-2"
+            className="px-6 py-2.5 bg-primary text-black rounded-full text-xs font-bold hover:scale-105 transition-all shadow-md flex items-center gap-2 cursor-pointer"
           >
-            <User size={14} />
+            <User size={16} />
             Sign In
           </button>
         )}

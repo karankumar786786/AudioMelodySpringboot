@@ -63,40 +63,40 @@ export function LeftSidebar() {
   };
 
   return (
-    <aside className="w-64 glass-effect border-r border-white/4 flex flex-col h-screen fixed left-0 top-0 z-50 overflow-hidden">
-      <div className="p-8 flex flex-col h-full bg-black/20">
+    <aside className="w-64 bg-black border-r border-[#282828] flex flex-col h-screen fixed left-0 top-0 z-50 overflow-hidden">
+      <div className="p-6 flex flex-col h-full bg-black">
         {/* Logo */}
-        <div className="flex items-center gap-3 mb-12 group cursor-pointer shrink-0">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform duration-500 overflow-hidden">
+        <div className="flex items-center gap-3 mb-8 group cursor-pointer shrink-0 px-2">
+          <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
             <img
               src="/image.png"
               alt="Logo"
-              className="w-full h-full object-contain filter drop-shadow-[0_0_8px_rgba(var(--primary),0.5)]"
+              className="w-full h-full object-contain"
             />
           </div>
-          <span className="text-xl font-black tracking-tighter italic text-white uppercase text-glow-green">
-            One Melody
+          <span className="text-lg font-bold text-white tracking-tight">
+            OneMelody
           </span>
         </div>
 
-        <div className="space-y-10 flex-1 overflow-y-auto no-scrollbar pb-10">
+        <div className="space-y-8 flex-1 overflow-y-auto no-scrollbar pb-10">
           {/* Main Menu */}
           <section>
-            <h3 className="px-4 text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] mb-4 italic">
-              Discover
+            <h3 className="px-3 text-xs font-semibold text-zinc-400 mb-3 tracking-wide">
+              Menu
             </h3>
             <nav className="space-y-1">
               {menuItems.map((item) => (
                 <Link
                   key={item.label}
                   href={item.href}
-                  className={`flex items-center gap-4 px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-300 ${
+                  className={`flex items-center gap-4 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${
                     pathname === item.href
-                      ? "bg-primary text-black shadow-2xl shadow-primary/20 scale-[1.02]"
-                      : "text-zinc-500 hover:text-white hover:bg-white/4 border border-transparent"
+                      ? "bg-[#282828] text-white font-semibold"
+                      : "text-zinc-400 hover:text-white hover:bg-[#1a1a1a]"
                   }`}
                 >
-                  <item.icon size={18} />
+                  <item.icon size={20} className={pathname === item.href ? "text-primary" : "text-zinc-400"} />
                   {item.label}
                 </Link>
               ))}
@@ -105,21 +105,21 @@ export function LeftSidebar() {
 
           {/* Library Section */}
           <section>
-            <h3 className="px-4 text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] mb-4 italic">
-              Collection
+            <h3 className="px-3 text-xs font-semibold text-zinc-400 mb-3 tracking-wide">
+              Library
             </h3>
             <nav className="space-y-1">
               {libraryItems.map((item) => (
                 <Link
                   key={item.label}
                   href={item.href}
-                  className={`flex items-center gap-4 px-4 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all duration-300 ${
+                  className={`flex items-center gap-4 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${
                     pathname === item.href
-                      ? "bg-primary text-black shadow-2xl shadow-primary/20 scale-[1.02]"
-                      : "text-zinc-500 hover:text-white hover:bg-white/4 border border-transparent"
+                      ? "bg-[#282828] text-white font-semibold"
+                      : "text-zinc-400 hover:text-white hover:bg-[#1a1a1a]"
                   }`}
                 >
-                  <item.icon size={18} />
+                  <item.icon size={20} className={pathname === item.href ? "text-primary" : "text-zinc-400"} />
                   {item.label}
                 </Link>
               ))}
@@ -128,9 +128,9 @@ export function LeftSidebar() {
 
           {/* User Playlists */}
           <section suppressHydrationWarning>
-            <div className="flex items-center justify-between px-4 mb-4">
-              <h3 className="text-[10px] font-black text-zinc-600 uppercase tracking-[0.2em] italic">
-                Your Playlists
+            <div className="flex items-center justify-between px-3 mb-3">
+              <h3 className="text-xs font-semibold text-zinc-400 tracking-wide">
+                Playlists
               </h3>
               <button
                 onClick={() => {
@@ -142,15 +142,15 @@ export function LeftSidebar() {
                   }
                   setIsCreating(!isCreating);
                 }}
-                className="w-5 h-5 rounded-md hover:bg-white/10 flex items-center justify-center text-zinc-500 hover:text-white transition-all cursor-pointer"
+                className="w-6 h-6 rounded-full hover:bg-[#282828] flex items-center justify-center text-zinc-400 hover:text-white transition-all cursor-pointer"
                 title="Create Playlist"
               >
-                <Plus size={14} />
+                <Plus size={16} />
               </button>
             </div>
 
             {isCreating && (
-              <div className="mx-2 px-3 py-2 flex items-center gap-2 bg-white/5 rounded-xl border border-white/10 mb-2 transition-all">
+              <div className="mx-1 px-3 py-2 flex items-center gap-2 bg-[#181818] rounded-md border border-[#282828] mb-2 transition-all">
                 <input
                   autoFocus
                   type="text"
@@ -164,24 +164,24 @@ export function LeftSidebar() {
                       setNewName("");
                     }
                   }}
-                  className="bg-transparent border-none outline-none text-[11px] font-medium text-white w-full placeholder:text-zinc-600"
+                  className="bg-transparent border-none outline-none text-xs font-medium text-white w-full placeholder:text-zinc-500"
                 />
                 <button
                   onClick={handleCreatePlaylist}
-                  className="text-primary hover:text-emerald-400 transition-colors cursor-pointer"
+                  className="text-primary hover:brightness-110 transition-colors cursor-pointer"
                   title="Create"
                 >
-                  <Plus size={14} />
+                  <Plus size={16} />
                 </button>
                 <button
                   onClick={() => {
                     setIsCreating(false);
                     setNewName("");
                   }}
-                  className="text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
+                  className="text-zinc-400 hover:text-zinc-200 transition-colors cursor-pointer"
                   title="Cancel"
                 >
-                  <X size={14} />
+                  <X size={16} />
                 </button>
               </div>
             )}
@@ -189,30 +189,30 @@ export function LeftSidebar() {
             <nav className="space-y-0.5">
               {!hasMounted || isLoading ? (
                 <div className="space-y-2 px-2 opacity-20">
-                  <div className="h-9 bg-zinc-800 rounded-xl animate-pulse" />
-                  <div className="h-9 bg-zinc-800 rounded-xl animate-pulse" />
+                  <div className="h-8 bg-zinc-800 rounded-md animate-pulse" />
+                  <div className="h-8 bg-zinc-800 rounded-md animate-pulse" />
                 </div>
               ) : userPlaylists.length > 0 ? (
                 userPlaylists.map((playlist: any) => (
                   <Link
                     key={playlist.id}
                     href={`/playlists/${playlist.id}?type=user`}
-                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-tight transition-all truncate ${
+                    className={`flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium transition-all truncate ${
                       pathname === `/playlists/${playlist.id}`
-                        ? "text-primary bg-primary/5 shadow-inner"
-                        : "text-zinc-500 hover:text-white hover:bg-white/3"
+                        ? "text-white bg-[#282828]"
+                        : "text-zinc-400 hover:text-white hover:bg-[#1a1a1a]"
                     }`}
                   >
                     <ListMusic
-                      size={14}
-                      className={`shrink-0 ${pathname === `/playlists/${playlist.id}` ? "opacity-100" : "opacity-30"}`}
+                      size={16}
+                      className={`shrink-0 ${pathname === `/playlists/${playlist.id}` ? "text-primary" : "text-zinc-500"}`}
                     />
                     <span className="truncate">{playlist.name}</span>
                   </Link>
                 ))
               ) : (
-                <div className="px-4 py-3 text-[9px] text-zinc-700 font-black uppercase tracking-widest italic opacity-50">
-                  {systemUser ? "No playlists" : "Sign in required"}
+                <div className="px-3 py-2 text-xs text-zinc-500 font-normal">
+                  {systemUser ? "No playlists created" : "Sign in required"}
                 </div>
               )}
             </nav>
