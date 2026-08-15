@@ -71,10 +71,11 @@ export function HlsMusicPlayer() {
     const url = currentSong.imageKey
       ? getImageUrl(currentSong.imageKey, { width: 100, height: 100, aspectRatio: "1-1" })
       : currentSong.posterUrl;
-    getSolidBgFromImage(url, currentSong.id).then((color) => {
+    const fallbackKey = `${currentSong.title}-${currentSong.artistName}-${currentSong.id}`;
+    getSolidBgFromImage(url, fallbackKey).then((color) => {
       setSolidBgColor(color);
     });
-  }, [currentSong?.id, currentSong?.imageKey, currentSong?.posterUrl]);
+  }, [currentSong?.id, currentSong?.title, currentSong?.artistName, currentSong?.imageKey, currentSong?.posterUrl]);
 
   // 1. Initialize Player State
   useEffect(() => {

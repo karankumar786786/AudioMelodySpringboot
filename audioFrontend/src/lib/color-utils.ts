@@ -43,19 +43,15 @@ function rgbToHsl(r: number, g: number, b: number) {
     h /= 6;
   }
 
-  return {
-    h: Math.round(h * 360),
-    s: Math.round(s * 100),
-    l: Math.round(l * 100),
-  };
+  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
 }
 
 /**
- * Extract majority (dominant) color from song image URL using histogram color buckets.
+ * Extract majority (dominant) color from song image URL using fine-grained histogram color buckets.
  */
 export async function getSolidBgFromImage(
   imageUrl?: string | null,
-  fallbackKey?: string,
+  fallbackKey?: string
 ): Promise<string> {
   const fallbackColor = stringToSolidDarkColor(fallbackKey || "default");
   if (!imageUrl || typeof window === "undefined") {
@@ -88,12 +84,10 @@ export async function getSolidBgFromImage(
         const data = imageData.data;
 
         // Color histogram quantization map: bucketKey -> { count, r, g, b }
-        const colorBuckets: Record<
-          string,
-          { count: number; r: number; g: number; b: number }
-        > = {};
+        const colorBuckets: Record<string, { count: number; r: number; g: number; b: number }> = {};
 
-        for (let i = 0; i < data.length; i += 8) {
+        // Inspect every pixel (i += 4) with 16-step quantization for high sensitivity
+        for (let i = 0; i < data.length; i += 4) {
           const r = data[i];
           const g = data[i + 1];
           const b = data[i + 2];
@@ -104,29 +98,30 @@ export async function getSolidBgFromImage(
 
           // Skip extreme black and extreme white unless image has no other color
           const sum = r + g + b;
-          if (sum < 30 || (r > 240 && g > 240 && b > 240)) {
+          if (sum < 25 || (r > 245 && g > 245 && b > 245)) {
             continue;
           }
 
-          // Quantize to 32-value bins (8 buckets per channel)
-          const qR = Math.floor(r / 32) * 32 + 16;
-          const qG = Math.floor(g / 32) * 32 + 16;
-          const qB = Math.floor(b / 32) * 32 + 16;
+          // Fine 16-step quantization (4096 bins)
+          const qR = Math.floor(r / 16) * 16 + 8;
+          const qG = Math.floor(g / 16) * 16 + 8;
+          const qB = Math.floor(b / 16) * 16 + 8;
           const key = `${qR},${qG},${qB}`;
+
+          // Saturation weighting bonus to pick prominent artwork color over neutral background
+          const maxChannel = Math.max(r, g, b);
+          const minChannel = Math.min(r, g, b);
+          const saturationBonus = maxChannel > 0 ? (maxChannel - minChannel) / maxChannel : 0;
+          const weight = 1 + saturationBonus * 2.5;
 
           if (!colorBuckets[key]) {
             colorBuckets[key] = { count: 0, r: qR, g: qG, b: qB };
           }
-          colorBuckets[key].count++;
+          colorBuckets[key].count += weight;
         }
 
         // Find majority bucket
-        let majorityBucket: {
-          count: number;
-          r: number;
-          g: number;
-          b: number;
-        } | null = null;
+        let majorityBucket: { count: number; r: number; g: number; b: number } | null = null;
         let maxCount = 0;
 
         Object.values(colorBuckets).forEach((bucket) => {
