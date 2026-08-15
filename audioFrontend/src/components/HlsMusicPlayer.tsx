@@ -19,6 +19,7 @@ import {
   SkipBack,
   SkipForward,
   X,
+  RotateCcw,
 } from "lucide-react";
 import { getImageUrl } from "../lib/image-utils";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
@@ -193,13 +194,34 @@ export function HlsMusicPlayer() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={() => setShowLyricsView(false)}
-              className="p-2 rounded-full text-zinc-300 hover:text-white hover:bg-[#282828] transition-colors cursor-pointer"
-              title="Close Lyrics"
-            >
-              <X size={20} />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const el = document.getElementById("active-lyric-line");
+                  if (el) {
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    toast.success("Lyrics synced");
+                  }
+                }}
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-black font-bold text-xs transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95 border border-white/30"
+                title="Sync lyrics to playback"
+              >
+                <div className="flex items-end gap-[2px] h-3">
+                  <span className="w-[2px] h-2.5 bg-black rounded-full" />
+                  <span className="w-[2px] h-1.5 bg-black rounded-full" />
+                  <span className="w-[2px] h-3 bg-black rounded-full" />
+                  <span className="w-[2px] h-2 bg-black rounded-full" />
+                </div>
+                <span className="text-black font-bold text-xs tracking-tight">Sync</span>
+              </button>
+              <button
+                onClick={() => setShowLyricsView(false)}
+                className="p-2 rounded-full text-zinc-300 hover:text-white hover:bg-[#282828] transition-colors cursor-pointer"
+                title="Close Lyrics"
+              >
+                <X size={20} />
+              </button>
+            </div>
           </div>
 
           <div className="flex-1 flex items-center justify-center py-6">

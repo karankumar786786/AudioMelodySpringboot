@@ -10,7 +10,7 @@ export function stringToSolidDarkColor(str: string): string {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
   const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 40%, 15%)`;
+  return `hsl(${hue}, 45%, 10%)`;
 }
 
 /**
@@ -132,8 +132,8 @@ export async function getSolidBgFromImage(
         const { r: majR, g: majG, b: majB } = majorityBucket;
         const hsl = rgbToHsl(majR, majG, majB);
 
-        // Adjust lightness to ~18% so it forms a solid dark background with 100% text contrast
-        const solidDarkHsl = `hsl(${hsl.h}, ${Math.min(65, Math.max(25, hsl.s))}%, 18%)`;
+        // Calibrate lightness to 10% for a deep dark high-contrast solid background matching majority image hue
+        const solidDarkHsl = `hsl(${hsl.h}, ${Math.min(75, Math.max(35, hsl.s))}%, 10%)`;
         resolve(solidDarkHsl);
       } catch (err) {
         resolve(fallbackColor);

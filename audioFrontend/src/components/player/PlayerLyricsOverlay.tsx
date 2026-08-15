@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useStore } from "@tanstack/react-store";
 import { playerStore } from "../../store/player.store";
 import { TranscriptionEntry } from "./hooks/useLyrics";
+import { RotateCcw } from "lucide-react";
+import { toast } from "sonner";
 
 interface PlayerLyricsOverlayProps {
   currentCaption: TranscriptionEntry | null;
@@ -24,17 +26,35 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const isUserScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isUserScrolled, setIsUserScrolled] = useState(false);
 
   // Handle user manual scroll
   const handleUserScroll = () => {
     isUserScrollingRef.current = true;
+    setIsUserScrolled(true);
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
     }
-    // Resume auto-scroll after 4 seconds of no manual scrolling
+    // Resume auto-scroll after 5 seconds of no manual scrolling
     scrollTimeoutRef.current = setTimeout(() => {
       isUserScrollingRef.current = false;
-    }, 4000);
+      setIsUserScrolled(false);
+    }, 5000);
+  };
+
+  const handleResync = () => {
+    isUserScrollingRef.current = false;
+    setIsUserScrolled(false);
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    if (activeLineRef.current) {
+      activeLineRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }
+    toast.success("Lyrics resynced with audio");
   };
 
   // Determine active transcription line index
@@ -115,66 +135,72 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
       onScroll={handleUserScroll}
       onWheel={handleUserScroll}
       onTouchMove={handleUserScroll}
-      className="flex-1 w-full overflow-y-auto no-scrollbar px-6 py-8 flex flex-col items-center select-none"
+      className="flex-1 w-full overflow-y-auto no-scrollbar px-6 py-6 flex flex-col items-center select-none relative"
     >
       {hasTranscriptions ? (
-        <div className="space-y-6 w-full max-w-2xl text-center py-10">
-          {transcriptions.map((entry, idx) => {
-            const isActive = idx === activeIndex;
-            const isPast = idx < activeIndex;
+        <>
+          <div className="space-y-6 w-full max-w-2xl text-center py-6">
+            {transcriptions.map((entry, idx) => {
+              const isActive = idx === activeIndex;
+              const isPast = idx < activeIndex;
 
-            return (
-              <div
-                key={`${entry.start_time_seconds}-${idx}`}
-                ref={isActive ? activeLineRef : null}
-                onClick={() => onSeek && onSeek(entry.start_time_seconds)}
-                className={`cursor-pointer transition-all duration-300 px-4 py-2 rounded-xl ${
-                  isActive
-                    ? "scale-105"
-                    : "hover:text-white/80 opacity-80 hover:opacity-100"
-                }`}
-              >
-                {entry.words && entry.words.length > 0 ? (
-                  <div className="flex flex-wrap justify-center gap-x-2 gap-y-1">
-                    {entry.words.map((word, wIdx) => {
-                      const isWordActive =
-                        localTime >= word.start && localTime <= word.end;
-                      const isWordPast = localTime > word.end;
-                      return (
-                        <span
-                          key={wIdx}
-                          className={`text-xl sm:text-2xl md:text-3xl font-bold transition-colors duration-150 ${
-                            isWordActive
-                              ? "text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.6)]"
-                              : isActive
-                              ? "text-white"
-                              : isWordPast || isPast
-                              ? "text-white/40"
-                              : "text-white/20"
-                          }`}
-                        >
-                          {word.text}
-                        </span>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <p
-                    className={`text-xl sm:text-2xl md:text-3xl font-bold transition-colors duration-300 ${
-                      isActive
-                        ? "text-white scale-105"
-                        : isPast
-                        ? "text-white/40"
-                        : "text-white/25"
-                    }`}
-                  >
-                    {entry.transcript}
-                  </p>
-                )}
-              </div>
-            );
-          })}
-        </div>
+              return (
+                <div
+                  key={`${entry.start_time_seconds}-${idx}`}
+                  id={isActive ? "active-lyric-line" : undefined}
+                  ref={isActive ? activeLineRef : null}
+                  onClick={() => {
+                    if (onSeek) onSeek(entry.start_time_seconds);
+                    handleResync();
+                  }}
+                  className={`cursor-pointer transition-all duration-300 px-4 py-2 rounded-xl ${
+                    isActive
+                      ? "scale-105"
+                      : "hover:text-white/80 opacity-80 hover:opacity-100"
+                  }`}
+                >
+                  {entry.words && entry.words.length > 0 ? (
+                    <div className="flex flex-wrap justify-center gap-x-2 gap-y-1">
+                      {entry.words.map((word, wIdx) => {
+                        const isWordActive =
+                          localTime >= word.start && localTime <= word.end;
+                        const isWordPast = localTime > word.end;
+                        return (
+                          <span
+                            key={wIdx}
+                            className={`text-xl sm:text-2xl md:text-3xl font-bold transition-colors duration-150 ${
+                              isWordActive
+                                ? "text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.6)]"
+                                : isActive
+                                ? "text-white"
+                                : isWordPast || isPast
+                                ? "text-white/40"
+                                : "text-white/20"
+                            }`}
+                          >
+                            {word.text}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p
+                      className={`text-xl sm:text-2xl md:text-3xl font-bold transition-colors duration-300 ${
+                        isActive
+                          ? "text-white scale-105"
+                          : isPast
+                          ? "text-white/40"
+                          : "text-white/25"
+                      }`}
+                    >
+                      {entry.transcript}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
       ) : currentCaption ? (
         <div className="my-auto text-center px-4 max-w-2xl">
           <p className="text-2xl sm:text-3xl font-bold text-white leading-relaxed">
