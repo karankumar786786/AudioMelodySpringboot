@@ -98,9 +98,8 @@ export function RightInfoPanel() {
           <div className="h-px bg-[#282828]" />
 
           {/* Artist Skeleton */}
-          <div className="space-y-3 flex flex-col items-center">
-            <div className="w-20 h-20 rounded-full bg-zinc-800" />
-            <div className="h-4 w-1/2 bg-zinc-800 rounded" />
+          <div className="space-y-3">
+            <div className="w-full h-48 rounded-xl bg-zinc-800" />
             <div className="h-16 w-full bg-zinc-900 rounded-md" />
           </div>
         </div>
@@ -147,29 +146,30 @@ export function RightInfoPanel() {
               <span>About the Artist</span>
             </div>
 
-            <div className="flex flex-col items-center text-center">
-              <div className="relative w-20 h-20 rounded-full overflow-hidden bg-zinc-900 border border-[#282828] shadow-md mb-2">
-                {info?.artist?.image ? (
-                  <img
-                    src={info.artist.image}
-                    alt={info.artist.name}
-                    className="w-full h-full object-cover"
-                  />
-                ) : artistCoverUrl ? (
-                  <img
-                    src={artistCoverUrl}
-                    alt={info?.artist?.name || currentSong.artistName}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-zinc-600 font-bold text-2xl">
-                    {currentSong.artistName?.charAt(0) || "A"}
-                  </div>
-                )}
+            <div className="relative w-full h-48 rounded-xl overflow-hidden bg-zinc-900 border border-[#282828] shadow-lg mb-2 group">
+              {info?.artist?.image ? (
+                <img
+                  src={info.artist.image}
+                  alt={info.artist.name}
+                  className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                />
+              ) : artistCoverUrl ? (
+                <img
+                  src={artistCoverUrl}
+                  alt={info?.artist?.name || currentSong.artistName}
+                  className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-800 to-black text-zinc-500 font-bold text-4xl">
+                  {currentSong.artistName?.charAt(0) || "A"}
+                </div>
+              )}
+              {/* Dark gradient overlay at bottom for artist name */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent flex items-end p-3.5">
+                <h4 className="text-base font-bold text-white tracking-tight drop-shadow-md">
+                  {info?.artist?.name || currentSong.artistName}
+                </h4>
               </div>
-              <h4 className="text-base font-bold text-white">
-                {info?.artist?.name || currentSong.artistName}
-              </h4>
             </div>
 
             <p className="text-xs text-zinc-300 leading-relaxed font-normal">
