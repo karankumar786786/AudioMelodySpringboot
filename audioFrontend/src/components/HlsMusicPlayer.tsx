@@ -35,6 +35,8 @@ import { PlayerProgressBar } from "./player/PlayerProgressBar";
 import { PlayerQueuePanel } from "./player/PlayerQueuePanel";
 import { PlayerQualitySelector } from "./player/PlayerQualitySelector";
 
+import { getSolidBgFromImage } from "../lib/color-utils";
+
 export function HlsMusicPlayer() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const state = useStore(playerStore, (s) => s);
@@ -60,6 +62,18 @@ export function HlsMusicPlayer() {
   const [showLyricsView, setShowLyricsView] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isTogglingFav, setIsTogglingFav] = useState(false);
+  const [solidBgColor, setSolidBgColor] = useState("#181818");
+
+  // Compute solid color matching current song image
+  useEffect(() => {
+    if (!currentSong) return;
+    const url = currentSong.imageKey
+      ? getImageUrl(currentSong.imageKey, { width: 100, height: 100, aspectRatio: "1-1" })
+      : currentSong.posterUrl;
+    getSolidBgFromImage(url, currentSong.id).then((color) => {
+      setSolidBgColor(color);
+    });
+  }, [currentSong?.id, currentSong?.imageKey, currentSong?.posterUrl]);
 
   // 1. Initialize Player State
   useEffect(() => {
@@ -160,9 +174,12 @@ export function HlsMusicPlayer() {
     <>
       <audio ref={audioRef} className="hidden" />
 
-      {/* ─── Spotify Synced Lyrics View (Expanded Overlay) ─── */}
+      {/* ─── Spotify Synced Lyrics View (Middle Portion Overlay) ─── */}
       {showLyricsView && (
-        <div className="fixed inset-x-0 top-0 bottom-20 z-40 bg-[#121212] flex flex-col p-8 overflow-hidden animate-in fade-in duration-300">
+        <div
+          style={{ backgroundColor: solidBgColor }}
+          className="fixed left-64 right-80 top-0 bottom-20 z-40 flex flex-col p-8 overflow-hidden animate-in fade-in duration-300 transition-colors duration-500"
+        >
           <div className="flex items-center justify-between pb-4 border-b border-[#282828]">
             <div className="flex items-center gap-3">
               <Mic2 className="text-primary" size={20} />
