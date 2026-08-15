@@ -471,6 +471,7 @@ export function HlsMusicPlayer() {
           </button>
 
           <button
+            data-queue-toggle="true"
             onClick={() => setShowQueuePanel((v) => !v)}
             className={`p-1.5 rounded-md transition-colors cursor-pointer ${
               showQueuePanel ? "text-primary bg-[#282828]" : "text-zinc-400 hover:text-white"

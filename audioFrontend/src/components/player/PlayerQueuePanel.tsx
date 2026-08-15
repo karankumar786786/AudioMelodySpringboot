@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useStore } from "@tanstack/react-store";
 import { ArrowDown, ArrowUp, ChevronDown, Play, Trash2, Music } from "lucide-react";
 import { playerActions, playerStore } from "@/store/player.store";
@@ -19,9 +20,31 @@ function formatDuration(num?: number) {
 }
 
 export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
   const queue = useStore(playerStore, (s) => s.queue);
   const currentIndex = useStore(playerStore, (s) => s.lastQueueIndex);
   const currentSong = useStore(playerStore, (s) => s.currentSong);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const handlePointerDown = (e: PointerEvent) => {
+      if (
+        panelRef.current &&
+        !panelRef.current.contains(e.target as Node)
+      ) {
+        const isQueueToggle = (e.target as Element)?.closest?.("[data-queue-toggle]");
+        if (!isQueueToggle) {
+          onClose();
+        }
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -32,7 +55,10 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
     : currentSong?.posterUrl || "";
 
   return (
-    <div className="fixed right-80 bottom-24 z-50 w-96 max-h-[75vh] bg-[#181818] border border-[#282828] rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-200">
+    <div
+      ref={panelRef}
+      className="fixed right-80 bottom-24 z-50 w-96 max-h-[75vh] bg-[#181818] border border-[#282828] rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-200"
+    >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#282828] bg-[#181818] shrink-0">
         <div>
