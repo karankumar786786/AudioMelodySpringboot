@@ -30,18 +30,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     }
   }, [mounted, systemUser, pathname, router]);
 
-  useEffect(() => {
-    if (!mounted) return;
-    const isLanding = pathname === "/" || pathname === "/callback";
-    if (!isLanding && systemUser) {
-      document.body.classList.add("app-zoom-95");
-    } else {
-      document.body.classList.remove("app-zoom-95");
-    }
-    return () => {
-      document.body.classList.remove("app-zoom-95");
-    };
-  }, [mounted, systemUser, pathname]);
+
 
   if (!mounted) {
     return (

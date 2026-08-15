@@ -281,10 +281,7 @@ body {
   animation: spin-slow 15s linear infinite;
 }
 
-/* Scaled App Helper */
-.app-zoom-95 {
-  zoom: 0.95;
-}
+
 
 @keyframes shimmer {
   0% {
