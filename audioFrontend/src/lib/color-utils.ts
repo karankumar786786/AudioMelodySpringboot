@@ -10,7 +10,7 @@ export function stringToSolidDarkColor(str: string): string {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
   const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 45%, 10%)`;
+  return `hsl(${hue}, 80%, 18%)`;
 }
 
 /**
@@ -43,7 +43,11 @@ function rgbToHsl(r: number, g: number, b: number) {
     h /= 6;
   }
 
-  return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+  return {
+    h: Math.round(h * 360),
+    s: Math.round(s * 100),
+    l: Math.round(l * 100),
+  };
 }
 
 /**
@@ -51,7 +55,7 @@ function rgbToHsl(r: number, g: number, b: number) {
  */
 export async function getSolidBgFromImage(
   imageUrl?: string | null,
-  fallbackKey?: string
+  fallbackKey?: string,
 ): Promise<string> {
   const fallbackColor = stringToSolidDarkColor(fallbackKey || "default");
   if (!imageUrl || typeof window === "undefined") {
@@ -84,7 +88,10 @@ export async function getSolidBgFromImage(
         const data = imageData.data;
 
         // Color histogram quantization map: bucketKey -> { count, r, g, b }
-        const colorBuckets: Record<string, { count: number; r: number; g: number; b: number }> = {};
+        const colorBuckets: Record<
+          string,
+          { count: number; r: number; g: number; b: number }
+        > = {};
 
         for (let i = 0; i < data.length; i += 8) {
           const r = data[i];
@@ -114,7 +121,12 @@ export async function getSolidBgFromImage(
         }
 
         // Find majority bucket
-        let majorityBucket: { count: number; r: number; g: number; b: number } | null = null;
+        let majorityBucket: {
+          count: number;
+          r: number;
+          g: number;
+          b: number;
+        } | null = null;
         let maxCount = 0;
 
         Object.values(colorBuckets).forEach((bucket) => {
@@ -132,9 +144,9 @@ export async function getSolidBgFromImage(
         const { r: majR, g: majG, b: majB } = majorityBucket;
         const hsl = rgbToHsl(majR, majG, majB);
 
-        // Calibrate lightness to 10% for a deep dark high-contrast solid background matching majority image hue
-        const solidDarkHsl = `hsl(${hsl.h}, ${Math.min(75, Math.max(35, hsl.s))}%, 10%)`;
-        resolve(solidDarkHsl);
+        // Calibrate to rich deep solid color (18% lightness, 65-95% saturation) like Spotify #580606 maroon red
+        const solidRichHsl = `hsl(${hsl.h}, ${Math.min(95, Math.max(65, hsl.s))}%, 18%)`;
+        resolve(solidRichHsl);
       } catch (err) {
         resolve(fallbackColor);
       }
