@@ -178,9 +178,10 @@ export function HlsMusicPlayer() {
       {showLyricsView && (
         <div
           style={{ backgroundColor: solidBgColor }}
-          className="fixed left-64 right-80 top-0 bottom-20 z-40 flex flex-col p-8 overflow-hidden animate-in fade-in duration-300 transition-colors duration-500"
+          className="fixed left-64 right-80 top-0 bottom-20 z-40 flex flex-col p-6 overflow-y-auto no-scrollbar animate-in fade-in duration-300 transition-colors duration-500"
         >
-          <div className="flex items-center justify-between pb-4 border-b border-[#282828]">
+          {/* Header pinned at top */}
+          <div className="sticky top-0 z-50 flex items-center justify-between pb-4 border-b border-[#282828] bg-inherit backdrop-blur-md shrink-0 pt-2">
             <div className="flex items-center gap-3">
               <Mic2 className="text-primary" size={20} />
               <div>
@@ -194,7 +195,8 @@ export function HlsMusicPlayer() {
             </div>
             <button
               onClick={() => setShowLyricsView(false)}
-              className="p-2 rounded-full text-zinc-400 hover:text-white hover:bg-[#282828] transition-colors cursor-pointer"
+              className="p-2 rounded-full text-zinc-300 hover:text-white hover:bg-[#282828] transition-colors cursor-pointer"
+              title="Close Lyrics"
             >
               <X size={20} />
             </button>

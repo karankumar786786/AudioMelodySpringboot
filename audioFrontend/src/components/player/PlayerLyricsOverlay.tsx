@@ -22,6 +22,20 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
   const isPlaying = useStore(playerStore, (s) => s.isPlaying);
   const activeLineRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isUserScrollingRef = useRef(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Handle user manual scroll
+  const handleUserScroll = () => {
+    isUserScrollingRef.current = true;
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    // Resume auto-scroll after 4 seconds of no manual scrolling
+    scrollTimeoutRef.current = setTimeout(() => {
+      isUserScrollingRef.current = false;
+    }, 4000);
+  };
 
   // Determine active transcription line index
   let activeIndex = -1;
@@ -39,9 +53,13 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
     }
   }
 
-  // Smooth auto-scroll active lyric line to center
+  // Smooth auto-scroll active lyric line to center (if user is not manually scrolling)
   useEffect(() => {
-    if (activeLineRef.current && containerRef.current) {
+    if (
+      !isUserScrollingRef.current &&
+      activeLineRef.current &&
+      containerRef.current
+    ) {
       activeLineRef.current.scrollIntoView({
         behavior: "smooth",
         block: "center",
@@ -94,7 +112,10 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
   return (
     <div
       ref={containerRef}
-      className="flex-1 w-full overflow-y-auto no-scrollbar px-6 py-12 flex flex-col items-center select-none"
+      onScroll={handleUserScroll}
+      onWheel={handleUserScroll}
+      onTouchMove={handleUserScroll}
+      className="flex-1 w-full overflow-y-auto no-scrollbar px-6 py-8 flex flex-col items-center select-none"
     >
       {hasTranscriptions ? (
         <div className="space-y-6 w-full max-w-2xl text-center py-10">
