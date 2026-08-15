@@ -52,6 +52,15 @@ function saveSessionTokens(accessToken: string, refreshToken: string) {
   if (typeof window === "undefined") return;
   localStorage.setItem("system_token", accessToken);
   localStorage.setItem("system_refresh_token", refreshToken);
+  import("@/store/player.store")
+    .then(({ playerStore }) => {
+      playerStore.setState((s) => ({
+        ...s,
+        systemToken: accessToken,
+        systemRefreshToken: refreshToken,
+      }));
+    })
+    .catch(() => {});
 }
 
 function notifySessionCleared() {
@@ -68,36 +77,59 @@ function clearSessionStorage() {
   notifySessionCleared();
 }
 
+let isRefreshing = false;
+let refreshTokenPromise: Promise<string> | null = null;
+
 async function refreshAccessToken(): Promise<string> {
-  const refreshToken = getStoredItem("system_refresh_token");
-  if (!refreshToken) {
-    throw new Error("No refresh token available");
+  // If a refresh is already in progress, wait for the pending refresh promise
+  if (isRefreshing && refreshTokenPromise) {
+    return refreshTokenPromise;
   }
 
-  const url = `${API_BASE_URL}/auth/refresh-token`;
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ refreshToken }),
-  });
-
-  if (!response.ok) {
-    clearSessionStorage();
-    let errMessage = `HTTP error ${response.status}`;
+  isRefreshing = true;
+  refreshTokenPromise = (async () => {
     try {
-      const errData = await response.json();
-      errMessage = errData.message || errMessage;
-    } catch {}
-    const error: any = new Error(errMessage);
-    error.response = { status: response.status };
-    throw error;
-  }
+      const refreshToken = getStoredItem("system_refresh_token");
+      if (!refreshToken) {
+        throw new Error("No refresh token available");
+      }
 
-  const data = await response.json();
-  saveSessionTokens(data.accessToken, data.refreshToken);
-  return data.accessToken;
+      const url = `${API_BASE_URL}/auth/refresh-token`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) {
+        clearSessionStorage();
+        let errMessage = `HTTP error ${response.status}`;
+        try {
+          const errData = await response.json();
+          errMessage = errData.message || errMessage;
+        } catch {}
+        const error: any = new Error(errMessage);
+        error.response = { status: response.status };
+        throw error;
+      }
+
+      const data = await response.json();
+      if (!data.accessToken || !data.refreshToken) {
+        clearSessionStorage();
+        throw new Error("Invalid refresh token response");
+      }
+
+      saveSessionTokens(data.accessToken, data.refreshToken);
+      return data.accessToken as string;
+    } finally {
+      isRefreshing = false;
+      refreshTokenPromise = null;
+    }
+  })();
+
+  return refreshTokenPromise;
 }
 
 async function request<T = any>(endpoint: string, options: RequestInit = {}, retry = true): Promise<T> {
@@ -125,30 +157,9 @@ async function request<T = any>(endpoint: string, options: RequestInit = {}, ret
       try {
         const refreshedToken = await refreshAccessToken();
         headers["Authorization"] = `Bearer ${refreshedToken}`;
-        const retryResponse = await fetch(url, {
-          ...options,
-          headers,
-        });
 
-        if (!retryResponse.ok) {
-          let errMessage = `HTTP error ${retryResponse.status}`;
-          let errData: any = null;
-          try {
-            errData = await retryResponse.json();
-            errMessage = errData.message || errMessage;
-          } catch {}
-          const retryError: any = new Error(errMessage);
-          retryError.response = {
-            status: retryResponse.status,
-            data: errData,
-          };
-          throw retryError;
-        }
-
-        if (retryResponse.status === 204) {
-          return {} as T;
-        }
-        return retryResponse.json();
+        // Retry request with updated auth header and retry set to false
+        return await request<T>(endpoint, { ...options, headers }, false);
       } catch (err) {
         clearSessionStorage();
 
