@@ -54,13 +54,13 @@ export function HlsMusicPlayer() {
     selectedQuality,
     favourites,
     systemUser,
+    isLyricsOpen,
   } = state;
 
   const [localTime, setLocalTime] = useState(0);
   const [buffered, setBuffered] = useState(0);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [showQueuePanel, setShowQueuePanel] = useState(false);
-  const [showLyricsView, setShowLyricsView] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isTogglingFav, setIsTogglingFav] = useState(false);
   const [solidBgColor, setSolidBgColor] = useState("#181818");
@@ -177,7 +177,7 @@ export function HlsMusicPlayer() {
       <audio ref={audioRef} className="hidden" />
 
       {/* ─── Spotify Synced Lyrics View (Middle Portion Overlay) ─── */}
-      {showLyricsView && (
+      {isLyricsOpen && (
         <div
           style={{ backgroundColor: solidBgColor }}
           className="fixed left-64 right-80 top-0 bottom-20 z-40 flex flex-col p-6 overflow-y-auto no-scrollbar animate-in fade-in duration-300 transition-colors duration-500"
@@ -216,7 +216,7 @@ export function HlsMusicPlayer() {
                 <span className="text-black font-bold text-xs tracking-tight">Sync</span>
               </button>
               <button
-                onClick={() => setShowLyricsView(false)}
+                onClick={() => playerActions.closeLyrics()}
                 className="p-2 rounded-full text-zinc-300 hover:text-white hover:bg-[#282828] transition-colors cursor-pointer"
                 title="Close Lyrics"
               >
@@ -373,9 +373,9 @@ export function HlsMusicPlayer() {
         {/* Right Section: Lyrics, Queue, Quality, Volume */}
         <div className="flex items-center justify-end gap-3 w-[30%] max-w-[280px]">
           <button
-            onClick={() => setShowLyricsView((v) => !v)}
+            onClick={() => playerActions.toggleLyrics()}
             className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-              showLyricsView ? "text-primary bg-[#282828]" : "text-zinc-400 hover:text-white"
+              isLyricsOpen ? "text-primary bg-[#282828]" : "text-zinc-400 hover:text-white"
             }`}
             title="Lyrics"
           >

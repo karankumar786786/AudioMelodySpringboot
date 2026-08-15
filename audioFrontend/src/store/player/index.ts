@@ -20,6 +20,7 @@ export interface PlayerState {
   systemUser: any | null;
   favourites: Set<string>;
   isRefilling: boolean;
+  isLyricsOpen: boolean;
 }
 
 const _initSystemUser = (() => {
@@ -67,6 +68,7 @@ export const playerStore = new Store<PlayerState>({
   systemUser: _initSystemUser,
   favourites: new Set<string>(),
   isRefilling: false,
+  isLyricsOpen: false,
 });
 
 // Hydrate token on client side only

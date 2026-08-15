@@ -111,4 +111,16 @@ export const playbackActions = {
       }
     }
   },
+
+  setIsLyricsOpen: (isLyricsOpen: boolean) => {
+    playerStore.setState((s) => ({ ...s, isLyricsOpen }));
+  },
+
+  toggleLyrics: () => {
+    playerStore.setState((s) => ({ ...s, isLyricsOpen: !s.isLyricsOpen }));
+  },
+
+  closeLyrics: () => {
+    playerStore.setState((s) => (s.isLyricsOpen ? { ...s, isLyricsOpen: false } : s));
+  },
 };

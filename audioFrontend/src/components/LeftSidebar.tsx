@@ -14,7 +14,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
 import { useStore } from "@tanstack/react-store";
-import { playerStore } from "@/store/player.store";
+import { playerStore, playerActions } from "@/store/player.store";
 import { toast } from "sonner";
 
 const menuItems = [
@@ -38,6 +38,14 @@ export function LeftSidebar() {
   useEffect(() => {
     setHasMounted(true);
   }, []);
+
+  useEffect(() => {
+    playerActions.closeLyrics();
+  }, [pathname]);
+
+  const handleSidebarClick = () => {
+    playerActions.closeLyrics();
+  };
 
   const { data: playlistsResponse, isLoading } = useQuery({
     queryKey: ["user-playlists", systemUser?.id],
@@ -66,7 +74,10 @@ export function LeftSidebar() {
     <aside className="w-64 bg-black border-r border-[#282828] flex flex-col h-screen fixed left-0 top-0 z-50 overflow-hidden">
       <div className="p-6 flex flex-col h-full bg-black">
         {/* Logo */}
-        <div className="flex items-center gap-3 mb-8 group cursor-pointer shrink-0 px-2">
+        <div
+          onClick={handleSidebarClick}
+          className="flex items-center gap-3 mb-8 group cursor-pointer shrink-0 px-2"
+        >
           <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
             <img
               src="/image.png"
@@ -90,6 +101,7 @@ export function LeftSidebar() {
                 <Link
                   key={item.label}
                   href={item.href}
+                  onClick={handleSidebarClick}
                   className={`flex items-center gap-4 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${
                     pathname === item.href
                       ? "bg-[#282828] text-white font-semibold"
@@ -113,6 +125,7 @@ export function LeftSidebar() {
                 <Link
                   key={item.label}
                   href={item.href}
+                  onClick={handleSidebarClick}
                   className={`flex items-center gap-4 px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-200 ${
                     pathname === item.href
                       ? "bg-[#282828] text-white font-semibold"
@@ -134,6 +147,7 @@ export function LeftSidebar() {
               </h3>
               <button
                 onClick={() => {
+                  handleSidebarClick();
                   if (!systemUser) {
                     toast.error("Auth Required", {
                       description: "Sign in to create playlists.",
@@ -197,6 +211,7 @@ export function LeftSidebar() {
                   <Link
                     key={playlist.id}
                     href={`/playlists/${playlist.id}?type=user`}
+                    onClick={handleSidebarClick}
                     className={`flex items-center gap-3 px-3 py-2 rounded-md text-xs font-medium transition-all truncate ${
                       pathname === `/playlists/${playlist.id}`
                         ? "text-white bg-[#282828]"
