@@ -8,6 +8,9 @@ import lombok.*;
 import lombok.Builder.Default;
 import me.one_org.melody.Enums.StatusEnum;
 
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
 @Entity
 @Table(name = "user_playlists")
 @Data
@@ -29,6 +32,7 @@ public class UserPlaylistsEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     @JsonIgnore
     private UsersEntity user;
 
@@ -38,6 +42,7 @@ public class UserPlaylistsEntity {
         joinColumns = @JoinColumn(name = "user_playlist_id"),
         inverseJoinColumns = @JoinColumn(name = "song_id")
     )
+    @OnDelete(action = OnDeleteAction.CASCADE)
     @JsonIgnore
     @ToString.Exclude
     @EqualsAndHashCode.Exclude

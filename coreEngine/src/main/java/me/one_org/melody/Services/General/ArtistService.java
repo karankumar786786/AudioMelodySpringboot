@@ -12,11 +12,14 @@ import org.springframework.transaction.annotation.Transactional;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
 import me.one_org.melody.Dto.Controllers.Admin.CreateArtistRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.UpdateArtistRequestDto;
+import me.one_org.melody.Dto.Queue.DeleteEventQueueDto;
 import me.one_org.melody.Entity.ArtistsEntity;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
+import me.one_org.melody.Enums.StatusEnum;
 import me.one_org.melody.Exceptions.ExternalServiceException;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.ImageStorage.ImageKit;
+import me.one_org.melody.Queue.DeleteEventQueue;
 import me.one_org.melody.Repository.ArtistsRepository;
 
 @Service
@@ -26,13 +29,16 @@ public class ArtistService {
     private final AlgoliaSearch algoliaSearch;
     private final ImageKit imageKit;
     private final PaginationMetaDataService paginationMetaDataService;
+    private final DeleteEventQueue deleteEventQueue;
 
     public ArtistService(ArtistsRepository artistsRepository, AlgoliaSearch algoliaSearch,
-                         ImageKit imageKit, PaginationMetaDataService paginationMetaDataService) {
+                         ImageKit imageKit, PaginationMetaDataService paginationMetaDataService,
+                         DeleteEventQueue deleteEventQueue) {
         this.artistsRepository = artistsRepository;
         this.algoliaSearch = algoliaSearch;
         this.imageKit = imageKit;
         this.paginationMetaDataService = paginationMetaDataService;
+        this.deleteEventQueue = deleteEventQueue;
     }
 
     @Transactional
@@ -103,11 +109,14 @@ public class ArtistService {
     public void deleteArtist(String id) {
         ArtistsEntity artist = artistsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Artist not found with id: " + id));
-        imageKit.deleteByKey(artist.getBannerImageKey());
-        imageKit.deleteByKey(artist.getCoverImageKey());
-        algoliaSearch.delete(id);
-        artistsRepository.deleteById(id);
-        paginationMetaDataService.decrementStatus("ArtistsEntity", artist.getStatus());
+        if (artist.getStatus() == StatusEnum.DELETED) {
+            return;
+        }
+        StatusEnum previousStatus = artist.getStatus();
+        artist.setStatus(StatusEnum.DELETED);
+        artistsRepository.save(artist);
+        paginationMetaDataService.transitionStatus("ArtistsEntity", previousStatus, StatusEnum.DELETED);
+        deleteEventQueue.queueDeleteEvent(DeleteEventQueueDto.forArtist(artist));
     }
 
     @Cacheable(value = "artists", key = "#id")

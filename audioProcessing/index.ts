@@ -20,7 +20,7 @@ const functions = [
     transcodeSong,
     indexRecombee,
     indexAlgolia,
-    finalizeSong
+    finalizeSong,
 ];
 
 app.use("/api/inngest", serve({ client: inngest, functions }));

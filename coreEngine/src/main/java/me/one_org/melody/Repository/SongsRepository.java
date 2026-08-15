@@ -57,6 +57,20 @@ public class SongsRepository {
     public void deleteById(String id) {
         SongsEntity song = entityManager.find(SongsEntity.class, id);
         if (song != null) {
+            // Clean up referencing foreign key records in join & history tables before deleting song
+            entityManager.createNativeQuery("DELETE FROM playlist_songs WHERE song_id = :id")
+                    .setParameter("id", id)
+                    .executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM user_playlist_songs WHERE song_id = :id")
+                    .setParameter("id", id)
+                    .executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM user_favourite_songs WHERE song_id = :id")
+                    .setParameter("id", id)
+                    .executeUpdate();
+            entityManager.createNativeQuery("DELETE FROM user_history WHERE song_id = :id")
+                    .setParameter("id", id)
+                    .executeUpdate();
+
             entityManager.remove(song);
         }
     }

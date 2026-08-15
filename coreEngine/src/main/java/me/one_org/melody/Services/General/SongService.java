@@ -16,6 +16,7 @@ import me.one_org.melody.BlobStorage.S3;
 import me.one_org.melody.Dto.Controllers.Admin.CreateSongRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.CreateSongResponseDto;
 import me.one_org.melody.Dto.Queue.AudioProcessingQueueDto;
+import me.one_org.melody.Dto.Queue.DeleteEventQueueDto;
 import me.one_org.melody.Entity.JobsEntity;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.SongsEntity;
@@ -24,6 +25,7 @@ import me.one_org.melody.Enums.StatusEnum;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.ImageStorage.ImageKit;
 import me.one_org.melody.Queue.AudioProcessingQueue;
+import me.one_org.melody.Queue.DeleteEventQueue;
 import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.JobsRepository;
 import me.one_org.melody.Repository.SongsRepository;
@@ -40,6 +42,7 @@ public class SongService {
     private final S3 s3Client;
     private final ImageKit imageKit;
     private final PaginationMetaDataService paginationMetaDataService;
+    private final DeleteEventQueue deleteEventQueue;
 
     @Value("${s3.temp-bucket:${S3_TEMP_BUCKET:audiomelodyspringboottemp}}")
     private String tempBucket;
@@ -51,7 +54,8 @@ public class SongService {
     public SongService(JobsRepository jobsRepository, SongsRepository songsRepository,
             AudioProcessingQueue audioProcessingQueue, AlgoliaSearch algoliaSearch,
             Recombee recombee, S3 s3Client, ImageKit imageKit,
-            PaginationMetaDataService paginationMetaDataService) {
+            PaginationMetaDataService paginationMetaDataService,
+            DeleteEventQueue deleteEventQueue) {
         this.jobsRepository = jobsRepository;
         this.songsRepository = songsRepository;
         this.audioProcessingQueue = audioProcessingQueue;
@@ -60,6 +64,7 @@ public class SongService {
         this.s3Client = s3Client;
         this.imageKit = imageKit;
         this.paginationMetaDataService = paginationMetaDataService;
+        this.deleteEventQueue = deleteEventQueue;
     }
 
     @Transactional
@@ -110,24 +115,14 @@ public class SongService {
     public void deleteSong(String id) {
         SongsEntity song = songsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + id));
-        try {
-            algoliaSearch.delete(id);
-        } catch (Exception e) {
-            log.error("Failed to delete song from Algolia", e);
+        if (song.getStatus() == StatusEnum.DELETED) {
+            return;
         }
-        try {
-            recombee.delete(id);
-        } catch (Exception e) {
-            log.error("Failed to delete song from Recombee", e);
-        }
-        try {
-            s3Client.deleteObject(song.getSongKey(), productionBucket);
-        } catch (Exception e) {
-            log.error("Failed to delete song object from S3", e);
-        }
-        imageKit.deleteByKey(song.getImageKey());
-        songsRepository.deleteById(id);
-        paginationMetaDataService.decrementStatus("SongsEntity", song.getStatus());
+        StatusEnum previousStatus = song.getStatus();
+        song.setStatus(StatusEnum.DELETED);
+        songsRepository.save(song);
+        paginationMetaDataService.transitionStatus("SongsEntity", previousStatus, StatusEnum.DELETED);
+        deleteEventQueue.queueDeleteEvent(DeleteEventQueueDto.forSong(song));
     }
 
     public JobsEntity getJobById(String id) {

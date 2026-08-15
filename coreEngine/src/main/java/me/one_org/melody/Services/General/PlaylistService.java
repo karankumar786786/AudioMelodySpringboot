@@ -13,12 +13,15 @@ import org.springframework.transaction.annotation.Transactional;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
 import me.one_org.melody.Dto.Controllers.Admin.CreatePlaylistRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.UpdatePlaylistRequestDto;
+import me.one_org.melody.Dto.Queue.DeleteEventQueueDto;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.PlaylistsEntity;
 import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.Enums.StatusEnum;
 import me.one_org.melody.Exceptions.ExternalServiceException;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.ImageStorage.ImageKit;
+import me.one_org.melody.Queue.DeleteEventQueue;
 import me.one_org.melody.Repository.PlaylistsRepository;
 import me.one_org.melody.Repository.SongsRepository;
 
@@ -30,15 +33,18 @@ public class PlaylistService {
     private final AlgoliaSearch algoliaSearch;
     private final ImageKit imageKit;
     private final PaginationMetaDataService paginationMetaDataService;
+    private final DeleteEventQueue deleteEventQueue;
 
     public PlaylistService(PlaylistsRepository playlistsRepository, SongsRepository songsRepository,
                            AlgoliaSearch algoliaSearch, ImageKit imageKit,
-                           PaginationMetaDataService paginationMetaDataService) {
+                           PaginationMetaDataService paginationMetaDataService,
+                           DeleteEventQueue deleteEventQueue) {
         this.playlistsRepository = playlistsRepository;
         this.songsRepository = songsRepository;
         this.algoliaSearch = algoliaSearch;
         this.imageKit = imageKit;
         this.paginationMetaDataService = paginationMetaDataService;
+        this.deleteEventQueue = deleteEventQueue;
     }
 
     @Transactional
@@ -96,11 +102,14 @@ public class PlaylistService {
     public void deletePlaylist(String id) {
         PlaylistsEntity playlist = playlistsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + id));
-        imageKit.deleteByKey(playlist.getBannerImageKey());
-        imageKit.deleteByKey(playlist.getCoverImageKey());
-        algoliaSearch.delete(id);
-        playlistsRepository.deleteById(id);
-        paginationMetaDataService.decrementStatus("PlaylistsEntity", playlist.getStatus());
+        if (playlist.getStatus() == StatusEnum.DELETED) {
+            return;
+        }
+        StatusEnum previousStatus = playlist.getStatus();
+        playlist.setStatus(StatusEnum.DELETED);
+        playlistsRepository.save(playlist);
+        paginationMetaDataService.transitionStatus("PlaylistsEntity", previousStatus, StatusEnum.DELETED);
+        deleteEventQueue.queueDeleteEvent(DeleteEventQueueDto.forPlaylist(playlist));
     }
 
     @Cacheable(value = "playlists", key = "#id")

@@ -69,6 +69,9 @@ public class PlaylistsRepository {
     public void deleteById(String id) {
         PlaylistsEntity playlist = entityManager.find(PlaylistsEntity.class, id);
         if (playlist != null) {
+            entityManager.createNativeQuery("DELETE FROM playlist_songs WHERE playlist_id = :id")
+                    .setParameter("id", id)
+                    .executeUpdate();
             entityManager.remove(playlist);
         }
     }

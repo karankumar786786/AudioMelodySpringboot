@@ -48,6 +48,7 @@ spring:
       password: ${REDIS_PASSWORD:}
       mailqueue: ${REDIS_MAIL_QUEUE:mail_queue}
       audioprocessingqueue: ${REDIS_AUDIO_PROCESSING_QUEUE:audio_processing_queue}
+      deletequeue: ${REDIS_DELETE_QUEUE:delete_event_queue}
       ssl:
         enabled: ${REDIS_SSL_ENABLED:true}
 

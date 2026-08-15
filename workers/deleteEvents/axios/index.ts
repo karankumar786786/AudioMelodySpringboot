@@ -10,7 +10,7 @@ export const api = axios.create({
     timeout: 10000,
     headers: {
         "Content-Type": "application/json",
-        "X-API-KEY": process.env.APPLICATION_API_KEY || ""
+        "X-API-KEY": process.env.APPLICATION_API_KEY || "",
     },
 });
 
@@ -19,6 +19,6 @@ export const deleteApi = axios.create({
     timeout: 10000,
     headers: {
         "Content-Type": "application/json",
-        "X-API-KEY": process.env.APPLICATION_API_KEY || ""
+        "X-API-KEY": process.env.APPLICATION_API_KEY || "",
     },
 });
