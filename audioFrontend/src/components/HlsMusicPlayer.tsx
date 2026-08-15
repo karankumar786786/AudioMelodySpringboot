@@ -3,7 +3,23 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useStore } from "@tanstack/react-store";
 import { playerStore, playerActions } from "../store/player.store";
-import { Music } from "lucide-react";
+import {
+  Music,
+  Mic2,
+  ListMusic,
+  Heart,
+  Plus,
+  Shuffle,
+  Repeat1,
+  VolumeX,
+  Volume1,
+  Volume2,
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  X,
+} from "lucide-react";
 import { getImageUrl } from "../lib/image-utils";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
 import { toast } from "sonner";
@@ -14,14 +30,10 @@ import { useLyrics } from "./player/hooks/useLyrics";
 import { useAudioSync } from "./player/hooks/useAudioSync";
 
 // Components
-import { PlayerBackground } from "./player/PlayerBackground";
-import { PlayerAlbumArt } from "./player/PlayerAlbumArt";
-import { PlayerTrackInfo } from "./player/PlayerTrackInfo";
 import { PlayerLyricsOverlay } from "./player/PlayerLyricsOverlay";
 import { PlayerProgressBar } from "./player/PlayerProgressBar";
-import { PlayerMainControls } from "./player/PlayerMainControls";
-import { PlayerUtilityRow } from "./player/PlayerUtilityRow";
 import { PlayerQueuePanel } from "./player/PlayerQueuePanel";
+import { PlayerQualitySelector } from "./player/PlayerQualitySelector";
 
 export function HlsMusicPlayer() {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -45,6 +57,7 @@ export function HlsMusicPlayer() {
   const [buffered, setBuffered] = useState(0);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [showQueuePanel, setShowQueuePanel] = useState(false);
+  const [showLyricsView, setShowLyricsView] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isTogglingFav, setIsTogglingFav] = useState(false);
 
@@ -80,19 +93,16 @@ export function HlsMusicPlayer() {
     setBuffered,
   );
 
-  // 2b. Sync store currentTime resets back to audio element (for restart/previous)
+  // Sync store currentTime resets
   const storeCurrentTime = useStore(playerStore, (s) => s.currentTime);
   useEffect(() => {
     if (!audioRef.current) return;
-    // If the store was set to 0 (restart) and the audio is significantly ahead, seek back
     if (storeCurrentTime === 0 && audioRef.current.currentTime > 1) {
       audioRef.current.currentTime = 0;
       setLocalTime(0);
     }
   }, [storeCurrentTime, setLocalTime]);
 
-  // 3. User Actions
-  // Use robust string comparison to avoid mismatch between ID types
   const isFavourite = currentSong
     ? Array.from(favourites).some((id) => String(id) === String(currentSong.id))
     : false;
@@ -114,9 +124,7 @@ export function HlsMusicPlayer() {
     setIsTogglingFav(true);
 
     toast.promise(playerActions.toggleFavourite(currentSong.id), {
-      loading: wasFav
-        ? "Removing from Favourites..."
-        : "Adding to Favourites...",
+      loading: wasFav ? "Removing from Favourites..." : "Adding to Favourites...",
       success: () => {
         setIsTogglingFav(false);
         return wasFav ? "Removed from Favourites" : "Added to Favourites";
@@ -139,88 +147,125 @@ export function HlsMusicPlayer() {
     playerActions.setVolume(parseFloat(e.currentTarget.value));
   };
 
-  // ─── Render ───
-  if (!currentSong) {
-    return (
-      <div className="w-95 glass-heavy flex flex-col items-center justify-center p-10 text-center flex-none">
-        <div className="w-20 h-20 rounded-3xl bg-zinc-900/80 border border-white/5 flex items-center justify-center mb-6">
-          <Music className="h-8 w-8 text-zinc-700" />
-        </div>
-        <p className="text-zinc-500 text-xs font-semibold leading-relaxed">
-          Select a track to start playing
-        </p>
-      </div>
-    );
-  }
+  const VolumeIcon = isMuted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
+  const volumePct = isMuted ? 0 : volume * 100;
 
-  // 4. Asset URLs (Gauranteed currentSong exists here)
-  const optimizedPosterUrl =
-    (currentSong.imageKey
-      ? getImageUrl(currentSong.imageKey, {
-          width: 720,
-          height: 720,
-          focus: "auto",
-          aspectRatio: "1-1",
-          quality: 90,
-        })
-      : currentSong.posterUrl) || "";
+  if (!currentSong) return null;
+
+  const posterUrl = currentSong.imageKey
+    ? getImageUrl(currentSong.imageKey, { width: 140, height: 140, aspectRatio: "1-1" })
+    : currentSong.posterUrl || "";
 
   return (
     <>
-      <div className="w-85 glass-effect-strong border-l border-white/4 flex flex-col h-screen overflow-hidden flex-none relative z-50">
-        <PlayerBackground posterUrl={optimizedPosterUrl} />
+      <audio ref={audioRef} className="hidden" />
 
-        <audio ref={audioRef} className="hidden" />
+      {/* ─── Spotify Synced Lyrics View (Expanded Overlay) ─── */}
+      {showLyricsView && (
+        <div className="fixed inset-x-0 top-0 bottom-20 z-40 bg-[#121212] flex flex-col p-8 overflow-hidden animate-in fade-in duration-300">
+          <div className="flex items-center justify-between pb-4 border-b border-[#282828]">
+            <div className="flex items-center gap-3">
+              <Mic2 className="text-primary" size={20} />
+              <div>
+                <h2 className="text-base font-bold text-white tracking-tight">
+                  Lyrics
+                </h2>
+                <p className="text-xs text-zinc-400 font-medium">
+                  {currentSong.title} • {currentSong.artistName}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowLyricsView(false)}
+              className="p-2 rounded-full text-zinc-400 hover:text-white hover:bg-[#282828] transition-colors cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+          </div>
 
-        {/* Header Layout (Artwork + Song Info) */}
-        <div className="flex-none flex flex-col">
-          <PlayerAlbumArt
-            songId={currentSong.id}
-            posterUrl={optimizedPosterUrl}
-            title={currentSong.title}
-          />
+          <div className="flex-1 flex items-center justify-center py-6">
+            <PlayerLyricsOverlay
+              currentCaption={currentCaption}
+              transcriptions={transcriptions}
+              localTime={localTime}
+              onSeek={(time) => {
+                if (audioRef.current) {
+                  audioRef.current.currentTime = time;
+                  setLocalTime(time);
+                }
+              }}
+            />
+          </div>
+        </div>
+      )}
 
-          <PlayerTrackInfo
-            title={currentSong.title}
-            artistName={currentSong.artistName}
-            isFavourite={isFavourite}
-            onToggleFavourite={handleToggleFavourite}
-            onAddToPlaylist={() => {
-              if (!systemUser?.id) {
-                toast.error("Sign in required");
-                return;
-              }
-              setIsPlaylistModalOpen(true);
-            }}
-          />
+      {/* ─── Spotify Bottom Persistent Audio Player Bar ─── */}
+      <footer className="fixed bottom-0 left-0 right-0 h-20 bg-black border-t border-[#282828] z-50 px-4 flex items-center justify-between select-none">
+        {/* Left Section: Track Info & Quick Actions */}
+        <div className="flex items-center gap-3 min-w-0 w-[30%] max-w-[320px]">
+          <div className="w-14 h-14 shrink-0 rounded-md overflow-hidden bg-zinc-900 shadow-md">
+            {posterUrl ? (
+              <img src={posterUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                <Music size={20} />
+              </div>
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h4 className="text-sm font-semibold text-white truncate hover:underline cursor-pointer">
+              {currentSong.title}
+            </h4>
+            <p className="text-xs text-zinc-400 truncate hover:underline hover:text-white cursor-pointer mt-0.5 font-normal">
+              {currentSong.artistName}
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0 pl-1">
+            <button
+              onClick={handleToggleFavourite}
+              className={`p-1.5 rounded-full hover:scale-105 transition-all cursor-pointer ${
+                isFavourite ? "text-primary" : "text-zinc-400 hover:text-white"
+              }`}
+              title={isFavourite ? "Remove from Favourites" : "Save to Favourites"}
+            >
+              <Heart size={16} fill={isFavourite ? "currentColor" : "none"} />
+            </button>
+            <button
+              onClick={() => setIsPlaylistModalOpen(true)}
+              className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:scale-105 transition-all cursor-pointer"
+              title="Add to Playlist"
+            >
+              <Plus size={16} />
+            </button>
+          </div>
         </div>
 
-        <PlayerLyricsOverlay
-          currentCaption={currentCaption}
-          transcriptions={transcriptions}
-          localTime={localTime}
-          onSeek={(time) => {
-            if (audioRef.current) {
-              audioRef.current.currentTime = time;
-              setLocalTime(time);
-            }
-          }}
-        />
+        {/* Middle Section: Player Controls & Timeline */}
+        <div className="flex flex-col items-center justify-center flex-1 max-w-xl px-4 space-y-1">
+          <div className="flex items-center gap-5">
+            <button
+              onClick={() => {
+                playerActions.toggleShuffle();
+                toast.success(isShuffle ? "Shuffle Off" : "Shuffle On");
+              }}
+              className={`transition-colors cursor-pointer ${
+                isShuffle ? "text-primary" : "text-zinc-400 hover:text-white"
+              }`}
+              title="Shuffle"
+            >
+              <Shuffle size={16} />
+            </button>
 
-        {/* ─── Controls ─── */}
-        <div className="flex-none px-6 pb-6 pt-2 space-y-4 relative z-10">
-          <PlayerProgressBar
-            currentTime={localTime}
-            duration={duration}
-            bufferedTime={buffered}
-            onChange={handleSeekChange}
-          />
+            <button
+              onClick={() => playerActions.previous()}
+              className="text-zinc-300 hover:text-white transition-colors cursor-pointer"
+              title="Previous"
+            >
+              <SkipBack size={18} fill="currentColor" />
+            </button>
 
-          <div className="space-y-4 pt-1">
-            <PlayerMainControls
-              isPlaying={isPlaying}
-              isLoading={state.isRefilling} // Using refill state as a proxy for generic loading if needed
-              onPlayPause={() => {
+            <button
+              onClick={() => {
                 const audio = audioRef.current;
                 if (audio) {
                   if (isPlaying) {
@@ -234,20 +279,26 @@ export function HlsMusicPlayer() {
                 }
                 playerActions.setIsPlaying(!isPlaying);
               }}
-              onNext={() => playerActions.next()}
-              onPrev={() => playerActions.previous()}
-            />
+              className="w-9 h-9 rounded-full bg-white text-black hover:scale-105 flex items-center justify-center cursor-pointer transition-transform shadow-md"
+              title={isPlaying ? "Pause" : "Play"}
+            >
+              {isPlaying ? (
+                <Pause size={18} fill="black" />
+              ) : (
+                <Play size={18} fill="black" className="translate-x-0.5" />
+              )}
+            </button>
 
-            <PlayerUtilityRow
-              isShuffle={isShuffle}
-              repeatMode={repeatMode}
-              queueLength={queue.length}
-              onToggleQueue={() => setShowQueuePanel((v) => !v)}
-              onToggleShuffle={() => {
-                playerActions.toggleShuffle();
-                toast.success(isShuffle ? "Shuffle Off" : "Shuffle On");
-              }}
-              onToggleRepeat={() => {
+            <button
+              onClick={() => playerActions.next()}
+              className="text-zinc-300 hover:text-white transition-colors cursor-pointer"
+              title="Next"
+            >
+              <SkipForward size={18} fill="currentColor" />
+            </button>
+
+            <button
+              onClick={() => {
                 playerActions.toggleRepeat();
                 const modes: Record<string, string> = {
                   none: "all",
@@ -257,20 +308,79 @@ export function HlsMusicPlayer() {
                 const next = modes[repeatMode] || "none";
                 toast.success(`Repeat: ${next.toUpperCase()}`);
               }}
-              selectedQuality={selectedQuality}
-              qualityTracks={qualityTracks}
-              showQualityMenu={showQualityMenu}
-              setShowQualityMenu={setShowQualityMenu}
-              onSelectQuality={(q) => playerActions.setSelectedQuality(q)}
-              volume={volume}
-              isMuted={isMuted}
-              onVolumeChange={handleVolumeChange}
-              onToggleMute={() => playerActions.setIsMuted(!isMuted)}
+              className={`transition-colors cursor-pointer ${
+                repeatMode !== "none" ? "text-primary" : "text-zinc-400 hover:text-white"
+              }`}
+              title="Repeat"
+            >
+              <Repeat1 size={16} />
+            </button>
+          </div>
+
+          {/* Timeline Bar */}
+          <div className="w-full max-w-lg">
+            <PlayerProgressBar
+              currentTime={localTime}
+              duration={duration}
+              bufferedTime={buffered}
+              onChange={handleSeekChange}
             />
           </div>
         </div>
-      </div>
 
+        {/* Right Section: Lyrics, Queue, Quality, Volume */}
+        <div className="flex items-center justify-end gap-3 w-[30%] max-w-[280px]">
+          <button
+            onClick={() => setShowLyricsView((v) => !v)}
+            className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+              showLyricsView ? "text-primary bg-[#282828]" : "text-zinc-400 hover:text-white"
+            }`}
+            title="Lyrics"
+          >
+            <Mic2 size={16} />
+          </button>
+
+          <button
+            onClick={() => setShowQueuePanel((v) => !v)}
+            className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+              showQueuePanel ? "text-primary bg-[#282828]" : "text-zinc-400 hover:text-white"
+            }`}
+            title="Queue"
+          >
+            <ListMusic size={16} />
+          </button>
+
+          <PlayerQualitySelector
+            selectedQuality={selectedQuality}
+            qualityTracks={qualityTracks}
+            showQualityMenu={showQualityMenu}
+            setShowQualityMenu={setShowQualityMenu}
+            onSelectQuality={(q) => playerActions.setSelectedQuality(q)}
+          />
+
+          <div className="flex items-center gap-2 min-w-24">
+            <button
+              onClick={() => playerActions.setIsMuted(!isMuted)}
+              className="text-zinc-400 hover:text-white transition-colors cursor-pointer"
+            >
+              <VolumeIcon size={16} />
+            </button>
+            <div className="relative flex-1 flex items-center">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={isMuted ? 0 : volume}
+                onChange={handleVolumeChange}
+                className="modern-slider progress-slider w-full cursor-pointer"
+              />
+            </div>
+          </div>
+        </div>
+      </footer>
+
+      {/* Playlist Picker Modal */}
       <PlaylistPickerModal
         isOpen={isPlaylistModalOpen}
         onClose={() => setIsPlaylistModalOpen(false)}
@@ -278,6 +388,7 @@ export function HlsMusicPlayer() {
         songTitle={currentSong.title}
       />
 
+      {/* Queue Drawer */}
       <PlayerQueuePanel
         open={showQueuePanel}
         onClose={() => setShowQueuePanel(false)}

@@ -23,14 +23,18 @@ export const PlayerProgressBar: React.FC<PlayerProgressBarProps> = ({
   const bufferedPct = duration > 0 ? (bufferedTime / duration) * 100 : 0;
 
   return (
-    <div className="space-y-1.5 pt-2">
-      <div className="relative h-[5px] group cursor-pointer flex items-center">
+    <div className="flex items-center gap-2 select-none w-full">
+      <span className="text-[11px] font-normal text-zinc-400 tabular-nums w-8 text-right">
+        {formatTime(currentTime)}
+      </span>
+
+      <div className="relative h-[5px] flex-1 group cursor-pointer flex items-center">
         {/* Background Track */}
-        <div className="absolute top-1/2 -translate-y-1/2 left-0 w-full h-[3px] bg-white/6 rounded-full" />
+        <div className="absolute top-1/2 -translate-y-1/2 left-0 w-full h-[3px] bg-[#383838] rounded-full" />
 
         {/* Buffered Bar */}
         <div
-          className="absolute top-1/2 -translate-y-1/2 left-0 h-[3px] bg-white/10 rounded-full transition-all duration-300 pointer-events-none"
+          className="absolute top-1/2 -translate-y-1/2 left-0 h-[3px] bg-[#484848] rounded-full transition-all pointer-events-none"
           style={{ width: `${bufferedPct}%` }}
         />
 
@@ -53,10 +57,10 @@ export const PlayerProgressBar: React.FC<PlayerProgressBarProps> = ({
           className="modern-slider progress-slider"
         />
       </div>
-      <div className="flex justify-between text-[9px] font-bold text-zinc-600 tabular-nums">
-        <span>{formatTime(currentTime)}</span>
-        <span>{formatTime(duration)}</span>
-      </div>
+
+      <span className="text-[11px] font-normal text-zinc-400 tabular-nums w-8 text-left">
+        {formatTime(duration)}
+      </span>
     </div>
   );
 };

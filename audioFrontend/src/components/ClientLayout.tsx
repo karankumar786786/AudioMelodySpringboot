@@ -8,6 +8,7 @@ import { AuthModal } from "@/components/AuthModal";
 import { HlsMusicPlayer } from "@/components/HlsMusicPlayer";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { playerStore } from "@/store/player.store";
+import { RightInfoPanel } from "@/components/RightInfoPanel";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const systemUser = useStore(playerStore, (s) => s.systemUser);
@@ -54,19 +55,20 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Authenticated Full View
+  // Authenticated Full View (Spotify 3-Panel Layout)
   return (
     <>
       <AuthModal />
       <div className="fixed inset-0 pointer-events-none z-0 bg-[#121212]" />
 
       <LeftSidebar />
-      <div className="flex-1 flex flex-col min-w-0 ml-64 overflow-hidden relative z-10 bg-[#121212]">
+      <div className="flex-1 flex flex-col min-w-0 ml-64 mr-80 overflow-hidden relative z-10 bg-[#121212]">
         <AppNavbar />
-        <main className="flex-1 overflow-y-auto no-scrollbar pt-2 pb-32">
+        <main className="flex-1 overflow-y-auto no-scrollbar pt-2 pb-24">
           {children}
         </main>
       </div>
+      <RightInfoPanel />
       <HlsMusicPlayer />
     </>
   );
