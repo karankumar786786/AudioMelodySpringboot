@@ -171,36 +171,36 @@ body {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.08);
+  height: 4px;
+  background-color: rgba(255, 255, 255, 0.25);
   border-radius: 10px;
   outline: none;
   cursor: pointer;
   background-image: linear-gradient(var(--primary), var(--primary));
-  background-size: 0% 100%;
+  background-size: 100% 100%;
   background-repeat: no-repeat;
   transition: height 0.2s ease;
 }
 
 .modern-slider:hover {
-  height: 5px;
+  height: 6px;
 }
 
 .modern-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 0;
-  height: 0;
+  width: 12px;
+  height: 12px;
   background: white;
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: 0 0 15px var(--primary);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
   transition: all 0.2s ease;
 }
 
 .modern-slider:hover::-webkit-slider-thumb {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
 }
 
 /* Specific overrides for volume slider */

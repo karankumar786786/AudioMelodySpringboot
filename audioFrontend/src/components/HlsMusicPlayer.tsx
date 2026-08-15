@@ -129,6 +129,94 @@ export function HlsMusicPlayer() {
     }
   }, [systemUser?.id]);
 
+  // 3. Global Keyboard Shortcuts Listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isInput =
+        activeEl instanceof HTMLInputElement ||
+        activeEl instanceof HTMLTextAreaElement ||
+        (activeEl as HTMLElement)?.isContentEditable;
+
+      if (isInput) return;
+
+      // Space or K: Toggle Play/Pause
+      if (e.code === "Space" || e.key === "k" || e.key === "K") {
+        e.preventDefault();
+        if (!currentSong) return;
+        const audio = audioRef.current;
+        if (audio) {
+          if (isPlaying) {
+            audio.pause();
+          } else {
+            audio.play().catch((err) => {
+              if (err.name !== "AbortError")
+                console.warn("[Player] Manual play failed:", err);
+            });
+          }
+        }
+        playerActions.setIsPlaying(!isPlaying);
+      }
+
+      // M: Toggle Mute
+      if (e.key === "m" || e.key === "M") {
+        e.preventDefault();
+        playerActions.setIsMuted(!isMuted);
+      }
+
+      // L: Toggle Lyrics
+      if (e.key === "l" || e.key === "L") {
+        e.preventDefault();
+        playerActions.toggleLyrics();
+      }
+
+      // Q: Toggle Queue
+      if (e.key === "q" || e.key === "Q") {
+        e.preventDefault();
+        setShowQueuePanel((v) => !v);
+      }
+
+      // R: Resync Lyrics
+      if (e.key === "r" || e.key === "R") {
+        e.preventDefault();
+        const el = document.getElementById("active-lyric-line");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          toast.success("Lyrics synced to playback");
+        } else if (isLyricsOpen) {
+          toast.info("No active lyric line at this timestamp");
+        }
+      }
+
+      // ArrowRight (Ctrl/Cmd): Next Track
+      if (e.key === "ArrowRight" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        playerActions.next();
+      }
+
+      // ArrowLeft (Ctrl/Cmd): Previous Track
+      if (e.key === "ArrowLeft" && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        playerActions.previous();
+      }
+
+      // ArrowUp: Increase Volume
+      if (e.key === "ArrowUp" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        playerActions.setVolume(Math.min(1, volume + 0.05));
+      }
+
+      // ArrowDown: Decrease Volume
+      if (e.key === "ArrowDown" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        playerActions.setVolume(Math.max(0, volume - 0.05));
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [currentSong, isPlaying, isMuted, volume]);
+
   const handleToggleFavourite = async () => {
     if (!systemUser?.id || !currentSong) {
       toast.error("Sign in required");
@@ -205,7 +293,7 @@ export function HlsMusicPlayer() {
                   }
                 }}
                 className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-black font-bold text-xs transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95 border border-white/30"
-                title="Sync lyrics to playback"
+                title="Sync lyrics to playback (R)"
               >
                 <div className="flex items-end gap-[2px] h-3">
                   <span className="w-[2px] h-2.5 bg-black rounded-full" />
@@ -322,7 +410,7 @@ export function HlsMusicPlayer() {
                 playerActions.setIsPlaying(!isPlaying);
               }}
               className="w-9 h-9 rounded-full bg-white text-black hover:scale-105 flex items-center justify-center cursor-pointer transition-transform shadow-md"
-              title={isPlaying ? "Pause" : "Play"}
+              title={isPlaying ? "Pause (Space)" : "Play (Space)"}
             >
               {isPlaying ? (
                 <Pause size={18} fill="black" />
@@ -371,13 +459,13 @@ export function HlsMusicPlayer() {
         </div>
 
         {/* Right Section: Lyrics, Queue, Quality, Volume */}
-        <div className="flex items-center justify-end gap-3 w-[30%] max-w-[280px]">
+        <div className="flex items-center justify-end gap-3 w-[35%] max-w-[340px]">
           <button
             onClick={() => playerActions.toggleLyrics()}
             className={`p-1.5 rounded-md transition-colors cursor-pointer ${
               isLyricsOpen ? "text-primary bg-[#282828]" : "text-zinc-400 hover:text-white"
             }`}
-            title="Lyrics"
+            title="Lyrics (L)"
           >
             <Mic2 size={16} />
           </button>
@@ -387,7 +475,7 @@ export function HlsMusicPlayer() {
             className={`p-1.5 rounded-md transition-colors cursor-pointer ${
               showQueuePanel ? "text-primary bg-[#282828]" : "text-zinc-400 hover:text-white"
             }`}
-            title="Queue"
+            title="Queue (Q)"
           >
             <ListMusic size={16} />
           </button>
@@ -400,14 +488,15 @@ export function HlsMusicPlayer() {
             onSelectQuality={(q) => playerActions.setSelectedQuality(q)}
           />
 
-          <div className="flex items-center gap-2 min-w-24">
+          <div className="flex items-center gap-2.5 min-w-[120px]">
             <button
               onClick={() => playerActions.setIsMuted(!isMuted)}
-              className="text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              className="text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
+              title={isMuted ? "Unmute (M)" : "Mute (M)"}
             >
               <VolumeIcon size={16} />
             </button>
-            <div className="relative flex-1 flex items-center">
+            <div className="relative flex-1 flex items-center h-6">
               <input
                 type="range"
                 min="0"
@@ -415,7 +504,8 @@ export function HlsMusicPlayer() {
                 step="0.01"
                 value={isMuted ? 0 : volume}
                 onChange={handleVolumeChange}
-                className="modern-slider progress-slider w-full cursor-pointer"
+                style={{ backgroundSize: `${volumePct}% 100%` }}
+                className="modern-slider w-full cursor-pointer"
               />
             </div>
           </div>
