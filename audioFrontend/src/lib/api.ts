@@ -330,6 +330,16 @@ export const musicApi = {
         body: JSON.stringify({ songId, percentage }),
       });
     },
+    recordSkip: async (songId: string) => {
+      try {
+        await request("/api/interaction/skip", {
+          method: "POST",
+          body: JSON.stringify({ songId }),
+        });
+      } catch (err) {
+        console.error("[Api] Failed to record skip:", err);
+      }
+    },
   },
   search: {
     unified: async (query: string) => {

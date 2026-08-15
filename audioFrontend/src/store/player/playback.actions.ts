@@ -112,6 +112,17 @@ export const playbackActions = {
     }
   },
 
+  recordSkip: async (songId: string) => {
+    const { systemUser } = playerStore.state;
+    if (systemUser?.id && songId) {
+      try {
+        await musicApi.interactions.recordSkip(songId);
+      } catch (err) {
+        console.error("[PlayerStore] Failed to record skip:", err);
+      }
+    }
+  },
+
   setIsLyricsOpen: (isLyricsOpen: boolean) => {
     playerStore.setState((s) => ({ ...s, isLyricsOpen }));
   },

@@ -314,6 +314,12 @@ export const queueActions = {
     const { queue, lastQueueIndex, isShuffle, repeatMode, currentSong } =
       playerStore.state;
 
+    if (currentSong?.id) {
+      import("@/store/player/playback.actions").then(({ playbackActions }) => {
+        playbackActions.recordSkip(currentSong.id);
+      });
+    }
+
     console.log(`[Queue Next] Current Index: ${lastQueueIndex}, Queue Length: ${queue.length}, Repeat: ${repeatMode}, Shuffle: ${isShuffle}`);
 
     // If queue is empty, attempt refill
