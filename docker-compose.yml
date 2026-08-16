@@ -6,3 +6,4 @@ services:
     command: >
       inngest dev
       -u http://host.docker.internal:5010/api/inngest
+      -u http://host.docker.internal:5020/api/inngest
