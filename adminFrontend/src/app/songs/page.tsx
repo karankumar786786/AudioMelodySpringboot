@@ -75,13 +75,30 @@ export default function SongsPage() {
       return alert("Please select both audio and image files");
     }
 
+    console.log("[Song Upload] Start upload flow");
+    console.log("[Song Upload] Form data", {
+      title: formData.title,
+      artistName: formData.artistName,
+      language: formData.language,
+      songFileName: formData.songFile.name,
+      songFileType: formData.songFile.type,
+      imageFileName: formData.imageFile.name,
+      imageFileType: formData.imageFile.type,
+    });
+
     setUploading(true);
     try {
       // 1. Get Presigned URLs & Upload Token from coreEngine
+      console.log("[Song Upload] Step 1: Requesting upload credentials from coreEngine");
       const [songUrlRes, imageUrlRes] = await Promise.all([
         adminFetch("/webhook/internal/song-upload-url"),
         adminFetch("/webhook/internal/image-upload-param"),
       ]);
+
+      console.log("[Song Upload] Step 1 response status", {
+        songUrlResStatus: songUrlRes.status,
+        imageUrlResStatus: imageUrlRes.status,
+      });
 
       if (!songUrlRes.ok || !imageUrlRes.ok) {
         throw new Error("Failed to get upload authorization from server");
@@ -90,16 +107,29 @@ export default function SongsPage() {
       const songUrlData = await songUrlRes.json();
       const imageUrlData = await imageUrlRes.json();
 
+      console.log("[Song Upload] Step 1 data", {
+        songUrlData,
+        imageUrlData,
+      });
+
       // 2. Upload Song file to S3
+      console.log("[Song Upload] Step 2: Uploading song file to S3");
       const songUploadRes = await fetch(songUrlData.preSignedUrl, {
         method: "PUT",
         body: formData.songFile,
         headers: { "Content-Type": formData.songFile.type || "audio/mpeg" },
       });
 
+      console.log("[Song Upload] Step 2 result", {
+        ok: songUploadRes.ok,
+        status: songUploadRes.status,
+        statusText: songUploadRes.statusText,
+      });
+
       if (!songUploadRes.ok) throw new Error("Audio upload to S3 failed");
 
       // 3. Upload Cover Image to ImageKit using params from coreEngine
+      console.log("[Song Upload] Step 3: Uploading image to ImageKit");
       const imageFormData = new FormData();
       imageFormData.append("file", formData.imageFile);
       imageFormData.append("publicKey", process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY || "public_ck50bJ3UfF9eCOXhwXQTQFP693o=");
@@ -111,15 +141,32 @@ export default function SongsPage() {
       const fileNameWithExt = `${imageUrlData.key}.${extension}`;
       imageFormData.append("fileName", fileNameWithExt);
 
+      console.log("[Song Upload] Step 3 payload", {
+        publicKey: process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY || "public_ck50bJ3UfF9eCOXhwXQTQFP693o=",
+        signature: imageUrlData.param.signature,
+        expire: imageUrlData.param.expire,
+        token: imageUrlData.param.token,
+        fileName: fileNameWithExt,
+        folder: "/songs/images",
+      });
+
       const ikRes = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
         method: "POST",
         body: imageFormData,
       });
 
       const ikData = await ikRes.json();
+      console.log("[Song Upload] Step 3 result", {
+        ok: ikRes.ok,
+        status: ikRes.status,
+        statusText: ikRes.statusText,
+        response: ikData,
+      });
+
       if (!ikRes.ok) throw new Error(ikData.message || "Image upload failed");
 
       // 4. Create Song record in coreEngine
+      console.log("[Song Upload] Step 4: Finalizing song record in backend");
       const finalizeRes = await adminFetch("/admin/song", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -133,17 +180,27 @@ export default function SongsPage() {
         }),
       });
 
+      console.log("[Song Upload] Step 4 result", {
+        ok: finalizeRes.ok,
+        status: finalizeRes.status,
+        statusText: finalizeRes.statusText,
+      });
+
       if (finalizeRes.ok) {
+        console.log("[Song Upload] Upload flow completed successfully");
         setIsModalOpen(false);
         setFormData({ title: "", artistName: "", language: "English", lrclibId: "", songFile: null, imageFile: null });
         fetchSongs();
       } else {
         const errData = await finalizeRes.json();
+        console.error("[Song Upload] Finalize failed", errData);
         throw new Error(errData.message || "Failed to create song record");
       }
     } catch (err: any) {
+      console.error("[Song Upload] Upload error", err);
       alert("Upload failed: " + err.message);
     } finally {
+      console.log("[Song Upload] Finished upload flow");
       setUploading(false);
     }
   };
