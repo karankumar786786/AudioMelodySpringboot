@@ -101,7 +101,7 @@ export default function HomePage() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
-    <div className="px-10 pb-20 pt-8 space-y-16">
+    <div className="px-10 pb-20 bg-black pt-6 space-y-16">
       {/* 1. Hero Section (Featured/Trending) */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
@@ -116,7 +116,6 @@ export default function HomePage() {
         />
       </motion.div>
 
-      <div className="h-px bg-linear-to-r from-white/10 via-white/5 to-transparent" />
 
       {/* 2. Top Artists Section */}
       <section className="space-y-4">
@@ -145,7 +144,6 @@ export default function HomePage() {
         </motion.div>
       </section>
 
-      <div className="h-px bg-[#282828]" />
 
       {/* 3. Featured Playlists Section */}
       <section className="space-y-4">
@@ -179,7 +177,6 @@ export default function HomePage() {
         recommendations?.data?.data &&
         recommendations.data.data.length > 0 && (
           <>
-            <div className="h-px bg-[#282828]" />
             <section className="space-y-4">
               <div className="flex items-center gap-3">
                 <h2 className="text-xl font-bold text-white tracking-tight">
@@ -205,7 +202,6 @@ export default function HomePage() {
           </>
         )}
 
-      <div className="h-px bg-[#282828]" />
 
       {/* 5. Discovery Feed */}
       <section className="space-y-4">

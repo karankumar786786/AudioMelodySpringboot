@@ -64,7 +64,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       <LeftSidebar />
       <div className="flex-1 flex flex-col min-w-0 ml-64 mr-80 overflow-hidden relative z-10 bg-[#121212]">
         <AppNavbar />
-        <main className="flex-1 overflow-y-auto no-scrollbar pt-2 pb-24">
+        <main className="flex-1 overflow-y-auto no-scrollbar pb-24">
           {children}
         </main>
       </div>

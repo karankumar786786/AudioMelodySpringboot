@@ -80,9 +80,9 @@ export function LeftSidebar() {
         >
           <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden">
             <img
-              src="/image.png"
-              alt="Logo"
-              className="w-full h-full object-contain"
+                src="/image.png"
+                alt="Logo"
+                className="w-full h-full object-contain grayscale "
             />
           </div>
           <span className="text-lg font-bold text-white tracking-tight">

@@ -18,7 +18,7 @@ export function ArtistCard({ artist }: ArtistCardProps) {
       <motion.div
         whileHover={{ scale: 1.02 }}
         transition={{ duration: 0.2 }}
-        className="bg-[#181818] p-4 rounded-md hover:bg-[#282828] transition-all duration-300 space-y-3"
+        className="bg-black p-4 rounded-md hover:bg-[#282828] transition-all duration-300 space-y-3"
       >
         <div className="relative aspect-square overflow-hidden rounded-full bg-zinc-900 mx-auto shadow-md">
           <img

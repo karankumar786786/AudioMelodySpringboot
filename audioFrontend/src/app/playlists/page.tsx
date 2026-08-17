@@ -3,7 +3,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
 import { PlaylistCard } from "../../components/PlaylistCard";
-import { ListMusic, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 

@@ -52,7 +52,7 @@ export function SongCard({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
         onClick={handlePlay}
-        className={`bg-[#181818] p-4 rounded-md group cursor-pointer relative transition-all duration-300 hover:bg-[#282828] ${
+        className={`bg-black p-4 rounded-md group cursor-pointer relative transition-all duration-300 hover:bg-[#282828] ${
           isActiveSong ? "bg-[#282828] border border-primary/30" : ""
         } ${className || ""}`}
       >

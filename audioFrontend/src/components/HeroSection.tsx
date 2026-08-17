@@ -87,9 +87,9 @@ export function HeroSection({
   if (!currentSong) return null;
 
   return (
-    <section className="relative w-full h-80 rounded-xl overflow-hidden group border border-[#282828] bg-[#181818]">
+    <section className="relative w-full h-80 rounded-xl overflow-hidden group  bg-black">
       {/* Soft dark ambient backdrop */}
-      <div className="absolute inset-0 z-0 bg-[#181818]">
+      <div className="absolute inset-0 z-0 bg-black">
         <AnimatePresence mode="wait">
           <motion.img
             key={currentSong.id}
@@ -107,7 +107,6 @@ export function HeroSection({
             alt=""
           />
         </AnimatePresence>
-        <div className="absolute inset-0 bg-linear-to-r from-[#181818] via-[#181818]/90 to-transparent z-0" />
       </div>
 
       {/* Content Grid */}
@@ -121,9 +120,6 @@ export function HeroSection({
             transition={{ duration: 0.4 }}
             className="space-y-3"
           >
-            <span className="text-xs font-semibold uppercase tracking-wider text-primary">
-              Featured Track
-            </span>
             <h1 className="text-3xl lg:text-4xl font-bold text-white tracking-tight leading-tight line-clamp-2">
               {currentSong.title}
             </h1>

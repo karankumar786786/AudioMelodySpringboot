@@ -12,14 +12,12 @@ import {
   Clock,
   Music,
   ArrowLeft,
-  Sparkles,
 } from "lucide-react";
 import { playerActions, playerStore } from "@/store/player.store";
 import { mapListToPlayerSongs } from "@/lib/player-utils";
 import { useStore } from "@tanstack/react-store";
 import { toast } from "sonner";
 import { getImageUrl } from "@/lib/image-utils";
-import { useState, useEffect } from "react";
 
 export default function PlaylistPage() {
   const { id } = useParams();

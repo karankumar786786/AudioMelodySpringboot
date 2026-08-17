@@ -77,7 +77,7 @@ export function RightInfoPanel() {
     : null;
 
   return (
-    <aside className="w-80 bg-[#121212] border-l border-[#282828] h-screen fixed right-0 top-0 z-40 p-5 flex flex-col overflow-y-auto no-scrollbar pb-28">
+    <aside className="w-80 bg-black border-l border-[#282828] h-screen fixed right-0 top-0 z-40 p-5 flex flex-col overflow-y-auto no-scrollbar pb-28">
       {/* Header */}
       <div className="flex items-center gap-2 pb-4 border-b border-[#282828] mb-4">
         <Info size={18} className="text-primary" />
