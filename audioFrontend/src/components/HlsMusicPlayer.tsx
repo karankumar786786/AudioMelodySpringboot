@@ -7,8 +7,6 @@ import {
   Music,
   Mic2,
   ListMusic,
-  Heart,
-  Plus,
   Shuffle,
   Repeat1,
   VolumeX,
@@ -19,7 +17,6 @@ import {
   SkipBack,
   SkipForward,
   X,
-  RotateCcw,
 } from "lucide-react";
 import { getImageUrl } from "../lib/image-utils";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
@@ -217,28 +214,6 @@ export function HlsMusicPlayer() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentSong, isPlaying, isMuted, volume]);
 
-  const handleToggleFavourite = async () => {
-    if (!systemUser?.id || !currentSong) {
-      toast.error("Sign in required");
-      return;
-    }
-    if (isTogglingFav) return;
-
-    const wasFav = isFavourite;
-    setIsTogglingFav(true);
-
-    toast.promise(playerActions.toggleFavourite(currentSong.id), {
-      loading: wasFav ? "Removing from Favourites..." : "Adding to Favourites...",
-      success: () => {
-        setIsTogglingFav(false);
-        return wasFav ? "Removed from Favourites" : "Added to Favourites";
-      },
-      error: () => {
-        setIsTogglingFav(false);
-        return "Failed to update Favourites";
-      },
-    });
-  };
 
   const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!audioRef.current || !duration) return;
@@ -349,24 +324,6 @@ export function HlsMusicPlayer() {
             <p className="text-xs text-zinc-400 truncate hover:underline hover:text-white cursor-pointer mt-0.5 font-normal">
               {currentSong.artistName}
             </p>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0 pl-1">
-            <button
-              onClick={handleToggleFavourite}
-              className={`p-1.5 rounded-full hover:scale-105 transition-all cursor-pointer ${
-                isFavourite ? "text-primary" : "text-zinc-400 hover:text-white"
-              }`}
-              title={isFavourite ? "Remove from Favourites" : "Save to Favourites"}
-            >
-              <Heart size={16} fill={isFavourite ? "currentColor" : "none"} />
-            </button>
-            <button
-              onClick={() => setIsPlaylistModalOpen(true)}
-              className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:scale-105 transition-all cursor-pointer"
-              title="Add to Playlist"
-            >
-              <Plus size={16} />
-            </button>
           </div>
         </div>
 

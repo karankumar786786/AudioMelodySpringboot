@@ -71,7 +71,7 @@ export function LeftSidebar() {
   };
 
   return (
-    <aside className="w-64 bg-black border-r border-[#282828] flex flex-col h-screen fixed left-0 top-0 z-50 overflow-hidden">
+    <aside className="w-64 bg-black  flex flex-col h-screen fixed left-0 top-0 z-50 overflow-hidden">
       <div className="p-6 flex flex-col h-full bg-black">
         {/* Logo */}
         <div
