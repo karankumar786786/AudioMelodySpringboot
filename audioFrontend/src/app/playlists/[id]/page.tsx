@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -12,12 +13,16 @@ import {
   Clock,
   Music,
   ArrowLeft,
+  Shuffle,
+  MoreHorizontal,
+  Heart,
 } from "lucide-react";
 import { playerActions, playerStore } from "@/store/player.store";
 import { mapListToPlayerSongs } from "@/lib/player-utils";
 import { useStore } from "@tanstack/react-store";
 import { toast } from "sonner";
 import { getImageUrl } from "@/lib/image-utils";
+import { getSolidBgFromImage } from "@/lib/color-utils";
 
 export default function PlaylistPage() {
   const { id } = useParams();
@@ -31,53 +36,84 @@ export default function PlaylistPage() {
 
   const playlistType = searchParams.get("type");
 
-  const { data: playlistResponse, isLoading: isPlaylistLoading } = useQuery({
+  const [backgroundColor, setBackgroundColor] = useState("#181818");
+
+  /* -------------------------------------------------------------------------- */
+  /*                                  PLAYLIST                                  */
+  /* -------------------------------------------------------------------------- */
+
+  const {
+    data: playlistResponse,
+    isLoading: isPlaylistLoading,
+  } = useQuery({
     queryKey: ["playlist", id, playlistType],
     queryFn: async () => {
       if (playlistType === "user") {
         return await musicApi.users.getPlaylistById(id as string);
-      } else if (playlistType === "system") {
+      }
+
+      if (playlistType === "system") {
         return await musicApi.playlists.getById(id as string);
-      } else {
-        try {
-          return await musicApi.playlists.getById(id as string);
-        } catch (err) {
-          return await musicApi.users.getPlaylistById(id as string);
-        }
+      }
+
+      try {
+        return await musicApi.playlists.getById(id as string);
+      } catch {
+        return await musicApi.users.getPlaylistById(id as string);
       }
     },
   });
 
-  const { data: songsResponse, isLoading: isSongsLoading } = useQuery({
+  /* -------------------------------------------------------------------------- */
+  /*                                    SONGS                                   */
+  /* -------------------------------------------------------------------------- */
+
+  const {
+    data: songsResponse,
+    isLoading: isSongsLoading,
+  } = useQuery({
     queryKey: ["playlist-songs", id, playlistType],
     queryFn: async () => {
       if (playlistType === "user") {
         return await musicApi.users.getPlaylistSongs(id as string);
-      } else if (playlistType === "system") {
+      }
+
+      if (playlistType === "system") {
         return await musicApi.playlists.getSongs(id as string);
-      } else {
-        try {
-          const res = await musicApi.playlists.getSongs(id as string);
-          if (res.data?.data && res.data.data.length > 0) return res;
-          return res;
-        } catch (err) {
-          return await musicApi.users.getPlaylistSongs(id as string);
-        }
+      }
+
+      try {
+        return await musicApi.playlists.getSongs(id as string);
+      } catch {
+        return await musicApi.users.getPlaylistSongs(id as string);
       }
     },
   });
 
+  /* -------------------------------------------------------------------------- */
+  /*                               DELETE PLAYLIST                              */
+  /* -------------------------------------------------------------------------- */
+
   const deletePlaylist = useMutation({
     mutationFn: () => musicApi.users.deletePlaylist(id as string),
+
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
+      queryClient.invalidateQueries({
+        queryKey: ["user-playlists"],
+      });
+
       router.push("/playlists");
     },
   });
 
+  /* -------------------------------------------------------------------------- */
+  /*                               REMOVE SONG                                  */
+  /* -------------------------------------------------------------------------- */
+
   const removeSong = useMutation({
     mutationFn: (songId: string) =>
       musicApi.users.removeSongFromPlaylist(id as string, songId),
+
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["playlist-songs", id],
@@ -86,284 +122,418 @@ export default function PlaylistPage() {
     },
   });
 
-  const formatDuration = (val?: number | string) => {
-    if (!val) return "0:00";
-    const num = typeof val === "string" ? parseFloat(val) : val;
-    if (isNaN(num) || num <= 0) return "0:00";
-    const totalSeconds = num > 10000 ? Math.floor(num / 1000) : Math.floor(num);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  };
+  /* -------------------------------------------------------------------------- */
+  /*                                  DATA                                      */
+  /* -------------------------------------------------------------------------- */
+
+  const playlist = playlistResponse?.data;
+  const songs = songsResponse?.data?.data || [];
+
+  const isUserPlaylist =
+    playlistType === "user" || (playlist && "userId" in playlist);
+
+  /* -------------------------------------------------------------------------- */
+  /*                                COVER IMAGE                                 */
+  /* -------------------------------------------------------------------------- */
+
+  const coverUrl = getImageUrl(playlist?.coverImageKey, {
+    width: 600,
+    height: 600,
+    focus: "auto",
+    aspectRatio: "1-1",
+  });
+
+  /* -------------------------------------------------------------------------- */
+  /*                         EXTRACT PLAYLIST COLOR                             */
+  /* -------------------------------------------------------------------------- */
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function extractColor() {
+      if (!coverUrl) {
+        setBackgroundColor("#181818");
+        return;
+      }
+
+      const color = await getSolidBgFromImage(
+        coverUrl,
+        playlist?.title || playlist?.name || "playlist"
+      );
+
+      if (!cancelled) {
+        setBackgroundColor(color);
+      }
+    }
+
+    extractColor();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [coverUrl, playlist?.title, playlist?.name]);
+
+  /* -------------------------------------------------------------------------- */
+  /*                                  LOADING                                   */
+  /* -------------------------------------------------------------------------- */
 
   if (isPlaylistLoading || isSongsLoading) {
     return (
-      <div className="p-20 text-center animate-pulse text-zinc-500 uppercase font-black text-xs italic tracking-widest flex flex-col items-center justify-center gap-4 h-[60vh]">
-        <div className="w-10 h-10 border-2 border-primary/20 border-t-primary rounded-full animate-spin" />
-        Loading Playlist Details...
+      <div className="flex h-[60vh] flex-col items-center justify-center gap-4 text-zinc-500">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
+
+        <span className="text-xs font-black uppercase italic tracking-widest">
+          Loading Playlist...
+        </span>
       </div>
     );
   }
 
-  const playlist = playlistResponse?.data;
-  const songs = songsResponse?.data?.data || [];
-  const isUserPlaylist =
-    playlistType === "user" || (playlist && "userId" in playlist);
+  /* -------------------------------------------------------------------------- */
+  /*                              PLAY ALL                                      */
+  /* -------------------------------------------------------------------------- */
 
   const handleStreamAll = () => {
     if (songs.length === 0) return;
+
     const playerSongs = mapListToPlayerSongs(songs);
+
     playerActions.playAll(playerSongs);
+
     toast.success("Playing All", {
       description: `Starting playback for ${songs.length} tracks.`,
     });
   };
 
-  const bannerUrl = getImageUrl(playlist?.bannerImageKey, {
-    width: 1600,
-    height: 800,
-    focus: "auto",
-    aspectRatio: "2-1",
-  });
-  const coverUrl = getImageUrl(playlist?.coverImageKey, {
-    width: 400,
-    height: 400,
-    focus: "auto",
-    aspectRatio: "1-1",
-  });
+  /* -------------------------------------------------------------------------- */
+  /*                              PLAY SONG                                     */
+  /* -------------------------------------------------------------------------- */
+
+  const handlePlaySong = (song: any, index: number) => {
+    const isActive = currentSong?.id === song.id;
+
+    if (isActive) {
+      playerActions.setIsPlaying(!isPlaying);
+      return;
+    }
+
+    const playerSongs = mapListToPlayerSongs(songs);
+
+    playerActions.playAllFrom(playerSongs, index);
+  };
+
+  /* -------------------------------------------------------------------------- */
+  /*                             FORMAT DURATION                                */
+  /* -------------------------------------------------------------------------- */
+
+  const formatDuration = (val?: number | string) => {
+    if (!val) return "0:00";
+
+    const num = typeof val === "string" ? parseFloat(val) : val;
+
+    if (isNaN(num) || num <= 0) {
+      return "0:00";
+    }
+
+    const totalSeconds =
+      num > 10000 ? Math.floor(num / 1000) : Math.floor(num);
+
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  };
+
+  /* -------------------------------------------------------------------------- */
+  /*                                   UI                                       */
+  /* -------------------------------------------------------------------------- */
 
   return (
-    <div className="px-10 pb-20 space-y-8 relative pt-4">
-      {/* Back Button */}
-      <button
-        onClick={() => router.back()}
-        className="flex items-center gap-2 text-zinc-300 hover:text-white transition-colors text-xs font-semibold bg-[#282828] border border-[#383838] px-4 py-2 rounded-full hover:bg-[#333333] active:scale-95 duration-200 cursor-pointer"
+    <div className="min-h-full pb-24">
+      {/* ====================================================================== */}
+      {/*                              HERO                                      */}
+      {/* ====================================================================== */}
+
+      <section
+        className="relative overflow-hidden px-8 pb-8 pt-12 md:px-10"
+        style={{
+          background: `
+            linear-gradient(
+              to bottom,
+              ${backgroundColor} 0%,
+              ${backgroundColor} 35%,
+              rgba(0,0,0,0.92) 100%
+            )
+          `,
+        }}
       >
-        <ArrowLeft size={14} /> Back
-      </button>
+        {/* Subtle dark overlay */}
+        <div className="pointer-events-none absolute inset-0 bg-black/10" />
 
-      {/* Playlist Hero */}
-      <section className="relative h-80 w-full overflow-hidden rounded-xl border border-[#282828] bg-[#181818] group shadow-xl">
-        <div className="absolute inset-0 bg-[#181818]">
-          {playlist?.bannerImageKey ? (
-            <img
-              src={bannerUrl}
-              alt=""
-              className="h-full w-full object-cover opacity-20 blur-md"
-            />
-          ) : (
-            <div className="h-full w-full bg-[#181818]" />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#181818] via-[#181818]/80 to-transparent z-10" />
-        </div>
+       
 
-        <div className="absolute inset-0 flex items-end p-8 gap-8 z-20">
-          {/* Cover Art */}
-          <div className="h-44 w-44 shrink-0 overflow-hidden rounded-md border border-[#282828] shadow-md relative bg-zinc-900 flex items-center justify-center">
-            {playlist?.coverImageKey ? (
+        {/* Playlist information */}
+        <div className="relative z-10 flex flex-col items-center gap-7 md:flex-row md:items-end">
+          {/* Cover */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35 }}
+            className="h-52 w-52 shrink-0 overflow-hidden rounded-md bg-zinc-900 shadow-2xl md:h-56 md:w-56"
+          >
+            {coverUrl ? (
               <img
                 src={coverUrl}
-                alt=""
+                alt={playlist?.title || playlist?.name || "Playlist"}
                 className="h-full w-full object-cover"
               />
             ) : (
-              <ListMusic className="text-zinc-600" size={56} />
+              <div className="flex h-full w-full items-center justify-center">
+                <ListMusic size={64} className="text-zinc-600" />
+              </div>
             )}
-          </div>
+          </motion.div>
 
-          <div className="flex-1 space-y-3 pb-1">
-            <div className="space-y-1">
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary">
-                Playlist
-              </span>
-              <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight">
-                {playlist?.title || playlist?.name}
-              </h1>
-            </div>
+          {/* Details */}
+          <motion.div
+            initial={{ opacity: 0, x: 15 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.35, delay: 0.05 }}
+            className="min-w-0 flex-1 pb-1"
+          >
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/80">
+              {isUserPlaylist ? "Playlist" : "Public Playlist"}
+            </p>
 
-            <p className="max-w-xl text-zinc-400 font-normal text-xs line-clamp-2 leading-relaxed">
+            <h1 className="break-words text-4xl font-black tracking-tight text-white md:text-6xl">
+              {playlist?.title || playlist?.name}
+            </h1>
+
+            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/70">
               {playlist?.description || "A curated playlist of songs."}
             </p>
 
-            <div className="flex items-center gap-4 pt-2">
-              <button
-                onClick={handleStreamAll}
-                disabled={songs.length === 0}
-                className="px-8 h-11 bg-primary text-black rounded-full font-bold text-xs uppercase tracking-wider hover:scale-105 transition-all flex items-center gap-2 shadow-md cursor-pointer disabled:opacity-50"
-              >
-                <Play fill="black" size={16} />
-                Play All
-              </button>
+            <div className="mt-4 flex items-center gap-2 text-xs text-white/80">
+              <span className="font-semibold">
+                {systemUser?.username || "OneMelody"}
+              </span>
 
-              {isUserPlaylist && (
-                <button
-                  onClick={() => {
-                    toast.promise(deletePlaylist.mutateAsync(), {
-                      loading: "Deleting Playlist...",
-                      success: "Playlist Deleted",
-                      error: "Delete Failed",
-                      description: "The playlist has been removed.",
-                    });
-                  }}
-                  className="h-11 w-11 rounded-full bg-[#282828] border border-[#383838] flex items-center justify-center text-red-400 hover:bg-red-500 hover:text-white transition-all cursor-pointer shadow-md"
-                  title="Delete Playlist"
-                >
-                  <Trash2 size={16} />
-                </button>
+              <span>•</span>
+
+              <span>
+                {songs.length} {songs.length === 1 ? "song" : "songs"}
+              </span>
+
+              {songs.length > 0 && (
+                <>
+                  <span>•</span>
+
+                  <span>
+                    {formatDuration(
+                      songs.reduce(
+                        (total: number, song: any) =>
+                          total + (Number(song.duration) || 0),
+                        0
+                      )
+                    )}
+                  </span>
+
+                  <button
+                    onClick={handleStreamAll}
+                    className="ml-2 flex  items-center gap-1.5 rounded-full bg-white px-4 py-4 font-semibold text-black transition-colors hover:bg-white/80"
+                  >
+                    <Play size={18} fill="black" />
+                  </button>
+                </>
               )}
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* Tracks Section */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between border-b border-[#282828] pb-3">
-          <div className="flex items-center gap-3">
-            <h3 className="text-lg font-bold text-white tracking-tight">
-              Songs
-            </h3>
-            <span className="text-xs font-medium text-zinc-400">
-              {songs.length} {songs.length === 1 ? "track" : "tracks"}
-            </span>
+      {/* ====================================================================== */}
+      {/*                              TRACK LIST                                */}
+      {/* ====================================================================== */}
+
+      <section className="px-6 pb-10 pt-6 md:px-10">
+        {/* Header */}
+        <div className="grid grid-cols-12 items-center border-b border-white/10 px-4 pb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
+          <div className="col-span-1 text-center">#</div>
+
+          <div className="col-span-7 md:col-span-6">
+            Title
+          </div>
+
+          <div className="col-span-3 hidden md:block">
+            Artist
+          </div>
+
+          <div className="col-span-4 text-right md:col-span-2">
+            <Clock size={16} className="ml-auto" />
           </div>
         </div>
 
-        <div className="space-y-1">
-          {/* Table Header */}
-          <div className="grid grid-cols-12 w-full px-4 py-2 text-zinc-400 text-xs font-semibold uppercase tracking-wider border-b border-[#282828] select-none">
-            <div className="col-span-1 text-center">#</div>
-            <div className="col-span-6 md:col-span-6">Title</div>
-            <div className="col-span-3 hidden md:block">Artist</div>
-            <div className="col-span-2 text-right pr-4 flex justify-end items-center">
-              <Clock size={16} />
-            </div>
-          </div>
+        {/* Songs */}
+        <div className="mt-2 flex flex-col">
+          {songs.length > 0 ? (
+            songs.map((song: any, index: number) => {
+              const isActive = currentSong?.id === song.id;
+              const isCurrentPlaying = isActive && isPlaying;
 
-          <div className="flex flex-col gap-1 pt-1">
-            {songs.length > 0 ? (
-              songs.map((song: any, index: number) => {
-                const isActive = currentSong?.id === song.id;
-                const isCurrentPlaying = isActive && isPlaying;
-                return (
-                  <div
-                    key={song.id}
-                    onClick={() => {
-                      if (isActive) {
-                        playerActions.setIsPlaying(!isPlaying);
-                      } else {
-                        const allPlayerSongs = mapListToPlayerSongs(songs);
-                        playerActions.playAllFrom(allPlayerSongs, index);
-                      }
-                    }}
-                    className={`group grid grid-cols-12 items-center px-4 py-2.5 rounded-md border border-transparent transition-all duration-200 text-left cursor-pointer hover:bg-[#282828] ${
-                      isActive ? "bg-[#282828]" : ""
-                    }`}
-                  >
-                    {/* Index */}
-                    <div className="col-span-1 text-center text-zinc-400 text-xs font-medium flex items-center justify-center">
-                      {isActive ? (
-                        isCurrentPlaying ? (
-                          <Pause
-                            size={14}
-                            className="text-primary fill-primary"
-                          />
-                        ) : (
-                          <Play
-                            size={14}
-                            className="text-primary fill-primary"
-                          />
-                        )
+              const songImage = getImageUrl(
+                song.imageKey || song.coverImageKey,
+                {
+                  width: 100,
+                  height: 100,
+                  aspectRatio: "1-1",
+                }
+              );
+
+              return (
+                <motion.div
+                  key={song.id}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{
+                    duration: 0.2,
+                    delay: Math.min(index * 0.015, 0.3),
+                  }}
+                  onClick={() => handlePlaySong(song, index)}
+                  className={`group grid cursor-pointer grid-cols-12 items-center rounded-md px-4 py-2.5 transition-colors duration-150 ${
+                    isActive
+                      ? "bg-white/10"
+                      : "hover:bg-white/[0.07]"
+                  }`}
+                >
+                  {/* ======================================================== */}
+                  {/* INDEX */}
+                  {/* ======================================================== */}
+
+                  <div className="col-span-1 flex items-center justify-center">
+                    {isActive ? (
+                      isCurrentPlaying ? (
+                        <Pause
+                          size={14}
+                          className="text-primary"
+                          fill="currentColor"
+                        />
                       ) : (
-                        <>
-                          <span className="group-hover:hidden">
-                            {index + 1}
-                          </span>
-                          <Play
-                            size={14}
-                            className="hidden group-hover:block text-white fill-white"
+                        <Play
+                          size={14}
+                          className="text-primary"
+                          fill="currentColor"
+                        />
+                      )
+                    ) : (
+                      <>
+                        <span className="text-xs text-zinc-500 group-hover:hidden">
+                          {index + 1}
+                        </span>
+
+                        <Play
+                          size={14}
+                          fill="white"
+                          className="hidden text-white group-hover:block"
+                        />
+                      </>
+                    )}
+                  </div>
+
+                  {/* ======================================================== */}
+                  {/* TITLE */}
+                  {/* ======================================================== */}
+
+                  <div className="col-span-7 flex min-w-0 items-center gap-3 md:col-span-6">
+                    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-md bg-zinc-900">
+                      {songImage ? (
+                        <img
+                          src={songImage}
+                          alt={song.title}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center">
+                          <Music
+                            size={17}
+                            className="text-zinc-600"
                           />
-                        </>
+                        </div>
                       )}
                     </div>
 
-                    {/* Title & Thumbnail */}
-                    <div className="col-span-6 md:col-span-6 flex items-center gap-3 min-w-0 pr-4">
-                      <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-zinc-900 shadow-sm">
-                        {song.imageKey || song.coverImageKey ? (
-                          <img
-                            src={
-                              getImageUrl(song.imageKey || song.coverImageKey, {
-                                width: 100,
-                                height: 100,
-                                aspectRatio: "1-1",
-                              })!
-                            }
-                            alt={song.title}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="h-full w-full flex items-center justify-center text-zinc-600">
-                            <Music size={16} />
-                          </div>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <h4
-                          className={`font-semibold truncate text-sm transition-colors ${
-                            isActive
-                              ? "text-primary"
-                              : "text-white group-hover:text-white"
-                          }`}
-                        >
-                          {song.title}
-                        </h4>
-                        <p className="text-xs text-zinc-400 truncate block md:hidden mt-0.5">
-                          {song.artistName}
-                        </p>
-                      </div>
-                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4
+                        className={`truncate text-sm font-medium transition-colors ${
+                          isActive
+                            ? "text-primary"
+                            : "text-white"
+                        }`}
+                      >
+                        {song.title}
+                      </h4>
 
-                    {/* Artist */}
-                    <div className="col-span-3 hidden md:block min-w-0 pr-4">
-                      <span className="text-zinc-400 font-normal text-xs hover:underline hover:text-white transition-colors truncate block">
+                      <p className="mt-0.5 truncate text-xs text-zinc-400">
                         {song.artistName}
-                      </span>
+                      </p>
                     </div>
+                  </div>
 
-                    {/* Duration & Delete Action */}
-                    <div className="col-span-2 flex items-center justify-end gap-3 text-zinc-400 text-xs font-normal tabular-nums pr-2">
-                      <span>{formatDuration(song.duration)}</span>
-                      {isUserPlaylist && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toast.promise(removeSong.mutateAsync(song.id), {
+                  {/* ======================================================== */}
+                  {/* ARTIST */}
+                  {/* ======================================================== */}
+
+                  <div className="col-span-3 hidden min-w-0 md:block">
+                    <span className="block truncate text-sm text-zinc-400 transition-colors group-hover:text-white">
+                      {song.artistName}
+                    </span>
+                  </div>
+
+                  {/* ======================================================== */}
+                  {/* DURATION / DELETE */}
+                  {/* ======================================================== */}
+
+                  <div className="col-span-4 flex items-center justify-end gap-4 text-xs tabular-nums text-zinc-400 md:col-span-2">
+                    {isUserPlaylist && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+
+                          toast.promise(
+                            removeSong.mutateAsync(song.id),
+                            {
                               loading: "Removing track...",
                               success: "Track Removed",
                               error: "Failed to remove",
                               description: `"${song.title}" removed from playlist.`,
-                            });
-                          }}
-                          className="p-1 rounded text-zinc-400 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                          title="Remove from playlist"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </div>
+                            }
+                          );
+                        }}
+                        className="hidden rounded p-1 text-zinc-500 transition-colors hover:text-red-400 group-hover:block"
+                        title="Remove from playlist"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+
+                    <span>
+                      {formatDuration(song.duration)}
+                    </span>
                   </div>
-                );
-              })
-            ) : (
-              <div className="py-16 text-center border border-dashed border-[#282828] rounded-xl font-medium">
-                <Music className="mx-auto text-zinc-600 mb-3" size={36} />
-                <p className="text-zinc-400 text-xs font-normal">
-                  No songs in this playlist yet
-                </p>
-              </div>
-            )}
-          </div>
+                </motion.div>
+              );
+            })
+          ) : (
+            <div className="rounded-xl border border-dashed border-white/10 py-20 text-center">
+              <Music
+                size={40}
+                className="mx-auto mb-4 text-zinc-700"
+              />
+
+              <p className="text-sm text-zinc-500">
+                No songs in this playlist yet
+              </p>
+            </div>
+          )}
         </div>
       </section>
     </div>
