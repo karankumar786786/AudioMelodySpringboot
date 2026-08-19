@@ -82,7 +82,7 @@ export function LeftSidebar() {
             <img
                 src="/image.png"
                 alt="Logo"
-                className="w-full h-full object-contain grayscale "
+                className="w-full h-full object-contain  "
             />
           </div>
           <span className="text-lg font-bold text-white tracking-tight">

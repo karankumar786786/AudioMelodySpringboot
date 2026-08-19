@@ -116,9 +116,8 @@ export default function HomePage() {
         />
       </motion.div>
 
-
       {/* 2. Top Artists Section */}
-      <section className="space-y-4">
+      <section className="space-y-3 -mt-12">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-white tracking-tight">
             Top Artists
@@ -129,7 +128,7 @@ export default function HomePage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.4 }}
-          className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar px-1"
+          className="flex flex-row overflow-x-auto gap-4 pb-4 no-scrollbar px-1"
         >
           {isArtistsLoading
             ? [1, 2, 3, 4, 5, 6].map((i) => (
@@ -143,7 +142,6 @@ export default function HomePage() {
               ))}
         </motion.div>
       </section>
-
 
       {/* 3. Featured Playlists Section */}
       <section className="space-y-4">
@@ -201,7 +199,6 @@ export default function HomePage() {
             </section>
           </>
         )}
-
 
       {/* 5. Discovery Feed */}
       <section className="space-y-4">

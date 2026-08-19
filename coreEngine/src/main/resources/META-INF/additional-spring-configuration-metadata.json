@@ -128,5 +128,10 @@
     "name": "s3.production-bucket",
     "type": "java.lang.String",
     "description": "A description for 's3.production-bucket'"
+  },
+  {
+    "name": "spring.data.redis.deletequeue",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.data.redis.deletequeue'"
   }
 ]}

@@ -26,4 +26,4 @@ interface Data{
     } catch (error) {
         
     }
-})(process.env.MAIL_QUEUE!);
+})(process.env.MAIL_QUEUE! || "mail_queue");

@@ -69,7 +69,7 @@ export function HeroSection({
 
   if (isLoading) {
     return (
-      <div className="w-full h-112.5 rounded-[3rem] bg-zinc-950/40 backdrop-blur-md border border-white/5 overflow-hidden relative flex items-center justify-between p-16 animate-pulse">
+      <div className="w-full h-103.5 rounded-[3rem] bg-zinc-950/40 backdrop-blur-md border border-white/5 overflow-hidden relative flex items-center justify-between p-16  animate-pulse">
         <div className="space-y-6 w-1/2">
           <div className="h-4 w-24 bg-white/5 rounded-full" />
           <div className="space-y-3">
@@ -100,7 +100,7 @@ export function HeroSection({
               quality: 85,
             })}
             initial={{ opacity: 0 }}
-            animate={{ opacity: 0.15 }}
+            animate={{ opacity: 0.30 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5 }}
             className="absolute inset-0 w-full h-full object-cover filter blur-xl"

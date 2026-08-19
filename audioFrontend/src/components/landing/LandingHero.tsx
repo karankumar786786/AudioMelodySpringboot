@@ -127,16 +127,6 @@ export function LandingHero() {
 
   return (
     <main className="max-w-6xl mx-auto px-6 pt-28 md:pt-36 pb-16 relative z-10 flex flex-col items-center">
-      {/* Badge */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-8 text-xs font-medium text-zinc-300 bg-[#181818] border border-[#282828]"
-      >
-        <Sparkles className="w-3.5 h-3.5 text-primary" />
-        High Fidelity Music • Real-Time Lyrics
-      </motion.div>
 
       {/* Heading */}
       <div className="text-center max-w-3xl space-y-5 mb-10">
