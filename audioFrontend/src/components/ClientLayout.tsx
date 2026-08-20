@@ -35,7 +35,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
   if (!mounted) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-screen bg-[#121212]">
+      <div className="flex-1 flex items-center justify-center min-h-screen bg-black">
         <div className="animate-pulse text-zinc-400 font-medium text-sm">
           Loading OneMelody...
         </div>
@@ -48,7 +48,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   // Guest View (Landing Page)
   if (!systemUser) {
     return (
-      <div className="flex-1 flex flex-col min-h-screen bg-[#121212] overflow-y-auto">
+      <div className="flex-1 flex flex-col min-h-screen bg-black overflow-y-auto">
         <AuthModal />
         {isPublicRoute ? children : null}
       </div>
@@ -59,10 +59,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <AuthModal />
-      <div className="fixed inset-0 pointer-events-none z-0 bg-[#121212]" />
+      <div className="fixed inset-0 pointer-events-none z-0 bg-black" />
 
       <LeftSidebar />
-      <div className="flex-1 flex flex-col min-w-0 ml-64 mr-80 overflow-hidden relative z-10 bg-[#121212]">
+      <div className="flex-1 flex flex-col min-w-0 ml-64 mr-80 overflow-hidden relative z-10 bg-black">
         <AppNavbar />
         <main className="flex-1 overflow-y-auto no-scrollbar pb-24">
           {children}

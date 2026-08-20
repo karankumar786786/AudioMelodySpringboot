@@ -88,7 +88,7 @@ export function RightInfoPanel() {
 
   if (!currentSong) {
     return (
-      <aside className="w-80 bg-[#121212] border-l border-[#282828] h-screen fixed right-0 top-0 z-40 p-6 flex flex-col items-center justify-center text-center pb-24">
+      <aside className="w-80 bg-black border-l border-[#282828] h-screen fixed right-0 top-0 z-40 p-6 flex flex-col items-center justify-center text-center pb-24">
         <div className="w-14 h-14 rounded-full bg-[#181818] border border-[#282828] flex items-center justify-center text-zinc-600 mb-3">
           <Info size={24} />
         </div>

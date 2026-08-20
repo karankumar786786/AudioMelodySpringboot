@@ -32,7 +32,7 @@ body {
 /* ─── Landing Page Theme ─── */
 
 .landing-bg {
-  background-color: #121212;
+  background-color: #000000;
 }
 
 /* ─── Modern Utilities ─── */
@@ -42,7 +42,7 @@ body {
 }
 
 @utility glass-effect-strong {
-  @apply bg-[#121212] border border-[#282828];
+  @apply bg-black border border-[#282828];
 }
 
 /* Premium card */
