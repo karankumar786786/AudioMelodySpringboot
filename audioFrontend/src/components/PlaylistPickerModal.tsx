@@ -5,11 +5,11 @@ import { musicApi, type Playlist } from "@/lib/api";
 import { playerStore } from "@/store/player.store";
 import { useStore } from "@tanstack/react-store";
 import { motion, AnimatePresence } from "framer-motion";
-import { ListMusic, X, Plus, ChevronRight } from "lucide-react";
+import { ListMusic, X, Plus, ChevronRight, Music } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { getImageUrl } from "@/lib/image-utils";
+import { PlaylistThumbnail } from "@/components/PlaylistThumbnail";
 
 interface PlaylistPickerModalProps {
   songId: string;
@@ -250,22 +250,7 @@ export function PlaylistPickerModal({
                         className="w-full flex items-center justify-between p-2.5 rounded-md hover:bg-[#282828] transition-colors group disabled:opacity-50 cursor-pointer"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-9 h-9 bg-zinc-900 rounded-md overflow-hidden flex items-center justify-center text-zinc-500 group-hover:text-primary transition-colors shrink-0">
-                            {playlist.coverImageKey ? (
-                              <img
-                                src={getImageUrl(playlist.coverImageKey, {
-                                  width: 80,
-                                  height: 80,
-                                  focus: "auto",
-                                  aspectRatio: "1-1",
-                                })}
-                                className="w-full h-full object-cover"
-                                alt=""
-                              />
-                            ) : (
-                              <ListMusic size={16} />
-                            )}
-                          </div>
+                          <PlaylistThumbnail playlist={playlist} size={36} />
                           <span className="text-sm font-semibold text-zinc-200 group-hover:text-white truncate transition-colors">
                             {playlist.name}
                           </span>

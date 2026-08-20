@@ -8,6 +8,7 @@ import {
   Plus,
   X,
 } from "lucide-react";
+import { PlaylistThumbnail } from "@/components/PlaylistThumbnail";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -71,7 +72,7 @@ export function LeftSidebar() {
   };
 
   return (
-    <aside className="w-[230px] bg-black border-r border-[#282828] flex flex-col h-screen fixed left-0 top-0 z-50 overflow-hidden">
+    <aside className="w-[260px] bg-black border-r border-[#282828] flex flex-col h-screen fixed left-0 top-0 z-50 overflow-hidden">
       <div className="p-5 flex flex-col h-full bg-black">
         {/* Logo */}
         <div
@@ -222,20 +223,13 @@ export function LeftSidebar() {
                     key={playlist.id}
                     href={`/my-playlists/${playlist.id}`}
                     onClick={handleSidebarClick}
-                    className={`flex items-center gap-3 px-2.5 py-2 rounded-md text-[13.5px] font-bold transition-all truncate ${
+                    className={`flex items-center gap-3 px-2.5 py-2 rounded-md text-[14px] font-bold transition-all ${
                       pathname === `/my-playlists/${playlist.id}`
                         ? "text-white bg-[#282828]"
                         : "text-zinc-300 hover:text-white hover:bg-[#1a1a1a]"
                     }`}
                   >
-                    <ListMusic
-                      size={16}
-                      className={`shrink-0 ${
-                        pathname === `/my-playlists/${playlist.id}`
-                          ? "text-primary"
-                          : "text-zinc-400"
-                      }`}
-                    />
+                    <PlaylistThumbnail playlist={playlist} size={40} />
                     <span className="truncate">{playlist.name}</span>
                   </Link>
                 ))
