@@ -27,7 +27,7 @@ export default function FavouritesPage() {
   if (!isMounted) return null;
 
   return (
-    <div className="px-10 pb-20 pt-6">
+    <div className="px-10 pb-20 pt-20">
       <section>
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold text-white tracking-tight">

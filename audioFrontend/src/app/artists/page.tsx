@@ -15,7 +15,7 @@ export default function ArtistsPage() {
   const artists = artistsResponse?.data?.data || [];
 
   return (
-    <div className="px-10 pb-20 pt-6 space-y-8 ">
+    <div className="px-10 pb-20 pt-20 space-y-8 ">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}

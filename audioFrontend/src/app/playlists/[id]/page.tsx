@@ -191,7 +191,7 @@ export default function PlaylistPage() {
       {/*                    HERO — full-bleed background image                 */}
       {/* ====================================================================== */}
 
-      <section className="relative h-[40vh] min-h-[320px] max-h-[420px] w-full overflow-hidden">
+      <section className="relative h-[45vh] min-h-[360px] max-h-[460px] w-full overflow-hidden">
         {/* Background image, or a plain dark fallback if there's no cover */}
         {coverUrl ? (
           <img

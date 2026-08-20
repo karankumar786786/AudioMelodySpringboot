@@ -3,7 +3,7 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import { motion } from "framer-motion";
-import { Clock, ListMusic, Sparkles, Users2, Zap } from "lucide-react";
+import { Clock } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { ArtistCard } from "../../components/ArtistCard";
 import { HeroSection } from "../../components/HeroSection";
@@ -17,12 +17,6 @@ export default function HomePage() {
   const [heroIndex, setHeroIndex] = useState(0);
   const triggerRef = useRef<HTMLDivElement>(null);
 
-  const getGreeting = () => {
-    const hrs = new Date().getHours();
-    if (hrs < 12) return "Good Morning";
-    if (hrs < 18) return "Good Afternoon";
-    return "Good Evening";
-  };
 
   // Trending Songs (Featured)
   const { data: trending, isLoading: isTrendingLoading } = useQuery({
@@ -108,7 +102,7 @@ export default function HomePage() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
-    <div className="px-10 pb-20 bg-black pt-6 space-y-16">
+    <div className="px-10 pb-20 bg-black pt-20 space-y-16">
       {/* 1. Hero Section (Featured/Trending) */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
@@ -126,7 +120,7 @@ export default function HomePage() {
       
 
       {/* 2. Top Artists Section */}
-      <section className="space-y-1 -mt-8">
+      <section className="space-y-1 -mt-7">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-white tracking-tight">
             Top Artists

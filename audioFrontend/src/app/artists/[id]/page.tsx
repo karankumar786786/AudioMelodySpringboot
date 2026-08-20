@@ -171,7 +171,7 @@ export default function ArtistPage() {
       {/* ====================================================================== */}
 
       <section
-        className="relative overflow-hidden px-8 pb-8 pt-12 md:px-10"
+        className="relative overflow-hidden px-8 pb-8 pt-24 md:px-10 md:pt-28"
         style={{
           background: `
             linear-gradient(

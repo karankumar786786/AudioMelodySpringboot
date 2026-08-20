@@ -10,7 +10,6 @@ import {
   LogOut,
   Play,
   Search,
-  Sparkles,
   User,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -30,6 +29,12 @@ export function AppNavbar() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const menuRef = useRef<HTMLDivElement>(null);
+  const getGreeting = () => {
+    const hrs = new Date().getHours();
+    if (hrs < 12) return "Good Morning";
+    if (hrs < 18) return "Good Afternoon";
+    return "Good Evening";
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -102,7 +107,7 @@ export function AppNavbar() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 w-full px-10 py-4 flex items-center justify-between pointer-events-none bg-black backdrop-blur-md">
+    <header className="absolute top-0 left-0 right-0 z-40 px-10 py-4 flex items-center justify-between pointer-events-none bg-gradient-to-b from-black/50 via-black/15 to-transparent">
       {/* Search Input Container */}
       <div
         className="flex items-center gap-6 pointer-events-auto relative"
@@ -340,7 +345,7 @@ export function AppNavbar() {
           <div className="flex items-center gap-4">
             {/* Welcome Greeting */}
             <span className="text-xs font-medium text-zinc-400">
-              Welcome,{" "}
+              {getGreeting()},{" "}
               <span className="text-white font-semibold">
                 {systemUser?.name || "User"}
               </span>
