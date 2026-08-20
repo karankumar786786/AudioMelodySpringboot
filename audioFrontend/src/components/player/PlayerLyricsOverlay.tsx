@@ -135,14 +135,13 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
       onScroll={handleUserScroll}
       onWheel={handleUserScroll}
       onTouchMove={handleUserScroll}
-      className="flex-1 w-full overflow-y-auto no-scrollbar px-6 py-6 flex flex-col items-center select-none relative"
+      className="flex-1 w-full overflow-y-auto no-scrollbar px-6 sm:px-12 py-8 flex flex-col items-center select-none relative"
     >
       {hasTranscriptions ? (
         <>
-          <div className="space-y-6 w-full max-w-2xl text-center py-6">
+          <div className="space-y-7 w-full max-w-2xl text-left py-8">
             {transcriptions.map((entry, idx) => {
               const isActive = idx === activeIndex;
-              const isPast = idx < activeIndex;
 
               return (
                 <div
@@ -153,29 +152,26 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
                     if (onSeek) onSeek(entry.start_time_seconds);
                     handleResync();
                   }}
-                  className={`cursor-pointer transition-all duration-300 px-4 py-2 rounded-xl ${
+                  className={`cursor-pointer transition-all duration-200 py-1 rounded-lg ${
                     isActive
-                      ? "scale-105"
-                      : "hover:text-white/80 opacity-80 hover:opacity-100"
+                      ? "text-white"
+                      : "text-white/40 hover:text-white/80"
                   }`}
                 >
                   {entry.words && entry.words.length > 0 ? (
-                    <div className="flex flex-wrap justify-center gap-x-2 gap-y-1">
+                    <div className="flex flex-wrap gap-x-2.5 gap-y-1">
                       {entry.words.map((word, wIdx) => {
                         const isWordActive =
                           localTime >= word.start && localTime <= word.end;
-                        const isWordPast = localTime > word.end;
                         return (
                           <span
                             key={wIdx}
-                            className={`text-xl sm:text-2xl md:text-3xl font-bold transition-colors duration-150 ${
+                            className={`text-2xl sm:text-3xl md:text-[32px] font-extrabold tracking-tight transition-colors duration-100 ${
                               isWordActive
-                                ? "text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.6)]"
+                                ? "text-white drop-shadow-[0_0_16px_rgba(255,255,255,0.85)]"
                                 : isActive
                                 ? "text-white"
-                                : isWordPast || isPast
-                                ? "text-white/40"
-                                : "text-white/20"
+                                : "text-white/40 hover:text-white/80"
                             }`}
                           >
                             {word.text}
@@ -185,12 +181,10 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
                     </div>
                   ) : (
                     <p
-                      className={`text-xl sm:text-2xl md:text-3xl font-bold transition-colors duration-300 ${
+                      className={`text-2xl sm:text-3xl md:text-[32px] font-extrabold tracking-tight transition-colors duration-200 ${
                         isActive
-                          ? "text-white scale-105"
-                          : isPast
-                          ? "text-white/40"
-                          : "text-white/25"
+                          ? "text-white drop-shadow-md"
+                          : "text-white/40 hover:text-white/80"
                       }`}
                     >
                       {entry.transcript}
@@ -202,8 +196,8 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
           </div>
         </>
       ) : currentCaption ? (
-        <div className="my-auto text-center px-4 max-w-2xl">
-          <p className="text-2xl sm:text-3xl font-bold text-white leading-relaxed">
+        <div className="my-auto text-left px-4 max-w-2xl">
+          <p className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white leading-relaxed">
             {currentCaption.transcript}
           </p>
         </div>

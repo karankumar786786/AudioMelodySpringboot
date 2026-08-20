@@ -1,16 +1,16 @@
 /**
- * Generates or extracts a solid dark background color based on the majority color of a song's image.
+ * Generates or extracts a solid vibrant dark background color based on the dominant color of a song's image.
  */
 
-// Simple deterministic hash to HSL dark color fallback
+// Deterministic hash to rich, vibrant HSL color fallback
 export function stringToSolidDarkColor(str: string): string {
-  if (!str) return "#181818";
+  if (!str) return "hsl(15, 85%, 30%)";
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
   const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 80%, 18%)`;
+  return `hsl(${hue}, 80%, 30%)`;
 }
 
 /**
@@ -47,7 +47,7 @@ function rgbToHsl(r: number, g: number, b: number) {
 }
 
 /**
- * Extract majority (dominant) color from song image URL using fine-grained histogram color buckets.
+ * Extract majority (dominant) vibrant color from song image URL.
  */
 export async function getSolidBgFromImage(
   imageUrl?: string | null,
@@ -70,7 +70,7 @@ export async function getSolidBgFromImage(
       clearTimeout(timeout);
       try {
         const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
         if (!ctx) {
           resolve(fallbackColor);
           return;
@@ -86,7 +86,6 @@ export async function getSolidBgFromImage(
         // Color histogram quantization map: bucketKey -> { count, r, g, b }
         const colorBuckets: Record<string, { count: number; r: number; g: number; b: number }> = {};
 
-        // Inspect every pixel (i += 4) with 16-step quantization for high sensitivity
         for (let i = 0; i < data.length; i += 4) {
           const r = data[i];
           const g = data[i + 1];
@@ -96,23 +95,23 @@ export async function getSolidBgFromImage(
           // Skip transparent pixels
           if (a < 128) continue;
 
-          // Skip extreme black and extreme white unless image has no other color
+          // Skip extreme black and extreme white
           const sum = r + g + b;
-          if (sum < 25 || (r > 245 && g > 245 && b > 245)) {
+          if (sum < 30 || (r > 240 && g > 240 && b > 240)) {
             continue;
           }
 
-          // Fine 16-step quantization (4096 bins)
+          // 16-step quantization
           const qR = Math.floor(r / 16) * 16 + 8;
           const qG = Math.floor(g / 16) * 16 + 8;
           const qB = Math.floor(b / 16) * 16 + 8;
           const key = `${qR},${qG},${qB}`;
 
-          // Saturation weighting bonus to pick prominent artwork color over neutral background
+          // Heavy saturation & vibrancy weighting to pick rich artist colors (like warm reds/browns/teals/purples)
           const maxChannel = Math.max(r, g, b);
           const minChannel = Math.min(r, g, b);
           const saturationBonus = maxChannel > 0 ? (maxChannel - minChannel) / maxChannel : 0;
-          const weight = 1 + saturationBonus * 2.5;
+          const weight = 1 + saturationBonus * 4.0;
 
           if (!colorBuckets[key]) {
             colorBuckets[key] = { count: 0, r: qR, g: qG, b: qB };
@@ -120,7 +119,7 @@ export async function getSolidBgFromImage(
           colorBuckets[key].count += weight;
         }
 
-        // Find majority bucket
+        // Find highest scored bucket
         let majorityBucket: { count: number; r: number; g: number; b: number } | null = null;
         let maxCount = 0;
 
@@ -139,10 +138,13 @@ export async function getSolidBgFromImage(
         const { r: majR, g: majG, b: majB } = majorityBucket;
         const hsl = rgbToHsl(majR, majG, majB);
 
-        // Calibrate to rich deep solid color (18% lightness, 65-95% saturation) like Spotify #580606 maroon red
-        const solidRichHsl = `hsl(${hsl.h}, ${Math.min(95, Math.max(65, hsl.s))}%, 18%)`;
+        // Calibrate to bright, vivid, rich Spotify solid background:
+        // Lightness between 28% and 38% for strong visible color brightness, Saturation 75% - 95%
+        const targetLightness = Math.min(38, Math.max(28, hsl.l > 40 ? Math.round(hsl.l * 0.75) : Math.round(hsl.l * 1.25)));
+        const targetSaturation = Math.min(95, Math.max(75, hsl.s));
+        const solidRichHsl = `hsl(${hsl.h}, ${targetSaturation}%, ${targetLightness}%)`;
         resolve(solidRichHsl);
-      } catch (err) {
+      } catch {
         resolve(fallbackColor);
       }
     };

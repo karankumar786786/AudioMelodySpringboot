@@ -12,6 +12,8 @@ import {
   Play,
   Heart,
   Plus,
+  MoreHorizontal,
+  CheckCircle2,
 } from "lucide-react";
 
 import { playerStore, playerActions } from "@/store/player.store";
@@ -34,9 +36,13 @@ function formatDuration(num?: number) {
 export function RightInfoPanel() {
   const currentSong = useStore(playerStore, (s) => s.currentSong);
   const systemUser = useStore(playerStore, (s) => s.systemUser);
+  const favourites = useStore(playerStore, (s) => s.favourites);
 
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
-  const [isFavourite, setIsFavourite] = useState(false);
+
+  const isFavourite = currentSong
+    ? Array.from(favourites).some((id) => String(id) === String(currentSong.id))
+    : false;
 
   // Song + Artist information
   const { data: info, isLoading } = useQuery({
@@ -104,16 +110,17 @@ export function RightInfoPanel() {
 
   const songImage = currentSong.imageKey
     ? getImageUrl(currentSong.imageKey, {
-        width: 500,
-        height: 500,
+        width: 700,
+        height: 700,
+        quality: 90,
         aspectRatio: "1-1",
       })
-    : "";
+    : currentSong.posterUrl;
 
   const artistCoverUrl = currentSong.imageKey
     ? getImageUrl(currentSong.imageKey, {
-        width: 400,
-        height: 400,
+        width: 600,
+        height: 600,
         aspectRatio: "1-1",
       })
     : null;
@@ -130,19 +137,36 @@ export function RightInfoPanel() {
   };
 
   const handleFavourite = () => {
-    setIsFavourite((prev) => !prev);
+    if (!systemUser?.id) {
+      toast.error("Sign in required", {
+        description: "Please sign in to save songs to your library.",
+      });
+      return;
+    }
 
-    // Connect your actual favourite API here.
-    // Example:
-    // musicApi.interactions.toggleFavourite(currentSong.id)
+    toast.promise(playerActions.toggleFavourite(currentSong.id), {
+      loading: isFavourite
+        ? "Removing from Favourites..."
+        : "Adding to Favourites...",
+      success: () => {
+        return isFavourite ? "Removed from Favourites" : "Added to Favourites";
+      },
+      error: "Failed to update favourites",
+      description: () => {
+        return isFavourite
+          ? `"${currentSong.title}" removed from your collection.`
+          : `"${currentSong.title}" added to your collection.`;
+      },
+    });
   };
 
   return (
     <>
-      <aside className="w-80 bg-black  h-screen fixed right-0 top-0 z-40 p-5 flex flex-col overflow-y-auto no-scrollbar pb-28">
+      <aside className="w-80 bg-black border-l border-[#282828] h-screen fixed right-0 top-0 z-40 p-4 flex flex-col overflow-y-auto no-scrollbar pb-28">
+
         {isLoading ? (
-          <div className="space-y-6 animate-pulse">
-            <div className="w-full h-64 bg-zinc-900 rounded-xl" />
+          <div className="space-y-6 animate-pulse mt-2">
+            <div className="w-full h-64 bg-zinc-900 rounded-lg" />
             <div className="h-5 w-3/4 bg-zinc-800 rounded" />
             <div className="h-3 w-1/2 bg-zinc-800 rounded" />
             <div className="h-px bg-[#282828]" />
@@ -150,14 +174,13 @@ export function RightInfoPanel() {
             <div className="h-20 bg-zinc-900 rounded" />
           </div>
         ) : (
-          <div className="space-y-7">
+          <div className="space-y-6 mt-1">
             {/* ============================= */}
-            {/* 1. CURRENT SONG */}
+            {/* 1. SPOTIFY TRACK CARD */}
             {/* ============================= */}
-
             <section>
               {/* Song Image */}
-              <div className="w-full aspect-square rounded-xl overflow-hidden bg-zinc-900 shadow-xl">
+              <div className="w-full aspect-square rounded-lg overflow-hidden bg-zinc-900 shadow-2xl relative group">
                 {songImage ? (
                   <img
                     src={songImage}
@@ -171,62 +194,111 @@ export function RightInfoPanel() {
                 )}
               </div>
 
-              {/* Song title + artist + actions */}
-              <div className="mt-4">
-                <div className="flex items-center gap-2">
-                  {/* Title */}
-                  <h2 className="text-lg font-bold text-white truncate min-w-0 flex-1">
+              {/* Track Info & Actions (Spotify Layout) */}
+              <div className="mt-3.5 flex items-start justify-between gap-3 px-0.5">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-xl font-bold text-white tracking-tight truncate hover:underline cursor-pointer leading-tight">
                     {currentSong.title}
                   </h2>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={handleFavourite}
-                      className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all ${
-                        isFavourite
-                          ? "border-primary text-primary"
-                          : "border-[#333] text-zinc-400 hover:text-white hover:border-white"
-                      }`}
-                      title="Favourite"
-                    >
-                      <Heart
-                        size={19}
-                        fill={isFavourite ? "currentColor" : "none"}
-                      />
-                    </button>
-
-                    <button
-                      onClick={handlePlaylist}
-                      className="w-10 h-10 rounded-full border border-[#333] text-zinc-400 hover:text-white hover:border-white flex items-center justify-center transition-all"
-                      title="Add to playlist"
-                    >
-                      <Plus size={19} />
-                    </button>
-                  </div>
+                  <p className="text-sm font-normal text-zinc-400 truncate mt-1 hover:text-white hover:underline cursor-pointer">
+                    {currentSong.artistName}
+                  </p>
                 </div>
 
-                {/* Artist */}
-                <p className="text-sm text-zinc-400 truncate mt-1">
-                  {currentSong.artistName}
-                </p>
+                {/* Right Action Icons */}
+                <div className="flex items-center gap-3 shrink-0 pt-1">
+                  <button
+                    onClick={handlePlaylist}
+                    className="text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                    title="Add to playlist"
+                  >
+                    <Plus size={20} />
+                  </button>
+
+                  <button
+                    onClick={handleFavourite}
+                    className="transition-transform active:scale-90 cursor-pointer"
+                    title={isFavourite ? "Liked" : "Like"}
+                  >
+                    {isFavourite ? (
+                      <CheckCircle2
+                        size={20}
+                        className="text-[#1ed760] fill-[#1ed760] text-black"
+                      />
+                    ) : (
+                      <Heart
+                        size={20}
+                        className="text-zinc-400 hover:text-white transition-colors"
+                      />
+                    )}
+                  </button>
+                </div>
               </div>
             </section>
 
             {/* ============================= */}
-            {/* 2. RELATED SONGS */}
+            {/* 2. ABOUT THE ARTIST */}
             {/* ============================= */}
+            <section className="bg-[#181818] border border-[#282828] rounded-xl overflow-hidden p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-sm font-bold text-white">About the artist</h3>
+              </div>
 
-            {artistMoreSongs.length > 0 && (
-              <section className="border-t border-[#282828] pt-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <ListMusic size={16} className="text-zinc-400" />
-
-                    <h3 className="text-sm font-bold text-white">
-                      Related Songs
-                    </h3>
+              {/* Artist image */}
+              <div className="relative w-full h-44 rounded-lg overflow-hidden bg-zinc-900 border border-[#282828] shadow-md">
+                {info?.artist?.image ? (
+                  <img
+                    src={info.artist.image}
+                    alt={info.artist.name}
+                    className="w-full h-full object-cover object-top"
+                  />
+                ) : artistCoverUrl ? (
+                  <img
+                    src={artistCoverUrl}
+                    alt={info?.artist?.name || currentSong.artistName}
+                    className="w-full h-full object-cover object-top"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-800 to-black text-zinc-500 font-bold text-4xl">
+                    {currentSong.artistName?.charAt(0) || "A"}
                   </div>
+                )}
+
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent flex items-end p-3">
+                  <h4 className="text-sm font-bold text-white truncate">
+                    {info?.artist?.name || currentSong.artistName}
+                  </h4>
+                </div>
+              </div>
+
+              {/* Artist description */}
+              <p className="text-xs text-zinc-300 leading-relaxed mt-3 line-clamp-4">
+                {info?.artist?.description ||
+                  "No artist biography available at this time."}
+              </p>
+
+              {info?.artist?.source && (
+                <a
+                  href={info.artist.source}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-medium mt-2.5"
+                >
+                  View on Wikipedia
+                  <ExternalLink size={11} />
+                </a>
+              )}
+            </section>
+
+            {/* ============================= */}
+            {/* 3. RELATED SONGS */}
+            {/* ============================= */}
+            {artistMoreSongs.length > 0 && (
+              <section className="bg-[#181818] border border-[#282828] rounded-xl overflow-hidden p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-bold text-white">
+                    Related Songs
+                  </h3>
                 </div>
 
                 <div className="space-y-1">
@@ -243,10 +315,10 @@ export function RightInfoPanel() {
                       <div
                         key={song.id}
                         onClick={() => playerActions.playSong(song)}
-                        className="group flex items-center gap-3 p-2 rounded-lg hover:bg-[#181818] transition-colors cursor-pointer"
+                        className="group flex items-center gap-3 p-2 rounded-lg hover:bg-[#282828] transition-colors cursor-pointer"
                       >
                         {/* Image */}
-                        <div className="relative w-12 h-12 rounded-md overflow-hidden bg-zinc-900 shrink-0">
+                        <div className="relative w-11 h-11 rounded-md overflow-hidden bg-zinc-900 shrink-0">
                           {songImg ? (
                             <img
                               src={songImg}
@@ -292,92 +364,32 @@ export function RightInfoPanel() {
             )}
 
             {/* ============================= */}
-            {/* 3. ABOUT SONG */}
+            {/* 4. ABOUT THE SONG */}
             {/* ============================= */}
-
-            <section className="border-t border-[#282828] pt-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Music size={16} className="text-primary" />
-
-                <h3 className="text-sm font-bold text-white">About the Song</h3>
-              </div>
-
-              <p className="text-xs text-zinc-300 leading-relaxed">
-                {info?.song?.description ||
-                  "No additional background description found for this song."}
-              </p>
-
-              {info?.song?.source && (
-                <a
-                  href={info.song.source}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium mt-3"
-                >
-                  View on Wikipedia
-                  <ExternalLink size={12} />
-                </a>
-              )}
-            </section>
-
-            {/* ============================= */}
-            {/* 4. ABOUT ARTIST */}
-            {/* ============================= */}
-
-            <section className="border-t border-[#282828] pt-5">
-              <div className="flex items-center gap-2 mb-3">
-                <User size={16} className="text-primary" />
-
-                <h3 className="text-sm font-bold text-white">
-                  About the Artist
-                </h3>
-              </div>
-
-              {/* Artist image */}
-              <div className="relative w-full h-48 rounded-xl overflow-hidden bg-zinc-900 border border-[#282828] shadow-lg">
-                {info?.artist?.image ? (
-                  <img
-                    src={info.artist.image}
-                    alt={info.artist.name}
-                    className="w-full h-full object-cover object-top"
-                  />
-                ) : artistCoverUrl ? (
-                  <img
-                    src={artistCoverUrl}
-                    alt={info?.artist?.name || currentSong.artistName}
-                    className="w-full h-full object-cover object-top"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-800 to-black text-zinc-500 font-bold text-4xl">
-                    {currentSong.artistName?.charAt(0) || "A"}
-                  </div>
-                )}
-
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent flex items-end p-3">
-                  <h4 className="text-base font-bold text-white">
-                    {info?.artist?.name || currentSong.artistName}
-                  </h4>
+            {info?.song?.description && (
+              <section className="bg-[#181818] border border-[#282828] rounded-xl overflow-hidden p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Music size={15} className="text-primary" />
+                  <h3 className="text-sm font-bold text-white">About the Song</h3>
                 </div>
-              </div>
 
-              {/* Artist description */}
-              <p className="text-xs text-zinc-300 leading-relaxed mt-4">
-                {info?.artist?.description ||
-                  "No artist biography available at this time."}
-              </p>
+                <p className="text-xs text-zinc-300 leading-relaxed line-clamp-5">
+                  {info.song.description}
+                </p>
 
-              {info?.artist?.source && (
-                <a
-                  href={info.artist.source}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium mt-3"
-                >
-                  View on Wikipedia
-                  <ExternalLink size={12} />
-                </a>
-              )}
-            </section>
+                {info.song.source && (
+                  <a
+                    href={info.song.source}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-medium mt-2.5"
+                  >
+                    View on Wikipedia
+                    <ExternalLink size={11} />
+                  </a>
+                )}
+              </section>
+            )}
           </div>
         )}
       </aside>
