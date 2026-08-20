@@ -102,7 +102,7 @@ export function AppNavbar() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 w-full px-8 py-4 flex items-center justify-between pointer-events-none bg-black backdrop-blur-md ">
+    <header className="sticky top-0 z-40 w-full px-10 py-4 flex items-center justify-between pointer-events-none bg-black backdrop-blur-md">
       {/* Search Input Container */}
       <div
         className="flex items-center gap-6 pointer-events-auto relative"
