@@ -100,7 +100,7 @@ export function HeroSection({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.5, ease: "easeOut" }}
               className="absolute inset-0 w-full h-full object-cover object-[70%_center]"
-              style={{ filter: "brightness(1.1) saturate(1.2) contrast(1.02)" }}
+              style={{ filter: "brightness(0.9) saturate(1.2) contrast(1.02)" }}
               alt={currentSong.title}
             />
           )}
