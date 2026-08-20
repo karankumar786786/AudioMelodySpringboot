@@ -39,6 +39,18 @@ public class UserHistoryRepository {
                 .getResultList();
     }
 
+    public List<UserHistoryEntity> findRecentByUser(UsersEntity user, int limit) {
+        // Get the most recent listen per distinct song for this user
+        return entityManager.createQuery(
+                "SELECT h FROM UserHistoryEntity h WHERE h.user = :user " +
+                "AND h.listenedAt = (SELECT MAX(h2.listenedAt) FROM UserHistoryEntity h2 WHERE h2.user = :user AND h2.song = h.song) " +
+                "ORDER BY h.listenedAt DESC",
+                UserHistoryEntity.class)
+                .setParameter("user", user)
+                .setMaxResults(limit)
+                .getResultList();
+    }
+
     public long countByUser(UsersEntity user) {
         return entityManager.createQuery(
                 "SELECT COUNT(h) FROM UserHistoryEntity h WHERE h.user = :user", Long.class)

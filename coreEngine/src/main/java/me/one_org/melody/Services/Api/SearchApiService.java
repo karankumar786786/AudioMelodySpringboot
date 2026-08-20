@@ -56,18 +56,6 @@ public class SearchApiService {
         List<ArtistsEntity> artists = artistsRepository.findAllByIds(artistIds);
         List<PlaylistsEntity> playlists = playlistsRepository.findAllByIds(playlistIds);
 
-        // 3. Save search history
-        if (userId != null) {
-            usersRepository.findById(userId).ifPresent(user -> {
-                UserSearchHistoryEntity history = UserSearchHistoryEntity.builder()
-                        .id(UUID.randomUUID().toString())
-                        .user(user)
-                        .searchedText(query)
-                        .build();
-                searchHistoryRepository.save(history);
-            });
-        }
-
         return new SearchResult(songs, artists, playlists);
     }
 }

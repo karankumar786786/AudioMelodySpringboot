@@ -26,6 +26,10 @@ public class SongsApiService {
         return songsRepository.findAllPaginated(page, size);
     }
 
+    public List<SongsEntity> getTrendingSongs(int limit) {
+        return songsRepository.findTrending(limit);
+    }
+
     @Cacheable(value = "songs", key = "#id")
     public SongsEntity getSongById(String id) {
         return songsRepository.findById(id)

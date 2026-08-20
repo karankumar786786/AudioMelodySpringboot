@@ -52,6 +52,24 @@ public class UserHistoryApiService {
         return searchHistoryRepository.findByUser(user);
     }
 
+    public List<UserHistoryResponseDto> getRecentlyPlayed(String userId) {
+        UsersEntity user = getUser(userId);
+        List<UserHistoryEntity> recent = userHistoryRepository.findRecentByUser(user, 10);
+        return recent.stream()
+                .map(this::mapToDto)
+                .toList();
+    }
+
+    public void saveSearchHistory(String userId, String searchText) {
+        UsersEntity user = getUser(userId);
+        UserSearchHistoryEntity history = UserSearchHistoryEntity.builder()
+                .id(java.util.UUID.randomUUID().toString())
+                .user(user)
+                .searchedText(searchText)
+                .build();
+        searchHistoryRepository.save(history);
+    }
+
     private UsersEntity getUser(String userId) {
         return usersRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));

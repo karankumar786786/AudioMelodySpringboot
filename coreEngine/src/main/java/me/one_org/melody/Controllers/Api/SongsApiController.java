@@ -29,6 +29,12 @@ public class SongsApiController {
         return ResponseEntity.ok(new PaginatedResponseDto<>(songs, page, size, metaData));
     }
 
+    @GetMapping("/trending")
+    public ResponseEntity<List<SongsEntity>> getTrendingSongs(
+            @RequestParam(defaultValue = "10") int limit) {
+        return ResponseEntity.ok(songsAppService.getTrendingSongs(limit));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<SongsEntity> getSongById(@PathVariable String id) {
         return ResponseEntity.ok(songsAppService.getSongById(id));

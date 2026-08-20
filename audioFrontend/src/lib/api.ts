@@ -307,22 +307,30 @@ export const musicApi = {
       await request(`/api/interaction/favourite/${songId}`, { method: "DELETE" });
       return { success: true };
     },
+    getRecentlyPlayed: async () => {
+      const res = await request<any[]>("/api/user/history/recent");
+      const list = Array.isArray(res) ? res : [];
+      return { data: { data: list } };
+    },
     getSearchHistory: async (page = 1, size = 10) => {
       const res = await request("/api/user/history/search");
       const list = Array.isArray(res) ? res : [];
       return { data: { data: list } };
     },
-    saveSearchHistory: async (queryText: string) => {
-      return { success: true };
-    },
-    clearSearchHistory: async () => {
+    saveSearchHistory: async (searchText: string) => {
+      if (!searchText || !searchText.trim()) return { success: true };
+      await request("/api/user/history/search", {
+        method: "POST",
+        body: JSON.stringify({ searchText: searchText.trim() }),
+      });
       return { success: true };
     },
   },
   interactions: {
-    getTrending: async (page = 1, size = 10) => {
-      const res = await request(`/api/songs?page=${page - 1}&size=${size}`);
-      return formatPaginated<Song>(res);
+    getTrending: async (limit = 10) => {
+      const res = await request<Song[]>(`/api/songs/trending?limit=${limit}`);
+      const list = Array.isArray(res) ? res : [];
+      return { data: { data: list } };
     },
     getRecommendations: async () => {
       try {

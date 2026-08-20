@@ -64,6 +64,13 @@ export default function HomePage() {
     enabled: !!systemUser?.id && !!systemToken,
   });
 
+  // Recently Played (Last 10 listened songs)
+  const { data: recentlyPlayed } = useQuery({
+    queryKey: ["recently-played", systemUser?.id],
+    queryFn: () => musicApi.users.getRecentlyPlayed(),
+    enabled: !!systemUser?.id && !!systemToken,
+  });
+
   // Auto-switch hero if trending data exists
   useEffect(() => {
     if (!trending?.data?.data || trending.data.data.length <= 1) return;
@@ -116,8 +123,41 @@ export default function HomePage() {
         />
       </motion.div>
 
-      {/* 2. Top Artists Section */}
-      <section className="space-y-3 -mt-12">
+      {/* 2. Recently Played Section (Conditional) */}
+      {systemUser && (recentlyPlayed?.data?.data?.length ?? 0) > 0 && (
+        <section className="space-y-4 -mt-12">
+          <div className="flex items-center gap-2">
+            <Clock size={20} className="text-primary" />
+            <h2 className="text-xl font-bold text-white tracking-tight">
+              Recently Played
+            </h2>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
+            className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar px-1"
+          >
+            {recentlyPlayed?.data?.data?.map((song: Song) => (
+              <SongCard
+                key={`recent-${song.id}`}
+                song={song}
+                className="flex-none w-[200px]"
+              />
+            ))}
+          </motion.div>
+        </section>
+      )}
+
+      {/* 3. Top Artists Section */}
+      <section
+        className={`space-y-3 ${
+          systemUser && (recentlyPlayed?.data?.data?.length ?? 0) > 0
+            ? ""
+            : "-mt-12"
+        }`}
+      >
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-white tracking-tight">
             Top Artists

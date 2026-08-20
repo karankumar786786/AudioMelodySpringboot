@@ -40,6 +40,40 @@ public class SongsRepository {
                 .getResultList();
     }
 
+    public List<SongsEntity> findTrending(int limit) {
+        List<SongsEntity> trending = entityManager.createQuery(
+                "SELECT h.song FROM UserHistoryEntity h " +
+                "WHERE h.song.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
+                "GROUP BY h.song " +
+                "ORDER BY COUNT(h) DESC", SongsEntity.class)
+                .setMaxResults(limit)
+                .getResultList();
+
+        if (trending.size() < limit) {
+            List<String> existingIds = trending.stream().map(SongsEntity::getId).toList();
+            int remaining = limit - trending.size();
+            List<SongsEntity> fallback;
+            if (existingIds.isEmpty()) {
+                fallback = entityManager.createQuery(
+                        "SELECT s FROM SongsEntity s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt DESC",
+                        SongsEntity.class)
+                        .setMaxResults(remaining)
+                        .getResultList();
+            } else {
+                fallback = entityManager.createQuery(
+                        "SELECT s FROM SongsEntity s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND s.id NOT IN :existingIds ORDER BY s.createdAt DESC",
+                        SongsEntity.class)
+                        .setParameter("existingIds", existingIds)
+                        .setMaxResults(remaining)
+                        .getResultList();
+            }
+            List<SongsEntity> combined = new java.util.ArrayList<>(trending);
+            combined.addAll(fallback);
+            return combined;
+        }
+        return trending;
+    }
+
     public long count() {
         return entityManager.createQuery("SELECT COUNT(s) FROM SongsEntity s", Long.class)
                 .getSingleResult();

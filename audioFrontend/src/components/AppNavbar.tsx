@@ -61,26 +61,13 @@ export function AppNavbar() {
       queryClient.invalidateQueries({ queryKey: ["search-history"] }),
   });
 
-  const clearHistory = useMutation({
-    mutationFn: () => musicApi.users.clearSearchHistory(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["search-history"] });
-      toast.success("History Cleared", {
-        description: "Your search history has been cleared.",
-      });
-    },
-  });
-
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!query.trim()) return;
-    if (systemUser?.id) saveHistory.mutate(query.trim());
-    // In-navbar search: focus remains, results shown dynamically
+    // Search results are rendered dynamically on typing; do not persist query on form submit
   };
 
   const handleRecentClick = (text: string) => {
     setQuery(text);
-    if (systemUser?.id) saveHistory.mutate(text);
   };
 
   const handlePlaySong = (song: any) => {
@@ -153,14 +140,6 @@ export function AppNavbar() {
                     <span className="text-xs font-semibold text-zinc-400">
                       Recent Searches
                     </span>
-                    {systemUser && (
-                      <button
-                        onClick={() => clearHistory.mutate()}
-                        className="text-xs font-semibold text-primary hover:underline"
-                      >
-                        Clear all
-                      </button>
-                    )}
                   </div>
                   <div className="p-2">
                     {!systemUser ? (
