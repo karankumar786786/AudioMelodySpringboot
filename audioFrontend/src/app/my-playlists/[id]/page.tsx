@@ -91,12 +91,35 @@ export default function MyPlaylistPage() {
   /*                                COVER IMAGE                                 */
   /* -------------------------------------------------------------------------- */
 
+  // A playlist may have an explicit custom cover. If it doesn't, we build a
+  // Spotify-style cover from the tracks themselves: a 2x2 mosaic when there
+  // are 4+ songs, the first song's art when there are 1-3, or the plain
+  // ListMusic icon when the playlist is empty.
   const coverUrl = getImageUrl(playlist?.coverImageKey, {
     width: 600,
     height: 600,
     focus: "auto",
     aspectRatio: "1-1",
   });
+
+  const hasCustomCover = Boolean(coverUrl);
+
+  const mosaicImages = songs.slice(0, 4).map((song: any) =>
+    getImageUrl(song.imageKey || song.coverImageKey, {
+      width: 300,
+      height: 300,
+      aspectRatio: "1-1",
+    })
+  );
+
+  const showMosaic = !hasCustomCover && songs.length >= 4;
+  const showSingleSongImage =
+    !hasCustomCover && songs.length > 0 && songs.length < 4;
+  const singleSongImage = showSingleSongImage ? mosaicImages[0] : null;
+
+  // Whichever image is actually on screen is what we pull the background
+  // gradient color from, same as Spotify does off the visible artwork.
+  const colorSourceImage = coverUrl || mosaicImages[0] || null;
 
   /* -------------------------------------------------------------------------- */
   /*                         EXTRACT PLAYLIST COLOR                             */
@@ -105,19 +128,21 @@ export default function MyPlaylistPage() {
   useEffect(() => {
     let cancelled = false;
     async function extractColor() {
-      if (!coverUrl) {
+      if (!colorSourceImage) {
         setBackgroundColor("#181818");
         return;
       }
       const color = await getSolidBgFromImage(
-        coverUrl,
+        colorSourceImage,
         playlist?.name || "playlist"
       );
       if (!cancelled) setBackgroundColor(color);
     }
     extractColor();
-    return () => { cancelled = true; };
-  }, [coverUrl, playlist?.name]);
+    return () => {
+      cancelled = true;
+    };
+  }, [colorSourceImage, playlist?.name]);
 
   /* -------------------------------------------------------------------------- */
   /*                                  LOADING                                   */
@@ -214,28 +239,46 @@ export default function MyPlaylistPage() {
           background: `linear-gradient(to bottom, ${backgroundColor} 0%, ${backgroundColor} 35%, rgba(0,0,0,0.92) 100%)`,
         }}
       >
-        <div className="pointer-events-none absolute inset-0 bg-black/10" />
-
-        {/* Back button */}
-        <button
-          onClick={() => router.back()}
-          className="relative z-10 mb-6 flex items-center gap-2 text-sm text-zinc-400 hover:text-white transition-colors"
-        >
-          <ArrowLeft size={16} /> Back
-        </button>
+       
 
         {/* Playlist information */}
         <div className="relative z-10 flex flex-col items-center gap-7 md:flex-row md:items-end">
-          {/* Cover */}
+          {/* Cover — custom cover, 4-song mosaic, single song art, or icon */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35 }}
             className="h-52 w-52 shrink-0 overflow-hidden rounded-md bg-zinc-900 shadow-2xl md:h-56 md:w-56"
           >
-            {coverUrl ? (
+            {hasCustomCover ? (
               <img
                 src={coverUrl}
+                alt={playlist?.name || "Playlist"}
+                className="h-full w-full object-cover"
+              />
+            ) : showMosaic ? (
+              <div className="grid h-full w-full grid-cols-2 grid-rows-2">
+                {mosaicImages.map((img: string | null, i: number) =>
+                  img ? (
+                    <img
+                      key={i}
+                      src={img}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div
+                      key={i}
+                      className="flex h-full w-full items-center justify-center bg-zinc-800"
+                    >
+                      <Music size={20} className="text-zinc-600" />
+                    </div>
+                  )
+                )}
+              </div>
+            ) : showSingleSongImage && singleSongImage ? (
+              <img
+                src={singleSongImage}
                 alt={playlist?.name || "Playlist"}
                 className="h-full w-full object-cover"
               />
