@@ -45,10 +45,10 @@ export function PlaylistCard({ playlist }: PlaylistCardProps) {
           </div>
         </div>
         <div className="space-y-1">
-          <h3 className="font-semibold text-white truncate text-sm">
+          <h3 className="font-bold text-white truncate text-[14px]">
             {playlist.name}
           </h3>
-          <p className="text-xs text-zinc-400 truncate font-normal">
+          <p className="text-xs text-zinc-300 truncate font-medium">
             {playlist.description || "Playlist"}
           </p>
         </div>

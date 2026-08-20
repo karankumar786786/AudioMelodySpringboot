@@ -83,13 +83,13 @@ export function SongCard({
 
         <div className="space-y-1">
           <h3
-            className={`font-semibold truncate text-sm transition-colors ${
+            className={`font-bold truncate text-[14.5px] tracking-tight transition-colors ${
               isActiveSong ? "text-primary" : "text-white"
             }`}
           >
             {song.title}
           </h3>
-          <p className="text-xs font-normal text-zinc-400 truncate">
+          <p className="text-xs font-medium text-zinc-300 truncate hover:text-white">
             {song.artistName}
           </p>
         </div>

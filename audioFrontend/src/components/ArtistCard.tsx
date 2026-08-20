@@ -35,10 +35,10 @@ export function ArtistCard({ artist }: ArtistCardProps) {
           />
         </div>
         <div className="space-y-1">
-          <h3 className="font-semibold text-white truncate text-sm">
+          <h3 className="font-bold text-white truncate text-[14px]">
             {artist.name}
           </h3>
-          <p className="text-xs text-zinc-400 font-normal">
+          <p className="text-xs text-zinc-300 font-medium">
             Artist
           </p>
         </div>

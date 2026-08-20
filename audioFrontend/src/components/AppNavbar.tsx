@@ -118,9 +118,9 @@ export function AppNavbar() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setIsFocused(true)}
-            className="bg-[#282828] border border-transparent hover:border-[#383838] focus:border-white rounded-full py-2.5 pl-11 pr-8 text-xs font-medium focus:ring-0 transition-all outline-none w-full text-white placeholder-zinc-400 shadow-md relative z-10"
+            className="bg-[#282828] border border-white/10 hover:border-white/25 focus:border-white rounded-full py-2.5 pl-11 pr-8 text-xs font-semibold focus:ring-0 transition-all outline-none w-full text-white placeholder-zinc-300 shadow-md relative z-10"
           />
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-400 group-focus-within:text-white transition-colors z-20">
+          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-300 group-focus-within:text-white transition-colors z-20">
             <Search size={16} />
           </div>
         </form>

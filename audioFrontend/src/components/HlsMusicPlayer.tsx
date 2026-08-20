@@ -243,7 +243,7 @@ export function HlsMusicPlayer() {
       {isLyricsOpen && (
         <div
           style={{ backgroundColor: solidBgColor }}
-          className="fixed left-64 right-80 top-0 bottom-20 z-40 flex flex-col p-6 overflow-y-auto no-scrollbar animate-in fade-in duration-300 transition-colors duration-500"
+          className="fixed left-[230px] right-80 top-0 bottom-20 z-40 flex flex-col p-6 overflow-y-auto no-scrollbar animate-in fade-in duration-300 transition-colors duration-500"
         >
           {/* Header pinned at top */}
           <div className="sticky top-0 z-50 flex items-center justify-between pb-4 border-b border-[#282828] bg-inherit backdrop-blur-md shrink-0 pt-2">

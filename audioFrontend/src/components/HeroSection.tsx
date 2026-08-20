@@ -35,7 +35,6 @@ export function HeroSection({
   const systemUser = useStore(playerStore, (s) => s.systemUser);
   const favourites = useStore(playerStore, (s) => s.favourites);
 
-  // Normalize IDs to strings when checking favourites to avoid type mismatches
   const isFavourite = currentSong
     ? Array.from(favourites).some((id) => String(id) === String(currentSong.id))
     : false;
@@ -69,7 +68,7 @@ export function HeroSection({
 
   if (isLoading) {
     return (
-      <div className="w-full h-80 rounded-xl bg-zinc-900/60 border border-[#282828] overflow-hidden relative flex flex-col justify-between p-8 md:p-12 animate-pulse">
+      <div className="w-full h-80 rounded-2xl bg-zinc-900/60 border border-[#282828] overflow-hidden relative flex flex-col justify-between p-8 md:p-12 animate-pulse">
         <div className="space-y-4 max-w-lg">
           <div className="h-5 w-28 bg-zinc-800 rounded-full" />
           <div className="h-10 w-3/4 bg-zinc-800 rounded-lg" />
@@ -84,80 +83,87 @@ export function HeroSection({
   if (!currentSong) return null;
 
   const bgImageUrl = currentSong.imageKey
-    ? getImageUrl(currentSong.imageKey, {
-        width: 1400,
-        height: 700,
-        quality: 90,
-      })
-    : currentSong.imageKey;
+    ? getImageUrl(currentSong.imageKey, { width: 1400, height: 700, quality: 95 })
+    : undefined;
 
   return (
-    <section className="relative w-full h-80 md:h-[300px] rounded-xl overflow-hidden group bg-black border border-[#282828] shadow-2xl">
-      {/* ─── Sharp High-Res Background Image with Gradient Fade ─── */}
+    <section className="relative w-full h-[320px] md:h-[360px] rounded-2xl overflow-hidden group bg-zinc-900 border border-white/10 shadow-2xl">
+      {/* ─── High-Res Background Image – bright, saturated, vivid ─── */}
       <div className="absolute inset-0 z-0">
         <AnimatePresence mode="wait">
           {bgImageUrl && (
             <motion.img
               key={currentSong.id}
               src={bgImageUrl}
-              initial={{ opacity: 0, scale: 1.0 }}
+              initial={{ opacity: 0, scale: 1.05 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.5, ease: "easeOut" }}
-              className="absolute inset-0 w-full h-full object-cover object-right md:object-[75%_center]"
+              className="absolute inset-0 w-full h-full object-cover object-[70%_center]"
+              style={{ filter: "brightness(1.15) saturate(1.3) contrast(1.05)" }}
               alt={currentSong.title}
             />
           )}
         </AnimatePresence>
 
-        {/* Gradient Overlays for optimal text contrast and seamless fade into black */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/85 md:via-black/60 to-transparent z-1" />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/20 z-1" />
+        {/* Light left-side gradient — only covers ~55% from left so image is visible and bright */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent z-[1]" />
+        {/* Very subtle top/bottom vignette */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-[1]" />
       </div>
 
       {/* ─── Content Layer ─── */}
-      <div className="relative z-10 h-full w-full flex flex-col justify-between p-8 md:p-12">
+      <div className="relative z-10 h-full w-full flex flex-col justify-between p-8 md:p-10">
 
-        {/* Middle: Title, Artist & Meta */}
-        <div className="max-w-xl md:max-w-2xl space-y-3">
+        {/* Top badge */}
+        <div>
+          <span className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-sm border border-white/15 text-white/90 text-[10.5px] font-bold uppercase tracking-widest rounded-full px-3 py-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            Featured
+          </span>
+        </div>
+
+        {/* Title, Artist & Meta */}
+        <div className="max-w-xl md:max-w-2xl space-y-2">
           <motion.h1
             key={`title-${currentSong.id}`}
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35 }}
-            className="text-3xl md:text-5xl font-black text-white tracking-tight leading-tight line-clamp-2 drop-shadow-md"
+            className="text-3xl md:text-5xl font-black text-white tracking-tight leading-tight line-clamp-2"
+            style={{ textShadow: "0 2px 24px rgba(0,0,0,0.7)" }}
           >
             {currentSong.title}
           </motion.h1>
 
           <motion.p
             key={`artist-${currentSong.id}`}
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, delay: 0.05 }}
-            className="text-sm md:text-base text-zinc-300 font-medium"
+            className="text-sm md:text-base text-zinc-200 font-semibold"
           >
             by{" "}
-            <span className="text-white font-semibold hover:underline cursor-pointer">
+            <span className="text-white font-bold hover:underline cursor-pointer">
               {currentSong.artistName}
             </span>
           </motion.p>
 
-          <div className="flex items-center gap-3 text-xs text-zinc-400 font-medium pt-0.5">
+          <div className="flex items-center gap-3 text-xs text-zinc-300 font-semibold pt-0.5">
             <span>{formatDuration(currentSong.duration)}</span>
-            <span className="w-1 h-1 rounded-full bg-zinc-600" />
+            <span className="w-1 h-1 rounded-full bg-zinc-400" />
             <span>{currentSong.language || "Stereo"}</span>
-            <span className="w-1 h-1 rounded-full bg-zinc-600" />
-            <span className="text-primary font-semibold">High Quality Audio</span>
+            <span className="w-1 h-1 rounded-full bg-zinc-400" />
+            <span className="text-primary font-bold">High Quality Audio</span>
           </div>
         </div>
 
         {/* Bottom: Play / Favourite Actions & Carousel Progress */}
-        <div className="flex items-center justify-between pt-2">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => playerActions.play(mapToPlayerSong(currentSong))}
-              className="h-11 px-7 bg-primary hover:scale-105 active:scale-95 text-black rounded-full font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg hover:shadow-primary/20 transition-all cursor-pointer"
+              className="h-11 px-8 bg-white hover:bg-zinc-100 hover:scale-105 active:scale-95 text-black rounded-full font-extrabold text-xs uppercase tracking-wider flex items-center gap-2 shadow-2xl transition-all cursor-pointer"
             >
               <Play fill="black" size={16} />
               Play
@@ -167,12 +173,10 @@ export function HeroSection({
               onClick={handleToggleFavourite}
               className={`h-11 w-11 rounded-full border flex items-center justify-center transition-all cursor-pointer backdrop-blur-md ${
                 isFavourite
-                  ? "text-primary border-primary/40 bg-primary/10"
-                  : "border-white/15 text-white hover:text-primary hover:bg-white/10 hover:border-white/30"
+                  ? "text-primary border-primary/50 bg-primary/15"
+                  : "border-white/30 text-white hover:text-primary hover:bg-white/15 hover:border-white/50"
               }`}
-              title={
-                isFavourite ? "Remove from Favourites" : "Add to Favourites"
-              }
+              title={isFavourite ? "Remove from Favourites" : "Add to Favourites"}
             >
               <Heart fill={isFavourite ? "currentColor" : "none"} size={18} />
             </button>
@@ -185,7 +189,7 @@ export function HeroSection({
                 <button
                   key={i}
                   onClick={() => setIndex(i)}
-                  className="h-1.5 rounded-full cursor-pointer relative overflow-hidden transition-all duration-300 bg-white/20"
+                  className="h-1.5 rounded-full cursor-pointer relative overflow-hidden transition-all duration-300 bg-white/30"
                   style={{
                     width: i === index ? "28px" : "8px",
                   }}
