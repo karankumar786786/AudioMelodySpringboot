@@ -69,87 +69,95 @@ export function HeroSection({
 
   if (isLoading) {
     return (
-      <div className="w-full h-103.5 rounded-[3rem] bg-zinc-950/40 backdrop-blur-md border border-white/5 overflow-hidden relative flex items-center justify-between p-16  animate-pulse">
-        <div className="space-y-6 w-1/2">
-          <div className="h-4 w-24 bg-white/5 rounded-full" />
-          <div className="space-y-3">
-            <div className="h-12 w-[85%] bg-white/5 rounded-2xl" />
-            <div className="h-12 w-[60%] bg-white/5 rounded-2xl" />
-          </div>
-          <div className="h-6 w-32 bg-white/5 rounded-full" />
-          <div className="h-14 w-40 bg-white/5 rounded-full pt-4" />
+      <div className="w-full h-80 rounded-xl bg-zinc-900/60 border border-[#282828] overflow-hidden relative flex flex-col justify-between p-8 md:p-12 animate-pulse">
+        <div className="space-y-4 max-w-lg">
+          <div className="h-5 w-28 bg-zinc-800 rounded-full" />
+          <div className="h-10 w-3/4 bg-zinc-800 rounded-lg" />
+          <div className="h-4 w-1/3 bg-zinc-800 rounded" />
+          <div className="h-4 w-1/2 bg-zinc-800 rounded" />
         </div>
-        <div className="w-60 h-60 rounded-4xl bg-white/5 hidden md:block" />
+        <div className="h-11 w-32 bg-zinc-800 rounded-full" />
       </div>
     );
   }
 
   if (!currentSong) return null;
 
+  const bgImageUrl = currentSong.imageKey
+    ? getImageUrl(currentSong.imageKey, {
+        width: 1400,
+        height: 700,
+        quality: 90,
+      })
+    : currentSong.imageKey;
+
   return (
-    <section className="relative w-full h-80 rounded-xl overflow-hidden group  bg-black">
-      {/* Soft dark ambient backdrop */}
-      <div className="absolute inset-0 z-0 bg-black">
+    <section className="relative w-full h-80 md:h-[300px] rounded-xl overflow-hidden group bg-black border border-[#282828] shadow-2xl">
+      {/* ─── Sharp High-Res Background Image with Gradient Fade ─── */}
+      <div className="absolute inset-0 z-0">
         <AnimatePresence mode="wait">
-          <motion.img
-            key={currentSong.id}
-            src={getImageUrl(currentSong.imageKey, {
-              width: 1200,
-              height: 600,
-              blur: 15,
-              quality: 85,
-            })}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.30 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
-            className="absolute inset-0 w-full h-full object-cover filter blur-xl"
-            alt=""
-          />
+          {bgImageUrl && (
+            <motion.img
+              key={currentSong.id}
+              src={bgImageUrl}
+              initial={{ opacity: 0, scale: 1.0 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="absolute inset-0 w-full h-full object-cover object-right md:object-[75%_center]"
+              alt={currentSong.title}
+            />
+          )}
         </AnimatePresence>
+
+        {/* Gradient Overlays for optimal text contrast and seamless fade into black */}
+        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/85 md:via-black/60 to-transparent z-1" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-black/20 z-1" />
       </div>
 
-      {/* Content Grid */}
-      <div className="relative z-10 h-full w-full grid grid-cols-1 md:grid-cols-12 gap-8 items-center px-12 py-6">
-        {/* Left Side: Information & Actions */}
-        <div className="md:col-span-8 flex flex-col justify-center h-full text-left">
-          <motion.div
+      {/* ─── Content Layer ─── */}
+      <div className="relative z-10 h-full w-full flex flex-col justify-between p-8 md:p-12">
+
+        {/* Middle: Title, Artist & Meta */}
+        <div className="max-w-xl md:max-w-2xl space-y-3">
+          <motion.h1
+            key={`title-${currentSong.id}`}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            key={`meta-${currentSong.id}`}
-            transition={{ duration: 0.4 }}
-            className="space-y-3"
+            transition={{ duration: 0.35 }}
+            className="text-3xl md:text-5xl font-black text-white tracking-tight leading-tight line-clamp-2 drop-shadow-md"
           >
-            <h1 className="text-3xl lg:text-4xl font-bold text-white tracking-tight leading-tight line-clamp-2">
-              {currentSong.title}
-            </h1>
+            {currentSong.title}
+          </motion.h1>
 
-            <p className="text-sm text-zinc-400 font-normal">
-              by{" "}
-              <span className="text-white font-medium hover:underline cursor-pointer">
-                {currentSong.artistName}
-              </span>
-            </p>
-
-            <div className="flex items-center gap-3 text-xs text-zinc-400 font-medium pt-1">
-              <span>{formatDuration(currentSong.duration)}</span>
-              <span className="w-1 h-1 rounded-full bg-zinc-600" />
-              <span>{currentSong.language || "Stereo"}</span>
-              <span className="w-1 h-1 rounded-full bg-zinc-600" />
-              <span className="text-primary font-medium">High Quality Audio</span>
-            </div>
-          </motion.div>
-
-          <motion.div
+          <motion.p
+            key={`artist-${currentSong.id}`}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            key={`actions-${currentSong.id}`}
-            transition={{ delay: 0.1, duration: 0.4 }}
-            className="flex items-center gap-4 mt-6"
+            transition={{ duration: 0.35, delay: 0.05 }}
+            className="text-sm md:text-base text-zinc-300 font-medium"
           >
+            by{" "}
+            <span className="text-white font-semibold hover:underline cursor-pointer">
+              {currentSong.artistName}
+            </span>
+          </motion.p>
+
+          <div className="flex items-center gap-3 text-xs text-zinc-400 font-medium pt-0.5">
+            <span>{formatDuration(currentSong.duration)}</span>
+            <span className="w-1 h-1 rounded-full bg-zinc-600" />
+            <span>{currentSong.language || "Stereo"}</span>
+            <span className="w-1 h-1 rounded-full bg-zinc-600" />
+            <span className="text-primary font-semibold">High Quality Audio</span>
+          </div>
+        </div>
+
+        {/* Bottom: Play / Favourite Actions & Carousel Progress */}
+        <div className="flex items-center justify-between pt-2">
+          <div className="flex items-center gap-4">
             <button
               onClick={() => playerActions.play(mapToPlayerSong(currentSong))}
-              className="h-11 px-6 bg-primary hover:scale-105 text-black rounded-full font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-md transition-all cursor-pointer"
+              className="h-11 px-7 bg-primary hover:scale-105 active:scale-95 text-black rounded-full font-bold text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg hover:shadow-primary/20 transition-all cursor-pointer"
             >
               <Play fill="black" size={16} />
               Play
@@ -157,10 +165,10 @@ export function HeroSection({
 
             <button
               onClick={handleToggleFavourite}
-              className={`h-11 w-11 rounded-full border border-white/10 flex items-center justify-center transition-all cursor-pointer ${
+              className={`h-11 w-11 rounded-full border flex items-center justify-center transition-all cursor-pointer backdrop-blur-md ${
                 isFavourite
                   ? "text-primary border-primary/40 bg-primary/10"
-                  : "text-white hover:text-primary hover:bg-white/5"
+                  : "border-white/15 text-white hover:text-primary hover:bg-white/10 hover:border-white/30"
               }`}
               title={
                 isFavourite ? "Remove from Favourites" : "Add to Favourites"
@@ -168,63 +176,36 @@ export function HeroSection({
             >
               <Heart fill={isFavourite ? "currentColor" : "none"} size={18} />
             </button>
-          </motion.div>
-        </div>
+          </div>
 
-        {/* Right Side: Album Cover */}
-        <div className="hidden md:col-span-4 md:flex items-center justify-center h-full relative">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentSong.id}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.4 }}
-              className="relative w-48 h-48 cursor-pointer"
-            >
-              <div className="absolute inset-0 rounded-lg overflow-hidden border border-[#282828] z-10 bg-zinc-900 shadow-xl">
-                <img
-                  src={getImageUrl(currentSong.imageKey, {
-                    width: 500,
-                    height: 500,
-                    focus: "auto",
-                  })}
-                  className="w-full h-full object-cover select-none pointer-events-none"
-                  alt={currentSong.title}
-                />
-              </div>
-            </motion.div>
-          </AnimatePresence>
+          {/* Carousel Dots */}
+          {songs.length > 1 && (
+            <div className="flex items-center gap-2">
+              {songs.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setIndex(i)}
+                  className="h-1.5 rounded-full cursor-pointer relative overflow-hidden transition-all duration-300 bg-white/20"
+                  style={{
+                    width: i === index ? "28px" : "8px",
+                  }}
+                  title={`Track ${i + 1}`}
+                >
+                  {i === index && (
+                    <motion.div
+                      key={`progress-${currentSong.id}`}
+                      initial={{ left: "-100%" }}
+                      animate={{ left: "0%" }}
+                      transition={{ duration: 8, ease: "linear" }}
+                      className="absolute top-0 bottom-0 left-0 right-0 bg-primary rounded-full"
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
-
-      {/* Carousel Dots */}
-      {songs.length > 1 && (
-        <div className="absolute bottom-6 right-12 z-20 flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            {songs.map((_, i) => (
-              <button
-                key={i}
-                onClick={() => setIndex(i)}
-                className="h-1.5 rounded-full cursor-pointer relative overflow-hidden transition-all duration-300 bg-white/20"
-                style={{
-                  width: i === index ? "24px" : "6px",
-                }}
-              >
-                {i === index && (
-                  <motion.div
-                    key={`progress-${currentSong.id}`}
-                    initial={{ left: "-100%" }}
-                    animate={{ left: "0%" }}
-                    transition={{ duration: 8, ease: "linear" }}
-                    className="absolute top-0 bottom-0 left-0 right-0 bg-primary rounded-full"
-                  />
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
     </section>
   );
 }

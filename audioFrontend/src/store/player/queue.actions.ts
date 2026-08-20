@@ -216,15 +216,15 @@ export const queueActions = {
           const data = res?.data?.data || res?.data;
           if (!data || (Array.isArray(data) && data.length === 0)) {
             console.log("⚠️ Recommendations returned 0 tracks. Fallback: Requesting trending songs from GET /api/songs...");
-            res = await musicApi.interactions.getTrending(1, 20);
+            res = await musicApi.interactions.getTrending(20);
           }
         } catch (err) {
           console.warn("⚠️ Recommendations request failed. Fallback: Requesting trending songs from GET /api/songs...", err);
-          res = await musicApi.interactions.getTrending(1, 20);
+          res = await musicApi.interactions.getTrending(20);
         }
       } else {
         console.log("📡 Endpoint: Requesting trending songs for guest user from GET /api/songs...");
-        res = await musicApi.interactions.getTrending(1, 20);
+        res = await musicApi.interactions.getTrending(20);
       }
 
       if (res?.data) {

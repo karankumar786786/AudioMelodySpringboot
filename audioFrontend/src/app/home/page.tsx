@@ -123,36 +123,11 @@ export default function HomePage() {
         />
       </motion.div>
 
-      {/* 2. Recently Played Section (Conditional) */}
-      {systemUser && (recentlyPlayed?.data?.data?.length ?? 0) > 0 && (
-        <section className="space-y-4 -mt-12">
-          <div className="flex items-center gap-2">
-            <Clock size={20} className="text-primary" />
-            <h2 className="text-xl font-bold text-white tracking-tight">
-              Recently Played
-            </h2>
-          </div>
+      
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4 }}
-            className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar px-1"
-          >
-            {recentlyPlayed?.data?.data?.map((song: Song) => (
-              <SongCard
-                key={`recent-${song.id}`}
-                song={song}
-                className="flex-none w-[200px]"
-              />
-            ))}
-          </motion.div>
-        </section>
-      )}
-
-      {/* 3. Top Artists Section */}
+      {/* 2. Top Artists Section */}
       <section
-        className={`space-y-3 ${
+        className={`space-y-1 ${
           systemUser && (recentlyPlayed?.data?.data?.length ?? 0) > 0
             ? ""
             : "-mt-12"
@@ -183,6 +158,33 @@ export default function HomePage() {
         </motion.div>
       </section>
 
+      
+      {/* 3. Recently Played Section (Conditional) */}
+      {systemUser && (recentlyPlayed?.data?.data?.length ?? 0) > 0 && (
+        <section className="space-y-4 -mt-12">
+          <div className="flex items-center gap-2">
+            <Clock size={20} className="text-primary" />
+            <h2 className="text-xl font-bold text-white tracking-tight">
+              Recently Played
+            </h2>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
+            className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar px-1"
+          >
+            {recentlyPlayed?.data?.data?.map((song: Song) => (
+              <SongCard
+                key={`recent-${song.id}`}
+                song={song}
+                className="flex-none w-[200px]"
+              />
+            ))}
+          </motion.div>
+        </section>
+      )}
       {/* 3. Featured Playlists Section */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
@@ -209,7 +211,6 @@ export default function HomePage() {
               ))}
         </motion.div>
       </section>
-
       {/* 4. Recommendations (Conditional) */}
       {systemUser &&
         recommendations?.data?.data &&
