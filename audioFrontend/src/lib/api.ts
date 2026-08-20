@@ -194,7 +194,14 @@ async function request<T = any>(endpoint: string, options: RequestInit = {}, ret
     return {} as T;
   }
 
-  return response.json();
+  // Safely parse JSON — some endpoints return 200 with empty body
+  const text = await response.text();
+  if (!text || !text.trim()) return {} as T;
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return {} as T;
+  }
 }
 
 function formatPaginated<T>(res: any) {

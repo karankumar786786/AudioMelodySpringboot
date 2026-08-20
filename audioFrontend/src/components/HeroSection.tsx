@@ -87,7 +87,7 @@ export function HeroSection({
     : undefined;
 
   return (
-    <section className="relative w-full h-[320px] md:h-[360px] rounded-2xl overflow-hidden group bg-zinc-900 border border-white/10 shadow-2xl">
+    <section className="relative w-full h-[290px] md:h-[325px] rounded-2xl overflow-hidden group bg-zinc-900 border border-white/10 shadow-2xl">
       {/* ─── High-Res Background Image – bright, saturated, vivid ─── */}
       <div className="absolute inset-0 z-0">
         <AnimatePresence mode="wait">
@@ -100,38 +100,27 @@ export function HeroSection({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.5, ease: "easeOut" }}
               className="absolute inset-0 w-full h-full object-cover object-[70%_center]"
-              style={{ filter: "brightness(1.15) saturate(1.3) contrast(1.05)" }}
+              style={{ filter: "brightness(1.1) saturate(1.2) contrast(1.02)" }}
               alt={currentSong.title}
             />
           )}
         </AnimatePresence>
 
-        {/* Light left-side gradient — only covers ~55% from left so image is visible and bright */}
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent z-[1]" />
-        {/* Very subtle top/bottom vignette */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-[1]" />
+        {/* Only a very thin bottom scrim so text stays legible — no heavy black overlays */}
+        <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/70 to-transparent z-[1]" />
       </div>
 
       {/* ─── Content Layer ─── */}
-      <div className="relative z-10 h-full w-full flex flex-col justify-between p-8 md:p-10">
+      <div className="relative z-10 h-full w-full flex flex-col justify-end gap-3 p-7 md:p-9">
 
-        {/* Top badge */}
-        <div>
-          <span className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-sm border border-white/15 text-white/90 text-[10.5px] font-bold uppercase tracking-widest rounded-full px-3 py-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-            Featured
-          </span>
-        </div>
-
-        {/* Title, Artist & Meta */}
-        <div className="max-w-xl md:max-w-2xl space-y-2">
+        {/* Title, Artist & Meta — positioned higher */}
+        <div className="max-w-xl md:max-w-2xl space-y-1.5 mb-8">
           <motion.h1
             key={`title-${currentSong.id}`}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35 }}
             className="text-3xl md:text-5xl font-black text-white tracking-tight leading-tight line-clamp-2"
-            style={{ textShadow: "0 2px 24px rgba(0,0,0,0.7)" }}
           >
             {currentSong.title}
           </motion.h1>
@@ -149,7 +138,7 @@ export function HeroSection({
             </span>
           </motion.p>
 
-          <div className="flex items-center gap-3 text-xs text-zinc-300 font-semibold pt-0.5">
+          <div className="flex items-center gap-3 text-xs text-zinc-300 font-semibold">
             <span>{formatDuration(currentSong.duration)}</span>
             <span className="w-1 h-1 rounded-full bg-zinc-400" />
             <span>{currentSong.language || "Stereo"}</span>

@@ -126,13 +126,7 @@ export default function HomePage() {
       
 
       {/* 2. Top Artists Section */}
-      <section
-        className={`space-y-1 ${
-          systemUser && (recentlyPlayed?.data?.data?.length ?? 0) > 0
-            ? ""
-            : "-mt-12"
-        }`}
-      >
+      <section className="space-y-1 -mt-8">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-white tracking-tight">
             Top Artists

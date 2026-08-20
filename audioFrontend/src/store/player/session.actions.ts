@@ -78,12 +78,25 @@ export const sessionActions = {
         await musicApi.users.addFavourite(sid);
       }
     } catch (err: any) {
-      console.error("[PlayerStore] Toggle favourite failed:", err);
-      playerStore.setState((s) => ({ ...s, favourites }));
-      if (err?.response?.status === 401 || err?.response?.status === 403) {
+      const status = err?.response?.status;
+
+      // Treat idempotent cases as success — don't rollback or show error:
+      // 409 = already in favourites (add called but already exists)
+      // 404 = not in favourites (remove called but already gone)
+      if ((status === 409 && !isFav) || (status === 404 && isFav)) {
+        console.warn("[PlayerStore] Favourite already in desired state, ignoring:", status);
+        return;
+      }
+
+      // Auth failure
+      if (status === 401 || status === 403) {
         toast.error("Session expired. Please log in again.");
         sessionActions.clearSystemSession();
       }
+
+      // Rollback optimistic update on genuine error
+      console.error("[PlayerStore] Toggle favourite failed:", err);
+      playerStore.setState((s) => ({ ...s, favourites }));
       throw err;
     }
   },

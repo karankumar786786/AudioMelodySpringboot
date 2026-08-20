@@ -49,8 +49,17 @@ export function PlaylistPickerModal({
   });
 
   const addToPlaylist = useMutation({
-    mutationFn: (playlistId: string) =>
-      musicApi.users.addSongToPlaylist(playlistId, songId),
+    mutationFn: async (playlistId: string) => {
+      try {
+        return await musicApi.users.addSongToPlaylist(playlistId, songId);
+      } catch (err: any) {
+        // 409 = song already in playlist — treat as success (idempotent)
+        if (err?.response?.status === 409) {
+          return { success: true, alreadyAdded: true };
+        }
+        throw err;
+      }
+    },
     onSuccess: () => {
       onClose();
     },
