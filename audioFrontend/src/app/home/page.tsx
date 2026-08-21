@@ -17,7 +17,6 @@ export default function HomePage() {
   const [heroIndex, setHeroIndex] = useState(0);
   const triggerRef = useRef<HTMLDivElement>(null);
 
-
   // Trending Songs (Featured)
   const { data: trending, isLoading: isTrendingLoading } = useQuery({
     queryKey: ["trending-songs"],
@@ -117,8 +116,6 @@ export default function HomePage() {
         />
       </motion.div>
 
-      
-
       {/* 2. Top Artists Section */}
       <section className="space-y-1 -mt-7">
         <div className="flex items-center justify-between">
@@ -146,7 +143,6 @@ export default function HomePage() {
         </motion.div>
       </section>
 
-      
       {/* 3. Recently Played Section (Conditional) */}
       {systemUser && (recentlyPlayed?.data?.data?.length ?? 0) > 0 && (
         <section className="space-y-4 -mt-12">
@@ -157,20 +153,23 @@ export default function HomePage() {
             </h2>
           </div>
 
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4 }}
-            className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar px-1"
-          >
-            {recentlyPlayed?.data?.data?.map((song: Song) => (
-              <SongCard
-                key={`recent-${song.id}`}
-                song={song}
-                className="flex-none w-[200px]"
-              />
-            ))}
-          </motion.div>
+          <div className="relative">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4 }}
+              className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar px-1 snap-x snap-mandatory"
+            >
+              {recentlyPlayed?.data?.data?.slice(0, 10).map((song: Song) => (
+                <SongCard
+                  key={`recent-${song.id}`}
+                  song={song}
+                  className="flex-none snap-start w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] xl:w-[calc(25%-18px)] 2xl:w-[calc(20%-19.2px)]"
+                />
+              ))}
+            </motion.div>
+            <div className="pointer-events-none absolute top-0 right-0 h-[calc(100%-1rem)] w-20 " />
+          </div>
         </section>
       )}
       {/* 3. Featured Playlists Section */}
@@ -203,30 +202,31 @@ export default function HomePage() {
       {systemUser &&
         recommendations?.data?.data &&
         recommendations.data.data.length > 0 && (
-          <>
-            <section className="space-y-4">
-              <div className="flex items-center gap-3">
-                <h2 className="text-xl font-bold text-white tracking-tight">
-                  Recommended for You
-                </h2>
-              </div>
+          <section className="space-y-4">
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-bold text-white tracking-tight">
+                Recommended for You
+              </h2>
+            </div>
 
+            <div className="relative">
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.4 }}
-                className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar px-1"
+                className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar px-1 snap-x snap-mandatory"
               >
                 {recommendations.data.data.slice(0, 10).map((song: Song) => (
                   <SongCard
                     key={`rec-${song.id}`}
                     song={song}
-                    className="flex-none w-[200px]"
+                    className="flex-none snap-start w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] xl:w-[calc(25%-18px)] 2xl:w-[calc(20%-19.2px)]"
                   />
                 ))}
               </motion.div>
-            </section>
-          </>
+              <div className="pointer-events-none absolute top-0 right-0 h-[calc(100%-1rem)] w-20" />
+            </div>
+          </section>
         )}
 
       {/* 5. Discovery Feed */}

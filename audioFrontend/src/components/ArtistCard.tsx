@@ -13,7 +13,7 @@ export function ArtistCard({ artist }: ArtistCardProps) {
   return (
     <Link
       href={`/artists/${artist.id}`}
-      className="flex-none w-[160px] group cursor-pointer text-center block"
+      className="flex-none w-[145px] group cursor-pointer text-center block"
     >
       <motion.div
         whileHover={{ scale: 1.02 }}
