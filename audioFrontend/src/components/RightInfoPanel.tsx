@@ -223,7 +223,7 @@ export function RightInfoPanel() {
                     {isFavourite ? (
                       <CheckCircle2
                         size={20}
-                        className="text-[#1ed760] fill-[#1ed760] text-black"
+                        className="text-[#1ed760] fill-white text-black"
                       />
                     ) : (
                       <Heart
