@@ -73,6 +73,9 @@ export async function getSongInfo(
   }
 
   // 1. Fetch Artist Info
+  if (artistName.includes(",")) {
+    artistName = artistName.split(",")[0];
+  }
   let artistData = artistName ? await fetchWikiSummary(artistName) : null;
   if (!artistData && artistName) {
     const searchedArtistTitle = await searchWikiTitle(`${artistName} musician`);
