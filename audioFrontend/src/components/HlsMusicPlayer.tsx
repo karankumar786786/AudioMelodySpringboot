@@ -16,6 +16,7 @@ import {
   Pause,
   SkipBack,
   SkipForward,
+  Sliders,
   X,
 } from "lucide-react";
 import { getImageUrl } from "../lib/image-utils";
@@ -26,12 +27,14 @@ import { toast } from "sonner";
 import { useHlsPlayer } from "./player/hooks/useHlsPlayer";
 import { useLyrics } from "./player/hooks/useLyrics";
 import { useAudioSync } from "./player/hooks/useAudioSync";
+import { useWebAudio } from "./player/hooks/useWebAudio";
 
 // Components
 import { PlayerLyricsOverlay } from "./player/PlayerLyricsOverlay";
 import { PlayerProgressBar } from "./player/PlayerProgressBar";
 import { PlayerQueuePanel } from "./player/PlayerQueuePanel";
 import { PlayerQualitySelector } from "./player/PlayerQualitySelector";
+import { EqualizerModal } from "./player/EqualizerModal";
 
 import { getSolidBgFromImage } from "../lib/color-utils";
 
@@ -58,6 +61,7 @@ export function HlsMusicPlayer() {
   const [buffered, setBuffered] = useState(0);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [showQueuePanel, setShowQueuePanel] = useState(false);
+  const [showEqualizerModal, setShowEqualizerModal] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isTogglingFav, setIsTogglingFav] = useState(false);
   const [solidBgColor, setSolidBgColor] = useState("#181818");
@@ -94,6 +98,8 @@ export function HlsMusicPlayer() {
     localTime,
   );
 
+  const webAudio = useWebAudio(audioRef.current, isPlaying);
+
   useAudioSync(
     audioRef.current,
     isInternalChange,
@@ -104,6 +110,9 @@ export function HlsMusicPlayer() {
     duration,
     setLocalTime,
     setBuffered,
+    webAudio.fadeIn,
+    webAudio.fadeOut,
+    webAudio.crossfadeDuration,
   );
 
   // Sync store currentTime resets
@@ -173,6 +182,12 @@ export function HlsMusicPlayer() {
         setShowQueuePanel((v) => !v);
       }
 
+      // E: Toggle Equalizer
+      if (e.key === "e" || e.key === "E") {
+        e.preventDefault();
+        setShowEqualizerModal((v) => !v);
+      }
+
       // R: Resync Lyrics
       if (e.key === "r" || e.key === "R") {
         e.preventDefault();
@@ -237,7 +252,7 @@ export function HlsMusicPlayer() {
 
   return (
     <>
-      <audio ref={audioRef} className="hidden" />
+      <audio ref={audioRef} crossOrigin="anonymous" className="hidden" />
 
       {/* ─── Spotify Synced Lyrics View (Middle Portion Overlay) ─── */}
       {isLyricsOpen && (
@@ -415,8 +430,20 @@ export function HlsMusicPlayer() {
           </div>
         </div>
 
-        {/* Right Section: Lyrics, Queue, Quality, Volume */}
-        <div className="flex items-center justify-end gap-3 w-[35%] max-w-[340px]">
+        {/* Right Section: Equalizer, Lyrics, Queue, Quality, Volume */}
+        <div className="flex items-center justify-end gap-2.5 w-[35%] max-w-[360px]">
+          <button
+            onClick={() => setShowEqualizerModal((v) => !v)}
+            className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+              showEqualizerModal
+                ? "text-primary bg-[#282828]"
+                : "text-zinc-400 hover:text-white"
+            }`}
+            title="Equalizer & Visualizer (E)"
+          >
+            <Sliders size={16} />
+          </button>
+
           <button
             onClick={() => playerActions.toggleLyrics()}
             className={`p-1.5 rounded-md transition-colors cursor-pointer ${
@@ -446,7 +473,7 @@ export function HlsMusicPlayer() {
             onSelectQuality={(q) => playerActions.setSelectedQuality(q)}
           />
 
-          <div className="flex items-center gap-2.5 min-w-[120px]">
+          <div className="flex items-center gap-2.5 min-w-[110px]">
             <button
               onClick={() => playerActions.setIsMuted(!isMuted)}
               className="text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
@@ -469,6 +496,19 @@ export function HlsMusicPlayer() {
           </div>
         </div>
       </footer>
+
+      {/* Equalizer & Visualizer Modal */}
+      <EqualizerModal
+        isOpen={showEqualizerModal}
+        onClose={() => setShowEqualizerModal(false)}
+        analyser={webAudio.analyser}
+        isPlaying={isPlaying}
+        gains={webAudio.gains}
+        selectedPreset={webAudio.selectedPreset}
+        setBandGain={webAudio.setBandGain}
+        applyPreset={webAudio.applyPreset}
+        resetEq={webAudio.resetEq}
+      />
 
       {/* Playlist Picker Modal */}
       <PlaylistPickerModal

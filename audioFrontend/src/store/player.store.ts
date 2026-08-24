@@ -51,7 +51,7 @@ export const playerActions = {
   },
 
   // Alias for backward compatibility
-  playSong: (song: any) => playbackActions.play(song),
+  playSong: (song: any) => playbackActions.play(normalizePlayerSong(song)),
   playFromQueue: (index: number) => {
     const { queue } = playerStore.state;
     if (index >= 0 && index < queue.length) {

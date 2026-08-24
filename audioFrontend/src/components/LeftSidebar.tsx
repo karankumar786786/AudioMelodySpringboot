@@ -66,7 +66,7 @@ export function LeftSidebar() {
             />
           </div>
           <span className="text-xl font-black text-white tracking-tight">
-            OneMelody
+            One Melody
           </span>
         </div>
 

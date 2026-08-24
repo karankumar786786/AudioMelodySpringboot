@@ -11,8 +11,12 @@ export function useAudioSync(
   duration: number,
   setLocalTime: (t: number) => void,
   setBuffered: (t: number) => void,
+  fadeIn?: (dur?: number) => void,
+  fadeOut?: (dur?: number) => void,
+  crossfadeDuration: number = 2,
 ) {
   const animFrameRef = useRef<number>(0);
+  const hasFadedOutRef = useRef<boolean>(false);
   const lastStateRef = useRef<{ id: string; time: number; duration: number }>({
     id: "",
     time: 0,
@@ -113,10 +117,15 @@ export function useAudioSync(
     };
   }, [audioElement, isInternalChange]);
 
-  // 4. Listen Recording Logic
+  // 4. Listen Recording & Fade-In Logic
   useEffect(() => {
     const last = lastStateRef.current;
     if (currentSong?.id !== last.id) {
+      hasFadedOutRef.current = false;
+      if (fadeIn && crossfadeDuration > 0) {
+        fadeIn(crossfadeDuration);
+      }
+
       if (last.id && last.duration > 0) {
         const ratio = Math.min(1, last.time / last.duration);
         if (ratio > 0.01 || last.time > 5) {
@@ -129,7 +138,7 @@ export function useAudioSync(
         duration: currentSong?.duration || 0,
       };
     }
-  }, [currentSong?.id]);
+  }, [currentSong?.id, fadeIn, crossfadeDuration]);
 
   // Record on unmount
   useEffect(() => {
@@ -144,7 +153,7 @@ export function useAudioSync(
     };
   }, []);
 
-  // 5. High Precision Sync (RAF)
+  // 5. High Precision Sync & Fade-Out (RAF)
   const syncTime = useCallback(() => {
     if (!audioElement) {
       animFrameRef.current = requestAnimationFrame(syncTime);
@@ -166,6 +175,22 @@ export function useAudioSync(
       playerActions.setDuration(audioElement.duration);
     }
 
+    // Trigger smooth fade-out before the track ends
+    if (
+      crossfadeDuration > 0 &&
+      fadeOut &&
+      !hasFadedOutRef.current &&
+      audioElement.duration &&
+      isFinite(audioElement.duration) &&
+      audioElement.duration > crossfadeDuration * 2
+    ) {
+      const remaining = audioElement.duration - t;
+      if (remaining <= crossfadeDuration && remaining > 0) {
+        hasFadedOutRef.current = true;
+        fadeOut(remaining);
+      }
+    }
+
     if (
       currentSongRef.current &&
       lastStateRef.current.id === currentSongRef.current.id
@@ -176,7 +201,7 @@ export function useAudioSync(
     }
 
     animFrameRef.current = requestAnimationFrame(syncTime);
-  }, [audioElement, duration, setLocalTime, setBuffered]);
+  }, [audioElement, duration, setLocalTime, setBuffered, fadeOut, crossfadeDuration]);
 
   useEffect(() => {
     animFrameRef.current = requestAnimationFrame(syncTime);
