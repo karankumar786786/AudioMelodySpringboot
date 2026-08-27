@@ -177,11 +177,11 @@ export function RightInfoPanel() {
         ) : (
           <div>
             {/* ========================================================== */}
-            {/* 1. SPOTIFY TALL VIDEO CANVAS (full width of aside, h-[440px]) */}
+            {/* 1. MEDIA DISPLAY (Full-bleed Video Canvas OR Card Cover Art) */}
             {/* ========================================================== */}
-            <div className="relative w-full h-[440px] overflow-hidden bg-zinc-900  shadow-2xl flex flex-col justify-end group">
-              {/* Full-bleed Looping Canvas Video */}
-              {directVideoUrl ? (
+            {directVideoUrl ? (
+              /* Full-bleed Tall Video Canvas when Video is Available */
+              <div className="relative w-full h-[440px] overflow-hidden bg-zinc-900 shadow-2xl flex flex-col justify-end group">
                 <video
                   key={`canvas-video-${currentSong.id}-${activeVideoKey}`}
                   src={directVideoUrl}
@@ -191,62 +191,108 @@ export function RightInfoPanel() {
                   playsInline
                   className="absolute inset-0 w-full h-full object-cover object-center"
                 />
-              ) : songImage ? (
-                <img
-                  src={songImage}
-                  alt={currentSong.title}
-                  className="absolute inset-0 w-full h-full object-cover object-center"
-                />
-              ) : (
-                <div className="absolute inset-0 flex items-center justify-center text-zinc-700 bg-zinc-950">
-                  <Music size={48} />
-                </div>
-              )}
 
-              {/* Seamless Bottom Gradient Overlay (Spotify Canvas style) */}
-              <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none" />
+                {/* Seamless Bottom Gradient Overlay */}
+                <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none" />
 
-              {/* Overlaid Song Title, Artist & Like Status */}
-              <div className="relative z-10 p-4 pb-4 flex items-end justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <h2 className="text-xl font-bold text-white tracking-tight truncate hover:underline cursor-pointer leading-tight drop-shadow-md">
-                    {currentSong.title}
-                  </h2>
-                  <p className="text-xs font-medium text-zinc-300 truncate mt-1 hover:text-white hover:underline cursor-pointer drop-shadow">
-                    {currentSong.artistName}
-                  </p>
-                </div>
+                {/* Overlaid Song Title, Artist & Actions */}
+                <div className="relative z-10 p-4 pb-4 flex items-end justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-xl font-bold text-white tracking-tight truncate hover:underline cursor-pointer leading-tight drop-shadow-md">
+                      {currentSong.title}
+                    </h2>
+                    <p className="text-xs font-medium text-zinc-300 truncate mt-1 hover:text-white hover:underline cursor-pointer drop-shadow">
+                      {currentSong.artistName}
+                    </p>
+                  </div>
 
-                {/* Right Action Icons */}
-                <div className="flex items-center gap-2.5 shrink-0 pb-0.5">
-                  <button
-                    onClick={handlePlaylist}
-                    className="text-zinc-400 hover:text-white transition-colors cursor-pointer p-1"
-                    title="Add to playlist"
-                  >
-                    <Plus size={20} />
-                  </button>
+                  <div className="flex items-center gap-2.5 shrink-0 pb-0.5">
+                    <button
+                      onClick={handlePlaylist}
+                      className="text-zinc-400 hover:text-white transition-colors cursor-pointer p-1"
+                      title="Add to playlist"
+                    >
+                      <Plus size={20} />
+                    </button>
 
-                  <button
-                    onClick={handleFavourite}
-                    className="transition-transform active:scale-90 cursor-pointer p-1"
-                    title={isFavourite ? "Liked" : "Like"}
-                  >
-                    {isFavourite ? (
-                      <CheckCircle2
-                        size={22}
-                        className="text-[#1ed760] fill-white text-black"
-                      />
-                    ) : (
-                      <Heart
-                        size={20}
-                        className="text-zinc-400 hover:text-white transition-colors"
-                      />
-                    )}
-                  </button>
+                    <button
+                      onClick={handleFavourite}
+                      className="transition-transform active:scale-90 cursor-pointer p-1"
+                      title={isFavourite ? "Liked" : "Like"}
+                    >
+                      {isFavourite ? (
+                        <CheckCircle2
+                          size={22}
+                          className="text-[#1ed760] fill-white text-black"
+                        />
+                      ) : (
+                        <Heart
+                          size={20}
+                          className="text-zinc-400 hover:text-white transition-colors"
+                        />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              /* Card-Style Cover Art when Only Image is Available */
+              <div className="p-4 pb-2">
+                <div className="relative w-full aspect-square overflow-hidden rounded-2xl bg-zinc-900 border border-zinc-800/80 shadow-2xl group">
+                  {songImage ? (
+                    <img
+                      src={songImage}
+                      alt={currentSong.title}
+                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-zinc-700 bg-zinc-950">
+                      <Music size={48} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Song Title, Artist & Actions Below Card */}
+                <div className="mt-3.5 flex items-center justify-between gap-3 px-1">
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-lg font-bold text-white tracking-tight truncate hover:underline cursor-pointer leading-tight">
+                      {currentSong.title}
+                    </h2>
+                    <p className="text-xs font-medium text-zinc-400 truncate mt-0.5 hover:text-white hover:underline cursor-pointer">
+                      {currentSong.artistName}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <button
+                      onClick={handlePlaylist}
+                      className="text-zinc-400 hover:text-white transition-colors cursor-pointer p-1"
+                      title="Add to playlist"
+                    >
+                      <Plus size={20} />
+                    </button>
+
+                    <button
+                      onClick={handleFavourite}
+                      className="transition-transform active:scale-90 cursor-pointer p-1"
+                      title={isFavourite ? "Liked" : "Like"}
+                    >
+                      {isFavourite ? (
+                        <CheckCircle2
+                          size={22}
+                          className="text-[#1ed760] fill-white text-black"
+                        />
+                      ) : (
+                        <Heart
+                          size={20}
+                          className="text-zinc-400 hover:text-white transition-colors"
+                        />
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Content Below Video */}
             <div className="px-4 space-y-4">
