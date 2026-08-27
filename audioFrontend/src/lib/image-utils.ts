@@ -106,8 +106,35 @@ export function getVideoUrl(
   if (quality) tr.push(`q-${quality}`);
   if (format && format !== "auto") tr.push(`f-${format}`);
 
-  const transformationQuery = tr.length > 0 ? `?tr=${tr.join(",")}` : "";
+  // When transformations are provided use them; otherwise use ?tr=orig for direct 200 OK video playback
+  const transformationQuery = tr.length > 0 ? `?tr=${tr.join(",")}` : "?tr=orig";
 
   return `${IMAGEKIT_URL_ENDPOINT}${encodedPath}${transformationQuery}`;
+}
+
+/**
+ * Generates an ImageKit ABR/HLS URL for adaptive bitrate video streaming.
+ * ImageKit serves master HLS manifests at: {endpoint}/{video_path}/ik-master.m3u8?tr=sr-360_480_720
+ * This enables adaptive quality switching based on network conditions.
+ */
+export function getVideoABRUrl(
+  key: string | undefined | null,
+  resolutions: string = "360_480_720",
+): string | undefined {
+  if (!key) return undefined;
+
+  // If already a full URL (non-ImageKit), return as-is
+  if (key.startsWith("http")) return key;
+
+  const cleanKey = key.startsWith("/") ? key.slice(1) : key;
+  const encodedPath =
+    "/" +
+    cleanKey
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+
+  // ImageKit official HLS ABR manifest path & resolution parameter
+  return `${IMAGEKIT_URL_ENDPOINT}${encodedPath}/ik-master.m3u8?tr=sr-${resolutions}`;
 }
 

@@ -6,19 +6,17 @@ import { useStore } from "@tanstack/react-store";
 import {
   ExternalLink,
   Music,
-  User,
   Info,
-  ListMusic,
   Play,
   Heart,
   Plus,
-  MoreHorizontal,
   CheckCircle2,
 } from "lucide-react";
 
 import { playerStore, playerActions } from "@/store/player.store";
 import { getSongInfo } from "@/lib/song-info";
-import { getImageUrl, getVideoUrl } from "@/lib/image-utils";
+import { getImageUrl, getVideoUrl, getVideoABRUrl } from "@/lib/image-utils";
+import { HlsVideoPlayer } from "./HlsVideoPlayer";
 import { musicApi, Song } from "@/lib/api";
 import { mapToPlayerSong } from "@/lib/player-utils";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
@@ -109,19 +107,10 @@ export function RightInfoPanel() {
     );
   }
 
-  const activeVideoKey = currentSong.videoKey || (
-    currentSong.id === "afcef7ca-367e-4f15-97c8-9564af846a4d" ||
-    currentSong.title?.toLowerCase().includes("o soniya")
-      ? "o soniya clip.mp4"
-      : undefined
-  );
+  const activeVideoKey = currentSong.videoKey;
 
-  const videoUrl = activeVideoKey
-    ? getVideoUrl(activeVideoKey, {
-        width: 640,
-        height: 880,
-        quality: 80,
-      })
+  const directVideoUrl = activeVideoKey
+    ? getVideoUrl(activeVideoKey)
     : undefined;
 
   const songImage = currentSong.imageKey
@@ -192,9 +181,10 @@ export function RightInfoPanel() {
             {/* ========================================================== */}
             <div className="relative w-full h-[440px] overflow-hidden bg-zinc-900  shadow-2xl flex flex-col justify-end group">
               {/* Full-bleed Looping Canvas Video */}
-              {videoUrl ? (
+              {directVideoUrl ? (
                 <video
-                  src={videoUrl}
+                  key={`canvas-video-${currentSong.id}-${activeVideoKey}`}
+                  src={directVideoUrl}
                   autoPlay
                   loop
                   muted

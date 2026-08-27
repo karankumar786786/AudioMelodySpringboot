@@ -35,6 +35,11 @@ public class SongsApiController {
         return ResponseEntity.ok(songsAppService.getTrendingSongs(limit));
     }
 
+    @GetMapping("/featured")
+    public ResponseEntity<List<SongsEntity>> getFeaturedSongs() {
+        return ResponseEntity.ok(songsAppService.getFeaturedSongs());
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<SongsEntity> getSongById(@PathVariable String id) {
         return ResponseEntity.ok(songsAppService.getSongById(id));

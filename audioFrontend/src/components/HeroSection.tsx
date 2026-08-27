@@ -46,15 +46,9 @@ export function HeroSection({
 
   if (!currentSong) return null;
 
-  const videoKey = currentSong.videoKey || (
-    currentSong.id === "afcef7ca-367e-4f15-97c8-9564af846a4d" ||
-    currentSong.title?.toLowerCase().includes("o soniya")
-      ? "o soniya clip.mp4"
-      : undefined
-  );
-
+  const videoKey = currentSong.videoKey;
   const isVideoSong = Boolean(videoKey);
-  const videoUrl = videoKey ? getVideoUrl(videoKey, { quality: 85 }) : undefined;
+  const videoUrl = videoKey ? getVideoUrl(videoKey) : undefined;
 
   const bgImageUrl = currentSong.imageKey
     ? getImageUrl(currentSong.imageKey, {
@@ -78,7 +72,7 @@ export function HeroSection({
         <AnimatePresence mode="wait">
           {isVideoSong && videoUrl ? (
             <motion.video
-              key={`video-${currentSong.id}`}
+              key={`video-${currentSong.id}-${videoKey}`}
               src={videoUrl}
               autoPlay
               loop

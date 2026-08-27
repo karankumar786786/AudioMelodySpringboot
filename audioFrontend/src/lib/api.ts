@@ -12,6 +12,7 @@ export interface Song {
   language: string;
   lrclibId: string;
   status?: string;
+  isFeatured?: boolean;
   createdAt?: string;
 }
 
@@ -232,6 +233,11 @@ export const musicApi = {
     getById: async (id: string) => {
       const data = await request<Song>(`/api/songs/${id}`);
       return { data };
+    },
+    getFeatured: async () => {
+      const res = await request<Song[]>(`/api/songs/featured`);
+      const list = Array.isArray(res) ? res : [];
+      return list;
     },
   },
   artists: {

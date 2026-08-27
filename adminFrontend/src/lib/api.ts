@@ -11,6 +11,7 @@ export interface Song {
   videoKey?: string;
   language: string;
   lrclibId: string;
+  isFeatured?: boolean;
   status?: string;
   createdAt?: string;
 }

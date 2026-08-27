@@ -119,6 +119,9 @@ public class SongService {
         if (data.lrclibId() != null) {
             song.setLrclibId(data.lrclibId());
         }
+        if (data.isFeatured() != null) {
+            song.setFeatured(data.isFeatured());
+        }
 
         String oldImageKey = null;
         if (data.imageKey() != null && !data.imageKey().isBlank() && !data.imageKey().equals(song.getImageKey())) {
@@ -210,5 +213,24 @@ public class SongService {
 
     public List<JobsEntity> getAllJobs() {
         return jobsRepository.findAll();
+    }
+
+    @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "songs", key = "#id"),
+            @CacheEvict(value = "song_lists", allEntries = true),
+            @CacheEvict(value = "featured_songs", allEntries = true)
+    })
+    public SongsEntity toggleFeatured(String id, boolean featured) {
+        SongsEntity song = songsRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + id));
+        song.setFeatured(featured);
+        songsRepository.save(song);
+        return song;
+    }
+
+    @Cacheable(value = "featured_songs", key = "'all'")
+    public List<SongsEntity> getFeaturedSongs() {
+        return songsRepository.findFeatured();
     }
 }

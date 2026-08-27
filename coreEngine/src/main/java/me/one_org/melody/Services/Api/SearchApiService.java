@@ -12,7 +12,6 @@ import me.one_org.melody.Dto.AlgoliaSearch.SearchResult;
 import me.one_org.melody.Entity.ArtistsEntity;
 import me.one_org.melody.Entity.PlaylistsEntity;
 import me.one_org.melody.Entity.SongsEntity;
-import me.one_org.melody.Entity.UserSearchHistoryEntity;
 import me.one_org.melody.Repository.ArtistsRepository;
 import me.one_org.melody.Repository.PlaylistsRepository;
 import me.one_org.melody.Repository.SongsRepository;

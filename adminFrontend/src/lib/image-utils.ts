@@ -68,3 +68,11 @@ export function getImageUrl(
 
   return `${IMAGEKIT_URL_ENDPOINT}${path}${transformationQuery}`;
 }
+
+export function getVideoUrl(key: string | undefined | null) {
+  if (!key) return "";
+  if (key.startsWith("http")) return key;
+  const path = key.startsWith("/") ? key : `/${key}`;
+  return `${IMAGEKIT_URL_ENDPOINT}${path}?tr=orig`;
+}
+

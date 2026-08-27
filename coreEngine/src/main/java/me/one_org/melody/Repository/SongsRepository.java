@@ -74,6 +74,13 @@ public class SongsRepository {
         return trending;
     }
 
+    public List<SongsEntity> findFeatured() {
+        return entityManager.createQuery(
+                "SELECT s FROM SongsEntity s WHERE s.isFeatured = true AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt DESC",
+                SongsEntity.class)
+                .getResultList();
+    }
+
     public long count() {
         return entityManager.createQuery("SELECT COUNT(s) FROM SongsEntity s", Long.class)
                 .getSingleResult();

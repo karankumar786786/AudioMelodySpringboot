@@ -30,17 +30,31 @@ export default function HomePage() {
   const [heroIndex, setHeroIndex] = useState(0);
   const triggerRef = useRef<HTMLDivElement>(null);
 
-  // Trending Songs (Featured)
-  const { data: trending, isLoading: isTrendingLoading } = useQuery({
-    queryKey: ["trending-songs"],
-    queryFn: () => musicApi.interactions.getTrending(),
+  // Admin-Featured Songs for Hero
+  const { data: featuredSongs, isLoading: isFeaturedLoading } = useQuery({
+    queryKey: ["featured-songs"],
+    queryFn: () => musicApi.songs.getFeatured(),
   });
 
+  // Trending (used as fallback when no featured songs set by admin)
+  const { data: trending } = useQuery({
+    queryKey: ["trending-songs"],
+    queryFn: () => musicApi.interactions.getTrending(),
+    enabled: !featuredSongs || featuredSongs.length === 0,
+  });
+
+  const isTrendingLoading = isFeaturedLoading;
+
   const heroSongs = useMemo(() => {
+    // Prefer admin-featured songs
+    if (featuredSongs && featuredSongs.length > 0) {
+      return featuredSongs.slice(0, 5);
+    }
+    // Fallback: trending + hardcoded o-soniya as first
     const list = trending?.data?.data || [];
     const filtered = list.filter((s: Song) => s.id !== oSoniyaSong.id);
     return [oSoniyaSong, ...filtered].slice(0, 5);
-  }, [trending?.data?.data]);
+  }, [featuredSongs, trending?.data?.data]);
 
   // Top Artists
   const { data: artists, isLoading: isArtistsLoading } = useQuery({

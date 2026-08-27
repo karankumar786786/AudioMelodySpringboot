@@ -39,4 +39,9 @@ public class SongsApiService {
     public PaginationMetaDataEntity getPaginationMetaData() {
         return paginationMetaDataService.getMetaData("SongsEntity");
     }
+
+    @Cacheable(value = "featured_songs", key = "'all'")
+    public List<SongsEntity> getFeaturedSongs() {
+        return songsRepository.findFeatured();
+    }
 }

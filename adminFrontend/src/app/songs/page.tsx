@@ -12,9 +12,18 @@ interface Song {
   language: string;
   imageKey: string;
   videoKey?: string;
+  isFeatured?: boolean;
   lrclibId?: string;
   createdAt?: string;
 }
+
+const formatDuration = (ms: number) => {
+  if (!ms) return "—";
+  const totalSeconds = Math.floor(ms / 1000);
+  const mins = Math.floor(totalSeconds / 60);
+  const secs = totalSeconds % 60;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+};
 
 export default function SongsPage() {
   const [songs, setSongs] = useState<Song[]>([]);
@@ -22,7 +31,8 @@ export default function SongsPage() {
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSong, setEditingSong] = useState<Song | null>(null);
-  
+  const [search, setSearch] = useState("");
+
   // Create Form State
   const [formData, setFormData] = useState({
     title: "",
@@ -63,23 +73,32 @@ export default function SongsPage() {
     }
   };
 
-  useEffect(() => {
-    fetchSongs();
-  }, []);
+  useEffect(() => { fetchSongs(); }, []);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this song?")) return;
     try {
-      const res = await adminFetch(`/admin/song/${id}`, {
-        method: "DELETE",
+      const res = await adminFetch(`/admin/song/${id}`, { method: "DELETE" });
+      if (res.ok) setSongs(songs.filter(s => s.id !== id));
+      else alert("Failed to delete song");
+    } catch { alert("Failed to delete song"); }
+  };
+
+  const handleToggleFeatured = async (song: Song) => {
+    const newFeatured = !song.isFeatured;
+    setSongs(prev => prev.map(s => s.id === song.id ? { ...s, isFeatured: newFeatured } : s));
+    try {
+      const res = await adminFetch(`/admin/song/${song.id}/featured`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ featured: newFeatured }),
       });
-      if (res.ok) {
-        setSongs(songs.filter(s => s.id !== id));
-      } else {
-        alert("Failed to delete song");
+      if (!res.ok) {
+        setSongs(prev => prev.map(s => s.id === song.id ? { ...s, isFeatured: song.isFeatured } : s));
+        alert("Failed to update featured status");
       }
-    } catch (err) {
-      alert("Failed to delete song");
+    } catch {
+      setSongs(prev => prev.map(s => s.id === song.id ? { ...s, isFeatured: song.isFeatured } : s));
     }
   };
 
@@ -87,7 +106,6 @@ export default function SongsPage() {
     const sigRes = await adminFetch("/webhook/internal/image-upload-param");
     if (!sigRes.ok) throw new Error("Failed to get ImageKit upload authorization");
     const sigData = await sigRes.json();
-
     const fd = new FormData();
     fd.append("file", file);
     fd.append("publicKey", process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY || "public_ck50bJ3UfF9eCOXhwXQTQFP693o=");
@@ -97,11 +115,7 @@ export default function SongsPage() {
     fd.append("folder", folder);
     const extension = file.name.split('.').pop();
     fd.append("fileName", `${sigData.key}.${extension}`);
-
-    const res = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
-      method: "POST",
-      body: fd,
-    });
+    const res = await fetch("https://upload.imagekit.io/api/v1/files/upload", { method: "POST", body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "File upload failed");
     return data.filePath || sigData.key;
@@ -109,35 +123,21 @@ export default function SongsPage() {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.songFile || !formData.imageFile) {
-      return alert("Please select both audio and image files");
-    }
-
+    if (!formData.songFile || !formData.imageFile) return alert("Please select both audio and image files");
     setUploading(true);
     try {
-      // 1. Get Presigned URL for Audio
       const songUrlRes = await adminFetch("/webhook/internal/song-upload-url");
       if (!songUrlRes.ok) throw new Error("Failed to get audio upload authorization");
       const songUrlData = await songUrlRes.json();
-
-      // 2. Upload Song file to S3
       const songUploadRes = await fetch(songUrlData.preSignedUrl, {
         method: "PUT",
         body: formData.songFile,
         headers: { "Content-Type": formData.songFile.type || "audio/mpeg" },
       });
       if (!songUploadRes.ok) throw new Error("Audio upload to S3 failed");
-
-      // 3. Upload Cover Image to ImageKit
       const uploadedImageKey = await uploadFileToImageKit(formData.imageFile, "/songs/images");
-
-      // 4. Upload Optional Video file to ImageKit
       let uploadedVideoKey: string | null = null;
-      if (formData.videoFile) {
-        uploadedVideoKey = await uploadFileToImageKit(formData.videoFile, "/songs/videos");
-      }
-
-      // 5. Create Song record in coreEngine
+      if (formData.videoFile) uploadedVideoKey = await uploadFileToImageKit(formData.videoFile, "/songs/videos");
       const finalizeRes = await adminFetch("/admin/song", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -151,7 +151,6 @@ export default function SongsPage() {
           lrclibId: formData.lrclibId.trim() || "0",
         }),
       });
-
       if (finalizeRes.ok) {
         setIsModalOpen(false);
         setFormData({ title: "", artistName: "", language: "English", lrclibId: "", songFile: null, imageFile: null, videoFile: null });
@@ -161,7 +160,6 @@ export default function SongsPage() {
         throw new Error(errData.message || "Failed to create song record");
       }
     } catch (err: any) {
-      console.error("[Song Upload] Upload error", err);
       alert("Upload failed: " + err.message);
     } finally {
       setUploading(false);
@@ -170,52 +168,25 @@ export default function SongsPage() {
 
   const handleEditOpen = (song: Song) => {
     setEditingSong(song);
-    setEditFormData({
-      title: song.title,
-      artistName: song.artistName,
-      language: song.language || "English",
-      lrclibId: song.lrclibId || "",
-      imageFile: null,
-      videoFile: null,
-    });
+    setEditFormData({ title: song.title, artistName: song.artistName, language: song.language || "English", lrclibId: song.lrclibId || "", imageFile: null, videoFile: null });
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingSong) return;
-
     setUploading(true);
     try {
       let imageKey = editingSong.imageKey;
-      if (editFormData.imageFile) {
-        imageKey = await uploadFileToImageKit(editFormData.imageFile, "/songs/images");
-      }
-
+      if (editFormData.imageFile) imageKey = await uploadFileToImageKit(editFormData.imageFile, "/songs/images");
       let videoKey = editingSong.videoKey;
-      if (editFormData.videoFile) {
-        videoKey = await uploadFileToImageKit(editFormData.videoFile, "/songs/videos");
-      }
-
+      if (editFormData.videoFile) videoKey = await uploadFileToImageKit(editFormData.videoFile, "/songs/videos");
       const res = await adminFetch(`/admin/song/${editingSong.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: editFormData.title,
-          artistName: editFormData.artistName,
-          language: editFormData.language,
-          lrclibId: editFormData.lrclibId.trim() || "0",
-          imageKey,
-          videoKey,
-        }),
+        body: JSON.stringify({ title: editFormData.title, artistName: editFormData.artistName, language: editFormData.language, lrclibId: editFormData.lrclibId.trim() || "0", imageKey, videoKey }),
       });
-
-      if (res.ok) {
-        setEditingSong(null);
-        fetchSongs();
-      } else {
-        const errData = await res.json();
-        throw new Error(errData.message || "Failed to update song");
-      }
+      if (res.ok) { setEditingSong(null); fetchSongs(); }
+      else { const errData = await res.json(); throw new Error(errData.message || "Failed to update song"); }
     } catch (err: any) {
       alert("Update failed: " + err.message);
     } finally {
@@ -223,344 +194,281 @@ export default function SongsPage() {
     }
   };
 
+  const inputCls = "w-full bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-sm text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all";
+  const labelCls = "block text-xs font-bold text-zinc-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wider";
+  const fileCls = "w-full text-xs text-zinc-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-semibold cursor-pointer";
+
+  const filtered = songs.filter(s =>
+    s.title.toLowerCase().includes(search.toLowerCase()) ||
+    s.artistName.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const featuredCount = songs.filter(s => s.isFeatured).length;
+  const videoCount = songs.filter(s => s.videoKey).length;
+
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-10">
+    <div className="p-6 md:p-8 max-w-[1600px] mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">Song Library</h1>
-          <p className="text-zinc-500 mt-1">Total {songs.length} tracks available in the system.</p>
+          <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">Song Library</h1>
+          <p className="text-zinc-500 text-sm mt-0.5">{songs.length} tracks · {featuredCount} featured · {videoCount} with video canvas</p>
         </div>
-        <button 
+        <button
           onClick={() => setIsModalOpen(true)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-indigo-500/20 transition-all active:scale-95 flex items-center gap-2"
+          className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white px-5 py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-500/20 transition-all text-sm"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
           </svg>
-          Add New Song
+          Add Song
         </button>
       </div>
 
-      {/* Table Card */}
-      <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="bg-zinc-50 dark:bg-zinc-800/50">
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-zinc-500">Track Detail</th>
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-zinc-500">Artist</th>
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-zinc-500">Video Canvas</th>
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-zinc-500">Language</th>
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-zinc-500">LRCLIB ID</th>
-              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-zinc-500 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-            {loading ? (
-              <tr><td colSpan={6} className="p-20 text-center text-zinc-500 animate-pulse">Loading library...</td></tr>
-            ) : songs.length === 0 ? (
-              <tr><td colSpan={6} className="p-20 text-center text-zinc-500">No tracks found.</td></tr>
-            ) : (
-              songs.map((song) => (
-                <tr key={song.id} className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
-                  <td className="px-8 py-5">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-zinc-200 dark:bg-zinc-800 shadow-lg shadow-indigo-500/10 flex items-center justify-center text-white shrink-0 overflow-hidden">
-                        {song.imageKey ? (
-                          <img 
-                            src={getImageUrl(song.imageKey, { width: 100, height: 100, focus: "auto", aspectRatio: "1-1" })} 
-                            alt={song.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <svg className="w-6 h-6 text-zinc-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM9 14l5-4-5-4v8z" />
-                          </svg>
-                        )}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-bold text-zinc-900 dark:text-white truncate max-w-[200px]">{song.title}</span>
-                        <span className="text-xs text-zinc-500 mt-0.5">ID: {song.id.slice(0, 8)}...</span>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-8 py-5 text-zinc-600 dark:text-zinc-400 font-medium">{song.artistName}</td>
-                  <td className="px-8 py-5">
-                    {song.videoKey ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-xs font-bold border border-emerald-200 dark:border-emerald-800">
-                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
-                        </svg>
-                        Video Active
-                      </span>
-                    ) : (
-                      <span className="text-xs text-zinc-400">None</span>
-                    )}
-                  </td>
-                  <td className="px-8 py-5">
-                    <span className="px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-xs font-bold">{song.language}</span>
-                  </td>
-                  <td className="px-8 py-5 text-zinc-500 font-mono text-xs">
-                    {song.lrclibId || "N/A"}
-                  </td>
-                  <td className="px-8 py-5 text-right space-x-2">
-                    <button 
-                      onClick={() => handleEditOpen(song)}
-                      className="p-2 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all"
-                      title="Edit Track / Attach Video"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(song.id)}
-                      className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-all"
-                      title="Delete Track"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      {/* Search */}
+      <div className="relative mb-6">
+        <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input
+          type="text"
+          placeholder="Search by title or artist..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full pl-11 pr-4 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+        />
       </div>
 
-      {/* Upload Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 w-full max-w-xl rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50">
-              <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Add New Song</h2>
-              <button onClick={() => !uploading && setIsModalOpen(false)} className="text-zinc-400 hover:text-zinc-900 hover:rotate-90 transition-all">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+      {/* Song Grid */}
+      {loading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 animate-pulse">
+              <div className="w-full aspect-square rounded-xl bg-zinc-200 dark:bg-zinc-800 mb-3" />
+              <div className="h-4 bg-zinc-200 dark:bg-zinc-800 rounded w-3/4 mb-2" />
+              <div className="h-3 bg-zinc-200 dark:bg-zinc-800 rounded w-1/2" />
             </div>
-            
-            <form onSubmit={handleUpload} className="p-8 space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Song Title</label>
-                  <input 
-                    required 
-                    type="text" 
-                    value={formData.title}
-                    onChange={e => setFormData({...formData, title: e.target.value})}
-                    placeholder="e.g. Moonlight Sonata"
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-2xl p-4 focus:ring-2 focus:ring-indigo-500 transition-all"
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 text-zinc-400">
+          <svg className="w-12 h-12 mb-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+          </svg>
+          <p className="font-medium">{search ? "No songs match your search." : "No songs yet. Add your first track."}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filtered.map((song) => (
+            <div
+              key={song.id}
+              className="group relative bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden hover:border-indigo-300 dark:hover:border-indigo-700 hover:shadow-lg hover:shadow-indigo-500/10 transition-all duration-200"
+            >
+              {/* Cover Art */}
+              <div className="relative aspect-square overflow-hidden bg-zinc-100 dark:bg-zinc-800">
+                {song.imageKey ? (
+                  <img
+                    src={getImageUrl(song.imageKey, { width: 400, height: 400, focus: "auto", aspectRatio: "1-1" })}
+                    alt={song.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Artist Name</label>
-                  <input 
-                    required 
-                    type="text" 
-                    value={formData.artistName}
-                    onChange={e => setFormData({...formData, artistName: e.target.value})}
-                    placeholder="e.g. Beethoven"
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-2xl p-4 focus:ring-2 focus:ring-indigo-500 transition-all"
-                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <svg className="w-12 h-12 text-zinc-300 dark:text-zinc-600" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" />
+                    </svg>
+                  </div>
+                )}
+
+                {/* Top badges */}
+                <div className="absolute top-2 left-2 flex gap-1.5">
+                  {song.isFeatured && (
+                    <span className="flex items-center gap-1 bg-amber-500/90 backdrop-blur-sm text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                      <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                      </svg>
+                      Hero
+                    </span>
+                  )}
+                  {song.videoKey && (
+                    <span className="flex items-center gap-1 bg-emerald-500/90 backdrop-blur-sm text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                      <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
+                      </svg>
+                      Video
+                    </span>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Language</label>
-                    <input 
-                      required 
-                      type="text" 
-                      value={formData.language}
-                      onChange={e => setFormData({...formData, language: e.target.value})}
-                      placeholder="English"
-                      className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-2xl p-4 focus:ring-2 focus:ring-indigo-500 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">LRCLIB ID</label>
-                    <input 
-                      type="text" 
-                      value={formData.lrclibId}
-                      onChange={e => setFormData({...formData, lrclibId: e.target.value})}
-                      placeholder="e.g. 123456"
-                      className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-2xl p-4 focus:ring-2 focus:ring-indigo-500 transition-all"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Audio File</label>
-                    <input 
-                      required 
-                      type="file" 
-                      accept="audio/*"
-                      onChange={e => setFormData({...formData, songFile: e.target.files?.[0] || null})}
-                      className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Cover Image</label>
-                    <input 
-                      required 
-                      type="file" 
-                      accept="image/*"
-                      onChange={e => setFormData({...formData, imageFile: e.target.files?.[0] || null})}
-                      className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-600 hover:file:bg-purple-100"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">
-                    Background Video Canvas <span className="text-zinc-400 font-normal lowercase">(optional .mp4)</span>
-                  </label>
-                  <input 
-                    type="file" 
-                    accept="video/mp4,video/*"
-                    onChange={e => setFormData({...formData, videoFile: e.target.files?.[0] || null})}
-                    className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-600 hover:file:bg-emerald-100"
-                  />
+                {/* Hover action bar */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end p-3 gap-2">
+                  <button
+                    onClick={() => handleToggleFeatured(song)}
+                    title={song.isFeatured ? "Remove from hero featured" : "Mark as hero featured"}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                      song.isFeatured
+                        ? "bg-amber-500/90 text-white hover:bg-amber-600/90"
+                        : "bg-white/20 backdrop-blur-sm text-white hover:bg-amber-500/80"
+                    }`}
+                  >
+                    <svg className="w-3.5 h-3.5" fill={song.isFeatured ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                    </svg>
+                    {song.isFeatured ? "Unfeature" : "Feature"}
+                  </button>
+                  <button
+                    onClick={() => handleEditOpen(song)}
+                    className="p-2 rounded-lg bg-white/20 backdrop-blur-sm text-white hover:bg-indigo-500/80 transition-all"
+                    title="Edit"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => handleDelete(song.id)}
+                    className="p-2 rounded-lg bg-white/20 backdrop-blur-sm text-white hover:bg-red-500/80 transition-all"
+                    title="Delete"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
                 </div>
               </div>
 
-              <button 
-                disabled={uploading}
-                type="submit"
-                className={`w-full py-4 rounded-2xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-3 ${uploading ? "bg-indigo-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20"}`}
-              >
-                {uploading ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Uploading...
-                  </>
-                ) : (
-                  "Finalize & Upload Track"
-                )}
+              {/* Info */}
+              <div className="p-4">
+                <h3 className="font-bold text-zinc-900 dark:text-white truncate text-sm mb-0.5">{song.title}</h3>
+                <p className="text-xs text-zinc-500 truncate">{song.artistName}</p>
+                <div className="flex items-center justify-between mt-3">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider">{song.language}</span>
+                  <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-mono">
+                    {song.lrclibId && song.lrclibId !== "0" && (
+                      <span title="LRCLIB ID" className="flex items-center gap-1">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                        </svg>
+                        {song.lrclibId}
+                      </span>
+                    )}
+                    <span>{formatDuration(song.duration)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Upload Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-950/70 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+            <div className="px-6 py-5 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center">
+              <h2 className="text-lg font-black text-zinc-900 dark:text-white">Add New Track</h2>
+              <button onClick={() => !uploading && setIsModalOpen(false)} className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:rotate-90 transition-all">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <form onSubmit={handleUpload} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className={labelCls}>Song Title</label>
+                  <input required type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="e.g. Moonlight Sonata" className={inputCls} />
+                </div>
+                <div className="col-span-2">
+                  <label className={labelCls}>Artist Name</label>
+                  <input required type="text" value={formData.artistName} onChange={e => setFormData({...formData, artistName: e.target.value})} placeholder="e.g. Beethoven" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Language</label>
+                  <input required type="text" value={formData.language} onChange={e => setFormData({...formData, language: e.target.value})} placeholder="English" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>LRCLIB ID</label>
+                  <input type="text" value={formData.lrclibId} onChange={e => setFormData({...formData, lrclibId: e.target.value})} placeholder="e.g. 123456" className={inputCls} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 pt-1">
+                <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
+                  <label className={labelCls + " mb-1"}>Audio File <span className="text-red-400">*</span></label>
+                  <input required type="file" accept="audio/*" onChange={e => setFormData({...formData, songFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100"} />
+                </div>
+                <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
+                  <label className={labelCls + " mb-1"}>Cover Image <span className="text-red-400">*</span></label>
+                  <input required type="file" accept="image/*" onChange={e => setFormData({...formData, imageFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-purple-50 file:text-purple-600 hover:file:bg-purple-100"} />
+                </div>
+                <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
+                  <label className={labelCls + " mb-1"}>Background Video <span className="text-zinc-400 normal-case font-normal">(optional)</span></label>
+                  <input type="file" accept="video/mp4,video/*" onChange={e => setFormData({...formData, videoFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-emerald-50 file:text-emerald-600 hover:file:bg-emerald-100"} />
+                </div>
+              </div>
+
+              <button disabled={uploading} type="submit" className={`w-full py-3 rounded-xl font-bold text-white text-sm transition-all flex items-center justify-center gap-2 ${uploading ? "bg-indigo-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"}`}>
+                {uploading ? (<><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>Uploading...</>) : "Finalize & Upload Track"}
               </button>
             </form>
           </div>
         </div>
       )}
 
-      {/* Edit / Video Attach Modal */}
+      {/* Edit Modal */}
       {editingSong && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 w-full max-w-xl rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50">
-              <div>
-                <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Edit Track & Video Canvas</h2>
-                <p className="text-xs text-zinc-500 mt-1">ID: {editingSong.id}</p>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-950/70 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+            <div className="px-6 py-5 border-b border-zinc-200 dark:border-zinc-800 flex items-center gap-4">
+              {editingSong.imageKey && (
+                <img src={getImageUrl(editingSong.imageKey, { width: 80, height: 80, focus: "auto", aspectRatio: "1-1" })} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0" />
+              )}
+              <div className="flex-1 min-w-0">
+                <h2 className="text-base font-black text-zinc-900 dark:text-white truncate">{editingSong.title}</h2>
+                <p className="text-xs text-zinc-500">{editingSong.artistName}</p>
               </div>
-              <button onClick={() => !uploading && setEditingSong(null)} className="text-zinc-400 hover:text-zinc-900 hover:rotate-90 transition-all">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+              <button onClick={() => !uploading && setEditingSong(null)} className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:rotate-90 transition-all shrink-0">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
-            
-            <form onSubmit={handleEditSubmit} className="p-8 space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Song Title</label>
-                  <input 
-                    required 
-                    type="text" 
-                    value={editFormData.title}
-                    onChange={e => setEditFormData({...editFormData, title: e.target.value})}
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-2xl p-4 focus:ring-2 focus:ring-indigo-500 transition-all"
-                  />
+            <form onSubmit={handleEditSubmit} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className={labelCls}>Song Title</label>
+                  <input required type="text" value={editFormData.title} onChange={e => setEditFormData({...editFormData, title: e.target.value})} className={inputCls} />
+                </div>
+                <div className="col-span-2">
+                  <label className={labelCls}>Artist Name</label>
+                  <input required type="text" value={editFormData.artistName} onChange={e => setEditFormData({...editFormData, artistName: e.target.value})} className={inputCls} />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Artist Name</label>
-                  <input 
-                    required 
-                    type="text" 
-                    value={editFormData.artistName}
-                    onChange={e => setEditFormData({...editFormData, artistName: e.target.value})}
-                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-2xl p-4 focus:ring-2 focus:ring-indigo-500 transition-all"
-                  />
+                  <label className={labelCls}>Language</label>
+                  <input required type="text" value={editFormData.language} onChange={e => setEditFormData({...editFormData, language: e.target.value})} className={inputCls} />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Language</label>
-                    <input 
-                      required 
-                      type="text" 
-                      value={editFormData.language}
-                      onChange={e => setEditFormData({...editFormData, language: e.target.value})}
-                      className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-2xl p-4 focus:ring-2 focus:ring-indigo-500 transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">LRCLIB ID</label>
-                    <input 
-                      type="text" 
-                      value={editFormData.lrclibId}
-                      onChange={e => setEditFormData({...editFormData, lrclibId: e.target.value})}
-                      className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-2xl p-4 focus:ring-2 focus:ring-indigo-500 transition-all"
-                    />
-                  </div>
+                <div>
+                  <label className={labelCls}>LRCLIB ID</label>
+                  <input type="text" value={editFormData.lrclibId} onChange={e => setEditFormData({...editFormData, lrclibId: e.target.value})} className={inputCls} />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">
-                      Replace Cover Image <span className="text-zinc-400 font-normal lowercase">(optional)</span>
-                    </label>
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      onChange={e => setEditFormData({...editFormData, imageFile: e.target.files?.[0] || null})}
-                      className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-600 hover:file:bg-purple-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">
-                      {editingSong.videoKey ? "Replace Video Canvas" : "Attach Video Canvas"} <span className="text-zinc-400 font-normal lowercase">(optional)</span>
-                    </label>
-                    <input 
-                      type="file" 
-                      accept="video/mp4,video/*"
-                      onChange={e => setEditFormData({...editFormData, videoFile: e.target.files?.[0] || null})}
-                      className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-600 hover:file:bg-emerald-100"
-                    />
-                  </div>
-                </div>
-
-                {editingSong.videoKey && (
-                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 rounded-2xl text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
-                    <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" />
-                    </svg>
-                    <span>Current video key: <strong>{editingSong.videoKey}</strong></span>
-                  </div>
-                )}
               </div>
 
-              <button 
-                disabled={uploading}
-                type="submit"
-                className={`w-full py-4 rounded-2xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-3 ${uploading ? "bg-indigo-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20"}`}
-              >
-                {uploading ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Saving Changes...
-                  </>
-                ) : (
-                  "Save Track Updates"
-                )}
+              <div className="grid grid-cols-1 gap-3 pt-1">
+                <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
+                  <label className={labelCls + " mb-1"}>Replace Cover Image <span className="text-zinc-400 normal-case font-normal">(optional)</span></label>
+                  <input type="file" accept="image/*" onChange={e => setEditFormData({...editFormData, imageFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-purple-50 file:text-purple-600 hover:file:bg-purple-100"} />
+                </div>
+                <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
+                  <label className={labelCls + " mb-1"}>{editingSong.videoKey ? "Replace Video Canvas" : "Attach Video Canvas"} <span className="text-zinc-400 normal-case font-normal">(optional)</span></label>
+                  {editingSong.videoKey && (
+                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mb-2 flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" /></svg>
+                      Video canvas attached
+                    </p>
+                  )}
+                  <input type="file" accept="video/mp4,video/*" onChange={e => setEditFormData({...editFormData, videoFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-emerald-50 file:text-emerald-600 hover:file:bg-emerald-100"} />
+                </div>
+              </div>
+
+              <button disabled={uploading} type="submit" className={`w-full py-3 rounded-xl font-bold text-white text-sm transition-all flex items-center justify-center gap-2 ${uploading ? "bg-indigo-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"}`}>
+                {uploading ? (<><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>Saving...</>) : "Save Changes"}
               </button>
             </form>
           </div>

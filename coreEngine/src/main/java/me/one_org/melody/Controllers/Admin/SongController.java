@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import me.one_org.melody.Dto.Controllers.Admin.CreateSongRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.CreateSongResponseDto;
+import me.one_org.melody.Dto.Controllers.Admin.ToggleFeaturedRequestDto;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Entity.JobsEntity;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
@@ -54,6 +55,13 @@ public class SongController {
     public ResponseEntity<Void> deleteSong(@PathVariable String id) {
         songService.deleteSong(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/featured")
+    public ResponseEntity<SongsEntity> toggleFeatured(
+            @PathVariable String id,
+            @Valid @RequestBody ToggleFeaturedRequestDto data) {
+        return ResponseEntity.ok(songService.toggleFeatured(id, data.featured()));
     }
 
     @GetMapping("/job/{id}")

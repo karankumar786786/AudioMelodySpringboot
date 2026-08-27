@@ -40,6 +40,18 @@ public class SongsEntity implements Serializable{
     private String videoKey;
 
     @Column(nullable = false)
+    @Builder.Default
+    private Boolean isFeatured = false;
+
+    public boolean isFeatured() {
+        return Boolean.TRUE.equals(this.isFeatured);
+    }
+
+    public void setFeatured(Boolean isFeatured) {
+        this.isFeatured = isFeatured != null ? isFeatured : false;
+    }
+
+    @Column(nullable = false)
     private String language;
 
     @Column(nullable = false)

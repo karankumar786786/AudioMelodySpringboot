@@ -14,6 +14,7 @@ import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import tools.jackson.databind.DefaultTyping;
+import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.cfg.DateTimeFeature;
 import tools.jackson.databind.json.JsonMapper;
@@ -32,6 +33,8 @@ public class RedisConfig {
                 .build();
         return JsonMapper.builder()
                 .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
+                .disable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
+                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 .activateDefaultTyping(ptv, DefaultTyping.NON_FINAL)
                 .build();
     }
@@ -74,6 +77,7 @@ public class RedisConfig {
 
         Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
         cacheConfigurations.put("songs", defaultConfig.entryTtl(Duration.ofMinutes(30)));
+        cacheConfigurations.put("featured_songs", defaultConfig.entryTtl(Duration.ofMinutes(15)));
         cacheConfigurations.put("artists", defaultConfig.entryTtl(Duration.ofMinutes(30)));
         cacheConfigurations.put("playlists", defaultConfig.entryTtl(Duration.ofMinutes(15)));
         cacheConfigurations.put("artist_lists", defaultConfig.entryTtl(Duration.ofMinutes(15)));

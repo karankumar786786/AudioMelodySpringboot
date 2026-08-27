@@ -93,7 +93,7 @@ export function HlsMusicPlayer() {
     selectedQuality,
   );
 
-  const { currentCaption, transcriptions } = useLyrics(
+  const { currentCaption, transcriptions, plainLyrics } = useLyrics(
     currentSong?.lrclibId || currentSong?.captionUrl,
     localTime,
   );
@@ -307,6 +307,7 @@ export function HlsMusicPlayer() {
             <PlayerLyricsOverlay
               currentCaption={currentCaption}
               transcriptions={transcriptions}
+              plainLyrics={plainLyrics}
               localTime={localTime}
               onSeek={(time) => {
                 if (audioRef.current) {

@@ -23,12 +23,24 @@ public class ImageKit {
         return params;
     }
 
-    public void deleteByKey(String key){
+    public void deleteByKey(String key) {
         if (key == null || key.isBlank()) return;
         try {
-            imageKitSdk.deleteFile(key);
+            String fileName = key.contains("/") ? key.substring(key.lastIndexOf('/') + 1) : key;
+            io.imagekit.sdk.models.GetFileListRequest request = new io.imagekit.sdk.models.GetFileListRequest();
+            request.setName(fileName);
+            io.imagekit.sdk.models.results.ResultList result = imageKitSdk.getFileList(request);
+            if (result != null && result.getResults() != null && !result.getResults().isEmpty()) {
+                for (var file : result.getResults()) {
+                    if (file.getFilePath().equals(key) || file.getName().equals(fileName)) {
+                        imageKitSdk.deleteFile(file.getFileId());
+                    }
+                }
+            } else {
+                imageKitSdk.deleteFile(key);
+            }
         } catch (Exception e) {
-            // handle exception
+            // log and swallow deletion error so business flow is not blocked
         }
     }
 }

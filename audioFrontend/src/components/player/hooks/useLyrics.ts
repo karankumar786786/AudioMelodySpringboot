@@ -25,9 +25,7 @@ export function parseLrcToTranscriptions(lrcText: string): TranscriptionEntry[] 
       const seconds = parseFloat(match[2]);
       const text = match[3].trim();
       const time = minutes * 60 + seconds;
-      if (text) {
-        parsedLines.push({ time, text });
-      }
+      if (text) parsedLines.push({ time, text });
     }
   }
 
@@ -49,17 +47,18 @@ export function useLyrics(
   currentTime: number
 ) {
   const [transcriptions, setTranscriptions] = useState<TranscriptionEntry[]>([]);
+  const [plainLyrics, setPlainLyrics] = useState<string | null>(null);
   const [currentCaption, setCurrentCaption] = useState<TranscriptionEntry | null>(null);
 
   useEffect(() => {
     if (!lrclibIdOrCaptionUrl) {
       setTranscriptions([]);
+      setPlainLyrics(null);
       return;
     }
 
     const input = lrclibIdOrCaptionUrl.trim();
 
-    // Check if input is a direct URL or an LRCLIB ID
     if (input.startsWith("http://") || input.startsWith("https://")) {
       fetch(input)
         .then(async (r) => {
@@ -79,12 +78,7 @@ export function useLyrics(
               if (!l || l.startsWith("WEBVTT")) continue;
               if (l.includes("-->")) {
                 const [s, e] = l.split("-->").map((x) => x.trim());
-                currentChunk = {
-                  start_time_seconds: timeToSec(s),
-                  end_time_seconds: timeToSec(e),
-                  transcript: "",
-                  words: [],
-                };
+                currentChunk = { start_time_seconds: timeToSec(s), end_time_seconds: timeToSec(e), transcript: "", words: [] };
                 chunks.push(currentChunk);
               } else if (currentChunk) {
                 const wordMatches = Array.from(l.matchAll(/<([\d:.]+)>\s*([^<]+)/g));
@@ -93,8 +87,7 @@ export function useLyrics(
                     const wStart = timeToSec(m[1]);
                     const wText = m[2].trim();
                     let wEnd = currentChunk!.end_time_seconds;
-                    if (idx < wordMatches.length - 1)
-                      wEnd = timeToSec(wordMatches[idx + 1][1]);
+                    if (idx < wordMatches.length - 1) wEnd = timeToSec(wordMatches[idx + 1][1]);
                     currentChunk!.words.push({ text: wText, start: wStart, end: wEnd });
                   });
                   currentChunk.transcript += l.replace(/<[^>]+>/g, "").trim();
@@ -104,13 +97,15 @@ export function useLyrics(
               }
             }
             setTranscriptions(chunks);
+            setPlainLyrics(null);
           } else {
             setTranscriptions(parseLrcToTranscriptions(text));
+            setPlainLyrics(null);
           }
         })
-        .catch(() => setTranscriptions([]));
+        .catch(() => { setTranscriptions([]); setPlainLyrics(null); });
     } else {
-      // Fetch from LRCLIB API as in test/app/hls/page.tsx
+      // Fetch from LRCLIB API by ID
       fetch(`https://lrclib.net/api/get/${encodeURIComponent(input)}`)
         .then((res) => {
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -118,12 +113,20 @@ export function useLyrics(
         })
         .then((data) => {
           if (data.syncedLyrics && typeof data.syncedLyrics === "string") {
+            // ✅ Synced lyrics — full karaoke mode
             setTranscriptions(parseLrcToTranscriptions(data.syncedLyrics));
-          } else {
+            setPlainLyrics(null);
+          } else if (data.plainLyrics && typeof data.plainLyrics === "string") {
+            // ⚠️ Plain (non-synced) lyrics only — show as static text
             setTranscriptions([]);
+            setPlainLyrics(data.plainLyrics);
+          } else {
+            // ❌ No lyrics — show EQ bars
+            setTranscriptions([]);
+            setPlainLyrics(null);
           }
         })
-        .catch(() => setTranscriptions([]));
+        .catch(() => { setTranscriptions([]); setPlainLyrics(null); });
     }
   }, [lrclibIdOrCaptionUrl]);
 
@@ -139,5 +142,5 @@ export function useLyrics(
     if (active !== currentCaption) setCurrentCaption(active);
   }, [transcriptions, currentTime]);
 
-  return { currentCaption, transcriptions };
+  return { currentCaption, transcriptions, plainLyrics };
 }
