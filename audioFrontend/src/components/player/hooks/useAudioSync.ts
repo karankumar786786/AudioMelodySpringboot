@@ -13,7 +13,7 @@ export function useAudioSync(
   setBuffered: (t: number) => void,
   fadeIn?: (dur?: number) => void,
   fadeOut?: (dur?: number) => void,
-  crossfadeDuration: number = 2,
+  crossfadeDuration: number = 1,
 ) {
   const animFrameRef = useRef<number>(0);
   const hasFadedOutRef = useRef<boolean>(false);

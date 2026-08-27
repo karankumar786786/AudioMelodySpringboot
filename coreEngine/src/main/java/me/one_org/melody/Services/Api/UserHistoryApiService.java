@@ -85,6 +85,8 @@ public class UserHistoryApiService {
                 song.getDuration(),
                 song.getSongKey(),
                 song.getImageKey(),
+                song.getVideoKey(),
+                song.isFeatured(),
                 song.getLanguage(),
                 song.getLrclibId(),
                 song.getStatus() != null ? song.getStatus().name() : null,

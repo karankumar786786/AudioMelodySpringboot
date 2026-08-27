@@ -10,6 +10,8 @@ public record UserHistoryResponseDto(
     Integer duration,
     String songKey,
     String imageKey,
+    String videoKey,
+    Boolean isFeatured,
     String language,
     String lrclibId,
     String status,
@@ -17,3 +19,4 @@ public record UserHistoryResponseDto(
     Integer part,
     LocalDateTime listenedAt
 ) {}
+
