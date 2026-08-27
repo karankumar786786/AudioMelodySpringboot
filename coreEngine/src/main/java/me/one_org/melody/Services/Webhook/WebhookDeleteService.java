@@ -94,21 +94,31 @@ public class WebhookDeleteService {
     private void deleteSongImage(String entityId) {
         SongsEntity song = songsRepository.findById(entityId)
                 .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + entityId));
-        imageKit.deleteByKey(song.getImageKey());
+        if (song.getImageKey() != null && !song.getImageKey().isBlank()) {
+            imageKit.deleteByKey(song.getImageKey());
+        }
+        if (song.getVideoKey() != null && !song.getVideoKey().isBlank()) {
+            imageKit.deleteByKey(song.getVideoKey());
+        }
     }
 
     private void deletePlaylistImages(String entityId) {
         PlaylistsEntity playlist = playlistsRepository.findById(entityId)
                 .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + entityId));
-        imageKit.deleteByKey(playlist.getBannerImageKey());
-        imageKit.deleteByKey(playlist.getCoverImageKey());
+        if (playlist.getCoverImageKey() != null && !playlist.getCoverImageKey().isBlank()) {
+            imageKit.deleteByKey(playlist.getCoverImageKey());
+        }
+        if (playlist.getVideoKey() != null && !playlist.getVideoKey().isBlank()) {
+            imageKit.deleteByKey(playlist.getVideoKey());
+        }
     }
 
     private void deleteArtistImages(String entityId) {
         ArtistsEntity artist = artistsRepository.findById(entityId)
                 .orElseThrow(() -> new ResourceNotFoundException("Artist not found with id: " + entityId));
-        imageKit.deleteByKey(artist.getBannerImageKey());
-        imageKit.deleteByKey(artist.getCoverImageKey());
+        if (artist.getCoverImageKey() != null && !artist.getCoverImageKey().isBlank()) {
+            imageKit.deleteByKey(artist.getCoverImageKey());
+        }
     }
 
     private void hardDeleteSong(String entityId) {

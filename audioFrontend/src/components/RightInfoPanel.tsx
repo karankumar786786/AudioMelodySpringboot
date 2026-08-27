@@ -109,12 +109,20 @@ export function RightInfoPanel() {
     );
   }
 
-  const videoKey = "o soniya clip.mp4";
-  const videoUrl = getVideoUrl(videoKey, {
-    width: 640,
-    height: 880,
-    quality: 80,
-  });
+  const activeVideoKey = currentSong.videoKey || (
+    currentSong.id === "afcef7ca-367e-4f15-97c8-9564af846a4d" ||
+    currentSong.title?.toLowerCase().includes("o soniya")
+      ? "o soniya clip.mp4"
+      : undefined
+  );
+
+  const videoUrl = activeVideoKey
+    ? getVideoUrl(activeVideoKey, {
+        width: 640,
+        height: 880,
+        quality: 80,
+      })
+    : undefined;
 
   const songImage = currentSong.imageKey
     ? getImageUrl(currentSong.imageKey, {

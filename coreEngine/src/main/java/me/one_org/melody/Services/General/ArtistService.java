@@ -50,7 +50,6 @@ public class ArtistService {
                 .name(data.name())
                 .about(data.about())
                 .coverImageKey(data.coverImageKey())
-                .bannerImageKey(data.bannerImageKey())
                 .build();
         artistsRepository.save(artist);
         paginationMetaDataService.incrementStatus("ArtistsEntity", artist.getStatus());
@@ -71,25 +70,19 @@ public class ArtistService {
         ArtistsEntity artist = artistsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Artist not found with id: " + id));
         String oldCoverImageKey = null;
-        String oldBannerImageKey = null;
         if (data.name() != null)
             artist.setName(data.name());
         if (data.about() != null)
             artist.setAbout(data.about());
-        if (data.coverImageKey() != null) {
+        if (data.coverImageKey() != null && !data.coverImageKey().isBlank() && !data.coverImageKey().equals(artist.getCoverImageKey())) {
             oldCoverImageKey = artist.getCoverImageKey();
             artist.setCoverImageKey(data.coverImageKey());
         }
-        if (data.bannerImageKey() != null) {
-            oldBannerImageKey = artist.getBannerImageKey();
-            artist.setBannerImageKey(data.bannerImageKey());
-        }
         artistsRepository.save(artist);
-        if (oldBannerImageKey != null && !oldBannerImageKey.isBlank()) {
-            imageKit.deleteByKey(oldBannerImageKey);
-        }
         if (oldCoverImageKey != null && !oldCoverImageKey.isBlank()) {
-            imageKit.deleteByKey(oldCoverImageKey);
+            try {
+                imageKit.deleteByKey(oldCoverImageKey);
+            } catch (Exception ignored) {}
         }
         if (data.name() != null) {
             try {

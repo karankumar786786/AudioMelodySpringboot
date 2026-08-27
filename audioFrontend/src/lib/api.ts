@@ -8,6 +8,7 @@ export interface Song {
   duration: number;
   songKey: string;
   imageKey: string;
+  videoKey?: string;
   language: string;
   lrclibId: string;
   status?: string;
@@ -20,7 +21,6 @@ export interface Artist {
   about?: string;
   dob?: string;
   coverImageKey?: string;
-  bannerImageKey?: string;
   status?: string;
   createdAt?: string;
 }
@@ -30,7 +30,7 @@ export interface Playlist {
   name: string;
   description?: string;
   coverImageKey?: string;
-  bannerImageKey?: string;
+  videoKey?: string;
   status?: string;
   createdAt?: string;
   updatedAt?: string;

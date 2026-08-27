@@ -30,8 +30,6 @@ public class ArtistsEntity implements Serializable {
 
     private String coverImageKey;
 
-    private String bannerImageKey;
-
     @Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

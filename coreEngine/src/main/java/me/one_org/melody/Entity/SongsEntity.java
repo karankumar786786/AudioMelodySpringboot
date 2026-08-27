@@ -37,6 +37,8 @@ public class SongsEntity implements Serializable{
     @Column(nullable = false)
     private String imageKey;
 
+    private String videoKey;
+
     @Column(nullable = false)
     private String language;
 

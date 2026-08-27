@@ -56,7 +56,7 @@ public class PlaylistService {
                 .name(data.name())
                 .description(data.description())
                 .coverImageKey(data.coverImageKey())
-                .bannerImageKey(data.bannerImageKey())
+                .videoKey(data.videoKey())
                 .songs(new HashSet<>())
                 .build();
         playlistsRepository.save(playlist);
@@ -81,10 +81,31 @@ public class PlaylistService {
 
         if (data.name() != null) playlist.setName(data.name());
         if (data.description() != null) playlist.setDescription(data.description());
-        if (data.coverImageKey() != null) playlist.setCoverImageKey(data.coverImageKey());
-        if (data.bannerImageKey() != null) playlist.setBannerImageKey(data.bannerImageKey());
+
+        String oldCoverKey = null;
+        if (data.coverImageKey() != null && !data.coverImageKey().isBlank() && !data.coverImageKey().equals(playlist.getCoverImageKey())) {
+            oldCoverKey = playlist.getCoverImageKey();
+            playlist.setCoverImageKey(data.coverImageKey());
+        }
+
+        String oldVideoKey = null;
+        if (data.videoKey() != null && !data.videoKey().equals(playlist.getVideoKey())) {
+            oldVideoKey = playlist.getVideoKey();
+            playlist.setVideoKey(data.videoKey());
+        }
 
         playlistsRepository.save(playlist);
+
+        if (oldCoverKey != null && !oldCoverKey.isBlank()) {
+            try {
+                imageKit.deleteByKey(oldCoverKey);
+            } catch (Exception ignored) {}
+        }
+        if (oldVideoKey != null && !oldVideoKey.isBlank()) {
+            try {
+                imageKit.deleteByKey(oldVideoKey);
+            } catch (Exception ignored) {}
+        }
 
         try {
             algoliaSearch.save(playlist);

@@ -38,8 +38,16 @@ public class WebhookInternalService {
     public ImageUploadParamsResponseDto getImageUploadParams(){
         String key = UUID.randomUUID().toString();
         Map<String,String> param = imageKit.preSignedToken();
-        System.out.println("[Song Upload] Generated ImageKit upload params");
-        System.out.println("[Song Upload] imageKey=" + key + ", param=" + param);
+        System.out.println("[Image Upload] Generated ImageKit upload params");
+        System.out.println("[Image Upload] imageKey=" + key + ", param=" + param);
+        return new ImageUploadParamsResponseDto(key, param);
+    }
+
+    public ImageUploadParamsResponseDto getVideoUploadParams(){
+        String key = UUID.randomUUID().toString();
+        Map<String,String> param = imageKit.preSignedToken();
+        System.out.println("[Video Upload] Generated ImageKit upload params");
+        System.out.println("[Video Upload] videoKey=" + key + ", param=" + param);
         return new ImageUploadParamsResponseDto(key, param);
     }
 

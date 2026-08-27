@@ -31,8 +31,7 @@ public class PlaylistsEntity implements Serializable{
     private String description;
     @Column(nullable = false)
     private String coverImageKey;
-    @Column(nullable = false)
-    private String bannerImageKey;
+    private String videoKey;
     @Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

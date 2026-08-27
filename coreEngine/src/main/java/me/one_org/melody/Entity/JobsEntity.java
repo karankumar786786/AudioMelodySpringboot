@@ -24,6 +24,7 @@ public class JobsEntity {
     private String songKey;
     @Column(nullable = false)
     private String imageKey;
+    private String videoKey;
     private String language;
     private String lrclibId;
     @Column(nullable = false, unique = true)

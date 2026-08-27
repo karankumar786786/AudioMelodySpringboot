@@ -45,6 +45,11 @@ public class SongController {
         return ResponseEntity.ok(songService.getSongById(id));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<SongsEntity> updateSong(@PathVariable String id, @Valid @RequestBody me.one_org.melody.Dto.Controllers.Admin.UpdateSongRequestDto data) {
+        return ResponseEntity.ok(songService.updateSong(id, data));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteSong(@PathVariable String id) {
         songService.deleteSong(id);

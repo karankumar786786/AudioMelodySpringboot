@@ -8,6 +8,7 @@ public record CreateSongRequestDto(
     @NotBlank String artistName,
     @NotBlank String tempSongKey,
     @NotBlank String imageKey,
+    String videoKey,
     @NotBlank
     String language,
     @NotBlank

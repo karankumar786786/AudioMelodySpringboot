@@ -11,6 +11,7 @@ interface Song {
   duration: number;
   language: string;
   imageKey: string;
+  videoKey?: string;
   lrclibId?: string;
   createdAt?: string;
 }
@@ -20,8 +21,9 @@ export default function SongsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingSong, setEditingSong] = useState<Song | null>(null);
   
-  // Form State
+  // Create Form State
   const [formData, setFormData] = useState({
     title: "",
     artistName: "",
@@ -29,7 +31,19 @@ export default function SongsPage() {
     lrclibId: "",
     songFile: null as File | null,
     imageFile: null as File | null,
+    videoFile: null as File | null,
   });
+
+  // Edit Form State
+  const [editFormData, setEditFormData] = useState({
+    title: "",
+    artistName: "",
+    language: "English",
+    lrclibId: "",
+    imageFile: null as File | null,
+    videoFile: null as File | null,
+  });
+
   const [uploading, setUploading] = useState(false);
 
   const fetchSongs = async () => {
@@ -69,104 +83,61 @@ export default function SongsPage() {
     }
   };
 
+  const uploadFileToImageKit = async (file: File, folder: string) => {
+    const sigRes = await adminFetch("/webhook/internal/image-upload-param");
+    if (!sigRes.ok) throw new Error("Failed to get ImageKit upload authorization");
+    const sigData = await sigRes.json();
+
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("publicKey", process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY || "public_ck50bJ3UfF9eCOXhwXQTQFP693o=");
+    fd.append("signature", sigData.param.signature);
+    fd.append("expire", sigData.param.expire.toString());
+    fd.append("token", sigData.param.token);
+    fd.append("folder", folder);
+    const extension = file.name.split('.').pop();
+    fd.append("fileName", `${sigData.key}.${extension}`);
+
+    const res = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
+      method: "POST",
+      body: fd,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "File upload failed");
+    return data.filePath || sigData.key;
+  };
+
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.songFile || !formData.imageFile) {
       return alert("Please select both audio and image files");
     }
 
-    console.log("[Song Upload] Start upload flow");
-    console.log("[Song Upload] Form data", {
-      title: formData.title,
-      artistName: formData.artistName,
-      language: formData.language,
-      songFileName: formData.songFile.name,
-      songFileType: formData.songFile.type,
-      imageFileName: formData.imageFile.name,
-      imageFileType: formData.imageFile.type,
-    });
-
     setUploading(true);
     try {
-      // 1. Get Presigned URLs & Upload Token from coreEngine
-      console.log("[Song Upload] Step 1: Requesting upload credentials from coreEngine");
-      const [songUrlRes, imageUrlRes] = await Promise.all([
-        adminFetch("/webhook/internal/song-upload-url"),
-        adminFetch("/webhook/internal/image-upload-param"),
-      ]);
-
-      console.log("[Song Upload] Step 1 response status", {
-        songUrlResStatus: songUrlRes.status,
-        imageUrlResStatus: imageUrlRes.status,
-      });
-
-      if (!songUrlRes.ok || !imageUrlRes.ok) {
-        throw new Error("Failed to get upload authorization from server");
-      }
-
+      // 1. Get Presigned URL for Audio
+      const songUrlRes = await adminFetch("/webhook/internal/song-upload-url");
+      if (!songUrlRes.ok) throw new Error("Failed to get audio upload authorization");
       const songUrlData = await songUrlRes.json();
-      const imageUrlData = await imageUrlRes.json();
-
-      console.log("[Song Upload] Step 1 data", {
-        songUrlData,
-        imageUrlData,
-      });
 
       // 2. Upload Song file to S3
-      console.log("[Song Upload] Step 2: Uploading song file to S3");
       const songUploadRes = await fetch(songUrlData.preSignedUrl, {
         method: "PUT",
         body: formData.songFile,
         headers: { "Content-Type": formData.songFile.type || "audio/mpeg" },
       });
-
-      console.log("[Song Upload] Step 2 result", {
-        ok: songUploadRes.ok,
-        status: songUploadRes.status,
-        statusText: songUploadRes.statusText,
-      });
-
       if (!songUploadRes.ok) throw new Error("Audio upload to S3 failed");
 
-      // 3. Upload Cover Image to ImageKit using params from coreEngine
-      console.log("[Song Upload] Step 3: Uploading image to ImageKit");
-      const imageFormData = new FormData();
-      imageFormData.append("file", formData.imageFile);
-      imageFormData.append("publicKey", process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY || "public_ck50bJ3UfF9eCOXhwXQTQFP693o=");
-      imageFormData.append("signature", imageUrlData.param.signature);
-      imageFormData.append("expire", imageUrlData.param.expire.toString());
-      imageFormData.append("token", imageUrlData.param.token);
-      imageFormData.append("folder", "/songs/images");
-      const extension = formData.imageFile.name.split('.').pop();
-      const fileNameWithExt = `${imageUrlData.key}.${extension}`;
-      imageFormData.append("fileName", fileNameWithExt);
+      // 3. Upload Cover Image to ImageKit
+      const uploadedImageKey = await uploadFileToImageKit(formData.imageFile, "/songs/images");
 
-      console.log("[Song Upload] Step 3 payload", {
-        publicKey: process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY || "public_ck50bJ3UfF9eCOXhwXQTQFP693o=",
-        signature: imageUrlData.param.signature,
-        expire: imageUrlData.param.expire,
-        token: imageUrlData.param.token,
-        fileName: fileNameWithExt,
-        folder: "/songs/images",
-      });
+      // 4. Upload Optional Video file to ImageKit
+      let uploadedVideoKey: string | null = null;
+      if (formData.videoFile) {
+        uploadedVideoKey = await uploadFileToImageKit(formData.videoFile, "/songs/videos");
+      }
 
-      const ikRes = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
-        method: "POST",
-        body: imageFormData,
-      });
-
-      const ikData = await ikRes.json();
-      console.log("[Song Upload] Step 3 result", {
-        ok: ikRes.ok,
-        status: ikRes.status,
-        statusText: ikRes.statusText,
-        response: ikData,
-      });
-
-      if (!ikRes.ok) throw new Error(ikData.message || "Image upload failed");
-
-      // 4. Create Song record in coreEngine
-      console.log("[Song Upload] Step 4: Finalizing song record in backend");
+      // 5. Create Song record in coreEngine
       const finalizeRes = await adminFetch("/admin/song", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -174,33 +145,80 @@ export default function SongsPage() {
           title: formData.title,
           artistName: formData.artistName,
           tempSongKey: songUrlData.key,
-          imageKey: ikData.filePath || imageUrlData.key,
+          imageKey: uploadedImageKey,
+          videoKey: uploadedVideoKey,
           language: formData.language || "English",
           lrclibId: formData.lrclibId.trim() || "0",
         }),
       });
 
-      console.log("[Song Upload] Step 4 result", {
-        ok: finalizeRes.ok,
-        status: finalizeRes.status,
-        statusText: finalizeRes.statusText,
-      });
-
       if (finalizeRes.ok) {
-        console.log("[Song Upload] Upload flow completed successfully");
         setIsModalOpen(false);
-        setFormData({ title: "", artistName: "", language: "English", lrclibId: "", songFile: null, imageFile: null });
+        setFormData({ title: "", artistName: "", language: "English", lrclibId: "", songFile: null, imageFile: null, videoFile: null });
         fetchSongs();
       } else {
         const errData = await finalizeRes.json();
-        console.error("[Song Upload] Finalize failed", errData);
         throw new Error(errData.message || "Failed to create song record");
       }
     } catch (err: any) {
       console.error("[Song Upload] Upload error", err);
       alert("Upload failed: " + err.message);
     } finally {
-      console.log("[Song Upload] Finished upload flow");
+      setUploading(false);
+    }
+  };
+
+  const handleEditOpen = (song: Song) => {
+    setEditingSong(song);
+    setEditFormData({
+      title: song.title,
+      artistName: song.artistName,
+      language: song.language || "English",
+      lrclibId: song.lrclibId || "",
+      imageFile: null,
+      videoFile: null,
+    });
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSong) return;
+
+    setUploading(true);
+    try {
+      let imageKey = editingSong.imageKey;
+      if (editFormData.imageFile) {
+        imageKey = await uploadFileToImageKit(editFormData.imageFile, "/songs/images");
+      }
+
+      let videoKey = editingSong.videoKey;
+      if (editFormData.videoFile) {
+        videoKey = await uploadFileToImageKit(editFormData.videoFile, "/songs/videos");
+      }
+
+      const res = await adminFetch(`/admin/song/${editingSong.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: editFormData.title,
+          artistName: editFormData.artistName,
+          language: editFormData.language,
+          lrclibId: editFormData.lrclibId.trim() || "0",
+          imageKey,
+          videoKey,
+        }),
+      });
+
+      if (res.ok) {
+        setEditingSong(null);
+        fetchSongs();
+      } else {
+        const errData = await res.json();
+        throw new Error(errData.message || "Failed to update song");
+      }
+    } catch (err: any) {
+      alert("Update failed: " + err.message);
+    } finally {
       setUploading(false);
     }
   };
@@ -230,6 +248,7 @@ export default function SongsPage() {
             <tr className="bg-zinc-50 dark:bg-zinc-800/50">
               <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-zinc-500">Track Detail</th>
               <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-zinc-500">Artist</th>
+              <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-zinc-500">Video Canvas</th>
               <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-zinc-500">Language</th>
               <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-zinc-500">LRCLIB ID</th>
               <th className="px-8 py-5 text-xs font-bold uppercase tracking-widest text-zinc-500 text-right">Actions</th>
@@ -237,9 +256,9 @@ export default function SongsPage() {
           </thead>
           <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
             {loading ? (
-              <tr><td colSpan={5} className="p-20 text-center text-zinc-500 animate-pulse">Loading library...</td></tr>
+              <tr><td colSpan={6} className="p-20 text-center text-zinc-500 animate-pulse">Loading library...</td></tr>
             ) : songs.length === 0 ? (
-              <tr><td colSpan={5} className="p-20 text-center text-zinc-500">No tracks found.</td></tr>
+              <tr><td colSpan={6} className="p-20 text-center text-zinc-500">No tracks found.</td></tr>
             ) : (
               songs.map((song) => (
                 <tr key={song.id} className="group hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors">
@@ -266,15 +285,37 @@ export default function SongsPage() {
                   </td>
                   <td className="px-8 py-5 text-zinc-600 dark:text-zinc-400 font-medium">{song.artistName}</td>
                   <td className="px-8 py-5">
+                    {song.videoKey ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 text-xs font-bold border border-emerald-200 dark:border-emerald-800">
+                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
+                        </svg>
+                        Video Active
+                      </span>
+                    ) : (
+                      <span className="text-xs text-zinc-400">None</span>
+                    )}
+                  </td>
+                  <td className="px-8 py-5">
                     <span className="px-3 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-800 dark:text-zinc-200 text-xs font-bold">{song.language}</span>
                   </td>
                   <td className="px-8 py-5 text-zinc-500 font-mono text-xs">
                     {song.lrclibId || "N/A"}
                   </td>
-                  <td className="px-8 py-5 text-right">
+                  <td className="px-8 py-5 text-right space-x-2">
+                    <button 
+                      onClick={() => handleEditOpen(song)}
+                      className="p-2 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all"
+                      title="Edit Track / Attach Video"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
                     <button 
                       onClick={() => handleDelete(song.id)}
                       className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-all"
+                      title="Delete Track"
                     >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -372,6 +413,18 @@ export default function SongsPage() {
                     />
                   </div>
                 </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">
+                    Background Video Canvas <span className="text-zinc-400 font-normal lowercase">(optional .mp4)</span>
+                  </label>
+                  <input 
+                    type="file" 
+                    accept="video/mp4,video/*"
+                    onChange={e => setFormData({...formData, videoFile: e.target.files?.[0] || null})}
+                    className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-600 hover:file:bg-emerald-100"
+                  />
+                </div>
               </div>
 
               <button 
@@ -389,6 +442,124 @@ export default function SongsPage() {
                   </>
                 ) : (
                   "Finalize & Upload Track"
+                )}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit / Video Attach Modal */}
+      {editingSong && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-sm">
+          <div className="bg-white dark:bg-zinc-900 w-full max-w-xl rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-8 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50">
+              <div>
+                <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Edit Track & Video Canvas</h2>
+                <p className="text-xs text-zinc-500 mt-1">ID: {editingSong.id}</p>
+              </div>
+              <button onClick={() => !uploading && setEditingSong(null)} className="text-zinc-400 hover:text-zinc-900 hover:rotate-90 transition-all">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <form onSubmit={handleEditSubmit} className="p-8 space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Song Title</label>
+                  <input 
+                    required 
+                    type="text" 
+                    value={editFormData.title}
+                    onChange={e => setEditFormData({...editFormData, title: e.target.value})}
+                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-2xl p-4 focus:ring-2 focus:ring-indigo-500 transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Artist Name</label>
+                  <input 
+                    required 
+                    type="text" 
+                    value={editFormData.artistName}
+                    onChange={e => setEditFormData({...editFormData, artistName: e.target.value})}
+                    className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-2xl p-4 focus:ring-2 focus:ring-indigo-500 transition-all"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Language</label>
+                    <input 
+                      required 
+                      type="text" 
+                      value={editFormData.language}
+                      onChange={e => setEditFormData({...editFormData, language: e.target.value})}
+                      className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-2xl p-4 focus:ring-2 focus:ring-indigo-500 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">LRCLIB ID</label>
+                    <input 
+                      type="text" 
+                      value={editFormData.lrclibId}
+                      onChange={e => setEditFormData({...editFormData, lrclibId: e.target.value})}
+                      className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-2xl p-4 focus:ring-2 focus:ring-indigo-500 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">
+                      Replace Cover Image <span className="text-zinc-400 font-normal lowercase">(optional)</span>
+                    </label>
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      onChange={e => setEditFormData({...editFormData, imageFile: e.target.files?.[0] || null})}
+                      className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-600 hover:file:bg-purple-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">
+                      {editingSong.videoKey ? "Replace Video Canvas" : "Attach Video Canvas"} <span className="text-zinc-400 font-normal lowercase">(optional)</span>
+                    </label>
+                    <input 
+                      type="file" 
+                      accept="video/mp4,video/*"
+                      onChange={e => setEditFormData({...editFormData, videoFile: e.target.files?.[0] || null})}
+                      className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-600 hover:file:bg-emerald-100"
+                    />
+                  </div>
+                </div>
+
+                {editingSong.videoKey && (
+                  <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40 rounded-2xl text-xs text-emerald-700 dark:text-emerald-300 flex items-center gap-2">
+                    <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" />
+                    </svg>
+                    <span>Current video key: <strong>{editingSong.videoKey}</strong></span>
+                  </div>
+                )}
+              </div>
+
+              <button 
+                disabled={uploading}
+                type="submit"
+                className={`w-full py-4 rounded-2xl font-bold text-white shadow-lg transition-all flex items-center justify-center gap-3 ${uploading ? "bg-indigo-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/20"}`}
+              >
+                {uploading ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving Changes...
+                  </>
+                ) : (
+                  "Save Track Updates"
                 )}
               </button>
             </form>

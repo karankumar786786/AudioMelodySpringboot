@@ -11,7 +11,7 @@ public record DeleteEventQueueDto(
         String songKey,
         String imageKey,
         String coverImageKey,
-        String bannerImageKey
+        String videoKey
 ) {
     public static DeleteEventQueueDto forSong(SongsEntity song) {
         return new DeleteEventQueueDto(
@@ -20,7 +20,7 @@ public record DeleteEventQueueDto(
                 song.getSongKey(),
                 song.getImageKey(),
                 null,
-                null
+                song.getVideoKey()
         );
     }
 
@@ -31,7 +31,7 @@ public record DeleteEventQueueDto(
                 null,
                 null,
                 playlist.getCoverImageKey(),
-                playlist.getBannerImageKey()
+                playlist.getVideoKey()
         );
     }
 
@@ -42,7 +42,7 @@ public record DeleteEventQueueDto(
                 null,
                 null,
                 artist.getCoverImageKey(),
-                artist.getBannerImageKey()
+                null
         );
     }
 }

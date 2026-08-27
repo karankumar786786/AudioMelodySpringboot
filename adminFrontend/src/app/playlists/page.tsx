@@ -9,7 +9,7 @@ interface Playlist {
   name: string;
   description: string;
   coverImageKey: string;
-  bannerImageKey: string;
+  videoKey?: string;
 }
 
 interface Song {
@@ -28,9 +28,10 @@ export default function PlaylistsPage() {
     name: "", 
     description: "",
     coverImage: null as File | null,
-    bannerImage: null as File | null,
+    videoFile: null as File | null,
   });
   const [creating, setCreating] = useState(false);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
   const hasFetchedRef = useRef(false);
 
   const fetchPlaylists = async () => {
@@ -80,56 +81,44 @@ export default function PlaylistsPage() {
     fetchAllSongs();
   }, []);
 
+  const uploadToImageKit = async (file: File, folder: string) => {
+    const sigRes = await adminFetch("/webhook/internal/image-upload-param");
+    if (!sigRes.ok) throw new Error("Failed to get upload signature");
+    const sigData = await sigRes.json();
+
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("publicKey", process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY || "public_ck50bJ3UfF9eCOXhwXQTQFP693o=");
+    fd.append("signature", sigData.param.signature);
+    fd.append("expire", sigData.param.expire.toString());
+    fd.append("token", sigData.param.token);
+    fd.append("folder", folder);
+    const ext = file.name.split('.').pop();
+    fd.append("fileName", `${sigData.key}.${ext}`);
+
+    const res = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
+      method: "POST",
+      body: fd,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "File upload failed");
+    return data.filePath || sigData.key;
+  };
+
   const handleCreatePlaylist = async () => {
     if (!newPlaylist.name) return alert("Please enter a name");
     if (!newPlaylist.coverImage) return alert("Please select a cover image");
-    if (!newPlaylist.bannerImage) return alert("Please select a banner image");
 
     setCreating(true);
     try {
       // 1. Upload Cover Image
-      const sigResCover = await adminFetch("/webhook/internal/image-upload-param");
-      if (!sigResCover.ok) throw new Error("Failed to get cover upload signature");
-      const sigDataCover = await sigResCover.json();
+      const coverImageKey = await uploadToImageKit(newPlaylist.coverImage, "/playlists/covers");
 
-      const formDataCover = new FormData();
-      formDataCover.append("file", newPlaylist.coverImage);
-      formDataCover.append("publicKey", process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY || "public_ck50bJ3UfF9eCOXhwXQTQFP693o=");
-      formDataCover.append("signature", sigDataCover.param.signature);
-      formDataCover.append("expire", sigDataCover.param.expire.toString());
-      formDataCover.append("token", sigDataCover.param.token);
-      formDataCover.append("folder", "/playlists/covers");
-      const extCover = newPlaylist.coverImage.name.split('.').pop();
-      formDataCover.append("fileName", `${sigDataCover.key}.${extCover}`);
-
-      const uploadResCover = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
-        method: "POST",
-        body: formDataCover,
-      });
-      const uploadDataCover = await uploadResCover.json();
-      if (!uploadResCover.ok) throw new Error("Cover image upload failed");
-
-      // 2. Upload Banner Image
-      const sigResBanner = await adminFetch("/webhook/internal/image-upload-param");
-      if (!sigResBanner.ok) throw new Error("Failed to get banner upload signature");
-      const sigDataBanner = await sigResBanner.json();
-
-      const formDataBanner = new FormData();
-      formDataBanner.append("file", newPlaylist.bannerImage);
-      formDataBanner.append("publicKey", process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY || "public_ck50bJ3UfF9eCOXhwXQTQFP693o=");
-      formDataBanner.append("signature", sigDataBanner.param.signature);
-      formDataBanner.append("expire", sigDataBanner.param.expire.toString());
-      formDataBanner.append("token", sigDataBanner.param.token);
-      formDataBanner.append("folder", "/playlists/banners");
-      const extBanner = newPlaylist.bannerImage.name.split('.').pop();
-      formDataBanner.append("fileName", `${sigDataBanner.key}.${extBanner}`);
-
-      const uploadResBanner = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
-        method: "POST",
-        body: formDataBanner,
-      });
-      const uploadDataBanner = await uploadResBanner.json();
-      if (!uploadResBanner.ok) throw new Error("Banner image upload failed");
+      // 2. Upload Video (if provided)
+      let videoKey: string | null = null;
+      if (newPlaylist.videoFile) {
+        videoKey = await uploadToImageKit(newPlaylist.videoFile, "/playlists/videos");
+      }
 
       // 3. Create Playlist in Backend
       const res = await adminFetch("/admin/playlist", {
@@ -138,14 +127,14 @@ export default function PlaylistsPage() {
         body: JSON.stringify({
           name: newPlaylist.name,
           description: newPlaylist.description,
-          coverImageKey: uploadDataCover.filePath || sigDataCover.key,
-          bannerImageKey: uploadDataBanner.filePath || sigDataBanner.key,
+          coverImageKey,
+          videoKey,
         }),
       });
 
       if (res.ok) {
         setIsCreateModalOpen(false);
-        setNewPlaylist({ name: "", description: "", coverImage: null, bannerImage: null });
+        setNewPlaylist({ name: "", description: "", coverImage: null, videoFile: null });
         fetchPlaylists();
       } else {
         const errData = await res.json();
@@ -155,6 +144,36 @@ export default function PlaylistsPage() {
       alert(err.message || "An error occurred");
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleAttachVideoToPlaylist = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedPlaylist) return;
+
+    setUploadingVideo(true);
+    try {
+      const videoKey = await uploadToImageKit(file, "/playlists/videos");
+      const res = await adminFetch(`/admin/playlist/${selectedPlaylist.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoKey,
+        }),
+      });
+
+      if (res.ok) {
+        const updated = await res.json();
+        setSelectedPlaylist(updated);
+        setPlaylists(playlists.map(p => p.id === updated.id ? updated : p));
+        alert("Video attached successfully!");
+      } else {
+        alert("Failed to attach video");
+      }
+    } catch (err: any) {
+      alert("Video upload failed: " + err.message);
+    } finally {
+      setUploadingVideo(false);
     }
   };
 
@@ -210,7 +229,7 @@ export default function PlaylistsPage() {
       <div className="flex justify-between items-center mb-10">
         <div>
           <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">Curated Playlists</h1>
-          <p className="text-zinc-500 mt-1">Manage public playlists and track composition.</p>
+          <p className="text-zinc-500 mt-1">Manage public playlists, background videos, and track composition.</p>
         </div>
         <button 
           onClick={() => setIsCreateModalOpen(true)}
@@ -263,7 +282,12 @@ export default function PlaylistsPage() {
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-bold text-zinc-900 dark:text-white truncate">{playlist.name}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-zinc-900 dark:text-white truncate">{playlist.name}</h3>
+                    {playlist.videoKey && (
+                      <span className="shrink-0 w-2 h-2 rounded-full bg-emerald-500" title="Video attached" />
+                    )}
+                  </div>
                   <p className="text-xs text-zinc-500 truncate mt-0.5">{playlist.description || "No description."}</p>
                 </div>
                 <button 
@@ -286,20 +310,44 @@ export default function PlaylistsPage() {
         <div className="lg:col-span-2">
           {selectedPlaylist ? (
             <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-8 space-y-6">
-              <div className="flex items-center gap-6 border-b border-zinc-100 dark:border-zinc-800 pb-6">
-                <div className="w-24 h-24 rounded-2xl bg-zinc-200 dark:bg-zinc-800 overflow-hidden shrink-0 shadow-lg">
-                  {selectedPlaylist.coverImageKey && (
-                    <img 
-                      src={getImageUrl(selectedPlaylist.coverImageKey, { width: 200, height: 200, focus: "auto", aspectRatio: "1-1" })} 
-                      alt={selectedPlaylist.name} 
-                      className="w-full h-full object-cover"
-                    />
-                  )}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 border-b border-zinc-100 dark:border-zinc-800 pb-6">
+                <div className="flex items-center gap-6">
+                  <div className="w-24 h-24 rounded-2xl bg-zinc-200 dark:bg-zinc-800 overflow-hidden shrink-0 shadow-lg">
+                    {selectedPlaylist.coverImageKey && (
+                      <img 
+                        src={getImageUrl(selectedPlaylist.coverImageKey, { width: 200, height: 200, focus: "auto", aspectRatio: "1-1" })} 
+                        alt={selectedPlaylist.name} 
+                        className="w-full h-full object-cover"
+                      />
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-orange-500 uppercase tracking-widest">Playlist Detail</span>
+                    <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mt-1">{selectedPlaylist.name}</h2>
+                    <p className="text-sm text-zinc-500 mt-1">{selectedPlaylist.description}</p>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-xs font-bold text-orange-500 uppercase tracking-widest">Playlist Detail</span>
-                  <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mt-1">{selectedPlaylist.name}</h2>
-                  <p className="text-sm text-zinc-500 mt-1">{selectedPlaylist.description}</p>
+
+                {/* Video Canvas Upload / Indicator */}
+                <div className="flex flex-col items-end gap-2">
+                  <label className="cursor-pointer bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 px-4 py-2 rounded-xl text-xs font-bold text-zinc-700 dark:text-zinc-200 transition-all flex items-center gap-2">
+                    <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
+                    </svg>
+                    {uploadingVideo ? "Uploading..." : selectedPlaylist.videoKey ? "Replace Video Canvas" : "Attach Video Canvas"}
+                    <input 
+                      type="file" 
+                      accept="video/mp4,video/*" 
+                      onChange={handleAttachVideoToPlaylist} 
+                      disabled={uploadingVideo}
+                      className="hidden" 
+                    />
+                  </label>
+                  {selectedPlaylist.videoKey && (
+                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono truncate max-w-[200px]">
+                      Video: {selectedPlaylist.videoKey}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -410,12 +458,14 @@ export default function PlaylistsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Banner Image</label>
+                  <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">
+                    Background Video <span className="text-zinc-400 font-normal lowercase">(optional)</span>
+                  </label>
                   <input 
                     type="file" 
-                    accept="image/*"
-                    onChange={(e) => setNewPlaylist({ ...newPlaylist, bannerImage: e.target.files?.[0] || null })}
-                    className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-amber-50 file:text-amber-600"
+                    accept="video/mp4,video/*"
+                    onChange={(e) => setNewPlaylist({ ...newPlaylist, videoFile: e.target.files?.[0] || null })}
+                    className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-emerald-50 file:text-emerald-600"
                   />
                 </div>
               </div>

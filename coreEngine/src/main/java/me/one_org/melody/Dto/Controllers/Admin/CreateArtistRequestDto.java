@@ -5,7 +5,6 @@ import jakarta.validation.constraints.NotBlank;
 public record CreateArtistRequestDto(
     @NotBlank String name,
     String about,
-    String coverImageKey,
-    String bannerImageKey
+    String coverImageKey
 ) {
 }

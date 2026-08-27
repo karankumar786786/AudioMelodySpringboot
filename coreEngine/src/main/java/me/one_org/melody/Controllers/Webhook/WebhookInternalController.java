@@ -31,4 +31,9 @@ public class WebhookInternalController {
     public ResponseEntity<ImageUploadParamsResponseDto> getImageUploadParams() {
         return ResponseEntity.status(HttpStatus.OK).body(inInternalService.getImageUploadParams());
     }
+
+    @GetMapping("/video-upload-param")
+    public ResponseEntity<ImageUploadParamsResponseDto> getVideoUploadParams() {
+        return ResponseEntity.status(HttpStatus.OK).body(inInternalService.getVideoUploadParams());
+    }
 }

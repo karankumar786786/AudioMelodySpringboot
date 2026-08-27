@@ -114,9 +114,8 @@ export default function PlaylistPage() {
   const isUserPlaylist =
     playlistType === "user" || (playlist && "userId" in playlist);
 
-  const videoKey =
-    "BMW M5 E34 DRIVE _ LIVE WALLPAPER 4K _ SCREENSAVER VIDEO 4K60fps_0_10.mp4";
-  const videoUrl = getVideoUrl(videoKey, { quality: 85 });
+  const activeVideoKey = playlist?.videoKey || "BMW M5 E34 DRIVE _ LIVE WALLPAPER 4K _ SCREENSAVER VIDEO 4K60fps_0_10.mp4";
+  const videoUrl = activeVideoKey ? getVideoUrl(activeVideoKey, { quality: 85 }) : undefined;
 
   const coverUrl = getImageUrl(playlist?.coverImageKey, {
     width: 1600,

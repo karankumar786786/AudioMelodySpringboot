@@ -11,7 +11,6 @@ interface Artist {
   about: string;
   dob: string;
   coverImageKey: string;
-  bannerImageKey: string;
 }
 
 export default function ArtistsPage() {
@@ -26,7 +25,6 @@ export default function ArtistsPage() {
     about: "",
     dob: "",
     coverImage: null as File | null,
-    bannerImage: null as File | null,
   });
 
   const fetchArtists = async () => {
@@ -65,7 +63,6 @@ export default function ArtistsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.coverImage) return alert("Please select a cover image");
-    if (!formData.bannerImage) return alert("Please select a banner image");
 
     setUploading(true);
     try {
@@ -91,29 +88,7 @@ export default function ArtistsPage() {
       const uploadDataCover = await uploadResCover.json();
       if (!uploadResCover.ok) throw new Error("Cover image upload failed");
 
-      // 2. Upload Banner Image
-      const sigResBanner = await adminFetch("/webhook/internal/image-upload-param");
-      if (!sigResBanner.ok) throw new Error("Failed to get banner upload signature");
-      const sigDataBanner = await sigResBanner.json();
-
-      const formDataBanner = new FormData();
-      formDataBanner.append("file", formData.bannerImage);
-      formDataBanner.append("publicKey", process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY || "public_ck50bJ3UfF9eCOXhwXQTQFP693o=");
-      formDataBanner.append("signature", sigDataBanner.param.signature);
-      formDataBanner.append("expire", sigDataBanner.param.expire.toString());
-      formDataBanner.append("token", sigDataBanner.param.token);
-      formDataBanner.append("folder", "/artists/banners");
-      const extBanner = formData.bannerImage.name.split('.').pop();
-      formDataBanner.append("fileName", `${sigDataBanner.key}.${extBanner}`);
-
-      const uploadResBanner = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
-        method: "POST",
-        body: formDataBanner,
-      });
-      const uploadDataBanner = await uploadResBanner.json();
-      if (!uploadResBanner.ok) throw new Error("Banner image upload failed");
-
-      // 3. Create Artist in Backend
+      // 2. Create Artist in Backend
       const createRes = await adminFetch("/admin/artist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -121,7 +96,6 @@ export default function ArtistsPage() {
           name: formData.name,
           about: formData.about,
           coverImageKey: uploadDataCover.filePath || sigDataCover.key,
-          bannerImageKey: uploadDataBanner.filePath || sigDataBanner.key,
         }),
       });
 
@@ -131,7 +105,7 @@ export default function ArtistsPage() {
       }
 
       setIsModalOpen(false);
-      setFormData({ name: "", about: "", dob: "", coverImage: null, bannerImage: null });
+      setFormData({ name: "", about: "", dob: "", coverImage: null });
       fetchArtists();
     } catch (err: any) {
       alert(err.message || "An unexpected error occurred");
@@ -166,51 +140,44 @@ export default function ArtistsPage() {
           <div className="col-span-full p-20 text-center text-zinc-500">No artists found.</div>
         ) : (
           artists.map((artist) => (
-            <div key={artist.id} className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm hover:shadow-xl transition-all group">
-              <div className="h-32 bg-zinc-200 dark:bg-zinc-800 relative">
-                {artist.bannerImageKey && (
-                  <img 
-                    src={getImageUrl(artist.bannerImageKey, { width: 600, height: 200, crop: "at_max" })} 
-                    alt={artist.name} 
-                    className="w-full h-full object-cover"
-                  />
-                )}
-                <div className="absolute -bottom-10 left-6 w-20 h-20 rounded-2xl bg-white dark:bg-zinc-900 p-1 shadow-lg">
-                  <div className="w-full h-full rounded-xl bg-zinc-300 dark:bg-zinc-800 overflow-hidden relative">
-                    {artist.coverImageKey ? (
-                      <img 
-                        src={getImageUrl(artist.coverImageKey, { width: 100, height: 100, focus: "auto", aspectRatio: "1-1" })} 
-                        alt={artist.name} 
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-zinc-400 font-bold">
-                        {artist.name[0]}
-                      </div>
-                    )}
-                  </div>
+            <div key={artist.id} className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm hover:shadow-xl transition-all group p-6">
+              <div className="flex items-center gap-5">
+                <div className="w-20 h-20 rounded-2xl bg-zinc-200 dark:bg-zinc-800 overflow-hidden shrink-0 shadow-md">
+                  {artist.coverImageKey ? (
+                    <img 
+                      src={getImageUrl(artist.coverImageKey, { width: 150, height: 150, focus: "auto", aspectRatio: "1-1" })} 
+                      alt={artist.name} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-zinc-400 font-bold text-xl">
+                      {artist.name[0]}
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-xl font-bold text-zinc-900 dark:text-white truncate">{artist.name}</h3>
+                  <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{artist.about || "No biography available."}</p>
                 </div>
               </div>
-              <div className="pt-14 p-6">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white">{artist.name}</h3>
-                    <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{artist.about || "No biography available."}</p>
-                  </div>
-                </div>
 
-                <div className="mt-6 flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800 pt-4">
-                  <span className="text-xs text-zinc-400 font-mono">ID: {artist.id.slice(0, 8)}...</span>
-                  <div className="flex gap-2">
-                    <button 
-                      onClick={() => handleDelete(artist.id)}
-                      className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-all"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
+              <div className="mt-6 flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800 pt-4">
+                <span className="text-xs text-zinc-400 font-mono">ID: {artist.id.slice(0, 8)}...</span>
+                <div className="flex gap-2">
+                  <Link
+                    href={`/artists/${artist.id}/songs`}
+                    className="px-3 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-purple-50 hover:text-purple-600 dark:hover:bg-purple-950/30 transition-all"
+                  >
+                    View Songs
+                  </Link>
+                  <button 
+                    onClick={() => handleDelete(artist.id)}
+                    className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-all"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
                 </div>
               </div>
             </div>
@@ -255,27 +222,15 @@ export default function ArtistsPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Cover Avatar</label>
-                  <input 
-                    required 
-                    type="file" 
-                    accept="image/*"
-                    onChange={e => setFormData({...formData, coverImage: e.target.files?.[0] || null})}
-                    className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Header Banner</label>
-                  <input 
-                    required 
-                    type="file" 
-                    accept="image/*"
-                    onChange={e => setFormData({...formData, bannerImage: e.target.files?.[0] || null})}
-                    className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-600"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Cover Avatar</label>
+                <input 
+                  required 
+                  type="file" 
+                  accept="image/*"
+                  onChange={e => setFormData({...formData, coverImage: e.target.files?.[0] || null})}
+                  className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-600"
+                />
               </div>
 
               <button 

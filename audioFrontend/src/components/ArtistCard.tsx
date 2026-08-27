@@ -23,7 +23,7 @@ export function ArtistCard({ artist }: ArtistCardProps) {
         <div className="relative aspect-square overflow-hidden rounded-full bg-zinc-900 mx-auto shadow-md">
           <img
             src={
-              getImageUrl(artist.coverImageKey || artist.bannerImageKey, {
+              getImageUrl(artist.coverImageKey, {
                 width: 300,
                 height: 300,
                 focus: "auto",

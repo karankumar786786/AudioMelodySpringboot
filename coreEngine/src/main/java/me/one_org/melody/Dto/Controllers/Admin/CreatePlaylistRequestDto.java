@@ -6,6 +6,6 @@ public record CreatePlaylistRequestDto(
     @NotBlank String name,
     String description,
     @NotBlank String coverImageKey,
-    @NotBlank String bannerImageKey
+    String videoKey
 ) {
 }

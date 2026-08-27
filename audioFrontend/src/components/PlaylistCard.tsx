@@ -23,7 +23,7 @@ export function PlaylistCard({ playlist }: PlaylistCardProps) {
         <div className="relative aspect-square overflow-hidden rounded-md bg-zinc-900 shadow-md">
           <img
             src={getImageUrl(
-              playlist.coverImageKey || playlist.bannerImageKey,
+              playlist.coverImageKey,
               {
                 width: 400,
                 height: 400,

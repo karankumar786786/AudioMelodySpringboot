@@ -4,6 +4,6 @@ public record UpdatePlaylistRequestDto(
     String name,
     String description,
     String coverImageKey,
-    String bannerImageKey
+    String videoKey
 ) {
 }
