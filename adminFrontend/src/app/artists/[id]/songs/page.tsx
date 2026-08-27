@@ -55,10 +55,11 @@ export default function ArtistSongsPage({ params }: { params: Promise<{ id: stri
     fetchData();
   }, [id]);
 
-  const formatDuration = (ms: number) => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = totalSeconds % 60;
+  const formatDuration = (num?: number) => {
+    if (!num || isNaN(num)) return "0:00";
+    const sec = num > 10000 ? Math.floor(num / 1000) : Math.floor(num);
+    const mins = Math.floor(sec / 60);
+    const secs = sec % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 

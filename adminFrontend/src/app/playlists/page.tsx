@@ -177,6 +177,35 @@ export default function PlaylistsPage() {
     }
   };
 
+  const handleRemoveVideoFromPlaylist = async () => {
+    if (!selectedPlaylist || !selectedPlaylist.videoKey) return;
+    if (!confirm("Are you sure you want to remove the video canvas from this playlist?")) return;
+
+    setUploadingVideo(true);
+    try {
+      const res = await adminFetch(`/admin/playlist/${selectedPlaylist.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          videoKey: "", // Clears videoKey in DB & deletes from ImageKit
+        }),
+      });
+
+      if (res.ok) {
+        const updated = await res.json();
+        setSelectedPlaylist(updated);
+        setPlaylists(playlists.map(p => p.id === updated.id ? updated : p));
+        alert("Video canvas removed and deleted from ImageKit.");
+      } else {
+        alert("Failed to remove video");
+      }
+    } catch (err: any) {
+      alert("Failed to remove video: " + err.message);
+    } finally {
+      setUploadingVideo(false);
+    }
+  };
+
   const handleDeletePlaylist = async (id: string) => {
     if (!confirm("Are you sure you want to delete this playlist?")) return;
     try {
@@ -328,24 +357,39 @@ export default function PlaylistsPage() {
                   </div>
                 </div>
 
-                {/* Video Canvas Upload / Indicator */}
+                {/* Video Canvas Upload / Remove / Indicator */}
                 <div className="flex flex-col items-end gap-2">
-                  <label className="cursor-pointer bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 px-4 py-2 rounded-xl text-xs font-bold text-zinc-700 dark:text-zinc-200 transition-all flex items-center gap-2">
-                    <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
-                    </svg>
-                    {uploadingVideo ? "Uploading..." : selectedPlaylist.videoKey ? "Replace Video Canvas" : "Attach Video Canvas"}
-                    <input 
-                      type="file" 
-                      accept="video/mp4,video/*" 
-                      onChange={handleAttachVideoToPlaylist} 
-                      disabled={uploadingVideo}
-                      className="hidden" 
-                    />
-                  </label>
+                  <div className="flex items-center gap-2">
+                    {selectedPlaylist.videoKey && (
+                      <button
+                        type="button"
+                        onClick={handleRemoveVideoFromPlaylist}
+                        disabled={uploadingVideo}
+                        className="bg-red-50 dark:bg-red-950/40 hover:bg-red-100 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800/40 px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        Remove Video
+                      </button>
+                    )}
+                    <label className="cursor-pointer bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 px-4 py-2 rounded-xl text-xs font-bold text-zinc-700 dark:text-zinc-200 transition-all flex items-center gap-2">
+                      <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
+                      </svg>
+                      {uploadingVideo ? "Uploading..." : selectedPlaylist.videoKey ? "Replace Video" : "Attach Video"}
+                      <input 
+                        type="file" 
+                        accept="video/mp4,video/*" 
+                        onChange={handleAttachVideoToPlaylist} 
+                        disabled={uploadingVideo}
+                        className="hidden" 
+                      />
+                    </label>
+                  </div>
                   {selectedPlaylist.videoKey && (
-                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono truncate max-w-[200px]">
-                      Video: {selectedPlaylist.videoKey}
+                    <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-mono truncate max-w-[220px]">
+                      Canvas: {selectedPlaylist.videoKey}
                     </span>
                   )}
                 </div>

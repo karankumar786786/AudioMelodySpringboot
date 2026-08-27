@@ -89,9 +89,17 @@ public class PlaylistService {
         }
 
         String oldVideoKey = null;
-        if (data.videoKey() != null && !data.videoKey().equals(playlist.getVideoKey())) {
-            oldVideoKey = playlist.getVideoKey();
-            playlist.setVideoKey(data.videoKey());
+        if (data.videoKey() != null) {
+            String newKey = data.videoKey().trim();
+            if (newKey.isEmpty() || newKey.equalsIgnoreCase("null")) {
+                if (playlist.getVideoKey() != null && !playlist.getVideoKey().isBlank()) {
+                    oldVideoKey = playlist.getVideoKey();
+                    playlist.setVideoKey(null);
+                }
+            } else if (!newKey.equals(playlist.getVideoKey())) {
+                oldVideoKey = playlist.getVideoKey();
+                playlist.setVideoKey(newKey);
+            }
         }
 
         playlistsRepository.save(playlist);

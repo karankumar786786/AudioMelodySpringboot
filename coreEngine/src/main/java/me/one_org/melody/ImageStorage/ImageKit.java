@@ -28,11 +28,11 @@ public class ImageKit {
         try {
             String fileName = key.contains("/") ? key.substring(key.lastIndexOf('/') + 1) : key;
             io.imagekit.sdk.models.GetFileListRequest request = new io.imagekit.sdk.models.GetFileListRequest();
-            request.setName(fileName);
+            request.setSearchQuery("name = \"" + fileName + "\"");
             io.imagekit.sdk.models.results.ResultList result = imageKitSdk.getFileList(request);
             if (result != null && result.getResults() != null && !result.getResults().isEmpty()) {
-                for (var file : result.getResults()) {
-                    if (file.getFilePath().equals(key) || file.getName().equals(fileName)) {
+                for (io.imagekit.sdk.models.BaseFile file : result.getResults()) {
+                    if (key.equals(file.getFilePath()) || fileName.equals(file.getName())) {
                         imageKitSdk.deleteFile(file.getFileId());
                     }
                 }

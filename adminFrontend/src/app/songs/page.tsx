@@ -17,13 +17,14 @@ interface Song {
   createdAt?: string;
 }
 
-const formatDuration = (ms: number) => {
-  if (!ms) return "—";
-  const totalSeconds = Math.floor(ms / 1000);
-  const mins = Math.floor(totalSeconds / 60);
-  const secs = totalSeconds % 60;
+const formatDuration = (num?: number) => {
+  if (!num || isNaN(num)) return "0:00";
+  const sec = num > 10000 ? Math.floor(num / 1000) : Math.floor(num);
+  const mins = Math.floor(sec / 60);
+  const secs = sec % 60;
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 };
+
 
 export default function SongsPage() {
   const [songs, setSongs] = useState<Song[]>([]);
@@ -52,6 +53,7 @@ export default function SongsPage() {
     lrclibId: "",
     imageFile: null as File | null,
     videoFile: null as File | null,
+    removeVideo: false,
   });
 
   const [uploading, setUploading] = useState(false);
@@ -168,7 +170,15 @@ export default function SongsPage() {
 
   const handleEditOpen = (song: Song) => {
     setEditingSong(song);
-    setEditFormData({ title: song.title, artistName: song.artistName, language: song.language || "English", lrclibId: song.lrclibId || "", imageFile: null, videoFile: null });
+    setEditFormData({
+      title: song.title,
+      artistName: song.artistName,
+      language: song.language || "English",
+      lrclibId: song.lrclibId || "",
+      imageFile: null,
+      videoFile: null,
+      removeVideo: false,
+    });
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -178,12 +188,25 @@ export default function SongsPage() {
     try {
       let imageKey = editingSong.imageKey;
       if (editFormData.imageFile) imageKey = await uploadFileToImageKit(editFormData.imageFile, "/songs/images");
-      let videoKey = editingSong.videoKey;
-      if (editFormData.videoFile) videoKey = await uploadFileToImageKit(editFormData.videoFile, "/songs/videos");
+      
+      let videoKey: string | null | undefined = editingSong.videoKey;
+      if (editFormData.removeVideo) {
+        videoKey = ""; // Empty string signals removal & ImageKit deletion
+      } else if (editFormData.videoFile) {
+        videoKey = await uploadFileToImageKit(editFormData.videoFile, "/songs/videos");
+      }
+
       const res = await adminFetch(`/admin/song/${editingSong.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: editFormData.title, artistName: editFormData.artistName, language: editFormData.language, lrclibId: editFormData.lrclibId.trim() || "0", imageKey, videoKey }),
+        body: JSON.stringify({
+          title: editFormData.title,
+          artistName: editFormData.artistName,
+          language: editFormData.language,
+          lrclibId: editFormData.lrclibId.trim() || "0",
+          imageKey,
+          videoKey,
+        }),
       });
       if (res.ok) { setEditingSong(null); fetchSongs(); }
       else { const errData = await res.json(); throw new Error(errData.message || "Failed to update song"); }
@@ -456,14 +479,40 @@ export default function SongsPage() {
                   <input type="file" accept="image/*" onChange={e => setEditFormData({...editFormData, imageFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-purple-50 file:text-purple-600 hover:file:bg-purple-100"} />
                 </div>
                 <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
-                  <label className={labelCls + " mb-1"}>{editingSong.videoKey ? "Replace Video Canvas" : "Attach Video Canvas"} <span className="text-zinc-400 normal-case font-normal">(optional)</span></label>
-                  {editingSong.videoKey && (
+                  <div className="flex items-center justify-between mb-1">
+                    <label className={labelCls + " mb-0"}>
+                      {editingSong.videoKey && !editFormData.removeVideo ? "Replace Video Canvas" : "Attach Video Canvas"}{" "}
+                      <span className="text-zinc-400 normal-case font-normal">(optional)</span>
+                    </label>
+                    {editingSong.videoKey && (
+                      <button
+                        type="button"
+                        onClick={() => setEditFormData({ ...editFormData, removeVideo: !editFormData.removeVideo, videoFile: null })}
+                        className={`text-xs font-bold px-2.5 py-1 rounded-lg transition-all ${
+                          editFormData.removeVideo
+                            ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-300"
+                            : "bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 border border-red-200 dark:border-red-800/40"
+                        }`}
+                      >
+                        {editFormData.removeVideo ? "Undo Remove" : "Remove Video Canvas"}
+                      </button>
+                    )}
+                  </div>
+                  {editingSong.videoKey && !editFormData.removeVideo && (
                     <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mb-2 flex items-center gap-1">
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" /></svg>
-                      Video canvas attached
+                      Active canvas video attached
                     </p>
                   )}
-                  <input type="file" accept="video/mp4,video/*" onChange={e => setEditFormData({...editFormData, videoFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-emerald-50 file:text-emerald-600 hover:file:bg-emerald-100"} />
+                  {editFormData.removeVideo && (
+                    <p className="text-[10px] text-red-500 font-bold mb-2 flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
+                      Video canvas will be removed & deleted from ImageKit upon saving
+                    </p>
+                  )}
+                  {!editFormData.removeVideo && (
+                    <input type="file" accept="video/mp4,video/*" onChange={e => setEditFormData({...editFormData, videoFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-emerald-50 file:text-emerald-600 hover:file:bg-emerald-100"} />
+                  )}
                 </div>
               </div>
 

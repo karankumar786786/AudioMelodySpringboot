@@ -101,7 +101,8 @@ public class SongService {
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = "songs", key = "#id"),
-            @CacheEvict(value = "song_lists", allEntries = true)
+            @CacheEvict(value = "song_lists", allEntries = true),
+            @CacheEvict(value = "featured_songs", allEntries = true)
     })
     public SongsEntity updateSong(String id, UpdateSongRequestDto data) {
         SongsEntity song = songsRepository.findById(id)
@@ -130,9 +131,19 @@ public class SongService {
         }
 
         String oldVideoKey = null;
-        if (data.videoKey() != null && !data.videoKey().equals(song.getVideoKey())) {
-            oldVideoKey = song.getVideoKey();
-            song.setVideoKey(data.videoKey());
+        if (data.videoKey() != null) {
+            String newKey = data.videoKey().trim();
+            if (newKey.isEmpty() || newKey.equalsIgnoreCase("null")) {
+                // Explicitly removing existing video
+                if (song.getVideoKey() != null && !song.getVideoKey().isBlank()) {
+                    oldVideoKey = song.getVideoKey();
+                    song.setVideoKey(null);
+                }
+            } else if (!newKey.equals(song.getVideoKey())) {
+                // Replacing with new video
+                oldVideoKey = song.getVideoKey();
+                song.setVideoKey(newKey);
+            }
         }
 
         songsRepository.save(song);
