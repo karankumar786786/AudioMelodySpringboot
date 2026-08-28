@@ -16,7 +16,6 @@ import {
 import { playerStore, playerActions } from "@/store/player.store";
 import { getSongInfo } from "@/lib/song-info";
 import { getImageUrl, getVideoUrl, getVideoABRUrl } from "@/lib/image-utils";
-import { HlsVideoPlayer } from "./HlsVideoPlayer";
 import { musicApi, Song } from "@/lib/api";
 import { mapToPlayerSong } from "@/lib/player-utils";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
@@ -236,24 +235,35 @@ export function RightInfoPanel() {
                 </div>
               </div>
             ) : (
-              /* Card-Style Cover Art when Only Image is Available */
-              <div className="p-4 pb-2">
-                <div className="relative w-full aspect-square overflow-hidden rounded-2xl bg-zinc-900 border border-zinc-800/80 shadow-2xl group">
-                  {songImage ? (
-                    <img
-                      src={songImage}
-                      alt={currentSong.title}
-                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-zinc-700 bg-zinc-950">
-                      <Music size={48} />
-                    </div>
-                  )}
+              /* Card-Style Cover Art in fixed h-[440px] container (prevents layout jump) */
+              <div className="relative w-full h-[440px] p-4 flex flex-col justify-between overflow-hidden bg-[#121212]/60">
+                {/* Subtle Ambient Glow from Cover Art */}
+                {songImage && (
+                  <div
+                    className="absolute inset-0 bg-cover bg-center blur-3xl opacity-20 scale-125 pointer-events-none"
+                    // style={{ backgroundImage: `url(${songImage})` }}
+                  />
+                )}
+
+                {/* Centered Artwork Card */}
+                <div className="relative z-10 w-full flex-1 flex items-center justify-center pt-2">
+                  <div className="relative w-full max-w-[280px] aspect-square overflow-hidden rounded-2xl bg-zinc-900 border border-white/10 shadow-2xl group">
+                    {songImage ? (
+                      <img
+                        src={songImage}
+                        alt={currentSong.title}
+                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-zinc-700 bg-zinc-950">
+                        <Music size={48} />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Song Title, Artist & Actions Below Card */}
-                <div className="mt-3.5 flex items-center justify-between gap-3 px-1">
+                <div className="relative z-10 pt-3 pb-1 flex items-center justify-between gap-3 px-1">
                   <div className="min-w-0 flex-1">
                     <h2 className="text-lg font-bold text-white tracking-tight truncate hover:underline cursor-pointer leading-tight">
                       {currentSong.title}
