@@ -315,6 +315,7 @@ export function HlsMusicPlayer() {
               transcriptions={transcriptions}
               plainLyrics={plainLyrics}
               localTime={localTime}
+              analyser={webAudio.analyser}
               onSeek={(time) => {
                 if (audioRef.current) {
                   audioRef.current.currentTime = time;
