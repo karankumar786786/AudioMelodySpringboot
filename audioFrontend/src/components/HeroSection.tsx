@@ -30,21 +30,22 @@ export function HeroSection({
 }: HeroSectionProps) {
   const currentSong = songs[index] || songs[0];
 
-  if (isLoading) {
+  if (isLoading || !currentSong) {
     return (
-      <div className="w-full h-80 rounded-2xl bg-zinc-900/60 border border-[#282828] overflow-hidden relative flex flex-col justify-between p-8 md:p-12 animate-pulse">
-        <div className="space-y-4 max-w-lg">
-          <div className="h-5 w-28 bg-zinc-800 rounded-full" />
-          <div className="h-10 w-3/4 bg-zinc-800 rounded-lg" />
-          <div className="h-4 w-1/3 bg-zinc-800 rounded" />
-          <div className="h-4 w-1/2 bg-zinc-800 rounded" />
+      <div className="w-full h-[290px] md:h-[325px] rounded-2xl bg-zinc-900/60 border border-[#282828] overflow-hidden relative flex flex-col justify-end p-7 md:p-9 animate-pulse select-none">
+        <div className="space-y-3 max-w-lg mb-2">
+          <div className="h-4 w-28 bg-zinc-800/80 rounded-full" />
+          <div className="h-10 w-3/4 bg-zinc-800/80 rounded-xl" />
+          <div className="h-4 w-1/3 bg-zinc-800/80 rounded-md" />
+          <div className="flex items-center gap-3 pt-1">
+            <div className="h-3 w-12 bg-zinc-800/80 rounded" />
+            <div className="h-3 w-12 bg-zinc-800/80 rounded" />
+            <div className="h-3 w-24 bg-zinc-800/80 rounded" />
+          </div>
         </div>
-        <div className="h-11 w-32 bg-zinc-800 rounded-full" />
       </div>
     );
   }
-
-  if (!currentSong) return null;
 
   const videoKey = currentSong.videoKey;
   const isVideoSong = Boolean(videoKey);
