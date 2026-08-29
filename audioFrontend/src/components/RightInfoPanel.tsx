@@ -235,7 +235,7 @@ export function RightInfoPanel() {
               </div>
             ) : (
               /* Card-Style Cover Art in fixed h-[440px] container (prevents layout jump) */
-              <div className="relative w-full h-[440px] p-4 flex flex-col justify-between overflow-hidden bg-[#121212]/60">
+              <div className="relative w-full h-[440px] p-4 flex flex-col justify-between overflow-hidden bg-black">
                 {/* Subtle Ambient Glow from Cover Art */}
                 {songImage && (
                   <div

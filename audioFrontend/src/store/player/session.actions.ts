@@ -58,18 +58,10 @@ export const sessionActions = {
 
   toggleFavourite: async (songId: string) => {
     const { systemUser, favourites } = playerStore.state;
-    if (!systemUser?.id) return;
+    if (!systemUser?.id) return { success: false, isFavourite: false };
 
     const sid = String(songId);
     const isFav = favourites.has(sid);
-    const optimisticNext = new Set<string>(Array.from(favourites).map((id) => String(id)));
-    if (isFav) {
-      optimisticNext.delete(sid);
-    } else {
-      optimisticNext.add(sid);
-    }
-
-    playerStore.setState((s) => ({ ...s, favourites: optimisticNext }));
 
     try {
       if (isFav) {
@@ -80,25 +72,33 @@ export const sessionActions = {
     } catch (err: any) {
       const status = err?.response?.status;
 
-      // Treat idempotent cases as success — don't rollback or show error:
+      // Treat idempotent cases as success:
       // 409 = already in favourites (add called but already exists)
       // 404 = not in favourites (remove called but already gone)
       if ((status === 409 && !isFav) || (status === 404 && isFav)) {
         console.warn("[PlayerStore] Favourite already in desired state, ignoring:", status);
-        return;
+      } else {
+        if (status === 401 || status === 403) {
+          toast.error("Session expired. Please log in again.");
+          sessionActions.clearSystemSession();
+        }
+        console.error("[PlayerStore] Toggle favourite failed:", err);
+        throw err;
       }
-
-      // Auth failure
-      if (status === 401 || status === 403) {
-        toast.error("Session expired. Please log in again.");
-        sessionActions.clearSystemSession();
-      }
-
-      // Rollback optimistic update on genuine error
-      console.error("[PlayerStore] Toggle favourite failed:", err);
-      playerStore.setState((s) => ({ ...s, favourites }));
-      throw err;
     }
+
+    // Update favourites in state ONLY AFTER successful API call
+    const nextFavourites = new Set<string>(
+      Array.from(playerStore.state.favourites).map((id) => String(id)),
+    );
+    if (isFav) {
+      nextFavourites.delete(sid);
+    } else {
+      nextFavourites.add(sid);
+    }
+    playerStore.setState((s) => ({ ...s, favourites: nextFavourites }));
+
+    return { success: true, isFavourite: !isFav };
   },
   openAuthModal: () => {
     playerStore.setState((s) => ({ ...s, isAuthModalOpen: true }));
