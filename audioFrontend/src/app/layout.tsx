@@ -17,10 +17,22 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "One Melody",
-  description: "Your music, everywhere.",
+  applicationName: "One Melody",
+  title: {
+    default: "One Melody",
+    template: "%s - One Melody",
+  },
+  description: "Stream in lossless clarity. Every beat, everywhere.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "One Melody",
+  },
   icons: {
     icon: "/image.png",
+    apple: [{ url: "/icon-512.png", sizes: "512x512", type: "image/png" }],
+    shortcut: "/image.png",
   },
 };
 

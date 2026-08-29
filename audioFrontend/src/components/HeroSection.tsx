@@ -79,10 +79,10 @@ export function HeroSection({
               loop
               muted
               playsInline
-              initial={{ opacity: 0, scale: 1.05 }}
-              animate={{ opacity: 1, scale: 1 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
+              transition={{ duration: 0.4 }}
               className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               style={{ filter: "brightness(0.9) saturate(1.0) contrast(1.0)" }}
             />
@@ -90,10 +90,10 @@ export function HeroSection({
             <motion.img
               key={currentSong.id}
               src={bgImageUrl}
-              initial={{ opacity: 0, scale: 1.05 }}
-              animate={{ opacity: 1, scale: 1 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
+              transition={{ duration: 0.4 }}
               className="absolute inset-0 w-full h-full object-cover object-[70%_center] group-hover:scale-105 transition-transform duration-500"
               style={{ filter: "brightness(0.9) saturate(1.0) contrast(1.0)" }}
               alt={currentSong.title}
@@ -112,9 +112,9 @@ export function HeroSection({
         <div className="max-w-xl md:max-w-2xl space-y-1.5 mb-2">
           <motion.h1
             key={`title-${currentSong.id}`}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.25 }}
             className="text-3xl md:text-5xl font-black text-white tracking-tight leading-tight line-clamp-2"
           >
             {currentSong.title}
@@ -122,9 +122,9 @@ export function HeroSection({
 
           <motion.p
             key={`artist-${currentSong.id}`}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.05 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.25, delay: 0.03 }}
             className="text-sm md:text-base text-zinc-200 font-semibold"
           >
             by{" "}

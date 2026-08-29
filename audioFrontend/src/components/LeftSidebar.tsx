@@ -58,7 +58,7 @@ export function LeftSidebar() {
           onClick={handleSidebarClick}
           className="flex items-center gap-3 mb-8 group cursor-pointer shrink-0 px-1"
         >
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center overflow-hidden shrink-0">
             <img
               src="/image.png"
               alt="Logo"

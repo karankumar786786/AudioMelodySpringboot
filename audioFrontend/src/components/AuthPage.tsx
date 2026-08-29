@@ -236,7 +236,7 @@ export function AuthPage({ initialMode = "login" }: AuthPageProps) {
     <div className="min-h-screen w-full flex flex-col justify-between items-center bg-black text-white p-4 sm:p-6 relative">
       {/* Top Left Logo matching LeftSidebar exactly */}
       <div className="absolute top-6 left-6 sm:top-8 sm:left-8 flex items-center gap-3 z-20">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
+        <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center overflow-hidden shrink-0">
           <img
             src="/image.png"
             alt="One Melody Logo"

@@ -51,7 +51,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center min-h-screen bg-black select-none">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden animate-pulse">
+          <div className="w-12 h-12 rounded-xl bg-black flex items-center justify-center overflow-hidden animate-pulse">
             <img
               src="/image.png"
               alt="One Melody"
