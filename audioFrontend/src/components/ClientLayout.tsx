@@ -23,6 +23,24 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     pathname === "/callback";
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const checkStandalone = () => {
+      const isStandalone =
+        window.matchMedia("(display-mode: standalone)").matches ||
+        (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+      if (isStandalone) {
+        document.documentElement.setAttribute("data-standalone", "true");
+      } else {
+        document.documentElement.removeAttribute("data-standalone");
+      }
+    };
+    checkStandalone();
+    const media = window.matchMedia("(display-mode: standalone)");
+    media.addEventListener?.("change", checkStandalone);
+    return () => media.removeEventListener?.("change", checkStandalone);
+  }, []);
+
+  useEffect(() => {
     const token = typeof window !== "undefined" ? localStorage.getItem("system_token") : null;
     const userStr = typeof window !== "undefined" ? localStorage.getItem("system_user") : null;
     const hasLocalSession = !!(token && userStr);

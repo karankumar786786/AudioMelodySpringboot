@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import {
@@ -11,6 +11,8 @@ import {
   Heart,
   Plus,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 
 import { playerStore, playerActions } from "@/store/player.store";
@@ -21,22 +23,19 @@ import { mapToPlayerSong } from "@/lib/player-utils";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
 import { toast } from "sonner";
 
-function formatDuration(num?: number) {
-  if (!num || isNaN(num)) return "0:00";
-
-  const sec = num > 10000 ? Math.floor(num / 1000) : Math.floor(num);
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
-
 export function RightInfoPanel() {
   const currentSong = useStore(playerStore, (s) => s.currentSong);
   const systemUser = useStore(playerStore, (s) => s.systemUser);
   const favourites = useStore(playerStore, (s) => s.favourites);
 
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
+  const relatedSongsRef = useRef<HTMLDivElement>(null);
+
+  const scrollRelated = (distance: number) => {
+    if (relatedSongsRef.current) {
+      relatedSongsRef.current.scrollBy({ left: distance, behavior: "smooth" });
+    }
+  };
 
   const isFavourite = currentSong
     ? Array.from(favourites).some((id) => String(id) === String(currentSong.id))
@@ -310,12 +309,35 @@ export function RightInfoPanel() {
               {/* 2. RELATED MUSIC VIDEOS CAROUSEL (from screenshot)         */}
               {/* ========================================================== */}
               {artistMoreSongs.length > 0 && (
-                <section className="bg-black  rounded-2xl py-4 px-2 mt-2 shadow-xl">
-                  <h3 className="text-sm font-bold text-white  pb-2 tracking-tight">
-                    Related Songs
-                  </h3>
+                <section className="bg-black rounded-2xl py-4 px-2 mt-2 shadow-xl">
+                  <div className="flex items-center justify-between pb-2">
+                    <h3 className="text-sm font-bold text-white tracking-tight">
+                      Related Songs
+                    </h3>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        onClick={() => scrollRelated(-220)}
+                        type="button"
+                        aria-label="Scroll left"
+                        className="w-6 h-6 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
+                      >
+                        <ChevronLeft size={13} />
+                      </button>
+                      <button
+                        onClick={() => scrollRelated(220)}
+                        type="button"
+                        aria-label="Scroll right"
+                        className="w-6 h-6 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
+                      >
+                        <ChevronRight size={13} />
+                      </button>
+                    </div>
+                  </div>
 
-                  <div className="flex gap-3 overflow-x-auto no-scrollbar pb-1">
+                  <div
+                    ref={relatedSongsRef}
+                    className="flex gap-3 overflow-x-auto no-scrollbar pb-1 scroll-smooth"
+                  >
                     {artistMoreSongs.map((song: Song) => {
                       const songImg = song.imageKey
                         ? getImageUrl(song.imageKey, {
@@ -329,7 +351,9 @@ export function RightInfoPanel() {
                       return (
                         <div
                           key={song.id}
-                          onClick={() => playerActions.play(mapToPlayerSong(song))}
+                          onClick={() =>
+                            playerActions.play(mapToPlayerSong(song))
+                          }
                           className="group flex-shrink-0 w-32 cursor-pointer space-y-1.5"
                         >
                           {/* 1:1 square cover like SongCard */}
@@ -349,7 +373,11 @@ export function RightInfoPanel() {
                             {/* Play overlay button like SongCard */}
                             <div className="absolute bottom-2 right-2 translate-y-2 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10">
                               <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-black shadow-lg">
-                                <Play fill="black" size={14} className="translate-x-0.5" />
+                                <Play
+                                  fill="black"
+                                  size={14}
+                                  className="translate-x-0.5"
+                                />
                               </div>
                             </div>
                           </div>

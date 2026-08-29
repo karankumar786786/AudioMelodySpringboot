@@ -107,7 +107,7 @@ export function AppNavbar() {
   }, []);
 
   return (
-    <header className="absolute top-0 left-0 right-0 z-40 px-10 py-4 flex items-center justify-between pointer-events-none bg-gradient-to-b from-black/50 via-black/15 to-transparent">
+    <header className="absolute top-0 left-0 right-0 z-40 px-10 pt-[var(--app-navbar-pt,1rem)] pb-4 flex items-center justify-between pointer-events-none bg-gradient-to-b from-black/50 via-black/15 to-transparent">
       {/* Search Input Container */}
       <div
         className="flex items-center gap-6 pointer-events-auto relative"

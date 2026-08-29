@@ -9,6 +9,27 @@
   --border: rgba(255, 255, 255, 0.1);
   --sidebar: #000000;
   --radius: 0.5rem;
+
+  /* Default spacing for standard web browser */
+  --app-navbar-pt: 1rem;
+  --app-content-pt: 5rem;
+  --app-sidebar-pt: 1.25rem;
+}
+
+/* Standalone desktop app / PWA mode (e.g. Chrome App, macOS standalone) */
+[data-standalone="true"],
+:root[data-standalone="true"] {
+  --app-navbar-pt: 1.75rem;
+  --app-content-pt: 5.75rem;
+  --app-sidebar-pt: 1.75rem;
+}
+
+@media all and (display-mode: standalone) {
+  :root {
+    --app-navbar-pt: 1.75rem;
+    --app-content-pt: 5.75rem;
+    --app-sidebar-pt: 1.75rem;
+  }
 }
 
 @theme inline {
@@ -250,13 +271,32 @@ body {
   transform: scale(1.1);
 }
 
-/* Specific overrides for progress slider */
+/* Specific overrides for progress slider (thumb hidden for sleek flat look) */
 .progress-slider {
   background: transparent !important;
   position: absolute;
   top: 0;
   left: 0;
+  width: 100% !important;
+  height: 100% !important;
   z-index: 10;
+  opacity: 0 !important;
+  cursor: pointer !important;
+  margin: 0;
+}
+
+.progress-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0 !important;
+  height: 0 !important;
+  opacity: 0 !important;
+}
+
+.progress-slider::-moz-range-thumb {
+  width: 0 !important;
+  height: 0 !important;
+  opacity: 0 !important;
 }
 
 .progress-slider::-webkit-slider-runnable-track {

@@ -122,6 +122,10 @@ export function useAudioSync(
     const last = lastStateRef.current;
     if (currentSong?.id !== last.id) {
       hasFadedOutRef.current = false;
+      setLocalTime(0);
+      setBuffered(0);
+      playerActions.setCurrentTime(0);
+
       if (fadeIn && crossfadeDuration > 0) {
         fadeIn(crossfadeDuration);
       }
@@ -138,7 +142,7 @@ export function useAudioSync(
         duration: currentSong?.duration || 0,
       };
     }
-  }, [currentSong?.id, fadeIn, crossfadeDuration]);
+  }, [currentSong?.id, fadeIn, crossfadeDuration, setLocalTime, setBuffered]);
 
   // Record on unmount
   useEffect(() => {

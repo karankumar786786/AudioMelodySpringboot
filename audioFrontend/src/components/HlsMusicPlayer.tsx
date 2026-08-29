@@ -84,6 +84,12 @@ export function HlsMusicPlayer() {
     playerActions.initQueue();
   }, []);
 
+  // Reset local playback time and buffer state immediately on track change
+  useEffect(() => {
+    setLocalTime(0);
+    setBuffered(0);
+  }, [currentSong?.id]);
+
   // 2. Custom Hooks for Logic
   const { isInternalChange } = useHlsPlayer(
     audioRef.current,

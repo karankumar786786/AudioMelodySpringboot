@@ -52,7 +52,7 @@ export function LeftSidebar() {
 
   return (
     <aside className="w-[260px] bg-black border-r border-[#282828] flex flex-col h-screen fixed left-0 top-0 z-50 overflow-hidden">
-      <div className="p-5 flex flex-col h-full bg-black">
+      <div className="pt-[var(--app-sidebar-pt,1.25rem)] px-5 pb-5 flex flex-col h-full bg-black">
         {/* Logo */}
         <div
           onClick={handleSidebarClick}

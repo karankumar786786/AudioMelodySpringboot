@@ -3,7 +3,7 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import { motion } from "framer-motion";
-import { Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArtistCard } from "../../components/ArtistCard";
 import { HeroSection } from "../../components/HeroSection";
@@ -17,6 +17,21 @@ export default function HomePage() {
   const systemToken = useStore(playerStore, (s) => s.systemToken);
   const [heroIndex, setHeroIndex] = useState(0);
   const triggerRef = useRef<HTMLDivElement>(null);
+
+  // Horizontal scroll container refs
+  const artistsScrollRef = useRef<HTMLDivElement>(null);
+  const recentlyPlayedScrollRef = useRef<HTMLDivElement>(null);
+  const playlistsScrollRef = useRef<HTMLDivElement>(null);
+  const recommendationsScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollContainer = (
+    ref: React.RefObject<HTMLDivElement | null>,
+    distance: number,
+  ) => {
+    if (ref.current) {
+      ref.current.scrollBy({ left: distance, behavior: "smooth" });
+    }
+  };
 
   // 1. Admin-Featured Songs for Hero
   const { data: featuredSongs, isLoading: isFeaturedLoading } = useQuery({
@@ -129,7 +144,7 @@ export default function HomePage() {
 
   if (isInitialPageLoading) {
     return (
-      <div className="px-10 pb-20 bg-black pt-20 space-y-16 animate-pulse select-none">
+      <div className="px-10 pb-20 bg-black pt-[var(--app-content-pt,5rem)] space-y-16 animate-pulse select-none">
         {/* Hero Skeleton */}
         <div className="w-full h-[290px] md:h-[325px] rounded-2xl bg-zinc-900/60 border border-[#282828] flex flex-col justify-end p-8 md:p-10 space-y-3">
           <div className="h-4 w-28 bg-zinc-800/80 rounded-full" />
@@ -142,7 +157,7 @@ export default function HomePage() {
         </div>
 
         {/* Artists Skeleton */}
-        <div className="space-y-4 -mt-7">
+        <div className="space-y-1 -mt-7">
           <div className="h-6 w-32 bg-zinc-800/80 rounded-lg" />
           <div className="flex gap-4 overflow-hidden">
             {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -171,13 +186,13 @@ export default function HomePage() {
   }
 
   return (
-    <div className="px-10 pb-20 bg-black pt-20 space-y-16">
+    <div className="px-10 pb-20 bg-black pt-[var(--app-content-pt,5rem)] space-y-16">
       {/* 1. Hero Section (Featured / Trending) */}
       {(isHeroLoading || heroSongs.length > 0) && (
         <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
         >
           <HeroSection
             songs={heroSongs}
@@ -189,18 +204,37 @@ export default function HomePage() {
       )}
 
       {/* 2. Top Artists Section */}
-      <section className="space-y-1 -mt-7">
+      <section className="space-y-2 -mt-7">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-white tracking-tight">
             Top Artists
           </h2>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => scrollContainer(artistsScrollRef, -380)}
+              type="button"
+              aria-label="Scroll left"
+              className="w-7 h-7 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              onClick={() => scrollContainer(artistsScrollRef, 380)}
+              type="button"
+              aria-label="Scroll right"
+              className="w-7 h-7 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
         </div>
 
         <motion.div
+          ref={artistsScrollRef}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.4 }}
-          className="flex flex-row overflow-x-auto gap-4 pb-4 no-scrollbar px-1"
+          transition={{ duration: 0.3 }}
+          className="flex flex-row overflow-x-auto gap-4 pb-4 no-scrollbar px-1 scroll-smooth"
         >
           {isArtistsLoading
             ? [1, 2, 3, 4, 5, 6].map((i) => (
@@ -218,19 +252,40 @@ export default function HomePage() {
       {/* 3. Recently Played Section (Conditional) */}
       {systemUser && (recentlyPlayed?.data?.data?.length ?? 0) > 0 && (
         <section className="space-y-4 -mt-12">
-          <div className="flex items-center gap-2">
-            <Clock size={20} className="text-primary" />
-            <h2 className="text-xl font-bold text-white tracking-tight">
-              Recently Played
-            </h2>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock size={20} className="text-primary" />
+              <h2 className="text-xl font-bold text-white tracking-tight">
+                Recently Played
+              </h2>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => scrollContainer(recentlyPlayedScrollRef, -380)}
+                type="button"
+                aria-label="Scroll left"
+                className="w-7 h-7 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onClick={() => scrollContainer(recentlyPlayedScrollRef, 380)}
+                type="button"
+                aria-label="Scroll right"
+                className="w-7 h-7 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
           </div>
 
           <div className="relative">
             <motion.div
+              ref={recentlyPlayedScrollRef}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.4 }}
-              className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar px-1 snap-x snap-mandatory"
+              transition={{ duration: 0.3 }}
+              className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar px-1 snap-x snap-mandatory scroll-smooth"
             >
               {recentlyPlayed?.data?.data?.slice(0, 10).map((song: Song) => (
                 <SongCard
@@ -251,13 +306,32 @@ export default function HomePage() {
           <h2 className="text-xl font-bold text-white tracking-tight">
             Featured Playlists
           </h2>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              onClick={() => scrollContainer(playlistsScrollRef, -380)}
+              type="button"
+              aria-label="Scroll left"
+              className="w-7 h-7 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              onClick={() => scrollContainer(playlistsScrollRef, 380)}
+              type="button"
+              aria-label="Scroll right"
+              className="w-7 h-7 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
         </div>
 
         <motion.div
+          ref={playlistsScrollRef}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.4 }}
-          className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar px-1"
+          transition={{ duration: 0.3 }}
+          className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar px-1 scroll-smooth"
         >
           {isPlaylistsLoading
             ? [1, 2, 3, 4, 5, 6].map((i) => (
@@ -277,18 +351,39 @@ export default function HomePage() {
         recommendations?.data?.data &&
         recommendations.data.data.length > 0 && (
           <section className="space-y-4">
-            <div className="flex items-center gap-3">
-              <h2 className="text-xl font-bold text-white tracking-tight">
-                Recommended for You
-              </h2>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-bold text-white tracking-tight">
+                  Recommended for You
+                </h2>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  onClick={() => scrollContainer(recommendationsScrollRef, -380)}
+                  type="button"
+                  aria-label="Scroll left"
+                  className="w-7 h-7 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <button
+                  onClick={() => scrollContainer(recommendationsScrollRef, 380)}
+                  type="button"
+                  aria-label="Scroll right"
+                  className="w-7 h-7 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
             </div>
 
             <div className="relative">
               <motion.div
+                ref={recommendationsScrollRef}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.4 }}
-                className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar px-1 snap-x snap-mandatory"
+                transition={{ duration: 0.3 }}
+                className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar px-1 snap-x snap-mandatory scroll-smooth"
               >
                 {recommendations.data.data.slice(0, 10).map((song: Song) => (
                   <SongCard
@@ -298,7 +393,7 @@ export default function HomePage() {
                   />
                 ))}
               </motion.div>
-              <div className="pointer-events-none absolute top-0 right-0 h-[calc(100%-1rem)] w-20" />
+              <div className="pointer-events-none absolute top-0 right-0 h-[calc(100%-1rem)] w-20 " />
             </div>
           </section>
         )}
