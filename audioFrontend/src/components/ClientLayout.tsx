@@ -12,40 +12,63 @@ import { RightInfoPanel } from "@/components/RightInfoPanel";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const systemUser = useStore(playerStore, (s) => s.systemUser);
-  const [mounted, setMounted] = useState(false);
+  const [isReady, setIsReady] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const isPublicRoute =
+    pathname === "/" ||
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/callback";
 
   useEffect(() => {
-    if (
-      mounted &&
-      !systemUser &&
-      pathname !== "/" &&
-      pathname !== "/callback"
-    ) {
-      router.replace("/");
+    const token = typeof window !== "undefined" ? localStorage.getItem("system_token") : null;
+    const userStr = typeof window !== "undefined" ? localStorage.getItem("system_user") : null;
+    const hasLocalSession = !!(token && userStr);
+
+    if (hasLocalSession || systemUser) {
+      if (pathname === "/" || pathname === "/login" || pathname === "/signup") {
+        router.replace("/home");
+      } else {
+        setIsReady(true);
+      }
+    } else {
+      if (!isPublicRoute) {
+        router.replace("/login");
+      } else {
+        setIsReady(true);
+      }
     }
-  }, [mounted, systemUser, pathname, router]);
+  }, [systemUser, pathname, isPublicRoute, router]);
 
-
-
-  if (!mounted) {
+  // Loading Screen while resolving session from local storage or redirecting
+  if (
+    !isReady ||
+    (!systemUser && !isPublicRoute) ||
+    (systemUser && (pathname === "/" || pathname === "/login" || pathname === "/signup"))
+  ) {
     return (
-      <div className="flex-1 flex items-center justify-center min-h-screen bg-black">
-        <div className="animate-pulse text-zinc-400 font-medium text-sm">
-          Loading OneMelody...
+      <div className="flex-1 flex flex-col items-center justify-center min-h-screen bg-black select-none">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden animate-pulse">
+            <img
+              src="/image.png"
+              alt="One Melody"
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]" />
+            <div className="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]" />
+            <div className="w-2 h-2 rounded-full bg-primary animate-bounce" />
+          </div>
         </div>
       </div>
     );
   }
 
-  const isPublicRoute = pathname === "/" || pathname === "/callback";
-
-  // Guest View (Landing Page)
+  // Guest View (Login / Signup Page)
   if (!systemUser) {
     return (
       <div className="flex-1 flex flex-col min-h-screen bg-black overflow-y-auto">

@@ -38,7 +38,7 @@ export default function SongsPage() {
   const [formData, setFormData] = useState({
     title: "",
     artistName: "",
-    language: "English",
+    language: "Hindi",
     lrclibId: "",
     songFile: null as File | null,
     imageFile: null as File | null,
@@ -49,7 +49,7 @@ export default function SongsPage() {
   const [editFormData, setEditFormData] = useState({
     title: "",
     artistName: "",
-    language: "English",
+    language: "Hindi",
     lrclibId: "",
     imageFile: null as File | null,
     videoFile: null as File | null,
@@ -149,13 +149,13 @@ export default function SongsPage() {
           tempSongKey: songUrlData.key,
           imageKey: uploadedImageKey,
           videoKey: uploadedVideoKey,
-          language: formData.language || "English",
+          language: formData.language || "Hindi",
           lrclibId: formData.lrclibId.trim() || "0",
         }),
       });
       if (finalizeRes.ok) {
         setIsModalOpen(false);
-        setFormData({ title: "", artistName: "", language: "English", lrclibId: "", songFile: null, imageFile: null, videoFile: null });
+        setFormData({ title: "", artistName: "", language: "Hindi", lrclibId: "", songFile: null, imageFile: null, videoFile: null });
         fetchSongs();
       } else {
         const errData = await finalizeRes.json();
@@ -173,7 +173,7 @@ export default function SongsPage() {
     setEditFormData({
       title: song.title,
       artistName: song.artistName,
-      language: song.language || "English",
+      language: song.language || "Hindi",
       lrclibId: song.lrclibId || "",
       imageFile: null,
       videoFile: null,
@@ -406,7 +406,7 @@ export default function SongsPage() {
                 </div>
                 <div>
                   <label className={labelCls}>Language</label>
-                  <input required type="text" value={formData.language} onChange={e => setFormData({...formData, language: e.target.value})} placeholder="English" className={inputCls} />
+                  <input required type="text" value={formData.language} onChange={e => setFormData({...formData, language: e.target.value})} placeholder="Hindi" className={inputCls} />
                 </div>
                 <div>
                   <label className={labelCls}>LRCLIB ID</label>

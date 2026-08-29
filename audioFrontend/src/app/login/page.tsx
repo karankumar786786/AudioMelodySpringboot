@@ -2,6 +2,6 @@
 
 import { AuthPage } from "@/components/AuthPage";
 
-export default function Home() {
+export default function LoginPage() {
   return <AuthPage initialMode="login" />;
 }
