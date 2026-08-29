@@ -62,7 +62,7 @@ function AudioVisualizerFallback({
 
       // Live 46-band stereo equalizer spectrum
       const barCount = 46;
-      const spacing = 4;
+      const spacing = 6;
       const totalSpacing = spacing * (barCount - 1);
       const barWidth = Math.max(2, (width - totalSpacing) / barCount);
 
