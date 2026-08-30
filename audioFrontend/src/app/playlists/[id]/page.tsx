@@ -18,6 +18,7 @@ import { mapListToPlayerSongs } from "@/lib/player-utils";
 import { useStore } from "@tanstack/react-store";
 import { toast } from "sonner";
 import { getImageUrl, getVideoUrl } from "@/lib/image-utils";
+import { NotFoundPage, ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
 
 export default function PlaylistPage() {
   const { id } = useParams();
@@ -35,7 +36,7 @@ export default function PlaylistPage() {
   /*                                  PLAYLIST                                  */
   /* -------------------------------------------------------------------------- */
 
-  const { data: playlistResponse, isLoading: isPlaylistLoading } = useQuery({
+  const { data: playlistResponse, isLoading: isPlaylistLoading, error: playlistError, refetch: refetchPlaylist } = useQuery({
     queryKey: ["playlist", id, playlistType],
     queryFn: async () => {
       if (playlistType === "user") {
@@ -58,7 +59,7 @@ export default function PlaylistPage() {
   /*                                    SONGS                                   */
   /* -------------------------------------------------------------------------- */
 
-  const { data: songsResponse, isLoading: isSongsLoading } = useQuery({
+  const { data: songsResponse, isLoading: isSongsLoading, error: songsError, refetch: refetchSongs } = useQuery({
     queryKey: ["playlist-songs", id, playlistType],
     queryFn: async () => {
       if (playlistType === "user") {
@@ -136,6 +137,30 @@ export default function PlaylistPage() {
           Loading Playlist...
         </span>
       </div>
+    );
+  }
+
+  // Error & Not Found handling
+  if (playlistError || !playlist) {
+    const is404 =
+      !playlist ||
+      (playlistError as any)?.status === 404 ||
+      (playlistError as any)?.response?.status === 404;
+    const is500 =
+      (playlistError as any)?.status >= 500 ||
+      (playlistError as any)?.response?.status >= 500;
+
+    if (is404 && !is500) {
+      return <NotFoundPage />;
+    }
+    if (is500) {
+      return <ServerErrorPage onRetry={() => { refetchPlaylist(); refetchSongs(); }} />;
+    }
+    return (
+      <SomethingWentWrongPage
+        error={playlistError as Error}
+        reset={() => { refetchPlaylist(); refetchSongs(); }}
+      />
     );
   }
 

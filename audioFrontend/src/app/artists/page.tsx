@@ -5,9 +5,10 @@ import { musicApi } from "@/lib/api";
 import { ArtistCard } from "../../components/ArtistCard";
 import { Users2, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
+import { ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
 
 export default function ArtistsPage() {
-  const { data: artistsResponse, isLoading } = useQuery({
+  const { data: artistsResponse, isLoading, error: artistsError, refetch } = useQuery({
     queryKey: ["artists"],
     queryFn: () => musicApi.artists.list(1, 100),
   });
@@ -15,7 +16,7 @@ export default function ArtistsPage() {
   const artists = artistsResponse?.data?.data || [];
 
   return (
-    <div className="px-10 pb-20 pt-20 space-y-8 ">
+    <div className="px-10 pb-20 bg-black pt-[var(--app-content-pt,5rem)] space-y-8">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -32,7 +33,13 @@ export default function ArtistsPage() {
         </div>
       </motion.div>
 
-      {isLoading ? (
+      {artistsError ? (
+        (artistsError as any)?.status >= 500 ? (
+          <ServerErrorPage onRetry={() => refetch()} />
+        ) : (
+          <SomethingWentWrongPage error={artistsError as Error} reset={() => refetch()} />
+        )
+      ) : isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
             <div key={i} className="space-y-3 animate-pulse">

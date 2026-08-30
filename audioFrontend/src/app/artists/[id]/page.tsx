@@ -22,6 +22,7 @@ import { playerStore, playerActions } from "@/store/player.store";
 import { mapListToPlayerSongs } from "@/lib/player-utils";
 import { toast } from "sonner";
 import { getSolidBgFromImage } from "@/lib/color-utils";
+import { NotFoundPage, ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
 
 export default function ArtistPage() {
   const { id } = useParams();
@@ -36,7 +37,7 @@ export default function ArtistPage() {
   /*                                ARTIST QUERY                                */
   /* -------------------------------------------------------------------------- */
 
-  const { data: artistResponse, isLoading: isArtistLoading } = useQuery({
+  const { data: artistResponse, isLoading: isArtistLoading, error: artistError, refetch: refetchArtist } = useQuery({
     queryKey: ["artist", id],
     queryFn: () => musicApi.artists.getById(id as string),
   });
@@ -45,7 +46,7 @@ export default function ArtistPage() {
   /*                                 SONG QUERY                                 */
   /* -------------------------------------------------------------------------- */
 
-  const { data: songsResponse, isLoading: isSongsLoading } = useQuery({
+  const { data: songsResponse, isLoading: isSongsLoading, error: songsError, refetch: refetchSongs } = useQuery({
     queryKey: ["artist-songs", id],
     queryFn: () => musicApi.artists.getSongs(id as string),
   });
@@ -126,6 +127,30 @@ export default function ArtistPage() {
           Loading Artist...
         </span>
       </div>
+    );
+  }
+
+  // Error & Not Found handling
+  if (artistError || !artist) {
+    const is404 =
+      !artist ||
+      (artistError as any)?.status === 404 ||
+      (artistError as any)?.response?.status === 404;
+    const is500 =
+      (artistError as any)?.status >= 500 ||
+      (artistError as any)?.response?.status >= 500;
+
+    if (is404 && !is500) {
+      return <NotFoundPage />;
+    }
+    if (is500) {
+      return <ServerErrorPage onRetry={() => { refetchArtist(); refetchSongs(); }} />;
+    }
+    return (
+      <SomethingWentWrongPage
+        error={artistError as Error}
+        reset={() => { refetchArtist(); refetchSongs(); }}
+      />
     );
   }
 

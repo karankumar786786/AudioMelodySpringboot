@@ -184,8 +184,8 @@ export const playbackActions = {
     if (systemUser?.id && songId) {
       try {
         await musicApi.interactions.recordListen(songId, part);
-      } catch (err) {
-        console.error("[PlayerStore] Failed to record listen:", err);
+      } catch {
+        // Ignored unmount / offline telemetry drop
       }
     }
   },
@@ -195,8 +195,8 @@ export const playbackActions = {
     if (systemUser?.id && songId) {
       try {
         await musicApi.interactions.recordSkip(songId);
-      } catch (err) {
-        console.error("[PlayerStore] Failed to record skip:", err);
+      } catch {
+        // Ignored unmount / offline telemetry drop
       }
     }
   },

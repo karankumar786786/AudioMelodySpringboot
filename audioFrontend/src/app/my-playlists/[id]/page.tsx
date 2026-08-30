@@ -20,6 +20,7 @@ import { useStore } from "@tanstack/react-store";
 import { toast } from "sonner";
 import { getImageUrl } from "@/lib/image-utils";
 import { getSolidBgFromImage } from "@/lib/color-utils";
+import { NotFoundPage, ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
 
 export default function MyPlaylistPage() {
   const { id } = useParams();
@@ -36,7 +37,7 @@ export default function MyPlaylistPage() {
   /*                                  PLAYLIST                                  */
   /* -------------------------------------------------------------------------- */
 
-  const { data: playlistResponse, isLoading: isPlaylistLoading } = useQuery({
+  const { data: playlistResponse, isLoading: isPlaylistLoading, error: playlistError, refetch: refetchPlaylist } = useQuery({
     queryKey: ["user-playlist", id],
     queryFn: () => musicApi.users.getPlaylistById(id as string),
     enabled: !!systemUser?.id,
@@ -46,7 +47,7 @@ export default function MyPlaylistPage() {
   /*                                    SONGS                                   */
   /* -------------------------------------------------------------------------- */
 
-  const { data: songsResponse, isLoading: isSongsLoading } = useQuery({
+  const { data: songsResponse, isLoading: isSongsLoading, error: songsError, refetch: refetchSongs } = useQuery({
     queryKey: ["user-playlist-songs", id],
     queryFn: () => musicApi.users.getPlaylistSongs(id as string),
     enabled: !!systemUser?.id,
@@ -167,18 +168,27 @@ export default function MyPlaylistPage() {
     );
   }
 
-  if (!playlist) {
+  // Error & Not Found handling
+  if (playlistError || !playlist) {
+    const is404 =
+      !playlist ||
+      (playlistError as any)?.status === 404 ||
+      (playlistError as any)?.response?.status === 404;
+    const is500 =
+      (playlistError as any)?.status >= 500 ||
+      (playlistError as any)?.response?.status >= 500;
+
+    if (is404 && !is500) {
+      return <NotFoundPage />;
+    }
+    if (is500) {
+      return <ServerErrorPage onRetry={() => { refetchPlaylist(); refetchSongs(); }} />;
+    }
     return (
-      <div className="flex h-[60vh] flex-col items-center justify-center gap-4 text-zinc-500">
-        <ListMusic size={40} />
-        <p className="text-sm font-medium">Playlist not found.</p>
-        <button
-          onClick={() => router.push("/playlists")}
-          className="text-primary text-xs underline"
-        >
-          Back to playlists
-        </button>
-      </div>
+      <SomethingWentWrongPage
+        error={playlistError as Error}
+        reset={() => { refetchPlaylist(); refetchSongs(); }}
+      />
     );
   }
 

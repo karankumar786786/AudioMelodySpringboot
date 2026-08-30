@@ -13,6 +13,16 @@ function Provider({ children }: { children: React.ReactNode }) {
           queries: {
             staleTime: 1000 * 60 * 5, // 5 minutes
             refetchOnWindowFocus: false,
+            networkMode: "online", // Automatically pauses queries when offline and resumes when back online
+            retry: (failureCount, error: any) => {
+              if (typeof navigator !== "undefined" && !navigator.onLine) {
+                return false; // Stop API calls when offline
+              }
+              return failureCount < 2;
+            },
+          },
+          mutations: {
+            networkMode: "online", // Automatically pauses mutations when offline
           },
         },
       }),

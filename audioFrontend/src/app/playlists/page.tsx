@@ -5,6 +5,7 @@ import { musicApi } from "@/lib/api";
 import { PlaylistCard } from "../../components/PlaylistCard";
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
 
 export default function PlaylistsPage() {
   const [isMounted, setIsMounted] = useState(false);
@@ -13,7 +14,7 @@ export default function PlaylistsPage() {
     setIsMounted(true);
   }, []);
 
-  const { data: systemPlaylistsResponse, isLoading: isSystemLoading } =
+  const { data: systemPlaylistsResponse, isLoading: isSystemLoading, error: playlistsError, refetch } =
     useQuery({
       queryKey: ["system-playlists"],
       queryFn: () => musicApi.playlists.list(1, 20),
@@ -24,7 +25,7 @@ export default function PlaylistsPage() {
   if (!isMounted) return null;
 
   return (
-    <div className="px-10 pb-20 pt-20 space-y-8">
+    <div className="px-10 pb-20 bg-black pt-[var(--app-content-pt,5rem)] space-y-8">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -41,7 +42,13 @@ export default function PlaylistsPage() {
         </div>
       </motion.div>
 
-      {isSystemLoading ? (
+      {playlistsError ? (
+        (playlistsError as any)?.status >= 500 ? (
+          <ServerErrorPage onRetry={() => refetch()} />
+        ) : (
+          <SomethingWentWrongPage error={playlistsError as Error} reset={() => refetch()} />
+        )
+      ) : isSystemLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="space-y-3 animate-pulse">

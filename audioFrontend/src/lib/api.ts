@@ -134,6 +134,14 @@ async function refreshAccessToken(): Promise<string> {
 }
 
 async function request<T = any>(endpoint: string, options: RequestInit = {}, retry = true): Promise<T> {
+  // Prevent any API fetch calls when offline
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    const offlineErr = new Error("Device is offline");
+    (offlineErr as any).isOffline = true;
+    (offlineErr as any).status = 0;
+    throw offlineErr;
+  }
+
   const token = getStoredItem("system_token");
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -357,19 +365,25 @@ export const musicApi = {
       }
     },
     recordListen: async (songId: string, percentage: number) => {
-      await request("/api/interaction/play", {
-        method: "POST",
-        body: JSON.stringify({ songId, percentage }),
-      });
+      try {
+        await request("/api/interaction/play", {
+          method: "POST",
+          body: JSON.stringify({ songId, percentage }),
+          keepalive: true,
+        });
+      } catch (err) {
+        // Silently catch background telemetry drops on unmount/offline
+      }
     },
     recordSkip: async (songId: string) => {
       try {
         await request("/api/interaction/skip", {
           method: "POST",
           body: JSON.stringify({ songId }),
+          keepalive: true,
         });
       } catch (err) {
-        console.error("[Api] Failed to record skip:", err);
+        // Silently catch background telemetry drops
       }
     },
   },

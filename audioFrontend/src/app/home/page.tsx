@@ -9,6 +9,7 @@ import { ArtistCard } from "../../components/ArtistCard";
 import { HeroSection } from "../../components/HeroSection";
 import { PlaylistCard } from "../../components/PlaylistCard";
 import { SongCard } from "../../components/SongCard";
+import { ServerErrorPage, SomethingWentWrongPage } from "../../components/ErrorPages";
 import { type Artist, musicApi, type Playlist, type Song } from "../../lib/api";
 import { playerActions, playerStore } from "../../store/player.store";
 
@@ -79,13 +80,13 @@ export default function HomePage() {
     (isFeaturedLoading || isTrendingLoading) && heroSongs.length === 0;
 
   // 5. Top Artists
-  const { data: artists, isLoading: isArtistsLoading } = useQuery({
+  const { data: artists, isLoading: isArtistsLoading, error: artistsError } = useQuery({
     queryKey: ["home-artists"],
     queryFn: () => musicApi.artists.list(1, 15),
   });
 
   // 6. Featured Playlists
-  const { data: playlists, isLoading: isPlaylistsLoading } = useQuery({
+  const { data: playlists, isLoading: isPlaylistsLoading, error: playlistsError } = useQuery({
     queryKey: ["home-playlists"],
     queryFn: () => musicApi.playlists.list(1, 15),
   });
@@ -141,6 +142,22 @@ export default function HomePage() {
   // Premium initial page loading state when all essential content is pending
   const isInitialPageLoading =
     isHeroLoading && isArtistsLoading && isPlaylistsLoading && status === "pending";
+
+  // Detect if all critical queries have failed (server unreachable / 500)
+  const hasCriticalError =
+    !isInitialPageLoading &&
+    status === "error" &&
+    !!artistsError &&
+    !!playlistsError;
+
+  if (hasCriticalError) {
+    const anyError = artistsError || playlistsError;
+    const isServerError = anyError && (anyError as any)?.status >= 500;
+    if (isServerError) {
+      return <ServerErrorPage onRetry={() => window.location.reload()} />;
+    }
+    return <SomethingWentWrongPage error={anyError as Error} reset={() => window.location.reload()} />;
+  }
 
   if (isInitialPageLoading) {
     return (

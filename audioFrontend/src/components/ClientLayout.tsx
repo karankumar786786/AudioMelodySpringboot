@@ -9,6 +9,7 @@ import { HlsMusicPlayer } from "@/components/HlsMusicPlayer";
 import { LeftSidebar } from "@/components/LeftSidebar";
 import { playerStore } from "@/store/player.store";
 import { RightInfoPanel } from "@/components/RightInfoPanel";
+import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const systemUser = useStore(playerStore, (s) => s.systemUser);
@@ -68,6 +69,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   ) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center min-h-screen bg-black select-none">
+        <NetworkStatusBanner />
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-black flex items-center justify-center overflow-hidden animate-pulse">
             <img
@@ -90,6 +92,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   if (!systemUser) {
     return (
       <div className="flex-1 flex flex-col min-h-screen bg-black overflow-y-auto">
+        <NetworkStatusBanner />
         <AuthModal />
         {isPublicRoute ? children : null}
       </div>
@@ -99,6 +102,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   // Authenticated Full View (Spotify 3-Panel Layout)
   return (
     <>
+      <NetworkStatusBanner />
       <AuthModal />
       <div className="fixed inset-0 pointer-events-none z-0 bg-black" />
 

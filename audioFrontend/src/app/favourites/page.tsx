@@ -7,6 +7,7 @@ import { useStore } from "@tanstack/react-store";
 import { playerStore } from "@/store/player.store";
 import { Heart, Sparkles, Clock } from "lucide-react";
 import { useState, useEffect } from "react";
+import { ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
 
 export default function FavouritesPage() {
   const systemUser = useStore(playerStore, (s) => s.systemUser);
@@ -16,7 +17,7 @@ export default function FavouritesPage() {
     setIsMounted(true);
   }, []);
 
-  const { data: favouritesResponse, isLoading } = useQuery({
+  const { data: favouritesResponse, isLoading, error: favouritesError, refetch } = useQuery({
     queryKey: ["favourites", systemUser?.id],
     queryFn: () => musicApi.users.getFavourites(),
     enabled: !!systemUser?.id,
@@ -27,7 +28,7 @@ export default function FavouritesPage() {
   if (!isMounted) return null;
 
   return (
-    <div className="px-10 pb-20 pt-20">
+    <div className="px-10 pb-20 bg-black pt-[var(--app-content-pt,5rem)] space-y-8">
       <section>
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold text-white tracking-tight">
@@ -35,7 +36,13 @@ export default function FavouritesPage() {
           </h2>
         </div>
 
-        {isLoading ? (
+        {favouritesError ? (
+          (favouritesError as any)?.status >= 500 ? (
+            <ServerErrorPage onRetry={() => refetch()} />
+          ) : (
+            <SomethingWentWrongPage error={favouritesError as Error} reset={() => refetch()} />
+          )
+        ) : isLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
             {[1, 2, 3, 4, 5].map((i) => (
               <div
