@@ -263,7 +263,7 @@ export function AuthModal() {
                   <button
                     type="submit"
                     disabled={loading || !email}
-                    className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary hover:bg-emerald-400 text-black font-semibold py-2.5 transition-all disabled:opacity-50 text-sm shadow-lg shadow-primary/20 cursor-pointer"
+                    className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary hover:bg-primary text-black font-semibold py-2.5 transition-all disabled:opacity-50 text-sm shadow-lg shadow-primary/20 cursor-pointer"
                   >
                     {loading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />

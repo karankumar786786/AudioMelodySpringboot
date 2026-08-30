@@ -60,8 +60,23 @@ export function PlaylistPickerModal({
         throw err;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
+      queryClient.invalidateQueries({ queryKey: ["playlist"] });
+      queryClient.invalidateQueries({ queryKey: ["playlist-songs"] });
+      queryClient.invalidateQueries({ queryKey: ["user-playlist"] });
+      queryClient.invalidateQueries({ queryKey: ["user-playlist-songs"] });
+      queryClient.invalidateQueries({ queryKey: ["playlists"] });
+      queryClient.invalidateQueries({ queryKey: ["home-playlists"] });
+      if ((data as any)?.alreadyAdded) {
+        toast.info(`"${songTitle}" is already in this playlist`);
+      } else {
+        toast.success(`Added "${songTitle}" to playlist`);
+      }
       onClose();
+    },
+    onError: () => {
+      toast.error("Failed to add song to playlist");
     },
   });
 
@@ -73,7 +88,17 @@ export function PlaylistPickerModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
+      queryClient.invalidateQueries({ queryKey: ["playlist"] });
+      queryClient.invalidateQueries({ queryKey: ["playlist-songs"] });
+      queryClient.invalidateQueries({ queryKey: ["user-playlist"] });
+      queryClient.invalidateQueries({ queryKey: ["user-playlist-songs"] });
+      queryClient.invalidateQueries({ queryKey: ["playlists"] });
+      queryClient.invalidateQueries({ queryKey: ["home-playlists"] });
+      toast.success(`Created "${newName}" and added "${songTitle}"`);
       onClose();
+    },
+    onError: () => {
+      toast.error("Failed to create playlist");
     },
   });
 

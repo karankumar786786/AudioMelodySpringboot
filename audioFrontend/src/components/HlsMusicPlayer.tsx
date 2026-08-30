@@ -35,6 +35,7 @@ import { PlayerProgressBar } from "./player/PlayerProgressBar";
 import { PlayerQueuePanel } from "./player/PlayerQueuePanel";
 import { PlayerQualitySelector } from "./player/PlayerQualitySelector";
 import { EqualizerModal } from "./player/EqualizerModal";
+import { PlayerTooltip } from "./player/PlayerTooltip";
 
 import { getSolidBgFromImage } from "../lib/color-utils";
 
@@ -218,6 +219,32 @@ export function HlsMusicPlayer() {
         playerActions.previous();
       }
 
+      // ArrowRight: Forward 10 seconds
+      if (e.key === "ArrowRight" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        if (audioRef.current) {
+          const maxDur = duration || audioRef.current.duration || 0;
+          const nextTime =
+            maxDur > 0
+              ? Math.min(maxDur, audioRef.current.currentTime + 10)
+              : audioRef.current.currentTime + 10;
+          audioRef.current.currentTime = nextTime;
+          setLocalTime(nextTime);
+          playerActions.setCurrentTime(nextTime);
+        }
+      }
+
+      // ArrowLeft: Rewind 10 seconds
+      if (e.key === "ArrowLeft" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        if (audioRef.current) {
+          const prevTime = Math.max(0, audioRef.current.currentTime - 10);
+          audioRef.current.currentTime = prevTime;
+          setLocalTime(prevTime);
+          playerActions.setCurrentTime(prevTime);
+        }
+      }
+
       // ArrowUp: Increase Volume
       if (e.key === "ArrowUp" && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
@@ -233,7 +260,7 @@ export function HlsMusicPlayer() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentSong, isPlaying, isMuted, volume]);
+  }, [currentSong, isPlaying, isMuted, volume, duration, isLyricsOpen]);
 
 
   const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -280,29 +307,34 @@ export function HlsMusicPlayer() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <PlayerTooltip content="Sync lyrics to playback" shortcut="R">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const el = document.getElementById("active-lyric-line");
+                    if (el) {
+                      el.scrollIntoView({ behavior: "smooth", block: "center" });
+                      toast.success("Lyrics synced");
+                    }
+                  }}
+                  className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-black font-bold text-xs transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95 border border-white/30"
+                  aria-label="Sync lyrics to playback"
+                >
+                  <div className="flex items-end gap-[2px] h-3">
+                    <span className="w-[2px] h-2.5 bg-black rounded-full" />
+                    <span className="w-[2px] h-1.5 bg-black rounded-full" />
+                    <span className="w-[2px] h-3 bg-black rounded-full" />
+                    <span className="w-[2px] h-2 bg-black rounded-full" />
+                  </div>
+                  <span className="text-black font-bold text-xs tracking-tight">Sync</span>
+                </button>
+              </PlayerTooltip>
               <button
-                onClick={() => {
-                  const el = document.getElementById("active-lyric-line");
-                  if (el) {
-                    el.scrollIntoView({ behavior: "smooth", block: "center" });
-                    toast.success("Lyrics synced");
-                  }
-                }}
-                className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-black font-bold text-xs transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95 border border-white/30"
-                title="Sync lyrics to playback (R)"
-              >
-                <div className="flex items-end gap-[2px] h-3">
-                  <span className="w-[2px] h-2.5 bg-black rounded-full" />
-                  <span className="w-[2px] h-1.5 bg-black rounded-full" />
-                  <span className="w-[2px] h-3 bg-black rounded-full" />
-                  <span className="w-[2px] h-2 bg-black rounded-full" />
-                </div>
-                <span className="text-black font-bold text-xs tracking-tight">Sync</span>
-              </button>
-              <button
+                type="button"
                 onClick={() => playerActions.closeLyrics()}
                 className="p-2 rounded-full text-zinc-300 hover:text-white hover:bg-[#282828] transition-colors cursor-pointer"
                 title="Close Lyrics"
+                aria-label="Close Lyrics"
               >
                 <X size={20} />
               </button>
@@ -353,78 +385,96 @@ export function HlsMusicPlayer() {
         {/* Middle Section: Player Controls & Timeline */}
         <div className="flex flex-col items-center justify-center flex-1 max-w-xl px-4 space-y-1">
           <div className="flex items-center gap-5">
-            <button
-              onClick={() => {
-                playerActions.toggleShuffle();
-                toast.success(isShuffle ? "Shuffle Off" : "Shuffle On");
-              }}
-              className={`transition-colors cursor-pointer ${
-                isShuffle ? "text-primary" : "text-zinc-400 hover:text-white"
-              }`}
-              title="Shuffle"
-            >
-              <Shuffle size={16} />
-            </button>
+            <PlayerTooltip content="Shuffle">
+              <button
+                type="button"
+                onClick={() => {
+                  playerActions.toggleShuffle();
+                  toast.success(isShuffle ? "Shuffle Off" : "Shuffle On");
+                }}
+                className={`transition-colors cursor-pointer ${
+                  isShuffle ? "text-primary" : "text-zinc-400 hover:text-white"
+                }`}
+                aria-label="Shuffle"
+              >
+                <Shuffle size={16} />
+              </button>
+            </PlayerTooltip>
 
-            <button
-              onClick={() => playerActions.previous()}
-              className="text-zinc-300 hover:text-white transition-colors cursor-pointer"
-              title="Previous"
-            >
-              <SkipBack size={18} fill="currentColor" />
-            </button>
+            <PlayerTooltip content="Previous track" shortcut={["Ctrl", "←"]}>
+              <button
+                type="button"
+                onClick={() => playerActions.previous()}
+                className="text-zinc-300 hover:text-white transition-colors cursor-pointer"
+                aria-label="Previous track"
+              >
+                <SkipBack size={18} fill="currentColor" />
+              </button>
+            </PlayerTooltip>
 
-            <button
-              onClick={() => {
-                const audio = audioRef.current;
-                if (audio) {
-                  if (isPlaying) {
-                    audio.pause();
-                  } else {
-                    audio.play().catch((err) => {
-                      if (err.name !== "AbortError")
-                        console.warn("[Player] Manual play failed:", err);
-                    });
+            <PlayerTooltip
+              content={isPlaying ? "Pause" : "Play"}
+              shortcut="Space"
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  const audio = audioRef.current;
+                  if (audio) {
+                    if (isPlaying) {
+                      audio.pause();
+                    } else {
+                      audio.play().catch((err) => {
+                        if (err.name !== "AbortError")
+                          console.warn("[Player] Manual play failed:", err);
+                      });
+                    }
                   }
-                }
-                playerActions.setIsPlaying(!isPlaying);
-              }}
-              className="w-9 h-9 rounded-full bg-white text-black hover:scale-105 flex items-center justify-center cursor-pointer transition-transform shadow-md"
-              title={isPlaying ? "Pause (Space)" : "Play (Space)"}
-            >
-              {isPlaying ? (
-                <Pause size={18} fill="black" />
-              ) : (
-                <Play size={18} fill="black" className="translate-x-0.5" />
-              )}
-            </button>
+                  playerActions.setIsPlaying(!isPlaying);
+                }}
+                className="w-9 h-9 rounded-full bg-white text-black hover:scale-105 flex items-center justify-center cursor-pointer transition-transform shadow-md"
+                aria-label={isPlaying ? "Pause" : "Play"}
+              >
+                {isPlaying ? (
+                  <Pause size={18} fill="black" />
+                ) : (
+                  <Play size={18} fill="black" className="translate-x-0.5" />
+                )}
+              </button>
+            </PlayerTooltip>
 
-            <button
-              onClick={() => playerActions.next()}
-              className="text-zinc-300 hover:text-white transition-colors cursor-pointer"
-              title="Next"
-            >
-              <SkipForward size={18} fill="currentColor" />
-            </button>
+            <PlayerTooltip content="Next track" shortcut={["Ctrl", "→"]}>
+              <button
+                type="button"
+                onClick={() => playerActions.next()}
+                className="text-zinc-300 hover:text-white transition-colors cursor-pointer"
+                aria-label="Next track"
+              >
+                <SkipForward size={18} fill="currentColor" />
+              </button>
+            </PlayerTooltip>
 
-            <button
-              onClick={() => {
-                playerActions.toggleRepeat();
-                const modes: Record<string, string> = {
-                  none: "all",
-                  all: "one",
-                  one: "none",
-                };
-                const next = modes[repeatMode] || "none";
-                toast.success(`Repeat: ${next.toUpperCase()}`);
-              }}
-              className={`transition-colors cursor-pointer ${
-                repeatMode !== "none" ? "text-primary" : "text-zinc-400 hover:text-white"
-              }`}
-              title="Repeat"
-            >
-              <Repeat1 size={16} />
-            </button>
+            <PlayerTooltip content="Repeat">
+              <button
+                type="button"
+                onClick={() => {
+                  playerActions.toggleRepeat();
+                  const modes: Record<string, string> = {
+                    none: "all",
+                    all: "one",
+                    one: "none",
+                  };
+                  const next = modes[repeatMode] || "none";
+                  toast.success(`Repeat: ${next.toUpperCase()}`);
+                }}
+                className={`transition-colors cursor-pointer ${
+                  repeatMode !== "none" ? "text-primary" : "text-zinc-400 hover:text-white"
+                }`}
+                aria-label="Repeat"
+              >
+                <Repeat1 size={16} />
+              </button>
+            </PlayerTooltip>
           </div>
 
           {/* Timeline Bar */}
@@ -440,38 +490,47 @@ export function HlsMusicPlayer() {
 
         {/* Right Section: Equalizer, Lyrics, Queue, Quality, Volume */}
         <div className="flex items-center justify-end gap-2.5 w-[35%] max-w-[360px]">
-          <button
-            onClick={() => setShowEqualizerModal((v) => !v)}
-            className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-              showEqualizerModal
-                ? "text-primary bg-[#282828]"
-                : "text-zinc-400 hover:text-white"
-            }`}
-            title="Equalizer & Visualizer (E)"
-          >
-            <Sliders size={16} />
-          </button>
+          <PlayerTooltip content="Equalizer & Visualizer" shortcut="E">
+            <button
+              type="button"
+              onClick={() => setShowEqualizerModal((v) => !v)}
+              className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                showEqualizerModal
+                  ? "text-primary bg-[#282828]"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+              aria-label="Equalizer & Visualizer"
+            >
+              <Sliders size={16} />
+            </button>
+          </PlayerTooltip>
 
-          <button
-            onClick={() => playerActions.toggleLyrics()}
-            className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-              isLyricsOpen ? "text-primary bg-[#282828]" : "text-zinc-400 hover:text-white"
-            }`}
-            title="Lyrics (L)"
-          >
-            <Mic2 size={16} />
-          </button>
+          <PlayerTooltip content="Lyrics" shortcut="L">
+            <button
+              type="button"
+              onClick={() => playerActions.toggleLyrics()}
+              className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                isLyricsOpen ? "text-primary bg-[#282828]" : "text-zinc-400 hover:text-white"
+              }`}
+              aria-label="Lyrics"
+            >
+              <Mic2 size={16} />
+            </button>
+          </PlayerTooltip>
 
-          <button
-            data-queue-toggle="true"
-            onClick={() => setShowQueuePanel((v) => !v)}
-            className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-              showQueuePanel ? "text-primary bg-[#282828]" : "text-zinc-400 hover:text-white"
-            }`}
-            title="Queue (Q)"
-          >
-            <ListMusic size={16} />
-          </button>
+          <PlayerTooltip content="Queue" shortcut="Q">
+            <button
+              type="button"
+              data-queue-toggle="true"
+              onClick={() => setShowQueuePanel((v) => !v)}
+              className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                showQueuePanel ? "text-primary bg-[#282828]" : "text-zinc-400 hover:text-white"
+              }`}
+              aria-label="Queue"
+            >
+              <ListMusic size={16} />
+            </button>
+          </PlayerTooltip>
 
           <PlayerQualitySelector
             selectedQuality={selectedQuality}
@@ -482,25 +541,32 @@ export function HlsMusicPlayer() {
           />
 
           <div className="flex items-center gap-2.5 min-w-[110px]">
-            <button
-              onClick={() => playerActions.setIsMuted(!isMuted)}
-              className="text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
-              title={isMuted ? "Unmute (M)" : "Mute (M)"}
-            >
-              <VolumeIcon size={16} />
-            </button>
-            <div className="relative flex-1 flex items-center h-6">
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value={isMuted ? 0 : volume}
-                onChange={handleVolumeChange}
-                style={{ backgroundSize: `${volumePct}% 100%` }}
-                className="modern-slider w-full cursor-pointer"
-              />
-            </div>
+            <PlayerTooltip content={isMuted ? "Unmute" : "Mute"} shortcut="M">
+              <button
+                type="button"
+                onClick={() => playerActions.setIsMuted(!isMuted)}
+                className="text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
+                aria-label={isMuted ? "Unmute" : "Mute"}
+              >
+                <VolumeIcon size={16} />
+              </button>
+            </PlayerTooltip>
+
+            <PlayerTooltip content="Volume" shortcut={["↑", "↓"]} className="flex-1">
+              <div className="relative flex-1 flex items-center h-6 w-full">
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={isMuted ? 0 : volume}
+                  onChange={handleVolumeChange}
+                  aria-label="Volume"
+                  style={{ backgroundSize: `${volumePct}% 100%` }}
+                  className="modern-slider w-full cursor-pointer"
+                />
+              </div>
+            </PlayerTooltip>
           </div>
         </div>
       </footer>

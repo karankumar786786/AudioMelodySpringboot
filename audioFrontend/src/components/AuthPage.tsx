@@ -398,7 +398,7 @@ export function AuthPage({ initialMode = "login" }: AuthPageProps) {
                   <button
                     type="submit"
                     disabled={loading || !email.trim() || !name.trim()}
-                    className="w-full flex items-center justify-center gap-2 rounded-full bg-primary hover:bg-emerald-400 text-black font-bold py-2.5 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 text-sm shadow-lg shadow-primary/20 cursor-pointer mt-2"
+                    className="w-full flex items-center justify-center gap-2 rounded-full bg-primary text-black font-bold py-2.5 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 text-sm shadow-lg shadow-primary/20 cursor-pointer mt-2"
                   >
                     {loading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />

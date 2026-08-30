@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import {
   ExternalLink,
@@ -10,7 +10,7 @@ import {
   Play,
   Heart,
   Plus,
-  CheckCircle2,
+  Loader2,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -29,6 +29,8 @@ export function RightInfoPanel() {
   const favourites = useStore(playerStore, (s) => s.favourites);
 
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
+  const [isFavLoading, setIsFavLoading] = useState(false);
+  const queryClient = useQueryClient();
   const relatedSongsRef = useRef<HTMLDivElement>(null);
 
   const scrollRelated = (distance: number) => {
@@ -127,7 +129,6 @@ export function RightInfoPanel() {
         aspectRatio: "1-1",
       })
     : null;
-
   const handlePlaylist = () => {
     if (!systemUser?.id) {
       toast.error("Sign in required", {
@@ -139,28 +140,37 @@ export function RightInfoPanel() {
     setIsPlaylistModalOpen(true);
   };
 
-  const handleFavourite = () => {
+  const handleFavourite = async () => {
     if (!systemUser?.id) {
       toast.error("Sign in required", {
         description: "Please sign in to save songs to your library.",
       });
       return;
     }
+    if (!currentSong?.id || isFavLoading) return;
 
-    toast.promise(playerActions.toggleFavourite(currentSong.id), {
-      loading: isFavourite
-        ? "Removing from Favourites..."
-        : "Adding to Favourites...",
-      success: () => {
-        return isFavourite ? "Removed from Favourites" : "Added to Favourites";
-      },
-      error: "Failed to update favourites",
-      description: () => {
-        return isFavourite
-          ? `"${currentSong.title}" removed from your collection.`
-          : `"${currentSong.title}" added to your collection.`;
-      },
-    });
+    try {
+      setIsFavLoading(true);
+      const wasFav = isFavourite;
+      await playerActions.toggleFavourite(currentSong.id);
+
+      // Invalidate queries so FavouritesPage and library update immediately without refresh
+      queryClient.invalidateQueries({ queryKey: ["favourites"] });
+      queryClient.invalidateQueries({ queryKey: ["favourite-songs"] });
+
+      toast.success(
+        wasFav ? "Removed from Favourites" : "Added to Favourites",
+        {
+          description: wasFav
+            ? `"${currentSong.title}" removed from your collection.`
+            : `"${currentSong.title}" added to your collection.`,
+        },
+      );
+    } catch (err) {
+      toast.error("Failed to update favourites");
+    } finally {
+      setIsFavLoading(false);
+    }
   };
 
   return (
@@ -215,13 +225,19 @@ export function RightInfoPanel() {
 
                     <button
                       onClick={handleFavourite}
-                      className="transition-transform active:scale-90 cursor-pointer p-1"
+                      disabled={isFavLoading}
+                      className="transition-transform active:scale-90 cursor-pointer p-1 disabled:opacity-60 disabled:cursor-not-allowed"
                       title={isFavourite ? "Liked" : "Like"}
                     >
-                      {isFavourite ? (
-                        <CheckCircle2
-                          size={22}
-                          className="text-[#1ed760] fill-white text-black"
+                      {isFavLoading ? (
+                        <Loader2
+                          size={20}
+                          className="text-zinc-400 animate-spin"
+                        />
+                      ) : isFavourite ? (
+                        <Heart
+                          size={20}
+                          className=" fill-primary transition-all transform scale-105"
                         />
                       ) : (
                         <Heart
@@ -283,13 +299,19 @@ export function RightInfoPanel() {
 
                     <button
                       onClick={handleFavourite}
-                      className="transition-transform active:scale-90 cursor-pointer p-1"
+                      disabled={isFavLoading}
+                      className="transition-transform active:scale-90 cursor-pointer p-1 disabled:opacity-60 disabled:cursor-not-allowed"
                       title={isFavourite ? "Liked" : "Like"}
                     >
-                      {isFavourite ? (
-                        <CheckCircle2
-                          size={22}
-                          className="text-[#1ed760] fill-white text-black"
+                      {isFavLoading ? (
+                        <Loader2
+                          size={20}
+                          className="text-zinc-400 animate-spin"
+                        />
+                      ) : isFavourite ? (
+                        <Heart
+                          size={20}
+                          className="text-[#1ed760] fill-[#1ed760] transition-all transform scale-105"
                         />
                       ) : (
                         <Heart
