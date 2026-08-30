@@ -236,36 +236,35 @@ export default function ArtistPage() {
               </p>
             )}
 
-            <div className="mt-4 flex items-center gap-4">
-              <div className="flex items-center gap-2 text-xs text-white/80">
-                <span className="font-semibold">
-                  {songs.length} {songs.length === 1 ? "song" : "songs"}
-                </span>
+            <div className="mt-4 flex items-center gap-2 text-xs text-white/80">
+              <span className="font-semibold">
+                {songs.length} {songs.length === 1 ? "song" : "songs"}
+              </span>
 
-                {songs.length > 0 && (
-                  <>
-                    <span>•</span>
+              {songs.length > 0 && (
+                <>
+                  <span>•</span>
 
-                    <span>
-                      {formatDuration(
-                        songs.reduce(
-                          (total: number, song: any) => total + (Number(song.duration) || 0),
-                          0
-                        )
-                      )}
-                    </span>
-                  </>
-                )}
-              </div>
+                  <span>
+                    {formatDuration(
+                      songs.reduce(
+                        (total: number, song: any) => total + (Number(song.duration) || 0),
+                        0
+                      )
+                    )}
+                  </span>
 
-              <button
-                onClick={handlePlayAll}
-                disabled={songs.length === 0}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-black shadow-lg transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50"
-                title="Play all songs"
-              >
-                <Play size={18} fill="black" className="ml-0.5" />
-              </button>
+                  <button
+                    type="button"
+                    onClick={handlePlayAll}
+                    disabled={songs.length === 0}
+                    className="ml-3 flex items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Play size={16} fill="black" />
+                    Play All
+                  </button>
+                </>
+              )}
             </div>
           </motion.div>
         </div>

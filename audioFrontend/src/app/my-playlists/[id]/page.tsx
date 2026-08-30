@@ -331,10 +331,12 @@ export default function MyPlaylistPage() {
                   </span>
 
                   <button
+                    type="button"
                     onClick={handleStreamAll}
-                    className="ml-2 flex items-center gap-1.5 rounded-full bg-white px-4 py-4 font-semibold text-black transition-colors hover:bg-white/80"
+                    className="ml-3 flex items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-white/80"
                   >
-                    <Play size={18} fill="black" />
+                    <Play size={16} fill="black" />
+                    Play All
                   </button>
                 </>
               )}
