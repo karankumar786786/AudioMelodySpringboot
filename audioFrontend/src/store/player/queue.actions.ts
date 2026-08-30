@@ -17,17 +17,38 @@ const dedupeBySongId = (songs: PlayerSong[]) => {
   });
 };
 
+function shuffleArray<T>(array: T[]): T[] {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 export const queueActions = {
   setQueue: (songs: PlayerSong[]) => {
     const nextQueue = dedupeBySongId(songs);
-    const nextIndex = nextQueue.length > 0 ? 0 : -1;
-    console.log(`[Queue] setQueue: ${nextQueue.length} songs`);
+    const { isShuffle } = playerStore.state;
+    let queueToPlay = nextQueue;
+    let originalQueue: PlayerSong[] = [];
+
+    if (isShuffle && nextQueue.length > 1) {
+      originalQueue = [...nextQueue];
+      const first = nextQueue[0];
+      const rest = shuffleArray(nextQueue.slice(1));
+      queueToPlay = [first, ...rest];
+    }
+
+    const nextIndex = queueToPlay.length > 0 ? 0 : -1;
+    console.log(`[Queue] setQueue: ${queueToPlay.length} songs`);
     playerStore.setState((s) => {
-      persistQueue(nextQueue, nextIndex);
+      persistQueue(queueToPlay, nextIndex);
       return {
         ...s,
-        queue: nextQueue,
-        currentSong: nextQueue[0] || null,
+        queue: queueToPlay,
+        originalQueue: isShuffle ? originalQueue : [],
+        currentSong: queueToPlay[0] || null,
         lastQueueIndex: nextIndex,
       };
     });
@@ -36,20 +57,33 @@ export const queueActions = {
   playAll: (songs: PlayerSong[], startPlaying = true) => {
     if (songs.length === 0) return;
     const nextQueue = dedupeBySongId(songs);
-    console.log(`[Queue] playAll: ${nextQueue.length} songs`);
+    const { isShuffle } = playerStore.state;
+
+    let queueToPlay = nextQueue;
+    let originalQueue: PlayerSong[] = [];
+
+    if (isShuffle && nextQueue.length > 1) {
+      originalQueue = [...nextQueue];
+      const first = nextQueue[0];
+      const rest = shuffleArray(nextQueue.slice(1));
+      queueToPlay = [first, ...rest];
+    }
+
+    console.log(`[Queue] playAll: ${queueToPlay.length} songs (Shuffle: ${isShuffle})`);
     playerStore.setState((s) => {
-      persistQueue(nextQueue, 0);
+      persistQueue(queueToPlay, 0);
       return {
         ...s,
-        queue: nextQueue,
-        currentSong: nextQueue[0] || null,
+        queue: queueToPlay,
+        originalQueue: isShuffle ? originalQueue : [],
+        currentSong: queueToPlay[0] || null,
         lastQueueIndex: 0,
       };
     });
 
-    if (startPlaying && nextQueue[0]) {
+    if (startPlaying && queueToPlay[0]) {
       import("@/store/player/playback.actions").then(({ playbackActions }) => {
-        playbackActions.play(nextQueue[0]);
+        playbackActions.play(queueToPlay[0]);
       });
     }
   },
@@ -58,23 +92,39 @@ export const queueActions = {
     if (songs.length === 0) return;
     const nextQueue = dedupeBySongId(songs);
     const safeIndex = Math.min(Math.max(0, startIndex), nextQueue.length - 1);
+    const { isShuffle } = playerStore.state;
+
+    let queueToPlay = nextQueue;
+    let playIndex = safeIndex;
+    let originalQueue: PlayerSong[] = [];
+
+    if (isShuffle && nextQueue.length > 1) {
+      originalQueue = [...nextQueue];
+      const selected = nextQueue[safeIndex];
+      const others = nextQueue.filter((_, i) => i !== safeIndex);
+      const shuffledOthers = shuffleArray(others);
+      queueToPlay = [selected, ...shuffledOthers];
+      playIndex = 0;
+    }
+
     console.log(
-      `[Queue] playAllFrom: ${nextQueue.length} songs, starting at index ${safeIndex}`,
+      `[Queue] playAllFrom: ${queueToPlay.length} songs, starting at index ${playIndex} (Shuffle: ${isShuffle})`,
     );
 
     playerStore.setState((s) => {
-      persistQueue(nextQueue, safeIndex);
+      persistQueue(queueToPlay, playIndex);
       return {
         ...s,
-        queue: nextQueue,
-        currentSong: nextQueue[safeIndex] || null,
-        lastQueueIndex: safeIndex,
+        queue: queueToPlay,
+        originalQueue: isShuffle ? originalQueue : [],
+        currentSong: queueToPlay[playIndex] || null,
+        lastQueueIndex: playIndex,
       };
     });
 
-    if (startPlaying && nextQueue[safeIndex]) {
+    if (startPlaying && queueToPlay[playIndex]) {
       import("@/store/player/playback.actions").then(({ playbackActions }) => {
-        playbackActions.play(nextQueue[safeIndex]);
+        playbackActions.play(queueToPlay[playIndex]);
       });
     }
   },
@@ -88,6 +138,11 @@ export const queueActions = {
       if (uniqueNewSongs.length === 0) return s;
 
       const nextQueue = [...s.queue, ...uniqueNewSongs];
+      const nextOriginal =
+        s.originalQueue && s.originalQueue.length > 0
+          ? [...s.originalQueue, ...uniqueNewSongs]
+          : [];
+
       persistQueue(nextQueue, s.lastQueueIndex);
       console.log(
         `[Queue] Enqueued ${uniqueNewSongs.length} songs. Total: ${nextQueue.length}`,
@@ -96,6 +151,7 @@ export const queueActions = {
       return {
         ...s,
         queue: nextQueue,
+        originalQueue: nextOriginal,
       };
     });
   },
@@ -307,11 +363,8 @@ export const queueActions = {
     }
   },
 
-  /**
-   * Advances to the next song in the queue.
-   */
   next: () => {
-    const { queue, lastQueueIndex, isShuffle, repeatMode, currentSong } =
+    const { queue, lastQueueIndex, repeatMode, currentSong } =
       playerStore.state;
 
     if (currentSong?.id) {
@@ -320,9 +373,11 @@ export const queueActions = {
       });
     }
 
-    console.log(`[Queue Next] Current Index: ${lastQueueIndex}, Queue Length: ${queue.length}, Repeat: ${repeatMode}, Shuffle: ${isShuffle}`);
+    console.log(
+      `[Queue Next] Current Index: ${lastQueueIndex}, Queue Length: ${queue.length}, Repeat: ${repeatMode}`,
+    );
 
-    // If queue is empty, attempt refill
+    // If queue is empty, attempt initial refill
     if (queue.length === 0) {
       console.log("[Queue Next] Queue is empty. Triggering refill...");
       queueActions.refillQueue(false, "next() called on empty queue").then(() => {
@@ -336,68 +391,30 @@ export const queueActions = {
       return;
     }
 
-    // Repeat one mode: replay current song
-    if (repeatMode === "one" && currentSong) {
-      console.log("[Queue Next] Repeat Mode is 'one'. Replaying current song.");
-      import("@/store/player/playback.actions").then(({ playbackActions }) =>
-        playbackActions.play(currentSong),
-      );
-      return;
-    }
-
-    let nextIdx = lastQueueIndex + 1;
-
-    if (isShuffle) {
-      // Pick random song from remaining ahead in queue
-      const aheadIndices = Array.from({ length: queue.length }, (_, i) => i).filter(
-        (i) => i > lastQueueIndex,
-      );
-
-      if (aheadIndices.length > 0) {
-        nextIdx = aheadIndices[Math.floor(Math.random() * aheadIndices.length)];
-      } else if (repeatMode === "all") {
-        nextIdx = Math.floor(Math.random() * queue.length);
-      } else {
-        nextIdx = queue.length; // triggers end-of-queue refill check
-      }
-    }
+    const nextIdx = lastQueueIndex + 1;
 
     if (nextIdx < queue.length) {
-      console.log(`[Queue Next] Advancing to song index ${nextIdx}: "${queue[nextIdx].title}"`);
+      console.log(
+        `[Queue Next] Advancing to song index ${nextIdx}: "${queue[nextIdx].title}"`,
+      );
       persistQueue(queue, nextIdx);
       import("@/store/player/playback.actions").then(({ playbackActions }) =>
         playbackActions.play(queue[nextIdx]),
       );
-
-      // Proactively trigger refill if ≤2 songs remain ahead
-      const remaining = queue.length - (nextIdx + 1);
-      if (remaining <= 2) {
-        console.log(`[Queue Next] Only ${remaining} songs remaining ahead. Triggering refill in background.`);
-        queueActions.refillQueue(false, `Low queue threshold reached (${remaining} songs left ahead)`);
-      }
-    } else if (repeatMode === "all" && queue.length > 0) {
-      console.log("[Queue Next] Reached end of queue. Repeat Mode is 'all', looping to index 0.");
-      persistQueue(queue, 0);
-      import("@/store/player/playback.actions").then(({ playbackActions }) =>
-        playbackActions.play(queue[0]),
+    } else if (repeatMode === "all" || repeatMode === "one") {
+      console.log(
+        "[Queue Next] Reached end of queue. Looping back to start of playlist.",
       );
+      if (queue.length > 0) {
+        persistQueue(queue, 0);
+        import("@/store/player/playback.actions").then(({ playbackActions }) =>
+          playbackActions.play(queue[0]),
+        );
+      }
     } else {
-      console.log("[Queue Next] Reached end of queue. Attempting refill before stopping...");
-      queueActions.refillQueue(false, "End of queue reached").then(() => {
-        const { queue: refilled, lastQueueIndex: idx } = playerStore.state;
-        if (refilled.length > idx + 1) {
-          const nextRefillIdx = idx + 1;
-          console.log(`[Queue Next] Refill added songs! Playing next track at index ${nextRefillIdx}: "${refilled[nextRefillIdx].title}"`);
-          persistQueue(refilled, nextRefillIdx);
-          import("@/store/player/playback.actions").then(({ playbackActions }) => {
-            playbackActions.play(refilled[nextRefillIdx]);
-          });
-        } else {
-          console.log("[Queue Next] Refill returned no new tracks. Stopping playback.");
-          import("@/store/player/playback.actions").then(({ playbackActions }) =>
-            playbackActions.setIsPlaying(false),
-          );
-        }
+      console.log("[Queue Next] Reached end of queue. Stopping playback.");
+      import("@/store/player/playback.actions").then(({ playbackActions }) => {
+        playbackActions.setIsPlaying(false);
       });
     }
   },

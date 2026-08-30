@@ -17,6 +17,15 @@ export const playerActions = {
     try {
       const lastIdxStr = localStorage.getItem("last_queue_index");
       const lastQueueStr = localStorage.getItem("last_queue");
+      const savedRepeat = localStorage.getItem("audiomelody_repeat_mode") as
+        | "none"
+        | "all"
+        | "one"
+        | null;
+      const savedShuffle = localStorage.getItem("audiomelody_shuffle");
+
+      const savedTime = localStorage.getItem("last_current_time");
+      const parsedTime = savedTime ? parseFloat(savedTime) : 0;
 
       playerStore.setState((s) => {
         let queueRes = lastQueueStr ? JSON.parse(lastQueueStr) : s.queue;
@@ -43,6 +52,16 @@ export const playerActions = {
           currentSong,
           queue: queueRes,
           lastQueueIndex,
+          currentTime:
+            !isNaN(parsedTime) && parsedTime > 0 ? parsedTime : s.currentTime,
+          repeatMode:
+            savedRepeat === "none" ||
+            savedRepeat === "all" ||
+            savedRepeat === "one"
+              ? savedRepeat
+              : s.repeatMode,
+          isShuffle:
+            savedShuffle !== null ? savedShuffle === "true" : s.isShuffle,
         };
       });
     } catch (err) {

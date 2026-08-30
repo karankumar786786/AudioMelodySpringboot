@@ -89,6 +89,15 @@ export function useHlsPlayer(
                 }
               }
 
+              // Restore saved playback time if available
+              const savedTime = playerStore.state.currentTime;
+              if (
+                savedTime > 0 &&
+                Math.abs(audioElement.currentTime - savedTime) > 0.5
+              ) {
+                audioElement.currentTime = savedTime;
+              }
+
               // Use the ref to check current isPlaying state (not stale closure)
               if (isPlayingRef.current) {
                 audioElement.play().catch((err) => {
@@ -142,6 +151,14 @@ export function useHlsPlayer(
             // Check for native HLS support (Safari on iOS)
             audioElement.src = streamUrl;
             playerActions.setQualityTracks([]); // No manual tracks for native Safari HLS
+
+            const savedTime = playerStore.state.currentTime;
+            if (
+              savedTime > 0 &&
+              Math.abs(audioElement.currentTime - savedTime) > 0.5
+            ) {
+              audioElement.currentTime = savedTime;
+            }
 
             if (isPlayingRef.current) {
               audioElement.play().catch((err) => {

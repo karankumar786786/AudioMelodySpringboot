@@ -8,6 +8,7 @@ import {
   Mic2,
   ListMusic,
   Shuffle,
+  Repeat,
   Repeat1,
   VolumeX,
   Volume1,
@@ -58,7 +59,7 @@ export function HlsMusicPlayer() {
     isLyricsOpen,
   } = state;
 
-  const [localTime, setLocalTime] = useState(0);
+  const [localTime, setLocalTime] = useState(() => state.currentTime || 0);
   const [buffered, setBuffered] = useState(0);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [showQueuePanel, setShowQueuePanel] = useState(false);
@@ -79,17 +80,20 @@ export function HlsMusicPlayer() {
     });
   }, [currentSong?.id, currentSong?.title, currentSong?.artistName, currentSong?.imageKey, currentSong?.posterUrl]);
 
-  // 1. Initialize Player State
+  // 1. Initialize Player State & hydrate saved time
   useEffect(() => {
     playerActions.hydrate();
     playerActions.initQueue();
+    if (typeof window !== "undefined") {
+      const savedTime = localStorage.getItem("last_current_time");
+      if (savedTime) {
+        const t = parseFloat(savedTime);
+        if (!isNaN(t) && t > 0) {
+          setLocalTime(t);
+        }
+      }
+    }
   }, []);
-
-  // Reset local playback time and buffer state immediately on track change
-  useEffect(() => {
-    setLocalTime(0);
-    setBuffered(0);
-  }, [currentSong?.id]);
 
   // 2. Custom Hooks for Logic
   const { isInternalChange } = useHlsPlayer(
@@ -231,6 +235,9 @@ export function HlsMusicPlayer() {
           audioRef.current.currentTime = nextTime;
           setLocalTime(nextTime);
           playerActions.setCurrentTime(nextTime);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("last_current_time", nextTime.toFixed(2));
+          }
         }
       }
 
@@ -242,6 +249,9 @@ export function HlsMusicPlayer() {
           audioRef.current.currentTime = prevTime;
           setLocalTime(prevTime);
           playerActions.setCurrentTime(prevTime);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("last_current_time", prevTime.toFixed(2));
+          }
         }
       }
 
@@ -268,6 +278,10 @@ export function HlsMusicPlayer() {
     const val = parseFloat(e.target.value);
     audioRef.current.currentTime = val;
     setLocalTime(val);
+    playerActions.setCurrentTime(val);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("last_current_time", val.toFixed(2));
+    }
   };
 
   const handleVolumeChange = (e: React.FormEvent<HTMLInputElement>) => {
@@ -385,19 +399,24 @@ export function HlsMusicPlayer() {
         {/* Middle Section: Player Controls & Timeline */}
         <div className="flex flex-col items-center justify-center flex-1 max-w-xl px-4 space-y-1">
           <div className="flex items-center gap-5">
-            <PlayerTooltip content="Shuffle">
+            <PlayerTooltip
+              content={isShuffle ? "Disable shuffle" : "Enable shuffle"}
+            >
               <button
                 type="button"
                 onClick={() => {
                   playerActions.toggleShuffle();
                   toast.success(isShuffle ? "Shuffle Off" : "Shuffle On");
                 }}
-                className={`transition-colors cursor-pointer ${
+                className={`relative flex flex-col items-center justify-center p-1.5 transition-colors cursor-pointer ${
                   isShuffle ? "text-primary" : "text-zinc-400 hover:text-white"
                 }`}
-                aria-label="Shuffle"
+                aria-label={isShuffle ? "Disable shuffle" : "Enable shuffle"}
               >
                 <Shuffle size={16} />
+                {isShuffle && (
+                  <span className="absolute -bottom-0.5 w-1 h-1 bg-primary rounded-full" />
+                )}
               </button>
             </PlayerTooltip>
 
@@ -454,25 +473,42 @@ export function HlsMusicPlayer() {
               </button>
             </PlayerTooltip>
 
-            <PlayerTooltip content="Repeat">
+            <PlayerTooltip
+              content={
+                repeatMode === "none"
+                  ? "Enable repeat"
+                  : repeatMode === "all"
+                    ? "Repeat one"
+                    : "Disable repeat"
+              }
+            >
               <button
                 type="button"
                 onClick={() => {
                   playerActions.toggleRepeat();
                   const modes: Record<string, string> = {
-                    none: "all",
-                    all: "one",
-                    one: "none",
+                    none: "Repeat All",
+                    all: "Repeat One",
+                    one: "Repeat Off",
                   };
-                  const next = modes[repeatMode] || "none";
-                  toast.success(`Repeat: ${next.toUpperCase()}`);
+                  const next = modes[repeatMode] || "Repeat Off";
+                  toast.success(next);
                 }}
-                className={`transition-colors cursor-pointer ${
-                  repeatMode !== "none" ? "text-primary" : "text-zinc-400 hover:text-white"
+                className={`relative flex flex-col items-center justify-center p-1.5 transition-colors cursor-pointer ${
+                  repeatMode !== "none"
+                    ? "text-primary"
+                    : "text-zinc-400 hover:text-white"
                 }`}
-                aria-label="Repeat"
+                aria-label={`Repeat mode: ${repeatMode}`}
               >
-                <Repeat1 size={16} />
+                {repeatMode === "one" ? (
+                  <Repeat1 size={16} />
+                ) : (
+                  <Repeat size={16} />
+                )}
+                {repeatMode !== "none" && (
+                  <span className="absolute -bottom-0.5 w-1 h-1 bg-primary rounded-full" />
+                )}
               </button>
             </PlayerTooltip>
           </div>

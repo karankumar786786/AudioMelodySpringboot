@@ -56,6 +56,7 @@ export const playbackActions = {
         // We still save the queue, but the current song can be derived from lastQueueIndex
         localStorage.setItem("last_queue", JSON.stringify(updatedQueue));
         localStorage.setItem("last_queue_index", idx.toString());
+        localStorage.setItem("last_current_time", "0");
       }
       return newState;
     });
@@ -90,13 +91,90 @@ export const playbackActions = {
   },
 
   toggleShuffle: () => {
-    playerStore.setState((s) => ({ ...s, isShuffle: !s.isShuffle }));
+    playerStore.setState((s) => {
+      const nextShuffle = !s.isShuffle;
+
+      if (nextShuffle) {
+        // Turning Shuffle ON
+        if (s.queue.length <= 1) {
+          return { ...s, isShuffle: true, originalQueue: [...s.queue] };
+        }
+
+        const currentIdx = Math.max(0, s.lastQueueIndex);
+        const originalQueue =
+          s.originalQueue && s.originalQueue.length > 0
+            ? s.originalQueue
+            : [...s.queue];
+
+        const played = s.queue.slice(0, currentIdx + 1);
+        const upcoming = s.queue.slice(currentIdx + 1);
+
+        // Fisher-Yates shuffle the upcoming songs
+        const shuffledUpcoming = [...upcoming];
+        for (let i = shuffledUpcoming.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffledUpcoming[i], shuffledUpcoming[j]] = [
+            shuffledUpcoming[j],
+            shuffledUpcoming[i],
+          ];
+        }
+
+        const newQueue = [...played, ...shuffledUpcoming];
+        if (typeof window !== "undefined") {
+          localStorage.setItem("last_queue", JSON.stringify(newQueue));
+          localStorage.setItem("last_queue_index", currentIdx.toString());
+          localStorage.setItem("audiomelody_shuffle", "true");
+        }
+
+        return {
+          ...s,
+          isShuffle: true,
+          originalQueue,
+          queue: newQueue,
+        };
+      } else {
+        // Turning Shuffle OFF: Restore original playlist/album queue order
+        const originalQueue =
+          s.originalQueue && s.originalQueue.length > 0
+            ? s.originalQueue
+            : s.queue;
+        const currentSong = s.currentSong;
+
+        let newIdx = 0;
+        if (currentSong) {
+          newIdx = originalQueue.findIndex(
+            (item) =>
+              item.queueId === currentSong.queueId || item.id === currentSong.id,
+          );
+          if (newIdx === -1) {
+            newIdx = Math.min(Math.max(0, s.lastQueueIndex), originalQueue.length - 1);
+          }
+        }
+
+        if (typeof window !== "undefined") {
+          localStorage.setItem("last_queue", JSON.stringify(originalQueue));
+          localStorage.setItem("last_queue_index", newIdx.toString());
+          localStorage.setItem("audiomelody_shuffle", "false");
+        }
+
+        return {
+          ...s,
+          isShuffle: false,
+          queue: originalQueue,
+          originalQueue: [],
+          lastQueueIndex: newIdx,
+        };
+      }
+    });
   },
 
   toggleRepeat: () => {
     playerStore.setState((s) => {
-      const modes: ("none" | "one" | "all")[] = ["none", "all", "one"];
+      const modes: ("none" | "all" | "one")[] = ["none", "all", "one"];
       const nextMode = modes[(modes.indexOf(s.repeatMode) + 1) % modes.length];
+      if (typeof window !== "undefined") {
+        localStorage.setItem("audiomelody_repeat_mode", nextMode);
+      }
       return { ...s, repeatMode: nextMode };
     });
   },

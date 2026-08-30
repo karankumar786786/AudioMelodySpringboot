@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback, MutableRefObject } from "react";
-import { playerActions } from "../../../store/player.store";
+import { playerActions, playerStore } from "../../../store/player.store";
 
 export function useAudioSync(
   audioElement: HTMLAudioElement | null,
@@ -17,6 +17,7 @@ export function useAudioSync(
 ) {
   const animFrameRef = useRef<number>(0);
   const hasFadedOutRef = useRef<boolean>(false);
+  const lastSavedTimeRef = useRef<number>(0);
   const lastStateRef = useRef<{ id: string; time: number; duration: number }>({
     id: "",
     time: 0,
@@ -68,6 +69,9 @@ export function useAudioSync(
     const onPause = () => {
       if (isInternalChange.current || audioElement.readyState === 0) return;
       playerActions.setIsPlaying(false);
+      if (typeof window !== "undefined" && isFinite(audioElement.currentTime)) {
+        localStorage.setItem("last_current_time", audioElement.currentTime.toFixed(2));
+      }
     };
     const handleEnded = () => {
       // Robust check: Only trigger 'next' if we are actually at/near the end of the song.
@@ -89,6 +93,26 @@ export function useAudioSync(
         playerActions.recordListen(last.id, 1);
         lastStateRef.current = { id: "", time: 0, duration: 0 };
       }
+
+      // If repeatMode is "one", loop the current song cleanly from start
+      const { repeatMode } = playerStore.state;
+      if (repeatMode === "one") {
+        console.log("[Player] Repeat Mode 'one' active. Looping current track.");
+        hasFadedOutRef.current = false;
+        if (fadeIn) fadeIn(crossfadeDuration > 0 ? crossfadeDuration : 0.2);
+        audioElement.currentTime = 0;
+        setLocalTime(0);
+        playerActions.setCurrentTime(0);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("last_current_time", "0");
+        }
+        audioElement.play().catch((err) => {
+          if (err.name !== "AbortError") console.warn("[Player] Loop play failed:", err);
+        });
+        playerActions.setIsPlaying(true);
+        return;
+      }
+
       playerActions.next();
     };
 
@@ -115,16 +139,21 @@ export function useAudioSync(
       audioElement.removeEventListener("ended", handleEnded);
       audioElement.removeEventListener("canplay", onCanPlay);
     };
-  }, [audioElement, isInternalChange]);
+  }, [audioElement, isInternalChange, fadeIn, crossfadeDuration]);
 
   // 4. Listen Recording & Fade-In Logic
   useEffect(() => {
     const last = lastStateRef.current;
     if (currentSong?.id !== last.id) {
       hasFadedOutRef.current = false;
-      setLocalTime(0);
-      setBuffered(0);
-      playerActions.setCurrentTime(0);
+      if (last.id) {
+        setLocalTime(0);
+        setBuffered(0);
+        playerActions.setCurrentTime(0);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("last_current_time", "0");
+        }
+      }
 
       if (fadeIn && crossfadeDuration > 0) {
         fadeIn(crossfadeDuration);
@@ -154,8 +183,13 @@ export function useAudioSync(
           playerActions.recordListen(last.id, ratio);
         }
       }
+      if (typeof window !== "undefined" && last.time > 0) {
+        localStorage.setItem("last_current_time", last.time.toFixed(2));
+      }
     };
   }, []);
+
+  const isInitialMountRef = useRef<boolean>(true);
 
   // 5. High Precision Sync & Fade-Out (RAF)
   const syncTime = useCallback(() => {
@@ -163,9 +197,28 @@ export function useAudioSync(
       animFrameRef.current = requestAnimationFrame(syncTime);
       return;
     }
+
+    // Protect saved time during initial mount until audio metadata is ready
+    if (isInitialMountRef.current) {
+      if (audioElement.readyState >= 1) {
+        isInitialMountRef.current = false;
+      } else {
+        animFrameRef.current = requestAnimationFrame(syncTime);
+        return;
+      }
+    }
+
     const t = audioElement.currentTime;
     setLocalTime(t);
     playerActions.setCurrentTime(t);
+
+    const now = Date.now();
+    if (now - lastSavedTimeRef.current > 1000) {
+      lastSavedTimeRef.current = now;
+      if (typeof window !== "undefined" && isFinite(t) && t > 0) {
+        localStorage.setItem("last_current_time", t.toFixed(2));
+      }
+    }
 
     if (audioElement.buffered.length) {
       setBuffered(audioElement.buffered.end(audioElement.buffered.length - 1));
@@ -193,6 +246,16 @@ export function useAudioSync(
         hasFadedOutRef.current = true;
         fadeOut(remaining);
       }
+    } else if (
+      hasFadedOutRef.current &&
+      audioElement.duration &&
+      audioElement.duration - t > crossfadeDuration * 2
+    ) {
+      // If user seeks back or track replayed: restore volume immediately
+      hasFadedOutRef.current = false;
+      if (fadeIn) {
+        fadeIn(0.2);
+      }
     }
 
     if (
@@ -205,7 +268,7 @@ export function useAudioSync(
     }
 
     animFrameRef.current = requestAnimationFrame(syncTime);
-  }, [audioElement, duration, setLocalTime, setBuffered, fadeOut, crossfadeDuration]);
+  }, [audioElement, duration, setLocalTime, setBuffered, fadeIn, fadeOut, crossfadeDuration]);
 
   useEffect(() => {
     animFrameRef.current = requestAnimationFrame(syncTime);
