@@ -133,7 +133,7 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                 return (
                   <div
                     key={song.queueId || `${song.id}-${index}`}
-                    className="group flex items-center gap-3 rounded-lg border border-transparent hover:border-[#282828] hover:bg-[#222222] p-2 transition-all"
+                    className="group flex items-center gap-3 rounded-lg border border-transparent   p-2 transition-all"
                   >
                     {/* Song Thumbnail with Play Action */}
                     <div
@@ -160,7 +160,7 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                     <div className="min-w-0 flex-1">
                       <p
                         onClick={() => playerActions.playQueueItem(index)}
-                        className="text-xs font-bold text-white truncate cursor-pointer hover:underline"
+                        className="text-xs font-bold text-white truncate cursor-pointer "
                       >
                         {song.title}
                       </p>
