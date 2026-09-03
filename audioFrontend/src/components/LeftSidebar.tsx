@@ -51,12 +51,12 @@ export function LeftSidebar() {
   const userPlaylists = playlistsResponse?.data?.data || [];
 
   return (
-    <aside className="w-[72px] 2xl:w-[240px] bg-black border-r border-[#282828] flex flex-col h-screen fixed left-0 top-0 z-50 overflow-hidden transition-[width] duration-200">
-      <div className="pt-[var(--app-sidebar-pt,1.25rem)] px-2 2xl:px-4 pb-5 flex flex-col h-full bg-black">
+    <aside className="w-[72px] xl:w-[240px] bg-black border-r border-[#282828] flex flex-col h-screen fixed left-0 top-0 z-50 overflow-hidden transition-[width] duration-200">
+      <div className="pt-[var(--app-sidebar-pt,1.25rem)] px-2 xl:px-4 pb-5 flex flex-col h-full bg-black">
         {/* Logo */}
         <div
           onClick={handleSidebarClick}
-          className="flex items-center justify-center 2xl:justify-start gap-3 mb-8 group cursor-pointer shrink-0 px-1"
+          className="flex items-center justify-center xl:justify-start gap-3 mb-8 group cursor-pointer shrink-0 px-1"
           title="One Melody"
         >
           <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center overflow-hidden shrink-0">
@@ -66,7 +66,7 @@ export function LeftSidebar() {
               className="w-full h-full object-contain"
             />
           </div>
-          <span className="hidden 2xl:inline text-xl font-black text-white tracking-tight">
+          <span className="hidden xl:inline text-xl font-black text-white tracking-tight">
             One Melody
           </span>
         </div>
@@ -74,7 +74,7 @@ export function LeftSidebar() {
         <div className="space-y-7 flex-1 overflow-y-auto no-scrollbar pb-24">
           {/* Main Menu */}
           <section>
-            <h3 className="hidden 2xl:block px-2 text-[12.5px] font-bold text-zinc-300 mb-2.5 uppercase tracking-wider">
+            <h3 className="hidden xl:block px-2 text-[12.5px] font-bold text-zinc-300 mb-2.5 uppercase tracking-wider">
               Menu
             </h3>
             <nav className="space-y-1">
@@ -84,7 +84,7 @@ export function LeftSidebar() {
                   href={item.href}
                   onClick={handleSidebarClick}
                   title={item.label}
-                  className={`flex items-center justify-center 2xl:justify-start gap-3.5 px-2 2xl:px-3 py-2.5 rounded-lg text-[15.5px] font-bold transition-all duration-200 ${
+                  className={`flex items-center justify-center xl:justify-start gap-3.5 px-2 xl:px-3 py-2.5 rounded-lg text-[15.5px] font-bold transition-all duration-200 ${
                     pathname === item.href
                       ? "bg-[#282828] text-white"
                       : "text-zinc-200 hover:text-white hover:bg-[#1a1a1a]"
@@ -96,7 +96,7 @@ export function LeftSidebar() {
                       pathname === item.href ? "text-primary" : "text-zinc-300"
                     }`}
                   />
-                  <span className="hidden 2xl:inline">{item.label}</span>
+                  <span className="hidden xl:inline">{item.label}</span>
                 </Link>
               ))}
             </nav>
@@ -104,7 +104,7 @@ export function LeftSidebar() {
 
           {/* Library Section */}
           <section>
-            <h3 className="hidden 2xl:block px-2 text-[12.5px] font-bold text-zinc-300 mb-2.5 uppercase tracking-wider">
+            <h3 className="hidden xl:block px-2 text-[12.5px] font-bold text-zinc-300 mb-2.5 uppercase tracking-wider">
               Library
             </h3>
             <nav className="space-y-1">
@@ -114,7 +114,7 @@ export function LeftSidebar() {
                   href={item.href}
                   onClick={handleSidebarClick}
                   title={item.label}
-                  className={`flex items-center justify-center 2xl:justify-start gap-3.5 px-2 2xl:px-3 py-2.5 rounded-lg text-[15.5px] font-bold transition-all duration-200 ${
+                  className={`flex items-center justify-center xl:justify-start gap-3.5 px-2 xl:px-3 py-2.5 rounded-lg text-[15.5px] font-bold transition-all duration-200 ${
                     pathname === item.href
                       ? "bg-[#282828] text-white"
                       : "text-zinc-200 hover:text-white hover:bg-[#1a1a1a]"
@@ -126,7 +126,7 @@ export function LeftSidebar() {
                       pathname === item.href ? "text-primary" : "text-zinc-300"
                     }`}
                   />
-                  <span className="hidden 2xl:inline">{item.label}</span>
+                  <span className="hidden xl:inline">{item.label}</span>
                 </Link>
               ))}
             </nav>
@@ -134,7 +134,7 @@ export function LeftSidebar() {
 
           {/* User Playlists */}
           <section suppressHydrationWarning>
-            <div className="hidden 2xl:block px-2 mb-2.5">
+            <div className="hidden xl:block px-2 mb-2.5">
               <h3 className="text-[12.5px] font-bold text-zinc-300 uppercase tracking-wider">
                 Playlists
               </h3>
@@ -153,18 +153,18 @@ export function LeftSidebar() {
                     href={`/my-playlists/${playlist.id}`}
                     onClick={handleSidebarClick}
                     title={playlist.name}
-                    className={`flex items-center justify-center 2xl:justify-start gap-3 px-1.5 2xl:px-3 py-2 rounded-md text-[14px] font-bold transition-all ${
+                    className={`flex items-center justify-center xl:justify-start gap-3 px-1.5 xl:px-3 py-2 rounded-md text-[14px] font-bold transition-all ${
                       pathname === `/my-playlists/${playlist.id}`
                         ? "text-white bg-[#282828]"
                         : "text-zinc-300 hover:text-white hover:bg-[#1a1a1a]"
                     }`}
                   >
                     <PlaylistThumbnail playlist={playlist} size={34} />
-                    <span className="hidden 2xl:inline truncate">{playlist.name}</span>
+                    <span className="hidden xl:inline truncate">{playlist.name}</span>
                   </Link>
                 ))
               ) : (
-                <div className="hidden 2xl:block px-2 py-2 text-xs text-zinc-400 font-medium">
+                <div className="hidden xl:block px-2 py-2 text-xs text-zinc-400 font-medium">
                   {systemUser ? "No playlists created" : "Sign in required"}
                 </div>
               )}
