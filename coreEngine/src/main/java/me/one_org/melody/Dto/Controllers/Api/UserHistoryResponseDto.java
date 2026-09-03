@@ -11,6 +11,7 @@ public record UserHistoryResponseDto(
     String songKey,
     String imageKey,
     String videoKey,
+    String fullVideoKey,
     Boolean isFeatured,
     String language,
     String lrclibId,

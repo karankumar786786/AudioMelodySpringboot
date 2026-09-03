@@ -86,6 +86,7 @@ public class UserHistoryApiService {
                 song.getSongKey(),
                 song.getImageKey(),
                 song.getVideoKey(),
+                song.getFullVideoKey(),
                 song.isFeatured(),
                 song.getLanguage(),
                 song.getLrclibId(),

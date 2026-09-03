@@ -13,11 +13,17 @@ export interface PlayerSong extends Song {
   posterUrl: string;
 }
 
-export function mapToPlayerSong(song: Song): PlayerSong {
-  const streamBase = `${S3_BASE_URL}/${song.songKey}`;
+export function mapToPlayerSong(song: any): PlayerSong {
+  const streamBase = `${S3_BASE_URL}/${song.songKey || song.song_key}`;
+  const fullVideoKey = song.fullVideoKey || song.full_video_key || undefined;
+  const videoKey = song.videoKey || song.video_key || undefined;
+  const imageKey = song.imageKey || song.image_key || "";
 
   return {
     ...song,
+    fullVideoKey,
+    videoKey,
+    imageKey,
     queueId:
       typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
         ? crypto.randomUUID()
@@ -25,14 +31,14 @@ export function mapToPlayerSong(song: Song): PlayerSong {
     streamUrl: `${streamBase}/master.m3u8`,
     captionUrl: `${streamBase}/caption.vtt`,
     coverUrl:
-      getImageUrl(song.imageKey, {
+      getImageUrl(imageKey, {
         width: 400,
         height: 400,
         focus: "auto",
         aspectRatio: "1-1",
       }) || "",
     posterUrl:
-      getImageUrl(song.imageKey, {
+      getImageUrl(imageKey, {
         width: 720,
         height: 720,
         focus: "auto",
@@ -43,9 +49,16 @@ export function mapToPlayerSong(song: Song): PlayerSong {
 }
 
 export function normalizePlayerSong(song: any): PlayerSong {
-  const streamBase = `${S3_BASE_URL}/${song.songKey}`;
+  const streamBase = `${S3_BASE_URL}/${song.songKey || song.song_key}`;
+  const fullVideoKey = song.fullVideoKey || song.full_video_key || undefined;
+  const videoKey = song.videoKey || song.video_key || undefined;
+  const imageKey = song.imageKey || song.image_key || "";
+
   return {
     ...song,
+    fullVideoKey,
+    videoKey,
+    imageKey,
     queueId:
       song.queueId ||
       (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -54,21 +67,21 @@ export function normalizePlayerSong(song: any): PlayerSong {
     streamUrl: `${streamBase}/master.m3u8`,
     captionUrl: `${streamBase}/caption.vtt`,
     coverUrl:
-      getImageUrl(song.imageKey, {
+      getImageUrl(imageKey, {
         width: 400,
         height: 400,
         focus: "auto",
         aspectRatio: "1-1",
       }) || "",
     posterUrl:
-      getImageUrl(song.imageKey, {
+      getImageUrl(imageKey, {
         width: 720,
         height: 720,
         focus: "auto",
         aspectRatio: "1-1",
         quality: 90,
       }) || "",
-    fullVideoUrl: song.fullVideoKey ? `${S3_BASE_URL}/${song.fullVideoKey}/master.m3u8` : undefined,
+    fullVideoUrl: fullVideoKey ? `${S3_BASE_URL}/${fullVideoKey}/master.m3u8` : undefined,
   };
 }
 
@@ -77,13 +90,15 @@ export function mapListToPlayerSongs(songs: Song[]): PlayerSong[] {
 }
 
 /** Returns the HLS streaming URL for a song's full video (Shaka-packaged on S3) */
-export function getFullVideoHlsUrl(song: Song | PlayerSong): string | undefined {
-  if (!song.fullVideoKey) return undefined;
-  return `${S3_BASE_URL}/${song.fullVideoKey}/master.m3u8`;
+export function getFullVideoHlsUrl(song: any): string | undefined {
+  const fullVideoKey = song?.fullVideoKey || song?.full_video_key;
+  if (!fullVideoKey) return undefined;
+  return `${S3_BASE_URL}/${fullVideoKey}/master.m3u8`;
 }
 
 /** Returns the DASH streaming URL for a song's full video */
-export function getFullVideoDashUrl(song: Song | PlayerSong): string | undefined {
-  if (!song.fullVideoKey) return undefined;
-  return `${S3_BASE_URL}/${song.fullVideoKey}/master.mpd`;
+export function getFullVideoDashUrl(song: any): string | undefined {
+  const fullVideoKey = song?.fullVideoKey || song?.full_video_key;
+  if (!fullVideoKey) return undefined;
+  return `${S3_BASE_URL}/${fullVideoKey}/master.mpd`;
 }

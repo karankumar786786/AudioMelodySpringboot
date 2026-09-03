@@ -59,39 +59,44 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Determine if this full video corresponds to the currently loaded track in the audio player
+  // Determine if this full video is for the currently active song in the audio player
   const isCurrentSong = songId
     ? playerStore.state.currentSong?.id === songId
     : true;
 
-  // Starting playback position: use passed initialTime if given, otherwise the audio player's current time
-  const effectiveStartTime =
+  // Capture the starting time at mount time so Shaka gets a stable value.
+  // Priority: explicit initialTime prop > audio player's store currentTime.
+  // We read once into a ref so the Shaka useEffect dep doesn't change on every time update.
+  const startTimeRef = useRef<number>(
     typeof initialTime === "number" && initialTime >= 0
       ? initialTime
       : isCurrentSong
         ? playerStore.state.currentTime || 0
-        : 0;
+        : 0,
+  );
 
-  // Track whether audio player was playing before modal opened
+  // Track whether audio was playing when modal opened so we can resume on close
   const wasAudioPlayingRef = useRef<boolean>(false);
 
-  // Pause audio player when full video opens so 2 audios never play simultaneously
+  // Pause audio immediately on mount to prevent double audio
   useEffect(() => {
     if (playerStore.state.isPlaying) {
       wasAudioPlayingRef.current = true;
       playerActions.setIsPlaying(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [currentTime, setCurrentTime] = useState(effectiveStartTime);
+  const [currentTime, setCurrentTime] = useState(startTimeRef.current);
   const [duration, setDuration] = useState(0);
   const [qualityLevels, setQualityLevels] = useState<QualityLevel[]>([]);
   const [selectedQuality, setSelectedQuality] = useState<number>(-1);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Controls overlay visibility — separate from the always-visible close button
   const [showControls, setShowControls] = useState(true);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -138,14 +143,16 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         });
 
         const manifestUrl = dashUrl || hlsUrl;
-        // Pass effectiveStartTime as second param to Shaka player.load() so it starts buffering and playing at the audio player's current time
-        await player.load(manifestUrl, effectiveStartTime > 0 ? effectiveStartTime : 0);
+        // Pass the captured start time to Shaka so it can start buffering at the right position immediately
+        const startTime = startTimeRef.current;
+        await player.load(manifestUrl, startTime > 0 ? startTime : 0);
 
         if (destroyed) return;
 
-        if (effectiveStartTime > 0) {
-          video.currentTime = effectiveStartTime;
-          setCurrentTime(effectiveStartTime);
+        // Belt-and-suspenders: also set it on the video element after load
+        if (startTime > 0) {
+          video.currentTime = startTime;
+          setCurrentTime(startTime);
         }
 
         // Extract quality levels from variant tracks
@@ -181,7 +188,8 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
       if (player) player.destroy?.();
       playerRef.current = null;
     };
-  }, [hlsUrl, dashUrl, effectiveStartTime]);
+    // Only re-init when the URL changes, not on time changes
+  }, [hlsUrl, dashUrl]);
 
   /* ─── Video events ─── */
   useEffect(() => {
@@ -300,6 +308,15 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         onMouseEnter={resetControlsTimer}
         onClick={togglePlay}
       >
+        {/* Always-visible close button — inside the video container, above all overlays */}
+        <button
+          onClick={(e) => { e.stopPropagation(); handleClose(); }}
+          className="absolute top-3 right-3 z-[220] p-2 rounded-full bg-black/70 hover:bg-black/90 text-white transition-all cursor-pointer border border-white/20 backdrop-blur-sm"
+          aria-label="Close full video"
+          title="Close (Esc)"
+        >
+          <X size={18} />
+        </button>
         <div className="absolute inset-0 bg-black rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10" />
 
         <video
@@ -334,7 +351,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Top: title + close */}
+          {/* Top: title + close (inside fading controls overlay) */}
           <div
             className="flex items-center justify-between p-4 rounded-t-2xl"
             style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.85), transparent)" }}
@@ -343,13 +360,6 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
               <h2 className="text-white font-bold text-lg leading-tight truncate">{title}</h2>
               <p className="text-zinc-300 text-sm truncate">{artistName}</p>
             </div>
-            <button
-              onClick={(e) => { e.stopPropagation(); handleClose(); }}
-              className="ml-4 shrink-0 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
-              aria-label="Close"
-            >
-              <X size={20} />
-            </button>
           </div>
 
           {/* Bottom: progress + controls */}
