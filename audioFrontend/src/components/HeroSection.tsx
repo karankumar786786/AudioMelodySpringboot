@@ -5,6 +5,7 @@ import { playerActions } from "../store/player.store";
 import { mapToPlayerSong, getFullVideoHlsUrl, getFullVideoDashUrl } from "../lib/player-utils";
 import { getImageUrl, getVideoUrl } from "../lib/image-utils";
 import { FullVideoModal } from "./FullVideoModal";
+import { PlayerTooltip } from "./player/PlayerTooltip";
 
 interface HeroSectionProps {
   songs: Song[];
@@ -148,22 +149,24 @@ export function HeroSection({
 
           {/* Watch Full Video button */}
           {currentSong.fullVideoKey && (
-            <motion.button
-              key={`watch-btn-${currentSong.id}`}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.2, delay: 0.1 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowFullVideo(true);
-              }}
-              className="mt-1 flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm border border-white/20 text-white text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer w-fit"
-            >
-              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-              </svg>
-              Watch Full Video
-            </motion.button>
+            <PlayerTooltip content="Watch Full Video" shortcut="V">
+              <motion.button
+                key={`watch-btn-${currentSong.id}`}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.2, delay: 0.1 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowFullVideo(true);
+                }}
+                className="mt-1 flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm border border-white/20 text-white text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer w-fit"
+              >
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                </svg>
+                Watch Full Video
+              </motion.button>
+            </PlayerTooltip>
           )}
         </div>
 

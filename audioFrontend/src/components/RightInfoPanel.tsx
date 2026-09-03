@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import {
@@ -22,6 +22,7 @@ import { musicApi, Song } from "@/lib/api";
 import { mapToPlayerSong, getFullVideoHlsUrl, getFullVideoDashUrl } from "@/lib/player-utils";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
 import { FullVideoModal } from "./FullVideoModal";
+import { PlayerTooltip } from "./player/PlayerTooltip";
 import { toast } from "sonner";
 
 export function RightInfoPanel() {
@@ -58,6 +59,26 @@ export function RightInfoPanel() {
     enabled: !!currentSong,
     staleTime: 1000 * 60 * 60,
   });
+
+  // Global 'V' key shortcut to toggle full video for currently active song
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+      if ((e.key === "v" || e.key === "V") && currentSong?.fullVideoKey) {
+        e.preventDefault();
+        setShowFullVideo((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [currentSong?.fullVideoKey]);
 
   // Related songs
   const { data: songsFeed } = useQuery({
@@ -251,14 +272,15 @@ export function RightInfoPanel() {
 
                     {/* Watch Full Video – video canvas display */}
                     {currentSong.fullVideoKey && (
-                      <button
-                        onClick={() => setShowFullVideo(true)}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/15 hover:bg-white/25 border border-white/20 text-white text-[11px] font-bold transition-all hover:scale-105 cursor-pointer"
-                        title="Watch Full Video"
-                      >
-                        <Play size={11} fill="currentColor" />
-                        Full Video
-                      </button>
+                      <PlayerTooltip content="Watch Full Video" shortcut="V">
+                        <button
+                          onClick={() => setShowFullVideo(true)}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/15 hover:bg-white/25 border border-white/20 text-white text-[11px] font-bold transition-all hover:scale-105 cursor-pointer"
+                        >
+                          <Play size={11} fill="currentColor" />
+                          Full Video
+                        </button>
+                      </PlayerTooltip>
                     )}
                   </div>
                 </div>
@@ -337,14 +359,15 @@ export function RightInfoPanel() {
 
                     {/* Watch Full Video – cover-art display */}
                     {currentSong.fullVideoKey && (
-                      <button
-                        onClick={() => setShowFullVideo(true)}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[11px] font-bold transition-all hover:scale-105 cursor-pointer"
-                        title="Watch Full Video"
-                      >
-                        <Play size={11} fill="currentColor" />
-                        Full Video
-                      </button>
+                      <PlayerTooltip content="Watch Full Video" shortcut="V">
+                        <button
+                          onClick={() => setShowFullVideo(true)}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[11px] font-bold transition-all hover:scale-105 cursor-pointer"
+                        >
+                          <Play size={11} fill="currentColor" />
+                          Full Video
+                        </button>
+                      </PlayerTooltip>
                     )}
                   </div>
                 </div>

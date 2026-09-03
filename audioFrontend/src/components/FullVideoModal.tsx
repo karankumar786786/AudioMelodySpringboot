@@ -10,6 +10,7 @@ import React, {
 import { X, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, ChevronDown } from "lucide-react";
 
 import { playerStore, playerActions } from "@/store/player.store";
+import { PlayerTooltip } from "./player/PlayerTooltip";
 
 interface FullVideoModalProps {
   /** Shaka-packaged HLS URL e.g. https://…/videos/<songId>/master.m3u8 */
@@ -301,6 +302,15 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   /* ─── Keyboard shortcuts ─── */
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return;
+      }
+
       if (e.key === "Escape") {
         const inFullscreen = Boolean(
           document.fullscreenElement || (document as any).webkitFullscreenElement,
@@ -309,13 +319,43 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
           handleClose();
         }
       }
-      if (e.key === " " || e.key === "k") { e.preventDefault(); togglePlay(); }
-      if (e.key === "m") toggleMute();
-      if (e.key === "f") toggleFullscreen();
+      if (e.key === "v" || e.key === "V") {
+        e.preventDefault();
+        handleClose();
+      }
+      if (e.key === " " || e.key === "k" || e.key === "K") {
+        e.preventDefault();
+        togglePlay();
+      }
+      if (e.key === "m" || e.key === "M") {
+        e.preventDefault();
+        toggleMute();
+      }
+      if (e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        const v = videoRef.current;
+        if (v) {
+          v.currentTime = Math.max(0, v.currentTime - 5);
+          setCurrentTime(v.currentTime);
+        }
+      }
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        const v = videoRef.current;
+        if (v) {
+          const maxDur = v.duration || duration || 0;
+          v.currentTime = maxDur > 0 ? Math.min(maxDur, v.currentTime + 5) : v.currentTime + 5;
+          setCurrentTime(v.currentTime);
+        }
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleClose, togglePlay, toggleMute, toggleFullscreen]);
+  }, [handleClose, togglePlay, toggleMute, toggleFullscreen, duration]);
 
   const fmt = (s: number) => {
     if (!s || isNaN(s)) return "0:00";
@@ -343,15 +383,20 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         onMouseEnter={resetControlsTimer}
         onClick={togglePlay}
       >
-        {/* Always-visible close button — inside the video container, above all overlays */}
-        <button
-          onClick={(e) => { e.stopPropagation(); handleClose(); }}
-          className="absolute top-3 right-3 z-[220] p-2 rounded-full bg-black/70 hover:bg-black/90 text-white transition-all cursor-pointer border border-white/20 backdrop-blur-sm"
-          aria-label="Close full video"
-          title="Close (Esc)"
-        >
-          <X size={18} />
-        </button>
+        {/* Close button — hidden when in fullscreen */}
+        {!isFullscreen && (
+          <div className="absolute top-3 right-3 z-[220]">
+            <PlayerTooltip content="Close" shortcut={["Esc", "V"]} side="bottom" align="end">
+              <button
+                onClick={(e) => { e.stopPropagation(); handleClose(); }}
+                className="p-2 rounded-full bg-black/70 hover:bg-black/90 text-white transition-all cursor-pointer border border-white/20 backdrop-blur-sm"
+                aria-label="Close full video"
+              >
+                <X size={18} />
+              </button>
+            </PlayerTooltip>
+          </div>
+        )}
         <div className="absolute inset-0 bg-black rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10" />
 
         <video
@@ -386,7 +431,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Top: title + close (inside fading controls overlay) */}
+          {/* Top: title */}
           <div
             className="flex items-center justify-between p-4 rounded-t-2xl"
             style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.85), transparent)" }}
@@ -422,34 +467,41 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
 
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <button
-                  onClick={togglePlay}
-                  className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-black hover:scale-105 transition-transform cursor-pointer"
-                  aria-label={isPlaying ? "Pause" : "Play"}
-                >
-                  {isPlaying
-                    ? <Pause size={18} fill="black" />
-                    : <Play size={18} fill="black" style={{ marginLeft: 2 }} />}
-                </button>
-                <button
-                  onClick={toggleMute}
-                  className="text-zinc-300 hover:text-white transition-colors p-1 cursor-pointer"
-                  aria-label={isMuted ? "Unmute" : "Mute"}
-                >
-                  {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                </button>
+                <PlayerTooltip content={isPlaying ? "Pause" : "Play"} shortcut={["Space", "K"]}>
+                  <button
+                    onClick={togglePlay}
+                    className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-black hover:scale-105 transition-transform cursor-pointer"
+                    aria-label={isPlaying ? "Pause" : "Play"}
+                  >
+                    {isPlaying
+                      ? <Pause size={18} fill="black" />
+                      : <Play size={18} fill="black" style={{ marginLeft: 2 }} />}
+                  </button>
+                </PlayerTooltip>
+
+                <PlayerTooltip content={isMuted ? "Unmute" : "Mute"} shortcut="M">
+                  <button
+                    onClick={toggleMute}
+                    className="text-zinc-300 hover:text-white transition-colors p-1 cursor-pointer"
+                    aria-label={isMuted ? "Unmute" : "Mute"}
+                  >
+                    {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                  </button>
+                </PlayerTooltip>
               </div>
 
               <div className="flex items-center gap-2">
                 {qualityLevels.length > 0 && (
                   <div className="relative">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setShowQualityMenu((v) => !v); }}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all cursor-pointer"
-                    >
-                      {qualityLabel}
-                      <ChevronDown size={12} />
-                    </button>
+                    <PlayerTooltip content="Video Quality">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setShowQualityMenu((v) => !v); }}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all cursor-pointer"
+                      >
+                        {qualityLabel}
+                        <ChevronDown size={12} />
+                      </button>
+                    </PlayerTooltip>
                     {showQualityMenu && (
                       <div
                         className="absolute bottom-full mb-2 right-0 bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden shadow-2xl min-w-[80px] z-20"
@@ -472,14 +524,16 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
                     )}
                   </div>
                 )}
-                <button
-                  onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
-                  className="text-zinc-300 hover:text-white transition-colors p-1 cursor-pointer"
-                  aria-label={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-                  title={isFullscreen ? "Exit Fullscreen (f)" : "Fullscreen (f)"}
-                >
-                  {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-                </button>
+
+                <PlayerTooltip content={isFullscreen ? "Exit Fullscreen" : "Fullscreen"} shortcut="F" align="end">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
+                    className="text-zinc-300 hover:text-white transition-colors p-1 cursor-pointer"
+                    aria-label={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                  >
+                    {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+                  </button>
+                </PlayerTooltip>
               </div>
             </div>
           </div>
