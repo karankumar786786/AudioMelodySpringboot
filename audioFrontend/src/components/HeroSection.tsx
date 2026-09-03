@@ -204,6 +204,7 @@ export function HeroSection({
     {/* Full Video Modal */}
     {showFullVideo && currentSong.fullVideoKey && (
       <FullVideoModal
+        songId={currentSong.id}
         hlsUrl={getFullVideoHlsUrl(currentSong)!}
         dashUrl={getFullVideoDashUrl(currentSong)}
         title={currentSong.title}

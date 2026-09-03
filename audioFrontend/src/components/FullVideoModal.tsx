@@ -9,6 +9,8 @@ import React, {
 } from "react";
 import { X, Play, Pause, Volume2, VolumeX, Maximize2, ChevronDown } from "lucide-react";
 
+import { playerStore, playerActions } from "@/store/player.store";
+
 interface FullVideoModalProps {
   /** Shaka-packaged HLS URL e.g. https://…/videos/<songId>/master.m3u8 */
   hlsUrl: string;
@@ -16,9 +18,10 @@ interface FullVideoModalProps {
   title: string;
   artistName: string;
   posterUrl?: string;
+  songId?: string;
   /** Audio player's current time to sync on open */
   initialTime?: number;
-  onClose: () => void;
+  onClose: (finalTime?: number) => void;
 }
 
 interface QualityLevel {
@@ -47,7 +50,8 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   title,
   artistName,
   posterUrl,
-  initialTime = 0,
+  songId,
+  initialTime,
   onClose,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -55,9 +59,33 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Determine if this full video corresponds to the currently loaded track in the audio player
+  const isCurrentSong = songId
+    ? playerStore.state.currentSong?.id === songId
+    : true;
+
+  // Starting playback position: use passed initialTime if given, otherwise the audio player's current time
+  const effectiveStartTime =
+    typeof initialTime === "number" && initialTime >= 0
+      ? initialTime
+      : isCurrentSong
+        ? playerStore.state.currentTime || 0
+        : 0;
+
+  // Track whether audio player was playing before modal opened
+  const wasAudioPlayingRef = useRef<boolean>(false);
+
+  // Pause audio player when full video opens so 2 audios never play simultaneously
+  useEffect(() => {
+    if (playerStore.state.isPlaying) {
+      wasAudioPlayingRef.current = true;
+      playerActions.setIsPlaying(false);
+    }
+  }, []);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [currentTime, setCurrentTime] = useState(initialTime);
+  const [currentTime, setCurrentTime] = useState(effectiveStartTime);
   const [duration, setDuration] = useState(0);
   const [qualityLevels, setQualityLevels] = useState<QualityLevel[]>([]);
   const [selectedQuality, setSelectedQuality] = useState<number>(-1);
@@ -110,11 +138,15 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         });
 
         const manifestUrl = dashUrl || hlsUrl;
-        await player.load(manifestUrl);
+        // Pass effectiveStartTime as second param to Shaka player.load() so it starts buffering and playing at the audio player's current time
+        await player.load(manifestUrl, effectiveStartTime > 0 ? effectiveStartTime : 0);
 
         if (destroyed) return;
 
-        if (initialTime > 0) video.currentTime = initialTime;
+        if (effectiveStartTime > 0) {
+          video.currentTime = effectiveStartTime;
+          setCurrentTime(effectiveStartTime);
+        }
 
         // Extract quality levels from variant tracks
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -149,7 +181,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
       if (player) player.destroy?.();
       playerRef.current = null;
     };
-  }, [hlsUrl, dashUrl, initialTime]);
+  }, [hlsUrl, dashUrl, effectiveStartTime]);
 
   /* ─── Video events ─── */
   useEffect(() => {
@@ -185,16 +217,28 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     setIsMuted(v.muted);
   }, []);
 
+  // Seamless Close: sync the video's stop time back to the audio player and resume playback
+  const handleClose = useCallback(() => {
+    const finalTime = videoRef.current?.currentTime ?? currentTime;
+    if (isCurrentSong && typeof finalTime === "number" && isFinite(finalTime)) {
+      playerActions.seek(finalTime);
+      if (wasAudioPlayingRef.current || isPlaying) {
+        playerActions.setIsPlaying(true);
+      }
+    }
+    onClose(finalTime);
+  }, [currentTime, isCurrentSong, isPlaying, onClose]);
+
   /* ─── Keyboard shortcuts ─── */
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") handleClose();
       if (e.key === " " || e.key === "k") { e.preventDefault(); togglePlay(); }
       if (e.key === "m") toggleMute();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onClose, togglePlay, toggleMute]);
+  }, [handleClose, togglePlay, toggleMute]);
 
   /* ─── Quality switching ─── */
   const applyQuality = (height: number) => {
@@ -244,7 +288,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md"
       style={{ animation: "fullVideoFadeIn 0.2s ease" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
       <style>{`@keyframes fullVideoFadeIn { from { opacity: 0 } to { opacity: 1 } }`}</style>
 
@@ -300,7 +344,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
               <p className="text-zinc-300 text-sm truncate">{artistName}</p>
             </div>
             <button
-              onClick={(e) => { e.stopPropagation(); onClose(); }}
+              onClick={(e) => { e.stopPropagation(); handleClose(); }}
               className="ml-4 shrink-0 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
               aria-label="Close"
             >

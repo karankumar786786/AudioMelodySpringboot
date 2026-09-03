@@ -70,6 +70,18 @@ export const playbackActions = {
     playerStore.setState((s) => ({ ...s, currentTime: time }));
   },
 
+  seek: (time: number) => {
+    const validTime = Math.max(0, isNaN(time) ? 0 : time);
+    playerStore.setState((s) => ({
+      ...s,
+      currentTime: validTime,
+      seekTarget: validTime,
+    }));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("last_current_time", validTime.toFixed(2));
+    }
+  },
+
   setDuration: (duration: number) => {
     playerStore.setState((s) => ({ ...s, duration }));
   },

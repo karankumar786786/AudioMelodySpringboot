@@ -5,6 +5,7 @@ export interface PlayerState {
   currentSong: PlayerSong | null;
   isPlaying: boolean;
   currentTime: number;
+  seekTarget: number | null;
   duration: number;
   volume: number;
   isMuted: boolean;
@@ -86,6 +87,7 @@ export const playerStore = new Store<PlayerState>({
   currentSong: null,
   isPlaying: false,
   currentTime: _initPlaybackTime,
+  seekTarget: null,
   duration: 0,
   volume: 1,
   isMuted: false,
