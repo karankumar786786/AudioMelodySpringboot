@@ -7,7 +7,7 @@ import React, {
   useCallback,
   type FC,
 } from "react";
-import { X, Play, Pause, Volume2, VolumeX, Maximize2, ChevronDown } from "lucide-react";
+import { X, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, ChevronDown } from "lucide-react";
 
 import { playerStore, playerActions } from "@/store/player.store";
 
@@ -96,9 +96,23 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   // Controls overlay visibility — separate from the always-visible close button
   const [showControls, setShowControls] = useState(true);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Sync fullscreen state
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement || (document as any).webkitFullscreenElement));
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+    };
+  }, []);
 
   const resetControlsTimer = useCallback(() => {
     setShowControls(true);
@@ -237,17 +251,6 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     onClose(finalTime);
   }, [currentTime, isCurrentSong, isPlaying, onClose]);
 
-  /* ─── Keyboard shortcuts ─── */
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleClose();
-      if (e.key === " " || e.key === "k") { e.preventDefault(); togglePlay(); }
-      if (e.key === "m") toggleMute();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [handleClose, togglePlay, toggleMute]);
-
   /* ─── Quality switching ─── */
   const applyQuality = (height: number) => {
     const player = playerRef.current;
@@ -274,13 +277,45 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     setCurrentTime(v.currentTime);
   };
 
-  const requestFullscreen = () => {
-    const el = containerRef.current as HTMLElement | null;
-    if (!el) return;
-    if (el.requestFullscreen) el.requestFullscreen();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
-  };
+  const toggleFullscreen = useCallback(() => {
+    const isCurrentlyFullscreen = Boolean(
+      document.fullscreenElement || (document as any).webkitFullscreenElement,
+    );
+    if (!isCurrentlyFullscreen) {
+      const el = containerRef.current as HTMLElement | null;
+      if (!el) return;
+      if (el.requestFullscreen) {
+        el.requestFullscreen().catch(() => {});
+      } else if ((el as any).webkitRequestFullscreen) {
+        (el as any).webkitRequestFullscreen();
+      }
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      } else if ((document as any).webkitExitFullscreen) {
+        (document as any).webkitExitFullscreen();
+      }
+    }
+  }, []);
+
+  /* ─── Keyboard shortcuts ─── */
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        const inFullscreen = Boolean(
+          document.fullscreenElement || (document as any).webkitFullscreenElement,
+        );
+        if (!inFullscreen) {
+          handleClose();
+        }
+      }
+      if (e.key === " " || e.key === "k") { e.preventDefault(); togglePlay(); }
+      if (e.key === "m") toggleMute();
+      if (e.key === "f") toggleFullscreen();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [handleClose, togglePlay, toggleMute, toggleFullscreen]);
 
   const fmt = (s: number) => {
     if (!s || isNaN(s)) return "0:00";
@@ -438,11 +473,12 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
                   </div>
                 )}
                 <button
-                  onClick={(e) => { e.stopPropagation(); requestFullscreen(); }}
+                  onClick={(e) => { e.stopPropagation(); toggleFullscreen(); }}
                   className="text-zinc-300 hover:text-white transition-colors p-1 cursor-pointer"
-                  aria-label="Fullscreen"
+                  aria-label={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                  title={isFullscreen ? "Exit Fullscreen (f)" : "Fullscreen (f)"}
                 >
-                  <Maximize2 size={18} />
+                  {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
                 </button>
               </div>
             </div>
