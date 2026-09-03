@@ -32,6 +32,10 @@ export const fetchJob = inngest.createFunction(
             data: {
                 jobId: jobDetails.id || jobId,
                 tempSongKey: jobDetails.tempSongKey,
+                tempVideoKey: jobDetails.tempVideoKey,
+                clipStartSec: jobDetails.clipStartSec,
+                clipEndSec: jobDetails.clipEndSec,
+                videoKey: jobDetails.videoKey,
                 songId: jobDetails.songId,
             },
         });

@@ -5,4 +5,5 @@ export interface DeleteEventPayload {
     imageKey?: string | null;
     coverImageKey?: string | null;
     videoKey?: string | null;
+    fullVideoKey?: string | null;
 }

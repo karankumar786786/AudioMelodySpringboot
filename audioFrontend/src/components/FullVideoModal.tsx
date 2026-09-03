@@ -1,0 +1,400 @@
+"use client";
+
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  type FC,
+} from "react";
+import { X, Play, Pause, Volume2, VolumeX, Maximize2, ChevronDown } from "lucide-react";
+
+interface FullVideoModalProps {
+  /** Shaka-packaged HLS URL e.g. https://…/videos/<songId>/master.m3u8 */
+  hlsUrl: string;
+  dashUrl?: string;
+  title: string;
+  artistName: string;
+  posterUrl?: string;
+  /** Audio player's current time to sync on open */
+  initialTime?: number;
+  onClose: () => void;
+}
+
+interface QualityLevel {
+  label: string;
+  bandwidth: number;
+  height: number;
+}
+
+// Use any to avoid shaka-player compiled type namespace mismatches
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let shakaCache: any = null;
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function loadShaka(): Promise<any> {
+  if (shakaCache) return shakaCache;
+  // shaka-player uses a UMD/namespace build; import as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mod = await import("shaka-player" as any);
+  shakaCache = mod.default ?? mod;
+  return shakaCache;
+}
+
+export const FullVideoModal: FC<FullVideoModalProps> = ({
+  hlsUrl,
+  dashUrl,
+  title,
+  artistName,
+  posterUrl,
+  initialTime = 0,
+  onClose,
+}) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const playerRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+  const [currentTime, setCurrentTime] = useState(initialTime);
+  const [duration, setDuration] = useState(0);
+  const [qualityLevels, setQualityLevels] = useState<QualityLevel[]>([]);
+  const [selectedQuality, setSelectedQuality] = useState<number>(-1);
+  const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showControls, setShowControls] = useState(true);
+  const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const resetControlsTimer = useCallback(() => {
+    setShowControls(true);
+    if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+    controlsTimerRef.current = setTimeout(() => setShowControls(false), 3000);
+  }, []);
+
+  /* ─── Shaka Player init ─── */
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    let destroyed = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let player: any;
+
+    (async () => {
+      try {
+        const shaka = await loadShaka();
+        if (shaka.polyfill?.installAll) shaka.polyfill.installAll();
+
+        if (shaka.Player?.isBrowserSupported && !shaka.Player.isBrowserSupported()) {
+          setError("Your browser does not support adaptive streaming.");
+          setIsLoading(false);
+          return;
+        }
+
+        player = new shaka.Player();
+        await player.attach(video);
+        playerRef.current = player;
+
+        player.configure({ streaming: { bufferingGoal: 30, rebufferingGoal: 2 } });
+
+        player.addEventListener("error", (e: Event) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const detail = (e as any).detail;
+          if (!destroyed) setError(`Playback error: ${detail?.message ?? "Unknown"}`);
+        });
+
+        player.addEventListener("buffering", (e: Event) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          if (!destroyed) setIsLoading((e as any).buffering);
+        });
+
+        const manifestUrl = dashUrl || hlsUrl;
+        await player.load(manifestUrl);
+
+        if (destroyed) return;
+
+        if (initialTime > 0) video.currentTime = initialTime;
+
+        // Extract quality levels from variant tracks
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const tracks: any[] = player.getVariantTracks?.() ?? [];
+        const seen = new Set<number>();
+        const levels: QualityLevel[] = [];
+        tracks.forEach((t) => {
+          const h: number = t.height ?? 0;
+          if (h > 0 && !seen.has(h)) {
+            seen.add(h);
+            levels.push({ label: `${h}p`, bandwidth: t.bandwidth, height: h });
+          }
+        });
+        levels.sort((a, b) => b.height - a.height);
+        setQualityLevels(levels);
+        setIsLoading(false);
+
+        try {
+          await video.play();
+          setIsPlaying(true);
+        } catch { /* autoplay blocked */ }
+      } catch (err: unknown) {
+        if (!destroyed) {
+          setError((err as Error)?.message ?? "Failed to load video");
+          setIsLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      destroyed = true;
+      if (player) player.destroy?.();
+      playerRef.current = null;
+    };
+  }, [hlsUrl, dashUrl, initialTime]);
+
+  /* ─── Video events ─── */
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const onTimeUpdate = () => setCurrentTime(video.currentTime);
+    const onDurationChange = () => setDuration(video.duration || 0);
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    video.addEventListener("timeupdate", onTimeUpdate);
+    video.addEventListener("durationchange", onDurationChange);
+    video.addEventListener("play", onPlay);
+    video.addEventListener("pause", onPause);
+    return () => {
+      video.removeEventListener("timeupdate", onTimeUpdate);
+      video.removeEventListener("durationchange", onDurationChange);
+      video.removeEventListener("play", onPlay);
+      video.removeEventListener("pause", onPause);
+    };
+  }, []);
+
+  const togglePlay = useCallback(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) v.play().catch(() => {});
+    else v.pause();
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = !v.muted;
+    setIsMuted(v.muted);
+  }, []);
+
+  /* ─── Keyboard shortcuts ─── */
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === " " || e.key === "k") { e.preventDefault(); togglePlay(); }
+      if (e.key === "m") toggleMute();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose, togglePlay, toggleMute]);
+
+  /* ─── Quality switching ─── */
+  const applyQuality = (height: number) => {
+    const player = playerRef.current;
+    if (!player) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const tracks: any[] = player.getVariantTracks?.() ?? [];
+    if (height === -1) {
+      player.configure?.({ abr: { enabled: true } });
+    } else {
+      player.configure?.({ abr: { enabled: false } });
+      const best = tracks
+        .filter((t) => (t.height ?? 0) === height)
+        .sort((a, b) => b.bandwidth - a.bandwidth)[0];
+      if (best) player.selectVariantTrack?.(best, true);
+    }
+    setSelectedQuality(height);
+    setShowQualityMenu(false);
+  };
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.currentTime = Number(e.target.value);
+    setCurrentTime(v.currentTime);
+  };
+
+  const requestFullscreen = () => {
+    const el = containerRef.current as HTMLElement | null;
+    if (!el) return;
+    if (el.requestFullscreen) el.requestFullscreen();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
+  };
+
+  const fmt = (s: number) => {
+    if (!s || isNaN(s)) return "0:00";
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  };
+
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const qualityLabel = selectedQuality === -1 ? "Auto" : `${selectedQuality}p`;
+
+  return (
+    <div
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md"
+      style={{ animation: "fullVideoFadeIn 0.2s ease" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <style>{`@keyframes fullVideoFadeIn { from { opacity: 0 } to { opacity: 1 } }`}</style>
+
+      <div
+        ref={containerRef}
+        className="relative w-full max-w-5xl mx-4"
+        style={{ aspectRatio: "16/9" }}
+        onMouseMove={resetControlsTimer}
+        onMouseEnter={resetControlsTimer}
+        onClick={togglePlay}
+      >
+        <div className="absolute inset-0 bg-black rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10" />
+
+        <video
+          ref={videoRef}
+          className="absolute inset-0 w-full h-full object-contain rounded-2xl"
+          poster={posterUrl}
+          playsInline
+        />
+
+        {isLoading && !error && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/50 pointer-events-none">
+            <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+          </div>
+        )}
+
+        {error && (
+          <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/80">
+            <div className="text-center px-8">
+              <p className="text-red-400 font-bold text-lg mb-2">Playback Error</p>
+              <p className="text-zinc-400 text-sm">{error}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Controls overlay */}
+        <div
+          className="absolute inset-0 flex flex-col justify-between rounded-2xl overflow-hidden"
+          style={{
+            opacity: showControls ? 1 : 0,
+            transition: "opacity 0.3s ease",
+            pointerEvents: showControls ? "auto" : "none",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Top: title + close */}
+          <div
+            className="flex items-center justify-between p-4 rounded-t-2xl"
+            style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.85), transparent)" }}
+          >
+            <div className="min-w-0">
+              <h2 className="text-white font-bold text-lg leading-tight truncate">{title}</h2>
+              <p className="text-zinc-300 text-sm truncate">{artistName}</p>
+            </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); onClose(); }}
+              className="ml-4 shrink-0 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
+              aria-label="Close"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Bottom: progress + controls */}
+          <div
+            className="p-4 rounded-b-2xl"
+            style={{ background: "linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.55), transparent)" }}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs text-zinc-300 font-mono w-10 text-right shrink-0">{fmt(currentTime)}</span>
+              <input
+                type="range"
+                min="0"
+                max={duration || 1}
+                step="0.5"
+                value={currentTime}
+                onChange={handleSeek}
+                className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
+                style={{
+                  background: `linear-gradient(to right, white ${progress}%, rgba(255,255,255,0.25) ${progress}%)`,
+                  accentColor: "white",
+                }}
+              />
+              <span className="text-xs text-zinc-300 font-mono w-10 shrink-0">{fmt(duration)}</span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={togglePlay}
+                  className="w-9 h-9 rounded-full bg-white flex items-center justify-center text-black hover:scale-105 transition-transform cursor-pointer"
+                  aria-label={isPlaying ? "Pause" : "Play"}
+                >
+                  {isPlaying
+                    ? <Pause size={18} fill="black" />
+                    : <Play size={18} fill="black" style={{ marginLeft: 2 }} />}
+                </button>
+                <button
+                  onClick={toggleMute}
+                  className="text-zinc-300 hover:text-white transition-colors p-1 cursor-pointer"
+                  aria-label={isMuted ? "Unmute" : "Mute"}
+                >
+                  {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {qualityLevels.length > 0 && (
+                  <div className="relative">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowQualityMenu((v) => !v); }}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all cursor-pointer"
+                    >
+                      {qualityLabel}
+                      <ChevronDown size={12} />
+                    </button>
+                    {showQualityMenu && (
+                      <div
+                        className="absolute bottom-full mb-2 right-0 bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden shadow-2xl min-w-[80px] z-20"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {[{ height: -1, label: "Auto" }, ...qualityLevels].map((q) => (
+                          <button
+                            key={q.height}
+                            onClick={() => applyQuality(q.height)}
+                            className={`w-full text-left px-3 py-2 text-xs font-bold transition-colors ${
+                              selectedQuality === q.height
+                                ? "text-white bg-white/15"
+                                : "text-zinc-400 hover:text-white hover:bg-white/5"
+                            }`}
+                          >
+                            {q.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); requestFullscreen(); }}
+                  className="text-zinc-300 hover:text-white transition-colors p-1 cursor-pointer"
+                  aria-label="Fullscreen"
+                >
+                  <Maximize2 size={18} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};

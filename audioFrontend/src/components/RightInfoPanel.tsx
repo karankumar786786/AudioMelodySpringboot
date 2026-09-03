@@ -19,8 +19,9 @@ import { playerStore, playerActions } from "@/store/player.store";
 import { getSongInfo } from "@/lib/song-info";
 import { getImageUrl, getVideoUrl, getVideoABRUrl } from "@/lib/image-utils";
 import { musicApi, Song } from "@/lib/api";
-import { mapToPlayerSong } from "@/lib/player-utils";
+import { mapToPlayerSong, getFullVideoHlsUrl, getFullVideoDashUrl } from "@/lib/player-utils";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
+import { FullVideoModal } from "./FullVideoModal";
 import { toast } from "sonner";
 
 export function RightInfoPanel() {
@@ -30,6 +31,7 @@ export function RightInfoPanel() {
 
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isFavLoading, setIsFavLoading] = useState(false);
+  const [showFullVideo, setShowFullVideo] = useState(false);
   const queryClient = useQueryClient();
   const relatedSongsRef = useRef<HTMLDivElement>(null);
 
@@ -246,6 +248,18 @@ export function RightInfoPanel() {
                         />
                       )}
                     </button>
+
+                    {/* Watch Full Video – video canvas display */}
+                    {currentSong.fullVideoKey && (
+                      <button
+                        onClick={() => setShowFullVideo(true)}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/15 hover:bg-white/25 border border-white/20 text-white text-[11px] font-bold transition-all hover:scale-105 cursor-pointer"
+                        title="Watch Full Video"
+                      >
+                        <Play size={11} fill="currentColor" />
+                        Full Video
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -320,6 +334,18 @@ export function RightInfoPanel() {
                         />
                       )}
                     </button>
+
+                    {/* Watch Full Video – cover-art display */}
+                    {currentSong.fullVideoKey && (
+                      <button
+                        onClick={() => setShowFullVideo(true)}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[11px] font-bold transition-all hover:scale-105 cursor-pointer"
+                        title="Watch Full Video"
+                      >
+                        <Play size={11} fill="currentColor" />
+                        Full Video
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -517,6 +543,18 @@ export function RightInfoPanel() {
         songId={currentSong.id}
         songTitle={currentSong.title}
       />
+
+      {/* Full Video Modal */}
+      {showFullVideo && currentSong.fullVideoKey && (
+        <FullVideoModal
+          hlsUrl={getFullVideoHlsUrl(currentSong)!}
+          dashUrl={getFullVideoDashUrl(currentSong)}
+          title={currentSong.title}
+          artistName={currentSong.artistName}
+          posterUrl={getImageUrl(currentSong.imageKey, { width: 1280, height: 720, aspectRatio: "16-9" }) || undefined}
+          onClose={() => setShowFullVideo(false)}
+        />
+      )}
     </>
   );
 }

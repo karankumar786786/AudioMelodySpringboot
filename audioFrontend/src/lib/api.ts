@@ -9,6 +9,7 @@ export interface Song {
   songKey: string;
   imageKey: string;
   videoKey?: string;
+  fullVideoKey?: string;
   language: string;
   lrclibId: string;
   status?: string;

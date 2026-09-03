@@ -68,9 +68,22 @@ export function normalizePlayerSong(song: any): PlayerSong {
         aspectRatio: "1-1",
         quality: 90,
       }) || "",
+    fullVideoUrl: song.fullVideoKey ? `${S3_BASE_URL}/${song.fullVideoKey}/master.m3u8` : undefined,
   };
 }
 
 export function mapListToPlayerSongs(songs: Song[]): PlayerSong[] {
   return songs.map(mapToPlayerSong);
+}
+
+/** Returns the HLS streaming URL for a song's full video (Shaka-packaged on S3) */
+export function getFullVideoHlsUrl(song: Song | PlayerSong): string | undefined {
+  if (!song.fullVideoKey) return undefined;
+  return `${S3_BASE_URL}/${song.fullVideoKey}/master.m3u8`;
+}
+
+/** Returns the DASH streaming URL for a song's full video */
+export function getFullVideoDashUrl(song: Song | PlayerSong): string | undefined {
+  if (!song.fullVideoKey) return undefined;
+  return `${S3_BASE_URL}/${song.fullVideoKey}/master.mpd`;
 }

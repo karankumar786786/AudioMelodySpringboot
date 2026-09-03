@@ -27,6 +27,11 @@ public class WebhookInternalController {
         return ResponseEntity.status(HttpStatus.OK).body(inInternalService.getSongUploadPreSignedUrl());
     }
 
+    @GetMapping("/video-upload-url")
+    public ResponseEntity<SongUploadPreSignedUrlResponseDto> getVideoUploadPreSignedUrl(){
+        return ResponseEntity.status(HttpStatus.OK).body(inInternalService.getVideoUploadPreSignedUrl());
+    }
+
     @GetMapping("/image-upload-param")
     public ResponseEntity<ImageUploadParamsResponseDto> getImageUploadParams() {
         return ResponseEntity.status(HttpStatus.OK).body(inInternalService.getImageUploadParams());

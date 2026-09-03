@@ -12,6 +12,7 @@ interface Song {
   language: string;
   imageKey: string;
   videoKey?: string;
+  fullVideoKey?: string;
   isFeatured?: boolean;
   lrclibId?: string;
   createdAt?: string;
@@ -33,6 +34,7 @@ export default function SongsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSong, setEditingSong] = useState<Song | null>(null);
   const [search, setSearch] = useState("");
+  const [uploadMode, setUploadMode] = useState<"audio" | "videoOnly">("audio");
 
   // Create Form State
   const [formData, setFormData] = useState({
@@ -43,6 +45,11 @@ export default function SongsPage() {
     songFile: null as File | null,
     imageFile: null as File | null,
     videoFile: null as File | null,
+    fullVideoFile: null as File | null,
+    clipStartMin: 0,
+    clipStartSec: 0,
+    clipEndMin: 0,
+    clipEndSec: 15,
   });
 
   // Edit Form State
@@ -53,10 +60,13 @@ export default function SongsPage() {
     lrclibId: "",
     imageFile: null as File | null,
     videoFile: null as File | null,
+    fullVideoFile: null as File | null,
     removeVideo: false,
+    removeFullVideo: false,
   });
 
   const [uploading, setUploading] = useState(false);
+  const [uploadProgressText, setUploadProgressText] = useState("");
 
   const fetchSongs = async () => {
     try {
@@ -125,37 +135,98 @@ export default function SongsPage() {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.songFile || !formData.imageFile) return alert("Please select both audio and image files");
+    if (!formData.imageFile) return alert("Please select a cover image");
+
+    if (uploadMode === "videoOnly") {
+      if (!formData.fullVideoFile) return alert("Please select a full video file");
+    } else {
+      if (!formData.songFile) return alert("Please select an audio file");
+    }
+
     setUploading(true);
+    setUploadProgressText("Starting upload...");
     try {
-      const songUrlRes = await adminFetch("/webhook/internal/song-upload-url");
-      if (!songUrlRes.ok) throw new Error("Failed to get audio upload authorization");
-      const songUrlData = await songUrlRes.json();
-      const songUploadRes = await fetch(songUrlData.preSignedUrl, {
-        method: "PUT",
-        body: formData.songFile,
-        headers: { "Content-Type": formData.songFile.type || "audio/mpeg" },
-      });
-      if (!songUploadRes.ok) throw new Error("Audio upload to S3 failed");
+      let tempSongKey: string | null = null;
+      let tempVideoKey: string | null = null;
+
+      // 1. Audio Upload (if provided)
+      if (formData.songFile) {
+        setUploadProgressText("Uploading audio track to S3...");
+        const songUrlRes = await adminFetch("/webhook/internal/song-upload-url");
+        if (!songUrlRes.ok) throw new Error("Failed to get audio upload authorization");
+        const songUrlData = await songUrlRes.json();
+        const songUploadRes = await fetch(songUrlData.preSignedUrl, {
+          method: "PUT",
+          body: formData.songFile,
+          headers: { "Content-Type": formData.songFile.type || "audio/mpeg" },
+        });
+        if (!songUploadRes.ok) throw new Error("Audio upload to S3 failed");
+        tempSongKey = songUrlData.key;
+      }
+
+      // 2. Full Video Upload (if provided)
+      if (formData.fullVideoFile) {
+        setUploadProgressText("Uploading full video to S3...");
+        const videoUrlRes = await adminFetch("/webhook/internal/video-upload-url");
+        if (!videoUrlRes.ok) throw new Error("Failed to get full video upload authorization");
+        const videoUrlData = await videoUrlRes.json();
+        const videoUploadRes = await fetch(videoUrlData.preSignedUrl, {
+          method: "PUT",
+          body: formData.fullVideoFile,
+          headers: { "Content-Type": formData.fullVideoFile.type || "video/mp4" },
+        });
+        if (!videoUploadRes.ok) throw new Error("Full video upload to S3 failed");
+        tempVideoKey = videoUrlData.key;
+      }
+
+      // 3. Cover Image Upload (ImageKit)
+      setUploadProgressText("Uploading cover image to ImageKit...");
       const uploadedImageKey = await uploadFileToImageKit(formData.imageFile, "/songs/images");
+
+      // 4. Manual Canvas Video Upload (optional, only in audio mode if provided)
       let uploadedVideoKey: string | null = null;
-      if (formData.videoFile) uploadedVideoKey = await uploadFileToImageKit(formData.videoFile, "/songs/videos");
+      if (uploadMode === "audio" && formData.videoFile) {
+        setUploadProgressText("Uploading canvas video to ImageKit...");
+        uploadedVideoKey = await uploadFileToImageKit(formData.videoFile, "/songs/videos");
+      }
+
+      // 5. Finalize Song Creation
+      setUploadProgressText("Registering song & scheduling background processing...");
       const finalizeRes = await adminFetch("/admin/song", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: formData.title,
           artistName: formData.artistName,
-          tempSongKey: songUrlData.key,
+          tempSongKey: tempSongKey || undefined,
+          tempVideoKey: tempVideoKey || undefined,
           imageKey: uploadedImageKey,
           videoKey: uploadedVideoKey,
+          clipStartMin: uploadMode === "videoOnly" ? Number(formData.clipStartMin) : undefined,
+          clipStartSec: uploadMode === "videoOnly" ? Number(formData.clipStartSec) : undefined,
+          clipEndMin: uploadMode === "videoOnly" ? Number(formData.clipEndMin) : undefined,
+          clipEndSec: uploadMode === "videoOnly" ? Number(formData.clipEndSec) : undefined,
           language: formData.language || "Hindi",
           lrclibId: formData.lrclibId.trim() || "0",
         }),
       });
+
       if (finalizeRes.ok) {
         setIsModalOpen(false);
-        setFormData({ title: "", artistName: "", language: "Hindi", lrclibId: "", songFile: null, imageFile: null, videoFile: null });
+        setFormData({
+          title: "",
+          artistName: "",
+          language: "Hindi",
+          lrclibId: "",
+          songFile: null,
+          imageFile: null,
+          videoFile: null,
+          fullVideoFile: null,
+          clipStartMin: 0,
+          clipStartSec: 0,
+          clipEndMin: 0,
+          clipEndSec: 15,
+        });
         fetchSongs();
       } else {
         const errData = await finalizeRes.json();
@@ -165,6 +236,7 @@ export default function SongsPage() {
       alert("Upload failed: " + err.message);
     } finally {
       setUploading(false);
+      setUploadProgressText("");
     }
   };
 
@@ -177,7 +249,9 @@ export default function SongsPage() {
       lrclibId: song.lrclibId || "",
       imageFile: null,
       videoFile: null,
+      fullVideoFile: null,
       removeVideo: false,
+      removeFullVideo: false,
     });
   };
 
@@ -196,6 +270,11 @@ export default function SongsPage() {
         videoKey = await uploadFileToImageKit(editFormData.videoFile, "/songs/videos");
       }
 
+      let fullVideoKey: string | null | undefined = editingSong.fullVideoKey;
+      if (editFormData.removeFullVideo) {
+        fullVideoKey = ""; // Clears fullVideoKey
+      }
+
       const res = await adminFetch(`/admin/song/${editingSong.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -206,6 +285,7 @@ export default function SongsPage() {
           lrclibId: editFormData.lrclibId.trim() || "0",
           imageKey,
           videoKey,
+          fullVideoKey,
         }),
       });
       if (res.ok) { setEditingSong(null); fetchSongs(); }
@@ -318,7 +398,15 @@ export default function SongsPage() {
                       <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
                       </svg>
-                      Video
+                      Canvas
+                    </span>
+                  )}
+                  {song.fullVideoKey && (
+                    <span className="flex items-center gap-1 bg-indigo-600/90 backdrop-blur-sm text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-sm">
+                      <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      Full Video
                     </span>
                   )}
                 </div>
@@ -387,13 +475,45 @@ export default function SongsPage() {
       {/* Upload Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-950/70 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+          <div className="bg-white dark:bg-zinc-900 w-full max-w-xl rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
             <div className="px-6 py-5 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center">
-              <h2 className="text-lg font-black text-zinc-900 dark:text-white">Add New Track</h2>
+              <div>
+                <h2 className="text-lg font-black text-zinc-900 dark:text-white">Add New Track</h2>
+                <p className="text-xs text-zinc-500 mt-0.5">Upload a standard audio track or extract from a full video</p>
+              </div>
               <button onClick={() => !uploading && setIsModalOpen(false)} className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:rotate-90 transition-all">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
+
+            {/* Mode Switcher Tabs */}
+            <div className="p-3 bg-zinc-50 dark:bg-zinc-800/40 border-b border-zinc-200 dark:border-zinc-800 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setUploadMode("audio")}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                  uploadMode === "audio"
+                    ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-zinc-200 dark:border-zinc-700"
+                    : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                }`}
+              >
+                <span>🎵 Audio Track</span>
+                <span className="text-[10px] font-normal text-zinc-400">(Standard)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setUploadMode("videoOnly")}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                  uploadMode === "videoOnly"
+                    ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-zinc-200 dark:border-zinc-700"
+                    : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                }`}
+              >
+                <span>🎬 Video Only</span>
+                <span className="text-[10px] font-normal text-zinc-400">(Auto-Audio & Canvas)</span>
+              </button>
+            </div>
+
             <form onSubmit={handleUpload} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
@@ -414,23 +534,129 @@ export default function SongsPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 pt-1">
-                <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
-                  <label className={labelCls + " mb-1"}>Audio File <span className="text-red-400">*</span></label>
-                  <input required type="file" accept="audio/*" onChange={e => setFormData({...formData, songFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100"} />
-                </div>
-                <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
-                  <label className={labelCls + " mb-1"}>Cover Image <span className="text-red-400">*</span></label>
-                  <input required type="file" accept="image/*" onChange={e => setFormData({...formData, imageFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-purple-50 file:text-purple-600 hover:file:bg-purple-100"} />
-                </div>
-                <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
-                  <label className={labelCls + " mb-1"}>Background Video <span className="text-zinc-400 normal-case font-normal">(optional)</span></label>
-                  <input type="file" accept="video/mp4,video/*" onChange={e => setFormData({...formData, videoFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-emerald-50 file:text-emerald-600 hover:file:bg-emerald-100"} />
-                </div>
-              </div>
+              {/* VIDEO ONLY MODE FIELDS */}
+              {uploadMode === "videoOnly" ? (
+                <div className="grid grid-cols-1 gap-3 pt-1">
+                  <div className="border-2 border-dashed border-indigo-300 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/20 rounded-xl p-3.5">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className={labelCls + " text-indigo-600 dark:text-indigo-400 mb-0 font-black"}>Full Video File <span className="text-red-500">*</span></label>
+                      <span className="text-[10px] text-indigo-500 font-bold px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60">S3 Shaka Packaged</span>
+                    </div>
+                    <p className="text-[11px] text-zinc-500 mb-2">Upload complete music video (.mp4, .mov, .mkv). Audio will be extracted automatically.</p>
+                    <input required type="file" accept="video/*" onChange={e => setFormData({...formData, fullVideoFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-indigo-600 file:text-white hover:file:bg-indigo-700"} />
+                  </div>
 
-              <button disabled={uploading} type="submit" className={`w-full py-3 rounded-xl font-bold text-white text-sm transition-all flex items-center justify-center gap-2 ${uploading ? "bg-indigo-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"}`}>
-                {uploading ? (<><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>Uploading...</>) : "Finalize & Upload Track"}
+                  <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
+                    <label className={labelCls + " mb-1"}>Cover Image <span className="text-red-400">*</span></label>
+                    <input required type="file" accept="image/*" onChange={e => setFormData({...formData, imageFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-purple-50 file:text-purple-600 hover:file:bg-purple-100"} />
+                  </div>
+
+                  {/* Canvas Video Clipping Instruction Card */}
+                  <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl p-3.5 bg-zinc-50 dark:bg-zinc-800/50">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
+                        <svg className="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" /></svg>
+                        Canvas Loop Cut (Uploaded to ImageKit)
+                      </label>
+                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40">Auto-Cut</span>
+                    </div>
+                    <p className="text-[11px] text-zinc-500 mb-3">Specify the start and end timestamp in the video to cut as the looping canvas video:</p>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-white dark:bg-zinc-900 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                        <span className="block text-[10px] font-bold text-zinc-400 uppercase mb-1.5">Clip Start Time</span>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <span className="text-[9px] text-zinc-400">Min</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="99"
+                              value={formData.clipStartMin}
+                              onChange={e => setFormData({...formData, clipStartMin: Math.max(0, parseInt(e.target.value) || 0)})}
+                              className="w-full bg-zinc-100 dark:bg-zinc-800 rounded px-2 py-1 text-sm font-mono text-center font-bold"
+                            />
+                          </div>
+                          <span className="font-bold text-zinc-400 mt-3">:</span>
+                          <div className="flex-1">
+                            <span className="text-[9px] text-zinc-400">Sec</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="59"
+                              value={formData.clipStartSec}
+                              onChange={e => setFormData({...formData, clipStartSec: Math.max(0, Math.min(59, parseInt(e.target.value) || 0))})}
+                              className="w-full bg-zinc-100 dark:bg-zinc-800 rounded px-2 py-1 text-sm font-mono text-center font-bold"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-white dark:bg-zinc-900 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                        <span className="block text-[10px] font-bold text-zinc-400 uppercase mb-1.5">Clip End Time</span>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <span className="text-[9px] text-zinc-400">Min</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="99"
+                              value={formData.clipEndMin}
+                              onChange={e => setFormData({...formData, clipEndMin: Math.max(0, parseInt(e.target.value) || 0)})}
+                              className="w-full bg-zinc-100 dark:bg-zinc-800 rounded px-2 py-1 text-sm font-mono text-center font-bold"
+                            />
+                          </div>
+                          <span className="font-bold text-zinc-400 mt-3">:</span>
+                          <div className="flex-1">
+                            <span className="text-[9px] text-zinc-400">Sec</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="59"
+                              value={formData.clipEndSec}
+                              onChange={e => setFormData({...formData, clipEndSec: Math.max(0, Math.min(59, parseInt(e.target.value) || 0))})}
+                              className="w-full bg-zinc-100 dark:bg-zinc-800 rounded px-2 py-1 text-sm font-mono text-center font-bold"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* STANDARD AUDIO MODE FIELDS */
+                <div className="grid grid-cols-1 gap-3 pt-1">
+                  <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
+                    <label className={labelCls + " mb-1"}>Audio File <span className="text-red-400">*</span></label>
+                    <input required type="file" accept="audio/*" onChange={e => setFormData({...formData, songFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100"} />
+                  </div>
+                  <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
+                    <label className={labelCls + " mb-1"}>Cover Image <span className="text-red-400">*</span></label>
+                    <input required type="file" accept="image/*" onChange={e => setFormData({...formData, imageFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-purple-50 file:text-purple-600 hover:file:bg-purple-100"} />
+                  </div>
+                  <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
+                    <label className={labelCls + " mb-1"}>Short Background Video Canvas <span className="text-zinc-400 normal-case font-normal">(ImageKit loop, optional)</span></label>
+                    <input type="file" accept="video/mp4,video/*" onChange={e => setFormData({...formData, videoFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-emerald-50 file:text-emerald-600 hover:file:bg-emerald-100"} />
+                  </div>
+                  <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
+                    <label className={labelCls + " mb-1"}>Full Music Video <span className="text-zinc-400 normal-case font-normal">(S3 Shaka Packager, optional)</span></label>
+                    <input type="file" accept="video/*" onChange={e => setFormData({...formData, fullVideoFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100"} />
+                  </div>
+                </div>
+              )}
+
+              <button disabled={uploading} type="submit" className={`w-full py-3 rounded-xl font-bold text-white text-sm transition-all flex flex-col items-center justify-center gap-1 ${uploading ? "bg-indigo-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99]"}`}>
+                {uploading ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
+                      <span>Processing Upload...</span>
+                    </div>
+                    {uploadProgressText && <span className="text-[11px] font-normal text-indigo-100 opacity-90">{uploadProgressText}</span>}
+                  </>
+                ) : (
+                  uploadMode === "videoOnly" ? "Upload Video & Process Track" : "Finalize & Upload Track"
+                )}
               </button>
             </form>
           </div>
@@ -478,6 +704,8 @@ export default function SongsPage() {
                   <label className={labelCls + " mb-1"}>Replace Cover Image <span className="text-zinc-400 normal-case font-normal">(optional)</span></label>
                   <input type="file" accept="image/*" onChange={e => setEditFormData({...editFormData, imageFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-purple-50 file:text-purple-600 hover:file:bg-purple-100"} />
                 </div>
+
+                {/* Video Canvas Section */}
                 <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
                   <div className="flex items-center justify-between mb-1">
                     <label className={labelCls + " mb-0"}>
@@ -507,13 +735,36 @@ export default function SongsPage() {
                   {editFormData.removeVideo && (
                     <p className="text-[10px] text-red-500 font-bold mb-2 flex items-center gap-1">
                       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
-                      Video canvas will be removed & deleted from ImageKit upon saving
+                      Video canvas will be removed upon saving
                     </p>
                   )}
                   {!editFormData.removeVideo && (
                     <input type="file" accept="video/mp4,video/*" onChange={e => setEditFormData({...editFormData, videoFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-emerald-50 file:text-emerald-600 hover:file:bg-emerald-100"} />
                   )}
                 </div>
+
+                {/* Full Video Stream Section */}
+                {editingSong.fullVideoKey && (
+                  <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl p-3 bg-zinc-50/50 dark:bg-zinc-800/30">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="block text-xs font-bold text-zinc-900 dark:text-white">Full Video (Shaka Adaptive Stream)</span>
+                        <span className="text-[10px] text-zinc-400 font-mono truncate max-w-[200px] block">{editingSong.fullVideoKey}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEditFormData({ ...editFormData, removeFullVideo: !editFormData.removeFullVideo })}
+                        className={`text-xs font-bold px-2.5 py-1 rounded-lg transition-all ${
+                          editFormData.removeFullVideo
+                            ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200"
+                            : "bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 border border-red-200 dark:border-red-800/40"
+                        }`}
+                      >
+                        {editFormData.removeFullVideo ? "Undo Remove" : "Remove Full Video"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <button disabled={uploading} type="submit" className={`w-full py-3 rounded-xl font-bold text-white text-sm transition-all flex items-center justify-center gap-2 ${uploading ? "bg-indigo-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"}`}>

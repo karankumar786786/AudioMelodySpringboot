@@ -67,11 +67,30 @@ public class WebhookJobService {
         if (data.duration() != null) {
             job.setDuration(data.duration());
         }
+        if (data.fullVideoKey() != null && !data.fullVideoKey().isBlank()) {
+            job.setFullVideoKey(data.fullVideoKey());
+        }
+        if (data.videoKey() != null && !data.videoKey().isBlank()) {
+            job.setVideoKey(data.videoKey());
+        }
         job.setTranscoded(true);
-        String tempSongKey = job.getTempSongKey();
-        s3.deleteObject(tempSongKey, tempBucket);
+        if (job.getTempSongKey() != null && !job.getTempSongKey().isBlank()) {
+            try {
+                s3.deleteObject(job.getTempSongKey(), tempBucket);
+            } catch (Exception e) {
+                log.warn("Failed to delete tempSongKey {}: {}", job.getTempSongKey(), e.getMessage());
+            }
+        }
+        if (job.getTempVideoKey() != null && !job.getTempVideoKey().isBlank()) {
+            try {
+                s3.deleteObject(job.getTempVideoKey(), tempBucket);
+            } catch (Exception e) {
+                log.warn("Failed to delete tempVideoKey {}: {}", job.getTempVideoKey(), e.getMessage());
+            }
+        }
         jobsRepository.save(job);
-        log.info("Job {} transcoded successfully, songKey: {}, duration: {}", jobId, data.songKey(), data.duration());
+        log.info("Job {} transcoded successfully, songKey: {}, fullVideoKey: {}, duration: {}",
+                jobId, data.songKey(), data.fullVideoKey(), data.duration());
     }
 
     @Transactional
@@ -102,6 +121,7 @@ public class WebhookJobService {
                     .songKey(job.getSongKey() != null ? job.getSongKey() : "")
                     .imageKey(job.getImageKey())
                     .videoKey(job.getVideoKey())
+                    .fullVideoKey(job.getFullVideoKey())
                     .language(job.getLanguage() != null ? job.getLanguage() : "unknown")
                     .lrclibId(job.getLrclibId())
                     .jobId(job.getId())
@@ -130,6 +150,7 @@ public class WebhookJobService {
                 .songKey(job.getSongKey())
                 .imageKey(job.getImageKey())
                 .videoKey(job.getVideoKey())
+                .fullVideoKey(job.getFullVideoKey())
                 .language(job.getLanguage() != null ? job.getLanguage() : "unknown")
                 .lrclibId(job.getLrclibId())
                 .jobId(job.getId())

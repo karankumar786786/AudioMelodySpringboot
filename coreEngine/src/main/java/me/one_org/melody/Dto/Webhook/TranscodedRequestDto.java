@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 
 public record TranscodedRequestDto(
     @NotBlank String songKey,
-    Integer duration
+    Integer duration,
+    String fullVideoKey,
+    String videoKey
 ) {
 }

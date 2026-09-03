@@ -35,6 +35,15 @@ public class WebhookInternalService {
         return new SongUploadPreSignedUrlResponseDto(key, preSignedUrl);
     }
 
+    public SongUploadPreSignedUrlResponseDto getVideoUploadPreSignedUrl(){
+        String key = UUID.randomUUID().toString();
+        String preSignedUrl = s3client.preSignedUrl(key, tempBucket, Duration.ofMinutes(tempUrlValidityMin));
+        System.out.println("[Full Video Upload] Generated pre-signed URL for S3 upload");
+        System.out.println("[Full Video Upload] bucket=" + tempBucket + ", key=" + key + ", validityMinutes=" + tempUrlValidityMin);
+        System.out.println("[Full Video Upload] preSignedUrl=" + preSignedUrl);
+        return new SongUploadPreSignedUrlResponseDto(key, preSignedUrl);
+    }
+
     public ImageUploadParamsResponseDto getImageUploadParams(){
         String key = UUID.randomUUID().toString();
         Map<String,String> param = imageKit.preSignedToken();

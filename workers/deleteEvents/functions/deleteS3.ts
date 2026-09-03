@@ -26,26 +26,46 @@ export const deleteS3 = inngest.createFunction(
             });
 
             if (!data.songKey) {
-                console.log("[Delete S3] No songKey, skipping", { entityId: data.entityId });
-                return;
+                console.log("[Delete S3] No songKey, skipping audio deletion", { entityId: data.entityId });
+            } else {
+                try {
+                    await deleteObject(productionBucket, data.songKey);
+                    console.log("[Delete S3] Successfully deleted audio assets", {
+                        entityId: data.entityId,
+                        bucket: productionBucket,
+                        songKey: data.songKey,
+                    });
+                } catch (error) {
+                    console.error("[Delete S3] ERROR deleting audio asset", {
+                        entityId: data.entityId,
+                        bucket: productionBucket,
+                        songKey: data.songKey,
+                        error: error instanceof Error ? error.message : String(error),
+                        stack: error instanceof Error ? error.stack : undefined,
+                    });
+                    throw error;
+                }
             }
 
-            try {
-                await deleteObject(productionBucket, data.songKey);
-                console.log("[Delete S3] Successfully deleted", {
-                    entityId: data.entityId,
-                    bucket: productionBucket,
-                    songKey: data.songKey,
-                });
-            } catch (error) {
-                console.error("[Delete S3] ERROR deleting song asset", {
-                    entityId: data.entityId,
-                    bucket: productionBucket,
-                    songKey: data.songKey,
-                    error: error instanceof Error ? error.message : String(error),
-                    stack: error instanceof Error ? error.stack : undefined,
-                });
-                throw error;
+            // Delete full video packaged assets (videos/<songId>/*) when present
+            if (data.fullVideoKey) {
+                try {
+                    await deleteObject(productionBucket, data.fullVideoKey);
+                    console.log("[Delete S3] Successfully deleted full video assets", {
+                        entityId: data.entityId,
+                        bucket: productionBucket,
+                        fullVideoKey: data.fullVideoKey,
+                    });
+                } catch (error) {
+                    console.error("[Delete S3] ERROR deleting full video assets", {
+                        entityId: data.entityId,
+                        bucket: productionBucket,
+                        fullVideoKey: data.fullVideoKey,
+                        error: error instanceof Error ? error.message : String(error),
+                    });
+                    // Non-fatal: log but don't throw so other cleanup can proceed
+                    console.warn("[Delete S3] Continuing despite full video deletion error");
+                }
             }
         });
 

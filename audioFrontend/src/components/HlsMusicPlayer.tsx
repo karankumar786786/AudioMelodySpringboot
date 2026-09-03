@@ -39,6 +39,8 @@ import { EqualizerModal } from "./player/EqualizerModal";
 import { PlayerTooltip } from "./player/PlayerTooltip";
 
 import { getSolidBgFromImage } from "../lib/color-utils";
+import { FullVideoModal } from "./FullVideoModal";
+import { getFullVideoHlsUrl, getFullVideoDashUrl } from "../lib/player-utils";
 
 export function HlsMusicPlayer() {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -67,6 +69,7 @@ export function HlsMusicPlayer() {
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isTogglingFav, setIsTogglingFav] = useState(false);
   const [solidBgColor, setSolidBgColor] = useState("#181818");
+  const [showFullVideoModal, setShowFullVideoModal] = useState(false);
 
   // Compute solid color matching current song image
   useEffect(() => {
@@ -393,6 +396,20 @@ export function HlsMusicPlayer() {
             <p className="text-xs text-zinc-400 truncate hover:underline hover:text-white cursor-pointer mt-0.5 font-normal">
               {currentSong.artistName}
             </p>
+            {/* Watch Full Video - player bar mini button */}
+            {currentSong.fullVideoKey && (
+              <button
+                type="button"
+                onClick={() => setShowFullVideoModal(true)}
+                className="mt-0.5 flex items-center gap-1 text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer"
+                title="Watch Full Video"
+              >
+                <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                </svg>
+                Watch Full Video
+              </button>
+            )}
           </div>
         </div>
 
@@ -633,6 +650,19 @@ export function HlsMusicPlayer() {
         open={showQueuePanel}
         onClose={() => setShowQueuePanel(false)}
       />
+
+      {/* Full Video Modal */}
+      {showFullVideoModal && currentSong.fullVideoKey && (
+        <FullVideoModal
+          hlsUrl={getFullVideoHlsUrl(currentSong)!}
+          dashUrl={getFullVideoDashUrl(currentSong)}
+          title={currentSong.title}
+          artistName={currentSong.artistName}
+          posterUrl={getImageUrl(currentSong.imageKey, { width: 1280, height: 720, aspectRatio: "16-9" }) || undefined}
+          initialTime={localTime}
+          onClose={() => setShowFullVideoModal(false)}
+        />
+      )}
     </>
   );
 }

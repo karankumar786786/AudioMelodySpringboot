@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { type Song } from "../lib/api";
 import { playerActions } from "../store/player.store";
-import { mapToPlayerSong } from "../lib/player-utils";
+import { mapToPlayerSong, getFullVideoHlsUrl, getFullVideoDashUrl } from "../lib/player-utils";
 import { getImageUrl, getVideoUrl } from "../lib/image-utils";
+import { FullVideoModal } from "./FullVideoModal";
 
 interface HeroSectionProps {
   songs: Song[];
@@ -29,6 +30,7 @@ export function HeroSection({
   isLoading,
 }: HeroSectionProps) {
   const currentSong = songs[index] || songs[0];
+  const [showFullVideo, setShowFullVideo] = useState(false);
 
   if (isLoading || !currentSong) {
     return (
@@ -64,6 +66,7 @@ export function HeroSection({
     : undefined;
 
   return (
+    <>
     <section
       onClick={() => playerActions.play(mapToPlayerSong(currentSong))}
       className="relative w-full h-[290px] md:h-[325px] rounded-2xl overflow-hidden group bg-zinc-900 border border-white/10 shadow-2xl cursor-pointer hover:border-white/20 transition-all select-none"
@@ -142,6 +145,26 @@ export function HeroSection({
               {isVideoSong ? "Music Video" : "High Quality Audio"}
             </span>
           </div>
+
+          {/* Watch Full Video button */}
+          {currentSong.fullVideoKey && (
+            <motion.button
+              key={`watch-btn-${currentSong.id}`}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2, delay: 0.1 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowFullVideo(true);
+              }}
+              className="mt-1 flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm border border-white/20 text-white text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer w-fit"
+            >
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+              </svg>
+              Watch Full Video
+            </motion.button>
+          )}
         </div>
 
         {/* Bottom: Carousel Progress */}
@@ -177,5 +200,18 @@ export function HeroSection({
         )}
       </div>
     </section>
+
+    {/* Full Video Modal */}
+    {showFullVideo && currentSong.fullVideoKey && (
+      <FullVideoModal
+        hlsUrl={getFullVideoHlsUrl(currentSong)!}
+        dashUrl={getFullVideoDashUrl(currentSong)}
+        title={currentSong.title}
+        artistName={currentSong.artistName}
+        posterUrl={getImageUrl(currentSong.imageKey, { width: 1280, height: 720, aspectRatio: "16-9" }) || undefined}
+        onClose={() => setShowFullVideo(false)}
+      />
+    )}
+    </>
   );
 }

@@ -19,12 +19,15 @@ public class JobsEntity {
     @Column(nullable = false)
     private String artistName;
     private Integer duration;
-    @Column(nullable = false)
     private String tempSongKey;
+    private String tempVideoKey;
     private String songKey;
+    private String fullVideoKey;
     @Column(nullable = false)
     private String imageKey;
     private String videoKey;
+    private Integer clipStartSec;
+    private Integer clipEndSec;
     private String language;
     private String lrclibId;
     @Column(nullable = false, unique = true)

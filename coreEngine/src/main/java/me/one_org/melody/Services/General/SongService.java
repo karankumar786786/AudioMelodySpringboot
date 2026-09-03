@@ -70,6 +70,25 @@ public class SongService {
 
     @Transactional
     public CreateSongResponseDto createSong(CreateSongRequestDto data) {
+        if ((data.tempSongKey() == null || data.tempSongKey().isBlank()) &&
+            (data.tempVideoKey() == null || data.tempVideoKey().isBlank())) {
+            throw new IllegalArgumentException("Either audio file (tempSongKey) or full video file (tempVideoKey) must be provided");
+        }
+
+        Integer clipStartSec = null;
+        if (data.clipStartMin() != null || data.clipStartSec() != null) {
+            int min = data.clipStartMin() != null ? data.clipStartMin() : 0;
+            int sec = data.clipStartSec() != null ? data.clipStartSec() : 0;
+            clipStartSec = min * 60 + sec;
+        }
+
+        Integer clipEndSec = null;
+        if (data.clipEndMin() != null || data.clipEndSec() != null) {
+            int min = data.clipEndMin() != null ? data.clipEndMin() : 0;
+            int sec = data.clipEndSec() != null ? data.clipEndSec() : 0;
+            clipEndSec = min * 60 + sec;
+        }
+
         String jobId = UUID.randomUUID().toString();
         String songId = UUID.randomUUID().toString();
         JobsEntity job = JobsEntity.builder()
@@ -77,6 +96,9 @@ public class SongService {
                 .title(data.title())
                 .artistName(data.artistName())
                 .tempSongKey(data.tempSongKey())
+                .tempVideoKey(data.tempVideoKey())
+                .clipStartSec(clipStartSec)
+                .clipEndSec(clipEndSec)
                 .imageKey(data.imageKey())
                 .videoKey(data.videoKey())
                 .language(data.language())
@@ -143,6 +165,15 @@ public class SongService {
                 // Replacing with new video
                 oldVideoKey = song.getVideoKey();
                 song.setVideoKey(newKey);
+            }
+        }
+
+        if (data.fullVideoKey() != null) {
+            String newKey = data.fullVideoKey().trim();
+            if (newKey.isEmpty() || newKey.equalsIgnoreCase("null")) {
+                song.setFullVideoKey(null);
+            } else {
+                song.setFullVideoKey(newKey);
             }
         }
 

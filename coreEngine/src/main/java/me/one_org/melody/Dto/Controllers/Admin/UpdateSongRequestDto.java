@@ -5,6 +5,7 @@ public record UpdateSongRequestDto(
     String artistName,
     String imageKey,
     String videoKey,
+    String fullVideoKey,
     String language,
     String lrclibId,
     Boolean isFeatured
