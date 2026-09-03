@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import me.one_org.melody.Dto.Controllers.Admin.CreateSongRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.CreateSongResponseDto;
+import me.one_org.melody.Dto.Controllers.Admin.ReprocessVideoRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.ToggleFeaturedRequestDto;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Entity.JobsEntity;
@@ -76,5 +77,17 @@ public class SongController {
         List<JobsEntity> jobs = songService.getJobsPaginated(page, size);
         PaginationMetaDataEntity metaData = songService.getJobsPaginationMetaData();
         return ResponseEntity.ok(new PaginatedResponseDto<>(jobs, page, size, metaData));
+    }
+
+    /**
+     * Triggers background re-processing (Shaka packaging) for an existing song's full video.
+     * Accepts a temp S3 key for the raw uploaded video, creates a new job and queues it.
+     */
+    @PostMapping("/{id}/reprocess-video")
+    public ResponseEntity<CreateSongResponseDto> reprocessVideo(
+            @PathVariable String id,
+            @Valid @RequestBody ReprocessVideoRequestDto data) {
+        CreateSongResponseDto response = songService.reprocessVideo(id, data.tempVideoKey());
+        return ResponseEntity.accepted().body(response);
     }
 }

@@ -28,6 +28,7 @@ export const transcodeSong = inngest.createFunction(
             clipStartSec,
             clipEndSec,
             videoKey: initialVideoKey,
+            isVideoReprocess,
         } = event.data;
 
         if (!jobId || !songId) {
@@ -72,8 +73,29 @@ export const transcodeSong = inngest.createFunction(
             let resultVideoKey = initialVideoKey;
 
             try {
+                // SCENARIO 0: VIDEO REPROCESS — only package full video (no audio extraction)
+                if (isVideoReprocess && tempVideoKey) {
+                    console.log(`[PIPELINE] Video-reprocess mode for job ${jobId}. Downloading raw video...`);
+                    await downloadObject(tempBucket, tempVideoKey, localVideoDownloadPath);
+
+                    // Cut canvas if timestamps provided
+                    if (typeof clipStartSec === "number" && typeof clipEndSec === "number" && clipEndSec > clipStartSec) {
+                        console.log(`[PIPELINE] Cutting canvas snippet from ${clipStartSec}s to ${clipEndSec}s...`);
+                        await cutCanvasVideo(localVideoDownloadPath, localCanvasClipPath, clipStartSec, clipEndSec);
+                        resultVideoKey = await uploadCanvasToImageKit(
+                            localCanvasClipPath,
+                            `${songId}_canvas.mp4`,
+                            "/songs/videos"
+                        );
+                    }
+
+                    // Package full video only
+                    console.log(`[PIPELINE] Packaging full video with Shaka Packager (reprocess)...`);
+                    const videoTranscoder = new VideoTranscoder(4, s3Client, videoBasePath, prodBucket);
+                    await videoTranscoder.transcode(localVideoDownloadPath, videoOutputDir, songId);
+
                 // SCENARIO 1: VIDEO ONLY PROVIDED
-                if (tempVideoKey && !tempSongKey) {
+                } else if (tempVideoKey && !tempSongKey) {
                     console.log(`[PIPELINE] Video-only mode for job ${jobId}. Downloading raw video...`);
                     await downloadObject(tempBucket, tempVideoKey, localVideoDownloadPath);
 
@@ -177,11 +199,19 @@ export const transcodeSong = inngest.createFunction(
             });
         });
 
-        // Trigger next step: Recombee indexing
-        await step.sendEvent("trigger-recombee-indexing", {
-            name: "audio/song.index.recombee",
-            data: { jobId }
-        });
+        // Skip Algolia/Recombee indexing for reprocess jobs (song already indexed)
+        if (!isVideoReprocess) {
+            await step.sendEvent("trigger-recombee-indexing", {
+                name: "audio/song.index.recombee",
+                data: { jobId }
+            });
+        } else {
+            // For reprocess, jump straight to finalize (skip Recombee/Algolia — song already indexed)
+            await step.sendEvent("trigger-finalize", {
+                name: "audio/song.final.create",
+                data: { jobId }
+            });
+        }
 
         return { status: "success", jobId, songId, songKey, fullVideoKey, videoKey };
     }

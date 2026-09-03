@@ -141,7 +141,24 @@ public class WebhookJobService {
         JobsEntity job = getJob(jobId);
         String songId = job.getSongId();
 
-        // Create permanent SongsEntity
+        if (Boolean.TRUE.equals(job.getIsVideoReprocess())) {
+            // VIDEO REPROCESS: only patch fullVideoKey (and canvas videoKey) on the existing song
+            SongsEntity existingSong = songsRepository.findById(songId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + songId));
+            if (job.getFullVideoKey() != null && !job.getFullVideoKey().isBlank()) {
+                existingSong.setFullVideoKey(job.getFullVideoKey());
+            }
+            if (job.getVideoKey() != null && !job.getVideoKey().isBlank()) {
+                existingSong.setVideoKey(job.getVideoKey());
+            }
+            songsRepository.save(existingSong);
+            job.setStatus(JobStatusEnum.COMPLETED);
+            jobsRepository.save(job);
+            log.info("Video reprocess job {} completed — fullVideoKey updated on song {}", jobId, songId);
+            return;
+        }
+
+        // STANDARD: Create permanent SongsEntity
         SongsEntity song = SongsEntity.builder()
                 .id(songId)
                 .title(job.getTitle())

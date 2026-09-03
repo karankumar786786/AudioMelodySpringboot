@@ -259,22 +259,55 @@ export default function SongsPage() {
     e.preventDefault();
     if (!editingSong) return;
     setUploading(true);
+    setUploadProgressText("Saving changes...");
     try {
       let imageKey = editingSong.imageKey;
-      if (editFormData.imageFile) imageKey = await uploadFileToImageKit(editFormData.imageFile, "/songs/images");
-      
+      if (editFormData.imageFile) {
+        setUploadProgressText("Uploading new cover image...");
+        imageKey = await uploadFileToImageKit(editFormData.imageFile, "/songs/images");
+      }
+
       let videoKey: string | null | undefined = editingSong.videoKey;
       if (editFormData.removeVideo) {
         videoKey = ""; // Empty string signals removal & ImageKit deletion
       } else if (editFormData.videoFile) {
+        setUploadProgressText("Uploading new canvas video...");
         videoKey = await uploadFileToImageKit(editFormData.videoFile, "/songs/videos");
       }
 
       let fullVideoKey: string | null | undefined = editingSong.fullVideoKey;
       if (editFormData.removeFullVideo) {
-        fullVideoKey = ""; // Clears fullVideoKey
+        fullVideoKey = ""; // Clears fullVideoKey from song
+      } else if (editFormData.fullVideoFile) {
+        // Upload new full video to S3 temp bucket, then trigger reprocessing
+        setUploadProgressText("Uploading full video to S3...");
+        const videoUrlRes = await adminFetch("/webhook/internal/video-upload-url");
+        if (!videoUrlRes.ok) throw new Error("Failed to get video upload authorization");
+        const videoUrlData = await videoUrlRes.json();
+        const videoUploadRes = await fetch(videoUrlData.preSignedUrl, {
+          method: "PUT",
+          body: editFormData.fullVideoFile,
+          headers: { "Content-Type": editFormData.fullVideoFile.type || "video/mp4" },
+        });
+        if (!videoUploadRes.ok) throw new Error("Full video upload to S3 failed");
+        const tempVideoKey = videoUrlData.key;
+
+        // Trigger reprocessing of the full video for this existing song
+        setUploadProgressText("Triggering video processing pipeline...");
+        const reprocessRes = await adminFetch(`/admin/song/${editingSong.id}/reprocess-video`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tempVideoKey }),
+        });
+        if (!reprocessRes.ok) {
+          const errData = await reprocessRes.json().catch(() => ({}));
+          throw new Error(errData.message || "Failed to trigger video reprocessing");
+        }
+        // Don't change fullVideoKey in the PUT call — the worker will set it
+        fullVideoKey = editingSong.fullVideoKey; // keep current until worker finishes
       }
 
+      setUploadProgressText("Saving metadata...");
       const res = await adminFetch(`/admin/song/${editingSong.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -294,6 +327,7 @@ export default function SongsPage() {
       alert("Update failed: " + err.message);
     } finally {
       setUploading(false);
+      setUploadProgressText("");
     }
   };
 
@@ -744,27 +778,65 @@ export default function SongsPage() {
                 </div>
 
                 {/* Full Video Stream Section */}
-                {editingSong.fullVideoKey && (
-                  <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl p-3 bg-zinc-50/50 dark:bg-zinc-800/30">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className="block text-xs font-bold text-zinc-900 dark:text-white">Full Video (Shaka Adaptive Stream)</span>
-                        <span className="text-[10px] text-zinc-400 font-mono truncate max-w-[200px] block">{editingSong.fullVideoKey}</span>
-                      </div>
+                <div className="border border-dashed border-indigo-200 dark:border-indigo-800/60 rounded-xl p-3 bg-indigo-50/30 dark:bg-indigo-950/20">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <label className={labelCls + " mb-0 text-indigo-700 dark:text-indigo-400"}>
+                        Full Music Video
+                        <span className="text-zinc-400 normal-case font-normal ml-1">(S3 Shaka Stream)</span>
+                      </label>
+                      {editingSong.fullVideoKey && !editFormData.removeFullVideo && !editFormData.fullVideoFile && (
+                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5 flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" /></svg>
+                          Active full video stream attached
+                        </p>
+                      )}
+                      {editFormData.removeFullVideo && (
+                        <p className="text-[10px] text-red-500 font-bold mt-0.5 flex items-center gap-1">
+                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
+                          Full video will be removed on save
+                        </p>
+                      )}
+                    </div>
+                    {editingSong.fullVideoKey && (
                       <button
                         type="button"
-                        onClick={() => setEditFormData({ ...editFormData, removeFullVideo: !editFormData.removeFullVideo })}
-                        className={`text-xs font-bold px-2.5 py-1 rounded-lg transition-all ${
+                        onClick={() => setEditFormData({ ...editFormData, removeFullVideo: !editFormData.removeFullVideo, fullVideoFile: null })}
+                        className={`text-xs font-bold px-2.5 py-1 rounded-lg transition-all shrink-0 ${
                           editFormData.removeFullVideo
-                            ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200"
+                            ? "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 hover:bg-zinc-300"
                             : "bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 border border-red-200 dark:border-red-800/40"
                         }`}
                       >
-                        {editFormData.removeFullVideo ? "Undo Remove" : "Remove Full Video"}
+                        {editFormData.removeFullVideo ? "Undo Remove" : "Remove"}
                       </button>
-                    </div>
+                    )}
                   </div>
-                )}
+
+                  {/* Upload new full video — always shown unless removal is pending */}
+                  {!editFormData.removeFullVideo && (
+                    <div>
+                      <p className="text-[11px] text-zinc-500 mb-2">
+                        {editingSong.fullVideoKey
+                          ? "Upload a new video to replace the existing full video stream. It will be re-processed with Shaka Packager."
+                          : "Upload a full music video (.mp4, .mov). It will be packaged into adaptive streaming (HLS/DASH) via Shaka Packager."}
+                      </p>
+                      <input
+                        type="file"
+                        accept="video/*"
+                        onChange={e => setEditFormData({ ...editFormData, fullVideoFile: e.target.files?.[0] || null })}
+                        className={fileCls + " file:bg-indigo-600 file:text-white hover:file:bg-indigo-700"}
+                      />
+                      {editFormData.fullVideoFile && (
+                        <div className="mt-2 flex items-center gap-2 text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                          <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" /></svg>
+                          {editFormData.fullVideoFile.name}
+                          <span className="text-zinc-400 font-normal">· Will trigger background Shaka processing</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <button disabled={uploading} type="submit" className={`w-full py-3 rounded-xl font-bold text-white text-sm transition-all flex items-center justify-center gap-2 ${uploading ? "bg-indigo-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700"}`}>

@@ -30,13 +30,17 @@ public class JobsEntity {
     private Integer clipEndSec;
     private String language;
     private String lrclibId;
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String songId;
     private String transcodingId;
     private Integer transcodingAttempt;
     private Boolean transcoded;
     private Boolean savedInSearch;
     private Boolean savedInRecommendation;
+    /** When true this job only re-packages a full video for an existing song (no new SongsEntity row is created). */
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean isVideoReprocess = false;
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private JobStatusEnum status;

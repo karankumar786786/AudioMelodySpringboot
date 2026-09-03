@@ -120,6 +120,43 @@ public class SongService {
         return new CreateSongResponseDto(jobId, JobStatusEnum.PENDING.name());
     }
 
+    /**
+     * Triggers background Shaka re-packaging for a full video on an existing song.
+     * Only updates fullVideoKey (and videoKey for canvas) on the existing SongsEntity —
+     * no new song record is created.
+     */
+    @Transactional
+    public CreateSongResponseDto reprocessVideo(String songId, String tempVideoKey) {
+        SongsEntity existingSong = songsRepository.findById(songId)
+                .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + songId));
+
+        String jobId = UUID.randomUUID().toString();
+        JobsEntity job = JobsEntity.builder()
+                .id(jobId)
+                .title(existingSong.getTitle())
+                .artistName(existingSong.getArtistName())
+                .tempVideoKey(tempVideoKey)
+                .imageKey(existingSong.getImageKey())
+                .videoKey(existingSong.getVideoKey())
+                .language(existingSong.getLanguage())
+                .lrclibId(existingSong.getLrclibId() != null ? existingSong.getLrclibId() : "0")
+                .songId(songId) // reuse existing song's ID so S3 paths stay consistent
+                .transcodingAttempt(0)
+                .transcoded(false)
+                .savedInSearch(false)
+                .savedInRecommendation(false)
+                .isVideoReprocess(true) // signal: patch existing song, don't create new one
+                .status(JobStatusEnum.PENDING)
+                .build();
+        jobsRepository.save(job);
+        paginationMetaDataService.incrementStatus("JobsEntity", StatusEnum.ACTIVE);
+
+        audioProcessingQueue.queueAudioProcessing(new AudioProcessingQueueDto(jobId));
+
+        log.info("Video reprocess job {} created for existing song {}", jobId, songId);
+        return new CreateSongResponseDto(jobId, JobStatusEnum.PENDING.name());
+    }
+
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = "songs", key = "#id"),
