@@ -161,7 +161,7 @@ export default function HomePage() {
 
   if (isInitialPageLoading) {
     return (
-      <div className="px-10 pb-20 bg-black pt-[var(--app-content-pt,5rem)] space-y-16 animate-pulse select-none">
+      <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-[var(--app-content-pt,5rem)] space-y-16 animate-pulse select-none">
         {/* Hero Skeleton */}
         <div className="w-full h-[290px] md:h-[325px] rounded-2xl bg-zinc-900/60 border border-[#282828] flex flex-col justify-end p-8 md:p-10 space-y-3">
           <div className="h-4 w-28 bg-zinc-800/80 rounded-full" />
@@ -178,7 +178,7 @@ export default function HomePage() {
           <div className="h-6 w-32 bg-zinc-800/80 rounded-lg" />
           <div className="flex gap-4 overflow-hidden">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="flex-none w-[160px] space-y-3">
+              <div key={i} className="flex-none w-[140px] sm:w-[160px] space-y-3">
                 <div className="aspect-square rounded-full bg-zinc-900 border border-white/5" />
                 <div className="h-3 w-3/4 bg-zinc-900 rounded mx-auto" />
               </div>
@@ -189,9 +189,9 @@ export default function HomePage() {
         {/* Playlists Skeleton */}
         <div className="space-y-4">
           <div className="h-6 w-40 bg-zinc-800/80 rounded-lg" />
-          <div className="flex gap-6 overflow-hidden">
+          <div className="flex gap-4 md:gap-6 overflow-hidden">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="flex-none w-[180px] space-y-3">
+              <div key={i} className="flex-none w-[150px] sm:w-[180px] space-y-3">
                 <div className="aspect-square rounded-xl bg-zinc-900 border border-white/5" />
                 <div className="h-3 w-3/4 bg-zinc-900 rounded" />
               </div>
@@ -203,7 +203,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="px-10 pb-20 bg-black pt-[var(--app-content-pt,5rem)] space-y-16">
+    <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-[var(--app-content-pt,5rem)] space-y-16">
       {/* 1. Hero Section (Featured / Trending) */}
       {(isHeroLoading || heroSongs.length > 0) && (
         <motion.div
@@ -308,7 +308,7 @@ export default function HomePage() {
                 <SongCard
                   key={`recent-${song.id}`}
                   song={song}
-                  className="flex-none snap-start w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] xl:w-[calc(25%-18px)] 2xl:w-[calc(20%-19.2px)]"
+                  className="flex-none snap-start w-[calc(50%-12px)] sm:w-[calc(33.333%-16px)] md:w-[calc(33.333%-16px)] lg:w-[calc(25%-18px)] xl:w-[calc(25%-18px)] 2xl:w-[calc(20%-19.2px)]"
                 />
               ))}
             </motion.div>
@@ -348,11 +348,11 @@ export default function HomePage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3 }}
-          className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar px-1 scroll-smooth"
+          className="flex flex-row overflow-x-auto gap-4 md:gap-6 pb-4 no-scrollbar px-1 scroll-smooth"
         >
           {isPlaylistsLoading
             ? [1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="flex-none w-[180px] space-y-3">
+                <div key={i} className="flex-none w-[150px] sm:w-[180px] space-y-3">
                   <div className="aspect-square rounded-xl bg-zinc-900 animate-pulse border border-white/5" />
                   <div className="h-3 w-1/2 bg-zinc-900 rounded animate-pulse" />
                 </div>
@@ -400,13 +400,13 @@ export default function HomePage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
-                className="flex flex-row overflow-x-auto gap-6 pb-4 no-scrollbar px-1 snap-x snap-mandatory scroll-smooth"
+                className="flex flex-row overflow-x-auto gap-4 md:gap-6 pb-4 no-scrollbar px-1 snap-x snap-mandatory scroll-smooth"
               >
                 {recommendations.data.data.slice(0, 10).map((song: Song) => (
                   <SongCard
                     key={`rec-${song.id}`}
                     song={song}
-                    className="flex-none snap-start w-full sm:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] xl:w-[calc(25%-18px)] 2xl:w-[calc(20%-19.2px)]"
+                    className="flex-none snap-start w-[calc(50%-12px)] sm:w-[calc(33.333%-16px)] md:w-[calc(33.333%-16px)] lg:w-[calc(25%-18px)] xl:w-[calc(25%-18px)] 2xl:w-[calc(20%-19.2px)]"
                   />
                 ))}
               </motion.div>
@@ -424,7 +424,7 @@ export default function HomePage() {
         </div>
 
         {status === "pending" ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
               <div
                 key={i}
@@ -447,7 +447,7 @@ export default function HomePage() {
                 transition: { staggerChildren: 0.05 },
               },
             }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6"
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6"
           >
             {data?.pages.map((page, i) =>
               page.data.data.map((song: Song, songIdx: number) => (

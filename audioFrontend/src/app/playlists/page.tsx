@@ -25,7 +25,7 @@ export default function PlaylistsPage() {
   if (!isMounted) return null;
 
   return (
-    <div className="px-10 pb-20 bg-black pt-[var(--app-content-pt,5rem)] space-y-8">
+    <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-[var(--app-content-pt,5rem)] space-y-8">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -49,7 +49,7 @@ export default function PlaylistsPage() {
           <SomethingWentWrongPage error={playlistsError as Error} reset={() => refetch()} />
         )
       ) : isSystemLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div key={i} className="space-y-3 animate-pulse">
               <div className="aspect-square rounded-md bg-zinc-900" />
@@ -69,7 +69,7 @@ export default function PlaylistsPage() {
               transition: { staggerChildren: 0.04 },
             },
           }}
-          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6"
         >
           {systemPlaylists.map((playlist: any) => (
             <motion.div

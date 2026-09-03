@@ -28,7 +28,7 @@ export default function FavouritesPage() {
   if (!isMounted) return null;
 
   return (
-    <div className="px-10 pb-20 bg-black pt-[var(--app-content-pt,5rem)] space-y-8">
+    <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-[var(--app-content-pt,5rem)] space-y-8">
       <section>
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold text-white tracking-tight">
@@ -43,8 +43,8 @@ export default function FavouritesPage() {
             <SomethingWentWrongPage error={favouritesError as Error} reset={() => refetch()} />
           )
         ) : isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-            {[1, 2, 3, 4, 5].map((i) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
               <div
                 key={i}
                 className="aspect-square bg-zinc-900 rounded-md animate-pulse"
@@ -52,7 +52,7 @@ export default function FavouritesPage() {
             ))}
           </div>
         ) : songs.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
             {songs.map((song: Song) => (
               <SongCard key={song.id} song={song} />
             ))}

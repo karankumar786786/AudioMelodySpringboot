@@ -107,7 +107,7 @@ export function AppNavbar() {
   }, []);
 
   return (
-    <header className="absolute top-0 left-0 right-0 z-40 px-10 pt-[var(--app-navbar-pt,1rem)] pb-4 flex items-center justify-between pointer-events-none bg-gradient-to-b from-black/50 via-black/15 to-transparent">
+    <header className="absolute top-0 left-0 right-0 z-40 px-4 sm:px-6 md:px-8 xl:px-10 pt-[var(--app-navbar-pt,1rem)] pb-4 flex items-center justify-between pointer-events-none bg-gradient-to-b from-black/50 via-black/15 to-transparent">
       {/* Search Input Container */}
       <div
         className="flex items-center gap-6 pointer-events-auto relative"
@@ -115,7 +115,7 @@ export function AppNavbar() {
       >
         <form
           onSubmit={handleSearch}
-          className="relative group rounded-full w-96"
+          className="relative group rounded-full w-56 sm:w-72 md:w-80 lg:w-96"
         >
           <input
             type="text"
@@ -136,7 +136,7 @@ export function AppNavbar() {
               initial={{ opacity: 0, y: 8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.98 }}
-              className="absolute top-full left-0 mt-2 w-[480px] bg-[#181818] border border-[#282828] rounded-xl shadow-2xl overflow-hidden pointer-events-auto z-50"
+              className="absolute top-full left-0 mt-2 w-[calc(100vw-6rem)] sm:w-[420px] md:w-[480px] max-w-[480px] bg-[#181818] border border-[#282828] rounded-xl shadow-2xl overflow-hidden pointer-events-auto z-50"
             >
               {!query.trim() ? (
                 /* RECENT SEARCHES */

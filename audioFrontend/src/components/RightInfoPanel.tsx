@@ -198,7 +198,7 @@ export function RightInfoPanel() {
 
   return (
     <>
-      <aside className="w-80 bg-black border-l border-[#282828] h-screen fixed right-0 top-0 z-40 overflow-y-auto no-scrollbar pb-28">
+      <aside className="w-[320px] lg:w-[350px] xl:w-[360px] bg-black border-l border-[#282828] h-screen fixed right-0 top-0 z-40 overflow-y-auto no-scrollbar pb-28">
         {isLoading ? (
           <div className="p-4 space-y-4 animate-pulse">
             <div className="w-full h-[440px] bg-zinc-900 rounded-2xl" />

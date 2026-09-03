@@ -379,10 +379,10 @@ export function HlsMusicPlayer() {
       )}
 
       {/* ─── Spotify Bottom Persistent Audio Player Bar ─── */}
-      <footer className="fixed bottom-0 left-0 right-0 h-20 bg-black border-t border-[#282828] z-50 px-4 flex items-center justify-between select-none">
+      <footer className="fixed bottom-0 left-0 right-0 h-20 bg-black border-t border-[#282828] z-50 px-3 sm:px-4 md:px-6 flex items-center justify-between select-none">
         {/* Left Section: Track Info & Quick Actions */}
-        <div className="flex items-center gap-3 min-w-0 w-[30%] max-w-[320px]">
-          <div className="w-14 h-14 shrink-0 rounded-md overflow-hidden bg-zinc-900 shadow-md">
+        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 w-[28%] md:w-[30%] max-w-[240px] md:max-w-[320px]">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-md overflow-hidden bg-zinc-900 shadow-md">
             {posterUrl ? (
               <img src={posterUrl} alt="" className="w-full h-full object-cover" />
             ) : (
@@ -392,17 +392,17 @@ export function HlsMusicPlayer() {
             )}
           </div>
           <div className="min-w-0 flex-1">
-            <h4 className="text-sm font-semibold text-white truncate hover:underline cursor-pointer">
+            <h4 className="text-xs sm:text-sm font-semibold text-white truncate hover:underline cursor-pointer">
               {currentSong.title}
             </h4>
-            <p className="text-xs text-zinc-400 truncate hover:underline hover:text-white cursor-pointer mt-0.5 font-normal">
+            <p className="text-[11px] sm:text-xs text-zinc-400 truncate hover:underline hover:text-white cursor-pointer mt-0.5 font-normal">
               {currentSong.artistName}
             </p>
           </div>
         </div>
 
         {/* Middle Section: Player Controls & Timeline */}
-        <div className="flex flex-col items-center justify-center flex-1 max-w-xl px-4 space-y-1">
+        <div className="flex flex-col items-center justify-center flex-1 max-w-xl px-2 sm:px-4 space-y-1">
           <div className="flex items-center gap-5">
             <PlayerTooltip
               content={isShuffle ? "Disable shuffle" : "Enable shuffle"}
@@ -530,7 +530,7 @@ export function HlsMusicPlayer() {
         </div>
 
         {/* Right Section: Equalizer, Lyrics, Queue, Quality, Volume */}
-        <div className="flex items-center justify-end gap-2.5 w-[35%] max-w-[360px]">
+        <div className="flex items-center justify-end gap-1.5 sm:gap-2 md:gap-2.5 w-[32%] md:w-[35%] max-w-[360px]">
           <PlayerTooltip content="Equalizer & Visualizer" shortcut="E">
             <button
               type="button"
@@ -581,7 +581,7 @@ export function HlsMusicPlayer() {
             onSelectQuality={(q) => playerActions.setSelectedQuality(q)}
           />
 
-          <div className="flex items-center gap-2.5 min-w-[110px]">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-[70px] sm:min-w-[90px] md:min-w-[110px]">
             <PlayerTooltip content={isMuted ? "Unmute" : "Mute"} shortcut="M">
               <button
                 type="button"

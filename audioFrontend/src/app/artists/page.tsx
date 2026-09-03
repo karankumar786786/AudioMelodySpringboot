@@ -16,7 +16,7 @@ export default function ArtistsPage() {
   const artists = artistsResponse?.data?.data || [];
 
   return (
-    <div className="px-10 pb-20 bg-black pt-[var(--app-content-pt,5rem)] space-y-8">
+    <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-[var(--app-content-pt,5rem)] space-y-8">
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -40,7 +40,7 @@ export default function ArtistsPage() {
           <SomethingWentWrongPage error={artistsError as Error} reset={() => refetch()} />
         )
       ) : isLoading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
             <div key={i} className="space-y-3 animate-pulse">
               <div className="aspect-square rounded-full bg-zinc-900 mx-auto" />
@@ -60,7 +60,7 @@ export default function ArtistsPage() {
               transition: { staggerChildren: 0.04 },
             },
           }}
-          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 md:gap-6"
         >
           {artists.map((artist: any) => (
             <motion.div
