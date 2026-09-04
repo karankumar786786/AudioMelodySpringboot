@@ -323,7 +323,7 @@ export function HlsMusicPlayer() {
       {isLyricsOpen && (
         <div
           style={{ backgroundColor: solidBgColor }}
-          className="fixed left-0 md:left-[72px] xl:left-[240px] right-0 xl:right-[320px] 2xl:right-[340px] top-0 bottom-20 z-40 flex flex-col p-4 sm:p-6 md:p-8 overflow-y-auto no-scrollbar animate-in fade-in duration-300 transition-all duration-200"
+          className="fixed left-0 md:left-[72px] xl:left-[240px] right-0 lg:right-[290px] xl:right-[320px] 2xl:right-[340px] top-0 bottom-20 z-40 flex flex-col p-4 sm:p-6 md:p-8 overflow-y-auto no-scrollbar animate-in fade-in duration-300 transition-all duration-200"
         >
           {/* Header pinned at top */}
           <div className="sticky top-0 z-50 flex items-center justify-between pb-4 border-b border-[#282828] bg-inherit backdrop-blur-md shrink-0 pt-2">
@@ -339,28 +339,6 @@ export function HlsMusicPlayer() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <PlayerTooltip content="Sync lyrics to playback" shortcut="R">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const el = document.getElementById("active-lyric-line");
-                    if (el) {
-                      el.scrollIntoView({ behavior: "smooth", block: "center" });
-                      toast.success("Lyrics synced");
-                    }
-                  }}
-                  className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-black font-bold text-xs transition-all cursor-pointer shadow-md hover:scale-105 active:scale-95 border border-white/30"
-                  aria-label="Sync lyrics to playback"
-                >
-                  <div className="flex items-end gap-[2px] h-3">
-                    <span className="w-[2px] h-2.5 bg-black rounded-full" />
-                    <span className="w-[2px] h-1.5 bg-black rounded-full" />
-                    <span className="w-[2px] h-3 bg-black rounded-full" />
-                    <span className="w-[2px] h-2 bg-black rounded-full" />
-                  </div>
-                  <span className="text-black font-bold text-xs tracking-tight">Sync</span>
-                </button>
-              </PlayerTooltip>
               <button
                 type="button"
                 onClick={() => playerActions.closeLyrics()}

@@ -92,6 +92,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(startTimeRef.current);
   const [duration, setDuration] = useState(0);
+  const [bufferedTime, setBufferedTime] = useState(0);
   const [qualityLevels, setQualityLevels] = useState<QualityLevel[]>([]);
   const [selectedQuality, setSelectedQuality] = useState<number>(-1);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
@@ -210,17 +211,47 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-    const onTimeUpdate = () => setCurrentTime(video.currentTime);
-    const onDurationChange = () => setDuration(video.duration || 0);
+
+    const updateBuffer = () => {
+      if (!video) return;
+      if (video.buffered && video.buffered.length > 0) {
+        for (let i = 0; i < video.buffered.length; i++) {
+          if (video.buffered.start(i) <= video.currentTime && video.currentTime <= video.buffered.end(i)) {
+            setBufferedTime(video.buffered.end(i));
+            return;
+          }
+        }
+        setBufferedTime(video.buffered.end(video.buffered.length - 1));
+      }
+    };
+
+    const onTimeUpdate = () => {
+      setCurrentTime(video.currentTime);
+      updateBuffer();
+    };
+    const onDurationChange = () => {
+      setDuration(video.duration || 0);
+      updateBuffer();
+    };
     const onPlay = () => setIsPlaying(true);
     const onPause = () => setIsPlaying(false);
+
     video.addEventListener("timeupdate", onTimeUpdate);
+    video.addEventListener("progress", updateBuffer);
+    video.addEventListener("seeking", updateBuffer);
+    video.addEventListener("seeked", updateBuffer);
     video.addEventListener("durationchange", onDurationChange);
+    video.addEventListener("loadedmetadata", updateBuffer);
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
+
     return () => {
       video.removeEventListener("timeupdate", onTimeUpdate);
+      video.removeEventListener("progress", updateBuffer);
+      video.removeEventListener("seeking", updateBuffer);
+      video.removeEventListener("seeked", updateBuffer);
       video.removeEventListener("durationchange", onDurationChange);
+      video.removeEventListener("loadedmetadata", updateBuffer);
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
     };
@@ -358,13 +389,23 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   }, [handleClose, togglePlay, toggleMute, toggleFullscreen, duration]);
 
   const fmt = (s: number) => {
-    if (!s || isNaN(s)) return "0:00";
+    if (!s || isNaN(s) || !isFinite(s) || s < 0) return "0:00";
     const m = Math.floor(s / 60);
     const sec = Math.floor(s % 60);
     return `${m}:${sec.toString().padStart(2, "0")}`;
   };
 
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const safeCurrentTime = Math.max(0, isFinite(currentTime) ? currentTime : 0);
+  const safeDuration = Math.max(0, isFinite(duration) ? duration : 0);
+  const progressPct =
+    safeDuration > 0
+      ? Math.min(100, Math.max(0, (safeCurrentTime / safeDuration) * 100))
+      : 0;
+  const bufferedPct =
+    safeDuration > 0
+      ? Math.min(100, Math.max(0, (bufferedTime / safeDuration) * 100))
+      : 0;
+
   const qualityLabel = selectedQuality === -1 ? "Auto" : `${selectedQuality}p`;
 
   return (
@@ -447,22 +488,49 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
             className="p-4 rounded-b-2xl"
             style={{ background: "linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.55), transparent)" }}
           >
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs text-zinc-300 font-mono w-10 text-right shrink-0">{fmt(currentTime)}</span>
-              <input
-                type="range"
-                min="0"
-                max={duration || 1}
-                step="0.5"
-                value={currentTime}
-                onChange={handleSeek}
-                className="flex-1 h-1 rounded-full appearance-none cursor-pointer"
-                style={{
-                  background: `linear-gradient(to right, white ${progress}%, rgba(255,255,255,0.25) ${progress}%)`,
-                  accentColor: "white",
-                }}
-              />
-              <span className="text-xs text-zinc-300 font-mono w-10 shrink-0">{fmt(duration)}</span>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-xs text-zinc-300 font-mono w-10 text-right shrink-0 select-none">
+                {fmt(safeCurrentTime)}
+              </span>
+
+              <div className="relative flex-1 h-5 flex items-center group cursor-pointer select-none">
+                {/* Background Track */}
+                <div className="absolute inset-x-0 h-1 group-hover:h-1.5 bg-white/20 rounded-full transition-all duration-150" />
+
+                {/* Buffered Loaded Bar */}
+                <div
+                  className="absolute left-0 h-1 group-hover:h-1.5 bg-white/40 rounded-full pointer-events-none transition-all duration-150"
+                  style={{ width: `${bufferedPct}%` }}
+                />
+
+                {/* Played Progress Bar */}
+                <div
+                  className="absolute left-0 h-1 group-hover:h-1.5 bg-white rounded-full pointer-events-none transition-all duration-150"
+                  style={{ width: `${progressPct}%` }}
+                />
+
+                {/* Scrubber thumb circle */}
+                <div
+                  className="absolute w-3.5 h-3.5 bg-white rounded-full shadow-md -translate-x-1/2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+                  style={{ left: `${progressPct}%` }}
+                />
+
+                {/* Native Slider Input */}
+                <input
+                  type="range"
+                  min="0"
+                  max={Math.max(1, safeDuration)}
+                  step="0.1"
+                  value={Math.min(safeCurrentTime, Math.max(1, safeDuration))}
+                  onChange={handleSeek}
+                  aria-label="Seek video"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10 m-0 p-0 border-0 bg-transparent"
+                />
+              </div>
+
+              <span className="text-xs text-zinc-300 font-mono w-10 shrink-0 select-none">
+                {fmt(safeDuration)}
+              </span>
             </div>
 
             <div className="flex items-center justify-between">
