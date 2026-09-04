@@ -1,30 +1,12 @@
 "use client";
 
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState, useRef } from "react";
 
 interface PlayerProgressBarProps {
   currentTime: number;
   duration: number;
   bufferedTime: number;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-}
-
-// Generate pseudo-waveform bars based on duration and deterministic peaks
-function generateWaveformBars(count: number, seedNum: number): number[] {
-  const bars: number[] = [];
-  for (let i = 0; i < count; i++) {
-    const x = i / count;
-    // Harmonic wave combination for natural audio envelope
-    const wave1 = Math.sin(x * Math.PI * 3 + seedNum);
-    const wave2 = Math.sin(x * Math.PI * 7 + seedNum * 2);
-    const wave3 = Math.cos(x * Math.PI * 13);
-    const envelope = Math.sin(x * Math.PI); // tapering edges
-
-    const raw = Math.abs(wave1 * 0.45 + wave2 * 0.35 + wave3 * 0.2);
-    const height = Math.min(100, Math.max(18, Math.round((raw * envelope * 80) + 20)));
-    bars.push(height);
-  }
-  return bars;
 }
 
 export const PlayerProgressBar: React.FC<PlayerProgressBarProps> = ({
@@ -35,7 +17,6 @@ export const PlayerProgressBar: React.FC<PlayerProgressBarProps> = ({
 }) => {
   const [hoverTime, setHoverTime] = useState<number | null>(null);
   const [hoverX, setHoverX] = useState<number>(0);
-  const [isHovered, setIsHovered] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
 
   const formatTime = (s: number) => {
@@ -63,11 +44,6 @@ export const PlayerProgressBar: React.FC<PlayerProgressBarProps> = ({
       ? (hoverTime / safeDuration) * 100
       : null;
 
-  // 48 waveform bars for audio wave visualization
-  const waveformBars = useMemo(() => {
-    return generateWaveformBars(48, Math.floor(safeDuration) || 42);
-  }, [Math.floor(safeDuration)]);
-
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!trackRef.current || safeDuration <= 0) return;
     const rect = trackRef.current.getBoundingClientRect();
@@ -75,12 +51,10 @@ export const PlayerProgressBar: React.FC<PlayerProgressBarProps> = ({
     const fraction = offsetX / rect.width;
     setHoverTime(fraction * safeDuration);
     setHoverX(offsetX);
-    setIsHovered(true);
   };
 
   const handleMouseLeave = () => {
     setHoverTime(null);
-    setIsHovered(false);
   };
 
   return (
@@ -93,50 +67,22 @@ export const PlayerProgressBar: React.FC<PlayerProgressBarProps> = ({
         ref={trackRef}
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
-        className="relative h-7 flex-1 flex items-center group cursor-pointer"
+        className="relative h-6 flex-1 flex items-center group cursor-pointer"
       >
-        {/* Hover Waveform Popup Preview & Timestamp Tooltip */}
+        {/* Hover Timestamp Tooltip */}
         {hoverTime !== null && (
           <div
-            className="absolute -top-12 pointer-events-none -translate-x-1/2 flex flex-col items-center z-30 animate-in fade-in zoom-in-95 duration-150"
+            className="absolute -top-8 pointer-events-none -translate-x-1/2 flex flex-col items-center z-30 animate-in fade-in zoom-in-95 duration-150"
             style={{ left: `${hoverX}px` }}
           >
             {/* Timestamp Pill */}
-            <div className="px-2.5 py-1 rounded-md bg-[#181818]/95 border border-white/20 text-[11px] font-mono font-bold text-white shadow-2xl backdrop-blur-xl flex items-center gap-1.5">
-              <span className="text-primary">●</span>
+            <div className="px-2 py-0.5 rounded-md bg-[#181818]/95 border border-white/20 text-[11px] font-mono font-bold text-white shadow-2xl backdrop-blur-xl flex items-center gap-1.5">
               <span>{formatTime(hoverTime)}</span>
             </div>
             {/* Tooltip Chevron Indicator */}
-            <div className="w-2 h-2 bg-[#181818] border-r border-b border-white/20 rotate-45 -mt-1" />
+            <div className="w-1.5 h-1.5 bg-[#181818] border-r border-b border-white/20 rotate-45 -mt-1" />
           </div>
         )}
-
-        {/* Ambient Soundwave Amplitude Bar Display on Hover */}
-        <div
-          className={`absolute inset-x-0 -top-3.5 h-3 flex items-end justify-between gap-[2px] pointer-events-none transition-all duration-300 ${
-            isHovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"
-          }`}
-        >
-          {waveformBars.map((heightPct, idx) => {
-            const barPct = (idx / waveformBars.length) * 100;
-            const isPlayed = barPct <= progressPct;
-            const isHoverHighlighted = hoverPct !== null && barPct <= hoverPct;
-
-            return (
-              <div
-                key={idx}
-                style={{ height: `${heightPct}%` }}
-                className={`w-full rounded-full transition-colors duration-100 ${
-                  isHoverHighlighted
-                    ? "bg-white/80"
-                    : isPlayed
-                      ? "bg-primary/70"
-                      : "bg-white/15"
-                }`}
-              />
-            );
-          })}
-        </div>
 
         {/* Timeline Bar Track */}
         <div className="relative h-[4px] group-hover:h-[6px] w-full flex items-center rounded-full overflow-hidden transition-[height] duration-150 bg-[#333333]">
@@ -163,7 +109,7 @@ export const PlayerProgressBar: React.FC<PlayerProgressBarProps> = ({
 
         {/* Scrubber thumb handle */}
         <div
-          className="absolute w-3.5 h-3.5 bg-white rounded-full shadow-lg border border-black/20 -translate-x-1/2 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-20 hover:scale-110"
+          className="absolute w-3 h-3 bg-white rounded-full shadow-lg border border-black/20 -translate-x-1/2 pointer-events-none opacity-0 group-hover:opacity-100 transition-all duration-150 z-20 hover:scale-110"
           style={{ left: `${progressPct}%` }}
         />
 
