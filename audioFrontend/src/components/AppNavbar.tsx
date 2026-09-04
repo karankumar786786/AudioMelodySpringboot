@@ -96,15 +96,43 @@ export function AppNavbar() {
     setIsFocused(false);
   };
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setIsFocused(false);
       }
     };
+
+    const handleGlobalShortcuts = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isInput =
+        activeEl instanceof HTMLInputElement ||
+        activeEl instanceof HTMLTextAreaElement ||
+        (activeEl as HTMLElement)?.isContentEditable;
+
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        setIsFocused(true);
+      } else if (e.key === "/" && !e.shiftKey && !isInput) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        setIsFocused(true);
+      } else if (e.key === "Escape" && isFocused) {
+        setIsFocused(false);
+        searchInputRef.current?.blur();
+      }
+    };
+
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    window.addEventListener("keydown", handleGlobalShortcuts);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("keydown", handleGlobalShortcuts);
+    };
+  }, [isFocused]);
 
   return (
     <header className="absolute top-0 left-0 right-0 z-40 px-4 sm:px-6 md:px-8 xl:px-10 pt-[var(--app-navbar-pt,1rem)] pb-4 flex items-center justify-between pointer-events-none bg-gradient-to-b from-black/50 via-black/15 to-transparent">
@@ -118,15 +146,24 @@ export function AppNavbar() {
           className="relative group rounded-full w-56 sm:w-72 md:w-80 lg:w-96"
         >
           <input
+            ref={searchInputRef}
             type="text"
             placeholder="What do you want to listen to?"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setIsFocused(true)}
-            className="bg-[#282828] border border-white/10 hover:border-white/25 focus:border-white rounded-full py-2.5 pl-11 pr-8 text-xs font-semibold focus:ring-0 transition-all outline-none w-full text-white placeholder-zinc-300 shadow-md relative z-10"
+            className="bg-[#282828] border border-white/10 hover:border-white/25 focus:border-white rounded-full py-2.5 pl-11 pr-14 text-xs font-semibold focus:ring-0 transition-all outline-none w-full text-white placeholder-zinc-300 shadow-md relative z-10"
           />
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-300 group-focus-within:text-white transition-colors z-20">
             <Search size={16} />
+          </div>
+          <div className="absolute inset-y-0 right-0 pr-3 flex items-center gap-1 pointer-events-none z-20">
+            <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded bg-zinc-800 border border-white/10 text-[10px] font-mono text-zinc-400">
+              ⌘
+            </kbd>
+            <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded bg-zinc-800 border border-white/10 text-[10px] font-mono text-zinc-400">
+              K
+            </kbd>
           </div>
         </form>
 

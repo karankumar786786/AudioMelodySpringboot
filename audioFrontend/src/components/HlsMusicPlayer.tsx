@@ -14,6 +14,7 @@ import { SleepTimerModal } from "./player/SleepTimerModal";
 import { EqualizerModal } from "./player/EqualizerModal";
 import { PlayerQueuePanel } from "./player/PlayerQueuePanel";
 import { KeyboardShortcutsModal } from "./player/KeyboardShortcutsModal";
+import { CommandPaletteModal } from "./CommandPaletteModal";
 
 // Hooks
 import { useHlsPlayer } from "./player/hooks/useHlsPlayer";
@@ -58,6 +59,7 @@ export function HlsMusicPlayer() {
   const [solidBgColor, setSolidBgColor] = useState("#181818");
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
 
   // Sleep Timer countdown check
   useEffect(() => {
@@ -203,6 +205,7 @@ export function HlsMusicPlayer() {
     setShowQueuePanel,
     setShowEqualizerModal,
     setShowShortcutsModal,
+    setShowCommandPalette,
   });
 
   const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -360,6 +363,12 @@ export function HlsMusicPlayer() {
       <PlayerQueuePanel
         open={showQueuePanel}
         onClose={() => setShowQueuePanel(false)}
+      />
+
+      {/* Quick Search Spotlight Command Palette */}
+      <CommandPaletteModal
+        isOpen={showCommandPalette}
+        onClose={() => setShowCommandPalette(false)}
       />
     </>
   );

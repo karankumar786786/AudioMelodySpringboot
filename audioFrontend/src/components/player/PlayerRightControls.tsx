@@ -6,6 +6,7 @@ import { playerActions } from "@/store/player.store";
 import { type PlayerSong } from "@/lib/player-utils";
 import { PlayerTooltip } from "./PlayerTooltip";
 import { PlayerQualitySelector } from "./PlayerQualitySelector";
+import { PlayerSpeedSelector } from "./PlayerSpeedSelector";
 import { PlayerVolumeSlider } from "./PlayerVolumeSlider";
 
 interface PlayerRightControlsProps {
@@ -124,6 +125,8 @@ export const PlayerRightControls: React.FC<PlayerRightControlsProps> = ({
           <ListMusic size={16} />
         </button>
       </PlayerTooltip>
+
+      <PlayerSpeedSelector />
 
       <PlayerQualitySelector
         selectedQuality={selectedQuality}

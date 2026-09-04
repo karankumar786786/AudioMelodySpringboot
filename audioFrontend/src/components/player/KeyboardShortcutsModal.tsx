@@ -40,6 +40,13 @@ const SHORTCUT_GROUPS: ShortcutCategory[] = [
     ],
   },
   {
+    category: "Search & Navigation",
+    items: [
+      { keys: ["⌘ / Ctrl", "K"], label: "Quick-Search Command Palette" },
+      { keys: ["/"], label: "Focus search / Open palette" },
+    ],
+  },
+  {
     category: "Panels & Views",
     items: [
       { keys: ["V"], label: "Watch Full Video (if available)" },

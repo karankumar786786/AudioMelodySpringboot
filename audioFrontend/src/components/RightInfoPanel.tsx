@@ -8,9 +8,7 @@ import {
   Music,
   Info,
   Play,
-  Heart,
   Plus,
-  Loader2,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -22,6 +20,7 @@ import { musicApi, Song } from "@/lib/api";
 import { mapToPlayerSong, getFullVideoHlsUrl, getFullVideoDashUrl } from "@/lib/player-utils";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
 import { PlayerTooltip } from "./player/PlayerTooltip";
+import { HeartButton } from "./HeartButton";
 import { toast } from "sonner";
 
 export function RightInfoPanel() {
@@ -234,29 +233,12 @@ export function RightInfoPanel() {
                     <Plus size={20} />
                   </button>
 
-                  <button
-                    onClick={handleFavourite}
+                  <HeartButton
+                    isFavourite={isFavourite}
+                    onToggle={handleFavourite}
+                    size={20}
                     disabled={isFavLoading}
-                    className="transition-transform active:scale-90 cursor-pointer p-1 disabled:opacity-60 disabled:cursor-not-allowed"
-                    title={isFavourite ? "Liked" : "Like"}
-                  >
-                    {isFavLoading ? (
-                      <Loader2
-                        size={20}
-                        className="text-zinc-400 animate-spin"
-                      />
-                    ) : isFavourite ? (
-                      <Heart
-                        size={20}
-                        className=" fill-primary transition-all transform scale-105"
-                      />
-                    ) : (
-                      <Heart
-                        size={20}
-                        className="text-zinc-400 hover:text-white transition-colors"
-                      />
-                    )}
-                  </button>
+                  />
 
                   {/* Watch Full Video – video canvas display */}
                   {currentSong.fullVideoKey && (
@@ -334,29 +316,12 @@ export function RightInfoPanel() {
                     <Plus size={20} />
                   </button>
 
-                  <button
-                    onClick={handleFavourite}
+                  <HeartButton
+                    isFavourite={isFavourite}
+                    onToggle={handleFavourite}
+                    size={20}
                     disabled={isFavLoading}
-                    className="transition-transform active:scale-90 cursor-pointer p-1 disabled:opacity-60 disabled:cursor-not-allowed"
-                    title={isFavourite ? "Liked" : "Like"}
-                  >
-                    {isFavLoading ? (
-                      <Loader2
-                        size={20}
-                        className="text-zinc-400 animate-spin"
-                      />
-                    ) : isFavourite ? (
-                      <Heart
-                        size={20}
-                        className="text-[#1ed760] fill-[#1ed760] transition-all transform scale-105"
-                      />
-                    ) : (
-                      <Heart
-                        size={20}
-                        className="text-zinc-400 hover:text-white transition-colors"
-                      />
-                    )}
-                  </button>
+                  />
 
                   {/* Watch Full Video – cover-art display */}
                   {currentSong.fullVideoKey && (

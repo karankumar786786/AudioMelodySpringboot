@@ -32,6 +32,7 @@ export interface PlayerState {
   isVideoActive: boolean;
   isFullVideoOpen: boolean;
   sleepTimer: SleepTimerState;
+  playbackRate: number;
 }
 
 const _initSystemUser = (() => {
@@ -120,6 +121,7 @@ export const playerStore = new Store<PlayerState>({
     targetTimestamp: null,
     mode: null,
   },
+  playbackRate: 1,
 });
 
 // Hydrate token, repeatMode, isShuffle, and currentTime on client side only

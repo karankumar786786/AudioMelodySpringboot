@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
 import { getImageUrl } from "../lib/image-utils";
+import { HeartButton } from "./HeartButton";
 
 interface SongCardProps {
   song: Song;
@@ -27,10 +28,29 @@ export function SongCard({
   const systemUser = useStore(playerStore, (s) => s.systemUser);
   const currentSong = useStore(playerStore, (s) => s.currentSong);
   const isPlaying = useStore(playerStore, (s) => s.isPlaying);
+  const favourites = useStore(playerStore, (s) => s.favourites);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
   const isActiveSong = currentSong?.id === song.id;
+
+  const isFavourite = song?.id
+    ? Array.from(favourites).some((id) => String(id) === String(song.id))
+    : false;
+
+  const handleToggleFavourite = async () => {
+    if (!systemUser?.id) {
+      toast.error("Sign in required", {
+        description: "Please sign in to add songs to favourites.",
+      });
+      return;
+    }
+    try {
+      await playerActions.toggleFavourite(String(song.id));
+    } catch {
+      toast.error("Failed to update favourites");
+    }
+  };
 
   const handlePlayToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -133,7 +153,20 @@ export function SongCard({
         </div>
 
         {/* Quick Actions Bar */}
-        <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
+        <div
+          className={`absolute top-3 right-3 flex items-center gap-1.5 transition-opacity duration-200 z-20 ${
+            isFavourite ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          }`}
+        >
+          {/* Favourite Heart Button */}
+          <div className="w-8 h-8 rounded-full bg-black/60 hover:bg-black flex items-center justify-center transition-all shadow-md">
+            <HeartButton
+              isFavourite={isFavourite}
+              onToggle={handleToggleFavourite}
+              size={14}
+            />
+          </div>
+
           {onRemove && (
             <button
               onClick={(e) => {

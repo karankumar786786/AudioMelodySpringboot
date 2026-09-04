@@ -126,6 +126,13 @@ export const playbackActions = {
     playerStore.setState((s) => ({ ...s, selectedQuality: quality }));
   },
 
+  setPlaybackRate: (rate: number) => {
+    playerStore.setState((s) => ({ ...s, playbackRate: rate }));
+    if (typeof window !== "undefined") {
+      localStorage.setItem("audiomelody_playback_rate", rate.toString());
+    }
+  },
+
   toggleShuffle: () => {
     playerStore.setState((s) => {
       const nextShuffle = !s.isShuffle;

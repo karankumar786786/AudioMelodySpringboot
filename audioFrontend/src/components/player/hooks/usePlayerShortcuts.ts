@@ -18,6 +18,7 @@ interface UsePlayerShortcutsProps {
   setShowQueuePanel: React.Dispatch<React.SetStateAction<boolean>>;
   setShowEqualizerModal: React.Dispatch<React.SetStateAction<boolean>>;
   setShowShortcutsModal?: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowCommandPalette?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export function usePlayerShortcuts({
@@ -33,6 +34,7 @@ export function usePlayerShortcuts({
   setShowQueuePanel,
   setShowEqualizerModal,
   setShowShortcutsModal,
+  setShowCommandPalette,
 }: UsePlayerShortcutsProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -42,7 +44,25 @@ export function usePlayerShortcuts({
         activeEl instanceof HTMLTextAreaElement ||
         (activeEl as HTMLElement)?.isContentEditable;
 
+      // Cmd+K or Ctrl+K: Spotlight Command Palette (can be opened even from anywhere)
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+        e.preventDefault();
+        if (setShowCommandPalette) {
+          setShowCommandPalette((v) => !v);
+        }
+        return;
+      }
+
       if (isInput || playerStore.state.isFullVideoOpen) return;
+
+      // /: Quick search command palette (when not typing in an input)
+      if (e.key === "/" && !e.shiftKey) {
+        e.preventDefault();
+        if (setShowCommandPalette) {
+          setShowCommandPalette(true);
+        }
+        return;
+      }
 
       // ? or Shift + /: Toggle Keyboard Shortcuts Modal
       if (e.key === "?" || (e.key === "/" && e.shiftKey)) {
@@ -52,8 +72,8 @@ export function usePlayerShortcuts({
         }
       }
 
-      // Space or K: Toggle Play/Pause
-      if (e.code === "Space" || e.key === "k" || e.key === "K") {
+      // Space or K (without Cmd/Ctrl): Toggle Play/Pause
+      if (e.code === "Space" || (!e.metaKey && !e.ctrlKey && (e.key === "k" || e.key === "K"))) {
         e.preventDefault();
         if (!currentSong) return;
         if (!isVideoActive && audioElement) {
@@ -199,5 +219,6 @@ export function usePlayerShortcuts({
     setShowQueuePanel,
     setShowEqualizerModal,
     setShowShortcutsModal,
+    setShowCommandPalette,
   ]);
 }

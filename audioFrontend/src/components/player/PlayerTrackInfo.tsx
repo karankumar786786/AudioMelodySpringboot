@@ -1,5 +1,6 @@
 import React from "react";
-import { Heart, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
+import { HeartButton } from "@/components/HeartButton";
 
 interface PlayerTrackInfoProps {
   title: string;
@@ -43,20 +44,11 @@ export const PlayerTrackInfo: React.FC<PlayerTrackInfoProps> = ({
         </div>
 
         <div className="flex items-center gap-0.5 shrink-0">
-          <button
-            onClick={onToggleFavourite}
-            className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-              isFavourite
-                ? "text-primary shadow-2xl shadow-primary/20 bg-primary/5"
-                : "text-zinc-600 hover:text-primary hover:bg-white/5"
-            }`}
-            title={isFavourite ? "Remove from favourites" : "Add to favourites"}
-          >
-            <Heart
-              size={isCollapsed ? 13 : 15}
-              fill={isFavourite ? "currentColor" : "none"}
-            />
-          </button>
+          <HeartButton
+            isFavourite={isFavourite}
+            onToggle={onToggleFavourite}
+            size={isCollapsed ? 14 : 16}
+          />
           <button
             onClick={onAddToPlaylist}
             className="p-1.5 text-zinc-600 hover:text-primary hover:bg-white/5 rounded-lg transition-all cursor-pointer"

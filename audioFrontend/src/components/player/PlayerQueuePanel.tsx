@@ -1,8 +1,16 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useStore } from "@tanstack/react-store";
-import { ArrowDown, ArrowUp, ChevronDown, Play, Trash2, Music } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ChevronDown,
+  Play,
+  Trash2,
+  Music,
+  GripVertical,
+} from "lucide-react";
 import { playerActions, playerStore } from "@/store/player.store";
 import { getImageUrl } from "@/lib/image-utils";
 
@@ -25,15 +33,17 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
   const currentIndex = useStore(playerStore, (s) => s.lastQueueIndex);
   const currentSong = useStore(playerStore, (s) => s.currentSong);
 
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
   useEffect(() => {
     if (!open) return;
 
     const handlePointerDown = (e: PointerEvent) => {
-      if (
-        panelRef.current &&
-        !panelRef.current.contains(e.target as Node)
-      ) {
-        const isQueueToggle = (e.target as Element)?.closest?.("[data-queue-toggle]");
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        const isQueueToggle = (e.target as Element)?.closest?.(
+          "[data-queue-toggle]",
+        );
         if (!isQueueToggle) {
           onClose();
         }
@@ -51,20 +61,55 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
   const upcoming = queue.slice(Math.max(0, currentIndex + 1));
 
   const nowPlayingImage = currentSong?.imageKey
-    ? getImageUrl(currentSong.imageKey, { width: 90, height: 90, aspectRatio: "1-1" })
+    ? getImageUrl(currentSong.imageKey, {
+        width: 90,
+        height: 90,
+        aspectRatio: "1-1",
+      })
     : currentSong?.posterUrl || "";
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", index.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex !== null && draggedIndex !== targetIndex) {
+      playerActions.moveQueueItem(draggedIndex, targetIndex);
+    }
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
 
   return (
     <div
       ref={panelRef}
-      className="fixed right-80 bottom-24 z-50 w-96 max-h-[75vh] bg-[#181818] border border-[#282828] rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-200"
+      className="fixed right-4 md:right-80 bottom-24 z-50 w-[340px] sm:w-96 max-h-[75vh] bg-[#181818] border border-[#282828] rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-200"
     >
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-[#282828] bg-[#181818] shrink-0">
         <div>
-          <h3 className="text-sm font-bold text-white tracking-tight">Play Queue</h3>
+          <h3 className="text-sm font-bold text-white tracking-tight">
+            Play Queue
+          </h3>
           <p className="text-[11px] text-zinc-400 font-medium">
-            {upcoming.length} {upcoming.length === 1 ? "track" : "tracks"} upcoming
+            {upcoming.length} {upcoming.length === 1 ? "track" : "tracks"}{" "}
+            upcoming
           </p>
         </div>
         <button
@@ -127,14 +172,40 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
               {upcoming.map((song, offset) => {
                 const index = currentIndex + 1 + offset;
                 const songImg = song.imageKey
-                  ? getImageUrl(song.imageKey, { width: 80, height: 80, aspectRatio: "1-1" })
+                  ? getImageUrl(song.imageKey, {
+                      width: 80,
+                      height: 80,
+                      aspectRatio: "1-1",
+                    })
                   : song.posterUrl || "";
+
+                const isDraggingThis = draggedIndex === index;
+                const isOverThis = dragOverIndex === index;
 
                 return (
                   <div
                     key={song.queueId || `${song.id}-${index}`}
-                    className="group flex items-center gap-3 rounded-lg border border-transparent   p-2 transition-all"
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, index)}
+                    onDragOver={(e) => handleDragOver(e, index)}
+                    onDrop={(e) => handleDrop(e, index)}
+                    onDragEnd={handleDragEnd}
+                    className={`group flex items-center gap-2 rounded-lg border p-2 transition-all select-none ${
+                      isDraggingThis
+                        ? "opacity-30 border-dashed border-primary"
+                        : isOverThis
+                          ? "border-primary bg-primary/10"
+                          : "border-transparent hover:bg-white/5"
+                    }`}
                   >
+                    {/* Drag Handle */}
+                    <div
+                      className="cursor-grab active:cursor-grabbing text-zinc-600 group-hover:text-zinc-400 transition-colors shrink-0"
+                      title="Drag to reorder"
+                    >
+                      <GripVertical size={14} />
+                    </div>
+
                     {/* Song Thumbnail with Play Action */}
                     <div
                       onClick={() => playerActions.playQueueItem(index)}
@@ -152,7 +223,11 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                         </div>
                       )}
                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover/thumb:opacity-100 flex items-center justify-center transition-opacity">
-                        <Play size={14} fill="white" className="text-white ml-0.5" />
+                        <Play
+                          size={14}
+                          fill="white"
+                          className="text-white ml-0.5"
+                        />
                       </div>
                     </div>
 
@@ -160,7 +235,7 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                     <div className="min-w-0 flex-1">
                       <p
                         onClick={() => playerActions.playQueueItem(index)}
-                        className="text-xs font-bold text-white truncate cursor-pointer "
+                        className="text-xs font-bold text-white truncate cursor-pointer hover:underline"
                       >
                         {song.title}
                       </p>
@@ -178,7 +253,9 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         disabled={index <= currentIndex + 1}
-                        onClick={() => playerActions.moveQueueItem(index, index - 1)}
+                        onClick={() =>
+                          playerActions.moveQueueItem(index, index - 1)
+                        }
                         className="p-1 rounded text-zinc-400 hover:text-white hover:bg-[#282828] disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
                         title="Move up"
                       >
@@ -186,7 +263,9 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                       </button>
                       <button
                         disabled={index >= queue.length - 1}
-                        onClick={() => playerActions.moveQueueItem(index, index + 1)}
+                        onClick={() =>
+                          playerActions.moveQueueItem(index, index + 1)
+                        }
                         className="p-1 rounded text-zinc-400 hover:text-white hover:bg-[#282828] disabled:opacity-30 disabled:hover:bg-transparent cursor-pointer"
                         title="Move down"
                       >

@@ -1,9 +1,10 @@
-"use client";
-
 import React from "react";
 import { Music, Play } from "lucide-react";
-import { playerActions } from "@/store/player.store";
+import { playerActions, playerStore } from "@/store/player.store";
+import { useStore } from "@tanstack/react-store";
 import { type PlayerSong } from "@/lib/player-utils";
+import { HeartButton } from "@/components/HeartButton";
+import { toast } from "sonner";
 
 interface PlayerTrackCardProps {
   currentSong: PlayerSong;
@@ -14,9 +15,30 @@ export const PlayerTrackCard: React.FC<PlayerTrackCardProps> = ({
   currentSong,
   posterUrl,
 }) => {
+  const favourites = useStore(playerStore, (s) => s.favourites);
+  const systemUser = useStore(playerStore, (s) => s.systemUser);
+
   const hasFullVideo = Boolean(
     currentSong.fullVideoKey || (currentSong as any).full_video_key,
   );
+
+  const isFavourite = currentSong?.id
+    ? Array.from(favourites).some((id) => String(id) === String(currentSong.id))
+    : false;
+
+  const handleToggleFavourite = async () => {
+    if (!systemUser?.id) {
+      toast.error("Sign in required", {
+        description: "Please sign in to add songs to favourites.",
+      });
+      return;
+    }
+    try {
+      await playerActions.toggleFavourite(String(currentSong.id));
+    } catch {
+      toast.error("Failed to update favourites");
+    }
+  };
 
   return (
     <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 w-[28%] md:w-[30%] max-w-[240px] md:max-w-[320px]">
@@ -55,6 +77,13 @@ export const PlayerTrackCard: React.FC<PlayerTrackCardProps> = ({
         <p className="text-[11px] sm:text-xs text-zinc-400 truncate hover:underline hover:text-white cursor-pointer mt-0.5 font-normal">
           {currentSong.artistName}
         </p>
+      </div>
+      <div className="shrink-0 hidden sm:block">
+        <HeartButton
+          isFavourite={isFavourite}
+          onToggle={handleToggleFavourite}
+          size={18}
+        />
       </div>
     </div>
   );

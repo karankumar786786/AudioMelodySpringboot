@@ -76,6 +76,13 @@ export function useAudioSync(
       }
     }
 
+    // Synchronize playbackRate and pitch preservation
+    const currentRate = playerStore.state.playbackRate || 1;
+    if (audioElement.playbackRate !== currentRate) {
+      audioElement.playbackRate = currentRate;
+    }
+    audioElement.preservesPitch = true;
+
     if (isPlaying) {
       if (audioElement.paused && audioElement.readyState >= 2) {
         audioElement.play().catch((err) => {
