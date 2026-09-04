@@ -107,7 +107,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       <div className="fixed inset-0 pointer-events-none z-0 bg-black" />
 
       <LeftSidebar />
-      <div className="flex-1 flex flex-col min-w-0 ml-[72px] xl:ml-[240px] mr-[320px] lg:mr-[340px] xl:mr-[320px] 2xl:mr-[340px] overflow-hidden relative z-10 bg-black transition-[margin] duration-200">
+      <div className="flex-1 flex flex-col min-w-0 ml-0 md:ml-[72px] xl:ml-[240px] mr-0 xl:mr-[320px] 2xl:mr-[340px] overflow-hidden relative z-10 bg-black transition-[margin] duration-200">
         <AppNavbar />
         <main className="flex-1 overflow-y-auto no-scrollbar pb-24">
           {children}

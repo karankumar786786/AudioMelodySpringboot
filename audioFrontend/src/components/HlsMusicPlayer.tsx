@@ -18,10 +18,13 @@ import {
   SkipBack,
   SkipForward,
   Sliders,
+  TvMinimalPlay,
   X,
 } from "lucide-react";
 import { getImageUrl } from "../lib/image-utils";
+import { getFullVideoHlsUrl, getFullVideoDashUrl } from "../lib/player-utils";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
+import { FullVideoModal } from "./FullVideoModal";
 import { toast } from "sonner";
 
 // Hooks
@@ -63,6 +66,7 @@ export function HlsMusicPlayer() {
   const [buffered, setBuffered] = useState(0);
   const [showQueuePanel, setShowQueuePanel] = useState(false);
   const [showEqualizerModal, setShowEqualizerModal] = useState(false);
+  const [showFullVideo, setShowFullVideo] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [solidBgColor, setSolidBgColor] = useState("#181818");
   const [showQualityMenu, setShowQualityMenu] = useState(false);
@@ -216,6 +220,15 @@ export function HlsMusicPlayer() {
         }
       }
 
+      // V: Toggle Full Video
+      if (
+        (e.key === "v" || e.key === "V") &&
+        (currentSong?.fullVideoKey || (currentSong as any)?.full_video_key)
+      ) {
+        e.preventDefault();
+        setShowFullVideo((v) => !v);
+      }
+
       // ArrowRight (Ctrl/Cmd): Next Track
       if (e.key === "ArrowRight" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
@@ -310,7 +323,7 @@ export function HlsMusicPlayer() {
       {isLyricsOpen && (
         <div
           style={{ backgroundColor: solidBgColor }}
-          className="fixed left-[260px] right-80 top-0 bottom-20 z-40 flex flex-col p-6 overflow-y-auto no-scrollbar animate-in fade-in duration-300 transition-colors duration-500"
+          className="fixed left-0 md:left-[72px] xl:left-[240px] right-0 xl:right-[320px] 2xl:right-[340px] top-0 bottom-20 z-40 flex flex-col p-4 sm:p-6 md:p-8 overflow-y-auto no-scrollbar animate-in fade-in duration-300 transition-all duration-200"
         >
           {/* Header pinned at top */}
           <div className="sticky top-0 z-50 flex items-center justify-between pb-4 border-b border-[#282828] bg-inherit backdrop-blur-md shrink-0 pt-2">
@@ -382,12 +395,31 @@ export function HlsMusicPlayer() {
       <footer className="fixed bottom-0 left-0 right-0 h-20 bg-black border-t border-[#282828] z-50 px-3 sm:px-4 md:px-6 flex items-center justify-between select-none">
         {/* Left Section: Track Info & Quick Actions */}
         <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 w-[28%] md:w-[30%] max-w-[240px] md:max-w-[320px]">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-md overflow-hidden bg-zinc-900 shadow-md">
+          <div
+            onClick={() => {
+              if (currentSong.fullVideoKey || (currentSong as any).full_video_key) {
+                setShowFullVideo(true);
+              }
+            }}
+            className={`w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-md overflow-hidden bg-zinc-900 shadow-md relative group ${
+              currentSong.fullVideoKey || (currentSong as any).full_video_key ? "cursor-pointer" : ""
+            }`}
+            title={
+              currentSong.fullVideoKey || (currentSong as any).full_video_key
+                ? "Watch Full Video (V)"
+                : undefined
+            }
+          >
             {posterUrl ? (
               <img src={posterUrl} alt="" className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-zinc-600">
                 <Music size={20} />
+              </div>
+            )}
+            {(currentSong.fullVideoKey || (currentSong as any).full_video_key) && (
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                <Play size={16} fill="white" className="text-white translate-x-0.5" />
               </div>
             )}
           </div>
@@ -531,6 +563,20 @@ export function HlsMusicPlayer() {
 
         {/* Right Section: Equalizer, Lyrics, Queue, Quality, Volume */}
         <div className="flex items-center justify-end gap-1.5 sm:gap-2 md:gap-2.5 w-[32%] md:w-[35%] max-w-[360px]">
+          {/* Watch Full Video Button (when video is available) */}
+          {(currentSong.fullVideoKey || (currentSong as any).full_video_key) && (
+            <PlayerTooltip content="Watch Full Video" shortcut="V">
+              <button
+                type="button"
+                onClick={() => setShowFullVideo(true)}
+                className="p-1.5 rounded-md transition-colors cursor-pointer text-zinc-400 hover:text-white hover:bg-[#282828]"
+                aria-label="Watch Full Video"
+              >
+                <TvMinimalPlay size={16} />
+              </button>
+            </PlayerTooltip>
+          )}
+
           <PlayerTooltip content="Equalizer & Visualizer" shortcut="E">
             <button
               type="button"
@@ -632,6 +678,19 @@ export function HlsMusicPlayer() {
         songId={currentSong.id}
         songTitle={currentSong.title}
       />
+
+      {/* Full Video Modal (Available everywhere across all devices!) */}
+      {showFullVideo && (currentSong.fullVideoKey || (currentSong as any).full_video_key) && (
+        <FullVideoModal
+          songId={currentSong.id}
+          hlsUrl={getFullVideoHlsUrl(currentSong)!}
+          dashUrl={getFullVideoDashUrl(currentSong)}
+          title={currentSong.title}
+          artistName={currentSong.artistName}
+          posterUrl={getImageUrl(currentSong.imageKey, { width: 1280, height: 720, aspectRatio: "16-9" }) || undefined}
+          onClose={() => setShowFullVideo(false)}
+        />
+      )}
 
       {/* Queue Drawer */}
       <PlayerQueuePanel

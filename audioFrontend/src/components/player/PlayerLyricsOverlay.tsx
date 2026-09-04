@@ -203,12 +203,12 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
       onScroll={handleUserScroll}
       onWheel={handleUserScroll}
       onTouchMove={handleUserScroll}
-      className="flex-1 w-full overflow-y-auto no-scrollbar px-6 sm:px-12 py-8 flex flex-col items-center select-none relative"
+      className="flex-1 w-full overflow-y-auto no-scrollbar px-3 sm:px-6 md:px-10 py-6 md:py-8 flex flex-col items-center select-none relative"
     >
       {hasTranscriptions ? (
         // ✅ Synced karaoke lyrics
         <>
-          <div className="space-y-7 w-full max-w-2xl text-left py-8">
+          <div className="space-y-5 sm:space-y-6 md:space-y-7 w-full max-w-2xl lg:max-w-3xl text-left py-4 md:py-8">
             {transcriptions.map((entry, idx) => {
               const isActive = idx === activeIndex;
               return (
@@ -227,14 +227,14 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
                   }`}
                 >
                   {entry.words && entry.words.length > 0 ? (
-                    <div className="flex flex-wrap gap-x-2.5 gap-y-1">
+                    <div className="flex flex-wrap gap-x-2 sm:gap-x-2.5 gap-y-1">
                       {entry.words.map((word, wIdx) => {
                         const isWordActive =
                           localTime >= word.start && localTime <= word.end;
                         return (
                           <span
                             key={wIdx}
-                            className={`text-2xl sm:text-3xl md:text-[32px] font-extrabold tracking-tight transition-colors duration-100 ${
+                            className={`text-xl sm:text-2xl md:text-3xl lg:text-[32px] font-extrabold tracking-tight transition-colors duration-100 ${
                               isWordActive
                                 ? "text-white drop-shadow-[0_0_16px_rgba(255,255,255,0.85)]"
                                 : isActive
@@ -249,7 +249,7 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
                     </div>
                   ) : (
                     <p
-                      className={`text-2xl sm:text-3xl md:text-[32px] font-extrabold tracking-tight transition-colors duration-200 ${
+                      className={`text-xl sm:text-2xl md:text-3xl lg:text-[32px] font-extrabold tracking-tight transition-colors duration-200 ${
                         isActive
                           ? "text-white drop-shadow-md"
                           : "text-white/40 hover:text-white/80"
@@ -267,7 +267,7 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
           {isUserScrolled && (
             <button
               onClick={handleResync}
-              className="fixed bottom-28 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-white/10 backdrop-blur-md text-white text-xs font-bold px-4 py-2 rounded-full border border-white/20 hover:bg-white/20 transition-all z-10 cursor-pointer"
+              className="fixed bottom-28 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-white/10 backdrop-blur-md text-white text-xs font-bold px-4 py-2 rounded-full border border-white/20 hover:bg-white/20 transition-all z-10 cursor-pointer shadow-xl"
             >
               <RotateCcw className="w-3 h-3" />
               Resync lyrics
@@ -276,7 +276,7 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
         </>
       ) : hasPlainLyrics ? (
         // ⚠️ Plain (non-synced) lyrics — static scrollable text
-        <div className="w-full max-w-2xl py-8">
+        <div className="w-full max-w-2xl lg:max-w-3xl py-4 md:py-8">
           {/* Badge */}
           <div className="flex items-center gap-2 mb-6">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/30">
@@ -292,11 +292,11 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
           </div>
 
           {/* Plain lyrics text */}
-          <div className="space-y-1.5 text-left">
+          <div className="space-y-2 text-left">
             {plainLyrics.split("\n").map((line, idx) => (
               <p
                 key={idx}
-                className={`text-lg sm:text-xl font-bold tracking-tight leading-relaxed ${
+                className={`text-base sm:text-lg md:text-xl font-bold tracking-tight leading-relaxed ${
                   line.trim() === ""
                     ? "h-4" // blank line spacing
                     : "text-white/70"
@@ -309,8 +309,8 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
         </div>
       ) : currentCaption ? (
         // Direct caption fallback (URL-based)
-        <div className="my-auto text-left px-4 max-w-2xl">
-          <p className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white leading-relaxed">
+        <div className="my-auto text-left px-4 max-w-2xl lg:max-w-3xl">
+          <p className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold text-white leading-relaxed">
             {currentCaption.transcript}
           </p>
         </div>
