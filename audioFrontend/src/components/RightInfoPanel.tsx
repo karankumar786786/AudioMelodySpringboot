@@ -21,7 +21,6 @@ import { getImageUrl, getVideoUrl, getVideoABRUrl } from "@/lib/image-utils";
 import { musicApi, Song } from "@/lib/api";
 import { mapToPlayerSong, getFullVideoHlsUrl, getFullVideoDashUrl } from "@/lib/player-utils";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
-import { FullVideoModal } from "./FullVideoModal";
 import { PlayerTooltip } from "./player/PlayerTooltip";
 import { toast } from "sonner";
 
@@ -32,7 +31,6 @@ export function RightInfoPanel() {
 
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isFavLoading, setIsFavLoading] = useState(false);
-  const [showFullVideo, setShowFullVideo] = useState(false);
   const queryClient = useQueryClient();
   const relatedSongsRef = useRef<HTMLDivElement>(null);
 
@@ -59,26 +57,6 @@ export function RightInfoPanel() {
     enabled: !!currentSong,
     staleTime: 1000 * 60 * 60,
   });
-
-  // Global 'V' key shortcut to toggle full video for currently active song
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === "INPUT" ||
-        target.tagName === "TEXTAREA" ||
-        target.isContentEditable
-      ) {
-        return;
-      }
-      if ((e.key === "v" || e.key === "V") && currentSong?.fullVideoKey) {
-        e.preventDefault();
-        setShowFullVideo((prev) => !prev);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentSong?.fullVideoKey]);
 
   // Related songs
   const { data: songsFeed } = useQuery({
@@ -274,7 +252,7 @@ export function RightInfoPanel() {
                     {currentSong.fullVideoKey && (
                       <PlayerTooltip content="Watch Full Video" shortcut="V">
                         <button
-                          onClick={() => setShowFullVideo(true)}
+                          onClick={() => playerActions.openFullVideo()}
                           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/15 hover:bg-white/25 border border-white/20 text-white text-[11px] font-bold transition-all hover:scale-105 cursor-pointer"
                         >
                           <Play size={11} fill="currentColor" />
@@ -361,7 +339,7 @@ export function RightInfoPanel() {
                     {currentSong.fullVideoKey && (
                       <PlayerTooltip content="Watch Full Video" shortcut="V">
                         <button
-                          onClick={() => setShowFullVideo(true)}
+                          onClick={() => playerActions.openFullVideo()}
                           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[11px] font-bold transition-all hover:scale-105 cursor-pointer"
                         >
                           <Play size={11} fill="currentColor" />
@@ -566,19 +544,6 @@ export function RightInfoPanel() {
         songId={currentSong.id}
         songTitle={currentSong.title}
       />
-
-      {/* Full Video Modal */}
-      {showFullVideo && currentSong.fullVideoKey && (
-        <FullVideoModal
-          songId={currentSong.id}
-          hlsUrl={getFullVideoHlsUrl(currentSong)!}
-          dashUrl={getFullVideoDashUrl(currentSong)}
-          title={currentSong.title}
-          artistName={currentSong.artistName}
-          posterUrl={getImageUrl(currentSong.imageKey, { width: 1280, height: 720, aspectRatio: "16-9" }) || undefined}
-          onClose={() => setShowFullVideo(false)}
-        />
-      )}
     </>
   );
 }

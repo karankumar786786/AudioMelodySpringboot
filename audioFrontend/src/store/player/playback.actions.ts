@@ -68,8 +68,22 @@ export const playbackActions = {
   },
 
   setIsVideoActive: (isVideoActive: boolean) => {
-    console.log("[PlaybackActions] setIsVideoActive ->", isVideoActive);
     playerStore.setState((s) => ({ ...s, isVideoActive }));
+  },
+
+  openFullVideo: () => {
+    playerStore.setState((s) => ({ ...s, isFullVideoOpen: true, isVideoActive: true }));
+  },
+
+  closeFullVideo: () => {
+    playerStore.setState((s) => ({ ...s, isFullVideoOpen: false, isVideoActive: false }));
+  },
+
+  toggleFullVideo: () => {
+    playerStore.setState((s) => {
+      const next = !s.isFullVideoOpen;
+      return { ...s, isFullVideoOpen: next, isVideoActive: next };
+    });
   },
 
   setCurrentTime: (time: number) => {

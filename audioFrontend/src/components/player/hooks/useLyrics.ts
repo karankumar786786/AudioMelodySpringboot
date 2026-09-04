@@ -42,27 +42,60 @@ export function parseLrcToTranscriptions(lrcText: string): TranscriptionEntry[] 
   });
 }
 
+// Global in-memory cache for instant lyrics retrieval
+const lyricsCache = new Map<
+  string,
+  { transcriptions: TranscriptionEntry[]; plainLyrics: string | null }
+>();
+
 export function useLyrics(
   lrclibIdOrCaptionUrl: string | undefined,
   currentTime: number
 ) {
-  const [transcriptions, setTranscriptions] = useState<TranscriptionEntry[]>([]);
-  const [plainLyrics, setPlainLyrics] = useState<string | null>(null);
+  const input = lrclibIdOrCaptionUrl?.trim();
+  const cached = input ? lyricsCache.get(input) : undefined;
+
+  const [transcriptions, setTranscriptions] = useState<TranscriptionEntry[]>(
+    cached ? cached.transcriptions : []
+  );
+  const [plainLyrics, setPlainLyrics] = useState<string | null>(
+    cached ? cached.plainLyrics : null
+  );
   const [currentCaption, setCurrentCaption] = useState<TranscriptionEntry | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(!cached && Boolean(input));
 
   useEffect(() => {
-    if (!lrclibIdOrCaptionUrl) {
+    if (!input) {
       setTranscriptions([]);
       setPlainLyrics(null);
+      setCurrentCaption(null);
+      setIsLoading(false);
       return;
     }
 
-    const input = lrclibIdOrCaptionUrl.trim();
+    // Return from cache immediately if already fetched
+    if (lyricsCache.has(input)) {
+      const hit = lyricsCache.get(input)!;
+      setTranscriptions(hit.transcriptions);
+      setPlainLyrics(hit.plainLyrics);
+      setIsLoading(false);
+      return;
+    }
+
+    // Reset previous song lyrics and start loading immediately
+    setTranscriptions([]);
+    setPlainLyrics(null);
+    setCurrentCaption(null);
+    setIsLoading(true);
+
+    let isMounted = true;
 
     if (input.startsWith("http://") || input.startsWith("https://")) {
       fetch(input)
         .then(async (r) => {
           const text = await r.text();
+          if (!isMounted) return;
+
           if (text.includes("WEBVTT")) {
             const lines = text.split("\n");
             const chunks: TranscriptionEntry[] = [];
@@ -96,14 +129,25 @@ export function useLyrics(
                 }
               }
             }
+            lyricsCache.set(input, { transcriptions: chunks, plainLyrics: null });
             setTranscriptions(chunks);
             setPlainLyrics(null);
+            setIsLoading(false);
           } else {
-            setTranscriptions(parseLrcToTranscriptions(text));
+            const parsed = parseLrcToTranscriptions(text);
+            lyricsCache.set(input, { transcriptions: parsed, plainLyrics: null });
+            setTranscriptions(parsed);
             setPlainLyrics(null);
+            setIsLoading(false);
           }
         })
-        .catch(() => { setTranscriptions([]); setPlainLyrics(null); });
+        .catch(() => {
+          if (isMounted) {
+            setTranscriptions([]);
+            setPlainLyrics(null);
+            setIsLoading(false);
+          }
+        });
     } else {
       // Fetch from LRCLIB API by ID
       fetch(`https://lrclib.net/api/get/${encodeURIComponent(input)}`)
@@ -112,23 +156,37 @@ export function useLyrics(
           return res.json();
         })
         .then((data) => {
+          if (!isMounted) return;
+
           if (data.syncedLyrics && typeof data.syncedLyrics === "string") {
-            // ✅ Synced lyrics — full karaoke mode
-            setTranscriptions(parseLrcToTranscriptions(data.syncedLyrics));
+            const parsed = parseLrcToTranscriptions(data.syncedLyrics);
+            lyricsCache.set(input, { transcriptions: parsed, plainLyrics: null });
+            setTranscriptions(parsed);
             setPlainLyrics(null);
           } else if (data.plainLyrics && typeof data.plainLyrics === "string") {
-            // ⚠️ Plain (non-synced) lyrics only — show as static text
+            lyricsCache.set(input, { transcriptions: [], plainLyrics: data.plainLyrics });
             setTranscriptions([]);
             setPlainLyrics(data.plainLyrics);
           } else {
-            // ❌ No lyrics — show EQ bars
+            lyricsCache.set(input, { transcriptions: [], plainLyrics: null });
             setTranscriptions([]);
             setPlainLyrics(null);
           }
+          setIsLoading(false);
         })
-        .catch(() => { setTranscriptions([]); setPlainLyrics(null); });
+        .catch(() => {
+          if (isMounted) {
+            setTranscriptions([]);
+            setPlainLyrics(null);
+            setIsLoading(false);
+          }
+        });
     }
-  }, [lrclibIdOrCaptionUrl]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [input]);
 
   useEffect(() => {
     let active: TranscriptionEntry | null = null;
@@ -142,5 +200,5 @@ export function useLyrics(
     if (active !== currentCaption) setCurrentCaption(active);
   }, [transcriptions, currentTime]);
 
-  return { currentCaption, transcriptions, plainLyrics };
+  return { currentCaption, transcriptions, plainLyrics, isLoading };
 }

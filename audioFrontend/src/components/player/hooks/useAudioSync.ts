@@ -40,32 +40,26 @@ export function useAudioSync(
     // Explicitly set both to ensure browser sync
     const targetVolume = Math.max(0, Math.min(1, volume));
     audioElement.volume = targetVolume;
-    audioElement.muted = isMuted || targetVolume === 0;
-  }, [audioElement, volume, isMuted]);
+    audioElement.muted = isVideoActive || isMuted || targetVolume === 0;
+  }, [audioElement, volume, isMuted, isVideoActive]);
 
   // 2. Sync Play/Pause state to the audio element (only when video is not actively driving playback)
   useEffect(() => {
     if (!audioElement) return;
-    console.log(
-      "[AudioSync] Play/Pause sync effect -> isPlaying:",
-      isPlaying,
-      "isVideoActive:",
-      isVideoActive,
-      "audioPaused:",
-      audioElement.paused,
-    );
 
     if (isVideoActive) {
       if (!audioElement.paused) {
-        console.log("[AudioSync] 🛑 Pausing audio element because isVideoActive is TRUE");
         audioElement.pause();
       }
+      audioElement.muted = true;
       return;
     }
 
+    // Unmute when video becomes inactive
+    audioElement.muted = isMuted || volume === 0;
+
     if (isPlaying) {
       if (audioElement.paused && audioElement.readyState >= 2) {
-        console.log("[AudioSync] ▶️ Playing audio element");
         audioElement.play().catch((err) => {
           if (err.name !== "AbortError")
             console.warn("[Player] Play failed:", err);
@@ -73,32 +67,31 @@ export function useAudioSync(
       }
     } else {
       if (!audioElement.paused && !isInternalChange.current) {
-        console.log("[AudioSync] ⏸️ Pausing audio element because isPlaying is false");
         audioElement.pause();
       }
     }
-  }, [audioElement, isPlaying, isInternalChange, isVideoActive]);
+  }, [audioElement, isPlaying, isInternalChange, isVideoActive, isMuted, volume]);
 
   // 3. Native Event Listeners
   useEffect(() => {
     if (!audioElement) return;
 
     const onPlay = () => {
-      console.log("[AudioSync] onPlay event. isVideoActive:", isVideoActive, "isInternalChange:", isInternalChange.current);
       if (
         isInternalChange.current ||
         audioElement.readyState === 0 ||
-        isVideoActive
+        isVideoActive ||
+        playerStore.state.isVideoActive
       )
         return;
       playerActions.setIsPlaying(true);
     };
     const onPause = () => {
-      console.log("[AudioSync] onPause event. isVideoActive:", isVideoActive, "isInternalChange:", isInternalChange.current);
       if (
         isInternalChange.current ||
         audioElement.readyState === 0 ||
-        isVideoActive
+        isVideoActive ||
+        playerStore.state.isVideoActive
       )
         return;
       playerActions.setIsPlaying(false);
@@ -110,7 +103,7 @@ export function useAudioSync(
       }
     };
     const handleEnded = () => {
-      if (isVideoActive) return;
+      if (isVideoActive || playerStore.state.isVideoActive) return;
 
       // Robust check: Only trigger 'next' if we are actually at/near the end of the song.
       if (audioElement.duration && isFinite(audioElement.duration)) {

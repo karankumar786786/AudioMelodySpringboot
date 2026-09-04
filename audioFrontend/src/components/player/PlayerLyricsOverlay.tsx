@@ -130,6 +130,7 @@ interface PlayerLyricsOverlayProps {
   localTime: number;
   analyser?: AnalyserNode | null;
   onSeek?: (time: number) => void;
+  isLoading?: boolean;
 }
 
 export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
@@ -139,6 +140,7 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
   localTime,
   analyser,
   onSeek,
+  isLoading = false,
 }) => {
   const isPlaying = useStore(playerStore, (s) => s.isPlaying);
   const activeLineRef = useRef<HTMLDivElement>(null);
@@ -259,7 +261,23 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
         </div>
       )}
 
-      {hasTranscriptions ? (
+      {isLoading ? (
+        // ⏳ Beautiful Animated Loading State
+        <div className="flex-1 flex flex-col items-center justify-center gap-5 py-20 my-auto">
+          <div className="relative flex items-center justify-center w-16 h-16">
+            <div className="absolute inset-0 rounded-full border-2 border-primary/20 animate-ping opacity-25" />
+            <div className="w-12 h-12 rounded-full border-2 border-transparent border-t-primary border-r-primary animate-spin" />
+            <div className="absolute flex items-end justify-center gap-1">
+              <span className="w-1 h-3 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]" />
+              <span className="w-1 h-5 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]" />
+              <span className="w-1 h-2 bg-primary rounded-full animate-bounce" />
+            </div>
+          </div>
+          <p className="text-sm font-semibold text-white/70 tracking-wide animate-pulse">
+            Loading lyrics...
+          </p>
+        </div>
+      ) : hasTranscriptions ? (
         // ✅ Synced karaoke lyrics
         <>
           <div className="space-y-5 sm:space-y-6 md:space-y-7 w-full max-w-2xl lg:max-w-3xl text-left py-4 md:py-8">

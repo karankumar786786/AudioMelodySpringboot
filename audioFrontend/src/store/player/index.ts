@@ -30,6 +30,7 @@ export interface PlayerState {
   isRefilling: boolean;
   isLyricsOpen: boolean;
   isVideoActive: boolean;
+  isFullVideoOpen: boolean;
   sleepTimer: SleepTimerState;
 }
 
@@ -114,6 +115,7 @@ export const playerStore = new Store<PlayerState>({
   isRefilling: false,
   isLyricsOpen: false,
   isVideoActive: false,
+  isFullVideoOpen: false,
   sleepTimer: {
     targetTimestamp: null,
     mode: null,

@@ -1,10 +1,9 @@
-import React, { useState } from "react";
+import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { type Song } from "../lib/api";
-import { playerActions } from "../store/player.store";
-import { mapToPlayerSong, getFullVideoHlsUrl, getFullVideoDashUrl } from "../lib/player-utils";
+import { playerActions, playerStore } from "../store/player.store";
+import { mapToPlayerSong } from "../lib/player-utils";
 import { getImageUrl, getVideoUrl } from "../lib/image-utils";
-import { FullVideoModal } from "./FullVideoModal";
 import { PlayerTooltip } from "./player/PlayerTooltip";
 
 interface HeroSectionProps {
@@ -31,7 +30,6 @@ export function HeroSection({
   isLoading,
 }: HeroSectionProps) {
   const currentSong = songs[index] || songs[0];
-  const [showFullVideo, setShowFullVideo] = useState(false);
 
   if (isLoading || !currentSong) {
     return (
@@ -157,7 +155,10 @@ export function HeroSection({
                 transition={{ duration: 0.2, delay: 0.1 }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setShowFullVideo(true);
+                  if (playerStore.state.currentSong?.id !== currentSong.id) {
+                    playerActions.play(mapToPlayerSong(currentSong));
+                  }
+                  playerActions.openFullVideo();
                 }}
                 className="mt-1 flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm border border-white/20 text-white text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer w-fit"
               >
@@ -203,19 +204,6 @@ export function HeroSection({
         )}
       </div>
     </section>
-
-    {/* Full Video Modal */}
-    {showFullVideo && currentSong.fullVideoKey && (
-      <FullVideoModal
-        songId={currentSong.id}
-        hlsUrl={getFullVideoHlsUrl(currentSong)!}
-        dashUrl={getFullVideoDashUrl(currentSong)}
-        title={currentSong.title}
-        artistName={currentSong.artistName}
-        posterUrl={getImageUrl(currentSong.imageKey, { width: 1280, height: 720, aspectRatio: "16-9" }) || undefined}
-        onClose={() => setShowFullVideo(false)}
-      />
-    )}
     </>
   );
 }

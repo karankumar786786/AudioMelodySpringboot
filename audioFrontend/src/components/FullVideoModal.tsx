@@ -221,6 +221,13 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
 
     return () => {
       destroyed = true;
+      if (video) {
+        try {
+          video.pause();
+          video.src = "";
+          video.load();
+        } catch {}
+      }
       if (player) player.destroy?.();
       playerRef.current = null;
     };
@@ -359,7 +366,13 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
 
   // Seamless Close: sync the video's stop time back to the audio player and resume playback
   const handleClose = useCallback(() => {
-    const finalTime = videoRef.current?.currentTime ?? currentTime;
+    const v = videoRef.current;
+    const finalTime = v?.currentTime ?? currentTime;
+    if (v) {
+      try {
+        v.pause();
+      } catch {}
+    }
     playerActions.setIsVideoActive(false);
     if (isCurrentSong && typeof finalTime === "number" && isFinite(finalTime)) {
       playerActions.seek(finalTime);
@@ -454,6 +467,8 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
       }
 
       if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
         const inFullscreen = Boolean(
           document.fullscreenElement || (document as any).webkitFullscreenElement,
         );

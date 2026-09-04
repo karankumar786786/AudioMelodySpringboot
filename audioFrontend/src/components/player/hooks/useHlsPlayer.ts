@@ -160,7 +160,7 @@ export function useHlsPlayer(
               audioElement.currentTime = savedTime;
             }
 
-            if (isPlayingRef.current) {
+            if (isPlayingRef.current && !playerStore.state.isVideoActive) {
               audioElement.play().catch((err) => {
                 if (err.name !== "AbortError") {
                   console.warn("[Player] Native HLS autoplay failed:", err);

@@ -70,7 +70,6 @@ export function HlsMusicPlayer() {
   const [showQueuePanel, setShowQueuePanel] = useState(false);
   const [showEqualizerModal, setShowEqualizerModal] = useState(false);
   const [showSleepTimerModal, setShowSleepTimerModal] = useState(false);
-  const [showFullVideo, setShowFullVideo] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [solidBgColor, setSolidBgColor] = useState("#181818");
   const [showQualityMenu, setShowQualityMenu] = useState(false);
@@ -130,7 +129,7 @@ export function HlsMusicPlayer() {
     selectedQuality,
   );
 
-  const { currentCaption, transcriptions, plainLyrics } = useLyrics(
+  const { currentCaption, transcriptions, plainLyrics, isLoading: isLyricsLoading } = useLyrics(
     currentSong?.lrclibId || currentSong?.captionUrl,
     localTime,
   );
@@ -260,7 +259,7 @@ export function HlsMusicPlayer() {
         (currentSong?.fullVideoKey || (currentSong as any)?.full_video_key)
       ) {
         e.preventDefault();
-        setShowFullVideo((v) => !v);
+        playerActions.toggleFullVideo();
       }
 
       // ArrowRight (Ctrl/Cmd): Next Track
@@ -392,6 +391,7 @@ export function HlsMusicPlayer() {
               plainLyrics={plainLyrics}
               localTime={localTime}
               analyser={webAudio.analyser}
+              isLoading={isLyricsLoading}
               onSeek={(time) => {
                 if (audioRef.current) {
                   audioRef.current.currentTime = time;
@@ -410,7 +410,7 @@ export function HlsMusicPlayer() {
           <div
             onClick={() => {
               if (currentSong.fullVideoKey || (currentSong as any).full_video_key) {
-                setShowFullVideo(true);
+                playerActions.openFullVideo();
               }
             }}
             className={`w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-md overflow-hidden bg-zinc-900 shadow-md relative group ${
@@ -582,7 +582,7 @@ export function HlsMusicPlayer() {
             <PlayerTooltip content="Watch Full Video" shortcut="V">
               <button
                 type="button"
-                onClick={() => setShowFullVideo(true)}
+                onClick={() => playerActions.openFullVideo()}
                 className="p-1.5 rounded-md transition-colors cursor-pointer text-zinc-400 hover:text-white hover:bg-[#282828]"
                 aria-label="Watch Full Video"
               >
@@ -717,8 +717,8 @@ export function HlsMusicPlayer() {
         songTitle={currentSong.title}
       />
 
-      {/* Full Video Modal (Available everywhere across all devices!) */}
-      {showFullVideo && (currentSong.fullVideoKey || (currentSong as any).full_video_key) && (
+      {/* Full Video Modal (Single Global Instance across entire application) */}
+      {state.isFullVideoOpen && (currentSong.fullVideoKey || (currentSong as any).full_video_key) && (
         <FullVideoModal
           songId={currentSong.id}
           hlsUrl={getFullVideoHlsUrl(currentSong)!}
@@ -726,7 +726,7 @@ export function HlsMusicPlayer() {
           title={currentSong.title}
           artistName={currentSong.artistName}
           posterUrl={getImageUrl(currentSong.imageKey, { width: 1280, height: 720, aspectRatio: "16-9" }) || undefined}
-          onClose={() => setShowFullVideo(false)}
+          onClose={() => playerActions.closeFullVideo()}
         />
       )}
 
