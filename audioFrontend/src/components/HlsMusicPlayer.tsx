@@ -15,6 +15,7 @@ import { EqualizerModal } from "./player/EqualizerModal";
 import { PlayerQueuePanel } from "./player/PlayerQueuePanel";
 import { KeyboardShortcutsModal } from "./player/KeyboardShortcutsModal";
 import { CommandPaletteModal } from "./CommandPaletteModal";
+import { PlayerHudOverlay } from "./player/PlayerHudOverlay";
 
 // Hooks
 import { useHlsPlayer } from "./player/hooks/useHlsPlayer";
@@ -370,6 +371,9 @@ export function HlsMusicPlayer() {
         isOpen={showCommandPalette}
         onClose={() => setShowCommandPalette(false)}
       />
+
+      {/* Floating On-Screen HUD Overlay for Volume & Seeking */}
+      <PlayerHudOverlay />
     </>
   );
 }

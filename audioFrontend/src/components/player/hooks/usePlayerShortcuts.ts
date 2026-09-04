@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { playerActions, playerStore } from "@/store/player.store";
 import { type PlayerSong } from "@/lib/player-utils";
+import { showPlayerHud } from "../PlayerHudOverlay";
 
 interface UsePlayerShortcutsProps {
   audioElement: HTMLAudioElement | null;
@@ -92,7 +93,13 @@ export function usePlayerShortcuts({
       // M: Toggle Mute
       if (e.key === "m" || e.key === "M") {
         e.preventDefault();
-        playerActions.setIsMuted(!isMuted);
+        const nextMuted = !isMuted;
+        playerActions.setIsMuted(nextMuted);
+        showPlayerHud({
+          type: "volume",
+          value: volume,
+          isMuted: nextMuted,
+        });
       }
 
       // L: Toggle Lyrics
@@ -156,6 +163,12 @@ export function usePlayerShortcuts({
           audioElement.currentTime = nextTime;
           setLocalTime(nextTime);
           playerActions.setCurrentTime(nextTime);
+          showPlayerHud({
+            type: "seek",
+            time: nextTime,
+            duration: maxDur,
+            delta: "+10s",
+          });
           if (typeof window !== "undefined") {
             localStorage.setItem("last_current_time", nextTime.toFixed(2));
           }
@@ -166,10 +179,17 @@ export function usePlayerShortcuts({
       if (e.key === "ArrowLeft" && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         if (audioElement) {
+          const maxDur = duration || audioElement.duration || 0;
           const prevTime = Math.max(0, audioElement.currentTime - 10);
           audioElement.currentTime = prevTime;
           setLocalTime(prevTime);
           playerActions.setCurrentTime(prevTime);
+          showPlayerHud({
+            type: "seek",
+            time: prevTime,
+            duration: maxDur,
+            delta: "-10s",
+          });
           if (typeof window !== "undefined") {
             localStorage.setItem("last_current_time", prevTime.toFixed(2));
           }
@@ -179,13 +199,26 @@ export function usePlayerShortcuts({
       // ArrowUp: Increase Volume
       if (e.key === "ArrowUp" && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
-        playerActions.setVolume(Math.min(1, volume + 0.05));
+        const nextVol = Math.min(1, Math.round((volume + 0.05) * 100) / 100);
+        playerActions.setVolume(nextVol);
+        if (isMuted) playerActions.setIsMuted(false);
+        showPlayerHud({
+          type: "volume",
+          value: nextVol,
+          isMuted: false,
+        });
       }
 
       // ArrowDown: Decrease Volume
       if (e.key === "ArrowDown" && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
-        playerActions.setVolume(Math.max(0, volume - 0.05));
+        const nextVol = Math.max(0, Math.round((volume - 0.05) * 100) / 100);
+        playerActions.setVolume(nextVol);
+        showPlayerHud({
+          type: "volume",
+          value: nextVol,
+          isMuted: nextVol === 0,
+        });
       }
 
       // 0-9: Seek to percentage (0% to 90%)
@@ -197,6 +230,12 @@ export function usePlayerShortcuts({
           audioElement.currentTime = targetTime;
           setLocalTime(targetTime);
           playerActions.setCurrentTime(targetTime);
+          showPlayerHud({
+            type: "seek",
+            time: targetTime,
+            duration,
+            delta: `${percent * 100}%`,
+          });
           if (typeof window !== "undefined") {
             localStorage.setItem("last_current_time", targetTime.toFixed(2));
           }

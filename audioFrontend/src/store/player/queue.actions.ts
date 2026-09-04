@@ -133,14 +133,27 @@ export const queueActions = {
     if (songs.length === 0) return;
 
     playerStore.setState((s) => {
-      const existingIds = new Set(s.queue.map((item) => item.id));
-      const uniqueNewSongs = songs.filter((song) => !existingIds.has(song.id));
-      if (uniqueNewSongs.length === 0) return s;
+      // Ensure each enqueued song has its own distinct unique queueId
+      const preparedSongs: PlayerSong[] = songs.map((song) => ({
+        ...song,
+        queueId:
+          typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : `${song.id}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      }));
 
-      const nextQueue = [...s.queue, ...uniqueNewSongs];
+      // Insert immediately after the current song so it is first in the upcoming queue
+      const insertIdx = Math.min(Math.max(0, s.lastQueueIndex + 1), s.queue.length);
+      const nextQueue = [...s.queue];
+      nextQueue.splice(insertIdx, 0, ...preparedSongs);
+
       const nextOriginal =
         s.originalQueue && s.originalQueue.length > 0
-          ? [...s.originalQueue, ...uniqueNewSongs]
+          ? (() => {
+              const orig = [...s.originalQueue];
+              orig.splice(insertIdx, 0, ...preparedSongs);
+              return orig;
+            })()
           : [];
 
       let nextCurrentSong = s.currentSong;
@@ -152,7 +165,7 @@ export const queueActions = {
 
       persistQueue(nextQueue, nextIndex >= 0 ? nextIndex : 0);
       console.log(
-        `[Queue] Enqueued ${uniqueNewSongs.length} songs. Total: ${nextQueue.length}`,
+        `[Queue] Enqueued ${preparedSongs.length} songs at upcoming position ${insertIdx}. Total: ${nextQueue.length}`,
       );
 
       return {
@@ -167,25 +180,28 @@ export const queueActions = {
 
   playNext: (song: PlayerSong) => {
     playerStore.setState((s) => {
-      let updatedQueue = [...s.queue];
-      const existingIdx = updatedQueue.findIndex((item) => item.id === song.id);
-      if (existingIdx !== -1) {
-        updatedQueue.splice(existingIdx, 1);
-      }
+      const preparedSong: PlayerSong = {
+        ...song,
+        queueId:
+          typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : `${song.id}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      };
 
-      if (updatedQueue.length === 0) {
-        persistQueue([song], 0);
+      if (s.queue.length === 0) {
+        persistQueue([preparedSong], 0);
         return {
           ...s,
-          queue: [song],
+          queue: [preparedSong],
           originalQueue: [],
-          currentSong: song,
+          currentSong: preparedSong,
           lastQueueIndex: 0,
         };
       }
 
+      const updatedQueue = [...s.queue];
       const insertIdx = Math.min(Math.max(0, s.lastQueueIndex + 1), updatedQueue.length);
-      updatedQueue.splice(insertIdx, 0, song);
+      updatedQueue.splice(insertIdx, 0, preparedSong);
 
       persistQueue(updatedQueue, s.lastQueueIndex);
       console.log(`[Queue] Added "${song.title}" to play next at index ${insertIdx}.`);
@@ -255,16 +271,23 @@ export const queueActions = {
         return s;
       }
 
+      // If reordering upcoming tracks, prevent moving before the currently playing song
+      const minUpcomingIdx = Math.max(0, s.lastQueueIndex + 1);
+      const safeFrom = fromIndex;
+      const safeTo = fromIndex >= minUpcomingIdx ? Math.max(minUpcomingIdx, toIndex) : toIndex;
+
+      if (safeFrom === safeTo) return s;
+
       const nextQueue = [...s.queue];
-      const [item] = nextQueue.splice(fromIndex, 1);
-      nextQueue.splice(toIndex, 0, item);
+      const [item] = nextQueue.splice(safeFrom, 1);
+      nextQueue.splice(safeTo, 0, item);
 
       let nextIndex = s.lastQueueIndex;
-      if (fromIndex === s.lastQueueIndex) {
-        nextIndex = toIndex;
-      } else if (fromIndex < s.lastQueueIndex && toIndex >= s.lastQueueIndex) {
+      if (safeFrom === s.lastQueueIndex) {
+        nextIndex = safeTo;
+      } else if (safeFrom < s.lastQueueIndex && safeTo >= s.lastQueueIndex) {
         nextIndex = s.lastQueueIndex - 1;
-      } else if (fromIndex > s.lastQueueIndex && toIndex <= s.lastQueueIndex) {
+      } else if (safeFrom > s.lastQueueIndex && safeTo <= s.lastQueueIndex) {
         nextIndex = s.lastQueueIndex + 1;
       }
 
@@ -273,7 +296,7 @@ export const queueActions = {
         ...s,
         queue: nextQueue,
         lastQueueIndex: nextIndex,
-        currentSong: nextQueue[nextIndex] || null,
+        currentSong: nextQueue[nextIndex] || s.currentSong,
       };
     });
   },
