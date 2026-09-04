@@ -99,7 +99,9 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   const rawSongs: Song[] = searchResults?.data?.songs || [];
   const rawArtists: Artist[] = searchResults?.data?.artists || [];
   const rawPlaylists: Playlist[] = searchResults?.data?.playlists || [];
-  const historyList: string[] = searchHistory?.data?.data?.map((h: any) => h.searchText || h) || [];
+  const historyList: string[] = (searchHistory?.data?.data || [])
+  .map((h: any) => (typeof h === "string" ? h : h?.searchedText))
+  .filter(Boolean);
 
   // Build flattened list for keyboard navigation
   const items: NavigableItem[] = useMemo(() => {
