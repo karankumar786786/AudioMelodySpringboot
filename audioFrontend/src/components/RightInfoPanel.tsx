@@ -31,8 +31,14 @@ export function RightInfoPanel() {
 
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isFavLoading, setIsFavLoading] = useState(false);
+  const [mediaLoaded, setMediaLoaded] = useState(false);
   const queryClient = useQueryClient();
   const relatedSongsRef = useRef<HTMLDivElement>(null);
+
+  // Reset mediaLoaded on song change
+  useEffect(() => {
+    setMediaLoaded(false);
+  }, [currentSong?.id]);
 
   const scrollRelated = (distance: number) => {
     if (relatedSongsRef.current) {
@@ -44,8 +50,8 @@ export function RightInfoPanel() {
     ? Array.from(favourites).some((id) => String(id) === String(currentSong.id))
     : false;
 
-  // Song + Artist information
-  const { data: info, isLoading } = useQuery({
+  // Song + Artist information (hydrates in background)
+  const { data: info, isLoading: isInfoLoading } = useQuery({
     queryKey: [
       "song-info",
       currentSong?.id,
@@ -58,8 +64,8 @@ export function RightInfoPanel() {
     staleTime: 1000 * 60 * 60,
   });
 
-  // Related songs
-  const { data: songsFeed } = useQuery({
+  // Related songs (hydrates in background)
+  const { data: songsFeed, isLoading: isRelatedLoading } = useQuery({
     queryKey: ["artist-more-songs", currentSong?.artistName],
     queryFn: async () => {
       const res = await musicApi.songs.getFeed(1, 50);
@@ -177,322 +183,383 @@ export function RightInfoPanel() {
   return (
     <>
       <aside className="hidden lg:block w-[290px] xl:w-[320px] 2xl:w-[340px] bg-black border-l border-[#282828] h-screen fixed right-0 top-0 z-40 overflow-y-auto no-scrollbar pb-28">
-        {isLoading ? (
-          <div className="p-4 space-y-4 animate-pulse">
-            <div className="w-full h-[440px] bg-zinc-900 rounded-2xl" />
-            <div className="h-5 w-3/4 bg-zinc-800 rounded" />
-            <div className="h-28 bg-zinc-900 rounded-xl" />
-          </div>
-        ) : (
-          <div>
-            {/* ========================================================== */}
-            {/* 1. MEDIA DISPLAY (Full-bleed Video Canvas OR Card Cover Art) */}
-            {/* ========================================================== */}
-            {directVideoUrl ? (
-              /* Full-bleed Tall Video Canvas when Video is Available */
-              <div className="relative w-full h-[440px] overflow-hidden bg-zinc-900 shadow-2xl flex flex-col justify-end group">
-                <video
-                  key={`canvas-video-${currentSong.id}-${activeVideoKey}`}
-                  src={directVideoUrl}
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="absolute inset-0 w-full h-full object-cover object-center"
-                />
+        <div>
+          {/* ========================================================== */}
+          {/* 1. MEDIA DISPLAY (Full-bleed Video Canvas OR Card Cover Art) */}
+          {/* ========================================================== */}
+          {directVideoUrl ? (
+            /* Full-bleed Tall Video Canvas when Video is Available */
+            <div className="relative w-full h-[440px] overflow-hidden bg-zinc-900 shadow-2xl flex flex-col justify-end group">
+              <video
+                key={`canvas-video-${currentSong.id}-${activeVideoKey}`}
+                src={directVideoUrl}
+                autoPlay
+                loop
+                muted
+                playsInline
+                onLoadedData={() => setMediaLoaded(true)}
+                className={`absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-300 ${
+                  mediaLoaded ? "opacity-100" : "opacity-0"
+                }`}
+              />
 
-                {/* Seamless Bottom Gradient Overlay */}
-                <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none" />
-
-                {/* Overlaid Song Title, Artist & Actions */}
-                <div className="relative z-10 p-4 pb-4 flex items-end justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-xl font-bold text-white tracking-tight truncate hover:underline cursor-pointer leading-tight drop-shadow-md">
-                      {currentSong.title}
-                    </h2>
-                    <p className="text-xs font-medium text-zinc-300 truncate mt-1 hover:text-white hover:underline cursor-pointer drop-shadow">
-                      {currentSong.artistName}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2.5 shrink-0 pb-0.5">
-                    <button
-                      onClick={handlePlaylist}
-                      className="text-zinc-400 hover:text-white transition-colors cursor-pointer p-1"
-                      title="Add to playlist"
-                    >
-                      <Plus size={20} />
-                    </button>
-
-                    <button
-                      onClick={handleFavourite}
-                      disabled={isFavLoading}
-                      className="transition-transform active:scale-90 cursor-pointer p-1 disabled:opacity-60 disabled:cursor-not-allowed"
-                      title={isFavourite ? "Liked" : "Like"}
-                    >
-                      {isFavLoading ? (
-                        <Loader2
-                          size={20}
-                          className="text-zinc-400 animate-spin"
-                        />
-                      ) : isFavourite ? (
-                        <Heart
-                          size={20}
-                          className=" fill-primary transition-all transform scale-105"
-                        />
-                      ) : (
-                        <Heart
-                          size={20}
-                          className="text-zinc-400 hover:text-white transition-colors"
-                        />
-                      )}
-                    </button>
-
-                    {/* Watch Full Video – video canvas display */}
-                    {currentSong.fullVideoKey && (
-                      <PlayerTooltip content="Watch Full Video" shortcut="V">
-                        <button
-                          onClick={() => playerActions.openFullVideo()}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/15 hover:bg-white/25 border border-white/20 text-white text-[11px] font-bold transition-all hover:scale-105 cursor-pointer"
-                        >
-                          <Play size={11} fill="currentColor" />
-                          Full Video
-                        </button>
-                      </PlayerTooltip>
-                    )}
-                  </div>
+              {!mediaLoaded && (
+                <div className="absolute inset-0 bg-zinc-900 animate-pulse flex items-center justify-center">
+                  <Music size={36} className="text-zinc-700 animate-pulse" />
                 </div>
-              </div>
-            ) : (
-              /* Card-Style Cover Art in fixed h-[440px] container (prevents layout jump) */
-              <div className="relative w-full h-[440px] p-4 flex flex-col justify-between overflow-hidden bg-black">
-                {/* Subtle Ambient Glow from Cover Art */}
-                {songImage && (
-                  <div
-                    className="absolute inset-0 bg-cover bg-center blur-3xl opacity-20 scale-125 pointer-events-none"
-                    // style={{ backgroundImage: `url(${songImage})` }}
-                  />
-                )}
-
-                {/* Centered Artwork Card */}
-                <div className="relative z-10 w-full flex-1 flex items-center justify-center pt-2">
-                  <div className="relative w-full max-w-[280px] aspect-square overflow-hidden rounded-2xl bg-zinc-900 border border-white/10 shadow-2xl group">
-                    {songImage ? (
-                      <img
-                        src={songImage}
-                        alt={currentSong.title}
-                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-zinc-700 bg-zinc-950">
-                        <Music size={48} />
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Song Title, Artist & Actions Below Card */}
-                <div className="relative z-10 pt-3 pb-1 flex items-center justify-between gap-3 px-1">
-                  <div className="min-w-0 flex-1">
-                    <h2 className="text-lg font-bold text-white tracking-tight truncate hover:underline cursor-pointer leading-tight">
-                      {currentSong.title}
-                    </h2>
-                    <p className="text-xs font-medium text-zinc-400 truncate mt-0.5 hover:text-white hover:underline cursor-pointer">
-                      {currentSong.artistName}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    <button
-                      onClick={handlePlaylist}
-                      className="text-zinc-400 hover:text-white transition-colors cursor-pointer p-1"
-                      title="Add to playlist"
-                    >
-                      <Plus size={20} />
-                    </button>
-
-                    <button
-                      onClick={handleFavourite}
-                      disabled={isFavLoading}
-                      className="transition-transform active:scale-90 cursor-pointer p-1 disabled:opacity-60 disabled:cursor-not-allowed"
-                      title={isFavourite ? "Liked" : "Like"}
-                    >
-                      {isFavLoading ? (
-                        <Loader2
-                          size={20}
-                          className="text-zinc-400 animate-spin"
-                        />
-                      ) : isFavourite ? (
-                        <Heart
-                          size={20}
-                          className="text-[#1ed760] fill-[#1ed760] transition-all transform scale-105"
-                        />
-                      ) : (
-                        <Heart
-                          size={20}
-                          className="text-zinc-400 hover:text-white transition-colors"
-                        />
-                      )}
-                    </button>
-
-                    {/* Watch Full Video – cover-art display */}
-                    {currentSong.fullVideoKey && (
-                      <PlayerTooltip content="Watch Full Video" shortcut="V">
-                        <button
-                          onClick={() => playerActions.openFullVideo()}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[11px] font-bold transition-all hover:scale-105 cursor-pointer"
-                        >
-                          <Play size={11} fill="currentColor" />
-                          Full Video
-                        </button>
-                      </PlayerTooltip>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Content Below Video */}
-            <div className="px-4 space-y-4">
-              {/* ========================================================== */}
-              {/* 2. RELATED MUSIC VIDEOS CAROUSEL (from screenshot)         */}
-              {/* ========================================================== */}
-              {artistMoreSongs.length > 0 && (
-                <section className="bg-black rounded-2xl py-4 px-2 mt-2 shadow-xl">
-                  <div className="flex items-center justify-between pb-2">
-                    <h3 className="text-sm font-bold text-white tracking-tight">
-                      Related Songs
-                    </h3>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={() => scrollRelated(-220)}
-                        type="button"
-                        aria-label="Scroll left"
-                        className="w-6 h-6 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
-                      >
-                        <ChevronLeft size={13} />
-                      </button>
-                      <button
-                        onClick={() => scrollRelated(220)}
-                        type="button"
-                        aria-label="Scroll right"
-                        className="w-6 h-6 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
-                      >
-                        <ChevronRight size={13} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div
-                    ref={relatedSongsRef}
-                    className="flex gap-3 overflow-x-auto no-scrollbar pb-1 scroll-smooth"
-                  >
-                    {artistMoreSongs.map((song: Song) => {
-                      const songImg = song.imageKey
-                        ? getImageUrl(song.imageKey, {
-                            width: 350,
-                            height: 350,
-                            focus: "auto",
-                            aspectRatio: "1-1",
-                          })
-                        : "";
-
-                      return (
-                        <div
-                          key={song.id}
-                          onClick={() =>
-                            playerActions.play(mapToPlayerSong(song))
-                          }
-                          className="group flex-shrink-0 w-32 cursor-pointer space-y-1.5"
-                        >
-                          {/* 1:1 square cover like SongCard */}
-                          <div className="relative aspect-square w-full rounded-md overflow-hidden bg-zinc-900 shadow-md border border-white/5 group-hover:border-zinc-500 transition-colors">
-                            {songImg ? (
-                              <img
-                                src={songImg}
-                                alt={song.title}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                                <Music size={20} />
-                              </div>
-                            )}
-
-                            {/* Play overlay button like SongCard */}
-                            <div className="absolute bottom-2 right-2 translate-y-2 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10">
-                              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-black shadow-lg">
-                                <Play
-                                  fill="black"
-                                  size={14}
-                                  className="translate-x-0.5"
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Title & Artist */}
-                          <div className="space-y-0.5">
-                            <p className="text-xs font-bold text-white truncate group-hover:text-primary transition-colors">
-                              {song.title}
-                            </p>
-                            <p className="text-[11px] text-zinc-400 truncate hover:text-white">
-                              {song.artistName}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </section>
               )}
 
-              {/* ========================================================== */}
-              {/* 3. ABOUT THE ARTIST                                        */}
-              {/* ========================================================== */}
-              <section className="bg-[#121212] border border-[#222] rounded-2xl overflow-hidden p-4 shadow-xl">
-                <div className="flex items-center gap-2 mb-3">
-                  <h3 className="text-sm font-bold text-white">
-                    About the artist
-                  </h3>
+              {/* Seamless Bottom Gradient Overlay */}
+              <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none" />
+
+              {/* Overlaid Song Title, Artist & Actions */}
+              <div className="relative z-10 p-4 pb-4 flex items-end justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-xl font-bold text-white tracking-tight truncate hover:underline cursor-pointer leading-tight drop-shadow-md">
+                    {currentSong.title}
+                  </h2>
+                  <p className="text-xs font-medium text-zinc-300 truncate mt-1 hover:text-white hover:underline cursor-pointer drop-shadow">
+                    {currentSong.artistName}
+                  </p>
                 </div>
 
-                {/* Artist image */}
-                <div className="relative w-full h-40 rounded-xl overflow-hidden bg-zinc-900 border border-[#282828] shadow-md">
-                  {info?.artist?.image ? (
+                <div className="flex items-center gap-2.5 shrink-0 pb-0.5">
+                  <button
+                    onClick={handlePlaylist}
+                    className="text-zinc-400 hover:text-white transition-colors cursor-pointer p-1"
+                    title="Add to playlist"
+                  >
+                    <Plus size={20} />
+                  </button>
+
+                  <button
+                    onClick={handleFavourite}
+                    disabled={isFavLoading}
+                    className="transition-transform active:scale-90 cursor-pointer p-1 disabled:opacity-60 disabled:cursor-not-allowed"
+                    title={isFavourite ? "Liked" : "Like"}
+                  >
+                    {isFavLoading ? (
+                      <Loader2
+                        size={20}
+                        className="text-zinc-400 animate-spin"
+                      />
+                    ) : isFavourite ? (
+                      <Heart
+                        size={20}
+                        className=" fill-primary transition-all transform scale-105"
+                      />
+                    ) : (
+                      <Heart
+                        size={20}
+                        className="text-zinc-400 hover:text-white transition-colors"
+                      />
+                    )}
+                  </button>
+
+                  {/* Watch Full Video – video canvas display */}
+                  {currentSong.fullVideoKey && (
+                    <PlayerTooltip content="Watch Full Video" shortcut="V">
+                      <button
+                        onClick={() => playerActions.openFullVideo()}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/15 hover:bg-white/25 border border-white/20 text-white text-[11px] font-bold transition-all hover:scale-105 cursor-pointer"
+                      >
+                        <Play size={11} fill="currentColor" />
+                        Full Video
+                      </button>
+                    </PlayerTooltip>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Card-Style Cover Art in fixed h-[440px] container (prevents layout jump) */
+            <div className="relative w-full h-[440px] p-4 flex flex-col justify-between overflow-hidden bg-black">
+              {/* Subtle Ambient Glow from Cover Art */}
+              {songImage && (
+                <div
+                  className="absolute inset-0 bg-cover bg-center blur-3xl opacity-20 scale-125 pointer-events-none"
+                />
+              )}
+
+              {/* Centered Artwork Card */}
+              <div className="relative z-10 w-full flex-1 flex items-center justify-center pt-2">
+                <div className="relative w-full max-w-[280px] aspect-square overflow-hidden rounded-2xl bg-zinc-900 border border-white/10 shadow-2xl group">
+                  {songImage ? (
                     <img
-                      src={info.artist.image}
-                      alt={info.artist.name}
-                      className="w-full h-full object-cover object-top"
-                    />
-                  ) : artistCoverUrl ? (
-                    <img
-                      src={artistCoverUrl}
-                      alt={info?.artist?.name || currentSong.artistName}
-                      className="w-full h-full object-cover object-top"
+                      src={songImage}
+                      alt={currentSong.title}
+                      onLoad={() => setMediaLoaded(true)}
+                      className={`w-full h-full object-cover object-center group-hover:scale-105 transition-all duration-300 ${
+                        mediaLoaded ? "opacity-100" : "opacity-0"
+                      }`}
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-800 to-black text-zinc-500 font-bold text-4xl">
-                      {currentSong.artistName?.charAt(0) || "A"}
+                    <div className="w-full h-full flex items-center justify-center text-zinc-700 bg-zinc-950">
+                      <Music size={48} />
                     </div>
                   )}
 
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent flex items-end p-3">
-                    <h4 className="text-sm font-bold text-white truncate">
-                      {info?.artist?.name || currentSong.artistName}
-                    </h4>
-                  </div>
+                  {!mediaLoaded && songImage && (
+                    <div className="absolute inset-0 bg-zinc-900 animate-pulse flex items-center justify-center">
+                      <Music size={36} className="text-zinc-700 animate-pulse" />
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Song Title, Artist & Actions Below Card */}
+              <div className="relative z-10 pt-3 pb-1 flex items-center justify-between gap-3 px-1">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-lg font-bold text-white tracking-tight truncate hover:underline cursor-pointer leading-tight">
+                    {currentSong.title}
+                  </h2>
+                  <p className="text-xs font-medium text-zinc-400 truncate mt-0.5 hover:text-white hover:underline cursor-pointer">
+                    {currentSong.artistName}
+                  </p>
                 </div>
 
-                {/* Artist description */}
+                <div className="flex items-center gap-2.5 shrink-0">
+                  <button
+                    onClick={handlePlaylist}
+                    className="text-zinc-400 hover:text-white transition-colors cursor-pointer p-1"
+                    title="Add to playlist"
+                  >
+                    <Plus size={20} />
+                  </button>
+
+                  <button
+                    onClick={handleFavourite}
+                    disabled={isFavLoading}
+                    className="transition-transform active:scale-90 cursor-pointer p-1 disabled:opacity-60 disabled:cursor-not-allowed"
+                    title={isFavourite ? "Liked" : "Like"}
+                  >
+                    {isFavLoading ? (
+                      <Loader2
+                        size={20}
+                        className="text-zinc-400 animate-spin"
+                      />
+                    ) : isFavourite ? (
+                      <Heart
+                        size={20}
+                        className="text-[#1ed760] fill-[#1ed760] transition-all transform scale-105"
+                      />
+                    ) : (
+                      <Heart
+                        size={20}
+                        className="text-zinc-400 hover:text-white transition-colors"
+                      />
+                    )}
+                  </button>
+
+                  {/* Watch Full Video – cover-art display */}
+                  {currentSong.fullVideoKey && (
+                    <PlayerTooltip content="Watch Full Video" shortcut="V">
+                      <button
+                        onClick={() => playerActions.openFullVideo()}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[11px] font-bold transition-all hover:scale-105 cursor-pointer"
+                      >
+                        <Play size={11} fill="currentColor" />
+                        Full Video
+                      </button>
+                    </PlayerTooltip>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Content Below Video */}
+          <div className="px-4 space-y-4">
+            {/* ========================================================== */}
+            {/* 2. RELATED MUSIC VIDEOS CAROUSEL (hydrates smoothly)       */}
+            {/* ========================================================== */}
+            <section className="bg-black rounded-2xl py-4 px-2 mt-2 shadow-xl">
+              <div className="flex items-center justify-between pb-2">
+                <h3 className="text-sm font-bold text-white tracking-tight">
+                  Related Songs
+                </h3>
+                {artistMoreSongs.length > 0 && (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => scrollRelated(-220)}
+                      type="button"
+                      aria-label="Scroll left"
+                      className="w-6 h-6 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
+                    >
+                      <ChevronLeft size={13} />
+                    </button>
+                    <button
+                      onClick={() => scrollRelated(220)}
+                      type="button"
+                      aria-label="Scroll right"
+                      className="w-6 h-6 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
+                    >
+                      <ChevronRight size={13} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {isRelatedLoading ? (
+                <div className="flex gap-3 overflow-hidden pb-1">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex-shrink-0 w-32 space-y-2 animate-pulse">
+                      <div className="w-full aspect-square bg-zinc-900 rounded-md" />
+                      <div className="h-3 w-3/4 bg-zinc-800 rounded" />
+                      <div className="h-2.5 w-1/2 bg-zinc-800/60 rounded" />
+                    </div>
+                  ))}
+                </div>
+              ) : artistMoreSongs.length > 0 ? (
+                <div
+                  ref={relatedSongsRef}
+                  className="flex gap-3 overflow-x-auto no-scrollbar pb-1 scroll-smooth"
+                >
+                  {artistMoreSongs.map((song: Song) => {
+                    const songImg = song.imageKey
+                      ? getImageUrl(song.imageKey, {
+                          width: 350,
+                          height: 350,
+                          focus: "auto",
+                          aspectRatio: "1-1",
+                        })
+                      : "";
+
+                    return (
+                      <div
+                        key={song.id}
+                        onClick={() =>
+                          playerActions.play(mapToPlayerSong(song))
+                        }
+                        className="group flex-shrink-0 w-32 cursor-pointer space-y-1.5"
+                      >
+                        {/* 1:1 square cover like SongCard */}
+                        <div className="relative aspect-square w-full rounded-md overflow-hidden bg-zinc-900 shadow-md border border-white/5 group-hover:border-zinc-500 transition-colors">
+                          {songImg ? (
+                            <img
+                              src={songImg}
+                              alt={song.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                              <Music size={20} />
+                            </div>
+                          )}
+
+                          {/* Play overlay button like SongCard */}
+                          <div className="absolute bottom-2 right-2 translate-y-2 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10">
+                            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-black shadow-lg">
+                              <Play
+                                fill="black"
+                                size={14}
+                                className="translate-x-0.5"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Title & Artist */}
+                        <div className="space-y-0.5">
+                          <p className="text-xs font-bold text-white truncate group-hover:text-primary transition-colors">
+                            {song.title}
+                          </p>
+                          <p className="text-[11px] text-zinc-400 truncate hover:text-white">
+                            {song.artistName}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-500 py-2">No other tracks found for this artist.</p>
+              )}
+            </section>
+
+            {/* ========================================================== */}
+            {/* 3. ABOUT THE ARTIST (hydrates in background)               */}
+            {/* ========================================================== */}
+            <section className="bg-[#121212] border border-[#222] rounded-2xl overflow-hidden p-4 shadow-xl">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-sm font-bold text-white">
+                  About the artist
+                </h3>
+              </div>
+
+              {/* Artist image */}
+              <div className="relative w-full h-40 rounded-xl overflow-hidden bg-zinc-900 border border-[#282828] shadow-md">
+                {info?.artist?.image ? (
+                  <img
+                    src={info.artist.image}
+                    alt={info.artist.name}
+                    className="w-full h-full object-cover object-top"
+                  />
+                ) : artistCoverUrl ? (
+                  <img
+                    src={artistCoverUrl}
+                    alt={info?.artist?.name || currentSong.artistName}
+                    className="w-full h-full object-cover object-top"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-800 to-black text-zinc-500 font-bold text-4xl">
+                    {currentSong.artistName?.charAt(0) || "A"}
+                  </div>
+                )}
+
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent flex items-end p-3">
+                  <h4 className="text-sm font-bold text-white truncate">
+                    {info?.artist?.name || currentSong.artistName}
+                  </h4>
+                </div>
+              </div>
+
+              {/* Artist description */}
+              {isInfoLoading ? (
+                <div className="space-y-2 mt-3 animate-pulse">
+                  <div className="h-3 bg-zinc-800 rounded w-full" />
+                  <div className="h-3 bg-zinc-800 rounded w-5/6" />
+                  <div className="h-3 bg-zinc-800 rounded w-2/3" />
+                </div>
+              ) : (
                 <p className="text-xs text-zinc-300 leading-relaxed mt-3 line-clamp-4">
                   {info?.artist?.description ||
                     "No artist biography available at this time."}
                 </p>
+              )}
 
-                {info?.artist?.source && (
+              {info?.artist?.source && (
+                <a
+                  href={info.artist.source}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-medium mt-2.5"
+                >
+                  View on Wikipedia
+                  <ExternalLink size={11} />
+                </a>
+              )}
+            </section>
+
+            {/* ========================================================== */}
+            {/* 4. ABOUT THE SONG (hydrates in background)                 */}
+            {/* ========================================================== */}
+            {info?.song?.description && (
+              <section className="bg-[#121212] border border-[#222] rounded-2xl overflow-hidden p-4 shadow-xl">
+                <div className="flex items-center gap-2 mb-2">
+                  <Music size={15} className="text-primary" />
+                  <h3 className="text-sm font-bold text-white">
+                    About the Song
+                  </h3>
+                </div>
+
+                <p className="text-xs text-zinc-300 leading-relaxed line-clamp-5">
+                  {info.song.description}
+                </p>
+
+                {info.song.source && (
                   <a
-                    href={info.artist.source}
+                    href={info.song.source}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-medium mt-2.5"
@@ -502,39 +569,9 @@ export function RightInfoPanel() {
                   </a>
                 )}
               </section>
-
-              {/* ========================================================== */}
-              {/* 4. ABOUT THE SONG                                          */}
-              {/* ========================================================== */}
-              {info?.song?.description && (
-                <section className="bg-[#121212] border border-[#222] rounded-2xl overflow-hidden p-4 shadow-xl">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Music size={15} className="text-primary" />
-                    <h3 className="text-sm font-bold text-white">
-                      About the Song
-                    </h3>
-                  </div>
-
-                  <p className="text-xs text-zinc-300 leading-relaxed line-clamp-5">
-                    {info.song.description}
-                  </p>
-
-                  {info.song.source && (
-                    <a
-                      href={info.song.source}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-medium mt-2.5"
-                    >
-                      View on Wikipedia
-                      <ExternalLink size={11} />
-                    </a>
-                  )}
-                </section>
-              )}
-            </div>
+            )}
           </div>
-        )}
+        </div>
       </aside>
 
       {/* Playlist Modal */}
