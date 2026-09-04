@@ -3,57 +3,32 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useStore } from "@tanstack/react-store";
 import { playerStore, playerActions } from "../store/player.store";
-import {
-  Music,
-  Mic2,
-  ListMusic,
-  Shuffle,
-  Repeat,
-  Repeat1,
-  VolumeX,
-  Volume1,
-  Volume2,
-  Play,
-  Pause,
-  SkipBack,
-  SkipForward,
-  Sliders,
-  TvMinimalPlay,
-  Moon,
-  X,
-  Languages,
-  ChevronDown,
-  Check,
-} from "lucide-react";
 import { getImageUrl } from "../lib/image-utils";
 import { getFullVideoHlsUrl, getFullVideoDashUrl } from "../lib/player-utils";
+import { getSolidBgFromImage } from "../lib/color-utils";
+
+// Modals & Panels
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
 import { FullVideoModal } from "./FullVideoModal";
 import { SleepTimerModal } from "./player/SleepTimerModal";
-import {
-  SUPPORTED_LANGUAGES,
-  translateTranscriptions,
-  translatePlainLyrics,
-} from "../lib/google-translate";
-import { TranscriptionEntry } from "./player/hooks/useLyrics";
-import { toast } from "sonner";
+import { EqualizerModal } from "./player/EqualizerModal";
+import { PlayerQueuePanel } from "./player/PlayerQueuePanel";
 
 // Hooks
 import { useHlsPlayer } from "./player/hooks/useHlsPlayer";
 import { useLyrics } from "./player/hooks/useLyrics";
 import { useAudioSync } from "./player/hooks/useAudioSync";
 import { useWebAudio } from "./player/hooks/useWebAudio";
-
-// Components
-import { PlayerLyricsOverlay } from "./player/PlayerLyricsOverlay";
-import { PlayerProgressBar } from "./player/PlayerProgressBar";
-import { PlayerQueuePanel } from "./player/PlayerQueuePanel";
-import { PlayerQualitySelector } from "./player/PlayerQualitySelector";
-import { EqualizerModal } from "./player/EqualizerModal";
-import { PlayerTooltip } from "./player/PlayerTooltip";
 import { useNextTrackPreloader } from "./player/hooks/useNextTrackPreloader";
+import { usePlayerShortcuts } from "./player/hooks/usePlayerShortcuts";
+import { useLyricsTranslation } from "./player/hooks/useLyricsTranslation";
 
-import { getSolidBgFromImage } from "../lib/color-utils";
+// Subcomponents
+import { PlayerLyricsView } from "./player/PlayerLyricsView";
+import { PlayerTrackCard } from "./player/PlayerTrackCard";
+import { PlayerControlButtons } from "./player/PlayerControlButtons";
+import { PlayerProgressBar } from "./player/PlayerProgressBar";
+import { PlayerRightControls } from "./player/PlayerRightControls";
 
 export function HlsMusicPlayer() {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -67,11 +42,8 @@ export function HlsMusicPlayer() {
     duration,
     repeatMode,
     isShuffle,
-    queue,
     qualityTracks,
     selectedQuality,
-    favourites,
-    systemUser,
     isLyricsOpen,
     isVideoActive,
   } = state;
@@ -84,11 +56,6 @@ export function HlsMusicPlayer() {
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [solidBgColor, setSolidBgColor] = useState("#181818");
   const [showQualityMenu, setShowQualityMenu] = useState(false);
-  const [lyricsTargetLang, setLyricsTargetLang] = useState<string>("original");
-  const [showLangMenu, setShowLangMenu] = useState(false);
-  const [displayTranscriptions, setDisplayTranscriptions] = useState<TranscriptionEntry[]>([]);
-  const [displayPlainLyrics, setDisplayPlainLyrics] = useState<string | null>(null);
-  const [isTranslating, setIsTranslating] = useState(false);
 
   // Sleep Timer countdown check
   useEffect(() => {
@@ -98,10 +65,6 @@ export function HlsMusicPlayer() {
       if (Date.now() >= state.sleepTimer.targetTimestamp!) {
         playerActions.setIsPlaying(false);
         playerActions.clearSleepTimer();
-        toast("Sleep timer finished", {
-          description: "Playback paused. Sweet dreams!",
-          icon: "🌙",
-        });
       }
     };
 
@@ -121,7 +84,7 @@ export function HlsMusicPlayer() {
     });
   }, [currentSong?.id, currentSong?.title, currentSong?.artistName, currentSong?.imageKey, currentSong?.posterUrl]);
 
-  // 1. Initialize Player State & hydrate saved time
+  // Initialize Player State & hydrate saved time
   useEffect(() => {
     playerActions.hydrate();
     playerActions.initQueue();
@@ -136,7 +99,7 @@ export function HlsMusicPlayer() {
     }
   }, []);
 
-  // 2. Custom Hooks for Logic
+  // HLS Audio Player Engine
   const { isInternalChange } = useHlsPlayer(
     audioRef.current,
     currentSong?.id,
@@ -145,72 +108,30 @@ export function HlsMusicPlayer() {
     selectedQuality,
   );
 
+  // Synced Lyrics Loader
   const { currentCaption, transcriptions, plainLyrics, isLoading: isLyricsLoading } = useLyrics(
     currentSong?.lrclibId || currentSong?.captionUrl,
     localTime,
   );
 
-  // Reset translation language to original when song changes
-  useEffect(() => {
-    setLyricsTargetLang("original");
-  }, [currentSong?.id]);
+  // Lyrics Multi-Language Translation
+  const {
+    lyricsTargetLang,
+    setLyricsTargetLang,
+    showLangMenu,
+    setShowLangMenu,
+    displayTranscriptions,
+    displayPlainLyrics,
+    isTranslating,
+  } = useLyricsTranslation(currentSong?.id, transcriptions, plainLyrics);
 
-  // Translate lyrics when transcriptions, plainLyrics, or targetLang changes
-  useEffect(() => {
-    if (lyricsTargetLang === "original") {
-      setDisplayTranscriptions(transcriptions);
-      setDisplayPlainLyrics(plainLyrics);
-      setIsTranslating(false);
-      return;
-    }
-
-    let isCancelled = false;
-    setIsTranslating(true);
-
-    const runTranslation = async () => {
-      try {
-        if (transcriptions && transcriptions.length > 0) {
-          const res = await translateTranscriptions(transcriptions, lyricsTargetLang);
-          if (!isCancelled) {
-            setDisplayTranscriptions(res);
-            setDisplayPlainLyrics(null);
-            setIsTranslating(false);
-          }
-        } else if (plainLyrics) {
-          const res = await translatePlainLyrics(plainLyrics, lyricsTargetLang);
-          if (!isCancelled) {
-            setDisplayTranscriptions([]);
-            setDisplayPlainLyrics(res);
-            setIsTranslating(false);
-          }
-        } else {
-          if (!isCancelled) {
-            setDisplayTranscriptions([]);
-            setDisplayPlainLyrics(null);
-            setIsTranslating(false);
-          }
-        }
-      } catch (e) {
-        if (!isCancelled) {
-          setDisplayTranscriptions(transcriptions);
-          setDisplayPlainLyrics(plainLyrics);
-          setIsTranslating(false);
-        }
-      }
-    };
-
-    runTranslation();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [transcriptions, plainLyrics, lyricsTargetLang]);
-
+  // Web Audio EQ Graph
   const webAudio = useWebAudio(audioRef.current, isPlaying);
 
-  // Next-Track Pre-buffering & Gapless Playback
+  // Next-Track Pre-buffering & Gapless Engine
   useNextTrackPreloader(standbyAudioRef.current);
 
+  // Audio Progress & Crossfade Synchronizer
   useAudioSync(
     audioRef.current,
     isInternalChange,
@@ -232,206 +153,65 @@ export function HlsMusicPlayer() {
   const seekTarget = useStore(playerStore, (s) => s.seekTarget);
   const prevIsVideoActiveRef = useRef(isVideoActive);
 
-  // 1. When video player is driving playback, mirror its live time
   useEffect(() => {
     if (isVideoActive) {
       setLocalTime(storeCurrentTime);
     }
   }, [isVideoActive, storeCurrentTime]);
 
-  // 2. Audio element seek listener (only when video is not active)
   useEffect(() => {
     const wasVideoActive = prevIsVideoActiveRef.current;
     prevIsVideoActiveRef.current = isVideoActive;
 
     if (isVideoActive || !audioRef.current) return;
 
-    // If we just switched back from video playback to audio
     if (wasVideoActive) {
       const targetTime = seekTarget !== null && isFinite(seekTarget) ? seekTarget : storeCurrentTime;
       if (typeof targetTime === "number" && isFinite(targetTime) && targetTime >= 0) {
         audioRef.current.currentTime = targetTime;
         setLocalTime(targetTime);
         if (seekTarget !== null) {
-          playerStore.setState((s) => ({ ...s, seekTarget: null }));
+          playerActions.setSeekTarget(null);
         }
       }
       return;
     }
 
-    if (seekTarget !== null && isFinite(seekTarget)) {
+    if (seekTarget !== null && isFinite(seekTarget) && seekTarget >= 0) {
       audioRef.current.currentTime = seekTarget;
       setLocalTime(seekTarget);
-      playerStore.setState((s) => ({ ...s, seekTarget: null }));
+      playerActions.setSeekTarget(null);
     } else if (storeCurrentTime === 0 && audioRef.current.currentTime > 1) {
       audioRef.current.currentTime = 0;
       setLocalTime(0);
     }
-  }, [seekTarget, storeCurrentTime, isVideoActive]);
+  }, [storeCurrentTime, seekTarget, isVideoActive]);
 
-  const isFavourite = currentSong
-    ? Array.from(favourites).some((id) => String(id) === String(currentSong.id))
-    : false;
-
-  useEffect(() => {
-    if (systemUser?.id) {
-      playerActions.fetchFavourites();
-    }
-  }, [systemUser?.id]);
-
-  // 3. Global Keyboard Shortcuts Listener
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const activeEl = document.activeElement;
-      const isInput =
-        activeEl instanceof HTMLInputElement ||
-        activeEl instanceof HTMLTextAreaElement ||
-        (activeEl as HTMLElement)?.isContentEditable;
-
-      if (isInput || state.isFullVideoOpen) return;
-
-      // Space or K: Toggle Play/Pause
-      if (e.code === "Space" || e.key === "k" || e.key === "K") {
-        e.preventDefault();
-        if (!currentSong) return;
-        if (!isVideoActive) {
-          const audio = audioRef.current;
-          if (audio) {
-            if (isPlaying) {
-              audio.pause();
-            } else {
-              audio.play().catch((err) => {
-                if (err.name !== "AbortError")
-                  console.warn("[Player] Manual play failed:", err);
-              });
-            }
-          }
-        }
-        playerActions.setIsPlaying(!isPlaying);
-      }
-
-      // M: Toggle Mute
-      if (e.key === "m" || e.key === "M") {
-        e.preventDefault();
-        playerActions.setIsMuted(!isMuted);
-      }
-
-      // L: Toggle Lyrics
-      if (e.key === "l" || e.key === "L") {
-        e.preventDefault();
-        playerActions.toggleLyrics();
-      }
-
-      // Q: Toggle Queue
-      if (e.key === "q" || e.key === "Q") {
-        e.preventDefault();
-        setShowQueuePanel((v) => !v);
-      }
-
-      // E: Toggle Equalizer
-      if (e.key === "e" || e.key === "E") {
-        e.preventDefault();
-        setShowEqualizerModal((v) => !v);
-      }
-
-      // R: Resync Lyrics
-      if (e.key === "r" || e.key === "R") {
-        e.preventDefault();
-        window.dispatchEvent(new CustomEvent("lyrics-resync"));
-        const el = document.getElementById("active-lyric-line");
-        if (!el && isLyricsOpen) {
-          toast.info("No active lyric line at this timestamp");
-        }
-      }
-
-      // V: Open Full Video
-      if (
-        (e.key === "v" || e.key === "V") &&
-        (currentSong?.fullVideoKey || (currentSong as any)?.full_video_key)
-      ) {
-        e.preventDefault();
-        playerActions.openFullVideo();
-      }
-
-      // ArrowRight (Ctrl/Cmd): Next Track
-      if (e.key === "ArrowRight" && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        playerActions.next();
-      }
-
-      // ArrowLeft (Ctrl/Cmd): Previous Track
-      if (e.key === "ArrowLeft" && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        playerActions.previous();
-      }
-
-      // ArrowRight: Forward 10 seconds
-      if (e.key === "ArrowRight" && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        if (audioRef.current) {
-          const maxDur = duration || audioRef.current.duration || 0;
-          const nextTime =
-            maxDur > 0
-              ? Math.min(maxDur, audioRef.current.currentTime + 10)
-              : audioRef.current.currentTime + 10;
-          audioRef.current.currentTime = nextTime;
-          setLocalTime(nextTime);
-          playerActions.setCurrentTime(nextTime);
-          if (typeof window !== "undefined") {
-            localStorage.setItem("last_current_time", nextTime.toFixed(2));
-          }
-        }
-      }
-
-      // ArrowLeft: Rewind 10 seconds
-      if (e.key === "ArrowLeft" && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        if (audioRef.current) {
-          const prevTime = Math.max(0, audioRef.current.currentTime - 10);
-          audioRef.current.currentTime = prevTime;
-          setLocalTime(prevTime);
-          playerActions.setCurrentTime(prevTime);
-          if (typeof window !== "undefined") {
-            localStorage.setItem("last_current_time", prevTime.toFixed(2));
-          }
-        }
-      }
-
-      // ArrowUp: Increase Volume
-      if (e.key === "ArrowUp" && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        playerActions.setVolume(Math.min(1, volume + 0.05));
-      }
-
-      // ArrowDown: Decrease Volume
-      if (e.key === "ArrowDown" && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        playerActions.setVolume(Math.max(0, volume - 0.05));
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentSong, isPlaying, isMuted, volume, duration, isLyricsOpen, state.isFullVideoOpen, isVideoActive]);
-
+  // Global Keyboard Shortcuts
+  usePlayerShortcuts({
+    audioElement: audioRef.current,
+    currentSong: currentSong || null,
+    isPlaying,
+    isVideoActive,
+    isMuted,
+    isLyricsOpen,
+    duration,
+    volume,
+    setLocalTime,
+    setShowQueuePanel,
+    setShowEqualizerModal,
+  });
 
   const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!audioRef.current || !duration) return;
-    const val = parseFloat(e.target.value);
-    audioRef.current.currentTime = val;
+    const val = parseFloat(e.currentTarget.value);
     setLocalTime(val);
+    if (!audioRef.current || !duration) return;
+    audioRef.current.currentTime = val;
     playerActions.setCurrentTime(val);
     if (typeof window !== "undefined") {
       localStorage.setItem("last_current_time", val.toFixed(2));
     }
   };
-
-  const handleVolumeChange = (e: React.FormEvent<HTMLInputElement>) => {
-    playerActions.setVolume(parseFloat(e.currentTarget.value));
-  };
-
-  const VolumeIcon = isMuted || volume === 0 ? VolumeX : volume < 0.5 ? Volume1 : Volume2;
-  const volumePct = isMuted ? 0 : volume * 100;
 
   if (!currentSong) return null;
 
@@ -450,284 +230,45 @@ export function HlsMusicPlayer() {
         aria-hidden="true"
       />
 
-      {/* ─── Spotify Synced Lyrics View (Middle Portion Overlay) ─── */}
+      {/* Spotify Synced Lyrics Overlay View */}
       {isLyricsOpen && (
-        <div
-          style={{ backgroundColor: solidBgColor }}
-          className="fixed left-0 md:left-[72px] xl:left-[240px] right-0 lg:right-[290px] xl:right-[320px] 2xl:right-[340px] top-0 bottom-20 z-40 flex flex-col p-4 sm:p-6 md:p-8 overflow-y-auto no-scrollbar animate-in fade-in duration-300 transition-all duration-200"
-        >
-          {/* Header pinned at top */}
-          <div className="sticky top-0 z-50 flex items-center justify-between pb-4 border-b border-[#282828] bg-inherit backdrop-blur-md shrink-0 pt-2">
-            <div className="flex items-center gap-3">
-              <Mic2 className="text-primary" size={20} />
-              <div>
-                <h2 className="text-base font-bold text-white tracking-tight">
-                  Lyrics
-                </h2>
-                <p className="text-xs text-zinc-400 font-medium">
-                  {currentSong.title} • {currentSong.artistName}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {/* Google Lyrics Translator Language Selector Dropdown */}
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setShowLangMenu((v) => !v)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md border transition-all cursor-pointer ${
-                    lyricsTargetLang !== "original"
-                      ? "bg-primary text-black border-primary font-bold shadow-md shadow-primary/20"
-                      : "bg-[#282828]/80 text-zinc-300 border-white/10 hover:text-white hover:bg-[#333]"
-                  }`}
-                  title="Translate Lyrics (Google Translate)"
-                  aria-label="Translate Lyrics"
-                >
-                  <Languages size={15} className={isTranslating ? "animate-spin" : ""} />
-                  <span className="max-w-[120px] truncate">
-                    {SUPPORTED_LANGUAGES.find((l) => l.code === lyricsTargetLang)?.name.split(" ")[0] || "Translate"}
-                  </span>
-                  <ChevronDown size={14} className={`transition-transform duration-200 ${showLangMenu ? "rotate-180" : ""}`} />
-                </button>
-
-                {showLangMenu && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-40"
-                      onClick={() => setShowLangMenu(false)}
-                    />
-                    <div className="absolute right-0 top-full mt-2 w-56 max-h-72 overflow-y-auto no-scrollbar rounded-xl bg-[#1e1e1e] border border-white/10 shadow-2xl z-50 p-1.5 backdrop-blur-xl">
-                      <div className="px-2.5 py-1.5 text-[11px] font-bold text-zinc-400 uppercase tracking-wider border-b border-white/5 mb-1 flex items-center justify-between">
-                        <span>Translate Lyrics</span>
-                      </div>
-                      {SUPPORTED_LANGUAGES.map((lang) => {
-                        const isSelected = lyricsTargetLang === lang.code;
-                        return (
-                          <button
-                            key={lang.code}
-                            type="button"
-                            onClick={() => {
-                              setLyricsTargetLang(lang.code);
-                              setShowLangMenu(false);
-                              if (lang.code !== "original") {
-                                toast.success(`Translating to ${lang.name}`);
-                              } else {
-                                toast.success("Original lyrics restored");
-                              }
-                            }}
-                            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                              isSelected
-                                ? "bg-primary text-black font-bold"
-                                : "text-zinc-200 hover:bg-white/10 hover:text-white"
-                            }`}
-                          >
-                            <span className="flex items-center gap-2 truncate">
-                              <span>{lang.flag}</span>
-                              <span className="truncate">{lang.name}</span>
-                            </span>
-                            {isSelected && <Check size={14} />}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Close Lyrics Button */}
-              <button
-                type="button"
-                onClick={() => playerActions.closeLyrics()}
-                className="p-2 rounded-full text-zinc-300 hover:text-white hover:bg-[#282828] transition-colors cursor-pointer"
-                title="Close Lyrics"
-                aria-label="Close Lyrics"
-              >
-                <X size={20} />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1 flex items-center justify-center py-6">
-            <PlayerLyricsOverlay
-              currentCaption={currentCaption}
-              transcriptions={displayTranscriptions}
-              plainLyrics={displayPlainLyrics}
-              localTime={localTime}
-              analyser={webAudio.analyser}
-              isLoading={isLyricsLoading || isTranslating}
-              onSeek={(time) => {
-                if (audioRef.current) {
-                  audioRef.current.currentTime = time;
-                  setLocalTime(time);
-                }
-              }}
-            />
-          </div>
-        </div>
+        <PlayerLyricsView
+          currentSong={currentSong}
+          solidBgColor={solidBgColor}
+          currentCaption={currentCaption}
+          displayTranscriptions={displayTranscriptions}
+          displayPlainLyrics={displayPlainLyrics}
+          localTime={localTime}
+          analyser={webAudio.analyser}
+          isLyricsLoading={isLyricsLoading}
+          isTranslating={isTranslating}
+          lyricsTargetLang={lyricsTargetLang}
+          setLyricsTargetLang={setLyricsTargetLang}
+          showLangMenu={showLangMenu}
+          setShowLangMenu={setShowLangMenu}
+          onSeek={(time) => {
+            if (audioRef.current) {
+              audioRef.current.currentTime = time;
+              setLocalTime(time);
+            }
+          }}
+        />
       )}
 
-      {/* ─── Spotify Bottom Persistent Audio Player Bar ─── */}
+      {/* Spotify Bottom Persistent Audio Player Bar */}
       <footer className="fixed bottom-0 left-0 right-0 h-20 bg-black border-t border-[#282828] z-50 px-3 sm:px-4 md:px-6 flex items-center justify-between select-none">
         {/* Left Section: Track Info & Quick Actions */}
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 w-[28%] md:w-[30%] max-w-[240px] md:max-w-[320px]">
-          <div
-            onClick={() => {
-              if (currentSong.fullVideoKey || (currentSong as any).full_video_key) {
-                playerActions.openFullVideo();
-              }
-            }}
-            className={`w-12 h-12 sm:w-14 sm:h-14 shrink-0 rounded-md overflow-hidden bg-zinc-900 shadow-md relative group ${
-              currentSong.fullVideoKey || (currentSong as any).full_video_key ? "cursor-pointer" : ""
-            }`}
-            title={
-              currentSong.fullVideoKey || (currentSong as any).full_video_key
-                ? "Watch Full Video (V)"
-                : undefined
-            }
-          >
-            {posterUrl ? (
-              <img src={posterUrl} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                <Music size={20} />
-              </div>
-            )}
-            {(currentSong.fullVideoKey || (currentSong as any).full_video_key) && (
-              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                <Play size={16} fill="white" className="text-white translate-x-0.5" />
-              </div>
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <h4 className="text-xs sm:text-sm font-semibold text-white truncate hover:underline cursor-pointer">
-              {currentSong.title}
-            </h4>
-            <p className="text-[11px] sm:text-xs text-zinc-400 truncate hover:underline hover:text-white cursor-pointer mt-0.5 font-normal">
-              {currentSong.artistName}
-            </p>
-          </div>
-        </div>
+        <PlayerTrackCard currentSong={currentSong} posterUrl={posterUrl} />
 
         {/* Middle Section: Player Controls & Timeline */}
         <div className="flex flex-col items-center justify-center flex-1 max-w-xl px-2 sm:px-4 space-y-1">
-          <div className="flex items-center gap-5">
-            <PlayerTooltip
-              content={isShuffle ? "Disable shuffle" : "Enable shuffle"}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  playerActions.toggleShuffle();
-                  toast.success(isShuffle ? "Shuffle Off" : "Shuffle On");
-                }}
-                className={`relative flex flex-col items-center justify-center p-1.5 transition-colors cursor-pointer ${
-                  isShuffle ? "text-primary" : "text-zinc-400 hover:text-white"
-                }`}
-                aria-label={isShuffle ? "Disable shuffle" : "Enable shuffle"}
-              >
-                <Shuffle size={16} />
-                {isShuffle && (
-                  <span className="absolute -bottom-0.5 w-1 h-1 bg-primary rounded-full" />
-                )}
-              </button>
-            </PlayerTooltip>
-
-            <PlayerTooltip content="Previous track" shortcut={["Ctrl", "←"]}>
-              <button
-                type="button"
-                onClick={() => playerActions.previous()}
-                className="text-zinc-300 hover:text-white transition-colors cursor-pointer"
-                aria-label="Previous track"
-              >
-                <SkipBack size={18} fill="currentColor" />
-              </button>
-            </PlayerTooltip>
-
-            <PlayerTooltip
-              content={isPlaying ? "Pause" : "Play"}
-              shortcut="Space"
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  if (!isVideoActive) {
-                    const audio = audioRef.current;
-                    if (audio) {
-                      if (isPlaying) {
-                        audio.pause();
-                      } else {
-                        audio.play().catch((err) => {
-                          if (err.name !== "AbortError")
-                            console.warn("[Player] Manual play failed:", err);
-                        });
-                      }
-                    }
-                  }
-                  playerActions.setIsPlaying(!isPlaying);
-                }}
-                className="w-9 h-9 rounded-full bg-white text-black hover:scale-105 flex items-center justify-center cursor-pointer transition-transform shadow-md"
-                aria-label={isPlaying ? "Pause" : "Play"}
-              >
-                {isPlaying ? (
-                  <Pause size={18} fill="black" />
-                ) : (
-                  <Play size={18} fill="black" className="translate-x-0.5" />
-                )}
-              </button>
-            </PlayerTooltip>
-
-            <PlayerTooltip content="Next track" shortcut={["Ctrl", "→"]}>
-              <button
-                type="button"
-                onClick={() => playerActions.next()}
-                className="text-zinc-300 hover:text-white transition-colors cursor-pointer"
-                aria-label="Next track"
-              >
-                <SkipForward size={18} fill="currentColor" />
-              </button>
-            </PlayerTooltip>
-
-            <PlayerTooltip
-              content={
-                repeatMode === "none"
-                  ? "Enable repeat"
-                  : repeatMode === "all"
-                    ? "Repeat one"
-                    : "Disable repeat"
-              }
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  playerActions.toggleRepeat();
-                  const modes: Record<string, string> = {
-                    none: "Repeat All",
-                    all: "Repeat One",
-                    one: "Repeat Off",
-                  };
-                  const next = modes[repeatMode] || "Repeat Off";
-                  toast.success(next);
-                }}
-                className={`relative flex flex-col items-center justify-center p-1.5 transition-colors cursor-pointer ${
-                  repeatMode !== "none"
-                    ? "text-primary"
-                    : "text-zinc-400 hover:text-white"
-                }`}
-                aria-label={`Repeat mode: ${repeatMode}`}
-              >
-                {repeatMode === "one" ? (
-                  <Repeat1 size={16} />
-                ) : (
-                  <Repeat size={16} />
-                )}
-                {repeatMode !== "none" && (
-                  <span className="absolute -bottom-0.5 w-1 h-1 bg-primary rounded-full" />
-                )}
-              </button>
-            </PlayerTooltip>
-          </div>
-
-          {/* Timeline Bar */}
+          <PlayerControlButtons
+            isPlaying={isPlaying}
+            isShuffle={isShuffle}
+            repeatMode={repeatMode}
+            isVideoActive={isVideoActive}
+            audioElement={audioRef.current}
+          />
           <div className="w-full max-w-lg">
             <PlayerProgressBar
               currentTime={localTime}
@@ -739,118 +280,22 @@ export function HlsMusicPlayer() {
         </div>
 
         {/* Right Section: Equalizer, Lyrics, Queue, Quality, Volume */}
-        <div className="flex items-center justify-end gap-1.5 sm:gap-2 md:gap-2.5 w-[32%] md:w-[35%] max-w-[360px]">
-          {/* Watch Full Video Button (when video is available) */}
-          {(currentSong.fullVideoKey || (currentSong as any).full_video_key) && (
-            <PlayerTooltip content="Watch Full Video" shortcut="V">
-              <button
-                type="button"
-                onClick={() => playerActions.openFullVideo()}
-                className="p-1.5 rounded-md transition-colors cursor-pointer text-zinc-400 hover:text-white hover:bg-[#282828]"
-                aria-label="Watch Full Video"
-              >
-                <TvMinimalPlay size={16} />
-              </button>
-            </PlayerTooltip>
-          )}
-
-          <PlayerTooltip content="Equalizer & Visualizer" shortcut="E">
-            <button
-              type="button"
-              onClick={() => setShowEqualizerModal((v) => !v)}
-              className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-                showEqualizerModal
-                  ? "text-primary bg-[#282828]"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-              aria-label="Equalizer & Visualizer"
-            >
-              <Sliders size={16} />
-            </button>
-          </PlayerTooltip>
-
-          <PlayerTooltip content="Sleep Timer">
-            <button
-              type="button"
-              onClick={() => setShowSleepTimerModal(true)}
-              className={`relative p-1.5 rounded-md transition-colors cursor-pointer ${
-                state.sleepTimer?.mode
-                  ? "text-primary bg-[#282828]"
-                  : "text-zinc-400 hover:text-white"
-              }`}
-              aria-label="Sleep Timer"
-            >
-              <Moon size={16} />
-              {state.sleepTimer?.mode && (
-                <span className="absolute 1 top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-              )}
-            </button>
-          </PlayerTooltip>
-
-          <PlayerTooltip content="Lyrics" shortcut="L">
-            <button
-              type="button"
-              onClick={() => playerActions.toggleLyrics()}
-              className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-                isLyricsOpen ? "text-primary bg-[#282828]" : "text-zinc-400 hover:text-white"
-              }`}
-              aria-label="Lyrics"
-            >
-              <Mic2 size={16} />
-            </button>
-          </PlayerTooltip>
-
-          <PlayerTooltip content="Queue" shortcut="Q">
-            <button
-              type="button"
-              data-queue-toggle="true"
-              onClick={() => setShowQueuePanel((v) => !v)}
-              className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-                showQueuePanel ? "text-primary bg-[#282828]" : "text-zinc-400 hover:text-white"
-              }`}
-              aria-label="Queue"
-            >
-              <ListMusic size={16} />
-            </button>
-          </PlayerTooltip>
-
-          <PlayerQualitySelector
-            selectedQuality={selectedQuality}
-            qualityTracks={qualityTracks}
-            showQualityMenu={showQualityMenu}
-            setShowQualityMenu={setShowQualityMenu}
-            onSelectQuality={(q) => playerActions.setSelectedQuality(q)}
-          />
-
-          <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-[70px] sm:min-w-[90px] md:min-w-[110px]">
-            <PlayerTooltip content={isMuted ? "Unmute" : "Mute"} shortcut="M">
-              <button
-                type="button"
-                onClick={() => playerActions.setIsMuted(!isMuted)}
-                className="text-zinc-400 hover:text-white transition-colors cursor-pointer shrink-0"
-                aria-label={isMuted ? "Unmute" : "Mute"}
-              >
-                <VolumeIcon size={16} />
-              </button>
-            </PlayerTooltip>
-
-            <PlayerTooltip content="Volume" shortcut={["↑", "↓"]} className="flex-1">
-              <div className="relative flex-1 flex items-center h-6 w-full">
-                <input
-                  type="range"
-                  min="0"
-                  max="1"
-                  step="0.01"
-                  value={isMuted ? 0 : volume}
-                  onChange={handleVolumeChange}
-                  aria-label="Volume"
-                  style={{ backgroundSize: `${volumePct}% 100%` }}
-                  className="modern-slider w-full cursor-pointer"
-                />
-              </div>
-            </PlayerTooltip>
-          </div>
-        </div>
+        <PlayerRightControls
+          currentSong={currentSong}
+          isLyricsOpen={isLyricsOpen}
+          showQueuePanel={showQueuePanel}
+          setShowQueuePanel={setShowQueuePanel}
+          showEqualizerModal={showEqualizerModal}
+          setShowEqualizerModal={setShowEqualizerModal}
+          setShowSleepTimerModal={setShowSleepTimerModal}
+          sleepTimerMode={state.sleepTimer?.mode}
+          selectedQuality={selectedQuality}
+          qualityTracks={qualityTracks}
+          showQualityMenu={showQualityMenu}
+          setShowQualityMenu={setShowQualityMenu}
+          volume={volume}
+          isMuted={isMuted}
+        />
       </footer>
 
       {/* Equalizer & Visualizer Modal */}
@@ -880,7 +325,7 @@ export function HlsMusicPlayer() {
         songTitle={currentSong.title}
       />
 
-      {/* Full Video Modal (Single Global Instance across entire application) */}
+      {/* Full Video Modal */}
       {state.isFullVideoOpen && (currentSong.fullVideoKey || (currentSong as any).full_video_key) && (
         <FullVideoModal
           songId={currentSong.id}

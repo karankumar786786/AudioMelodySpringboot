@@ -102,6 +102,10 @@ export const playbackActions = {
     }
   },
 
+  setSeekTarget: (seekTarget: number | null) => {
+    playerStore.setState((s) => ({ ...s, seekTarget }));
+  },
+
   setDuration: (duration: number) => {
     playerStore.setState((s) => ({ ...s, duration }));
   },
