@@ -10,6 +10,7 @@ import {
   Plus,
   X,
   Heart,
+  Share2,
 } from "lucide-react";
 import { type Song } from "../lib/api";
 import { playerActions, playerStore } from "../store/player.store";
@@ -18,6 +19,7 @@ import { useStore } from "@tanstack/react-store";
 import { toast } from "sonner";
 import { useState } from "react";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
+import { ShareSongModal } from "./ShareSongModal";
 import { getImageUrl } from "../lib/image-utils";
 
 interface SongCardProps {
@@ -38,6 +40,7 @@ export function SongCard({
   const isPlaying = useStore(playerStore, (s) => s.isPlaying);
   const favourites = useStore(playerStore, (s) => s.favourites);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
   const isActiveSong = currentSong?.id === song.id;
@@ -103,6 +106,13 @@ export function SongCard({
       return;
     }
     setIsPlaylistModalOpen(true);
+  };
+
+  const handleOpenShareModal = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setShowMenu(false);
+    setIsShareModalOpen(true);
   };
 
   return (
@@ -256,6 +266,16 @@ export function SongCard({
                     <Plus size={14} className="text-zinc-400" />
                     <span>Add to playlist</span>
                   </button>
+
+                  {/* Share Track Story Card */}
+                  <button
+                    type="button"
+                    onClick={handleOpenShareModal}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-zinc-200 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <Share2 size={14} className="text-primary" />
+                    <span>Share track</span>
+                  </button>
                 </div>
               </>
             )}
@@ -263,12 +283,17 @@ export function SongCard({
         </div>
       </motion.div>
 
-      {/* Portal: Modal is OUTSIDE the transformed card so fixed positioning works */}
+      {/* Portals: Modals are OUTSIDE the transformed card so fixed positioning works */}
       <PlaylistPickerModal
         isOpen={isPlaylistModalOpen}
         onClose={() => setIsPlaylistModalOpen(false)}
         songId={song.id}
         songTitle={song.title}
+      />
+      <ShareSongModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        song={song}
       />
     </>
   );

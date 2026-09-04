@@ -15,8 +15,10 @@ export const playerActions = {
   hydrate: () => {
     if (typeof window === "undefined") return;
     try {
-      const lastIdxStr = localStorage.getItem("last_queue_index");
-      const lastQueueStr = localStorage.getItem("last_queue");
+      // Purge any legacy queue persistence from localStorage
+      localStorage.removeItem("last_queue");
+      localStorage.removeItem("last_queue_index");
+
       const savedRepeat = localStorage.getItem("audiomelody_repeat_mode") as
         | "none"
         | "all"
@@ -28,30 +30,8 @@ export const playerActions = {
       const parsedTime = savedTime ? parseFloat(savedTime) : 0;
 
       playerStore.setState((s) => {
-        let queueRes = lastQueueStr ? JSON.parse(lastQueueStr) : s.queue;
-        const savedIdx = lastIdxStr ? parseInt(lastIdxStr, 10) : -1;
-
-        if (Array.isArray(queueRes)) {
-          queueRes = queueRes.map((song: any) => normalizePlayerSong(song));
-        }
-
-        let currentSong = s.currentSong;
-        let lastQueueIndex = s.lastQueueIndex;
-
-        if (
-          queueRes.length > 0 &&
-          savedIdx >= 0 &&
-          savedIdx < queueRes.length
-        ) {
-          currentSong = queueRes[savedIdx];
-          lastQueueIndex = savedIdx;
-        }
-
         return {
           ...s,
-          currentSong,
-          queue: queueRes,
-          lastQueueIndex,
           currentTime:
             !isNaN(parsedTime) && parsedTime > 0 ? parsedTime : s.currentTime,
           repeatMode:

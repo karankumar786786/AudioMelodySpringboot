@@ -2,10 +2,8 @@ import { playerStore } from "./index";
 import { musicApi } from "@/lib/api";
 import { mapListToPlayerSongs, type PlayerSong } from "@/lib/player-utils";
 
-const persistQueue = (queue: PlayerSong[], currentIndex: number) => {
-  if (typeof window === "undefined") return;
-  localStorage.setItem("last_queue", JSON.stringify(queue));
-  localStorage.setItem("last_queue_index", currentIndex.toString());
+const persistQueue = (_queue: PlayerSong[], _currentIndex: number) => {
+  // Queue persistence to localStorage is disabled
 };
 
 const dedupeBySongId = (songs: PlayerSong[]) => {

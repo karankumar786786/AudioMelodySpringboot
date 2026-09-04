@@ -16,6 +16,7 @@ import { PlayerQueuePanel } from "./player/PlayerQueuePanel";
 import { KeyboardShortcutsModal } from "./player/KeyboardShortcutsModal";
 import { CommandPaletteModal } from "./CommandPaletteModal";
 import { PlayerHudOverlay } from "./player/PlayerHudOverlay";
+import { ShareSongModal } from "./ShareSongModal";
 
 // Hooks
 import { useHlsPlayer } from "./player/hooks/useHlsPlayer";
@@ -58,9 +59,9 @@ export function HlsMusicPlayer() {
   const [showSleepTimerModal, setShowSleepTimerModal] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [solidBgColor, setSolidBgColor] = useState("#181818");
-  const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   // Sleep Timer countdown check
   useEffect(() => {
@@ -295,7 +296,7 @@ export function HlsMusicPlayer() {
           </div>
         </div>
 
-        {/* Right Section: Equalizer, Lyrics, Queue, Quality, Volume */}
+        {/* Right Section: Equalizer, Lyrics, Queue, Quality, Volume, FX */}
         <PlayerRightControls
           currentSong={currentSong}
           isLyricsOpen={isLyricsOpen}
@@ -307,10 +308,15 @@ export function HlsMusicPlayer() {
           sleepTimerMode={state.sleepTimer?.mode}
           selectedQuality={selectedQuality}
           qualityTracks={qualityTracks}
-          showQualityMenu={showQualityMenu}
-          setShowQualityMenu={setShowQualityMenu}
           volume={volume}
           isMuted={isMuted}
+          isBassBoostEnabled={webAudio.isBassBoostEnabled}
+          toggleBassBoost={webAudio.toggleBassBoost}
+          isSpatialAudioEnabled={webAudio.isSpatialAudioEnabled}
+          toggleSpatialAudio={webAudio.toggleSpatialAudio}
+          currentTime={localTime}
+          bufferedTime={buffered}
+          onOpenShare={() => setShowShareModal(true)}
         />
       </footer>
 
@@ -374,6 +380,13 @@ export function HlsMusicPlayer() {
 
       {/* Floating On-Screen HUD Overlay for Volume & Seeking */}
       <PlayerHudOverlay />
+
+      {/* Share Song Story Card Modal */}
+      <ShareSongModal
+        isOpen={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        song={currentSong}
+      />
     </>
   );
 }

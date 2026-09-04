@@ -1,13 +1,13 @@
 "use client";
 
 import React from "react";
-import { TvMinimalPlay, Sliders, Moon, Mic2, ListMusic } from "lucide-react";
+import { Mic2, ListMusic, TvMinimalPlay } from "lucide-react";
 import { playerActions } from "@/store/player.store";
 import { type PlayerSong } from "@/lib/player-utils";
 import { PlayerTooltip } from "./PlayerTooltip";
-import { PlayerQualitySelector } from "./PlayerQualitySelector";
-import { PlayerSpeedSelector } from "./PlayerSpeedSelector";
 import { PlayerVolumeSlider } from "./PlayerVolumeSlider";
+import { PlayerMoreMenu } from "./PlayerMoreMenu";
+import { PlayerQualitySelector, type QualityTrack } from "./PlayerQualitySelector";
 
 interface PlayerRightControlsProps {
   currentSong: PlayerSong;
@@ -19,11 +19,16 @@ interface PlayerRightControlsProps {
   setShowSleepTimerModal: React.Dispatch<React.SetStateAction<boolean>>;
   sleepTimerMode?: "minutes" | "end_of_track" | null;
   selectedQuality: "auto" | number;
-  qualityTracks: Array<{ index: number; bandwidth: number; label: string }>;
-  showQualityMenu: boolean;
-  setShowQualityMenu: React.Dispatch<React.SetStateAction<boolean>>;
+  qualityTracks: QualityTrack[];
   volume: number;
   isMuted: boolean;
+  isBassBoostEnabled?: boolean;
+  toggleBassBoost?: () => void;
+  isSpatialAudioEnabled?: boolean;
+  toggleSpatialAudio?: () => void;
+  currentTime?: number;
+  bufferedTime?: number;
+  onOpenShare?: () => void;
 }
 
 export const PlayerRightControls: React.FC<PlayerRightControlsProps> = ({
@@ -37,18 +42,23 @@ export const PlayerRightControls: React.FC<PlayerRightControlsProps> = ({
   sleepTimerMode,
   selectedQuality,
   qualityTracks,
-  showQualityMenu,
-  setShowQualityMenu,
   volume,
   isMuted,
+  isBassBoostEnabled = false,
+  toggleBassBoost = () => {},
+  isSpatialAudioEnabled = false,
+  toggleSpatialAudio = () => {},
+  currentTime = 0,
+  bufferedTime = 0,
+  onOpenShare,
 }) => {
   const hasFullVideo = Boolean(
     currentSong.fullVideoKey || (currentSong as any).full_video_key,
   );
 
   return (
-    <div className="flex items-center justify-end gap-1.5 sm:gap-2 md:gap-2.5 w-[32%] md:w-[35%] max-w-[360px]">
-      {/* Watch Full Video Button (when video is available) */}
+    <div className="flex items-center justify-end gap-1.5 sm:gap-2 md:gap-2.5 w-[34%] md:w-[38%] max-w-[400px]">
+      {/* Watch Full Video Button (when video key is present) */}
       {hasFullVideo && (
         <PlayerTooltip content="Watch Full Video" shortcut="V">
           <button
@@ -62,39 +72,7 @@ export const PlayerRightControls: React.FC<PlayerRightControlsProps> = ({
         </PlayerTooltip>
       )}
 
-      <PlayerTooltip content="Equalizer & Visualizer" shortcut="E">
-        <button
-          type="button"
-          onClick={() => setShowEqualizerModal((v) => !v)}
-          className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-            showEqualizerModal
-              ? "text-primary bg-[#282828]"
-              : "text-zinc-400 hover:text-white"
-          }`}
-          aria-label="Equalizer & Visualizer"
-        >
-          <Sliders size={16} />
-        </button>
-      </PlayerTooltip>
-
-      <PlayerTooltip content="Sleep Timer">
-        <button
-          type="button"
-          onClick={() => setShowSleepTimerModal(true)}
-          className={`relative p-1.5 rounded-md transition-colors cursor-pointer ${
-            sleepTimerMode
-              ? "text-primary bg-[#282828]"
-              : "text-zinc-400 hover:text-white"
-          }`}
-          aria-label="Sleep Timer"
-        >
-          <Moon size={16} />
-          {sleepTimerMode && (
-            <span className="absolute 1 top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-          )}
-        </button>
-      </PlayerTooltip>
-
+      {/* Lyrics Button */}
       <PlayerTooltip content="Lyrics" shortcut="L">
         <button
           type="button"
@@ -110,6 +88,7 @@ export const PlayerRightControls: React.FC<PlayerRightControlsProps> = ({
         </button>
       </PlayerTooltip>
 
+      {/* Queue Drawer Button */}
       <PlayerTooltip content="Queue" shortcut="Q">
         <button
           type="button"
@@ -126,17 +105,32 @@ export const PlayerRightControls: React.FC<PlayerRightControlsProps> = ({
         </button>
       </PlayerTooltip>
 
-      <PlayerSpeedSelector />
-
+      {/* Quality Selector directly on bottom player */}
       <PlayerQualitySelector
         selectedQuality={selectedQuality}
         qualityTracks={qualityTracks}
-        showQualityMenu={showQualityMenu}
-        setShowQualityMenu={setShowQualityMenu}
         onSelectQuality={(q) => playerActions.setSelectedQuality(q)}
       />
 
+      {/* Volume Slider & Mute Toggle */}
       <PlayerVolumeSlider volume={volume} isMuted={isMuted} />
+
+      {/* 3-Dot More Menu (Audio FX, Equalizer, Sleep Timer, Speed, Share) */}
+      <PlayerMoreMenu
+        showEqualizerModal={showEqualizerModal}
+        setShowEqualizerModal={setShowEqualizerModal}
+        setShowSleepTimerModal={setShowSleepTimerModal}
+        sleepTimerMode={sleepTimerMode}
+        isBassBoostEnabled={isBassBoostEnabled}
+        toggleBassBoost={toggleBassBoost}
+        isSpatialAudioEnabled={isSpatialAudioEnabled}
+        toggleSpatialAudio={toggleSpatialAudio}
+        bufferedTime={bufferedTime}
+        currentTime={currentTime}
+        onOpenShare={onOpenShare}
+      />
     </div>
   );
 };
+
+

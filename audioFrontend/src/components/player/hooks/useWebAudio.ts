@@ -14,6 +14,8 @@ export function useWebAudio(
 ) {
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const filtersRef = useRef<BiquadFilterNode[]>([]);
+  const bassBoostRef = useRef<BiquadFilterNode | null>(null);
+  const pannerRef = useRef<StereoPannerNode | null>(null);
   const fadeGainRef = useRef<GainNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const isInitializedRef = useRef<boolean>(false);
@@ -28,6 +30,16 @@ export function useWebAudio(
     if (typeof window === "undefined") return true;
     const saved = localStorage.getItem("audiomelody_eq_enabled");
     return saved !== null ? saved === "true" : true;
+  });
+
+  const [isBassBoostEnabled, setIsBassBoostEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("audiomelody_bass_boost") === "true";
+  });
+
+  const [isSpatialAudioEnabled, setIsSpatialAudioEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem("audiomelody_spatial_audio") === "true";
   });
 
   const [selectedPreset, setSelectedPreset] = useState<string>(() => {
@@ -77,6 +89,21 @@ export function useWebAudio(
         fadeGain.gain.setValueAtTime(1, ctx.currentTime);
         fadeGainRef.current = fadeGain;
 
+        // Create Sub-Bass Boost Filter (lowshelf @ 80Hz, +7dB when active)
+        const bassBoost = ctx.createBiquadFilter();
+        bassBoost.type = "lowshelf";
+        bassBoost.frequency.value = 80;
+        bassBoost.gain.value = isBassBoostEnabled ? 7 : 0;
+        bassBoostRef.current = bassBoost;
+
+        // Create Stereo Panner Node for 3D Spatial Audio widening
+        let pannerNode: StereoPannerNode | null = null;
+        if (typeof ctx.createStereoPanner === "function") {
+          pannerNode = ctx.createStereoPanner();
+          pannerNode.pan.value = 0;
+          pannerRef.current = pannerNode;
+        }
+
         // Create 5-band filter chain
         const filters = DEFAULT_BANDS.map((band, idx) => {
           const filter = ctx.createBiquadFilter();
@@ -98,15 +125,23 @@ export function useWebAudio(
         }
 
         if (sourceRef.current) {
-          // Connect: Source -> Filter 0 -> Filter 1 -> ... -> Filter 4 -> FadeGain -> Analyser -> Destination
+          // Connect: Source -> Filters -> BassBoost -> FadeGain -> Panner -> Analyser -> Destination
           let prevNode: AudioNode = sourceRef.current;
           filters.forEach((filter) => {
             prevNode.connect(filter);
             prevNode = filter;
           });
 
-          prevNode.connect(fadeGain);
-          fadeGain.connect(analyser);
+          prevNode.connect(bassBoost);
+          bassBoost.connect(fadeGain);
+
+          if (pannerNode) {
+            fadeGain.connect(pannerNode);
+            pannerNode.connect(analyser);
+          } else {
+            fadeGain.connect(analyser);
+          }
+
           analyser.connect(ctx.destination);
           isInitializedRef.current = true;
         }
@@ -143,6 +178,32 @@ export function useWebAudio(
     }
   }, [gains, isEqEnabled, selectedPreset]);
 
+  // Apply Sub-Bass Boost
+  useEffect(() => {
+    if (bassBoostRef.current && globalAudioCtx) {
+      const targetGain = isBassBoostEnabled ? 7 : 0;
+      bassBoostRef.current.gain.setTargetAtTime(targetGain, globalAudioCtx.currentTime, 0.08);
+    }
+    if (typeof window !== "undefined") {
+      localStorage.setItem("audiomelody_bass_boost", String(isBassBoostEnabled));
+    }
+  }, [isBassBoostEnabled]);
+
+  // Apply 3D Spatial Audio effect (dynamic subtle oscillation / widening)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("audiomelody_spatial_audio", String(isSpatialAudioEnabled));
+    }
+  }, [isSpatialAudioEnabled]);
+
+  const toggleBassBoost = useCallback(() => {
+    setIsBassBoostEnabled((prev) => !prev);
+  }, []);
+
+  const toggleSpatialAudio = useCallback(() => {
+    setIsSpatialAudioEnabled((prev) => !prev);
+  }, []);
+
   const setBandGain = useCallback((bandIndex: number, gainValue: number) => {
     setGains((prev) => {
       const updated = [...prev];
@@ -178,49 +239,47 @@ export function useWebAudio(
       }
       const now = globalAudioCtx.currentTime;
       fadeGainRef.current.gain.cancelScheduledValues(now);
-      fadeGainRef.current.gain.setValueAtTime(0.001, now);
-      fadeGainRef.current.gain.exponentialRampToValueAtTime(1, now + durationSec);
+      fadeGainRef.current.gain.setValueAtTime(0, now);
+      fadeGainRef.current.gain.linearRampToValueAtTime(1, now + durationSec);
     },
     [crossfadeDuration]
   );
 
   const fadeOut = useCallback(
     (durationSec = crossfadeDuration) => {
-      if (!fadeGainRef.current || !globalAudioCtx || durationSec <= 0) {
-        return;
-      }
+      if (!fadeGainRef.current || !globalAudioCtx || durationSec <= 0) return;
       const now = globalAudioCtx.currentTime;
       fadeGainRef.current.gain.cancelScheduledValues(now);
-      fadeGainRef.current.gain.setValueAtTime(
-        Math.max(0.001, fadeGainRef.current.gain.value),
-        now
-      );
-      fadeGainRef.current.gain.exponentialRampToValueAtTime(0.001, now + durationSec);
+      fadeGainRef.current.gain.setValueAtTime(1, now);
+      fadeGainRef.current.gain.linearRampToValueAtTime(0, now + durationSec);
     },
     [crossfadeDuration]
   );
 
   const resetEq = useCallback(() => {
-    applyPreset("flat");
-  }, [applyPreset]);
-
-  const toggleEq = useCallback(() => {
-    setIsEqEnabled((prev) => !prev);
+    setGains([0, 0, 0, 0, 0]);
+    setSelectedPreset("flat");
+    setIsEqEnabled(true);
+    setIsBassBoostEnabled(false);
+    setIsSpatialAudioEnabled(false);
   }, []);
 
   return {
     analyser: analyserRef.current,
-    audioContext: globalAudioCtx,
-    isEqEnabled,
     gains,
+    isEqEnabled,
+    setIsEqEnabled,
     selectedPreset,
+    isBassBoostEnabled,
+    toggleBassBoost,
+    isSpatialAudioEnabled,
+    toggleSpatialAudio,
+    setBandGain,
+    applyPreset,
+    resetEq,
     crossfadeDuration,
     setCrossfadeDuration,
     fadeIn,
     fadeOut,
-    setBandGain,
-    applyPreset,
-    resetEq,
-    toggleEq,
   };
 }

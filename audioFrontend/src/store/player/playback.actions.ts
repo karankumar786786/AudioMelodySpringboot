@@ -53,9 +53,6 @@ export const playbackActions = {
       };
 
       if (typeof window !== "undefined") {
-        // We still save the queue, but the current song can be derived from lastQueueIndex
-        localStorage.setItem("last_queue", JSON.stringify(updatedQueue));
-        localStorage.setItem("last_queue_index", idx.toString());
         localStorage.setItem("last_current_time", "0");
       }
       return newState;
@@ -164,8 +161,6 @@ export const playbackActions = {
 
         const newQueue = [...played, ...shuffledUpcoming];
         if (typeof window !== "undefined") {
-          localStorage.setItem("last_queue", JSON.stringify(newQueue));
-          localStorage.setItem("last_queue_index", currentIdx.toString());
           localStorage.setItem("audiomelody_shuffle", "true");
         }
 
@@ -195,8 +190,6 @@ export const playbackActions = {
         }
 
         if (typeof window !== "undefined") {
-          localStorage.setItem("last_queue", JSON.stringify(originalQueue));
-          localStorage.setItem("last_queue_index", newIdx.toString());
           localStorage.setItem("audiomelody_shuffle", "false");
         }
 
