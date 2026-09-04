@@ -1,7 +1,16 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Play, Pause, MoreVertical, ListPlus, CornerDownRight, Plus, X } from "lucide-react";
+import {
+  Play,
+  Pause,
+  MoreVertical,
+  ListPlus,
+  CornerDownRight,
+  Plus,
+  X,
+  Heart,
+} from "lucide-react";
 import { type Song } from "../lib/api";
 import { playerActions, playerStore } from "../store/player.store";
 import { mapToPlayerSong } from "../lib/player-utils";
@@ -10,7 +19,6 @@ import { toast } from "sonner";
 import { useState } from "react";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
 import { getImageUrl } from "../lib/image-utils";
-import { HeartButton } from "./HeartButton";
 
 interface SongCardProps {
   song: Song;
@@ -47,6 +55,11 @@ export function SongCard({
     }
     try {
       await playerActions.toggleFavourite(String(song.id));
+      toast.success(isFavourite ? "Removed from favourites" : "Added to favourites", {
+        description: isFavourite
+          ? `"${song.title}" removed from your favourites.`
+          : `"${song.title}" saved to your favourites.`,
+      });
     } catch {
       toast.error("Failed to update favourites");
     }
@@ -153,20 +166,7 @@ export function SongCard({
         </div>
 
         {/* Quick Actions Bar */}
-        <div
-          className={`absolute top-3 right-3 flex items-center gap-1.5 transition-opacity duration-200 z-20 ${
-            isFavourite ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-          }`}
-        >
-          {/* Favourite Heart Button */}
-          <div className="w-8 h-8 rounded-full bg-black/60 hover:bg-black flex items-center justify-center transition-all shadow-md">
-            <HeartButton
-              isFavourite={isFavourite}
-              onToggle={handleToggleFavourite}
-              size={14}
-            />
-          </div>
-
+        <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
           {onRemove && (
             <button
               onClick={(e) => {
@@ -204,9 +204,32 @@ export function SongCard({
                   }}
                 />
                 <div
-                  className="absolute right-0 top-full mt-1.5 w-44 rounded-xl bg-[#1e1e1e] border border-white/10 shadow-2xl z-50 p-1 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
+                  className="absolute right-0 top-full mt-1.5 w-48 rounded-xl bg-[#1e1e1e] border border-white/10 shadow-2xl z-50 p-1 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
                   onClick={(e) => e.stopPropagation()}
                 >
+                  {/* Favourite / Unfavourite Option */}
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      setShowMenu(false);
+                      await handleToggleFavourite();
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-zinc-200 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <Heart
+                      size={14}
+                      className={
+                        isFavourite
+                          ? "text-primary fill-primary"
+                          : "text-zinc-400"
+                      }
+                    />
+                    <span>
+                      {isFavourite ? "Remove from favourites" : "Save to favourites"}
+                    </span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={handlePlayNext}
