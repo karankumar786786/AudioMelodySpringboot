@@ -43,9 +43,14 @@ export function useAudioSync(
     audioElement.muted = isVideoActive || isMuted || targetVolume === 0;
   }, [audioElement, volume, isMuted, isVideoActive]);
 
+  const prevIsVideoActiveRef = useRef(isVideoActive);
+
   // 2. Sync Play/Pause state to the audio element (only when video is not actively driving playback)
   useEffect(() => {
     if (!audioElement) return;
+
+    const wasVideoActive = prevIsVideoActiveRef.current;
+    prevIsVideoActiveRef.current = isVideoActive;
 
     if (isVideoActive) {
       if (!audioElement.paused) {
@@ -57,6 +62,19 @@ export function useAudioSync(
 
     // Unmute when video becomes inactive
     audioElement.muted = isMuted || volume === 0;
+
+    // When transitioning from Video Active -> Audio Active, synchronize timestamp immediately
+    if (wasVideoActive) {
+      const targetTime = playerStore.state.seekTarget ?? playerStore.state.currentTime;
+      if (typeof targetTime === "number" && isFinite(targetTime) && targetTime >= 0) {
+        try {
+          audioElement.currentTime = targetTime;
+          setLocalTime(targetTime);
+        } catch (err) {
+          console.warn("[useAudioSync] Failed to set audio currentTime on video handoff:", err);
+        }
+      }
+    }
 
     if (isPlaying) {
       if (audioElement.paused && audioElement.readyState >= 2) {
@@ -70,7 +88,7 @@ export function useAudioSync(
         audioElement.pause();
       }
     }
-  }, [audioElement, isPlaying, isInternalChange, isVideoActive, isMuted, volume]);
+  }, [audioElement, isPlaying, isInternalChange, isVideoActive, isMuted, volume, setLocalTime]);
 
   // 3. Native Event Listeners
   useEffect(() => {
@@ -165,7 +183,18 @@ export function useAudioSync(
 
     // Handle when the audio element can play after a pause -> play toggle
     const onCanPlay = () => {
-      if (isVideoActive) return;
+      if (isVideoActive || playerStore.state.isVideoActive) return;
+      const target = playerStore.state.seekTarget ?? playerStore.state.currentTime;
+      if (
+        typeof target === "number" &&
+        isFinite(target) &&
+        target > 0 &&
+        Math.abs(audioElement.currentTime - target) > 0.5
+      ) {
+        try {
+          audioElement.currentTime = target;
+        } catch {}
+      }
       if (isPlayingRef.current && audioElement.paused) {
         audioElement.play().catch((err) => {
           if (err.name !== "AbortError")
@@ -254,6 +283,12 @@ export function useAudioSync(
         animFrameRef.current = requestAnimationFrame(syncTime);
         return;
       }
+    }
+
+    // Avoid overwriting store currentTime while a seekTarget handoff is executing
+    if (playerStore.state.seekTarget !== null) {
+      animFrameRef.current = requestAnimationFrame(syncTime);
+      return;
     }
 
     const t = audioElement.currentTime;

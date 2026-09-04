@@ -94,13 +94,22 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   // Track whether audio was playing when modal opened so we can resume on close
   const wasAudioPlayingRef = useRef<boolean>(playerStore.state.isPlaying);
 
+  // Keep a ref to the latest currentTime so unmount cleanup always has the exact timestamp
+  const currentTimeRef = useRef<number>(startTimeRef.current);
+
   // Activate video playback mode in store on mount and reset on unmount
   useEffect(() => {
     playerActions.setIsVideoActive(true);
     return () => {
+      const v = videoRef.current;
+      const finalTime = v && isFinite(v.currentTime) ? v.currentTime : currentTimeRef.current;
+      if (isCurrentSong && typeof finalTime === "number" && isFinite(finalTime) && finalTime >= 0) {
+        playerActions.seek(finalTime);
+        playerActions.setCurrentTime(finalTime);
+      }
       playerActions.setIsVideoActive(false);
     };
-  }, []);
+  }, [isCurrentSong]);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -286,9 +295,11 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     };
 
     const onTimeUpdate = () => {
-      setCurrentTime(video.currentTime);
+      const t = video.currentTime;
+      currentTimeRef.current = t;
+      setCurrentTime(t);
       if (isCurrentSong) {
-        playerActions.setCurrentTime(video.currentTime);
+        playerActions.setCurrentTime(t);
       }
       updateBuffer();
     };
@@ -367,21 +378,22 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   // Seamless Close: sync the video's stop time back to the audio player and resume playback
   const handleClose = useCallback(() => {
     const v = videoRef.current;
-    const finalTime = v?.currentTime ?? currentTime;
+    const finalTime = v && isFinite(v.currentTime) ? v.currentTime : currentTimeRef.current;
     if (v) {
       try {
         v.pause();
       } catch {}
     }
-    playerActions.setIsVideoActive(false);
-    if (isCurrentSong && typeof finalTime === "number" && isFinite(finalTime)) {
+    if (isCurrentSong && typeof finalTime === "number" && isFinite(finalTime) && finalTime >= 0) {
       playerActions.seek(finalTime);
+      playerActions.setCurrentTime(finalTime);
       if (wasAudioPlayingRef.current || isPlaying) {
         playerActions.setIsPlaying(true);
       }
     }
+    playerActions.setIsVideoActive(false);
     onClose(finalTime);
-  }, [currentTime, isCurrentSong, isPlaying, onClose]);
+  }, [isCurrentSong, isPlaying, onClose]);
 
   /* ─── Quality switching ─── */
   const applyQuality = (height: number) => {
@@ -469,6 +481,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
+        e.stopImmediatePropagation();
         const inFullscreen = Boolean(
           document.fullscreenElement || (document as any).webkitFullscreenElement,
         );
@@ -478,26 +491,38 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
       }
       if (e.key === "v" || e.key === "V") {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         handleClose();
       }
       if (e.key === "p" || e.key === "P") {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         togglePip();
       }
       if (e.key === " " || e.key === "k" || e.key === "K") {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         togglePlay();
       }
       if (e.key === "m" || e.key === "M") {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         toggleMute();
       }
       if (e.key === "f" || e.key === "F") {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         toggleFullscreen();
       }
       if (e.key === "ArrowLeft") {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         const v = videoRef.current;
         if (v) {
           v.currentTime = Math.max(0, v.currentTime - 5);
@@ -506,6 +531,8 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
       }
       if (e.key === "ArrowRight") {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
         const v = videoRef.current;
         if (v) {
           const maxDur = v.duration || duration || 0;
@@ -514,8 +541,8 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         }
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener("keydown", handler, { capture: true });
+    return () => window.removeEventListener("keydown", handler, { capture: true });
   }, [handleClose, togglePlay, toggleMute, toggleFullscreen, togglePip, duration]);
 
   const fmt = (s: number) => {

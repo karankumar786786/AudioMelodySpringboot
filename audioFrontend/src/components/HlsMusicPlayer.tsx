@@ -225,6 +225,7 @@ export function HlsMusicPlayer() {
   // Sync store currentTime resets or explicit seekTarget requests
   const storeCurrentTime = useStore(playerStore, (s) => s.currentTime);
   const seekTarget = useStore(playerStore, (s) => s.seekTarget);
+  const prevIsVideoActiveRef = useRef(isVideoActive);
 
   // 1. When video player is driving playback, mirror its live time
   useEffect(() => {
@@ -235,7 +236,24 @@ export function HlsMusicPlayer() {
 
   // 2. Audio element seek listener (only when video is not active)
   useEffect(() => {
+    const wasVideoActive = prevIsVideoActiveRef.current;
+    prevIsVideoActiveRef.current = isVideoActive;
+
     if (isVideoActive || !audioRef.current) return;
+
+    // If we just switched back from video playback to audio
+    if (wasVideoActive) {
+      const targetTime = seekTarget !== null && isFinite(seekTarget) ? seekTarget : storeCurrentTime;
+      if (typeof targetTime === "number" && isFinite(targetTime) && targetTime >= 0) {
+        audioRef.current.currentTime = targetTime;
+        setLocalTime(targetTime);
+        if (seekTarget !== null) {
+          playerStore.setState((s) => ({ ...s, seekTarget: null }));
+        }
+      }
+      return;
+    }
+
     if (seekTarget !== null && isFinite(seekTarget)) {
       audioRef.current.currentTime = seekTarget;
       setLocalTime(seekTarget);
@@ -265,7 +283,7 @@ export function HlsMusicPlayer() {
         activeEl instanceof HTMLTextAreaElement ||
         (activeEl as HTMLElement)?.isContentEditable;
 
-      if (isInput) return;
+      if (isInput || state.isFullVideoOpen) return;
 
       // Space or K: Toggle Play/Pause
       if (e.code === "Space" || e.key === "k" || e.key === "K") {
@@ -323,13 +341,13 @@ export function HlsMusicPlayer() {
         }
       }
 
-      // V: Toggle Full Video
+      // V: Open Full Video
       if (
         (e.key === "v" || e.key === "V") &&
         (currentSong?.fullVideoKey || (currentSong as any)?.full_video_key)
       ) {
         e.preventDefault();
-        playerActions.toggleFullVideo();
+        playerActions.openFullVideo();
       }
 
       // ArrowRight (Ctrl/Cmd): Next Track
@@ -391,7 +409,7 @@ export function HlsMusicPlayer() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentSong, isPlaying, isMuted, volume, duration, isLyricsOpen]);
+  }, [currentSong, isPlaying, isMuted, volume, duration, isLyricsOpen, state.isFullVideoOpen, isVideoActive]);
 
 
   const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
