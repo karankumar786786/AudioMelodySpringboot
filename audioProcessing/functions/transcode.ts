@@ -8,6 +8,10 @@ import {
     cutCanvasVideo,
     uploadCanvasToImageKit,
 } from "../lib/transcode/video";
+import {
+    safeCleanPaths,
+    registerActiveTmpPath,
+} from "../lib/transcode/cleanup";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import * as crypto from "node:crypto";
@@ -54,7 +58,7 @@ export const transcodeSong = inngest.createFunction(
             });
         });
 
-        // Run transcoding process
+        // Run distributed transcoding process
         const { duration, videoKey } = await step.run("transcode-process", async () => {
             if (!fs.existsSync(baseTmpDir)) {
                 fs.mkdirSync(baseTmpDir, { recursive: true });
@@ -69,6 +73,14 @@ export const transcodeSong = inngest.createFunction(
             const audioOutputDir = path.join(baseTmpDir, `transcoded_audio_${localUuid}`);
             const videoOutputDir = path.join(baseTmpDir, `transcoded_video_${localUuid}`);
 
+            // Register active temp paths for graceful shutdown protection
+            registerActiveTmpPath(localAudioDownloadPath);
+            registerActiveTmpPath(localVideoDownloadPath);
+            registerActiveTmpPath(localExtractedAudioPath);
+            registerActiveTmpPath(localCanvasClipPath);
+            registerActiveTmpPath(audioOutputDir);
+            registerActiveTmpPath(videoOutputDir);
+
             let finalDuration = 0;
             let resultVideoKey = initialVideoKey;
 
@@ -78,83 +90,111 @@ export const transcodeSong = inngest.createFunction(
                     console.log(`[PIPELINE] Video-reprocess mode for job ${jobId}. Downloading raw video...`);
                     await downloadObject(tempBucket, tempVideoKey, localVideoDownloadPath);
 
-                    // Cut canvas if timestamps provided
+                    const tasks: Promise<any>[] = [];
+
+                    // Cut canvas if timestamps provided (concurrent)
                     if (typeof clipStartSec === "number" && typeof clipEndSec === "number" && clipEndSec > clipStartSec) {
-                        console.log(`[PIPELINE] Cutting canvas snippet from ${clipStartSec}s to ${clipEndSec}s...`);
-                        await cutCanvasVideo(localVideoDownloadPath, localCanvasClipPath, clipStartSec, clipEndSec);
-                        resultVideoKey = await uploadCanvasToImageKit(
-                            localCanvasClipPath,
-                            `${songId}_canvas.mp4`,
-                            "/songs/videos"
-                        );
+                        tasks.push((async () => {
+                            console.log(`[PIPELINE] Cutting canvas snippet from ${clipStartSec}s to ${clipEndSec}s...`);
+                            await cutCanvasVideo(localVideoDownloadPath, localCanvasClipPath, clipStartSec, clipEndSec);
+                            resultVideoKey = await uploadCanvasToImageKit(
+                                localCanvasClipPath,
+                                `${songId}_canvas.mp4`,
+                                "/songs/videos"
+                            );
+                        })());
                     }
 
-                    // Package full video only
-                    console.log(`[PIPELINE] Packaging full video with Shaka Packager (reprocess)...`);
-                    const videoTranscoder = new VideoTranscoder(4, s3Client, videoBasePath, prodBucket);
-                    await videoTranscoder.transcode(localVideoDownloadPath, videoOutputDir, songId);
+                    // Package full video with hardware acceleration
+                    tasks.push((async () => {
+                        console.log(`[PIPELINE] Packaging full video with Shaka Packager (reprocess)...`);
+                        const videoTranscoder = new VideoTranscoder(4, s3Client, videoBasePath, prodBucket);
+                        await videoTranscoder.transcode(localVideoDownloadPath, videoOutputDir, songId);
+                    })());
+
+                    await Promise.all(tasks);
 
                 // SCENARIO 1: VIDEO ONLY PROVIDED
                 } else if (tempVideoKey && !tempSongKey) {
                     console.log(`[PIPELINE] Video-only mode for job ${jobId}. Downloading raw video...`);
                     await downloadObject(tempBucket, tempVideoKey, localVideoDownloadPath);
 
-                    // 1. Extract audio track from video
+                    // 1. Extract audio track from video (needed for audio packaging)
                     console.log(`[PIPELINE] Extracting audio from full video for job ${jobId}...`);
                     await extractAudioFromVideo(localVideoDownloadPath, localExtractedAudioPath);
 
-                    // 2. Cut small canvas loop video according to admin instruction
-                    const start = typeof clipStartSec === "number" && clipStartSec >= 0 ? clipStartSec : 0;
-                    const end = typeof clipEndSec === "number" && clipEndSec > start ? clipEndSec : start + 15;
-                    console.log(`[PIPELINE] Cutting canvas snippet from ${start}s to ${end}s...`);
-                    await cutCanvasVideo(localVideoDownloadPath, localCanvasClipPath, start, end);
+                    // 2. Concurrently execute:
+                    //    a. Canvas clip cutting & ImageKit upload
+                    //    b. Video multi-quality transcoding & Shaka packaging
+                    //    c. Audio multi-bitrate transcoding & Shaka packaging
+                    const canvasTask = (async () => {
+                        const start = typeof clipStartSec === "number" && clipStartSec >= 0 ? clipStartSec : 0;
+                        const end = typeof clipEndSec === "number" && clipEndSec > start ? clipEndSec : start + 15;
+                        console.log(`[PIPELINE] Cutting canvas snippet from ${start}s to ${end}s...`);
+                        await cutCanvasVideo(localVideoDownloadPath, localCanvasClipPath, start, end);
 
-                    // 3. Upload cut canvas video to ImageKit
-                    console.log(`[PIPELINE] Uploading canvas video to ImageKit...`);
-                    resultVideoKey = await uploadCanvasToImageKit(
-                        localCanvasClipPath,
-                        `${songId}_canvas.mp4`,
-                        "/songs/videos"
-                    );
-
-                    // 4. Transcode full video with Shaka Packager into multiple qualities & upload to S3
-                    console.log(`[PIPELINE] Transcoding full video to multiple qualities with Shaka Packager...`);
-                    const videoTranscoder = new VideoTranscoder(4, s3Client, videoBasePath, prodBucket);
-                    await videoTranscoder.transcode(localVideoDownloadPath, videoOutputDir, songId);
-
-                    // 5. Transcode extracted audio into multi-bitrate AAC & upload to S3
-                    console.log(`[PIPELINE] Transcoding extracted audio with Shaka Packager...`);
-                    const audioTranscoder = new AudioTranscoder(4, s3Client, basePath, prodBucket);
-                    const audioRes = await audioTranscoder.transcode(localExtractedAudioPath, audioOutputDir, songId);
-                    finalDuration = Math.round(audioRes.duration);
-
-                // SCENARIO 2: BOTH AUDIO AND FULL VIDEO PROVIDED
-                } else if (tempVideoKey && tempSongKey) {
-                    console.log(`[PIPELINE] Both audio and full video provided for job ${jobId}.`);
-                    await downloadObject(tempBucket, tempSongKey, localAudioDownloadPath);
-                    await downloadObject(tempBucket, tempVideoKey, localVideoDownloadPath);
-
-                    // If clip timestamps were provided, cut canvas clip from video
-                    if (typeof clipStartSec === "number" && typeof clipEndSec === "number" && clipEndSec > clipStartSec) {
-                        console.log(`[PIPELINE] Cutting canvas snippet from ${clipStartSec}s to ${clipEndSec}s...`);
-                        await cutCanvasVideo(localVideoDownloadPath, localCanvasClipPath, clipStartSec, clipEndSec);
+                        console.log(`[PIPELINE] Uploading canvas video to ImageKit...`);
                         resultVideoKey = await uploadCanvasToImageKit(
                             localCanvasClipPath,
                             `${songId}_canvas.mp4`,
                             "/songs/videos"
                         );
+                    })();
+
+                    const videoTranscodeTask = (async () => {
+                        console.log(`[PIPELINE] Transcoding full video to multiple qualities with Shaka Packager...`);
+                        const videoTranscoder = new VideoTranscoder(4, s3Client, videoBasePath, prodBucket);
+                        await videoTranscoder.transcode(localVideoDownloadPath, videoOutputDir, songId);
+                    })();
+
+                    const audioTranscodeTask = (async () => {
+                        console.log(`[PIPELINE] Transcoding extracted audio with Shaka Packager...`);
+                        const audioTranscoder = new AudioTranscoder(4, s3Client, basePath, prodBucket);
+                        const audioRes = await audioTranscoder.transcode(localExtractedAudioPath, audioOutputDir, songId);
+                        finalDuration = Math.round(audioRes.duration);
+                    })();
+
+                    await Promise.all([canvasTask, videoTranscodeTask, audioTranscodeTask]);
+
+                // SCENARIO 2: BOTH AUDIO AND FULL VIDEO PROVIDED
+                } else if (tempVideoKey && tempSongKey) {
+                    console.log(`[PIPELINE] Both audio and full video provided for job ${jobId}. Downloading both in parallel...`);
+                    await Promise.all([
+                        downloadObject(tempBucket, tempSongKey, localAudioDownloadPath),
+                        downloadObject(tempBucket, tempVideoKey, localVideoDownloadPath),
+                    ]);
+
+                    const pipelineTasks: Promise<any>[] = [];
+
+                    // If clip timestamps were provided, cut canvas clip from video concurrently
+                    if (typeof clipStartSec === "number" && typeof clipEndSec === "number" && clipEndSec > clipStartSec) {
+                        pipelineTasks.push((async () => {
+                            console.log(`[PIPELINE] Cutting canvas snippet from ${clipStartSec}s to ${clipEndSec}s...`);
+                            await cutCanvasVideo(localVideoDownloadPath, localCanvasClipPath, clipStartSec, clipEndSec);
+                            resultVideoKey = await uploadCanvasToImageKit(
+                                localCanvasClipPath,
+                                `${songId}_canvas.mp4`,
+                                "/songs/videos"
+                            );
+                        })());
                     }
 
-                    // Transcode full video with Shaka Packager
-                    console.log(`[PIPELINE] Transcoding full video with Shaka Packager...`);
-                    const videoTranscoder = new VideoTranscoder(4, s3Client, videoBasePath, prodBucket);
-                    await videoTranscoder.transcode(localVideoDownloadPath, videoOutputDir, songId);
+                    // Transcode full video with Shaka Packager concurrently
+                    pipelineTasks.push((async () => {
+                        console.log(`[PIPELINE] Transcoding full video with Shaka Packager...`);
+                        const videoTranscoder = new VideoTranscoder(4, s3Client, videoBasePath, prodBucket);
+                        await videoTranscoder.transcode(localVideoDownloadPath, videoOutputDir, songId);
+                    })());
 
-                    // Transcode audio
-                    console.log(`[PIPELINE] Transcoding audio with Shaka Packager...`);
-                    const audioTranscoder = new AudioTranscoder(4, s3Client, basePath, prodBucket);
-                    const audioRes = await audioTranscoder.transcode(localAudioDownloadPath, audioOutputDir, songId);
-                    finalDuration = Math.round(audioRes.duration);
+                    // Transcode audio concurrently
+                    pipelineTasks.push((async () => {
+                        console.log(`[PIPELINE] Transcoding audio with Shaka Packager...`);
+                        const audioTranscoder = new AudioTranscoder(4, s3Client, basePath, prodBucket);
+                        const audioRes = await audioTranscoder.transcode(localAudioDownloadPath, audioOutputDir, songId);
+                        finalDuration = Math.round(audioRes.duration);
+                    })());
+
+                    await Promise.all(pipelineTasks);
 
                 // SCENARIO 3: ONLY AUDIO PROVIDED
                 } else {
@@ -168,24 +208,15 @@ export const transcodeSong = inngest.createFunction(
 
                 return { duration: finalDuration, videoKey: resultVideoKey };
             } finally {
-                // Cleanup local temporary files
-                const pathsToClean = [
+                // Robust & graceful cleanup of all local temporary files and directories
+                await safeCleanPaths([
                     localAudioDownloadPath,
                     localVideoDownloadPath,
                     localExtractedAudioPath,
                     localCanvasClipPath,
-                ];
-                for (const p of pathsToClean) {
-                    if (fs.existsSync(p)) {
-                        try { fs.unlinkSync(p); } catch {}
-                    }
-                }
-                if (fs.existsSync(audioOutputDir)) {
-                    try { fs.rmSync(audioOutputDir, { recursive: true, force: true }); } catch {}
-                }
-                if (fs.existsSync(videoOutputDir)) {
-                    try { fs.rmSync(videoOutputDir, { recursive: true, force: true }); } catch {}
-                }
+                    audioOutputDir,
+                    videoOutputDir,
+                ]);
             }
         });
 

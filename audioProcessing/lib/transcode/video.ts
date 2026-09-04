@@ -7,6 +7,21 @@ import pLimit from "p-limit";
 
 const execFileAsync = promisify(execFile);
 
+import {
+    detectHardwareCapabilities,
+    buildVideoEncoderArgs,
+    buildSoftwareVideoArgs,
+    buildAudioEncoderArgs,
+    buildSoftwareAudioArgs,
+    executeFFmpegWithFallback,
+} from "./hwaccel";
+
+import {
+    safeRemovePath,
+    registerActiveTmpPath,
+    unregisterActiveTmpPath,
+} from "./cleanup";
+
 export interface VideoQualityProfile {
     label: string;
     width: number;
@@ -49,46 +64,50 @@ export class VideoTranscoder {
         console.log(`Output: ${outputDir}`);
 
         fs.mkdirSync(outputDir, { recursive: true });
+        registerActiveTmpPath(outputDir);
 
-        const info = await this.getVideoInfo(inputVideo);
-        if (info.duration <= 0) throw new Error("Invalid video duration, cannot transcode");
+        try {
+            const info = await this.getVideoInfo(inputVideo);
+            if (info.duration <= 0) throw new Error("Invalid video duration, cannot transcode");
 
-        console.log(`Video Info: ${info.width}x${info.height}, ${info.duration.toFixed(2)}s, segment size: ${this.segmentTime}s`);
+            console.log(`Video Info: ${info.width}x${info.height}, ${info.duration.toFixed(2)}s, segment size: ${this.segmentTime}s`);
 
-        // Select profiles: only profiles with height <= source height (or at least the lowest profile)
-        const applicableProfiles = VIDEO_QUALITY_PROFILES.filter(p => p.height <= info.height);
-        const profilesToEncode = applicableProfiles.length > 0
-            ? applicableProfiles
-            : [VIDEO_QUALITY_PROFILES[VIDEO_QUALITY_PROFILES.length - 1]!];
+            // Select profiles: only profiles with height <= source height (or at least the lowest profile)
+            const applicableProfiles = VIDEO_QUALITY_PROFILES.filter(p => p.height <= info.height);
+            const profilesToEncode = applicableProfiles.length > 0
+                ? applicableProfiles
+                : [VIDEO_QUALITY_PROFILES[VIDEO_QUALITY_PROFILES.length - 1]!];
 
-        console.log(`Selected profiles for packaging:`, profilesToEncode.map(p => p.label));
+            console.log(`Selected profiles for packaging:`, profilesToEncode.map(p => p.label));
 
-        // STEP 1 — Transcode video profiles and extracted audio
-        const renditionsDir = path.join(outputDir, "renditions");
-        fs.mkdirSync(renditionsDir, { recursive: true });
+            // STEP 1 — Transcode video profiles and extracted audio (in parallel with hardware acceleration)
+            const renditionsDir = path.join(outputDir, "renditions");
+            fs.mkdirSync(renditionsDir, { recursive: true });
 
-        const encodedStreams = await this.encodeVideoAndAudio(inputVideo, renditionsDir, profilesToEncode);
+            const encodedStreams = await this.encodeVideoAndAudio(inputVideo, renditionsDir, profilesToEncode);
 
-        // STEP 2 — Shaka Packager Packaging
-        await this.runShakaPackager(outputDir, encodedStreams, profilesToEncode);
+            // STEP 2 — Shaka Packager Packaging
+            await this.runShakaPackager(outputDir, encodedStreams, profilesToEncode);
 
-        // STEP 3 — Upload all packaged files to S3
-        const allFiles = this.getAllFiles(outputDir);
-        // Exclude intermediate raw encoded streams
-        const filesToUpload = allFiles.filter(fp => !/raw_.*\.mp4$/.test(fp) && !/raw_.*\.m4a$/.test(fp));
+            // STEP 3 — Upload all packaged files to S3
+            const allFiles = this.getAllFiles(outputDir);
+            // Exclude intermediate raw encoded streams
+            const filesToUpload = allFiles.filter(fp => !/raw_.*\.mp4$/.test(fp) && !/raw_.*\.m4a$/.test(fp));
 
-        console.log(`Uploading ${filesToUpload.length} video files to S3 bucket "${this.bucketName}" under prefix "${this.basePath}/${s3DirName}"...`);
-        const uploadPromises = filesToUpload.map(fp =>
-            this.limit(() => this.uploadFileToS3(fp, outputDir, s3DirName, this.bucketName))
-        );
-        await Promise.all(uploadPromises);
-        console.log("All full video uploads completed");
+            console.log(`Uploading ${filesToUpload.length} video files to S3 bucket "${this.bucketName}" under prefix "${this.basePath}/${s3DirName}"...`);
+            const uploadPromises = filesToUpload.map(fp =>
+                this.limit(() => this.uploadFileToS3(fp, outputDir, s3DirName, this.bucketName))
+            );
+            await Promise.all(uploadPromises);
+            console.log("All full video uploads completed");
 
-        // CLEANUP — Remove local transcoded directory
-        fs.rmSync(outputDir, { recursive: true, force: true });
-        console.log(`--- Video Transcoding Completed for ${s3DirName} ---`);
-
-        return { duration: info.duration };
+            console.log(`--- Video Transcoding Completed for ${s3DirName} ---`);
+            return { duration: info.duration };
+        } finally {
+            // CLEANUP — Remove local transcoded directory robustly (on success or error)
+            await safeRemovePath(outputDir);
+            console.log(`Local video transcoding directory cleaned up: ${outputDir}`);
+        }
     }
 
     private async getVideoInfo(videoPath: string): Promise<{ duration: number; width: number; height: number }> {
@@ -118,54 +137,52 @@ export class VideoTranscoder {
         renditionsDir: string,
         profiles: VideoQualityProfile[]
     ): Promise<{ videoPaths: string[]; audioPath: string }> {
-        const videoPaths: string[] = [];
+        const hwCaps = await detectHardwareCapabilities();
+        const videoConcurrency = pLimit(hwCaps.maxVideoConcurrency);
 
-        // Encode each video profile with locked GOP of 48 frames for smooth ABR switching
-        for (const profile of profiles) {
-            const outPath = path.join(renditionsDir, `raw_video_${profile.label}.mp4`);
-            console.log(`[VIDEO] Transcoding rendition -> ${profile.label} (${profile.bitrate})...`);
+        console.log(`[VIDEO] Transcoding ${profiles.length} video renditions in parallel (concurrency=${hwCaps.maxVideoConcurrency}, accelerator=${hwCaps.hardwareName})...`);
 
-            const scaleFilter = `scale=w=${profile.width}:h=${profile.height}:force_original_aspect_ratio=decrease,pad=${profile.width}:${profile.height}:(ow-iw)/2:(oh-ih)/2,format=yuv420p`;
+        // Transcode video renditions concurrently
+        const videoPromises = profiles.map((profile) =>
+            videoConcurrency(async () => {
+                const outPath = path.join(renditionsDir, `raw_video_${profile.label}.mp4`);
+                console.log(`[VIDEO] Transcoding rendition -> ${profile.label} (${profile.bitrate})...`);
 
-            const args = [
-                "-y",
-                "-loglevel", "warning",
-                "-i", inputVideo,
-                "-vf", scaleFilter,
-                "-c:v", "libx264",
-                "-preset", "fast",
-                "-profile:v", "high",
-                "-b:v", profile.bitrate,
-                "-maxrate", profile.maxrate,
-                "-bufsize", profile.bufsize,
-                "-g", "48",
-                "-keyint_min", "48",
-                "-sc_threshold", "0",
-                "-an",
-                outPath,
-            ];
+                const primaryArgs = buildVideoEncoderArgs(inputVideo, outPath, profile, hwCaps);
+                const fallbackArgs = buildSoftwareVideoArgs(inputVideo, outPath, profile);
 
-            await execFileAsync("ffmpeg", args);
-            console.log(`[VIDEO] Rendition finished: ${profile.label}`);
-            videoPaths.push(outPath);
-        }
+                await executeFFmpegWithFallback(
+                    primaryArgs,
+                    fallbackArgs,
+                    `video rendition ${profile.label}`
+                );
 
-        // Encode common audio stream for the video
+                console.log(`[VIDEO] Rendition finished: ${profile.label}`);
+                return outPath;
+            })
+        );
+
+        // Encode common audio stream for the video in parallel
         const audioPath = path.join(renditionsDir, "raw_video_audio.m4a");
-        console.log(`[VIDEO] Transcoding audio track for video package...`);
-        const audioArgs = [
-            "-y",
-            "-loglevel", "warning",
-            "-i", inputVideo,
-            "-vn",
-            "-c:a", "aac",
-            "-b:a", "128k",
-            "-ar", "44100",
-            "-ac", "2",
-            audioPath,
-        ];
-        await execFileAsync("ffmpeg", audioArgs);
-        console.log(`[VIDEO] Video audio track encoded -> ${audioPath}`);
+        const audioPromise = (async () => {
+            console.log(`[VIDEO] Transcoding audio track for video package...`);
+            const audioProfile = { bitrate: "128k", sampleRate: 44100, channels: 2 };
+            const primaryArgs = buildAudioEncoderArgs(inputVideo, audioPath, audioProfile, hwCaps);
+            const fallbackArgs = buildSoftwareAudioArgs(inputVideo, audioPath, audioProfile);
+
+            await executeFFmpegWithFallback(
+                primaryArgs,
+                fallbackArgs,
+                "video companion audio track"
+            );
+            console.log(`[VIDEO] Video audio track encoded -> ${audioPath}`);
+            return audioPath;
+        })();
+
+        const [videoPaths] = await Promise.all([
+            Promise.all(videoPromises),
+            audioPromise,
+        ]);
 
         return { videoPaths, audioPath };
     }
@@ -317,18 +334,13 @@ export class VideoTranscoder {
  */
 export async function extractAudioFromVideo(videoPath: string, outputAudioPath: string): Promise<void> {
     console.log(`[EXTRACT AUDIO] Extracting audio from ${videoPath} -> ${outputAudioPath}...`);
-    const args = [
-        "-y",
-        "-loglevel", "warning",
-        "-i", videoPath,
-        "-vn",
-        "-c:a", "aac",
-        "-b:a", "320k",
-        "-ar", "44100",
-        "-ac", "2",
-        outputAudioPath,
-    ];
-    await execFileAsync("ffmpeg", args);
+    const hwCaps = await detectHardwareCapabilities();
+    const profile = { bitrate: "320k", sampleRate: 44100, channels: 2 };
+
+    const primaryArgs = buildAudioEncoderArgs(videoPath, outputAudioPath, profile, hwCaps);
+    const fallbackArgs = buildSoftwareAudioArgs(videoPath, outputAudioPath, profile);
+
+    await executeFFmpegWithFallback(primaryArgs, fallbackArgs, "audio extraction from video");
     console.log(`[EXTRACT AUDIO] Successfully extracted audio track`);
 }
 
@@ -343,20 +355,33 @@ export async function cutCanvasVideo(
 ): Promise<void> {
     console.log(`[CUT CANVAS] Clipping video snippet from ${startSec}s to ${endSec}s -> ${outputCanvasPath}...`);
     const duration = Math.max(1, endSec - startSec);
-    const args = [
-        "-y",
-        "-loglevel", "warning",
-        "-ss", startSec.toString(),
-        "-t", duration.toString(),
-        "-i", videoPath,
-        "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "22",
-        "-an",
-        "-movflags", "+faststart",
+    const hwCaps = await detectHardwareCapabilities();
+
+    // High quality canvas profile
+    const canvasProfile = {
+        width: 1080,
+        height: 1920,
+        bitrate: "4000k",
+        maxrate: "5000k",
+        bufsize: "8000k",
+    };
+
+    const primaryArgs = buildVideoEncoderArgs(
+        videoPath,
         outputCanvasPath,
-    ];
-    await execFileAsync("ffmpeg", args);
+        canvasProfile,
+        hwCaps,
+        { startSec, duration, mute: true }
+    );
+
+    const fallbackArgs = buildSoftwareVideoArgs(
+        videoPath,
+        outputCanvasPath,
+        canvasProfile,
+        { startSec, duration, mute: true }
+    );
+
+    await executeFFmpegWithFallback(primaryArgs, fallbackArgs, "canvas video clip");
     console.log(`[CUT CANVAS] Successfully cut canvas video snippet`);
 }
 
