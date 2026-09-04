@@ -489,7 +489,6 @@ export function HlsMusicPlayer() {
                     <div className="absolute right-0 top-full mt-2 w-56 max-h-72 overflow-y-auto no-scrollbar rounded-xl bg-[#1e1e1e] border border-white/10 shadow-2xl z-50 p-1.5 backdrop-blur-xl">
                       <div className="px-2.5 py-1.5 text-[11px] font-bold text-zinc-400 uppercase tracking-wider border-b border-white/5 mb-1 flex items-center justify-between">
                         <span>Translate Lyrics</span>
-                        <span className="text-[9px] text-primary lowercase font-medium">Google API</span>
                       </div>
                       {SUPPORTED_LANGUAGES.map((lang) => {
                         const isSelected = lyricsTargetLang === lang.code;
