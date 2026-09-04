@@ -21,12 +21,21 @@ import {
   TvMinimalPlay,
   Moon,
   X,
+  Languages,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 import { getImageUrl } from "../lib/image-utils";
 import { getFullVideoHlsUrl, getFullVideoDashUrl } from "../lib/player-utils";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
 import { FullVideoModal } from "./FullVideoModal";
 import { SleepTimerModal } from "./player/SleepTimerModal";
+import {
+  SUPPORTED_LANGUAGES,
+  translateTranscriptions,
+  translatePlainLyrics,
+} from "../lib/google-translate";
+import { TranscriptionEntry } from "./player/hooks/useLyrics";
 import { toast } from "sonner";
 
 // Hooks
@@ -73,6 +82,11 @@ export function HlsMusicPlayer() {
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [solidBgColor, setSolidBgColor] = useState("#181818");
   const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const [lyricsTargetLang, setLyricsTargetLang] = useState<string>("original");
+  const [showLangMenu, setShowLangMenu] = useState(false);
+  const [displayTranscriptions, setDisplayTranscriptions] = useState<TranscriptionEntry[]>([]);
+  const [displayPlainLyrics, setDisplayPlainLyrics] = useState<string | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
 
   // Sleep Timer countdown check
   useEffect(() => {
@@ -133,6 +147,62 @@ export function HlsMusicPlayer() {
     currentSong?.lrclibId || currentSong?.captionUrl,
     localTime,
   );
+
+  // Reset translation language to original when song changes
+  useEffect(() => {
+    setLyricsTargetLang("original");
+  }, [currentSong?.id]);
+
+  // Translate lyrics when transcriptions, plainLyrics, or targetLang changes
+  useEffect(() => {
+    if (lyricsTargetLang === "original") {
+      setDisplayTranscriptions(transcriptions);
+      setDisplayPlainLyrics(plainLyrics);
+      setIsTranslating(false);
+      return;
+    }
+
+    let isCancelled = false;
+    setIsTranslating(true);
+
+    const runTranslation = async () => {
+      try {
+        if (transcriptions && transcriptions.length > 0) {
+          const res = await translateTranscriptions(transcriptions, lyricsTargetLang);
+          if (!isCancelled) {
+            setDisplayTranscriptions(res);
+            setDisplayPlainLyrics(null);
+            setIsTranslating(false);
+          }
+        } else if (plainLyrics) {
+          const res = await translatePlainLyrics(plainLyrics, lyricsTargetLang);
+          if (!isCancelled) {
+            setDisplayTranscriptions([]);
+            setDisplayPlainLyrics(res);
+            setIsTranslating(false);
+          }
+        } else {
+          if (!isCancelled) {
+            setDisplayTranscriptions([]);
+            setDisplayPlainLyrics(null);
+            setIsTranslating(false);
+          }
+        }
+      } catch (e) {
+        if (!isCancelled) {
+          setDisplayTranscriptions(transcriptions);
+          setDisplayPlainLyrics(plainLyrics);
+          setIsTranslating(false);
+        }
+      }
+    };
+
+    runTranslation();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [transcriptions, plainLyrics, lyricsTargetLang]);
 
   const webAudio = useWebAudio(audioRef.current, isPlaying);
 
@@ -372,6 +442,72 @@ export function HlsMusicPlayer() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* Google Lyrics Translator Language Selector Dropdown */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowLangMenu((v) => !v)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md border transition-all cursor-pointer ${
+                    lyricsTargetLang !== "original"
+                      ? "bg-primary text-black border-primary font-bold shadow-md shadow-primary/20"
+                      : "bg-[#282828]/80 text-zinc-300 border-white/10 hover:text-white hover:bg-[#333]"
+                  }`}
+                  title="Translate Lyrics (Google Translate)"
+                  aria-label="Translate Lyrics"
+                >
+                  <Languages size={15} className={isTranslating ? "animate-spin" : ""} />
+                  <span className="max-w-[120px] truncate">
+                    {SUPPORTED_LANGUAGES.find((l) => l.code === lyricsTargetLang)?.name.split(" ")[0] || "Translate"}
+                  </span>
+                  <ChevronDown size={14} className={`transition-transform duration-200 ${showLangMenu ? "rotate-180" : ""}`} />
+                </button>
+
+                {showLangMenu && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setShowLangMenu(false)}
+                    />
+                    <div className="absolute right-0 top-full mt-2 w-56 max-h-72 overflow-y-auto no-scrollbar rounded-xl bg-[#1e1e1e] border border-white/10 shadow-2xl z-50 p-1.5 backdrop-blur-xl">
+                      <div className="px-2.5 py-1.5 text-[11px] font-bold text-zinc-400 uppercase tracking-wider border-b border-white/5 mb-1 flex items-center justify-between">
+                        <span>Translate Lyrics</span>
+                        <span className="text-[9px] text-primary lowercase font-medium">Google API</span>
+                      </div>
+                      {SUPPORTED_LANGUAGES.map((lang) => {
+                        const isSelected = lyricsTargetLang === lang.code;
+                        return (
+                          <button
+                            key={lang.code}
+                            type="button"
+                            onClick={() => {
+                              setLyricsTargetLang(lang.code);
+                              setShowLangMenu(false);
+                              if (lang.code !== "original") {
+                                toast.success(`Translating to ${lang.name}`);
+                              } else {
+                                toast.success("Original lyrics restored");
+                              }
+                            }}
+                            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
+                              isSelected
+                                ? "bg-primary text-black font-bold"
+                                : "text-zinc-200 hover:bg-white/10 hover:text-white"
+                            }`}
+                          >
+                            <span className="flex items-center gap-2 truncate">
+                              <span>{lang.flag}</span>
+                              <span className="truncate">{lang.name}</span>
+                            </span>
+                            {isSelected && <Check size={14} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Close Lyrics Button */}
               <button
                 type="button"
                 onClick={() => playerActions.closeLyrics()}
@@ -387,11 +523,11 @@ export function HlsMusicPlayer() {
           <div className="flex-1 flex items-center justify-center py-6">
             <PlayerLyricsOverlay
               currentCaption={currentCaption}
-              transcriptions={transcriptions}
-              plainLyrics={plainLyrics}
+              transcriptions={displayTranscriptions}
+              plainLyrics={displayPlainLyrics}
               localTime={localTime}
               analyser={webAudio.analyser}
-              isLoading={isLyricsLoading}
+              isLoading={isLyricsLoading || isTranslating}
               onSeek={(time) => {
                 if (audioRef.current) {
                   audioRef.current.currentTime = time;
