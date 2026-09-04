@@ -23,8 +23,20 @@ export const PlayerVolumeSlider: React.FC<PlayerVolumeSliderProps> = ({
     playerActions.setVolume(parseFloat(e.currentTarget.value));
   };
 
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    if (isMuted) playerActions.setIsMuted(false);
+    const step = 0.05;
+    const delta = e.deltaY < 0 ? step : -step;
+    const nextVol = Math.min(1, Math.max(0, volume + delta));
+    playerActions.setVolume(nextVol);
+  };
+
   return (
-    <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-[70px] sm:min-w-[90px] md:min-w-[110px]">
+    <div
+      onWheel={handleWheel}
+      className="flex items-center gap-1.5 sm:gap-2.5 min-w-[70px] sm:min-w-[90px] md:min-w-[110px]"
+    >
       <PlayerTooltip content={isMuted ? "Unmute" : "Mute"} shortcut="M">
         <button
           type="button"
@@ -36,7 +48,7 @@ export const PlayerVolumeSlider: React.FC<PlayerVolumeSliderProps> = ({
         </button>
       </PlayerTooltip>
 
-      <PlayerTooltip content="Volume" shortcut={["↑", "↓"]} className="flex-1">
+      <PlayerTooltip content="Volume (Scroll to adjust)" shortcut={["↑", "↓"]} className="flex-1">
         <div className="relative flex-1 flex items-center h-6 w-full">
           <input
             type="range"

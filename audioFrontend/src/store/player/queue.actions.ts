@@ -165,6 +165,38 @@ export const queueActions = {
     });
   },
 
+  playNext: (song: PlayerSong) => {
+    playerStore.setState((s) => {
+      let updatedQueue = [...s.queue];
+      const existingIdx = updatedQueue.findIndex((item) => item.id === song.id);
+      if (existingIdx !== -1) {
+        updatedQueue.splice(existingIdx, 1);
+      }
+
+      if (updatedQueue.length === 0) {
+        persistQueue([song], 0);
+        return {
+          ...s,
+          queue: [song],
+          originalQueue: [],
+          currentSong: song,
+          lastQueueIndex: 0,
+        };
+      }
+
+      const insertIdx = Math.min(Math.max(0, s.lastQueueIndex + 1), updatedQueue.length);
+      updatedQueue.splice(insertIdx, 0, song);
+
+      persistQueue(updatedQueue, s.lastQueueIndex);
+      console.log(`[Queue] Added "${song.title}" to play next at index ${insertIdx}.`);
+
+      return {
+        ...s,
+        queue: updatedQueue,
+      };
+    });
+  },
+
   playQueueItem: (index: number) => {
     const { queue } = playerStore.state;
     if (index < 0 || index >= queue.length) return;

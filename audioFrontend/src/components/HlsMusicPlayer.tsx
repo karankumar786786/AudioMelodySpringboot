@@ -13,6 +13,7 @@ import { FullVideoModal } from "./FullVideoModal";
 import { SleepTimerModal } from "./player/SleepTimerModal";
 import { EqualizerModal } from "./player/EqualizerModal";
 import { PlayerQueuePanel } from "./player/PlayerQueuePanel";
+import { KeyboardShortcutsModal } from "./player/KeyboardShortcutsModal";
 
 // Hooks
 import { useHlsPlayer } from "./player/hooks/useHlsPlayer";
@@ -56,6 +57,7 @@ export function HlsMusicPlayer() {
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [solidBgColor, setSolidBgColor] = useState("#181818");
   const [showQualityMenu, setShowQualityMenu] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
 
   // Sleep Timer countdown check
   useEffect(() => {
@@ -200,6 +202,7 @@ export function HlsMusicPlayer() {
     setLocalTime,
     setShowQueuePanel,
     setShowEqualizerModal,
+    setShowShortcutsModal,
   });
 
   const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -255,8 +258,17 @@ export function HlsMusicPlayer() {
         />
       )}
 
+      {/* Ambient Dynamic Background Glow */}
+      <div
+        aria-hidden="true"
+        style={{
+          background: `radial-gradient(ellipse 70% 80px at 50% 100%, ${solidBgColor}40, transparent 70%)`,
+        }}
+        className="fixed bottom-20 left-0 right-0 h-28 pointer-events-none z-40 transition-all duration-700 blur-xl"
+      />
+
       {/* Spotify Bottom Persistent Audio Player Bar */}
-      <footer className="fixed bottom-0 left-0 right-0 h-20 bg-black border-t border-[#282828] z-50 px-3 sm:px-4 md:px-6 flex items-center justify-between select-none">
+      <footer className="fixed bottom-0 left-0 right-0 h-20 bg-black/95 backdrop-blur-md border-t border-[#282828] z-50 px-3 sm:px-4 md:px-6 flex items-center justify-between select-none">
         {/* Left Section: Track Info & Quick Actions */}
         <PlayerTrackCard currentSong={currentSong} posterUrl={posterUrl} />
 
@@ -315,6 +327,12 @@ export function HlsMusicPlayer() {
       <SleepTimerModal
         isOpen={showSleepTimerModal}
         onClose={() => setShowSleepTimerModal(false)}
+      />
+
+      {/* Keyboard Shortcuts Cheat-Sheet Modal */}
+      <KeyboardShortcutsModal
+        isOpen={showShortcutsModal}
+        onClose={() => setShowShortcutsModal(false)}
       />
 
       {/* Playlist Picker Modal */}

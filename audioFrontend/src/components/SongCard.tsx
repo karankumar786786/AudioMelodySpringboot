@@ -1,5 +1,7 @@
+"use client";
+
 import { motion } from "framer-motion";
-import { Play, Plus, X } from "lucide-react";
+import { Play, Pause, MoreVertical, ListPlus, CornerDownRight, Plus, X } from "lucide-react";
 import { type Song } from "../lib/api";
 import { playerActions, playerStore } from "../store/player.store";
 import { mapToPlayerSong } from "../lib/player-utils";
@@ -24,18 +26,43 @@ export function SongCard({
 }: SongCardProps) {
   const systemUser = useStore(playerStore, (s) => s.systemUser);
   const currentSong = useStore(playerStore, (s) => s.currentSong);
+  const isPlaying = useStore(playerStore, (s) => s.isPlaying);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
 
   const isActiveSong = currentSong?.id === song.id;
 
-  const handlePlay = (e: React.MouseEvent) => {
+  const handlePlayToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
-    playerActions.play(mapToPlayerSong(song));
+    if (isActiveSong) {
+      playerActions.setIsPlaying(!isPlaying);
+    } else {
+      playerActions.play(mapToPlayerSong(song));
+    }
+  };
+
+  const handlePlayNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(false);
+    playerActions.playNext(mapToPlayerSong(song));
+    toast.success("Playing next", {
+      description: `"${song.title}" will play next.`,
+    });
+  };
+
+  const handleAddToQueue = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(false);
+    playerActions.enqueue([mapToPlayerSong(song)]);
+    toast.success("Added to queue", {
+      description: `"${song.title}" added to queue.`,
+    });
   };
 
   const handleOpenPlaylistPicker = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    setShowMenu(false);
     if (!systemUser?.id) {
       toast.error("Sign in required", {
         description: "Please sign in to add songs to playlists.",
@@ -51,7 +78,7 @@ export function SongCard({
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        onClick={handlePlay}
+        onClick={handlePlayToggle}
         className={`bg-black p-4 rounded-md group cursor-pointer relative transition-all duration-300 hover:bg-[#282828] ${
           isActiveSong ? "bg-[#282828] border border-primary/30" : ""
         } ${className || ""}`}
@@ -69,14 +96,25 @@ export function SongCard({
             loading={priority ? "eager" : "lazy"}
           />
 
-          {/* Spotify Green Play Button Overlay on Cover Art */}
-          <div className="absolute bottom-2 right-2 translate-y-2 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10">
+          {/* Spotify Green Play/Pause Button Overlay on Cover Art */}
+          <div
+            className={`absolute bottom-2 right-2 translate-y-2 group-hover:translate-y-0 transition-all duration-300 z-10 ${
+              isActiveSong && isPlaying
+                ? "opacity-100 translate-y-0"
+                : "opacity-0 group-hover:opacity-100"
+            }`}
+          >
             <button
-              onClick={handlePlay}
+              onClick={handlePlayToggle}
               className="w-12 h-12 rounded-full bg-primary hover:scale-105 flex items-center justify-center text-black shadow-xl cursor-pointer transition-transform"
-              title="Play"
+              title={isActiveSong && isPlaying ? "Pause" : "Play"}
+              aria-label={isActiveSong && isPlaying ? "Pause" : "Play"}
             >
-              <Play fill="black" size={20} className="translate-x-0.5" />
+              {isActiveSong && isPlaying ? (
+                <Pause fill="black" size={20} />
+              ) : (
+                <Play fill="black" size={20} className="translate-x-0.5" />
+              )}
             </button>
           </div>
         </div>
@@ -108,13 +146,64 @@ export function SongCard({
               <X size={14} />
             </button>
           )}
-          <button
-            onClick={handleOpenPlaylistPicker}
-            className="w-8 h-8 rounded-full bg-black/60 hover:bg-black flex items-center justify-center text-zinc-300 hover:text-white transition-all shadow-md cursor-pointer"
-            title="Add to playlist"
-          >
-            <Plus size={14} />
-          </button>
+
+          {/* More Options Dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowMenu((v) => !v);
+              }}
+              className="w-8 h-8 rounded-full bg-black/60 hover:bg-black flex items-center justify-center text-zinc-300 hover:text-white transition-all shadow-md cursor-pointer"
+              title="More options"
+            >
+              <MoreVertical size={14} />
+            </button>
+
+            {showMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMenu(false);
+                  }}
+                />
+                <div
+                  className="absolute right-0 top-full mt-1.5 w-44 rounded-xl bg-[#1e1e1e] border border-white/10 shadow-2xl z-50 p-1 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    onClick={handlePlayNext}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-zinc-200 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <CornerDownRight size={14} className="text-primary" />
+                    <span>Play next</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleAddToQueue}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-zinc-200 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <ListPlus size={14} className="text-zinc-400" />
+                    <span>Add to queue</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleOpenPlaylistPicker}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-zinc-200 hover:bg-white/10 hover:text-white transition-colors cursor-pointer border-t border-white/5 mt-1 pt-1.5"
+                  >
+                    <Plus size={14} className="text-zinc-400" />
+                    <span>Add to playlist</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </motion.div>
 

@@ -17,6 +17,7 @@ interface UsePlayerShortcutsProps {
   setLocalTime: (t: number) => void;
   setShowQueuePanel: React.Dispatch<React.SetStateAction<boolean>>;
   setShowEqualizerModal: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowShortcutsModal?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export function usePlayerShortcuts({
@@ -31,6 +32,7 @@ export function usePlayerShortcuts({
   setLocalTime,
   setShowQueuePanel,
   setShowEqualizerModal,
+  setShowShortcutsModal,
 }: UsePlayerShortcutsProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -41,6 +43,14 @@ export function usePlayerShortcuts({
         (activeEl as HTMLElement)?.isContentEditable;
 
       if (isInput || playerStore.state.isFullVideoOpen) return;
+
+      // ? or Shift + /: Toggle Keyboard Shortcuts Modal
+      if (e.key === "?" || (e.key === "/" && e.shiftKey)) {
+        e.preventDefault();
+        if (setShowShortcutsModal) {
+          setShowShortcutsModal((v) => !v);
+        }
+      }
 
       // Space or K: Toggle Play/Pause
       if (e.code === "Space" || e.key === "k" || e.key === "K") {
@@ -188,5 +198,6 @@ export function usePlayerShortcuts({
     setLocalTime,
     setShowQueuePanel,
     setShowEqualizerModal,
+    setShowShortcutsModal,
   ]);
 }
