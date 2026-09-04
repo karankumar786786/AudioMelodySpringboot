@@ -138,35 +138,70 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
   onSeek,
   isLoading = false,
 }) => {
+  const currentSong = useStore(playerStore, (s) => s.currentSong);
   const isPlaying = useStore(playerStore, (s) => s.isPlaying);
   const activeLineRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const isUserScrollingRef = useRef(false);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isUserScrolledRef = useRef(false);
+  const isProgrammaticScrollRef = useRef(false);
+  const programmaticScrollTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [isUserScrolled, setIsUserScrolled] = useState(false);
 
-  const handleUserScroll = () => {
-    isUserScrollingRef.current = true;
-    setIsUserScrolled(true);
-    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-    scrollTimeoutRef.current = setTimeout(() => {
-      isUserScrollingRef.current = false;
-      setIsUserScrolled(false);
-    }, 5000);
+  // Reset user scroll state on song change
+  useEffect(() => {
+    isUserScrolledRef.current = false;
+    setIsUserScrolled(false);
+    isProgrammaticScrollRef.current = false;
+  }, [currentSong?.id]);
+
+  const handleManualUserScroll = () => {
+    if (!isUserScrolledRef.current) {
+      isUserScrolledRef.current = true;
+      setIsUserScrolled(true);
+    }
   };
 
-  const handleResync = () => {
-    isUserScrollingRef.current = false;
+  const handleScroll = () => {
+    // If scrolling was triggered programmatically by the player, ignore it
+    if (isProgrammaticScrollRef.current) return;
+
+    // If user has scrolled, check if they manually scrolled back into near-center of the active line
+    if (isUserScrolledRef.current && activeLineRef.current && containerRef.current) {
+      const activeRect = activeLineRef.current.getBoundingClientRect();
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const isNearCenter =
+        activeRect.top >= containerRect.top + 60 &&
+        activeRect.bottom <= containerRect.bottom - 60;
+      if (isNearCenter) {
+        isUserScrolledRef.current = false;
+        setIsUserScrolled(false);
+      }
+    }
+  };
+
+  const handleResync = React.useCallback(() => {
+    isUserScrolledRef.current = false;
     setIsUserScrolled(false);
-    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    isProgrammaticScrollRef.current = true;
     if (activeLineRef.current) {
       activeLineRef.current.scrollIntoView({
         behavior: "smooth",
         block: "center",
       });
     }
+    if (programmaticScrollTimerRef.current) clearTimeout(programmaticScrollTimerRef.current);
+    programmaticScrollTimerRef.current = setTimeout(() => {
+      isProgrammaticScrollRef.current = false;
+    }, 800);
     toast.success("Lyrics resynced with audio");
-  };
+  }, []);
+
+  // Listen for global resync event (e.g. from 'R' keyboard shortcut)
+  useEffect(() => {
+    const onGlobalResync = () => handleResync();
+    window.addEventListener("lyrics-resync", onGlobalResync);
+    return () => window.removeEventListener("lyrics-resync", onGlobalResync);
+  }, [handleResync]);
 
   // Determine active transcription line index
   let activeIndex = -1;
@@ -184,16 +219,22 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
     }
   }
 
+  // Automatic smooth scroll to active lyric line (only when user has not manually scrolled away)
   useEffect(() => {
     if (
-      !isUserScrollingRef.current &&
+      !isUserScrolledRef.current &&
       activeLineRef.current &&
       containerRef.current
     ) {
+      isProgrammaticScrollRef.current = true;
       activeLineRef.current.scrollIntoView({
         behavior: "smooth",
         block: "center",
       });
+      if (programmaticScrollTimerRef.current) clearTimeout(programmaticScrollTimerRef.current);
+      programmaticScrollTimerRef.current = setTimeout(() => {
+        isProgrammaticScrollRef.current = false;
+      }, 800);
     }
   }, [activeIndex]);
 
@@ -203,9 +244,9 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
   return (
     <div
       ref={containerRef}
-      onScroll={handleUserScroll}
-      onWheel={handleUserScroll}
-      onTouchMove={handleUserScroll}
+      onScroll={handleScroll}
+      onWheel={handleManualUserScroll}
+      onTouchMove={handleManualUserScroll}
       className="flex-1 w-full overflow-y-auto no-scrollbar px-3 sm:px-6 md:px-10 py-6 md:py-8 flex flex-col items-center select-none relative"
     >
 

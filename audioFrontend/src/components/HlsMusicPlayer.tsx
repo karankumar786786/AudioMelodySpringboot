@@ -332,11 +332,9 @@ export function HlsMusicPlayer() {
       // R: Resync Lyrics
       if (e.key === "r" || e.key === "R") {
         e.preventDefault();
+        window.dispatchEvent(new CustomEvent("lyrics-resync"));
         const el = document.getElementById("active-lyric-line");
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "center" });
-          toast.success("Lyrics synced to playback");
-        } else if (isLyricsOpen) {
+        if (!el && isLyricsOpen) {
           toast.info("No active lyric line at this timestamp");
         }
       }
