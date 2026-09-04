@@ -24,6 +24,7 @@ import {
   Languages,
   ChevronDown,
   Check,
+  Mic,
 } from "lucide-react";
 import { getImageUrl } from "../lib/image-utils";
 import { getFullVideoHlsUrl, getFullVideoDashUrl } from "../lib/player-utils";
@@ -522,6 +523,22 @@ export function HlsMusicPlayer() {
                 )}
               </div>
 
+              {/* Karaoke Mode Toggle Button */}
+              <button
+                type="button"
+                onClick={webAudio.toggleKaraoke}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md border transition-all cursor-pointer ${
+                  webAudio.isKaraokeEnabled
+                    ? "bg-gradient-to-r from-pink-500 to-purple-500 text-white border-pink-400 font-bold shadow-md shadow-pink-500/25"
+                    : "bg-[#282828]/80 text-zinc-300 border-white/10 hover:text-white hover:bg-[#333]"
+                }`}
+                title={webAudio.isKaraokeEnabled ? "Disable Karaoke Mode" : "Enable Karaoke Mode (Suppresses Vocals)"}
+                aria-label="Toggle Karaoke Mode"
+              >
+                <Mic size={14} className={webAudio.isKaraokeEnabled ? "animate-pulse" : ""} />
+                <span>Karaoke</span>
+              </button>
+
               {/* Close Lyrics Button */}
               <button
                 type="button"
@@ -543,6 +560,8 @@ export function HlsMusicPlayer() {
               localTime={localTime}
               analyser={webAudio.analyser}
               isLoading={isLyricsLoading || isTranslating}
+              isKaraokeEnabled={webAudio.isKaraokeEnabled}
+              toggleKaraoke={webAudio.toggleKaraoke}
               onSeek={(time) => {
                 if (audioRef.current) {
                   audioRef.current.currentTime = time;
@@ -742,7 +761,7 @@ export function HlsMusicPlayer() {
             </PlayerTooltip>
           )}
 
-          <PlayerTooltip content="Equalizer & Visualizer" shortcut="E">
+          <PlayerTooltip content="Equalizer & Pro FX" shortcut="E">
             <button
               type="button"
               onClick={() => setShowEqualizerModal((v) => !v)}
@@ -751,9 +770,27 @@ export function HlsMusicPlayer() {
                   ? "text-primary bg-[#282828]"
                   : "text-zinc-400 hover:text-white"
               }`}
-              aria-label="Equalizer & Visualizer"
+              aria-label="Equalizer & Pro FX"
             >
               <Sliders size={16} />
+            </button>
+          </PlayerTooltip>
+
+          <PlayerTooltip content={webAudio.isKaraokeEnabled ? "Karaoke Mode (Active)" : "Karaoke Mode (Lower Vocals)"}>
+            <button
+              type="button"
+              onClick={webAudio.toggleKaraoke}
+              className={`relative p-1.5 rounded-md transition-colors cursor-pointer ${
+                webAudio.isKaraokeEnabled
+                  ? "text-pink-400 bg-[#282828]"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+              aria-label="Toggle Karaoke Mode"
+            >
+              <Mic size={16} />
+              {webAudio.isKaraokeEnabled && (
+                <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-pink-400 animate-pulse" />
+              )}
             </button>
           </PlayerTooltip>
 
@@ -841,7 +878,7 @@ export function HlsMusicPlayer() {
         </div>
       </footer>
 
-      {/* Equalizer & Visualizer Modal */}
+      {/* Pro Audio FX & Equalizer Modal */}
       <EqualizerModal
         isOpen={showEqualizerModal}
         onClose={() => setShowEqualizerModal(false)}
@@ -852,6 +889,16 @@ export function HlsMusicPlayer() {
         setBandGain={webAudio.setBandGain}
         applyPreset={webAudio.applyPreset}
         resetEq={webAudio.resetEq}
+        bassBoost={webAudio.bassBoost}
+        setBassBoost={webAudio.setBassBoost}
+        spatialPreset={webAudio.spatialPreset}
+        setSpatialPreset={webAudio.setSpatialPreset}
+        panPosition={webAudio.panPosition}
+        setPanPosition={webAudio.setPanPosition}
+        crossfadeDuration={webAudio.crossfadeDuration}
+        setCrossfadeDuration={webAudio.setCrossfadeDuration}
+        crossfadeCurve={webAudio.crossfadeCurve}
+        setCrossfadeCurve={webAudio.setCrossfadeCurve}
       />
 
       {/* Sleep Timer Modal */}

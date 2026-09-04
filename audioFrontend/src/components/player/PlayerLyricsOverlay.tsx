@@ -4,8 +4,9 @@ import React, { useRef, useEffect, useState } from "react";
 import { useStore } from "@tanstack/react-store";
 import { playerStore } from "../../store/player.store";
 import { TranscriptionEntry } from "./hooks/useLyrics";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Mic } from "lucide-react";
 import { toast } from "sonner";
+import { AmbientGlowBackground } from "./AmbientGlowBackground";
 
 
 interface AudioVisualizerFallbackProps {
@@ -127,6 +128,8 @@ interface PlayerLyricsOverlayProps {
   analyser?: AnalyserNode | null;
   onSeek?: (time: number) => void;
   isLoading?: boolean;
+  isKaraokeEnabled?: boolean;
+  toggleKaraoke?: () => void;
 }
 
 export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
@@ -137,6 +140,8 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
   analyser,
   onSeek,
   isLoading = false,
+  isKaraokeEnabled = false,
+  toggleKaraoke,
 }) => {
   const currentSong = useStore(playerStore, (s) => s.currentSong);
   const isPlaying = useStore(playerStore, (s) => s.isPlaying);
@@ -249,6 +254,16 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
       onTouchMove={handleManualUserScroll}
       className="flex-1 w-full overflow-y-auto no-scrollbar px-3 sm:px-6 md:px-10 py-6 md:py-8 flex flex-col items-center select-none relative"
     >
+      {/* Beat-Reactive Dynamic Ambient Glow Background */}
+      <AmbientGlowBackground analyser={analyser ?? null} isPlaying={isPlaying} />
+
+      {/* Karaoke Mode floating indicator */}
+      {isKaraokeEnabled && (
+        <div className="sticky top-2 z-20 flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/40 text-pink-300 backdrop-blur-xl shadow-lg animate-in fade-in slide-in-from-top-2 duration-300">
+          <Mic size={14} className="animate-pulse text-pink-400" />
+          <span className="text-xs font-bold tracking-wide">Karaoke Mode Active • Vocals Lowered</span>
+        </div>
+      )}
 
       {isLoading ? (
         // ⏳ Beautiful Animated Loading State
