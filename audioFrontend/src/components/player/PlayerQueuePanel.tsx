@@ -15,6 +15,7 @@ import {
   ListPlus,
   RotateCw,
   RotateCcw,
+  Sparkles,
 } from "lucide-react";
 import { playerActions, playerStore } from "@/store/player.store";
 import { getImageUrl } from "@/lib/image-utils";
@@ -42,6 +43,7 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
   const currentIndex = useStore(playerStore, (s) => s.lastQueueIndex);
   const currentSong = useStore(playerStore, (s) => s.currentSong);
   const systemUser = useStore(playerStore, (s) => s.systemUser);
+  const isRefilling = useStore(playerStore, (s) => s.isRefilling);
 
   const [activeTab, setActiveTab] = useState<"queue" | "history">("queue");
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -265,10 +267,32 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
               </h4>
 
               {queue.length === 0 || upcoming.length === 0 ? (
-                <div className="py-12 text-center text-zinc-500 text-xs font-medium border border-dashed border-[#282828] rounded-lg space-y-1">
-                  <Music size={20} className="mx-auto text-zinc-600" />
-                  <p>No upcoming tracks in queue</p>
-                </div>
+                isRefilling ? (
+                  <div className="space-y-1.5 pt-1 animate-in fade-in duration-200">
+                    <div className="flex items-center gap-2 px-1 text-[11px] font-semibold text-primary">
+                      <Sparkles size={12} className="animate-spin text-primary shrink-0" />
+                      <span>Finding recommended songs...</span>
+                    </div>
+                    {[1, 2, 3].map((idx) => (
+                      <div
+                        key={`empty-refill-skeleton-${idx}`}
+                        className="flex items-center gap-2.5 rounded-lg border border-white/5 bg-white/[0.03] p-2 animate-pulse"
+                      >
+                        <div className="w-8 h-8 rounded bg-white/10 shrink-0" />
+                        <div className="min-w-0 flex-1 space-y-1.5">
+                          <div className="h-3 w-3/4 rounded bg-white/10" />
+                          <div className="h-2.5 w-2/5 rounded bg-white/5" />
+                        </div>
+                        <div className="h-2.5 w-7 rounded bg-white/5 shrink-0" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-12 text-center text-zinc-500 text-xs font-medium border border-dashed border-[#282828] rounded-lg space-y-1">
+                    <Music size={20} className="mx-auto text-zinc-600" />
+                    <p>No upcoming tracks in queue</p>
+                  </div>
+                )
               ) : (
                 <div className="space-y-1">
                   {upcoming.map((song, offset) => {
@@ -341,37 +365,10 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                           </p>
                         </div>
 
-                        {/* Duration */}
-                        <span className="text-[11px] font-normal text-zinc-400 tabular-nums shrink-0">
-                          {formatDuration(song.duration)}
-                        </span>
+                        
 
                         {/* Queue Actions */}
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            type="button"
-                            disabled={offset === 0}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              playerActions.moveQueueItem(index, index - 1);
-                            }}
-                            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-[#282828] disabled:opacity-20 disabled:hover:bg-transparent cursor-pointer"
-                            title="Move up"
-                          >
-                            <ArrowUp size={12} />
-                          </button>
-                          <button
-                            type="button"
-                            disabled={offset === upcoming.length - 1}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              playerActions.moveQueueItem(index, index + 1);
-                            }}
-                            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-[#282828] disabled:opacity-20 disabled:hover:bg-transparent cursor-pointer"
-                            title="Move down"
-                          >
-                            <ArrowDown size={12} />
-                          </button>
                           <button
                             type="button"
                             onClick={(e) => {
@@ -384,9 +381,37 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                             <Trash2 size={12} />
                           </button>
                         </div>
+
+                        {/* Duration */}
+                        <span className="text-[11px] mx-3 font-normal text-zinc-400 tabular-nums shrink-0">
+                          {formatDuration(song.duration)}
+                        </span>
                       </div>
                     );
                   })}
+
+                  {/* Loading Skeleton below available queue songs when fetching recommendations */}
+                  {isRefilling && (
+                    <div className="space-y-1.5 pt-2 animate-in fade-in duration-200">
+                      <div className="flex items-center gap-2 px-1 text-[11px] font-semibold text-primary">
+                        <Sparkles size={12} className="animate-spin text-primary shrink-0" />
+                        <span>Finding recommended songs...</span>
+                      </div>
+                      {[1, 2, 3].map((idx) => (
+                        <div
+                          key={`refill-skeleton-${idx}`}
+                          className="flex items-center gap-2.5 rounded-lg border border-white/5 bg-white/[0.03] p-2 animate-pulse"
+                        >
+                          <div className="w-8 h-8 rounded bg-white/10 shrink-0" />
+                          <div className="min-w-0 flex-1 space-y-1.5">
+                            <div className="h-3 w-3/4 rounded bg-white/10" />
+                            <div className="h-2.5 w-2/5 rounded bg-white/5" />
+                          </div>
+                          <div className="h-2.5 w-7 rounded bg-white/5 shrink-0" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
