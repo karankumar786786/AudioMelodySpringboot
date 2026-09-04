@@ -250,19 +250,19 @@ export const queueActions = {
    * Refills the queue with recommended or trending songs.
    * Logs details of trigger reason, API call, and fetched catalog size for debugging.
    */
-  refillQueue: async (isInit = false, reason = "Auto-refill") => {
+  refillQueue: async (isInit = false, reason = "Auto-refill"): Promise<PlayerSong[]> => {
     const { queue, currentSong, systemUser, isRefilling, lastQueueIndex } =
       playerStore.state;
 
     if (isRefilling) {
       console.log(`[Queue Refill] Refill already in progress. Skipping trigger (Reason: ${reason}).`);
-      return;
+      return [];
     }
 
     const remaining = queue.length - (lastQueueIndex + 1);
-    if (!isInit && remaining > 2) {
+    if (!isInit && remaining > 2 && reason !== "End of queue reached") {
       console.log(`[Queue Refill] ${remaining} songs remaining ahead. Skipping refill.`);
-      return;
+      return [];
     }
 
     try {
@@ -332,6 +332,8 @@ export const queueActions = {
             }));
             persistQueue(playerStore.state.queue, 0);
           }
+          console.groupEnd();
+          return uniqueNewSongs;
         } else {
           console.warn(`⚠️ [CATALOG WARNING]: API returned ${newSongs.length} tracks, but all of them are already in your queue! (Catalog may be small or recommendations returned already-queued tracks).`);
         }
@@ -339,9 +341,11 @@ export const queueActions = {
         console.warn("⚠️ API response received but contains no data array.", res);
       }
       console.groupEnd();
+      return [];
     } catch (err) {
       console.error("❌ Exception during queue refill:", err);
       console.groupEnd();
+      return [];
     } finally {
       playerStore.setState((s) => ({ ...s, isRefilling: false }));
     }
@@ -402,6 +406,11 @@ export const queueActions = {
 
     const nextIdx = lastQueueIndex + 1;
 
+    // Proactive background refill when within 2 songs of the end
+    if (queue.length - (nextIdx + 1) <= 2) {
+      queueActions.refillQueue(false, "Proactive background refill near end of queue");
+    }
+
     if (nextIdx < queue.length) {
       console.log(
         `[Queue Next] Advancing to song index ${nextIdx}: "${queue[nextIdx].title}"`,
@@ -421,9 +430,23 @@ export const queueActions = {
         );
       }
     } else {
-      console.log("[Queue Next] Reached end of queue. Stopping playback.");
-      import("@/store/player/playback.actions").then(({ playbackActions }) => {
-        playbackActions.setIsPlaying(false);
+      console.log("[Queue Next] Reached end of queue. Triggering recommendations refill...");
+      queueActions.refillQueue(false, "End of queue reached").then(() => {
+        const { queue: updatedQueue } = playerStore.state;
+        if (nextIdx < updatedQueue.length) {
+          console.log(
+            `[Queue Next] Auto-playing refilled recommended song at index ${nextIdx}: "${updatedQueue[nextIdx].title}"`,
+          );
+          persistQueue(updatedQueue, nextIdx);
+          import("@/store/player/playback.actions").then(({ playbackActions }) =>
+            playbackActions.play(updatedQueue[nextIdx]),
+          );
+        } else {
+          console.log("[Queue Next] No new tracks available. Stopping playback.");
+          import("@/store/player/playback.actions").then(({ playbackActions }) => {
+            playbackActions.setIsPlaying(false);
+          });
+        }
       });
     }
   },

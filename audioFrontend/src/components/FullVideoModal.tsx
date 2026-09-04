@@ -658,7 +658,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
      ───────────────────────────────────────────────────────────── */
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md"
+      className="fixed inset-0 z-[200] w-screen h-screen flex items-center justify-center bg-black overflow-hidden"
       style={{ animation: "fullVideoFadeIn 0.2s ease" }}
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
@@ -666,19 +666,18 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
 
       <div
         ref={containerRef}
-        className="relative w-full max-w-5xl mx-4"
-        style={{ aspectRatio: "16/9" }}
+        className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden select-none"
         onMouseMove={resetControlsTimer}
         onMouseEnter={resetControlsTimer}
         onClick={togglePlay}
       >
         {/* Top-Right Action Buttons: PiP & Close — hidden when in fullscreen */}
         {!isFullscreen && (
-          <div className="absolute top-3 right-3 z-[220] flex items-center gap-2">
+          <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-[220] flex items-center gap-2">
             <PlayerTooltip content="Picture-in-Picture" shortcut="P" side="bottom">
               <button
                 onClick={(e) => { e.stopPropagation(); togglePip(); }}
-                className="p-2 rounded-full bg-black/70 hover:bg-black/90 text-white transition-all cursor-pointer border border-white/20 backdrop-blur-sm"
+                className="p-2.5 rounded-full bg-black/70 hover:bg-black/90 text-white transition-all cursor-pointer border border-white/20 backdrop-blur-md shadow-lg"
                 aria-label="Picture-in-Picture"
               >
                 <PictureInPicture2 size={18} />
@@ -687,7 +686,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
             <PlayerTooltip content="Close" shortcut={["Esc", "V"]} side="bottom" align="end">
               <button
                 onClick={(e) => { e.stopPropagation(); handleClose(); }}
-                className="p-2 rounded-full bg-black/70 hover:bg-black/90 text-white transition-all cursor-pointer border border-white/20 backdrop-blur-sm"
+                className="p-2.5 rounded-full bg-black/70 hover:bg-black/90 text-white transition-all cursor-pointer border border-white/20 backdrop-blur-md shadow-lg"
                 aria-label="Close full video"
               >
                 <X size={18} />
@@ -695,23 +694,22 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
             </PlayerTooltip>
           </div>
         )}
-        <div className="absolute inset-0 bg-black rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10" />
 
         <video
           ref={videoRef}
-          className="absolute inset-0 w-full h-full object-contain rounded-2xl"
+          className="w-full h-full object-contain"
           poster={posterUrl}
           playsInline
         />
 
         {isLoading && !error && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/50 pointer-events-none">
-            <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50 pointer-events-none">
+            <div className="w-14 h-14 border-4 border-white/20 border-t-primary rounded-full animate-spin" />
           </div>
         )}
 
         {error && (
-          <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/80">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/90">
             <div className="text-center px-8">
               <p className="text-red-400 font-bold text-lg mb-2">Playback Error</p>
               <p className="text-zinc-400 text-sm">{error}</p>
@@ -721,29 +719,28 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
 
         {/* Controls overlay */}
         <div
-          className="absolute inset-0 flex flex-col justify-between rounded-2xl overflow-hidden"
+          className="absolute inset-0 flex flex-col justify-between overflow-hidden pointer-events-none"
           style={{
             opacity: showControls ? 1 : 0,
             transition: "opacity 0.3s ease",
-            pointerEvents: showControls ? "auto" : "none",
           }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Top: title */}
           <div
-            className="flex items-center justify-between p-4 rounded-t-2xl"
+            className="flex items-center justify-between px-6 sm:px-8 pt-6 pb-16 pointer-events-auto"
             style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.85), transparent)" }}
           >
-            <div className="min-w-0">
-              <h2 className="text-white font-bold text-lg leading-tight truncate">{title}</h2>
-              <p className="text-zinc-300 text-sm truncate">{artistName}</p>
+            <div className="min-w-0 pr-24">
+              <h2 className="text-white font-bold text-lg sm:text-xl leading-tight truncate">{title}</h2>
+              <p className="text-zinc-300 text-xs sm:text-sm truncate mt-0.5">{artistName}</p>
             </div>
           </div>
 
           {/* Bottom: progress + controls */}
           <div
-            className="p-4 rounded-b-2xl"
-            style={{ background: "linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.55), transparent)" }}
+            className="px-6 sm:px-8 pb-6 sm:pb-8 pt-16 pointer-events-auto"
+            style={{ background: "linear-gradient(to top, rgba(0,0,0,0.95), rgba(0,0,0,0.6), transparent)" }}
           >
             <div className="flex items-center gap-3 mb-3">
               <span className="text-xs text-zinc-300 font-mono w-10 text-right shrink-0 select-none">
