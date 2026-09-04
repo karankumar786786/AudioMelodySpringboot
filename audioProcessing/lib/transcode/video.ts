@@ -371,14 +371,14 @@ export async function cutCanvasVideo(
         outputCanvasPath,
         canvasProfile,
         hwCaps,
-        { startSec, duration, mute: true }
+        { startSec, duration, mute: true, fitMode: "cover", movflags: "+faststart" }
     );
 
     const fallbackArgs = buildSoftwareVideoArgs(
         videoPath,
         outputCanvasPath,
         canvasProfile,
-        { startSec, duration, mute: true }
+        { startSec, duration, mute: true, fitMode: "cover", movflags: "+faststart" }
     );
 
     await executeFFmpegWithFallback(primaryArgs, fallbackArgs, "canvas video clip");

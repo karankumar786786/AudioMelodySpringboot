@@ -5,6 +5,9 @@ import { fetchJobsFromList } from "./jobseeker/worker";
 import { config } from "dotenv";
 import { fetchJob } from "./functions/fechJob";
 import { transcodeSong } from "./functions/transcode";
+import { transcodeAudioTask } from "./functions/transcodeAudio";
+import { transcodeVideoTask } from "./functions/transcodeVideo";
+import { transcodeCanvasTask } from "./functions/transcodeCanvas";
 import { indexRecombee } from "./functions/saveInRecombee";
 import { indexAlgolia } from "./functions/saveInAlgolia";
 import { finalizeSong } from "./functions/createSongInTable";
@@ -21,6 +24,9 @@ app.use(express.json());
 const functions = [
     fetchJob,
     transcodeSong,
+    transcodeAudioTask,
+    transcodeVideoTask,
+    transcodeCanvasTask,
     indexRecombee,
     indexAlgolia,
     finalizeSong,

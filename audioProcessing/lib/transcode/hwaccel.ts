@@ -147,15 +147,29 @@ export interface VideoProfileOptions {
 /**
  * Builds FFmpeg argument list tailored for the detected hardware or software video encoder.
  */
+export interface VideoExtraOptions {
+    duration?: number;
+    startSec?: number;
+    mute?: boolean;
+    fitMode?: "contain" | "cover";
+    movflags?: string;
+}
+
+/**
+ * Builds FFmpeg argument list tailored for the detected hardware or software video encoder.
+ */
 export function buildVideoEncoderArgs(
     inputPath: string,
     outputPath: string,
     profile: VideoProfileOptions,
     hwCaps: HardwareCapabilities,
-    extraOptions: { duration?: number; startSec?: number; mute?: boolean } = {}
+    extraOptions: VideoExtraOptions = {}
 ): string[] {
     const { videoEncoder } = hwCaps;
-    const scaleFilter = `scale=w=${profile.width}:h=${profile.height}:force_original_aspect_ratio=decrease,pad=${profile.width}:${profile.height}:(ow-iw)/2:(oh-ih)/2,format=yuv420p`;
+    const isCover = extraOptions.fitMode === "cover";
+    const scaleFilter = isCover
+        ? `scale=w=${profile.width}:h=${profile.height}:force_original_aspect_ratio=increase,crop=${profile.width}:${profile.height},format=yuv420p`
+        : `scale=w=${profile.width}:h=${profile.height}:force_original_aspect_ratio=decrease,pad=${profile.width}:${profile.height}:(ow-iw)/2:(oh-ih)/2,format=yuv420p`;
 
     const args: string[] = ["-y", "-loglevel", "warning"];
 
@@ -238,6 +252,10 @@ export function buildVideoEncoderArgs(
         args.push("-an");
     }
 
+    if (extraOptions.movflags) {
+        args.push("-movflags", extraOptions.movflags);
+    }
+
     args.push(outputPath);
     return args;
 }
@@ -249,9 +267,13 @@ export function buildSoftwareVideoArgs(
     inputPath: string,
     outputPath: string,
     profile: VideoProfileOptions,
-    extraOptions: { duration?: number; startSec?: number; mute?: boolean } = {}
+    extraOptions: VideoExtraOptions = {}
 ): string[] {
-    const scaleFilter = `scale=w=${profile.width}:h=${profile.height}:force_original_aspect_ratio=decrease,pad=${profile.width}:${profile.height}:(ow-iw)/2:(oh-ih)/2,format=yuv420p`;
+    const isCover = extraOptions.fitMode === "cover";
+    const scaleFilter = isCover
+        ? `scale=w=${profile.width}:h=${profile.height}:force_original_aspect_ratio=increase,crop=${profile.width}:${profile.height},format=yuv420p`
+        : `scale=w=${profile.width}:h=${profile.height}:force_original_aspect_ratio=decrease,pad=${profile.width}:${profile.height}:(ow-iw)/2:(oh-ih)/2,format=yuv420p`;
+
     const args: string[] = ["-y", "-loglevel", "warning"];
 
     if (typeof extraOptions.startSec === "number" && extraOptions.startSec >= 0) {
@@ -278,6 +300,10 @@ export function buildSoftwareVideoArgs(
 
     if (extraOptions.mute !== false) {
         args.push("-an");
+    }
+
+    if (extraOptions.movflags) {
+        args.push("-movflags", extraOptions.movflags);
     }
 
     args.push(outputPath);
