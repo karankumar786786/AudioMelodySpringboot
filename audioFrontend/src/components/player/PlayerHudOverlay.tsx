@@ -63,15 +63,15 @@ export const PlayerHudOverlay: React.FC = () => {
 
   return (
     <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[350] pointer-events-none select-none">
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {hudData && (
           <motion.div
-            key={`${hudData.type}-${Date.now()}`}
-            initial={{ opacity: 0, y: -20, scale: 0.9 }}
+            key="player-hud-pill"
+            initial={{ opacity: 0, y: -14, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -12, scale: 0.95 }}
-            transition={{ type: "spring", stiffness: 450, damping: 30 }}
-            className="flex items-center gap-3 px-4 py-2.5 rounded-full bg-[#181818]/90 border border-white/20 shadow-2xl backdrop-blur-xl text-white min-w-[200px] max-w-xs justify-center"
+            exit={{ opacity: 0, y: -14, scale: 0.96 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            className="flex items-center gap-3 px-4 py-2.5 rounded-full bg-[#181818]/95 border border-white/20 shadow-2xl backdrop-blur-xl text-white min-w-[200px] max-w-xs justify-center"
           >
             {/* Volume HUD */}
             {hudData.type === "volume" && (
