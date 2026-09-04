@@ -198,13 +198,15 @@ export function RightInfoPanel() {
                 muted
                 playsInline
                 onLoadedData={() => setMediaLoaded(true)}
-                className={`absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-300 ${
+                onCanPlay={() => setMediaLoaded(true)}
+                onPlay={() => setMediaLoaded(true)}
+                className={`absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-500 ease-in-out ${
                   mediaLoaded ? "opacity-100" : "opacity-0"
                 }`}
               />
 
               {!mediaLoaded && (
-                <div className="absolute inset-0 bg-zinc-900 animate-pulse flex items-center justify-center">
+                <div className="absolute inset-0 bg-zinc-900 animate-pulse flex items-center justify-center transition-opacity duration-500">
                   <Music size={36} className="text-zinc-700 animate-pulse" />
                 </div>
               )}
@@ -277,7 +279,7 @@ export function RightInfoPanel() {
               {/* Subtle Ambient Glow from Cover Art */}
               {songImage && (
                 <div
-                  className="absolute inset-0 bg-cover bg-center blur-3xl opacity-20 scale-125 pointer-events-none"
+                  className="absolute inset-0 bg-cover bg-center blur-3xl opacity-20 scale-125 pointer-events-none transition-opacity duration-500"
                 />
               )}
 
@@ -289,8 +291,13 @@ export function RightInfoPanel() {
                       src={songImage}
                       alt={currentSong.title}
                       onLoad={() => setMediaLoaded(true)}
-                      className={`w-full h-full object-cover object-center group-hover:scale-105 transition-all duration-300 ${
-                        mediaLoaded ? "opacity-100" : "opacity-0"
+                      ref={(el) => {
+                        if (el && el.complete && !mediaLoaded) {
+                          setMediaLoaded(true);
+                        }
+                      }}
+                      className={`w-full h-full object-cover object-center group-hover:scale-105 transition-all duration-500 ease-in-out ${
+                        mediaLoaded ? "opacity-100 scale-100" : "opacity-0 scale-95"
                       }`}
                     />
                   ) : (
@@ -300,7 +307,7 @@ export function RightInfoPanel() {
                   )}
 
                   {!mediaLoaded && songImage && (
-                    <div className="absolute inset-0 bg-zinc-900 animate-pulse flex items-center justify-center">
+                    <div className="absolute inset-0 bg-zinc-900 animate-pulse flex items-center justify-center transition-opacity duration-500">
                       <Music size={36} className="text-zinc-700 animate-pulse" />
                     </div>
                   )}
