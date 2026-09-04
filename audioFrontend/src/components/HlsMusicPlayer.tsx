@@ -51,11 +51,13 @@ import { PlayerQueuePanel } from "./player/PlayerQueuePanel";
 import { PlayerQualitySelector } from "./player/PlayerQualitySelector";
 import { EqualizerModal } from "./player/EqualizerModal";
 import { PlayerTooltip } from "./player/PlayerTooltip";
+import { useNextTrackPreloader } from "./player/hooks/useNextTrackPreloader";
 
 import { getSolidBgFromImage } from "../lib/color-utils";
 
 export function HlsMusicPlayer() {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const standbyAudioRef = useRef<HTMLAudioElement>(null);
   const state = useStore(playerStore, (s) => s);
   const {
     currentSong,
@@ -205,6 +207,9 @@ export function HlsMusicPlayer() {
   }, [transcriptions, plainLyrics, lyricsTargetLang]);
 
   const webAudio = useWebAudio(audioRef.current, isPlaying);
+
+  // Next-Track Pre-buffering & Gapless Playback
+  useNextTrackPreloader(standbyAudioRef.current);
 
   useAudioSync(
     audioRef.current,
@@ -437,6 +442,13 @@ export function HlsMusicPlayer() {
   return (
     <>
       <audio ref={audioRef} crossOrigin="anonymous" className="hidden" />
+      <audio
+        ref={standbyAudioRef}
+        crossOrigin="anonymous"
+        preload="auto"
+        className="hidden"
+        aria-hidden="true"
+      />
 
       {/* ─── Spotify Synced Lyrics View (Middle Portion Overlay) ─── */}
       {isLyricsOpen && (
