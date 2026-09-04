@@ -99,7 +99,7 @@ export function useHlsPlayer(
               }
 
               // Use the ref to check current isPlaying state (not stale closure)
-              if (isPlayingRef.current) {
+              if (isPlayingRef.current && !playerStore.state.isVideoActive) {
                 audioElement.play().catch((err) => {
                   if (err.name !== "AbortError") {
                     console.warn("[Player] Hls.js autoplay failed:", err);

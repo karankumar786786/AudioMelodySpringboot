@@ -4,8 +4,13 @@ import React, { useRef, useEffect, useState } from "react";
 import { useStore } from "@tanstack/react-store";
 import { playerStore } from "../../store/player.store";
 import { TranscriptionEntry } from "./hooks/useLyrics";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Languages } from "lucide-react";
 import { toast } from "sonner";
+import {
+  hasNonLatinCharacters,
+  transliterateText,
+  transliterateTranscription,
+} from "@/lib/lyrics-transliterate";
 
 interface AudioVisualizerFallbackProps {
   analyser?: AnalyserNode | null;
@@ -141,6 +146,28 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
   const isUserScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isUserScrolled, setIsUserScrolled] = useState(false);
+  const [isPhoneticEnabled, setIsPhoneticEnabled] = useState(false);
+
+  // Check if non-Latin scripts (CJK, Korean, Devanagari) exist in lyrics
+  const containsNonLatin = React.useMemo(() => {
+    if (transcriptions && transcriptions.length > 0) {
+      return transcriptions.some((t) => hasNonLatinCharacters(t.transcript));
+    }
+    if (plainLyrics) {
+      return hasNonLatinCharacters(plainLyrics);
+    }
+    return false;
+  }, [transcriptions, plainLyrics]);
+
+  const activeTranscriptions = React.useMemo(() => {
+    if (!isPhoneticEnabled) return transcriptions;
+    return transcriptions.map((t) => transliterateTranscription(t));
+  }, [transcriptions, isPhoneticEnabled]);
+
+  const activePlainLyrics = React.useMemo(() => {
+    if (!plainLyrics || !isPhoneticEnabled) return plainLyrics;
+    return transliterateText(plainLyrics);
+  }, [plainLyrics, isPhoneticEnabled]);
 
   const handleUserScroll = () => {
     isUserScrollingRef.current = true;
@@ -167,10 +194,10 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
 
   // Determine active transcription line index
   let activeIndex = -1;
-  if (transcriptions && transcriptions.length > 0) {
-    for (let i = 0; i < transcriptions.length; i++) {
-      const line = transcriptions[i];
-      const nextLine = transcriptions[i + 1];
+  if (activeTranscriptions && activeTranscriptions.length > 0) {
+    for (let i = 0; i < activeTranscriptions.length; i++) {
+      const line = activeTranscriptions[i];
+      const nextLine = activeTranscriptions[i + 1];
       if (
         localTime >= line.start_time_seconds &&
         (!nextLine || localTime < nextLine.start_time_seconds)
@@ -194,8 +221,8 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
     }
   }, [activeIndex]);
 
-  const hasTranscriptions = transcriptions && transcriptions.length > 0;
-  const hasPlainLyrics = !!plainLyrics;
+  const hasTranscriptions = activeTranscriptions && activeTranscriptions.length > 0;
+  const hasPlainLyrics = !!activePlainLyrics;
 
   return (
     <div
@@ -205,11 +232,38 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
       onTouchMove={handleUserScroll}
       className="flex-1 w-full overflow-y-auto no-scrollbar px-3 sm:px-6 md:px-10 py-6 md:py-8 flex flex-col items-center select-none relative"
     >
+      {/* Floating Top-Right Tool Bar: Phonetic / Romanization Toggle */}
+      {containsNonLatin && (
+        <div className="sticky top-0 self-end z-20 mb-2">
+          <button
+            type="button"
+            onClick={() => {
+              const next = !isPhoneticEnabled;
+              setIsPhoneticEnabled(next);
+              toast.success(
+                next
+                  ? "Phonetic / Romanized lyrics enabled"
+                  : "Original script lyrics enabled",
+              );
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-xl border transition-all cursor-pointer shadow-lg hover:scale-105 active:scale-95 ${
+              isPhoneticEnabled
+                ? "bg-primary text-black border-primary font-bold"
+                : "bg-white/10 hover:bg-white/20 text-white/90 border-white/20"
+            }`}
+            title="Toggle Romanized / Phonetic Lyrics"
+          >
+            <Languages size={13} />
+            <span>{isPhoneticEnabled ? "Phonetic (Romaji)" : "Romaji / Phonetic"}</span>
+          </button>
+        </div>
+      )}
+
       {hasTranscriptions ? (
         // ✅ Synced karaoke lyrics
         <>
           <div className="space-y-5 sm:space-y-6 md:space-y-7 w-full max-w-2xl lg:max-w-3xl text-left py-4 md:py-8">
-            {transcriptions.map((entry, idx) => {
+            {activeTranscriptions.map((entry, idx) => {
               const isActive = idx === activeIndex;
               return (
                 <div
@@ -293,7 +347,7 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
 
           {/* Plain lyrics text */}
           <div className="space-y-2 text-left">
-            {plainLyrics.split("\n").map((line, idx) => (
+            {(activePlainLyrics || "").split("\n").map((line, idx) => (
               <p
                 key={idx}
                 className={`text-base sm:text-lg md:text-xl font-bold tracking-tight leading-relaxed ${

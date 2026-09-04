@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback, MutableRefObject } from "react";
 import { playerActions, playerStore } from "../../../store/player.store";
+import { toast } from "sonner";
 
 export function useAudioSync(
   audioElement: HTMLAudioElement | null,
@@ -9,6 +10,7 @@ export function useAudioSync(
   volume: number,
   isMuted: boolean,
   duration: number,
+  isVideoActive: boolean,
   setLocalTime: (t: number) => void,
   setBuffered: (t: number) => void,
   fadeIn?: (dur?: number) => void,
@@ -41,11 +43,29 @@ export function useAudioSync(
     audioElement.muted = isMuted || targetVolume === 0;
   }, [audioElement, volume, isMuted]);
 
-  // 2. Sync Play/Pause state to the audio element
+  // 2. Sync Play/Pause state to the audio element (only when video is not actively driving playback)
   useEffect(() => {
     if (!audioElement) return;
+    console.log(
+      "[AudioSync] Play/Pause sync effect -> isPlaying:",
+      isPlaying,
+      "isVideoActive:",
+      isVideoActive,
+      "audioPaused:",
+      audioElement.paused,
+    );
+
+    if (isVideoActive) {
+      if (!audioElement.paused) {
+        console.log("[AudioSync] 🛑 Pausing audio element because isVideoActive is TRUE");
+        audioElement.pause();
+      }
+      return;
+    }
+
     if (isPlaying) {
       if (audioElement.paused && audioElement.readyState >= 2) {
+        console.log("[AudioSync] ▶️ Playing audio element");
         audioElement.play().catch((err) => {
           if (err.name !== "AbortError")
             console.warn("[Player] Play failed:", err);
@@ -53,30 +73,46 @@ export function useAudioSync(
       }
     } else {
       if (!audioElement.paused && !isInternalChange.current) {
+        console.log("[AudioSync] ⏸️ Pausing audio element because isPlaying is false");
         audioElement.pause();
       }
     }
-  }, [audioElement, isPlaying, isInternalChange]);
+  }, [audioElement, isPlaying, isInternalChange, isVideoActive]);
 
   // 3. Native Event Listeners
   useEffect(() => {
     if (!audioElement) return;
 
     const onPlay = () => {
-      if (isInternalChange.current || audioElement.readyState === 0) return;
+      console.log("[AudioSync] onPlay event. isVideoActive:", isVideoActive, "isInternalChange:", isInternalChange.current);
+      if (
+        isInternalChange.current ||
+        audioElement.readyState === 0 ||
+        isVideoActive
+      )
+        return;
       playerActions.setIsPlaying(true);
     };
     const onPause = () => {
-      if (isInternalChange.current || audioElement.readyState === 0) return;
+      console.log("[AudioSync] onPause event. isVideoActive:", isVideoActive, "isInternalChange:", isInternalChange.current);
+      if (
+        isInternalChange.current ||
+        audioElement.readyState === 0 ||
+        isVideoActive
+      )
+        return;
       playerActions.setIsPlaying(false);
       if (typeof window !== "undefined" && isFinite(audioElement.currentTime)) {
-        localStorage.setItem("last_current_time", audioElement.currentTime.toFixed(2));
+        localStorage.setItem(
+          "last_current_time",
+          audioElement.currentTime.toFixed(2),
+        );
       }
     };
     const handleEnded = () => {
+      if (isVideoActive) return;
+
       // Robust check: Only trigger 'next' if we are actually at/near the end of the song.
-      // This prevents the common browser issue where interruptions or source changes
-      // fire an 'ended' event prematurely.
       if (audioElement.duration && isFinite(audioElement.duration)) {
         const isNearEnd =
           Math.abs(audioElement.currentTime - audioElement.duration) < 1.5;
@@ -95,9 +131,26 @@ export function useAudioSync(
       }
 
       // If repeatMode is "one", loop the current song cleanly from start
-      const { repeatMode } = playerStore.state;
+      const { repeatMode, sleepTimer } = playerStore.state;
+
+      // Check if Sleep Timer end_of_track mode is active
+      if (sleepTimer?.mode === "end_of_track") {
+        console.log(
+          "[Player] Sleep Timer 'end_of_track' triggered. Stopping playback.",
+        );
+        playerActions.setIsPlaying(false);
+        playerActions.clearSleepTimer();
+        toast("Sleep timer finished", {
+          description: "Playback stopped at end of track. Sweet dreams!",
+          icon: "🌙",
+        });
+        return;
+      }
+
       if (repeatMode === "one") {
-        console.log("[Player] Repeat Mode 'one' active. Looping current track.");
+        console.log(
+          "[Player] Repeat Mode 'one' active. Looping current track.",
+        );
         hasFadedOutRef.current = false;
         if (fadeIn) fadeIn(crossfadeDuration > 0 ? crossfadeDuration : 0.2);
         audioElement.currentTime = 0;
@@ -107,7 +160,8 @@ export function useAudioSync(
           localStorage.setItem("last_current_time", "0");
         }
         audioElement.play().catch((err) => {
-          if (err.name !== "AbortError") console.warn("[Player] Loop play failed:", err);
+          if (err.name !== "AbortError")
+            console.warn("[Player] Loop play failed:", err);
         });
         playerActions.setIsPlaying(true);
         return;
@@ -118,6 +172,7 @@ export function useAudioSync(
 
     // Handle when the audio element can play after a pause -> play toggle
     const onCanPlay = () => {
+      if (isVideoActive) return;
       if (isPlayingRef.current && audioElement.paused) {
         audioElement.play().catch((err) => {
           if (err.name !== "AbortError")
@@ -139,7 +194,7 @@ export function useAudioSync(
       audioElement.removeEventListener("ended", handleEnded);
       audioElement.removeEventListener("canplay", onCanPlay);
     };
-  }, [audioElement, isInternalChange, fadeIn, crossfadeDuration]);
+  }, [audioElement, isInternalChange, isVideoActive, fadeIn, crossfadeDuration]);
 
   // 4. Listen Recording & Fade-In Logic
   useEffect(() => {
@@ -193,7 +248,7 @@ export function useAudioSync(
 
   // 5. High Precision Sync & Fade-Out (RAF)
   const syncTime = useCallback(() => {
-    if (!audioElement) {
+    if (!audioElement || playerStore.state.isVideoActive) {
       animFrameRef.current = requestAnimationFrame(syncTime);
       return;
     }

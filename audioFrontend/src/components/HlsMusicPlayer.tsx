@@ -19,12 +19,14 @@ import {
   SkipForward,
   Sliders,
   TvMinimalPlay,
+  Moon,
   X,
 } from "lucide-react";
 import { getImageUrl } from "../lib/image-utils";
 import { getFullVideoHlsUrl, getFullVideoDashUrl } from "../lib/player-utils";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
 import { FullVideoModal } from "./FullVideoModal";
+import { SleepTimerModal } from "./player/SleepTimerModal";
 import { toast } from "sonner";
 
 // Hooks
@@ -60,16 +62,37 @@ export function HlsMusicPlayer() {
     favourites,
     systemUser,
     isLyricsOpen,
+    isVideoActive,
   } = state;
 
   const [localTime, setLocalTime] = useState(() => state.currentTime || 0);
   const [buffered, setBuffered] = useState(0);
   const [showQueuePanel, setShowQueuePanel] = useState(false);
   const [showEqualizerModal, setShowEqualizerModal] = useState(false);
+  const [showSleepTimerModal, setShowSleepTimerModal] = useState(false);
   const [showFullVideo, setShowFullVideo] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [solidBgColor, setSolidBgColor] = useState("#181818");
   const [showQualityMenu, setShowQualityMenu] = useState(false);
+
+  // Sleep Timer countdown check
+  useEffect(() => {
+    if (!state.sleepTimer?.targetTimestamp || state.sleepTimer.mode !== "minutes") return;
+
+    const checkTimer = () => {
+      if (Date.now() >= state.sleepTimer.targetTimestamp!) {
+        playerActions.setIsPlaying(false);
+        playerActions.clearSleepTimer();
+        toast("Sleep timer finished", {
+          description: "Playback paused. Sweet dreams!",
+          icon: "🌙",
+        });
+      }
+    };
+
+    const interval = setInterval(checkTimer, 1000);
+    return () => clearInterval(interval);
+  }, [state.sleepTimer?.targetTimestamp, state.sleepTimer?.mode]);
 
   // Compute solid color matching current song image
   useEffect(() => {
@@ -122,6 +145,7 @@ export function HlsMusicPlayer() {
     volume,
     isMuted,
     duration,
+    isVideoActive,
     setLocalTime,
     setBuffered,
     webAudio.fadeIn,
@@ -133,8 +157,16 @@ export function HlsMusicPlayer() {
   const storeCurrentTime = useStore(playerStore, (s) => s.currentTime);
   const seekTarget = useStore(playerStore, (s) => s.seekTarget);
 
+  // 1. When video player is driving playback, mirror its live time
   useEffect(() => {
-    if (!audioRef.current) return;
+    if (isVideoActive) {
+      setLocalTime(storeCurrentTime);
+    }
+  }, [isVideoActive, storeCurrentTime]);
+
+  // 2. Audio element seek listener (only when video is not active)
+  useEffect(() => {
+    if (isVideoActive || !audioRef.current) return;
     if (seekTarget !== null && isFinite(seekTarget)) {
       audioRef.current.currentTime = seekTarget;
       setLocalTime(seekTarget);
@@ -143,7 +175,7 @@ export function HlsMusicPlayer() {
       audioRef.current.currentTime = 0;
       setLocalTime(0);
     }
-  }, [seekTarget, storeCurrentTime, setLocalTime]);
+  }, [seekTarget, storeCurrentTime, isVideoActive]);
 
   const isFavourite = currentSong
     ? Array.from(favourites).some((id) => String(id) === String(currentSong.id))
@@ -170,15 +202,17 @@ export function HlsMusicPlayer() {
       if (e.code === "Space" || e.key === "k" || e.key === "K") {
         e.preventDefault();
         if (!currentSong) return;
-        const audio = audioRef.current;
-        if (audio) {
-          if (isPlaying) {
-            audio.pause();
-          } else {
-            audio.play().catch((err) => {
-              if (err.name !== "AbortError")
-                console.warn("[Player] Manual play failed:", err);
-            });
+        if (!isVideoActive) {
+          const audio = audioRef.current;
+          if (audio) {
+            if (isPlaying) {
+              audio.pause();
+            } else {
+              audio.play().catch((err) => {
+                if (err.name !== "AbortError")
+                  console.warn("[Player] Manual play failed:", err);
+              });
+            }
           }
         }
         playerActions.setIsPlaying(!isPlaying);
@@ -453,15 +487,17 @@ export function HlsMusicPlayer() {
               <button
                 type="button"
                 onClick={() => {
-                  const audio = audioRef.current;
-                  if (audio) {
-                    if (isPlaying) {
-                      audio.pause();
-                    } else {
-                      audio.play().catch((err) => {
-                        if (err.name !== "AbortError")
-                          console.warn("[Player] Manual play failed:", err);
-                      });
+                  if (!isVideoActive) {
+                    const audio = audioRef.current;
+                    if (audio) {
+                      if (isPlaying) {
+                        audio.pause();
+                      } else {
+                        audio.play().catch((err) => {
+                          if (err.name !== "AbortError")
+                            console.warn("[Player] Manual play failed:", err);
+                        });
+                      }
                     }
                   }
                   playerActions.setIsPlaying(!isPlaying);
@@ -570,6 +606,24 @@ export function HlsMusicPlayer() {
             </button>
           </PlayerTooltip>
 
+          <PlayerTooltip content="Sleep Timer">
+            <button
+              type="button"
+              onClick={() => setShowSleepTimerModal(true)}
+              className={`relative p-1.5 rounded-md transition-colors cursor-pointer ${
+                state.sleepTimer?.mode
+                  ? "text-primary bg-[#282828]"
+                  : "text-zinc-400 hover:text-white"
+              }`}
+              aria-label="Sleep Timer"
+            >
+              <Moon size={16} />
+              {state.sleepTimer?.mode && (
+                <span className="absolute 1 top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+              )}
+            </button>
+          </PlayerTooltip>
+
           <PlayerTooltip content="Lyrics" shortcut="L">
             <button
               type="button"
@@ -647,6 +701,12 @@ export function HlsMusicPlayer() {
         setBandGain={webAudio.setBandGain}
         applyPreset={webAudio.applyPreset}
         resetEq={webAudio.resetEq}
+      />
+
+      {/* Sleep Timer Modal */}
+      <SleepTimerModal
+        isOpen={showSleepTimerModal}
+        onClose={() => setShowSleepTimerModal(false)}
       />
 
       {/* Playlist Picker Modal */}

@@ -63,7 +63,13 @@ export const playbackActions = {
   },
 
   setIsPlaying: (isPlaying: boolean) => {
+    console.log("[PlaybackActions] setIsPlaying ->", isPlaying);
     playerStore.setState((s) => ({ ...s, isPlaying }));
+  },
+
+  setIsVideoActive: (isVideoActive: boolean) => {
+    console.log("[PlaybackActions] setIsVideoActive ->", isVideoActive);
+    playerStore.setState((s) => ({ ...s, isVideoActive }));
   },
 
   setCurrentTime: (time: number) => {
@@ -223,5 +229,48 @@ export const playbackActions = {
 
   closeLyrics: () => {
     playerStore.setState((s) => (s.isLyricsOpen ? { ...s, isLyricsOpen: false } : s));
+  },
+
+  setSleepTimer: (
+    minutes: number | null,
+    mode: "minutes" | "end_of_track" = "minutes",
+  ) => {
+    if (minutes === null && mode === "minutes") {
+      playerStore.setState((s) => ({
+        ...s,
+        sleepTimer: { targetTimestamp: null, mode: null },
+      }));
+      toast.success("Sleep timer turned off");
+      return;
+    }
+
+    if (mode === "end_of_track") {
+      playerStore.setState((s) => ({
+        ...s,
+        sleepTimer: { targetTimestamp: null, mode: "end_of_track" },
+      }));
+      toast.success("Sleep timer set to end of current track");
+      return;
+    }
+
+    if (typeof minutes === "number" && minutes > 0) {
+      const targetTimestamp = Date.now() + minutes * 60 * 1000;
+      playerStore.setState((s) => ({
+        ...s,
+        sleepTimer: {
+          targetTimestamp,
+          mode: "minutes",
+          durationMinutes: minutes,
+        },
+      }));
+      toast.success(`Sleep timer set for ${minutes} min`);
+    }
+  },
+
+  clearSleepTimer: () => {
+    playerStore.setState((s) => ({
+      ...s,
+      sleepTimer: { targetTimestamp: null, mode: null },
+    }));
   },
 };

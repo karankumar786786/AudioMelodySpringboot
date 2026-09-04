@@ -7,8 +7,19 @@ import React, {
   useCallback,
   type FC,
 } from "react";
-import { X, Play, Pause, Volume2, VolumeX, Maximize2, Minimize2, ChevronDown } from "lucide-react";
+import {
+  X,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Maximize2,
+  Minimize2,
+  ChevronDown,
+  PictureInPicture2,
+} from "lucide-react";
 
+import { useStore } from "@tanstack/react-store";
 import { playerStore, playerActions } from "@/store/player.store";
 import { PlayerTooltip } from "./player/PlayerTooltip";
 
@@ -60,14 +71,18 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Subscribe to website player store state for two-way synchronization
+  const storeIsPlaying = useStore(playerStore, (s) => s.isPlaying);
+  const storeVolume = useStore(playerStore, (s) => s.volume);
+  const storeIsMuted = useStore(playerStore, (s) => s.isMuted);
+  const storeSeekTarget = useStore(playerStore, (s) => s.seekTarget);
+
   // Determine if this full video is for the currently active song in the audio player
   const isCurrentSong = songId
     ? playerStore.state.currentSong?.id === songId
     : true;
 
   // Capture the starting time at mount time so Shaka gets a stable value.
-  // Priority: explicit initialTime prop > audio player's store currentTime.
-  // We read once into a ref so the Shaka useEffect dep doesn't change on every time update.
   const startTimeRef = useRef<number>(
     typeof initialTime === "number" && initialTime >= 0
       ? initialTime
@@ -77,15 +92,14 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   );
 
   // Track whether audio was playing when modal opened so we can resume on close
-  const wasAudioPlayingRef = useRef<boolean>(false);
+  const wasAudioPlayingRef = useRef<boolean>(playerStore.state.isPlaying);
 
-  // Pause audio immediately on mount to prevent double audio
+  // Activate video playback mode in store on mount and reset on unmount
   useEffect(() => {
-    if (playerStore.state.isPlaying) {
-      wasAudioPlayingRef.current = true;
-      playerActions.setIsPlaying(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    playerActions.setIsVideoActive(true);
+    return () => {
+      playerActions.setIsVideoActive(false);
+    };
   }, []);
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -99,6 +113,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isPipMode, setIsPipMode] = useState(false);
   // Controls overlay visibility — separate from the always-visible close button
   const [showControls, setShowControls] = useState(true);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -122,10 +137,13 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     controlsTimerRef.current = setTimeout(() => setShowControls(false), 3000);
   }, []);
 
+  const manifestUrl = dashUrl || hlsUrl;
+  const isBufferingRef = useRef<boolean>(false);
+
   /* ─── Shaka Player init ─── */
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !manifestUrl) return;
     let destroyed = false;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let player: any;
@@ -155,10 +173,11 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
 
         player.addEventListener("buffering", (e: Event) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          if (!destroyed) setIsLoading((e as any).buffering);
+          const isBuffering = Boolean((e as any).buffering);
+          isBufferingRef.current = isBuffering;
+          if (!destroyed) setIsLoading(isBuffering);
         });
 
-        const manifestUrl = dashUrl || hlsUrl;
         // Pass the captured start time to Shaka so it can start buffering at the right position immediately
         const startTime = startTimeRef.current;
         await player.load(manifestUrl, startTime > 0 ? startTime : 0);
@@ -190,6 +209,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         try {
           await video.play();
           setIsPlaying(true);
+          playerActions.setIsPlaying(true);
         } catch { /* autoplay blocked */ }
       } catch (err: unknown) {
         if (!destroyed) {
@@ -204,10 +224,43 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
       if (player) player.destroy?.();
       playerRef.current = null;
     };
-    // Only re-init when the URL changes, not on time changes
-  }, [hlsUrl, dashUrl]);
+  }, [manifestUrl]);
 
-  /* ─── Video events ─── */
+  /* ─── Two-Way Website Player Sync Listeners ─── */
+  // 1. Sync external store play/pause -> video
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    console.log("[FullVideoModal] storeIsPlaying effect -> storeIsPlaying:", storeIsPlaying, "v.paused:", v.paused);
+    if (storeIsPlaying && v.paused) {
+      v.play().catch(() => {});
+    } else if (!storeIsPlaying && !v.paused) {
+      v.pause();
+    }
+  }, [storeIsPlaying]);
+
+  // 2. Sync store seekTarget -> video
+  useEffect(() => {
+    if (typeof storeSeekTarget === "number" && isFinite(storeSeekTarget)) {
+      const v = videoRef.current;
+      if (v && Math.abs(v.currentTime - storeSeekTarget) > 0.5) {
+        v.currentTime = storeSeekTarget;
+        setCurrentTime(storeSeekTarget);
+      }
+    }
+  }, [storeSeekTarget]);
+
+  // 3. Sync store volume and mute -> video
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    const targetVol = Math.max(0, Math.min(1, storeVolume));
+    v.volume = targetVol;
+    v.muted = storeIsMuted || targetVol === 0;
+    setIsMuted(v.muted);
+  }, [storeVolume, storeIsMuted]);
+
+  /* ─── Video Native Events ─── */
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -227,14 +280,45 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
 
     const onTimeUpdate = () => {
       setCurrentTime(video.currentTime);
+      if (isCurrentSong) {
+        playerActions.setCurrentTime(video.currentTime);
+      }
       updateBuffer();
     };
+
     const onDurationChange = () => {
-      setDuration(video.duration || 0);
+      const dur = video.duration || 0;
+      setDuration(dur);
+      if (isCurrentSong && dur > 0) {
+        playerActions.setDuration(dur);
+      }
       updateBuffer();
     };
-    const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
+
+    const onPlay = () => {
+      console.log("[FullVideoModal] video.onplay event. isBuffering:", isBufferingRef.current);
+      if (isBufferingRef.current) return;
+      setIsPlaying(true);
+    };
+
+    const onPause = () => {
+      console.log(
+        "[FullVideoModal] video.onpause event. isBuffering:",
+        isBufferingRef.current,
+        "seeking:",
+        video.seeking,
+        "ended:",
+        video.ended,
+      );
+      if (video.seeking || video.ended || isBufferingRef.current) return;
+      setIsPlaying(false);
+    };
+
+    const onEnded = () => {
+      if (isCurrentSong) {
+        playerActions.next();
+      }
+    };
 
     video.addEventListener("timeupdate", onTimeUpdate);
     video.addEventListener("progress", updateBuffer);
@@ -244,6 +328,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     video.addEventListener("loadedmetadata", updateBuffer);
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
+    video.addEventListener("ended", onEnded);
 
     return () => {
       video.removeEventListener("timeupdate", onTimeUpdate);
@@ -254,26 +339,28 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
       video.removeEventListener("loadedmetadata", updateBuffer);
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
+      video.removeEventListener("ended", onEnded);
     };
-  }, []);
+  }, [isCurrentSong]);
 
   const togglePlay = useCallback(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    if (v.paused) v.play().catch(() => {});
-    else v.pause();
-  }, []);
+    console.log("[FullVideoModal] togglePlay called. Current storeIsPlaying:", storeIsPlaying);
+    playerActions.setIsPlaying(!storeIsPlaying);
+  }, [storeIsPlaying]);
 
   const toggleMute = useCallback(() => {
     const v = videoRef.current;
     if (!v) return;
-    v.muted = !v.muted;
-    setIsMuted(v.muted);
+    const nextMuted = !v.muted;
+    v.muted = nextMuted;
+    setIsMuted(nextMuted);
+    playerActions.setIsMuted(nextMuted);
   }, []);
 
   // Seamless Close: sync the video's stop time back to the audio player and resume playback
   const handleClose = useCallback(() => {
     const finalTime = videoRef.current?.currentTime ?? currentTime;
+    playerActions.setIsVideoActive(false);
     if (isCurrentSong && typeof finalTime === "number" && isFinite(finalTime)) {
       playerActions.seek(finalTime);
       if (wasAudioPlayingRef.current || isPlaying) {
@@ -305,8 +392,12 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = videoRef.current;
     if (!v) return;
-    v.currentTime = Number(e.target.value);
-    setCurrentTime(v.currentTime);
+    const targetTime = Number(e.target.value);
+    v.currentTime = targetTime;
+    setCurrentTime(targetTime);
+    if (isCurrentSong) {
+      playerActions.seek(targetTime);
+    }
   };
 
   const toggleFullscreen = useCallback(() => {
@@ -327,6 +418,26 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
       } else if ((document as any).webkitExitFullscreen) {
         (document as any).webkitExitFullscreen();
       }
+    }
+  }, []);
+
+  const togglePip = useCallback(async () => {
+    // If native PiP is supported, try native PiP first
+    if (document.pictureInPictureEnabled && videoRef.current) {
+      if (document.pictureInPictureElement) {
+        document.exitPictureInPicture().catch(() => {});
+        setIsPipMode(false);
+      } else {
+        try {
+          await videoRef.current.requestPictureInPicture();
+          return;
+        } catch {
+          // Fallback to in-app floating corner tile
+          setIsPipMode((prev) => !prev);
+        }
+      }
+    } else {
+      setIsPipMode((prev) => !prev);
     }
   }, []);
 
@@ -353,6 +464,10 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
       if (e.key === "v" || e.key === "V") {
         e.preventDefault();
         handleClose();
+      }
+      if (e.key === "p" || e.key === "P") {
+        e.preventDefault();
+        togglePip();
       }
       if (e.key === " " || e.key === "k" || e.key === "K") {
         e.preventDefault();
@@ -386,7 +501,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [handleClose, togglePlay, toggleMute, toggleFullscreen, duration]);
+  }, [handleClose, togglePlay, toggleMute, toggleFullscreen, togglePip, duration]);
 
   const fmt = (s: number) => {
     if (!s || isNaN(s) || !isFinite(s) || s < 0) return "0:00";
@@ -408,6 +523,97 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
 
   const qualityLabel = selectedQuality === -1 ? "Auto" : `${selectedQuality}p`;
 
+  /* ─────────────────────────────────────────────────────────────
+     1. IN-APP FLOATING CORNER PICTURE-IN-PICTURE (PiP) MODE
+     ───────────────────────────────────────────────────────────── */
+  if (isPipMode) {
+    return (
+      <div
+        ref={containerRef}
+        className="fixed bottom-24 right-4 sm:right-6 z-[200] w-72 sm:w-80 md:w-96 aspect-video rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.95),inset_0_1px_1px_rgba(255,255,255,0.2)] ring-1 ring-white/20 bg-black animate-in fade-in slide-in-from-bottom-4 duration-300 select-none group"
+        onMouseMove={resetControlsTimer}
+        onMouseEnter={resetControlsTimer}
+      >
+        <video
+          ref={videoRef}
+          className="w-full h-full object-contain"
+          poster={posterUrl}
+          playsInline
+        />
+
+        {/* Hover Controls Overlay */}
+        <div
+          className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/80 flex flex-col justify-between p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Top Header: Title & Actions */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <h4 className="text-xs font-bold text-white truncate leading-tight">{title}</h4>
+              <p className="text-[10px] text-zinc-300 truncate">{artistName}</p>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <PlayerTooltip content="Expand to Modal" shortcut="P">
+                <button
+                  onClick={() => setIsPipMode(false)}
+                  className="p-1.5 rounded-full bg-black/60 hover:bg-black/90 text-white transition-all cursor-pointer border border-white/20 backdrop-blur-md"
+                  aria-label="Expand video"
+                >
+                  <Maximize2 size={13} />
+                </button>
+              </PlayerTooltip>
+              <PlayerTooltip content="Close & Resume Audio" shortcut={["Esc", "V"]}>
+                <button
+                  onClick={handleClose}
+                  className="p-1.5 rounded-full bg-black/60 hover:bg-black/90 text-white transition-all cursor-pointer border border-white/20 backdrop-blur-md"
+                  aria-label="Close video"
+                >
+                  <X size={13} />
+                </button>
+              </PlayerTooltip>
+            </div>
+          </div>
+
+          {/* Center Play/Pause button */}
+          <div className="flex items-center justify-center">
+            <button
+              onClick={togglePlay}
+              className="w-9 h-9 rounded-full bg-white/90 hover:bg-white flex items-center justify-center text-black shadow-xl hover:scale-110 active:scale-95 transition-all cursor-pointer"
+              aria-label={isPlaying ? "Pause" : "Play"}
+            >
+              {isPlaying ? (
+                <Pause size={16} fill="black" />
+              ) : (
+                <Play size={16} fill="black" style={{ marginLeft: 2 }} />
+              )}
+            </button>
+          </div>
+
+          {/* Bottom Progress Line */}
+          <div className="space-y-1">
+            <div className="relative h-1 w-full bg-white/20 rounded-full overflow-hidden">
+              <div
+                className="absolute left-0 top-0 bottom-0 bg-white/40 rounded-full"
+                style={{ width: `${bufferedPct}%` }}
+              />
+              <div
+                className="absolute left-0 top-0 bottom-0 bg-primary rounded-full"
+                style={{ width: `${progressPct}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[10px] text-zinc-400 font-mono">
+              <span>{fmt(safeCurrentTime)}</span>
+              <span>{fmt(safeDuration)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     2. FULL SCREEN / STANDARD MODAL OVERLAY
+     ───────────────────────────────────────────────────────────── */
   return (
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md"
@@ -424,9 +630,18 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         onMouseEnter={resetControlsTimer}
         onClick={togglePlay}
       >
-        {/* Close button — hidden when in fullscreen */}
+        {/* Top-Right Action Buttons: PiP & Close — hidden when in fullscreen */}
         {!isFullscreen && (
-          <div className="absolute top-3 right-3 z-[220]">
+          <div className="absolute top-3 right-3 z-[220] flex items-center gap-2">
+            <PlayerTooltip content="Picture-in-Picture" shortcut="P" side="bottom">
+              <button
+                onClick={(e) => { e.stopPropagation(); togglePip(); }}
+                className="p-2 rounded-full bg-black/70 hover:bg-black/90 text-white transition-all cursor-pointer border border-white/20 backdrop-blur-sm"
+                aria-label="Picture-in-Picture"
+              >
+                <PictureInPicture2 size={18} />
+              </button>
+            </PlayerTooltip>
             <PlayerTooltip content="Close" shortcut={["Esc", "V"]} side="bottom" align="end">
               <button
                 onClick={(e) => { e.stopPropagation(); handleClose(); }}

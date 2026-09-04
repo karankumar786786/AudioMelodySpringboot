@@ -1,6 +1,12 @@
 import { Store } from "@tanstack/react-store";
 import { type PlayerSong } from "@/lib/player-utils";
 
+export interface SleepTimerState {
+  targetTimestamp: number | null;
+  mode: "minutes" | "end_of_track" | null;
+  durationMinutes?: number;
+}
+
 export interface PlayerState {
   currentSong: PlayerSong | null;
   isPlaying: boolean;
@@ -23,6 +29,8 @@ export interface PlayerState {
   favourites: Set<string>;
   isRefilling: boolean;
   isLyricsOpen: boolean;
+  isVideoActive: boolean;
+  sleepTimer: SleepTimerState;
 }
 
 const _initSystemUser = (() => {
@@ -105,6 +113,11 @@ export const playerStore = new Store<PlayerState>({
   favourites: new Set<string>(),
   isRefilling: false,
   isLyricsOpen: false,
+  isVideoActive: false,
+  sleepTimer: {
+    targetTimestamp: null,
+    mode: null,
+  },
 });
 
 // Hydrate token, repeatMode, isShuffle, and currentTime on client side only
