@@ -11,6 +11,7 @@ import { PlaylistCard } from "../../components/PlaylistCard";
 import { SongCard } from "../../components/SongCard";
 import { ServerErrorPage, SomethingWentWrongPage } from "../../components/ErrorPages";
 import { type Artist, musicApi, type Playlist, type Song } from "../../lib/api";
+import { mapListToPlayerSongs } from "../../lib/player-utils";
 import { playerActions, playerStore } from "../../store/player.store";
 
 export default function HomePage() {
@@ -97,6 +98,14 @@ export default function HomePage() {
     queryFn: () => musicApi.interactions.getRecommendations(),
     enabled: !!systemUser?.id && !!systemToken,
   });
+
+  // Automatically add recommended songs to queue when loaded
+  useEffect(() => {
+    const songs = recommendations?.data?.data || recommendations?.data;
+    if (Array.isArray(songs) && songs.length > 0) {
+      playerActions.enqueue(mapListToPlayerSongs(songs));
+    }
+  }, [recommendations]);
 
   // 8. Recently Played (User specific)
   const { data: recentlyPlayed } = useQuery({

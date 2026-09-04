@@ -143,7 +143,14 @@ export const queueActions = {
           ? [...s.originalQueue, ...uniqueNewSongs]
           : [];
 
-      persistQueue(nextQueue, s.lastQueueIndex);
+      let nextCurrentSong = s.currentSong;
+      let nextIndex = s.lastQueueIndex;
+      if (!nextCurrentSong && nextQueue.length > 0) {
+        nextCurrentSong = nextQueue[0];
+        nextIndex = 0;
+      }
+
+      persistQueue(nextQueue, nextIndex >= 0 ? nextIndex : 0);
       console.log(
         `[Queue] Enqueued ${uniqueNewSongs.length} songs. Total: ${nextQueue.length}`,
       );
@@ -152,6 +159,8 @@ export const queueActions = {
         ...s,
         queue: nextQueue,
         originalQueue: nextOriginal,
+        currentSong: nextCurrentSong,
+        lastQueueIndex: nextIndex >= 0 ? nextIndex : 0,
       };
     });
   },
