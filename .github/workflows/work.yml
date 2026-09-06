@@ -48,3 +48,13 @@ jobs:
       - name: Push Frontend
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/audiofrontend:v1
+
+      - name: Build audioProcessing
+        run: |
+          docker build --platform linux/amd64 \
+          -t ${{secrets.DOCKER_USERNAME}}/audioprocessing:v1 \
+          ./audioProcessing
+      
+      - name: Push audioProcessing
+        run: |
+          docker push ${{secrets.DOCKER_USERNAME}}/audioprocessing:v1
