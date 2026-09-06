@@ -7,6 +7,19 @@ import pLimit from "p-limit";
 
 const execFileAsync = promisify(execFile);
 
+import {
+    detectHardwareCapabilities,
+    buildAudioEncoderArgs,
+    buildSoftwareAudioArgs,
+    executeFFmpegWithFallback,
+} from "./hwaccel";
+
+import {
+    safeRemovePath,
+    registerActiveTmpPath,
+    unregisterActiveTmpPath,
+} from "./cleanup";
+
 export interface AudioQualityProfile {
     label: string;
     bitrate: string;    // e.g. "128k"
@@ -47,39 +60,42 @@ export class AudioTranscoder {
         console.log(`Output: ${outputDir}`);
 
         fs.mkdirSync(outputDir, { recursive: true });
+        registerActiveTmpPath(outputDir);
 
-        const duration = await this.getAudioDuration(inputAudio);
-        if (duration <= 0) throw new Error("Invalid audio duration, cannot transcode");
+        try {
+            const duration = await this.getAudioDuration(inputAudio);
+            if (duration <= 0) throw new Error("Invalid audio duration, cannot transcode");
 
-        console.log(`Duration: ${duration.toFixed(2)}s — segment size: ${this.segmentTime}s`);
+            console.log(`Duration: ${duration.toFixed(2)}s — segment size: ${this.segmentTime}s`);
 
-        const audioName = s3DirName || path.basename(outputDir);
+            const audioName = s3DirName || path.basename(outputDir);
 
-        // STEP 1 — Transcode input -> multi-bitrate AACs
-        const audioDir = path.join(outputDir, "audio");
-        fs.mkdirSync(audioDir, { recursive: true });
-        const rawAudioPaths = await this.transcodeAudio(inputAudio, audioDir);
+            // STEP 1 — Transcode input -> multi-bitrate AACs (in parallel with hardware acceleration)
+            const audioDir = path.join(outputDir, "audio");
+            fs.mkdirSync(audioDir, { recursive: true });
+            const rawAudioPaths = await this.transcodeAudio(inputAudio, audioDir);
 
-        // STEP 2 — Package -> master.m3u8 + master.mpd
-        await this.runShakaPackager(outputDir, rawAudioPaths);
+            // STEP 2 — Package -> master.m3u8 + master.mpd
+            await this.runShakaPackager(outputDir, rawAudioPaths);
 
-        // STEP 3 — Upload all packaged files to S3
-        const allFiles = this.getAllFiles(outputDir);
-        const filesToUpload = allFiles.filter(fp => !/raw_audio_.*\.m4a$/.test(fp));
+            // STEP 3 — Upload all packaged files to S3
+            const allFiles = this.getAllFiles(outputDir);
+            const filesToUpload = allFiles.filter(fp => !/raw_audio_.*\.m4a$/.test(fp));
 
-        console.log(`Uploading ${filesToUpload.length} files to S3 bucket "${this.bucketName}" under prefix "${this.basePath}/${audioName}"...`);
-        const uploadPromises = filesToUpload.map(fp =>
-            this.limit(() => this.uploadFileToS3(fp, outputDir, audioName, this.bucketName))
-        );
-        await Promise.all(uploadPromises);
-        console.log("All uploads completed");
+            console.log(`Uploading ${filesToUpload.length} files to S3 bucket "${this.bucketName}" under prefix "${this.basePath}/${audioName}"...`);
+            const uploadPromises = filesToUpload.map(fp =>
+                this.limit(() => this.uploadFileToS3(fp, outputDir, audioName, this.bucketName))
+            );
+            await Promise.all(uploadPromises);
+            console.log("All uploads completed");
 
-        // CLEANUP — Remove local transcoded files after upload
-        fs.rmSync(outputDir, { recursive: true, force: true });
-        console.log(`Local transcoding directory cleaned up: ${outputDir}`);
-        console.log(`--- Audio Transcoding Completed ---`);
-
-        return { duration };
+            console.log(`--- Audio Transcoding Completed ---`);
+            return { duration };
+        } finally {
+            // CLEANUP — Remove local transcoded files robustly (on success or error)
+            await safeRemovePath(outputDir);
+            console.log(`Local transcoding directory cleaned up: ${outputDir}`);
+        }
     }
 
     private async getAudioDuration(audioPath: string): Promise<number> {
@@ -107,35 +123,28 @@ export class AudioTranscoder {
     }
 
     private async transcodeAudio(inputAudio: string, audioDir: string): Promise<string[]> {
-        const rawPaths: string[] = [];
+        const hwCaps = await detectHardwareCapabilities();
+        const audioConcurrency = pLimit(hwCaps.maxAudioConcurrency);
 
-        for (const profile of AUDIO_QUALITY_PROFILES) {
-            const outPath = path.join(audioDir, `raw_audio_${profile.label}.m4a`);
-            console.log(`Transcoding audio -> ${profile.bitrate} AAC...`);
+        console.log(`[AUDIO] Transcoding ${AUDIO_QUALITY_PROFILES.length} profiles concurrently (concurrency=${hwCaps.maxAudioConcurrency}, encoder=${hwCaps.audioEncoder})...`);
 
-            const args = [
-                "-y",
-                "-loglevel", "warning",
-                "-i", inputAudio,
-                "-vn",
-                "-c:a", "aac",
-                "-b:a", profile.bitrate,
-                "-ar", profile.sampleRate.toString(),
-                "-ac", profile.channels.toString(),
-                "-movflags", "+faststart",
-                outPath,
-            ];
+        const transcodeTasks = AUDIO_QUALITY_PROFILES.map((profile) =>
+            audioConcurrency(async () => {
+                const outPath = path.join(audioDir, `raw_audio_${profile.label}.m4a`);
+                const primaryArgs = buildAudioEncoderArgs(inputAudio, outPath, profile, hwCaps);
+                const fallbackArgs = buildSoftwareAudioArgs(inputAudio, outPath, profile);
 
-            try {
-                await execFileAsync("ffmpeg", args);
-                console.log(`Audio transcoded -> ${path.basename(outPath)}`);
-                rawPaths.push(outPath);
-            } catch (err: any) {
-                console.error(`Failed to transcode audio: ${err.message ?? err}`);
-                throw err;
-            }
-        }
-        return rawPaths;
+                await executeFFmpegWithFallback(
+                    primaryArgs,
+                    fallbackArgs,
+                    `audio profile ${profile.label} (${profile.bitrate})`
+                );
+                console.log(`[AUDIO] Transcoded profile -> ${profile.label}`);
+                return outPath;
+            })
+        );
+
+        return await Promise.all(transcodeTasks);
     }
 
     private async runShakaPackager(outputDir: string, rawAudioPaths: string[]): Promise<void> {
