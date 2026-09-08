@@ -76,8 +76,6 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   const storeVolume = useStore(playerStore, (s) => s.volume);
   const storeIsMuted = useStore(playerStore, (s) => s.isMuted);
   const storeSeekTarget = useStore(playerStore, (s) => s.seekTarget);
-  const storeIsPlayingRef = useRef(storeIsPlaying);
-  storeIsPlayingRef.current = storeIsPlaying;
 
   // Determine if this full video is for the currently active song in the audio player
   const isCurrentSong = songId
@@ -150,7 +148,6 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
 
   const manifestUrl = dashUrl || hlsUrl;
   const isBufferingRef = useRef<boolean>(false);
-  const pendingAutoplayRef = useRef<boolean>(false);
 
   /* ─── Shaka Player init ─── */
   useEffect(() => {
@@ -175,25 +172,6 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         await player.attach(video);
         playerRef.current = player;
 
-        const startTime =
-          typeof initialTime === "number" && initialTime >= 0
-            ? initialTime
-            : isCurrentSong
-              ? playerStore.state.currentTime || 0
-              : 0;
-
-        startTimeRef.current = startTime;
-        currentTimeRef.current = startTime;
-        setCurrentTime(startTime);
-        setDuration(0);
-        setBufferedTime(0);
-        setQualityLevels([]);
-        setSelectedQuality(-1);
-        setError(null);
-        setIsPlaying(false);
-        pendingAutoplayRef.current = storeIsPlayingRef.current;
-        setIsLoading(true);
-
         player.configure({ streaming: { bufferingGoal: 30, rebufferingGoal: 2 } });
 
         player.addEventListener("error", (e: Event) => {
@@ -210,6 +188,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         });
 
         // Pass the captured start time to Shaka so it can start buffering at the right position immediately
+        const startTime = startTimeRef.current;
         await player.load(manifestUrl, startTime > 0 ? startTime : 0);
 
         if (destroyed) return;
@@ -234,23 +213,13 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         });
         levels.sort((a, b) => b.height - a.height);
         setQualityLevels(levels);
+        setIsLoading(false);
 
-        const attemptAutoplay = async () => {
-          if (destroyed || !video.paused) return;
-          try {
-            await video.play();
-            pendingAutoplayRef.current = false;
-            setIsPlaying(true);
-            playerActions.setIsPlaying(true);
-            setIsLoading(false);
-          } catch {
-            pendingAutoplayRef.current = true;
-          }
-        };
-
-        if (storeIsPlayingRef.current || pendingAutoplayRef.current) {
-          await attemptAutoplay();
-        }
+        try {
+          await video.play();
+          setIsPlaying(true);
+          playerActions.setIsPlaying(true);
+        } catch { /* autoplay blocked */ }
       } catch (err: unknown) {
         if (!destroyed) {
           setError((err as Error)?.message ?? "Failed to load video");
@@ -280,15 +249,8 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     if (!v) return;
     console.log("[FullVideoModal] storeIsPlaying effect -> storeIsPlaying:", storeIsPlaying, "v.paused:", v.paused);
     if (storeIsPlaying && v.paused) {
-      v.play().then(() => {
-        pendingAutoplayRef.current = false;
-        setIsPlaying(true);
-        setIsLoading(false);
-      }).catch(() => {
-        pendingAutoplayRef.current = true;
-      });
+      v.play().catch(() => {});
     } else if (!storeIsPlaying && !v.paused) {
-      pendingAutoplayRef.current = false;
       v.pause();
     }
   }, [storeIsPlaying]);
@@ -354,25 +316,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     const onPlay = () => {
       console.log("[FullVideoModal] video.onplay event. isBuffering:", isBufferingRef.current);
       if (isBufferingRef.current) return;
-      pendingAutoplayRef.current = false;
-      setIsLoading(false);
       setIsPlaying(true);
-    };
-
-    const onCanPlay = () => {
-      setIsLoading(false);
-      if (!video.paused) {
-        pendingAutoplayRef.current = false;
-        return;
-      }
-      if (!storeIsPlayingRef.current && !pendingAutoplayRef.current) return;
-      video.play().then(() => {
-        pendingAutoplayRef.current = false;
-        setIsPlaying(true);
-        playerActions.setIsPlaying(true);
-      }).catch(() => {
-        pendingAutoplayRef.current = true;
-      });
     };
 
     const onPause = () => {
@@ -400,7 +344,6 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     video.addEventListener("seeked", updateBuffer);
     video.addEventListener("durationchange", onDurationChange);
     video.addEventListener("loadedmetadata", updateBuffer);
-    video.addEventListener("canplay", onCanPlay);
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
     video.addEventListener("ended", onEnded);
@@ -412,7 +355,6 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
       video.removeEventListener("seeked", updateBuffer);
       video.removeEventListener("durationchange", onDurationChange);
       video.removeEventListener("loadedmetadata", updateBuffer);
-      video.removeEventListener("canplay", onCanPlay);
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
       video.removeEventListener("ended", onEnded);
@@ -630,7 +572,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     return (
       <div
         ref={containerRef}
-        className="fixed bottom-24 right-4 sm:right-6 z-200 w-72 sm:w-80 md:w-96 aspect-video rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.95),inset_0_1px_1px_rgba(255,255,255,0.2)] ring-1 ring-white/20 bg-black animate-in fade-in slide-in-from-bottom-4 duration-300 select-none group"
+        className="fixed bottom-24 right-4 sm:right-6 z-[200] w-72 sm:w-80 md:w-96 aspect-video rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.95),inset_0_1px_1px_rgba(255,255,255,0.2)] ring-1 ring-white/20 bg-black animate-in fade-in slide-in-from-bottom-4 duration-300 select-none group"
         onMouseMove={resetControlsTimer}
         onMouseEnter={resetControlsTimer}
       >
@@ -643,7 +585,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
 
         {/* Hover Controls Overlay */}
         <div
-          className="absolute inset-0 bg-linear-to-t from-black/90 via-black/30 to-black/80 flex flex-col justify-between p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+          className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/80 flex flex-col justify-between p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Top Header: Title & Actions */}
@@ -716,7 +658,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
      ───────────────────────────────────────────────────────────── */
   return (
     <div
-      className="fixed inset-0 z-200 w-screen h-screen flex items-center justify-center bg-black overflow-hidden"
+      className="fixed inset-0 z-[200] w-screen h-screen flex items-center justify-center bg-black overflow-hidden"
       style={{ animation: "fullVideoFadeIn 0.2s ease" }}
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
@@ -731,7 +673,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
       >
         {/* Top-Right Action Buttons: PiP & Close — hidden when in fullscreen */}
         {!isFullscreen && (
-          <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-220 flex items-center gap-2">
+          <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-[220] flex items-center gap-2">
             <PlayerTooltip content="Picture-in-Picture" shortcut="P" side="bottom">
               <button
                 onClick={(e) => { e.stopPropagation(); togglePip(); }}
@@ -884,7 +826,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
                     </PlayerTooltip>
                     {showQualityMenu && (
                       <div
-                        className="absolute bottom-full mb-2 right-0 bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden shadow-2xl min-w-20 z-20"
+                        className="absolute bottom-full mb-2 right-0 bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden shadow-2xl min-w-[80px] z-20"
                         onClick={(e) => e.stopPropagation()}
                       >
                         {[{ height: -1, label: "Auto" }, ...qualityLevels].map((q) => (

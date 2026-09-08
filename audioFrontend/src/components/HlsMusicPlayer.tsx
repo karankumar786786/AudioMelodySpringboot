@@ -356,7 +356,6 @@ export function HlsMusicPlayer() {
       {/* Full Video Modal */}
       {state.isFullVideoOpen && (currentSong.fullVideoKey || (currentSong as any).full_video_key) && (
         <FullVideoModal
-          key={`${currentSong.id}-${currentSong.fullVideoKey || (currentSong as any).full_video_key || "video"}`}
           songId={currentSong.id}
           hlsUrl={getFullVideoHlsUrl(currentSong)!}
           dashUrl={getFullVideoDashUrl(currentSong)}
