@@ -24,6 +24,29 @@ function shuffleArray<T>(array: T[]): T[] {
   return arr;
 }
 
+/**
+ * Rolling window: keep at most `maxHistory` played songs behind current index.
+ * Returns { trimmedQueue, adjustedIndex }.
+ */
+const MAX_HISTORY = 2;
+
+function applyRollingWindow(
+  queue: PlayerSong[],
+  currentIndex: number,
+): { trimmedQueue: PlayerSong[]; adjustedIndex: number } {
+  const historyCount = currentIndex; // songs before current index
+  if (historyCount <= MAX_HISTORY) {
+    return { trimmedQueue: queue, adjustedIndex: currentIndex };
+  }
+  const trimCount = historyCount - MAX_HISTORY;
+  const trimmedQueue = queue.slice(trimCount);
+  const adjustedIndex = currentIndex - trimCount;
+  console.log(
+    `[Queue RollingWindow] Trimmed ${trimCount} played songs from front. New index: ${adjustedIndex}, Queue length: ${trimmedQueue.length}`,
+  );
+  return { trimmedQueue, adjustedIndex };
+}
+
 export const queueActions = {
   setQueue: (songs: PlayerSong[]) => {
     const nextQueue = dedupeBySongId(songs);
@@ -301,7 +324,8 @@ export const queueActions = {
 
   /**
    * Refills the queue with recommended or trending songs.
-   * Logs details of trigger reason, API call, and fetched catalog size for debugging.
+   * Only considers UPCOMING songs (ahead of current index) when deduping,
+   * so previously played songs can cycle back as recommendations.
    */
   refillQueue: async (isInit = false, reason = "Auto-refill"): Promise<PlayerSong[]> => {
     const { queue, currentSong, systemUser, isRefilling, lastQueueIndex } =
@@ -358,12 +382,16 @@ export const queueActions = {
         }
 
         const newSongs = mapListToPlayerSongs(rawData);
-        const { queue: latestQueue } = playerStore.state;
-        const existingIds = new Set(latestQueue.map((s) => s.id));
-        if (currentSong?.id) existingIds.add(currentSong.id);
+        const { queue: latestQueue, lastQueueIndex: latestIndex } = playerStore.state;
+
+        // 🔑 KEY FIX: Only exclude UPCOMING songs from dedup, not played ones.
+        // This allows previously played songs to cycle back as recommendations.
+        const upcomingSongs = latestQueue.slice(latestIndex + 1);
+        const existingIds = new Set(upcomingSongs.map((s) => s.id));
+        if (currentSong?.id) existingIds.add(currentSong.id); // always exclude currently playing
 
         const uniqueNewSongs = newSongs.filter((s) => !existingIds.has(s.id));
-        console.log(`✨ [UNIQUE FILTERED]: ${uniqueNewSongs.length} new songs added to queue (filtered out ${newSongs.length - uniqueNewSongs.length} duplicates).`);
+        console.log(`✨ [UNIQUE FILTERED]: ${uniqueNewSongs.length} new songs added to queue (filtered out ${newSongs.length - uniqueNewSongs.length} duplicates against ${upcomingSongs.length} upcoming songs).`);
 
         if (uniqueNewSongs.length > 0) {
           playerStore.setState((s) => {
@@ -388,7 +416,7 @@ export const queueActions = {
           console.groupEnd();
           return uniqueNewSongs;
         } else {
-          console.warn(`⚠️ [CATALOG WARNING]: API returned ${newSongs.length} tracks, but all of them are already in your queue! (Catalog may be small or recommendations returned already-queued tracks).`);
+          console.warn(`⚠️ [CATALOG WARNING]: API returned ${newSongs.length} tracks, but all of them are already in your upcoming queue! (Catalog may be small or recommendations returned already-queued tracks).`);
         }
       } else {
         console.warn("⚠️ API response received but contains no data array.", res);
@@ -468,9 +496,19 @@ export const queueActions = {
       console.log(
         `[Queue Next] Advancing to song index ${nextIdx}: "${queue[nextIdx].title}"`,
       );
-      persistQueue(queue, nextIdx);
+
+      // 🔑 Apply rolling window: trim played songs > MAX_HISTORY behind new index
+      const { trimmedQueue, adjustedIndex } = applyRollingWindow(queue, nextIdx);
+
+      playerStore.setState((s) => ({
+        ...s,
+        queue: trimmedQueue,
+        lastQueueIndex: adjustedIndex,
+      }));
+
+      persistQueue(trimmedQueue, adjustedIndex);
       import("@/store/player/playback.actions").then(({ playbackActions }) =>
-        playbackActions.play(queue[nextIdx]),
+        playbackActions.play(trimmedQueue[adjustedIndex]),
       );
     } else if (repeatMode === "all" || repeatMode === "one") {
       console.log(
@@ -485,14 +523,15 @@ export const queueActions = {
     } else {
       console.log("[Queue Next] Reached end of queue. Triggering recommendations refill...");
       queueActions.refillQueue(false, "End of queue reached").then(() => {
-        const { queue: updatedQueue } = playerStore.state;
-        if (nextIdx < updatedQueue.length) {
+        const { queue: updatedQueue, lastQueueIndex: updatedIdx } = playerStore.state;
+        const targetIdx = updatedIdx + 1;
+        if (targetIdx < updatedQueue.length) {
           console.log(
-            `[Queue Next] Auto-playing refilled recommended song at index ${nextIdx}: "${updatedQueue[nextIdx].title}"`,
+            `[Queue Next] Auto-playing refilled recommended song at index ${targetIdx}: "${updatedQueue[targetIdx].title}"`,
           );
-          persistQueue(updatedQueue, nextIdx);
+          persistQueue(updatedQueue, targetIdx);
           import("@/store/player/playback.actions").then(({ playbackActions }) =>
-            playbackActions.play(updatedQueue[nextIdx]),
+            playbackActions.play(updatedQueue[targetIdx]),
           );
         } else {
           console.log("[Queue Next] No new tracks available. Stopping playback.");

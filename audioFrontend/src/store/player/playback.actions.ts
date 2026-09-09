@@ -54,6 +54,12 @@ export const playbackActions = {
 
       if (typeof window !== "undefined") {
         localStorage.setItem("last_current_time", "0");
+        // Persist full song object so page reload can restore it
+        try {
+          localStorage.setItem("last_current_song", JSON.stringify(song));
+        } catch {
+          // Ignore quota errors
+        }
       }
       return newState;
     });

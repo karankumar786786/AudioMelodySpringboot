@@ -17,11 +17,13 @@ import {
   Minimize2,
   ChevronDown,
   PictureInPicture2,
+  Music,
 } from "lucide-react";
 
 import { useStore } from "@tanstack/react-store";
 import { playerStore, playerActions } from "@/store/player.store";
 import { PlayerTooltip } from "./player/PlayerTooltip";
+
 
 interface FullVideoModalProps {
   /** Shaka-packaged HLS URL e.g. https://…/videos/<songId>/master.m3u8 */
@@ -71,11 +73,12 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Subscribe to website player store state for two-way synchronization
+  // Subscribe to store — used for two-way sync AND detecting song changes for auto-next-video
   const storeIsPlaying = useStore(playerStore, (s) => s.isPlaying);
   const storeVolume = useStore(playerStore, (s) => s.volume);
   const storeIsMuted = useStore(playerStore, (s) => s.isMuted);
   const storeSeekTarget = useStore(playerStore, (s) => s.seekTarget);
+  const storeCurSong = useStore(playerStore, (s) => s.currentSong);
 
   // Determine if this full video is for the currently active song in the audio player
   const isCurrentSong = songId
@@ -119,13 +122,17 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   const [qualityLevels, setQualityLevels] = useState<QualityLevel[]>([]);
   const [selectedQuality, setSelectedQuality] = useState<number>(-1);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // mid-playback buffering
+  const [isInitializing, setIsInitializing] = useState(true); // Shaka init / manifest fetch phase
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isPipMode, setIsPipMode] = useState(false);
   // Controls overlay visibility — separate from the always-visible close button
   const [showControls, setShowControls] = useState(true);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Track the song ID that is currently loaded in Shaka so we can detect changes
+  const loadedSongIdRef = useRef<string | undefined>(songId);
 
   // Sync fullscreen state
   useEffect(() => {
@@ -157,6 +164,15 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let player: any;
 
+    // Reset UI state for new manifest
+    setIsInitializing(true);
+    setIsLoading(false);
+    setError(null);
+    setDuration(0);
+    setBufferedTime(0);
+    setQualityLevels([]);
+    setSelectedQuality(-1);
+
     (async () => {
       try {
         const shaka = await loadShaka();
@@ -164,8 +180,16 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
 
         if (shaka.Player?.isBrowserSupported && !shaka.Player.isBrowserSupported()) {
           setError("Your browser does not support adaptive streaming.");
-          setIsLoading(false);
+          setIsInitializing(false);
           return;
+        }
+
+        // Destroy previous Shaka instance if it exists (for song transitions)
+        if (playerRef.current) {
+          try {
+            await playerRef.current.destroy();
+          } catch {}
+          playerRef.current = null;
         }
 
         player = new shaka.Player();
@@ -184,7 +208,8 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const isBuffering = Boolean((e as any).buffering);
           isBufferingRef.current = isBuffering;
-          if (!destroyed) setIsLoading(isBuffering);
+          // Only show the mid-playback buffering spinner after initial load is done
+          if (!destroyed && !isInitializing) setIsLoading(isBuffering);
         });
 
         // Pass the captured start time to Shaka so it can start buffering at the right position immediately
@@ -213,7 +238,8 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         });
         levels.sort((a, b) => b.height - a.height);
         setQualityLevels(levels);
-        setIsLoading(false);
+        // Done initializing — hide the full-screen loader
+        setIsInitializing(false);
 
         try {
           await video.play();
@@ -223,7 +249,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
       } catch (err: unknown) {
         if (!destroyed) {
           setError((err as Error)?.message ?? "Failed to load video");
-          setIsLoading(false);
+          setIsInitializing(false);
         }
       }
     })();
@@ -238,9 +264,47 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         } catch {}
       }
       if (player) player.destroy?.();
-      playerRef.current = null;
+      // Only null out if we're the current player
+      if (playerRef.current === player) playerRef.current = null;
     };
   }, [manifestUrl]);
+
+  /* ─── Auto-play next video when store currentSong changes ─── */
+  useEffect(() => {
+    const newSongId = storeCurSong?.id;
+
+    // Skip if the song hasn't actually changed or modal just opened
+    if (!newSongId || newSongId === loadedSongIdRef.current) return;
+
+    console.log(
+      `[FullVideoModal] Song changed in store: "${loadedSongIdRef.current}" → "${newSongId}". Checking for video...`,
+    );
+
+    loadedSongIdRef.current = newSongId;
+
+    const hasVideo = Boolean(storeCurSong?.fullVideoKey || (storeCurSong as any)?.full_video_key);
+
+    if (hasVideo) {
+      // Next song has a video — update title/artist/poster displayed in the modal.
+      // The manifestUrl effect (above) will fire automatically because hlsUrl/dashUrl
+      // props will update from the parent re-render, but we also need to reset
+      // playback position for the new song.
+      startTimeRef.current = 0;
+      currentTimeRef.current = 0;
+      setCurrentTime(0);
+      console.log(`[FullVideoModal] Next song has video. Shaka will re-init via manifestUrl effect.`);
+    } else {
+      // Next song has no video — gracefully close the modal and let audio take over
+      console.log(`[FullVideoModal] Next song has no video. Auto-closing modal and resuming audio.`);
+      const v = videoRef.current;
+      if (v) {
+        try { v.pause(); } catch {}
+      }
+      playerActions.setIsVideoActive(false);
+      onClose(0);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeCurSong?.id]);
 
   /* ─── Two-Way Website Player Sync Listeners ─── */
   // 1. Sync external store play/pause -> video
@@ -334,6 +398,8 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
 
     const onEnded = () => {
       if (isCurrentSong) {
+        // playerActions.next() will update storeCurSong, which triggers the
+        // auto-next-video effect above to handle the modal transition.
         playerActions.next();
       }
     };
@@ -671,6 +737,36 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         onMouseEnter={resetControlsTimer}
         onClick={togglePlay}
       >
+        {/* ── Full-screen initializing overlay (black void → spinner + info) ── */}
+        {isInitializing && !error && (
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black gap-6 pointer-events-none">
+            {/* Poster image blurred in background */}
+            {posterUrl && (
+              <div
+                className="absolute inset-0 opacity-20 blur-2xl scale-110"
+                style={{ backgroundImage: `url(${posterUrl})`, backgroundSize: "cover", backgroundPosition: "center" }}
+              />
+            )}
+            {/* Spinner */}
+            <div className="relative z-10 flex flex-col items-center gap-5">
+              <div className="w-16 h-16 rounded-full border-4 border-white/10 border-t-primary animate-spin" />
+              {/* Song info while loading */}
+              <div className="flex flex-col items-center gap-1.5 max-w-xs px-6 text-center">
+                <div className="w-10 h-10 rounded-xl overflow-hidden bg-white/10 mb-1 shrink-0 flex items-center justify-center">
+                  {posterUrl ? (
+                    <img src={posterUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <Music size={20} className="text-zinc-400" />
+                  )}
+                </div>
+                <p className="text-white font-bold text-base leading-tight truncate w-full">{title}</p>
+                <p className="text-zinc-400 text-sm truncate w-full">{artistName}</p>
+                <p className="text-zinc-500 text-xs mt-1">Loading video…</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Top-Right Action Buttons: PiP & Close — hidden when in fullscreen */}
         {!isFullscreen && (
           <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-[220] flex items-center gap-2">
@@ -702,14 +798,15 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
           playsInline
         />
 
-        {isLoading && !error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50 pointer-events-none">
+        {/* Mid-playback buffering spinner (not shown during init — that's handled above) */}
+        {isLoading && !isInitializing && !error && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50 pointer-events-none z-20">
             <div className="w-14 h-14 border-4 border-white/20 border-t-primary rounded-full animate-spin" />
           </div>
         )}
 
         {error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/90">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-30">
             <div className="text-center px-8">
               <p className="text-red-400 font-bold text-lg mb-2">Playback Error</p>
               <p className="text-zinc-400 text-sm">{error}</p>
@@ -721,7 +818,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         <div
           className="absolute inset-0 flex flex-col justify-between overflow-hidden pointer-events-none"
           style={{
-            opacity: showControls ? 1 : 0,
+            opacity: showControls && !isInitializing ? 1 : 0,
             transition: "opacity 0.3s ease",
           }}
           onClick={(e) => e.stopPropagation()}

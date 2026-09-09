@@ -23,6 +23,8 @@ export const sessionActions = {
     if (typeof window !== "undefined") {
       localStorage.removeItem("last_queue");
       localStorage.removeItem("last_queue_index");
+      localStorage.removeItem("last_current_song");
+      localStorage.removeItem("last_current_time");
     }
     playerStore.setState((s) => ({
       ...s,

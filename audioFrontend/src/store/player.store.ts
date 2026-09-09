@@ -29,8 +29,22 @@ export const playerActions = {
       const savedTime = localStorage.getItem("last_current_time");
       const parsedTime = savedTime ? parseFloat(savedTime) : 0;
 
+      // Restore persisted current song
+      let restoredSong: any = null;
+      try {
+        const savedSong = localStorage.getItem("last_current_song");
+        if (savedSong) {
+          const parsed = JSON.parse(savedSong);
+          if (parsed && typeof parsed === "object" && typeof parsed.id === "string" && parsed.id) {
+            restoredSong = parsed;
+          }
+        }
+      } catch {
+        // ignore
+      }
+
       playerStore.setState((s) => {
-        return {
+        const nextState: typeof s = {
           ...s,
           currentTime:
             !isNaN(parsedTime) && parsedTime > 0 ? parsedTime : s.currentTime,
@@ -43,6 +57,18 @@ export const playerActions = {
           isShuffle:
             savedShuffle !== null ? savedShuffle === "true" : s.isShuffle,
         };
+
+        // If store has no currentSong yet but we have one persisted, restore it
+        if (!s.currentSong && restoredSong) {
+          nextState.currentSong = restoredSong;
+          // Seed queue with the restored song if queue is empty
+          if (s.queue.length === 0) {
+            nextState.queue = [restoredSong];
+            nextState.lastQueueIndex = 0;
+          }
+        }
+
+        return nextState;
       });
     } catch (err) {
       console.error("[PlayerStore] Hydration failed:", err);

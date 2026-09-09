@@ -73,6 +73,22 @@ const _initPlaybackTime = (() => {
   }
 })();
 
+const _initCurrentSong = (() => {
+  if (typeof window === "undefined") return null;
+  try {
+    const saved = localStorage.getItem("last_current_song");
+    if (!saved) return null;
+    const parsed = JSON.parse(saved);
+    // Basic shape validation
+    if (parsed && typeof parsed === "object" && typeof parsed.id === "string" && parsed.id) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+})();
+
 const _initRepeatMode = (() => {
   if (typeof window === "undefined") return "none";
   try {
@@ -94,7 +110,7 @@ const _initShuffle = (() => {
 })();
 
 export const playerStore = new Store<PlayerState>({
-  currentSong: null,
+  currentSong: _initCurrentSong,
   isPlaying: false,
   currentTime: _initPlaybackTime,
   seekTarget: null,
@@ -124,7 +140,7 @@ export const playerStore = new Store<PlayerState>({
   playbackRate: 1,
 });
 
-// Hydrate token, repeatMode, isShuffle, and currentTime on client side only
+// Hydrate token, repeatMode, isShuffle, currentTime, and currentSong on client side only
 if (typeof window !== "undefined") {
   const token = localStorage.getItem("system_token");
   const refreshToken = localStorage.getItem("system_refresh_token");
@@ -137,16 +153,33 @@ if (typeof window !== "undefined") {
   const savedTime = localStorage.getItem("last_current_time");
   const parsedTime = savedTime ? parseFloat(savedTime) : 0;
 
-  playerStore.setState((s) => ({
-    ...s,
-    systemToken: token || s.systemToken,
-    systemRefreshToken: refreshToken || s.systemRefreshToken,
-    currentTime: !isNaN(parsedTime) && parsedTime > 0 ? parsedTime : s.currentTime,
+  const updates: Partial<PlayerState> = {
+    systemToken: token || undefined,
+    systemRefreshToken: refreshToken || undefined,
+    currentTime: !isNaN(parsedTime) && parsedTime > 0 ? parsedTime : undefined,
     repeatMode:
       savedRepeat === "none" || savedRepeat === "all" || savedRepeat === "one"
         ? savedRepeat
-        : s.repeatMode,
+        : undefined,
     isShuffle:
-      savedShuffle !== null ? savedShuffle === "true" : s.isShuffle,
+      savedShuffle !== null ? savedShuffle === "true" : undefined,
+  };
+
+  // If we restored a currentSong, also seed the queue with it so
+  // queue-dependent logic (next/prev, lastQueueIndex) works correctly.
+  if (_initCurrentSong) {
+    const seedQueue = [_initCurrentSong];
+    updates.queue = seedQueue;
+    updates.lastQueueIndex = 0;
+  }
+
+  playerStore.setState((s) => ({
+    ...s,
+    ...(updates.systemToken !== undefined && { systemToken: updates.systemToken }),
+    ...(updates.systemRefreshToken !== undefined && { systemRefreshToken: updates.systemRefreshToken }),
+    ...(updates.currentTime !== undefined && { currentTime: updates.currentTime }),
+    ...(updates.repeatMode !== undefined && { repeatMode: updates.repeatMode }),
+    ...(updates.isShuffle !== undefined && { isShuffle: updates.isShuffle }),
+    ...(updates.queue !== undefined && { queue: updates.queue, lastQueueIndex: updates.lastQueueIndex }),
   }));
 }
