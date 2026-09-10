@@ -45,8 +45,8 @@ export function usePlayerShortcuts({
         activeEl instanceof HTMLTextAreaElement ||
         (activeEl as HTMLElement)?.isContentEditable;
 
-      // Cmd+K or Ctrl+K: Spotlight Command Palette (can be opened even from anywhere)
-      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
+      // Cmd+K or Ctrl+K or Cmd+/ or Ctrl+/: Spotlight Command Palette
+      if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K" || e.key === "/")) {
         e.preventDefault();
         if (setShowCommandPalette) {
           setShowCommandPalette((v) => !v);

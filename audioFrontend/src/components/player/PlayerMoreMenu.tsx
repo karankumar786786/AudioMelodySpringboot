@@ -4,9 +4,6 @@ import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MoreHorizontal,
-  Sparkles,
-  Headphones,
-  Waves,
   Sliders,
   Moon,
   Share2,
@@ -53,10 +50,8 @@ export const PlayerMoreMenu: React.FC<PlayerMoreMenuProps> = ({
 
   const playbackRate = useStore(playerStore, (s) => s.playbackRate || 1);
 
-  // Active status badge on the 3-dot trigger button if any audio enhancements or timer are on
+  // Active status badge on the 3-dot trigger button if any enhancements or timer are on
   const isEnhancementActive =
-    isBassBoostEnabled ||
-    isSpatialAudioEnabled ||
     Boolean(sleepTimerMode) ||
     playbackRate !== 1;
 
@@ -129,65 +124,7 @@ export const PlayerMoreMenu: React.FC<PlayerMoreMenuProps> = ({
             transition={{ duration: 0.15 }}
             className="absolute right-0 bottom-full mb-3 w-72 rounded-2xl bg-[#181818]/95 border border-white/15 shadow-2xl p-2 z-50 backdrop-blur-2xl divide-y divide-white/10 select-none text-zinc-300"
           >
-            {/* Section 1: Audio FX Enhancements (Bass & 3D Spatial) */}
-            <div className="p-1 space-y-1.5 pb-2">
-              <div className="flex items-center justify-between px-1.5 pt-0.5">
-                <span className="text-[11px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                  <Sparkles size={12} className="text-primary" /> Audio Enhancements
-                </span>
-                {(isBassBoostEnabled || isSpatialAudioEnabled) && (
-                  <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full border border-primary/20">
-                    Active
-                  </span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-2 gap-1.5">
-                <PlayerTooltip content="Immersive 3D binaural stereo field" className="w-full">
-                  <button
-                    type="button"
-                    onClick={handleSpatialClick}
-                    className={`w-full flex flex-col items-start p-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-                      isSpatialAudioEnabled
-                        ? "bg-primary/15 border-primary/40 text-primary shadow-sm"
-                        : "bg-white/5 border-white/5 text-zinc-300 hover:bg-white/10 hover:text-white"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full mb-1">
-                      <Headphones
-                        size={14}
-                        className={isSpatialAudioEnabled ? "text-primary" : "text-zinc-400"}
-                      />
-                      {isSpatialAudioEnabled && <Check size={12} className="text-primary" />}
-                    </div>
-                    <span className="text-[11.5px] leading-tight">3D Spatial</span>
-                  </button>
-                </PlayerTooltip>
-
-                <PlayerTooltip content="Punchy +7dB low-shelf boost at 80Hz" className="w-full">
-                  <button
-                    type="button"
-                    onClick={handleBassClick}
-                    className={`w-full flex flex-col items-start p-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
-                      isBassBoostEnabled
-                        ? "bg-primary/15 border-primary/40 text-primary shadow-sm"
-                        : "bg-white/5 border-white/5 text-zinc-300 hover:bg-white/10 hover:text-white"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full mb-1">
-                      <Waves
-                        size={14}
-                        className={isBassBoostEnabled ? "text-primary" : "text-zinc-400"}
-                      />
-                      {isBassBoostEnabled && <Check size={12} className="text-primary" />}
-                    </div>
-                    <span className="text-[11.5px] leading-tight">Sub-Bass +7dB</span>
-                  </button>
-                </PlayerTooltip>
-              </div>
-            </div>
-
-            {/* Section 2: Audio Tools (Equalizer & Sleep Timer) */}
+            {/* Section 1: Audio Tools (Equalizer & Sleep Timer) */}
             <div className="py-1.5 space-y-0.5">
               <PlayerTooltip content="Open 10-band graphic equalizer & spectrum visualizer" shortcut="E" className="w-full">
                 <button
