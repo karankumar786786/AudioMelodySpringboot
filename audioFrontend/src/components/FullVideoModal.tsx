@@ -17,13 +17,11 @@ import {
   Minimize2,
   ChevronDown,
   PictureInPicture2,
-  Music,
 } from "lucide-react";
 
 import { useStore } from "@tanstack/react-store";
 import { playerStore, playerActions } from "@/store/player.store";
 import { PlayerTooltip } from "./player/PlayerTooltip";
-
 
 interface FullVideoModalProps {
   /** Shaka-packaged HLS URL e.g. https://…/videos/<songId>/master.m3u8 */
@@ -73,12 +71,11 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   const playerRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Subscribe to store — used for two-way sync AND detecting song changes for auto-next-video
+  // Subscribe to store — used for two-way sync
   const storeIsPlaying = useStore(playerStore, (s) => s.isPlaying);
   const storeVolume = useStore(playerStore, (s) => s.volume);
   const storeIsMuted = useStore(playerStore, (s) => s.isMuted);
   const storeSeekTarget = useStore(playerStore, (s) => s.seekTarget);
-  const storeCurSong = useStore(playerStore, (s) => s.currentSong);
 
   // Determine if this full video is for the currently active song in the audio player
   const isCurrentSong = songId
@@ -93,9 +90,6 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         ? playerStore.state.currentTime || 0
         : 0,
   );
-
-  // Track whether audio was playing when modal opened so we can resume on close
-  const wasAudioPlayingRef = useRef<boolean>(playerStore.state.isPlaying);
 
   // Keep a ref to the latest currentTime so unmount cleanup always has the exact timestamp
   const currentTimeRef = useRef<number>(startTimeRef.current);
@@ -131,9 +125,6 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   const [showControls, setShowControls] = useState(true);
   const controlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Track the song ID that is currently loaded in Shaka so we can detect changes
-  const loadedSongIdRef = useRef<string | undefined>(songId);
-
   // Sync fullscreen state
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -159,7 +150,11 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   /* ─── Shaka Player init ─── */
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !manifestUrl) return;
+    if (!video || !manifestUrl) {
+      console.warn(`[VideoInit] ❌ SKIP: video=${!!video}, manifestUrl="${manifestUrl}"`);
+      return;
+    }
+    console.log(`[VideoInit] ─── Starting Shaka init for: ${manifestUrl}`);
     let destroyed = false;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let player: any;
@@ -173,10 +168,15 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     setQualityLevels([]);
     setSelectedQuality(-1);
 
+
     (async () => {
       try {
+        console.log(`[VideoInit] 1️⃣ Loading shaka-player library...`);
         const shaka = await loadShaka();
         if (shaka.polyfill?.installAll) shaka.polyfill.installAll();
+        console.log(`[VideoInit] 2️⃣ Shaka loaded. destroyed=${destroyed}`);
+
+        if (destroyed) { console.log(`[VideoInit] ❌ Aborted (destroyed after shaka load)`); return; }
 
         if (shaka.Player?.isBrowserSupported && !shaka.Player.isBrowserSupported()) {
           setError("Your browser does not support adaptive streaming.");
@@ -186,21 +186,26 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
 
         // Destroy previous Shaka instance if it exists (for song transitions)
         if (playerRef.current) {
+          console.log(`[VideoInit] 3️⃣ Destroying previous Shaka player...`);
           try {
             await playerRef.current.destroy();
           } catch {}
           playerRef.current = null;
         }
 
+        console.log(`[VideoInit] 4️⃣ Creating new Shaka player + attaching to video element...`);
         player = new shaka.Player();
         await player.attach(video);
         playerRef.current = player;
+
+        if (destroyed) { console.log(`[VideoInit] ❌ Aborted (destroyed after attach)`); return; }
 
         player.configure({ streaming: { bufferingGoal: 30, rebufferingGoal: 2 } });
 
         player.addEventListener("error", (e: Event) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const detail = (e as any).detail;
+          console.error(`[VideoInit] ❌ Shaka error event:`, detail);
           if (!destroyed) setError(`Playback error: ${detail?.message ?? "Unknown"}`);
         });
 
@@ -208,15 +213,16 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const isBuffering = Boolean((e as any).buffering);
           isBufferingRef.current = isBuffering;
-          // Only show the mid-playback buffering spinner after initial load is done
-          if (!destroyed && !isInitializing) setIsLoading(isBuffering);
+          if (!destroyed) setIsLoading(isBuffering);
         });
 
-        // Pass the captured start time to Shaka so it can start buffering at the right position immediately
+        // Pass the captured start time to Shaka
         const startTime = startTimeRef.current;
+        console.log(`[VideoInit] 5️⃣ Loading manifest: ${manifestUrl} (startTime=${startTime})`);
         await player.load(manifestUrl, startTime > 0 ? startTime : 0);
+        console.log(`[VideoInit] 6️⃣ Manifest loaded! destroyed=${destroyed}`);
 
-        if (destroyed) return;
+        if (destroyed) { console.log(`[VideoInit] ❌ Aborted (destroyed after manifest load)`); return; }
 
         // Belt-and-suspenders: also set it on the video element after load
         if (startTime > 0) {
@@ -238,15 +244,20 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         });
         levels.sort((a, b) => b.height - a.height);
         setQualityLevels(levels);
-        // Done initializing — hide the full-screen loader
+        // Done initializing
         setIsInitializing(false);
+        console.log(`[VideoInit] 7️⃣ Init complete. Attempting video.play()...`);
 
         try {
           await video.play();
           setIsPlaying(true);
           playerActions.setIsPlaying(true);
-        } catch { /* autoplay blocked */ }
+          console.log(`[VideoInit] ✅ video.play() succeeded!`);
+        } catch (playErr) {
+          console.warn(`[VideoInit] ⚠️ video.play() failed (autoplay blocked?):`, playErr);
+        }
       } catch (err: unknown) {
+        console.error(`[VideoInit] ❌ Exception during init:`, err);
         if (!destroyed) {
           setError((err as Error)?.message ?? "Failed to load video");
           setIsInitializing(false);
@@ -255,63 +266,20 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     })();
 
     return () => {
+      console.log(`[VideoInit] 🧹 Cleanup running for: ${manifestUrl}`);
       destroyed = true;
-      if (video) {
-        try {
-          video.pause();
-          video.src = "";
-          video.load();
-        } catch {}
+      if (player) {
+        try { player.destroy(); } catch {}
       }
-      if (player) player.destroy?.();
-      // Only null out if we're the current player
       if (playerRef.current === player) playerRef.current = null;
     };
   }, [manifestUrl]);
-
-  /* ─── Auto-play next video when store currentSong changes ─── */
-  useEffect(() => {
-    const newSongId = storeCurSong?.id;
-
-    // Skip if the song hasn't actually changed or modal just opened
-    if (!newSongId || newSongId === loadedSongIdRef.current) return;
-
-    console.log(
-      `[FullVideoModal] Song changed in store: "${loadedSongIdRef.current}" → "${newSongId}". Checking for video...`,
-    );
-
-    loadedSongIdRef.current = newSongId;
-
-    const hasVideo = Boolean(storeCurSong?.fullVideoKey || (storeCurSong as any)?.full_video_key);
-
-    if (hasVideo) {
-      // Next song has a video — update title/artist/poster displayed in the modal.
-      // The manifestUrl effect (above) will fire automatically because hlsUrl/dashUrl
-      // props will update from the parent re-render, but we also need to reset
-      // playback position for the new song.
-      startTimeRef.current = 0;
-      currentTimeRef.current = 0;
-      setCurrentTime(0);
-      console.log(`[FullVideoModal] Next song has video. Shaka will re-init via manifestUrl effect.`);
-    } else {
-      // Next song has no video — gracefully close the modal and let audio take over
-      console.log(`[FullVideoModal] Next song has no video. Auto-closing modal and resuming audio.`);
-      const v = videoRef.current;
-      if (v) {
-        try { v.pause(); } catch {}
-      }
-      playerActions.setIsVideoActive(false);
-      onClose(0);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeCurSong?.id]);
 
   /* ─── Two-Way Website Player Sync Listeners ─── */
   // 1. Sync external store play/pause -> video
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
-    console.log("[FullVideoModal] storeIsPlaying effect -> storeIsPlaying:", storeIsPlaying, "v.paused:", v.paused);
     if (storeIsPlaying && v.paused) {
       v.play().catch(() => {});
     } else if (!storeIsPlaying && !v.paused) {
@@ -378,28 +346,32 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     };
 
     const onPlay = () => {
-      console.log("[FullVideoModal] video.onplay event. isBuffering:", isBufferingRef.current);
       if (isBufferingRef.current) return;
       setIsPlaying(true);
+      playerActions.setIsPlaying(true);
     };
 
     const onPause = () => {
-      console.log(
-        "[FullVideoModal] video.onpause event. isBuffering:",
-        isBufferingRef.current,
-        "seeking:",
-        video.seeking,
-        "ended:",
-        video.ended,
-      );
       if (video.seeking || video.ended || isBufferingRef.current) return;
       setIsPlaying(false);
+      playerActions.setIsPlaying(false);
     };
 
     const onEnded = () => {
       if (isCurrentSong) {
-        // playerActions.next() will update storeCurSong, which triggers the
-        // auto-next-video effect above to handle the modal transition.
+        console.log(`[FullVideoModal] Video ended. Closing modal and advancing to next song.`);
+        // Close the video modal first
+        const v = videoRef.current;
+        if (v) { try { v.pause(); } catch {} }
+        // Reset time for the next song
+        playerActions.setCurrentTime(0);
+        playerActions.setSeekTarget(null);
+        if (typeof window !== "undefined") {
+          localStorage.setItem("last_current_time", "0");
+        }
+        playerActions.setIsVideoActive(false);
+        onClose(0);
+        // Advance to next song — audio player will handle playback
         playerActions.next();
       }
     };
@@ -441,7 +413,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     playerActions.setIsMuted(nextMuted);
   }, []);
 
-  // Seamless Close: sync the video's stop time back to the audio player and resume playback
+  // Seamless Close: sync the video's final time back to the single store state and resume audio playback
   const handleClose = useCallback(() => {
     const v = videoRef.current;
     const finalTime = v && isFinite(v.currentTime) ? v.currentTime : currentTimeRef.current;
@@ -451,15 +423,20 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
       } catch {}
     }
     if (isCurrentSong && typeof finalTime === "number" && isFinite(finalTime) && finalTime >= 0) {
+      // Write the video's current position into the single store state
+      // so the audio player resumes from the exact same point
       playerActions.seek(finalTime);
       playerActions.setCurrentTime(finalTime);
-      if (wasAudioPlayingRef.current || isPlaying) {
-        playerActions.setIsPlaying(true);
+      // Also persist to localStorage so it survives page reloads
+      if (typeof window !== "undefined") {
+        localStorage.setItem("last_current_time", finalTime.toFixed(2));
       }
     }
+    // Always resume playback when closing video (user expects audio to continue)
+    playerActions.setIsPlaying(true);
     playerActions.setIsVideoActive(false);
     onClose(finalTime);
-  }, [isCurrentSong, isPlaying, onClose]);
+  }, [isCurrentSong, onClose]);
 
   /* ─── Quality switching ─── */
   const applyQuality = (height: number) => {
@@ -645,7 +622,6 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         <video
           ref={videoRef}
           className="w-full h-full object-contain"
-          poster={posterUrl}
           playsInline
         />
 
@@ -737,64 +713,25 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         onMouseEnter={resetControlsTimer}
         onClick={togglePlay}
       >
-        {/* ── Full-screen initializing overlay (black void → spinner + info) ── */}
+        {/* ── Full-screen initializing overlay — clean spinner, no album art ── */}
         {isInitializing && !error && (
-          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black gap-6 pointer-events-none">
-            {/* Poster image blurred in background */}
-            {posterUrl && (
-              <div
-                className="absolute inset-0 opacity-20 blur-2xl scale-110"
-                style={{ backgroundImage: `url(${posterUrl})`, backgroundSize: "cover", backgroundPosition: "center" }}
-              />
-            )}
-            {/* Spinner */}
-            <div className="relative z-10 flex flex-col items-center gap-5">
-              <div className="w-16 h-16 rounded-full border-4 border-white/10 border-t-primary animate-spin" />
-              {/* Song info while loading */}
-              <div className="flex flex-col items-center gap-1.5 max-w-xs px-6 text-center">
-                <div className="w-10 h-10 rounded-xl overflow-hidden bg-white/10 mb-1 shrink-0 flex items-center justify-center">
-                  {posterUrl ? (
-                    <img src={posterUrl} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    <Music size={20} className="text-zinc-400" />
-                  )}
-                </div>
-                <p className="text-white font-bold text-base leading-tight truncate w-full">{title}</p>
-                <p className="text-zinc-400 text-sm truncate w-full">{artistName}</p>
-                <p className="text-zinc-500 text-xs mt-1">Loading video…</p>
+          <div
+            className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-black/95 pointer-events-none"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative z-10 flex flex-col items-center gap-4">
+              <div className="w-12 h-12 rounded-full border-[3px] border-white/10 border-t-white animate-spin" />
+              <div className="flex flex-col items-center gap-1 max-w-xs px-6 text-center">
+                <p className="text-white/90 font-semibold text-sm leading-tight truncate w-full">{title}</p>
+                <p className="text-zinc-500 text-xs truncate w-full">{artistName}</p>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Top-Right Action Buttons: PiP & Close — hidden when in fullscreen */}
-        {!isFullscreen && (
-          <div className="absolute top-4 right-4 sm:top-6 sm:right-6 z-[220] flex items-center gap-2">
-            <PlayerTooltip content="Picture-in-Picture" shortcut="P" side="bottom">
-              <button
-                onClick={(e) => { e.stopPropagation(); togglePip(); }}
-                className="p-2.5 rounded-full bg-black/70 hover:bg-black/90 text-white transition-all cursor-pointer border border-white/20 backdrop-blur-md shadow-lg"
-                aria-label="Picture-in-Picture"
-              >
-                <PictureInPicture2 size={18} />
-              </button>
-            </PlayerTooltip>
-            <PlayerTooltip content="Close" shortcut={["Esc", "V"]} side="bottom" align="end">
-              <button
-                onClick={(e) => { e.stopPropagation(); handleClose(); }}
-                className="p-2.5 rounded-full bg-black/70 hover:bg-black/90 text-white transition-all cursor-pointer border border-white/20 backdrop-blur-md shadow-lg"
-                aria-label="Close full video"
-              >
-                <X size={18} />
-              </button>
-            </PlayerTooltip>
           </div>
         )}
 
         <video
           ref={videoRef}
           className="w-full h-full object-contain"
-          poster={posterUrl}
           playsInline
         />
 
@@ -823,14 +760,34 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Top: title */}
+          {/* Top: title + PiP/Close (all inside the auto-hiding controls overlay) */}
           <div
             className="flex items-center justify-between px-6 sm:px-8 pt-6 pb-16 pointer-events-auto"
             style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.85), transparent)" }}
           >
-            <div className="min-w-0 pr-24">
+            <div className="min-w-0 flex-1 pr-4">
               <h2 className="text-white font-bold text-lg sm:text-xl leading-tight truncate">{title}</h2>
               <p className="text-zinc-300 text-xs sm:text-sm truncate mt-0.5">{artistName}</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <PlayerTooltip content="Picture-in-Picture" shortcut="P" side="bottom">
+                <button
+                  onClick={(e) => { e.stopPropagation(); togglePip(); }}
+                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer backdrop-blur-sm"
+                  aria-label="Picture-in-Picture"
+                >
+                  <PictureInPicture2 size={16} />
+                </button>
+              </PlayerTooltip>
+              <PlayerTooltip content="Close" shortcut={["Esc", "V"]} side="bottom" align="end">
+                <button
+                  onClick={(e) => { e.stopPropagation(); handleClose(); }}
+                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer backdrop-blur-sm"
+                  aria-label="Close full video"
+                >
+                  <X size={16} />
+                </button>
+              </PlayerTooltip>
             </div>
           </div>
 

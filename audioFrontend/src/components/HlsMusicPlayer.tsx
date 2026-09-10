@@ -353,11 +353,11 @@ export function HlsMusicPlayer() {
         songTitle={currentSong.title}
       />
 
-      {/* Full Video Modal — keep mounted while open; internal logic handles no-video auto-close */}
-      {state.isFullVideoOpen && (
+      {/* Full Video Modal */}
+      {state.isFullVideoOpen && (currentSong.fullVideoKey || (currentSong as any).full_video_key) && (
         <FullVideoModal
           songId={currentSong.id}
-          hlsUrl={getFullVideoHlsUrl(currentSong) || ""}
+          hlsUrl={getFullVideoHlsUrl(currentSong)!}
           dashUrl={getFullVideoDashUrl(currentSong)}
           title={currentSong.title}
           artistName={currentSong.artistName}
