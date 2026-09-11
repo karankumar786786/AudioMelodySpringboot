@@ -16,8 +16,17 @@ import {
   Sparkles,
   Command,
   Loader2,
+  Trash2,
 } from "lucide-react";
-import { musicApi, Song, Artist, Playlist } from "@/lib/api";
+import {
+  musicApi,
+  Song,
+  Artist,
+  Playlist,
+  UserPlaylist,
+  SearchHistoryItem,
+  SaveSearchHistoryPayload,
+} from "@/lib/api";
 import { getImageUrl } from "@/lib/image-utils";
 import { mapToPlayerSong } from "@/lib/player-utils";
 import { previewPlayer } from "@/lib/preview-player";
@@ -34,6 +43,7 @@ type TabType = "all" | "songs" | "artists" | "playlists";
 
 interface NavigableItem {
   id: string;
+  historyId?: string;
   type: "song" | "artist" | "playlist" | "history";
   title: string;
   subtitle?: string;
@@ -83,39 +93,83 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     enabled: isOpen && debouncedQuery.length > 0,
   });
 
-  // Fetch search history
-  const { data: searchHistory } = useQuery({
+  // Fetch structured search history
+  const { data: searchHistoryData, isLoading: isHistoryLoading } = useQuery({
     queryKey: ["command-palette-history", systemUser?.id],
-    queryFn: () => musicApi.users.getSearchHistory(1, 6),
+    queryFn: () => musicApi.users.getSearchHistory(),
     enabled: isOpen && !!systemUser?.id && !debouncedQuery,
   });
 
   const saveHistory = useMutation({
-    mutationFn: (text: string) => musicApi.users.saveSearchHistory(text),
+    mutationFn: (payload: SaveSearchHistoryPayload) =>
+      musicApi.users.saveSearchHistory(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["command-palette-history"] });
       queryClient.invalidateQueries({ queryKey: ["search-history"] });
     },
   });
 
+  const deleteHistoryItem = useMutation({
+    mutationFn: (id: string) => musicApi.users.deleteSearchHistoryItem(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["command-palette-history"] });
+      queryClient.invalidateQueries({ queryKey: ["search-history"] });
+    },
+  });
+
+  const clearHistory = useMutation({
+    mutationFn: () => musicApi.users.clearSearchHistory(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["command-palette-history"] });
+      queryClient.invalidateQueries({ queryKey: ["search-history"] });
+      toast.success("Search history cleared");
+    },
+  });
+
   const rawSongs: Song[] = searchResults?.data?.songs || [];
   const rawArtists: Artist[] = searchResults?.data?.artists || [];
   const rawPlaylists: Playlist[] = searchResults?.data?.playlists || [];
-  const rawUserPlaylists: any[] = searchResults?.data?.userPlaylists || [];
-  const historyList: string[] = (searchHistory?.data?.data || [])
-  .map((h: any) => (typeof h === "string" ? h : h?.searchedText))
-  .filter(Boolean);
+  const rawUserPlaylists: UserPlaylist[] = searchResults?.data?.userPlaylists || [];
+  const recentHistory: SearchHistoryItem[] = searchHistoryData?.data?.recent || [];
 
   // Build flattened list for keyboard navigation
   const items: NavigableItem[] = useMemo(() => {
     if (!debouncedQuery) {
-      return historyList.map((h, i) => ({
-        id: `history-${i}`,
-        type: "history" as const,
-        title: h,
-        subtitle: "Recent Search",
-        data: h,
-      }));
+      return recentHistory
+        .filter((item) => (item.type === "SONG" && item.song) || (item.type === "ARTIST" && item.artist) || (item.type === "PLAYLIST" && item.playlist))
+        .map((item) => {
+          if (item.type === "SONG" && item.song) {
+            return {
+              id: item.id,
+              historyId: item.id,
+              type: "song" as const,
+              title: item.song.title,
+              subtitle: item.song.artistName || "Recent Song",
+              imageKey: item.song.imageKey,
+              data: item.song,
+            };
+          }
+          if (item.type === "ARTIST" && item.artist) {
+            return {
+              id: item.id,
+              historyId: item.id,
+              type: "artist" as const,
+              title: item.artist.name,
+              subtitle: "Recent Artist",
+              imageKey: item.artist.coverImageKey,
+              data: item.artist,
+            };
+          }
+          return {
+            id: item.id,
+            historyId: item.id,
+            type: "playlist" as const,
+            title: item.playlist?.name || "Recent Playlist",
+            subtitle: "Recent Playlist",
+            imageKey: item.playlist?.coverImageKey,
+            data: { ...item.playlist, isUserPlaylist: false },
+          };
+        });
     }
 
     const list: NavigableItem[] = [];
@@ -170,7 +224,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     }
 
     return list;
-  }, [debouncedQuery, activeTab, rawSongs, rawArtists, rawPlaylists, rawUserPlaylists, historyList]);
+  }, [debouncedQuery, activeTab, rawSongs, rawArtists, rawPlaylists, rawUserPlaylists, recentHistory]);
 
   // Keep selected index in bounds
   useEffect(() => {
@@ -193,11 +247,15 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       toast.success("Playing song", {
         description: `Now playing "${item.title}"`,
       });
-      if (systemUser?.id) saveHistory.mutate(item.title);
+      if (systemUser?.id && item.data.id) {
+        saveHistory.mutate({ type: "SONG", songId: item.data.id });
+      }
       onClose();
     } else if (item.type === "artist") {
       router.push(`/artists/${item.data.id}`);
-      if (systemUser?.id) saveHistory.mutate(item.title);
+      if (systemUser?.id && item.data.id) {
+        saveHistory.mutate({ type: "ARTIST", artistId: item.data.id });
+      }
       onClose();
     } else if (item.type === "playlist") {
       if (item.data?.isUserPlaylist) {
@@ -205,10 +263,10 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       } else {
         router.push(`/playlists/${item.data.id}`);
       }
-      if (systemUser?.id) saveHistory.mutate(item.title);
+      if (systemUser?.id && item.data.id) {
+        saveHistory.mutate({ type: "PLAYLIST", playlistId: item.data.id });
+      }
       onClose();
-    } else if (item.type === "history") {
-      setQuery(item.data);
     }
   };
 
@@ -275,7 +333,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
           </kbd>
         </div>
 
-        {/* Filter Category Tabs */}
+        {/* Filter Category Tabs (When searching) */}
         {debouncedQuery.length > 0 && (
           <div className="flex items-center gap-1.5 px-4 py-2 border-b border-white/5 bg-zinc-900/40 text-xs">
             {(["all", "songs", "artists", "playlists"] as TabType[]).map((tab) => {
@@ -314,6 +372,20 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
           ref={listRef}
           className="max-h-[50vh] overflow-y-auto no-scrollbar p-2 space-y-1"
         >
+          {!debouncedQuery && recentHistory.length > 0 && (
+            <div className="px-3 py-1.5 flex items-center justify-between text-xs text-zinc-400">
+              <span className="font-semibold text-zinc-400">Recent Searches</span>
+              <button
+                type="button"
+                onClick={() => clearHistory.mutate()}
+                className="text-[11px] font-medium text-zinc-500 hover:text-red-400 flex items-center gap-1 transition-colors"
+              >
+                <Trash2 size={12} />
+                Clear
+              </button>
+            </div>
+          )}
+
           {items.length > 0 ? (
             items.map((item, idx) => {
               const isSelected = idx === selectedIndex;
@@ -337,7 +409,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                     }
                   }}
                   onClick={() => handleSelectItem(item)}
-                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-colors select-none ${
+                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-colors select-none group ${
                     isSelected
                       ? "bg-white/10 text-white"
                       : "text-zinc-300 hover:bg-white/5"
@@ -354,7 +426,11 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                         onPlayClick={() => handleSelectItem(item)}
                       />
                     ) : (
-                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 shrink-0 flex items-center justify-center border border-white/5">
+                      <div
+                        className={`w-10 h-10 overflow-hidden bg-zinc-800 shrink-0 flex items-center justify-center border border-white/5 ${
+                          item.type === "artist" ? "rounded-full" : "rounded-lg"
+                        }`}
+                      >
                         {imageUrl ? (
                           <img
                             src={imageUrl}
@@ -390,12 +466,25 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                     </div>
                   </div>
 
-                  {/* Action Pill / Indicator */}
+                  {/* Action Indicators */}
                   <div className="shrink-0 flex items-center gap-1.5 pl-3">
                     {item.type === "song" && (
                       <span className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-xs text-primary font-medium">
                         <Play size={12} fill="currentColor" /> Play
                       </span>
+                    )}
+                    {item.historyId && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteHistoryItem.mutate(item.historyId!);
+                        }}
+                        className="p-1 rounded-full text-zinc-500 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Remove"
+                      >
+                        <X size={13} />
+                      </button>
                     )}
                     {isSelected && (
                       <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white/10 text-[10px] font-mono text-zinc-300">

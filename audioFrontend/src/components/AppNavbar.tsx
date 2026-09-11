@@ -12,11 +12,22 @@ import {
   Search,
   User,
   BookmarkPlus,
+  X,
+  Trash2,
+  Music,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { musicApi } from "@/lib/api";
+import {
+  musicApi,
+  SaveSearchHistoryPayload,
+  SearchHistoryItem,
+  Song,
+  Artist,
+  Playlist,
+  UserPlaylist,
+} from "@/lib/api";
 import { getImageUrl } from "@/lib/image-utils";
 import { mapToPlayerSong } from "@/lib/player-utils";
 import { previewPlayer } from "@/lib/preview-player";
@@ -32,6 +43,7 @@ export function AppNavbar() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const menuRef = useRef<HTMLDivElement>(null);
+
   const getGreeting = () => {
     const hrs = new Date().getHours();
     if (hrs < 12) return "Good Morning";
@@ -49,10 +61,10 @@ export function AppNavbar() {
     return () => clearTimeout(timer);
   }, [query]);
 
-  // Fetch History
-  const { data: searchHistory } = useQuery({
+  // Fetch History (returns grouped + recent items)
+  const { data: searchHistoryData, isLoading: isHistoryLoading } = useQuery({
     queryKey: ["search-history", systemUser?.id],
-    queryFn: () => musicApi.users.getSearchHistory(1, 5),
+    queryFn: () => musicApi.users.getSearchHistory(),
     enabled: !!systemUser?.id && isFocused && !query.trim(),
   });
 
@@ -64,45 +76,75 @@ export function AppNavbar() {
   });
 
   const saveHistory = useMutation({
-    mutationFn: (text: string) => musicApi.users.saveSearchHistory(text),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["search-history"] }),
+    mutationFn: (payload: SaveSearchHistoryPayload) =>
+      musicApi.users.saveSearchHistory(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["search-history"] });
+      queryClient.invalidateQueries({ queryKey: ["command-palette-history"] });
+    },
+  });
+
+  const deleteHistoryItem = useMutation({
+    mutationFn: (id: string) => musicApi.users.deleteSearchHistoryItem(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["search-history"] });
+      queryClient.invalidateQueries({ queryKey: ["command-palette-history"] });
+    },
+  });
+
+  const clearHistory = useMutation({
+    mutationFn: () => musicApi.users.clearSearchHistory(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["search-history"] });
+      queryClient.invalidateQueries({ queryKey: ["command-palette-history"] });
+      toast.success("Search history cleared");
+    },
   });
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    // Search results are rendered dynamically on typing; do not persist query on form submit
   };
 
-  const handleRecentClick = (text: string) => {
-    setQuery(text);
+  const handleRecentClick = (item: SearchHistoryItem) => {
+    if (item.type === "SONG" && item.song) {
+      handlePlaySong(item.song);
+    } else if (item.type === "ARTIST" && item.artist) {
+      handleArtistClick(item.artist);
+    } else if (item.type === "PLAYLIST" && item.playlist) {
+      handlePlaylistClick(item.playlist);
+    }
   };
 
-  const handlePlaySong = (song: any) => {
+  const handlePlaySong = (song: Song) => {
     previewPlayer.stopPreview(true);
     playerActions.play(mapToPlayerSong(song));
     toast.success("Playing Song", {
       description: `Starting playback for "${song.title}"...`,
     });
-    if (systemUser?.id) saveHistory.mutate(song.title);
+    if (systemUser?.id && song.id) {
+      saveHistory.mutate({ type: "SONG", songId: song.id });
+    }
     setIsFocused(false);
   };
 
-  const handleArtistClick = (artist: any) => {
+  const handleArtistClick = (artist: Artist) => {
     router.push(`/artists/${artist.id}`);
-    if (systemUser?.id) saveHistory.mutate(artist.name);
+    if (systemUser?.id && artist.id) {
+      saveHistory.mutate({ type: "ARTIST", artistId: artist.id });
+    }
     setIsFocused(false);
   };
 
-  const handlePlaylistClick = (playlist: any) => {
+  const handlePlaylistClick = (playlist: Playlist) => {
     router.push(`/playlists/${playlist.id}`);
-    if (systemUser?.id) saveHistory.mutate(playlist.name);
+    if (systemUser?.id && playlist.id) {
+      saveHistory.mutate({ type: "PLAYLIST", playlistId: playlist.id });
+    }
     setIsFocused(false);
   };
 
-  const handleUserPlaylistClick = (playlist: any) => {
+  const handleUserPlaylistClick = (playlist: UserPlaylist) => {
     router.push(`/userplaylist/${playlist.id}`);
-    if (systemUser?.id) saveHistory.mutate(playlist.name);
     setIsFocused(false);
   };
 
@@ -163,6 +205,8 @@ export function AppNavbar() {
     };
   }, [isFocused]);
 
+  const recentHistory: SearchHistoryItem[] = searchHistoryData?.data?.recent || [];
+
   return (
     <header className="absolute top-0 left-0 right-0 z-40 px-4 sm:px-6 md:px-8 xl:px-10 pt-[var(--app-navbar-pt,1rem)] pb-4 flex items-center justify-between pointer-events-none bg-gradient-to-b from-black/50 via-black/15 to-transparent">
       {/* Search Input Container */}
@@ -202,47 +246,155 @@ export function AppNavbar() {
               initial={{ opacity: 0, y: 8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.98 }}
-              className="absolute top-full left-0 mt-2 w-[calc(100vw-6rem)] sm:w-[420px] md:w-[480px] max-w-[480px] bg-[#181818] border border-[#282828] rounded-xl shadow-2xl overflow-hidden pointer-events-auto z-50"
+              className="absolute top-full left-0 mt-2 w-[calc(100vw-6rem)] sm:w-[440px] md:w-[500px] max-w-[500px] bg-[#181818] border border-[#282828] rounded-xl shadow-2xl overflow-hidden pointer-events-auto z-50 max-h-[70vh] flex flex-col"
             >
               {!query.trim() ? (
-                /* RECENT SEARCHES */
-                <>
-                  <div className="p-3 border-b border-[#282828] flex items-center justify-between">
+                /* RECENT SEARCHES (RICH CARDS & LIST) */
+                <div className="flex-1 overflow-y-auto no-scrollbar">
+                  <div className="p-3 border-b border-[#282828] flex items-center justify-between sticky top-0 bg-[#181818] z-10">
                     <span className="text-xs font-semibold text-zinc-400">
                       Recent Searches
                     </span>
-                  </div>
-                  <div className="p-2">
-                    {!systemUser ? (
-                      <div className="p-4 text-center text-zinc-500 text-xs font-normal">
-                        Sign in to save your search history.
-                      </div>
-                    ) : searchHistory?.data?.data.length === 0 ? (
-                      <div className="p-4 text-center text-zinc-500 text-xs font-normal">
-                        No recent searches.
-                      </div>
-                    ) : (
-                      searchHistory?.data?.data.map((item: any) => (
-                        <button
-                          key={item.id}
-                          onClick={() => handleRecentClick(item.searchedText)}
-                          className="w-full flex items-center gap-3 p-2.5 hover:bg-[#282828] rounded-lg transition-all text-left group"
-                        >
-                          <History
-                            size={16}
-                            className="text-zinc-400 group-hover:text-white"
-                          />
-                          <span className="text-xs font-medium text-zinc-300 group-hover:text-white truncate">
-                            {item.searchedText}
-                          </span>
-                        </button>
-                      ))
+                    {recentHistory.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => clearHistory.mutate()}
+                        className="text-[11px] font-medium text-zinc-500 hover:text-red-400 flex items-center gap-1 transition-colors"
+                      >
+                        <Trash2 size={12} />
+                        Clear all
+                      </button>
                     )}
                   </div>
-                </>
+                  <div className="p-2 space-y-1">
+                    {!systemUser ? (
+                      <div className="p-6 text-center text-zinc-500 text-xs font-normal">
+                        Sign in to save your recent searches.
+                      </div>
+                    ) : isHistoryLoading ? (
+                      <div className="p-6 text-center text-zinc-500 text-xs flex items-center justify-center gap-2">
+                        <Loader2 size={14} className="animate-spin text-primary" />
+                        Loading recent searches...
+                      </div>
+                    ) : recentHistory.length === 0 ? (
+                      <div className="p-6 text-center text-zinc-500 text-xs font-normal">
+                        No recent searches found.
+                      </div>
+                    ) : (
+                      recentHistory.map((item) => {
+                        const isSong = item.type === "SONG" && !!item.song;
+                        const isArtist = item.type === "ARTIST" && !!item.artist;
+                        const isPlaylist = item.type === "PLAYLIST" && !!item.playlist;
+
+                        return (
+                          <div
+                            key={item.id}
+                            onClick={() => handleRecentClick(item)}
+                            className="w-full flex items-center gap-3 p-2 hover:bg-[#282828] rounded-lg transition-all text-left group cursor-pointer"
+                          >
+                            {/* Rich Thumbnail with Hover Preview for Songs */}
+                            {isSong && item.song ? (
+                              <SongThumbnail
+                                song={item.song}
+                                sizeClass="w-10 h-10"
+                                roundedClass="rounded-md"
+                                enablePreviewHover={false}
+                                onPlayClick={() => handlePlaySong(item.song!)}
+                              />
+                            ) : isArtist && item.artist ? (
+                              <div className="w-10 h-10 rounded-full bg-zinc-900 overflow-hidden shrink-0 flex items-center justify-center border border-white/5">
+                                {item.artist.coverImageKey ? (
+                                  <img
+                                    src={getImageUrl(item.artist.coverImageKey, {
+                                      width: 80,
+                                      height: 80,
+                                      focus: "face",
+                                      aspectRatio: "1-1",
+                                    })}
+                                    className="w-full h-full object-cover"
+                                    alt=""
+                                  />
+                                ) : (
+                                  <User size={16} className="text-zinc-500" />
+                                )}
+                              </div>
+                            ) : isPlaylist && item.playlist ? (
+                              <div className="w-10 h-10 rounded-md bg-zinc-900 overflow-hidden shrink-0 flex items-center justify-center border border-white/5">
+                                {item.playlist.coverImageKey ? (
+                                  <img
+                                    src={getImageUrl(item.playlist.coverImageKey, {
+                                      width: 80,
+                                      height: 80,
+                                      focus: "auto",
+                                      aspectRatio: "1-1",
+                                    })}
+                                    className="w-full h-full object-cover"
+                                    alt=""
+                                  />
+                                ) : (
+                                  <ListMusic size={16} className="text-zinc-500" />
+                                )}
+                              </div>
+                            ) : (
+                              <div className="w-10 h-10 rounded-md bg-zinc-900/60 overflow-hidden shrink-0 flex items-center justify-center border border-white/5 text-zinc-400">
+                                <History size={16} />
+                              </div>
+                            )}
+
+                            {/* Info */}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-white truncate">
+                                {isSong
+                                  ? item.song?.title
+                                  : isArtist
+                                  ? item.artist?.name
+                                  : item.playlist?.name}
+                              </p>
+                              <p className="text-[11px] text-zinc-400 font-normal truncate">
+                                {isSong
+                                  ? item.song?.artistName || "Song"
+                                  : isArtist
+                                  ? "Artist"
+                                  : "Playlist"}
+                              </p>
+                            </div>
+
+                            {/* Actions: Play if Song, Delete item */}
+                            <div className="flex items-center gap-1 shrink-0">
+                              {isSong && item.song && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePlaySong(item.song!);
+                                  }}
+                                  className="p-1.5 rounded-full hover:bg-white/10 text-primary opacity-0 group-hover:opacity-100 transition-all"
+                                  title="Play"
+                                >
+                                  <Play size={14} fill="currentColor" />
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteHistoryItem.mutate(item.id);
+                                }}
+                                className="p-1.5 rounded-full hover:bg-white/10 text-zinc-500 hover:text-zinc-200 transition-colors opacity-0 group-hover:opacity-100"
+                                title="Remove from history"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
               ) : (
                 /* LIVE SEARCH RESULTS */
-                <div className="max-h-[60vh] overflow-y-auto no-scrollbar">
+                <div className="flex-1 overflow-y-auto no-scrollbar">
                   <div className="p-3 border-b border-[#282828] flex items-center justify-between sticky top-0 bg-[#181818] z-10">
                     <span className="text-xs font-semibold text-zinc-400">
                       Search Results
@@ -262,7 +414,7 @@ export function AppNavbar() {
                         <h4 className="px-3 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
                           Songs
                         </h4>
-                        {searchResults?.data?.songs.map((song: any) => (
+                        {searchResults?.data?.songs.map((song: Song) => (
                           <div
                             key={song.id}
                             onClick={() => handlePlaySong(song)}
@@ -301,7 +453,7 @@ export function AppNavbar() {
                         <h4 className="px-3 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
                           Artists
                         </h4>
-                        {searchResults?.data?.artists.map((artist: any) => (
+                        {searchResults?.data?.artists.map((artist: Artist) => (
                           <button
                             key={artist.id}
                             onClick={() => handleArtistClick(artist)}
@@ -342,7 +494,7 @@ export function AppNavbar() {
                         <h4 className="px-3 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
                           Official Playlists
                         </h4>
-                        {searchResults?.data?.playlists.map((playlist: any) => (
+                        {searchResults?.data?.playlists.map((playlist: Playlist) => (
                           <button
                             key={playlist.id}
                             onClick={() => handlePlaylistClick(playlist)}
@@ -386,7 +538,7 @@ export function AppNavbar() {
                         <h4 className="px-3 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
                           Community Playlists
                         </h4>
-                        {searchResults?.data?.userPlaylists.map((playlist: any) => (
+                        {searchResults?.data?.userPlaylists.map((playlist: UserPlaylist) => (
                           <button
                             key={playlist.id}
                             onClick={() => handleUserPlaylistClick(playlist)}

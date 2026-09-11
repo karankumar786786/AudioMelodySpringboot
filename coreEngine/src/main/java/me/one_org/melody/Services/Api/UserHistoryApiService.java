@@ -1,16 +1,28 @@
 package me.one_org.melody.Services.Api;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import me.one_org.melody.Dto.Controllers.Api.SaveSearchHistoryRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.UserHistoryResponseDto;
+import me.one_org.melody.Dto.Controllers.Api.UserSearchHistoryGroupedResponseDto;
+import me.one_org.melody.Dto.Controllers.Api.UserSearchHistoryItemDto;
+import me.one_org.melody.Entity.ArtistsEntity;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
+import me.one_org.melody.Entity.PlaylistsEntity;
+import me.one_org.melody.Entity.SongsEntity;
 import me.one_org.melody.Entity.UserHistoryEntity;
 import me.one_org.melody.Entity.UserSearchHistoryEntity;
 import me.one_org.melody.Entity.UsersEntity;
+import me.one_org.melody.Repository.ArtistsRepository;
+import me.one_org.melody.Repository.PlaylistsRepository;
+import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserHistoryRepository;
 import me.one_org.melody.Repository.UserSearchHistoryRepository;
 import me.one_org.melody.Repository.UsersRepository;
@@ -23,15 +35,24 @@ public class UserHistoryApiService {
     private final UsersRepository usersRepository;
     private final PaginationMetaDataService paginationMetaDataService;
     private final UserSearchHistoryRepository searchHistoryRepository;
+    private final SongsRepository songsRepository;
+    private final ArtistsRepository artistsRepository;
+    private final PlaylistsRepository playlistsRepository;
 
     public UserHistoryApiService(UserHistoryRepository userHistoryRepository,
-                                 UsersRepository usersRepository,
-                                 PaginationMetaDataService paginationMetaDataService,
-                                 UserSearchHistoryRepository searchHistoryRepository) {
+            UsersRepository usersRepository,
+            PaginationMetaDataService paginationMetaDataService,
+            UserSearchHistoryRepository searchHistoryRepository,
+            SongsRepository songsRepository,
+            ArtistsRepository artistsRepository,
+            PlaylistsRepository playlistsRepository) {
         this.userHistoryRepository = userHistoryRepository;
         this.usersRepository = usersRepository;
         this.paginationMetaDataService = paginationMetaDataService;
         this.searchHistoryRepository = searchHistoryRepository;
+        this.songsRepository = songsRepository;
+        this.artistsRepository = artistsRepository;
+        this.playlistsRepository = playlistsRepository;
     }
 
     public List<UserHistoryResponseDto> getHistory(String userId, int page, int size) {
@@ -46,10 +67,42 @@ public class UserHistoryApiService {
         return paginationMetaDataService.getMetaData("UserHistory_" + userId);
     }
 
-
-    public List<UserSearchHistoryEntity> getSearchHistory(String userId) {
+    public UserSearchHistoryGroupedResponseDto getSearchHistory(String userId) {
         UsersEntity user = getUser(userId);
-        return searchHistoryRepository.findByUser(user);
+        List<UserSearchHistoryEntity> histories = searchHistoryRepository.findByUser(user);
+
+        List<UserSearchHistoryItemDto> recentDtos = new ArrayList<>();
+        List<SongsEntity> songs = new ArrayList<>();
+        List<ArtistsEntity> artists = new ArrayList<>();
+        List<PlaylistsEntity> playlists = new ArrayList<>();
+
+        for (UserSearchHistoryEntity h : histories) {
+            String entityType = h.getEntityType() != null ? h.getEntityType() : "SONG";
+            UserSearchHistoryItemDto itemDto = new UserSearchHistoryItemDto(
+                    h.getId(),
+                    entityType,
+                    h.getSong(),
+                    h.getArtist(),
+                    h.getPlaylist(),
+                    h.getCreatedAt());
+            recentDtos.add(itemDto);
+
+            if (h.getSong() != null && songs.stream().noneMatch(s -> s.getId().equals(h.getSong().getId()))) {
+                songs.add(h.getSong());
+            } else if (h.getArtist() != null
+                    && artists.stream().noneMatch(a -> a.getId().equals(h.getArtist().getId()))) {
+                artists.add(h.getArtist());
+            } else if (h.getPlaylist() != null
+                    && playlists.stream().noneMatch(p -> p.getId().equals(h.getPlaylist().getId()))) {
+                playlists.add(h.getPlaylist());
+            }
+        }
+
+        return new UserSearchHistoryGroupedResponseDto(
+                recentDtos,
+                songs,
+                artists,
+                playlists);
     }
 
     public List<UserHistoryResponseDto> getRecentlyPlayed(String userId) {
@@ -60,14 +113,62 @@ public class UserHistoryApiService {
                 .toList();
     }
 
-    public void saveSearchHistory(String userId, String searchText) {
+    public void saveSearchHistory(String userId, SaveSearchHistoryRequestDto request) {
+        if (request == null)
+            return;
         UsersEntity user = getUser(userId);
-        UserSearchHistoryEntity history = UserSearchHistoryEntity.builder()
-                .id(java.util.UUID.randomUUID().toString())
+        String type = request.type() != null ? request.type().toUpperCase() : null;
+
+        if (type == null) {
+            if (request.songId() != null && !request.songId().isBlank())
+                type = "SONG";
+            else if (request.artistId() != null && !request.artistId().isBlank())
+                type = "ARTIST";
+            else if (request.playlistId() != null && !request.playlistId().isBlank())
+                type = "PLAYLIST";
+            else
+                return;
+        }
+
+        UserSearchHistoryEntity.UserSearchHistoryEntityBuilder builder = UserSearchHistoryEntity.builder()
+                .id(UUID.randomUUID().toString())
                 .user(user)
-                .searchedText(searchText)
-                .build();
-        searchHistoryRepository.save(history);
+                .entityType(type)
+                .createdAt(LocalDateTime.now());
+
+        if ("SONG".equalsIgnoreCase(type) && request.songId() != null) {
+            SongsEntity song = songsRepository.findById(request.songId()).orElse(null);
+            if (song == null)
+                return;
+            searchHistoryRepository.deleteByUserAndItem(user, "SONG", song.getId());
+            builder.song(song);
+        } else if ("ARTIST".equalsIgnoreCase(type) && request.artistId() != null) {
+            ArtistsEntity artist = artistsRepository.findById(request.artistId()).orElse(null);
+            if (artist == null)
+                return;
+            searchHistoryRepository.deleteByUserAndItem(user, "ARTIST", artist.getId());
+            builder.artist(artist);
+        } else if ("PLAYLIST".equalsIgnoreCase(type) && request.playlistId() != null) {
+            PlaylistsEntity playlist = playlistsRepository.findById(request.playlistId()).orElse(null);
+            if (playlist == null)
+                return;
+            searchHistoryRepository.deleteByUserAndItem(user, "PLAYLIST", playlist.getId());
+            builder.playlist(playlist);
+        } else {
+            return;
+        }
+
+        searchHistoryRepository.save(builder.build());
+    }
+
+    public void deleteSearchHistoryItem(String userId, String id) {
+        UsersEntity user = getUser(userId);
+        searchHistoryRepository.deleteByIdAndUser(id, user);
+    }
+
+    public void clearSearchHistory(String userId) {
+        UsersEntity user = getUser(userId);
+        searchHistoryRepository.deleteByUser(user);
     }
 
     private UsersEntity getUser(String userId) {
@@ -95,7 +196,6 @@ public class UserHistoryApiService {
                 song.getPreviewStartTime(),
                 song.getPreviewEndTime(),
                 history.getPart(),
-                history.getListenedAt()
-        );
+                history.getListenedAt());
     }
 }

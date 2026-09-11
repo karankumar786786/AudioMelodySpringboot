@@ -66,6 +66,29 @@ export interface UnifiedSearchResult {
   userPlaylists: UserPlaylist[];
 }
 
+export interface SearchHistoryItem {
+  id: string;
+  type: "SONG" | "ARTIST" | "PLAYLIST" | string;
+  song?: Song | null;
+  artist?: Artist | null;
+  playlist?: Playlist | null;
+  createdAt?: string;
+}
+
+export interface SearchHistoryGroupedResponse {
+  recent: SearchHistoryItem[];
+  songs: Song[];
+  artists: Artist[];
+  playlists: Playlist[];
+}
+
+export interface SaveSearchHistoryPayload {
+  type?: "SONG" | "ARTIST" | "PLAYLIST";
+  songId?: string;
+  artistId?: string;
+  playlistId?: string;
+}
+
 export interface User {
   id: string;
   name?: string;
@@ -404,18 +427,79 @@ export const musicApi = {
       const list = Array.isArray(res) ? res : [];
       return { data: { data: list } };
     },
-    getSearchHistory: async (page = 1, size = 10) => {
-      const res = await request("/api/user/history/search");
-      const list = Array.isArray(res) ? res : [];
-      return { data: { data: list } };
+    getSearchHistory: async (): Promise<{ data: SearchHistoryGroupedResponse }> => {
+      try {
+        const res = await request<SearchHistoryGroupedResponse>("/api/user/history/search");
+        if (res && (res.recent || res.songs || res.artists || res.playlists)) {
+          return {
+            data: {
+              recent: res.recent || [],
+              songs: res.songs || [],
+              artists: res.artists || [],
+              playlists: res.playlists || [],
+            },
+          };
+        }
+        if (Array.isArray(res)) {
+          const list = res as SearchHistoryItem[];
+          return {
+            data: {
+              recent: list,
+              songs: list.map((r) => r.song).filter(Boolean) as Song[],
+              artists: list.map((r) => r.artist).filter(Boolean) as Artist[],
+              playlists: list.map((r) => r.playlist).filter(Boolean) as Playlist[],
+            },
+          };
+        }
+        return {
+          data: {
+            recent: [],
+            songs: [],
+            artists: [],
+            playlists: [],
+          },
+        };
+      } catch {
+        return {
+          data: {
+            recent: [],
+            songs: [],
+            artists: [],
+            playlists: [],
+          },
+        };
+      }
     },
-    saveSearchHistory: async (searchText: string) => {
-      if (!searchText || !searchText.trim()) return { success: true };
-      await request("/api/user/history/search", {
-        method: "POST",
-        body: JSON.stringify({ searchText: searchText.trim() }),
-      });
-      return { success: true };
+    saveSearchHistory: async (payload: SaveSearchHistoryPayload) => {
+      try {
+        await request("/api/user/history/search", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        return { success: true };
+      } catch {
+        return { success: false };
+      }
+    },
+    deleteSearchHistoryItem: async (id: string) => {
+      try {
+        await request(`/api/user/history/search/${id}`, {
+          method: "DELETE",
+        });
+        return { success: true };
+      } catch {
+        return { success: false };
+      }
+    },
+    clearSearchHistory: async () => {
+      try {
+        await request("/api/user/history/search", {
+          method: "DELETE",
+        });
+        return { success: true };
+      } catch {
+        return { success: false };
+      }
     },
   },
   interactions: {
