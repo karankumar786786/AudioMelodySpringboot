@@ -447,7 +447,7 @@ export default function SongsPage() {
                 )}
 
                 {/* Top badges */}
-                <div className="absolute top-2 left-2 flex gap-1.5">
+                <div className="absolute top-2 left-2 flex flex-wrap gap-1.5 max-w-[90%] z-10">
                   {song.isFeatured && (
                     <span className="flex items-center gap-1 bg-amber-500/90 backdrop-blur-sm text-white text-[10px] font-black px-2 py-0.5 rounded-full">
                       <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 24 24">
@@ -470,6 +470,12 @@ export default function SongsPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                       </svg>
                       Full Video
+                    </span>
+                  )}
+                  {song.previewStartTime != null && (
+                    <span title={`Preview: ${formatDuration(song.previewStartTime)} - ${song.previewEndTime != null ? formatDuration(song.previewEndTime) : 'end'}`} className="flex items-center gap-1 bg-amber-600/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm font-mono shrink-0">
+                      <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"/></svg>
+                      {formatDuration(song.previewStartTime)}-{song.previewEndTime != null ? formatDuration(song.previewEndTime) : "end"}
                     </span>
                   )}
                 </div>
@@ -515,26 +521,18 @@ export default function SongsPage() {
               <div className="p-4">
                 <h3 className="font-bold text-zinc-900 dark:text-white truncate text-sm mb-0.5">{song.title}</h3>
                 <p className="text-xs text-zinc-500 truncate">{song.artistName}</p>
-                <div className="flex items-center justify-between mt-3">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider">{song.language}</span>
-                    {song.previewStartTime != null && (
-                      <span title={`Preview: ${formatDuration(song.previewStartTime)} - ${song.previewEndTime != null ? formatDuration(song.previewEndTime) : 'end'}`} className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1 border border-amber-500/20 font-mono">
-                        <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"/></svg>
-                        {formatDuration(song.previewStartTime)}{song.previewEndTime != null ? ` - ${formatDuration(song.previewEndTime)}` : ""}
-                      </span>
-                    )}
-                  </div>
+                <div className="flex items-center justify-between mt-3 gap-2">
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider shrink-0">{song.language}</span>
                   <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-mono">
                     {song.lrclibId && song.lrclibId !== "0" && (
-                      <span title="LRCLIB ID" className="flex items-center gap-1">
+                      <span title="LRCLIB ID" className="flex items-center gap-1 shrink-0">
                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                         </svg>
                         {song.lrclibId}
                       </span>
                     )}
-                    <span>{formatDuration(song.duration)}</span>
+                    <span className="shrink-0">{formatDuration(song.duration)}</span>
                   </div>
                 </div>
               </div>

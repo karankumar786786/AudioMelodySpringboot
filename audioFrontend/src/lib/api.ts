@@ -367,15 +367,17 @@ export const musicApi = {
         return { data: { data: list } };
       }
     },
-    recordListen: async (songId: string, percentage: number) => {
+    recordListen: async (songId: string, percentage = 0.05) => {
+      if (!songId) return;
       try {
+        const safePercentage = Math.min(1.0, Math.max(0.0, isNaN(percentage) ? 0.05 : percentage));
         await request("/api/interaction/play", {
           method: "POST",
-          body: JSON.stringify({ songId, percentage }),
+          body: JSON.stringify({ songId, percentage: safePercentage }),
           keepalive: true,
         });
       } catch (err) {
-        // Silently catch background telemetry drops on unmount/offline
+        console.warn("[Interaction] recordListen failed:", err);
       }
     },
     recordSkip: async (songId: string) => {

@@ -143,8 +143,9 @@ export function useAudioSync(
       }
 
       const last = lastStateRef.current;
-      if (last.id) {
-        playerActions.recordListen(last.id, 1);
+      const curId = last.id || currentSongRef.current?.id;
+      if (curId) {
+        playerActions.recordListen(curId, 1.0);
         lastStateRef.current = { id: "", time: 0, duration: 0 };
       }
 
@@ -243,11 +244,10 @@ export function useAudioSync(
         fadeIn(crossfadeDuration);
       }
 
-      if (last.id && last.duration > 0) {
-        const ratio = Math.min(1, last.time / last.duration);
-        if (ratio > 0.01 || last.time > 5) {
-          playerActions.recordListen(last.id, ratio);
-        }
+      if (last.id) {
+        const rawDuration = last.duration > 0 ? last.duration : (audioElement?.duration || 0);
+        const ratio = rawDuration > 0 ? Math.min(1.0, Math.max(0.01, last.time / rawDuration)) : 0.5;
+        playerActions.recordListen(last.id, Number(ratio.toFixed(2)));
       }
       lastStateRef.current = {
         id: currentSong?.id || "",
@@ -255,17 +255,16 @@ export function useAudioSync(
         duration: currentSong?.duration || 0,
       };
     }
-  }, [currentSong?.id, fadeIn, crossfadeDuration, setLocalTime, setBuffered]);
+  }, [currentSong?.id, fadeIn, crossfadeDuration, setLocalTime, setBuffered, audioElement]);
 
   // Record on unmount
   useEffect(() => {
     return () => {
       const last = lastStateRef.current;
-      if (last.id && last.duration > 0) {
-        const ratio = Math.min(1, last.time / last.duration);
-        if (ratio > 0.01 || last.time > 5) {
-          playerActions.recordListen(last.id, ratio);
-        }
+      if (last.id) {
+        const rawDuration = last.duration > 0 ? last.duration : 0;
+        const ratio = rawDuration > 0 ? Math.min(1.0, Math.max(0.01, last.time / rawDuration)) : 0.5;
+        playerActions.recordListen(last.id, Number(ratio.toFixed(2)));
       }
       if (typeof window !== "undefined" && last.time > 0) {
         localStorage.setItem("last_current_time", last.time.toFixed(2));

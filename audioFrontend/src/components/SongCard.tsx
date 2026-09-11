@@ -166,9 +166,9 @@ export function SongCard({
 
           {/* Best Part Badge if preview is active */}
           {isPreviewPlaying && (
-            <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 bg-black/85 backdrop-blur-md border border-primary/40 px-2.5 py-1 rounded-full text-[10.5px] text-primary font-bold shadow-lg">
-              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
-              <span>Previewing ({formatTime(previewState.startTime)} - {formatTime(previewState.endTime)})</span>
+            <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 bg-black/90 backdrop-blur-md border border-primary/40 px-2 py-0.5 rounded-full text-[10px] text-primary font-bold shadow-lg max-w-[88%]">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping shrink-0" />
+              <span className="truncate font-mono">{formatTime(previewState.startTime)} - {formatTime(previewState.endTime)}</span>
             </div>
           )}
 
