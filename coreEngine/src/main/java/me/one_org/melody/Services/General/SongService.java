@@ -182,6 +182,12 @@ public class SongService {
         if (data.isFeatured() != null) {
             song.setFeatured(data.isFeatured());
         }
+        if (data.previewStartTime() != null) {
+            song.setPreviewStartTime(data.previewStartTime() < 0 ? null : data.previewStartTime());
+        }
+        if (data.previewEndTime() != null) {
+            song.setPreviewEndTime(data.previewEndTime() < 0 ? null : data.previewEndTime());
+        }
 
         String oldImageKey = null;
         if (data.imageKey() != null && !data.imageKey().isBlank() && !data.imageKey().equals(song.getImageKey())) {

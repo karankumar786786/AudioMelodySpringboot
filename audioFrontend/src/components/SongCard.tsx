@@ -15,12 +15,20 @@ import {
 import { type Song } from "../lib/api";
 import { playerActions, playerStore } from "../store/player.store";
 import { mapToPlayerSong } from "../lib/player-utils";
+import { previewPlayer, previewStore } from "../lib/preview-player";
 import { useStore } from "@tanstack/react-store";
 import { toast } from "sonner";
 import { useState } from "react";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
 import { ShareSongModal } from "./ShareSongModal";
 import { getImageUrl } from "../lib/image-utils";
+
+const formatTime = (seconds: number) => {
+  if (isNaN(seconds) || seconds < 0) return "0:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+};
 
 interface SongCardProps {
   song: Song;
@@ -39,11 +47,17 @@ export function SongCard({
   const currentSong = useStore(playerStore, (s) => s.currentSong);
   const isPlaying = useStore(playerStore, (s) => s.isPlaying);
   const favourites = useStore(playerStore, (s) => s.favourites);
+  const previewState = useStore(previewStore, (s) => s);
+
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
 
   const isActiveSong = currentSong?.id === song.id;
+  const isPreviewTarget = previewState.songId === song.id;
+  const isCountingDown = isPreviewTarget && previewState.status === "countdown";
+  const isPreviewLoading = isPreviewTarget && previewState.status === "loading";
+  const isPreviewPlaying = isPreviewTarget && previewState.status === "playing";
 
   const isFavourite = song?.id
     ? Array.from(favourites).some((id) => String(id) === String(song.id))
@@ -70,11 +84,22 @@ export function SongCard({
 
   const handlePlayToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
+    previewPlayer.stopPreview(true);
     if (isActiveSong) {
       playerActions.setIsPlaying(!isPlaying);
     } else {
       playerActions.play(mapToPlayerSong(song));
     }
+  };
+
+  const handlePlayMouseEnter = () => {
+    if (!isActiveSong || !isPlaying) {
+      previewPlayer.startHoverCountdown(song);
+    }
+  };
+
+  const handlePlayMouseLeave = () => {
+    previewPlayer.stopPreview();
   };
 
   const handlePlayNext = (e: React.MouseEvent) => {
@@ -139,26 +164,101 @@ export function SongCard({
             loading={priority ? "eager" : "lazy"}
           />
 
+          {/* Best Part Badge if preview is active */}
+          {isPreviewPlaying && (
+            <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 bg-black/85 backdrop-blur-md border border-primary/40 px-2.5 py-1 rounded-full text-[10.5px] text-primary font-bold shadow-lg">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />
+              <span>Previewing ({formatTime(previewState.startTime)} - {formatTime(previewState.endTime)})</span>
+            </div>
+          )}
+
           {/* Spotify Green Play/Pause Button Overlay on Cover Art */}
           <div
             className={`absolute bottom-2 right-2 translate-y-2 group-hover:translate-y-0 transition-all duration-300 z-10 ${
-              isActiveSong && isPlaying
+              (isActiveSong && isPlaying) || isPreviewPlaying || isCountingDown || isPreviewLoading
                 ? "opacity-100 translate-y-0"
                 : "opacity-0 group-hover:opacity-100"
             }`}
+            onMouseEnter={handlePlayMouseEnter}
+            onMouseLeave={handlePlayMouseLeave}
           >
-            <button
-              onClick={handlePlayToggle}
-              className="w-12 h-12 rounded-full bg-primary hover:scale-105 flex items-center justify-center text-black shadow-xl cursor-pointer transition-transform"
-              title={isActiveSong && isPlaying ? "Pause" : "Play"}
-              aria-label={isActiveSong && isPlaying ? "Pause" : "Play"}
-            >
-              {isActiveSong && isPlaying ? (
-                <Pause fill="black" size={20} />
-              ) : (
-                <Play fill="black" size={20} className="translate-x-0.5" />
+            <div className="relative flex items-center justify-center">
+              {/* Circular SVG countdown progress ring when counting down */}
+              {isCountingDown && (
+                <svg className="absolute -inset-1 w-14 h-14 -rotate-90 pointer-events-none" viewBox="0 0 56 56">
+                  <circle
+                    cx="28"
+                    cy="28"
+                    r="25"
+                    fill="none"
+                    stroke="rgba(255, 255, 255, 0.15)"
+                    strokeWidth="3"
+                  />
+                  <motion.circle
+                    cx="28"
+                    cy="28"
+                    r="25"
+                    fill="none"
+                    stroke="#1ed760"
+                    strokeWidth="3"
+                    strokeDasharray={157}
+                    initial={{ strokeDashoffset: 157 }}
+                    animate={{ strokeDashoffset: 0 }}
+                    transition={{ duration: 1, ease: "linear" }}
+                    strokeLinecap="round"
+                  />
+                </svg>
               )}
-            </button>
+
+              {/* Pulsing ring when preview is playing */}
+              {isPreviewPlaying && (
+                <span className="absolute -inset-1 rounded-full border-2 border-primary animate-ping opacity-60 pointer-events-none" />
+              )}
+
+              <button
+                onClick={handlePlayToggle}
+                className={`w-12 h-12 rounded-full bg-primary hover:scale-105 flex items-center justify-center text-black shadow-xl cursor-pointer transition-transform relative ${
+                  isPreviewPlaying ? "ring-2 ring-primary ring-offset-2 ring-offset-black" : ""
+                }`}
+                title={
+                  isActiveSong && isPlaying
+                    ? "Pause"
+                    : isPreviewPlaying
+                    ? "Playing Preview (Click for Full Track)"
+                    : "Play Track (Hover 3s for preview)"
+                }
+                aria-label={isActiveSong && isPlaying ? "Pause" : "Play"}
+              >
+                {isActiveSong && isPlaying ? (
+                  <Pause fill="black" size={20} />
+                ) : isPreviewLoading ? (
+                  <svg className="animate-spin h-5 w-5 text-black" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                ) : isPreviewPlaying ? (
+                  <div className="flex items-end justify-center gap-0.5 h-4 w-4">
+                    <motion.span
+                      animate={{ height: ["30%", "100%", "40%"] }}
+                      transition={{ duration: 0.5, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
+                      className="w-1 bg-black rounded-full"
+                    />
+                    <motion.span
+                      animate={{ height: ["80%", "30%", "90%"] }}
+                      transition={{ duration: 0.4, repeat: Infinity, repeatType: "reverse", ease: "easeInOut", delay: 0.1 }}
+                      className="w-1 bg-black rounded-full"
+                    />
+                    <motion.span
+                      animate={{ height: ["40%", "90%", "30%"] }}
+                      transition={{ duration: 0.45, repeat: Infinity, repeatType: "reverse", ease: "easeInOut", delay: 0.2 }}
+                      className="w-1 bg-black rounded-full"
+                    />
+                  </div>
+                ) : (
+                  <Play fill="black" size={20} className="translate-x-0.5" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
 

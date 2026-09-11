@@ -8,6 +8,8 @@ public record UpdateSongRequestDto(
     String fullVideoKey,
     String language,
     String lrclibId,
-    Boolean isFeatured
+    Boolean isFeatured,
+    Integer previewStartTime,
+    Integer previewEndTime
 ) {
 }

@@ -2,9 +2,11 @@ import { playerStore } from "./index";
 import { type PlayerSong } from "@/lib/player-utils";
 import { musicApi } from "@/lib/api";
 import { toast } from "sonner";
+import { previewPlayer } from "@/lib/preview-player";
 
 export const playbackActions = {
   play: (song: PlayerSong) => {
+    previewPlayer.stopPreview(true);
     if (!playerStore.state.systemUser) {
       toast.error("Authentication required", {
         description: "Please sign in to play audio tracks.",

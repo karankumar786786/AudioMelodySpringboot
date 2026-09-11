@@ -13,6 +13,8 @@ interface Song {
   imageKey: string;
   videoKey?: string;
   fullVideoKey?: string;
+  previewStartTime?: number | null;
+  previewEndTime?: number | null;
   isFeatured?: boolean;
   lrclibId?: string;
   createdAt?: string;
@@ -58,6 +60,10 @@ export default function SongsPage() {
     artistName: "",
     language: "Hindi",
     lrclibId: "",
+    previewStartMin: "" as string | number,
+    previewStartSec: "" as string | number,
+    previewEndMin: "" as string | number,
+    previewEndSec: "" as string | number,
     imageFile: null as File | null,
     videoFile: null as File | null,
     fullVideoFile: null as File | null,
@@ -242,11 +248,18 @@ export default function SongsPage() {
 
   const handleEditOpen = (song: Song) => {
     setEditingSong(song);
+    const startTotal = song.previewStartTime !== undefined && song.previewStartTime !== null && song.previewStartTime >= 0 ? song.previewStartTime : null;
+    const endTotal = song.previewEndTime !== undefined && song.previewEndTime !== null && song.previewEndTime >= 0 ? song.previewEndTime : null;
+
     setEditFormData({
       title: song.title,
       artistName: song.artistName,
       language: song.language || "Hindi",
       lrclibId: song.lrclibId || "",
+      previewStartMin: startTotal !== null ? Math.floor(startTotal / 60) : "",
+      previewStartSec: startTotal !== null ? startTotal % 60 : "",
+      previewEndMin: endTotal !== null ? Math.floor(endTotal / 60) : "",
+      previewEndSec: endTotal !== null ? endTotal % 60 : "",
       imageFile: null,
       videoFile: null,
       fullVideoFile: null,
@@ -307,6 +320,20 @@ export default function SongsPage() {
         fullVideoKey = editingSong.fullVideoKey; // keep current until worker finishes
       }
 
+      let previewStartTime: number | null = null;
+      if (editFormData.previewStartMin !== "" || editFormData.previewStartSec !== "") {
+        const min = parseInt(String(editFormData.previewStartMin), 10) || 0;
+        const sec = parseInt(String(editFormData.previewStartSec), 10) || 0;
+        previewStartTime = min * 60 + sec;
+      }
+
+      let previewEndTime: number | null = null;
+      if (editFormData.previewEndMin !== "" || editFormData.previewEndSec !== "") {
+        const min = parseInt(String(editFormData.previewEndMin), 10) || 0;
+        const sec = parseInt(String(editFormData.previewEndSec), 10) || 0;
+        previewEndTime = min * 60 + sec;
+      }
+
       setUploadProgressText("Saving metadata...");
       const res = await adminFetch(`/admin/song/${editingSong.id}`, {
         method: "PUT",
@@ -316,6 +343,8 @@ export default function SongsPage() {
           artistName: editFormData.artistName,
           language: editFormData.language,
           lrclibId: editFormData.lrclibId.trim() || "0",
+          previewStartTime: previewStartTime !== null ? previewStartTime : -1,
+          previewEndTime: previewEndTime !== null ? previewEndTime : -1,
           imageKey,
           videoKey,
           fullVideoKey,
@@ -487,7 +516,15 @@ export default function SongsPage() {
                 <h3 className="font-bold text-zinc-900 dark:text-white truncate text-sm mb-0.5">{song.title}</h3>
                 <p className="text-xs text-zinc-500 truncate">{song.artistName}</p>
                 <div className="flex items-center justify-between mt-3">
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider">{song.language}</span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 font-bold uppercase tracking-wider">{song.language}</span>
+                    {song.previewStartTime != null && (
+                      <span title={`Preview: ${formatDuration(song.previewStartTime)} - ${song.previewEndTime != null ? formatDuration(song.previewEndTime) : 'end'}`} className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-semibold flex items-center gap-1 border border-amber-500/20 font-mono">
+                        <svg className="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z"/></svg>
+                        {formatDuration(song.previewStartTime)}{song.previewEndTime != null ? ` - ${formatDuration(song.previewEndTime)}` : ""}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-mono">
                     {song.lrclibId && song.lrclibId !== "0" && (
                       <span title="LRCLIB ID" className="flex items-center gap-1">
@@ -730,6 +767,72 @@ export default function SongsPage() {
                 <div>
                   <label className={labelCls}>LRCLIB ID</label>
                   <input type="text" value={editFormData.lrclibId} onChange={e => setEditFormData({...editFormData, lrclibId: e.target.value})} className={inputCls} />
+                </div>
+                <div className="col-span-2 grid grid-cols-2 gap-3 bg-zinc-50 dark:bg-zinc-800/40 p-3.5 rounded-xl border border-zinc-200 dark:border-zinc-700/60">
+                  <div>
+                    <label className={labelCls + " text-indigo-600 dark:text-indigo-400 mb-1"}>Best Part Start</label>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <span className="text-[10px] text-zinc-400 font-bold block mb-1">Min</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="99"
+                          placeholder="0"
+                          value={editFormData.previewStartMin}
+                          onChange={e => setEditFormData({ ...editFormData, previewStartMin: e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value) || 0) })}
+                          className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-2.5 py-2 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <span className="font-bold text-zinc-400 mt-4">:</span>
+                      <div className="flex-1">
+                        <span className="text-[10px] text-zinc-400 font-bold block mb-1">Sec</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="59"
+                          placeholder="00"
+                          value={editFormData.previewStartSec}
+                          onChange={e => setEditFormData({ ...editFormData, previewStartSec: e.target.value === "" ? "" : Math.max(0, Math.min(59, parseInt(e.target.value) || 0)) })}
+                          className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-2.5 py-2 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className={labelCls + " text-indigo-600 dark:text-indigo-400 mb-1"}>Best Part End</label>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <span className="text-[10px] text-zinc-400 font-bold block mb-1">Min</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="99"
+                          placeholder="0"
+                          value={editFormData.previewEndMin}
+                          onChange={e => setEditFormData({ ...editFormData, previewEndMin: e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value) || 0) })}
+                          className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-2.5 py-2 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                      <span className="font-bold text-zinc-400 mt-4">:</span>
+                      <div className="flex-1">
+                        <span className="text-[10px] text-zinc-400 font-bold block mb-1">Sec</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="59"
+                          placeholder="00"
+                          value={editFormData.previewEndSec}
+                          onChange={e => setEditFormData({ ...editFormData, previewEndSec: e.target.value === "" ? "" : Math.max(0, Math.min(59, parseInt(e.target.value) || 0)) })}
+                          className="w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg px-2.5 py-2 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-span-2 text-[11px] text-zinc-400">
+                    Hover preview plays this segment (specified in minutes &amp; seconds). Leave blank to disable.
+                  </div>
                 </div>
               </div>
 

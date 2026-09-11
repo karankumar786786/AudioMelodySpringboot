@@ -41,6 +41,10 @@ public class SongsEntity implements Serializable{
 
     private String fullVideoKey;
 
+    private Integer previewStartTime;
+
+    private Integer previewEndTime;
+
     @Column(nullable = false)
     @Builder.Default
     private Boolean isFeatured = false;

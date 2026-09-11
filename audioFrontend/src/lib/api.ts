@@ -14,6 +14,8 @@ export interface Song {
   lrclibId: string;
   status?: string;
   isFeatured?: boolean;
+  previewStartTime?: number | null;
+  previewEndTime?: number | null;
   createdAt?: string;
 }
 
