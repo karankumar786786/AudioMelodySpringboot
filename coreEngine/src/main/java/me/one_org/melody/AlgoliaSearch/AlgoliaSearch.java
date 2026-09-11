@@ -20,6 +20,7 @@ import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaSearchPlaylistDto;
 import me.one_org.melody.Entity.ArtistsEntity;
 import me.one_org.melody.Entity.PlaylistsEntity;
 import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.Entity.UserPlaylistsEntity;
 
 @Component
 @Slf4j
@@ -65,6 +66,14 @@ public class AlgoliaSearch {
     }
 
     public void save(PlaylistsEntity playlist) throws Exception {
+        Map<String, Object> record = new HashMap<>();
+        record.put("objectID", playlist.getId());
+        record.put("type", "playlist");
+        record.put("name", playlist.getName());
+        searchClient.saveObject(indexName, record);
+    }
+
+    public void save(UserPlaylistsEntity playlist) throws Exception {
         Map<String, Object> record = new HashMap<>();
         record.put("objectID", playlist.getId());
         record.put("type", "playlist");

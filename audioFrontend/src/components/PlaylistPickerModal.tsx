@@ -1,11 +1,11 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { musicApi, type Playlist } from "@/lib/api";
+import { musicApi, type Playlist, type PlaylistPrivacy } from "@/lib/api";
 import { playerStore } from "@/store/player.store";
 import { useStore } from "@tanstack/react-store";
 import { motion, AnimatePresence } from "framer-motion";
-import { ListMusic, X, Plus, ChevronRight, Music } from "lucide-react";
+import { ListMusic, X, Plus, ChevronRight, Music, Globe, Lock, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -28,6 +28,7 @@ export function PlaylistPickerModal({
   const queryClient = useQueryClient();
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newPrivacy, setNewPrivacy] = useState<PlaylistPrivacy>("PRIVATE");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -39,6 +40,7 @@ export function PlaylistPickerModal({
     if (!isOpen) {
       setIsCreating(false);
       setNewName("");
+      setNewPrivacy("PRIVATE");
     }
   }, [isOpen]);
 
@@ -82,7 +84,7 @@ export function PlaylistPickerModal({
 
   const createAndAdd = useMutation({
     mutationFn: async () => {
-      const res = await musicApi.users.createPlaylist(newName);
+      const res = await musicApi.users.createPlaylist(newName, newPrivacy);
       await musicApi.users.addSongToPlaylist(res.data.id, songId);
       return res.data;
     },
@@ -185,6 +187,38 @@ export function PlaylistPickerModal({
                       }}
                       className="w-full bg-[#282828] border border-[#383838] px-4 py-2.5 rounded-md text-white text-sm outline-none focus:border-primary transition-colors placeholder-zinc-500"
                     />
+                  </div>
+
+                  {/* Privacy Selector Pills */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-zinc-300">
+                      Privacy
+                    </label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[
+                        { key: "PRIVATE" as const, label: "Private", icon: Lock },
+                        { key: "SHARE_BY_LINK" as const, label: "Link Only", icon: Link2 },
+                        { key: "PUBLIC" as const, label: "Public", icon: Globe },
+                      ].map((p) => {
+                        const Icon = p.icon;
+                        const isSelected = newPrivacy === p.key;
+                        return (
+                          <button
+                            key={p.key}
+                            type="button"
+                            onClick={() => setNewPrivacy(p.key)}
+                            className={`flex items-center justify-center gap-1.5 py-2 px-1 rounded-lg text-xs font-medium border transition-all cursor-pointer ${
+                              isSelected
+                                ? "bg-primary/15 border-primary text-white font-semibold"
+                                : "bg-[#282828] border-[#383838] text-zinc-400 hover:text-zinc-200"
+                            }`}
+                          >
+                            <Icon size={12} className={isSelected ? "text-primary" : ""} />
+                            <span>{p.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-3 pt-1">

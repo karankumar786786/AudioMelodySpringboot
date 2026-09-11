@@ -2,22 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { musicApi, type PlaylistPrivacy } from "@/lib/api";
+import { musicApi, type UserPlaylist } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   ListMusic,
   Play,
   Pause,
-  Trash2,
   Clock,
   Music,
-  ArrowLeft,
   Share2,
   Globe,
   Lock,
   Link2,
+  BookmarkPlus,
+  ArrowLeft,
   Sparkles,
+  Heart,
+  Plus,
 } from "lucide-react";
 import { playerActions, playerStore } from "@/store/player.store";
 import { mapListToPlayerSongs } from "@/lib/player-utils";
@@ -27,9 +29,11 @@ import { getImageUrl } from "@/lib/image-utils";
 import { getSolidBgFromImage } from "@/lib/color-utils";
 import { NotFoundPage, ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
 import { PlaylistShareModal } from "@/components/PlaylistShareModal";
+import { PlaylistPickerModal } from "@/components/PlaylistPickerModal";
+import Link from "next/link";
 
-export default function MyPlaylistPage() {
-  const { id } = useParams();
+export default function SharedPlaylistPage() {
+  const { token } = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -39,90 +43,95 @@ export default function MyPlaylistPage() {
 
   const [backgroundColor, setBackgroundColor] = useState("#181818");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [selectedSongForPicker, setSelectedSongForPicker] = useState<any | null>(null);
+
+  const tokenStr = Array.isArray(token) ? token[0] : (token as string);
 
   /* -------------------------------------------------------------------------- */
-  /*                                  PLAYLIST                                  */
+  /*                               SHARED PLAYLIST                              */
   /* -------------------------------------------------------------------------- */
 
-  const { data: playlistResponse, isLoading: isPlaylistLoading, error: playlistError, refetch: refetchPlaylist } = useQuery({
-    queryKey: ["user-playlist", id],
-    queryFn: () => musicApi.users.getPlaylistById(id as string),
-    enabled: !!systemUser?.id,
+  const {
+    data: playlistResponse,
+    isLoading: isPlaylistLoading,
+    error: playlistError,
+    refetch: refetchPlaylist,
+  } = useQuery({
+    queryKey: ["shared-playlist", tokenStr],
+    queryFn: () => musicApi.users.getSharedPlaylist(tokenStr),
+    retry: 1,
   });
 
   /* -------------------------------------------------------------------------- */
-  /*                                    SONGS                                   */
+  /*                             SHARED SONGS                                   */
   /* -------------------------------------------------------------------------- */
 
-  const { data: songsResponse, isLoading: isSongsLoading, error: songsError, refetch: refetchSongs } = useQuery({
-    queryKey: ["user-playlist-songs", id],
-    queryFn: () => musicApi.users.getPlaylistSongs(id as string),
-    enabled: !!systemUser?.id,
+  const {
+    data: songsResponse,
+    isLoading: isSongsLoading,
+    error: songsError,
+    refetch: refetchSongs,
+  } = useQuery({
+    queryKey: ["shared-playlist-songs", tokenStr],
+    queryFn: () => musicApi.users.getSharedPlaylistSongs(tokenStr, 1, 100),
+    enabled: !!playlistResponse?.data,
+    retry: 1,
   });
-
-  /* -------------------------------------------------------------------------- */
-  /*                               DELETE PLAYLIST                              */
-  /* -------------------------------------------------------------------------- */
-
-  const deletePlaylist = useMutation({
-    mutationFn: () => musicApi.users.deletePlaylist(id as string),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
-      toast.success("Playlist deleted");
-      router.push("/playlists");
-    },
-  });
-
-  /* -------------------------------------------------------------------------- */
-  /*                               UPDATE PRIVACY                               */
-  /* -------------------------------------------------------------------------- */
-
-  const updatePrivacyMutation = useMutation({
-    mutationFn: (newPrivacy: PlaylistPrivacy) =>
-      musicApi.users.updatePrivacy(id as string, newPrivacy),
-    onSuccess: (_, newPrivacy) => {
-      queryClient.invalidateQueries({ queryKey: ["user-playlist", id] });
-      queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
-      const label =
-        newPrivacy === "PUBLIC"
-          ? "Public (Discoverable by everyone)"
-          : newPrivacy === "SHARE_BY_LINK"
-          ? "Share by link (Unlisted)"
-          : "Private (Only you)";
-      toast.success(`Playlist is now ${label}`);
-    },
-  });
-
-  /* -------------------------------------------------------------------------- */
-  /*                               REMOVE SONG                                  */
-  /* -------------------------------------------------------------------------- */
-
-  const removeSong = useMutation({
-    mutationFn: (songId: string) =>
-      musicApi.users.removeSongFromPlaylist(id as string, songId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["user-playlist-songs", id],
-        exact: false,
-      });
-    },
-  });
-
-  /* -------------------------------------------------------------------------- */
-  /*                                  DATA                                      */
-  /* -------------------------------------------------------------------------- */
 
   const playlist = playlistResponse?.data;
   const songs = songsResponse?.data?.data || [];
+
+  const isOwner =
+    Boolean(systemUser?.id && playlist?.ownerId && systemUser.id === playlist.ownerId);
+
+  /* -------------------------------------------------------------------------- */
+  /*                          SAVE PLAYLIST TO LIBRARY                          */
+  /* -------------------------------------------------------------------------- */
+
+  const saveToLibraryMutation = useMutation({
+    mutationFn: async () => {
+      if (!systemUser) {
+        toast.error("Sign in required", {
+          description: "Please sign in to save this playlist to your library.",
+        });
+        playerStore.setState((s) => ({ ...s, isAuthModalOpen: true }));
+        return;
+      }
+      // Create a copy of the playlist for this user
+      const copyName = `${playlist?.name || "Shared Playlist"} (Saved)`;
+      const res = await musicApi.users.createPlaylist(copyName, "PRIVATE");
+      const newPlaylistId = res.data.id;
+
+      // Add all tracks
+      for (const s of songs) {
+        try {
+          await musicApi.users.addSongToPlaylist(newPlaylistId, s.id);
+        } catch {
+          // ignore duplicate
+        }
+      }
+      return newPlaylistId;
+    },
+    onSuccess: (newPlaylistId) => {
+      if (!newPlaylistId) return;
+      queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
+      toast.success("Saved to your Library!", {
+        description: `Added "${playlist?.name}" to your playlists.`,
+        action: {
+          label: "View Playlist",
+          onClick: () => router.push(`/my-playlists/${newPlaylistId}`),
+        },
+      });
+    },
+    onError: () => {
+      toast.error("Failed to save playlist");
+    },
+  });
 
   /* -------------------------------------------------------------------------- */
   /*                                COVER IMAGE                                 */
   /* -------------------------------------------------------------------------- */
 
-  // A playlist may have an explicit custom cover. If it doesn't, we build a
-  // Spotify-style cover from the tracks themselves: a 2x2 mosaic when there
-  // are 4+ songs, the first song's art when there are 1-3, or the plain
-  // ListMusic icon when the playlist is empty.
   const coverUrl = getImageUrl(playlist?.coverImageKey, {
     width: 600,
     height: 600,
@@ -145,13 +154,7 @@ export default function MyPlaylistPage() {
     !hasCustomCover && songs.length > 0 && songs.length < 4;
   const singleSongImage = showSingleSongImage ? mosaicImages[0] : null;
 
-  // Whichever image is actually on screen is what we pull the background
-  // gradient color from, same as Spotify does off the visible artwork.
   const colorSourceImage = coverUrl || mosaicImages[0] || null;
-
-  /* -------------------------------------------------------------------------- */
-  /*                         EXTRACT PLAYLIST COLOR                             */
-  /* -------------------------------------------------------------------------- */
 
   useEffect(() => {
     let cancelled = false;
@@ -162,7 +165,7 @@ export default function MyPlaylistPage() {
       }
       const color = await getSolidBgFromImage(
         colorSourceImage,
-        playlist?.name || "playlist"
+        playlist?.name || "shared-playlist"
       );
       if (!cancelled) setBackgroundColor(color);
     }
@@ -176,65 +179,104 @@ export default function MyPlaylistPage() {
   /*                                  LOADING                                   */
   /* -------------------------------------------------------------------------- */
 
-  if (!systemUser?.id) {
+  if (isPlaylistLoading || (playlist && isSongsLoading)) {
     return (
-      <div className="flex h-[60vh] flex-col items-center justify-center gap-4 text-zinc-500">
-        <p className="text-sm font-medium">Sign in to view your playlists.</p>
-      </div>
-    );
-  }
-
-  if (isPlaylistLoading || isSongsLoading) {
-    return (
-      <div className="flex h-[60vh] flex-col items-center justify-center gap-4 text-zinc-500">
+      <div className="flex h-[70vh] flex-col items-center justify-center gap-4 text-zinc-500">
         <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
-        <span className="text-xs font-black uppercase italic tracking-widest">
-          Loading Playlist...
+        <span className="text-xs font-black uppercase italic tracking-widest text-zinc-400">
+          Loading Shared Playlist...
         </span>
       </div>
     );
   }
 
-  // Error & Not Found handling
-  if (playlistError || !playlist) {
-    const is404 =
-      !playlist ||
-      (playlistError as any)?.status === 404 ||
-      (playlistError as any)?.response?.status === 404;
-    const is500 =
-      (playlistError as any)?.status >= 500 ||
-      (playlistError as any)?.response?.status >= 500;
+  /* -------------------------------------------------------------------------- */
+  /*                           ERROR / PRIVATE STATES                           */
+  /* -------------------------------------------------------------------------- */
 
-    if (is404 && !is500) {
+  if (playlistError || !playlist) {
+    const errorStatus =
+      (playlistError as any)?.status ||
+      (playlistError as any)?.response?.status;
+
+    // Check for 403 Forbidden (Private Playlist)
+    if (errorStatus === 403) {
+      return (
+        <div className="flex min-h-[70vh] flex-col items-center justify-center px-6 text-center">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="max-w-md w-full rounded-2xl bg-[#141414] border border-[#282828] p-8 shadow-2xl space-y-5"
+          >
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/25">
+              <Lock size={32} />
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-xl font-bold text-white tracking-tight">
+                This Playlist is Private
+              </h2>
+              <p className="text-xs text-zinc-400 leading-relaxed">
+                The creator of this playlist has set its privacy to Private. Ask the owner to switch it to <strong>"Share by link"</strong> or <strong>"Public"</strong>.
+              </p>
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+              <Link
+                href="/playlists"
+                className="flex-1 py-2.5 px-4 rounded-xl bg-primary text-black font-bold text-xs hover:bg-primary/90 transition-all text-center"
+              >
+                Browse Playlists
+              </Link>
+              <Link
+                href="/home"
+                className="flex-1 py-2.5 px-4 rounded-xl bg-zinc-800 text-zinc-200 font-semibold text-xs hover:bg-zinc-700 transition-all text-center border border-zinc-700"
+              >
+                Home
+              </Link>
+            </div>
+          </motion.div>
+        </div>
+      );
+    }
+
+    if (errorStatus === 404) {
       return <NotFoundPage />;
     }
-    if (is500) {
-      return <ServerErrorPage onRetry={() => { refetchPlaylist(); refetchSongs(); }} />;
+    if (errorStatus >= 500) {
+      return (
+        <ServerErrorPage
+          onRetry={() => {
+            refetchPlaylist();
+            refetchSongs();
+          }}
+        />
+      );
     }
+
     return (
       <SomethingWentWrongPage
         error={playlistError as Error}
-        reset={() => { refetchPlaylist(); refetchSongs(); }}
+        reset={() => {
+          refetchPlaylist();
+          refetchSongs();
+        }}
       />
     );
   }
 
   /* -------------------------------------------------------------------------- */
-  /*                              PLAY ALL                                      */
+  /*                              PLAYBACK HANDLERS                             */
   /* -------------------------------------------------------------------------- */
 
   const handleStreamAll = () => {
     if (songs.length === 0) return;
     const playerSongs = mapListToPlayerSongs(songs);
     playerActions.playAll(playerSongs);
-    toast.success("Playing All", {
-      description: `Starting playback for ${songs.length} tracks.`,
+    toast.success("Playing All Tracks", {
+      description: `Started streaming ${songs.length} songs from "${playlist.name}".`,
     });
   };
-
-  /* -------------------------------------------------------------------------- */
-  /*                              PLAY SONG                                     */
-  /* -------------------------------------------------------------------------- */
 
   const handlePlaySong = (song: any, index: number) => {
     const isActive = currentSong?.id === song.id;
@@ -246,10 +288,6 @@ export default function MyPlaylistPage() {
     playerActions.playAllFrom(playerSongs, index);
   };
 
-  /* -------------------------------------------------------------------------- */
-  /*                             FORMAT DURATION                                */
-  /* -------------------------------------------------------------------------- */
-
   const formatDuration = (val?: number | string) => {
     if (!val) return "0:00";
     const num = typeof val === "string" ? parseFloat(val) : val;
@@ -260,11 +298,7 @@ export default function MyPlaylistPage() {
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
-  const privacy = playlist.privacy || "PRIVATE";
-
-  /* -------------------------------------------------------------------------- */
-  /*                                   UI                                       */
-  /* -------------------------------------------------------------------------- */
+  const privacy = playlist.privacy || "SHARE_BY_LINK";
 
   return (
     <div className="min-h-full pb-24">
@@ -275,12 +309,11 @@ export default function MyPlaylistPage() {
       <section
         className="relative overflow-hidden px-8 pb-8 pt-24 md:px-10 md:pt-28"
         style={{
-          background: `linear-gradient(to bottom, ${backgroundColor} 0%, ${backgroundColor} 35%, rgba(0,0,0,0.92) 100%)`,
+          background: `linear-gradient(to bottom, ${backgroundColor} 0%, ${backgroundColor} 35%, rgba(0,0,0,0.94) 100%)`,
         }}
       >
-        {/* Playlist information */}
         <div className="relative z-10 flex flex-col items-center gap-7 md:flex-row md:items-end">
-          {/* Cover — custom cover, 4-song mosaic, single song art, or icon */}
+          {/* Cover */}
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
@@ -290,7 +323,7 @@ export default function MyPlaylistPage() {
             {hasCustomCover ? (
               <img
                 src={coverUrl}
-                alt={playlist?.name || "Playlist"}
+                alt={playlist.name}
                 className="h-full w-full object-cover"
               />
             ) : showMosaic ? (
@@ -316,7 +349,7 @@ export default function MyPlaylistPage() {
             ) : showSingleSongImage && singleSongImage ? (
               <img
                 src={singleSongImage}
-                alt={playlist?.name || "Playlist"}
+                alt={playlist.name}
                 className="h-full w-full object-cover"
               />
             ) : (
@@ -333,48 +366,41 @@ export default function MyPlaylistPage() {
             transition={{ duration: 0.35, delay: 0.05 }}
             className="min-w-0 flex-1 pb-1"
           >
-            <div className="mb-2 flex items-center gap-2.5">
+            <div className="mb-2 flex items-center gap-2">
               <span className="text-xs font-semibold uppercase tracking-wider text-white/80">
-                Your Playlist
+                Shared Playlist
               </span>
               <span>•</span>
-              {/* Privacy Badge / Quick Trigger */}
-              <button
-                type="button"
-                onClick={() => setIsShareModalOpen(true)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide border transition-all cursor-pointer hover:scale-105 ${
+              <span
+                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide border ${
                   privacy === "PUBLIC"
-                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30"
-                    : privacy === "SHARE_BY_LINK"
-                    ? "bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30"
-                    : "bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30"
+                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                    : "bg-blue-500/20 text-blue-300 border-blue-500/40"
                 }`}
-                title="Click to manage playlist privacy & share"
               >
-                {privacy === "PUBLIC" && <Globe size={11} />}
-                {privacy === "SHARE_BY_LINK" && <Link2 size={11} />}
-                {privacy === "PRIVATE" && <Lock size={11} />}
-                <span>
-                  {privacy === "PUBLIC"
-                    ? "Public"
-                    : privacy === "SHARE_BY_LINK"
-                    ? "Share by link"
-                    : "Private"}
-                </span>
-              </button>
+                {privacy === "PUBLIC" ? (
+                  <>
+                    <Globe size={11} /> Public
+                  </>
+                ) : (
+                  <>
+                    <Link2 size={11} /> Shared by Link
+                  </>
+                )}
+              </span>
             </div>
 
             <h1 className="break-words text-4xl font-black tracking-tight text-white md:text-6xl">
-              {playlist?.name}
+              {playlist.name}
             </h1>
 
-            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/70">
-              {playlist?.description || "A curated playlist of songs."}
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/75">
+              {playlist.description || "A playlist curated and shared on AudioMelody."}
             </p>
 
-            <div className="mt-4 flex flex-wrap items-center gap-2.5 text-xs text-white/80">
-              <span className="font-semibold">
-                {systemUser?.username || systemUser?.name || "You"}
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-white/80">
+              <span className="font-semibold text-white">
+                Curated by {playlist.ownerName || "AudioMelody User"}
               </span>
               <span>•</span>
               <span>
@@ -397,7 +423,7 @@ export default function MyPlaylistPage() {
                   <button
                     type="button"
                     onClick={handleStreamAll}
-                    className="ml-2 flex items-center gap-1.5 rounded-full bg-white px-5 py-2 text-sm font-semibold text-black transition-colors hover:bg-white/80 cursor-pointer shadow-lg"
+                    className="ml-2 flex items-center gap-1.5 rounded-full bg-white px-5 py-2 text-sm font-semibold text-black transition-all hover:bg-white/80 hover:scale-105 cursor-pointer shadow-lg"
                   >
                     <Play size={15} fill="black" />
                     Play All
@@ -405,44 +431,60 @@ export default function MyPlaylistPage() {
                 </>
               )}
 
+              {/* Save to Library */}
+              {!isOwner && (
+                <button
+                  type="button"
+                  onClick={() => saveToLibraryMutation.mutate()}
+                  disabled={saveToLibraryMutation.isPending}
+                  className="flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-1.5 text-xs font-semibold text-white transition-all cursor-pointer"
+                  title="Save a copy to your playlists"
+                >
+                  <BookmarkPlus size={13} />
+                  <span>{saveToLibraryMutation.isPending ? "Saving..." : "Save to Library"}</span>
+                </button>
+              )}
+
               {/* Share button */}
               <button
                 type="button"
                 onClick={() => setIsShareModalOpen(true)}
-                className="ml-1 flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-1.5 text-xs font-semibold text-white transition-all cursor-pointer"
-                title="Share playlist"
+                className="flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-1.5 text-xs font-semibold text-white transition-all cursor-pointer"
+                title="Share this playlist"
               >
                 <Share2 size={13} />
                 <span>Share</span>
               </button>
 
-              {/* Delete playlist */}
-              <button
-                onClick={() => {
-                  if (!confirm(`Delete "${playlist.name}"? This cannot be undone.`)) return;
-                  toast.promise(deletePlaylist.mutateAsync(), {
-                    loading: "Deleting playlist...",
-                    success: "Playlist deleted",
-                    error: "Failed to delete playlist",
-                  });
-                }}
-                className="flex items-center gap-1.5 rounded-full border border-red-500/30 px-3 py-1.5 text-xs font-semibold text-red-400 transition-colors hover:border-red-400 hover:text-red-300 cursor-pointer"
-                title="Delete playlist"
-              >
-                <Trash2 size={13} /> Delete
-              </button>
+              {/* Owner Edit Shortcut */}
+              {isOwner && (
+                <Link
+                  href={`/my-playlists/${playlist.id}`}
+                  className="flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+                >
+                  Edit in My Playlists
+                </Link>
+              )}
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* Share & Privacy Modal */}
-      {playlist && (
-        <PlaylistShareModal
-          playlist={playlist}
-          isOpen={isShareModalOpen}
-          onClose={() => setIsShareModalOpen(false)}
-          isOwner={true}
+      {/* Share Modal */}
+      <PlaylistShareModal
+        playlist={playlist}
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        isOwner={isOwner}
+      />
+
+      {/* Song Picker Modal for adding individual song */}
+      {selectedSongForPicker && (
+        <PlaylistPickerModal
+          songId={selectedSongForPicker.id}
+          songTitle={selectedSongForPicker.title}
+          isOpen={Boolean(selectedSongForPicker)}
+          onClose={() => setSelectedSongForPicker(null)}
         />
       )}
 
@@ -527,22 +569,17 @@ export default function MyPlaylistPage() {
                     </span>
                   </div>
 
-                  {/* Duration / Remove */}
-                  <div className="col-span-4 flex items-center justify-end gap-4 text-xs tabular-nums text-zinc-400 md:col-span-2">
+                  {/* Add to my playlist / Duration */}
+                  <div className="col-span-4 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-2">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        toast.promise(removeSong.mutateAsync(song.id), {
-                          loading: "Removing track...",
-                          success: "Track removed",
-                          error: "Failed to remove",
-                          description: `"${song.title}" removed from playlist.`,
-                        });
+                        setSelectedSongForPicker(song);
                       }}
-                      className="hidden rounded p-1 text-zinc-500 transition-colors hover:text-red-400 group-hover:block"
-                      title="Remove from playlist"
+                      className="hidden rounded p-1 text-zinc-500 transition-colors hover:text-white group-hover:block"
+                      title="Add to one of my playlists"
                     >
-                      <Trash2 size={14} />
+                      <Plus size={15} />
                     </button>
                     <span>{formatDuration(song.duration)}</span>
                   </div>
@@ -552,8 +589,7 @@ export default function MyPlaylistPage() {
           ) : (
             <div className="rounded-xl border border-dashed border-white/10 py-20 text-center">
               <Music size={40} className="mx-auto mb-4 text-zinc-700" />
-              <p className="text-sm text-zinc-500">No songs in this playlist yet.</p>
-              <p className="mt-1 text-xs text-zinc-600">Add songs using the playlist picker on any song.</p>
+              <p className="text-sm text-zinc-500">No tracks in this playlist yet.</p>
             </div>
           )}
         </div>

@@ -1,7 +1,7 @@
 package me.one_org.melody.Services.Api;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -12,9 +12,11 @@ import me.one_org.melody.Dto.AlgoliaSearch.SearchResult;
 import me.one_org.melody.Entity.ArtistsEntity;
 import me.one_org.melody.Entity.PlaylistsEntity;
 import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.Entity.UserPlaylistsEntity;
 import me.one_org.melody.Repository.ArtistsRepository;
 import me.one_org.melody.Repository.PlaylistsRepository;
 import me.one_org.melody.Repository.SongsRepository;
+import me.one_org.melody.Repository.UserPlaylistsRepository;
 import me.one_org.melody.Repository.UserSearchHistoryRepository;
 import me.one_org.melody.Repository.UsersRepository;
 
@@ -25,16 +27,19 @@ public class SearchApiService {
     private final SongsRepository songsRepository;
     private final ArtistsRepository artistsRepository;
     private final PlaylistsRepository playlistsRepository;
+    private final UserPlaylistsRepository userPlaylistsRepository;
     private final UserSearchHistoryRepository searchHistoryRepository;
     private final UsersRepository usersRepository;
 
     public SearchApiService(AlgoliaSearch algoliaSearch, SongsRepository songsRepository,
                             ArtistsRepository artistsRepository, PlaylistsRepository playlistsRepository,
+                            UserPlaylistsRepository userPlaylistsRepository,
                             UserSearchHistoryRepository searchHistoryRepository, UsersRepository usersRepository) {
         this.algoliaSearch = algoliaSearch;
         this.songsRepository = songsRepository;
         this.artistsRepository = artistsRepository;
         this.playlistsRepository = playlistsRepository;
+        this.userPlaylistsRepository = userPlaylistsRepository;
         this.searchHistoryRepository = searchHistoryRepository;
         this.usersRepository = usersRepository;
     }
@@ -53,7 +58,18 @@ public class SearchApiService {
 
         List<SongsEntity> songs = songsRepository.findAllByIds(songIds);
         List<ArtistsEntity> artists = artistsRepository.findAllByIds(artistIds);
-        List<PlaylistsEntity> playlists = playlistsRepository.findAllByIds(playlistIds);
+        List<PlaylistsEntity> playlists = new ArrayList<>(playlistsRepository.findAllByIds(playlistIds));
+
+        // Also fetch any public user playlists matching playlist IDs from Algolia
+        List<UserPlaylistsEntity> publicUserPlaylists = userPlaylistsRepository.findAllPublicByIds(playlistIds);
+        for (UserPlaylistsEntity up : publicUserPlaylists) {
+            playlists.add(PlaylistsEntity.builder()
+                    .id(up.getId())
+                    .name(up.getName())
+                    .description("Public Playlist" + (up.getOwnerName() != null ? " • " + up.getOwnerName() : ""))
+                    .status(up.getStatus())
+                    .build());
+        }
 
         return new SearchResult(songs, artists, playlists);
     }

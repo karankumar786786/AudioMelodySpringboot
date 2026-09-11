@@ -65,10 +65,6 @@ export const playbackActions = {
       }
       return newState;
     });
-
-    if (song?.id) {
-      playbackActions.recordListen(song.id, 0.05);
-    }
   },
 
   setIsPlaying: (isPlaying: boolean) => {

@@ -62,6 +62,7 @@ public class InteractionApiService {
         } catch (Exception e) {
             log.error("Failed to track play in Recombee: {}", e.getMessage());
         }
+        log.info("saved song in history");
     }
 
     public void trackSkip(String userId, String songId) {

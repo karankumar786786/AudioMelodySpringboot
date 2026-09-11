@@ -5,6 +5,8 @@ import {
   Heart,
   ListMusic,
   Users2,
+  Globe,
+  Link2,
 } from "lucide-react";
 import { PlaylistThumbnail } from "@/components/PlaylistThumbnail";
 import Link from "next/link";
@@ -153,14 +155,24 @@ export function LeftSidebar() {
                     href={`/my-playlists/${playlist.id}`}
                     onClick={handleSidebarClick}
                     title={playlist.name}
-                    className={`flex items-center justify-center xl:justify-start gap-3 px-1.5 xl:px-3 py-2 rounded-md text-[14px] font-bold transition-all ${
+                    className={`flex items-center justify-center xl:justify-start gap-3 px-1.5 xl:px-3 py-2 rounded-md text-[14px] font-bold transition-all group ${
                       pathname === `/my-playlists/${playlist.id}`
                         ? "text-white bg-[#282828]"
                         : "text-zinc-300 hover:text-white hover:bg-[#1a1a1a]"
                     }`}
                   >
                     <PlaylistThumbnail playlist={playlist} size={34} />
-                    <span className="hidden xl:inline truncate">{playlist.name}</span>
+                    <span className="hidden xl:inline truncate flex-1">{playlist.name}</span>
+                    {playlist.privacy === "PUBLIC" && (
+                      <span className="hidden xl:inline-flex shrink-0 text-emerald-400/70" title="Public Playlist">
+                        <Globe size={11} />
+                      </span>
+                    )}
+                    {playlist.privacy === "SHARE_BY_LINK" && (
+                      <span className="hidden xl:inline-flex shrink-0 text-blue-400/70" title="Shared by Link">
+                        <Link2 size={11} />
+                      </span>
+                    )}
                   </Link>
                 ))
               ) : (

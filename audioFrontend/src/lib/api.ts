@@ -29,9 +29,28 @@ export interface Artist {
   createdAt?: string;
 }
 
+export type PlaylistPrivacy = "PUBLIC" | "PRIVATE" | "SHARE_BY_LINK";
+
+export interface UserPlaylist {
+  id: string;
+  name: string;
+  title?: string;
+  privacy: PlaylistPrivacy;
+  shareToken?: string;
+  ownerName?: string;
+  ownerId?: string;
+  status?: string;
+  description?: string;
+  coverImageKey?: string;
+  videoKey?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Playlist {
   id: string;
   name: string;
+  title?: string;
   description?: string;
   coverImageKey?: string;
   videoKey?: string;
@@ -285,16 +304,32 @@ export const musicApi = {
       const list = res.content || (Array.isArray(res) ? res : []);
       return { data: { data: list } };
     },
-    createPlaylist: async (name: string) => {
-      const data = await request("/api/user/playlists", {
+    createPlaylist: async (name: string, privacy: PlaylistPrivacy = "PRIVATE") => {
+      const data = await request<UserPlaylist>("/api/user/playlists", {
         method: "POST",
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, privacy }),
+      });
+      return { data };
+    },
+    updatePrivacy: async (id: string, privacy: PlaylistPrivacy) => {
+      const data = await request<UserPlaylist>(`/api/user/playlists/${id}/privacy`, {
+        method: "PATCH",
+        body: JSON.stringify({ privacy }),
       });
       return { data };
     },
     getPlaylistById: async (id: string) => {
-      const data = await request(`/api/user/playlists/${id}`);
+      const data = await request<UserPlaylist>(`/api/user/playlists/${id}`);
       return { data };
+    },
+    getSharedPlaylist: async (tokenOrId: string) => {
+      const data = await request<UserPlaylist>(`/api/user/playlists/shared/${tokenOrId}`);
+      return { data };
+    },
+    getSharedPlaylistSongs: async (tokenOrId: string, page = 1, size = 50) => {
+      const res = await request(`/api/user/playlists/shared/${tokenOrId}/songs?page=${page - 1}&size=${size}`);
+      const list = res.content || (Array.isArray(res) ? res : []);
+      return { data: { data: list } };
     },
     getPlaylistSongs: async (id: string) => {
       const res = await request(`/api/user/playlists/${id}/songs`);

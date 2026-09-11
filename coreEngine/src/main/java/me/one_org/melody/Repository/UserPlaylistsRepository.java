@@ -29,6 +29,33 @@ public class UserPlaylistsRepository {
         return Optional.ofNullable(entityManager.find(UserPlaylistsEntity.class, id));
     }
 
+    public Optional<UserPlaylistsEntity> findByShareToken(String shareToken) {
+        if (shareToken == null || shareToken.isBlank()) return Optional.empty();
+        List<UserPlaylistsEntity> results = entityManager.createQuery(
+                "SELECT up FROM UserPlaylistsEntity up WHERE up.shareToken = :shareToken", UserPlaylistsEntity.class)
+                .setParameter("shareToken", shareToken)
+                .getResultList();
+        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+    }
+
+    public Optional<UserPlaylistsEntity> findByIdOrShareToken(String tokenOrId) {
+        if (tokenOrId == null || tokenOrId.isBlank()) return Optional.empty();
+        List<UserPlaylistsEntity> results = entityManager.createQuery(
+                "SELECT up FROM UserPlaylistsEntity up WHERE up.id = :tokenOrId OR up.shareToken = :tokenOrId", UserPlaylistsEntity.class)
+                .setParameter("tokenOrId", tokenOrId)
+                .getResultList();
+        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+    }
+
+    public List<UserPlaylistsEntity> findAllPublicByIds(List<String> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        return entityManager.createQuery(
+                "SELECT up FROM UserPlaylistsEntity up WHERE up.id IN :ids AND up.privacy = :privacy", UserPlaylistsEntity.class)
+                .setParameter("ids", ids)
+                .setParameter("privacy", me.one_org.melody.Enums.PlaylistPrivacyEnum.PUBLIC)
+                .getResultList();
+    }
+
     public List<UserPlaylistsEntity> findByUser(UsersEntity user) {
         return entityManager.createQuery(
                 "SELECT up FROM UserPlaylistsEntity up WHERE up.user = :user", UserPlaylistsEntity.class)
