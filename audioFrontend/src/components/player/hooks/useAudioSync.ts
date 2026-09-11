@@ -20,6 +20,7 @@ export function useAudioSync(
   crossfadeDuration: number = 0.5,
 ) {
   const isPreviewPlaying = useStore(previewStore, (s) => s.status === "playing");
+  const playbackRate = useStore(playerStore, (s) => s.playbackRate || 1);
   const animFrameRef = useRef<number>(0);
   const volumeAnimRef = useRef<number | null>(null);
   const hasFadedOutRef = useRef<boolean>(false);
@@ -36,6 +37,19 @@ export function useAudioSync(
   // Keep a ref for isPlaying so event listeners have the latest value
   const isPlayingRef = useRef(isPlaying);
   isPlayingRef.current = isPlaying;
+
+  // Dedicated Playback Rate Synchronizer
+  useEffect(() => {
+    if (!audioElement) return;
+    try {
+      audioElement.playbackRate = playbackRate;
+      audioElement.preservesPitch = true;
+      (audioElement as any).mozPreservesPitch = true;
+      (audioElement as any).webkitPreservesPitch = true;
+    } catch (e) {
+      console.warn("[useAudioSync] Failed to set playbackRate:", e);
+    }
+  }, [audioElement, playbackRate]);
 
   // 1. Sync Volume & Smooth Audio Ducking when preview is playing
   useEffect(() => {
@@ -91,13 +105,17 @@ export function useAudioSync(
   }, [audioElement, volume, isMuted, isVideoActive, isPreviewPlaying]);
 
   const prevIsVideoActiveRef = useRef(isVideoActive);
+  const prevIsPlayingRef = useRef(isPlaying);
 
-  // 2. Sync Play/Pause state to the audio element (only when video is not actively driving playback)
+  // 2. Sync Play/Pause state to the audio element with smooth fade
   useEffect(() => {
     if (!audioElement) return;
 
     const wasVideoActive = prevIsVideoActiveRef.current;
     prevIsVideoActiveRef.current = isVideoActive;
+
+    const wasPlaying = prevIsPlayingRef.current;
+    prevIsPlayingRef.current = isPlaying;
 
     if (isVideoActive) {
       if (!audioElement.paused) {
@@ -123,15 +141,17 @@ export function useAudioSync(
       }
     }
 
-    // Synchronize playbackRate and pitch preservation
-    const currentRate = playerStore.state.playbackRate || 1;
-    if (audioElement.playbackRate !== currentRate) {
-      audioElement.playbackRate = currentRate;
+    // Re-assert playback rate and pitch preservation
+    if (audioElement.playbackRate !== playbackRate) {
+      audioElement.playbackRate = playbackRate;
     }
     audioElement.preservesPitch = true;
 
     if (isPlaying) {
       if (audioElement.paused && audioElement.readyState >= 2) {
+        if (!wasPlaying && fadeIn) {
+          fadeIn(0.25);
+        }
         audioElement.play().catch((err) => {
           if (err.name !== "AbortError")
             console.warn("[Player] Play failed:", err);
@@ -139,10 +159,19 @@ export function useAudioSync(
       }
     } else {
       if (!audioElement.paused && !isInternalChange.current) {
-        audioElement.pause();
+        if (wasPlaying && fadeOut) {
+          fadeOut(0.12);
+          setTimeout(() => {
+            if (!isPlayingRef.current && audioElement && !audioElement.paused) {
+              audioElement.pause();
+            }
+          }, 100);
+        } else {
+          audioElement.pause();
+        }
       }
     }
-  }, [audioElement, isPlaying, isInternalChange, isVideoActive, isMuted, volume, setLocalTime]);
+  }, [audioElement, isPlaying, isInternalChange, isVideoActive, isMuted, volume, playbackRate, setLocalTime, fadeIn, fadeOut]);
 
   // 3. Native Event Listeners
   useEffect(() => {
@@ -293,6 +322,11 @@ export function useAudioSync(
           audioElement.currentTime = target;
         } catch {}
       }
+      const rate = playerStore.state.playbackRate || 1;
+      if (audioElement.playbackRate !== rate) {
+        audioElement.playbackRate = rate;
+      }
+      audioElement.preservesPitch = true;
       if (!audioElement.paused) {
         playerActions.setIsLoading(false);
       }

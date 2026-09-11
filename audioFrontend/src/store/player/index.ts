@@ -110,6 +110,18 @@ const _initShuffle = (() => {
   }
 })();
 
+const _initPlaybackRate = (() => {
+  if (typeof window === "undefined") return 1;
+  try {
+    const saved = localStorage.getItem("audiomelody_playback_rate");
+    if (!saved) return 1;
+    const val = parseFloat(saved);
+    return isNaN(val) || val <= 0 ? 1 : val;
+  } catch {
+    return 1;
+  }
+})();
+
 export const playerStore = new Store<PlayerState>({
   currentSong: _initCurrentSong,
   isPlaying: false,
@@ -139,7 +151,7 @@ export const playerStore = new Store<PlayerState>({
     targetTimestamp: null,
     mode: null,
   },
-  playbackRate: 1,
+  playbackRate: _initPlaybackRate,
 });
 
 // Hydrate token, repeatMode, isShuffle, currentTime, and currentSong on client side only

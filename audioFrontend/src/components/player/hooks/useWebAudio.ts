@@ -237,10 +237,18 @@ export function useWebAudio(
         }
         return;
       }
-      const now = globalAudioCtx.currentTime;
-      fadeGainRef.current.gain.cancelScheduledValues(now);
-      fadeGainRef.current.gain.setValueAtTime(0, now);
-      fadeGainRef.current.gain.linearRampToValueAtTime(1, now + durationSec);
+      try {
+        if (globalAudioCtx.state === "suspended") {
+          globalAudioCtx.resume().catch(() => {});
+        }
+        const now = globalAudioCtx.currentTime;
+        const currentGain = Math.max(0, Math.min(1, fadeGainRef.current.gain.value));
+        fadeGainRef.current.gain.cancelScheduledValues(now);
+        fadeGainRef.current.gain.setValueAtTime(currentGain, now);
+        fadeGainRef.current.gain.linearRampToValueAtTime(1, now + durationSec);
+      } catch (err) {
+        console.warn("[WebAudio] fadeIn error:", err);
+      }
     },
     [crossfadeDuration]
   );
@@ -248,10 +256,15 @@ export function useWebAudio(
   const fadeOut = useCallback(
     (durationSec = crossfadeDuration) => {
       if (!fadeGainRef.current || !globalAudioCtx || durationSec <= 0) return;
-      const now = globalAudioCtx.currentTime;
-      fadeGainRef.current.gain.cancelScheduledValues(now);
-      fadeGainRef.current.gain.setValueAtTime(1, now);
-      fadeGainRef.current.gain.linearRampToValueAtTime(0, now + durationSec);
+      try {
+        const now = globalAudioCtx.currentTime;
+        const currentGain = Math.max(0, Math.min(1, fadeGainRef.current.gain.value));
+        fadeGainRef.current.gain.cancelScheduledValues(now);
+        fadeGainRef.current.gain.setValueAtTime(currentGain, now);
+        fadeGainRef.current.gain.linearRampToValueAtTime(0, now + durationSec);
+      } catch (err) {
+        console.warn("[WebAudio] fadeOut error:", err);
+      }
     },
     [crossfadeDuration]
   );

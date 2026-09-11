@@ -47,6 +47,8 @@ function applyRollingWindow(
   return { trimmedQueue, adjustedIndex };
 }
 
+let activeRefillPromise: Promise<PlayerSong[]> | null = null;
+
 export const queueActions = {
   setQueue: (songs: PlayerSong[]) => {
     const nextQueue = dedupeBySongId(songs);
@@ -328,13 +330,13 @@ export const queueActions = {
    * so previously played songs can cycle back as recommendations.
    */
   refillQueue: async (isInit = false, reason = "Auto-refill"): Promise<PlayerSong[]> => {
-    const { queue, currentSong, systemUser, isRefilling, lastQueueIndex } =
-      playerStore.state;
-
-    if (isRefilling) {
-      console.log(`[Queue Refill] Refill already in progress. Skipping trigger (Reason: ${reason}).`);
-      return [];
+    if (activeRefillPromise) {
+      console.log(`[Queue Refill] Refill already in progress. Awaiting in-flight promise (Reason: ${reason}).`);
+      return activeRefillPromise;
     }
+
+    const { queue, currentSong, systemUser, lastQueueIndex } =
+      playerStore.state;
 
     const remaining = queue.length - (lastQueueIndex + 1);
     if (!isInit && remaining > 2 && reason !== "End of queue reached") {
@@ -342,94 +344,98 @@ export const queueActions = {
       return [];
     }
 
-    try {
-      playerStore.setState((s) => ({ ...s, isRefilling: true }));
-      const isLoggedIn = Boolean(systemUser?.id);
+    activeRefillPromise = (async () => {
+      try {
+        playerStore.setState((s) => ({ ...s, isRefilling: true }));
+        const isLoggedIn = Boolean(systemUser?.id);
 
-      console.group(`🎵 [Queue Refill Triggered] Reason: ${reason}`);
-      console.log(`📊 Queue status: ${queue.length} total songs | Current index: ${lastQueueIndex} | Remaining ahead: ${Math.max(0, remaining)}`);
-      console.log(`👤 User authentication: ${isLoggedIn ? `Logged in (${systemUser.name || systemUser.email || systemUser.id})` : "Unauthenticated (Guest)"}`);
+        console.group(`🎵 [Queue Refill Triggered] Reason: ${reason}`);
+        console.log(`📊 Queue status: ${playerStore.state.queue.length} total songs | Current index: ${playerStore.state.lastQueueIndex} | Remaining ahead: ${Math.max(0, remaining)}`);
+        console.log(`👤 User authentication: ${isLoggedIn ? `Logged in (${systemUser.name || systemUser.email || systemUser.id})` : "Unauthenticated (Guest)"}`);
 
-      let res: any;
-      if (isLoggedIn) {
-        try {
-          console.log("📡 Endpoint: Requesting recommendations from GET /api/recommendations/user...");
-          res = await musicApi.interactions.getRecommendations();
-          const data = res?.data?.data || res?.data;
-          if (!data || (Array.isArray(data) && data.length === 0)) {
-            console.log("⚠️ Recommendations returned 0 tracks. Fallback: Requesting trending songs from GET /api/songs...");
+        let res: any;
+        if (isLoggedIn) {
+          try {
+            console.log("📡 Endpoint: Requesting recommendations from GET /api/recommendations/user...");
+            res = await musicApi.interactions.getRecommendations();
+            const data = res?.data?.data || res?.data;
+            if (!data || (Array.isArray(data) && data.length === 0)) {
+              console.log("⚠️ Recommendations returned 0 tracks. Fallback: Requesting trending songs from GET /api/songs...");
+              res = await musicApi.interactions.getTrending(20);
+            }
+          } catch (err) {
+            console.warn("⚠️ Recommendations request failed. Fallback: Requesting trending songs from GET /api/songs...", err);
             res = await musicApi.interactions.getTrending(20);
           }
-        } catch (err) {
-          console.warn("⚠️ Recommendations request failed. Fallback: Requesting trending songs from GET /api/songs...", err);
+        } else {
+          console.log("📡 Endpoint: Requesting trending songs for guest user from GET /api/songs...");
           res = await musicApi.interactions.getTrending(20);
         }
-      } else {
-        console.log("📡 Endpoint: Requesting trending songs for guest user from GET /api/songs...");
-        res = await musicApi.interactions.getTrending(20);
-      }
 
-      if (res?.data) {
-        const rawData = Array.isArray(res.data)
-          ? res.data
-          : res.data.data || [];
-        
-        console.log(`🎵 [FETCH SUMMARY] Raw songs fetched from API: ${rawData.length} tracks.`);
-        if (rawData.length === 0) {
-          console.warn("⚠️ [FETCH EMPTY]: API returned 0 songs from backend! Backend database catalog or recommendations engine returned no available tracks.");
-        } else {
-          console.log(`📋 [FETCHED SONGS LIST]:`, rawData.map((s: any) => `"${s.title || s.name}" by ${s.artistName || s.artist?.name || "Unknown"}`));
-        }
-
-        const newSongs = mapListToPlayerSongs(rawData);
-        const { queue: latestQueue, lastQueueIndex: latestIndex } = playerStore.state;
-
-        // 🔑 KEY FIX: Only exclude UPCOMING songs from dedup, not played ones.
-        // This allows previously played songs to cycle back as recommendations.
-        const upcomingSongs = latestQueue.slice(latestIndex + 1);
-        const existingIds = new Set(upcomingSongs.map((s) => s.id));
-        if (currentSong?.id) existingIds.add(currentSong.id); // always exclude currently playing
-
-        const uniqueNewSongs = newSongs.filter((s) => !existingIds.has(s.id));
-        console.log(`✨ [UNIQUE FILTERED]: ${uniqueNewSongs.length} new songs added to queue (filtered out ${newSongs.length - uniqueNewSongs.length} duplicates against ${upcomingSongs.length} upcoming songs).`);
-
-        if (uniqueNewSongs.length > 0) {
-          playerStore.setState((s) => {
-            const updatedQueue = [...s.queue, ...uniqueNewSongs];
-            console.log(`📈 [QUEUE SIZE UPDATE]: Previous: ${s.queue.length} songs ➔ New total: ${updatedQueue.length} songs.`);
-            persistQueue(updatedQueue, s.lastQueueIndex);
-            return { ...s, queue: updatedQueue };
-          });
-
-          // If no song is loaded in player, set first song as current (without auto-playing)
-          const { currentSong: activeSong } = playerStore.state;
-          if (!activeSong && uniqueNewSongs.length > 0) {
-            console.log(`▶️ [PLAYER LOAD]: Auto-loading first song into player bar: "${uniqueNewSongs[0].title}"`);
-            playerStore.setState((s) => ({
-              ...s,
-              currentSong: uniqueNewSongs[0],
-              lastQueueIndex: 0,
-              isPlaying: false,
-            }));
-            persistQueue(playerStore.state.queue, 0);
+        if (res?.data) {
+          const rawData = Array.isArray(res.data)
+            ? res.data
+            : res.data.data || [];
+          
+          console.log(`🎵 [FETCH SUMMARY] Raw songs fetched from API: ${rawData.length} tracks.`);
+          if (rawData.length === 0) {
+            console.warn("⚠️ [FETCH EMPTY]: API returned 0 songs from backend! Backend database catalog returned no available tracks.");
           }
-          console.groupEnd();
-          return uniqueNewSongs;
-        } else {
-          console.warn(`⚠️ [CATALOG WARNING]: API returned ${newSongs.length} tracks, but all of them are already in your upcoming queue! (Catalog may be small or recommendations returned already-queued tracks).`);
+
+          const newSongs = mapListToPlayerSongs(rawData);
+          const { queue: latestQueue, lastQueueIndex: latestIndex, currentSong: activeSong } = playerStore.state;
+
+          // 🔑 KEY FIX: Only exclude UPCOMING songs from dedup, not played ones.
+          const upcomingSongs = latestQueue.slice(latestIndex + 1);
+          const existingIds = new Set(upcomingSongs.map((s) => s.id));
+          if (activeSong?.id) existingIds.add(activeSong.id);
+
+          let uniqueNewSongs = newSongs.filter((s) => !existingIds.has(s.id));
+
+          // If all tracks were duplicates against upcoming, relax dedup to current song only
+          if (uniqueNewSongs.length === 0 && newSongs.length > 0) {
+            uniqueNewSongs = newSongs.filter((s) => s.id !== activeSong?.id);
+          }
+
+          console.log(`✨ [UNIQUE FILTERED]: ${uniqueNewSongs.length} new songs added to queue.`);
+
+          if (uniqueNewSongs.length > 0) {
+            playerStore.setState((s) => {
+              const updatedQueue = [...s.queue, ...uniqueNewSongs];
+              console.log(`📈 [QUEUE SIZE UPDATE]: Previous: ${s.queue.length} songs ➔ New total: ${updatedQueue.length} songs.`);
+              persistQueue(updatedQueue, s.lastQueueIndex);
+              return { ...s, queue: updatedQueue };
+            });
+
+            // If no song is loaded in player, set first song as current
+            const { currentSong: cur } = playerStore.state;
+            if (!cur && uniqueNewSongs.length > 0) {
+              console.log(`▶️ [PLAYER LOAD]: Auto-loading first song into player bar: "${uniqueNewSongs[0].title}"`);
+              playerStore.setState((s) => ({
+                ...s,
+                currentSong: uniqueNewSongs[0],
+                lastQueueIndex: 0,
+                isPlaying: false,
+              }));
+              persistQueue(playerStore.state.queue, 0);
+            }
+            console.groupEnd();
+            return uniqueNewSongs;
+          }
         }
-      } else {
-        console.warn("⚠️ API response received but contains no data array.", res);
+        console.groupEnd();
+        return [];
+      } catch (err) {
+        console.error("❌ Exception during queue refill:", err);
+        console.groupEnd();
+        return [];
+      } finally {
+        activeRefillPromise = null;
+        playerStore.setState((s) => ({ ...s, isRefilling: false }));
       }
-      console.groupEnd();
-      return [];
-    } catch (err) {
-      console.error("❌ Exception during queue refill:", err);
-      console.groupEnd();
-      return [];
-    } finally {
-      playerStore.setState((s) => ({ ...s, isRefilling: false }));
-    }
+    })();
+
+    return activeRefillPromise;
   },
 
   clearQueue: () => {
@@ -521,7 +527,7 @@ export const queueActions = {
         );
       }
     } else {
-      console.log("[Queue Next] Reached end of queue. Triggering recommendations refill...");
+      console.log("[Queue Next] Reached end of queue. Awaiting recommendations refill...");
       queueActions.refillQueue(false, "End of queue reached").then(() => {
         const { queue: updatedQueue, lastQueueIndex: updatedIdx } = playerStore.state;
         const targetIdx = updatedIdx + 1;
@@ -529,9 +535,21 @@ export const queueActions = {
           console.log(
             `[Queue Next] Auto-playing refilled recommended song at index ${targetIdx}: "${updatedQueue[targetIdx].title}"`,
           );
-          persistQueue(updatedQueue, targetIdx);
+          const { trimmedQueue, adjustedIndex } = applyRollingWindow(updatedQueue, targetIdx);
+          playerStore.setState((s) => ({
+            ...s,
+            queue: trimmedQueue,
+            lastQueueIndex: adjustedIndex,
+          }));
+          persistQueue(trimmedQueue, adjustedIndex);
           import("@/store/player/playback.actions").then(({ playbackActions }) =>
-            playbackActions.play(updatedQueue[targetIdx]),
+            playbackActions.play(trimmedQueue[adjustedIndex]),
+          );
+        } else if (updatedQueue.length > 0) {
+          console.log("[Queue Next] Restarting from first song as fallback.");
+          persistQueue(updatedQueue, 0);
+          import("@/store/player/playback.actions").then(({ playbackActions }) =>
+            playbackActions.play(updatedQueue[0]),
           );
         } else {
           console.log("[Queue Next] No new tracks available. Stopping playback.");

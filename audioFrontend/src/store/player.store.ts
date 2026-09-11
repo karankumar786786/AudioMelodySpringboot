@@ -25,6 +25,8 @@ export const playerActions = {
         | "one"
         | null;
       const savedShuffle = localStorage.getItem("audiomelody_shuffle");
+      const savedRate = localStorage.getItem("audiomelody_playback_rate");
+      const parsedRate = savedRate ? parseFloat(savedRate) : 1;
 
       const savedTime = localStorage.getItem("last_current_time");
       const parsedTime = savedTime ? parseFloat(savedTime) : 0;
@@ -56,6 +58,8 @@ export const playerActions = {
               : s.repeatMode,
           isShuffle:
             savedShuffle !== null ? savedShuffle === "true" : s.isShuffle,
+          playbackRate:
+            !isNaN(parsedRate) && parsedRate > 0 ? parsedRate : s.playbackRate,
         };
 
         // If store has no currentSong yet but we have one persisted, restore it
