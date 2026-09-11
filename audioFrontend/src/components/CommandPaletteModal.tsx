@@ -136,7 +136,13 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   const items: NavigableItem[] = useMemo(() => {
     if (!debouncedQuery) {
       return recentHistory
-        .filter((item) => (item.type === "SONG" && item.song) || (item.type === "ARTIST" && item.artist) || (item.type === "PLAYLIST" && item.playlist))
+        .filter(
+          (item) =>
+            (item.type === "SONG" && item.song) ||
+            (item.type === "ARTIST" && item.artist) ||
+            (item.type === "PLAYLIST" && item.playlist) ||
+            (item.type === "USER_PLAYLIST" && item.userPlaylist)
+        )
         .map((item) => {
           if (item.type === "SONG" && item.song) {
             return {
@@ -158,6 +164,17 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
               subtitle: "Recent Artist",
               imageKey: item.artist.coverImageKey,
               data: item.artist,
+            };
+          }
+          if (item.type === "USER_PLAYLIST" && item.userPlaylist) {
+            return {
+              id: item.id,
+              historyId: item.id,
+              type: "playlist" as const,
+              title: item.userPlaylist.name || "Community Playlist",
+              subtitle: item.userPlaylist.ownerName ? `By ${item.userPlaylist.ownerName}` : "Community Playlist",
+              imageKey: item.userPlaylist.coverImageKey,
+              data: { ...item.userPlaylist, isUserPlaylist: true },
             };
           }
           return {
@@ -260,11 +277,14 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     } else if (item.type === "playlist") {
       if (item.data?.isUserPlaylist) {
         router.push(`/userplaylist/${item.data.id}`);
+        if (systemUser?.id && item.data.id) {
+          saveHistory.mutate({ type: "USER_PLAYLIST", userPlaylistId: item.data.id });
+        }
       } else {
         router.push(`/playlists/${item.data.id}`);
-      }
-      if (systemUser?.id && item.data.id) {
-        saveHistory.mutate({ type: "PLAYLIST", playlistId: item.data.id });
+        if (systemUser?.id && item.data.id) {
+          saveHistory.mutate({ type: "PLAYLIST", playlistId: item.data.id });
+        }
       }
       onClose();
     }

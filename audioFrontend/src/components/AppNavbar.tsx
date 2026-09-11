@@ -112,6 +112,8 @@ export function AppNavbar() {
       handleArtistClick(item.artist);
     } else if (item.type === "PLAYLIST" && item.playlist) {
       handlePlaylistClick(item.playlist);
+    } else if (item.type === "USER_PLAYLIST" && item.userPlaylist) {
+      handleUserPlaylistClick(item.userPlaylist);
     }
   };
 
@@ -145,6 +147,9 @@ export function AppNavbar() {
 
   const handleUserPlaylistClick = (playlist: UserPlaylist) => {
     router.push(`/userplaylist/${playlist.id}`);
+    if (systemUser?.id && playlist.id) {
+      saveHistory.mutate({ type: "USER_PLAYLIST", userPlaylistId: playlist.id });
+    }
     setIsFocused(false);
   };
 
@@ -285,6 +290,7 @@ export function AppNavbar() {
                         const isSong = item.type === "SONG" && !!item.song;
                         const isArtist = item.type === "ARTIST" && !!item.artist;
                         const isPlaylist = item.type === "PLAYLIST" && !!item.playlist;
+                        const isUserPlaylist = item.type === "USER_PLAYLIST" && !!item.userPlaylist;
 
                         return (
                           <div
@@ -318,16 +324,19 @@ export function AppNavbar() {
                                   <User size={16} className="text-zinc-500" />
                                 )}
                               </div>
-                            ) : isPlaylist && item.playlist ? (
+                            ) : (isPlaylist && item.playlist) || (isUserPlaylist && item.userPlaylist) ? (
                               <div className="w-10 h-10 rounded-md bg-zinc-900 overflow-hidden shrink-0 flex items-center justify-center border border-white/5">
-                                {item.playlist.coverImageKey ? (
+                                {(item.playlist?.coverImageKey || item.userPlaylist?.coverImageKey) ? (
                                   <img
-                                    src={getImageUrl(item.playlist.coverImageKey, {
-                                      width: 80,
-                                      height: 80,
-                                      focus: "auto",
-                                      aspectRatio: "1-1",
-                                    })}
+                                    src={getImageUrl(
+                                      (item.playlist?.coverImageKey || item.userPlaylist?.coverImageKey)!,
+                                      {
+                                        width: 80,
+                                        height: 80,
+                                        focus: "auto",
+                                        aspectRatio: "1-1",
+                                      }
+                                    )}
                                     className="w-full h-full object-cover"
                                     alt=""
                                   />
@@ -348,14 +357,20 @@ export function AppNavbar() {
                                   ? item.song?.title
                                   : isArtist
                                   ? item.artist?.name
-                                  : item.playlist?.name}
+                                  : isPlaylist
+                                  ? item.playlist?.name
+                                  : item.userPlaylist?.name}
                               </p>
                               <p className="text-[11px] text-zinc-400 font-normal truncate">
                                 {isSong
                                   ? item.song?.artistName || "Song"
                                   : isArtist
                                   ? "Artist"
-                                  : "Playlist"}
+                                  : isPlaylist
+                                  ? "Playlist"
+                                  : item.userPlaylist?.ownerName
+                                  ? `By ${item.userPlaylist.ownerName}`
+                                  : "Community Playlist"}
                               </p>
                             </div>
 

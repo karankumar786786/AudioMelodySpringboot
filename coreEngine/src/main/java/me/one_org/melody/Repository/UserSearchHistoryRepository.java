@@ -2,6 +2,7 @@ package me.one_org.melody.Repository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import me.one_org.melody.Entity.UserPlaylistsEntity;
 import me.one_org.melody.Entity.UserSearchHistoryEntity;
 import me.one_org.melody.Entity.UsersEntity;
 import org.springframework.stereotype.Repository;
@@ -34,6 +35,7 @@ public class UserSearchHistoryRepository {
                 "LEFT JOIN FETCH h.song " +
                 "LEFT JOIN FETCH h.artist " +
                 "LEFT JOIN FETCH h.playlist " +
+                "LEFT JOIN FETCH h.userPlaylist " +
                 "WHERE h.user = :user ORDER BY h.createdAt DESC",
                 UserSearchHistoryEntity.class)
                 .setParameter("user", user)
@@ -60,7 +62,36 @@ public class UserSearchHistoryRepository {
                         .setParameter("user", user)
                         .setParameter("entityId", entityId)
                         .executeUpdate();
+            } else if ("USER_PLAYLIST".equalsIgnoreCase(entityType)) {
+                entityManager.createQuery("DELETE FROM UserSearchHistoryEntity h WHERE h.user = :user AND h.userPlaylist.id = :entityId")
+                        .setParameter("user", user)
+                        .setParameter("entityId", entityId)
+                        .executeUpdate();
             }
+        } catch (Exception e) {
+            // ignore
+        }
+    }
+
+    @Transactional
+    public void deleteByUserPlaylist(UserPlaylistsEntity userPlaylist) {
+        if (userPlaylist == null) return;
+        try {
+            entityManager.createQuery("DELETE FROM UserSearchHistoryEntity h WHERE h.userPlaylist = :userPlaylist")
+                    .setParameter("userPlaylist", userPlaylist)
+                    .executeUpdate();
+        } catch (Exception e) {
+            // ignore
+        }
+    }
+
+    @Transactional
+    public void deleteByUserPlaylistId(String userPlaylistId) {
+        if (userPlaylistId == null) return;
+        try {
+            entityManager.createQuery("DELETE FROM UserSearchHistoryEntity h WHERE h.userPlaylist.id = :userPlaylistId")
+                    .setParameter("userPlaylistId", userPlaylistId)
+                    .executeUpdate();
         } catch (Exception e) {
             // ignore
         }

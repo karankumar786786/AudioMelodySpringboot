@@ -24,6 +24,7 @@ import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserPlaylistsRepository;
 import me.one_org.melody.Repository.UserSavedPlaylistsRepository;
+import me.one_org.melody.Repository.UserSearchHistoryRepository;
 import me.one_org.melody.Repository.UsersRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 
@@ -33,6 +34,7 @@ public class UserPlaylistApiService {
 
     private final UserPlaylistsRepository userPlaylistsRepository;
     private final UserSavedPlaylistsRepository userSavedPlaylistsRepository;
+    private final UserSearchHistoryRepository userSearchHistoryRepository;
     private final SongsRepository songsRepository;
     private final UsersRepository usersRepository;
     private final Recombee recombee;
@@ -41,11 +43,13 @@ public class UserPlaylistApiService {
 
     public UserPlaylistApiService(UserPlaylistsRepository userPlaylistsRepository,
             UserSavedPlaylistsRepository userSavedPlaylistsRepository,
+            UserSearchHistoryRepository userSearchHistoryRepository,
             SongsRepository songsRepository, UsersRepository usersRepository,
             Recombee recombee, PaginationMetaDataService paginationMetaDataService,
             AlgoliaSearch algoliaSearch) {
         this.userPlaylistsRepository = userPlaylistsRepository;
         this.userSavedPlaylistsRepository = userSavedPlaylistsRepository;
+        this.userSearchHistoryRepository = userSearchHistoryRepository;
         this.songsRepository = songsRepository;
         this.usersRepository = usersRepository;
         this.recombee = recombee;
@@ -155,6 +159,13 @@ public class UserPlaylistApiService {
                 log.warn("Failed to delete follower references for non-public playlist: {}", e.getMessage());
             }
 
+            // Revoke search history: delete from userSearchHistory
+            try {
+                userSearchHistoryRepository.deleteByUserPlaylist(playlist);
+            } catch (Exception e) {
+                log.warn("Failed to delete search history for non-public playlist: {}", e.getMessage());
+            }
+
             // Revoke search index: delete from Algolia
             try {
                 algoliaSearch.delete(playlist.getId());
@@ -175,6 +186,13 @@ public class UserPlaylistApiService {
             userSavedPlaylistsRepository.deleteByPlaylist(playlist);
         } catch (Exception e) {
             log.warn("Failed to delete follower references for deleted playlist: {}", e.getMessage());
+        }
+
+        // Delete from search history
+        try {
+            userSearchHistoryRepository.deleteByUserPlaylistId(playlistId);
+        } catch (Exception e) {
+            log.warn("Failed to delete search history for deleted playlist: {}", e.getMessage());
         }
 
         userPlaylistsRepository.deleteById(playlistId);

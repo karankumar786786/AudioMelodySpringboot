@@ -29,7 +29,7 @@ public class UserSearchHistoryEntity {
     private UsersEntity user;
 
     @Column(name = "entity_type", nullable = false)
-    private String entityType; // "SONG", "ARTIST", "PLAYLIST"
+    private String entityType; // "SONG", "ARTIST", "PLAYLIST", "USER_PLAYLIST"
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "song_id", nullable = true)
@@ -51,6 +51,13 @@ public class UserSearchHistoryEntity {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private PlaylistsEntity playlist;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "user_playlist_id", nullable = true)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private UserPlaylistsEntity userPlaylist;
 
     @CreationTimestamp
     @Column(name = "created_at")

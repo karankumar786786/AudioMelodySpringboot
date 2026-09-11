@@ -68,10 +68,11 @@ export interface UnifiedSearchResult {
 
 export interface SearchHistoryItem {
   id: string;
-  type: "SONG" | "ARTIST" | "PLAYLIST" | string;
+  type: "SONG" | "ARTIST" | "PLAYLIST" | "USER_PLAYLIST" | string;
   song?: Song | null;
   artist?: Artist | null;
   playlist?: Playlist | null;
+  userPlaylist?: UserPlaylist | null;
   createdAt?: string;
 }
 
@@ -80,13 +81,15 @@ export interface SearchHistoryGroupedResponse {
   songs: Song[];
   artists: Artist[];
   playlists: Playlist[];
+  userPlaylists: UserPlaylist[];
 }
 
 export interface SaveSearchHistoryPayload {
-  type?: "SONG" | "ARTIST" | "PLAYLIST";
+  type?: "SONG" | "ARTIST" | "PLAYLIST" | "USER_PLAYLIST";
   songId?: string;
   artistId?: string;
   playlistId?: string;
+  userPlaylistId?: string;
 }
 
 export interface User {
@@ -430,13 +433,14 @@ export const musicApi = {
     getSearchHistory: async (): Promise<{ data: SearchHistoryGroupedResponse }> => {
       try {
         const res = await request<SearchHistoryGroupedResponse>("/api/user/history/search");
-        if (res && (res.recent || res.songs || res.artists || res.playlists)) {
+        if (res && (res.recent || res.songs || res.artists || res.playlists || res.userPlaylists)) {
           return {
             data: {
               recent: res.recent || [],
               songs: res.songs || [],
               artists: res.artists || [],
               playlists: res.playlists || [],
+              userPlaylists: res.userPlaylists || [],
             },
           };
         }
@@ -448,6 +452,7 @@ export const musicApi = {
               songs: list.map((r) => r.song).filter(Boolean) as Song[],
               artists: list.map((r) => r.artist).filter(Boolean) as Artist[],
               playlists: list.map((r) => r.playlist).filter(Boolean) as Playlist[],
+              userPlaylists: list.map((r) => r.userPlaylist).filter(Boolean) as UserPlaylist[],
             },
           };
         }
@@ -457,6 +462,7 @@ export const musicApi = {
             songs: [],
             artists: [],
             playlists: [],
+            userPlaylists: [],
           },
         };
       } catch {
@@ -466,6 +472,7 @@ export const musicApi = {
             songs: [],
             artists: [],
             playlists: [],
+            userPlaylists: [],
           },
         };
       }
