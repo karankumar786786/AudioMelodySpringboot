@@ -17,6 +17,8 @@ public record UserHistoryResponseDto(
     String lrclibId,
     String status,
     LocalDateTime createdAt,
+    Integer previewStartTime,
+    Integer previewEndTime,
     Integer part,
     LocalDateTime listenedAt
 ) {}

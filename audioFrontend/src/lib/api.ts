@@ -435,6 +435,15 @@ export const musicApi = {
         return { data: { data: list } };
       }
     },
+    getSimilarSongs: async (songId: string, count = 10) => {
+      try {
+        const res = await request<Song[]>(`/api/recommendations/similar/${songId}?count=${count}`);
+        const list = Array.isArray(res) ? res : [];
+        return { data: { data: list } };
+      } catch {
+        return { data: { data: [] } };
+      }
+    },
     recordListen: async (songId: string, percentage = 0.05) => {
       if (!songId) return;
       try {

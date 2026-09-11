@@ -19,6 +19,7 @@ import { getImageUrl, getVideoUrl, getVideoABRUrl } from "@/lib/image-utils";
 import { musicApi, Song } from "@/lib/api";
 import { mapToPlayerSong, getFullVideoHlsUrl, getFullVideoDashUrl } from "@/lib/player-utils";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
+import { SongCard } from "./SongCard";
 import { PlayerTooltip } from "./player/PlayerTooltip";
 import { HeartButton } from "./HeartButton";
 import { toast } from "sonner";
@@ -63,8 +64,20 @@ export function RightInfoPanel() {
     staleTime: 1000 * 60 * 60,
   });
 
-  // Related songs (hydrates in background)
-  const { data: songsFeed, isLoading: isRelatedLoading } = useQuery({
+  // 1. Similar songs from Recombee recommendation engine
+  const { data: similarSongs = [], isLoading: isSimilarLoading } = useQuery({
+    queryKey: ["similar-songs", currentSong?.id],
+    queryFn: async () => {
+      if (!currentSong?.id) return [];
+      const res = await musicApi.interactions.getSimilarSongs(currentSong.id, 10);
+      return res?.data?.data || [];
+    },
+    enabled: !!currentSong?.id,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // 2. Feed fallback / artist tracks
+  const { data: songsFeed, isLoading: isFeedLoading } = useQuery({
     queryKey: ["artist-more-songs", currentSong?.artistName],
     queryFn: async () => {
       const res = await musicApi.songs.getFeed(1, 50);
@@ -74,28 +87,42 @@ export function RightInfoPanel() {
     staleTime: 1000 * 60 * 5,
   });
 
+  const isRelatedLoading = isSimilarLoading && isFeedLoading;
+
   const artistMoreSongs = React.useMemo<Song[]>(() => {
-    if (!songsFeed || !currentSong) return [];
+    if (!currentSong) return [];
+
+    if (similarSongs && similarSongs.length >= 3) {
+      return similarSongs.filter((s: Song) => s.id !== currentSong.id).slice(0, 10);
+    }
+
+    if (!songsFeed) return similarSongs || [];
 
     const normalizedArtist = currentSong.artistName.trim().toLowerCase();
 
-    const matches = songsFeed.filter(
+    const artistMatches = songsFeed.filter(
       (s: Song) =>
         s.id !== currentSong.id &&
         s.artistName?.trim().toLowerCase().includes(normalizedArtist),
     );
 
-    if (matches.length < 4) {
-      const remaining = songsFeed.filter(
-        (s: Song) =>
-          s.id !== currentSong.id && !matches.some((m: Song) => m.id === s.id),
-      );
+    const combined = [...(similarSongs || []), ...artistMatches];
+    const seen = new Set<string>();
+    const unique = combined.filter((s: Song) => {
+      if (s.id === currentSong.id || seen.has(s.id)) return false;
+      seen.add(s.id);
+      return true;
+    });
 
-      return [...matches, ...remaining].slice(0, 5);
+    if (unique.length < 4) {
+      const remaining = songsFeed.filter(
+        (s: Song) => s.id !== currentSong.id && !seen.has(s.id),
+      );
+      return [...unique, ...remaining].slice(0, 10);
     }
 
-    return matches.slice(0, 5);
-  }, [songsFeed, currentSong]);
+    return unique.slice(0, 10);
+  }, [similarSongs, songsFeed, currentSong]);
 
   if (!currentSong) {
     return (
@@ -375,7 +402,7 @@ export function RightInfoPanel() {
               {isRelatedLoading ? (
                 <div className="flex gap-3 overflow-hidden pb-1">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex-shrink-0 w-32 space-y-2 animate-pulse">
+                    <div key={i} className="flex-shrink-0 w-36 space-y-2 animate-pulse">
                       <div className="w-full aspect-square bg-zinc-900 rounded-md" />
                       <div className="h-3 w-3/4 bg-zinc-800 rounded" />
                       <div className="h-2.5 w-1/2 bg-zinc-800/60 rounded" />
@@ -387,62 +414,13 @@ export function RightInfoPanel() {
                   ref={relatedSongsRef}
                   className="flex gap-3 overflow-x-auto no-scrollbar pb-1 scroll-smooth"
                 >
-                  {artistMoreSongs.map((song: Song) => {
-                    const songImg = song.imageKey
-                      ? getImageUrl(song.imageKey, {
-                          width: 350,
-                          height: 350,
-                          focus: "auto",
-                          aspectRatio: "1-1",
-                        })
-                      : "";
-
-                    return (
-                      <div
-                        key={song.id}
-                        onClick={() =>
-                          playerActions.play(mapToPlayerSong(song))
-                        }
-                        className="group flex-shrink-0 w-32 cursor-pointer space-y-1.5"
-                      >
-                        {/* 1:1 square cover like SongCard */}
-                        <div className="relative aspect-square w-full rounded-md overflow-hidden bg-zinc-900 shadow-md border border-white/5 group-hover:border-zinc-500 transition-colors">
-                          {songImg ? (
-                            <img
-                              src={songImg}
-                              alt={song.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                              <Music size={20} />
-                            </div>
-                          )}
-
-                          {/* Play overlay button like SongCard */}
-                          <div className="absolute bottom-2 right-2 translate-y-2 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-300 z-10">
-                            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-black shadow-lg">
-                              <Play
-                                fill="black"
-                                size={14}
-                                className="translate-x-0.5"
-                              />
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Title & Artist */}
-                        <div className="space-y-0.5">
-                          <p className="text-xs font-bold text-white truncate group-hover:text-primary transition-colors">
-                            {song.title}
-                          </p>
-                          <p className="text-[11px] text-zinc-400 truncate hover:text-white">
-                            {song.artistName}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {artistMoreSongs.map((song: Song) => (
+                    <SongCard
+                      key={song.id}
+                      song={song}
+                      className="flex-shrink-0 w-36 !p-2.5"
+                    />
+                  ))}
                 </div>
               ) : (
                 <p className="text-xs text-zinc-500 py-2">No other tracks found for this artist.</p>

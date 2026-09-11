@@ -92,6 +92,8 @@ public class UserHistoryApiService {
                 song.getLrclibId(),
                 song.getStatus() != null ? song.getStatus().name() : null,
                 song.getCreatedAt(),
+                song.getPreviewStartTime(),
+                song.getPreviewEndTime(),
                 history.getPart(),
                 history.getListenedAt()
         );
