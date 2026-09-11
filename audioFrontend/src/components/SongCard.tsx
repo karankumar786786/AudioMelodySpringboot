@@ -11,6 +11,7 @@ import {
   X,
   Heart,
   Share2,
+  Loader2,
 } from "lucide-react";
 import { type Song } from "../lib/api";
 import { playerActions, playerStore } from "../store/player.store";
@@ -46,6 +47,7 @@ export function SongCard({
   const systemUser = useStore(playerStore, (s) => s.systemUser);
   const currentSong = useStore(playerStore, (s) => s.currentSong);
   const isPlaying = useStore(playerStore, (s) => s.isPlaying);
+  const isAudioLoading = useStore(playerStore, (s) => s.isLoading);
   const favourites = useStore(playerStore, (s) => s.favourites);
   const previewState = useStore(previewStore, (s) => s);
 
@@ -72,11 +74,14 @@ export function SongCard({
     }
     try {
       await playerActions.toggleFavourite(String(song.id));
-      toast.success(isFavourite ? "Removed from favourites" : "Added to favourites", {
-        description: isFavourite
-          ? `"${song.title}" removed from your favourites.`
-          : `"${song.title}" saved to your favourites.`,
-      });
+      toast.success(
+        isFavourite ? "Removed from favourites" : "Added to favourites",
+        {
+          description: isFavourite
+            ? `"${song.title}" removed from your favourites.`
+            : `"${song.title}" saved to your favourites.`,
+        },
+      );
     } catch {
       toast.error("Failed to update favourites");
     }
@@ -168,14 +173,20 @@ export function SongCard({
           {isPreviewPlaying && (
             <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 bg-black/90 backdrop-blur-md border border-primary/40 px-2 py-0.5 rounded-full text-[10px] text-primary font-bold shadow-lg max-w-[88%]">
               <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping shrink-0" />
-              <span className="truncate font-mono">{formatTime(previewState.startTime)} - {formatTime(previewState.endTime)}</span>
+              <span className="truncate font-mono">
+                {formatTime(previewState.startTime)} -{" "}
+                {formatTime(previewState.endTime)}
+              </span>
             </div>
           )}
 
           {/* Spotify Green Play/Pause Button Overlay on Cover Art */}
           <div
             className={`absolute bottom-2 right-2 translate-y-2 group-hover:translate-y-0 transition-all duration-300 z-10 ${
-              (isActiveSong && isPlaying) || isPreviewPlaying || isCountingDown || isPreviewLoading
+              (isActiveSong && isPlaying) ||
+              isPreviewPlaying ||
+              isCountingDown ||
+              isPreviewLoading
                 ? "opacity-100 translate-y-0"
                 : "opacity-0 group-hover:opacity-100"
             }`}
@@ -185,7 +196,10 @@ export function SongCard({
             <div className="relative flex items-center justify-center">
               {/* Circular SVG countdown progress ring when counting down */}
               {isCountingDown && (
-                <svg className="absolute -inset-1 w-14 h-14 -rotate-90 pointer-events-none" viewBox="0 0 56 56">
+                <svg
+                  className="absolute -inset-1 w-14 h-14 -rotate-90 pointer-events-none"
+                  viewBox="0 0 56 56"
+                >
                   <circle
                     cx="28"
                     cy="28"
@@ -210,47 +224,102 @@ export function SongCard({
                 </svg>
               )}
 
-              {/* Pulsing ring when preview is playing */}
+              {/* Real-time Progress Ring & Pulsing Beat Expansion when preview is playing */}
               {isPreviewPlaying && (
-                <span className="absolute -inset-1 rounded-full border-2 border-primary animate-ping opacity-60 pointer-events-none" />
+                <>
+                  <span className="absolute -inset-1.5 rounded-full border-2 border-primary animate-ping opacity-60 pointer-events-none" />
+                  <motion.span
+                    className="absolute -inset-2.5 rounded-full border border-primary/40 pointer-events-none"
+                    animate={{ scale: [1, 1.2, 1], opacity: [0.6, 0, 0.6] }}
+                    transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                  />
+                  <svg
+                    className="absolute -inset-1 w-14 h-14 -rotate-90 pointer-events-none drop-shadow-[0_0_8px_rgba(30,215,96,0.6)]"
+                    viewBox="0 0 56 56"
+                  >
+                    <circle
+                      cx="28"
+                      cy="28"
+                      r="25"
+                      fill="none"
+                      stroke="rgba(255, 255, 255, 0.2)"
+                      strokeWidth="3"
+                    />
+                    <circle
+                      cx="28"
+                      cy="28"
+                      r="25"
+                      fill="none"
+                      stroke="#1ed760"
+                      strokeWidth="3"
+                      strokeDasharray={157}
+                      strokeDashoffset={
+                        157 *
+                        (1 - Math.min(1, Math.max(0, previewState.progress || 0)))
+                      }
+                      strokeLinecap="round"
+                      className="transition-[stroke-dashoffset] duration-150 ease-linear"
+                    />
+                  </svg>
+                </>
               )}
 
               <button
                 onClick={handlePlayToggle}
                 className={`w-12 h-12 rounded-full bg-primary hover:scale-105 flex items-center justify-center text-black shadow-xl cursor-pointer transition-transform relative ${
-                  isPreviewPlaying ? "ring-2 ring-primary ring-offset-2 ring-offset-black" : ""
+                  isPreviewPlaying
+                    ? "ring-2 ring-primary ring-offset-2 ring-offset-black"
+                    : ""
                 }`}
                 title={
                   isActiveSong && isPlaying
                     ? "Pause"
                     : isPreviewPlaying
-                    ? "Playing Preview (Click for Full Track)"
-                    : "Play Track (Hover 3s for preview)"
+                      ? "Playing Preview (Click for Full Track)"
+                      : "Play Track (Hover 3s for preview)"
                 }
                 aria-label={isActiveSong && isPlaying ? "Pause" : "Play"}
               >
                 {isActiveSong && isPlaying ? (
-                  <Pause fill="black" size={20} />
+                  isAudioLoading ? (
+                    <Loader2 size={20} className="animate-spin text-black" />
+                  ) : (
+                    <Pause fill="black" size={20} />
+                  )
                 ) : isPreviewLoading ? (
-                  <svg className="animate-spin h-5 w-5 text-black" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
+                  <Loader2 size={20} className="animate-spin text-black" />
                 ) : isPreviewPlaying ? (
                   <div className="flex items-end justify-center gap-0.5 h-4 w-4">
                     <motion.span
                       animate={{ height: ["30%", "100%", "40%"] }}
-                      transition={{ duration: 0.5, repeat: Infinity, repeatType: "reverse", ease: "easeInOut" }}
+                      transition={{
+                        duration: 0.5,
+                        repeat: Infinity,
+                        repeatType: "reverse",
+                        ease: "easeInOut",
+                      }}
                       className="w-1 bg-black rounded-full"
                     />
                     <motion.span
                       animate={{ height: ["80%", "30%", "90%"] }}
-                      transition={{ duration: 0.4, repeat: Infinity, repeatType: "reverse", ease: "easeInOut", delay: 0.1 }}
+                      transition={{
+                        duration: 0.4,
+                        repeat: Infinity,
+                        repeatType: "reverse",
+                        ease: "easeInOut",
+                        delay: 0.1,
+                      }}
                       className="w-1 bg-black rounded-full"
                     />
                     <motion.span
                       animate={{ height: ["40%", "90%", "30%"] }}
-                      transition={{ duration: 0.45, repeat: Infinity, repeatType: "reverse", ease: "easeInOut", delay: 0.2 }}
+                      transition={{
+                        duration: 0.45,
+                        repeat: Infinity,
+                        repeatType: "reverse",
+                        ease: "easeInOut",
+                        delay: 0.2,
+                      }}
                       className="w-1 bg-black rounded-full"
                     />
                   </div>
@@ -336,7 +405,9 @@ export function SongCard({
                       }
                     />
                     <span>
-                      {isFavourite ? "Remove from favourites" : "Save to favourites"}
+                      {isFavourite
+                        ? "Remove from favourites"
+                        : "Save to favourites"}
                     </span>
                   </button>
 

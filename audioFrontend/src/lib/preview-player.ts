@@ -13,6 +13,8 @@ export interface PreviewState {
   songTitle: string | null;
   startTime: number;
   endTime: number;
+  currentTime: number;
+  progress: number;
 }
 
 export const previewStore = new Store<PreviewState>({
@@ -21,6 +23,8 @@ export const previewStore = new Store<PreviewState>({
   songTitle: null,
   startTime: 0,
   endTime: 0,
+  currentTime: 0,
+  progress: 0,
 });
 
 class PreviewManager {
@@ -55,6 +59,8 @@ class PreviewManager {
       songTitle: song.title,
       startTime,
       endTime,
+      currentTime: startTime,
+      progress: 0,
     }));
 
     this.timer = setTimeout(() => {
@@ -62,6 +68,37 @@ class PreviewManager {
         this.playPreview(song, startTime, endTime);
       }
     }, 1000);
+  }
+
+  /**
+   * Immediately plays or stops the preview of a song without any hover/countdown delay.
+   * Used for direct-click preview buttons in search, tables, and queues.
+   */
+  public togglePreview(song: Song) {
+    if (!song || !song.id) return;
+    if (
+      this.currentTargetSongId === song.id &&
+      (previewStore.state.status === "playing" ||
+        previewStore.state.status === "loading" ||
+        previewStore.state.status === "countdown")
+    ) {
+      this.stopPreview(false);
+      return;
+    }
+
+    this.stopPreview(true);
+    this.currentTargetSongId = song.id;
+
+    const startTime =
+      song.previewStartTime != null && song.previewStartTime >= 0
+        ? song.previewStartTime
+        : 0;
+    const endTime =
+      song.previewEndTime != null && song.previewEndTime > startTime
+        ? song.previewEndTime
+        : startTime + 30;
+
+    this.playPreview(song, startTime, endTime);
   }
 
   /**
@@ -103,14 +140,26 @@ class PreviewManager {
             previewStore.setState((s) => ({
               ...s,
               status: "playing",
+              currentTime: startTime,
+              progress: 0,
             }));
 
             // Fade in volume smoothly to 0.75
             this.fadeIn(audio, 0.75, 400);
 
-            // Time update listener to stop at endTime
+            // Time update listener to calculate progress and stop at endTime
             const checkTime = () => {
               if (!this.audio || this.audio !== audio) return;
+              const cur = audio.currentTime;
+              const duration = Math.max(0.1, endTime - startTime);
+              const progress = Math.min(1, Math.max(0, (cur - startTime) / duration));
+
+              previewStore.setState((s) => ({
+                ...s,
+                currentTime: cur,
+                progress,
+              }));
+
               if (audio.currentTime >= endTime || (endTime > 0 && audio.currentTime >= endTime - 0.2)) {
                 this.stopPreview(false);
               }
@@ -192,6 +241,8 @@ class PreviewManager {
         songTitle: null,
         startTime: 0,
         endTime: 0,
+        currentTime: 0,
+        progress: 0,
       }));
       return;
     }
@@ -206,6 +257,8 @@ class PreviewManager {
         songTitle: null,
         startTime: 0,
         endTime: 0,
+        currentTime: 0,
+        progress: 0,
       }));
     } else {
       // Smooth fade out over 250ms
@@ -219,6 +272,8 @@ class PreviewManager {
           songTitle: null,
           startTime: 0,
           endTime: 0,
+          currentTime: 0,
+          progress: 0,
         }));
       });
     }

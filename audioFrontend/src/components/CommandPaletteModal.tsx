@@ -20,7 +20,9 @@ import {
 import { musicApi, Song, Artist, Playlist } from "@/lib/api";
 import { getImageUrl } from "@/lib/image-utils";
 import { mapToPlayerSong } from "@/lib/player-utils";
+import { previewPlayer } from "@/lib/preview-player";
 import { playerActions, playerStore } from "@/store/player.store";
+import { SongThumbnail } from "./SongThumbnail";
 import { toast } from "sonner";
 
 interface CommandPaletteModalProps {
@@ -185,6 +187,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   }, [selectedIndex]);
 
   const handleSelectItem = (item: NavigableItem) => {
+    previewPlayer.stopPreview(true);
     if (item.type === "song") {
       playerActions.play(mapToPlayerSong(item.data));
       toast.success("Playing song", {
@@ -322,7 +325,17 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                 <div
                   key={item.id}
                   data-index={idx}
-                  onMouseEnter={() => setSelectedIndex(idx)}
+                  onMouseEnter={() => {
+                    setSelectedIndex(idx);
+                    if (item.type === "song" && item.data) {
+                      previewPlayer.startHoverCountdown(item.data);
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    if (item.type === "song") {
+                      previewPlayer.stopPreview();
+                    }
+                  }}
                   onClick={() => handleSelectItem(item)}
                   className={`flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-colors select-none ${
                     isSelected
@@ -332,23 +345,31 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     {/* Item Thumbnail / Icon */}
-                    <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 shrink-0 flex items-center justify-center border border-white/5">
-                      {imageUrl ? (
-                        <img
-                          src={imageUrl}
-                          alt=""
-                          className="w-full h-full object-cover"
-                        />
-                      ) : item.type === "song" ? (
-                        <Music size={18} className="text-zinc-400" />
-                      ) : item.type === "artist" ? (
-                        <User size={18} className="text-zinc-400" />
-                      ) : item.type === "playlist" ? (
-                        <ListMusic size={18} className="text-zinc-400" />
-                      ) : (
-                        <Clock size={16} className="text-zinc-500" />
-                      )}
-                    </div>
+                    {item.type === "song" && item.data ? (
+                      <SongThumbnail
+                        song={item.data}
+                        sizeClass="w-10 h-10"
+                        roundedClass="rounded-lg"
+                        enablePreviewHover={false}
+                        onPlayClick={() => handleSelectItem(item)}
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-zinc-800 shrink-0 flex items-center justify-center border border-white/5">
+                        {imageUrl ? (
+                          <img
+                            src={imageUrl}
+                            alt=""
+                            className="w-full h-full object-cover"
+                          />
+                        ) : item.type === "artist" ? (
+                          <User size={18} className="text-zinc-400" />
+                        ) : item.type === "playlist" ? (
+                          <ListMusic size={18} className="text-zinc-400" />
+                        ) : (
+                          <Clock size={16} className="text-zinc-500" />
+                        )}
+                      </div>
+                    )}
 
                     {/* Title & Subtitle */}
                     <div className="min-w-0 flex-1">
@@ -370,7 +391,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                   </div>
 
                   {/* Action Pill / Indicator */}
-                  <div className="shrink-0 flex items-center gap-2 pl-3">
+                  <div className="shrink-0 flex items-center gap-1.5 pl-3">
                     {item.type === "song" && (
                       <span className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-xs text-primary font-medium">
                         <Play size={12} fill="currentColor" /> Play

@@ -20,9 +20,11 @@ import {
 } from "lucide-react";
 import { playerStore, playerActions } from "@/store/player.store";
 import { mapListToPlayerSongs } from "@/lib/player-utils";
-import { toast } from "sonner";
 import { getSolidBgFromImage } from "@/lib/color-utils";
+import { toast } from "sonner";
 import { NotFoundPage, ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
+import { SongThumbnail } from "@/components/SongThumbnail";
+import { previewPlayer } from "@/lib/preview-player";
 
 export default function ArtistPage() {
   const { id } = useParams();
@@ -173,6 +175,7 @@ export default function ArtistPage() {
   /* -------------------------------------------------------------------------- */
 
   const handlePlaySong = (song: any, index: number) => {
+    previewPlayer.stopPreview(true);
     const isActive = currentSong?.id === song.id;
 
     if (isActive) {
@@ -345,6 +348,12 @@ export default function ArtistPage() {
                     delay: Math.min(index * 0.015, 0.3),
                   }}
                   onClick={() => handlePlaySong(song, index)}
+                  onMouseEnter={() => {
+                    if (!isActive || !isPlaying) {
+                      previewPlayer.startHoverCountdown(song);
+                    }
+                  }}
+                  onMouseLeave={() => previewPlayer.stopPreview()}
                   className={`group grid cursor-pointer grid-cols-12 items-center rounded-md px-4 py-2.5 transition-colors duration-150 ${
                     isActive ? "bg-white/10" : "hover:bg-white/[0.07]"
                   }`}
@@ -380,19 +389,13 @@ export default function ArtistPage() {
                   {/* ======================================================== */}
 
                   <div className="col-span-7 flex min-w-0 items-center gap-3 md:col-span-6">
-                    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-md bg-zinc-900">
-                      {songImage ? (
-                        <img
-                          src={songImage}
-                          alt={song.title}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center">
-                          <Music size={17} className="text-zinc-600" />
-                        </div>
-                      )}
-                    </div>
+                    <SongThumbnail
+                      song={song}
+                      sizeClass="h-11 w-11"
+                      roundedClass="rounded-md"
+                      enablePreviewHover={false}
+                      onPlayClick={() => handlePlaySong(song, index)}
+                    />
 
                     <div className="min-w-0 flex-1">
                       <h4
@@ -420,10 +423,10 @@ export default function ArtistPage() {
                   </div>
 
                   {/* ======================================================== */}
-                  {/* DURATION */}
+                  {/* DURATION & ACTIONS */}
                   {/* ======================================================== */}
 
-                  <div className="col-span-4 flex items-center justify-end gap-4 text-xs tabular-nums text-zinc-400 md:col-span-2">
+                  <div className="col-span-4 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-2">
                     <span>{formatDuration(song.duration)}</span>
                   </div>
                 </motion.div>

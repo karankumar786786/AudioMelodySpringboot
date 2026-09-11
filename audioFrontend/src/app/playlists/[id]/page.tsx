@@ -1,24 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import {
-  ListMusic,
-  Play,
-  Pause,
-  Trash2,
-  Clock,
-  Music,
-} from "lucide-react";
+import { Play, Pause, Trash2, Clock, Music } from "lucide-react";
 import { playerActions, playerStore } from "@/store/player.store";
 import { mapListToPlayerSongs } from "@/lib/player-utils";
 import { useStore } from "@tanstack/react-store";
 import { toast } from "sonner";
 import { getImageUrl, getVideoUrl } from "@/lib/image-utils";
+import { previewPlayer } from "@/lib/preview-player";
 import { NotFoundPage, ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
+import { SongThumbnail } from "@/components/SongThumbnail";
 
 export default function PlaylistPage() {
   const { id } = useParams();
@@ -42,7 +37,12 @@ export default function PlaylistPage() {
   /*                                  PLAYLIST                                  */
   /* -------------------------------------------------------------------------- */
 
-  const { data: playlistResponse, isLoading: isPlaylistLoading, error: playlistError, refetch: refetchPlaylist } = useQuery({
+  const {
+    data: playlistResponse,
+    isLoading: isPlaylistLoading,
+    error: playlistError,
+    refetch: refetchPlaylist,
+  } = useQuery({
     queryKey: ["playlist", id, playlistType],
     queryFn: async () => {
       if (playlistType === "user") {
@@ -76,7 +76,12 @@ export default function PlaylistPage() {
   /*                                    SONGS                                   */
   /* -------------------------------------------------------------------------- */
 
-  const { data: songsResponse, isLoading: isSongsLoading, error: songsError, refetch: refetchSongs } = useQuery({
+  const {
+    data: songsResponse,
+    isLoading: isSongsLoading,
+    error: songsError,
+    refetch: refetchSongs,
+  } = useQuery({
     queryKey: ["playlist-songs", id, playlistType],
     queryFn: async () => {
       if (playlistType === "user") {
@@ -171,12 +176,22 @@ export default function PlaylistPage() {
       return <NotFoundPage />;
     }
     if (is500) {
-      return <ServerErrorPage onRetry={() => { refetchPlaylist(); refetchSongs(); }} />;
+      return (
+        <ServerErrorPage
+          onRetry={() => {
+            refetchPlaylist();
+            refetchSongs();
+          }}
+        />
+      );
     }
     return (
       <SomethingWentWrongPage
         error={playlistError as Error}
-        reset={() => { refetchPlaylist(); refetchSongs(); }}
+        reset={() => {
+          refetchPlaylist();
+          refetchSongs();
+        }}
       />
     );
   }
@@ -199,6 +214,7 @@ export default function PlaylistPage() {
   /* -------------------------------------------------------------------------- */
 
   const handlePlaySong = (song: any, index: number) => {
+    previewPlayer.stopPreview(true);
     const isActive = currentSong?.id === song.id;
 
     if (isActive) {
@@ -318,8 +334,8 @@ export default function PlaylistPage() {
                     songs.reduce(
                       (total: number, song: any) =>
                         total + (Number(song.duration) || 0),
-                      0
-                    )
+                      0,
+                    ),
                   )}
                 </span>
 
@@ -358,19 +374,31 @@ export default function PlaylistPage() {
               const isActive = currentSong?.id === song.id;
               const isCurrentPlaying = isActive && isPlaying;
 
-              const songImage = getImageUrl(song.imageKey || song.coverImageKey, {
-                width: 100,
-                height: 100,
-                aspectRatio: "1-1",
-              });
+              const songImage = getImageUrl(
+                song.imageKey || song.coverImageKey,
+                {
+                  width: 100,
+                  height: 100,
+                  aspectRatio: "1-1",
+                },
+              );
 
               return (
                 <motion.div
                   key={song.id}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  transition={{ duration: 0.2, delay: Math.min(index * 0.015, 0.3) }}
+                  transition={{
+                    duration: 0.2,
+                    delay: Math.min(index * 0.015, 0.3),
+                  }}
                   onClick={() => handlePlaySong(song, index)}
+                  onMouseEnter={() => {
+                    if (!isActive || !isPlaying) {
+                      previewPlayer.startHoverCountdown(song);
+                    }
+                  }}
+                  onMouseLeave={() => previewPlayer.stopPreview()}
                   className={`group grid cursor-pointer grid-cols-12 items-center rounded-md px-4 py-2.5 transition-colors duration-150 ${
                     isActive ? "bg-white/10" : "hover:bg-white/[0.07]"
                   }`}
@@ -379,9 +407,17 @@ export default function PlaylistPage() {
                   <div className="col-span-1 flex items-center justify-center">
                     {isActive ? (
                       isCurrentPlaying ? (
-                        <Pause size={14} className="text-primary" fill="currentColor" />
+                        <Pause
+                          size={14}
+                          className="text-primary"
+                          fill="currentColor"
+                        />
                       ) : (
-                        <Play size={14} className="text-primary" fill="currentColor" />
+                        <Play
+                          size={14}
+                          className="text-primary"
+                          fill="currentColor"
+                        />
                       )
                     ) : (
                       <>
@@ -399,19 +435,13 @@ export default function PlaylistPage() {
 
                   {/* TITLE */}
                   <div className="col-span-7 flex min-w-0 items-center gap-3 md:col-span-6">
-                    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-md bg-zinc-900">
-                      {songImage ? (
-                        <img
-                          src={songImage}
-                          alt={song.title}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center">
-                          <Music size={17} className="text-zinc-600" />
-                        </div>
-                      )}
-                    </div>
+                    <SongThumbnail
+                      song={song}
+                      sizeClass="h-11 w-11"
+                      roundedClass="rounded-md"
+                      enablePreviewHover={false}
+                      onPlayClick={() => handlePlaySong(song, index)}
+                    />
 
                     <div className="min-w-0 flex-1">
                       <h4
@@ -434,8 +464,8 @@ export default function PlaylistPage() {
                     </span>
                   </div>
 
-                  {/* DURATION / DELETE */}
-                  <div className="col-span-4 flex items-center justify-end gap-4 text-xs tabular-nums text-zinc-400 md:col-span-2">
+                  {/* DURATION / ACTIONS */}
+                  <div className="col-span-4 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-2">
                     {isUserPlaylist && (
                       <button
                         onClick={(e) => {
@@ -461,7 +491,9 @@ export default function PlaylistPage() {
           ) : (
             <div className="rounded-xl border border-dashed border-white/10 py-20 text-center">
               <Music size={40} className="mx-auto mb-4 text-zinc-700" />
-              <p className="text-sm text-zinc-500">No songs in this playlist yet</p>
+              <p className="text-sm text-zinc-500">
+                No songs in this playlist yet
+              </p>
             </div>
           )}
         </div>

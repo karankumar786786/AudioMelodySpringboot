@@ -19,7 +19,9 @@ import { toast } from "sonner";
 import { musicApi } from "@/lib/api";
 import { getImageUrl } from "@/lib/image-utils";
 import { mapToPlayerSong } from "@/lib/player-utils";
+import { previewPlayer } from "@/lib/preview-player";
 import { playerActions, playerStore } from "@/store/player.store";
+import { SongThumbnail } from "./SongThumbnail";
 
 export function AppNavbar() {
   const systemUser = useStore(playerStore, (s) => s.systemUser);
@@ -77,6 +79,7 @@ export function AppNavbar() {
   };
 
   const handlePlaySong = (song: any) => {
+    previewPlayer.stopPreview(true);
     playerActions.play(mapToPlayerSong(song));
     toast.success("Playing Song", {
       description: `Starting playback for "${song.title}"...`,
@@ -260,23 +263,19 @@ export function AppNavbar() {
                           Songs
                         </h4>
                         {searchResults?.data?.songs.map((song: any) => (
-                          <button
+                          <div
                             key={song.id}
                             onClick={() => handlePlaySong(song)}
-                            className="w-full flex items-center gap-3 p-2 hover:bg-[#282828] rounded-lg transition-all text-left group"
+                            onMouseEnter={() => previewPlayer.startHoverCountdown(song)}
+                            onMouseLeave={() => previewPlayer.stopPreview()}
+                            className="w-full flex items-center gap-3 p-2 hover:bg-[#282828] rounded-lg transition-all text-left group cursor-pointer"
                           >
-                            <div className="w-10 h-10 rounded-md bg-zinc-900 overflow-hidden shrink-0">
-                              <img
-                                src={getImageUrl(song.imageKey, {
-                                  width: 100,
-                                  height: 100,
-                                  focus: "auto",
-                                  aspectRatio: "1-1",
-                                })}
-                                className="w-full h-full object-cover"
-                                alt=""
-                              />
-                            </div>
+                            <SongThumbnail
+                              song={song}
+                              sizeClass="w-10 h-10"
+                              enablePreviewHover={false}
+                              onPlayClick={() => handlePlaySong(song)}
+                            />
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-semibold text-white truncate">
                                 {song.title}
@@ -285,11 +284,13 @@ export function AppNavbar() {
                                 {song.artistName}
                               </p>
                             </div>
-                            <Play
-                              size={16}
-                              className="text-primary opacity-0 group-hover:opacity-100 transition-all mr-2"
-                            />
-                          </button>
+                            <div className="flex items-center gap-1.5 shrink-0 mr-1">
+                              <Play
+                                size={15}
+                                className="text-primary opacity-0 group-hover:opacity-100 transition-all"
+                              />
+                            </div>
+                          </div>
                         ))}
                       </div>
                     )}

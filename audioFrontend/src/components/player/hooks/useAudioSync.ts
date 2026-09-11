@@ -158,7 +158,48 @@ export function useAudioSync(
         return;
       playerActions.setIsPlaying(true);
     };
+
+    const onPlaying = () => {
+      if (
+        isInternalChange.current ||
+        isVideoActive ||
+        playerStore.state.isVideoActive
+      )
+        return;
+      playerActions.setIsLoading(false);
+      playerActions.setIsPlaying(true);
+    };
+
+    const onWaiting = () => {
+      if (isPlayingRef.current && !isVideoActive && !playerStore.state.isVideoActive) {
+        playerActions.setIsLoading(true);
+      }
+    };
+
+    const onLoadStart = () => {
+      if (isPlayingRef.current && !isVideoActive && !playerStore.state.isVideoActive) {
+        playerActions.setIsLoading(true);
+      }
+    };
+
+    const onSeeking = () => {
+      if (isPlayingRef.current && !isVideoActive && !playerStore.state.isVideoActive) {
+        playerActions.setIsLoading(true);
+      }
+    };
+
+    const onSeeked = () => {
+      if (audioElement.readyState >= 3) {
+        playerActions.setIsLoading(false);
+      }
+    };
+
+    const onError = () => {
+      playerActions.setIsLoading(false);
+    };
+
     const onPause = () => {
+      playerActions.setIsLoading(false);
       if (
         isInternalChange.current ||
         audioElement.readyState === 0 ||
@@ -174,7 +215,9 @@ export function useAudioSync(
         );
       }
     };
+
     const handleEnded = () => {
+      playerActions.setIsLoading(false);
       if (isVideoActive || playerStore.state.isVideoActive) return;
 
       // Robust check: Only trigger 'next' if we are actually at/near the end of the song.
@@ -250,6 +293,9 @@ export function useAudioSync(
           audioElement.currentTime = target;
         } catch {}
       }
+      if (!audioElement.paused) {
+        playerActions.setIsLoading(false);
+      }
       if (isPlayingRef.current && audioElement.paused) {
         audioElement.play().catch((err) => {
           if (err.name !== "AbortError")
@@ -259,17 +305,29 @@ export function useAudioSync(
     };
 
     audioElement.addEventListener("play", onPlay);
-    audioElement.addEventListener("playing", onPlay);
+    audioElement.addEventListener("playing", onPlaying);
+    audioElement.addEventListener("waiting", onWaiting);
+    audioElement.addEventListener("loadstart", onLoadStart);
+    audioElement.addEventListener("seeking", onSeeking);
+    audioElement.addEventListener("seeked", onSeeked);
+    audioElement.addEventListener("canplay", onCanPlay);
+    audioElement.addEventListener("canplaythrough", onCanPlay);
     audioElement.addEventListener("pause", onPause);
     audioElement.addEventListener("ended", handleEnded);
-    audioElement.addEventListener("canplay", onCanPlay);
+    audioElement.addEventListener("error", onError);
 
     return () => {
       audioElement.removeEventListener("play", onPlay);
-      audioElement.removeEventListener("playing", onPlay);
+      audioElement.removeEventListener("playing", onPlaying);
+      audioElement.removeEventListener("waiting", onWaiting);
+      audioElement.removeEventListener("loadstart", onLoadStart);
+      audioElement.removeEventListener("seeking", onSeeking);
+      audioElement.removeEventListener("seeked", onSeeked);
+      audioElement.removeEventListener("canplay", onCanPlay);
+      audioElement.removeEventListener("canplaythrough", onCanPlay);
       audioElement.removeEventListener("pause", onPause);
       audioElement.removeEventListener("ended", handleEnded);
-      audioElement.removeEventListener("canplay", onCanPlay);
+      audioElement.removeEventListener("error", onError);
     };
   }, [audioElement, isInternalChange, isVideoActive, fadeIn, crossfadeDuration]);
 
@@ -347,6 +405,10 @@ export function useAudioSync(
     const t = audioElement.currentTime;
     setLocalTime(t);
     playerActions.setCurrentTime(t);
+
+    if (playerStore.state.isLoading && !audioElement.paused && audioElement.readyState >= 3) {
+      playerActions.setIsLoading(false);
+    }
 
     const now = Date.now();
     if (now - lastSavedTimeRef.current > 1000) {
