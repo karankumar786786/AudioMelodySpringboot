@@ -1,5 +1,7 @@
 import { useEffect, useRef, useCallback, MutableRefObject } from "react";
 import { playerActions, playerStore } from "../../../store/player.store";
+import { previewStore } from "@/lib/preview-player";
+import { useStore } from "@tanstack/react-store";
 import { toast } from "sonner";
 
 export function useAudioSync(
@@ -17,7 +19,9 @@ export function useAudioSync(
   fadeOut?: (dur?: number) => void,
   crossfadeDuration: number = 0.5,
 ) {
+  const isPreviewPlaying = useStore(previewStore, (s) => s.status === "playing");
   const animFrameRef = useRef<number>(0);
+  const volumeAnimRef = useRef<number | null>(null);
   const hasFadedOutRef = useRef<boolean>(false);
   const lastSavedTimeRef = useRef<number>(0);
   const lastStateRef = useRef<{ id: string; time: number; duration: number }>({
@@ -33,15 +37,58 @@ export function useAudioSync(
   const isPlayingRef = useRef(isPlaying);
   isPlayingRef.current = isPlaying;
 
-  // 1. Sync Volume
+  // 1. Sync Volume & Smooth Audio Ducking when preview is playing
   useEffect(() => {
     if (!audioElement) return;
 
-    // Explicitly set both to ensure browser sync
-    const targetVolume = Math.max(0, Math.min(1, volume));
-    audioElement.volume = targetVolume;
-    audioElement.muted = isVideoActive || isMuted || targetVolume === 0;
-  }, [audioElement, volume, isMuted, isVideoActive]);
+    const targetBase = isVideoActive || isMuted ? 0 : Math.max(0, Math.min(1, volume));
+    // When a hover preview is active, duck main audio to 20% of its volume
+    const target = isPreviewPlaying ? targetBase * 0.2 : targetBase;
+
+    audioElement.muted = isVideoActive || isMuted || target === 0;
+
+    if (volumeAnimRef.current) {
+      cancelAnimationFrame(volumeAnimRef.current);
+      volumeAnimRef.current = null;
+    }
+
+    const startVol = audioElement.volume;
+    if (Math.abs(startVol - target) < 0.01) {
+      audioElement.volume = target;
+      return;
+    }
+
+    const startTime = performance.now();
+    const durationMs = isPreviewPlaying ? 300 : 380; // 300ms smooth duck, 380ms smooth restore
+
+    const animateVolume = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / durationMs);
+      // Cubic ease-out
+      const ease = 1 - Math.pow(1 - progress, 3);
+      const current = startVol + (target - startVol) * ease;
+
+      if (audioElement) {
+        audioElement.volume = Math.max(0, Math.min(1, current));
+      }
+
+      if (progress < 1) {
+        volumeAnimRef.current = requestAnimationFrame(animateVolume);
+      } else {
+        if (audioElement) audioElement.volume = target;
+        volumeAnimRef.current = null;
+      }
+    };
+
+    volumeAnimRef.current = requestAnimationFrame(animateVolume);
+
+    return () => {
+      if (volumeAnimRef.current) {
+        cancelAnimationFrame(volumeAnimRef.current);
+        volumeAnimRef.current = null;
+      }
+    };
+  }, [audioElement, volume, isMuted, isVideoActive, isPreviewPlaying]);
 
   const prevIsVideoActiveRef = useRef(isVideoActive);
 
