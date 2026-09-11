@@ -19,6 +19,9 @@ import {
   Link2,
   Sparkles,
   BookmarkPlus,
+  BookmarkCheck,
+  Copy,
+  Check,
 } from "lucide-react";
 import { playerActions, playerStore } from "@/store/player.store";
 import { mapListToPlayerSongs } from "@/lib/player-utils";
@@ -98,36 +101,36 @@ export default function MyPlaylistPage() {
   /*                               SAVE TO LIBRARY                              */
   /* -------------------------------------------------------------------------- */
 
-  const saveToLibrary = useMutation({
+  const { data: isSaved = false } = useQuery({
+    queryKey: ["playlist-is-saved", id, systemUser?.id],
+    queryFn: () => musicApi.users.isPlaylistSaved(id as string),
+    enabled: !!systemUser?.id && !!id,
+  });
+
+  const toggleSaveMutation = useMutation({
     mutationFn: async () => {
       if (!systemUser?.id) {
         throw new Error("AUTH_REQUIRED");
       }
-      if (!playlist) return;
-      const res = await musicApi.users.createPlaylist(playlist.name);
-      const newPlaylist = res.data;
-      if (newPlaylist?.id && songs.length > 0) {
-        for (const s of songs) {
-          try {
-            await musicApi.users.addSongToPlaylist(newPlaylist.id, s.id);
-          } catch {
-            // continue adding remaining songs
-          }
-        }
+      if (!id) return;
+      if (isSaved) {
+        await musicApi.users.unsavePlaylistFromLibrary(id as string);
+        return { isSaved: false };
+      } else {
+        await musicApi.users.savePlaylistToLibrary(id as string);
+        return { isSaved: true };
       }
-      return newPlaylist;
     },
-    onSuccess: (newPlaylist) => {
+    onSuccess: (res) => {
       queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
-      toast.success("Saved to your Library!", {
-        description: `"${playlist?.name}" has been added to your playlists.`,
-        action: newPlaylist?.id
-          ? {
-              label: "View",
-              onClick: () => router.push(`/my-playlists/${newPlaylist.id}`),
-            }
-          : undefined,
-      });
+      queryClient.invalidateQueries({ queryKey: ["playlist-is-saved", id] });
+      if (res?.isSaved) {
+        toast.success("Saved to your Library", {
+          description: `"${playlist?.name}" is now in your library with dynamic live sync!`,
+        });
+      } else {
+        toast.info("Removed from your Library");
+      }
     },
     onError: (err: any) => {
       if (err?.message === "AUTH_REQUIRED") {
@@ -135,7 +138,7 @@ export default function MyPlaylistPage() {
           description: "Sign in to save this playlist to your library.",
         });
       } else {
-        toast.error("Failed to save playlist");
+        toast.error("Failed to update library");
       }
     },
   });
@@ -164,9 +167,8 @@ export default function MyPlaylistPage() {
 
   const isOwner = Boolean(
     systemUser?.id &&
-      (playlist?.ownerId === systemUser?.id ||
-        (playlist?.ownerName && (playlist.ownerName === systemUser?.username || playlist.ownerName === systemUser?.name)) ||
-        (!playlist?.ownerId && !playlist?.ownerName))
+      playlist?.ownerId &&
+      playlist.ownerId === systemUser.id
   );
 
   /* -------------------------------------------------------------------------- */
@@ -399,7 +401,7 @@ export default function MyPlaylistPage() {
           >
             <div className="mb-2 flex items-center gap-2.5">
               <span className="text-xs font-semibold uppercase tracking-wider text-white/80">
-                {isOwner ? "Your Playlist" : "Community Playlist"}
+                {isOwner ? "Your Playlist" : "Dynamic Playlist"}
               </span>
               <span>•</span>
               {/* Privacy Badge / Quick Trigger */}
@@ -429,8 +431,8 @@ export default function MyPlaylistPage() {
                 </button>
               ) : (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide border bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
-                  <Globe size={11} />
-                  <span>Public</span>
+                  <Sparkles size={11} />
+                  <span>Dynamic Live Sync</span>
                 </span>
               )}
             </div>
@@ -480,30 +482,32 @@ export default function MyPlaylistPage() {
                 </>
               )}
 
-              {/* Save to library for visitors */}
-              {!isOwner && songs.length > 0 && (
+              {/* Save / Unsave to library for visitors (Spotify Dynamic Reference) */}
+              {!isOwner && (
                 <button
                   type="button"
-                  onClick={() => saveToLibrary.mutate()}
-                  disabled={saveToLibrary.isPending}
-                  className="ml-1 flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-1.5 text-xs font-semibold text-white transition-all cursor-pointer"
-                  title="Save this playlist to your library"
+                  onClick={() => toggleSaveMutation.mutate()}
+                  disabled={toggleSaveMutation.isPending}
+                  className={`ml-1 flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
+                    isSaved
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/40"
+                      : "bg-white/10 hover:bg-white/20 border border-white/20 text-white"
+                  }`}
+                  title={isSaved ? "Click to remove from your library" : "Save to library (Live updates by creator)"}
                 >
-                  <BookmarkPlus size={13} className="text-primary" />
-                  <span>{saveToLibrary.isPending ? "Saving..." : "Save to Library"}</span>
+                  {isSaved ? (
+                    <>
+                      <BookmarkCheck size={13} className="text-emerald-400" />
+                      <span>{toggleSaveMutation.isPending ? "Updating..." : "Saved in Library"}</span>
+                    </>
+                  ) : (
+                    <>
+                      <BookmarkPlus size={13} className="text-primary" />
+                      <span>{toggleSaveMutation.isPending ? "Saving..." : "Save to Library"}</span>
+                    </>
+                  )}
                 </button>
               )}
-
-              {/* Share button */}
-              <button
-                type="button"
-                onClick={() => setIsShareModalOpen(true)}
-                className="ml-1 flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-1.5 text-xs font-semibold text-white transition-all cursor-pointer"
-                title="Share playlist"
-              >
-                <Share2 size={13} />
-                <span>Share</span>
-              </button>
 
               {/* Delete playlist (owner only) */}
               {isOwner && (
@@ -522,6 +526,17 @@ export default function MyPlaylistPage() {
                   <Trash2 size={13} /> Delete
                 </button>
               )}
+
+              {/* Share button (on right side of delete button) */}
+              <button
+                type="button"
+                onClick={() => setIsShareModalOpen(true)}
+                className="flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-1.5 text-xs font-semibold text-white transition-all cursor-pointer"
+                title="Share playlist"
+              >
+                <Share2 size={13} />
+                <span>Share</span>
+              </button>
             </div>
           </motion.div>
         </div>

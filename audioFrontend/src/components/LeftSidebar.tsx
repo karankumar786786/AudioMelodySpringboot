@@ -7,6 +7,7 @@ import {
   Users2,
   Globe,
   Link2,
+  Sparkles,
 } from "lucide-react";
 import { PlaylistThumbnail } from "@/components/PlaylistThumbnail";
 import Link from "next/link";
@@ -149,32 +150,68 @@ export function LeftSidebar() {
                   <div className="h-8 bg-zinc-800 rounded-md animate-pulse" />
                 </div>
               ) : userPlaylists.length > 0 ? (
-                userPlaylists.map((playlist: any) => (
-                  <Link
-                    key={playlist.id}
-                    href={`/my-playlists/${playlist.id}`}
-                    onClick={handleSidebarClick}
-                    title={playlist.name}
-                    className={`flex items-center justify-center xl:justify-start gap-3 px-1.5 xl:px-3 py-2 rounded-md text-[14px] font-bold transition-all group ${
-                      pathname === `/my-playlists/${playlist.id}`
-                        ? "text-white bg-[#282828]"
-                        : "text-zinc-300 hover:text-white hover:bg-[#1a1a1a]"
-                    }`}
-                  >
-                    <PlaylistThumbnail playlist={playlist} size={34} />
-                    <span className="hidden xl:inline truncate flex-1">{playlist.name}</span>
-                    {playlist.privacy === "PUBLIC" && (
-                      <span className="hidden xl:inline-flex shrink-0 text-emerald-400/70" title="Public Playlist">
-                        <Globe size={11} />
-                      </span>
-                    )}
-                    {playlist.privacy === "SHARE_BY_LINK" && (
-                      <span className="hidden xl:inline-flex shrink-0 text-blue-400/70" title="Shared by Link">
-                        <Link2 size={11} />
-                      </span>
-                    )}
-                  </Link>
-                ))
+                userPlaylists.map((playlist: any) => {
+                  const isDynamicSaved = Boolean(
+                    playlist.ownerId &&
+                      systemUser?.id &&
+                      playlist.ownerId !== systemUser.id
+                  );
+
+                  return (
+                    <Link
+                      key={playlist.id}
+                      href={`/my-playlists/${playlist.id}`}
+                      onClick={handleSidebarClick}
+                      title={
+                        isDynamicSaved
+                          ? `${playlist.name} (Curated by ${playlist.ownerName || "Creator"})`
+                          : playlist.name
+                      }
+                      className={`flex items-center justify-center xl:justify-start gap-3 px-1.5 xl:px-3 py-2 rounded-md text-[14px] font-bold transition-all group ${
+                        pathname === `/my-playlists/${playlist.id}`
+                          ? "text-white bg-[#282828]"
+                          : "text-zinc-300 hover:text-white hover:bg-[#1a1a1a]"
+                      }`}
+                    >
+                      <PlaylistThumbnail playlist={playlist} size={34} />
+                      <div className="hidden xl:flex flex-col min-w-0 flex-1">
+                        <span className="truncate">{playlist.name}</span>
+                        {isDynamicSaved && (
+                          <span className="text-[10px] font-medium text-emerald-400/80 truncate">
+                            {playlist.ownerName || "Dynamic"}
+                          </span>
+                        )}
+                      </div>
+                      {isDynamicSaved ? (
+                        <span
+                          className="hidden xl:inline-flex shrink-0 text-emerald-400/70"
+                          title="Dynamic Saved Playlist"
+                        >
+                          <Sparkles size={11} />
+                        </span>
+                      ) : (
+                        <>
+                          {playlist.privacy === "PUBLIC" && (
+                            <span
+                              className="hidden xl:inline-flex shrink-0 text-emerald-400/70"
+                              title="Public Playlist"
+                            >
+                              <Globe size={11} />
+                            </span>
+                          )}
+                          {playlist.privacy === "SHARE_BY_LINK" && (
+                            <span
+                              className="hidden xl:inline-flex shrink-0 text-blue-400/70"
+                              title="Shared by Link"
+                            >
+                              <Link2 size={11} />
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </Link>
+                  );
+                })
               ) : (
                 <div className="hidden xl:block px-2 py-2 text-xs text-zinc-400 font-medium">
                   {systemUser ? "No playlists created" : "Sign in required"}

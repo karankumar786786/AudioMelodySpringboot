@@ -63,20 +63,52 @@ public class UserPlaylistApiController {
 
     @GetMapping("/{id}")
     public ResponseEntity<UserPlaylistsEntity> getPlaylistById(
-            @RequestAttribute("userId") String userId,
+            @RequestAttribute(value = "userId", required = false) String userId,
             @PathVariable String id) {
         return ResponseEntity.ok(userPlaylistAppService.getPlaylistById(userId, id));
     }
 
     @GetMapping("/{id}/songs")
     public ResponseEntity<PaginatedResponseDto<me.one_org.melody.Entity.SongsEntity>> getPlaylistSongs(
-            @RequestAttribute("userId") String userId,
+            @RequestAttribute(value = "userId", required = false) String userId,
             @PathVariable String id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         List<SongsEntity> songs = userPlaylistAppService.getPlaylistSongsPaginated(userId, id, page, size);
         PaginationMetaDataEntity metaData = userPlaylistAppService.getPlaylistSongsPaginationMetaData(id);
         return ResponseEntity.ok(new PaginatedResponseDto<>(songs, page, size, metaData));
+    }
+
+    @PostMapping("/{id}/save")
+    public ResponseEntity<UserPlaylistsEntity> savePlaylistToLibrary(
+            @RequestAttribute("userId") String userId,
+            @PathVariable String id) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(userPlaylistAppService.savePlaylistToLibrary(userId, id));
+    }
+
+    @DeleteMapping("/{id}/save")
+    public ResponseEntity<Void> unsavePlaylistFromLibrary(
+            @RequestAttribute("userId") String userId,
+            @PathVariable String id) {
+        userPlaylistAppService.unsavePlaylistFromLibrary(userId, id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/{id}/saved")
+    public ResponseEntity<java.util.Map<String, Boolean>> isPlaylistSaved(
+            @RequestAttribute(value = "userId", required = false) String userId,
+            @PathVariable String id) {
+        boolean saved = userPlaylistAppService.isPlaylistSaved(userId, id);
+        return ResponseEntity.ok(java.util.Map.of("isSaved", saved));
+    }
+
+    @PostMapping("/{id}/duplicate")
+    public ResponseEntity<UserPlaylistsEntity> duplicatePlaylist(
+            @RequestAttribute("userId") String userId,
+            @PathVariable String id) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(userPlaylistAppService.duplicatePlaylist(userId, id));
     }
 
     @GetMapping("/shared/{tokenOrId}")

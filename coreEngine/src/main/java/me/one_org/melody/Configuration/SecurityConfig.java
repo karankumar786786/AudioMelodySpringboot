@@ -41,6 +41,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/api/user/playlists/shared/**").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/user/playlists/*").permitAll()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/user/playlists/*/songs").permitAll()
                 .requestMatchers("/admin/**").hasAnyRole(RoleEnum.ADMIN.name(), RoleEnum.SUPER_ADMIN.name())
                 .requestMatchers("/api/**", "/app/**","/webhook/**").authenticated()
                 .anyRequest().authenticated()

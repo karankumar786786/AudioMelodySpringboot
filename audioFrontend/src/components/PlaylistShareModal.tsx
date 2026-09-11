@@ -31,7 +31,7 @@ export function PlaylistShareModal({
   playlist,
   isOpen,
   onClose,
-  isOwner = true,
+  isOwner = false,
 }: PlaylistShareModalProps) {
   const [mounted, setMounted] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -61,6 +61,9 @@ export function PlaylistShareModal({
 
   const updatePrivacyMutation = useMutation({
     mutationFn: async (newPrivacy: PlaylistPrivacy) => {
+      if (!isOwner) {
+        throw new Error("Only the original creator can change playlist privacy.");
+      }
       setCurrentPrivacy(newPrivacy);
       return await musicApi.users.updatePrivacy(playlist.id, newPrivacy);
     },
@@ -86,7 +89,15 @@ export function PlaylistShareModal({
     },
   });
 
+  const isCurrentlyPrivate = currentPrivacy === "PRIVATE";
+
   const handleCopyLink = async () => {
+    if (isCurrentlyPrivate) {
+      toast.info("Playlist is Private", {
+        description: "Change privacy to 'Share by link' or 'Public' before sharing.",
+      });
+      return;
+    }
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
@@ -100,6 +111,12 @@ export function PlaylistShareModal({
   };
 
   const handleNativeShare = async () => {
+    if (isCurrentlyPrivate) {
+      toast.info("Playlist is Private", {
+        description: "Change privacy to 'Share by link' or 'Public' before sharing.",
+      });
+      return;
+    }
     if (navigator.share) {
       try {
         await navigator.share({
@@ -154,8 +171,6 @@ export function PlaylistShareModal({
   ];
 
   if (!isOpen || !mounted) return null;
-
-  const isCurrentlyPrivate = currentPrivacy === "PRIVATE";
 
   const modalContent = (
     <AnimatePresence>
@@ -312,27 +327,47 @@ export function PlaylistShareModal({
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center justify-between">
                   <span>Shareable Link</span>
-                  {currentPrivacy === "SHARE_BY_LINK" && (
-                    <span className="text-[11px] font-medium text-blue-400">
-                      Unlisted Link Active
+                  {isCurrentlyPrivate ? (
+                    <span className="text-[11px] font-medium text-amber-400/90 flex items-center gap-1">
+                      <Lock size={11} /> Link Disabled (Private)
+                    </span>
+                  ) : currentPrivacy === "SHARE_BY_LINK" ? (
+                    <span className="text-[11px] font-medium text-blue-400 flex items-center gap-1">
+                      <Link2 size={11} /> Unlisted Link Active
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-medium text-emerald-400 flex items-center gap-1">
+                      <Globe size={11} /> Public Link Active
                     </span>
                   )}
                 </label>
 
-                <div className="flex items-center gap-2 p-1.5 pl-3.5 bg-[#1a1a1a] border border-[#2e2e2e] rounded-xl focus-within:border-primary transition-colors">
-                  <Link2 size={16} className="text-zinc-500 shrink-0" />
+                <div
+                  className={`flex items-center gap-2 p-1.5 pl-3.5 border rounded-xl transition-colors ${
+                    isCurrentlyPrivate
+                      ? "bg-[#161616] border-[#252525] opacity-80"
+                      : "bg-[#1a1a1a] border-[#2e2e2e] focus-within:border-primary"
+                  }`}
+                >
+                  <Link2 size={16} className={isCurrentlyPrivate ? "text-zinc-600 shrink-0" : "text-zinc-500 shrink-0"} />
                   <input
                     type="text"
                     readOnly
-                    value={shareUrl}
-                    className="w-full bg-transparent text-xs text-zinc-200 outline-none select-all truncate font-mono"
+                    value={isCurrentlyPrivate ? "https://audiomelody.com/playlists/shared/••••••••" : shareUrl}
+                    disabled={isCurrentlyPrivate}
+                    className={`w-full bg-transparent text-xs outline-none select-all truncate font-mono ${
+                      isCurrentlyPrivate ? "text-zinc-500 italic cursor-not-allowed select-none" : "text-zinc-200"
+                    }`}
                   />
                   <button
                     onClick={handleCopyLink}
-                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer shadow-sm ${
-                      copied
-                        ? "bg-emerald-500 text-black scale-105"
-                        : "bg-primary text-black hover:bg-primary/90 hover:scale-[1.02]"
+                    disabled={isCurrentlyPrivate}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition-all shrink-0 ${
+                      isCurrentlyPrivate
+                        ? "bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-60"
+                        : copied
+                        ? "bg-emerald-500 text-black scale-105 cursor-pointer shadow-sm"
+                        : "bg-primary text-black hover:bg-primary/90 hover:scale-[1.02] cursor-pointer shadow-sm"
                     }`}
                   >
                     {copied ? (
@@ -352,13 +387,20 @@ export function PlaylistShareModal({
 
               {/* Social Share Buttons */}
               <div className="space-y-2 pt-1">
-                <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">
-                  Share Via
-                </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-400">
+                    Share Via
+                  </label>
+                  {isCurrentlyPrivate && (
+                    <span className="text-[11px] text-zinc-500">
+                      Enable link sharing to share via apps
+                    </span>
+                  )}
+                </div>
+                <div className={`grid grid-cols-3 gap-2 ${isCurrentlyPrivate ? "opacity-35 pointer-events-none grayscale" : ""}`}>
                   {/* WhatsApp */}
                   <a
-                    href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
+                    href={isCurrentlyPrivate ? undefined : `https://api.whatsapp.com/send?text=${encodeURIComponent(
                       `🎵 Listen to my playlist "${playlist.name}" on AudioMelody:\n${shareUrl}`
                     )}`}
                     target="_blank"
@@ -371,7 +413,7 @@ export function PlaylistShareModal({
 
                   {/* Twitter / X */}
                   <a
-                    href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(
+                    href={isCurrentlyPrivate ? undefined : `https://twitter.com/intent/tweet?text=${encodeURIComponent(
                       `🎶 Listening to "${playlist.name}" playlist on AudioMelody:`
                     )}&url=${encodeURIComponent(shareUrl)}`}
                     target="_blank"
@@ -386,7 +428,7 @@ export function PlaylistShareModal({
 
                   {/* Telegram */}
                   <a
-                    href={`https://t.me/share/url?url=${encodeURIComponent(
+                    href={isCurrentlyPrivate ? undefined : `https://t.me/share/url?url=${encodeURIComponent(
                       shareUrl
                     )}&text=${encodeURIComponent(
                       `🎵 Check out "${playlist.name}" on AudioMelody!`
@@ -405,9 +447,15 @@ export function PlaylistShareModal({
             {/* Footer */}
             <div className="p-4 bg-[#101010] border-t border-[#222222] flex items-center justify-between text-xs text-zinc-500">
               <span className="truncate">
-                {currentPrivacy === "PUBLIC" && "Public: Discoverable everywhere"}
-                {currentPrivacy === "SHARE_BY_LINK" && "Share by Link: Direct access only"}
-                {currentPrivacy === "PRIVATE" && "Private: Only creator can access"}
+                {isOwner ? (
+                  <>
+                    {currentPrivacy === "PUBLIC" && "Public: Discoverable everywhere"}
+                    {currentPrivacy === "SHARE_BY_LINK" && "Share by Link: Direct access only"}
+                    {currentPrivacy === "PRIVATE" && "Private: Only creator can access"}
+                  </>
+                ) : (
+                  <>Curated by {playlist.ownerName || "Creator"}</>
+                )}
               </span>
               <button
                 type="button"

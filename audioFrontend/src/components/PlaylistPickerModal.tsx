@@ -266,61 +266,71 @@ export function PlaylistPickerModal({
                   </button>
 
                   {/* Divider */}
-                  {(playlists?.data?.data?.length ?? 0) > 0 && (
-                    <div className="flex items-center gap-3 py-2 px-1">
-                      <div className="h-px flex-1 bg-[#282828]" />
-                      <span className="text-xs font-semibold text-zinc-400">
-                        Your Playlists
-                      </span>
-                      <div className="h-px flex-1 bg-[#282828]" />
-                    </div>
-                  )}
+                  {(() => {
+                    const ownedPlaylists = (playlists?.data?.data || []).filter(
+                      (p: any) => !p.ownerId || (systemUser?.id && p.ownerId === systemUser.id)
+                    );
 
-                  {/* Playlists List */}
-                  {isLoading ? (
-                    <div className="space-y-2">
-                      {[1, 2, 3].map((i) => (
-                        <div
-                          key={i}
-                          className="h-12 bg-zinc-900 rounded-md animate-pulse"
-                        />
-                      ))}
-                    </div>
-                  ) : (playlists?.data?.data?.length ?? 0) === 0 ? (
-                    <div className="py-6 text-center text-zinc-400 font-medium text-xs">
-                      No playlists found
-                    </div>
-                  ) : (
-                    playlists?.data?.data.map((playlist: Playlist) => (
-                      <button
-                        key={playlist.id}
-                        onClick={() => {
-                          toast.promise(
-                            addToPlaylist.mutateAsync(playlist.id),
-                            {
-                              loading: "Adding to Playlist...",
-                              success: "Added to Playlist",
-                              error: "Failed to add to playlist",
-                              description: `"${songTitle}" added to ${playlist.name}.`,
-                            },
-                          );
-                        }}
-                        disabled={addToPlaylist.isPending}
-                        className="w-full flex items-center justify-between p-2.5 rounded-md hover:bg-[#282828] transition-colors group disabled:opacity-50 cursor-pointer"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <PlaylistThumbnail playlist={playlist} size={36} />
-                          <span className="text-sm font-semibold text-zinc-200 group-hover:text-white truncate transition-colors">
-                            {playlist.name}
-                          </span>
-                        </div>
-                        <ChevronRight
-                          size={16}
-                          className="text-zinc-500 group-hover:text-zinc-300 transition-colors shrink-0"
-                        />
-                      </button>
-                    ))
-                  )}
+                    return (
+                      <>
+                        {ownedPlaylists.length > 0 && (
+                          <div className="flex items-center gap-3 py-2 px-1">
+                            <div className="h-px flex-1 bg-[#282828]" />
+                            <span className="text-xs font-semibold text-zinc-400">
+                              Your Playlists
+                            </span>
+                            <div className="h-px flex-1 bg-[#282828]" />
+                          </div>
+                        )}
+
+                        {/* Playlists List */}
+                        {isLoading ? (
+                          <div className="space-y-2">
+                            {[1, 2, 3].map((i) => (
+                              <div
+                                key={i}
+                                className="h-12 bg-zinc-900 rounded-md animate-pulse"
+                              />
+                            ))}
+                          </div>
+                        ) : ownedPlaylists.length === 0 ? (
+                          <div className="py-6 text-center text-zinc-400 font-medium text-xs">
+                            No owned playlists found
+                          </div>
+                        ) : (
+                          ownedPlaylists.map((playlist: any) => (
+                            <button
+                              key={playlist.id}
+                              onClick={() => {
+                                toast.promise(
+                                  addToPlaylist.mutateAsync(playlist.id),
+                                  {
+                                    loading: "Adding to Playlist...",
+                                    success: "Added to Playlist",
+                                    error: "Failed to add to playlist",
+                                    description: `"${songTitle}" added to ${playlist.name}.`,
+                                  },
+                                );
+                              }}
+                              disabled={addToPlaylist.isPending}
+                              className="w-full flex items-center justify-between p-2.5 rounded-md hover:bg-[#282828] transition-colors group disabled:opacity-50 cursor-pointer"
+                            >
+                              <div className="flex items-center gap-3 min-w-0">
+                                <PlaylistThumbnail playlist={playlist} size={36} />
+                                <span className="text-sm font-semibold text-zinc-200 group-hover:text-white truncate transition-colors">
+                                  {playlist.name}
+                                </span>
+                              </div>
+                              <ChevronRight
+                                size={16}
+                                className="text-zinc-500 group-hover:text-zinc-300 transition-colors shrink-0"
+                              />
+                            </button>
+                          ))
+                        )}
+                      </>
+                    );
+                  })()}
                 </>
               )}
             </div>

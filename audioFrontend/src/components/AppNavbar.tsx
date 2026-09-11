@@ -11,6 +11,7 @@ import {
   Play,
   Search,
   User,
+  BookmarkPlus,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -101,6 +102,25 @@ export function AppNavbar() {
     if (systemUser?.id) saveHistory.mutate(playlist.name);
     setIsFocused(false);
   };
+
+  const savePlaylistMutation = useMutation({
+    mutationFn: (playlistId: string) => musicApi.users.savePlaylistToLibrary(playlistId),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
+      toast.success("Saved to your Library!", {
+        description: `Playlist added to your playlists.`,
+        action: res?.data?.id
+          ? {
+              label: "View",
+              onClick: () => router.push(`/my-playlists/${res.data.id}`),
+            }
+          : undefined,
+      });
+    },
+    onError: () => {
+      toast.error("Failed to save playlist");
+    },
+  });
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -394,9 +414,25 @@ export function AppNavbar() {
                               <p className="text-xs font-semibold text-white truncate">
                                 {playlist.name}
                               </p>
-                              <p className="text-[11px] font-extrabold underline font-normal truncate">
+                              <p className="text-[11px] text-zinc-400 font-normal truncate">
                                 {playlist.ownerName ? `By ${playlist.ownerName}` : "User Playlist"}
                               </p>
+                            </div>
+                            <div
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!systemUser?.id) {
+                                  toast.info("Sign in required", {
+                                    description: "Please sign in to save playlists to your library.",
+                                  });
+                                  return;
+                                }
+                                savePlaylistMutation.mutate(playlist.id);
+                              }}
+                              className="p-1.5 rounded-full hover:bg-white/10 text-zinc-400 hover:text-white transition-colors opacity-0 group-hover:opacity-100 shrink-0"
+                              title="Save to your library"
+                            >
+                              <BookmarkPlus size={15} />
                             </div>
                           </button>
                         ))}

@@ -16,9 +16,7 @@ import {
   Lock,
   Link2,
   BookmarkPlus,
-  ArrowLeft,
-  Sparkles,
-  Heart,
+  BookmarkCheck,
   Plus,
 } from "lucide-react";
 import { playerActions, playerStore } from "@/store/player.store";
@@ -88,43 +86,46 @@ export default function SharedPlaylistPage() {
   /*                          SAVE PLAYLIST TO LIBRARY                          */
   /* -------------------------------------------------------------------------- */
 
-  const saveToLibraryMutation = useMutation({
+  const targetIdOrToken = playlist?.id || tokenStr;
+
+  const { data: isSaved = false } = useQuery({
+    queryKey: ["playlist-is-saved", targetIdOrToken, systemUser?.id],
+    queryFn: () => musicApi.users.isPlaylistSaved(targetIdOrToken),
+    enabled: !!systemUser?.id && !!targetIdOrToken,
+  });
+
+  const toggleSaveMutation = useMutation({
     mutationFn: async () => {
-      if (!systemUser) {
+      if (!systemUser?.id) {
         toast.error("Sign in required", {
           description: "Please sign in to save this playlist to your library.",
         });
         playerStore.setState((s) => ({ ...s, isAuthModalOpen: true }));
         return;
       }
-      // Create a copy of the playlist for this user
-      const copyName = `${playlist?.name || "Shared Playlist"} (Saved)`;
-      const res = await musicApi.users.createPlaylist(copyName, "PRIVATE");
-      const newPlaylistId = res.data.id;
-
-      // Add all tracks
-      for (const s of songs) {
-        try {
-          await musicApi.users.addSongToPlaylist(newPlaylistId, s.id);
-        } catch {
-          // ignore duplicate
-        }
+      if (!targetIdOrToken) return;
+      if (isSaved) {
+        await musicApi.users.unsavePlaylistFromLibrary(targetIdOrToken);
+        return { isSaved: false };
+      } else {
+        await musicApi.users.savePlaylistToLibrary(targetIdOrToken);
+        return { isSaved: true };
       }
-      return newPlaylistId;
     },
-    onSuccess: (newPlaylistId) => {
-      if (!newPlaylistId) return;
+    onSuccess: (res) => {
+      if (!res) return;
       queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
-      toast.success("Saved to your Library!", {
-        description: `Added "${playlist?.name}" to your playlists.`,
-        action: {
-          label: "View Playlist",
-          onClick: () => router.push(`/my-playlists/${newPlaylistId}`),
-        },
-      });
+      queryClient.invalidateQueries({ queryKey: ["playlist-is-saved", targetIdOrToken] });
+      if (res.isSaved) {
+        toast.success("Saved to your Library!", {
+          description: `"${playlist?.name}" is now in your library with dynamic live sync!`,
+        });
+      } else {
+        toast.info("Removed from your Library");
+      }
     },
     onError: () => {
-      toast.error("Failed to save playlist");
+      toast.error("Failed to update library");
     },
   });
 
@@ -431,18 +432,41 @@ export default function SharedPlaylistPage() {
                 </>
               )}
 
-              {/* Save to Library */}
+              {/* Save / Unsave to Library (Dynamic Reference) */}
               {!isOwner && (
                 <button
                   type="button"
-                  onClick={() => saveToLibraryMutation.mutate()}
-                  disabled={saveToLibraryMutation.isPending}
-                  className="flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-1.5 text-xs font-semibold text-white transition-all cursor-pointer"
-                  title="Save a copy to your playlists"
+                  onClick={() => toggleSaveMutation.mutate()}
+                  disabled={toggleSaveMutation.isPending}
+                  className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
+                    isSaved
+                      ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/40"
+                      : "bg-white/10 hover:bg-white/20 border border-white/20 text-white"
+                  }`}
+                  title={isSaved ? "Click to remove from your library" : "Save to library (Live updates by creator)"}
                 >
-                  <BookmarkPlus size={13} />
-                  <span>{saveToLibraryMutation.isPending ? "Saving..." : "Save to Library"}</span>
+                  {isSaved ? (
+                    <>
+                      <BookmarkCheck size={13} className="text-emerald-400" />
+                      <span>{toggleSaveMutation.isPending ? "Updating..." : "Saved in Library"}</span>
+                    </>
+                  ) : (
+                    <>
+                      <BookmarkPlus size={13} className="text-primary" />
+                      <span>{toggleSaveMutation.isPending ? "Saving..." : "Save to Library"}</span>
+                    </>
+                  )}
                 </button>
+              )}
+
+              {/* Owner Edit Shortcut */}
+              {isOwner && (
+                <Link
+                  href={`/my-playlists/${playlist.id}`}
+                  className="flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
+                >
+                  Edit in My Playlists
+                </Link>
               )}
 
               {/* Share button */}
@@ -455,16 +479,6 @@ export default function SharedPlaylistPage() {
                 <Share2 size={13} />
                 <span>Share</span>
               </button>
-
-              {/* Owner Edit Shortcut */}
-              {isOwner && (
-                <Link
-                  href={`/my-playlists/${playlist.id}`}
-                  className="flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20"
-                >
-                  Edit in My Playlists
-                </Link>
-              )}
             </div>
           </motion.div>
         </div>

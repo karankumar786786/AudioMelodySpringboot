@@ -343,6 +343,32 @@ export const musicApi = {
       const list = res.content || (Array.isArray(res) ? res : []);
       return { data: { data: list } };
     },
+    savePlaylistToLibrary: async (id: string) => {
+      const data = await request<UserPlaylist>(`/api/user/playlists/${id}/save`, {
+        method: "POST",
+      });
+      return { data };
+    },
+    unsavePlaylistFromLibrary: async (id: string) => {
+      await request(`/api/user/playlists/${id}/save`, {
+        method: "DELETE",
+      });
+      return { success: true };
+    },
+    isPlaylistSaved: async (id: string) => {
+      try {
+        const data = await request<{ isSaved: boolean }>(`/api/user/playlists/${id}/saved`);
+        return Boolean(data?.isSaved);
+      } catch {
+        return false;
+      }
+    },
+    duplicatePlaylist: async (id: string) => {
+      const data = await request<UserPlaylist>(`/api/user/playlists/${id}/duplicate`, {
+        method: "POST",
+      });
+      return { data };
+    },
     addSongToPlaylist: async (playlistId: string, songId: string) => {
       const data = await request(`/api/user/playlists/${playlistId}/songs`, {
         method: "POST",
