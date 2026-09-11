@@ -20,9 +20,10 @@ import {
 } from "lucide-react";
 import { playerStore, playerActions } from "@/store/player.store";
 import { mapListToPlayerSongs } from "@/lib/player-utils";
-import { toast } from "sonner";
 import { getSolidBgFromImage } from "@/lib/color-utils";
+import { toast } from "sonner";
 import { NotFoundPage, ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
+import { PreviewButton } from "@/components/PreviewButton";
 
 export default function ArtistPage() {
   const { id } = useParams();
@@ -420,10 +421,15 @@ export default function ArtistPage() {
                   </div>
 
                   {/* ======================================================== */}
-                  {/* DURATION */}
+                  {/* DURATION & ACTIONS */}
                   {/* ======================================================== */}
 
-                  <div className="col-span-4 flex items-center justify-end gap-4 text-xs tabular-nums text-zinc-400 md:col-span-2">
+                  <div className="col-span-4 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-2">
+                    <PreviewButton
+                      song={song}
+                      size="sm"
+                      className="opacity-0 group-hover:opacity-100"
+                    />
                     <span>{formatDuration(song.duration)}</span>
                   </div>
                 </motion.div>

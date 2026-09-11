@@ -20,6 +20,7 @@ import { musicApi } from "@/lib/api";
 import { getImageUrl } from "@/lib/image-utils";
 import { mapToPlayerSong } from "@/lib/player-utils";
 import { playerActions, playerStore } from "@/store/player.store";
+import { PreviewButton } from "./PreviewButton";
 
 export function AppNavbar() {
   const systemUser = useStore(playerStore, (s) => s.systemUser);
@@ -285,10 +286,17 @@ export function AppNavbar() {
                                 {song.artistName}
                               </p>
                             </div>
-                            <Play
-                              size={16}
-                              className="text-primary opacity-0 group-hover:opacity-100 transition-all mr-2"
-                            />
+                            <div className="flex items-center gap-1.5 shrink-0 mr-1">
+                              <PreviewButton
+                                song={song}
+                                size="sm"
+                                className="opacity-0 group-hover:opacity-100"
+                              />
+                              <Play
+                                size={15}
+                                className="text-primary opacity-0 group-hover:opacity-100 transition-all"
+                              />
+                            </div>
                           </button>
                         ))}
                       </div>

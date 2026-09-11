@@ -22,6 +22,7 @@ import { getImageUrl } from "@/lib/image-utils";
 import { mapToPlayerSong } from "@/lib/player-utils";
 import { musicApi, Song } from "@/lib/api";
 import { toast } from "sonner";
+import { PreviewButton } from "../PreviewButton";
 
 interface PlayerQueuePanelProps {
   open: boolean;
@@ -368,7 +369,11 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                         
 
                         {/* Queue Actions */}
-                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <PreviewButton
+                            song={song}
+                            size="xs"
+                          />
                           <button
                             type="button"
                             onClick={(e) => {
@@ -496,6 +501,11 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
 
                       {/* Quick Actions */}
                       <div className="flex items-center gap-1">
+                        <PreviewButton
+                          song={song}
+                          size="xs"
+                          className="opacity-0 group-hover:opacity-100"
+                        />
                         <button
                           type="button"
                           onClick={() => handleAddToQueue(song)}

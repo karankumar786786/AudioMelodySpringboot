@@ -28,6 +28,7 @@ import { getSolidBgFromImage } from "@/lib/color-utils";
 import { NotFoundPage, ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
 import { PlaylistShareModal } from "@/components/PlaylistShareModal";
 import { PlaylistPickerModal } from "@/components/PlaylistPickerModal";
+import { PreviewButton } from "@/components/PreviewButton";
 import Link from "next/link";
 
 export default function SharedPlaylistPage() {
@@ -583,8 +584,13 @@ export default function SharedPlaylistPage() {
                     </span>
                   </div>
 
-                  {/* Add to my playlist / Duration */}
+                  {/* Actions / Duration */}
                   <div className="col-span-4 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-2">
+                    <PreviewButton
+                      song={song}
+                      size="sm"
+                      className="opacity-0 group-hover:opacity-100"
+                    />
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

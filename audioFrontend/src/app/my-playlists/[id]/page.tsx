@@ -31,6 +31,7 @@ import { getImageUrl } from "@/lib/image-utils";
 import { getSolidBgFromImage } from "@/lib/color-utils";
 import { NotFoundPage, ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
 import { PlaylistShareModal } from "@/components/PlaylistShareModal";
+import { PreviewButton } from "@/components/PreviewButton";
 
 export default function MyPlaylistPage() {
   const { id } = useParams();
@@ -633,8 +634,13 @@ export default function MyPlaylistPage() {
                     </span>
                   </div>
 
-                  {/* Duration / Remove */}
-                  <div className="col-span-4 flex items-center justify-end gap-4 text-xs tabular-nums text-zinc-400 md:col-span-2">
+                  {/* Duration / Actions */}
+                  <div className="col-span-4 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-2">
+                    <PreviewButton
+                      song={song}
+                      size="sm"
+                      className="opacity-0 group-hover:opacity-100"
+                    />
                     {isOwner && (
                       <button
                         onClick={(e) => {

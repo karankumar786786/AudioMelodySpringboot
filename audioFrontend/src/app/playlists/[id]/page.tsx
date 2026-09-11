@@ -19,6 +19,7 @@ import { useStore } from "@tanstack/react-store";
 import { toast } from "sonner";
 import { getImageUrl, getVideoUrl } from "@/lib/image-utils";
 import { NotFoundPage, ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
+import { PreviewButton } from "@/components/PreviewButton";
 
 export default function PlaylistPage() {
   const { id } = useParams();
@@ -434,8 +435,13 @@ export default function PlaylistPage() {
                     </span>
                   </div>
 
-                  {/* DURATION / DELETE */}
-                  <div className="col-span-4 flex items-center justify-end gap-4 text-xs tabular-nums text-zinc-400 md:col-span-2">
+                  {/* DURATION / ACTIONS */}
+                  <div className="col-span-4 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-2">
+                    <PreviewButton
+                      song={song}
+                      size="sm"
+                      className="opacity-0 group-hover:opacity-100"
+                    />
                     {isUserPlaylist && (
                       <button
                         onClick={(e) => {

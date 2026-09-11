@@ -21,6 +21,7 @@ import { musicApi, Song, Artist, Playlist } from "@/lib/api";
 import { getImageUrl } from "@/lib/image-utils";
 import { mapToPlayerSong } from "@/lib/player-utils";
 import { playerActions, playerStore } from "@/store/player.store";
+import { PreviewButton } from "./PreviewButton";
 import { toast } from "sonner";
 
 interface CommandPaletteModalProps {
@@ -370,7 +371,14 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                   </div>
 
                   {/* Action Pill / Indicator */}
-                  <div className="shrink-0 flex items-center gap-2 pl-3">
+                  <div className="shrink-0 flex items-center gap-1.5 pl-3">
+                    {item.type === "song" && item.data && (
+                      <PreviewButton
+                        song={item.data}
+                        size="xs"
+                        className="opacity-80 hover:opacity-100"
+                      />
+                    )}
                     {item.type === "song" && (
                       <span className="opacity-0 group-hover:opacity-100 flex items-center gap-1 text-xs text-primary font-medium">
                         <Play size={12} fill="currentColor" /> Play
