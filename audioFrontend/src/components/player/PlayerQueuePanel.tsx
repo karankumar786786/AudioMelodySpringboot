@@ -4,8 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useStore } from "@tanstack/react-store";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowDown,
-  ArrowUp,
   ChevronDown,
   Play,
   Trash2,
@@ -21,8 +19,9 @@ import { playerActions, playerStore } from "@/store/player.store";
 import { getImageUrl } from "@/lib/image-utils";
 import { mapToPlayerSong } from "@/lib/player-utils";
 import { musicApi, Song } from "@/lib/api";
+import { previewPlayer } from "@/lib/preview-player";
 import { toast } from "sonner";
-import { PreviewButton } from "../PreviewButton";
+import { SongThumbnail } from "../SongThumbnail";
 
 interface PlayerQueuePanelProps {
   open: boolean;
@@ -50,7 +49,9 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [dismissedHistoryIds, setDismissedHistoryIds] = useState<Set<string>>(new Set());
+  const [dismissedHistoryIds, setDismissedHistoryIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   // Fetch Recently Played History
   const {
@@ -129,6 +130,7 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
   };
 
   const handlePlayHistoryItem = (song: Song) => {
+    previewPlayer.stopPreview(true);
     playerActions.play(mapToPlayerSong(song));
     toast.success("Playing track", {
       description: `Now playing "${song.title}"`,
@@ -157,7 +159,10 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
         await playerActions.refillQueue(false, "Manual Refresh");
       }
       toast.success("Refreshed", {
-        description: activeTab === "history" ? "Playback history updated" : "Queue refreshed",
+        description:
+          activeTab === "history"
+            ? "Playback history updated"
+            : "Queue refreshed",
       });
     } finally {
       setIsRefreshing(false);
@@ -204,11 +209,17 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
             onClick={handleRefresh}
             disabled={isRefreshing || isHistoryRefetching}
             className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer disabled:opacity-50"
-            title={activeTab === "history" ? "Refresh History" : "Refresh Queue"}
+            title={
+              activeTab === "history" ? "Refresh History" : "Refresh Queue"
+            }
           >
             <RotateCw
               size={15}
-              className={isRefreshing || isHistoryRefetching ? "animate-spin text-primary" : ""}
+              className={
+                isRefreshing || isHistoryRefetching
+                  ? "animate-spin text-primary"
+                  : ""
+              }
             />
           </button>
 
@@ -271,7 +282,10 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                 isRefilling ? (
                   <div className="space-y-1.5 pt-1 animate-in fade-in duration-200">
                     <div className="flex items-center gap-2 px-1 text-[11px] font-semibold text-primary">
-                      <Sparkles size={12} className="animate-spin text-primary shrink-0" />
+                      <Sparkles
+                        size={12}
+                        className="animate-spin text-primary shrink-0"
+                      />
                       <span>Finding recommended songs...</span>
                     </div>
                     {[1, 2, 3].map((idx) => (
@@ -317,6 +331,10 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                         onDragOver={(e) => handleDragOver(e, index)}
                         onDrop={(e) => handleDrop(e, index)}
                         onDragEnd={handleDragEnd}
+                        onMouseEnter={() =>
+                          previewPlayer.startHoverCountdown(song)
+                        }
+                        onMouseLeave={() => previewPlayer.stopPreview()}
                         className={`group flex items-center gap-2 rounded-lg border p-2 transition-all select-none ${
                           isDraggingThis
                             ? "opacity-30 border-dashed border-primary"
@@ -333,28 +351,14 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                           <GripVertical size={14} />
                         </div>
 
-                        {/* Song Index & Play Button */}
-                        <div className="relative w-8 h-8 rounded overflow-hidden bg-zinc-900 shrink-0 group/img">
-                          {songImg ? (
-                            <img
-                              src={songImg}
-                              alt=""
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                              <Music size={14} />
-                            </div>
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => playerActions.playFromQueue(index)}
-                            className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 flex items-center justify-center text-white transition-opacity cursor-pointer"
-                            title="Play now"
-                          >
-                            <Play size={12} fill="currentColor" />
-                          </button>
-                        </div>
+                        {/* Song Thumbnail with Hover Preview */}
+                        <SongThumbnail
+                          song={song}
+                          sizeClass="w-8 h-8"
+                          roundedClass="rounded"
+                          enablePreviewHover={false}
+                          onPlayClick={() => playerActions.playFromQueue(index)}
+                        />
 
                         {/* Title & Artist */}
                         <div className="min-w-0 flex-1">
@@ -366,14 +370,8 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                           </p>
                         </div>
 
-                        
-
                         {/* Queue Actions */}
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <PreviewButton
-                            song={song}
-                            size="xs"
-                          />
                           <button
                             type="button"
                             onClick={(e) => {
@@ -399,7 +397,10 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                   {isRefilling && (
                     <div className="space-y-1.5 pt-2 animate-in fade-in duration-200">
                       <div className="flex items-center gap-2 px-1 text-[11px] font-semibold text-primary">
-                        <Sparkles size={12} className="animate-spin text-primary shrink-0" />
+                        <Sparkles
+                          size={12}
+                          className="animate-spin text-primary shrink-0"
+                        />
                         <span>Finding recommended songs...</span>
                       </div>
                       {[1, 2, 3].map((idx) => (
@@ -466,28 +467,13 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                       key={`history-${song.id}-${i}`}
                       className="group flex items-center gap-2.5 rounded-lg border border-transparent hover:bg-white/5 p-2 transition-colors select-none"
                     >
-                      {/* Thumbnail */}
-                      <div className="relative w-9 h-9 rounded overflow-hidden bg-zinc-900 shrink-0 group/img">
-                        {songImg ? (
-                          <img
-                            src={songImg}
-                            alt=""
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-zinc-600">
-                            <Music size={14} />
-                          </div>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handlePlayHistoryItem(song)}
-                          className="absolute inset-0 bg-black/60 opacity-0 group-hover/img:opacity-100 flex items-center justify-center text-white transition-opacity cursor-pointer"
-                          title="Play track"
-                        >
-                          <Play size={13} fill="currentColor" />
-                        </button>
-                      </div>
+                      {/* Thumbnail with Hover Preview */}
+                      <SongThumbnail
+                        song={song}
+                        sizeClass="w-9 h-9"
+                        roundedClass="rounded"
+                        onPlayClick={() => handlePlayHistoryItem(song)}
+                      />
 
                       {/* Title & Artist */}
                       <div className="min-w-0 flex-1">
@@ -501,11 +487,6 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
 
                       {/* Quick Actions */}
                       <div className="flex items-center gap-1">
-                        <PreviewButton
-                          song={song}
-                          size="xs"
-                          className="opacity-0 group-hover:opacity-100"
-                        />
                         <button
                           type="button"
                           onClick={() => handleAddToQueue(song)}

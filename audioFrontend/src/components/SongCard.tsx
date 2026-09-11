@@ -11,6 +11,7 @@ import {
   X,
   Heart,
   Share2,
+  Loader2,
 } from "lucide-react";
 import { type Song } from "../lib/api";
 import { playerActions, playerStore } from "../store/player.store";
@@ -46,6 +47,7 @@ export function SongCard({
   const systemUser = useStore(playerStore, (s) => s.systemUser);
   const currentSong = useStore(playerStore, (s) => s.currentSong);
   const isPlaying = useStore(playerStore, (s) => s.isPlaying);
+  const isAudioLoading = useStore(playerStore, (s) => s.isLoading);
   const favourites = useStore(playerStore, (s) => s.favourites);
   const previewState = useStore(previewStore, (s) => s);
 
@@ -222,36 +224,44 @@ export function SongCard({
                 </svg>
               )}
 
-              {/* Real-time Progress Ring when preview is playing */}
+              {/* Real-time Progress Ring & Pulsing Beat Expansion when preview is playing */}
               {isPreviewPlaying && (
-                <svg
-                  className="absolute -inset-1 w-14 h-14 -rotate-90 pointer-events-none drop-shadow-[0_0_8px_rgba(30,215,96,0.6)]"
-                  viewBox="0 0 56 56"
-                >
-                  <circle
-                    cx="28"
-                    cy="28"
-                    r="25"
-                    fill="none"
-                    stroke="rgba(255, 255, 255, 0.2)"
-                    strokeWidth="3"
+                <>
+                  <span className="absolute -inset-1.5 rounded-full border-2 border-primary animate-ping opacity-60 pointer-events-none" />
+                  <motion.span
+                    className="absolute -inset-2.5 rounded-full border border-primary/40 pointer-events-none"
+                    animate={{ scale: [1, 1.2, 1], opacity: [0.6, 0, 0.6] }}
+                    transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
                   />
-                  <circle
-                    cx="28"
-                    cy="28"
-                    r="25"
-                    fill="none"
-                    stroke="#1ed760"
-                    strokeWidth="3"
-                    strokeDasharray={157}
-                    strokeDashoffset={
-                      157 *
-                      (1 - Math.min(1, Math.max(0, previewState.progress || 0)))
-                    }
-                    strokeLinecap="round"
-                    className="transition-[stroke-dashoffset] duration-150 ease-linear"
-                  />
-                </svg>
+                  <svg
+                    className="absolute -inset-1 w-14 h-14 -rotate-90 pointer-events-none drop-shadow-[0_0_8px_rgba(30,215,96,0.6)]"
+                    viewBox="0 0 56 56"
+                  >
+                    <circle
+                      cx="28"
+                      cy="28"
+                      r="25"
+                      fill="none"
+                      stroke="rgba(255, 255, 255, 0.2)"
+                      strokeWidth="3"
+                    />
+                    <circle
+                      cx="28"
+                      cy="28"
+                      r="25"
+                      fill="none"
+                      stroke="#1ed760"
+                      strokeWidth="3"
+                      strokeDasharray={157}
+                      strokeDashoffset={
+                        157 *
+                        (1 - Math.min(1, Math.max(0, previewState.progress || 0)))
+                      }
+                      strokeLinecap="round"
+                      className="transition-[stroke-dashoffset] duration-150 ease-linear"
+                    />
+                  </svg>
+                </>
               )}
 
               <button
@@ -271,27 +281,13 @@ export function SongCard({
                 aria-label={isActiveSong && isPlaying ? "Pause" : "Play"}
               >
                 {isActiveSong && isPlaying ? (
-                  <Pause fill="black" size={20} />
+                  isAudioLoading ? (
+                    <Loader2 size={20} className="animate-spin text-black" />
+                  ) : (
+                    <Pause fill="black" size={20} />
+                  )
                 ) : isPreviewLoading ? (
-                  <svg
-                    className="animate-spin h-5 w-5 text-black"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    />
-                  </svg>
+                  <Loader2 size={20} className="animate-spin text-black" />
                 ) : isPreviewPlaying ? (
                   <div className="flex items-end justify-center gap-0.5 h-4 w-4">
                     <motion.span

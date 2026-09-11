@@ -10,6 +10,7 @@ export interface SleepTimerState {
 export interface PlayerState {
   currentSong: PlayerSong | null;
   isPlaying: boolean;
+  isLoading: boolean;
   currentTime: number;
   seekTarget: number | null;
   duration: number;
@@ -112,6 +113,7 @@ const _initShuffle = (() => {
 export const playerStore = new Store<PlayerState>({
   currentSong: _initCurrentSong,
   isPlaying: false,
+  isLoading: false,
   currentTime: _initPlaybackTime,
   seekTarget: null,
   duration: 0,

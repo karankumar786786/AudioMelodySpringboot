@@ -50,6 +50,7 @@ export const playbackActions = {
         queue: updatedQueue,
         currentSong: song,
         isPlaying: true,
+        isLoading: true,
         lastQueueIndex: idx,
         currentTime: 0,
       };
@@ -67,9 +68,17 @@ export const playbackActions = {
     });
   },
 
+  setIsLoading: (isLoading: boolean) => {
+    playerStore.setState((s) => ({ ...s, isLoading }));
+  },
+
   setIsPlaying: (isPlaying: boolean) => {
     console.log("[PlaybackActions] setIsPlaying ->", isPlaying);
-    playerStore.setState((s) => ({ ...s, isPlaying }));
+    playerStore.setState((s) => ({
+      ...s,
+      isPlaying,
+      isLoading: isPlaying ? s.isLoading : false,
+    }));
   },
 
   setIsVideoActive: (isVideoActive: boolean) => {

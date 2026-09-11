@@ -9,9 +9,11 @@ import {
   SkipForward,
   Repeat,
   Repeat1,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { playerActions } from "@/store/player.store";
+import { playerActions, playerStore } from "@/store/player.store";
+import { useStore } from "@tanstack/react-store";
 import { PlayerTooltip } from "./PlayerTooltip";
 
 interface PlayerControlButtonsProps {
@@ -29,6 +31,8 @@ export const PlayerControlButtons: React.FC<PlayerControlButtonsProps> = ({
   isVideoActive,
   audioElement,
 }) => {
+  const isLoading = useStore(playerStore, (s) => s.isLoading);
+
   const handlePlayPause = () => {
     if (!isVideoActive && audioElement) {
       if (isPlaying) {
@@ -86,15 +90,22 @@ export const PlayerControlButtons: React.FC<PlayerControlButtonsProps> = ({
         </button>
       </PlayerTooltip>
 
-      <PlayerTooltip content={isPlaying ? "Pause" : "Play"} shortcut="Space">
+      <PlayerTooltip
+        content={isPlaying ? (isLoading ? "Loading track..." : "Pause") : "Play"}
+        shortcut="Space"
+      >
         <button
           type="button"
           onClick={handlePlayPause}
           className="w-9 h-9 rounded-full bg-white text-black hover:scale-105 flex items-center justify-center cursor-pointer transition-transform shadow-md"
-          aria-label={isPlaying ? "Pause" : "Play"}
+          aria-label={isPlaying ? (isLoading ? "Loading" : "Pause") : "Play"}
         >
           {isPlaying ? (
-            <Pause size={18} fill="black" />
+            isLoading ? (
+              <Loader2 size={18} className="animate-spin text-black" />
+            ) : (
+              <Pause size={18} fill="black" />
+            )
           ) : (
             <Play size={18} fill="black" className="translate-x-0.5" />
           )}

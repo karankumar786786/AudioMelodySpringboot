@@ -64,6 +64,9 @@ export function useHlsPlayer(
 
             hlsInstance.on(Hls.Events.MEDIA_ATTACHED, () => {
               if (isMounted) {
+                if (isPlayingRef.current) {
+                  playerActions.setIsLoading(true);
+                }
                 hlsInstance.loadSource(streamUrl);
               }
             });
@@ -134,6 +137,7 @@ export function useHlsPlayer(
                     toast.error("Playback error", {
                       description: `Unrecoverable error: ${data.details}.`,
                     });
+                    playerActions.setIsLoading(false);
                     hlsInstance.destroy();
                     hlsRef.current = null;
                     break;

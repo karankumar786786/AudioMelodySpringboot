@@ -45,7 +45,6 @@ public class AlgoliaSearch {
         log.info("Algolia index configured with searchable attributes");
     }
 
-    // ── Save individual records ──
 
     public void save(SongsEntity song) throws Exception {
         Map<String, Object> record = new HashMap<>();
@@ -81,13 +80,9 @@ public class AlgoliaSearch {
         searchClient.saveObject(indexName, record);
     }
 
-    // ── Delete ──
-
     public void delete(String id) {
         searchClient.deleteObject(indexName, id);
     }
-
-    // ── Search — returns IDs grouped by type, caller fetches full data from DB ──
 
     public AlgoliaSearchResult search(String query) {
         List<AlgoliaSearchSongDto> songs = new ArrayList<>();

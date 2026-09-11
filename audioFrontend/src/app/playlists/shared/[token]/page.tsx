@@ -28,7 +28,8 @@ import { getSolidBgFromImage } from "@/lib/color-utils";
 import { NotFoundPage, ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
 import { PlaylistShareModal } from "@/components/PlaylistShareModal";
 import { PlaylistPickerModal } from "@/components/PlaylistPickerModal";
-import { PreviewButton } from "@/components/PreviewButton";
+import { SongThumbnail } from "@/components/SongThumbnail";
+import { previewPlayer } from "@/lib/preview-player";
 import Link from "next/link";
 
 export default function SharedPlaylistPage() {
@@ -281,6 +282,7 @@ export default function SharedPlaylistPage() {
   };
 
   const handlePlaySong = (song: any, index: number) => {
+    previewPlayer.stopPreview(true);
     const isActive = currentSong?.id === song.id;
     if (isActive) {
       playerActions.setIsPlaying(!isPlaying);
@@ -538,6 +540,12 @@ export default function SharedPlaylistPage() {
                   animate={{ opacity: 1 }}
                   transition={{ duration: 0.2, delay: Math.min(index * 0.015, 0.3) }}
                   onClick={() => handlePlaySong(song, index)}
+                  onMouseEnter={() => {
+                    if (!isActive || !isPlaying) {
+                      previewPlayer.startHoverCountdown(song);
+                    }
+                  }}
+                  onMouseLeave={() => previewPlayer.stopPreview()}
                   className={`group grid cursor-pointer grid-cols-12 items-center rounded-md px-4 py-2.5 transition-colors duration-150 ${
                     isActive ? "bg-white/10" : "hover:bg-white/[0.07]"
                   }`}
@@ -560,15 +568,13 @@ export default function SharedPlaylistPage() {
 
                   {/* Title */}
                   <div className="col-span-7 flex min-w-0 items-center gap-3 md:col-span-6">
-                    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-md bg-zinc-900">
-                      {songImage ? (
-                        <img src={songImage} alt={song.title} className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="flex h-full w-full items-center justify-center">
-                          <Music size={17} className="text-zinc-600" />
-                        </div>
-                      )}
-                    </div>
+                    <SongThumbnail
+                      song={song}
+                      sizeClass="h-11 w-11"
+                      roundedClass="rounded-md"
+                      enablePreviewHover={false}
+                      onPlayClick={() => handlePlaySong(song, index)}
+                    />
                     <div className="min-w-0 flex-1">
                       <h4 className={`truncate text-sm font-medium transition-colors ${isActive ? "text-primary" : "text-white"}`}>
                         {song.title}
@@ -586,11 +592,6 @@ export default function SharedPlaylistPage() {
 
                   {/* Actions / Duration */}
                   <div className="col-span-4 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-2">
-                    <PreviewButton
-                      song={song}
-                      size="sm"
-                      className="opacity-0 group-hover:opacity-100"
-                    />
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

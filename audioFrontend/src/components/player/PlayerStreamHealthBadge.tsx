@@ -1,7 +1,7 @@
-"use client";
-
 import React, { useState } from "react";
 import { Zap, Activity, Wifi } from "lucide-react";
+import { playerStore } from "@/store/player.store";
+import { useStore } from "@tanstack/react-store";
 
 interface PlayerStreamHealthBadgeProps {
   bufferedTime: number;
@@ -17,6 +17,7 @@ export const PlayerStreamHealthBadge: React.FC<PlayerStreamHealthBadgeProps> = (
   qualityTracks,
 }) => {
   const [showTooltip, setShowTooltip] = useState(false);
+  const isLoading = useStore(playerStore, (s) => s.isLoading);
 
   const safeCurrent = Math.max(0, isFinite(currentTime) ? currentTime : 0);
   const safeBuffered = Math.max(0, isFinite(bufferedTime) ? bufferedTime : 0);
@@ -31,14 +32,16 @@ export const PlayerStreamHealthBadge: React.FC<PlayerStreamHealthBadgeProps> = (
     ? activeTrack.label
     : "Auto (Adaptive)";
 
-  const isHealthy = bufferedAhead >= 15;
-  const isModerate = bufferedAhead >= 5 && bufferedAhead < 15;
+  const isHealthy = !isLoading && bufferedAhead >= 15;
+  const isModerate = !isLoading && bufferedAhead >= 5 && bufferedAhead < 15;
 
-  const dotColor = isHealthy
-    ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"
-    : isModerate
-      ? "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]"
-      : "bg-red-400 animate-pulse shadow-[0_0_8px_rgba(248,113,113,0.8)]";
+  const dotColor = isLoading
+    ? "bg-amber-400 animate-spin shadow-[0_0_8px_rgba(251,191,36,0.8)]"
+    : isHealthy
+      ? "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"
+      : isModerate
+        ? "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]"
+        : "bg-red-400 animate-pulse shadow-[0_0_8px_rgba(248,113,113,0.8)]";
 
   return (
     <div
@@ -72,8 +75,8 @@ export const PlayerStreamHealthBadge: React.FC<PlayerStreamHealthBadgeProps> = (
             </div>
             <div className="flex items-center justify-between">
               <span className="text-zinc-500">Status:</span>
-              <span className={`font-semibold ${isHealthy ? "text-emerald-400" : isModerate ? "text-amber-400" : "text-red-400"}`}>
-                {isHealthy ? "Optimal" : isModerate ? "Buffering" : "Low Buffer"}
+              <span className={`font-semibold ${isLoading ? "text-amber-400" : isHealthy ? "text-emerald-400" : isModerate ? "text-amber-400" : "text-red-400"}`}>
+                {isLoading ? "Loading..." : isHealthy ? "Optimal" : isModerate ? "Buffering" : "Low Buffer"}
               </span>
             </div>
           </div>
