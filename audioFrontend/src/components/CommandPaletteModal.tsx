@@ -99,6 +99,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   const rawSongs: Song[] = searchResults?.data?.songs || [];
   const rawArtists: Artist[] = searchResults?.data?.artists || [];
   const rawPlaylists: Playlist[] = searchResults?.data?.playlists || [];
+  const rawUserPlaylists: any[] = searchResults?.data?.userPlaylists || [];
   const historyList: string[] = (searchHistory?.data?.data || [])
   .map((h: any) => (typeof h === "string" ? h : h?.searchedText))
   .filter(Boolean);
@@ -149,15 +150,25 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
           id: `playlist-${playlist.id}`,
           type: "playlist",
           title: playlist.name,
-          subtitle: "Playlist",
+          subtitle: "Official Playlist",
           imageKey: playlist.coverImageKey,
-          data: playlist,
+          data: { ...playlist, isUserPlaylist: false },
+        });
+      });
+      rawUserPlaylists.forEach((playlist) => {
+        list.push({
+          id: `userplaylist-${playlist.id}`,
+          type: "playlist",
+          title: playlist.name,
+          subtitle: playlist.ownerName ? `By ${playlist.ownerName}` : "Community Playlist",
+          imageKey: playlist.coverImageKey,
+          data: { ...playlist, isUserPlaylist: true },
         });
       });
     }
 
     return list;
-  }, [debouncedQuery, activeTab, rawSongs, rawArtists, rawPlaylists, historyList]);
+  }, [debouncedQuery, activeTab, rawSongs, rawArtists, rawPlaylists, rawUserPlaylists, historyList]);
 
   // Keep selected index in bounds
   useEffect(() => {
@@ -186,7 +197,11 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       if (systemUser?.id) saveHistory.mutate(item.title);
       onClose();
     } else if (item.type === "playlist") {
-      router.push(`/playlists/${item.data.id}`);
+      if (item.data?.isUserPlaylist) {
+        router.push(`/userplaylist/${item.data.id}`);
+      } else {
+        router.push(`/playlists/${item.data.id}`);
+      }
       if (systemUser?.id) saveHistory.mutate(item.title);
       onClose();
     } else if (item.type === "history") {
@@ -267,8 +282,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                   : tab === "artists"
                   ? rawArtists.length
                   : tab === "playlists"
-                  ? rawPlaylists.length
-                  : rawSongs.length + rawArtists.length + rawPlaylists.length;
+                  ? rawPlaylists.length + rawUserPlaylists.length
+                  : rawSongs.length + rawArtists.length + rawPlaylists.length + rawUserPlaylists.length;
 
               return (
                 <button

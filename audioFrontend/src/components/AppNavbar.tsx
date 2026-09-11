@@ -96,6 +96,12 @@ export function AppNavbar() {
     setIsFocused(false);
   };
 
+  const handleUserPlaylistClick = (playlist: any) => {
+    router.push(`/userplaylist/${playlist.id}`);
+    if (systemUser?.id) saveHistory.mutate(playlist.name);
+    setIsFocused(false);
+  };
+
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -309,11 +315,11 @@ export function AppNavbar() {
                       </div>
                     )}
 
-                    {/* Playlists */}
+                    {/* Official/System Playlists */}
                     {(searchResults?.data?.playlists?.length ?? 0) > 0 && (
-                      <div>
+                      <div className="mb-3">
                         <h4 className="px-3 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
-                          Playlists
+                          Official Playlists
                         </h4>
                         {searchResults?.data?.playlists.map((playlist: any) => (
                           <button
@@ -345,7 +351,51 @@ export function AppNavbar() {
                                 {playlist.name}
                               </p>
                               <p className="text-[11px] text-zinc-400 font-normal">
-                                Playlist
+                                Official Playlist
+                              </p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Community / User Playlists */}
+                    {(searchResults?.data?.userPlaylists?.length ?? 0) > 0 && (
+                      <div>
+                        <h4 className="px-3 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+                          Community Playlists
+                        </h4>
+                        {searchResults?.data?.userPlaylists.map((playlist: any) => (
+                          <button
+                            key={playlist.id}
+                            onClick={() => handleUserPlaylistClick(playlist)}
+                            className="w-full flex items-center gap-3 p-2 hover:bg-[#282828] rounded-lg transition-all text-left group"
+                          >
+                            <div className="w-10 h-10 rounded-md bg-zinc-900 overflow-hidden shrink-0 flex items-center justify-center">
+                              {playlist.coverImageKey ? (
+                                <img
+                                  src={getImageUrl(playlist.coverImageKey, {
+                                    width: 100,
+                                    height: 100,
+                                    focus: "auto",
+                                    aspectRatio: "1-1",
+                                  })}
+                                  className="w-full h-full object-cover"
+                                  alt=""
+                                />
+                              ) : (
+                                <ListMusic
+                                  size={16}
+                                  className="text-zinc-500"
+                                />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-white truncate">
+                                {playlist.name}
+                              </p>
+                              <p className="text-[11px] font-extrabold underline font-normal truncate">
+                                {playlist.ownerName ? `By ${playlist.ownerName}` : "User Playlist"}
                               </p>
                             </div>
                           </button>
@@ -357,7 +407,8 @@ export function AppNavbar() {
                       !isSearching &&
                       !searchResults?.data?.songs?.length &&
                       !searchResults?.data?.artists?.length &&
-                      !searchResults?.data?.playlists?.length && (
+                      !searchResults?.data?.playlists?.length &&
+                      !searchResults?.data?.userPlaylists?.length && (
                         <div className="p-6 text-center bg-[#282828]/50 rounded-lg m-2">
                           <Search
                             size={20}

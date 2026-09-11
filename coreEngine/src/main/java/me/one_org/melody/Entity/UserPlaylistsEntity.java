@@ -34,11 +34,26 @@ public class UserPlaylistsEntity {
 
     @Default
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = true)
     private PlaylistPrivacyEnum privacy = PlaylistPrivacyEnum.PRIVATE;
 
-    @Column(name = "share_token", unique = true)
+    @Column(name = "share_token")
     private String shareToken;
+
+    public PlaylistPrivacyEnum getPrivacy() {
+        return privacy != null ? privacy : PlaylistPrivacyEnum.PRIVATE;
+    }
+
+    @PrePersist
+    @PreUpdate
+    public void ensureDefaults() {
+        if (privacy == null) {
+            privacy = PlaylistPrivacyEnum.PRIVATE;
+        }
+        if (shareToken == null || shareToken.isBlank()) {
+            shareToken = java.util.UUID.randomUUID().toString().replace("-", "");
+        }
+    }
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)

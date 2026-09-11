@@ -59,6 +59,13 @@ export interface Playlist {
   updatedAt?: string;
 }
 
+export interface UnifiedSearchResult {
+  songs: Song[];
+  artists: Artist[];
+  playlists: Playlist[];
+  userPlaylists: UserPlaylist[];
+}
+
 export interface User {
   id: string;
   name?: string;
@@ -430,13 +437,20 @@ export const musicApi = {
   search: {
     unified: async (query: string) => {
       if (!query || !query.trim()) {
-        return { data: { songs: [], artists: [], playlists: [] } };
+        return { data: { songs: [], artists: [], playlists: [], userPlaylists: [] } };
       }
       try {
-        const data = await request(`/api/search?q=${encodeURIComponent(query)}`);
-        return { data };
+        const data = await request<UnifiedSearchResult>(`/api/search?q=${encodeURIComponent(query)}`);
+        return {
+          data: {
+            songs: data?.songs || [],
+            artists: data?.artists || [],
+            playlists: data?.playlists || [],
+            userPlaylists: data?.userPlaylists || [],
+          },
+        };
       } catch {
-        return { data: { songs: [], artists: [], playlists: [] } };
+        return { data: { songs: [], artists: [], playlists: [], userPlaylists: [] } };
       }
     },
   },

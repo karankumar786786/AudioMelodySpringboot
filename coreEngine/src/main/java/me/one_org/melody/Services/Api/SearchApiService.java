@@ -1,6 +1,5 @@
 package me.one_org.melody.Services.Api;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -58,19 +57,9 @@ public class SearchApiService {
 
         List<SongsEntity> songs = songsRepository.findAllByIds(songIds);
         List<ArtistsEntity> artists = artistsRepository.findAllByIds(artistIds);
-        List<PlaylistsEntity> playlists = new ArrayList<>(playlistsRepository.findAllByIds(playlistIds));
+        List<PlaylistsEntity> playlists = playlistsRepository.findAllByIds(playlistIds);
+        List<UserPlaylistsEntity> userPlaylists = userPlaylistsRepository.findAllPublicByIds(playlistIds);
 
-        // Also fetch any public user playlists matching playlist IDs from Algolia
-        List<UserPlaylistsEntity> publicUserPlaylists = userPlaylistsRepository.findAllPublicByIds(playlistIds);
-        for (UserPlaylistsEntity up : publicUserPlaylists) {
-            playlists.add(PlaylistsEntity.builder()
-                    .id(up.getId())
-                    .name(up.getName())
-                    .description("Public Playlist" + (up.getOwnerName() != null ? " • " + up.getOwnerName() : ""))
-                    .status(up.getStatus())
-                    .build());
-        }
-
-        return new SearchResult(songs, artists, playlists);
+        return new SearchResult(songs, artists, playlists, userPlaylists);
     }
 }

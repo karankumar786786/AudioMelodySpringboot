@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -32,6 +32,12 @@ export default function PlaylistPage() {
 
   const playlistType = searchParams.get("type");
 
+  useEffect(() => {
+    if (playlistType === "user") {
+      router.replace(`/userplaylist/${id}`);
+    }
+  }, [playlistType, id, router]);
+
   /* -------------------------------------------------------------------------- */
   /*                                  PLAYLIST                                  */
   /* -------------------------------------------------------------------------- */
@@ -54,6 +60,17 @@ export default function PlaylistPage() {
       }
     },
   });
+
+  useEffect(() => {
+    if (
+      playlistResponse?.data &&
+      ("ownerId" in playlistResponse.data ||
+        "ownerName" in playlistResponse.data ||
+        "privacy" in playlistResponse.data)
+    ) {
+      router.replace(`/userplaylist/${id}`);
+    }
+  }, [playlistResponse, id, router]);
 
   /* -------------------------------------------------------------------------- */
   /*                                    SONGS                                   */

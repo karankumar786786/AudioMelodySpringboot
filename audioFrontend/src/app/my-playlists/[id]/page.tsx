@@ -18,6 +18,7 @@ import {
   Lock,
   Link2,
   Sparkles,
+  BookmarkPlus,
 } from "lucide-react";
 import { playerActions, playerStore } from "@/store/player.store";
 import { mapListToPlayerSongs } from "@/lib/player-utils";
@@ -47,7 +48,7 @@ export default function MyPlaylistPage() {
   const { data: playlistResponse, isLoading: isPlaylistLoading, error: playlistError, refetch: refetchPlaylist } = useQuery({
     queryKey: ["user-playlist", id],
     queryFn: () => musicApi.users.getPlaylistById(id as string),
-    enabled: !!systemUser?.id,
+    enabled: !!id,
   });
 
   /* -------------------------------------------------------------------------- */
@@ -57,7 +58,7 @@ export default function MyPlaylistPage() {
   const { data: songsResponse, isLoading: isSongsLoading, error: songsError, refetch: refetchSongs } = useQuery({
     queryKey: ["user-playlist-songs", id],
     queryFn: () => musicApi.users.getPlaylistSongs(id as string),
-    enabled: !!systemUser?.id,
+    enabled: !!id,
   });
 
   /* -------------------------------------------------------------------------- */
@@ -94,6 +95,52 @@ export default function MyPlaylistPage() {
   });
 
   /* -------------------------------------------------------------------------- */
+  /*                               SAVE TO LIBRARY                              */
+  /* -------------------------------------------------------------------------- */
+
+  const saveToLibrary = useMutation({
+    mutationFn: async () => {
+      if (!systemUser?.id) {
+        throw new Error("AUTH_REQUIRED");
+      }
+      if (!playlist) return;
+      const res = await musicApi.users.createPlaylist(playlist.name);
+      const newPlaylist = res.data;
+      if (newPlaylist?.id && songs.length > 0) {
+        for (const s of songs) {
+          try {
+            await musicApi.users.addSongToPlaylist(newPlaylist.id, s.id);
+          } catch {
+            // continue adding remaining songs
+          }
+        }
+      }
+      return newPlaylist;
+    },
+    onSuccess: (newPlaylist) => {
+      queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
+      toast.success("Saved to your Library!", {
+        description: `"${playlist?.name}" has been added to your playlists.`,
+        action: newPlaylist?.id
+          ? {
+              label: "View",
+              onClick: () => router.push(`/my-playlists/${newPlaylist.id}`),
+            }
+          : undefined,
+      });
+    },
+    onError: (err: any) => {
+      if (err?.message === "AUTH_REQUIRED") {
+        toast.info("Please sign in", {
+          description: "Sign in to save this playlist to your library.",
+        });
+      } else {
+        toast.error("Failed to save playlist");
+      }
+    },
+  });
+
+  /* -------------------------------------------------------------------------- */
   /*                               REMOVE SONG                                  */
   /* -------------------------------------------------------------------------- */
 
@@ -114,6 +161,13 @@ export default function MyPlaylistPage() {
 
   const playlist = playlistResponse?.data;
   const songs = songsResponse?.data?.data || [];
+
+  const isOwner = Boolean(
+    systemUser?.id &&
+      (playlist?.ownerId === systemUser?.id ||
+        (playlist?.ownerName && (playlist.ownerName === systemUser?.username || playlist.ownerName === systemUser?.name)) ||
+        (!playlist?.ownerId && !playlist?.ownerName))
+  );
 
   /* -------------------------------------------------------------------------- */
   /*                                COVER IMAGE                                 */
@@ -176,14 +230,6 @@ export default function MyPlaylistPage() {
   /*                                  LOADING                                   */
   /* -------------------------------------------------------------------------- */
 
-  if (!systemUser?.id) {
-    return (
-      <div className="flex h-[60vh] flex-col items-center justify-center gap-4 text-zinc-500">
-        <p className="text-sm font-medium">Sign in to view your playlists.</p>
-      </div>
-    );
-  }
-
   if (isPlaylistLoading || isSongsLoading) {
     return (
       <div className="flex h-[60vh] flex-col items-center justify-center gap-4 text-zinc-500">
@@ -197,13 +243,31 @@ export default function MyPlaylistPage() {
 
   // Error & Not Found handling
   if (playlistError || !playlist) {
-    const is404 =
-      !playlist ||
-      (playlistError as any)?.status === 404 ||
-      (playlistError as any)?.response?.status === 404;
-    const is500 =
-      (playlistError as any)?.status >= 500 ||
-      (playlistError as any)?.response?.status >= 500;
+    const errorStatus =
+      (playlistError as any)?.status || (playlistError as any)?.response?.status;
+
+    if (errorStatus === 403) {
+      return (
+        <div className="flex h-[60vh] flex-col items-center justify-center gap-4 text-center px-4">
+          <div className="w-16 h-16 rounded-full bg-zinc-900 flex items-center justify-center text-amber-400 border border-white/10 shadow-xl">
+            <Lock size={28} />
+          </div>
+          <h2 className="text-2xl font-bold text-white">Private Playlist</h2>
+          <p className="text-sm text-zinc-400 max-w-md">
+            This playlist is private and only accessible by its creator.
+          </p>
+          <button
+            onClick={() => router.push("/home")}
+            className="mt-3 px-6 py-2.5 rounded-full bg-white text-black font-semibold text-sm hover:bg-zinc-200 transition-colors shadow-lg"
+          >
+            Explore Music
+          </button>
+        </div>
+      );
+    }
+
+    const is404 = !playlist || errorStatus === 404;
+    const is500 = errorStatus >= 500;
 
     if (is404 && !is500) {
       return <NotFoundPage />;
@@ -335,33 +399,40 @@ export default function MyPlaylistPage() {
           >
             <div className="mb-2 flex items-center gap-2.5">
               <span className="text-xs font-semibold uppercase tracking-wider text-white/80">
-                Your Playlist
+                {isOwner ? "Your Playlist" : "Community Playlist"}
               </span>
               <span>•</span>
               {/* Privacy Badge / Quick Trigger */}
-              <button
-                type="button"
-                onClick={() => setIsShareModalOpen(true)}
-                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide border transition-all cursor-pointer hover:scale-105 ${
-                  privacy === "PUBLIC"
-                    ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30"
-                    : privacy === "SHARE_BY_LINK"
-                    ? "bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30"
-                    : "bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30"
-                }`}
-                title="Click to manage playlist privacy & share"
-              >
-                {privacy === "PUBLIC" && <Globe size={11} />}
-                {privacy === "SHARE_BY_LINK" && <Link2 size={11} />}
-                {privacy === "PRIVATE" && <Lock size={11} />}
-                <span>
-                  {privacy === "PUBLIC"
-                    ? "Public"
-                    : privacy === "SHARE_BY_LINK"
-                    ? "Share by link"
-                    : "Private"}
+              {isOwner ? (
+                <button
+                  type="button"
+                  onClick={() => setIsShareModalOpen(true)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide border transition-all cursor-pointer hover:scale-105 ${
+                    privacy === "PUBLIC"
+                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30"
+                      : privacy === "SHARE_BY_LINK"
+                      ? "bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30"
+                      : "bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30"
+                  }`}
+                  title="Click to manage playlist privacy & share"
+                >
+                  {privacy === "PUBLIC" && <Globe size={11} />}
+                  {privacy === "SHARE_BY_LINK" && <Link2 size={11} />}
+                  {privacy === "PRIVATE" && <Lock size={11} />}
+                  <span>
+                    {privacy === "PUBLIC"
+                      ? "Public"
+                      : privacy === "SHARE_BY_LINK"
+                      ? "Share by link"
+                      : "Private"}
+                  </span>
+                </button>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide border bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
+                  <Globe size={11} />
+                  <span>Public</span>
                 </span>
-              </button>
+              )}
             </div>
 
             <h1 className="break-words text-4xl font-black tracking-tight text-white md:text-6xl">
@@ -374,7 +445,11 @@ export default function MyPlaylistPage() {
 
             <div className="mt-4 flex flex-wrap items-center gap-2.5 text-xs text-white/80">
               <span className="font-semibold">
-                {systemUser?.username || systemUser?.name || "You"}
+                {isOwner
+                  ? systemUser?.username || systemUser?.name || "You"
+                  : playlist?.ownerName
+                  ? `Curated by ${playlist.ownerName}`
+                  : "Community Playlist"}
               </span>
               <span>•</span>
               <span>
@@ -405,6 +480,20 @@ export default function MyPlaylistPage() {
                 </>
               )}
 
+              {/* Save to library for visitors */}
+              {!isOwner && songs.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => saveToLibrary.mutate()}
+                  disabled={saveToLibrary.isPending}
+                  className="ml-1 flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-1.5 text-xs font-semibold text-white transition-all cursor-pointer"
+                  title="Save this playlist to your library"
+                >
+                  <BookmarkPlus size={13} className="text-primary" />
+                  <span>{saveToLibrary.isPending ? "Saving..." : "Save to Library"}</span>
+                </button>
+              )}
+
               {/* Share button */}
               <button
                 type="button"
@@ -416,21 +505,23 @@ export default function MyPlaylistPage() {
                 <span>Share</span>
               </button>
 
-              {/* Delete playlist */}
-              <button
-                onClick={() => {
-                  if (!confirm(`Delete "${playlist.name}"? This cannot be undone.`)) return;
-                  toast.promise(deletePlaylist.mutateAsync(), {
-                    loading: "Deleting playlist...",
-                    success: "Playlist deleted",
-                    error: "Failed to delete playlist",
-                  });
-                }}
-                className="flex items-center gap-1.5 rounded-full border border-red-500/30 px-3 py-1.5 text-xs font-semibold text-red-400 transition-colors hover:border-red-400 hover:text-red-300 cursor-pointer"
-                title="Delete playlist"
-              >
-                <Trash2 size={13} /> Delete
-              </button>
+              {/* Delete playlist (owner only) */}
+              {isOwner && (
+                <button
+                  onClick={() => {
+                    if (!confirm(`Delete "${playlist.name}"? This cannot be undone.`)) return;
+                    toast.promise(deletePlaylist.mutateAsync(), {
+                      loading: "Deleting playlist...",
+                      success: "Playlist deleted",
+                      error: "Failed to delete playlist",
+                    });
+                  }}
+                  className="flex items-center gap-1.5 rounded-full border border-red-500/30 px-3 py-1.5 text-xs font-semibold text-red-400 transition-colors hover:border-red-400 hover:text-red-300 cursor-pointer"
+                  title="Delete playlist"
+                >
+                  <Trash2 size={13} /> Delete
+                </button>
+              )}
             </div>
           </motion.div>
         </div>
@@ -442,7 +533,7 @@ export default function MyPlaylistPage() {
           playlist={playlist}
           isOpen={isShareModalOpen}
           onClose={() => setIsShareModalOpen(false)}
-          isOwner={true}
+          isOwner={isOwner}
         />
       )}
 
@@ -529,21 +620,23 @@ export default function MyPlaylistPage() {
 
                   {/* Duration / Remove */}
                   <div className="col-span-4 flex items-center justify-end gap-4 text-xs tabular-nums text-zinc-400 md:col-span-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toast.promise(removeSong.mutateAsync(song.id), {
-                          loading: "Removing track...",
-                          success: "Track removed",
-                          error: "Failed to remove",
-                          description: `"${song.title}" removed from playlist.`,
-                        });
-                      }}
-                      className="hidden rounded p-1 text-zinc-500 transition-colors hover:text-red-400 group-hover:block"
-                      title="Remove from playlist"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    {isOwner && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toast.promise(removeSong.mutateAsync(song.id), {
+                            loading: "Removing track...",
+                            success: "Track removed",
+                            error: "Failed to remove",
+                            description: `"${song.title}" removed from playlist.`,
+                          });
+                        }}
+                        className="hidden rounded p-1 text-zinc-500 transition-colors hover:text-red-400 group-hover:block"
+                        title="Remove from playlist"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                     <span>{formatDuration(song.duration)}</span>
                   </div>
                 </motion.div>
