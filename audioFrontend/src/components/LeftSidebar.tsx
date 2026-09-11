@@ -193,7 +193,7 @@ export function LeftSidebar() {
                         <>
                           {playlist.privacy === "PUBLIC" && (
                             <span
-                              className="hidden xl:inline-flex shrink-0 text-emerald-400/70"
+                              className="hidden xl:inline-flex shrink-0 text-white"
                               title="Public Playlist"
                             >
                               <Globe size={11} />

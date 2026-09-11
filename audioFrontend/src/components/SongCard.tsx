@@ -199,7 +199,7 @@ export function SongCard({
                     cy="28"
                     r="25"
                     fill="none"
-                    stroke="#1ed760"
+                    stroke="#ffffffff"
                     strokeWidth="3"
                     strokeDasharray={157}
                     initial={{ strokeDashoffset: 157 }}

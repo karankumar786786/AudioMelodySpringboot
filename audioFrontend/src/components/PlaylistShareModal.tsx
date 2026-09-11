@@ -11,8 +11,6 @@ import {
   Lock,
   Link2,
   X,
-  ExternalLink,
-  Sparkles,
   MessageCircle,
   Send,
 } from "lucide-react";
@@ -205,9 +203,6 @@ export function PlaylistShareModal({
                 <div className="min-w-0">
                   <h2 className="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
                     Share Playlist
-                    <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-zinc-300">
-                      <Sparkles size={11} className="text-primary" /> Premium
-                    </span>
                   </h2>
                   <p className="text-xs text-zinc-400 truncate mt-0.5">
                     {playlist.name}
@@ -398,7 +393,6 @@ export function PlaylistShareModal({
                   )}
                 </div>
                 <div className={`grid grid-cols-3 gap-2 ${isCurrentlyPrivate ? "opacity-35 pointer-events-none grayscale" : ""}`}>
-                  {/* WhatsApp */}
                   <a
                     href={isCurrentlyPrivate ? undefined : `https://api.whatsapp.com/send?text=${encodeURIComponent(
                       `🎵 Listen to my playlist "${playlist.name}" on AudioMelody:\n${shareUrl}`
@@ -411,7 +405,6 @@ export function PlaylistShareModal({
                     <span className="text-[11px] font-semibold">WhatsApp</span>
                   </a>
 
-                  {/* Twitter / X */}
                   <a
                     href={isCurrentlyPrivate ? undefined : `https://twitter.com/intent/tweet?text=${encodeURIComponent(
                       `🎶 Listening to "${playlist.name}" playlist on AudioMelody:`
@@ -425,8 +418,6 @@ export function PlaylistShareModal({
                     </svg>
                     <span className="text-[11px] font-semibold">Twitter (X)</span>
                   </a>
-
-                  {/* Telegram */}
                   <a
                     href={isCurrentlyPrivate ? undefined : `https://t.me/share/url?url=${encodeURIComponent(
                       shareUrl
@@ -457,13 +448,6 @@ export function PlaylistShareModal({
                   <>Curated by {playlist.ownerName || "Creator"}</>
                 )}
               </span>
-              <button
-                type="button"
-                onClick={handleNativeShare}
-                className="flex items-center gap-1 text-primary hover:underline font-semibold cursor-pointer shrink-0 ml-2"
-              >
-                More options <ExternalLink size={12} />
-              </button>
             </div>
           </motion.div>
         </motion.div>
