@@ -69,7 +69,7 @@ export const PlayerLyricsView: React.FC<PlayerLyricsViewProps> = ({
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md border transition-all cursor-pointer ${
                 lyricsTargetLang !== "original"
                   ? "bg-primary text-black border-primary font-bold shadow-md shadow-primary/20"
-                  : "bg-[#282828]/80 text-zinc-300 border-white/10 hover:text-white hover:bg-[#333]"
+                  : "bg-white text-black border-white/10 font-bold hover:text-white hover:bg-black"
               }`}
               title="Translate Lyrics (Google Translate)"
               aria-label="Translate Lyrics"
