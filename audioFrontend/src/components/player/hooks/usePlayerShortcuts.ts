@@ -77,16 +77,6 @@ export function usePlayerShortcuts({
       if (e.code === "Space" || (!e.metaKey && !e.ctrlKey && (e.key === "k" || e.key === "K"))) {
         e.preventDefault();
         if (!currentSong) return;
-        if (!isVideoActive && audioElement) {
-          if (isPlaying) {
-            audioElement.pause();
-          } else {
-            audioElement.play().catch((err) => {
-              if (err.name !== "AbortError")
-                console.warn("[Player] Manual play failed:", err);
-            });
-          }
-        }
         playerActions.setIsPlaying(!isPlaying);
       }
 

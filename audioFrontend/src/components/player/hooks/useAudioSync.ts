@@ -18,6 +18,8 @@ export function useAudioSync(
   fadeIn?: (dur?: number) => void,
   fadeOut?: (dur?: number) => void,
   crossfadeDuration: number = 0.5,
+  fadeTo?: (targetGain: number, dur?: number) => void,
+  setGainImmediate?: (val: number) => void,
 ) {
   const isPreviewPlaying = useStore(previewStore, (s) => s.status === "playing");
   const playbackRate = useStore(playerStore, (s) => s.playbackRate || 1);
@@ -25,18 +27,27 @@ export function useAudioSync(
   const volumeAnimRef = useRef<number | null>(null);
   const hasFadedOutRef = useRef<boolean>(false);
   const lastSavedTimeRef = useRef<number>(0);
+  const pauseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isMicroFadingRef = useRef<boolean>(false);
+
   const lastStateRef = useRef<{ id: string; time: number; duration: number }>({
     id: "",
     time: 0,
     duration: 0,
   });
-  // Keep refs of values the ended handler needs to avoid stale closures
+
+  // Keep refs of values the handlers need to avoid stale closures
   const currentSongRef = useRef(currentSong);
   currentSongRef.current = currentSong;
 
-  // Keep a ref for isPlaying so event listeners have the latest value
   const isPlayingRef = useRef(isPlaying);
   isPlayingRef.current = isPlaying;
+
+  const fadeInRef = useRef(fadeIn);
+  fadeInRef.current = fadeIn;
+
+  const fadeOutRef = useRef(fadeOut);
+  fadeOutRef.current = fadeOut;
 
   // Dedicated Playback Rate Synchronizer
   useEffect(() => {
@@ -107,7 +118,7 @@ export function useAudioSync(
   const prevIsVideoActiveRef = useRef(isVideoActive);
   const prevIsPlayingRef = useRef(isPlaying);
 
-  // 2. Sync Play/Pause state to the audio element with smooth fade
+  // 2. Play / Pause Transition with Smooth Fade-In and Fade-Out
   useEffect(() => {
     if (!audioElement) return;
 
@@ -148,30 +159,58 @@ export function useAudioSync(
     audioElement.preservesPitch = true;
 
     if (isPlaying) {
-      if (audioElement.paused && audioElement.readyState >= 2) {
-        if (!wasPlaying && fadeIn) {
-          fadeIn(0.25);
-        }
+      // Clear any pending pause timeouts (user quickly toggled play back on)
+      if (pauseTimeoutRef.current) {
+        clearTimeout(pauseTimeoutRef.current);
+        pauseTimeoutRef.current = null;
+      }
+
+      const fadeDuration = crossfadeDuration > 0 ? Math.min(0.4, crossfadeDuration) : 0.32;
+      if (fadeInRef.current) {
+        fadeInRef.current(fadeDuration);
+      }
+
+      if (audioElement.paused) {
         audioElement.play().catch((err) => {
-          if (err.name !== "AbortError")
+          if (err.name !== "AbortError") {
             console.warn("[Player] Play failed:", err);
+          }
         });
       }
     } else {
+      // PAUSE: Smooth fade out before pausing
       if (!audioElement.paused && !isInternalChange.current) {
-        if (wasPlaying && fadeOut) {
-          fadeOut(0.12);
-          setTimeout(() => {
-            if (!isPlayingRef.current && audioElement && !audioElement.paused) {
-              audioElement.pause();
-            }
-          }, 100);
-        } else {
-          audioElement.pause();
+        const fadeOutDuration = 0.26; // 260ms smooth audio ramp down
+        if (fadeOutRef.current) {
+          fadeOutRef.current(fadeOutDuration);
         }
+
+        if (pauseTimeoutRef.current) {
+          clearTimeout(pauseTimeoutRef.current);
+        }
+
+        pauseTimeoutRef.current = setTimeout(() => {
+          if (!isPlayingRef.current && audioElement && !audioElement.paused) {
+            audioElement.pause();
+          }
+          pauseTimeoutRef.current = null;
+        }, Math.round(fadeOutDuration * 1000));
+      } else if (audioElement.paused && pauseTimeoutRef.current) {
+        clearTimeout(pauseTimeoutRef.current);
+        pauseTimeoutRef.current = null;
       }
     }
-  }, [audioElement, isPlaying, isInternalChange, isVideoActive, isMuted, volume, playbackRate, setLocalTime, fadeIn, fadeOut]);
+  }, [audioElement, isPlaying, isInternalChange, isVideoActive, isMuted, volume, playbackRate, setLocalTime, crossfadeDuration]);
+
+  // Clean up pause timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (pauseTimeoutRef.current) {
+        clearTimeout(pauseTimeoutRef.current);
+        pauseTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   // 3. Native Event Listeners
   useEffect(() => {
@@ -197,6 +236,10 @@ export function useAudioSync(
         return;
       playerActions.setIsLoading(false);
       playerActions.setIsPlaying(true);
+      // Smooth fade in on actual audio output start
+      if (fadeInRef.current) {
+        fadeInRef.current(crossfadeDuration > 0 ? Math.min(0.4, crossfadeDuration) : 0.32);
+      }
     };
 
     const onWaiting = () => {
@@ -220,6 +263,10 @@ export function useAudioSync(
     const onSeeked = () => {
       if (audioElement.readyState >= 3) {
         playerActions.setIsLoading(false);
+      }
+      // Fade in smoothly after seek finishes
+      if (isPlayingRef.current && fadeInRef.current) {
+        fadeInRef.current(0.15);
       }
     };
 
@@ -268,14 +315,15 @@ export function useAudioSync(
         lastStateRef.current = { id: "", time: 0, duration: 0 };
       }
 
-      // If repeatMode is "one", loop the current song cleanly from start
+      // If repeatMode is "one", loop the current song cleanly from start with smooth crossfade
       const { repeatMode, sleepTimer } = playerStore.state;
 
       // Check if Sleep Timer end_of_track mode is active
       if (sleepTimer?.mode === "end_of_track") {
         console.log(
-          "[Player] Sleep Timer 'end_of_track' triggered. Stopping playback.",
+          "[Player] Sleep Timer 'end_of_track' triggered. Stopping playback with fade.",
         );
+        if (fadeOutRef.current) fadeOutRef.current(0.3);
         playerActions.setIsPlaying(false);
         playerActions.clearSleepTimer();
         toast("Sleep timer finished", {
@@ -287,15 +335,17 @@ export function useAudioSync(
 
       if (repeatMode === "one") {
         console.log(
-          "[Player] Repeat Mode 'one' active. Looping current track.",
+          "[Player] Repeat Mode 'one' active. Looping current track with fade.",
         );
         hasFadedOutRef.current = false;
-        if (fadeIn) fadeIn(crossfadeDuration > 0 ? crossfadeDuration : 0.2);
         audioElement.currentTime = 0;
         setLocalTime(0);
         playerActions.setCurrentTime(0);
         if (typeof window !== "undefined") {
           localStorage.setItem("last_current_time", "0");
+        }
+        if (fadeInRef.current) {
+          fadeInRef.current(crossfadeDuration > 0 ? crossfadeDuration : 0.35);
         }
         audioElement.play().catch((err) => {
           if (err.name !== "AbortError")
@@ -331,6 +381,9 @@ export function useAudioSync(
         playerActions.setIsLoading(false);
       }
       if (isPlayingRef.current && audioElement.paused) {
+        if (fadeInRef.current) {
+          fadeInRef.current(crossfadeDuration > 0 ? Math.min(0.4, crossfadeDuration) : 0.32);
+        }
         audioElement.play().catch((err) => {
           if (err.name !== "AbortError")
             console.warn("[Player] Play on canplay failed:", err);
@@ -363,9 +416,9 @@ export function useAudioSync(
       audioElement.removeEventListener("ended", handleEnded);
       audioElement.removeEventListener("error", onError);
     };
-  }, [audioElement, isInternalChange, isVideoActive, fadeIn, crossfadeDuration]);
+  }, [audioElement, isInternalChange, isVideoActive, crossfadeDuration]);
 
-  // 4. Listen Recording & Fade-In Logic
+  // 4. Listen Recording & Song Change Fade-In Logic
   useEffect(() => {
     const last = lastStateRef.current;
     if (currentSong?.id !== last.id) {
@@ -379,8 +432,9 @@ export function useAudioSync(
         }
       }
 
-      if (fadeIn && crossfadeDuration > 0) {
-        fadeIn(crossfadeDuration);
+      // Smooth fade-in on track change
+      if (fadeInRef.current && isPlayingRef.current) {
+        fadeInRef.current(crossfadeDuration > 0 ? crossfadeDuration : 0.35);
       }
 
       if (last.id) {
@@ -394,7 +448,7 @@ export function useAudioSync(
         duration: currentSong?.duration || 0,
       };
     }
-  }, [currentSong?.id, fadeIn, crossfadeDuration, setLocalTime, setBuffered, audioElement]);
+  }, [currentSong?.id, crossfadeDuration, setLocalTime, setBuffered, audioElement]);
 
   // Record on unmount
   useEffect(() => {
@@ -413,7 +467,7 @@ export function useAudioSync(
 
   const isInitialMountRef = useRef<boolean>(true);
 
-  // 5. High Precision Sync & Fade-Out (RAF)
+  // 5. High Precision Sync & Outro Crossfade (RAF)
   const syncTime = useCallback(() => {
     if (!audioElement || playerStore.state.isVideoActive) {
       animFrameRef.current = requestAnimationFrame(syncTime);
@@ -464,29 +518,30 @@ export function useAudioSync(
       playerActions.setDuration(audioElement.duration);
     }
 
-    // Trigger smooth fade-out before the track ends
+    // Trigger smooth fade-out before the track ends (Outro crossfade)
+    const activeFadeDuration = crossfadeDuration > 0 ? crossfadeDuration : 0.5;
     if (
-      crossfadeDuration > 0 &&
-      fadeOut &&
+      activeFadeDuration > 0 &&
+      fadeOutRef.current &&
       !hasFadedOutRef.current &&
       audioElement.duration &&
       isFinite(audioElement.duration) &&
-      audioElement.duration > crossfadeDuration * 2
+      audioElement.duration > activeFadeDuration * 2
     ) {
       const remaining = audioElement.duration - t;
-      if (remaining <= crossfadeDuration && remaining > 0) {
+      if (remaining <= activeFadeDuration && remaining > 0) {
         hasFadedOutRef.current = true;
-        fadeOut(remaining);
+        fadeOutRef.current(remaining);
       }
     } else if (
       hasFadedOutRef.current &&
       audioElement.duration &&
-      audioElement.duration - t > crossfadeDuration * 2
+      audioElement.duration - t > activeFadeDuration * 2
     ) {
-      // If user seeks back or track replayed: restore volume immediately
+      // If user seeks back or track replayed: restore volume immediately with fade-in
       hasFadedOutRef.current = false;
-      if (fadeIn) {
-        fadeIn(0.2);
+      if (fadeInRef.current) {
+        fadeInRef.current(0.25);
       }
     }
 
@@ -500,7 +555,7 @@ export function useAudioSync(
     }
 
     animFrameRef.current = requestAnimationFrame(syncTime);
-  }, [audioElement, duration, setLocalTime, setBuffered, fadeIn, fadeOut, crossfadeDuration]);
+  }, [audioElement, duration, setLocalTime, setBuffered, crossfadeDuration]);
 
   useEffect(() => {
     animFrameRef.current = requestAnimationFrame(syncTime);

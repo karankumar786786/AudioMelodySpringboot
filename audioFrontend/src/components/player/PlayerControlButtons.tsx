@@ -29,21 +29,10 @@ export const PlayerControlButtons: React.FC<PlayerControlButtonsProps> = ({
   isShuffle,
   repeatMode,
   isVideoActive,
-  audioElement,
 }) => {
   const isLoading = useStore(playerStore, (s) => s.isLoading);
 
   const handlePlayPause = () => {
-    if (!isVideoActive && audioElement) {
-      if (isPlaying) {
-        audioElement.pause();
-      } else {
-        audioElement.play().catch((err) => {
-          if (err.name !== "AbortError")
-            console.warn("[Player] Manual play failed:", err);
-        });
-      }
-    }
     playerActions.setIsPlaying(!isPlaying);
   };
 

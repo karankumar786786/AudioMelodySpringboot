@@ -86,7 +86,8 @@ export function useWebAudio(
 
         // Create Fade/Crossfade Gain Node
         const fadeGain = ctx.createGain();
-        fadeGain.gain.setValueAtTime(1, ctx.currentTime);
+        // If not playing at mount, initialize at 0 to allow smooth fade-in on first play
+        fadeGain.gain.setValueAtTime(isPlaying ? 1 : 0, ctx.currentTime);
         fadeGainRef.current = fadeGain;
 
         // Create Sub-Bass Boost Filter (lowshelf @ 80Hz, +7dB when active)
@@ -151,7 +152,7 @@ export function useWebAudio(
     };
 
     setupAudio();
-  }, [audioElement]);
+  }, [audioElement, isPlaying]);
 
   // Resume AudioContext on play / user interaction
   useEffect(() => {
@@ -230,7 +231,7 @@ export function useWebAudio(
   }, []);
 
   const fadeIn = useCallback(
-    (durationSec = crossfadeDuration) => {
+    (durationSec = 0.35) => {
       if (!fadeGainRef.current || !globalAudioCtx || durationSec <= 0) {
         if (fadeGainRef.current && globalAudioCtx) {
           fadeGainRef.current.gain.setValueAtTime(1, globalAudioCtx.currentTime);
@@ -250,11 +251,11 @@ export function useWebAudio(
         console.warn("[WebAudio] fadeIn error:", err);
       }
     },
-    [crossfadeDuration]
+    []
   );
 
   const fadeOut = useCallback(
-    (durationSec = crossfadeDuration) => {
+    (durationSec = 0.28) => {
       if (!fadeGainRef.current || !globalAudioCtx || durationSec <= 0) return;
       try {
         const now = globalAudioCtx.currentTime;
@@ -266,8 +267,43 @@ export function useWebAudio(
         console.warn("[WebAudio] fadeOut error:", err);
       }
     },
-    [crossfadeDuration]
+    []
   );
+
+  const fadeTo = useCallback(
+    (targetGain: number, durationSec = 0.25) => {
+      if (!fadeGainRef.current || !globalAudioCtx || durationSec <= 0) {
+        if (fadeGainRef.current && globalAudioCtx) {
+          fadeGainRef.current.gain.setValueAtTime(
+            Math.max(0, Math.min(1, targetGain)),
+            globalAudioCtx.currentTime
+          );
+        }
+        return;
+      }
+      try {
+        const now = globalAudioCtx.currentTime;
+        const currentGain = Math.max(0, Math.min(1, fadeGainRef.current.gain.value));
+        const clampedTarget = Math.max(0, Math.min(1, targetGain));
+        fadeGainRef.current.gain.cancelScheduledValues(now);
+        fadeGainRef.current.gain.setValueAtTime(currentGain, now);
+        fadeGainRef.current.gain.linearRampToValueAtTime(clampedTarget, now + durationSec);
+      } catch (err) {
+        console.warn("[WebAudio] fadeTo error:", err);
+      }
+    },
+    []
+  );
+
+  const setGainImmediate = useCallback((val: number) => {
+    if (!fadeGainRef.current || !globalAudioCtx) return;
+    try {
+      const clamped = Math.max(0, Math.min(1, val));
+      const now = globalAudioCtx.currentTime;
+      fadeGainRef.current.gain.cancelScheduledValues(now);
+      fadeGainRef.current.gain.setValueAtTime(clamped, now);
+    } catch {}
+  }, []);
 
   const resetEq = useCallback(() => {
     setGains([0, 0, 0, 0, 0]);
@@ -294,5 +330,7 @@ export function useWebAudio(
     setCrossfadeDuration,
     fadeIn,
     fadeOut,
+    fadeTo,
+    setGainImmediate,
   };
 }

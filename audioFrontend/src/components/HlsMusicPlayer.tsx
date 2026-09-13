@@ -152,6 +152,8 @@ export function HlsMusicPlayer() {
     webAudio.fadeIn,
     webAudio.fadeOut,
     webAudio.crossfadeDuration,
+    webAudio.fadeTo,
+    webAudio.setGainImmediate,
   );
 
   // Sync store currentTime resets or explicit seekTarget requests
