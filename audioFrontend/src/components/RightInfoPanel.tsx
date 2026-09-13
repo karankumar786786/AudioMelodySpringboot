@@ -24,6 +24,66 @@ import { PlayerTooltip } from "./player/PlayerTooltip";
 import { HeartButton } from "./HeartButton";
 import { toast } from "sonner";
 
+/* ================================================================== */
+/* MarqueeTitle — scrolls text continuously only if it overflows      */
+/* ================================================================== */
+function MarqueeTitle({
+  text,
+  className = "",
+}: {
+  text: string;
+  className?: string;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+
+  useEffect(() => {
+    setIsOverflowing(false); // reset on text change before re-measuring
+
+    const check = () => {
+      if (containerRef.current && textRef.current) {
+        setIsOverflowing(
+          textRef.current.scrollWidth > containerRef.current.clientWidth
+        );
+      }
+    };
+
+    // measure after paint
+    const raf = requestAnimationFrame(check);
+
+    const ro = new ResizeObserver(check);
+    if (containerRef.current) ro.observe(containerRef.current);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
+  }, [text]);
+
+  return (
+    <div ref={containerRef} className="overflow-hidden relative w-full">
+      {/* Invisible reference span used only to measure natural text width */}
+      <span
+        ref={textRef}
+        className={`invisible absolute whitespace-nowrap pointer-events-none ${className}`}
+        aria-hidden="true"
+      >
+        {text}
+      </span>
+
+      {isOverflowing ? (
+        <div className="flex w-max whitespace-nowrap animate-marquee">
+          <span className={`pr-12 ${className}`}>{text}</span>
+          <span className={`pr-12 ${className}`}>{text}</span>
+        </div>
+      ) : (
+        <span className={`block truncate ${className}`}>{text}</span>
+      )}
+    </div>
+  );
+}
+
 export function RightInfoPanel() {
   const currentSong = useStore(playerStore, (s) => s.currentSong);
   const systemUser = useStore(playerStore, (s) => s.systemUser);
@@ -243,9 +303,10 @@ export function RightInfoPanel() {
               {/* Overlaid Song Title, Artist & Actions */}
               <div className="relative z-10 p-4 pb-4 flex items-end justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-xl font-bold text-white tracking-tight truncate hover:underline cursor-pointer leading-tight drop-shadow-md">
-                    {currentSong.title}
-                  </h2>
+                  <MarqueeTitle
+                    text={currentSong.title}
+                    className="text-xl font-bold text-white tracking-tight cursor-pointer leading-tight drop-shadow-md hover:underline"
+                  />
                   <p className="text-xs font-medium text-zinc-300 truncate mt-1 hover:text-white hover:underline cursor-pointer drop-shadow">
                     {currentSong.artistName}
                   </p>
@@ -326,9 +387,10 @@ export function RightInfoPanel() {
               {/* Song Title, Artist & Actions Below Card */}
               <div className="relative z-10 pt-3 pb-1 flex items-center justify-between gap-3 px-1">
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-lg font-bold text-white tracking-tight truncate hover:underline cursor-pointer leading-tight">
-                    {currentSong.title}
-                  </h2>
+                  <MarqueeTitle
+                    text={currentSong.title}
+                    className="text-lg font-bold text-white tracking-tight cursor-pointer leading-tight hover:underline"
+                  />
                   <p className="text-xs font-medium text-zinc-400 truncate mt-0.5 hover:text-white hover:underline cursor-pointer">
                     {currentSong.artistName}
                   </p>
