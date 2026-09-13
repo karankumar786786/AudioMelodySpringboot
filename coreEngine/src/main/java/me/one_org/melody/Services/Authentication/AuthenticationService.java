@@ -59,7 +59,7 @@ public class AuthenticationService {
         String tempToken = hmacUtil.hash(request.email());
         String otp = otpUtil.generateOtp();
         OtpDataDto data = new OtpDataDto(otp, tempToken, request.email(), request.userName(),PurposeEnum.REGISTER);
-        MailQueueDto mqd = new MailQueueDto(request.email(), tempToken, otp);
+        MailQueueDto mqd = new MailQueueDto(request.email(), PurposeEnum.REGISTER.name(), otp);
         mailQueue.queueMail(mqd);
         cache.set(data.email(), data, Duration.ofMinutes(10));
         return tempToken;
