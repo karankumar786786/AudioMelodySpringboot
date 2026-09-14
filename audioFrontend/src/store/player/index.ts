@@ -1,5 +1,6 @@
 import { Store } from "@tanstack/react-store";
-import { type PlayerSong } from "@/lib/player-utils";
+import { type PlayerSong, type QualityTrack } from "@/lib/player-utils";
+import { type User } from "@/lib/api";
 
 export interface SleepTimerState {
   targetTimestamp: number | null;
@@ -21,12 +22,12 @@ export interface PlayerState {
   lastQueueIndex: number;
   repeatMode: "none" | "one" | "all";
   isShuffle: boolean;
-  qualityTracks: any[];
+  qualityTracks: QualityTrack[];
   selectedQuality: "auto" | number;
   isAuthModalOpen: boolean;
   systemToken: string | null;
   systemRefreshToken: string | null;
-  systemUser: any | null;
+  systemUser: User | null;
   favourites: Set<string>;
   isRefilling: boolean;
   isLyricsOpen: boolean;

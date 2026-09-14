@@ -7,7 +7,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Play, Pause, Trash2, Clock, Music } from "lucide-react";
 import { playerActions, playerStore } from "@/store/player.store";
-import { mapListToPlayerSongs } from "@/lib/player-utils";
+import { mapListToPlayerSongs, formatDuration } from "@/lib/player-utils";
 import { useStore } from "@tanstack/react-store";
 import { toast } from "sonner";
 import { getImageUrl, getVideoUrl } from "@/lib/image-utils";
@@ -224,22 +224,6 @@ export default function PlaylistPage() {
 
     const playerSongs = mapListToPlayerSongs(songs);
     playerActions.playAllFrom(playerSongs, index);
-  };
-
-  /* -------------------------------------------------------------------------- */
-  /*                             FORMAT DURATION                                */
-  /* -------------------------------------------------------------------------- */
-
-  const formatDuration = (val?: number | string) => {
-    if (!val) return "0:00";
-    const num = typeof val === "string" ? parseFloat(val) : val;
-    if (isNaN(num) || num <= 0) return "0:00";
-
-    const totalSeconds = num > 10000 ? Math.floor(num / 1000) : Math.floor(num);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
   /* -------------------------------------------------------------------------- */

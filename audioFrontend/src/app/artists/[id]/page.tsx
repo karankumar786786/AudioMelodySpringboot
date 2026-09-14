@@ -15,11 +15,9 @@ import {
   Music,
   ArrowLeft,
   Shuffle,
-  MoreHorizontal,
-  Heart,
 } from "lucide-react";
 import { playerStore, playerActions } from "@/store/player.store";
-import { mapListToPlayerSongs } from "@/lib/player-utils";
+import { mapListToPlayerSongs, formatDuration } from "@/lib/player-utils";
 import { getSolidBgFromImage } from "@/lib/color-utils";
 import { toast } from "sonner";
 import { NotFoundPage, ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
@@ -94,27 +92,6 @@ export default function ArtistPage() {
       cancelled = true;
     };
   }, [coverUrl, artist?.name]);
-
-  /* -------------------------------------------------------------------------- */
-  /*                              FORMAT DURATION                               */
-  /* -------------------------------------------------------------------------- */
-
-  const formatDuration = (val?: number | string) => {
-    if (!val) return "0:00";
-
-    const num = typeof val === "string" ? parseFloat(val) : val;
-
-    if (isNaN(num) || num <= 0) {
-      return "0:00";
-    }
-
-    const totalSeconds = num > 10000 ? Math.floor(num / 1000) : Math.floor(num);
-
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-  };
 
   /* -------------------------------------------------------------------------- */
   /*                                  LOADING                                   */

@@ -12,13 +12,7 @@ import {
   Percent,
 } from "lucide-react";
 
-function formatDuration(num?: number) {
-  if (!num || isNaN(num) || !isFinite(num) || num < 0) return "0:00";
-  const sec = num > 10000 ? Math.floor(num / 1000) : Math.floor(num);
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
-}
+import { formatDuration } from "@/lib/player-utils";
 
 export interface HudEventDetail {
   type: "volume" | "seek" | "speed";

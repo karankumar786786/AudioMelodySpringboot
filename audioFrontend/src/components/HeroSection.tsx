@@ -2,7 +2,7 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { type Song } from "../lib/api";
 import { playerActions, playerStore } from "../store/player.store";
-import { mapToPlayerSong } from "../lib/player-utils";
+import { mapToPlayerSong, formatDuration } from "../lib/player-utils";
 import { getImageUrl, getVideoUrl } from "../lib/image-utils";
 import { PlayerTooltip } from "./player/PlayerTooltip";
 
@@ -12,16 +12,6 @@ interface HeroSectionProps {
   setIndex: (idx: number) => void;
   isLoading: boolean;
 }
-
-const formatDuration = (val?: number | string) => {
-  if (!val) return "0:00";
-  const num = typeof val === "string" ? parseFloat(val) : val;
-  if (isNaN(num) || num <= 0) return "0:00";
-  const totalSeconds = num > 10000 ? Math.floor(num / 1000) : Math.floor(num);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-};
 
 export function HeroSection({
   songs,

@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { playerActions, playerStore } from "@/store/player.store";
 import { getImageUrl } from "@/lib/image-utils";
-import { mapToPlayerSong } from "@/lib/player-utils";
+import { mapToPlayerSong, formatDuration } from "@/lib/player-utils";
 import { musicApi, Song } from "@/lib/api";
 import { previewPlayer } from "@/lib/preview-player";
 import { toast } from "sonner";
@@ -26,14 +26,6 @@ import { SongThumbnail } from "../SongThumbnail";
 interface PlayerQueuePanelProps {
   open: boolean;
   onClose: () => void;
-}
-
-function formatDuration(num?: number) {
-  if (!num || isNaN(num)) return "0:00";
-  const sec = num > 10000 ? Math.floor(num / 1000) : Math.floor(num);
-  const m = Math.floor(sec / 60);
-  const s = sec % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
 export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {

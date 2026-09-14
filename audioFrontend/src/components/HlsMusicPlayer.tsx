@@ -1,22 +1,57 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import { useStore } from "@tanstack/react-store";
 import { playerStore, playerActions } from "../store/player.store";
 import { getImageUrl } from "../lib/image-utils";
 import { getFullVideoHlsUrl, getFullVideoDashUrl } from "../lib/player-utils";
 import { getSolidBgFromImage } from "../lib/color-utils";
 
-// Modals & Panels
-import { PlaylistPickerModal } from "./PlaylistPickerModal";
-import { FullVideoModal } from "./FullVideoModal";
-import { SleepTimerModal } from "./player/SleepTimerModal";
-import { EqualizerModal } from "./player/EqualizerModal";
-import { PlayerQueuePanel } from "./player/PlayerQueuePanel";
-import { KeyboardShortcutsModal } from "./player/KeyboardShortcutsModal";
-import { CommandPaletteModal } from "./CommandPaletteModal";
+// Lazy-loaded Modals for Bundle Optimization
+const PlaylistPickerModal = dynamic(
+  () => import("./PlaylistPickerModal").then((m) => m.PlaylistPickerModal),
+  { ssr: false },
+);
+const FullVideoModal = dynamic(
+  () => import("./FullVideoModal").then((m) => m.FullVideoModal),
+  { ssr: false },
+);
+const SleepTimerModal = dynamic(
+  () => import("./player/SleepTimerModal").then((m) => m.SleepTimerModal),
+  { ssr: false },
+);
+const EqualizerModal = dynamic(
+  () => import("./player/EqualizerModal").then((m) => m.EqualizerModal),
+  { ssr: false },
+);
+const KeyboardShortcutsModal = dynamic(
+  () =>
+    import("./player/KeyboardShortcutsModal").then(
+      (m) => m.KeyboardShortcutsModal,
+    ),
+  { ssr: false },
+);
+const CommandPaletteModal = dynamic(
+  () => import("./CommandPaletteModal").then((m) => m.CommandPaletteModal),
+  { ssr: false },
+);
+const ShareSongModal = dynamic(
+  () => import("./ShareSongModal").then((m) => m.ShareSongModal),
+  { ssr: false },
+);
+const PlayerQueuePanel = dynamic(
+  () => import("./player/PlayerQueuePanel").then((m) => m.PlayerQueuePanel),
+  { ssr: false },
+);
+
+// Non-lazy Subcomponents & Overlays
 import { PlayerHudOverlay } from "./player/PlayerHudOverlay";
-import { ShareSongModal } from "./ShareSongModal";
+import { PlayerLyricsView } from "./player/PlayerLyricsView";
+import { PlayerTrackCard } from "./player/PlayerTrackCard";
+import { PlayerControlButtons } from "./player/PlayerControlButtons";
+import { PlayerProgressBar } from "./player/PlayerProgressBar";
+import { PlayerRightControls } from "./player/PlayerRightControls";
 
 // Hooks
 import { useHlsPlayer } from "./player/hooks/useHlsPlayer";
@@ -26,13 +61,6 @@ import { useWebAudio } from "./player/hooks/useWebAudio";
 import { useNextTrackPreloader } from "./player/hooks/useNextTrackPreloader";
 import { usePlayerShortcuts } from "./player/hooks/usePlayerShortcuts";
 import { useLyricsTranslation } from "./player/hooks/useLyricsTranslation";
-
-// Subcomponents
-import { PlayerLyricsView } from "./player/PlayerLyricsView";
-import { PlayerTrackCard } from "./player/PlayerTrackCard";
-import { PlayerControlButtons } from "./player/PlayerControlButtons";
-import { PlayerProgressBar } from "./player/PlayerProgressBar";
-import { PlayerRightControls } from "./player/PlayerRightControls";
 
 export function HlsMusicPlayer() {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -265,17 +293,17 @@ export function HlsMusicPlayer() {
         />
       )}
 
-      {/* Ambient Dynamic Background Glow */}
+      {/* Multi-layered Ambient Dynamic Background Glow */}
       <div
         aria-hidden="true"
         style={{
-          background: `radial-gradient(ellipse 70% 80px at 50% 100%, ${solidBgColor}40, transparent 70%)`,
+          background: `radial-gradient(ellipse 85% 120px at 50% 100%, ${solidBgColor}66 0%, ${solidBgColor}22 55%, transparent 80%)`,
         }}
-        className="fixed bottom-20 left-0 right-0 h-28 pointer-events-none z-40 transition-all duration-700 blur-xl"
+        className="fixed bottom-20 left-0 right-0 h-32 pointer-events-none z-40 transition-all duration-700 ease-out blur-2xl opacity-90"
       />
 
       {/* Spotify Bottom Persistent Audio Player Bar */}
-      <footer className="fixed bottom-0 left-0 right-0 h-20 bg-black/95 backdrop-blur-md border-t border-[#282828] z-50 px-3 sm:px-4 md:px-6 flex items-center justify-between select-none">
+      <footer className="fixed bottom-0 left-0 right-0 h-20 bg-black/95 backdrop-blur-md border-t border-[#282828] z-50 px-3 sm:px-4 md:px-6 flex items-center justify-between select-none shadow-[0_-8px_30px_rgba(0,0,0,0.7)]">
         {/* Left Section: Track Info & Quick Actions */}
         <PlayerTrackCard currentSong={currentSong} posterUrl={posterUrl} />
 
@@ -323,37 +351,45 @@ export function HlsMusicPlayer() {
       </footer>
 
       {/* Equalizer & Visualizer Modal */}
-      <EqualizerModal
-        isOpen={showEqualizerModal}
-        onClose={() => setShowEqualizerModal(false)}
-        analyser={webAudio.analyser}
-        isPlaying={isPlaying}
-        gains={webAudio.gains}
-        selectedPreset={webAudio.selectedPreset}
-        setBandGain={webAudio.setBandGain}
-        applyPreset={webAudio.applyPreset}
-        resetEq={webAudio.resetEq}
-      />
+      {showEqualizerModal && (
+        <EqualizerModal
+          isOpen={showEqualizerModal}
+          onClose={() => setShowEqualizerModal(false)}
+          analyser={webAudio.analyser}
+          isPlaying={isPlaying}
+          gains={webAudio.gains}
+          selectedPreset={webAudio.selectedPreset}
+          setBandGain={webAudio.setBandGain}
+          applyPreset={webAudio.applyPreset}
+          resetEq={webAudio.resetEq}
+        />
+      )}
 
       {/* Sleep Timer Modal */}
-      <SleepTimerModal
-        isOpen={showSleepTimerModal}
-        onClose={() => setShowSleepTimerModal(false)}
-      />
+      {showSleepTimerModal && (
+        <SleepTimerModal
+          isOpen={showSleepTimerModal}
+          onClose={() => setShowSleepTimerModal(false)}
+        />
+      )}
 
       {/* Keyboard Shortcuts Cheat-Sheet Modal */}
-      <KeyboardShortcutsModal
-        isOpen={showShortcutsModal}
-        onClose={() => setShowShortcutsModal(false)}
-      />
+      {showShortcutsModal && (
+        <KeyboardShortcutsModal
+          isOpen={showShortcutsModal}
+          onClose={() => setShowShortcutsModal(false)}
+        />
+      )}
 
       {/* Playlist Picker Modal */}
-      <PlaylistPickerModal
-        isOpen={isPlaylistModalOpen}
-        onClose={() => setIsPlaylistModalOpen(false)}
-        songId={currentSong.id}
-        songTitle={currentSong.title}
-      />
+      {isPlaylistModalOpen && (
+        <PlaylistPickerModal
+          isOpen={isPlaylistModalOpen}
+          onClose={() => setIsPlaylistModalOpen(false)}
+          songId={currentSong.id}
+          songTitle={currentSong.title}
+        />
+      )}
 
       {/* Full Video Modal */}
       {state.isFullVideoOpen && (currentSong.fullVideoKey || (currentSong as any).full_video_key) && (
@@ -369,26 +405,32 @@ export function HlsMusicPlayer() {
       )}
 
       {/* Queue Drawer */}
-      <PlayerQueuePanel
-        open={showQueuePanel}
-        onClose={() => setShowQueuePanel(false)}
-      />
+      {showQueuePanel && (
+        <PlayerQueuePanel
+          open={showQueuePanel}
+          onClose={() => setShowQueuePanel(false)}
+        />
+      )}
 
       {/* Quick Search Spotlight Command Palette */}
-      <CommandPaletteModal
-        isOpen={showCommandPalette}
-        onClose={() => setShowCommandPalette(false)}
-      />
+      {showCommandPalette && (
+        <CommandPaletteModal
+          isOpen={showCommandPalette}
+          onClose={() => setShowCommandPalette(false)}
+        />
+      )}
 
       {/* Floating On-Screen HUD Overlay for Volume & Seeking */}
       <PlayerHudOverlay />
 
       {/* Share Song Story Card Modal */}
-      <ShareSongModal
-        isOpen={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        song={currentSong}
-      />
+      {showShareModal && (
+        <ShareSongModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          song={currentSong}
+        />
+      )}
     </>
   );
 }

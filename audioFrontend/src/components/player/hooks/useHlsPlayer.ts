@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { playerActions, playerStore } from "../../../store/player.store";
+import { type QualityTrack } from "@/lib/player-utils";
+
+const MAX_NETWORK_RETRIES = 3;
+const MAX_MEDIA_RETRIES = 2;
 
 export function useHlsPlayer(
   audioElement: HTMLAudioElement | null,
@@ -15,10 +19,14 @@ export function useHlsPlayer(
   const isPlayingRef = useRef(isPlaying);
   isPlayingRef.current = isPlaying;
 
+  const networkRetryCountRef = useRef(0);
+  const mediaRetryCountRef = useRef(0);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const syncTracks = useCallback((hls: any) => {
     if (!hls) return;
     const levels = hls.levels || [];
-    const tracks = levels.map((level: any, idx: number) => ({
+    const tracks: QualityTrack[] = levels.map((level: any, idx: number) => ({
       index: idx,
       bandwidth: level.bitrate,
       label: level.name || `${Math.round(level.bitrate / 1000)}K`,
@@ -29,11 +37,18 @@ export function useHlsPlayer(
   // Initialize and Load — ONLY when song/stream changes, NOT on play/pause
   useEffect(() => {
     if (!audioElement) return;
-    // Reference currentSongId to trigger re-run
     const _songId = currentSongId;
 
     let isMounted = true;
     let hlsInstance: any = null;
+
+    // Reset error counters on track change
+    networkRetryCountRef.current = 0;
+    mediaRetryCountRef.current = 0;
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
 
     const initPlayer = async () => {
       try {
@@ -57,6 +72,13 @@ export function useHlsPlayer(
               backBufferLength: 90,
               maxBufferLength: 20,
               maxMaxBufferLength: 20,
+              manifestLoadingTimeOut: 15000,
+              manifestLoadingMaxRetry: 3,
+              manifestLoadingRetryDelay: 1000,
+              levelLoadingTimeOut: 15000,
+              levelLoadingMaxRetry: 3,
+              fragLoadingTimeOut: 20000,
+              fragLoadingMaxRetry: 4,
             });
             hlsRef.current = hlsInstance;
 
@@ -73,6 +95,8 @@ export function useHlsPlayer(
 
             hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
               if (!isMounted) return;
+              networkRetryCountRef.current = 0; // Reset network errors on successful manifest parse
+              playerActions.setIsLoading(false);
               syncTracks(hlsInstance);
 
               // Apply the user's previously selected quality if applicable
@@ -117,30 +141,74 @@ export function useHlsPlayer(
               if (data.fatal) {
                 console.error("[Hls.js] ❌ Fatal error details:", data);
                 switch (data.type) {
-                  case Hls.ErrorTypes.NETWORK_ERROR:
-                    console.warn(
-                      "[Hls.js] Fatal network error, trying to recover...",
-                    );
-                    hlsInstance.startLoad();
+                  case Hls.ErrorTypes.NETWORK_ERROR: {
+                    networkRetryCountRef.current += 1;
+                    if (networkRetryCountRef.current <= MAX_NETWORK_RETRIES) {
+                      const delay = Math.pow(2, networkRetryCountRef.current) * 500;
+                      console.warn(
+                        `[Hls.js] Fatal network error (attempt ${networkRetryCountRef.current}/${MAX_NETWORK_RETRIES}), retrying in ${delay}ms...`,
+                      );
+                      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+                      retryTimeoutRef.current = setTimeout(() => {
+                        if (isMounted && hlsRef.current) {
+                          hlsRef.current.startLoad();
+                        }
+                      }, delay);
+                    } else {
+                      console.error("[Hls.js] Network retry limit reached.");
+                      playerActions.setIsLoading(false);
+                      toast.error("Stream connection failed", {
+                        description: "Network issue loading audio stream. Click to retry.",
+                        action: {
+                          label: "Retry",
+                          onClick: () => {
+                            networkRetryCountRef.current = 0;
+                            if (hlsRef.current) {
+                              hlsRef.current.loadSource(streamUrl);
+                              hlsRef.current.startLoad();
+                            }
+                          },
+                        },
+                      });
+                    }
                     break;
-                  case Hls.ErrorTypes.MEDIA_ERROR:
-                    console.warn(
-                      "[Hls.js] Fatal media error, trying to recover...",
-                    );
-                    hlsInstance.recoverMediaError();
+                  }
+                  case Hls.ErrorTypes.MEDIA_ERROR: {
+                    mediaRetryCountRef.current += 1;
+                    if (mediaRetryCountRef.current <= MAX_MEDIA_RETRIES) {
+                      console.warn(
+                        `[Hls.js] Fatal media error (attempt ${mediaRetryCountRef.current}/${MAX_MEDIA_RETRIES}), recovering media...`,
+                      );
+                      hlsInstance.recoverMediaError();
+                    } else {
+                      console.error("[Hls.js] Media error recovery failed, swapping audio element state...");
+                      // Re-attach media on persistent codec/decode glitches
+                      hlsInstance.swapAudioCodec();
+                      hlsInstance.recoverMediaError();
+                    }
                     break;
-                  default:
-                    console.error(
-                      "[Hls.js] Unrecoverable fatal error:",
-                      data.details,
-                    );
-                    toast.error("Playback error", {
-                      description: `Unrecoverable error: ${data.details}.`,
-                    });
+                  }
+                  default: {
+                    console.error("[Hls.js] Unrecoverable fatal error:", data.details);
                     playerActions.setIsLoading(false);
-                    hlsInstance.destroy();
-                    hlsRef.current = null;
+                    toast.error("Playback error", {
+                      description: `Stream error: ${data.details || "Cannot decode track"}.`,
+                      action: {
+                        label: "Reload",
+                        onClick: () => {
+                          if (hlsRef.current) {
+                            hlsRef.current.loadSource(streamUrl);
+                            hlsRef.current.startLoad();
+                          }
+                        },
+                      },
+                    });
+                    if (hlsInstance) {
+                      hlsInstance.destroy();
+                      hlsRef.current = null;
+                    }
                     break;
+                  }
                 }
               } else {
                 // Suppress spammy non-fatal warnings that recover automatically (e.g. fragParsingError)
@@ -191,6 +259,10 @@ export function useHlsPlayer(
 
     return () => {
       isMounted = false;
+      if (retryTimeoutRef.current) {
+        clearTimeout(retryTimeoutRef.current);
+        retryTimeoutRef.current = null;
+      }
       if (hlsInstance) {
         hlsInstance.destroy();
         hlsRef.current = null;
@@ -198,7 +270,7 @@ export function useHlsPlayer(
     };
     // IMPORTANT: isPlaying is intentionally NOT in the dependency array.
     // It's tracked via isPlayingRef so that toggling play/pause does NOT
-    // destroy and recreate the HLS instance (which was causing the pause-reset bug).
+    // destroy and recreate the HLS instance.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSongId, streamUrl, audioElement, syncTracks]);
 

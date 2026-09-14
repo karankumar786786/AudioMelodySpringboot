@@ -351,7 +351,7 @@ export const queueActions = {
 
         console.group(`🎵 [Queue Refill Triggered] Reason: ${reason}`);
         console.log(`📊 Queue status: ${playerStore.state.queue.length} total songs | Current index: ${playerStore.state.lastQueueIndex} | Remaining ahead: ${Math.max(0, remaining)}`);
-        console.log(`👤 User authentication: ${isLoggedIn ? `Logged in (${systemUser.name || systemUser.email || systemUser.id})` : "Unauthenticated (Guest)"}`);
+        console.log(`👤 User authentication: ${isLoggedIn ? `Logged in (${systemUser?.name || systemUser?.email || systemUser?.id})` : "Unauthenticated (Guest)"}`);
 
         let res: any;
         if (isLoggedIn) {
