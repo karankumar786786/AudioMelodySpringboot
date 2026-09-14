@@ -3,6 +3,7 @@ import { s3Client, downloadObject } from "../lib/s3";
 import { AudioTranscoder } from "../lib/transcode";
 import { extractAudioFromVideo } from "../lib/transcode/video";
 import { safeCleanPaths, registerActiveTmpPath } from "../lib/transcode/cleanup";
+import { validateMediaIntegrity } from "../lib/transcode/validator";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import * as crypto from "node:crypto";
@@ -74,6 +75,11 @@ export const transcodeAudioTask = inngest.createFunction(
                     await extractAudioFromVideo(localVideoDownloadPath, localExtractedAudioPath);
                     inputAudioPath = localExtractedAudioPath;
                 }
+
+                // Fail-fast integrity pre-flight check before heavy encoding
+                console.log(`[AUDIO-WORKER] Running fail-fast integrity validation for job ${jobId}...`);
+                const validation = await validateMediaIntegrity(inputAudioPath, "audio");
+                console.log(`[AUDIO-WORKER] Media integrity verified (${validation.formatName}, duration ${validation.duration.toFixed(2)}s)`);
 
                 console.log(`[AUDIO-WORKER] Transcoding and packaging multi-bitrate audio with hardware acceleration...`);
                 const audioTranscoder = new AudioTranscoder(4, s3Client, basePath, prodBucket);

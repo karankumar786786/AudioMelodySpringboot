@@ -19,6 +19,7 @@ import {
     registerActiveTmpPath,
     unregisterActiveTmpPath,
 } from "./cleanup";
+import { validateMediaIntegrity } from "./validator";
 
 export interface AudioQualityProfile {
     label: string;
@@ -111,27 +112,8 @@ export class AudioTranscoder {
     }
 
     private async getAudioDuration(audioPath: string): Promise<number> {
-        if (!fs.existsSync(audioPath)) {
-            throw new Error(`File does not exist at path: ${audioPath}`);
-        }
-
-        const { stdout, stderr } = await execFileAsync("ffprobe", [
-            "-v", "error",
-            "-print_format", "json",
-            "-show_format",
-            audioPath,
-        ]);
-
-        if (stderr) console.warn(`ffprobe warning: ${stderr}`);
-
-        const data = JSON.parse(stdout);
-        const duration = parseFloat(data.format?.duration ?? "0");
-
-        if (duration === 0) {
-            console.error(`ffprobe returned 0 duration. Output: ${stdout}`);
-        }
-
-        return duration;
+        const validation = await validateMediaIntegrity(audioPath, "audio");
+        return validation.duration;
     }
 
     private async transcodeAudio(inputAudio: string, audioDir: string): Promise<string[]> {

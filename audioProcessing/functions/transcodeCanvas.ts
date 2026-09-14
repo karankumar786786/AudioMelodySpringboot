@@ -2,6 +2,7 @@ import { inngest } from "../inngest";
 import { downloadObject } from "../lib/s3";
 import { cutCanvasVideo, uploadCanvasToImageKit } from "../lib/transcode/video";
 import { safeCleanPaths, registerActiveTmpPath } from "../lib/transcode/cleanup";
+import { validateMediaIntegrity } from "../lib/transcode/validator";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import * as crypto from "node:crypto";
@@ -69,6 +70,10 @@ export const transcodeCanvasTask = inngest.createFunction(
             try {
                 console.log(`[CANVAS-WORKER] Downloading raw video for job ${jobId}...`);
                 await downloadObject(tempBucket, tempVideoKey, localVideoDownloadPath);
+
+                // Fail-fast integrity pre-flight check
+                console.log(`[CANVAS-WORKER] Running fail-fast integrity validation for job ${jobId}...`);
+                await validateMediaIntegrity(localVideoDownloadPath, "video");
 
                 const start = typeof clipStartSec === "number" && clipStartSec >= 0 ? clipStartSec : 0;
                 const end = typeof clipEndSec === "number" && clipEndSec > start ? clipEndSec : start + 15;

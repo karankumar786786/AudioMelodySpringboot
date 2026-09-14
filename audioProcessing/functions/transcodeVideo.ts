@@ -2,6 +2,7 @@ import { inngest } from "../inngest";
 import { s3Client, downloadObject } from "../lib/s3";
 import { VideoTranscoder } from "../lib/transcode/video";
 import { safeCleanPaths, registerActiveTmpPath } from "../lib/transcode/cleanup";
+import { validateMediaIntegrity } from "../lib/transcode/validator";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import * as crypto from "node:crypto";
@@ -57,6 +58,11 @@ export const transcodeVideoTask = inngest.createFunction(
             try {
                 console.log(`[VIDEO-WORKER] Downloading raw video for job ${jobId}...`);
                 await downloadObject(tempBucket, tempVideoKey, localVideoDownloadPath);
+
+                // Fail-fast integrity pre-flight check before heavy video encoding
+                console.log(`[VIDEO-WORKER] Running fail-fast integrity validation for job ${jobId}...`);
+                const validation = await validateMediaIntegrity(localVideoDownloadPath, "video");
+                console.log(`[VIDEO-WORKER] Video integrity verified (${validation.formatName}, ${validation.width}x${validation.height}, duration ${validation.duration.toFixed(2)}s)`);
 
                 console.log(`[VIDEO-WORKER] Transcoding and packaging video with hardware acceleration...`);
                 const videoTranscoder = new VideoTranscoder(4, s3Client, videoBasePath, prodBucket);

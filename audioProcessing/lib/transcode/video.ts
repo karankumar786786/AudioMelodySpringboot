@@ -21,6 +21,7 @@ import {
     registerActiveTmpPath,
     unregisterActiveTmpPath,
 } from "./cleanup";
+import { validateMediaIntegrity } from "./validator";
 
 export interface VideoQualityProfile {
     label: string;
@@ -123,25 +124,12 @@ export class VideoTranscoder {
     }
 
     private async getVideoInfo(videoPath: string): Promise<{ duration: number; width: number; height: number }> {
-        if (!fs.existsSync(videoPath)) {
-            throw new Error(`File does not exist at path: ${videoPath}`);
-        }
-
-        const { stdout } = await execFileAsync("ffprobe", [
-            "-v", "error",
-            "-select_streams", "v:0",
-            "-show_entries", "stream=width,height,duration:format=duration",
-            "-print_format", "json",
-            videoPath,
-        ]);
-
-        const data = JSON.parse(stdout);
-        const stream = data.streams?.[0];
-        const width = parseInt(stream?.width ?? "1920", 10);
-        const height = parseInt(stream?.height ?? "1080", 10);
-        const duration = parseFloat(stream?.duration ?? data.format?.duration ?? "0");
-
-        return { duration, width, height };
+        const validation = await validateMediaIntegrity(videoPath, "video");
+        return {
+            duration: validation.duration,
+            width: validation.width ?? 1920,
+            height: validation.height ?? 1080,
+        };
     }
 
     private async encodeVideoAndAudio(
