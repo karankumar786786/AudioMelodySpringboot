@@ -75,4 +75,21 @@ public class AdminJobController {
     public ResponseEntity<JobProgressDto> getJobById(@PathVariable String jobId) {
         return ResponseEntity.ok(jobMonitoringService.getJobProgress(jobId));
     }
+
+    /**
+     * 1-Click retry for a failed or stalled ingestion job. Re-enqueues to audio_processing_queue.
+     */
+    @PostMapping("/{jobId}/retry")
+    public ResponseEntity<JobProgressDto> retryJob(@PathVariable String jobId) {
+        return ResponseEntity.ok(jobMonitoringService.retryJob(jobId));
+    }
+
+    /**
+     * Delete an ingestion job record.
+     */
+    @DeleteMapping("/{jobId}")
+    public ResponseEntity<Void> deleteJob(@PathVariable String jobId) {
+        jobMonitoringService.deleteJob(jobId);
+        return ResponseEntity.noContent().build();
+    }
 }

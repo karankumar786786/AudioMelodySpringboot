@@ -4,12 +4,17 @@ import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.Dto.Controllers.Admin.Job.JobProgressDto;
 import me.one_org.melody.Dto.Controllers.Admin.Job.JobStageDetailDto;
 import me.one_org.melody.Dto.Controllers.Admin.Job.JobSummaryMetricsDto;
+import me.one_org.melody.Dto.Queue.AudioProcessingQueueDto;
 import me.one_org.melody.Entity.JobsEntity;
 import me.one_org.melody.Enums.JobStageEnum;
 import me.one_org.melody.Enums.JobStatusEnum;
+import me.one_org.melody.Enums.StatusEnum;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
+import me.one_org.melody.Queue.AudioProcessingQueue;
 import me.one_org.melody.Repository.JobsRepository;
+import me.one_org.melody.Services.General.PaginationMetaDataService;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -21,10 +26,18 @@ public class JobMonitoringService {
 
     private final JobsRepository jobsRepository;
     private final QueueMonitoringService queueMonitoringService;
+    private final AudioProcessingQueue audioProcessingQueue;
+    private final PaginationMetaDataService paginationMetaDataService;
 
-    public JobMonitoringService(JobsRepository jobsRepository, QueueMonitoringService queueMonitoringService) {
+    public JobMonitoringService(
+            JobsRepository jobsRepository,
+            QueueMonitoringService queueMonitoringService,
+            AudioProcessingQueue audioProcessingQueue,
+            PaginationMetaDataService paginationMetaDataService) {
         this.jobsRepository = jobsRepository;
         this.queueMonitoringService = queueMonitoringService;
+        this.audioProcessingQueue = audioProcessingQueue;
+        this.paginationMetaDataService = paginationMetaDataService;
     }
 
     public JobSummaryMetricsDto getSummaryMetrics() {
@@ -84,6 +97,51 @@ public class JobMonitoringService {
         JobsEntity job = jobsRepository.findById(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("Job not found: " + jobId));
         return toProgressDto(job);
+    }
+
+    @Transactional
+    public JobProgressDto retryJob(String jobId) {
+        JobsEntity job = jobsRepository.findById(jobId)
+                .orElseThrow(() -> new ResourceNotFoundException("Job not found: " + jobId));
+
+        job.setStatus(JobStatusEnum.PENDING);
+        job.setCurrentStage(JobStageEnum.QUEUED);
+        job.setFailureReason(null);
+        job.setFailedAt(null);
+        job.setCompletedAt(null);
+        job.setTranscodingStartedAt(null);
+        job.setTranscodedAt(null);
+        job.setRecommendationSavedAt(null);
+        job.setSearchSavedAt(null);
+        job.setTranscodingDurationMs(null);
+        job.setRecommendationDurationMs(null);
+        job.setSearchDurationMs(null);
+        job.setFinalizeDurationMs(null);
+        job.setTotalDurationMs(null);
+        job.setTranscoded(false);
+        job.setSavedInSearch(false);
+        job.setSavedInRecommendation(false);
+        job.setTranscodingAttempt(job.getTranscodingAttempt() != null ? job.getTranscodingAttempt() + 1 : 1);
+
+        jobsRepository.save(job);
+        audioProcessingQueue.queueAudioProcessing(new AudioProcessingQueueDto(job.getId()));
+        log.info("Job [{}] re-queued for retry (transcodingAttempt {})", jobId, job.getTranscodingAttempt());
+        return toProgressDto(job);
+    }
+
+    @Transactional
+    public void deleteJob(String jobId) {
+        JobsEntity job = jobsRepository.findById(jobId)
+                .orElseThrow(() -> new ResourceNotFoundException("Job not found: " + jobId));
+
+        try {
+            paginationMetaDataService.decrementStatus("JobsEntity", StatusEnum.ACTIVE);
+        } catch (Exception e) {
+            log.warn("Failed to decrement pagination metadata for job {}: {}", jobId, e.getMessage());
+        }
+
+        jobsRepository.deleteById(jobId);
+        log.info("Job [{}] deleted successfully by admin", jobId);
     }
 
     public JobProgressDto toProgressDto(JobsEntity job) {

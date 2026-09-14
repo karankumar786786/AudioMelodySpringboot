@@ -51,6 +51,8 @@ export default function JobMonitoringPage() {
   const [activeJobs, setActiveJobs] = useState<JobProgress[]>([]);
   const [allJobs, setAllJobs] = useState<JobProgress[]>([]);
   const [selectedJob, setSelectedJob] = useState<JobProgress | null>(null);
+  const [retryingIngestionJobId, setRetryingIngestionJobId] = useState<string | null>(null);
+  const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
 
   // Deletion Pipeline State
   const [deleteMetrics, setDeleteMetrics] = useState<DeleteJobSummaryMetrics | null>(null);
@@ -61,6 +63,7 @@ export default function JobMonitoringPage() {
   const [deleteTypeFilter, setDeleteTypeFilter] = useState<string>("ALL");
   const [deleteSearchQuery, setDeleteSearchQuery] = useState("");
   const [retryingJobId, setRetryingJobId] = useState<string | null>(null);
+  const [deletingDeleteJobId, setDeletingDeleteJobId] = useState<string | null>(null);
 
   // General Page State
   const [loading, setLoading] = useState(true);
@@ -147,6 +150,68 @@ export default function JobMonitoringPage() {
     };
   }, [autoRefresh, fetchData]);
 
+  const handleRetryIngestionJob = async (jobId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    try {
+      setRetryingIngestionJobId(jobId);
+      const res = await adminFetch(`/admin/jobs/${jobId}/retry`, {
+        method: "POST",
+      });
+      if (res.ok) {
+        const updated: JobProgress = await res.json();
+        setAllJobs((prev) => prev.map((j) => (j.id === jobId ? updated : j)));
+        setActiveJobs((prev) => {
+          const exists = prev.some((j) => j.id === jobId);
+          if (exists) {
+            return prev.map((j) => (j.id === jobId ? updated : j));
+          }
+          return [updated, ...prev];
+        });
+        if (selectedJob?.id === jobId) {
+          setSelectedJob(updated);
+        }
+        fetchData(false);
+      } else {
+        const errData = await res.json().catch(() => null);
+        alert(errData?.message || "Failed to retry ingestion job.");
+      }
+    } catch (err) {
+      console.error("Failed to retry ingestion job:", err);
+      alert("Error retrying ingestion job");
+    } finally {
+      setRetryingIngestionJobId(null);
+    }
+  };
+
+  const handleDeleteIngestionJob = async (jobId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this job record? This cannot be undone.")) {
+      return;
+    }
+    try {
+      setDeletingJobId(jobId);
+      const res = await adminFetch(`/admin/jobs/${jobId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setAllJobs((prev) => prev.filter((j) => j.id !== jobId));
+        setActiveJobs((prev) => prev.filter((j) => j.id !== jobId));
+        if (selectedJob?.id === jobId) {
+          setSelectedJob(null);
+        }
+        fetchData(false);
+      } else {
+        const errData = await res.json().catch(() => null);
+        alert(errData?.message || "Failed to delete ingestion job.");
+      }
+    } catch (err) {
+      console.error("Failed to delete ingestion job:", err);
+      alert("Error deleting ingestion job");
+    } finally {
+      setDeletingJobId(null);
+    }
+  };
+
   const handleRetryDeleteJob = async (jobId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     try {
@@ -169,6 +234,35 @@ export default function JobMonitoringPage() {
       alert("Error retrying delete job");
     } finally {
       setRetryingJobId(null);
+    }
+  };
+
+  const handleDeleteDeleteJob = async (jobId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this cascade delete audit record? This cannot be undone.")) {
+      return;
+    }
+    try {
+      setDeletingDeleteJobId(jobId);
+      const res = await adminFetch(`/admin/delete-jobs/${jobId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setAllDeleteJobs((prev) => prev.filter((j) => j.id !== jobId));
+        setActiveDeleteJobs((prev) => prev.filter((j) => j.id !== jobId));
+        if (selectedDeleteJob?.id === jobId) {
+          setSelectedDeleteJob(null);
+        }
+        fetchData(false);
+      } else {
+        const errData = await res.json().catch(() => null);
+        alert(errData?.message || "Failed to delete cascade delete record.");
+      }
+    } catch (err) {
+      console.error("Failed to delete cascade delete job:", err);
+      alert("Error deleting cascade delete job");
+    } finally {
+      setDeletingDeleteJobId(null);
     }
   };
 
@@ -731,16 +825,37 @@ export default function JobMonitoringPage() {
                               {formatTime(job.createdAt)}
                             </td>
 
-                            <td className="py-3 px-4 text-right">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedJob(job);
-                                }}
-                                className="px-3 py-1 bg-black/60 hover:bg-white hover:text-black border border-[#282828] font-sans font-bold text-[11px] rounded-lg transition-all"
-                              >
-                                View Stages
-                              </button>
+                            <td className="py-3 px-4 text-right font-sans">
+                              <div className="flex items-center justify-end gap-2">
+                                {job.status === "FAILED" && (
+                                  <button
+                                    onClick={(e) => handleRetryIngestionJob(job.id, e)}
+                                    disabled={retryingIngestionJobId === job.id}
+                                    className="px-2.5 py-1 bg-amber-500/10 text-amber-400 hover:bg-amber-600 hover:text-white border border-amber-500/30 font-bold text-[11px] rounded-lg transition-all flex items-center gap-1"
+                                    title="1-Click Retry Ingestion"
+                                  >
+                                    <RotateCcw className={`w-3 h-3 ${retryingIngestionJobId === job.id ? "animate-spin" : ""}`} />
+                                    Retry
+                                  </button>
+                                )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedJob(job);
+                                  }}
+                                  className="px-3 py-1 bg-black/60 hover:bg-white hover:text-black border border-[#282828] text-zinc-300 font-bold text-[11px] rounded-lg transition-all"
+                                >
+                                  View Stages
+                                </button>
+                                <button
+                                  onClick={(e) => handleDeleteIngestionJob(job.id, e)}
+                                  disabled={deletingJobId === job.id}
+                                  className="p-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-600 hover:text-white border border-rose-500/20 rounded-lg transition-all"
+                                  title="Delete Job Record"
+                                >
+                                  <Trash2 className={`w-3.5 h-3.5 ${deletingJobId === job.id ? "animate-pulse" : ""}`} />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1134,6 +1249,14 @@ export default function JobMonitoringPage() {
                                 >
                                   Details
                                 </button>
+                                <button
+                                  onClick={(e) => handleDeleteDeleteJob(job.id, e)}
+                                  disabled={deletingDeleteJobId === job.id}
+                                  className="p-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-600 hover:text-white border border-rose-500/20 rounded-lg transition-all"
+                                  title="Delete Audit Record"
+                                >
+                                  <Trash2 className={`w-3.5 h-3.5 ${deletingDeleteJobId === job.id ? "animate-pulse" : ""}`} />
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -1197,12 +1320,22 @@ export default function JobMonitoringPage() {
             <div className="p-6 overflow-y-auto space-y-6">
               {/* Failure Banner if Failed */}
               {selectedJob.status === "FAILED" && (
-                <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-start gap-3">
-                  <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-                  <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider">Pipeline Failure Notice</h4>
-                    <p className="text-xs mt-1 font-mono">{selectedJob.failureReason || "Execution halted during processing"}</p>
+                <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-bold uppercase tracking-wider">Pipeline Failure Notice</h4>
+                      <p className="text-xs mt-1 font-mono">{selectedJob.failureReason || "Execution halted during processing"}</p>
+                    </div>
                   </div>
+                  <button
+                    onClick={() => handleRetryIngestionJob(selectedJob.id)}
+                    disabled={retryingIngestionJobId === selectedJob.id}
+                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-full transition-all flex items-center gap-1.5 shrink-0 shadow-sm"
+                  >
+                    <RotateCcw className={`w-3.5 h-3.5 ${retryingIngestionJobId === selectedJob.id ? "animate-spin" : ""}`} />
+                    Retry Now
+                  </button>
                 </div>
               )}
 
@@ -1310,13 +1443,33 @@ export default function JobMonitoringPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-6 border-t border-[#282828] flex justify-end">
+            <div className="p-6 border-t border-[#282828] flex items-center justify-between">
               <button
-                onClick={() => setSelectedJob(null)}
-                className="px-6 py-2.5 bg-white hover:bg-zinc-200 text-black font-bold text-xs rounded-full transition-all"
+                onClick={() => handleDeleteIngestionJob(selectedJob.id)}
+                disabled={deletingJobId === selectedJob.id}
+                className="px-4 py-2 bg-rose-500/10 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/20 font-bold text-xs rounded-full transition-all flex items-center gap-2"
               >
-                Close
+                <Trash2 className="w-4 h-4" />
+                Delete Job Record
               </button>
+              <div className="flex items-center gap-3">
+                {selectedJob.status === "FAILED" && (
+                  <button
+                    onClick={() => handleRetryIngestionJob(selectedJob.id)}
+                    disabled={retryingIngestionJobId === selectedJob.id}
+                    className="px-5 py-2 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-full transition-all flex items-center gap-2"
+                  >
+                    <RotateCcw className={`w-4 h-4 ${retryingIngestionJobId === selectedJob.id ? "animate-spin" : ""}`} />
+                    Retry Job
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedJob(null)}
+                  className="px-6 py-2 bg-white hover:bg-zinc-200 text-black font-bold text-xs rounded-full transition-all"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1499,13 +1652,33 @@ export default function JobMonitoringPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-6 border-t border-[#282828] flex justify-end">
+            <div className="p-6 border-t border-[#282828] flex items-center justify-between">
               <button
-                onClick={() => setSelectedDeleteJob(null)}
-                className="px-6 py-2.5 bg-white hover:bg-zinc-200 text-black font-bold text-xs rounded-full transition-all"
+                onClick={() => handleDeleteDeleteJob(selectedDeleteJob.id)}
+                disabled={deletingDeleteJobId === selectedDeleteJob.id}
+                className="px-4 py-2 bg-rose-500/10 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/20 font-bold text-xs rounded-full transition-all flex items-center gap-2"
               >
-                Close
+                <Trash2 className="w-4 h-4" />
+                Delete Audit Record
               </button>
+              <div className="flex items-center gap-3">
+                {selectedDeleteJob.status === "FAILED" && (
+                  <button
+                    onClick={() => handleRetryDeleteJob(selectedDeleteJob.id)}
+                    disabled={retryingJobId === selectedDeleteJob.id}
+                    className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs rounded-full transition-all flex items-center gap-2 shadow-lg shadow-rose-900/20"
+                  >
+                    <RotateCcw className={`w-4 h-4 ${retryingJobId === selectedDeleteJob.id ? "animate-spin" : ""}`} />
+                    Retry Purge
+                  </button>
+                )}
+                <button
+                  onClick={() => setSelectedDeleteJob(null)}
+                  className="px-6 py-2 bg-white hover:bg-zinc-200 text-black font-bold text-xs rounded-full transition-all"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

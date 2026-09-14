@@ -77,4 +77,13 @@ public class AdminDeleteJobController {
     public ResponseEntity<DeleteJobProgressDto> retryJob(@PathVariable String jobId) {
         return ResponseEntity.ok(adminDeleteJobService.retryJob(jobId));
     }
+
+    /**
+     * Delete cascade delete job audit record.
+     */
+    @DeleteMapping("/{jobId}")
+    public ResponseEntity<Void> deleteJob(@PathVariable String jobId) {
+        adminDeleteJobService.deleteJob(jobId);
+        return ResponseEntity.noContent().build();
+    }
 }

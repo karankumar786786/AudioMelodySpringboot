@@ -13,6 +13,7 @@ import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Queue.DeleteEventQueue;
 import me.one_org.melody.Repository.DeleteJobsRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -118,6 +119,14 @@ public class AdminDeleteJobService {
         DeleteJobsEntity updated = deleteJobsRepository.findById(jobId).orElse(job);
         log.info("DeleteJob [{}] re-queued for retry (attempt {})", jobId, updated.getAttemptCount());
         return toProgressDto(updated);
+    }
+
+    @Transactional
+    public void deleteJob(String jobId) {
+        DeleteJobsEntity job = deleteJobsRepository.findById(jobId)
+                .orElseThrow(() -> new ResourceNotFoundException("Delete job not found: " + jobId));
+        deleteJobsRepository.deleteById(jobId);
+        log.info("DeleteJob [{}] deleted by admin", jobId);
     }
 
     public DeleteJobProgressDto toProgressDto(DeleteJobsEntity job) {
