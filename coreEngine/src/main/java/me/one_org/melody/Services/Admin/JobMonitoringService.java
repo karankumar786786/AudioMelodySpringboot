@@ -211,22 +211,39 @@ public class JobMonitoringService {
             // B. Push cancellation event to Redis audio_cancel_queue
             audioProcessingQueue.cancelJob(jobId);
 
-            // C. Fire HTTP cancel request to audioProcessing worker Express endpoint
+            // C. Fire HTTP cleanup & cancel request to audioProcessing worker Express endpoint
             try {
                 java.net.http.HttpClient httpClient = java.net.http.HttpClient.newBuilder()
                         .connectTimeout(Duration.ofSeconds(2))
                         .build();
 
+                Map<String, String> body = new HashMap<>();
+                if (songId != null) body.put("songId", songId);
+                if (job.getTempSongKey() != null) body.put("tempSongKey", job.getTempSongKey());
+                if (job.getTempVideoKey() != null) body.put("tempVideoKey", job.getTempVideoKey());
+                if (job.getSongKey() != null) body.put("songKey", job.getSongKey());
+                if (job.getFullVideoKey() != null) body.put("fullVideoKey", job.getFullVideoKey());
+
+                StringBuilder jsonBuilder = new StringBuilder("{");
+                boolean first = true;
+                for (Map.Entry<String, String> entry : body.entrySet()) {
+                    if (!first) jsonBuilder.append(",");
+                    jsonBuilder.append("\"").append(entry.getKey()).append("\":\"").append(entry.getValue()).append("\"");
+                    first = false;
+                }
+                jsonBuilder.append("}");
+
                 java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
-                        .uri(java.net.URI.create(audioProcessingUrl + "/api/jobs/" + jobId + "/cancel"))
+                        .uri(java.net.URI.create(audioProcessingUrl + "/api/jobs/" + jobId + "/cleanup"))
+                        .header("Content-Type", "application/json")
                         .timeout(Duration.ofSeconds(2))
-                        .POST(java.net.http.HttpRequest.BodyPublishers.noBody())
+                        .POST(java.net.http.HttpRequest.BodyPublishers.ofString(jsonBuilder.toString()))
                         .build();
 
                 httpClient.sendAsync(req, java.net.http.HttpResponse.BodyHandlers.discarding());
-                log.info("Dispatched async HTTP cancel request to audioProcessing for job [{}]", jobId);
+                log.info("Dispatched async HTTP cleanup & cancel request to audioProcessing for job [{}]", jobId);
             } catch (Exception e) {
-                log.warn("Could not dispatch HTTP cancel to audioProcessing: {}", e.getMessage());
+                log.warn("Could not dispatch HTTP cleanup to audioProcessing: {}", e.getMessage());
             }
 
             // D. Fire event directly to Inngest Dev Server / Inngest Event API
@@ -380,6 +397,25 @@ public class JobMonitoringService {
         // 8. Delete the JobsEntity record
         jobsRepository.deleteById(jobId);
         log.info("Job [{}] and all associated cloud/DB resources purged successfully by admin", jobId);
+    }
+
+    /**
+     * Purges all FAILED jobs and cleans up all their residual cloud, Inngest, and database artifacts.
+     */
+    @Transactional
+    public int deleteAllFailedJobs() {
+        List<JobsEntity> failedJobs = jobsRepository.findByStatus(JobStatusEnum.FAILED);
+        log.info("Initiating bulk garbage cleanup for {} failed jobs", failedJobs.size());
+        int count = 0;
+        for (JobsEntity job : failedJobs) {
+            try {
+                deleteJob(job.getId());
+                count++;
+            } catch (Exception e) {
+                log.error("Error purging failed job [{}]: {}", job.getId(), e.getMessage());
+            }
+        }
+        return count;
     }
 
     public JobProgressDto toProgressDto(JobsEntity job) {

@@ -21,7 +21,9 @@ import { fetchCancelEventsFromList } from "./jobseeker/cancelWorker";
 import {
   setupGracefulShutdownCleanup,
   cleanupStaleTmpFiles,
+  purgeLocalJobArtifacts,
 } from "./lib/transcode/cleanup";
+import { purgeJobCloudArtifacts } from "./lib/s3";
 config();
 
 // Install process-level exit hooks for graceful temp directory cleanup
@@ -75,6 +77,43 @@ app.post("/api/jobs/:jobId/cancel", async (req, res) => {
     res.json({ success: true, message: `Inngest execution cancelled for job ${jobId}` });
   } catch (err: any) {
     console.error(`[CANCEL API] Failed to emit cancellation to Inngest for job ${jobId}:`, err);
+    res.status(500).json({ error: err.message || err });
+  }
+});
+
+// Comprehensive cleanup endpoint: cancels Inngest run and purges all local disk & cloud S3 artifacts
+app.post("/api/jobs/:jobId/cleanup", async (req, res) => {
+  const { jobId } = req.params;
+  const { songId, tempSongKey, tempVideoKey, songKey, fullVideoKey } = req.body || {};
+  console.log(`[CLEANUP API] Purging all artifacts for job: ${jobId} (songId: ${songId})`);
+  try {
+    // 1. Cancel in Inngest immediately
+    await inngest.send({
+      name: "audio/job.cancel",
+      data: { jobId },
+    });
+
+    // 2. Purge local disk artifacts (raw downloads, half-transcoded chunks)
+    const localRemoved = await purgeLocalJobArtifacts(jobId, songId);
+
+    // 3. Purge S3 production (audios/, videos/) and temp bucket artifacts
+    await purgeJobCloudArtifacts({
+      jobId,
+      songId,
+      tempSongKey,
+      tempVideoKey,
+      songKey,
+      fullVideoKey,
+    });
+
+    console.log(`[CLEANUP API] Successfully purged artifacts for job: ${jobId}`);
+    res.json({
+      success: true,
+      message: `Job ${jobId} and all associated artifacts purged successfully.`,
+      localFilesRemoved: localRemoved,
+    });
+  } catch (err: any) {
+    console.error(`[CLEANUP API] Error cleaning up artifacts for job ${jobId}:`, err);
     res.status(500).json({ error: err.message || err });
   }
 });

@@ -218,3 +218,35 @@ export function setupGracefulShutdownCleanup(): void {
         cleanupActiveSync();
     });
 }
+
+/**
+ * Immediately purges all local scratch directories and files matching a given jobId or songId.
+ * This guarantees no half-transcoded FFmpeg chunks or raw downloaded audio/video files remain on disk.
+ */
+export async function purgeLocalJobArtifacts(
+    jobId: string,
+    songId?: string,
+    baseTmpDir: string = path.join(process.cwd(), "tmp")
+): Promise<number> {
+    if (!fs.existsSync(baseTmpDir)) return 0;
+    let removedCount = 0;
+
+    try {
+        const entries = await fsp.readdir(baseTmpDir, { withFileTypes: true });
+        for (const entry of entries) {
+            const matchesJob = jobId && entry.name.includes(jobId);
+            const matchesSong = songId && entry.name.includes(songId);
+
+            if (matchesJob || matchesSong) {
+                const fullPath = path.join(baseTmpDir, entry.name);
+                console.log(`[CLEANUP] Purging local job artifact from disk: ${entry.name}`);
+                const ok = await safeRemovePath(fullPath);
+                if (ok) removedCount++;
+            }
+        }
+    } catch (err: any) {
+        console.error(`[CLEANUP] Error purging local job artifacts for job ${jobId}:`, err.message || err);
+    }
+
+    return removedCount;
+}

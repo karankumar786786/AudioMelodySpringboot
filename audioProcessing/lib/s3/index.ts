@@ -87,3 +87,53 @@ export async function deletePrefix(bucket: string, prefix: string): Promise<void
         console.warn(`[S3] Error deleting prefix ${prefix} from bucket ${bucket}:`, err.message || err);
     }
 }
+
+/**
+ * Comprehensive cloud teardown for a job: purges half-transcoded or fully-transcoded
+ * chunks from production S3 (audios/, videos/) and raw uploads from temp S3.
+ */
+export async function purgeJobCloudArtifacts(params: {
+    jobId: string;
+    songId?: string;
+    tempSongKey?: string;
+    tempVideoKey?: string;
+    songKey?: string;
+    fullVideoKey?: string;
+}): Promise<void> {
+    const prodBucket = process.env.PRODUCTION_BUCKET_NAME || "audiomelodyspringboot";
+    const tempBucket = process.env.TEMP_BUCKET_NAME || "audiomelodyspringboottemp";
+
+    console.log(`[S3 PURGE] Purging cloud artifacts for job ${params.jobId} (songId: ${params.songId})...`);
+
+    // 1. Purge Production S3 chunks (audios/<songId>, videos/<songId>, etc.)
+    if (params.songId) {
+        const basePath = process.env.BASE_PATH || "audios";
+        const videoBasePath = process.env.VIDEO_BASE_PATH || "videos";
+        await deletePrefix(prodBucket, `${basePath}/${params.songId}`);
+        await deletePrefix(prodBucket, `${videoBasePath}/${params.songId}`);
+        await deletePrefix(prodBucket, params.songId);
+    }
+    if (params.songKey) {
+        await deletePrefix(prodBucket, params.songKey);
+    }
+    if (params.fullVideoKey) {
+        await deletePrefix(prodBucket, params.fullVideoKey);
+    }
+
+    // 2. Purge Temp S3 source files (tempSongKey, tempVideoKey, temp prefixes)
+    if (params.tempSongKey) {
+        await deleteObject(tempBucket, params.tempSongKey).catch(() => {});
+        await deletePrefix(tempBucket, params.tempSongKey).catch(() => {});
+    }
+    if (params.tempVideoKey) {
+        await deleteObject(tempBucket, params.tempVideoKey).catch(() => {});
+        await deletePrefix(tempBucket, params.tempVideoKey).catch(() => {});
+    }
+    if (params.songId) {
+        await deletePrefix(tempBucket, params.songId).catch(() => {});
+    }
+    if (params.jobId) {
+        await deletePrefix(tempBucket, params.jobId).catch(() => {});
+    }
+    console.log(`[S3 PURGE] Completed S3 purge for job ${params.jobId}`);
+}

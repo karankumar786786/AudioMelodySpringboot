@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/admin/jobs")
@@ -158,11 +159,20 @@ public class AdminJobController {
     }
 
     /**
-     * Delete an ingestion job record.
+     * Delete an ingestion job record and cleans up all residual cloud/DB artifacts.
      */
     @DeleteMapping("/{jobId}")
     public ResponseEntity<Void> deleteJob(@PathVariable String jobId) {
         jobMonitoringService.deleteJob(jobId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Bulk purge all FAILED jobs and cleans up all their residual cloud/DB artifacts.
+     */
+    @DeleteMapping("/failed")
+    public ResponseEntity<Map<String, Object>> deleteAllFailedJobs() {
+        int count = jobMonitoringService.deleteAllFailedJobs();
+        return ResponseEntity.ok(Map.of("success", true, "deletedCount", count));
     }
 }

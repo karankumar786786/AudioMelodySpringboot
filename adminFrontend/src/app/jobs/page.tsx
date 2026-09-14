@@ -147,6 +147,7 @@ export default function JobMonitoringPage() {
   const [deleteSearchQuery, setDeleteSearchQuery] = useState("");
   const [retryingJobId, setRetryingJobId] = useState<string | null>(null);
   const [deletingDeleteJobId, setDeletingDeleteJobId] = useState<string | null>(null);
+  const [isPurgingFailedJobs, setIsPurgingFailedJobs] = useState(false);
 
   // Deletion Pagination State
   const [deletePage, setDeletePage] = useState(0);
@@ -316,6 +317,34 @@ export default function JobMonitoringPage() {
       alert("Error deleting ingestion job");
     } finally {
       setDeletingJobId(null);
+    }
+  };
+
+  const handlePurgeAllFailedJobs = async () => {
+    if (!confirm("Are you sure you want to purge ALL failed jobs? This will permanently wipe all associated residual S3 audio/video files, halt Inngest executions, and remove Algolia/Recombee records.")) {
+      return;
+    }
+    try {
+      setIsPurgingFailedJobs(true);
+      const res = await adminFetch("/admin/jobs/failed", {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(`Successfully purged ${data.deletedCount ?? 0} failed job(s) and their cloud/storage artifacts.`);
+        if (selectedJob?.status === "FAILED") {
+          setSelectedJob(null);
+        }
+        fetchData(false);
+      } else {
+        const errData = await res.json().catch(() => null);
+        alert(errData?.message || "Failed to purge failed jobs.");
+      }
+    } catch (err) {
+      console.error("Failed to purge failed jobs:", err);
+      alert("Error purging failed jobs");
+    } finally {
+      setIsPurgingFailedJobs(false);
     }
   };
 
@@ -804,6 +833,16 @@ export default function JobMonitoringPage() {
                     {s}
                   </button>
                 ))}
+                {statusFilter === "FAILED" && (
+                  <button
+                    onClick={handlePurgeAllFailedJobs}
+                    disabled={isPurgingFailedJobs}
+                    className="ml-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-600 hover:text-white flex items-center gap-1.5"
+                  >
+                    <Trash2 className={`w-3.5 h-3.5 ${isPurgingFailedJobs ? "animate-spin" : ""}`} />
+                    <span>{isPurgingFailedJobs ? "Purging Failed Jobs..." : "Purge All Failed"}</span>
+                  </button>
+                )}
               </div>
 
               <div className="relative w-full sm:w-72">
@@ -1597,14 +1636,24 @@ export default function JobMonitoringPage() {
                           <p className="text-xs mt-1 text-zinc-300 leading-relaxed font-sans">{failure.explanation}</p>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleRetryIngestionJob(selectedJob.id)}
-                        disabled={retryingIngestionJobId === selectedJob.id}
-                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-full transition-all flex items-center gap-1.5 shrink-0 shadow-sm"
-                      >
-                        <RotateCcw className={`w-3.5 h-3.5 ${retryingIngestionJobId === selectedJob.id ? "animate-spin" : ""}`} />
-                        Retry Now
-                      </button>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => handleRetryIngestionJob(selectedJob.id)}
+                          disabled={retryingIngestionJobId === selectedJob.id}
+                          className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs rounded-full transition-all flex items-center gap-1.5 shadow-sm"
+                        >
+                          <RotateCcw className={`w-3.5 h-3.5 ${retryingIngestionJobId === selectedJob.id ? "animate-spin" : ""}`} />
+                          Retry
+                        </button>
+                        <button
+                          onClick={() => handleDeleteIngestionJob(selectedJob.id)}
+                          disabled={deletingJobId === selectedJob.id}
+                          className="px-3.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-full transition-all flex items-center gap-1.5 shadow-sm"
+                        >
+                          <Trash2 className={`w-3.5 h-3.5 ${deletingJobId === selectedJob.id ? "animate-spin" : ""}`} />
+                          Purge Job
+                        </button>
+                      </div>
                     </div>
                     {failure.raw && (
                       <div className="pt-2 border-t border-rose-500/10">
