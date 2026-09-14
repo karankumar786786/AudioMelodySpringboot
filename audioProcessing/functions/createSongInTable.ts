@@ -1,5 +1,6 @@
 import { inngest } from "../inngest";
 import { api } from "../axios";
+import { extractMeaningfulError } from "../lib/errorUtils";
 
 export const finalizeSong = inngest.createFunction(
     {
@@ -8,10 +9,11 @@ export const finalizeSong = inngest.createFunction(
         onFailure: async ({ event, error }) => {
             const jobId = event?.data?.event?.data?.jobId;
             if (jobId) {
-                console.error(`[FINALIZE FAILED] Notifying coreEngine of failure for job ${jobId}:`, error?.message);
+                const reason = extractMeaningfulError(error, "Song publication failed");
+                console.error(`[FINALIZE FAILED] Notifying coreEngine of failure for job ${jobId}:`, reason);
                 try {
                     await api.post(`/${jobId}/failed`, {
-                        reason: `Finalization failed: ${error?.message || "Unknown error"}`,
+                        reason: `Finalization: ${reason}`,
                     });
                 } catch (e) {
                     console.error(`Failed to notify Spring Boot of job ${jobId} failure:`, e);

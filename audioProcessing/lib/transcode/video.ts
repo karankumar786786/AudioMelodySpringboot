@@ -170,13 +170,38 @@ export class VideoTranscoder {
             const primaryArgs = buildAudioEncoderArgs(inputVideo, audioPath, audioProfile, hwCaps);
             const fallbackArgs = buildSoftwareAudioArgs(inputVideo, audioPath, audioProfile);
 
-            await executeFFmpegWithFallback(
-                primaryArgs,
-                fallbackArgs,
-                "video companion audio track"
-            );
-            console.log(`[VIDEO] Video audio track encoded -> ${audioPath}`);
-            return audioPath;
+            try {
+                await executeFFmpegWithFallback(
+                    primaryArgs,
+                    fallbackArgs,
+                    "video companion audio track"
+                );
+                console.log(`[VIDEO] Video audio track encoded -> ${audioPath}`);
+                return audioPath;
+            } catch (audioErr: any) {
+                console.warn(`[VIDEO] Companion audio extraction failed (${audioErr.message || audioErr}). Generating resilient companion audio fallback...`);
+                try {
+                    // Generate a silent companion AAC audio track so Shaka Packager packaging can still succeed
+                    await execFileAsync("ffmpeg", [
+                        "-nostdin",
+                        "-y",
+                        "-loglevel", "warning",
+                        "-f", "lavfi",
+                        "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
+                        "-c:a", "aac",
+                        "-b:a", "128k",
+                        "-ar", "44100",
+                        "-ac", "2",
+                        "-movflags", "+faststart",
+                        audioPath,
+                    ]);
+                    console.log(`[VIDEO] Successfully generated silent companion audio fallback track -> ${audioPath}`);
+                    return audioPath;
+                } catch (fallbackErr: any) {
+                    console.error(`[VIDEO] Failed to generate silent companion audio fallback:`, fallbackErr);
+                    throw audioErr;
+                }
+            }
         })();
 
         const [videoPaths] = await Promise.all([

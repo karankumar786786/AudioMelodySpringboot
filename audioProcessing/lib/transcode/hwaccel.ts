@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import * as os from "node:os";
 import * as fs from "node:fs";
+import { extractMeaningfulError } from "../errorUtils";
 
 const execFileAsync = promisify(execFile);
 
@@ -344,7 +345,13 @@ export function buildVideoEncoderArgs(
         ? `scale=w=${profile.width}:h=${profile.height}:force_original_aspect_ratio=increase,crop=${profile.width}:${profile.height},format=yuv420p`
         : `scale=w=${profile.width}:h=${profile.height}:force_original_aspect_ratio=decrease,pad=${profile.width}:${profile.height}:(ow-iw)/2:(oh-ih)/2,format=yuv420p`;
 
-    const args: string[] = ["-nostdin", "-y", "-loglevel", "warning"];
+    const args: string[] = [
+        "-nostdin",
+        "-y",
+        "-loglevel", "warning",
+        "-fflags", "+genpts+discardcorrupt",
+        "-err_detect", "ignore_err",
+    ];
 
     if (typeof extraOptions.startSec === "number" && extraOptions.startSec >= 0) {
         args.push("-ss", extraOptions.startSec.toString());
@@ -455,7 +462,13 @@ export function buildSoftwareVideoArgs(
         ? `scale=w=${profile.width}:h=${profile.height}:force_original_aspect_ratio=increase,crop=${profile.width}:${profile.height},format=yuv420p`
         : `scale=w=${profile.width}:h=${profile.height}:force_original_aspect_ratio=decrease,pad=${profile.width}:${profile.height}:(ow-iw)/2:(oh-ih)/2,format=yuv420p`;
 
-    const args: string[] = ["-nostdin", "-y", "-loglevel", "warning"];
+    const args: string[] = [
+        "-nostdin",
+        "-y",
+        "-loglevel", "warning",
+        "-fflags", "+genpts+discardcorrupt",
+        "-err_detect", "ignore_err",
+    ];
 
     if (typeof extraOptions.startSec === "number" && extraOptions.startSec >= 0) {
         args.push("-ss", extraOptions.startSec.toString());
@@ -498,7 +511,7 @@ export interface AudioProfileOptions {
 }
 
 /**
- * Builds FFmpeg argument list for audio encoding.
+ * Builds FFmpeg argument list for audio encoding with corrupt packet tolerance.
  */
 export function buildAudioEncoderArgs(
     inputPath: string,
@@ -510,6 +523,8 @@ export function buildAudioEncoderArgs(
         "-nostdin",
         "-y",
         "-loglevel", "warning",
+        "-fflags", "+genpts+discardcorrupt",
+        "-err_detect", "ignore_err",
         "-i", inputPath,
         "-vn",
         "-c:a", hwCaps.audioEncoder,
@@ -522,7 +537,7 @@ export function buildAudioEncoderArgs(
 }
 
 /**
- * Builds software fallback audio arguments using native aac codec.
+ * Builds software fallback audio arguments using native aac codec with corrupt packet tolerance.
  */
 export function buildSoftwareAudioArgs(
     inputPath: string,
@@ -533,6 +548,8 @@ export function buildSoftwareAudioArgs(
         "-nostdin",
         "-y",
         "-loglevel", "warning",
+        "-fflags", "+genpts+discardcorrupt",
+        "-err_detect", "ignore_err",
         "-i", inputPath,
         "-vn",
         "-c:a", "aac",
@@ -542,6 +559,17 @@ export function buildSoftwareAudioArgs(
         "-movflags", "+faststart",
         outputPath,
     ];
+}
+
+/**
+ * Sanitizes FFmpeg execution errors to avoid exploding Inngest event payloads or DB columns with hundreds of KB of stderr.
+ */
+function sanitizeFFmpegError(err: any): Error {
+    if (!err) return new Error("Unknown FFmpeg error");
+    const meaningful = extractMeaningfulError(err, "FFmpeg command failed");
+    const sanitized = new Error(meaningful);
+    (sanitized as any).code = err.code;
+    return sanitized;
 }
 
 /**
@@ -559,8 +587,9 @@ export async function executeFFmpegWithFallback(
         await execFileAsync("ffmpeg", primaryArgs);
     } catch (primaryErr: any) {
         if (isIdentical) {
-            console.error(`[FFMPEG] Encoding failed for ${jobDescription}: ${primaryErr.message || primaryErr}`);
-            throw primaryErr;
+            const sanitized = sanitizeFFmpegError(primaryErr);
+            console.error(`[FFMPEG] Encoding failed for ${jobDescription}: ${sanitized.message}`);
+            throw sanitized;
         }
 
         console.warn(`[HWACCEL] Primary hardware encoder failed for ${jobDescription}: ${primaryErr.message || primaryErr}. Falling back to software encoding...`);
@@ -568,8 +597,9 @@ export async function executeFFmpegWithFallback(
             await execFileAsync("ffmpeg", fallbackArgs);
             console.log(`[HWACCEL] Software fallback succeeded for ${jobDescription}`);
         } catch (fallbackErr: any) {
-            console.error(`[HWACCEL] Software fallback also failed for ${jobDescription}: ${fallbackErr.message || fallbackErr}`);
-            throw fallbackErr;
+            const sanitized = sanitizeFFmpegError(fallbackErr);
+            console.error(`[HWACCEL] Software fallback also failed for ${jobDescription}: ${sanitized.message}`);
+            throw sanitized;
         }
     }
 }

@@ -36,6 +36,8 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  ChevronDown,
+  ChevronUp,
   Database,
   Radio,
   ExternalLink,
@@ -44,6 +46,77 @@ import {
   CloudLightning,
   Workflow,
 } from "lucide-react";
+
+/**
+ * Transforms raw system/CLI/Inngest exceptions into user-friendly, actionable failure descriptions.
+ */
+function formatFailureNotice(reason?: string | null): { title: string; explanation: string; raw?: string } {
+  if (!reason) {
+    return { title: "Pipeline Failure Notice", explanation: "Execution halted unexpectedly during processing." };
+  }
+
+  // 1. HTTP 413 / Inngest SDK Payload error
+  if (/413|Payload Too Large|before the SDK responded/i.test(reason)) {
+    return {
+      title: "Worker Payload Limit Exceeded (HTTP 413)",
+      explanation: "Express body parser limit was exceeded by large job logs. The server limit has been raised to 50MB; click Retry Now to resume.",
+      raw: reason,
+    };
+  }
+
+  // 2. Corrupted audio or video packets
+  if (/Invalid data found|channel element.*not allocated|Reserved bit set|decode_pce|Input buffer exhausted|Error submitting packet|Prediction is not allowed|Gain control is not implemented|Corrupt/i.test(reason)) {
+    return {
+      title: "Corrupt Media Stream Detected",
+      explanation: "The uploaded file contains damaged or non-standard audio/video packets. The worker has been updated to auto-discard bad packets; click Retry Now.",
+      raw: reason,
+    };
+  }
+
+  // 3. S3 Storage
+  if (/NoSuchKey|The specified key does not exist|Missing tempSongKey|Missing tempVideoKey/i.test(reason)) {
+    return {
+      title: "Storage Key Missing or Expired",
+      explanation: "The temporary uploaded media file could not be found in S3 (it may have expired or already been cleaned up).",
+      raw: reason,
+    };
+  }
+
+  // 4. Invalid Duration
+  if (/Invalid (audio|video) duration/i.test(reason)) {
+    return {
+      title: "Invalid Media Duration",
+      explanation: "The uploaded file has 0 seconds duration or an unreadable media container header.",
+      raw: reason,
+    };
+  }
+
+  // 5. Network Timeout
+  if (/ECONNREFUSED|ETIMEDOUT|timeout/i.test(reason)) {
+    return {
+      title: "Internal Service Timeout",
+      explanation: "The worker timed out while communicating with backend microservices or S3.",
+      raw: reason,
+    };
+  }
+
+  // 6. Generic FFmpeg command failure
+  if (/Command failed:\s*ffmpeg/i.test(reason)) {
+    return {
+      title: "Transcoder Conversion Failed",
+      explanation: "FFmpeg encountered an encoding or packaging error while processing renditions.",
+      raw: reason,
+    };
+  }
+
+  // Default clean output
+  const cleanReason = reason.length > 200 ? `${reason.slice(0, 197)}...` : reason;
+  return {
+    title: "Pipeline Failure Notice",
+    explanation: cleanReason,
+    raw: reason.length > 200 ? reason : undefined,
+  };
+}
 
 export default function JobMonitoringPage() {
   // Tab State: "INGESTION" | "DELETION"
@@ -61,6 +134,8 @@ export default function JobMonitoringPage() {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(20);
   const [totalJobsCount, setTotalJobsCount] = useState(0);
+  const [showRawError, setShowRawError] = useState(false);
+  const [showRawDeleteError, setShowRawDeleteError] = useState(false);
 
   // Deletion Pipeline State
   const [deleteMetrics, setDeleteMetrics] = useState<DeleteJobSummaryMetrics | null>(null);
@@ -1510,25 +1585,47 @@ export default function JobMonitoringPage() {
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto space-y-6">
               {/* Failure Banner if Failed */}
-              {selectedJob.status === "FAILED" && (
-                <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-xs font-bold uppercase tracking-wider">Pipeline Failure Notice</h4>
-                      <p className="text-xs mt-1 font-mono">{selectedJob.failureReason || "Execution halted during processing"}</p>
+              {selectedJob.status === "FAILED" && (() => {
+                const failure = formatFailureNotice(selectedJob.failureReason);
+                return (
+                  <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-rose-400" />
+                        <div>
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-rose-300">{failure.title}</h4>
+                          <p className="text-xs mt-1 text-zinc-300 leading-relaxed font-sans">{failure.explanation}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleRetryIngestionJob(selectedJob.id)}
+                        disabled={retryingIngestionJobId === selectedJob.id}
+                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-full transition-all flex items-center gap-1.5 shrink-0 shadow-sm"
+                      >
+                        <RotateCcw className={`w-3.5 h-3.5 ${retryingIngestionJobId === selectedJob.id ? "animate-spin" : ""}`} />
+                        Retry Now
+                      </button>
                     </div>
+                    {failure.raw && (
+                      <div className="pt-2 border-t border-rose-500/10">
+                        <button
+                          type="button"
+                          onClick={() => setShowRawError(!showRawError)}
+                          className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 transition-colors"
+                        >
+                          <span>{showRawError ? "Hide" : "View"} technical log</span>
+                          {showRawError ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                        </button>
+                        {showRawError && (
+                          <pre className="mt-2 p-2.5 rounded-lg bg-black/80 border border-[#282828] text-[10px] font-mono text-zinc-400 overflow-x-auto max-h-36 whitespace-pre-wrap leading-tight">
+                            {failure.raw}
+                          </pre>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <button
-                    onClick={() => handleRetryIngestionJob(selectedJob.id)}
-                    disabled={retryingIngestionJobId === selectedJob.id}
-                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-full transition-all flex items-center gap-1.5 shrink-0 shadow-sm"
-                  >
-                    <RotateCcw className={`w-3.5 h-3.5 ${retryingIngestionJobId === selectedJob.id ? "animate-spin" : ""}`} />
-                    Retry Now
-                  </button>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Stage Progress Timeline */}
               <div>
@@ -1700,26 +1797,48 @@ export default function JobMonitoringPage() {
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto space-y-6">
               {/* Failure Banner with 1-Click Retry */}
-              {selectedDeleteJob.status === "FAILED" && (
-                <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-start justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-xs font-bold uppercase tracking-wider">Cascade Delete Failed</h4>
-                      <p className="text-xs mt-1 font-mono">{selectedDeleteJob.failureReason || "Teardown halted unexpectedly"}</p>
-                      <p className="text-[11px] text-zinc-400 mt-1">Attempts made: {selectedDeleteJob.attemptCount} of {selectedDeleteJob.maxAttempts}</p>
+              {selectedDeleteJob.status === "FAILED" && (() => {
+                const failure = formatFailureNotice(selectedDeleteJob.failureReason);
+                return (
+                  <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-rose-400" />
+                        <div>
+                          <h4 className="text-xs font-bold uppercase tracking-wider text-rose-300">{failure.title}</h4>
+                          <p className="text-xs mt-1 text-zinc-300 leading-relaxed font-sans">{failure.explanation}</p>
+                          <p className="text-[11px] text-zinc-400 mt-1">Attempts made: {selectedDeleteJob.attemptCount} of {selectedDeleteJob.maxAttempts}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleRetryDeleteJob(selectedDeleteJob.id)}
+                        disabled={retryingJobId === selectedDeleteJob.id}
+                        className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-full transition-all flex items-center gap-1.5 shrink-0 shadow-sm"
+                      >
+                        <RotateCcw className={`w-3.5 h-3.5 ${retryingJobId === selectedDeleteJob.id ? "animate-spin" : ""}`} />
+                        Retry Now
+                      </button>
                     </div>
+                    {failure.raw && (
+                      <div className="pt-2 border-t border-rose-500/10">
+                        <button
+                          type="button"
+                          onClick={() => setShowRawDeleteError(!showRawDeleteError)}
+                          className="text-[11px] text-zinc-400 hover:text-white flex items-center gap-1 transition-colors"
+                        >
+                          <span>{showRawDeleteError ? "Hide" : "View"} technical log</span>
+                          {showRawDeleteError ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                        </button>
+                        {showRawDeleteError && (
+                          <pre className="mt-2 p-2.5 rounded-lg bg-black/80 border border-[#282828] text-[10px] font-mono text-zinc-400 overflow-x-auto max-h-36 whitespace-pre-wrap leading-tight">
+                            {failure.raw}
+                          </pre>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <button
-                    onClick={() => handleRetryDeleteJob(selectedDeleteJob.id)}
-                    disabled={retryingJobId === selectedDeleteJob.id}
-                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-full transition-all flex items-center gap-1.5 shrink-0 shadow-sm"
-                  >
-                    <RotateCcw className={`w-3.5 h-3.5 ${retryingJobId === selectedDeleteJob.id ? "animate-spin" : ""}`} />
-                    Retry Now
-                  </button>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Stage Progress Timeline */}
               <div>

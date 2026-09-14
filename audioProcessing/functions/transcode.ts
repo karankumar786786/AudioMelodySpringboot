@@ -3,6 +3,7 @@ import { api } from "../axios";
 import { transcodeAudioTask } from "./transcodeAudio";
 import { transcodeVideoTask } from "./transcodeVideo";
 import { transcodeCanvasTask } from "./transcodeCanvas";
+import { extractMeaningfulError } from "../lib/errorUtils";
 import { config } from "dotenv";
 config();
 
@@ -14,10 +15,11 @@ export const transcodeSong = inngest.createFunction(
         onFailure: async ({ event, error }) => {
             const jobId = event?.data?.event?.data?.jobId;
             if (jobId) {
-                console.error(`[TRANSCODE-SONG FAILED] Notifying coreEngine of failure for job ${jobId}:`, error?.message);
+                const reason = extractMeaningfulError(error, "Transcoding processing failed");
+                console.error(`[TRANSCODE-SONG FAILED] Notifying coreEngine of failure for job ${jobId}:`, reason);
                 try {
                     await api.post(`/${jobId}/failed`, {
-                        reason: `Transcoding failed: ${error?.message || "Unknown error"}`,
+                        reason: `Transcoding failed: ${reason}`,
                     });
                 } catch (e) {
                     console.error(`Failed to notify Spring Boot of job ${jobId} failure:`, e);

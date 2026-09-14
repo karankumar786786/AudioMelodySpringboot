@@ -1,5 +1,6 @@
 import { inngest } from "../inngest";
 import { api } from "../axios";
+import { extractMeaningfulError } from "../lib/errorUtils";
 
 export const indexAlgolia = inngest.createFunction(
     {
@@ -8,10 +9,11 @@ export const indexAlgolia = inngest.createFunction(
         onFailure: async ({ event, error }) => {
             const jobId = event?.data?.event?.data?.jobId;
             if (jobId) {
-                console.error(`[ALGOLIA FAILED] Notifying coreEngine of failure for job ${jobId}:`, error?.message);
+                const reason = extractMeaningfulError(error, "Algolia search indexing failed");
+                console.error(`[ALGOLIA FAILED] Notifying coreEngine of failure for job ${jobId}:`, reason);
                 try {
                     await api.post(`/${jobId}/failed`, {
-                        reason: `Algolia indexing failed: ${error?.message || "Unknown error"}`,
+                        reason: `Algolia indexing: ${reason}`,
                     });
                 } catch (e) {
                     console.error(`Failed to notify Spring Boot of job ${jobId} failure:`, e);

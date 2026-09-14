@@ -1,6 +1,7 @@
 import { inngest } from "../inngest";
 import { deleteApi } from "../axios";
 import type { DeleteEventPayload } from "../types/delete";
+import { extractMeaningfulError } from "../lib/errorUtils";
 
 export const finalizeDelete = inngest.createFunction(
     {
@@ -9,10 +10,11 @@ export const finalizeDelete = inngest.createFunction(
         onFailure: async ({ event, error }) => {
             const data = (event?.data?.event?.data || event?.data) as DeleteEventPayload | undefined;
             if (data?.entityId && data?.entityType) {
-                console.error(`[FINALIZE-DELETE FAILED] Notifying coreEngine for ${data.entityType}:${data.entityId}:`, error?.message);
+                const reason = extractMeaningfulError(error, "Hard delete finalization failed");
+                console.error(`[FINALIZE-DELETE FAILED] Notifying coreEngine for ${data.entityType}:${data.entityId}:`, reason);
                 try {
                     await deleteApi.post(`/${data.entityType}/${data.entityId}/failed`, {
-                        reason: `Finalizing hard delete failed: ${error?.message || "Unknown error"}`,
+                        reason: `Teardown finalization: ${reason}`,
                     }, {
                         params: data.deleteJobId ? { deleteJobId: data.deleteJobId } : undefined
                     });

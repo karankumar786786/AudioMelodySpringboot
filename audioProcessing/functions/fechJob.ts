@@ -1,6 +1,7 @@
 import { inngest } from "../inngest";
 import { api } from "../axios";
 import { NonRetriableError } from "inngest";
+import { extractMeaningfulError } from "../lib/errorUtils";
 
 export const fetchJob = inngest.createFunction(
     {
@@ -10,10 +11,11 @@ export const fetchJob = inngest.createFunction(
         onFailure: async ({ event, error }) => {
             const jobId = event?.data?.event?.data?.jobId;
             if (jobId) {
-                console.error(`[FETCH-JOB FAILED] Notifying coreEngine of failure for job ${jobId}:`, error?.message);
+                const reason = extractMeaningfulError(error, "Job initialization failed");
+                console.error(`[FETCH-JOB FAILED] Notifying coreEngine of failure for job ${jobId}:`, reason);
                 try {
                     await api.post(`/${jobId}/failed`, {
-                        reason: `Job fetch failed: ${error?.message || "Unknown error"}`,
+                        reason: `Job fetch: ${reason}`,
                     });
                 } catch (e) {
                     console.error(`Failed to notify Spring Boot of job ${jobId} failure:`, e);
