@@ -98,6 +98,28 @@ export interface JobProgress {
   stages: JobStageDetail[];
 }
 
+export interface QueueItem {
+  queueName: string;
+  queueKey: string;
+  size: number;
+  backpressureStatus: "HEALTHY" | "ELEVATED" | "HIGH" | "ALERT";
+  type: "STANDARD" | "DLQ";
+  description: string;
+  safeThreshold: number;
+  highThreshold: number;
+}
+
+export interface QueueBackpressureSummary {
+  totalQueued: number;
+  overallStatus: "HEALTHY" | "MODERATE" | "HIGH" | "DLQ_ALERT";
+  audioProcessingQueueSize: number;
+  mailQueueSize: number;
+  deleteQueueSize: number;
+  mailDlqSize: number;
+  queues: QueueItem[];
+  timestamp?: string;
+}
+
 export interface JobSummaryMetrics {
   totalJobs: number;
   currentlyProcessing: number;
@@ -110,6 +132,7 @@ export interface JobSummaryMetrics {
   avgSearchMs?: number;
   avgFinalizeMs?: number;
   avgTotalMs?: number;
+  queueBackpressure?: QueueBackpressureSummary;
 }
 
 export interface Job {
@@ -151,6 +174,7 @@ export interface DashboardStats {
   completedJobs: number;
   recentSongs: Song[];
   recentJobs: Job[];
+  queueStats?: QueueBackpressureSummary;
 }
 
 export interface PaginatedResponse<T> {

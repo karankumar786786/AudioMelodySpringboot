@@ -1,6 +1,7 @@
 package me.one_org.melody.Dto.Controllers.Admin;
 
 import java.util.List;
+import me.one_org.melody.Dto.Controllers.Admin.Queue.QueueBackpressureSummaryDto;
 import me.one_org.melody.Entity.JobsEntity;
 import me.one_org.melody.Entity.SongsEntity;
 
@@ -21,5 +22,6 @@ public record DashboardStatsDto(
     long processingJobs,
     long completedJobs,
     List<SongsEntity> recentSongs,
-    List<JobsEntity> recentJobs
+    List<JobsEntity> recentJobs,
+    QueueBackpressureSummaryDto queueStats
 ) {}

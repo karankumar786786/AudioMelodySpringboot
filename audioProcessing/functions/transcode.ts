@@ -11,6 +11,19 @@ export const transcodeSong = inngest.createFunction(
         id: "transcode-song",
         triggers: [{ event: "audio/song.transcode" }],
         retries: 3,
+        onFailure: async ({ event, error }) => {
+            const jobId = event?.data?.event?.data?.jobId;
+            if (jobId) {
+                console.error(`[TRANSCODE-SONG FAILED] Notifying coreEngine of failure for job ${jobId}:`, error?.message);
+                try {
+                    await api.post(`/${jobId}/failed`, {
+                        reason: `Transcoding failed: ${error?.message || "Unknown error"}`,
+                    });
+                } catch (e) {
+                    console.error(`Failed to notify Spring Boot of job ${jobId} failure:`, e);
+                }
+            }
+        },
     },
     async ({ step, event }) => {
         const {
@@ -37,9 +50,11 @@ export const transcodeSong = inngest.createFunction(
 
         // 1. Notify Spring Boot that transcoding has started
         await step.run("notify-transcoding-started", async () => {
+            console.log(`[ORCHESTRATOR] Notifying coreEngine transcoding-started for job ${jobId}...`);
             await api.post(`/${jobId}/transcoding-started`, {
                 processingId: songId,
             });
+            console.log(`[ORCHESTRATOR] Successfully notified coreEngine transcoding-started for job ${jobId}`);
         });
 
         // 2. Prepare distributed sub-tasks according to media requirements
@@ -119,12 +134,14 @@ export const transcodeSong = inngest.createFunction(
 
         // 4. Notify Spring Boot transcoded
         await step.run("notify-transcoded", async () => {
+            console.log(`[ORCHESTRATOR] Notifying coreEngine transcoded for job ${jobId}...`);
             await api.post(`/${jobId}/transcoded`, {
                 songKey: songKey,
                 duration: duration,
                 fullVideoKey: fullVideoKey || null,
                 videoKey: videoKey || null,
             });
+            console.log(`[ORCHESTRATOR] Successfully notified coreEngine transcoded for job ${jobId}`);
         });
 
         // 5. Trigger downstream indexing/finalization

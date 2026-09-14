@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import me.one_org.melody.Dto.Controllers.Admin.Queue.QueueBackpressureSummaryDto;
+
 import java.util.Map;
 
 @Data
@@ -25,4 +27,6 @@ public class JobSummaryMetricsDto {
     private Double avgSearchMs;
     private Double avgFinalizeMs;
     private Double avgTotalMs;
+
+    private QueueBackpressureSummaryDto queueBackpressure;
 }

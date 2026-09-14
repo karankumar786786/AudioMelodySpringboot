@@ -7,6 +7,7 @@ import { adminFetch } from "@/lib/adminFetch";
 import { DashboardStats, Song, Job } from "@/lib/api";
 import { SkeletonCard } from "@/components/SkeletonCard";
 import { getImageUrl } from "@/lib/image-utils";
+import { QueueBackpressureWidget } from "@/components/QueueBackpressureWidget";
 import {
   Music,
   Users,
@@ -23,6 +24,8 @@ import {
   Shield,
   Layers,
   Sparkles,
+  Server,
+  AlertOctagon,
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -45,18 +48,20 @@ export default function DashboardPage() {
       }
 
       // 2. Fallback to individual endpoints if needed
-      const [songsRes, artistsRes, playlistsRes, usersRes] = await Promise.all([
+      const [songsRes, artistsRes, playlistsRes, usersRes, queuesRes] = await Promise.all([
         adminFetch("/admin/song?page=0&size=5"),
         adminFetch("/admin/artist?page=0&size=1"),
         adminFetch("/admin/playlist?page=0&size=1"),
         adminFetch("/admin/account?page=0&size=1"),
+        adminFetch("/admin/jobs/queues"),
       ]);
 
-      const [songsData, artistsData, playlistsData, usersData] = await Promise.all([
+      const [songsData, artistsData, playlistsData, usersData, queuesData] = await Promise.all([
         songsRes.ok ? songsRes.json() : null,
         artistsRes.ok ? artistsRes.json() : null,
         playlistsRes.ok ? playlistsRes.json() : null,
         usersRes.ok ? usersRes.json() : null,
+        queuesRes.ok ? queuesRes.json() : null,
       ]);
 
       setStats({
@@ -77,6 +82,7 @@ export default function DashboardPage() {
         completedJobs: 0,
         recentSongs: songsData?.content ?? [],
         recentJobs: [],
+        queueStats: queuesData ?? undefined,
       });
     } catch (err) {
       console.error("Failed to fetch stats", err);
@@ -249,6 +255,13 @@ export default function DashboardPage() {
           })
         )}
       </div>
+
+      {/* Redis Queue Backpressure & Ingestion Depth */}
+      <QueueBackpressureWidget
+        queueData={stats?.queueStats}
+        onRefresh={() => fetchStats(true)}
+        isRefreshing={refreshing}
+      />
 
       {/* Activity & Queues Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -522,6 +535,41 @@ export default function DashboardPage() {
                   Ready
                 </span>
               </div>
+
+              <Link
+                href="/jobs"
+                className="flex items-center justify-between p-3.5 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-100 dark:border-zinc-800/50 hover:border-indigo-500/30 transition-all group"
+              >
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full ${
+                      stats?.queueStats?.overallStatus === "DLQ_ALERT"
+                        ? "bg-rose-500 animate-ping"
+                        : stats?.queueStats?.overallStatus === "HIGH"
+                        ? "bg-red-500 animate-ping"
+                        : stats?.queueStats?.overallStatus === "MODERATE"
+                        ? "bg-amber-500 animate-pulse"
+                        : "bg-emerald-500"
+                    }`}
+                  />
+                  <span className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 group-hover:text-indigo-400 transition-colors">
+                    Queue Buffer ({stats?.queueStats?.totalQueued ?? 0})
+                  </span>
+                </div>
+                <span
+                  className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+                    stats?.queueStats?.overallStatus === "DLQ_ALERT"
+                      ? "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                      : stats?.queueStats?.overallStatus === "HIGH"
+                      ? "bg-red-500/10 text-red-500 border-red-500/20"
+                      : stats?.queueStats?.overallStatus === "MODERATE"
+                      ? "bg-amber-500/10 text-amber-500 border-amber-500/20"
+                      : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                  }`}
+                >
+                  {stats?.queueStats?.overallStatus || "Optimal"}
+                </span>
+              </Link>
             </div>
           </div>
 

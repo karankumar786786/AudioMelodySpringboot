@@ -5,6 +5,7 @@ import Image from "next/image";
 import { adminFetch } from "@/lib/adminFetch";
 import { JobProgress, JobSummaryMetrics, JobStage, JobStageDetail } from "@/lib/api";
 import { getImageUrl } from "@/lib/image-utils";
+import { QueueBackpressureWidget } from "@/components/QueueBackpressureWidget";
 import {
   Activity,
   Cpu,
@@ -280,6 +281,13 @@ export default function JobMonitoringPage() {
           </p>
         </div>
       </div>
+
+      {/* Redis Queue Depths & Ingestion Backpressure */}
+      <QueueBackpressureWidget
+        queueData={metrics?.queueBackpressure}
+        onRefresh={() => fetchData(true)}
+        isRefreshing={refreshing}
+      />
 
       {/* Visual Pipeline Architecture / Stage Telemetry */}
       <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 md:p-8">

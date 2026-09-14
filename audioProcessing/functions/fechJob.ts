@@ -6,9 +6,22 @@ export const fetchJob = inngest.createFunction(
     {
         id: "fetch-job",
         triggers: [{ event: "audio/fetchjob" }],
-        retries: 3
+        retries: 3,
+        onFailure: async ({ event, error }) => {
+            const jobId = event?.data?.event?.data?.jobId;
+            if (jobId) {
+                console.error(`[FETCH-JOB FAILED] Notifying coreEngine of failure for job ${jobId}:`, error?.message);
+                try {
+                    await api.post(`/${jobId}/failed`, {
+                        reason: `Job fetch failed: ${error?.message || "Unknown error"}`,
+                    });
+                } catch (e) {
+                    console.error(`Failed to notify Spring Boot of job ${jobId} failure:`, e);
+                }
+            }
+        },
     },
-    async ({ event, step ,attempt}) => {
+    async ({ event, step, attempt }) => {
         const data = event.data;
         if (!data.jobId) {
             throw new NonRetriableError("Missing jobId in event data");

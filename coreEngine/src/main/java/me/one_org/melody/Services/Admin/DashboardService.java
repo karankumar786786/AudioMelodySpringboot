@@ -18,13 +18,16 @@ public class DashboardService {
     private final PaginationMetaDataService paginationMetaDataService;
     private final SongsRepository songsRepository;
     private final JobsRepository jobsRepository;
+    private final QueueMonitoringService queueMonitoringService;
 
     public DashboardService(PaginationMetaDataService paginationMetaDataService,
                             SongsRepository songsRepository,
-                            JobsRepository jobsRepository) {
+                            JobsRepository jobsRepository,
+                            QueueMonitoringService queueMonitoringService) {
         this.paginationMetaDataService = paginationMetaDataService;
         this.songsRepository = songsRepository;
         this.jobsRepository = jobsRepository;
+        this.queueMonitoringService = queueMonitoringService;
     }
 
     public DashboardStatsDto getDashboardStats() {
@@ -82,7 +85,8 @@ public class DashboardService {
             processingJobs,
             completedJobs,
             recentSongs,
-            recentJobs
+            recentJobs,
+            queueMonitoringService.getQueueBackpressureSummary()
         );
     }
 }

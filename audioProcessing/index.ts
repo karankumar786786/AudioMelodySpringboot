@@ -32,7 +32,13 @@ const functions = [
     finalizeSong,
 ];
 
-app.use("/api/inngest", serve({ client: inngest, functions }));
+app.use(
+    "/api/inngest",
+    serve({
+        client: inngest,
+        functions,
+    })
+);
 
 app.listen(5010, () => {
     console.log("Server running on http://localhost:5010");

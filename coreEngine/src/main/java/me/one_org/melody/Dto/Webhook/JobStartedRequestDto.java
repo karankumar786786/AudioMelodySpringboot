@@ -4,5 +4,4 @@ import jakarta.validation.constraints.NotBlank;
 
 public record JobStartedRequestDto(
     @NotBlank String processingId
-) {
-}
+) {}

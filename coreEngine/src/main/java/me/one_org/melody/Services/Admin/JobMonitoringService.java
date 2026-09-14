@@ -20,9 +20,11 @@ import java.util.*;
 public class JobMonitoringService {
 
     private final JobsRepository jobsRepository;
+    private final QueueMonitoringService queueMonitoringService;
 
-    public JobMonitoringService(JobsRepository jobsRepository) {
+    public JobMonitoringService(JobsRepository jobsRepository, QueueMonitoringService queueMonitoringService) {
         this.jobsRepository = jobsRepository;
+        this.queueMonitoringService = queueMonitoringService;
     }
 
     public JobSummaryMetricsDto getSummaryMetrics() {
@@ -56,7 +58,12 @@ public class JobMonitoringService {
                 .avgSearchMs(avgSearch)
                 .avgFinalizeMs(avgFinalize)
                 .avgTotalMs(avgTotal)
+                .queueBackpressure(queueMonitoringService.getQueueBackpressureSummary())
                 .build();
+    }
+
+    public me.one_org.melody.Dto.Controllers.Admin.Queue.QueueBackpressureSummaryDto getQueueBackpressure() {
+        return queueMonitoringService.getQueueBackpressureSummary();
     }
 
     public List<JobProgressDto> getActiveProcessingJobs() {

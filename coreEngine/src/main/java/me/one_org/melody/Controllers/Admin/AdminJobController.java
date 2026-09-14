@@ -24,11 +24,19 @@ public class AdminJobController {
 
     /**
      * High-level summary metrics: currently processing, queued, completed, failed,
-     * breakdown by stage, and average duration per stage.
+     * breakdown by stage, average duration per stage, and queue backpressure.
      */
     @GetMapping("/summary")
     public ResponseEntity<JobSummaryMetricsDto> getSummary() {
         return ResponseEntity.ok(jobMonitoringService.getSummaryMetrics());
+    }
+
+    /**
+     * Real-time Redis queue depths and backpressure status across all microservice queues.
+     */
+    @GetMapping("/queues")
+    public ResponseEntity<me.one_org.melody.Dto.Controllers.Admin.Queue.QueueBackpressureSummaryDto> getQueues() {
+        return ResponseEntity.ok(jobMonitoringService.getQueueBackpressure());
     }
 
     /**
