@@ -21,9 +21,11 @@ import me.one_org.melody.Dto.Queue.DeleteEventQueueDto;
 import me.one_org.melody.Entity.JobsEntity;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.Enums.JobStageEnum;
 import me.one_org.melody.Enums.JobStatusEnum;
 import me.one_org.melody.Enums.StatusEnum;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
+import java.time.LocalDateTime;
 import me.one_org.melody.ImageStorage.ImageKit;
 import me.one_org.melody.Queue.AudioProcessingQueue;
 import me.one_org.melody.Queue.DeleteEventQueue;
@@ -131,6 +133,8 @@ public class SongService {
                 .savedInSearch(false)
                 .savedInRecommendation(false)
                 .status(JobStatusEnum.PENDING)
+                .currentStage(JobStageEnum.QUEUED)
+                .createdAt(LocalDateTime.now())
                 .build();
         jobsRepository.save(job);
         paginationMetaDataService.incrementStatus("JobsEntity", StatusEnum.ACTIVE);
@@ -171,6 +175,8 @@ public class SongService {
                 .savedInRecommendation(false)
                 .isVideoReprocess(true) // signal: patch existing song, don't create new one
                 .status(JobStatusEnum.PENDING)
+                .currentStage(JobStageEnum.QUEUED)
+                .createdAt(LocalDateTime.now())
                 .build();
         jobsRepository.save(job);
         paginationMetaDataService.incrementStatus("JobsEntity", StatusEnum.ACTIVE);

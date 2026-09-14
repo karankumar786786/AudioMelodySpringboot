@@ -340,9 +340,13 @@ export default function DashboardPage() {
                 <p className="text-xs text-zinc-500">Audio transcoding & analysis status</p>
               </div>
             </div>
-            <span className="text-xs font-medium text-zinc-400">
-              {stats?.pendingJobs ?? 0} waiting
-            </span>
+            <Link
+              href="/jobs"
+              className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+            >
+              <span>View Telemetry</span>
+              <ArrowUpRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
 
           {loading ? (
@@ -383,16 +387,27 @@ export default function DashboardPage() {
                 };
 
                 return (
-                  <div
+                  <Link
                     key={job.id}
-                    className="flex items-center justify-between p-3.5 rounded-2xl bg-zinc-50/70 dark:bg-zinc-800/30 border border-zinc-100 dark:border-zinc-800/40"
+                    href="/jobs"
+                    className="flex items-center justify-between p-3.5 rounded-2xl bg-zinc-50/70 dark:bg-zinc-800/30 border border-zinc-100 dark:border-zinc-800/40 hover:border-indigo-300 dark:hover:border-indigo-800 transition-colors"
                   >
                     <div className="min-w-0 pr-3">
                       <p className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm truncate">
                         {job.title}
                       </p>
-                      <p className="text-xs text-zinc-500 truncate">
-                        {job.artistName} {job.isVideoReprocess ? "• Video Reprocess" : ""}
+                      <p className="text-xs text-zinc-500 truncate flex items-center gap-1.5 mt-0.5">
+                        <span>{job.artistName} {job.isVideoReprocess ? "• Video Reprocess" : ""}</span>
+                        {job.currentStage && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-zinc-200/60 dark:bg-zinc-700/60 font-mono font-semibold">
+                            {job.currentStage}
+                          </span>
+                        )}
+                        {job.transcodingAttempt != null && job.transcodingAttempt > 1 && (
+                          <span className="text-[10px] text-amber-500 font-bold">
+                            ⚠️ #{job.transcodingAttempt}
+                          </span>
+                        )}
                       </p>
                     </div>
 
@@ -402,7 +417,7 @@ export default function DashboardPage() {
                       <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`} />
                       {statusConfig.label}
                     </span>
-                  </div>
+                  </Link>
                 );
               })}
             </div>

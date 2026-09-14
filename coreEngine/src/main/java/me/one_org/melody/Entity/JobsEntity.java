@@ -2,6 +2,7 @@ package me.one_org.melody.Entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import me.one_org.melody.Enums.JobStageEnum;
 import me.one_org.melody.Enums.JobStatusEnum;
 import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
@@ -48,6 +49,26 @@ public class JobsEntity {
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private JobStatusEnum status;
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private JobStageEnum currentStage = JobStageEnum.QUEUED;
+
+    private LocalDateTime transcodingStartedAt;
+    private LocalDateTime transcodedAt;
+    private LocalDateTime recommendationSavedAt;
+    private LocalDateTime searchSavedAt;
+    private LocalDateTime completedAt;
+    private LocalDateTime failedAt;
+
+    @Column(columnDefinition = "TEXT")
+    private String failureReason;
+
+    private Long transcodingDurationMs;
+    private Long recommendationDurationMs;
+    private Long searchDurationMs;
+    private Long finalizeDurationMs;
+    private Long totalDurationMs;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

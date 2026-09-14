@@ -48,6 +48,70 @@ export interface User {
   createdAt?: string;
 }
 
+export type JobStage =
+  | "QUEUED"
+  | "TRANSCODING"
+  | "RECOMMENDATION_INDEXING"
+  | "SEARCH_INDEXING"
+  | "FINALIZING"
+  | "COMPLETED"
+  | "FAILED";
+
+export interface JobStageDetail {
+  stageName: JobStage;
+  label: string;
+  status: "COMPLETED" | "IN_PROGRESS" | "PENDING" | "FAILED" | "SKIPPED";
+  startedAt?: string | null;
+  completedAt?: string | null;
+  durationMs?: number | null;
+  formattedDuration: string;
+}
+
+export interface JobProgress {
+  id: string;
+  title: string;
+  artistName: string;
+  songId: string;
+  imageKey: string;
+  videoKey?: string | null;
+  fullVideoKey?: string | null;
+  duration?: number | null;
+  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  currentStage: JobStage;
+  transcodingAttempt: number;
+  isVideoReprocess?: boolean;
+  createdAt?: string | null;
+  transcodingStartedAt?: string | null;
+  transcodedAt?: string | null;
+  recommendationSavedAt?: string | null;
+  searchSavedAt?: string | null;
+  completedAt?: string | null;
+  failedAt?: string | null;
+  failureReason?: string | null;
+  transcodingDurationMs?: number | null;
+  recommendationDurationMs?: number | null;
+  searchDurationMs?: number | null;
+  finalizeDurationMs?: number | null;
+  totalDurationMs?: number | null;
+  elapsedTotalMs?: number | null;
+  currentStageElapsedMs?: number | null;
+  stages: JobStageDetail[];
+}
+
+export interface JobSummaryMetrics {
+  totalJobs: number;
+  currentlyProcessing: number;
+  pendingQueued: number;
+  completed: number;
+  failed: number;
+  stageBreakdown: Record<string, number>;
+  avgTranscodingMs?: number;
+  avgRecommendationMs?: number;
+  avgSearchMs?: number;
+  avgFinalizeMs?: number;
+  avgTotalMs?: number;
+}
+
 export interface Job {
   id: string;
   title: string;
@@ -63,6 +127,8 @@ export interface Job {
   previewEndTime?: number;
   language?: string;
   status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  currentStage?: JobStage;
+  transcodingAttempt?: number;
   isVideoReprocess?: boolean;
   createdAt?: string;
 }

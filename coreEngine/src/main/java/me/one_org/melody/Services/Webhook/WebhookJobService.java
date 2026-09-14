@@ -13,12 +13,16 @@ import me.one_org.melody.Dto.Webhook.JobStartedRequestDto;
 import me.one_org.melody.Dto.Webhook.TranscodedRequestDto;
 import me.one_org.melody.Entity.JobsEntity;
 import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.Enums.JobStageEnum;
 import me.one_org.melody.Enums.JobStatusEnum;
 import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.JobsRepository;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
+
+import java.time.Duration;
+import java.time.LocalDateTime;
 
 @Service
 @Slf4j
@@ -56,8 +60,10 @@ public class WebhookJobService {
         job.setTranscodingId(data.processingId());
         job.setTranscodingAttempt(job.getTranscodingAttempt() != null ? job.getTranscodingAttempt() + 1 : 1);
         job.setStatus(JobStatusEnum.PROCESSING);
+        job.setCurrentStage(JobStageEnum.TRANSCODING);
+        job.setTranscodingStartedAt(LocalDateTime.now());
         jobsRepository.save(job);
-        log.info("Job {} transcoding started (attempt {})", jobId, job.getTranscodingAttempt());
+        log.info("Job {} transcoding started (attempt {}, stage {})", jobId, job.getTranscodingAttempt(), job.getCurrentStage());
     }
 
     @Transactional
@@ -74,6 +80,18 @@ public class WebhookJobService {
             job.setVideoKey(data.videoKey());
         }
         job.setTranscoded(true);
+        LocalDateTime now = LocalDateTime.now();
+        job.setTranscodedAt(now);
+        if (job.getTranscodingStartedAt() != null) {
+            job.setTranscodingDurationMs(Duration.between(job.getTranscodingStartedAt(), now).toMillis());
+        }
+
+        if (Boolean.TRUE.equals(job.getIsVideoReprocess())) {
+            job.setCurrentStage(JobStageEnum.FINALIZING);
+        } else {
+            job.setCurrentStage(JobStageEnum.RECOMMENDATION_INDEXING);
+        }
+
         if (job.getTempSongKey() != null && !job.getTempSongKey().isBlank()) {
             try {
                 s3.deleteObject(job.getTempSongKey(), tempBucket);
@@ -89,8 +107,8 @@ public class WebhookJobService {
             }
         }
         jobsRepository.save(job);
-        log.info("Job {} transcoded successfully, songKey: {}, fullVideoKey: {}, duration: {}",
-                jobId, data.songKey(), data.fullVideoKey(), data.duration());
+        log.info("Job {} transcoded successfully in {}ms, next stage: {}",
+                jobId, job.getTranscodingDurationMs(), job.getCurrentStage());
     }
 
     @Transactional
@@ -100,8 +118,15 @@ public class WebhookJobService {
             recombee.saveSong(job.getSongId(), job.getTitle(), job.getArtistName(),
                     job.getLanguage() != null ? job.getLanguage() : "unknown");
             job.setSavedInRecommendation(true);
+            LocalDateTime now = LocalDateTime.now();
+            job.setRecommendationSavedAt(now);
+            if (job.getTranscodedAt() != null) {
+                job.setRecommendationDurationMs(Duration.between(job.getTranscodedAt(), now).toMillis());
+            }
+            job.setCurrentStage(JobStageEnum.SEARCH_INDEXING);
             jobsRepository.save(job);
-            log.info("Job {} indexed in Recombee successfully", jobId);
+            log.info("Job {} indexed in Recombee in {}ms, next stage: {}",
+                    jobId, job.getRecommendationDurationMs(), job.getCurrentStage());
         } catch (Exception e) {
             log.error("Failed to save job {} to Recombee: {}", jobId, e.getMessage(), e);
             throw new RuntimeException("Recombee indexing failed: " + e.getMessage(), e);
@@ -130,8 +155,15 @@ public class WebhookJobService {
                     .build();
             algoliaSearch.save(tempSong);
             job.setSavedInSearch(true);
+            LocalDateTime now = LocalDateTime.now();
+            job.setSearchSavedAt(now);
+            if (job.getRecommendationSavedAt() != null) {
+                job.setSearchDurationMs(Duration.between(job.getRecommendationSavedAt(), now).toMillis());
+            }
+            job.setCurrentStage(JobStageEnum.FINALIZING);
             jobsRepository.save(job);
-            log.info("Job {} indexed in Algolia successfully", jobId);
+            log.info("Job {} indexed in Algolia in {}ms, next stage: {}",
+                    jobId, job.getSearchDurationMs(), job.getCurrentStage());
         } catch (Exception e) {
             log.error("Failed to save job {} to Algolia: {}", jobId, e.getMessage(), e);
             throw new RuntimeException("Algolia search indexing failed: " + e.getMessage(), e);
@@ -142,6 +174,18 @@ public class WebhookJobService {
     public void finalizeJob(String jobId) {
         JobsEntity job = getJob(jobId);
         String songId = job.getSongId();
+        LocalDateTime now = LocalDateTime.now();
+        job.setCompletedAt(now);
+
+        if (job.getSearchSavedAt() != null) {
+            job.setFinalizeDurationMs(Duration.between(job.getSearchSavedAt(), now).toMillis());
+        } else if (job.getTranscodedAt() != null) {
+            job.setFinalizeDurationMs(Duration.between(job.getTranscodedAt(), now).toMillis());
+        }
+
+        if (job.getCreatedAt() != null) {
+            job.setTotalDurationMs(Duration.between(job.getCreatedAt(), now).toMillis());
+        }
 
         if (Boolean.TRUE.equals(job.getIsVideoReprocess())) {
             // VIDEO REPROCESS: only patch fullVideoKey (and canvas videoKey) on the existing song
@@ -155,8 +199,10 @@ public class WebhookJobService {
             }
             songsRepository.save(existingSong);
             job.setStatus(JobStatusEnum.COMPLETED);
+            job.setCurrentStage(JobStageEnum.COMPLETED);
             jobsRepository.save(job);
-            log.info("Video reprocess job {} completed — fullVideoKey updated on song {}", jobId, songId);
+            log.info("Video reprocess job {} completed in {}ms — fullVideoKey updated on song {}",
+                    jobId, job.getTotalDurationMs(), songId);
             return;
         }
 
@@ -180,15 +226,24 @@ public class WebhookJobService {
         paginationMetaDataService.incrementStatus("SongsEntity", song.getStatus());
 
         job.setStatus(JobStatusEnum.COMPLETED);
+        job.setCurrentStage(JobStageEnum.COMPLETED);
         jobsRepository.save(job);
-        log.info("Job {} finalized — song {} created successfully", job.getId(), songId);
+        log.info("Job {} finalized in total {}ms — song {} created successfully",
+                job.getId(), job.getTotalDurationMs(), songId);
     }
 
     @Transactional
     public void failed(String jobId, JobFailedRequestDto data) {
         JobsEntity job = getJob(jobId);
+        LocalDateTime now = LocalDateTime.now();
         job.setStatus(JobStatusEnum.FAILED);
+        job.setCurrentStage(JobStageEnum.FAILED);
+        job.setFailedAt(now);
+        job.setFailureReason(data.reason());
+        if (job.getCreatedAt() != null) {
+            job.setTotalDurationMs(Duration.between(job.getCreatedAt(), now).toMillis());
+        }
         jobsRepository.save(job);
-        log.error("Job {} failed: {}", jobId, data.reason());
+        log.error("Job {} failed after {}ms: {}", jobId, job.getTotalDurationMs(), data.reason());
     }
 }
