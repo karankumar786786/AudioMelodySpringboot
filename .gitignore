@@ -1,3 +1,46 @@
-/test
-/migrations
-/Docker
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Environment files (Protect secrets)
+*.env
+*.env.local
+*.env.*.local
+.env
+.env.*
+!.env.example
+!*.env.example
+!**/*.env.example
+
+# Build outputs
+target/
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# Testing & Coverage
+coverage/
+*.lcov
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS and Editor files
+.DS_Store
+.cursor/
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

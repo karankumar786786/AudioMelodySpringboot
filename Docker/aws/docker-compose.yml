@@ -1,0 +1,42 @@
+services:
+
+  core:
+    image: karankumar9955/core:v1
+    container_name: core
+    restart: unless-stopped
+    env_file:
+      - core.env
+    expose:
+      - "9090"
+    networks:
+      - app
+
+  mail:
+    image: karankumar9955/mail:v1
+    container_name: mail
+    restart: unless-stopped
+    env_file:
+      - mail.env
+    networks:
+      - app
+
+  caddy:
+    image: caddy:2
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - app
+
+networks:
+  app:
+
+volumes:
+  caddy_data:
+  caddy_config:

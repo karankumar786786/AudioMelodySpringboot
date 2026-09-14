@@ -1,0 +1,9 @@
+services:
+  process:
+    image: karankumar9955/audioprocessing:v1
+    container_name: audioprocessing
+    restart: unless-stopped
+    env_file:
+      - process.env
+    ports:
+      - "5010:5010"

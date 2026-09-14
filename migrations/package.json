@@ -1,0 +1,19 @@
+{
+  "name": "migrations",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "@types/pg": "^8.23.1",
+    "algoliasearch": "^5.56.0",
+    "pg": "^8.23.0",
+    "recombee-api-client": "^6.3.0",
+    "recombee-js-api-client": "^6.2.1"
+  }
+}

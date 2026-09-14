@@ -1,0 +1,29 @@
+services:
+  core:
+    image: coreengine:v1
+    container_name: core
+    ports:
+      - "9090:9090"
+    env_file:
+      - core.env
+    networks:
+      - app
+    
+  mail:
+    image: mail:v1
+    container_name: mail
+    env_file:
+      - mail.env
+  
+  frontend:
+    image: audiofrontend:v1
+    container_name: audiofrontend
+    ports:
+      - "3000:3000"
+    env_file:
+      - frontend.env
+    networks:
+      - app
+
+networks:
+  app:
