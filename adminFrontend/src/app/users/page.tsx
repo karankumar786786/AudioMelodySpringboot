@@ -226,17 +226,17 @@ export default function UsersPage() {
       />
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-zinc-200 dark:border-zinc-800/80">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#282828]">
         <div>
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+            <div className="p-2.5 rounded-2xl bg-black/60 border border-[#282828] text-white">
               <Shield className="w-7 h-7" />
             </div>
             <div>
-              <h1 className="text-3xl font-black tracking-tight text-zinc-900 dark:text-white">
-                User & Admin Accounts
+              <h1 className="text-3xl font-black tracking-tight text-white">
+                User &amp; Admin Accounts
               </h1>
-              <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-0.5">
+              <p className="text-zinc-400 text-sm mt-0.5">
                 Manage role hierarchy, account access, and security policies across registered users.
               </p>
             </div>
@@ -247,7 +247,7 @@ export default function UsersPage() {
           <button
             onClick={() => fetchUsers(true)}
             disabled={loading || refreshing}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl text-sm font-semibold text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/80 transition-all shadow-sm disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-semibold text-zinc-300 bg-black/60 border border-[#282828] hover:bg-white hover:text-black transition-all shadow-sm disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
             <span>{refreshing ? "Refreshing..." : "Refresh"}</span>
@@ -256,7 +256,7 @@ export default function UsersPage() {
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-zinc-800 p-4 md:p-5 shadow-sm space-y-4">
+      <div className="bg-[#121212] rounded-3xl border border-[#282828] p-4 md:p-5 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
           {/* Search Box */}
           <div className="relative flex-1">
@@ -266,12 +266,12 @@ export default function UsersPage() {
               placeholder="Search accounts by name, email, or ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-11 pr-4 py-2.5 text-sm rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/60 text-zinc-900 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 transition-all"
+              className="w-full pl-11 pr-4 py-2.5 text-sm rounded-xl bg-black/60 border border-[#282828] text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-400 transition-all"
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-zinc-400 hover:text-white"
               >
                 Clear
               </button>
@@ -281,15 +281,15 @@ export default function UsersPage() {
           {/* Filter Pills */}
           <div className="flex flex-wrap items-center gap-2">
             {/* Role Filter Tabs */}
-            <div className="inline-flex p-1 rounded-2xl bg-zinc-100 dark:bg-zinc-800/60 border border-zinc-200/60 dark:border-zinc-700/50 text-xs font-semibold">
+            <div className="inline-flex p-1 rounded-full bg-black/60 border border-[#282828] text-xs font-semibold">
               {(["ALL", "ADMIN", "USER"] as const).map((role) => (
                 <button
                   key={role}
                   onClick={() => setRoleFilter(role)}
-                  className={`px-3 py-1.5 rounded-xl transition-all ${
+                  className={`px-3 py-1.5 rounded-full transition-all ${
                     roleFilter === role
-                      ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm"
-                      : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
+                      ? "bg-white text-black font-bold shadow-sm"
+                      : "text-zinc-400 hover:text-white"
                   }`}
                 >
                   {role === "ALL" ? "All Roles" : role === "ADMIN" ? "Admins" : "Users"}
@@ -298,15 +298,15 @@ export default function UsersPage() {
             </div>
 
             {/* Status Filter Tabs */}
-            <div className="inline-flex p-1 rounded-2xl bg-zinc-100 dark:bg-zinc-800/60 border border-zinc-200/60 dark:border-zinc-700/50 text-xs font-semibold">
+            <div className="inline-flex p-1 rounded-full bg-black/60 border border-[#282828] text-xs font-semibold">
               {(["ALL", "ACTIVE", "BLOCKED"] as const).map((status) => (
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
-                  className={`px-3 py-1.5 rounded-xl transition-all ${
+                  className={`px-3 py-1.5 rounded-full transition-all ${
                     statusFilter === status
-                      ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm"
-                      : "text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-200"
+                      ? "bg-white text-black font-bold shadow-sm"
+                      : "text-zinc-400 hover:text-white"
                   }`}
                 >
                   {status === "ALL" ? "All Status" : status === "ACTIVE" ? "Active" : "Blocked"}
@@ -317,9 +317,9 @@ export default function UsersPage() {
         </div>
 
         {/* Count overview */}
-        <div className="flex items-center justify-between text-xs text-zinc-500 pt-2 border-t border-zinc-100 dark:border-zinc-800/60">
+        <div className="flex items-center justify-between text-xs text-zinc-400 pt-2 border-t border-[#282828]">
           <span>
-            Showing <strong className="text-zinc-900 dark:text-white">{filteredUsers.length}</strong> of{" "}
+            Showing <strong className="text-white">{filteredUsers.length}</strong> of{" "}
             {users.length} accounts
           </span>
           {(searchQuery || roleFilter !== "ALL" || statusFilter !== "ALL") && (
@@ -329,7 +329,7 @@ export default function UsersPage() {
                 setRoleFilter("ALL");
                 setStatusFilter("ALL");
               }}
-              className="text-indigo-600 dark:text-indigo-400 font-medium hover:underline"
+              className="text-white font-medium hover:underline"
             >
               Reset filters
             </button>
@@ -338,11 +338,11 @@ export default function UsersPage() {
       </div>
 
       {/* Users Table */}
-      <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200/80 dark:border-zinc-800 overflow-hidden shadow-sm">
+      <div className="bg-[#121212] rounded-3xl border border-[#282828] overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-zinc-50/80 dark:bg-zinc-800/40 border-b border-zinc-200 dark:border-zinc-800 text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              <tr className="bg-black/60 border-b border-[#282828] text-xs font-bold uppercase tracking-wider text-zinc-400">
                 <th className="px-6 py-4">User</th>
                 <th className="px-6 py-4">Email</th>
                 <th className="px-6 py-4">Role</th>
@@ -350,17 +350,17 @@ export default function UsersPage() {
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800/70">
+            <tbody className="divide-y divide-[#282828]">
               {loading ? (
                 <SkeletonCard variant="table-row" count={6} />
               ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-16 text-center text-zinc-500 dark:text-zinc-400">
-                    <Shield className="w-10 h-10 mx-auto mb-3 opacity-30 text-zinc-400" />
-                    <p className="font-semibold text-base text-zinc-700 dark:text-zinc-300">
+                  <td colSpan={5} className="py-16 text-center text-zinc-400">
+                    <Shield className="w-10 h-10 mx-auto mb-3 opacity-30 text-zinc-500" />
+                    <p className="font-semibold text-base text-zinc-300">
                       No accounts matched your filters
                     </p>
-                    <p className="text-xs mt-1">Try adjusting your search query or role filter tabs.</p>
+                    <p className="text-xs mt-1 text-zinc-500">Try adjusting your search query or role filter tabs.</p>
                   </td>
                 </tr>
               ) : (
@@ -377,34 +377,32 @@ export default function UsersPage() {
                   return (
                     <tr
                       key={u.id || u.email}
-                      className="group hover:bg-zinc-50/70 dark:hover:bg-zinc-800/30 transition-colors"
+                      className="group hover:bg-zinc-800/30 transition-colors"
                     >
                       {/* User Info */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3.5">
                           <div
                             className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 shadow-sm ${
-                              isSuperAdmin
-                                ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30"
-                                : isAdmin
-                                ? "bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/30"
-                                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700"
+                              isAdmin
+                                ? "bg-white text-black font-bold"
+                                : "bg-black/60 text-zinc-300 border border-[#282828]"
                             }`}
                           >
                             {initial}
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-zinc-900 dark:text-white text-sm">
+                              <span className="font-bold text-white text-sm">
                                 {displayName}
                               </span>
                               {isSelf && (
-                                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white text-black">
                                   You
                                 </span>
                               )}
                             </div>
-                            <span className="text-[11px] text-zinc-400 font-mono">
+                            <span className="text-[11px] text-zinc-500 font-mono">
                               ID: {u.id ? `${u.id.substring(0, 8)}...` : "N/A"}
                             </span>
                           </div>
@@ -413,8 +411,8 @@ export default function UsersPage() {
 
                       {/* Email */}
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-1.5 text-zinc-600 dark:text-zinc-300 text-sm font-mono">
-                          <Mail className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                        <div className="flex items-center gap-1.5 text-zinc-300 text-sm font-mono">
+                          <Mail className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
                           <span className="truncate max-w-[220px]">{u.email}</span>
                         </div>
                       </td>
@@ -423,11 +421,9 @@ export default function UsersPage() {
                       <td className="px-6 py-4">
                         <span
                           className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
-                            isSuperAdmin
-                              ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
-                              : isAdmin
-                              ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30"
-                              : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border-zinc-200 dark:border-zinc-700"
+                            isAdmin
+                              ? "bg-white text-black border-white"
+                              : "bg-black/60 text-zinc-300 border-[#282828]"
                           }`}
                         >
                           {isSuperAdmin ? (
@@ -446,13 +442,13 @@ export default function UsersPage() {
                         <span
                           className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
                             isBlocked
-                              ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
-                              : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                              ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
+                              : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
                           }`}
                         >
                           <span
                             className={`w-1.5 h-1.5 rounded-full ${
-                              isBlocked ? "bg-rose-500" : "bg-emerald-500"
+                              isBlocked ? "bg-rose-500" : "bg-emerald-400"
                             }`}
                           />
                           {isBlocked ? "Blocked" : "Active"}
@@ -469,13 +465,13 @@ export default function UsersPage() {
                                 <button
                                   onClick={() => handleUserAction(u, "demote")}
                                   disabled={!!currentOp}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 transition-all disabled:opacity-40"
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold text-zinc-300 bg-black/60 hover:bg-white hover:text-black border border-[#282828] transition-all disabled:opacity-40"
                                   title="Demote to standard User"
                                 >
                                   {currentOp === "demote" ? (
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-500" />
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />
                                   ) : (
-                                    <ArrowDownCircle className="w-3.5 h-3.5 text-amber-500" />
+                                    <ArrowDownCircle className="w-3.5 h-3.5 text-amber-400" />
                                   )}
                                   <span className="hidden sm:inline">Demote</span>
                                 </button>
@@ -483,13 +479,13 @@ export default function UsersPage() {
                                 <button
                                   onClick={() => handleUserAction(u, "promote")}
                                   disabled={!!currentOp}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 transition-all disabled:opacity-40"
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold text-zinc-300 bg-black/60 hover:bg-white hover:text-black border border-[#282828] transition-all disabled:opacity-40"
                                   title="Promote to Admin"
                                 >
                                   {currentOp === "promote" ? (
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-500" />
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />
                                   ) : (
-                                    <ArrowUpCircle className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
+                                    <ArrowUpCircle className="w-3.5 h-3.5 text-white" />
                                   )}
                                   <span className="hidden sm:inline">Make Admin</span>
                                 </button>
@@ -502,19 +498,19 @@ export default function UsersPage() {
                             <button
                               onClick={() => handleUserAction(u, isBlocked ? "unblock" : "block")}
                               disabled={!!currentOp}
-                              className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-semibold border transition-all disabled:opacity-40 ${
+                              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all disabled:opacity-40 bg-black/60 hover:bg-white hover:text-black ${
                                 isBlocked
-                                  ? "text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800/60"
-                                  : "text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-950/40 border-amber-200 dark:border-amber-800/60"
+                                  ? "text-emerald-400 border-[#282828]"
+                                  : "text-amber-400 border-[#282828]"
                               }`}
                               title={isBlocked ? "Unblock account" : "Block account"}
                             >
                               {currentOp === "block" || currentOp === "unblock" ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-500" />
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-400" />
                               ) : isBlocked ? (
-                                <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
+                                <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
                               ) : (
-                                <UserX className="w-3.5 h-3.5 text-amber-500" />
+                                <UserX className="w-3.5 h-3.5 text-amber-400" />
                               )}
                               <span className="hidden sm:inline">{isBlocked ? "Unblock" : "Block"}</span>
                             </button>
@@ -525,11 +521,11 @@ export default function UsersPage() {
                             <button
                               onClick={() => handleUserAction(u, "delete")}
                               disabled={!!currentOp}
-                              className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl border border-transparent hover:border-rose-200 dark:hover:border-rose-900/60 transition-all disabled:opacity-40"
+                              className="p-2 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-full border border-transparent transition-all disabled:opacity-40"
                               title="Delete user account"
                             >
                               {currentOp === "delete" ? (
-                                <Loader2 className="w-4 h-4 animate-spin text-rose-500" />
+                                <Loader2 className="w-4 h-4 animate-spin text-rose-400" />
                               ) : (
                                 <Trash2 className="w-4 h-4" />
                               )}

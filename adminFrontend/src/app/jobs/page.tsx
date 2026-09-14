@@ -272,33 +272,33 @@ export default function JobMonitoringPage() {
   });
 
   return (
-    <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-8">
+    <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-8 text-white font-sans">
       {/* Header & Tab Switcher */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
               {activeTab === "INGESTION" ? (
-                <Zap className="w-6 h-6 text-indigo-500 fill-indigo-500" />
+                <Zap className="w-5 h-5 text-white fill-white" />
               ) : (
-                <Trash2 className="w-6 h-6 text-rose-500 fill-rose-500/20" />
+                <Trash2 className="w-5 h-5 text-rose-400 fill-rose-500/20" />
               )}
               {activeTab === "INGESTION" ? "Song Ingestion Pipeline" : "Cascade Delete Pipeline"}
             </h1>
             {activeTab === "INGESTION" && activeJobs.length > 0 && (
-              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 animate-pulse">
-                <span className="w-2 h-2 rounded-full bg-indigo-500" />
+              <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-white/10 text-white border border-white/20 animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-white" />
                 {activeJobs.length} active
               </span>
             )}
             {activeTab === "DELETION" && activeDeleteJobs.length > 0 && (
-              <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20 animate-pulse">
-                <span className="w-2 h-2 rounded-full bg-rose-500" />
+              <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                 {activeDeleteJobs.length} active
               </span>
             )}
           </div>
-          <p className="text-zinc-500 text-sm mt-1">
+          <p className="text-zinc-400 text-sm mt-1">
             {activeTab === "INGESTION"
               ? "Real-time telemetry, stage execution time, retry tracking, and webhook lifecycle logs for audio & canvas transcoding."
               : "End-to-end cascade deletion tracking across Algolia, Recombee, ImageKit CDN, AWS S3, and PostgreSQL with 1-click retry."}
@@ -307,13 +307,13 @@ export default function JobMonitoringPage() {
 
         <div className="flex items-center gap-3">
           {/* Tab Selector */}
-          <div className="flex bg-zinc-100 dark:bg-zinc-800/80 p-1 rounded-2xl border border-zinc-200 dark:border-zinc-700/60">
+          <div className="flex bg-black/60 p-1 rounded-full border border-[#282828]">
             <button
               onClick={() => setActiveTab("INGESTION")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all ${
                 activeTab === "INGESTION"
-                  ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-indigo-100 dark:border-indigo-900/40"
-                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                  ? "bg-white text-black shadow-sm"
+                  : "text-zinc-400 hover:text-white"
               }`}
             >
               <Workflow className="w-3.5 h-3.5" />
@@ -321,10 +321,10 @@ export default function JobMonitoringPage() {
             </button>
             <button
               onClick={() => setActiveTab("DELETION")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all ${
                 activeTab === "DELETION"
-                  ? "bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 shadow-sm border border-rose-100 dark:border-rose-900/40"
-                  : "text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+                  ? "bg-white text-black shadow-sm"
+                  : "text-zinc-400 hover:text-white"
               }`}
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -335,13 +335,13 @@ export default function JobMonitoringPage() {
           {/* Auto-Refresh Toggle */}
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border ${
+            className={`px-3.5 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 border ${
               autoRefresh
-                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-500 border-zinc-200 dark:border-zinc-700"
+                ? "bg-white/10 text-white border-white/20"
+                : "bg-black/60 text-zinc-400 border-[#282828]"
             }`}
           >
-            <span className={`w-2 h-2 rounded-full ${autoRefresh ? "bg-emerald-500 animate-ping" : "bg-zinc-400"}`} />
+            <span className={`w-2 h-2 rounded-full ${autoRefresh ? "bg-emerald-400 animate-ping" : "bg-zinc-600"}`} />
             {autoRefresh ? "Live 4s" : "Paused"}
           </button>
 
@@ -349,10 +349,10 @@ export default function JobMonitoringPage() {
           <button
             onClick={() => fetchData(true)}
             disabled={refreshing}
-            className="p-2.5 bg-white dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 rounded-xl transition-all active:scale-95 disabled:opacity-50"
+            className="p-2.5 bg-black/60 hover:bg-[#181818] border border-[#282828] rounded-full text-zinc-300 hover:text-white transition-all active:scale-95 disabled:opacity-50"
             title="Refresh now"
           >
-            <RefreshCw className={`w-4 h-4 text-zinc-600 dark:text-zinc-300 ${refreshing ? "animate-spin text-indigo-500" : ""}`} />
+            <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin text-white" : ""}`} />
           </button>
         </div>
       </div>
@@ -365,73 +365,73 @@ export default function JobMonitoringPage() {
           {/* KPI Cards Grid */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {/* Currently Processing */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-indigo-100 dark:border-indigo-950/60 shadow-sm relative overflow-hidden group">
+            <div className="p-5 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden group hover:border-zinc-700 hover:bg-[#181818] transition-all">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">Processing</span>
-                <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center">
+                <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Processing</span>
+                <div className="w-8 h-8 rounded-xl bg-black border border-[#282828] text-white flex items-center justify-center">
                   <Activity className="w-4 h-4 animate-pulse" />
                 </div>
               </div>
-              <div className="text-3xl font-black text-zinc-900 dark:text-white">
+              <div className="text-3xl font-bold text-white">
                 {metrics?.currentlyProcessing ?? 0}
               </div>
-              <p className="text-[11px] text-zinc-500 mt-1">Active transcode &amp; sync</p>
+              <p className="text-[11px] text-zinc-400 mt-1">Active transcode &amp; sync</p>
             </div>
 
             {/* Queued / Pending */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-amber-100 dark:border-amber-950/60 shadow-sm relative overflow-hidden">
+            <div className="p-5 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden hover:border-zinc-700 hover:bg-[#181818] transition-all">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">In Queue</span>
-                <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">In Queue</span>
+                <div className="w-8 h-8 rounded-xl bg-black border border-[#282828] text-amber-400 flex items-center justify-center">
                   <Clock className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-3xl font-black text-zinc-900 dark:text-white">
+              <div className="text-3xl font-bold text-white">
                 {metrics?.pendingQueued ?? 0}
               </div>
-              <p className="text-[11px] text-zinc-500 mt-1">Waiting for worker pick</p>
+              <p className="text-[11px] text-zinc-400 mt-1">Waiting for worker pick</p>
             </div>
 
             {/* Successfully Completed */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-emerald-100 dark:border-emerald-950/60 shadow-sm relative overflow-hidden">
+            <div className="p-5 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden hover:border-zinc-700 hover:bg-[#181818] transition-all">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Completed</span>
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Completed</span>
+                <div className="w-8 h-8 rounded-xl bg-black border border-[#282828] text-emerald-400 flex items-center justify-center">
                   <CheckCircle2 className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-3xl font-black text-zinc-900 dark:text-white">
+              <div className="text-3xl font-bold text-white">
                 {metrics?.completed ?? 0}
               </div>
-              <p className="text-[11px] text-zinc-500 mt-1">Ingested successfully</p>
+              <p className="text-[11px] text-zinc-400 mt-1">Ingested successfully</p>
             </div>
 
             {/* Failed */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-rose-100 dark:border-rose-950/60 shadow-sm relative overflow-hidden">
+            <div className="p-5 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden hover:border-zinc-700 hover:bg-[#181818] transition-all">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Failed</span>
-                <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
+                <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Failed</span>
+                <div className="w-8 h-8 rounded-xl bg-black border border-[#282828] text-rose-400 flex items-center justify-center">
                   <AlertTriangle className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-3xl font-black text-zinc-900 dark:text-white">
+              <div className="text-3xl font-bold text-white">
                 {metrics?.failed ?? 0}
               </div>
-              <p className="text-[11px] text-zinc-500 mt-1">Errors requiring inspection</p>
+              <p className="text-[11px] text-zinc-400 mt-1">Errors requiring inspection</p>
             </div>
 
             {/* Total Jobs */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden col-span-2 md:col-span-1">
+            <div className="p-5 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden col-span-2 md:col-span-1 hover:border-zinc-700 hover:bg-[#181818] transition-all">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Total Lifetime</span>
-                <div className="w-8 h-8 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 flex items-center justify-center">
+                <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Total Lifetime</span>
+                <div className="w-8 h-8 rounded-xl bg-black border border-[#282828] text-zinc-300 flex items-center justify-center">
                   <Layers className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-3xl font-black text-zinc-900 dark:text-white">
+              <div className="text-3xl font-bold text-white">
                 {metrics?.totalJobs ?? 0}
               </div>
-              <p className="text-[11px] text-zinc-500 mt-1">All pipeline executions</p>
+              <p className="text-[11px] text-zinc-400 mt-1">All pipeline executions</p>
             </div>
           </div>
 
@@ -445,42 +445,42 @@ export default function JobMonitoringPage() {
           )}
 
           {/* Pipeline Flowchart Visualizer */}
-          <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-4">
+          <div className="p-6 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                  <Cpu className="w-4 h-4 text-indigo-500" />
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Cpu className="w-4 h-4 text-white" />
                   Song Ingestion Pipeline Architecture &amp; Latency
                 </h3>
-                <p className="text-xs text-zinc-500 mt-0.5">
+                <p className="text-xs text-zinc-400 mt-0.5">
                   Live state machine executing across workers, GPU accelerated transcoding, and cloud search indices.
                 </p>
               </div>
-              <span className="text-xs font-mono font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-full">
+              <span className="text-xs font-mono font-bold text-zinc-300 bg-black/60 border border-[#282828] px-3 py-1 rounded-full">
                 Avg Total: {formatMs(metrics?.avgTotalMs)}
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2">
               {/* Stage 1: Queued */}
-              <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 relative group">
+              <div className="p-4 rounded-xl bg-black/50 border border-[#282828] relative group">
                 <div className="flex items-center justify-between text-xs mb-2">
-                  <span className="font-bold text-amber-500">1. Pickup &amp; Download</span>
-                  <Radio className="w-3.5 h-3.5 text-amber-500" />
+                  <span className="font-bold text-amber-400">1. Pickup &amp; Download</span>
+                  <Radio className="w-3.5 h-3.5 text-amber-400" />
                 </div>
-                <div className="text-lg font-black text-zinc-900 dark:text-white">
+                <div className="text-lg font-bold text-white">
                   {metrics?.stageBreakdown?.["QUEUED"] ?? 0}
                 </div>
                 <div className="text-[11px] text-zinc-400 mt-1">Pending worker pickup</div>
               </div>
 
               {/* Stage 2: Transcoding */}
-              <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 relative group">
+              <div className="p-4 rounded-xl bg-black/50 border border-[#282828] relative group">
                 <div className="flex items-center justify-between text-xs mb-2">
-                  <span className="font-bold text-indigo-500">2. Transcoding (DASH/HLS)</span>
-                  <Cpu className="w-3.5 h-3.5 text-indigo-500" />
+                  <span className="font-bold text-white">2. Transcoding (DASH/HLS)</span>
+                  <Cpu className="w-3.5 h-3.5 text-white" />
                 </div>
-                <div className="text-lg font-black text-zinc-900 dark:text-white">
+                <div className="text-lg font-bold text-white">
                   {metrics?.stageBreakdown?.["TRANSCODING"] ?? 0}
                 </div>
                 <div className="text-[11px] text-zinc-400 mt-1">
@@ -489,12 +489,12 @@ export default function JobMonitoringPage() {
               </div>
 
               {/* Stage 3: Recombee */}
-              <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 relative group">
+              <div className="p-4 rounded-xl bg-black/50 border border-[#282828] relative group">
                 <div className="flex items-center justify-between text-xs mb-2">
-                  <span className="font-bold text-purple-500">3. Recombee AI</span>
-                  <Sparkles className="w-3.5 h-3.5 text-purple-500" />
+                  <span className="font-bold text-zinc-200">3. Recombee AI</span>
+                  <Sparkles className="w-3.5 h-3.5 text-zinc-200" />
                 </div>
-                <div className="text-lg font-black text-zinc-900 dark:text-white">
+                <div className="text-lg font-bold text-white">
                   {metrics?.stageBreakdown?.["RECOMMENDATION_INDEXING"] ?? 0}
                 </div>
                 <div className="text-[11px] text-zinc-400 mt-1">
@@ -503,12 +503,12 @@ export default function JobMonitoringPage() {
               </div>
 
               {/* Stage 4: Algolia */}
-              <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 relative group">
+              <div className="p-4 rounded-xl bg-black/50 border border-[#282828] relative group">
                 <div className="flex items-center justify-between text-xs mb-2">
-                  <span className="font-bold text-cyan-500">4. Algolia Search</span>
-                  <Search className="w-3.5 h-3.5 text-cyan-500" />
+                  <span className="font-bold text-zinc-200">4. Algolia Search</span>
+                  <Search className="w-3.5 h-3.5 text-zinc-200" />
                 </div>
-                <div className="text-lg font-black text-zinc-900 dark:text-white">
+                <div className="text-lg font-bold text-white">
                   {metrics?.stageBreakdown?.["SEARCH_INDEXING"] ?? 0}
                 </div>
                 <div className="text-[11px] text-zinc-400 mt-1">
@@ -517,12 +517,12 @@ export default function JobMonitoringPage() {
               </div>
 
               {/* Stage 5: Finalizing */}
-              <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 relative group">
+              <div className="p-4 rounded-xl bg-black/50 border border-[#282828] relative group">
                 <div className="flex items-center justify-between text-xs mb-2">
-                  <span className="font-bold text-emerald-500">5. Finalize Song</span>
-                  <Database className="w-3.5 h-3.5 text-emerald-500" />
+                  <span className="font-bold text-emerald-400">5. Finalize Song</span>
+                  <Database className="w-3.5 h-3.5 text-emerald-400" />
                 </div>
-                <div className="text-lg font-black text-zinc-900 dark:text-white">
+                <div className="text-lg font-bold text-white">
                   {metrics?.stageBreakdown?.["FINALIZING"] ?? 0}
                 </div>
                 <div className="text-[11px] text-zinc-400 mt-1">
@@ -534,18 +534,18 @@ export default function JobMonitoringPage() {
 
           {/* Active Processing Live Monitor */}
           {activeJobs.length > 0 && (
-            <div className="p-6 rounded-3xl bg-indigo-50/50 dark:bg-indigo-950/20 border border-indigo-200/60 dark:border-indigo-900/40 shadow-sm space-y-4">
+            <div className="p-6 rounded-2xl bg-black/50 border border-[#282828] shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <span className="relative flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-indigo-500"></span>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
                   </span>
-                  <h3 className="text-sm font-bold text-indigo-950 dark:text-indigo-200">
+                  <h3 className="text-sm font-bold text-white">
                     Actively In Flight ({activeJobs.length})
                   </h3>
                 </div>
-                <span className="text-xs text-indigo-600 dark:text-indigo-400 font-mono">
+                <span className="text-xs text-zinc-400 font-mono">
                   Real-time worker telemetry
                 </span>
               </div>
@@ -557,10 +557,10 @@ export default function JobMonitoringPage() {
                     <div
                       key={job.id}
                       onClick={() => setSelectedJob(job)}
-                      className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-indigo-100 dark:border-indigo-900/40 shadow-sm cursor-pointer hover:border-indigo-400 transition-all space-y-3 group"
+                      className="p-4 rounded-xl bg-[#121212] border border-[#282828] shadow-sm cursor-pointer hover:border-zinc-600 hover:bg-[#181818] transition-all space-y-3 group"
                     >
                       <div className="flex items-center gap-3">
-                        <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 shrink-0 border border-zinc-200 dark:border-zinc-700">
+                        <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-black shrink-0 border border-[#282828]">
                           {job.imageKey ? (
                             <Image
                               src={getImageUrl(job.imageKey, { width: 100, height: 100 })}
@@ -570,30 +570,30 @@ export default function JobMonitoringPage() {
                               unoptimized
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-xs font-bold text-zinc-400">
+                            <div className="w-full h-full flex items-center justify-center text-xs font-bold text-zinc-500">
                               IMG
                             </div>
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <h4 className="font-bold text-xs text-zinc-900 dark:text-white truncate group-hover:text-indigo-600 transition-colors">
+                          <h4 className="font-bold text-xs text-white truncate group-hover:underline transition-colors">
                             {job.title}
                           </h4>
-                          <p className="text-[11px] text-zinc-500 truncate">{job.artistName}</p>
+                          <p className="text-[11px] text-zinc-400 truncate">{job.artistName}</p>
                         </div>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${stageBadge.bg}`}>
                           {stageBadge.label}
                         </span>
                       </div>
 
-                      <div className="flex items-center justify-between text-[11px] text-zinc-500 font-mono pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                      <div className="flex items-center justify-between text-[11px] text-zinc-400 font-mono pt-2 border-t border-[#282828]">
                         <span>Elapsed: {formatMs(job.elapsedTotalMs)}</span>
                         {job.transcodingAttempt > 1 && (
-                          <span className="text-amber-500 font-bold">
+                          <span className="text-amber-400 font-bold">
                             Attempt #{job.transcodingAttempt}
                           </span>
                         )}
-                        <span className="text-indigo-600 dark:text-indigo-400 flex items-center gap-1 font-bold">
+                        <span className="text-white flex items-center gap-1 font-bold">
                           Inspect <ChevronRight className="w-3 h-3" />
                         </span>
                       </div>
@@ -613,10 +613,10 @@ export default function JobMonitoringPage() {
                   <button
                     key={s}
                     onClick={() => setStatusFilter(s)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
                       statusFilter === s
-                        ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 border-zinc-900 dark:border-white shadow-sm"
-                        : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
+                        ? "bg-white text-black border-white shadow-sm"
+                        : "bg-[#121212] text-zinc-400 border-[#282828] hover:text-white hover:border-zinc-700"
                     }`}
                   >
                     {s}
@@ -625,22 +625,22 @@ export default function JobMonitoringPage() {
               </div>
 
               <div className="relative w-full sm:w-72">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
                 <input
                   type="text"
                   placeholder="Search song, artist, job ID..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                  className="w-full pl-9 pr-4 py-2 bg-[#121212] border border-[#282828] rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white focus:ring-1 focus:ring-white/20 transition-all"
                 />
               </div>
             </div>
 
             {/* Ingestion Jobs Table */}
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
+            <div className="bg-[#121212] border border-[#282828] rounded-2xl overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-zinc-50 dark:bg-zinc-800/40 border-b border-zinc-200 dark:border-zinc-800 text-zinc-400 uppercase font-bold tracking-wider text-[10px]">
+                  <thead className="bg-black/60 border-b border-[#282828] text-zinc-400 uppercase font-bold tracking-wider text-[10px]">
                     <tr>
                       <th className="py-3.5 px-4">Song / Target</th>
                       <th className="py-3.5 px-4">Status</th>
@@ -652,7 +652,7 @@ export default function JobMonitoringPage() {
                       <th className="py-3.5 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60 font-mono">
+                  <tbody className="divide-y divide-[#282828] font-mono">
                     {filteredJobs.length === 0 ? (
                       <tr>
                         <td colSpan={8} className="py-12 text-center text-zinc-500 font-sans">
@@ -668,11 +668,11 @@ export default function JobMonitoringPage() {
                           <tr
                             key={job.id}
                             onClick={() => setSelectedJob(job)}
-                            className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors cursor-pointer group"
+                            className="hover:bg-[#181818] transition-colors cursor-pointer group"
                           >
                             <td className="py-3 px-4 font-sans">
                               <div className="flex items-center gap-3">
-                                <div className="relative w-8 h-8 rounded-lg overflow-hidden bg-zinc-100 dark:bg-zinc-800 shrink-0 border border-zinc-200 dark:border-zinc-700">
+                                <div className="relative w-8 h-8 rounded-lg overflow-hidden bg-black shrink-0 border border-[#282828]">
                                   {job.imageKey ? (
                                     <Image
                                       src={getImageUrl(job.imageKey, { width: 80, height: 80 })}
@@ -682,16 +682,16 @@ export default function JobMonitoringPage() {
                                       unoptimized
                                     />
                                   ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-[9px] text-zinc-400">
+                                    <div className="w-full h-full flex items-center justify-center text-[9px] text-zinc-500">
                                       IMG
                                     </div>
                                   )}
                                 </div>
                                 <div className="min-w-0">
-                                  <div className="font-bold text-zinc-900 dark:text-white truncate max-w-[200px] group-hover:text-indigo-600 transition-colors">
+                                  <div className="font-bold text-white truncate max-w-[200px] group-hover:underline transition-colors">
                                     {job.title}
                                   </div>
-                                  <div className="text-[11px] text-zinc-500 truncate max-w-[200px]">
+                                  <div className="text-[11px] text-zinc-400 truncate max-w-[200px]">
                                     {job.artistName}
                                   </div>
                                 </div>
@@ -711,23 +711,23 @@ export default function JobMonitoringPage() {
                               </span>
                             </td>
 
-                            <td className="py-3 px-4 text-zinc-600 dark:text-zinc-400">
+                            <td className="py-3 px-4 text-zinc-400">
                               {job.transcodingAttempt > 1 ? (
-                                <span className="font-bold text-amber-500">#{job.transcodingAttempt}</span>
+                                <span className="font-bold text-amber-400">#{job.transcodingAttempt}</span>
                               ) : (
                                 "#1"
                               )}
                             </td>
 
-                            <td className="py-3 px-4 text-zinc-600 dark:text-zinc-400">
+                            <td className="py-3 px-4 text-zinc-400">
                               {formatMs(job.transcodingDurationMs)}
                             </td>
 
-                            <td className="py-3 px-4 font-bold text-zinc-900 dark:text-white">
+                            <td className="py-3 px-4 font-bold text-white">
                               {formatMs(job.totalDurationMs || job.elapsedTotalMs)}
                             </td>
 
-                            <td className="py-3 px-4 text-zinc-400 text-[11px]">
+                            <td className="py-3 px-4 text-zinc-500 text-[11px]">
                               {formatTime(job.createdAt)}
                             </td>
 
@@ -737,7 +737,7 @@ export default function JobMonitoringPage() {
                                   e.stopPropagation();
                                   setSelectedJob(job);
                                 }}
-                                className="px-3 py-1 bg-zinc-100 dark:bg-zinc-800 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-900/30 dark:hover:text-indigo-300 font-sans font-bold text-[11px] rounded-lg transition-all"
+                                className="px-3 py-1 bg-black/60 hover:bg-white hover:text-black border border-[#282828] font-sans font-bold text-[11px] rounded-lg transition-all"
                               >
                                 View Stages
                               </button>
@@ -762,70 +762,70 @@ export default function JobMonitoringPage() {
           {/* Delete KPI Cards Grid */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {/* Processing / In Progress */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-rose-100 dark:border-rose-950/60 shadow-sm relative overflow-hidden group">
+            <div className="p-5 rounded-3xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden group hover:border-zinc-700 transition-all">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">In Progress</span>
-                <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
+                <span className="text-xs font-bold text-rose-400 uppercase tracking-wider">In Progress</span>
+                <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center">
                   <Activity className="w-4 h-4 animate-pulse" />
                 </div>
               </div>
-              <div className="text-3xl font-black text-zinc-900 dark:text-white">
+              <div className="text-3xl font-black text-white">
                 {deleteMetrics?.currentlyProcessing ?? 0}
               </div>
               <p className="text-[11px] text-zinc-500 mt-1">Purging cloud assets</p>
             </div>
 
             {/* In Queue (delete_event_queue) */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-amber-100 dark:border-amber-950/60 shadow-sm relative overflow-hidden">
+            <div className="p-5 rounded-3xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden group hover:border-zinc-700 transition-all">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">In Queue</span>
-                <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center">
+                <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">In Queue</span>
+                <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
                   <Clock className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-3xl font-black text-zinc-900 dark:text-white">
+              <div className="text-3xl font-black text-white">
                 {deleteMetrics?.pendingQueued ?? 0}
               </div>
               <p className="text-[11px] text-zinc-500 mt-1">Redis queue: {deleteMetrics?.deleteQueueDepth ?? 0}</p>
             </div>
 
             {/* Successfully Completed */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-emerald-100 dark:border-emerald-950/60 shadow-sm relative overflow-hidden">
+            <div className="p-5 rounded-3xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden group hover:border-zinc-700 transition-all">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Purged &amp; Deleted</span>
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Purged &amp; Deleted</span>
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
                   <CheckCircle2 className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-3xl font-black text-zinc-900 dark:text-white">
+              <div className="text-3xl font-black text-white">
                 {deleteMetrics?.completed ?? 0}
               </div>
               <p className="text-[11px] text-zinc-500 mt-1">Zero orphaned assets</p>
             </div>
 
             {/* Failed Deletes */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-rose-100 dark:border-rose-950/60 shadow-sm relative overflow-hidden">
+            <div className="p-5 rounded-3xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden group hover:border-zinc-700 transition-all">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">Failed</span>
-                <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center">
+                <span className="text-xs font-bold text-rose-400 uppercase tracking-wider">Failed</span>
+                <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center">
                   <AlertTriangle className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-3xl font-black text-zinc-900 dark:text-white">
+              <div className="text-3xl font-black text-white">
                 {deleteMetrics?.failed ?? 0}
               </div>
               <p className="text-[11px] text-zinc-500 mt-1">Actionable retry available</p>
             </div>
 
             {/* Total Delete Jobs */}
-            <div className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden col-span-2 md:col-span-1">
+            <div className="p-5 rounded-3xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden col-span-2 md:col-span-1 group hover:border-zinc-700 transition-all">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Total Lifetime</span>
-                <div className="w-8 h-8 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 flex items-center justify-center">
+                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Total Lifetime</span>
+                <div className="w-8 h-8 rounded-xl bg-black/60 text-zinc-300 border border-[#282828] flex items-center justify-center">
                   <Trash2 className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-3xl font-black text-zinc-900 dark:text-white">
+              <div className="text-3xl font-black text-white">
                 {deleteMetrics?.totalJobs ?? 0}
               </div>
               <p className="text-[11px] text-zinc-500 mt-1">All cascade operations</p>
@@ -833,89 +833,89 @@ export default function JobMonitoringPage() {
           </div>
 
           {/* Delete Cascade Architecture Flowchart */}
-          <div className="p-6 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-4">
+          <div className="p-6 rounded-3xl bg-[#121212] border border-[#282828] shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                  <CloudLightning className="w-4 h-4 text-rose-500" />
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <CloudLightning className="w-4 h-4 text-rose-400" />
                   Cascade Delete Architecture &amp; Cleanup Flow
                 </h3>
-                <p className="text-xs text-zinc-500 mt-0.5">
+                <p className="text-xs text-zinc-400 mt-0.5">
                   Sequential cloud teardown ensuring complete atomicity across search, AI recommendations, CDN, S3, and database.
                 </p>
               </div>
-              <span className="text-xs font-mono font-bold text-zinc-500 bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-full">
+              <span className="text-xs font-mono font-bold text-zinc-300 bg-black/60 border border-[#282828] px-3 py-1 rounded-full">
                 Avg Cleanup: {formatMs(deleteMetrics?.avgTotalMs)}
               </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2">
               {/* Step 1: Algolia Purge */}
-              <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 relative group">
+              <div className="p-4 rounded-2xl bg-black/60 border border-[#282828] relative group hover:border-zinc-600 transition-all">
                 <div className="flex items-center justify-between text-xs mb-2">
-                  <span className="font-bold text-cyan-500">1. Algolia Sync</span>
-                  <Search className="w-3.5 h-3.5 text-cyan-500" />
+                  <span className="font-bold text-cyan-400">1. Algolia Sync</span>
+                  <Search className="w-3.5 h-3.5 text-cyan-400" />
                 </div>
-                <div className="text-lg font-black text-zinc-900 dark:text-white">
+                <div className="text-lg font-black text-white">
                   {deleteMetrics?.stageBreakdown?.["SEARCH_DELETED"] ?? 0}
                 </div>
-                <div className="text-[11px] text-zinc-400 mt-1">
+                <div className="text-[11px] text-zinc-400 mt-1 font-mono">
                   Avg: {formatMs(deleteMetrics?.avgSearchMs)}
                 </div>
               </div>
 
               {/* Step 2: Recombee Purge */}
-              <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 relative group">
+              <div className="p-4 rounded-2xl bg-black/60 border border-[#282828] relative group hover:border-zinc-600 transition-all">
                 <div className="flex items-center justify-between text-xs mb-2">
-                  <span className="font-bold text-purple-500">2. Recombee AI</span>
-                  <Sparkles className="w-3.5 h-3.5 text-purple-500" />
+                  <span className="font-bold text-purple-400">2. Recombee AI</span>
+                  <Sparkles className="w-3.5 h-3.5 text-purple-400" />
                 </div>
-                <div className="text-lg font-black text-zinc-900 dark:text-white">
+                <div className="text-lg font-black text-white">
                   {deleteMetrics?.stageBreakdown?.["RECOMMENDATION_DELETED"] ?? 0}
                 </div>
-                <div className="text-[11px] text-zinc-400 mt-1">
+                <div className="text-[11px] text-zinc-400 mt-1 font-mono">
                   Avg: {formatMs(deleteMetrics?.avgRecommendationMs)}
                 </div>
               </div>
 
               {/* Step 3: ImageKit CDN Purge */}
-              <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 relative group">
+              <div className="p-4 rounded-2xl bg-black/60 border border-[#282828] relative group hover:border-zinc-600 transition-all">
                 <div className="flex items-center justify-between text-xs mb-2">
-                  <span className="font-bold text-pink-500">3. ImageKit CDN</span>
-                  <Activity className="w-3.5 h-3.5 text-pink-500" />
+                  <span className="font-bold text-pink-400">3. ImageKit CDN</span>
+                  <Activity className="w-3.5 h-3.5 text-pink-400" />
                 </div>
-                <div className="text-lg font-black text-zinc-900 dark:text-white">
+                <div className="text-lg font-black text-white">
                   {deleteMetrics?.stageBreakdown?.["IMAGEKIT_DELETED"] ?? 0}
                 </div>
-                <div className="text-[11px] text-zinc-400 mt-1">
+                <div className="text-[11px] text-zinc-400 mt-1 font-mono">
                   Avg: {formatMs(deleteMetrics?.avgImageKitMs)}
                 </div>
               </div>
 
               {/* Step 4: S3 Audio & Video Purge */}
-              <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 relative group">
+              <div className="p-4 rounded-2xl bg-black/60 border border-[#282828] relative group hover:border-zinc-600 transition-all">
                 <div className="flex items-center justify-between text-xs mb-2">
-                  <span className="font-bold text-indigo-500">4. S3 Media Prefix</span>
-                  <HardDrive className="w-3.5 h-3.5 text-indigo-500" />
+                  <span className="font-bold text-indigo-400">4. S3 Media Prefix</span>
+                  <HardDrive className="w-3.5 h-3.5 text-indigo-400" />
                 </div>
-                <div className="text-lg font-black text-zinc-900 dark:text-white">
+                <div className="text-lg font-black text-white">
                   {deleteMetrics?.stageBreakdown?.["S3_DELETED"] ?? 0}
                 </div>
-                <div className="text-[11px] text-zinc-400 mt-1">
+                <div className="text-[11px] text-zinc-400 mt-1 font-mono">
                   Avg: {formatMs(deleteMetrics?.avgS3Ms)}
                 </div>
               </div>
 
               {/* Step 5: Database Hard Delete */}
-              <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700/50 relative group">
+              <div className="p-4 rounded-2xl bg-black/60 border border-[#282828] relative group hover:border-zinc-600 transition-all">
                 <div className="flex items-center justify-between text-xs mb-2">
-                  <span className="font-bold text-emerald-500">5. Hard Delete</span>
-                  <Database className="w-3.5 h-3.5 text-emerald-500" />
+                  <span className="font-bold text-emerald-400">5. Hard Delete</span>
+                  <Database className="w-3.5 h-3.5 text-emerald-400" />
                 </div>
-                <div className="text-lg font-black text-zinc-900 dark:text-white">
+                <div className="text-lg font-black text-white">
                   {deleteMetrics?.stageBreakdown?.["COMPLETED"] ?? 0}
                 </div>
-                <div className="text-[11px] text-zinc-400 mt-1">
+                <div className="text-[11px] text-zinc-400 mt-1 font-mono">
                   Avg: {formatMs(deleteMetrics?.avgFinalizeMs)}
                 </div>
               </div>
@@ -924,18 +924,18 @@ export default function JobMonitoringPage() {
 
           {/* Active Delete Jobs Live Monitor */}
           {activeDeleteJobs.length > 0 && (
-            <div className="p-6 rounded-3xl bg-rose-50/50 dark:bg-rose-950/20 border border-rose-200/60 dark:border-rose-900/40 shadow-sm space-y-4">
+            <div className="p-6 rounded-3xl bg-[#121212] border border-rose-500/30 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
                   <span className="relative flex h-3 w-3">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
                   </span>
-                  <h3 className="text-sm font-bold text-rose-950 dark:text-rose-200">
+                  <h3 className="text-sm font-bold text-white">
                     Active Deletion Tasks ({activeDeleteJobs.length})
                   </h3>
                 </div>
-                <span className="text-xs text-rose-600 dark:text-rose-400 font-mono">
+                <span className="text-xs text-rose-400 font-mono">
                   Live cloud teardown
                 </span>
               </div>
@@ -947,10 +947,10 @@ export default function JobMonitoringPage() {
                     <div
                       key={job.id}
                       onClick={() => setSelectedDeleteJob(job)}
-                      className="p-4 rounded-2xl bg-white dark:bg-zinc-900 border border-rose-100 dark:border-rose-900/40 shadow-sm cursor-pointer hover:border-rose-400 transition-all space-y-3 group"
+                      className="p-4 rounded-2xl bg-black/60 border border-[#282828] shadow-sm cursor-pointer hover:border-rose-500/60 transition-all space-y-3 group"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 uppercase">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-black/80 border border-[#282828] text-zinc-400 uppercase">
                           {job.entityType}
                         </span>
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${stageBadge.bg}`}>
@@ -959,15 +959,15 @@ export default function JobMonitoringPage() {
                       </div>
 
                       <div>
-                        <h4 className="font-bold text-xs text-zinc-900 dark:text-white truncate group-hover:text-rose-600 transition-colors">
+                        <h4 className="font-bold text-xs text-white truncate group-hover:text-rose-400 transition-colors">
                           {job.entityTitle || job.entityId}
                         </h4>
                         <p className="text-[11px] text-zinc-500 font-mono truncate">{job.entityId}</p>
                       </div>
 
-                      <div className="flex items-center justify-between text-[11px] text-zinc-500 font-mono pt-2 border-t border-zinc-100 dark:border-zinc-800">
+                      <div className="flex items-center justify-between text-[11px] text-zinc-400 font-mono pt-2 border-t border-[#282828]">
                         <span>Elapsed: {formatMs(job.elapsedTotalMs)}</span>
-                        <span className="text-rose-600 dark:text-rose-400 flex items-center gap-1 font-bold">
+                        <span className="text-rose-400 flex items-center gap-1 font-bold">
                           Inspect <ChevronRight className="w-3 h-3" />
                         </span>
                       </div>
@@ -987,10 +987,10 @@ export default function JobMonitoringPage() {
                   <button
                     key={s}
                     onClick={() => setDeleteStatusFilter(s)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
                       deleteStatusFilter === s
-                        ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 border-zinc-900 dark:border-white shadow-sm"
-                        : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
+                        ? "bg-white text-black border-white shadow-sm"
+                        : "bg-black/60 text-zinc-400 border-[#282828] hover:text-white hover:border-zinc-500"
                     }`}
                   >
                     {s}
@@ -1002,10 +1002,10 @@ export default function JobMonitoringPage() {
                   <button
                     key={t}
                     onClick={() => setDeleteTypeFilter(t)}
-                    className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
                       deleteTypeFilter === t
-                        ? "bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900 border-zinc-800 dark:border-zinc-200 shadow-sm"
-                        : "bg-white dark:bg-zinc-900 text-zinc-500 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
+                        ? "bg-white text-black border-white shadow-sm"
+                        : "bg-black/60 text-zinc-400 border-[#282828] hover:text-white hover:border-zinc-500"
                     }`}
                   >
                     {t}
@@ -1020,16 +1020,16 @@ export default function JobMonitoringPage() {
                   placeholder="Search title, entity ID, job ID..."
                   value={deleteSearchQuery}
                   onChange={(e) => setDeleteSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 transition-all"
+                  className="w-full pl-9 pr-4 py-2 bg-[#121212] border border-[#282828] rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-400 transition-all"
                 />
               </div>
             </div>
 
             {/* Delete Jobs Table */}
-            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm">
+            <div className="bg-[#121212] border border-[#282828] rounded-3xl overflow-hidden shadow-sm">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-zinc-50 dark:bg-zinc-800/40 border-b border-zinc-200 dark:border-zinc-800 text-zinc-400 uppercase font-bold tracking-wider text-[10px]">
+                  <thead className="bg-black/60 border-b border-[#282828] text-zinc-400 uppercase font-bold tracking-wider text-[10px]">
                     <tr>
                       <th className="py-3.5 px-4">Entity</th>
                       <th className="py-3.5 px-4">Type</th>
@@ -1042,7 +1042,7 @@ export default function JobMonitoringPage() {
                       <th className="py-3.5 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800/60 font-mono">
+                  <tbody className="divide-y divide-[#282828] font-mono">
                     {filteredDeleteJobs.length === 0 ? (
                       <tr>
                         <td colSpan={9} className="py-12 text-center text-zinc-500 font-sans">
@@ -1059,11 +1059,11 @@ export default function JobMonitoringPage() {
                           <tr
                             key={job.id}
                             onClick={() => setSelectedDeleteJob(job)}
-                            className="hover:bg-zinc-50 dark:hover:bg-zinc-800/30 transition-colors cursor-pointer group"
+                            className="hover:bg-zinc-800/30 transition-colors cursor-pointer group"
                           >
                             <td className="py-3 px-4 font-sans">
                               <div className="min-w-0">
-                                <div className="font-bold text-zinc-900 dark:text-white truncate max-w-[220px] group-hover:text-rose-600 transition-colors">
+                                <div className="font-bold text-white truncate max-w-[220px] group-hover:text-rose-400 transition-colors">
                                   {job.entityTitle || "Untitled Entity"}
                                 </div>
                                 <div className="text-[11px] text-zinc-500 font-mono truncate max-w-[220px]">
@@ -1073,7 +1073,7 @@ export default function JobMonitoringPage() {
                             </td>
 
                             <td className="py-3 px-4 font-sans">
-                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300">
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-black/60 border border-[#282828] text-zinc-300">
                                 {job.entityType}
                               </span>
                             </td>
@@ -1091,20 +1091,20 @@ export default function JobMonitoringPage() {
                               </span>
                             </td>
 
-                            <td className="py-3 px-4 text-zinc-600 dark:text-zinc-400">
+                            <td className="py-3 px-4 text-zinc-300">
                               {job.attemptCount > 1 ? (
-                                <span className="font-bold text-amber-500">#{job.attemptCount}</span>
+                                <span className="font-bold text-amber-400">#{job.attemptCount}</span>
                               ) : (
                                 "#1"
                               )}
-                              <span className="text-[10px] text-zinc-400"> / {job.maxAttempts}</span>
+                              <span className="text-[10px] text-zinc-500"> / {job.maxAttempts}</span>
                             </td>
 
-                            <td className="py-3 px-4 text-zinc-600 dark:text-zinc-400">
+                            <td className="py-3 px-4 text-zinc-300">
                               {formatMs(job.s3DurationMs)}
                             </td>
 
-                            <td className="py-3 px-4 font-bold text-zinc-900 dark:text-white">
+                            <td className="py-3 px-4 font-bold text-white">
                               {formatMs(job.totalDurationMs || job.elapsedTotalMs)}
                             </td>
 
@@ -1118,7 +1118,7 @@ export default function JobMonitoringPage() {
                                   <button
                                     onClick={(e) => handleRetryDeleteJob(job.id, e)}
                                     disabled={isRetrying}
-                                    className="px-2.5 py-1 bg-rose-500/10 text-rose-600 hover:bg-rose-500 hover:text-white dark:bg-rose-950/40 dark:text-rose-400 border border-rose-500/20 font-bold text-[11px] rounded-lg transition-all flex items-center gap-1"
+                                    className="px-2.5 py-1 bg-rose-500/10 text-rose-400 hover:bg-rose-600 hover:text-white border border-rose-500/30 font-bold text-[11px] rounded-lg transition-all flex items-center gap-1"
                                     title="1-Click Retry"
                                   >
                                     <RotateCcw className={`w-3 h-3 ${isRetrying ? "animate-spin" : ""}`} />
@@ -1130,7 +1130,7 @@ export default function JobMonitoringPage() {
                                     e.stopPropagation();
                                     setSelectedDeleteJob(job);
                                   }}
-                                  className="px-3 py-1 bg-zinc-100 dark:bg-zinc-800 hover:bg-rose-50 hover:text-rose-600 dark:hover:bg-rose-900/30 dark:hover:text-rose-300 font-bold text-[11px] rounded-lg transition-all"
+                                  className="px-3 py-1 bg-black/60 hover:bg-white hover:text-black border border-[#282828] text-zinc-300 font-bold text-[11px] rounded-lg transition-all"
                                 >
                                   Details
                                 </button>
@@ -1152,12 +1152,12 @@ export default function JobMonitoringPage() {
       {/* INGESTION DETAIL MODAL                                                    */}
       {/* ========================================================================= */}
       {selectedJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[#121212] border border-[#282828] rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
             {/* Modal Header */}
-            <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+            <div className="p-6 border-b border-[#282828] flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 shrink-0 border border-zinc-200 dark:border-zinc-700">
+                <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-black/60 shrink-0 border border-[#282828]">
                   {selectedJob.imageKey ? (
                     <Image
                       src={getImageUrl(selectedJob.imageKey, { width: 120, height: 120 })}
@@ -1167,27 +1167,27 @@ export default function JobMonitoringPage() {
                       unoptimized
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-xs font-bold text-zinc-400">
+                    <div className="w-full h-full flex items-center justify-center text-xs font-bold text-zinc-500">
                       IMG
                     </div>
                   )}
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-zinc-900 dark:text-white flex items-center gap-2">
+                  <h3 className="font-bold text-base text-white flex items-center gap-2">
                     {selectedJob.title}
                     {selectedJob.isVideoReprocess && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-500 font-bold border border-indigo-500/20">
+                      <span className="text-[10px] px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-400 font-bold border border-indigo-500/30">
                         Canvas Reprocess
                       </span>
                     )}
                   </h3>
-                  <p className="text-xs text-zinc-500">{selectedJob.artistName} • Job ID: {selectedJob.id}</p>
+                  <p className="text-xs text-zinc-400">{selectedJob.artistName} • Job ID: {selectedJob.id}</p>
                 </div>
               </div>
 
               <button
                 onClick={() => setSelectedJob(null)}
-                className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                className="p-2 text-zinc-400 hover:text-white rounded-xl hover:bg-white/10 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1197,7 +1197,7 @@ export default function JobMonitoringPage() {
             <div className="p-6 overflow-y-auto space-y-6">
               {/* Failure Banner if Failed */}
               {selectedJob.status === "FAILED" && (
-                <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 flex items-start gap-3">
+                <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
                   <div>
                     <h4 className="text-xs font-bold uppercase tracking-wider">Pipeline Failure Notice</h4>
@@ -1208,7 +1208,7 @@ export default function JobMonitoringPage() {
 
               {/* Stage Progress Timeline */}
               <div>
-                <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-4">
+                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-4">
                   Webhook Execution &amp; Stage Timeline
                 </h4>
 
@@ -1230,8 +1230,8 @@ export default function JobMonitoringPage() {
                             : isFailed
                             ? "bg-rose-500/10 border-rose-500/30"
                             : isSkipped
-                            ? "bg-zinc-100/50 dark:bg-zinc-800/30 border-zinc-200 dark:border-zinc-800 opacity-60"
-                            : "bg-zinc-50 dark:bg-zinc-800/40 border-zinc-200 dark:border-zinc-800"
+                            ? "bg-black/40 border-[#282828] opacity-60"
+                            : "bg-black/40 border-[#282828]"
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -1244,16 +1244,16 @@ export default function JobMonitoringPage() {
                                 : isFailed
                                 ? "bg-rose-500 text-white"
                                 : isSkipped
-                                ? "bg-zinc-400 text-white"
-                                : "bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300"
+                                ? "bg-zinc-600 text-white"
+                                : "bg-black/60 text-zinc-400 border border-[#282828]"
                             }`}
                           >
                             {isDone ? "✓" : isFailed ? "✕" : isSkipped ? "-" : idx + 1}
                           </div>
                           <div>
-                            <div className="font-bold text-xs text-zinc-900 dark:text-white flex items-center gap-2">
+                            <div className="font-bold text-xs text-white flex items-center gap-2">
                               {stage.label}
-                              {isSkipped && <span className="text-[10px] text-zinc-400">(Skipped)</span>}
+                              {isSkipped && <span className="text-[10px] text-zinc-500">(Skipped)</span>}
                             </div>
                             <div className="text-[11px] text-zinc-400 font-mono">
                               {stage.startedAt ? formatTime(stage.startedAt) : "Pending"}
@@ -1266,10 +1266,10 @@ export default function JobMonitoringPage() {
                           <span
                             className={`font-mono font-bold text-xs ${
                               isDone
-                                ? "text-emerald-600 dark:text-emerald-400"
+                                ? "text-emerald-400"
                                 : isInProgress
-                                ? "text-indigo-600 dark:text-indigo-400"
-                                : "text-zinc-400"
+                                ? "text-indigo-400"
+                                : "text-zinc-500"
                             }`}
                           >
                             {stage.formattedDuration}
@@ -1282,18 +1282,18 @@ export default function JobMonitoringPage() {
               </div>
 
               {/* S3 & Key Artifacts */}
-              <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 space-y-2 text-xs font-mono">
+              <div className="p-4 rounded-2xl bg-black/60 border border-[#282828] space-y-2 text-xs font-mono">
                 <div className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider mb-2">Media Artifacts</div>
                 <div className="flex justify-between truncate">
                   <span className="text-zinc-500">Song Key:</span>
-                  <span className="text-zinc-800 dark:text-zinc-200 font-semibold truncate max-w-[280px]">
+                  <span className="text-zinc-200 font-semibold truncate max-w-[280px]">
                     {selectedJob.songId ? `audios/${selectedJob.songId}` : "-"}
                   </span>
                 </div>
                 {selectedJob.videoKey && (
                   <div className="flex justify-between truncate">
                     <span className="text-zinc-500">Video Canvas:</span>
-                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold truncate max-w-[280px]">
+                    <span className="text-emerald-400 font-semibold truncate max-w-[280px]">
                       {selectedJob.videoKey}
                     </span>
                   </div>
@@ -1301,7 +1301,7 @@ export default function JobMonitoringPage() {
                 {selectedJob.fullVideoKey && (
                   <div className="flex justify-between truncate">
                     <span className="text-zinc-500">Full Video:</span>
-                    <span className="text-indigo-600 dark:text-indigo-400 font-semibold truncate max-w-[280px]">
+                    <span className="text-indigo-400 font-semibold truncate max-w-[280px]">
                       {selectedJob.fullVideoKey}
                     </span>
                   </div>
@@ -1310,10 +1310,10 @@ export default function JobMonitoringPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-6 border-t border-zinc-200 dark:border-zinc-800 flex justify-end">
+            <div className="p-6 border-t border-[#282828] flex justify-end">
               <button
                 onClick={() => setSelectedJob(null)}
-                className="px-6 py-2.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 font-bold text-xs rounded-xl transition-all"
+                className="px-6 py-2.5 bg-white hover:bg-zinc-200 text-black font-bold text-xs rounded-full transition-all"
               >
                 Close
               </button>
@@ -1326,28 +1326,28 @@ export default function JobMonitoringPage() {
       {/* CASCADE DELETE DETAIL MODAL                                               */}
       {/* ========================================================================= */}
       {selectedDeleteJob && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[#121212] border border-[#282828] rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
             {/* Modal Header */}
-            <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+            <div className="p-6 border-b border-[#282828] flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-600 flex items-center justify-center shrink-0 border border-rose-500/20">
+                <div className="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center shrink-0 border border-rose-500/20">
                   <Trash2 className="w-6 h-6" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-zinc-900 dark:text-white flex items-center gap-2">
+                  <h3 className="font-bold text-base text-white flex items-center gap-2">
                     {selectedDeleteJob.entityTitle || "Untitled Entity"}
-                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-bold">
+                    <span className="text-[10px] px-2 py-0.5 rounded-md bg-black/60 border border-[#282828] text-zinc-300 font-bold">
                       {selectedDeleteJob.entityType}
                     </span>
                   </h3>
-                  <p className="text-xs text-zinc-500">Entity ID: {selectedDeleteJob.entityId} • Task: {selectedDeleteJob.id}</p>
+                  <p className="text-xs text-zinc-400">Entity ID: {selectedDeleteJob.entityId} • Task: {selectedDeleteJob.id}</p>
                 </div>
               </div>
 
               <button
                 onClick={() => setSelectedDeleteJob(null)}
-                className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 rounded-xl hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                className="p-2 text-zinc-400 hover:text-white rounded-xl hover:bg-white/10 transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1357,7 +1357,7 @@ export default function JobMonitoringPage() {
             <div className="p-6 overflow-y-auto space-y-6">
               {/* Failure Banner with 1-Click Retry */}
               {selectedDeleteJob.status === "FAILED" && (
-                <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 flex items-start justify-between gap-3">
+                <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
                     <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
                     <div>
@@ -1369,7 +1369,7 @@ export default function JobMonitoringPage() {
                   <button
                     onClick={() => handleRetryDeleteJob(selectedDeleteJob.id)}
                     disabled={retryingJobId === selectedDeleteJob.id}
-                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 shrink-0 shadow-sm"
+                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-full transition-all flex items-center gap-1.5 shrink-0 shadow-sm"
                   >
                     <RotateCcw className={`w-3.5 h-3.5 ${retryingJobId === selectedDeleteJob.id ? "animate-spin" : ""}`} />
                     Retry Now
@@ -1379,7 +1379,7 @@ export default function JobMonitoringPage() {
 
               {/* Stage Progress Timeline */}
               <div>
-                <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-4">
+                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-4">
                   Cascade Teardown Stage Execution
                 </h4>
 
@@ -1401,8 +1401,8 @@ export default function JobMonitoringPage() {
                             : isFailed
                             ? "bg-rose-500/10 border-rose-500/30"
                             : isSkipped
-                            ? "bg-zinc-100/50 dark:bg-zinc-800/30 border-zinc-200 dark:border-zinc-800 opacity-60"
-                            : "bg-zinc-50 dark:bg-zinc-800/40 border-zinc-200 dark:border-zinc-800"
+                            ? "bg-black/40 border-[#282828] opacity-60"
+                            : "bg-black/40 border-[#282828]"
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -1415,16 +1415,16 @@ export default function JobMonitoringPage() {
                                 : isFailed
                                 ? "bg-rose-500 text-white"
                                 : isSkipped
-                                ? "bg-zinc-400 text-white"
-                                : "bg-zinc-200 dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300"
+                                ? "bg-zinc-600 text-white"
+                                : "bg-black/60 text-zinc-400 border border-[#282828]"
                             }`}
                           >
                             {isDone ? "✓" : isFailed ? "✕" : isSkipped ? "-" : idx + 1}
                           </div>
                           <div>
-                            <div className="font-bold text-xs text-zinc-900 dark:text-white flex items-center gap-2">
+                            <div className="font-bold text-xs text-white flex items-center gap-2">
                               {stage.label}
-                              {isSkipped && <span className="text-[10px] text-zinc-400">(Skipped)</span>}
+                              {isSkipped && <span className="text-[10px] text-zinc-500">(Skipped)</span>}
                             </div>
                             <div className="text-[11px] text-zinc-400 font-mono">
                               {stage.startedAt ? formatTime(stage.startedAt) : "Pending"}
@@ -1437,10 +1437,10 @@ export default function JobMonitoringPage() {
                           <span
                             className={`font-mono font-bold text-xs ${
                               isDone
-                                ? "text-emerald-600 dark:text-emerald-400"
+                                ? "text-emerald-400"
                                 : isInProgress
-                                ? "text-rose-600 dark:text-rose-400"
-                                : "text-zinc-400"
+                                ? "text-rose-400"
+                                : "text-zinc-500"
                             }`}
                           >
                             {stage.formattedDuration}
@@ -1453,12 +1453,12 @@ export default function JobMonitoringPage() {
               </div>
 
               {/* Media & Key References */}
-              <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200 dark:border-zinc-800 space-y-2 text-xs font-mono">
+              <div className="p-4 rounded-2xl bg-black/60 border border-[#282828] space-y-2 text-xs font-mono">
                 <div className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider mb-2">Cloud Keys &amp; Resources Purged</div>
                 {selectedDeleteJob.songKey && (
                   <div className="flex justify-between truncate">
                     <span className="text-zinc-500">Audio S3 Prefix:</span>
-                    <span className="text-zinc-800 dark:text-zinc-200 font-semibold truncate max-w-[280px]">
+                    <span className="text-zinc-200 font-semibold truncate max-w-[280px]">
                       {selectedDeleteJob.songKey}
                     </span>
                   </div>
@@ -1466,7 +1466,7 @@ export default function JobMonitoringPage() {
                 {selectedDeleteJob.fullVideoKey && (
                   <div className="flex justify-between truncate">
                     <span className="text-zinc-500">Full Video Prefix:</span>
-                    <span className="text-indigo-600 dark:text-indigo-400 font-semibold truncate max-w-[280px]">
+                    <span className="text-indigo-400 font-semibold truncate max-w-[280px]">
                       {selectedDeleteJob.fullVideoKey}
                     </span>
                   </div>
@@ -1474,7 +1474,7 @@ export default function JobMonitoringPage() {
                 {selectedDeleteJob.videoKey && (
                   <div className="flex justify-between truncate">
                     <span className="text-zinc-500">Video Canvas:</span>
-                    <span className="text-emerald-600 dark:text-emerald-400 font-semibold truncate max-w-[280px]">
+                    <span className="text-emerald-400 font-semibold truncate max-w-[280px]">
                       {selectedDeleteJob.videoKey}
                     </span>
                   </div>
@@ -1482,7 +1482,7 @@ export default function JobMonitoringPage() {
                 {selectedDeleteJob.imageKey && (
                   <div className="flex justify-between truncate">
                     <span className="text-zinc-500">Image Key:</span>
-                    <span className="text-zinc-800 dark:text-zinc-200 font-semibold truncate max-w-[280px]">
+                    <span className="text-zinc-200 font-semibold truncate max-w-[280px]">
                       {selectedDeleteJob.imageKey}
                     </span>
                   </div>
@@ -1490,7 +1490,7 @@ export default function JobMonitoringPage() {
                 {selectedDeleteJob.coverImageKey && (
                   <div className="flex justify-between truncate">
                     <span className="text-zinc-500">Cover Image Key:</span>
-                    <span className="text-zinc-800 dark:text-zinc-200 font-semibold truncate max-w-[280px]">
+                    <span className="text-zinc-200 font-semibold truncate max-w-[280px]">
                       {selectedDeleteJob.coverImageKey}
                     </span>
                   </div>
@@ -1499,10 +1499,10 @@ export default function JobMonitoringPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-6 border-t border-zinc-200 dark:border-zinc-800 flex justify-end">
+            <div className="p-6 border-t border-[#282828] flex justify-end">
               <button
                 onClick={() => setSelectedDeleteJob(null)}
-                className="px-6 py-2.5 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 font-bold text-xs rounded-xl transition-all"
+                className="px-6 py-2.5 bg-white hover:bg-zinc-200 text-black font-bold text-xs rounded-full transition-all"
               >
                 Close
               </button>

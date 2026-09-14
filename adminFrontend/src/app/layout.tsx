@@ -17,6 +17,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "One Melody - Administration Panel",
   description: "System overview, tracks management, and user access control for One Melody.",
+  icons: {
+    icon: "/image.png",
+    apple: "/image.png",
+  },
 };
 
 export default function RootLayout({
@@ -24,14 +28,13 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  console.log("RootLayout rendering on server");
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-zinc-950 text-zinc-100">
+      <body className="min-h-full flex flex-col bg-black text-white">
         <Provider>
           <AppLayout>
             {children}

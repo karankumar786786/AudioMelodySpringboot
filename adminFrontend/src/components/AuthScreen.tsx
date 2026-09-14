@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { Mail, User, Lock, ArrowRight, RefreshCw, Music, ShieldCheck, AlertCircle } from "lucide-react";
+import { Mail, User, ArrowRight, RefreshCw, ShieldCheck, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function AuthScreen() {
@@ -128,35 +128,38 @@ export function AuthScreen() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-zinc-950 px-4 py-12 text-white overflow-hidden font-sans">
-      {/* Background glowing rings */}
-      <div className="absolute top-1/4 left-1/4 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-indigo-500/10 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 translate-x-1/2 translate-y-1/2 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-pink-500/5 rounded-full blur-[120px] pointer-events-none animate-pulse" />
+    <div className="relative flex min-h-screen items-center justify-center bg-black px-4 py-12 text-white overflow-hidden font-sans">
+      {/* Subtle monochrome ambient glow */}
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/[0.03] rounded-full blur-[140px] pointer-events-none" />
 
       {/* Card container */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="w-full max-w-md backdrop-blur-xl bg-zinc-900/60 border border-zinc-800/80 rounded-3xl p-8 shadow-2xl relative z-10"
+        transition={{ duration: 0.4 }}
+        className="w-full max-w-md bg-[#121212] border border-[#282828] rounded-3xl p-8 shadow-2xl relative z-10"
       >
-        {/* Header Icon */}
+        {/* Header Icon / Official Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20 mb-4">
-            <Music className="w-8 h-8 text-white" />
+          <div className="w-16 h-16 rounded-2xl bg-zinc-900 border border-[#282828] p-2 flex items-center justify-center mb-4 shadow-inner">
+            <img
+              src="/image.png"
+              alt="One Melody Logo"
+              className="w-full h-full object-contain"
+            />
           </div>
-          <h2 className="text-3xl font-black tracking-tight text-center bg-clip-text text-transparent bg-gradient-to-r from-indigo-200 via-purple-200 to-pink-200">
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold tracking-tight text-white">
+              One Melody
+            </h2>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-black uppercase tracking-wider">
+              Admin
+            </span>
+          </div>
+          <p className="text-zinc-400 text-xs mt-1.5 text-center">
             {mode === "otp"
-              ? "Verify OTP"
-              : mode === "login"
-              ? "Admin Sign In"
-              : "Create Admin Account"}
-          </h2>
-          <p className="text-zinc-500 text-sm mt-1 text-center font-medium">
-            {mode === "otp"
-              ? `Verification frequency dispatched to ${email}`
-              : "Enter your secure credentials to sync node."}
+              ? `Enter verification code sent to ${email}`
+              : "Sign in with your administrator credentials"}
           </p>
         </div>
 
@@ -167,44 +170,44 @@ export function AuthScreen() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
-              className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-400 text-xs font-semibold"
+              className="mb-6 p-3.5 bg-red-950/40 border border-red-800/50 rounded-2xl flex items-center gap-3 text-red-300 text-xs font-medium"
             >
-              <AlertCircle className="w-4 h-4 shrink-0" />
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
               <span>{error}</span>
             </motion.div>
           )}
         </AnimatePresence>
 
         {mode !== "otp" ? (
-          <form onSubmit={handleEmailSubmit} className="space-y-5">
+          <form onSubmit={handleEmailSubmit} className="space-y-4">
             {mode === "register" && (
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest pl-1">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider pl-1">
                   Full Name
                 </label>
                 <div className="relative group">
-                  <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
-                    <User className="w-5 h-5" />
+                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-zinc-500 group-focus-within:text-white transition-colors">
+                    <User className="w-4 h-4" />
                   </span>
                   <input
                     type="text"
                     required
-                    placeholder="Super Admin"
+                    placeholder="Admin Name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-black/40 border border-zinc-800/80 rounded-2xl py-3 pl-12 pr-4 text-sm font-semibold focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30 transition-all placeholder-zinc-700"
+                    className="w-full bg-black/60 border border-[#282828] rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-white focus:ring-1 focus:ring-white/20 transition-all"
                   />
                 </div>
               </div>
             )}
 
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest pl-1">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider pl-1">
                 Email Address
               </label>
               <div className="relative group">
-                <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-zinc-500 group-focus-within:text-indigo-400 transition-colors">
-                  <Mail className="w-5 h-5" />
+                <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-zinc-500 group-focus-within:text-white transition-colors">
+                  <Mail className="w-4 h-4" />
                 </span>
                 <input
                   type="email"
@@ -212,7 +215,7 @@ export function AuthScreen() {
                   placeholder="admin@onemelody.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-black/40 border border-zinc-800/80 rounded-2xl py-3 pl-12 pr-4 text-sm font-semibold focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30 transition-all placeholder-zinc-700"
+                  className="w-full bg-black/60 border border-[#282828] rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-white focus:ring-1 focus:ring-white/20 transition-all"
                 />
               </div>
             </div>
@@ -220,45 +223,45 @@ export function AuthScreen() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-extrabold text-sm uppercase tracking-widest py-4 rounded-2xl shadow-xl shadow-indigo-500/10 transition-all active:scale-98 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 group mt-6"
+              className="w-full bg-white text-black hover:bg-zinc-200 font-bold text-sm tracking-wide py-3.5 rounded-full transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2 group mt-6"
             >
               {loading ? (
-                <RefreshCw className="w-4 h-4 animate-spin" />
+                <RefreshCw className="w-4 h-4 animate-spin text-black" />
               ) : (
                 <>
-                  Send OTP Code
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  <span>Send Verification Code</span>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </>
               )}
             </button>
 
-            <div className="text-center mt-6">
+            <div className="text-center pt-2">
               {mode === "login" ? (
-                <p className="text-xs text-zinc-500 font-medium">
-                  Need to construct an account?{" "}
+                <p className="text-xs text-zinc-400 font-normal">
+                  Need to create an admin account?{" "}
                   <button
                     type="button"
                     onClick={() => {
                       setMode("register");
                       setError(null);
                     }}
-                    className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors"
+                    className="text-white hover:underline font-semibold ml-1 transition-colors"
                   >
-                    Register here
+                    Register
                   </button>
                 </p>
               ) : (
-                <p className="text-xs text-zinc-500 font-medium">
-                  Already synced?{" "}
+                <p className="text-xs text-zinc-400 font-normal">
+                  Already registered?{" "}
                   <button
                     type="button"
                     onClick={() => {
                       setMode("login");
                       setError(null);
                     }}
-                    className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors"
+                    className="text-white hover:underline font-semibold ml-1 transition-colors"
                   >
-                    Sign in here
+                    Sign In
                   </button>
                 </p>
               )}
@@ -278,18 +281,18 @@ export function AuthScreen() {
                   value={digit}
                   onChange={(e) => handleOtpChange(idx, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                  className="w-12 h-14 bg-black/40 border border-zinc-800/80 rounded-xl text-center text-xl font-black focus:outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30 transition-all"
+                  className="w-12 h-14 bg-black/60 border border-[#282828] rounded-xl text-center text-xl font-bold text-white focus:outline-none focus:border-white focus:ring-1 focus:ring-white/20 transition-all"
                 />
               ))}
             </div>
 
             {/* Expiration & Resend Cooldown */}
             <div className="flex items-center justify-between text-xs px-1">
-              <span className="text-zinc-500 font-medium">
+              <span className="text-zinc-400">
                 {expiresIn > 0 ? (
                   <>
-                    Code expires in{" "}
-                    <span className="text-indigo-400 font-bold font-mono">
+                    Expires in{" "}
+                    <span className="text-white font-mono font-semibold">
                       {formatTime(expiresIn)}
                     </span>
                   </>
@@ -301,9 +304,9 @@ export function AuthScreen() {
               </span>
 
               {resendCooldown > 0 ? (
-                <span className="text-zinc-500 font-medium">
+                <span className="text-zinc-400">
                   Resend in{" "}
-                  <span className="text-indigo-400 font-bold font-mono">
+                  <span className="text-white font-mono font-semibold">
                     {resendCooldown}s
                   </span>
                 </span>
@@ -312,7 +315,7 @@ export function AuthScreen() {
                   type="button"
                   onClick={handleResendOtp}
                   disabled={loading}
-                  className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors disabled:opacity-50"
+                  className="text-white hover:underline font-semibold transition-colors disabled:opacity-50"
                 >
                   Resend Code
                 </button>
@@ -322,13 +325,13 @@ export function AuthScreen() {
             <button
               onClick={handleOtpVerify}
               disabled={loading || otp.some((d) => d === "")}
-              className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-extrabold text-sm uppercase tracking-widest py-4 rounded-2xl shadow-xl shadow-indigo-500/10 transition-all active:scale-98 disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
+              className="w-full bg-white text-black hover:bg-zinc-200 font-bold text-sm tracking-wide py-3.5 rounded-full transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"
             >
               {loading ? (
-                <RefreshCw className="w-4 h-4 animate-spin" />
+                <RefreshCw className="w-4 h-4 animate-spin text-black" />
               ) : (
                 <>
-                  Verify & Connect
+                  <span>Verify & Access Console</span>
                   <ShieldCheck className="w-4 h-4" />
                 </>
               )}
@@ -340,9 +343,9 @@ export function AuthScreen() {
                 setMode(name ? "register" : "login");
                 setError(null);
               }}
-              className="w-full border border-zinc-800 hover:bg-white/5 text-zinc-400 hover:text-white font-bold text-xs uppercase tracking-widest py-3 rounded-2xl transition-all"
+              className="w-full border border-[#282828] hover:bg-white/5 text-zinc-400 hover:text-white font-semibold text-xs py-3 rounded-full transition-all"
             >
-              Change Email
+              Back to Email
             </button>
           </div>
         )}

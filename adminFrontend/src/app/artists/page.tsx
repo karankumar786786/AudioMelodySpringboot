@@ -118,12 +118,12 @@ export default function ArtistsPage() {
     <div className="p-8">
       <div className="flex justify-between items-center mb-10">
         <div>
-          <h1 className="text-3xl font-bold text-zinc-900 dark:text-white">Artist Management</h1>
-          <p className="text-zinc-500 mt-1">Manage artist profiles and biographies.</p>
+          <h1 className="text-3xl font-bold text-white">Artist Management</h1>
+          <p className="text-zinc-400 mt-1">Manage artist profiles and biographies.</p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
-          className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-purple-500/20 transition-all active:scale-95 flex items-center gap-2"
+          className="bg-white hover:bg-zinc-200 text-black px-6 py-3 rounded-full font-bold transition-all active:scale-95 flex items-center gap-2 shadow-sm"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -138,25 +138,25 @@ export default function ArtistsPage() {
           Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 animate-pulse"
+              className="bg-[#121212] rounded-3xl border border-[#282828] p-6 animate-pulse"
             >
               <div className="flex items-center gap-5">
-                <div className="w-20 h-20 rounded-2xl bg-zinc-200 dark:bg-zinc-800 shrink-0" />
+                <div className="w-20 h-20 rounded-2xl bg-zinc-800 shrink-0" />
                 <div className="flex-1 space-y-2.5">
-                  <div className="h-5 w-32 bg-zinc-200 dark:bg-zinc-800 rounded-md" />
-                  <div className="h-3 w-48 bg-zinc-100 dark:bg-zinc-800/60 rounded-md" />
-                  <div className="h-3 w-24 bg-zinc-100 dark:bg-zinc-800/40 rounded-md" />
+                  <div className="h-5 w-32 bg-zinc-800 rounded-md" />
+                  <div className="h-3 w-48 bg-zinc-800/60 rounded-md" />
+                  <div className="h-3 w-24 bg-zinc-800/40 rounded-md" />
                 </div>
               </div>
             </div>
           ))
         ) : artists.length === 0 ? (
-          <div className="col-span-full p-20 text-center text-zinc-500">No artists found.</div>
+          <div className="col-span-full p-20 text-center text-zinc-500 font-medium">No artists found.</div>
         ) : (
           artists.map((artist) => (
-            <div key={artist.id} className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm hover:shadow-xl transition-all group p-6">
+            <div key={artist.id} className="bg-[#121212] rounded-3xl border border-[#282828] overflow-hidden shadow-sm hover:border-zinc-600 transition-all group p-6">
               <div className="flex items-center gap-5">
-                <div className="w-20 h-20 rounded-2xl bg-zinc-200 dark:bg-zinc-800 overflow-hidden shrink-0 shadow-md">
+                <div className="w-20 h-20 rounded-2xl bg-black/60 border border-[#282828] overflow-hidden shrink-0">
                   {artist.coverImageKey ? (
                     <img 
                       src={getImageUrl(artist.coverImageKey, { width: 150, height: 150, focus: "auto", aspectRatio: "1-1" })} 
@@ -164,29 +164,30 @@ export default function ArtistsPage() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-zinc-400 font-bold text-xl">
+                    <div className="w-full h-full flex items-center justify-center text-zinc-500 font-bold text-xl">
                       {artist.name[0]}
                     </div>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-xl font-bold text-zinc-900 dark:text-white truncate">{artist.name}</h3>
-                  <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{artist.about || "No biography available."}</p>
+                  <h3 className="text-xl font-bold text-white truncate group-hover:text-zinc-200 transition-colors">{artist.name}</h3>
+                  <p className="text-xs text-zinc-400 mt-1 line-clamp-2">{artist.about || "No biography available."}</p>
                 </div>
               </div>
 
-              <div className="mt-6 flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800 pt-4">
-                <span className="text-xs text-zinc-400 font-mono">ID: {artist.id.slice(0, 8)}...</span>
+              <div className="mt-6 flex items-center justify-between border-t border-[#282828] pt-4">
+                <span className="text-xs text-zinc-500 font-mono">ID: {artist.id.slice(0, 8)}...</span>
                 <div className="flex gap-2">
                   <Link
                     href={`/artists/${artist.id}/songs`}
-                    className="px-3 py-1.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-purple-50 hover:text-purple-600 dark:hover:bg-purple-950/30 transition-all"
+                    className="px-4 py-1.5 rounded-full bg-black/60 border border-[#282828] text-xs font-bold text-zinc-300 hover:bg-white hover:text-black transition-all"
                   >
                     View Songs
                   </Link>
                   <button 
                     onClick={() => handleDelete(artist.id)}
-                    className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-all"
+                    className="p-2 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all"
+                    title="Delete Artist"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -201,56 +202,59 @@ export default function ArtistsPage() {
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-950/60 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 w-full max-w-xl rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-            <div className="p-8 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-800/50">
-              <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Add New Artist</h2>
-              <button onClick={() => !uploading && setIsModalOpen(false)} className="text-zinc-400 hover:text-zinc-900">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="bg-[#121212] w-full max-w-xl rounded-3xl shadow-2xl border border-[#282828] overflow-hidden">
+            <div className="p-6 border-b border-[#282828] flex justify-between items-center bg-black/40">
+              <h2 className="text-lg font-bold text-white">Add New Artist</h2>
+              <button 
+                onClick={() => !uploading && setIsModalOpen(false)} 
+                className="text-zinc-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-8 space-y-4">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Artist Name</label>
+                <label className="block text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">Artist Name</label>
                 <input 
                   required 
                   type="text" 
                   value={formData.name}
                   onChange={e => setFormData({...formData, name: e.target.value})}
                   placeholder="e.g. Hans Zimmer"
-                  className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-2xl p-4 focus:ring-2 focus:ring-purple-500"
+                  className="w-full bg-black/60 border border-[#282828] rounded-xl p-3.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-400 transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Biography / About</label>
+                <label className="block text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">Biography / About</label>
                 <textarea 
                   rows={3}
                   value={formData.about}
                   onChange={e => setFormData({...formData, about: e.target.value})}
                   placeholder="Brief artist overview..."
-                  className="w-full bg-zinc-50 dark:bg-zinc-800 border-none rounded-2xl p-4 focus:ring-2 focus:ring-purple-500"
+                  className="w-full bg-black/60 border border-[#282828] rounded-xl p-3.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-zinc-400 transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-2 uppercase tracking-wider">Cover Avatar</label>
+                <label className="block text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">Cover Avatar</label>
                 <input 
                   required 
                   type="file" 
                   accept="image/*"
                   onChange={e => setFormData({...formData, coverImage: e.target.files?.[0] || null})}
-                  className="w-full text-xs text-zinc-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-600"
+                  className="w-full text-xs text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border file:border-[#282828] file:text-xs file:font-semibold file:bg-black/60 file:text-zinc-200 hover:file:bg-white hover:file:text-black file:transition-all"
                 />
               </div>
 
               <button 
                 disabled={uploading}
                 type="submit"
-                className={`w-full py-4 mt-6 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-3 ${uploading ? "bg-purple-400" : "bg-purple-600 hover:bg-purple-700"}`}
+                className={`w-full py-3.5 mt-6 rounded-full font-bold text-black flex items-center justify-center gap-3 transition-all ${uploading ? "bg-zinc-400 cursor-not-allowed" : "bg-white hover:bg-zinc-200"}`}
               >
                 {uploading ? "Creating Artist..." : "Save Artist"}
               </button>
