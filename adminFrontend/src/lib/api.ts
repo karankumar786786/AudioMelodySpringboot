@@ -57,6 +57,10 @@ export interface Job {
   songKey?: string;
   videoKey?: string;
   fullVideoKey?: string;
+  clipStartSec?: number;
+  clipEndSec?: number;
+  previewStartTime?: number;
+  previewEndTime?: number;
   language?: string;
   status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
   isVideoReprocess?: boolean;

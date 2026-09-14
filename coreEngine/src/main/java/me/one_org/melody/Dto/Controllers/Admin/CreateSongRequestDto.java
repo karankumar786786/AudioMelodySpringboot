@@ -14,6 +14,12 @@ public record CreateSongRequestDto(
     Integer clipStartSec,
     Integer clipEndMin,
     Integer clipEndSec,
+    Integer previewStartTime,
+    Integer previewEndTime,
+    Integer previewStartMin,
+    Integer previewStartSec,
+    Integer previewEndMin,
+    Integer previewEndSec,
     @NotBlank
     String language,
     @NotBlank

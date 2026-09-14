@@ -30,6 +30,8 @@ public class JobsEntity {
     private String videoKey;
     private Integer clipStartSec;
     private Integer clipEndSec;
+    private Integer previewStartTime;
+    private Integer previewEndTime;
     private String language;
     private String lrclibId;
     @Column(nullable = false)

@@ -52,6 +52,10 @@ export default function SongsPage() {
     clipStartSec: 0,
     clipEndMin: 0,
     clipEndSec: 15,
+    previewStartMin: "" as string | number,
+    previewStartSec: "" as string | number,
+    previewEndMin: "" as string | number,
+    previewEndSec: "" as string | number,
   });
 
   // Edit Form State
@@ -196,6 +200,20 @@ export default function SongsPage() {
         uploadedVideoKey = await uploadFileToImageKit(formData.videoFile, "/songs/videos");
       }
 
+      let previewStartTime: number | null = null;
+      if (formData.previewStartMin !== "" || formData.previewStartSec !== "") {
+        const min = parseInt(String(formData.previewStartMin), 10) || 0;
+        const sec = parseInt(String(formData.previewStartSec), 10) || 0;
+        previewStartTime = min * 60 + sec;
+      }
+
+      let previewEndTime: number | null = null;
+      if (formData.previewEndMin !== "" || formData.previewEndSec !== "") {
+        const min = parseInt(String(formData.previewEndMin), 10) || 0;
+        const sec = parseInt(String(formData.previewEndSec), 10) || 0;
+        previewEndTime = min * 60 + sec;
+      }
+
       // 5. Finalize Song Creation
       setUploadProgressText("Registering song & scheduling background processing...");
       const finalizeRes = await adminFetch("/admin/song", {
@@ -212,6 +230,8 @@ export default function SongsPage() {
           clipStartSec: uploadMode === "videoOnly" ? Number(formData.clipStartSec) : undefined,
           clipEndMin: uploadMode === "videoOnly" ? Number(formData.clipEndMin) : undefined,
           clipEndSec: uploadMode === "videoOnly" ? Number(formData.clipEndSec) : undefined,
+          previewStartTime: previewStartTime !== null ? previewStartTime : undefined,
+          previewEndTime: previewEndTime !== null ? previewEndTime : undefined,
           language: formData.language || "Hindi",
           lrclibId: formData.lrclibId.trim() || "0",
         }),
@@ -232,6 +252,10 @@ export default function SongsPage() {
           clipStartSec: 0,
           clipEndMin: 0,
           clipEndSec: 15,
+          previewStartMin: "",
+          previewStartSec: "",
+          previewEndMin: "",
+          previewEndSec: "",
         });
         fetchSongs();
       } else {
@@ -713,6 +737,82 @@ export default function SongsPage() {
                   </div>
                 </div>
               )}
+
+              {/* PREVIEW / BEST PART TIMING (OPTIONAL) */}
+              <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl p-3.5 bg-zinc-50/70 dark:bg-zinc-800/40">
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    Preview / Best Part Timing <span className="text-zinc-400 normal-case font-normal text-[11px]">(Optional)</span>
+                  </label>
+                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/40">Snack / Preview</span>
+                </div>
+                <p className="text-[11px] text-zinc-500 mb-3">Specify the timestamp for the 30s preview snippet (leave blank to start from beginning):</p>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white dark:bg-zinc-900 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                    <span className="block text-[10px] font-bold text-zinc-400 uppercase mb-1.5">Best Part Start</span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <span className="text-[9px] text-zinc-400">Min</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="99"
+                          placeholder="0"
+                          value={formData.previewStartMin}
+                          onChange={e => setFormData({ ...formData, previewStartMin: e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value) || 0) })}
+                          className="w-full bg-zinc-100 dark:bg-zinc-800 rounded px-2 py-1 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white"
+                        />
+                      </div>
+                      <span className="font-bold text-zinc-400 mt-3">:</span>
+                      <div className="flex-1">
+                        <span className="text-[9px] text-zinc-400">Sec</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="59"
+                          placeholder="00"
+                          value={formData.previewStartSec}
+                          onChange={e => setFormData({ ...formData, previewStartSec: e.target.value === "" ? "" : Math.max(0, Math.min(59, parseInt(e.target.value) || 0)) })}
+                          className="w-full bg-zinc-100 dark:bg-zinc-800 rounded px-2 py-1 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white dark:bg-zinc-900 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                    <span className="block text-[10px] font-bold text-zinc-400 uppercase mb-1.5">Best Part End</span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <span className="text-[9px] text-zinc-400">Min</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="99"
+                          placeholder="0"
+                          value={formData.previewEndMin}
+                          onChange={e => setFormData({ ...formData, previewEndMin: e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value) || 0) })}
+                          className="w-full bg-zinc-100 dark:bg-zinc-800 rounded px-2 py-1 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white"
+                        />
+                      </div>
+                      <span className="font-bold text-zinc-400 mt-3">:</span>
+                      <div className="flex-1">
+                        <span className="text-[9px] text-zinc-400">Sec</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="59"
+                          placeholder="00"
+                          value={formData.previewEndSec}
+                          onChange={e => setFormData({ ...formData, previewEndSec: e.target.value === "" ? "" : Math.max(0, Math.min(59, parseInt(e.target.value) || 0)) })}
+                          className="w-full bg-zinc-100 dark:bg-zinc-800 rounded px-2 py-1 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
 
               <button disabled={uploading} type="submit" className={`w-full py-3 rounded-xl font-bold text-white text-sm transition-all flex flex-col items-center justify-center gap-1 ${uploading ? "bg-indigo-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99]"}`}>
                 {uploading ? (

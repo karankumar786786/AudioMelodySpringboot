@@ -89,6 +89,26 @@ public class SongService {
             clipEndSec = min * 60 + sec;
         }
 
+        Integer previewStartTime = data.previewStartTime();
+        if (previewStartTime == null && (data.previewStartMin() != null || data.previewStartSec() != null)) {
+            int min = data.previewStartMin() != null ? data.previewStartMin() : 0;
+            int sec = data.previewStartSec() != null ? data.previewStartSec() : 0;
+            previewStartTime = min * 60 + sec;
+        }
+        if (previewStartTime != null && previewStartTime < 0) {
+            previewStartTime = null;
+        }
+
+        Integer previewEndTime = data.previewEndTime();
+        if (previewEndTime == null && (data.previewEndMin() != null || data.previewEndSec() != null)) {
+            int min = data.previewEndMin() != null ? data.previewEndMin() : 0;
+            int sec = data.previewEndSec() != null ? data.previewEndSec() : 0;
+            previewEndTime = min * 60 + sec;
+        }
+        if (previewEndTime != null && previewEndTime < 0) {
+            previewEndTime = null;
+        }
+
         String jobId = UUID.randomUUID().toString();
         String songId = UUID.randomUUID().toString();
         JobsEntity job = JobsEntity.builder()
@@ -99,6 +119,8 @@ public class SongService {
                 .tempVideoKey(data.tempVideoKey())
                 .clipStartSec(clipStartSec)
                 .clipEndSec(clipEndSec)
+                .previewStartTime(previewStartTime)
+                .previewEndTime(previewEndTime)
                 .imageKey(data.imageKey())
                 .videoKey(data.videoKey())
                 .language(data.language())
@@ -138,6 +160,8 @@ public class SongService {
                 .tempVideoKey(tempVideoKey)
                 .imageKey(existingSong.getImageKey())
                 .videoKey(existingSong.getVideoKey())
+                .previewStartTime(existingSong.getPreviewStartTime())
+                .previewEndTime(existingSong.getPreviewEndTime())
                 .language(existingSong.getLanguage())
                 .lrclibId(existingSong.getLrclibId() != null ? existingSong.getLrclibId() : "0")
                 .songId(songId) // reuse existing song's ID so S3 paths stay consistent
