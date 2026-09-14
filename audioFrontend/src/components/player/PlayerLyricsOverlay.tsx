@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import { useStore } from "@tanstack/react-store";
 import { playerStore } from "../../store/player.store";
-import { TranscriptionEntry } from "./hooks/useLyrics";
+import { type TranscriptionEntry } from "./hooks/useLyrics";
 import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
-
 
 interface AudioVisualizerFallbackProps {
   analyser?: AnalyserNode | null;
@@ -129,6 +128,8 @@ interface PlayerLyricsOverlayProps {
   isLoading?: boolean;
 }
 
+const USER_SCROLL_IDLE_AUTO_SYNC_MS = 4000; // Automatically return to synced mode after 4s idle
+
 export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
   currentCaption,
   transcriptions = [],
@@ -145,27 +146,79 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
   const isUserScrolledRef = useRef(false);
   const isProgrammaticScrollRef = useRef(false);
   const programmaticScrollTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoResyncTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const prevTimeRef = useRef(localTime);
+  const lastActiveIndexRef = useRef(-1);
+
   const [isUserScrolled, setIsUserScrolled] = useState(false);
+
+  // Smoothly center the active lyric line in container
+  const scrollToActiveLine = useCallback((smooth = true) => {
+    if (!activeLineRef.current) return;
+    isProgrammaticScrollRef.current = true;
+    activeLineRef.current.scrollIntoView({
+      behavior: smooth ? "smooth" : "auto",
+      block: "center",
+    });
+
+    if (programmaticScrollTimerRef.current) {
+      clearTimeout(programmaticScrollTimerRef.current);
+    }
+    programmaticScrollTimerRef.current = setTimeout(() => {
+      isProgrammaticScrollRef.current = false;
+    }, 800);
+  }, []);
+
+  // Manual or automatic resync back to live audio
+  const handleResync = useCallback((notify = false) => {
+    if (autoResyncTimerRef.current) {
+      clearTimeout(autoResyncTimerRef.current);
+      autoResyncTimerRef.current = null;
+    }
+    isUserScrolledRef.current = false;
+    setIsUserScrolled(false);
+    scrollToActiveLine(true);
+    if (notify) {
+      toast.success("Lyrics synced with audio");
+    }
+  }, [scrollToActiveLine]);
 
   // Reset user scroll state on song change
   useEffect(() => {
+    if (autoResyncTimerRef.current) {
+      clearTimeout(autoResyncTimerRef.current);
+      autoResyncTimerRef.current = null;
+    }
     isUserScrolledRef.current = false;
     setIsUserScrolled(false);
     isProgrammaticScrollRef.current = false;
+    prevTimeRef.current = 0;
+    lastActiveIndexRef.current = -1;
   }, [currentSong?.id]);
 
-  const handleManualUserScroll = () => {
-    if (!isUserScrolledRef.current) {
-      isUserScrolledRef.current = true;
-      setIsUserScrolled(true);
-    }
-  };
+  // Handle user manual scroll interaction with automatic resync timer
+  const handleManualUserScroll = useCallback(() => {
+    isUserScrolledRef.current = true;
+    setIsUserScrolled(true);
 
-  const handleScroll = () => {
+    // Reset the auto-resync timer on every user interaction
+    if (autoResyncTimerRef.current) {
+      clearTimeout(autoResyncTimerRef.current);
+    }
+
+    // Schedule automatic resync after user stops scrolling
+    autoResyncTimerRef.current = setTimeout(() => {
+      isUserScrolledRef.current = false;
+      setIsUserScrolled(false);
+      scrollToActiveLine(true);
+    }, USER_SCROLL_IDLE_AUTO_SYNC_MS);
+  }, [scrollToActiveLine]);
+
+  const handleScroll = useCallback(() => {
     // If scrolling was triggered programmatically by the player, ignore it
     if (isProgrammaticScrollRef.current) return;
 
-    // If user has scrolled, check if they manually scrolled back into near-center of the active line
+    // Check if user manually scrolled back into center of active line
     if (isUserScrolledRef.current && activeLineRef.current && containerRef.current) {
       const activeRect = activeLineRef.current.getBoundingClientRect();
       const containerRect = containerRef.current.getBoundingClientRect();
@@ -173,34 +226,25 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
         activeRect.top >= containerRect.top + 60 &&
         activeRect.bottom <= containerRect.bottom - 60;
       if (isNearCenter) {
+        if (autoResyncTimerRef.current) {
+          clearTimeout(autoResyncTimerRef.current);
+          autoResyncTimerRef.current = null;
+        }
         isUserScrolledRef.current = false;
         setIsUserScrolled(false);
       }
     }
-  };
-
-  const handleResync = React.useCallback(() => {
-    isUserScrolledRef.current = false;
-    setIsUserScrolled(false);
-    isProgrammaticScrollRef.current = true;
-    if (activeLineRef.current) {
-      activeLineRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-    }
-    if (programmaticScrollTimerRef.current) clearTimeout(programmaticScrollTimerRef.current);
-    programmaticScrollTimerRef.current = setTimeout(() => {
-      isProgrammaticScrollRef.current = false;
-    }, 800);
-    toast.success("Lyrics resynced with audio");
   }, []);
 
   // Listen for global resync event (e.g. from 'R' keyboard shortcut)
   useEffect(() => {
-    const onGlobalResync = () => handleResync();
+    const onGlobalResync = () => handleResync(true);
     window.addEventListener("lyrics-resync", onGlobalResync);
-    return () => window.removeEventListener("lyrics-resync", onGlobalResync);
+    return () => {
+      window.removeEventListener("lyrics-resync", onGlobalResync);
+      if (autoResyncTimerRef.current) clearTimeout(autoResyncTimerRef.current);
+      if (programmaticScrollTimerRef.current) clearTimeout(programmaticScrollTimerRef.current);
+    };
   }, [handleResync]);
 
   // Determine active transcription line index
@@ -219,24 +263,71 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
     }
   }
 
-  // Automatic smooth scroll to active lyric line (only when user has not manually scrolled away)
+  // Auto-resync when playback seeks or jumps significantly (e.g. user clicked timeline or skipped track)
   useEffect(() => {
-    if (
-      !isUserScrolledRef.current &&
-      activeLineRef.current &&
-      containerRef.current
-    ) {
-      isProgrammaticScrollRef.current = true;
-      activeLineRef.current.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-      if (programmaticScrollTimerRef.current) clearTimeout(programmaticScrollTimerRef.current);
-      programmaticScrollTimerRef.current = setTimeout(() => {
-        isProgrammaticScrollRef.current = false;
-      }, 800);
+    const timeDelta = Math.abs(localTime - prevTimeRef.current);
+    prevTimeRef.current = localTime;
+
+    // If playback jumped more than 1.5s (seek event), automatically sync immediately
+    if (timeDelta > 1.5) {
+      if (autoResyncTimerRef.current) {
+        clearTimeout(autoResyncTimerRef.current);
+        autoResyncTimerRef.current = null;
+      }
+      isUserScrolledRef.current = false;
+      setIsUserScrolled(false);
+      scrollToActiveLine(true);
     }
-  }, [activeIndex]);
+  }, [localTime, scrollToActiveLine]);
+
+  // Auto-resync when lyrics advance ahead while playing
+  useEffect(() => {
+    if (activeIndex === -1) return;
+
+    // If active line moved significantly (> 2 lines) while user was scrolled, auto-sync back
+    if (
+      isUserScrolledRef.current &&
+      lastActiveIndexRef.current !== -1 &&
+      Math.abs(activeIndex - lastActiveIndexRef.current) >= 2 &&
+      isPlaying
+    ) {
+      if (autoResyncTimerRef.current) {
+        clearTimeout(autoResyncTimerRef.current);
+        autoResyncTimerRef.current = null;
+      }
+      isUserScrolledRef.current = false;
+      setIsUserScrolled(false);
+      scrollToActiveLine(true);
+    }
+
+    lastActiveIndexRef.current = activeIndex;
+
+    // Normal continuous auto-scroll when user has not manually overridden scroll
+    if (!isUserScrolledRef.current) {
+      scrollToActiveLine(true);
+    }
+  }, [activeIndex, isPlaying, scrollToActiveLine]);
+
+  // Immediately sync and scroll when lyrics language changes or finishing loading
+  useEffect(() => {
+    if (isLoading || !transcriptions || transcriptions.length === 0) return;
+
+    // Clear any stale manual scroll locks when language is switched
+    isUserScrolledRef.current = false;
+    setIsUserScrolled(false);
+
+    const raf = requestAnimationFrame(() => {
+      scrollToActiveLine(false);
+    });
+    const timer = setTimeout(() => {
+      scrollToActiveLine(true);
+    }, 60);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timer);
+    };
+  }, [isLoading, transcriptions, scrollToActiveLine]);
 
   const hasTranscriptions = transcriptions && transcriptions.length > 0;
   const hasPlainLyrics = !!plainLyrics;
@@ -249,7 +340,6 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
       onTouchMove={handleManualUserScroll}
       className="flex-1 w-full overflow-y-auto no-scrollbar px-3 sm:px-6 md:px-10 py-6 md:py-8 flex flex-col items-center select-none relative"
     >
-
       {isLoading ? (
         // ⏳ Beautiful Animated Loading State
         <div className="flex-1 flex flex-col items-center justify-center gap-5 py-20 my-auto">
@@ -279,7 +369,7 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
                   ref={isActive ? activeLineRef : null}
                   onClick={() => {
                     if (onSeek) onSeek(entry.start_time_seconds);
-                    handleResync();
+                    handleResync(false);
                   }}
                   className={`cursor-pointer transition-all duration-200 py-1 rounded-lg ${
                     isActive
@@ -324,14 +414,14 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
             })}
           </div>
 
-          {/* Resync button */}
+          {/* Quick Resync button with auto-sync indicator */}
           {isUserScrolled && (
             <button
-              onClick={handleResync}
+              onClick={() => handleResync(true)}
               className="fixed bottom-28 left-1/2 -translate-x-1/2 group flex items-center gap-2.5 bg-white/15 hover:bg-white/25 text-white text-xs font-semibold px-4.5 py-2.5 rounded-full border border-white/25 hover:border-white/40 backdrop-blur-xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37),inset_0_1px_1px_0_rgba(255,255,255,0.25)] hover:shadow-[0_12px_40px_0_rgba(0,0,0,0.45),inset_0_1px_1px_0_rgba(255,255,255,0.35)] hover:scale-105 active:scale-95 transition-all duration-200 z-10 cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-rotate-45" />
-              <span className="tracking-wide">Resync lyrics</span>
+              <span className="tracking-wide">Sync lyrics</span>
             </button>
           )}
         </>
