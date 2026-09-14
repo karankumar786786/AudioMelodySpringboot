@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { getImageUrl } from "@/lib/image-utils";
 import { adminFetch } from "@/lib/adminFetch";
+import { Toast, ToastType } from "@/components/Toast";
+import { Loader2 } from "lucide-react";
 
 interface Song {
   id: string;
@@ -35,8 +37,16 @@ export default function SongsPage() {
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSong, setEditingSong] = useState<Song | null>(null);
-  const [search, setSearch] = useState("");
   const [uploadMode, setUploadMode] = useState<"audio" | "videoOnly">("audio");
+  const [search, setSearch] = useState("");
+  const [deletingSongId, setDeletingSongId] = useState<string | null>(null);
+  const [togglingSongId, setTogglingSongId] = useState<string | null>(null);
+  const [uploadStep, setUploadStep] = useState(0);
+  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+
+  const showToast = (message: string, type: ToastType = "success") => {
+    setToast({ message, type });
+  };
 
   // Create Form State
   const [formData, setFormData] = useState({
@@ -99,28 +109,41 @@ export default function SongsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this song?")) return;
+    setDeletingSongId(id);
     try {
       const res = await adminFetch(`/admin/song/${id}`, { method: "DELETE" });
-      if (res.ok) setSongs(songs.filter(s => s.id !== id));
-      else alert("Failed to delete song");
-    } catch { alert("Failed to delete song"); }
+      if (res.ok) {
+        setSongs(songs.filter(s => s.id !== id));
+        showToast("Song deleted successfully", "success");
+      } else {
+        showToast("Failed to delete song", "error");
+      }
+    } catch {
+      showToast("Failed to delete song due to network error", "error");
+    } finally {
+      setDeletingSongId(null);
+    }
   };
 
   const handleToggleFeatured = async (song: Song) => {
     const newFeatured = !song.isFeatured;
-    setSongs(prev => prev.map(s => s.id === song.id ? { ...s, isFeatured: newFeatured } : s));
+    setTogglingSongId(song.id);
     try {
       const res = await adminFetch(`/admin/song/${song.id}/featured`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ featured: newFeatured }),
       });
-      if (!res.ok) {
-        setSongs(prev => prev.map(s => s.id === song.id ? { ...s, isFeatured: song.isFeatured } : s));
-        alert("Failed to update featured status");
+      if (res.ok) {
+        setSongs(prev => prev.map(s => s.id === song.id ? { ...s, isFeatured: newFeatured } : s));
+        showToast(newFeatured ? "Track marked as featured" : "Track unfeatured", "success");
+      } else {
+        showToast("Failed to update featured status", "error");
       }
     } catch {
-      setSongs(prev => prev.map(s => s.id === song.id ? { ...s, isFeatured: song.isFeatured } : s));
+      showToast("Failed to update featured status", "error");
+    } finally {
+      setTogglingSongId(null);
     }
   };
 
@@ -148,20 +171,25 @@ export default function SongsPage() {
     if (!formData.imageFile) return alert("Please select a cover image");
 
     if (uploadMode === "videoOnly") {
-      if (!formData.fullVideoFile) return alert("Please select a full video file");
+      if (!formData.fullVideoFile) return showToast("Please select a full video file", "error");
     } else {
-      if (!formData.songFile) return alert("Please select an audio file");
+      if (!formData.songFile) return showToast("Please select an audio file", "error");
     }
+    if (!formData.imageFile) return showToast("Please select a cover image", "error");
+    if (!formData.title.trim()) return showToast("Please enter a song title", "error");
+    if (!formData.artistName.trim()) return showToast("Please enter an artist name", "error");
 
     setUploading(true);
-    setUploadProgressText("Starting upload...");
+    setUploadStep(1);
+    setUploadProgressText(uploadMode === "videoOnly" ? "Uploading full video to S3 storage..." : "Uploading audio file to S3 storage...");
     try {
       let tempSongKey: string | null = null;
       let tempVideoKey: string | null = null;
 
       // 1. Audio Upload (if provided)
       if (formData.songFile) {
-        setUploadProgressText("Uploading audio track to S3...");
+        setUploadStep(1);
+        setUploadProgressText("Uploading audio file to S3 storage...");
         const songUrlRes = await adminFetch("/webhook/internal/song-upload-url");
         if (!songUrlRes.ok) throw new Error("Failed to get audio upload authorization");
         const songUrlData = await songUrlRes.json();
@@ -176,7 +204,8 @@ export default function SongsPage() {
 
       // 2. Full Video Upload (if provided)
       if (formData.fullVideoFile) {
-        setUploadProgressText("Uploading full video to S3...");
+        setUploadStep(1);
+        setUploadProgressText("Uploading full music video to S3 storage...");
         const videoUrlRes = await adminFetch("/webhook/internal/video-upload-url");
         if (!videoUrlRes.ok) throw new Error("Failed to get full video upload authorization");
         const videoUrlData = await videoUrlRes.json();
@@ -190,13 +219,15 @@ export default function SongsPage() {
       }
 
       // 3. Cover Image Upload (ImageKit)
-      setUploadProgressText("Uploading cover image to ImageKit...");
+      setUploadStep(2);
+      setUploadProgressText("Uploading cover artwork to ImageKit CDN...");
       const uploadedImageKey = await uploadFileToImageKit(formData.imageFile, "/songs/images");
 
       // 4. Manual Canvas Video Upload (optional, only in audio mode if provided)
       let uploadedVideoKey: string | null = null;
       if (uploadMode === "audio" && formData.videoFile) {
-        setUploadProgressText("Uploading canvas video to ImageKit...");
+        setUploadStep(2);
+        setUploadProgressText("Uploading canvas background loop to ImageKit CDN...");
         uploadedVideoKey = await uploadFileToImageKit(formData.videoFile, "/songs/videos");
       }
 
@@ -215,6 +246,7 @@ export default function SongsPage() {
       }
 
       // 5. Finalize Song Creation
+      setUploadStep(3);
       setUploadProgressText("Registering song & scheduling background processing...");
       const finalizeRes = await adminFetch("/admin/song", {
         method: "POST",
@@ -258,14 +290,16 @@ export default function SongsPage() {
           previewEndSec: "",
         });
         fetchSongs();
+        showToast("Track uploaded successfully! Background transcoding worker queued.", "success");
       } else {
         const errData = await finalizeRes.json();
         throw new Error(errData.message || "Failed to create song record");
       }
     } catch (err: any) {
-      alert("Upload failed: " + err.message);
+      showToast("Upload failed: " + err.message, "error");
     } finally {
       setUploading(false);
+      setUploadStep(0);
       setUploadProgressText("");
     }
   };
@@ -507,17 +541,22 @@ export default function SongsPage() {
                 {/* Hover action bar */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end p-3 gap-2">
                   <button
+                    disabled={togglingSongId === song.id}
                     onClick={() => handleToggleFeatured(song)}
                     title={song.isFeatured ? "Remove from hero featured" : "Mark as hero featured"}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-50 ${
                       song.isFeatured
                         ? "bg-amber-500/90 text-white hover:bg-amber-600/90"
                         : "bg-white/20 backdrop-blur-sm text-white hover:bg-amber-500/80"
                     }`}
                   >
-                    <svg className="w-3.5 h-3.5" fill={song.isFeatured ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
-                    </svg>
+                    {togglingSongId === song.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <svg className="w-3.5 h-3.5" fill={song.isFeatured ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                      </svg>
+                    )}
                     {song.isFeatured ? "Unfeature" : "Feature"}
                   </button>
                   <button
@@ -530,13 +569,18 @@ export default function SongsPage() {
                     </svg>
                   </button>
                   <button
+                    disabled={deletingSongId === song.id}
                     onClick={() => handleDelete(song.id)}
-                    className="p-2 rounded-lg bg-white/20 backdrop-blur-sm text-white hover:bg-red-500/80 transition-all"
+                    className="p-2 rounded-lg bg-white/20 backdrop-blur-sm text-white hover:bg-red-500/80 transition-all disabled:opacity-50"
                     title="Delete"
                   >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
+                    {deletingSongId === song.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-red-300" />
+                    ) : (
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-4v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    )}
                   </button>
                 </div>
               </div>
@@ -567,266 +611,384 @@ export default function SongsPage() {
 
       {/* Upload Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-zinc-950/70 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 w-full max-w-xl rounded-2xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-            <div className="px-6 py-5 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-zinc-950/75 backdrop-blur-md">
+          <div className="bg-white dark:bg-zinc-900 w-full max-w-5xl rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden flex flex-col">
+            <div className="px-6 py-4.5 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center">
               <div>
                 <h2 className="text-lg font-black text-zinc-900 dark:text-white">Add New Track</h2>
                 <p className="text-xs text-zinc-500 mt-0.5">Upload a standard audio track or extract from a full video</p>
               </div>
-              <button onClick={() => !uploading && setIsModalOpen(false)} className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:rotate-90 transition-all">
+              <button onClick={() => !uploading && setIsModalOpen(false)} className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:rotate-90 transition-all p-1 rounded-lg">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
 
             {/* Mode Switcher Tabs */}
-            <div className="p-3 bg-zinc-50 dark:bg-zinc-800/40 border-b border-zinc-200 dark:border-zinc-800 flex gap-2">
+            <div className="px-6 py-2.5 bg-zinc-50 dark:bg-zinc-800/40 border-b border-zinc-200 dark:border-zinc-800 flex gap-2">
               <button
                 type="button"
+                disabled={uploading}
                 onClick={() => setUploadMode("audio")}
-                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
                   uploadMode === "audio"
                     ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-zinc-200 dark:border-zinc-700"
                     : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
-                }`}
+                } ${uploading ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <span>🎵 Audio Track</span>
                 <span className="text-[10px] font-normal text-zinc-400">(Standard)</span>
               </button>
               <button
                 type="button"
+                disabled={uploading}
                 onClick={() => setUploadMode("videoOnly")}
-                className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                className={`flex-1 py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 ${
                   uploadMode === "videoOnly"
                     ? "bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-sm border border-zinc-200 dark:border-zinc-700"
                     : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
-                }`}
+                } ${uploading ? "opacity-50 cursor-not-allowed" : ""}`}
               >
                 <span>🎬 Video Only</span>
                 <span className="text-[10px] font-normal text-zinc-400">(Auto-Audio & Canvas)</span>
               </button>
             </div>
 
-            <form onSubmit={handleUpload} className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className={labelCls}>Song Title</label>
-                  <input required type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="e.g. Moonlight Sonata" className={inputCls} />
-                </div>
-                <div className="col-span-2">
-                  <label className={labelCls}>Artist Name</label>
-                  <input required type="text" value={formData.artistName} onChange={e => setFormData({...formData, artistName: e.target.value})} placeholder="e.g. Beethoven" className={inputCls} />
-                </div>
-                <div>
-                  <label className={labelCls}>Language</label>
-                  <input required type="text" value={formData.language} onChange={e => setFormData({...formData, language: e.target.value})} placeholder="Hindi" className={inputCls} />
-                </div>
-                <div>
-                  <label className={labelCls}>LRCLIB ID</label>
-                  <input type="text" value={formData.lrclibId} onChange={e => setFormData({...formData, lrclibId: e.target.value})} placeholder="e.g. 123456" className={inputCls} />
-                </div>
-              </div>
-
-              {/* VIDEO ONLY MODE FIELDS */}
-              {uploadMode === "videoOnly" ? (
-                <div className="grid grid-cols-1 gap-3 pt-1">
-                  <div className="border-2 border-dashed border-indigo-300 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/20 rounded-xl p-3.5">
-                    <div className="flex items-center justify-between mb-1">
-                      <label className={labelCls + " text-indigo-600 dark:text-indigo-400 mb-0 font-black"}>Full Video File <span className="text-red-500">*</span></label>
-                      <span className="text-[10px] text-indigo-500 font-bold px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60">S3 Shaka Packaged</span>
+            <form onSubmit={handleUpload} className="p-6 md:p-7 space-y-5 relative">
+              {/* Full Uploading Overlay with animated step progress */}
+              {uploading && (
+                <div className="absolute inset-0 z-30 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md rounded-3xl flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-200">
+                  <div className="relative mb-6">
+                    <div className="w-20 h-20 rounded-full border-4 border-indigo-100 dark:border-indigo-950 border-t-indigo-600 dark:border-t-indigo-500 animate-spin" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <svg className="w-8 h-8 text-indigo-600 dark:text-indigo-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
                     </div>
-                    <p className="text-[11px] text-zinc-500 mb-2">Upload complete music video (.mp4, .mov, .mkv). Audio will be extracted automatically.</p>
-                    <input required type="file" accept="video/*" onChange={e => setFormData({...formData, fullVideoFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-indigo-600 file:text-white hover:file:bg-indigo-700"} />
                   </div>
 
-                  <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
-                    <label className={labelCls + " mb-1"}>Cover Image <span className="text-red-400">*</span></label>
-                    <input required type="file" accept="image/*" onChange={e => setFormData({...formData, imageFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-purple-50 file:text-purple-600 hover:file:bg-purple-100"} />
-                  </div>
+                  <h3 className="text-xl font-black text-zinc-900 dark:text-white mb-1.5">
+                    Processing & Uploading Track
+                  </h3>
+                  <p className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 mb-6 font-mono max-w-md">
+                    {uploadProgressText || "Transferring media files..."}
+                  </p>
 
-                  {/* Canvas Video Clipping Instruction Card */}
-                  <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl p-3.5 bg-zinc-50 dark:bg-zinc-800/50">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
-                        <svg className="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" /></svg>
-                        Canvas Loop Cut (Uploaded to ImageKit)
-                      </label>
-                      <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40">Auto-Cut</span>
-                    </div>
-                    <p className="text-[11px] text-zinc-500 mb-3">Specify the start and end timestamp in the video to cut as the looping canvas video:</p>
-                    
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-white dark:bg-zinc-900 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700">
-                        <span className="block text-[10px] font-bold text-zinc-400 uppercase mb-1.5">Clip Start Time</span>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1">
-                            <span className="text-[9px] text-zinc-400">Min</span>
-                            <input
-                              type="number"
-                              min="0"
-                              max="99"
-                              value={formData.clipStartMin}
-                              onChange={e => setFormData({...formData, clipStartMin: Math.max(0, parseInt(e.target.value) || 0)})}
-                              className="w-full bg-zinc-100 dark:bg-zinc-800 rounded px-2 py-1 text-sm font-mono text-center font-bold"
-                            />
-                          </div>
-                          <span className="font-bold text-zinc-400 mt-3">:</span>
-                          <div className="flex-1">
-                            <span className="text-[9px] text-zinc-400">Sec</span>
-                            <input
-                              type="number"
-                              min="0"
-                              max="59"
-                              value={formData.clipStartSec}
-                              onChange={e => setFormData({...formData, clipStartSec: Math.max(0, Math.min(59, parseInt(e.target.value) || 0))})}
-                              className="w-full bg-zinc-100 dark:bg-zinc-800 rounded px-2 py-1 text-sm font-mono text-center font-bold"
-                            />
-                          </div>
-                        </div>
+                  {/* Progress Step Badges */}
+                  <div className="grid grid-cols-3 gap-3 w-full max-w-lg mb-4">
+                    <div className={`p-3 rounded-xl border text-left transition-all ${
+                      uploadStep >= 1 
+                        ? "bg-indigo-50 dark:bg-indigo-950/50 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300"
+                        : "bg-zinc-100 dark:bg-zinc-800/40 border-zinc-200 dark:border-zinc-700/50 text-zinc-400"
+                    }`}>
+                      <div className="flex items-center gap-1.5 font-bold text-xs mb-0.5">
+                        {uploadStep > 1 ? (
+                          <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px]">✓</span>
+                        ) : (
+                          <span className="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">1</span>
+                        )}
+                        <span>S3 Storage</span>
                       </div>
+                      <span className="text-[10px] opacity-80">{uploadMode === "videoOnly" ? "Full Video" : "Audio Track"}</span>
+                    </div>
 
-                      <div className="bg-white dark:bg-zinc-900 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700">
-                        <span className="block text-[10px] font-bold text-zinc-400 uppercase mb-1.5">Clip End Time</span>
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1">
-                            <span className="text-[9px] text-zinc-400">Min</span>
-                            <input
-                              type="number"
-                              min="0"
-                              max="99"
-                              value={formData.clipEndMin}
-                              onChange={e => setFormData({...formData, clipEndMin: Math.max(0, parseInt(e.target.value) || 0)})}
-                              className="w-full bg-zinc-100 dark:bg-zinc-800 rounded px-2 py-1 text-sm font-mono text-center font-bold"
-                            />
-                          </div>
-                          <span className="font-bold text-zinc-400 mt-3">:</span>
-                          <div className="flex-1">
-                            <span className="text-[9px] text-zinc-400">Sec</span>
-                            <input
-                              type="number"
-                              min="0"
-                              max="59"
-                              value={formData.clipEndSec}
-                              onChange={e => setFormData({...formData, clipEndSec: Math.max(0, Math.min(59, parseInt(e.target.value) || 0))})}
-                              className="w-full bg-zinc-100 dark:bg-zinc-800 rounded px-2 py-1 text-sm font-mono text-center font-bold"
-                            />
-                          </div>
-                        </div>
+                    <div className={`p-3 rounded-xl border text-left transition-all ${
+                      uploadStep >= 2
+                        ? "bg-indigo-50 dark:bg-indigo-950/50 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300"
+                        : "bg-zinc-100 dark:bg-zinc-800/40 border-zinc-200 dark:border-zinc-700/50 text-zinc-400"
+                    }`}>
+                      <div className="flex items-center gap-1.5 font-bold text-xs mb-0.5">
+                        {uploadStep > 2 ? (
+                          <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px]">✓</span>
+                        ) : (
+                          <span className="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">2</span>
+                        )}
+                        <span>ImageKit</span>
                       </div>
+                      <span className="text-[10px] opacity-80">Artwork & Canvas</span>
+                    </div>
+
+                    <div className={`p-3 rounded-xl border text-left transition-all ${
+                      uploadStep >= 3
+                        ? "bg-indigo-50 dark:bg-indigo-950/50 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300"
+                        : "bg-zinc-100 dark:bg-zinc-800/40 border-zinc-200 dark:border-zinc-700/50 text-zinc-400"
+                    }`}>
+                      <div className="flex items-center gap-1.5 font-bold text-xs mb-0.5">
+                        <span className="w-4 h-4 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">3</span>
+                        <span>Worker Job</span>
+                      </div>
+                      <span className="text-[10px] opacity-80">Queue Transcode</span>
                     </div>
                   </div>
-                </div>
-              ) : (
-                /* STANDARD AUDIO MODE FIELDS */
-                <div className="grid grid-cols-1 gap-3 pt-1">
-                  <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
-                    <label className={labelCls + " mb-1"}>Audio File <span className="text-red-400">*</span></label>
-                    <input required type="file" accept="audio/*" onChange={e => setFormData({...formData, songFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100"} />
-                  </div>
-                  <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
-                    <label className={labelCls + " mb-1"}>Cover Image <span className="text-red-400">*</span></label>
-                    <input required type="file" accept="image/*" onChange={e => setFormData({...formData, imageFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-purple-50 file:text-purple-600 hover:file:bg-purple-100"} />
-                  </div>
-                  <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
-                    <label className={labelCls + " mb-1"}>Short Background Video Canvas <span className="text-zinc-400 normal-case font-normal">(ImageKit loop, optional)</span></label>
-                    <input type="file" accept="video/mp4,video/*" onChange={e => setFormData({...formData, videoFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-emerald-50 file:text-emerald-600 hover:file:bg-emerald-100"} />
-                  </div>
-                  <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-xl p-3">
-                    <label className={labelCls + " mb-1"}>Full Music Video <span className="text-zinc-400 normal-case font-normal">(S3 Shaka Packager, optional)</span></label>
-                    <input type="file" accept="video/*" onChange={e => setFormData({...formData, fullVideoFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100"} />
-                  </div>
+
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500">
+                    Please keep this window open while files are being transferred to storage.
+                  </p>
                 </div>
               )}
 
-              {/* PREVIEW / BEST PART TIMING (OPTIONAL) */}
-              <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl p-3.5 bg-zinc-50/70 dark:bg-zinc-800/40">
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <svg className="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    Preview / Best Part Timing <span className="text-zinc-400 normal-case font-normal text-[11px]">(Optional)</span>
-                  </label>
-                  <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/40">Snack / Preview</span>
-                </div>
-                <p className="text-[11px] text-zinc-500 mb-3">Specify the timestamp for the 30s preview snippet (leave blank to start from beginning):</p>
-                
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-white dark:bg-zinc-900 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700">
-                    <span className="block text-[10px] font-bold text-zinc-400 uppercase mb-1.5">Best Part Start</span>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1">
-                        <span className="text-[9px] text-zinc-400">Min</span>
-                        <input
-                          type="number"
-                          min="0"
-                          max="99"
-                          placeholder="0"
-                          value={formData.previewStartMin}
-                          onChange={e => setFormData({ ...formData, previewStartMin: e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value) || 0) })}
-                          className="w-full bg-zinc-100 dark:bg-zinc-800 rounded px-2 py-1 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white"
-                        />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                {/* LEFT COLUMN: Metadata & Preview Timing */}
+                <div className="space-y-4">
+                  <div className="space-y-3 bg-zinc-50/50 dark:bg-zinc-800/20 p-4 rounded-2xl border border-zinc-100 dark:border-zinc-800/60">
+                    <span className="block text-[11px] font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-wider">Track Details</span>
+                    <div>
+                      <label className={labelCls}>Song Title <span className="text-red-400">*</span></label>
+                      <input required type="text" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="e.g. Moonlight Sonata" className={inputCls} />
+                    </div>
+                    <div>
+                      <label className={labelCls}>Artist Name <span className="text-red-400">*</span></label>
+                      <input required type="text" value={formData.artistName} onChange={e => setFormData({...formData, artistName: e.target.value})} placeholder="e.g. Beethoven" className={inputCls} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={labelCls}>Language <span className="text-red-400">*</span></label>
+                        <input required type="text" value={formData.language} onChange={e => setFormData({...formData, language: e.target.value})} placeholder="Hindi" className={inputCls} />
                       </div>
-                      <span className="font-bold text-zinc-400 mt-3">:</span>
-                      <div className="flex-1">
-                        <span className="text-[9px] text-zinc-400">Sec</span>
-                        <input
-                          type="number"
-                          min="0"
-                          max="59"
-                          placeholder="00"
-                          value={formData.previewStartSec}
-                          onChange={e => setFormData({ ...formData, previewStartSec: e.target.value === "" ? "" : Math.max(0, Math.min(59, parseInt(e.target.value) || 0)) })}
-                          className="w-full bg-zinc-100 dark:bg-zinc-800 rounded px-2 py-1 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white"
-                        />
+                      <div>
+                        <label className={labelCls}>LRCLIB ID</label>
+                        <input type="text" value={formData.lrclibId} onChange={e => setFormData({...formData, lrclibId: e.target.value})} placeholder="e.g. 123456" className={inputCls} />
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-white dark:bg-zinc-900 p-2.5 rounded-lg border border-zinc-200 dark:border-zinc-700">
-                    <span className="block text-[10px] font-bold text-zinc-400 uppercase mb-1.5">Best Part End</span>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1">
-                        <span className="text-[9px] text-zinc-400">Min</span>
-                        <input
-                          type="number"
-                          min="0"
-                          max="99"
-                          placeholder="0"
-                          value={formData.previewEndMin}
-                          onChange={e => setFormData({ ...formData, previewEndMin: e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value) || 0) })}
-                          className="w-full bg-zinc-100 dark:bg-zinc-800 rounded px-2 py-1 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white"
-                        />
+                  {/* PREVIEW / BEST PART TIMING */}
+                  <div className="border border-zinc-200 dark:border-zinc-700 rounded-2xl p-4 bg-zinc-50/70 dark:bg-zinc-800/40">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <svg className="w-3.5 h-3.5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Preview / Best Part Timing <span className="text-zinc-400 normal-case font-normal text-[10px]">(Optional)</span>
+                      </label>
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold bg-amber-50 dark:bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/40">Snack / Preview</span>
+                    </div>
+                    <p className="text-[11px] text-zinc-500 mb-3">Specify the timestamp snippet for audio previews (leave blank for start):</p>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-white dark:bg-zinc-900 p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                        <span className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Preview Start</span>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <span className="text-[9px] text-zinc-400">Min</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="99"
+                              placeholder="0"
+                              value={formData.previewStartMin}
+                              onChange={e => setFormData({ ...formData, previewStartMin: e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value) || 0) })}
+                              className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-lg px-2 py-1 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white"
+                            />
+                          </div>
+                          <span className="font-bold text-zinc-400 mt-3">:</span>
+                          <div className="flex-1">
+                            <span className="text-[9px] text-zinc-400">Sec</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="59"
+                              placeholder="00"
+                              value={formData.previewStartSec}
+                              onChange={e => setFormData({ ...formData, previewStartSec: e.target.value === "" ? "" : Math.max(0, Math.min(59, parseInt(e.target.value) || 0)) })}
+                              className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-lg px-2 py-1 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white"
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <span className="font-bold text-zinc-400 mt-3">:</span>
-                      <div className="flex-1">
-                        <span className="text-[9px] text-zinc-400">Sec</span>
-                        <input
-                          type="number"
-                          min="0"
-                          max="59"
-                          placeholder="00"
-                          value={formData.previewEndSec}
-                          onChange={e => setFormData({ ...formData, previewEndSec: e.target.value === "" ? "" : Math.max(0, Math.min(59, parseInt(e.target.value) || 0)) })}
-                          className="w-full bg-zinc-100 dark:bg-zinc-800 rounded px-2 py-1 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white"
-                        />
+
+                      <div className="bg-white dark:bg-zinc-900 p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                        <span className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Preview End</span>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1">
+                            <span className="text-[9px] text-zinc-400">Min</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="99"
+                              placeholder="0"
+                              value={formData.previewEndMin}
+                              onChange={e => setFormData({ ...formData, previewEndMin: e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value) || 0) })}
+                              className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-lg px-2 py-1 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white"
+                            />
+                          </div>
+                          <span className="font-bold text-zinc-400 mt-3">:</span>
+                          <div className="flex-1">
+                            <span className="text-[9px] text-zinc-400">Sec</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max="59"
+                              placeholder="00"
+                              value={formData.previewEndSec}
+                              onChange={e => setFormData({ ...formData, previewEndSec: e.target.value === "" ? "" : Math.max(0, Math.min(59, parseInt(e.target.value) || 0)) })}
+                              className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-lg px-2 py-1 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white"
+                            />
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* RIGHT COLUMN: Media & File Uploads */}
+                <div className="space-y-4">
+                  {uploadMode === "videoOnly" ? (
+                    <div className="space-y-3.5">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="border-2 border-dashed border-indigo-300 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/20 rounded-2xl p-3.5">
+                          <div className="flex items-center justify-between mb-1">
+                            <label className={labelCls + " text-indigo-600 dark:text-indigo-400 mb-0 font-black"}>Full Video <span className="text-red-500">*</span></label>
+                            <span className="text-[9px] text-indigo-500 font-bold px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60">Shaka HLS</span>
+                          </div>
+                          <p className="text-[10px] text-zinc-500 mb-2">Music video file (.mp4, .mov, .mkv). Audio extracted automatically.</p>
+                          <input required type="file" accept="video/*" onChange={e => setFormData({...formData, fullVideoFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-indigo-600 file:text-white hover:file:bg-indigo-700"} />
+                        </div>
+
+                        <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-2xl p-3.5 bg-zinc-50/50 dark:bg-zinc-800/30 flex flex-col justify-between">
+                          <div>
+                            <label className={labelCls + " mb-1"}>Cover Image <span className="text-red-400">*</span></label>
+                            <p className="text-[10px] text-zinc-500 mb-2">Square album artwork (ImageKit optimized).</p>
+                          </div>
+                          <input required type="file" accept="image/*" onChange={e => setFormData({...formData, imageFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-purple-50 file:text-purple-600 hover:file:bg-purple-100 dark:file:bg-purple-950/60 dark:file:text-purple-400"} />
+                        </div>
+                      </div>
+
+                      {/* Canvas Video Clipping Instruction Card */}
+                      <div className="border border-zinc-200 dark:border-zinc-700 rounded-2xl p-4 bg-zinc-50/70 dark:bg-zinc-800/40">
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs font-bold text-zinc-800 dark:text-zinc-200 uppercase tracking-wider flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" /></svg>
+                            Canvas Loop Cut
+                          </label>
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800/40">Auto-Cut</span>
+                        </div>
+                        <p className="text-[11px] text-zinc-500 mb-3">Timestamp range in full video to cut for looping player canvas:</p>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-white dark:bg-zinc-900 p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                            <span className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Clip Start</span>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1">
+                                <span className="text-[9px] text-zinc-400">Min</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="99"
+                                  value={formData.clipStartMin}
+                                  onChange={e => setFormData({...formData, clipStartMin: Math.max(0, parseInt(e.target.value) || 0)})}
+                                  className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-lg px-2 py-1 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white"
+                                />
+                              </div>
+                              <span className="font-bold text-zinc-400 mt-3">:</span>
+                              <div className="flex-1">
+                                <span className="text-[9px] text-zinc-400">Sec</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="59"
+                                  value={formData.clipStartSec}
+                                  onChange={e => setFormData({...formData, clipStartSec: Math.max(0, Math.min(59, parseInt(e.target.value) || 0))})}
+                                  className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-lg px-2 py-1 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-white dark:bg-zinc-900 p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                            <span className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Clip End</span>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1">
+                                <span className="text-[9px] text-zinc-400">Min</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="99"
+                                  value={formData.clipEndMin}
+                                  onChange={e => setFormData({...formData, clipEndMin: Math.max(0, parseInt(e.target.value) || 0)})}
+                                  className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-lg px-2 py-1 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white"
+                                />
+                              </div>
+                              <span className="font-bold text-zinc-400 mt-3">:</span>
+                              <div className="flex-1">
+                                <span className="text-[9px] text-zinc-400">Sec</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  max="59"
+                                  value={formData.clipEndSec}
+                                  onChange={e => setFormData({...formData, clipEndSec: Math.max(0, Math.min(59, parseInt(e.target.value) || 0))})}
+                                  className="w-full bg-zinc-100 dark:bg-zinc-800 rounded-lg px-2 py-1 text-sm font-mono text-center font-bold text-zinc-900 dark:text-white"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* STANDARD AUDIO MODE FIELDS: 2x2 grid */
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                      <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-2xl p-3.5 bg-zinc-50/50 dark:bg-zinc-800/30">
+                        <label className={labelCls + " mb-1"}>Audio Track <span className="text-red-400">*</span></label>
+                        <p className="text-[10px] text-zinc-500 mb-2">MP3, WAV, AAC, FLAC audio source.</p>
+                        <input required type="file" accept="audio/*" onChange={e => setFormData({...formData, songFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 dark:file:bg-indigo-950/60 dark:file:text-indigo-400"} />
+                      </div>
+                      <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-2xl p-3.5 bg-zinc-50/50 dark:bg-zinc-800/30">
+                        <label className={labelCls + " mb-1"}>Cover Image <span className="text-red-400">*</span></label>
+                        <p className="text-[10px] text-zinc-500 mb-2">Square artwork (JPEG, PNG, WebP).</p>
+                        <input required type="file" accept="image/*" onChange={e => setFormData({...formData, imageFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-purple-50 file:text-purple-600 hover:file:bg-purple-100 dark:file:bg-purple-950/60 dark:file:text-purple-400"} />
+                      </div>
+                      <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-2xl p-3.5 bg-zinc-50/50 dark:bg-zinc-800/30">
+                        <label className={labelCls + " mb-1"}>Canvas Video <span className="text-zinc-400 font-normal text-[10px]">(Optional)</span></label>
+                        <p className="text-[10px] text-zinc-500 mb-2">Short looping video snippet for player background.</p>
+                        <input type="file" accept="video/mp4,video/*" onChange={e => setFormData({...formData, videoFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-emerald-50 file:text-emerald-600 hover:file:bg-emerald-100 dark:file:bg-emerald-950/60 dark:file:text-emerald-400"} />
+                      </div>
+                      <div className="border border-dashed border-zinc-200 dark:border-zinc-700 rounded-2xl p-3.5 bg-zinc-50/50 dark:bg-zinc-800/30">
+                        <label className={labelCls + " mb-1"}>Full Music Video <span className="text-zinc-400 font-normal text-[10px]">(Optional)</span></label>
+                        <p className="text-[10px] text-zinc-500 mb-2">Complete video for multi-bitrate HLS/DASH streaming.</p>
+                        <input type="file" accept="video/*" onChange={e => setFormData({...formData, fullVideoFile: e.target.files?.[0] || null})} className={fileCls + " file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 dark:file:bg-indigo-950/60 dark:file:text-indigo-400"} />
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              <button disabled={uploading} type="submit" className={`w-full py-3 rounded-xl font-bold text-white text-sm transition-all flex flex-col items-center justify-center gap-1 ${uploading ? "bg-indigo-400 cursor-not-allowed" : "bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99]"}`}>
-                {uploading ? (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>
-                      <span>Processing Upload...</span>
-                    </div>
-                    {uploadProgressText && <span className="text-[11px] font-normal text-indigo-100 opacity-90">{uploadProgressText}</span>}
-                  </>
-                ) : (
-                  uploadMode === "videoOnly" ? "Upload Video & Process Track" : "Finalize & Upload Track"
-                )}
-              </button>
+              {/* FOOTER ACTION BAR */}
+              <div className="pt-4 border-t border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+                <div className="text-xs text-zinc-500 flex items-center gap-2">
+                  <span className="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <span>{uploadMode === "videoOnly" ? "Mode: Video with automated audio & canvas extraction" : "Mode: Standard multi-track audio upload"}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    disabled={uploading}
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-5 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 font-bold text-xs hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    disabled={uploading}
+                    type="submit"
+                    className={`px-8 py-2.5 rounded-xl font-bold text-white text-xs transition-all flex items-center justify-center gap-2 ${
+                      uploading
+                        ? "bg-indigo-400 cursor-not-allowed"
+                        : "bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] shadow-lg shadow-indigo-500/20"
+                    }`}
+                  >
+                    {uploading ? (
+                      <>
+                        <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        <span>{uploadProgressText || "Processing Upload..."}</span>
+                      </>
+                    ) : (
+                      uploadMode === "videoOnly" ? "Upload Video & Process Track" : "Finalize & Upload Track"
+                    )}
+                  </button>
+                </div>
+              </div>
             </form>
           </div>
         </div>
@@ -1046,6 +1208,14 @@ export default function SongsPage() {
             </form>
           </div>
         </div>
+      )}
+      {/* Toast Notifications */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
     </div>
   );
