@@ -19,6 +19,12 @@ export interface TranscodeCanvasData {
 export const transcodeCanvasTask = inngest.createFunction(
     {
         id: "transcode-canvas-task",
+        cancelOn: [
+            {
+                event: "audio/job.cancel",
+                match: "data.jobId",
+            },
+        ],
         triggers: [{ event: "audio/song.transcode.canvas" }],
         retries: 3,
     },

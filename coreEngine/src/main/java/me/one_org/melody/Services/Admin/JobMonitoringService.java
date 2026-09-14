@@ -12,7 +12,13 @@ import me.one_org.melody.Enums.StatusEnum;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Queue.AudioProcessingQueue;
 import me.one_org.melody.Repository.JobsRepository;
+import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
+import me.one_org.melody.BlobStorage.S3;
+import me.one_org.melody.ImageStorage.ImageKit;
+import me.one_org.melody.Recommendation.Recombee;
+import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,19 +31,46 @@ import java.util.*;
 public class JobMonitoringService {
 
     private final JobsRepository jobsRepository;
+    private final SongsRepository songsRepository;
     private final QueueMonitoringService queueMonitoringService;
     private final AudioProcessingQueue audioProcessingQueue;
     private final PaginationMetaDataService paginationMetaDataService;
+    private final AlgoliaSearch algoliaSearch;
+    private final Recombee recombee;
+    private final S3 s3;
+    private final ImageKit imageKit;
+
+    @Value("${s3.temp-bucket:melody-temp}")
+    private String tempBucket;
+
+    @Value("${s3.production-bucket:melody-songs}")
+    private String productionBucket;
+
+    @Value("${audio-processing.api.url:${AUDIO_PROCESSING_URL:http://localhost:5010}}")
+    private String audioProcessingUrl;
+
+    @Value("${inngest.dev.url:http://localhost:8288}")
+    private String inngestDevUrl;
 
     public JobMonitoringService(
             JobsRepository jobsRepository,
+            SongsRepository songsRepository,
             QueueMonitoringService queueMonitoringService,
             AudioProcessingQueue audioProcessingQueue,
-            PaginationMetaDataService paginationMetaDataService) {
+            PaginationMetaDataService paginationMetaDataService,
+            AlgoliaSearch algoliaSearch,
+            Recombee recombee,
+            S3 s3,
+            ImageKit imageKit) {
         this.jobsRepository = jobsRepository;
+        this.songsRepository = songsRepository;
         this.queueMonitoringService = queueMonitoringService;
         this.audioProcessingQueue = audioProcessingQueue;
         this.paginationMetaDataService = paginationMetaDataService;
+        this.algoliaSearch = algoliaSearch;
+        this.recombee = recombee;
+        this.s3 = s3;
+        this.imageKit = imageKit;
     }
 
     public JobSummaryMetricsDto getSummaryMetrics() {
@@ -110,6 +143,22 @@ public class JobMonitoringService {
         return jobsRepository.countFiltered(status, stage, search);
     }
 
+    public List<JobProgressDto> getActiveJobs() {
+        return jobsRepository.findActiveProcessing().stream().map(this::toProgressDto).toList();
+    }
+
+    public List<JobProgressDto> getJobsByStatus(JobStatusEnum status) {
+        return jobsRepository.findByStatus(status).stream().map(this::toProgressDto).toList();
+    }
+
+    public List<JobProgressDto> getJobsByStage(JobStageEnum stage) {
+        return jobsRepository.findPaginatedFiltered(null, stage, null, 0, 100).stream().map(this::toProgressDto).toList();
+    }
+
+    public List<JobProgressDto> getAllJobs() {
+        return jobsRepository.findAll().stream().map(this::toProgressDto).toList();
+    }
+
     public JobProgressDto getJobProgress(String jobId) {
         JobsEntity job = jobsRepository.findById(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("Job not found: " + jobId));
@@ -151,14 +200,186 @@ public class JobMonitoringService {
         JobsEntity job = jobsRepository.findById(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("Job not found: " + jobId));
 
+        String songId = job.getSongId();
+        log.info("Initiating comprehensive garbage cleanup for Job [{}] (songId: {})", jobId, songId);
+
+        // 0. Cancel any active or queued Inngest execution and de-queue from Redis
+        try {
+            // A. De-queue from Redis if still waiting in audio_processing_queue
+            audioProcessingQueue.removeJobFromQueue(jobId);
+
+            // B. Push cancellation event to Redis audio_cancel_queue
+            audioProcessingQueue.cancelJob(jobId);
+
+            // C. Fire HTTP cancel request to audioProcessing worker Express endpoint
+            try {
+                java.net.http.HttpClient httpClient = java.net.http.HttpClient.newBuilder()
+                        .connectTimeout(Duration.ofSeconds(2))
+                        .build();
+
+                java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
+                        .uri(java.net.URI.create(audioProcessingUrl + "/api/jobs/" + jobId + "/cancel"))
+                        .timeout(Duration.ofSeconds(2))
+                        .POST(java.net.http.HttpRequest.BodyPublishers.noBody())
+                        .build();
+
+                httpClient.sendAsync(req, java.net.http.HttpResponse.BodyHandlers.discarding());
+                log.info("Dispatched async HTTP cancel request to audioProcessing for job [{}]", jobId);
+            } catch (Exception e) {
+                log.warn("Could not dispatch HTTP cancel to audioProcessing: {}", e.getMessage());
+            }
+
+            // D. Fire event directly to Inngest Dev Server / Inngest Event API
+            try {
+                java.net.http.HttpClient inngestClient = java.net.http.HttpClient.newBuilder()
+                        .connectTimeout(Duration.ofSeconds(2))
+                        .build();
+
+                String inngestPayload = String.format("[{\"name\":\"audio/job.cancel\",\"data\":{\"jobId\":\"%s\"}}]", jobId);
+                java.net.http.HttpRequest inngestReq = java.net.http.HttpRequest.newBuilder()
+                        .uri(java.net.URI.create(inngestDevUrl + "/e/dev"))
+                        .header("Content-Type", "application/json")
+                        .timeout(Duration.ofSeconds(2))
+                        .POST(java.net.http.HttpRequest.BodyPublishers.ofString(inngestPayload))
+                        .build();
+
+                inngestClient.sendAsync(inngestReq, java.net.http.HttpResponse.BodyHandlers.discarding());
+                log.info("Dispatched async cancellation event directly to Inngest Dev Server for job [{}]", jobId);
+            } catch (Exception e) {
+                log.warn("Could not dispatch cancellation event to Inngest dev server: {}", e.getMessage());
+            }
+        } catch (Exception e) {
+            log.warn("Error during Inngest cancellation for job [{}]: {}", jobId, e.getMessage());
+        }
+
+        // 1. Clean Algolia Search Index
+        if (songId != null && !songId.isBlank()) {
+            try {
+                algoliaSearch.delete(songId);
+                log.info("Purged Algolia search index for songId [{}] (Job [{}])", songId, jobId);
+            } catch (Exception e) {
+                log.warn("Failed to purge Algolia search for songId {}: {}", songId, e.getMessage());
+            }
+        }
+
+        // 2. Clean Recombee Recommendation Item Vectors
+        if (songId != null && !songId.isBlank()) {
+            try {
+                recombee.delete(songId);
+                log.info("Purged Recombee recommendation item for songId [{}] (Job [{}])", songId, jobId);
+            } catch (Exception e) {
+                log.warn("Failed to purge Recombee item for songId {}: {}", songId, e.getMessage());
+            }
+        }
+
+        // 3. Clean Temporary Uploads & Staging Files from S3 (melody-temp)
+        if (job.getTempSongKey() != null && !job.getTempSongKey().isBlank()) {
+            try {
+                s3.deleteObject(job.getTempSongKey(), tempBucket);
+                s3.deletePrefix(job.getTempSongKey(), tempBucket);
+                log.info("Purged tempSongKey [{}] from S3 temp bucket", job.getTempSongKey());
+            } catch (Exception e) {
+                log.warn("Failed to delete tempSongKey {}: {}", job.getTempSongKey(), e.getMessage());
+            }
+        }
+        if (job.getTempVideoKey() != null && !job.getTempVideoKey().isBlank()) {
+            try {
+                s3.deleteObject(job.getTempVideoKey(), tempBucket);
+                s3.deletePrefix(job.getTempVideoKey(), tempBucket);
+                log.info("Purged tempVideoKey [{}] from S3 temp bucket", job.getTempVideoKey());
+            } catch (Exception e) {
+                log.warn("Failed to delete tempVideoKey {}: {}", job.getTempVideoKey(), e.getMessage());
+            }
+        }
+        if (songId != null && !songId.isBlank()) {
+            try {
+                s3.deletePrefix(songId, tempBucket);
+                s3.deletePrefix("audios/" + songId, tempBucket);
+                s3.deletePrefix("videos/" + songId, tempBucket);
+            } catch (Exception e) {
+                log.warn("Failed to clean tempBucket prefixes for songId {}: {}", songId, e.getMessage());
+            }
+        }
+        try {
+            s3.deletePrefix(jobId, tempBucket);
+        } catch (Exception e) {
+            log.warn("Failed to clean tempBucket prefix for jobId {}: {}", jobId, e.getMessage());
+        }
+
+        // 4. Clean Transcoded Chunk Trees from Production S3 (melody-songs)
+        if (job.getSongKey() != null && !job.getSongKey().isBlank()) {
+            try {
+                s3.deletePrefix(job.getSongKey(), productionBucket);
+                log.info("Purged S3 audio prefix [{}] from production bucket", job.getSongKey());
+            } catch (Exception e) {
+                log.warn("Failed to delete S3 audio prefix {}: {}", job.getSongKey(), e.getMessage());
+            }
+        }
+        if (job.getFullVideoKey() != null && !job.getFullVideoKey().isBlank()) {
+            try {
+                s3.deletePrefix(job.getFullVideoKey(), productionBucket);
+                log.info("Purged S3 video prefix [{}] from production bucket", job.getFullVideoKey());
+            } catch (Exception e) {
+                log.warn("Failed to delete S3 fullVideoKey prefix {}: {}", job.getFullVideoKey(), e.getMessage());
+            }
+        }
+        // In case the job failed mid-transcoding before songKey or fullVideoKey were saved to DB:
+        // audioProcessing writes directly to audios/<songId> and videos/<songId>
+        if (songId != null && !songId.isBlank()) {
+            try {
+                s3.deletePrefix("audios/" + songId, productionBucket);
+                s3.deletePrefix("videos/" + songId, productionBucket);
+                s3.deletePrefix(songId, productionBucket);
+                log.info("Purged conventional S3 prefixes (audios/{}, videos/{}) from production bucket", songId, songId);
+            } catch (Exception e) {
+                log.warn("Failed to delete conventional S3 chunk prefixes for songId {}: {}", songId, e.getMessage());
+            }
+        }
+
+        // 5. Clean ImageKit CDN Assets (Cover Artwork & Looping Canvas Video)
+        if (job.getImageKey() != null && !job.getImageKey().isBlank()) {
+            try {
+                imageKit.deleteByKey(job.getImageKey());
+                log.info("Purged ImageKit artwork key [{}]", job.getImageKey());
+            } catch (Exception e) {
+                log.warn("Failed to delete ImageKit imageKey {}: {}", job.getImageKey(), e.getMessage());
+            }
+        }
+        if (job.getVideoKey() != null && !job.getVideoKey().isBlank()) {
+            try {
+                imageKit.deleteByKey(job.getVideoKey());
+                log.info("Purged ImageKit canvas video key [{}]", job.getVideoKey());
+            } catch (Exception e) {
+                log.warn("Failed to delete ImageKit videoKey {}: {}", job.getVideoKey(), e.getMessage());
+            }
+        }
+
+        // 6. Clean Associated Song Entity if half-created or orphaned in PostgreSQL
+        if (songId != null && !songId.isBlank()) {
+            try {
+                songsRepository.findById(songId).ifPresent(song -> {
+                    StatusEnum previousStatus = song.getStatus();
+                    songsRepository.deleteById(songId);
+                    if (previousStatus != null) {
+                        paginationMetaDataService.decrementStatus("SongsEntity", previousStatus);
+                    }
+                    log.info("Deleted orphaned SongsEntity [{}] associated with Job [{}]", songId, jobId);
+                });
+            } catch (Exception e) {
+                log.warn("Failed to delete associated SongsEntity for songId {}: {}", songId, e.getMessage());
+            }
+        }
+
+        // 7. Decrement pagination metadata for JobsEntity
         try {
             paginationMetaDataService.decrementStatus("JobsEntity", StatusEnum.ACTIVE);
         } catch (Exception e) {
             log.warn("Failed to decrement pagination metadata for job {}: {}", jobId, e.getMessage());
         }
 
+        // 8. Delete the JobsEntity record
         jobsRepository.deleteById(jobId);
-        log.info("Job [{}] deleted successfully by admin", jobId);
+        log.info("Job [{}] and all associated cloud/DB resources purged successfully by admin", jobId);
     }
 
     public JobProgressDto toProgressDto(JobsEntity job) {

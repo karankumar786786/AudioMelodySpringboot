@@ -5,6 +5,12 @@ import { extractMeaningfulError } from "../lib/errorUtils";
 export const indexRecombee = inngest.createFunction(
     {
         id: "index-recombee",
+        cancelOn: [
+            {
+                event: "audio/job.cancel",
+                match: "data.jobId",
+            },
+        ],
         triggers: [{ event: "audio/song.index.recombee" }],
         onFailure: async ({ event, error }) => {
             const jobId = event?.data?.event?.data?.jobId;

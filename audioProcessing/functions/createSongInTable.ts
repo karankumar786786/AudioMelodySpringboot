@@ -5,6 +5,12 @@ import { extractMeaningfulError } from "../lib/errorUtils";
 export const finalizeSong = inngest.createFunction(
     {
         id: "finalize-song",
+        cancelOn: [
+            {
+                event: "audio/job.cancel",
+                match: "data.jobId",
+            },
+        ],
         triggers: [{ event: "audio/song.final.create" }],
         onFailure: async ({ event, error }) => {
             const jobId = event?.data?.event?.data?.jobId;

@@ -10,6 +10,12 @@ config();
 export const transcodeSong = inngest.createFunction(
     {
         id: "transcode-song",
+        cancelOn: [
+            {
+                event: "audio/job.cancel",
+                match: "data.jobId",
+            },
+        ],
         triggers: [{ event: "audio/song.transcode" }],
         retries: 3,
         onFailure: async ({ event, error }) => {

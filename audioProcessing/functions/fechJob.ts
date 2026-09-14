@@ -6,6 +6,12 @@ import { extractMeaningfulError } from "../lib/errorUtils";
 export const fetchJob = inngest.createFunction(
     {
         id: "fetch-job",
+        cancelOn: [
+            {
+                event: "audio/job.cancel",
+                match: "data.jobId",
+            },
+        ],
         triggers: [{ event: "audio/fetchjob" }],
         retries: 3,
         onFailure: async ({ event, error }) => {

@@ -5,6 +5,12 @@ import { extractMeaningfulError } from "../lib/errorUtils";
 export const indexAlgolia = inngest.createFunction(
     {
         id: "index-algolia",
+        cancelOn: [
+            {
+                event: "audio/job.cancel",
+                match: "data.jobId",
+            },
+        ],
         triggers: [{ event: "audio/song.index.algolia" }],
         onFailure: async ({ event, error }) => {
             const jobId = event?.data?.event?.data?.jobId;

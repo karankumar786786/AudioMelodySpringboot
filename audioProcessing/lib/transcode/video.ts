@@ -94,12 +94,24 @@ export class VideoTranscoder {
             // Exclude intermediate raw encoded streams
             const filesToUpload = allFiles.filter(fp => !/raw_.*\.mp4$/.test(fp) && !/raw_.*\.m4a$/.test(fp));
 
-            console.log(`Uploading ${filesToUpload.length} video files to S3 bucket "${this.bucketName}" under prefix "${this.basePath}/${s3DirName}"...`);
+            const totalFiles = filesToUpload.length;
+            console.log(`[VIDEO S3] Uploading ${totalFiles} video files to S3 bucket "${this.bucketName}" under prefix "${this.basePath}/${s3DirName}"...`);
+            let uploadedCount = 0;
+            let lastReportedPercent = 0;
+
             const uploadPromises = filesToUpload.map(fp =>
-                this.limit(() => this.uploadFileToS3(fp, outputDir, s3DirName, this.bucketName))
+                this.limit(async () => {
+                    await this.uploadFileToS3(fp, outputDir, s3DirName, this.bucketName);
+                    uploadedCount++;
+                    const percent = Math.floor((uploadedCount / totalFiles) * 100);
+                    if (percent >= lastReportedPercent + 25 || uploadedCount === totalFiles) {
+                        lastReportedPercent = percent;
+                        console.log(`[VIDEO S3] Upload progress: ${percent}% (${uploadedCount}/${totalFiles} files uploaded)`);
+                    }
+                })
             );
             await Promise.all(uploadPromises);
-            console.log("All full video uploads completed");
+            console.log(`[VIDEO S3] All ${totalFiles} video files uploaded successfully`);
 
             console.log(`--- Video Transcoding Completed for ${s3DirName} ---`);
             return { duration: info.duration };

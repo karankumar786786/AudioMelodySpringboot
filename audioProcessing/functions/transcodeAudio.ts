@@ -19,6 +19,12 @@ export interface TranscodeAudioData {
 export const transcodeAudioTask = inngest.createFunction(
     {
         id: "transcode-audio-task",
+        cancelOn: [
+            {
+                event: "audio/job.cancel",
+                match: "data.jobId",
+            },
+        ],
         triggers: [{ event: "audio/song.transcode.audio" }],
         retries: 3,
     },

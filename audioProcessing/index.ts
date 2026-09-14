@@ -17,6 +17,7 @@ import { deleteFromImageKit } from "./functions/deleteFromImageKit";
 import { deleteFromS3 } from "./functions/deleteFromS3";
 import { finalizeDelete } from "./functions/finalizeDelete";
 import { fetchDeleteEventsFromList } from "./jobseeker/deleteWorker";
+import { fetchCancelEventsFromList } from "./jobseeker/cancelWorker";
 import {
   setupGracefulShutdownCleanup,
   cleanupStaleTmpFiles,
@@ -60,6 +61,24 @@ const functions = [
   finalizeDelete,
 ];
 
+// Explicit cancellation endpoint for halting Inngest runs & cleaning scratch space
+app.post("/api/jobs/:jobId/cancel", async (req, res) => {
+  const { jobId } = req.params;
+  console.log(`[CANCEL API] Received cancellation request for job: ${jobId}`);
+  try {
+    await inngest.send({
+      name: "audio/job.cancel",
+      data: { jobId },
+    });
+    console.log(`[CANCEL API] Emitted audio/job.cancel to Inngest for job ${jobId}`);
+    cleanupStaleTmpFiles().catch(() => {});
+    res.json({ success: true, message: `Inngest execution cancelled for job ${jobId}` });
+  } catch (err: any) {
+    console.error(`[CANCEL API] Failed to emit cancellation to Inngest for job ${jobId}:`, err);
+    res.status(500).json({ error: err.message || err });
+  }
+});
+
 app.use(
   "/api/inngest",
   serve({
@@ -90,4 +109,5 @@ app.listen(5010, () => {
 
   fetchJobsFromList();
   fetchDeleteEventsFromList();
+  fetchCancelEventsFromList();
 });

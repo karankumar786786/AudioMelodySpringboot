@@ -292,7 +292,7 @@ export default function JobMonitoringPage() {
 
   const handleDeleteIngestionJob = async (jobId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    if (!confirm("Are you sure you want to delete this job record? This cannot be undone.")) {
+    if (!confirm("Are you sure you want to delete this job? This will clean up all associated garbage: S3 audio/video files, temporary uploads, Algolia search records, Recombee vectors, and database entities.")) {
       return;
     }
     try {
@@ -942,9 +942,9 @@ export default function JobMonitoringPage() {
                                   onClick={(e) => handleDeleteIngestionJob(job.id, e)}
                                   disabled={deletingJobId === job.id}
                                   className="p-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-600 hover:text-white border border-rose-500/20 rounded-lg transition-all"
-                                  title="Delete Job Record"
+                                  title="Delete Job & Purge Cloud Artifacts"
                                 >
-                                  <Trash2 className={`w-3.5 h-3.5 ${deletingJobId === job.id ? "animate-pulse" : ""}`} />
+                                  <Trash2 className={`w-3.5 h-3.5 ${deletingJobId === job.id ? "animate-spin" : ""}`} />
                                 </button>
                               </div>
                             </td>
@@ -1737,8 +1737,8 @@ export default function JobMonitoringPage() {
                 disabled={deletingJobId === selectedJob.id}
                 className="px-4 py-2 bg-rose-500/10 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-500/20 font-bold text-xs rounded-full transition-all flex items-center gap-2"
               >
-                <Trash2 className="w-4 h-4" />
-                Delete Job Record
+                <Trash2 className={`w-4 h-4 ${deletingJobId === selectedJob.id ? "animate-spin" : ""}`} />
+                {deletingJobId === selectedJob.id ? "Purging Cloud Artifacts..." : "Delete Job & Purge Artifacts"}
               </button>
               <div className="flex items-center gap-3">
                 {selectedJob.status === "FAILED" && (

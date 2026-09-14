@@ -82,12 +82,24 @@ export class AudioTranscoder {
             const allFiles = this.getAllFiles(outputDir);
             const filesToUpload = allFiles.filter(fp => !/raw_audio_.*\.m4a$/.test(fp));
 
-            console.log(`Uploading ${filesToUpload.length} files to S3 bucket "${this.bucketName}" under prefix "${this.basePath}/${audioName}"...`);
+            const totalFiles = filesToUpload.length;
+            console.log(`[AUDIO S3] Uploading ${totalFiles} packaged HLS/DASH files to s3://${this.bucketName}/${this.basePath}/${audioName}...`);
+            let uploadedCount = 0;
+            let lastReportedPercent = 0;
+
             const uploadPromises = filesToUpload.map(fp =>
-                this.limit(() => this.uploadFileToS3(fp, outputDir, audioName, this.bucketName))
+                this.limit(async () => {
+                    await this.uploadFileToS3(fp, outputDir, audioName, this.bucketName);
+                    uploadedCount++;
+                    const percent = Math.floor((uploadedCount / totalFiles) * 100);
+                    if (percent >= lastReportedPercent + 25 || uploadedCount === totalFiles) {
+                        lastReportedPercent = percent;
+                        console.log(`[AUDIO S3] Upload progress: ${percent}% (${uploadedCount}/${totalFiles} files uploaded)`);
+                    }
+                })
             );
             await Promise.all(uploadPromises);
-            console.log("All uploads completed");
+            console.log(`[AUDIO S3] All ${totalFiles} files uploaded successfully`);
 
             console.log(`--- Audio Transcoding Completed ---`);
             return { duration };
@@ -248,8 +260,6 @@ export class AudioTranscoder {
                     ContentType: contentType,
                     CacheControl: "no-transform",
                 }));
-
-                console.log(`Uploaded -> s3://${bucketName}/${s3Key}`);
                 return;
             } catch (err: any) {
                 console.warn(`Upload attempt ${i + 1} failed for ${relPath}: ${err.message}`);
