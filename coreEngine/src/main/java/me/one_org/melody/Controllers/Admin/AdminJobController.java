@@ -41,24 +41,36 @@ public class AdminJobController {
 
     /**
      * Real-time list of all currently active/processing songs with live stage progress,
-     * attempt count, and elapsed timers.
+     * attempt count, and elapsed timers. Supports optional pagination.
      */
     @GetMapping("/active")
-    public ResponseEntity<List<JobProgressDto>> getActiveJobs() {
+    public ResponseEntity<?> getActiveJobs(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        if (page != null && size != null) {
+            List<JobProgressDto> content = jobMonitoringService.getActiveProcessingJobsPaginated(page, size);
+            long total = jobMonitoringService.countActiveJobs();
+            PaginationMetaDataEntity meta = new PaginationMetaDataEntity();
+            meta.setTotalCount(total);
+            meta.setActiveCount(total);
+            meta.setBlockedCount(0L);
+            return ResponseEntity.ok(new PaginatedResponseDto<>(content, page, size, meta));
+        }
         return ResponseEntity.ok(jobMonitoringService.getActiveProcessingJobs());
     }
 
     /**
-     * Paginated and filterable list of all song processing jobs.
+     * Paginated and filterable list of all song processing jobs with search support.
      */
     @GetMapping
     public ResponseEntity<PaginatedResponseDto<JobProgressDto>> getJobs(
             @RequestParam(required = false) JobStatusEnum status,
             @RequestParam(required = false) JobStageEnum stage,
+            @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<JobProgressDto> content = jobMonitoringService.getJobsPaginated(status, stage, page, size);
-        long totalCount = jobMonitoringService.countJobs(status, stage);
+        List<JobProgressDto> content = jobMonitoringService.getJobsPaginated(status, stage, search, page, size);
+        long totalCount = jobMonitoringService.countJobs(status, stage, search);
 
         PaginationMetaDataEntity meta = new PaginationMetaDataEntity();
         meta.setTotalCount(totalCount);
@@ -66,6 +78,67 @@ public class AdminJobController {
         meta.setBlockedCount(0L);
 
         return ResponseEntity.ok(new PaginatedResponseDto<>(content, page, size, meta));
+    }
+
+    /**
+     * Dedicated paginated endpoint for jobs by specific status (e.g. PENDING, PROCESSING, FAILED, COMPLETED).
+     */
+    @GetMapping("/status/{status}")
+    public ResponseEntity<PaginatedResponseDto<JobProgressDto>> getJobsByStatus(
+            @PathVariable JobStatusEnum status,
+            @RequestParam(required = false) JobStageEnum stage,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return getJobs(status, stage, search, page, size);
+    }
+
+    /**
+     * Dedicated paginated endpoint for PENDING jobs.
+     */
+    @GetMapping("/pending")
+    public ResponseEntity<PaginatedResponseDto<JobProgressDto>> getPendingJobs(
+            @RequestParam(required = false) JobStageEnum stage,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return getJobs(JobStatusEnum.PENDING, stage, search, page, size);
+    }
+
+    /**
+     * Dedicated paginated endpoint for PROCESSING jobs.
+     */
+    @GetMapping("/processing")
+    public ResponseEntity<PaginatedResponseDto<JobProgressDto>> getProcessingJobs(
+            @RequestParam(required = false) JobStageEnum stage,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return getJobs(JobStatusEnum.PROCESSING, stage, search, page, size);
+    }
+
+    /**
+     * Dedicated paginated endpoint for FAILED jobs.
+     */
+    @GetMapping("/failed")
+    public ResponseEntity<PaginatedResponseDto<JobProgressDto>> getFailedJobs(
+            @RequestParam(required = false) JobStageEnum stage,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return getJobs(JobStatusEnum.FAILED, stage, search, page, size);
+    }
+
+    /**
+     * Dedicated paginated endpoint for COMPLETED jobs.
+     */
+    @GetMapping("/completed")
+    public ResponseEntity<PaginatedResponseDto<JobProgressDto>> getCompletedJobs(
+            @RequestParam(required = false) JobStageEnum stage,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return getJobs(JobStatusEnum.COMPLETED, stage, search, page, size);
     }
 
     /**

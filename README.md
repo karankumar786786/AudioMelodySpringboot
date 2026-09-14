@@ -1182,12 +1182,23 @@ AudioMelodySpringboot/
 ### Operational & Monitoring APIs (`/admin/jobs` & `/admin/delete-jobs`)
 - `GET /admin/jobs/summary`: High-level metrics (processing, queued, completed, failed, avg stage durations).
 - `GET /admin/jobs/queues`: Live Redis queue depths and backpressure indicators.
-- `GET /admin/jobs/active`: Real-time active ingestion jobs with elapsed stage timers.
-- `GET /admin/jobs`: Filterable, paginated audit list of all ingestion jobs.
+- `GET /admin/jobs`: Filterable, paginated audit list of ingestion jobs (`page`, `size`, `status`, `stage`, `search`).
+- `GET /admin/jobs/active`: Real-time active ingestion jobs with elapsed stage timers (supports optional `page`, `size`).
+- `GET /admin/jobs/status/{status}`: Paginated ingestion jobs partitioned by status enum (`PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`).
+- `GET /admin/jobs/pending`: Convenient paginated helper for queued / pending ingestion jobs.
+- `GET /admin/jobs/processing`: Convenient paginated helper for in-flight worker ingestion jobs.
+- `GET /admin/jobs/failed`: Dedicated paginated helper for failed ingestion jobs requiring review or retry.
+- `GET /admin/jobs/completed`: Dedicated paginated helper for successfully archived ingestion jobs.
 - `POST /admin/jobs/{jobId}/retry`: **1-Click Retry** for failed or stuck ingestion jobs.
 - `DELETE /admin/jobs/{jobId}`: Deletes ingestion job audit record from PostgreSQL.
 - `GET /admin/delete-jobs/summary`: High-level metrics for cascade teardown jobs.
-- `GET /admin/delete-jobs`: Filterable, paginated audit list of all cascade delete jobs.
+- `GET /admin/delete-jobs`: Filterable, paginated audit list of cascade delete jobs (`page`, `size`, `status`, `search`).
+- `GET /admin/delete-jobs/active`: Paginated active cascade teardown jobs.
+- `GET /admin/delete-jobs/status/{status}`: Paginated cascade jobs partitioned by status enum (`PENDING`, `IN_PROGRESS`, `COMPLETED`, `FAILED`).
+- `GET /admin/delete-jobs/pending`: Convenient paginated helper for queued cascade deletions.
+- `GET /admin/delete-jobs/in-progress`: Convenient paginated helper for actively running cascade deletions.
+- `GET /admin/delete-jobs/failed`: Dedicated paginated helper for failed cascade deletions.
+- `GET /admin/delete-jobs/completed`: Dedicated paginated helper for successfully completed cascade teardowns.
 - `POST /admin/delete-jobs/{jobId}/retry`: **1-Click Retry** for failed cascade deletion jobs.
 - `DELETE /admin/delete-jobs/{jobId}`: Deletes cascade teardown audit record from PostgreSQL.
 

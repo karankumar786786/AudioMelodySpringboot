@@ -69,20 +69,41 @@ public class JobsRepository {
     }
 
     public List<JobsEntity> findActiveProcessing() {
+        return findActiveProcessingPaginated(0, 100);
+    }
+
+    public List<JobsEntity> findActiveProcessingPaginated(int page, int size) {
         return entityManager.createQuery(
                 "SELECT j FROM JobsEntity j WHERE j.status IN (:pending, :processing) ORDER BY j.createdAt ASC NULLS LAST", JobsEntity.class)
                 .setParameter("pending", JobStatusEnum.PENDING)
                 .setParameter("processing", JobStatusEnum.PROCESSING)
+                .setFirstResult(page * size)
+                .setMaxResults(size)
                 .getResultList();
     }
 
+    public long countActiveProcessing() {
+        return entityManager.createQuery(
+                "SELECT COUNT(j) FROM JobsEntity j WHERE j.status IN (:pending, :processing)", Long.class)
+                .setParameter("pending", JobStatusEnum.PENDING)
+                .setParameter("processing", JobStatusEnum.PROCESSING)
+                .getSingleResult();
+    }
+
     public List<JobsEntity> findPaginatedFiltered(JobStatusEnum status, JobStageEnum stage, int page, int size) {
+        return findPaginatedFiltered(status, stage, null, page, size);
+    }
+
+    public List<JobsEntity> findPaginatedFiltered(JobStatusEnum status, JobStageEnum stage, String search, int page, int size) {
         StringBuilder queryStr = new StringBuilder("SELECT j FROM JobsEntity j WHERE 1=1 ");
         if (status != null) {
             queryStr.append("AND j.status = :status ");
         }
         if (stage != null) {
             queryStr.append("AND j.currentStage = :stage ");
+        }
+        if (search != null && !search.trim().isEmpty()) {
+            queryStr.append("AND (LOWER(j.title) LIKE :search OR LOWER(j.artistName) LIKE :search OR LOWER(j.songId) LIKE :search OR LOWER(j.id) LIKE :search) ");
         }
         queryStr.append("ORDER BY j.createdAt DESC NULLS LAST");
 
@@ -93,6 +114,9 @@ public class JobsRepository {
         if (stage != null) {
             query.setParameter("stage", stage);
         }
+        if (search != null && !search.trim().isEmpty()) {
+            query.setParameter("search", "%" + search.trim().toLowerCase() + "%");
+        }
 
         return query.setFirstResult(page * size)
                 .setMaxResults(size)
@@ -100,12 +124,19 @@ public class JobsRepository {
     }
 
     public long countFiltered(JobStatusEnum status, JobStageEnum stage) {
+        return countFiltered(status, stage, null);
+    }
+
+    public long countFiltered(JobStatusEnum status, JobStageEnum stage, String search) {
         StringBuilder queryStr = new StringBuilder("SELECT COUNT(j) FROM JobsEntity j WHERE 1=1 ");
         if (status != null) {
             queryStr.append("AND j.status = :status ");
         }
         if (stage != null) {
             queryStr.append("AND j.currentStage = :stage ");
+        }
+        if (search != null && !search.trim().isEmpty()) {
+            queryStr.append("AND (LOWER(j.title) LIKE :search OR LOWER(j.artistName) LIKE :search OR LOWER(j.songId) LIKE :search OR LOWER(j.id) LIKE :search) ");
         }
 
         var query = entityManager.createQuery(queryStr.toString(), Long.class);
@@ -114,6 +145,9 @@ public class JobsRepository {
         }
         if (stage != null) {
             query.setParameter("stage", stage);
+        }
+        if (search != null && !search.trim().isEmpty()) {
+            query.setParameter("search", "%" + search.trim().toLowerCase() + "%");
         }
 
         return query.getSingleResult();

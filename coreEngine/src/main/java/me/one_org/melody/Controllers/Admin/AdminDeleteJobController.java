@@ -33,10 +33,21 @@ public class AdminDeleteJobController {
     }
 
     /**
-     * Real-time list of all currently active/processing delete jobs.
+     * Real-time list of all currently active/processing delete jobs. Supports optional pagination.
      */
     @GetMapping("/active")
-    public ResponseEntity<List<DeleteJobProgressDto>> getActiveJobs() {
+    public ResponseEntity<?> getActiveJobs(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
+        if (page != null && size != null) {
+            List<DeleteJobProgressDto> content = adminDeleteJobService.getActiveProcessingJobsPaginated(page, size);
+            long total = adminDeleteJobService.countActiveJobs();
+            PaginationMetaDataEntity meta = new PaginationMetaDataEntity();
+            meta.setTotalCount(total);
+            meta.setActiveCount(total);
+            meta.setBlockedCount(0L);
+            return ResponseEntity.ok(new PaginatedResponseDto<>(content, page, size, meta));
+        }
         return ResponseEntity.ok(adminDeleteJobService.getActiveProcessingJobs());
     }
 
@@ -60,6 +71,72 @@ public class AdminDeleteJobController {
         meta.setBlockedCount(0L);
 
         return ResponseEntity.ok(new PaginatedResponseDto<>(content, page, size, meta));
+    }
+
+    /**
+     * Dedicated paginated endpoint for delete jobs by specific status.
+     */
+    @GetMapping("/status/{status}")
+    public ResponseEntity<PaginatedResponseDto<DeleteJobProgressDto>> getDeleteJobsByStatus(
+            @PathVariable DeleteJobStatusEnum status,
+            @RequestParam(required = false) DeleteJobStageEnum stage,
+            @RequestParam(required = false) DeleteEntityType entityType,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return getJobs(status, stage, entityType, search, page, size);
+    }
+
+    /**
+     * Dedicated paginated endpoint for PENDING delete jobs.
+     */
+    @GetMapping("/pending")
+    public ResponseEntity<PaginatedResponseDto<DeleteJobProgressDto>> getPendingDeleteJobs(
+            @RequestParam(required = false) DeleteJobStageEnum stage,
+            @RequestParam(required = false) DeleteEntityType entityType,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return getJobs(DeleteJobStatusEnum.PENDING, stage, entityType, search, page, size);
+    }
+
+    /**
+     * Dedicated paginated endpoint for IN_PROGRESS delete jobs.
+     */
+    @GetMapping("/in-progress")
+    public ResponseEntity<PaginatedResponseDto<DeleteJobProgressDto>> getInProgressDeleteJobs(
+            @RequestParam(required = false) DeleteJobStageEnum stage,
+            @RequestParam(required = false) DeleteEntityType entityType,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return getJobs(DeleteJobStatusEnum.IN_PROGRESS, stage, entityType, search, page, size);
+    }
+
+    /**
+     * Dedicated paginated endpoint for FAILED delete jobs.
+     */
+    @GetMapping("/failed")
+    public ResponseEntity<PaginatedResponseDto<DeleteJobProgressDto>> getFailedDeleteJobs(
+            @RequestParam(required = false) DeleteJobStageEnum stage,
+            @RequestParam(required = false) DeleteEntityType entityType,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return getJobs(DeleteJobStatusEnum.FAILED, stage, entityType, search, page, size);
+    }
+
+    /**
+     * Dedicated paginated endpoint for COMPLETED delete jobs.
+     */
+    @GetMapping("/completed")
+    public ResponseEntity<PaginatedResponseDto<DeleteJobProgressDto>> getCompletedDeleteJobs(
+            @RequestParam(required = false) DeleteJobStageEnum stage,
+            @RequestParam(required = false) DeleteEntityType entityType,
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return getJobs(DeleteJobStatusEnum.COMPLETED, stage, entityType, search, page, size);
     }
 
     /**

@@ -82,11 +82,25 @@ public class DeleteJobsRepository {
     }
 
     public List<DeleteJobsEntity> findActiveProcessing() {
+        return findActiveProcessingPaginated(0, 100);
+    }
+
+    public List<DeleteJobsEntity> findActiveProcessingPaginated(int page, int size) {
         return entityManager.createQuery(
                 "SELECT d FROM DeleteJobsEntity d WHERE d.status IN (:pending, :inProgress) ORDER BY d.createdAt ASC NULLS LAST", DeleteJobsEntity.class)
                 .setParameter("pending", DeleteJobStatusEnum.PENDING)
                 .setParameter("inProgress", DeleteJobStatusEnum.IN_PROGRESS)
+                .setFirstResult(page * size)
+                .setMaxResults(size)
                 .getResultList();
+    }
+
+    public long countActiveProcessing() {
+        return entityManager.createQuery(
+                "SELECT COUNT(d) FROM DeleteJobsEntity d WHERE d.status IN (:pending, :inProgress)", Long.class)
+                .setParameter("pending", DeleteJobStatusEnum.PENDING)
+                .setParameter("inProgress", DeleteJobStatusEnum.IN_PROGRESS)
+                .getSingleResult();
     }
 
     public List<DeleteJobsEntity> findPaginatedFiltered(

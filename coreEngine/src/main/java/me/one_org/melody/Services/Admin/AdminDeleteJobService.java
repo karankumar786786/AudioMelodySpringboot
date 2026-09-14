@@ -78,6 +78,15 @@ public class AdminDeleteJobService {
         return active.stream().map(this::toProgressDto).toList();
     }
 
+    public List<DeleteJobProgressDto> getActiveProcessingJobsPaginated(int page, int size) {
+        List<DeleteJobsEntity> active = deleteJobsRepository.findActiveProcessingPaginated(page, size);
+        return active.stream().map(this::toProgressDto).toList();
+    }
+
+    public long countActiveJobs() {
+        return deleteJobsRepository.countActiveProcessing();
+    }
+
     public List<DeleteJobProgressDto> getJobsPaginated(
             DeleteJobStatusEnum status,
             DeleteJobStageEnum stage,
@@ -136,7 +145,16 @@ public class AdminDeleteJobService {
 
         Long elapsedTotalMs = job.getTotalDurationMs();
         if (elapsedTotalMs == null && job.getCreatedAt() != null) {
-            elapsedTotalMs = Duration.between(job.getCreatedAt(), now).toMillis();
+            if (status == DeleteJobStatusEnum.COMPLETED) {
+                LocalDateTime end = job.getCompletedAt() != null ? job.getCompletedAt()
+                        : (job.getS3DeletedAt() != null ? job.getS3DeletedAt() : job.getCreatedAt());
+                elapsedTotalMs = Duration.between(job.getCreatedAt(), end).toMillis();
+            } else if (status == DeleteJobStatusEnum.FAILED) {
+                LocalDateTime end = job.getFailedAt() != null ? job.getFailedAt() : job.getCreatedAt();
+                elapsedTotalMs = Duration.between(job.getCreatedAt(), end).toMillis();
+            } else {
+                elapsedTotalMs = Duration.between(job.getCreatedAt(), now).toMillis();
+            }
         }
 
         Long currentStageElapsedMs = null;
@@ -167,7 +185,11 @@ public class AdminDeleteJobService {
             }
         } else if (status == DeleteJobStatusEnum.FAILED && currentStage == DeleteJobStageEnum.QUEUED) {
             qStatus = "FAILED";
-        } else if (status == DeleteJobStatusEnum.PENDING) {
+            LocalDateTime end = job.getFailedAt() != null ? job.getFailedAt() : job.getCreatedAt();
+            if (job.getCreatedAt() != null) {
+                qDuration = Duration.between(job.getCreatedAt(), end).toMillis();
+            }
+        } else if (status == DeleteJobStatusEnum.PENDING || status == DeleteJobStatusEnum.IN_PROGRESS) {
             qStatus = "IN_PROGRESS";
             if (job.getCreatedAt() != null) {
                 qDuration = Duration.between(job.getCreatedAt(), now).toMillis();
@@ -192,6 +214,10 @@ public class AdminDeleteJobService {
             sStatus = "COMPLETED";
         } else if (currentStage == DeleteJobStageEnum.SEARCH_DELETED) {
             sStatus = (status == DeleteJobStatusEnum.FAILED) ? "FAILED" : "IN_PROGRESS";
+            if (sDuration == null && job.getStartedAt() != null) {
+                LocalDateTime end = (status == DeleteJobStatusEnum.FAILED && job.getFailedAt() != null) ? job.getFailedAt() : now;
+                sDuration = Duration.between(job.getStartedAt(), end).toMillis();
+            }
         } else if (job.getStartedAt() == null) {
             sStatus = "PENDING";
         } else {
@@ -216,6 +242,10 @@ public class AdminDeleteJobService {
             rStatus = "COMPLETED";
         } else if (currentStage == DeleteJobStageEnum.RECOMMENDATION_DELETED) {
             rStatus = (status == DeleteJobStatusEnum.FAILED) ? "FAILED" : "IN_PROGRESS";
+            if (rDuration == null && job.getSearchDeletedAt() != null) {
+                LocalDateTime end = (status == DeleteJobStatusEnum.FAILED && job.getFailedAt() != null) ? job.getFailedAt() : now;
+                rDuration = Duration.between(job.getSearchDeletedAt(), end).toMillis();
+            }
         } else if (job.getSearchDeletedAt() == null) {
             rStatus = "PENDING";
         } else {
@@ -238,6 +268,11 @@ public class AdminDeleteJobService {
             iStatus = "COMPLETED";
         } else if (currentStage == DeleteJobStageEnum.IMAGEKIT_DELETED) {
             iStatus = (status == DeleteJobStatusEnum.FAILED) ? "FAILED" : "IN_PROGRESS";
+            LocalDateTime prev = job.getRecommendationDeletedAt() != null ? job.getRecommendationDeletedAt() : job.getSearchDeletedAt();
+            if (iDuration == null && prev != null) {
+                LocalDateTime end = (status == DeleteJobStatusEnum.FAILED && job.getFailedAt() != null) ? job.getFailedAt() : now;
+                iDuration = Duration.between(prev, end).toMillis();
+            }
         } else if (job.getRecommendationDeletedAt() == null && job.getSearchDeletedAt() == null) {
             iStatus = "PENDING";
         } else {
@@ -260,6 +295,10 @@ public class AdminDeleteJobService {
             s3Status = "COMPLETED";
         } else if (currentStage == DeleteJobStageEnum.S3_DELETED) {
             s3Status = (status == DeleteJobStatusEnum.FAILED) ? "FAILED" : "IN_PROGRESS";
+            if (s3Duration == null && job.getImagekitDeletedAt() != null) {
+                LocalDateTime end = (status == DeleteJobStatusEnum.FAILED && job.getFailedAt() != null) ? job.getFailedAt() : now;
+                s3Duration = Duration.between(job.getImagekitDeletedAt(), end).toMillis();
+            }
         } else if (job.getImagekitDeletedAt() == null) {
             s3Status = "PENDING";
         } else {
@@ -282,6 +321,10 @@ public class AdminDeleteJobService {
             fStatus = "COMPLETED";
         } else if (currentStage == DeleteJobStageEnum.COMPLETED) {
             fStatus = (status == DeleteJobStatusEnum.FAILED) ? "FAILED" : "IN_PROGRESS";
+            if (fDuration == null && job.getS3DeletedAt() != null) {
+                LocalDateTime end = (status == DeleteJobStatusEnum.FAILED && job.getFailedAt() != null) ? job.getFailedAt() : now;
+                fDuration = Duration.between(job.getS3DeletedAt(), end).toMillis();
+            }
         } else {
             fStatus = (status == DeleteJobStatusEnum.FAILED) ? "FAILED" : "PENDING";
         }

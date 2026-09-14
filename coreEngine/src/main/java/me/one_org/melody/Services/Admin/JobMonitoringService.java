@@ -84,13 +84,30 @@ public class JobMonitoringService {
         return active.stream().map(this::toProgressDto).toList();
     }
 
+    public List<JobProgressDto> getActiveProcessingJobsPaginated(int page, int size) {
+        List<JobsEntity> active = jobsRepository.findActiveProcessingPaginated(page, size);
+        return active.stream().map(this::toProgressDto).toList();
+    }
+
+    public long countActiveJobs() {
+        return jobsRepository.countActiveProcessing();
+    }
+
     public List<JobProgressDto> getJobsPaginated(JobStatusEnum status, JobStageEnum stage, int page, int size) {
-        List<JobsEntity> jobs = jobsRepository.findPaginatedFiltered(status, stage, page, size);
+        return getJobsPaginated(status, stage, null, page, size);
+    }
+
+    public List<JobProgressDto> getJobsPaginated(JobStatusEnum status, JobStageEnum stage, String search, int page, int size) {
+        List<JobsEntity> jobs = jobsRepository.findPaginatedFiltered(status, stage, search, page, size);
         return jobs.stream().map(this::toProgressDto).toList();
     }
 
     public long countJobs(JobStatusEnum status, JobStageEnum stage) {
-        return jobsRepository.countFiltered(status, stage);
+        return countJobs(status, stage, null);
+    }
+
+    public long countJobs(JobStatusEnum status, JobStageEnum stage, String search) {
+        return jobsRepository.countFiltered(status, stage, search);
     }
 
     public JobProgressDto getJobProgress(String jobId) {
@@ -153,7 +170,20 @@ public class JobMonitoringService {
         // Calculate total elapsed time
         Long elapsedTotalMs = job.getTotalDurationMs();
         if (elapsedTotalMs == null && job.getCreatedAt() != null) {
-            elapsedTotalMs = Duration.between(job.getCreatedAt(), now).toMillis();
+            if (status == JobStatusEnum.COMPLETED) {
+                LocalDateTime end = job.getCompletedAt() != null ? job.getCompletedAt()
+                        : (job.getSearchSavedAt() != null ? job.getSearchSavedAt()
+                        : (job.getTranscodedAt() != null ? job.getTranscodedAt() : job.getCreatedAt()));
+                elapsedTotalMs = Duration.between(job.getCreatedAt(), end).toMillis();
+            } else if (status == JobStatusEnum.FAILED) {
+                LocalDateTime end = job.getFailedAt() != null ? job.getFailedAt()
+                        : (job.getSearchSavedAt() != null ? job.getSearchSavedAt()
+                        : (job.getTranscodedAt() != null ? job.getTranscodedAt() : job.getCreatedAt()));
+                elapsedTotalMs = Duration.between(job.getCreatedAt(), end).toMillis();
+            } else {
+                // Active/Pending jobs calculate elapsed time up to now
+                elapsedTotalMs = Duration.between(job.getCreatedAt(), now).toMillis();
+            }
         }
 
         // Calculate current stage elapsed time
@@ -184,7 +214,11 @@ public class JobMonitoringService {
             }
         } else if (status == JobStatusEnum.FAILED && currentStage == JobStageEnum.QUEUED) {
             qStatus = "FAILED";
-        } else if (status == JobStatusEnum.PENDING) {
+            LocalDateTime end = job.getFailedAt() != null ? job.getFailedAt() : job.getCreatedAt();
+            if (job.getCreatedAt() != null) {
+                qDuration = Duration.between(job.getCreatedAt(), end).toMillis();
+            }
+        } else if (status == JobStatusEnum.PENDING || status == JobStatusEnum.PROCESSING) {
             qStatus = "IN_PROGRESS";
             if (job.getCreatedAt() != null) {
                 qDuration = Duration.between(job.getCreatedAt(), now).toMillis();
@@ -210,7 +244,8 @@ public class JobMonitoringService {
         } else if (currentStage == JobStageEnum.TRANSCODING) {
             tStatus = (status == JobStatusEnum.FAILED) ? "FAILED" : "IN_PROGRESS";
             if (tDuration == null && job.getTranscodingStartedAt() != null) {
-                tDuration = Duration.between(job.getTranscodingStartedAt(), now).toMillis();
+                LocalDateTime end = (status == JobStatusEnum.FAILED && job.getFailedAt() != null) ? job.getFailedAt() : now;
+                tDuration = Duration.between(job.getTranscodingStartedAt(), end).toMillis();
             }
         } else if (job.getTranscodingStartedAt() == null) {
             tStatus = "PENDING";
@@ -237,7 +272,8 @@ public class JobMonitoringService {
         } else if (currentStage == JobStageEnum.RECOMMENDATION_INDEXING) {
             rStatus = (status == JobStatusEnum.FAILED) ? "FAILED" : "IN_PROGRESS";
             if (rDuration == null && job.getTranscodedAt() != null) {
-                rDuration = Duration.between(job.getTranscodedAt(), now).toMillis();
+                LocalDateTime end = (status == JobStatusEnum.FAILED && job.getFailedAt() != null) ? job.getFailedAt() : now;
+                rDuration = Duration.between(job.getTranscodedAt(), end).toMillis();
             }
         } else if (job.getTranscodedAt() == null) {
             rStatus = "PENDING";
@@ -264,7 +300,8 @@ public class JobMonitoringService {
         } else if (currentStage == JobStageEnum.SEARCH_INDEXING) {
             sStatus = (status == JobStatusEnum.FAILED) ? "FAILED" : "IN_PROGRESS";
             if (sDuration == null && job.getRecommendationSavedAt() != null) {
-                sDuration = Duration.between(job.getRecommendationSavedAt(), now).toMillis();
+                LocalDateTime end = (status == JobStatusEnum.FAILED && job.getFailedAt() != null) ? job.getFailedAt() : now;
+                sDuration = Duration.between(job.getRecommendationSavedAt(), end).toMillis();
             }
         } else if (job.getRecommendationSavedAt() == null) {
             sStatus = "PENDING";
@@ -290,7 +327,8 @@ public class JobMonitoringService {
             fStatus = (status == JobStatusEnum.FAILED) ? "FAILED" : "IN_PROGRESS";
             LocalDateTime prev = job.getSearchSavedAt() != null ? job.getSearchSavedAt() : job.getTranscodedAt();
             if (fDuration == null && prev != null) {
-                fDuration = Duration.between(prev, now).toMillis();
+                LocalDateTime end = (status == JobStatusEnum.FAILED && job.getFailedAt() != null) ? job.getFailedAt() : now;
+                fDuration = Duration.between(prev, end).toMillis();
             }
         } else {
             fStatus = (status == JobStatusEnum.FAILED) ? "FAILED" : "PENDING";

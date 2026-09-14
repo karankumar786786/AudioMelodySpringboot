@@ -32,7 +32,10 @@ import {
   Play,
   RotateCcw,
   Zap,
+  ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Database,
   Radio,
   ExternalLink,
@@ -54,6 +57,11 @@ export default function JobMonitoringPage() {
   const [retryingIngestionJobId, setRetryingIngestionJobId] = useState<string | null>(null);
   const [deletingJobId, setDeletingJobId] = useState<string | null>(null);
 
+  // Ingestion Pagination State
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
+  const [totalJobsCount, setTotalJobsCount] = useState(0);
+
   // Deletion Pipeline State
   const [deleteMetrics, setDeleteMetrics] = useState<DeleteJobSummaryMetrics | null>(null);
   const [activeDeleteJobs, setActiveDeleteJobs] = useState<DeleteJobProgress[]>([]);
@@ -64,6 +72,11 @@ export default function JobMonitoringPage() {
   const [deleteSearchQuery, setDeleteSearchQuery] = useState("");
   const [retryingJobId, setRetryingJobId] = useState<string | null>(null);
   const [deletingDeleteJobId, setDeletingDeleteJobId] = useState<string | null>(null);
+
+  // Deletion Pagination State
+  const [deletePage, setDeletePage] = useState(0);
+  const [deletePageSize, setDeletePageSize] = useState(20);
+  const [totalDeleteJobsCount, setTotalDeleteJobsCount] = useState(0);
 
   // General Page State
   const [loading, setLoading] = useState(true);
@@ -80,10 +93,17 @@ export default function JobMonitoringPage() {
     if (showLoader) setRefreshing(true);
     try {
       if (activeTab === "INGESTION") {
+        const queryParams = new URLSearchParams({
+          page: String(page),
+          size: String(pageSize),
+        });
+        if (statusFilter !== "ALL") queryParams.set("status", statusFilter);
+        if (searchQuery.trim()) queryParams.set("search", searchQuery.trim());
+
         const [summaryRes, activeRes, allJobsRes] = await Promise.all([
           adminFetch("/admin/jobs/summary"),
           adminFetch("/admin/jobs/active"),
-          adminFetch("/admin/jobs?page=0&size=50"),
+          adminFetch(`/admin/jobs?${queryParams.toString()}`),
         ]);
 
         if (summaryRes.ok) {
@@ -93,18 +113,28 @@ export default function JobMonitoringPage() {
 
         if (activeRes.ok) {
           const activeData = await activeRes.json();
-          setActiveJobs(activeData);
+          setActiveJobs(activeData.content || activeData.data || activeData || []);
         }
 
         if (allJobsRes.ok) {
           const jobsData = await allJobsRes.json();
           setAllJobs(jobsData.content || jobsData.data || []);
+          const total = jobsData.metadata?.totalCount ?? jobsData.totalCount ?? (jobsData.content || []).length;
+          setTotalJobsCount(total);
         }
       } else {
+        const queryParams = new URLSearchParams({
+          page: String(deletePage),
+          size: String(deletePageSize),
+        });
+        if (deleteStatusFilter !== "ALL") queryParams.set("status", deleteStatusFilter);
+        if (deleteTypeFilter !== "ALL") queryParams.set("entityType", deleteTypeFilter);
+        if (deleteSearchQuery.trim()) queryParams.set("search", deleteSearchQuery.trim());
+
         const [delSummaryRes, delActiveRes, delAllRes] = await Promise.all([
           adminFetch("/admin/delete-jobs/summary"),
           adminFetch("/admin/delete-jobs/active"),
-          adminFetch("/admin/delete-jobs?page=0&size=50"),
+          adminFetch(`/admin/delete-jobs?${queryParams.toString()}`),
         ]);
 
         if (delSummaryRes.ok) {
@@ -114,12 +144,14 @@ export default function JobMonitoringPage() {
 
         if (delActiveRes.ok) {
           const delActiveData = await delActiveRes.json();
-          setActiveDeleteJobs(delActiveData);
+          setActiveDeleteJobs(delActiveData.content || delActiveData.data || delActiveData || []);
         }
 
         if (delAllRes.ok) {
           const delAllData = await delAllRes.json();
           setAllDeleteJobs(delAllData.content || delAllData.data || []);
+          const total = delAllData.metadata?.totalCount ?? delAllData.totalCount ?? (delAllData.content || []).length;
+          setTotalDeleteJobsCount(total);
         }
       }
     } catch (err) {
@@ -128,7 +160,7 @@ export default function JobMonitoringPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [activeTab]);
+  }, [activeTab, page, pageSize, statusFilter, searchQuery, deletePage, deletePageSize, deleteStatusFilter, deleteTypeFilter, deleteSearchQuery]);
 
   useEffect(() => {
     fetchData(true);
@@ -340,30 +372,8 @@ export default function JobMonitoringPage() {
     }
   };
 
-  const filteredJobs = allJobs.filter((job) => {
-    if (statusFilter !== "ALL" && job.status !== statusFilter) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      const matchTitle = job.title?.toLowerCase().includes(q);
-      const matchArtist = job.artistName?.toLowerCase().includes(q);
-      const matchId = job.id?.toLowerCase().includes(q);
-      return matchTitle || matchArtist || matchId;
-    }
-    return true;
-  });
-
-  const filteredDeleteJobs = allDeleteJobs.filter((job) => {
-    if (deleteStatusFilter !== "ALL" && job.status !== deleteStatusFilter) return false;
-    if (deleteTypeFilter !== "ALL" && job.entityType !== deleteTypeFilter) return false;
-    if (deleteSearchQuery) {
-      const q = deleteSearchQuery.toLowerCase();
-      const matchTitle = job.entityTitle?.toLowerCase().includes(q);
-      const matchEntityId = job.entityId?.toLowerCase().includes(q);
-      const matchId = job.id?.toLowerCase().includes(q);
-      return matchTitle || matchEntityId || matchId;
-    }
-    return true;
-  });
+  const filteredJobs = allJobs;
+  const filteredDeleteJobs = allDeleteJobs;
 
   return (
     <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-8 text-white font-sans">
@@ -706,7 +716,10 @@ export default function JobMonitoringPage() {
                 {["ALL", "PROCESSING", "PENDING", "COMPLETED", "FAILED"].map((s) => (
                   <button
                     key={s}
-                    onClick={() => setStatusFilter(s)}
+                    onClick={() => {
+                      setStatusFilter(s);
+                      setPage(0);
+                    }}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
                       statusFilter === s
                         ? "bg-white text-black border-white shadow-sm"
@@ -724,7 +737,10 @@ export default function JobMonitoringPage() {
                   type="text"
                   placeholder="Search song, artist, job ID..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setPage(0);
+                  }}
                   className="w-full pl-9 pr-4 py-2 bg-[#121212] border border-[#282828] rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white focus:ring-1 focus:ring-white/20 transition-all"
                 />
               </div>
@@ -863,6 +879,89 @@ export default function JobMonitoringPage() {
                     )}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Ingestion Table Pagination Bar */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-[#282828] bg-black/40 text-xs text-zinc-400">
+                <div className="flex items-center gap-3">
+                  <span>
+                    Showing{" "}
+                    <strong className="text-white font-semibold">
+                      {totalJobsCount === 0 ? 0 : page * pageSize + 1}
+                    </strong>{" "}
+                    to{" "}
+                    <strong className="text-white font-semibold">
+                      {Math.min((page + 1) * pageSize, totalJobsCount)}
+                    </strong>{" "}
+                    of{" "}
+                    <strong className="text-white font-semibold">
+                      {totalJobsCount}
+                    </strong>{" "}
+                    jobs
+                  </span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value));
+                      setPage(0);
+                    }}
+                    className="bg-[#181818] border border-[#282828] text-zinc-300 text-xs rounded-lg px-2.5 py-1 focus:outline-none focus:border-zinc-500 cursor-pointer"
+                  >
+                    <option value={10}>10 per page</option>
+                    <option value={20}>20 per page</option>
+                    <option value={50}>50 per page</option>
+                    <option value={100}>100 per page</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setPage(0)}
+                    disabled={page === 0}
+                    className="p-1.5 rounded-lg border border-[#282828] bg-[#181818] text-zinc-400 hover:text-white hover:border-zinc-500 disabled:opacity-30 disabled:hover:border-[#282828] disabled:hover:text-zinc-400 transition-all cursor-pointer disabled:cursor-not-allowed"
+                    title="First Page"
+                  >
+                    <ChevronsLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                    className="p-1.5 rounded-lg border border-[#282828] bg-[#181818] text-zinc-400 hover:text-white hover:border-zinc-500 disabled:opacity-30 disabled:hover:border-[#282828] disabled:hover:text-zinc-400 transition-all cursor-pointer disabled:cursor-not-allowed"
+                    title="Previous Page"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  <span className="px-3 py-1 font-mono text-zinc-300 text-xs">
+                    Page <strong className="text-white">{page + 1}</strong> of{" "}
+                    <strong className="text-white">
+                      {Math.max(1, Math.ceil(totalJobsCount / pageSize))}
+                    </strong>
+                  </span>
+
+                  <button
+                    onClick={() =>
+                      setPage((p) =>
+                        Math.min(Math.ceil(totalJobsCount / pageSize) - 1, p + 1)
+                      )
+                    }
+                    disabled={page >= Math.ceil(totalJobsCount / pageSize) - 1}
+                    className="p-1.5 rounded-lg border border-[#282828] bg-[#181818] text-zinc-400 hover:text-white hover:border-zinc-500 disabled:opacity-30 disabled:hover:border-[#282828] disabled:hover:text-zinc-400 transition-all cursor-pointer disabled:cursor-not-allowed"
+                    title="Next Page"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() =>
+                      setPage(Math.max(0, Math.ceil(totalJobsCount / pageSize) - 1))
+                    }
+                    disabled={page >= Math.ceil(totalJobsCount / pageSize) - 1}
+                    className="p-1.5 rounded-lg border border-[#282828] bg-[#181818] text-zinc-400 hover:text-white hover:border-zinc-500 disabled:opacity-30 disabled:hover:border-[#282828] disabled:hover:text-zinc-400 transition-all cursor-pointer disabled:cursor-not-allowed"
+                    title="Last Page"
+                  >
+                    <ChevronsRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1101,7 +1200,10 @@ export default function JobMonitoringPage() {
                 {["ALL", "IN_PROGRESS", "PENDING", "COMPLETED", "FAILED"].map((s) => (
                   <button
                     key={s}
-                    onClick={() => setDeleteStatusFilter(s)}
+                    onClick={() => {
+                      setDeleteStatusFilter(s);
+                      setDeletePage(0);
+                    }}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
                       deleteStatusFilter === s
                         ? "bg-white text-black border-white shadow-sm"
@@ -1116,7 +1218,10 @@ export default function JobMonitoringPage() {
                 {["ALL", "SONG", "PLAYLIST", "ARTIST"].map((t) => (
                   <button
                     key={t}
-                    onClick={() => setDeleteTypeFilter(t)}
+                    onClick={() => {
+                      setDeleteTypeFilter(t);
+                      setDeletePage(0);
+                    }}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
                       deleteTypeFilter === t
                         ? "bg-white text-black border-white shadow-sm"
@@ -1134,7 +1239,10 @@ export default function JobMonitoringPage() {
                   type="text"
                   placeholder="Search title, entity ID, job ID..."
                   value={deleteSearchQuery}
-                  onChange={(e) => setDeleteSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setDeleteSearchQuery(e.target.value);
+                    setDeletePage(0);
+                  }}
                   className="w-full pl-9 pr-4 py-2 bg-[#121212] border border-[#282828] rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-400 transition-all"
                 />
               </div>
@@ -1265,6 +1373,89 @@ export default function JobMonitoringPage() {
                     )}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Cascade Delete Table Pagination Bar */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 border-t border-[#282828] bg-black/40 text-xs text-zinc-400">
+                <div className="flex items-center gap-3">
+                  <span>
+                    Showing{" "}
+                    <strong className="text-white font-semibold">
+                      {totalDeleteJobsCount === 0 ? 0 : deletePage * deletePageSize + 1}
+                    </strong>{" "}
+                    to{" "}
+                    <strong className="text-white font-semibold">
+                      {Math.min((deletePage + 1) * deletePageSize, totalDeleteJobsCount)}
+                    </strong>{" "}
+                    of{" "}
+                    <strong className="text-white font-semibold">
+                      {totalDeleteJobsCount}
+                    </strong>{" "}
+                    audit records
+                  </span>
+                  <select
+                    value={deletePageSize}
+                    onChange={(e) => {
+                      setDeletePageSize(Number(e.target.value));
+                      setDeletePage(0);
+                    }}
+                    className="bg-[#181818] border border-[#282828] text-zinc-300 text-xs rounded-lg px-2.5 py-1 focus:outline-none focus:border-zinc-500 cursor-pointer"
+                  >
+                    <option value={10}>10 per page</option>
+                    <option value={20}>20 per page</option>
+                    <option value={50}>50 per page</option>
+                    <option value={100}>100 per page</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setDeletePage(0)}
+                    disabled={deletePage === 0}
+                    className="p-1.5 rounded-lg border border-[#282828] bg-[#181818] text-zinc-400 hover:text-white hover:border-zinc-500 disabled:opacity-30 disabled:hover:border-[#282828] disabled:hover:text-zinc-400 transition-all cursor-pointer disabled:cursor-not-allowed"
+                    title="First Page"
+                  >
+                    <ChevronsLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setDeletePage((p) => Math.max(0, p - 1))}
+                    disabled={deletePage === 0}
+                    className="p-1.5 rounded-lg border border-[#282828] bg-[#181818] text-zinc-400 hover:text-white hover:border-zinc-500 disabled:opacity-30 disabled:hover:border-[#282828] disabled:hover:text-zinc-400 transition-all cursor-pointer disabled:cursor-not-allowed"
+                    title="Previous Page"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  <span className="px-3 py-1 font-mono text-zinc-300 text-xs">
+                    Page <strong className="text-white">{deletePage + 1}</strong> of{" "}
+                    <strong className="text-white">
+                      {Math.max(1, Math.ceil(totalDeleteJobsCount / deletePageSize))}
+                    </strong>
+                  </span>
+
+                  <button
+                    onClick={() =>
+                      setDeletePage((p) =>
+                        Math.min(Math.ceil(totalDeleteJobsCount / deletePageSize) - 1, p + 1)
+                      )
+                    }
+                    disabled={deletePage >= Math.ceil(totalDeleteJobsCount / deletePageSize) - 1}
+                    className="p-1.5 rounded-lg border border-[#282828] bg-[#181818] text-zinc-400 hover:text-white hover:border-zinc-500 disabled:opacity-30 disabled:hover:border-[#282828] disabled:hover:text-zinc-400 transition-all cursor-pointer disabled:cursor-not-allowed"
+                    title="Next Page"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() =>
+                      setDeletePage(Math.max(0, Math.ceil(totalDeleteJobsCount / deletePageSize) - 1))
+                    }
+                    disabled={deletePage >= Math.ceil(totalDeleteJobsCount / deletePageSize) - 1}
+                    className="p-1.5 rounded-lg border border-[#282828] bg-[#181818] text-zinc-400 hover:text-white hover:border-zinc-500 disabled:opacity-30 disabled:hover:border-[#282828] disabled:hover:text-zinc-400 transition-all cursor-pointer disabled:cursor-not-allowed"
+                    title="Last Page"
+                  >
+                    <ChevronsRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
