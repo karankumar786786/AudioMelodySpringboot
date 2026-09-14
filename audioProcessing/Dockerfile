@@ -15,13 +15,19 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # ---------------------------------------------------------
-# Install Shaka Packager
+# Install Shaka Packager (multi-arch: x86_64 and arm64)
 # ---------------------------------------------------------
 ARG SHAKA_VERSION=3.9.3
 
-RUN curl -L \
-    "https://github.com/shaka-project/shaka-packager/releases/download/v${SHAKA_VERSION}/packager-linux-x64" \
-    -o /usr/local/bin/packager \
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "arm64" ]; then \
+        PACKAGER_ARCH="arm64"; \
+    else \
+        PACKAGER_ARCH="x64"; \
+    fi && \
+    curl -L \
+        "https://github.com/shaka-project/shaka-packager/releases/download/v${SHAKA_VERSION}/packager-linux-${PACKAGER_ARCH}" \
+        -o /usr/local/bin/packager \
     && chmod +x /usr/local/bin/packager
 
 # ---------------------------------------------------------

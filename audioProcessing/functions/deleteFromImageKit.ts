@@ -2,10 +2,10 @@ import { inngest } from "../inngest";
 import { deleteApi } from "../axios";
 import type { DeleteEventPayload } from "../types/delete";
 
-export const deleteImageKit = inngest.createFunction(
+export const deleteFromImageKit = inngest.createFunction(
     {
-        id: "delete-imagekit",
-        triggers: [{ event: "audio/delete.imagekit" }],
+        id: "delete-from-imagekit",
+        triggers: [{ event: "audio/delete.imagekit" }]
     },
     async ({ event, step }) => {
         const data = event.data as DeleteEventPayload;

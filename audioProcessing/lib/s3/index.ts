@@ -1,4 +1,12 @@
-import { S3Client, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import {
+    S3Client,
+    GetObjectCommand,
+    DeleteObjectCommand,
+    ListObjectsV2Command,
+    DeleteObjectsCommand,
+    type ListObjectsV2CommandOutput,
+    type _Object,
+} from "@aws-sdk/client-s3";
 import { Readable } from "node:stream";
 import * as fs from "node:fs";
 import { config } from "dotenv";
@@ -43,4 +51,39 @@ export async function deleteObject(bucket: string, key: string): Promise<void> {
         Key: key,
     });
     await s3Client.send(command);
+}
+
+/**
+ * Deletes all objects matching a given prefix (e.g., all DASH/HLS chunks in audios/<songId>/).
+ */
+export async function deletePrefix(bucket: string, prefix: string): Promise<void> {
+    try {
+        let continuationToken: string | undefined = undefined;
+        do {
+            const listCommand = new ListObjectsV2Command({
+                Bucket: bucket,
+                Prefix: prefix,
+                ContinuationToken: continuationToken,
+            });
+            const listed: ListObjectsV2CommandOutput = await s3Client.send(listCommand);
+            if (listed.Contents && listed.Contents.length > 0) {
+                const keysToDelete = listed.Contents
+                    .map((item: _Object) => item.Key)
+                    .filter((k): k is string => typeof k === "string" && k.length > 0);
+
+                if (keysToDelete.length > 0) {
+                    const deleteCommand = new DeleteObjectsCommand({
+                        Bucket: bucket,
+                        Delete: {
+                            Objects: keysToDelete.map((Key) => ({ Key })),
+                        },
+                    });
+                    await s3Client.send(deleteCommand);
+                }
+            }
+            continuationToken = listed.NextContinuationToken;
+        } while (continuationToken);
+    } catch (err: any) {
+        console.warn(`[S3] Error deleting prefix ${prefix} from bucket ${bucket}:`, err.message || err);
+    }
 }
