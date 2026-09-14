@@ -5,20 +5,61 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import me.one_org.melody.Dto.Queue.DeleteEventQueueDto;
+import me.one_org.melody.Entity.DeleteJobsEntity;
+import me.one_org.melody.Enums.DeleteJobStageEnum;
+import me.one_org.melody.Enums.DeleteJobStatusEnum;
+import me.one_org.melody.Repository.DeleteJobsRepository;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Component
 public class DeleteEventQueue {
 
     private final RedisTemplate<String, Object> redisTemplate;
+    private final DeleteJobsRepository deleteJobsRepository;
 
     @Value("${spring.data.redis.deletequeue}")
     private String deleteQueue;
 
-    public DeleteEventQueue(RedisTemplate<String, Object> redisTemplate) {
+    public DeleteEventQueue(RedisTemplate<String, Object> redisTemplate, DeleteJobsRepository deleteJobsRepository) {
         this.redisTemplate = redisTemplate;
+        this.deleteJobsRepository = deleteJobsRepository;
     }
 
-    public void queueDeleteEvent(DeleteEventQueueDto data) {
-        redisTemplate.opsForList().rightPush(deleteQueue, data);
+    public String queueDeleteEvent(DeleteEventQueueDto data) {
+        String jobId = data.deleteJobId() != null ? data.deleteJobId() : UUID.randomUUID().toString();
+
+        DeleteJobsEntity job = deleteJobsRepository.findById(jobId).orElse(null);
+        if (job == null) {
+            job = DeleteJobsEntity.builder()
+                    .id(jobId)
+                    .entityType(data.entityType())
+                    .entityId(data.entityId())
+                    .entityTitle(data.entityTitle())
+                    .songKey(data.songKey())
+                    .imageKey(data.imageKey())
+                    .coverImageKey(data.coverImageKey())
+                    .videoKey(data.videoKey())
+                    .fullVideoKey(data.fullVideoKey())
+                    .status(DeleteJobStatusEnum.PENDING)
+                    .currentStage(DeleteJobStageEnum.QUEUED)
+                    .attemptCount(1)
+                    .maxAttempts(3)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+        } else {
+            job.setStatus(DeleteJobStatusEnum.PENDING);
+            job.setCurrentStage(DeleteJobStageEnum.QUEUED);
+            job.setAttemptCount(job.getAttemptCount() + 1);
+            job.setFailureReason(null);
+            job.setFailedAt(null);
+        }
+        deleteJobsRepository.save(job);
+
+        DeleteEventQueueDto payload = data.withDeleteJobId(jobId);
+        redisTemplate.opsForList().rightPush(deleteQueue, payload);
+
+        return jobId;
     }
 }

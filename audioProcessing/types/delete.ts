@@ -1,6 +1,8 @@
 export interface DeleteEventPayload {
+    deleteJobId?: string | null;
     entityType: "SONG" | "PLAYLIST" | "ARTIST" | string;
     entityId: string;
+    entityTitle?: string | null;
     songKey?: string | null;
     imageKey?: string | null;
     coverImageKey?: string | null;

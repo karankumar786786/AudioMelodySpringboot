@@ -135,6 +135,75 @@ export interface JobSummaryMetrics {
   queueBackpressure?: QueueBackpressureSummary;
 }
 
+export type DeleteJobStage =
+  | "QUEUED"
+  | "SEARCH_DELETED"
+  | "RECOMMENDATION_DELETED"
+  | "IMAGEKIT_DELETED"
+  | "S3_DELETED"
+  | "COMPLETED"
+  | "FAILED";
+
+export interface DeleteJobStageDetail {
+  stageName: DeleteJobStage;
+  label: string;
+  status: "COMPLETED" | "IN_PROGRESS" | "PENDING" | "FAILED" | "SKIPPED";
+  startedAt?: string | null;
+  completedAt?: string | null;
+  durationMs?: number | null;
+  formattedDuration: string;
+}
+
+export interface DeleteJobProgress {
+  id: string;
+  entityType: "SONG" | "PLAYLIST" | "ARTIST";
+  entityId: string;
+  entityTitle?: string | null;
+  songKey?: string | null;
+  imageKey?: string | null;
+  coverImageKey?: string | null;
+  videoKey?: string | null;
+  fullVideoKey?: string | null;
+  status: "PENDING" | "IN_PROGRESS" | "COMPLETED" | "FAILED";
+  currentStage: DeleteJobStage;
+  attemptCount: number;
+  maxAttempts: number;
+  createdAt?: string | null;
+  startedAt?: string | null;
+  searchDeletedAt?: string | null;
+  recommendationDeletedAt?: string | null;
+  imagekitDeletedAt?: string | null;
+  s3DeletedAt?: string | null;
+  completedAt?: string | null;
+  failedAt?: string | null;
+  failureReason?: string | null;
+  searchDurationMs?: number | null;
+  recommendationDurationMs?: number | null;
+  imagekitDurationMs?: number | null;
+  s3DurationMs?: number | null;
+  finalizeDurationMs?: number | null;
+  totalDurationMs?: number | null;
+  elapsedTotalMs?: number | null;
+  currentStageElapsedMs?: number | null;
+  stages: DeleteJobStageDetail[];
+}
+
+export interface DeleteJobSummaryMetrics {
+  totalJobs: number;
+  currentlyProcessing: number;
+  pendingQueued: number;
+  completed: number;
+  failed: number;
+  stageBreakdown: Record<string, number>;
+  avgSearchMs?: number;
+  avgRecommendationMs?: number;
+  avgImageKitMs?: number;
+  avgS3Ms?: number;
+  avgFinalizeMs?: number;
+  avgTotalMs?: number;
+  deleteQueueDepth?: number;
+}
+
 export interface Job {
   id: string;
   title: string;

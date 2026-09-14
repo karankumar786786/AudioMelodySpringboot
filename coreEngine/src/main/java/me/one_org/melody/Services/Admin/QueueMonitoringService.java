@@ -113,6 +113,10 @@ public class QueueMonitoringService {
                 .build();
     }
 
+    public long getDeleteQueueSize() {
+        return getQueueSize(deleteQueueKey);
+    }
+
     private String evaluateStandardBackpressure(long size) {
         if (size >= 50) return "HIGH";
         if (size >= 10) return "ELEVATED";
