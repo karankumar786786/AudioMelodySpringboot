@@ -40,11 +40,47 @@ export interface Playlist {
 
 export interface User {
   id: string;
-  name: string;
+  name?: string | null;
+  userName?: string | null;
   email: string;
   role: string;
   status?: string;
   createdAt?: string;
+}
+
+export interface Job {
+  id: string;
+  title: string;
+  artistName: string;
+  duration?: number;
+  imageKey: string;
+  songKey?: string;
+  videoKey?: string;
+  fullVideoKey?: string;
+  language?: string;
+  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  isVideoReprocess?: boolean;
+  createdAt?: string;
+}
+
+export interface DashboardStats {
+  totalSongs: number;
+  activeSongs: number;
+  featuredSongs: number;
+  totalArtists: number;
+  activeArtists: number;
+  totalPlaylists: number;
+  activePlaylists: number;
+  totalUsers: number;
+  activeUsers: number;
+  blockedUsers: number;
+  totalJobs: number;
+  pendingJobs: number;
+  failedJobs: number;
+  processingJobs: number;
+  completedJobs: number;
+  recentSongs: Song[];
+  recentJobs: Job[];
 }
 
 export interface PaginatedResponse<T> {

@@ -276,9 +276,18 @@ export default function PlaylistsPage() {
         {/* Playlists List */}
         <div className="lg:col-span-1 space-y-4">
           {loading ? (
-            <div className="p-12 text-center text-zinc-500 animate-pulse bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800">
-              Loading playlists...
-            </div>
+            Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="p-5 rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 animate-pulse flex items-center gap-4"
+              >
+                <div className="w-16 h-16 rounded-2xl bg-zinc-200 dark:bg-zinc-800 shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-32 bg-zinc-200 dark:bg-zinc-800 rounded-md" />
+                  <div className="h-3 w-44 bg-zinc-100 dark:bg-zinc-800/60 rounded-md" />
+                </div>
+              </div>
+            ))
           ) : playlists.length === 0 ? (
             <div className="p-12 text-center text-zinc-500 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800">
               No playlists found.

@@ -53,6 +53,19 @@ public class JobsRepository {
                 .getResultList();
     }
 
+    public long countByStatus(JobStatusEnum status) {
+        return entityManager.createQuery(
+                "SELECT COUNT(j) FROM JobsEntity j WHERE j.status = :status", Long.class)
+                .setParameter("status", status)
+                .getSingleResult();
+    }
+
+    public List<JobsEntity> findRecent(int limit) {
+        return entityManager.createQuery("SELECT j FROM JobsEntity j ORDER BY j.createdAt DESC NULLS LAST", JobsEntity.class)
+                .setMaxResults(limit)
+                .getResultList();
+    }
+
     @Transactional
     public void deleteById(String id) {
         JobsEntity job = entityManager.find(JobsEntity.class, id);

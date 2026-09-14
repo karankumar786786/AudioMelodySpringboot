@@ -41,4 +41,22 @@ public class AccountController {
         accountService.upgradeToAdmin(email);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(null);
     }
+
+    @PostMapping("/{email}/block")
+    public ResponseEntity<Void> blockAccount(@PathVariable String email) {
+        accountService.blockAccount(email);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{email}/unblock")
+    public ResponseEntity<Void> unblockAccount(@PathVariable String email) {
+        accountService.unblockAccount(email);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{email}/demote")
+    public ResponseEntity<Void> demoteToUser(@PathVariable String email) {
+        accountService.demoteToUser(email);
+        return ResponseEntity.ok().build();
+    }
 }

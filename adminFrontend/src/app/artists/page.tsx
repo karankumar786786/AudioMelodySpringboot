@@ -135,7 +135,21 @@ export default function ArtistsPage() {
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
-          <div className="col-span-full p-20 text-center text-zinc-500 animate-pulse">Loading artists...</div>
+          Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-6 animate-pulse"
+            >
+              <div className="flex items-center gap-5">
+                <div className="w-20 h-20 rounded-2xl bg-zinc-200 dark:bg-zinc-800 shrink-0" />
+                <div className="flex-1 space-y-2.5">
+                  <div className="h-5 w-32 bg-zinc-200 dark:bg-zinc-800 rounded-md" />
+                  <div className="h-3 w-48 bg-zinc-100 dark:bg-zinc-800/60 rounded-md" />
+                  <div className="h-3 w-24 bg-zinc-100 dark:bg-zinc-800/40 rounded-md" />
+                </div>
+              </div>
+            </div>
+          ))
         ) : artists.length === 0 ? (
           <div className="col-span-full p-20 text-center text-zinc-500">No artists found.</div>
         ) : (

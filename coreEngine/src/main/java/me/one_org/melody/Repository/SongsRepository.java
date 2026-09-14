@@ -81,6 +81,13 @@ public class SongsRepository {
                 .getResultList();
     }
 
+    public long countFeatured() {
+        return entityManager.createQuery(
+                "SELECT COUNT(s) FROM SongsEntity s WHERE s.isFeatured = true AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE",
+                Long.class)
+                .getSingleResult();
+    }
+
     public long count() {
         return entityManager.createQuery("SELECT COUNT(s) FROM SongsEntity s", Long.class)
                 .getSingleResult();

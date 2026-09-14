@@ -3,6 +3,8 @@ package me.one_org.melody.Entity;
 import jakarta.persistence.*;
 import lombok.*;
 import me.one_org.melody.Enums.JobStatusEnum;
+import org.hibernate.annotations.CreationTimestamp;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "jobs")
@@ -45,4 +47,6 @@ public class JobsEntity {
     @Enumerated(EnumType.STRING)
     private JobStatusEnum status;
 
+    @CreationTimestamp
+    private LocalDateTime createdAt;
 }

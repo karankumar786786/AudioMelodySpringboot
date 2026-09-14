@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.UsersEntity;
 import me.one_org.melody.Enums.RoleEnum;
+import me.one_org.melody.Enums.StatusEnum;
 import me.one_org.melody.Exceptions.ConflictException;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Recommendation.Recombee;
@@ -63,5 +64,49 @@ public class AccountService {
             throw new ConflictException("User with email " + email + " is already an Admin or Super Admin");
         }
         user.setRole(RoleEnum.ADMIN);
+        usersRepository.save(user);
+    }
+
+    @Transactional
+    public void blockAccount(String email) {
+        UsersEntity user = usersRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+        if (user.getRole() == RoleEnum.SUPER_ADMIN) {
+            throw new ConflictException("Super Admin cannot be blocked");
+        }
+        StatusEnum oldStatus = user.getStatus();
+        if (oldStatus == StatusEnum.BLOCKED) {
+            return;
+        }
+        user.setStatus(StatusEnum.BLOCKED);
+        usersRepository.save(user);
+        paginationMetaDataService.transitionStatus("UsersEntity", oldStatus, StatusEnum.BLOCKED);
+    }
+
+    @Transactional
+    public void unblockAccount(String email) {
+        UsersEntity user = usersRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+        StatusEnum oldStatus = user.getStatus();
+        if (oldStatus == StatusEnum.ACTIVE) {
+            return;
+        }
+        user.setStatus(StatusEnum.ACTIVE);
+        usersRepository.save(user);
+        paginationMetaDataService.transitionStatus("UsersEntity", oldStatus, StatusEnum.ACTIVE);
+    }
+
+    @Transactional
+    public void demoteToUser(String email) {
+        UsersEntity user = usersRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+        if (user.getRole() == RoleEnum.SUPER_ADMIN) {
+            throw new ConflictException("Super Admin cannot be demoted");
+        }
+        if (user.getRole() == RoleEnum.USER) {
+            throw new ConflictException("User with email " + email + " is already a standard User");
+        }
+        user.setRole(RoleEnum.USER);
+        usersRepository.save(user);
     }
 }
