@@ -12,20 +12,22 @@ export function AuthScreen() {
   const [name, setName] = useState("");
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const [emailToken, setEmailToken] = useState("");
-  const [countdown, setCountdown] = useState(300); // 5 minutes in seconds
+  const [resendCooldown, setResendCooldown] = useState(30); // 30 seconds cooldown for resending
+  const [expiresIn, setExpiresIn] = useState(300); // 5 minutes code validity
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const otpInputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Countdown timer effect
+  // Countdown timer effect for resend cooldown & code expiry
   useEffect(() => {
-    if (mode !== "otp" || countdown <= 0) return;
+    if (mode !== "otp") return;
     const timer = setInterval(() => {
-      setCountdown((prev) => prev - 1);
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      setExpiresIn((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(timer);
-  }, [mode, countdown]);
+  }, [mode]);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,7 +49,8 @@ export function AuthScreen() {
         setEmailToken(res.token);
       }
       setMode("otp");
-      setCountdown(300);
+      setResendCooldown(30);
+      setExpiresIn(300);
       // Reset OTP fields
       setOtp(Array(6).fill(""));
     } catch (err: any) {
@@ -99,7 +102,7 @@ export function AuthScreen() {
   };
 
   const handleResendOtp = async () => {
-    if (countdown > 0) return; // Prevent spamming
+    if (resendCooldown > 0) return; // Prevent spamming before cooldown
     setLoading(true);
     setError(null);
     try {
@@ -107,7 +110,8 @@ export function AuthScreen() {
       if (res.token) {
         setEmailToken(res.token);
       }
-      setCountdown(300);
+      setResendCooldown(30);
+      setExpiresIn(300);
       setOtp(Array(6).fill(""));
       otpInputsRef.current[0]?.focus();
     } catch (err: any) {
@@ -279,27 +283,39 @@ export function AuthScreen() {
               ))}
             </div>
 
-            {/* Resend and timer */}
+            {/* Expiration & Resend Cooldown */}
             <div className="flex items-center justify-between text-xs px-1">
-              {countdown > 0 ? (
+              <span className="text-zinc-500 font-medium">
+                {expiresIn > 0 ? (
+                  <>
+                    Code expires in{" "}
+                    <span className="text-indigo-400 font-bold font-mono">
+                      {formatTime(expiresIn)}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-rose-400 font-semibold">
+                    Code expired
+                  </span>
+                )}
+              </span>
+
+              {resendCooldown > 0 ? (
                 <span className="text-zinc-500 font-medium">
-                  Resend available in{" "}
-                  <span className="text-indigo-400 font-bold">
-                    {formatTime(countdown)}
+                  Resend in{" "}
+                  <span className="text-indigo-400 font-bold font-mono">
+                    {resendCooldown}s
                   </span>
                 </span>
               ) : (
-                <span className="text-zinc-400 font-medium">
-                  Didn't receive a code?{" "}
-                  <button
-                    type="button"
-                    onClick={handleResendOtp}
-                    disabled={loading}
-                    className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors"
-                  >
-                    Resend Code
-                  </button>
-                </span>
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={loading}
+                  className="text-indigo-400 hover:text-indigo-300 font-bold transition-colors disabled:opacity-50"
+                >
+                  Resend Code
+                </button>
               )}
             </div>
 

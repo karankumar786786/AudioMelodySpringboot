@@ -121,30 +121,41 @@ public class AuthenticationService {
         return new VerifyOtpResponse(accessToken, refreshToken);
     }
 
-    public void resendOtp(String tempToken) {
+    public String resendOtp(String tempToken) {
         String email = hmacUtil.getMessageIfValid(tempToken);
         if (email == null) {
             throw new BadRequestException("Invalid or expired verification token");
         }
         Optional<OtpDataDto> otpDto = cache.get(email);
-        if (otpDto.isEmpty()) {
-            throw new BadRequestException("Invalid or expired verification token");
+        OtpDataDto data;
+        if (otpDto.isPresent()) {
+            data = otpDto.get();
+            if (!hmacUtil.validate(data.email(), tempToken)) {
+                throw new BadRequestException("Token validation failed");
+            }
+        } else {
+            Optional<UsersEntity> existingUser = usersRepository.findByEmail(email);
+            if (existingUser.isPresent()) {
+                UsersEntity user = existingUser.get();
+                data = new OtpDataDto(
+                        otpUtil.generateOtp(),
+                        tempToken,
+                        user.getEmail(),
+                        user.getUserName() != null ? user.getUserName() : "User",
+                        PurposeEnum.LOGIN
+                );
+            } else {
+                throw new BadRequestException("Verification session has expired. Please sign up or log in again");
+            }
         }
-        OtpDataDto data = otpDto.get();
-        if (!hmacUtil.validate(data.email(), tempToken)) {
-            throw new BadRequestException("Token validation failed");
-        }
+
         String newOtp = otpUtil.generateOtp();
-        PurposeEnum purpose = PurposeEnum.SECURITY;
-        if (PurposeEnum.LOGIN == data.Purpose()) {
-            purpose = PurposeEnum.LOGIN;
-        }else if(PurposeEnum.REGISTER == data.Purpose()){
-            purpose = PurposeEnum.REGISTER;
-        }
-        OtpDataDto updatedData = new OtpDataDto(newOtp, tempToken, data.email(), data.userName(),purpose);
-        MailQueueDto mqd = new MailQueueDto(data.email(), "resend-otp", newOtp);
+        PurposeEnum purpose = data.Purpose() != null ? data.Purpose() : PurposeEnum.LOGIN;
+        OtpDataDto updatedData = new OtpDataDto(newOtp, tempToken, data.email(), data.userName(), purpose);
+        MailQueueDto mqd = new MailQueueDto(data.email(), purpose.name(), newOtp);
         mailQueue.queueMail(mqd);
         cache.set(data.email(), updatedData, Duration.ofMinutes(10));
+        return tempToken;
     }
 
     public RefreshTokenResponseDto refreshToken(String refreshToken) {

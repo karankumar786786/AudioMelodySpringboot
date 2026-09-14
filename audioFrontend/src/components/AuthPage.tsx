@@ -33,6 +33,7 @@ export function AuthPage({ initialMode = "login" }: AuthPageProps) {
   const [sessionToken, setSessionToken] = useState("");
   const [otpValues, setOtpValues] = useState<string[]>(Array(6).fill(""));
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
+  const [resendCooldown, setResendCooldown] = useState(30); // 30 seconds resend cooldown
   const [timerActive, setTimerActive] = useState(false);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -51,12 +52,13 @@ export function AuthPage({ initialMode = "login" }: AuthPageProps) {
 
   // OTP Timer countdown
   useEffect(() => {
-    if (!timerActive || timeLeft <= 0) return;
+    if (!timerActive) return;
     const interval = setInterval(() => {
-      setTimeLeft((prev) => prev - 1);
+      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(interval);
-  }, [timerActive, timeLeft]);
+  }, [timerActive]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -73,6 +75,7 @@ export function AuthPage({ initialMode = "login" }: AuthPageProps) {
       setSessionToken(res.data.token);
       setView("otp");
       setTimeLeft(300);
+      setResendCooldown(30);
       setTimerActive(true);
       toast.success("OTP Code Sent", {
         description: `Verification code sent to ${email}`,
@@ -96,6 +99,7 @@ export function AuthPage({ initialMode = "login" }: AuthPageProps) {
       setSessionToken(res.data.token);
       setView("otp");
       setTimeLeft(300);
+      setResendCooldown(30);
       setTimerActive(true);
       toast.success("OTP Code Sent", {
         description: `Verification code sent to ${email}`,
@@ -111,13 +115,16 @@ export function AuthPage({ initialMode = "login" }: AuthPageProps) {
   };
 
   const handleResendOtp = async () => {
-    if (loading || !sessionToken) return;
+    if (loading || !sessionToken || resendCooldown > 0) return;
     setLoading(true);
     try {
       const res = await musicApi.auth.resendOtp(sessionToken);
-      setSessionToken(res.data.token);
+      if (res?.data?.token) {
+        setSessionToken(res.data.token);
+      }
       setOtpValues(Array(6).fill(""));
       setTimeLeft(300);
+      setResendCooldown(30);
       setTimerActive(true);
       toast.success("OTP Resent", {
         description: "A new security code has been sent to your email.",
@@ -494,14 +501,20 @@ export function AuthPage({ initialMode = "login" }: AuthPageProps) {
                       </span>
                     </div>
 
-                    <button
-                      type="button"
-                      disabled={loading || timeLeft > 240}
-                      onClick={handleResendOtp}
-                      className="text-xs font-semibold text-primary hover:text-emerald-400 hover:underline uppercase tracking-wider disabled:opacity-30 disabled:hover:no-underline cursor-pointer"
-                    >
-                      Resend Code
-                    </button>
+                    {resendCooldown > 0 ? (
+                      <span className="text-xs text-zinc-500 font-medium font-mono">
+                        Resend in {resendCooldown}s
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={loading}
+                        onClick={handleResendOtp}
+                        className="text-xs font-semibold text-primary hover:text-emerald-400 hover:underline uppercase tracking-wider disabled:opacity-30 disabled:hover:no-underline cursor-pointer"
+                      >
+                        Resend Code
+                      </button>
+                    )}
                   </div>
 
                   <button

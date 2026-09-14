@@ -27,6 +27,7 @@ export function AuthModal() {
   const [sessionToken, setSessionToken] = useState("");
   const [otpValues, setOtpValues] = useState<string[]>(Array(6).fill(""));
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
+  const [resendCooldown, setResendCooldown] = useState(30); // 30 seconds resend cooldown
   const [timerActive, setTimerActive] = useState(false);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -38,18 +39,21 @@ export function AuthModal() {
       setName("");
       setSessionToken("");
       setOtpValues(Array(6).fill(""));
+      setTimeLeft(300);
+      setResendCooldown(30);
       setTimerActive(false);
     }
   }, [isAuthModalOpen]);
 
-  // Timer logic
+  // Timer logic for both code expiration and resend cooldown
   useEffect(() => {
-    if (!timerActive || timeLeft <= 0) return;
+    if (!timerActive) return;
     const interval = setInterval(() => {
-      setTimeLeft((prev) => prev - 1);
+      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
     }, 1000);
     return () => clearInterval(interval);
-  }, [timerActive, timeLeft]);
+  }, [timerActive]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -66,6 +70,7 @@ export function AuthModal() {
       setSessionToken(res.data.token);
       setView("otp");
       setTimeLeft(300);
+      setResendCooldown(30);
       setTimerActive(true);
       toast.success("OTP Code Sent", {
         description: `Verification code sent to ${email}`,
@@ -88,6 +93,7 @@ export function AuthModal() {
       setSessionToken(res.data.token);
       setView("otp");
       setTimeLeft(300);
+      setResendCooldown(30);
       setTimerActive(true);
       toast.success("OTP Code Sent", {
         description: `Verification code sent to ${email}`,
@@ -102,13 +108,16 @@ export function AuthModal() {
   };
 
   const handleResendOtp = async () => {
-    if (loading) return;
+    if (loading || resendCooldown > 0) return;
     setLoading(true);
     try {
       const res = await musicApi.auth.resendOtp(sessionToken);
-      setSessionToken(res.data.token);
+      if (res?.data?.token) {
+        setSessionToken(res.data.token);
+      }
       setOtpValues(Array(6).fill(""));
       setTimeLeft(300);
+      setResendCooldown(30);
       setTimerActive(true);
       toast.success("OTP Resent", {
         description: "A new security code has been sent to your email.",
@@ -408,7 +417,7 @@ export function AuthModal() {
                   </div>
 
                   {/* Countdown and Actions */}
-                  <div className="flex flex-col items-center gap-4">
+                  <div className="flex flex-col items-center gap-3">
                     <div className="flex items-center gap-2 text-sm text-zinc-400 font-medium">
                       <Clock className="h-4 w-4 text-primary" />
                       <span>
@@ -422,14 +431,20 @@ export function AuthModal() {
                       </span>
                     </div>
 
-                    <button
-                      type="button"
-                      disabled={loading || timeLeft > 0}
-                      onClick={handleResendOtp}
-                      className="text-xs font-semibold text-primary hover:text-emerald-400 hover:underline uppercase tracking-widest disabled:opacity-30 disabled:hover:no-underline bg-transparent border-none cursor-pointer"
-                    >
-                      Resend Code
-                    </button>
+                    {resendCooldown > 0 ? (
+                      <span className="text-xs text-zinc-500 font-medium font-mono">
+                        Resend in {resendCooldown}s
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={loading}
+                        onClick={handleResendOtp}
+                        className="text-xs font-semibold text-primary hover:text-emerald-400 hover:underline uppercase tracking-widest disabled:opacity-30 disabled:hover:no-underline bg-transparent border-none cursor-pointer"
+                      >
+                        Resend Code
+                      </button>
+                    )}
                   </div>
 
                   <button

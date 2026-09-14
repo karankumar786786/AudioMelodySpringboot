@@ -45,11 +45,11 @@ public class AuthenticationController {
     }
 
     @PostMapping("/resend-otp")
-    public ResponseEntity<Void> resendOtp(
+    public ResponseEntity<RegisterAndLoginResponse> resendOtp(
         @RequestHeader("X-TEMP-TOKEN") String tempToken
     ) {
-        authenticationService.resendOtp(tempToken);
-        return ResponseEntity.status(HttpStatus.OK).body(null);
+        String token = authenticationService.resendOtp(tempToken);
+        return ResponseEntity.status(HttpStatus.OK).body(new RegisterAndLoginResponse(token));
     }
 
     @PostMapping("/login")
