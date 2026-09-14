@@ -308,7 +308,9 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
     }
   }, [activeIndex, isPlaying, scrollToActiveLine]);
 
-  // Immediately sync and scroll when lyrics language changes or finishing loading
+  // Immediately sync and scroll when lyrics language changes or finishing loading.
+  // Uses a double-RAF so activeLineRef is reliably attached to the new DOM before
+  // scrollToActiveLine is called (single RAF fires before React commits refs).
   useEffect(() => {
     if (isLoading || !transcriptions || transcriptions.length === 0) return;
 
@@ -316,15 +318,22 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
     isUserScrolledRef.current = false;
     setIsUserScrolled(false);
 
-    const raf = requestAnimationFrame(() => {
-      scrollToActiveLine(false);
+    // Frame 1: React commits new DOM. Frame 2: refs are attached, scroll now.
+    let raf2: number;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        scrollToActiveLine(false);
+      });
     });
+
+    // Fallback smooth scroll after DOM has settled
     const timer = setTimeout(() => {
       scrollToActiveLine(true);
-    }, 60);
+    }, 200);
 
     return () => {
-      cancelAnimationFrame(raf);
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
       clearTimeout(timer);
     };
   }, [isLoading, transcriptions, scrollToActiveLine]);

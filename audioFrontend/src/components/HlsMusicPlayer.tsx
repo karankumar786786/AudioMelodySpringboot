@@ -60,7 +60,6 @@ import { useAudioSync } from "./player/hooks/useAudioSync";
 import { useWebAudio } from "./player/hooks/useWebAudio";
 import { useNextTrackPreloader } from "./player/hooks/useNextTrackPreloader";
 import { usePlayerShortcuts } from "./player/hooks/usePlayerShortcuts";
-import { useLyricsTranslation } from "./player/hooks/useLyricsTranslation";
 
 export function HlsMusicPlayer() {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -147,17 +146,6 @@ export function HlsMusicPlayer() {
     currentSong?.lrclibId || currentSong?.captionUrl,
     localTime,
   );
-
-  // Lyrics Multi-Language Translation
-  const {
-    lyricsTargetLang,
-    setLyricsTargetLang,
-    showLangMenu,
-    setShowLangMenu,
-    displayTranscriptions,
-    displayPlainLyrics,
-    isTranslating,
-  } = useLyricsTranslation(currentSong?.id, transcriptions, plainLyrics);
 
   // Web Audio EQ Graph
   const webAudio = useWebAudio(audioRef.current, isPlaying);
@@ -274,16 +262,11 @@ export function HlsMusicPlayer() {
           currentSong={currentSong}
           solidBgColor={solidBgColor}
           currentCaption={currentCaption}
-          displayTranscriptions={displayTranscriptions}
-          displayPlainLyrics={displayPlainLyrics}
+          displayTranscriptions={transcriptions || []}
+          displayPlainLyrics={plainLyrics}
           localTime={localTime}
           analyser={webAudio.analyser}
           isLyricsLoading={isLyricsLoading}
-          isTranslating={isTranslating}
-          lyricsTargetLang={lyricsTargetLang}
-          setLyricsTargetLang={setLyricsTargetLang}
-          showLangMenu={showLangMenu}
-          setShowLangMenu={setShowLangMenu}
           onSeek={(time) => {
             if (audioRef.current) {
               audioRef.current.currentTime = time;
