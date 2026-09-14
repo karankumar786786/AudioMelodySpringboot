@@ -5,6 +5,8 @@ import { getImageUrl } from "@/lib/image-utils";
 import { adminFetch } from "@/lib/adminFetch";
 import { Loader2, Sparkles, FolderPlus, Trash2, Plus, Video, Music } from "lucide-react";
 import { Toast, ToastType } from "@/components/Toast";
+import { UploadProgressBar } from "@/components/UploadProgressBar";
+import { uploadToImageKitWithProgress } from "@/lib/upload-utils";
 
 interface Playlist {
   id: string;
@@ -33,8 +35,10 @@ export default function PlaylistsPage() {
     videoFile: null as File | null,
   });
   const [creating, setCreating] = useState(false);
+  const [createStep, setCreateStep] = useState(0);
   const [createProgressText, setCreateProgressText] = useState("");
-  const [createStep, setCreateStep] = useState(0); // 1: Cover, 2: Video, 3: Finalize
+  const [uploadPercent, setUploadPercent] = useState<number | null>(null);
+  const [uploadStats, setUploadStats] = useState<{ loadedText?: string; speedText?: string }>({});
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [removingVideo, setRemovingVideo] = useState(false);
   const [deletingPlaylistId, setDeletingPlaylistId] = useState<string | null>(null);
@@ -94,30 +98,6 @@ export default function PlaylistsPage() {
     fetchAllSongs();
   }, []);
 
-  const uploadToImageKit = async (file: File, folder: string) => {
-    const sigRes = await adminFetch("/webhook/internal/image-upload-param");
-    if (!sigRes.ok) throw new Error("Failed to get upload signature");
-    const sigData = await sigRes.json();
-
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("publicKey", process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY || "public_ck50bJ3UfF9eCOXhwXQTQFP693o=");
-    fd.append("signature", sigData.param.signature);
-    fd.append("expire", sigData.param.expire.toString());
-    fd.append("token", sigData.param.token);
-    fd.append("folder", folder);
-    const ext = file.name.split('.').pop();
-    fd.append("fileName", `${sigData.key}.${ext}`);
-
-    const res = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
-      method: "POST",
-      body: fd,
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "File upload failed");
-    return data.filePath || sigData.key;
-  };
-
   const handleCreatePlaylist = async () => {
     if (!newPlaylist.name.trim()) {
       showToast("Please enter a playlist name", "error");
@@ -130,21 +110,45 @@ export default function PlaylistsPage() {
 
     setCreating(true);
     setCreateStep(1);
+    setUploadPercent(0);
+    setUploadStats({});
     setCreateProgressText("Uploading cover artwork to ImageKit CDN...");
     try {
-      // 1. Upload Cover Image
-      const coverImageKey = await uploadToImageKit(newPlaylist.coverImage, "/playlists/covers");
+      // 1. Upload Cover Image with real-time progress
+      const coverImageKey = await uploadToImageKitWithProgress(
+        newPlaylist.coverImage,
+        "/playlists/covers",
+        (p) => {
+          setUploadPercent(p.percent);
+          setUploadStats({
+            loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+            speedText: p.speedText,
+          });
+        }
+      );
 
       // 2. Upload Video (if provided)
       let videoKey: string | null = null;
       if (newPlaylist.videoFile) {
         setCreateStep(2);
+        setUploadPercent(0);
         setCreateProgressText("Uploading background canvas video loop...");
-        videoKey = await uploadToImageKit(newPlaylist.videoFile, "/playlists/videos");
+        videoKey = await uploadToImageKitWithProgress(
+          newPlaylist.videoFile,
+          "/playlists/videos",
+          (p) => {
+            setUploadPercent(p.percent);
+            setUploadStats({
+              loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+              speedText: p.speedText,
+            });
+          }
+        );
       }
 
       // 3. Create Playlist in Backend
       setCreateStep(3);
+      setUploadPercent(100);
       setCreateProgressText("Finalizing and registering playlist in database...");
       const res = await adminFetch("/admin/playlist", {
         method: "POST",
@@ -158,19 +162,21 @@ export default function PlaylistsPage() {
       });
 
       if (res.ok) {
+        showToast("Playlist created successfully!", "success");
         setIsCreateModalOpen(false);
         setNewPlaylist({ name: "", description: "", coverImage: null, videoFile: null });
-        showToast("Playlist created successfully!", "success");
         fetchPlaylists();
       } else {
-        const errData = await res.json().catch(() => null);
-        throw new Error(errData?.message || "Failed to create playlist");
+        const err = await res.json();
+        showToast(err.message || "Failed to create playlist", "error");
       }
     } catch (err: any) {
-      showToast(err.message || "An error occurred while creating playlist", "error");
+      showToast(err.message || "Failed to create playlist", "error");
     } finally {
       setCreating(false);
       setCreateStep(0);
+      setUploadPercent(null);
+      setUploadStats({});
       setCreateProgressText("");
     }
   };
@@ -181,7 +187,7 @@ export default function PlaylistsPage() {
 
     setUploadingVideo(true);
     try {
-      const videoKey = await uploadToImageKit(file, "/playlists/videos");
+      const videoKey = await uploadToImageKitWithProgress(file, "/playlists/videos");
       const res = await adminFetch(`/admin/playlist/${selectedPlaylist.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -699,6 +705,18 @@ export default function PlaylistsPage() {
                   />
                 </div>
               </div>
+
+              {creating && uploadPercent !== null && (
+                <div className="mt-4">
+                  <UploadProgressBar
+                    percent={uploadPercent}
+                    statusText={createProgressText || "Uploading playlist media..."}
+                    loadedText={uploadStats.loadedText}
+                    speedText={uploadStats.speedText}
+                    variant="inline"
+                  />
+                </div>
+              )}
 
               <button 
                 onClick={handleCreatePlaylist}

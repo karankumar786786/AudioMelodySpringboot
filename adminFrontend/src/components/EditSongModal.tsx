@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { getImageUrl } from "@/lib/image-utils";
 import { adminFetch } from "@/lib/adminFetch";
 import { Loader2, X, Video, Image as ImageIcon, Sparkles, CheckCircle2 } from "lucide-react";
+import { UploadProgressBar } from "./UploadProgressBar";
+import { uploadWithProgress, uploadToImageKitWithProgress } from "@/lib/upload-utils";
 
 export interface SongData {
   id: string;
@@ -48,6 +50,8 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
 
   const [saving, setSaving] = useState(false);
   const [progressText, setProgressText] = useState("");
+  const [uploadPercent, setUploadPercent] = useState<number | null>(null);
+  const [uploadStats, setUploadStats] = useState<{ loadedText?: string; speedText?: string; fileName?: string }>({});
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -122,13 +126,24 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
     e.preventDefault();
     setSaving(true);
     setError(null);
+    setUploadPercent(null);
+    setUploadStats({});
     setProgressText("Saving changes...");
 
     try {
       let imageKey = song.imageKey;
       if (formData.imageFile) {
         setProgressText("Uploading new cover image...");
-        imageKey = await uploadFileToImageKit(formData.imageFile, "/songs/images");
+        setUploadPercent(0);
+        setUploadStats({ fileName: formData.imageFile.name });
+        imageKey = await uploadToImageKitWithProgress(formData.imageFile, "/songs/images", (p) => {
+          setUploadPercent(p.percent);
+          setUploadStats({
+            loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+            speedText: p.speedText,
+            fileName: formData.imageFile?.name,
+          });
+        });
       }
 
       let videoKey: string | null | undefined = song.videoKey;
@@ -136,7 +151,16 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
         videoKey = "";
       } else if (formData.videoFile) {
         setProgressText("Uploading canvas video...");
-        videoKey = await uploadFileToImageKit(formData.videoFile, "/songs/videos");
+        setUploadPercent(0);
+        setUploadStats({ fileName: formData.videoFile.name });
+        videoKey = await uploadToImageKitWithProgress(formData.videoFile, "/songs/videos", (p) => {
+          setUploadPercent(p.percent);
+          setUploadStats({
+            loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+            speedText: p.speedText,
+            fileName: formData.videoFile?.name,
+          });
+        });
       }
 
       let fullVideoKey: string | null | undefined = song.fullVideoKey;
@@ -144,18 +168,30 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
         fullVideoKey = "";
       } else if (formData.fullVideoFile) {
         setProgressText("Uploading full video to S3...");
+        setUploadPercent(0);
+        setUploadStats({ fileName: formData.fullVideoFile.name });
         const videoUrlRes = await adminFetch("/webhook/internal/video-upload-url");
         if (!videoUrlRes.ok) throw new Error("Failed to get video upload authorization");
         const videoUrlData = await videoUrlRes.json();
-        const videoUploadRes = await fetch(videoUrlData.preSignedUrl, {
-          method: "PUT",
-          body: formData.fullVideoFile,
-          headers: { "Content-Type": formData.fullVideoFile.type || "video/mp4" },
-        });
-        if (!videoUploadRes.ok) throw new Error("Full video upload to S3 failed");
+
+        await uploadWithProgress(
+          videoUrlData.preSignedUrl,
+          formData.fullVideoFile,
+          "PUT",
+          { "Content-Type": formData.fullVideoFile.type || "video/mp4" },
+          (p) => {
+            setUploadPercent(p.percent);
+            setUploadStats({
+              loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+              speedText: p.speedText,
+              fileName: formData.fullVideoFile?.name,
+            });
+          }
+        );
         const tempVideoKey = videoUrlData.key;
 
         setProgressText("Triggering video processing pipeline...");
+        setUploadPercent(100);
         const reprocessRes = await adminFetch(`/admin/song/${song.id}/reprocess-video`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -225,6 +261,8 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
       setError(err.message || "Update failed. Please try again.");
     } finally {
       setSaving(false);
+      setUploadPercent(null);
+      setUploadStats({});
       setProgressText("");
     }
   };
@@ -544,6 +582,20 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
           </div>
 
         </form>
+
+        {/* Real-time Inline Progress Bar when Uploading Files */}
+        {saving && uploadPercent !== null && (
+          <div className="px-6 py-3 border-t border-[#282828] bg-[#141414] shrink-0">
+            <UploadProgressBar
+              percent={uploadPercent}
+              statusText={progressText || "Transferring media..."}
+              fileName={uploadStats.fileName}
+              loadedText={uploadStats.loadedText}
+              speedText={uploadStats.speedText}
+              variant="inline"
+            />
+          </div>
+        )}
 
         {/* Pinned Footer with Actions */}
         <div className="px-6 py-4 border-t border-[#282828] bg-black/40 flex items-center justify-end gap-3 shrink-0">

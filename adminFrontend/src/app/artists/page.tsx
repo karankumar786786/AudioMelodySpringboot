@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { getImageUrl } from "@/lib/image-utils";
 import Link from "next/link";
 import { adminFetch } from "@/lib/adminFetch";
+import { UploadProgressBar } from "@/components/UploadProgressBar";
+import { uploadToImageKitWithProgress } from "@/lib/upload-utils";
 
 interface Artist {
   id: string;
@@ -18,6 +20,8 @@ export default function ArtistsPage() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadPercent, setUploadPercent] = useState<number | null>(null);
+  const [uploadStats, setUploadStats] = useState<{ loadedText?: string; speedText?: string }>({});
 
   // Form State
   const [formData, setFormData] = useState({
@@ -65,28 +69,21 @@ export default function ArtistsPage() {
     if (!formData.coverImage) return alert("Please select a cover image");
 
     setUploading(true);
+    setUploadPercent(0);
+    setUploadStats({});
     try {
-      // 1. Upload Cover Image
-      const sigResCover = await adminFetch("/webhook/internal/image-upload-param");
-      if (!sigResCover.ok) throw new Error("Failed to get cover upload signature");
-      const sigDataCover = await sigResCover.json();
-
-      const formDataCover = new FormData();
-      formDataCover.append("file", formData.coverImage);
-      formDataCover.append("publicKey", process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY || "public_ck50bJ3UfF9eCOXhwXQTQFP693o=");
-      formDataCover.append("signature", sigDataCover.param.signature);
-      formDataCover.append("expire", sigDataCover.param.expire.toString());
-      formDataCover.append("token", sigDataCover.param.token);
-      formDataCover.append("folder", "/artists/covers");
-      const extCover = formData.coverImage.name.split('.').pop();
-      formDataCover.append("fileName", `${sigDataCover.key}.${extCover}`);
-
-      const uploadResCover = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
-        method: "POST",
-        body: formDataCover,
-      });
-      const uploadDataCover = await uploadResCover.json();
-      if (!uploadResCover.ok) throw new Error("Cover image upload failed");
+      // 1. Upload Cover Image with real-time progress
+      const uploadedImageKey = await uploadToImageKitWithProgress(
+        formData.coverImage,
+        "/artists/covers",
+        (p) => {
+          setUploadPercent(p.percent);
+          setUploadStats({
+            loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+            speedText: p.speedText,
+          });
+        }
+      );
 
       // 2. Create Artist in Backend
       const createRes = await adminFetch("/admin/artist", {
@@ -95,7 +92,7 @@ export default function ArtistsPage() {
         body: JSON.stringify({
           name: formData.name,
           about: formData.about,
-          coverImageKey: uploadDataCover.filePath || sigDataCover.key,
+          coverImageKey: uploadedImageKey,
         }),
       });
 
@@ -111,6 +108,8 @@ export default function ArtistsPage() {
       alert(err.message || "An unexpected error occurred");
     } finally {
       setUploading(false);
+      setUploadPercent(null);
+      setUploadStats({});
     }
   };
 
@@ -251,10 +250,23 @@ export default function ArtistsPage() {
                 />
               </div>
 
+              {uploading && uploadPercent !== null && (
+                <div className="mt-4">
+                  <UploadProgressBar
+                    percent={uploadPercent}
+                    statusText="Uploading Artist Cover..."
+                    fileName={formData.coverImage?.name}
+                    loadedText={uploadStats.loadedText}
+                    speedText={uploadStats.speedText}
+                    variant="inline"
+                  />
+                </div>
+              )}
+
               <button 
                 disabled={uploading}
                 type="submit"
-                className={`w-full py-3.5 mt-6 rounded-full font-bold text-black flex items-center justify-center gap-3 transition-all ${uploading ? "bg-zinc-400 cursor-not-allowed" : "bg-white hover:bg-zinc-200"}`}
+                className={`w-full py-3.5 mt-6 rounded-full font-bold text-black flex items-center justify-center gap-3 transition-all ${uploading ? "bg-zinc-400 cursor-not-allowed" : "bg-white hover:bg-zinc-200 active:scale-[0.99]"}`}
               >
                 {uploading ? "Creating Artist..." : "Save Artist"}
               </button>

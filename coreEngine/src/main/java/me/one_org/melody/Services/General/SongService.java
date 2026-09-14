@@ -12,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
-import me.one_org.melody.BlobStorage.S3;
 import me.one_org.melody.Dto.Controllers.Admin.CreateSongRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.CreateSongResponseDto;
 import me.one_org.melody.Dto.Controllers.Admin.UpdateSongRequestDto;
@@ -29,7 +28,6 @@ import java.time.LocalDateTime;
 import me.one_org.melody.ImageStorage.ImageKit;
 import me.one_org.melody.Queue.AudioProcessingQueue;
 import me.one_org.melody.Queue.DeleteEventQueue;
-import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.JobsRepository;
 import me.one_org.melody.Repository.SongsRepository;
 
@@ -41,8 +39,6 @@ public class SongService {
     private final SongsRepository songsRepository;
     private final AudioProcessingQueue audioProcessingQueue;
     private final AlgoliaSearch algoliaSearch;
-    private final Recombee recombee;
-    private final S3 s3Client;
     private final ImageKit imageKit;
     private final PaginationMetaDataService paginationMetaDataService;
     private final DeleteEventQueue deleteEventQueue;
@@ -56,15 +52,12 @@ public class SongService {
 
     public SongService(JobsRepository jobsRepository, SongsRepository songsRepository,
             AudioProcessingQueue audioProcessingQueue, AlgoliaSearch algoliaSearch,
-            Recombee recombee, S3 s3Client, ImageKit imageKit,
-            PaginationMetaDataService paginationMetaDataService,
+            ImageKit imageKit,PaginationMetaDataService paginationMetaDataService,
             DeleteEventQueue deleteEventQueue) {
         this.jobsRepository = jobsRepository;
         this.songsRepository = songsRepository;
         this.audioProcessingQueue = audioProcessingQueue;
         this.algoliaSearch = algoliaSearch;
-        this.recombee = recombee;
-        this.s3Client = s3Client;
         this.imageKit = imageKit;
         this.paginationMetaDataService = paginationMetaDataService;
         this.deleteEventQueue = deleteEventQueue;

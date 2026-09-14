@@ -12,18 +12,12 @@ import {
   Trash2,
   UserCheck,
   UserX,
-  UserPlus,
   ArrowUpCircle,
   ArrowDownCircle,
   Search,
-  Filter,
   RefreshCw,
   Loader2,
   Mail,
-  Calendar,
-  AlertCircle,
-  CheckCircle2,
-  MoreVertical,
 } from "lucide-react";
 
 interface UserItem {

@@ -16,8 +16,6 @@ import me.one_org.melody.Repository.ArtistsRepository;
 import me.one_org.melody.Repository.PlaylistsRepository;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserPlaylistsRepository;
-import me.one_org.melody.Repository.UserSearchHistoryRepository;
-import me.one_org.melody.Repository.UsersRepository;
 
 @Service
 public class SearchApiService {
@@ -27,20 +25,15 @@ public class SearchApiService {
     private final ArtistsRepository artistsRepository;
     private final PlaylistsRepository playlistsRepository;
     private final UserPlaylistsRepository userPlaylistsRepository;
-    private final UserSearchHistoryRepository searchHistoryRepository;
-    private final UsersRepository usersRepository;
 
     public SearchApiService(AlgoliaSearch algoliaSearch, SongsRepository songsRepository,
                             ArtistsRepository artistsRepository, PlaylistsRepository playlistsRepository,
-                            UserPlaylistsRepository userPlaylistsRepository,
-                            UserSearchHistoryRepository searchHistoryRepository, UsersRepository usersRepository) {
+                            UserPlaylistsRepository userPlaylistsRepository) {
         this.algoliaSearch = algoliaSearch;
         this.songsRepository = songsRepository;
         this.artistsRepository = artistsRepository;
         this.playlistsRepository = playlistsRepository;
         this.userPlaylistsRepository = userPlaylistsRepository;
-        this.searchHistoryRepository = searchHistoryRepository;
-        this.usersRepository = usersRepository;
     }
 
     public SearchResult search(String query, String userId) {

@@ -6,6 +6,8 @@ import { getImageUrl } from "@/lib/image-utils";
 import { adminFetch } from "@/lib/adminFetch";
 import { Toast, ToastType } from "@/components/Toast";
 import { Loader2 } from "lucide-react";
+import { UploadProgressBar } from "@/components/UploadProgressBar";
+import { uploadWithProgress, uploadToImageKitWithProgress } from "@/lib/upload-utils";
 
 interface Song {
   id: string;
@@ -91,6 +93,12 @@ function SongsContent() {
 
   const [uploading, setUploading] = useState(false);
   const [uploadProgressText, setUploadProgressText] = useState("");
+  const [uploadPercent, setUploadPercent] = useState(0);
+  const [uploadStats, setUploadStats] = useState<{
+    loadedText?: string;
+    speedText?: string;
+    fileName?: string;
+  }>({});
 
   const fetchSongs = async () => {
     try {
@@ -210,6 +218,8 @@ function SongsContent() {
 
     setUploading(true);
     setUploadStep(1);
+    setUploadPercent(0);
+    setUploadStats({});
     setUploadProgressText(uploadMode === "videoOnly" ? "Uploading full video to S3 storage..." : "Uploading audio file to S3 storage...");
     try {
       let tempSongKey: string | null = null;
@@ -219,15 +229,27 @@ function SongsContent() {
       if (formData.songFile) {
         setUploadStep(1);
         setUploadProgressText("Uploading audio file to S3 storage...");
+        setUploadPercent(0);
+        setUploadStats({ fileName: formData.songFile.name });
+
         const songUrlRes = await adminFetch("/webhook/internal/song-upload-url");
         if (!songUrlRes.ok) throw new Error("Failed to get audio upload authorization");
         const songUrlData = await songUrlRes.json();
-        const songUploadRes = await fetch(songUrlData.preSignedUrl, {
-          method: "PUT",
-          body: formData.songFile,
-          headers: { "Content-Type": formData.songFile.type || "audio/mpeg" },
-        });
-        if (!songUploadRes.ok) throw new Error("Audio upload to S3 failed");
+
+        await uploadWithProgress(
+          songUrlData.preSignedUrl,
+          formData.songFile,
+          "PUT",
+          { "Content-Type": formData.songFile.type || "audio/mpeg" },
+          (p) => {
+            setUploadPercent(p.percent);
+            setUploadStats({
+              loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+              speedText: p.speedText,
+              fileName: formData.songFile?.name,
+            });
+          }
+        );
         tempSongKey = songUrlData.key;
       }
 
@@ -235,29 +257,69 @@ function SongsContent() {
       if (formData.fullVideoFile) {
         setUploadStep(1);
         setUploadProgressText("Uploading full music video to S3 storage...");
+        setUploadPercent(0);
+        setUploadStats({ fileName: formData.fullVideoFile.name });
+
         const videoUrlRes = await adminFetch("/webhook/internal/video-upload-url");
         if (!videoUrlRes.ok) throw new Error("Failed to get full video upload authorization");
         const videoUrlData = await videoUrlRes.json();
-        const videoUploadRes = await fetch(videoUrlData.preSignedUrl, {
-          method: "PUT",
-          body: formData.fullVideoFile,
-          headers: { "Content-Type": formData.fullVideoFile.type || "video/mp4" },
-        });
-        if (!videoUploadRes.ok) throw new Error("Full video upload to S3 failed");
+
+        await uploadWithProgress(
+          videoUrlData.preSignedUrl,
+          formData.fullVideoFile,
+          "PUT",
+          { "Content-Type": formData.fullVideoFile.type || "video/mp4" },
+          (p) => {
+            setUploadPercent(p.percent);
+            setUploadStats({
+              loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+              speedText: p.speedText,
+              fileName: formData.fullVideoFile?.name,
+            });
+          }
+        );
         tempVideoKey = videoUrlData.key;
       }
 
       // 3. Cover Image Upload (ImageKit)
       setUploadStep(2);
       setUploadProgressText("Uploading cover artwork to ImageKit CDN...");
-      const uploadedImageKey = await uploadFileToImageKit(formData.imageFile, "/songs/images");
+      setUploadPercent(0);
+      setUploadStats({ fileName: formData.imageFile.name });
+
+      const uploadedImageKey = await uploadToImageKitWithProgress(
+        formData.imageFile,
+        "/songs/images",
+        (p) => {
+          setUploadPercent(p.percent);
+          setUploadStats({
+            loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+            speedText: p.speedText,
+            fileName: formData.imageFile?.name,
+          });
+        }
+      );
 
       // 4. Manual Canvas Video Upload (optional, only in audio mode if provided)
       let uploadedVideoKey: string | null = null;
       if (uploadMode === "audio" && formData.videoFile) {
         setUploadStep(2);
         setUploadProgressText("Uploading canvas background loop to ImageKit CDN...");
-        uploadedVideoKey = await uploadFileToImageKit(formData.videoFile, "/songs/videos");
+        setUploadPercent(0);
+        setUploadStats({ fileName: formData.videoFile.name });
+
+        uploadedVideoKey = await uploadToImageKitWithProgress(
+          formData.videoFile,
+          "/songs/videos",
+          (p) => {
+            setUploadPercent(p.percent);
+            setUploadStats({
+              loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+              speedText: p.speedText,
+              fileName: formData.videoFile?.name,
+            });
+          }
+        );
       }
 
       let previewStartTime: number | null = null;
@@ -276,7 +338,10 @@ function SongsContent() {
 
       // 5. Finalize Song Creation
       setUploadStep(3);
+      setUploadPercent(100);
       setUploadProgressText("Registering song & scheduling background processing...");
+      setUploadStats({});
+
       const finalizeRes = await adminFetch("/admin/song", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -329,6 +394,8 @@ function SongsContent() {
     } finally {
       setUploading(false);
       setUploadStep(0);
+      setUploadPercent(0);
+      setUploadStats({});
       setUploadProgressText("");
     }
   };
@@ -359,12 +426,27 @@ function SongsContent() {
     e.preventDefault();
     if (!editingSong) return;
     setUploading(true);
+    setUploadPercent(0);
+    setUploadStats({});
     setUploadProgressText("Saving changes...");
     try {
       let imageKey = editingSong.imageKey;
       if (editFormData.imageFile) {
         setUploadProgressText("Uploading new cover image...");
-        imageKey = await uploadFileToImageKit(editFormData.imageFile, "/songs/images");
+        setUploadPercent(0);
+        setUploadStats({ fileName: editFormData.imageFile.name });
+        imageKey = await uploadToImageKitWithProgress(
+          editFormData.imageFile,
+          "/songs/images",
+          (p) => {
+            setUploadPercent(p.percent);
+            setUploadStats({
+              loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+              speedText: p.speedText,
+              fileName: editFormData.imageFile?.name,
+            });
+          }
+        );
       }
 
       let videoKey: string | null | undefined = editingSong.videoKey;
@@ -372,28 +454,51 @@ function SongsContent() {
         videoKey = ""; // Empty string signals removal & ImageKit deletion
       } else if (editFormData.videoFile) {
         setUploadProgressText("Uploading new canvas video...");
-        videoKey = await uploadFileToImageKit(editFormData.videoFile, "/songs/videos");
+        setUploadPercent(0);
+        setUploadStats({ fileName: editFormData.videoFile.name });
+        videoKey = await uploadToImageKitWithProgress(
+          editFormData.videoFile,
+          "/songs/videos",
+          (p) => {
+            setUploadPercent(p.percent);
+            setUploadStats({
+              loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+              speedText: p.speedText,
+              fileName: editFormData.videoFile?.name,
+            });
+          }
+        );
       }
 
       let fullVideoKey: string | null | undefined = editingSong.fullVideoKey;
       if (editFormData.removeFullVideo) {
         fullVideoKey = ""; // Clears fullVideoKey from song
       } else if (editFormData.fullVideoFile) {
-        // Upload new full video to S3 temp bucket, then trigger reprocessing
         setUploadProgressText("Uploading full video to S3...");
+        setUploadPercent(0);
+        setUploadStats({ fileName: editFormData.fullVideoFile.name });
         const videoUrlRes = await adminFetch("/webhook/internal/video-upload-url");
         if (!videoUrlRes.ok) throw new Error("Failed to get video upload authorization");
         const videoUrlData = await videoUrlRes.json();
-        const videoUploadRes = await fetch(videoUrlData.preSignedUrl, {
-          method: "PUT",
-          body: editFormData.fullVideoFile,
-          headers: { "Content-Type": editFormData.fullVideoFile.type || "video/mp4" },
-        });
-        if (!videoUploadRes.ok) throw new Error("Full video upload to S3 failed");
+
+        await uploadWithProgress(
+          videoUrlData.preSignedUrl,
+          editFormData.fullVideoFile,
+          "PUT",
+          { "Content-Type": editFormData.fullVideoFile.type || "video/mp4" },
+          (p) => {
+            setUploadPercent(p.percent);
+            setUploadStats({
+              loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+              speedText: p.speedText,
+              fileName: editFormData.fullVideoFile?.name,
+            });
+          }
+        );
         const tempVideoKey = videoUrlData.key;
 
-        // Trigger reprocessing of the full video for this existing song
         setUploadProgressText("Triggering video processing pipeline...");
+        setUploadPercent(100);
         const reprocessRes = await adminFetch(`/admin/song/${editingSong.id}/reprocess-video`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -403,8 +508,7 @@ function SongsContent() {
           const errData = await reprocessRes.json().catch(() => ({}));
           throw new Error(errData.message || "Failed to trigger video reprocessing");
         }
-        // Don't change fullVideoKey in the PUT call — the worker will set it
-        fullVideoKey = editingSong.fullVideoKey; // keep current until worker finishes
+        fullVideoKey = editingSong.fullVideoKey;
       }
 
       let previewStartTime: number | null = null;
@@ -443,6 +547,8 @@ function SongsContent() {
       alert("Update failed: " + err.message);
     } finally {
       setUploading(false);
+      setUploadPercent(0);
+      setUploadStats({});
       setUploadProgressText("");
     }
   };
@@ -683,73 +789,20 @@ function SongsContent() {
             </div>
 
             <form onSubmit={handleUpload} className="p-6 md:p-7 space-y-5 relative">
-              {/* Full Uploading Overlay with animated step progress */}
+              {/* Full Uploading Overlay with animated real-time progress bar */}
               {uploading && (
                 <div className="absolute inset-0 z-30 bg-black/95 backdrop-blur-md rounded-3xl flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-200">
-                  <div className="relative mb-6">
-                    <div className="w-20 h-20 rounded-full border-4 border-zinc-800 border-t-white animate-spin" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <svg className="w-8 h-8 text-white animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                      </svg>
-                    </div>
-                  </div>
-
-                  <h3 className="text-xl font-bold text-white mb-1.5">
-                    Processing & Uploading Track
-                  </h3>
-                  <p className="text-sm font-semibold text-zinc-300 mb-6 font-mono max-w-md">
-                    {uploadProgressText || "Transferring media files..."}
-                  </p>
-
-                  {/* Progress Step Badges */}
-                  <div className="grid grid-cols-3 gap-3 w-full max-w-lg mb-4">
-                    <div className={`p-3 rounded-xl border text-left transition-all ${
-                      uploadStep >= 1 
-                        ? "bg-white text-black border-white"
-                        : "bg-black/60 border-[#282828] text-zinc-500"
-                    }`}>
-                      <div className="flex items-center gap-1.5 font-bold text-xs mb-0.5">
-                        {uploadStep > 1 ? (
-                          <span className="w-4 h-4 rounded-full bg-black text-white flex items-center justify-center text-[10px]">✓</span>
-                        ) : (
-                          <span className="w-4 h-4 rounded-full bg-black text-white flex items-center justify-center text-[10px]">1</span>
-                        )}
-                        <span>S3 Storage</span>
-                      </div>
-                      <span className="text-[10px] opacity-80">{uploadMode === "videoOnly" ? "Full Video" : "Audio Track"}</span>
-                    </div>
-
-                    <div className={`p-3 rounded-xl border text-left transition-all ${
-                      uploadStep >= 2
-                        ? "bg-white text-black border-white"
-                        : "bg-black/60 border-[#282828] text-zinc-500"
-                    }`}>
-                      <div className="flex items-center gap-1.5 font-bold text-xs mb-0.5">
-                        {uploadStep > 2 ? (
-                          <span className="w-4 h-4 rounded-full bg-black text-white flex items-center justify-center text-[10px]">✓</span>
-                        ) : (
-                          <span className="w-4 h-4 rounded-full bg-black text-white flex items-center justify-center text-[10px]">2</span>
-                        )}
-                        <span>ImageKit</span>
-                      </div>
-                      <span className="text-[10px] opacity-80">Artwork & Canvas</span>
-                    </div>
-
-                    <div className={`p-3 rounded-xl border text-left transition-all ${
-                      uploadStep >= 3
-                        ? "bg-white text-black border-white"
-                        : "bg-black/60 border-[#282828] text-zinc-500"
-                    }`}>
-                      <div className="flex items-center gap-1.5 font-bold text-xs mb-0.5">
-                        <span className="w-4 h-4 rounded-full bg-black text-white flex items-center justify-center text-[10px]">3</span>
-                        <span>Worker Job</span>
-                      </div>
-                      <span className="text-[10px] opacity-80">Queue Transcode</span>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-zinc-500">
+                  <UploadProgressBar
+                    percent={uploadPercent}
+                    statusText={uploadProgressText || "Transferring media files..."}
+                    fileName={uploadStats.fileName}
+                    loadedText={uploadStats.loadedText}
+                    speedText={uploadStats.speedText}
+                    step={uploadStep}
+                    totalSteps={3}
+                    stepLabels={["S3 Storage", "ImageKit CDN", "Worker Ingestion"]}
+                  />
+                  <p className="text-xs text-zinc-500 mt-6">
                     Please keep this window open while files are being transferred to storage.
                   </p>
                 </div>
@@ -1230,6 +1283,19 @@ function SongsContent() {
                   )}
                 </div>
               </div>
+
+              {uploading && (
+                <div className="pt-2">
+                  <UploadProgressBar
+                    percent={uploadPercent}
+                    statusText={uploadProgressText || "Saving changes..."}
+                    fileName={uploadStats.fileName}
+                    loadedText={uploadStats.loadedText}
+                    speedText={uploadStats.speedText}
+                    variant="inline"
+                  />
+                </div>
+              )}
 
               <button disabled={uploading} type="submit" className={`w-full py-3 rounded-full font-bold text-black text-sm transition-all flex items-center justify-center gap-2 ${uploading ? "bg-zinc-400 cursor-not-allowed" : "bg-white hover:bg-zinc-200"}`}>
                 {uploading ? (<><svg className="animate-spin h-4 w-4 text-black" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg>Saving...</>) : "Save Changes"}
