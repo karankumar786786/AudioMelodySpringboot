@@ -1,13 +1,42 @@
 "use client";
 
-import { Sidebar } from "./Sidebar";
-import { GlobalSearch } from "./GlobalSearch";
+import { LogOut, WifiOff } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { AuthScreen } from "./AuthScreen";
-import { LogOut } from "lucide-react";
+import { GlobalSearch } from "./GlobalSearch";
+import { Sidebar } from "./Sidebar";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
+  const [isOffline, setIsOffline] = useState(false);
+  const [backOnlineBanner, setBackOnlineBanner] = useState(false);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    const handleOnline = () => {
+      setIsOffline(false);
+      setBackOnlineBanner(true);
+      timer = setTimeout(() => setBackOnlineBanner(false), 3500);
+    };
+    const handleOffline = () => {
+      setIsOffline(true);
+      setBackOnlineBanner(false);
+    };
+
+    if (typeof window !== "undefined") {
+      setIsOffline(!navigator.onLine);
+      window.addEventListener("online", handleOnline);
+      window.addEventListener("offline", handleOffline);
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("online", handleOnline);
+        window.removeEventListener("offline", handleOffline);
+      }
+      clearTimeout(timer);
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -91,6 +120,28 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </button>
           </div>
         </header>
+
+        {isOffline && (
+          <div className="bg-rose-500/15 border-b border-rose-500/30 text-rose-300 px-8 py-2.5 text-xs font-semibold flex items-center justify-between animate-in fade-in duration-200 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <WifiOff className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>
+                You are currently offline. File uploads and network requests may
+                fail until your connection is restored.
+              </span>
+            </div>
+            <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-rose-500/20 border border-rose-500/30 shrink-0">
+              Offline
+            </span>
+          </div>
+        )}
+
+        {backOnlineBanner && (
+          <div className="bg-emerald-500/15 border-b border-emerald-500/30 text-emerald-300 px-8 py-2 text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-200 shrink-0">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Internet connection restored. You are back online.</span>
+          </div>
+        )}
 
         <main className="flex-1 relative overflow-y-auto bg-black">
           {children}

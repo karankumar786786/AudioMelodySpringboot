@@ -1,12 +1,29 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Image as ImageIcon,
+  Loader2,
+  RotateCw,
+  Sparkles,
+  Video,
+  WifiOff,
+  X,
+} from "lucide-react";
+import type React from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { getImageUrl } from "@/lib/image-utils";
 import { adminFetch } from "@/lib/adminFetch";
-import { Loader2, X, Video, Image as ImageIcon, Sparkles, CheckCircle2 } from "lucide-react";
+import { getImageUrl } from "@/lib/image-utils";
+import {
+  getFriendlyUploadErrorMessage,
+  isDeviceOnline,
+  UploadError,
+  uploadToImageKitWithProgress,
+  uploadWithProgress,
+} from "@/lib/upload-utils";
 import { UploadProgressBar } from "./UploadProgressBar";
-import { uploadWithProgress, uploadToImageKitWithProgress } from "@/lib/upload-utils";
 
 export interface SongData {
   id: string;
@@ -31,7 +48,12 @@ interface EditSongModalProps {
   onSuccess?: (updatedSong: SongData) => void;
 }
 
-export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModalProps) {
+export function EditSongModal({
+  song,
+  isOpen,
+  onClose,
+  onSuccess,
+}: EditSongModalProps) {
   const [formData, setFormData] = useState({
     title: "",
     artistName: "",
@@ -51,18 +73,33 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
   const [saving, setSaving] = useState(false);
   const [progressText, setProgressText] = useState("");
   const [uploadPercent, setUploadPercent] = useState<number | null>(null);
-  const [uploadStats, setUploadStats] = useState<{ loadedText?: string; speedText?: string; fileName?: string }>({});
-  const [error, setError] = useState<string | null>(null);
+  const [uploadStats, setUploadStats] = useState<{
+    loadedText?: string;
+    speedText?: string;
+    fileName?: string;
+  }>({});
+  const [error, setError] = useState<{
+    title?: string;
+    message: string;
+    isNetworkError?: boolean;
+    canRetry?: boolean;
+  } | null>(null);
+  const [retryStatusText, setRetryStatusText] = useState("");
+  const [isRetrying, setIsRetrying] = useState(false);
 
   useEffect(() => {
     if (!song) return;
 
     const startTotal =
-      song.previewStartTime !== undefined && song.previewStartTime !== null && song.previewStartTime >= 0
+      song.previewStartTime !== undefined &&
+      song.previewStartTime !== null &&
+      song.previewStartTime >= 0
         ? song.previewStartTime
         : null;
     const endTotal =
-      song.previewEndTime !== undefined && song.previewEndTime !== null && song.previewEndTime >= 0
+      song.previewEndTime !== undefined &&
+      song.previewEndTime !== null &&
+      song.previewEndTime >= 0
         ? song.previewEndTime
         : null;
 
@@ -105,18 +142,26 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
 
   const uploadFileToImageKit = async (file: File, folder: string) => {
     const sigRes = await adminFetch("/webhook/internal/image-upload-param");
-    if (!sigRes.ok) throw new Error("Failed to get ImageKit upload authorization");
+    if (!sigRes.ok)
+      throw new Error("Failed to get ImageKit upload authorization");
     const sigData = await sigRes.json();
     const fd = new FormData();
     fd.append("file", file);
-    fd.append("publicKey", process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY || "public_ck50bJ3UfF9eCOXhwXQTQFP693o=");
+    fd.append(
+      "publicKey",
+      process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY ||
+        "public_ck50bJ3UfF9eCOXhwXQTQFP693o=",
+    );
     fd.append("signature", sigData.param.signature);
     fd.append("expire", sigData.param.expire.toString());
     fd.append("token", sigData.param.token);
     fd.append("folder", folder);
     const extension = file.name.split(".").pop();
     fd.append("fileName", `${sigData.key}.${extension}`);
-    const res = await fetch("https://upload.imagekit.io/api/v1/files/upload", { method: "POST", body: fd });
+    const res = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
+      method: "POST",
+      body: fd,
+    });
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || "File upload failed");
     return data.filePath || sigData.key;
@@ -124,11 +169,37 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!song) return;
+
+    if (!isDeviceOnline()) {
+      const offlineErr = getFriendlyUploadErrorMessage(
+        new UploadError("You appear to be offline.", {
+          isOffline: true,
+          isNetworkError: true,
+        }),
+      );
+      setError(offlineErr);
+      return;
+    }
+
     setSaving(true);
     setError(null);
+    setRetryStatusText("");
+    setIsRetrying(false);
     setUploadPercent(null);
     setUploadStats({});
     setProgressText("Saving changes...");
+
+    const retryHandler = (
+      attempt: number,
+      maxRetries: number,
+      delayMs: number,
+    ) => {
+      setIsRetrying(true);
+      setRetryStatusText(
+        `Network issue detected. Retrying in ${Math.ceil(delayMs / 1000)}s (attempt ${attempt}/${maxRetries})...`,
+      );
+    };
 
     try {
       let imageKey = song.imageKey;
@@ -136,14 +207,21 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
         setProgressText("Uploading new cover image...");
         setUploadPercent(0);
         setUploadStats({ fileName: formData.imageFile.name });
-        imageKey = await uploadToImageKitWithProgress(formData.imageFile, "/songs/images", (p) => {
-          setUploadPercent(p.percent);
-          setUploadStats({
-            loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
-            speedText: p.speedText,
-            fileName: formData.imageFile?.name,
-          });
-        });
+        imageKey = await uploadToImageKitWithProgress(
+          formData.imageFile,
+          "/songs/images",
+          (p) => {
+            setUploadPercent(p.percent);
+            setUploadStats({
+              loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+              speedText: p.speedText,
+              fileName: formData.imageFile?.name,
+            });
+          },
+          { onRetry: retryHandler },
+        );
+        setIsRetrying(false);
+        setRetryStatusText("");
       }
 
       let videoKey: string | null | undefined = song.videoKey;
@@ -153,14 +231,21 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
         setProgressText("Uploading canvas video...");
         setUploadPercent(0);
         setUploadStats({ fileName: formData.videoFile.name });
-        videoKey = await uploadToImageKitWithProgress(formData.videoFile, "/songs/videos", (p) => {
-          setUploadPercent(p.percent);
-          setUploadStats({
-            loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
-            speedText: p.speedText,
-            fileName: formData.videoFile?.name,
-          });
-        });
+        videoKey = await uploadToImageKitWithProgress(
+          formData.videoFile,
+          "/songs/videos",
+          (p) => {
+            setUploadPercent(p.percent);
+            setUploadStats({
+              loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+              speedText: p.speedText,
+              fileName: formData.videoFile?.name,
+            });
+          },
+          { onRetry: retryHandler },
+        );
+        setIsRetrying(false);
+        setRetryStatusText("");
       }
 
       let fullVideoKey: string | null | undefined = song.fullVideoKey;
@@ -170,8 +255,11 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
         setProgressText("Uploading full video to S3...");
         setUploadPercent(0);
         setUploadStats({ fileName: formData.fullVideoFile.name });
-        const videoUrlRes = await adminFetch("/webhook/internal/video-upload-url");
-        if (!videoUrlRes.ok) throw new Error("Failed to get video upload authorization");
+        const videoUrlRes = await adminFetch(
+          "/webhook/internal/video-upload-url",
+        );
+        if (!videoUrlRes.ok)
+          throw new Error("Failed to get video upload authorization");
         const videoUrlData = await videoUrlRes.json();
 
         await uploadWithProgress(
@@ -186,20 +274,28 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
               speedText: p.speedText,
               fileName: formData.fullVideoFile?.name,
             });
-          }
+          },
+          { onRetry: retryHandler },
         );
+        setIsRetrying(false);
+        setRetryStatusText("");
         const tempVideoKey = videoUrlData.key;
 
         setProgressText("Triggering video processing pipeline...");
         setUploadPercent(100);
-        const reprocessRes = await adminFetch(`/admin/song/${song.id}/reprocess-video`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tempVideoKey }),
-        });
+        const reprocessRes = await adminFetch(
+          `/admin/song/${song.id}/reprocess-video`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tempVideoKey }),
+          },
+        );
         if (!reprocessRes.ok) {
           const errData = await reprocessRes.json().catch(() => ({}));
-          throw new Error(errData.message || "Failed to trigger video reprocessing");
+          throw new Error(
+            errData.message || "Failed to trigger video reprocessing",
+          );
         }
         fullVideoKey = song.fullVideoKey;
       }
@@ -258,16 +354,20 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
       }
       onClose();
     } catch (err: any) {
-      setError(err.message || "Update failed. Please try again.");
+      const friendly = getFriendlyUploadErrorMessage(err);
+      setError(friendly);
     } finally {
       setSaving(false);
       setUploadPercent(null);
       setUploadStats({});
       setProgressText("");
+      setIsRetrying(false);
+      setRetryStatusText("");
     }
   };
 
-  const labelCls = "block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-1.5";
+  const labelCls =
+    "block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-1.5";
   const inputCls =
     "w-full bg-black/60 border border-[#282828] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-400 transition-all";
   const fileCls =
@@ -287,7 +387,12 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
             <div className="w-12 h-12 rounded-xl bg-black/60 border border-[#282828] overflow-hidden shrink-0 flex items-center justify-center">
               {song.imageKey ? (
                 <img
-                  src={getImageUrl(song.imageKey, { width: 100, height: 100, focus: "auto", aspectRatio: "1-1" })}
+                  src={getImageUrl(song.imageKey, {
+                    width: 100,
+                    height: 100,
+                    focus: "auto",
+                    aspectRatio: "1-1",
+                  })}
                   alt={song.title}
                   className="w-full h-full object-cover"
                 />
@@ -296,8 +401,12 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
               )}
             </div>
             <div className="min-w-0">
-              <h2 className="text-base font-bold text-white truncate">{song.title}</h2>
-              <p className="text-xs text-zinc-400 truncate">{song.artistName} • ID: {song.id.slice(0, 8)}...</p>
+              <h2 className="text-base font-bold text-white truncate">
+                {song.title}
+              </h2>
+              <p className="text-xs text-zinc-400 truncate">
+                {song.artistName} • ID: {song.id.slice(0, 8)}...
+              </p>
             </div>
           </div>
 
@@ -313,13 +422,47 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
 
         {/* Error notice */}
         {error && (
-          <div className="px-6 py-3 bg-rose-500/10 border-b border-rose-500/20 text-rose-400 text-xs font-semibold shrink-0">
-            {error}
+          <div className="px-6 py-3.5 bg-rose-500/10 border-b border-rose-500/20 text-xs shrink-0 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              {error.isNetworkError ? (
+                <WifiOff className="w-4 h-4 text-rose-400 shrink-0" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              )}
+              <div>
+                <span className="font-bold text-rose-300 block">
+                  {error.title ||
+                    (error.isNetworkError
+                      ? "Network Connection Error"
+                      : "Save Failed")}
+                </span>
+                <span className="text-zinc-400 text-[11px] block mt-0.5">
+                  {error.message}
+                </span>
+              </div>
+            </div>
+            {error.canRetry !== false && (
+              <button
+                type="button"
+                onClick={(e) => handleSubmit(e)}
+                disabled={saving || isRetrying}
+                className="px-3 py-1.5 bg-white hover:bg-zinc-200 active:scale-95 text-black rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 disabled:opacity-50"
+              >
+                <RotateCw
+                  className={`w-3 h-3 ${isRetrying ? "animate-spin" : ""}`}
+                />
+                {isRetrying ? "Retrying..." : "Retry"}
+              </button>
+            )}
           </div>
         )}
 
         {/* Form Body */}
-        <form id="edit-song-form" onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
+        <form
+          id="edit-song-form"
+          onSubmit={handleSubmit}
+          className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0"
+        >
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <label className={labelCls}>Song Title</label>
@@ -327,7 +470,9 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
                 required
                 type="text"
                 value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, title: e.target.value })
+                }
                 className={inputCls}
                 placeholder="Song title..."
               />
@@ -339,7 +484,9 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
                 required
                 type="text"
                 value={formData.artistName}
-                onChange={(e) => setFormData({ ...formData, artistName: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, artistName: e.target.value })
+                }
                 className={inputCls}
                 placeholder="Artist name..."
               />
@@ -351,7 +498,9 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
                 required
                 type="text"
                 value={formData.language}
-                onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, language: e.target.value })
+                }
                 className={inputCls}
                 placeholder="e.g. Hindi, English"
               />
@@ -362,7 +511,9 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
               <input
                 type="text"
                 value={formData.lrclibId}
-                onChange={(e) => setFormData({ ...formData, lrclibId: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, lrclibId: e.target.value })
+                }
                 className={inputCls}
                 placeholder="Optional ID"
               />
@@ -371,10 +522,14 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
             {/* Best Part / Preview Timing Segment */}
             <div className="col-span-2 grid grid-cols-2 gap-3 bg-black/40 p-3.5 rounded-2xl border border-[#282828]">
               <div>
-                <label className={labelCls + " text-zinc-300 mb-1"}>Preview Start</label>
+                <label className={labelCls + " text-zinc-300 mb-1"}>
+                  Preview Start
+                </label>
                 <div className="flex items-center gap-2">
                   <div className="flex-1">
-                    <span className="text-[10px] text-zinc-500 font-bold block mb-1">Min</span>
+                    <span className="text-[10px] text-zinc-500 font-bold block mb-1">
+                      Min
+                    </span>
                     <input
                       type="number"
                       min="0"
@@ -384,7 +539,10 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          previewStartMin: e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value) || 0),
+                          previewStartMin:
+                            e.target.value === ""
+                              ? ""
+                              : Math.max(0, parseInt(e.target.value) || 0),
                         })
                       }
                       className="w-full bg-black/60 border border-[#282828] rounded-xl px-2.5 py-1.5 text-xs font-mono text-center font-bold text-white focus:outline-none focus:border-zinc-400"
@@ -392,7 +550,9 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
                   </div>
                   <span className="font-bold text-zinc-500 mt-4">:</span>
                   <div className="flex-1">
-                    <span className="text-[10px] text-zinc-500 font-bold block mb-1">Sec</span>
+                    <span className="text-[10px] text-zinc-500 font-bold block mb-1">
+                      Sec
+                    </span>
                     <input
                       type="number"
                       min="0"
@@ -405,7 +565,10 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
                           previewStartSec:
                             e.target.value === ""
                               ? ""
-                              : Math.max(0, Math.min(59, parseInt(e.target.value) || 0)),
+                              : Math.max(
+                                  0,
+                                  Math.min(59, parseInt(e.target.value) || 0),
+                                ),
                         })
                       }
                       className="w-full bg-black/60 border border-[#282828] rounded-xl px-2.5 py-1.5 text-xs font-mono text-center font-bold text-white focus:outline-none focus:border-zinc-400"
@@ -415,10 +578,14 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
               </div>
 
               <div>
-                <label className={labelCls + " text-zinc-300 mb-1"}>Preview End</label>
+                <label className={labelCls + " text-zinc-300 mb-1"}>
+                  Preview End
+                </label>
                 <div className="flex items-center gap-2">
                   <div className="flex-1">
-                    <span className="text-[10px] text-zinc-500 font-bold block mb-1">Min</span>
+                    <span className="text-[10px] text-zinc-500 font-bold block mb-1">
+                      Min
+                    </span>
                     <input
                       type="number"
                       min="0"
@@ -428,7 +595,10 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          previewEndMin: e.target.value === "" ? "" : Math.max(0, parseInt(e.target.value) || 0),
+                          previewEndMin:
+                            e.target.value === ""
+                              ? ""
+                              : Math.max(0, parseInt(e.target.value) || 0),
                         })
                       }
                       className="w-full bg-black/60 border border-[#282828] rounded-xl px-2.5 py-1.5 text-xs font-mono text-center font-bold text-white focus:outline-none focus:border-zinc-400"
@@ -436,7 +606,9 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
                   </div>
                   <span className="font-bold text-zinc-500 mt-4">:</span>
                   <div className="flex-1">
-                    <span className="text-[10px] text-zinc-500 font-bold block mb-1">Sec</span>
+                    <span className="text-[10px] text-zinc-500 font-bold block mb-1">
+                      Sec
+                    </span>
                     <input
                       type="number"
                       min="0"
@@ -449,7 +621,10 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
                           previewEndSec:
                             e.target.value === ""
                               ? ""
-                              : Math.max(0, Math.min(59, parseInt(e.target.value) || 0)),
+                              : Math.max(
+                                  0,
+                                  Math.min(59, parseInt(e.target.value) || 0),
+                                ),
                         })
                       }
                       className="w-full bg-black/60 border border-[#282828] rounded-xl px-2.5 py-1.5 text-xs font-mono text-center font-bold text-white focus:outline-none focus:border-zinc-400"
@@ -458,7 +633,8 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
                 </div>
               </div>
               <div className="col-span-2 text-[10px] text-zinc-500">
-                Audio preview segment for mouse hover. Leave empty to play default.
+                Audio preview segment for mouse hover. Leave empty to play
+                default.
               </div>
             </div>
           </div>
@@ -467,12 +643,20 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
             {/* Cover Image */}
             <div className="border border-dashed border-[#282828] rounded-2xl p-3 bg-black/40">
               <label className={labelCls}>
-                Replace Cover Image <span className="text-zinc-500 normal-case font-normal">(optional)</span>
+                Replace Cover Image{" "}
+                <span className="text-zinc-500 normal-case font-normal">
+                  (optional)
+                </span>
               </label>
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => setFormData({ ...formData, imageFile: e.target.files?.[0] || null })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    imageFile: e.target.files?.[0] || null,
+                  })
+                }
                 className={fileCls}
               />
             </div>
@@ -481,8 +665,12 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
             <div className="border border-dashed border-[#282828] rounded-2xl p-3 bg-black/40">
               <div className="flex items-center justify-between mb-1">
                 <label className={labelCls + " mb-0"}>
-                  {song.videoKey && !formData.removeVideo ? "Replace Video Canvas" : "Attach Video Canvas"}{" "}
-                  <span className="text-zinc-500 normal-case font-normal">(optional)</span>
+                  {song.videoKey && !formData.removeVideo
+                    ? "Replace Video Canvas"
+                    : "Attach Video Canvas"}{" "}
+                  <span className="text-zinc-500 normal-case font-normal">
+                    (optional)
+                  </span>
                 </label>
                 {song.videoKey && (
                   <button
@@ -519,7 +707,12 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
                 <input
                   type="file"
                   accept="video/mp4,video/*"
-                  onChange={(e) => setFormData({ ...formData, videoFile: e.target.files?.[0] || null })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      videoFile: e.target.files?.[0] || null,
+                    })
+                  }
                   className={fileCls}
                 />
               )}
@@ -530,7 +723,9 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
               <div className="flex items-center justify-between mb-1">
                 <label className={labelCls + " mb-0"}>
                   Full Music Video{" "}
-                  <span className="text-zinc-500 normal-case font-normal">(S3 Shaka Stream)</span>
+                  <span className="text-zinc-500 normal-case font-normal">
+                    (S3 Shaka Stream)
+                  </span>
                 </label>
                 {song.fullVideoKey && (
                   <button
@@ -552,12 +747,14 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
                   </button>
                 )}
               </div>
-              {song.fullVideoKey && !formData.removeFullVideo && !formData.fullVideoFile && (
-                <p className="text-[10px] text-emerald-400 font-medium mb-2 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" />
-                  Active full video stream attached
-                </p>
-              )}
+              {song.fullVideoKey &&
+                !formData.removeFullVideo &&
+                !formData.fullVideoFile && (
+                  <p className="text-[10px] text-emerald-400 font-medium mb-2 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Active full video stream attached
+                  </p>
+                )}
               {formData.removeFullVideo && (
                 <p className="text-[10px] text-rose-400 font-bold mb-2">
                   Full video stream will be removed on save
@@ -568,19 +765,24 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
                   <input
                     type="file"
                     accept="video/*"
-                    onChange={(e) => setFormData({ ...formData, fullVideoFile: e.target.files?.[0] || null })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        fullVideoFile: e.target.files?.[0] || null,
+                      })
+                    }
                     className={fileCls}
                   />
                   {formData.fullVideoFile && (
                     <div className="mt-2 text-[11px] text-zinc-300 font-medium">
-                      Selected: {formData.fullVideoFile.name} (triggers Shaka Packager)
+                      Selected: {formData.fullVideoFile.name} (triggers Shaka
+                      Packager)
                     </div>
                   )}
                 </div>
               )}
             </div>
           </div>
-
         </form>
 
         {/* Real-time Inline Progress Bar when Uploading Files */}
@@ -593,6 +795,8 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
               loadedText={uploadStats.loadedText}
               speedText={uploadStats.speedText}
               variant="inline"
+              retryStatusText={retryStatusText}
+              isRetrying={isRetrying}
             />
           </div>
         )}
@@ -612,7 +816,9 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
             disabled={saving}
             type="submit"
             className={`px-6 py-2.5 rounded-full font-bold text-black text-xs transition-all flex items-center justify-center gap-2 ${
-              saving ? "bg-zinc-400 cursor-not-allowed" : "bg-white hover:bg-zinc-200 active:scale-95 shadow-sm"
+              saving
+                ? "bg-zinc-400 cursor-not-allowed"
+                : "bg-white hover:bg-zinc-200 active:scale-95 shadow-sm"
             }`}
           >
             {saving ? (
@@ -627,6 +833,6 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
         </div>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }

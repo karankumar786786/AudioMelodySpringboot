@@ -1,7 +1,19 @@
 "use client";
 
-import React from "react";
-import { Loader2, CheckCircle2, CloudUpload, Music, Video, Image as ImageIcon, Zap } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeft,
+  CheckCircle2,
+  CloudUpload,
+  Image as ImageIcon,
+  Loader2,
+  Music,
+  RotateCw,
+  Video,
+  WifiOff,
+  X,
+  Zap,
+} from "lucide-react";
 
 export interface UploadProgressBarProps {
   percent: number;
@@ -13,6 +25,17 @@ export interface UploadProgressBarProps {
   totalSteps?: number;
   stepLabels?: string[];
   variant?: "overlay" | "inline";
+  // Error & Recovery Props
+  error?: {
+    title?: string;
+    message: string;
+    isNetworkError?: boolean;
+    canRetry?: boolean;
+  } | null;
+  onRetry?: () => void;
+  onCancel?: () => void;
+  retryStatusText?: string;
+  isRetrying?: boolean;
 }
 
 export function UploadProgressBar({
@@ -25,6 +48,11 @@ export function UploadProgressBar({
   totalSteps = 3,
   stepLabels = ["S3 Storage", "ImageKit CDN", "Worker Ingestion"],
   variant = "overlay",
+  error,
+  onRetry,
+  onCancel,
+  retryStatusText,
+  isRetrying = false,
 }: UploadProgressBarProps) {
   const safePercent = Math.min(100, Math.max(0, Math.round(percent)));
 
@@ -40,13 +68,88 @@ export function UploadProgressBar({
     return <ImageIcon className="w-5 h-5 text-white" />;
   };
 
+  // ==========================================
+  // INLINE VARIANT
+  // ==========================================
   if (variant === "inline") {
+    if (error) {
+      return (
+        <div className="w-full bg-[#181818] border border-rose-500/30 rounded-2xl p-4 space-y-3 animate-in fade-in duration-200">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5 min-w-0">
+              {error.isNetworkError ? (
+                <WifiOff className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+              )}
+              <div>
+                <h4 className="text-xs font-bold text-rose-200 leading-tight">
+                  {error.title ||
+                    (error.isNetworkError
+                      ? "Network Connection Error"
+                      : "Upload Failed")}
+                </h4>
+                <p className="text-[11px] text-zinc-400 mt-1 leading-relaxed">
+                  {error.message}
+                </p>
+                {retryStatusText && (
+                  <p className="text-[11px] text-amber-400 mt-1.5 flex items-center gap-1.5 font-medium">
+                    <RotateCw className="w-3 h-3 animate-spin shrink-0" />
+                    {retryStatusText}
+                  </p>
+                )}
+              </div>
+            </div>
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="text-zinc-500 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors shrink-0"
+                title="Dismiss"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {(onRetry || onCancel) && (
+            <div className="flex items-center gap-2 pt-1">
+              {onRetry && error.canRetry !== false && (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  disabled={isRetrying}
+                  className="px-3.5 py-1.5 bg-white hover:bg-zinc-200 active:scale-95 text-black rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <RotateCw
+                    className={`w-3 h-3 ${isRetrying ? "animate-spin" : ""}`}
+                  />
+                  {isRetrying ? "Retrying..." : "Retry"}
+                </button>
+              )}
+              {onCancel && (
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  className="px-3 py-1.5 bg-black/60 hover:bg-[#282828] text-zinc-400 hover:text-white border border-[#282828] rounded-lg text-xs font-medium transition-all"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      );
+    }
+
     return (
       <div className="w-full bg-[#181818] border border-[#282828] rounded-2xl p-4 space-y-3 animate-in fade-in duration-200">
         <div className="flex items-center justify-between text-xs">
           <div className="flex items-center gap-2 min-w-0">
             <Loader2 className="w-3.5 h-3.5 animate-spin text-white shrink-0" />
-            <span className="font-semibold text-white truncate">{statusText}</span>
+            <span className="font-semibold text-white truncate">
+              {statusText}
+            </span>
           </div>
           <span className="font-mono font-bold text-white text-xs ml-2 shrink-0">
             {safePercent}%
@@ -78,11 +181,146 @@ export function UploadProgressBar({
             </div>
           </div>
         )}
+
+        {retryStatusText && (
+          <div className="text-[11px] text-amber-400 flex items-center gap-1.5 font-medium pt-1">
+            <RotateCw className="w-3 h-3 animate-spin shrink-0" />
+            <span>{retryStatusText}</span>
+          </div>
+        )}
       </div>
     );
   }
 
-  // Overlay variant (full featured for major upload flows)
+  // ==========================================
+  // OVERLAY VARIANT (MODAL DIALOG / FULL COVERAGE)
+  // ==========================================
+  if (error) {
+    return (
+      <div className="w-full max-w-lg flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-200">
+        {/* Error Icon with Halo */}
+        <div className="relative mb-5">
+          <div className="w-20 h-20 rounded-full border-4 border-rose-500/20 border-t-rose-500 animate-pulse" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-rose-950/60 border border-rose-500/40 flex items-center justify-center shadow-lg shadow-rose-950/50">
+              {error.isNetworkError ? (
+                <WifiOff className="w-6 h-6 text-rose-400" />
+              ) : (
+                <AlertTriangle className="w-6 h-6 text-rose-400" />
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Title */}
+        <h3 className="text-xl font-bold text-white mb-2 tracking-tight">
+          {error.title ||
+            (error.isNetworkError
+              ? "Network Connection Error"
+              : "Upload Interrupted")}
+        </h3>
+
+        {/* Error Description Box */}
+        <div className="w-full bg-rose-500/10 border border-rose-500/25 rounded-2xl p-4 text-left mb-6 shadow-inner">
+          <p className="text-xs text-rose-200 leading-relaxed">
+            {error.message}
+          </p>
+          <div className="mt-2.5 pt-2.5 border-t border-rose-500/20 flex items-center justify-between text-[11px] text-zinc-400">
+            <span>Form entries & selected files remain intact.</span>
+            {fileName && (
+              <span className="font-mono text-zinc-300 truncate max-w-[180px] ml-2">
+                {fileName}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Live Auto-Retry Countdown or notice */}
+        {retryStatusText && (
+          <div className="w-full bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-xl px-4 py-2.5 text-xs font-medium flex items-center justify-center gap-2 mb-6 animate-pulse">
+            <RotateCw className="w-3.5 h-3.5 animate-spin shrink-0" />
+            <span>{retryStatusText}</span>
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex items-center justify-center gap-3 w-full mb-6">
+          {onRetry && error.canRetry !== false && (
+            <button
+              type="button"
+              onClick={onRetry}
+              disabled={isRetrying}
+              className="flex-1 max-w-[200px] py-3.5 px-5 bg-white hover:bg-zinc-200 active:scale-95 text-black font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-white/10 disabled:opacity-50"
+            >
+              <RotateCw
+                className={`w-4 h-4 ${isRetrying ? "animate-spin" : ""}`}
+              />
+              {isRetrying ? "Retrying..." : "Retry Upload"}
+            </button>
+          )}
+
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 max-w-[180px] py-3.5 px-4 bg-black/60 hover:bg-[#202020] text-zinc-300 hover:text-white border border-[#282828] font-bold text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Edit Details
+            </button>
+          )}
+        </div>
+
+        {/* Step Indicators with Failure Marker */}
+        {step !== undefined && totalSteps > 1 && (
+          <div className="grid grid-cols-3 gap-2.5 w-full">
+            {stepLabels.map((label, idx) => {
+              const stepNum = idx + 1;
+              const isDone = step > stepNum;
+              const isFailed = step === stepNum;
+
+              return (
+                <div
+                  key={label}
+                  className={`p-3 rounded-2xl border text-left transition-all ${
+                    isFailed
+                      ? "bg-rose-950/30 border-rose-500/50 text-rose-200 shadow-md shadow-rose-950/30"
+                      : isDone
+                        ? "bg-[#181818] border-zinc-700 text-white"
+                        : "bg-black/60 border-[#282828] text-zinc-500"
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 font-bold text-xs mb-0.5">
+                    <span
+                      className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] ${
+                        isFailed
+                          ? "bg-rose-500 text-white font-bold"
+                          : isDone
+                            ? "bg-white text-black"
+                            : "bg-zinc-800 text-zinc-400"
+                      }`}
+                    >
+                      {isFailed ? "!" : isDone ? "✓" : stepNum}
+                    </span>
+                    <span className="truncate">{label}</span>
+                  </div>
+                  <span className="text-[10px] opacity-75 truncate block">
+                    {isFailed
+                      ? "Failed here"
+                      : isDone
+                        ? "Completed"
+                        : "Pending"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Normal Overlay State (Uploading)
   return (
     <div className="w-full max-w-lg flex flex-col items-center text-center animate-in fade-in zoom-in-95 duration-200">
       {/* Animated Icon with Pulsing Halo */}
@@ -140,6 +378,13 @@ export function UploadProgressBar({
             )}
           </div>
         )}
+
+        {retryStatusText && (
+          <div className="text-[11px] text-amber-400 flex items-center justify-center gap-1.5 font-medium pt-2">
+            <RotateCw className="w-3 h-3 animate-spin shrink-0" />
+            <span>{retryStatusText}</span>
+          </div>
+        )}
       </div>
 
       {/* Step Indicators */}
@@ -157,8 +402,8 @@ export function UploadProgressBar({
                   isCurrent
                     ? "bg-white text-black border-white shadow-lg shadow-white/5"
                     : isDone
-                    ? "bg-[#181818] border-zinc-700 text-white"
-                    : "bg-black/60 border-[#282828] text-zinc-500"
+                      ? "bg-[#181818] border-zinc-700 text-white"
+                      : "bg-black/60 border-[#282828] text-zinc-500"
                 }`}
               >
                 <div className="flex items-center gap-1.5 font-bold text-xs mb-0.5">
@@ -167,8 +412,8 @@ export function UploadProgressBar({
                       isCurrent
                         ? "bg-black text-white"
                         : isDone
-                        ? "bg-white text-black"
-                        : "bg-zinc-800 text-zinc-400"
+                          ? "bg-white text-black"
+                          : "bg-zinc-800 text-zinc-400"
                     }`}
                   >
                     {isDone ? "✓" : stepNum}
@@ -179,12 +424,24 @@ export function UploadProgressBar({
                   {idx === 0
                     ? "S3 Storage"
                     : idx === 1
-                    ? "Artwork & Canvas"
-                    : "Background Job"}
+                      ? "Artwork & Canvas"
+                      : "Background Job"}
                 </span>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {onCancel && (
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="text-xs text-zinc-500 hover:text-zinc-300 underline transition-colors"
+          >
+            Cancel upload
+          </button>
         </div>
       )}
     </div>
