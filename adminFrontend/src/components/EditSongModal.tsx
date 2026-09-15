@@ -142,8 +142,8 @@ export function EditSongModal({
   if (!isOpen || !song || !mounted) return null;
 
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!song) return;
 
     if (!isDeviceOnline()) {
@@ -721,6 +721,20 @@ export function EditSongModal({
                   <span>Selected: {formData.audioFile.name} ({(formData.audioFile.size / (1024 * 1024)).toFixed(2)} MB)</span>
                 </div>
               )}
+              {saving && formData.audioFile && progressText?.toLowerCase().includes("audio") && (
+                <div className="mt-3">
+                  <UploadProgressBar
+                    percent={uploadPercent ?? 0}
+                    statusText={progressText}
+                    fileName={uploadStats.fileName}
+                    loadedText={uploadStats.loadedText}
+                    speedText={uploadStats.speedText}
+                    variant="inline"
+                    retryStatusText={retryStatusText}
+                    isRetrying={isRetrying}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Cover Image */}
@@ -862,22 +876,44 @@ export function EditSongModal({
                       Packager)
                     </div>
                   )}
+                  {saving && formData.fullVideoFile && progressText?.toLowerCase().includes("video") && (
+                    <div className="mt-3">
+                      <UploadProgressBar
+                        percent={uploadPercent ?? 0}
+                        statusText={progressText}
+                        fileName={uploadStats.fileName}
+                        loadedText={uploadStats.loadedText}
+                        speedText={uploadStats.speedText}
+                        variant="inline"
+                        retryStatusText={retryStatusText}
+                        isRetrying={isRetrying}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           </div>
         </form>
 
-        {/* Real-time Inline Progress Bar when Uploading Files */}
-        {saving && uploadPercent !== null && (
+        {/* Real-time Inline Progress Bar when Uploading Files or on Error */}
+        {(saving || error) && (
           <div className="px-6 py-3 border-t border-[#282828] bg-[#141414] shrink-0">
             <UploadProgressBar
-              percent={uploadPercent}
+              percent={uploadPercent ?? 0}
               statusText={progressText || "Transferring media..."}
               fileName={uploadStats.fileName}
               loadedText={uploadStats.loadedText}
               speedText={uploadStats.speedText}
               variant="inline"
+              error={error}
+              onRetry={() => handleSubmit()}
+              onCancel={() => {
+                setError(null);
+                setSaving(false);
+                setIsRetrying(false);
+                setRetryStatusText("");
+              }}
               retryStatusText={retryStatusText}
               isRetrying={isRetrying}
             />

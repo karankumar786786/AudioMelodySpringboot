@@ -348,8 +348,8 @@ export default function JobMonitoringPage() {
     setRecoverError(null);
   };
 
-  const handleRecoverJobSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleRecoverJobSubmit = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     if (!recoveringJob) return;
 
     if (!recoverAudioFile && !recoverVideoFile) {
@@ -2309,7 +2309,34 @@ export default function JobMonitoringPage() {
             </div>
 
             {/* Body / Form */}
-            <form onSubmit={handleRecoverJobSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleRecoverJobSubmit} className="p-6 space-y-4 relative">
+              {/* Recovery Upload Overlay with animated real-time progress bar & error/retry controls */}
+              {(isRecovering || recoverError) && (
+                <div className="absolute inset-0 z-30 bg-black/95 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-200">
+                  <UploadProgressBar
+                    percent={recoverPercent ?? 0}
+                    statusText={
+                      recoverProgressText || "Transferring replacement media..."
+                    }
+                    fileName={recoverStats.fileName}
+                    loadedText={recoverStats.loadedText}
+                    speedText={recoverStats.speedText}
+                    step={recoverAudioFile && recoverVideoFile ? (recoverProgressText.toLowerCase().includes("video") ? 2 : 1) : 1}
+                    totalSteps={recoverAudioFile && recoverVideoFile ? 2 : 1}
+                    stepLabels={recoverAudioFile && recoverVideoFile ? ["Audio Track", "Video Stream"] : ["S3 Storage"]}
+                    error={recoverError}
+                    onRetry={() => handleRecoverJobSubmit()}
+                    onCancel={() => {
+                      setRecoverError(null);
+                      setIsRecovering(false);
+                      setIsRecoverRetrying(false);
+                      setRecoverRetryStatusText("");
+                    }}
+                    retryStatusText={recoverRetryStatusText}
+                    isRetrying={isRecoverRetrying}
+                  />
+                </div>
+              )}
               {/* Failure Notice Reminder */}
               {recoveringJob.failureReason && (
                 <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-start gap-2.5 text-xs text-rose-300">
@@ -2492,21 +2519,7 @@ export default function JobMonitoringPage() {
         </div>
       )}
 
-      {/* Upload Progress Overlay during Recovery */}
-      {isRecovering && (
-        <UploadProgressBar
-          statusText={recoverProgressText}
-          percent={recoverPercent ?? 0}
-          fileName={recoverStats.fileName}
-          loadedText={recoverStats.loadedText}
-          speedText={recoverStats.speedText}
-          error={recoverError}
-          retryStatusText={recoverRetryStatusText}
-          isRetrying={isRecoverRetrying}
-          onRetry={() => {}}
-          onCancel={() => {}}
-        />
-      )}
+      {/* ========================================================================= */}
     </div>
   );
 }

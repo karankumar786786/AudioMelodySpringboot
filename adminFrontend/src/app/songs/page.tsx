@@ -2160,6 +2160,20 @@ function SongsContent() {
                       <span>Selected: {editFormData.audioFile.name} ({(editFormData.audioFile.size / (1024 * 1024)).toFixed(2)} MB)</span>
                     </div>
                   )}
+                  {uploading && editFormData.audioFile && uploadProgressText?.toLowerCase().includes("audio") && (
+                    <div className="mt-3">
+                      <UploadProgressBar
+                        percent={uploadPercent}
+                        statusText={uploadProgressText}
+                        fileName={uploadStats.fileName}
+                        loadedText={uploadStats.loadedText}
+                        speedText={uploadStats.speedText}
+                        variant="inline"
+                        retryStatusText={editRetryStatusText}
+                        isRetrying={isEditRetrying}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="border border-dashed border-[#282828] rounded-xl p-3 bg-black/40">
@@ -2354,6 +2368,20 @@ function SongsContent() {
                           <span className="text-zinc-500 font-normal">
                             · Will trigger background Shaka processing
                           </span>
+                        </div>
+                      )}
+                      {uploading && editFormData.fullVideoFile && uploadProgressText?.toLowerCase().includes("video") && (
+                        <div className="mt-3">
+                          <UploadProgressBar
+                            percent={uploadPercent}
+                            statusText={uploadProgressText}
+                            fileName={uploadStats.fileName}
+                            loadedText={uploadStats.loadedText}
+                            speedText={uploadStats.speedText}
+                            variant="inline"
+                            retryStatusText={editRetryStatusText}
+                            isRetrying={isEditRetrying}
+                          />
                         </div>
                       )}
                     </div>
