@@ -2,6 +2,7 @@ package me.one_org.melody.Controllers.Admin;
 
 import me.one_org.melody.Dto.Controllers.Admin.Job.JobProgressDto;
 import me.one_org.melody.Dto.Controllers.Admin.Job.JobSummaryMetricsDto;
+import me.one_org.melody.Dto.Controllers.Admin.Job.RecoverJobMediaRequestDto;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Enums.JobStageEnum;
@@ -156,6 +157,17 @@ public class AdminJobController {
     @PostMapping("/{jobId}/retry")
     public ResponseEntity<JobProgressDto> retryJob(@PathVariable String jobId) {
         return ResponseEntity.ok(jobMonitoringService.retryJob(jobId));
+    }
+
+    /**
+     * Recovers a failed or stalled ingestion job by replacing corrupted media files (tempSongKey / tempVideoKey)
+     * and re-triggering processing.
+     */
+    @PostMapping("/{jobId}/recover-media")
+    public ResponseEntity<JobProgressDto> recoverJobMedia(
+            @PathVariable String jobId,
+            @RequestBody RecoverJobMediaRequestDto data) {
+        return ResponseEntity.ok(jobMonitoringService.recoverJobMedia(jobId, data));
     }
 
     /**

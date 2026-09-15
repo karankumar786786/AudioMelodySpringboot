@@ -1,9 +1,13 @@
 package me.one_org.melody.Services.Webhook;
 
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
 
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
@@ -37,6 +41,9 @@ public class WebhookJobService {
     private final Recombee recombee;
     private final PaginationMetaDataService paginationMetaDataService;
     private final S3 s3;
+
+    @Autowired(required = false)
+    private CacheManager cacheManager;
 
     public WebhookJobService(JobsRepository jobsRepository, SongsRepository songsRepository,
             AlgoliaSearch algoliaSearch, Recombee recombee,
@@ -86,7 +93,8 @@ public class WebhookJobService {
             job.setTranscodingDurationMs(Duration.between(job.getTranscodingStartedAt(), now).toMillis());
         }
 
-        if (Boolean.TRUE.equals(job.getIsVideoReprocess())) {
+        boolean isReprocess = Boolean.TRUE.equals(job.getIsVideoReprocess()) || Boolean.TRUE.equals(job.getIsAudioReprocess());
+        if (isReprocess) {
             job.setCurrentStage(JobStageEnum.FINALIZING);
         } else {
             job.setCurrentStage(JobStageEnum.RECOMMENDATION_INDEXING);
@@ -187,10 +195,17 @@ public class WebhookJobService {
             job.setTotalDurationMs(Duration.between(job.getCreatedAt(), now).toMillis());
         }
 
-        if (Boolean.TRUE.equals(job.getIsVideoReprocess())) {
-            // VIDEO REPROCESS: only patch fullVideoKey (and canvas videoKey) on the existing song
+        boolean isReprocess = Boolean.TRUE.equals(job.getIsVideoReprocess()) || Boolean.TRUE.equals(job.getIsAudioReprocess());
+        if (isReprocess) {
+            // REPROCESS / RECOVERY: patch existing song without recreating it
             SongsEntity existingSong = songsRepository.findById(songId)
                     .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + songId));
+            if (job.getSongKey() != null && !job.getSongKey().isBlank()) {
+                existingSong.setSongKey(job.getSongKey());
+            }
+            if (job.getDuration() != null && job.getDuration() > 0) {
+                existingSong.setDuration(job.getDuration());
+            }
             if (job.getFullVideoKey() != null && !job.getFullVideoKey().isBlank()) {
                 existingSong.setFullVideoKey(job.getFullVideoKey());
             }
@@ -198,10 +213,21 @@ public class WebhookJobService {
                 existingSong.setVideoKey(job.getVideoKey());
             }
             songsRepository.save(existingSong);
+
+            if (Boolean.TRUE.equals(job.getIsAudioReprocess())) {
+                try {
+                    algoliaSearch.save(existingSong);
+                } catch (Exception e) {
+                    log.warn("Failed to update Algolia search for song {} after audio recovery: {}", songId, e.getMessage());
+                }
+            }
+
+            evictSongCaches(songId);
+
             job.setStatus(JobStatusEnum.COMPLETED);
             job.setCurrentStage(JobStageEnum.COMPLETED);
             jobsRepository.save(job);
-            log.info("Video reprocess job {} completed in {}ms — fullVideoKey updated on song {}",
+            log.info("Reprocess/recovery job {} completed in {}ms — media updated on song {}",
                     jobId, job.getTotalDurationMs(), songId);
             return;
         }
@@ -245,5 +271,18 @@ public class WebhookJobService {
         }
         jobsRepository.save(job);
         log.error("Job {} failed after {}ms: {}", jobId, job.getTotalDurationMs(), data.reason());
+    }
+
+    private void evictSongCaches(String songId) {
+        if (cacheManager != null) {
+            try {
+                Optional.ofNullable(cacheManager.getCache("songs")).ifPresent(c -> c.evict(songId));
+                Optional.ofNullable(cacheManager.getCache("song_lists")).ifPresent(c -> c.clear());
+                Optional.ofNullable(cacheManager.getCache("featured_songs")).ifPresent(c -> c.clear());
+                log.info("Evicted caches for song {}", songId);
+            } catch (Exception e) {
+                log.warn("Failed to evict Redis caches for song {}: {}", songId, e.getMessage());
+            }
+        }
     }
 }

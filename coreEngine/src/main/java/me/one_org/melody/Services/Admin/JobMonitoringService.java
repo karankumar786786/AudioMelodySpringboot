@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.Dto.Controllers.Admin.Job.JobProgressDto;
 import me.one_org.melody.Dto.Controllers.Admin.Job.JobStageDetailDto;
 import me.one_org.melody.Dto.Controllers.Admin.Job.JobSummaryMetricsDto;
+import me.one_org.melody.Dto.Controllers.Admin.Job.RecoverJobMediaRequestDto;
 import me.one_org.melody.Dto.Queue.AudioProcessingQueueDto;
 import me.one_org.melody.Entity.JobsEntity;
 import me.one_org.melody.Enums.JobStageEnum;
@@ -192,6 +193,68 @@ public class JobMonitoringService {
         jobsRepository.save(job);
         audioProcessingQueue.queueAudioProcessing(new AudioProcessingQueueDto(job.getId()));
         log.info("Job [{}] re-queued for retry (transcodingAttempt {})", jobId, job.getTranscodingAttempt());
+        return toProgressDto(job);
+    }
+
+    /**
+     * Recovers a failed or stalled ingestion job by replacing corrupted media files (tempSongKey / tempVideoKey),
+     * resetting all execution state, and re-enqueueing the job.
+     */
+    @Transactional
+    public JobProgressDto recoverJobMedia(String jobId, RecoverJobMediaRequestDto data) {
+        JobsEntity job = jobsRepository.findById(jobId)
+                .orElseThrow(() -> new ResourceNotFoundException("Job not found: " + jobId));
+
+        boolean hasAudio = data.tempSongKey() != null && !data.tempSongKey().isBlank();
+        boolean hasVideo = data.tempVideoKey() != null && !data.tempVideoKey().isBlank();
+
+        if (!hasAudio && !hasVideo) {
+            throw new IllegalArgumentException("Either replacement tempSongKey or tempVideoKey must be provided");
+        }
+
+        if (hasAudio) {
+            job.setTempSongKey(data.tempSongKey().trim());
+        }
+
+        if (hasVideo) {
+            job.setTempVideoKey(data.tempVideoKey().trim());
+        }
+
+        if (data.clipStartMin() != null || data.clipStartSec() != null) {
+            int min = data.clipStartMin() != null ? data.clipStartMin() : 0;
+            int sec = data.clipStartSec() != null ? data.clipStartSec() : 0;
+            job.setClipStartSec(min * 60 + sec);
+        }
+
+        if (data.clipEndMin() != null || data.clipEndSec() != null) {
+            int min = data.clipEndMin() != null ? data.clipEndMin() : 0;
+            int sec = data.clipEndSec() != null ? data.clipEndSec() : 0;
+            job.setClipEndSec(min * 60 + sec);
+        }
+
+        job.setStatus(JobStatusEnum.PENDING);
+        job.setCurrentStage(JobStageEnum.QUEUED);
+        job.setFailureReason(null);
+        job.setFailedAt(null);
+        job.setCompletedAt(null);
+        job.setTranscodingStartedAt(null);
+        job.setTranscodedAt(null);
+        job.setRecommendationSavedAt(null);
+        job.setSearchSavedAt(null);
+        job.setTranscodingDurationMs(null);
+        job.setRecommendationDurationMs(null);
+        job.setSearchDurationMs(null);
+        job.setFinalizeDurationMs(null);
+        job.setTotalDurationMs(null);
+        job.setTranscoded(false);
+        job.setSavedInSearch(false);
+        job.setSavedInRecommendation(false);
+        job.setTranscodingAttempt(job.getTranscodingAttempt() != null ? job.getTranscodingAttempt() + 1 : 1);
+
+        jobsRepository.save(job);
+        audioProcessingQueue.queueAudioProcessing(new AudioProcessingQueueDto(job.getId()));
+        log.info("Job [{}] recovered with new media (audio: {}, video: {}) and re-queued (transcodingAttempt {})",
+                jobId, hasAudio, hasVideo, job.getTranscodingAttempt());
         return toProgressDto(job);
     }
 
@@ -422,7 +485,7 @@ public class JobMonitoringService {
         LocalDateTime now = LocalDateTime.now();
         JobStageEnum currentStage = job.getCurrentStage() != null ? job.getCurrentStage() : JobStageEnum.QUEUED;
         JobStatusEnum status = job.getStatus() != null ? job.getStatus() : JobStatusEnum.PENDING;
-        boolean isReprocess = Boolean.TRUE.equals(job.getIsVideoReprocess());
+        boolean isReprocess = Boolean.TRUE.equals(job.getIsVideoReprocess()) || Boolean.TRUE.equals(job.getIsAudioReprocess());
 
         // Calculate total elapsed time
         Long elapsedTotalMs = job.getTotalDurationMs();
@@ -612,7 +675,8 @@ public class JobMonitoringService {
                 .status(status)
                 .currentStage(currentStage)
                 .transcodingAttempt(job.getTranscodingAttempt() != null ? job.getTranscodingAttempt() : 0)
-                .isVideoReprocess(isReprocess)
+                .isVideoReprocess(Boolean.TRUE.equals(job.getIsVideoReprocess()))
+                .isAudioReprocess(Boolean.TRUE.equals(job.getIsAudioReprocess()))
                 .createdAt(job.getCreatedAt())
                 .transcodingStartedAt(job.getTranscodingStartedAt())
                 .transcodedAt(job.getTranscodedAt())

@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { Loader2, Music, CheckCircle2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { Toast, type ToastType } from "@/components/Toast";
@@ -94,6 +94,7 @@ function SongsContent() {
     previewEndMin: "" as string | number,
     previewEndSec: "" as string | number,
     imageFile: null as File | null,
+    audioFile: null as File | null,
     videoFile: null as File | null,
     fullVideoFile: null as File | null,
     removeVideo: false,
@@ -245,33 +246,6 @@ function SongsContent() {
     } finally {
       setTogglingSongId(null);
     }
-  };
-
-  const uploadFileToImageKit = async (file: File, folder: string) => {
-    const sigRes = await adminFetch("/webhook/internal/image-upload-param");
-    if (!sigRes.ok)
-      throw new Error("Failed to get ImageKit upload authorization");
-    const sigData = await sigRes.json();
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append(
-      "publicKey",
-      process.env.NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY ||
-        "public_ck50bJ3UfF9eCOXhwXQTQFP693o=",
-    );
-    fd.append("signature", sigData.param.signature);
-    fd.append("expire", sigData.param.expire.toString());
-    fd.append("token", sigData.param.token);
-    fd.append("folder", folder);
-    const extension = file.name.split(".").pop();
-    fd.append("fileName", `${sigData.key}.${extension}`);
-    const res = await fetch("https://upload.imagekit.io/api/v1/files/upload", {
-      method: "POST",
-      body: fd,
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "File upload failed");
-    return data.filePath || sigData.key;
   };
 
   const handleUpload = async (e?: React.FormEvent) => {
@@ -594,6 +568,7 @@ function SongsContent() {
       previewEndMin: endTotal !== null ? Math.floor(endTotal / 60) : "",
       previewEndSec: endTotal !== null ? endTotal % 60 : "",
       imageFile: null,
+      audioFile: null,
       videoFile: null,
       fullVideoFile: null,
       removeVideo: false,
@@ -688,7 +663,38 @@ function SongsContent() {
         setEditRetryStatusText("");
       }
 
+      let tempSongKey: string | null = null;
+      if (editFormData.audioFile) {
+        setUploadProgressText("Uploading replacement audio to S3...");
+        setUploadPercent(0);
+        setUploadStats({ fileName: editFormData.audioFile.name });
+        const songUrlRes = await adminFetch("/webhook/internal/song-upload-url");
+        if (!songUrlRes.ok)
+          throw new Error("Failed to get audio upload authorization");
+        const songUrlData = await songUrlRes.json();
+
+        await uploadWithProgress(
+          songUrlData.preSignedUrl,
+          editFormData.audioFile,
+          "PUT",
+          { "Content-Type": editFormData.audioFile.type || "audio/mpeg" },
+          (p) => {
+            setUploadPercent(p.percent);
+            setUploadStats({
+              loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+              speedText: p.speedText,
+              fileName: editFormData.audioFile?.name,
+            });
+          },
+          { onRetry: editRetryHandler },
+        );
+        setIsEditRetrying(false);
+        setEditRetryStatusText("");
+        tempSongKey = songUrlData.key;
+      }
+
       let fullVideoKey: string | null | undefined = editingSong.fullVideoKey;
+      let tempVideoKey: string | null = null;
       if (editFormData.removeFullVideo) {
         fullVideoKey = ""; // Clears fullVideoKey from song
       } else if (editFormData.fullVideoFile) {
@@ -719,8 +725,42 @@ function SongsContent() {
         );
         setIsEditRetrying(false);
         setEditRetryStatusText("");
-        const tempVideoKey = videoUrlData.key;
+        tempVideoKey = videoUrlData.key;
+        fullVideoKey = editingSong.fullVideoKey;
+      }
 
+      // Trigger recovery/reprocessing pipelines if audio or video were replaced
+      if (tempSongKey && tempVideoKey) {
+        setUploadProgressText("Triggering media recovery pipeline...");
+        setUploadPercent(100);
+        const recoverRes = await adminFetch(
+          `/admin/song/${editingSong.id}/recover-media`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tempSongKey, tempVideoKey }),
+          },
+        );
+        if (!recoverRes.ok) {
+          const errData = await recoverRes.json().catch(() => ({}));
+          throw new Error(errData.message || "Failed to trigger media recovery");
+        }
+      } else if (tempSongKey) {
+        setUploadProgressText("Triggering audio re-encoding pipeline...");
+        setUploadPercent(100);
+        const reprocessRes = await adminFetch(
+          `/admin/song/${editingSong.id}/reprocess-audio`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tempSongKey }),
+          },
+        );
+        if (!reprocessRes.ok) {
+          const errData = await reprocessRes.json().catch(() => ({}));
+          throw new Error(errData.message || "Failed to trigger audio reprocessing");
+        }
+      } else if (tempVideoKey) {
         setUploadProgressText("Triggering video processing pipeline...");
         setUploadPercent(100);
         const reprocessRes = await adminFetch(
@@ -733,11 +773,8 @@ function SongsContent() {
         );
         if (!reprocessRes.ok) {
           const errData = await reprocessRes.json().catch(() => ({}));
-          throw new Error(
-            errData.message || "Failed to trigger video reprocessing",
-          );
+          throw new Error(errData.message || "Failed to trigger video reprocessing");
         }
-        fullVideoKey = editingSong.fullVideoKey;
       }
 
       let previewStartTime: number | null = null;
@@ -2078,6 +2115,53 @@ function SongsContent() {
               </div>
 
               <div className="grid grid-cols-1 gap-3 pt-1">
+                {/* Audio Track Replacement */}
+                <div className="border border-dashed border-[#282828] rounded-xl p-3 bg-black/40">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className={labelCls + " mb-0 flex items-center gap-1.5"}>
+                      <Music className="w-3.5 h-3.5 text-amber-400" />
+                      Replace / Recover Audio Track{" "}
+                      <span className="text-zinc-400 normal-case font-normal">
+                        (optional)
+                      </span>
+                    </label>
+                    {editFormData.audioFile && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditFormData({
+                            ...editFormData,
+                            audioFile: null,
+                          })
+                        }
+                        className="text-xs font-bold px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-300 hover:text-white"
+                      >
+                        Clear Audio
+                      </button>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-zinc-400 mb-2">
+                    Upload replacement audio (.mp3, .wav, .flac, .aac, .m4a) to replace corrupted media and trigger HLS re-encoding.
+                  </p>
+                  <input
+                    type="file"
+                    accept="audio/*,.mp3,.wav,.flac,.aac,.m4a"
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        audioFile: e.target.files?.[0] || null,
+                      })
+                    }
+                    className={fileCls}
+                  />
+                  {editFormData.audioFile && (
+                    <div className="mt-2 text-[11px] font-mono text-emerald-400 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>Selected: {editFormData.audioFile.name} ({(editFormData.audioFile.size / (1024 * 1024)).toFixed(2)} MB)</span>
+                    </div>
+                  )}
+                </div>
+
                 <div className="border border-dashed border-[#282828] rounded-xl p-3 bg-black/40">
                   <label className={labelCls + " mb-1"}>
                     Replace Cover Image{" "}

@@ -46,6 +46,11 @@ public class JobsEntity {
     @Column(nullable = false)
     @Builder.Default
     private Boolean isVideoReprocess = false;
+
+    /** When true this job re-processes audio for an existing song (no new SongsEntity row is created). */
+    @Column
+    @Builder.Default
+    private Boolean isAudioReprocess = false;
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
     private JobStatusEnum status;

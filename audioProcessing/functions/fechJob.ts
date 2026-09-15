@@ -59,6 +59,7 @@ export const fetchJob = inngest.createFunction(
                 videoKey: jobDetails.videoKey,
                 songId: jobDetails.songId,
                 isVideoReprocess: jobDetails.isVideoReprocess === true,
+                isAudioReprocess: jobDetails.isAudioReprocess === true,
             },
         });
         return { status: "success", jobId };

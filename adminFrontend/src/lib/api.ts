@@ -80,6 +80,7 @@ export interface JobProgress {
   currentStage: JobStage;
   transcodingAttempt: number;
   isVideoReprocess?: boolean;
+  isAudioReprocess?: boolean;
   createdAt?: string | null;
   transcodingStartedAt?: string | null;
   transcodedAt?: string | null;
@@ -222,6 +223,7 @@ export interface Job {
   currentStage?: JobStage;
   transcodingAttempt?: number;
   isVideoReprocess?: boolean;
+  isAudioReprocess?: boolean;
   createdAt?: string;
 }
 

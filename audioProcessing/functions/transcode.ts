@@ -43,6 +43,7 @@ export const transcodeSong = inngest.createFunction(
             clipEndSec,
             videoKey: initialVideoKey,
             isVideoReprocess,
+            isAudioReprocess,
         } = event.data;
 
         if (!jobId || !songId) {
@@ -83,8 +84,8 @@ export const transcodeSong = inngest.createFunction(
             hasValidClipRange
         );
 
-        const shouldProcessVideo = Boolean(tempVideoKey);
-        const shouldProcessAudio = !isVideoReprocess && Boolean(tempSongKey || tempVideoKey);
+        const shouldProcessVideo = Boolean(tempVideoKey) && !isAudioReprocess;
+        const shouldProcessAudio = Boolean(isAudioReprocess) || (!isVideoReprocess && Boolean(tempSongKey || tempVideoKey));
 
         console.log(`[ORCHESTRATOR] Job ${jobId} dispatching modular tasks:`);
         console.log(`  - Canvas task: ${shouldProcessCanvas}`);
@@ -153,7 +154,8 @@ export const transcodeSong = inngest.createFunction(
         });
 
         // 5. Trigger downstream indexing/finalization
-        if (!isVideoReprocess) {
+        const isReprocess = Boolean(isVideoReprocess || isAudioReprocess);
+        if (!isReprocess) {
             await step.sendEvent("trigger-recombee-indexing", {
                 name: "audio/song.index.recombee",
                 data: { jobId },

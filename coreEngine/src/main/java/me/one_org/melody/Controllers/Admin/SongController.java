@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import me.one_org.melody.Dto.Controllers.Admin.CreateSongRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.CreateSongResponseDto;
+import me.one_org.melody.Dto.Controllers.Admin.RecoverSongMediaRequestDto;
+import me.one_org.melody.Dto.Controllers.Admin.ReprocessAudioRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.ReprocessVideoRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.ToggleFeaturedRequestDto;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
@@ -80,6 +82,18 @@ public class SongController {
     }
 
     /**
+     * Triggers background re-transcoding for an existing song's corrupted or replacement audio.
+     * Accepts tempSongKey (and optional tempVideoKey), creates a new job and queues it.
+     */
+    @PostMapping("/{id}/reprocess-audio")
+    public ResponseEntity<CreateSongResponseDto> reprocessAudio(
+            @PathVariable String id,
+            @Valid @RequestBody ReprocessAudioRequestDto data) {
+        CreateSongResponseDto response = songService.reprocessAudio(id, data);
+        return ResponseEntity.accepted().body(response);
+    }
+
+    /**
      * Triggers background re-processing (Shaka packaging) for an existing song's full video.
      * Accepts a temp S3 key for the raw uploaded video, creates a new job and queues it.
      */
@@ -87,7 +101,19 @@ public class SongController {
     public ResponseEntity<CreateSongResponseDto> reprocessVideo(
             @PathVariable String id,
             @Valid @RequestBody ReprocessVideoRequestDto data) {
-        CreateSongResponseDto response = songService.reprocessVideo(id, data.tempVideoKey());
+        CreateSongResponseDto response = songService.reprocessVideo(id, data);
+        return ResponseEntity.accepted().body(response);
+    }
+
+    /**
+     * Unified media recovery for an existing song.
+     * Recovers corrupted audio, video, or both in a single endpoint.
+     */
+    @PostMapping("/{id}/recover-media")
+    public ResponseEntity<CreateSongResponseDto> recoverMedia(
+            @PathVariable String id,
+            @RequestBody RecoverSongMediaRequestDto data) {
+        CreateSongResponseDto response = songService.recoverMedia(id, data);
         return ResponseEntity.accepted().body(response);
     }
 }

@@ -14,6 +14,9 @@ import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
 import me.one_org.melody.Dto.Controllers.Admin.CreateSongRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.CreateSongResponseDto;
+import me.one_org.melody.Dto.Controllers.Admin.RecoverSongMediaRequestDto;
+import me.one_org.melody.Dto.Controllers.Admin.ReprocessAudioRequestDto;
+import me.one_org.melody.Dto.Controllers.Admin.ReprocessVideoRequestDto;
 import me.one_org.melody.Dto.Controllers.Admin.UpdateSongRequestDto;
 import me.one_org.melody.Dto.Queue.AudioProcessingQueueDto;
 import me.one_org.melody.Dto.Queue.DeleteEventQueueDto;
@@ -140,12 +143,15 @@ public class SongService {
     }
 
     /**
-     * Triggers background Shaka re-packaging for a full video on an existing song.
-     * Only updates fullVideoKey (and videoKey for canvas) on the existing SongsEntity —
+     * Triggers background re-transcoding for corrupted/replacement audio on an existing song.
+     * Updates songKey and duration on the existing SongsEntity and evicts caches —
      * no new song record is created.
      */
     @Transactional
-    public CreateSongResponseDto reprocessVideo(String songId, String tempVideoKey) {
+    public CreateSongResponseDto reprocessAudio(String songId, ReprocessAudioRequestDto data) {
+        if (data.tempSongKey() == null || data.tempSongKey().isBlank()) {
+            throw new IllegalArgumentException("tempSongKey is required for audio reprocessing");
+        }
         SongsEntity existingSong = songsRepository.findById(songId)
                 .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + songId));
 
@@ -154,7 +160,69 @@ public class SongService {
                 .id(jobId)
                 .title(existingSong.getTitle())
                 .artistName(existingSong.getArtistName())
-                .tempVideoKey(tempVideoKey)
+                .tempSongKey(data.tempSongKey().trim())
+                .tempVideoKey(data.tempVideoKey() != null && !data.tempVideoKey().isBlank() ? data.tempVideoKey().trim() : null)
+                .imageKey(existingSong.getImageKey())
+                .videoKey(existingSong.getVideoKey())
+                .previewStartTime(existingSong.getPreviewStartTime())
+                .previewEndTime(existingSong.getPreviewEndTime())
+                .language(existingSong.getLanguage())
+                .lrclibId(existingSong.getLrclibId() != null ? existingSong.getLrclibId() : "0")
+                .songId(songId)
+                .transcodingAttempt(0)
+                .transcoded(false)
+                .savedInSearch(false)
+                .savedInRecommendation(false)
+                .isAudioReprocess(true)
+                .isVideoReprocess(false)
+                .status(JobStatusEnum.PENDING)
+                .currentStage(JobStageEnum.QUEUED)
+                .createdAt(LocalDateTime.now())
+                .build();
+        jobsRepository.save(job);
+        paginationMetaDataService.incrementStatus("JobsEntity", StatusEnum.ACTIVE);
+
+        audioProcessingQueue.queueAudioProcessing(new AudioProcessingQueueDto(jobId));
+
+        log.info("Audio reprocess job {} created for existing song {}", jobId, songId);
+        return new CreateSongResponseDto(jobId, JobStatusEnum.PENDING.name());
+    }
+
+    /**
+     * Triggers background Shaka re-packaging for a full video on an existing song.
+     * Only updates fullVideoKey (and videoKey for canvas) on the existing SongsEntity —
+     * no new song record is created.
+     */
+    @Transactional
+    public CreateSongResponseDto reprocessVideo(String songId, ReprocessVideoRequestDto data) {
+        if (data.tempVideoKey() == null || data.tempVideoKey().isBlank()) {
+            throw new IllegalArgumentException("tempVideoKey is required for video reprocessing");
+        }
+        SongsEntity existingSong = songsRepository.findById(songId)
+                .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + songId));
+
+        Integer clipStartSec = null;
+        if (data.clipStartMin() != null || data.clipStartSec() != null) {
+            int min = data.clipStartMin() != null ? data.clipStartMin() : 0;
+            int sec = data.clipStartSec() != null ? data.clipStartSec() : 0;
+            clipStartSec = min * 60 + sec;
+        }
+
+        Integer clipEndSec = null;
+        if (data.clipEndMin() != null || data.clipEndSec() != null) {
+            int min = data.clipEndMin() != null ? data.clipEndMin() : 0;
+            int sec = data.clipEndSec() != null ? data.clipEndSec() : 0;
+            clipEndSec = min * 60 + sec;
+        }
+
+        String jobId = UUID.randomUUID().toString();
+        JobsEntity job = JobsEntity.builder()
+                .id(jobId)
+                .title(existingSong.getTitle())
+                .artistName(existingSong.getArtistName())
+                .tempVideoKey(data.tempVideoKey().trim())
+                .clipStartSec(clipStartSec)
+                .clipEndSec(clipEndSec)
                 .imageKey(existingSong.getImageKey())
                 .videoKey(existingSong.getVideoKey())
                 .previewStartTime(existingSong.getPreviewStartTime())
@@ -167,6 +235,7 @@ public class SongService {
                 .savedInSearch(false)
                 .savedInRecommendation(false)
                 .isVideoReprocess(true) // signal: patch existing song, don't create new one
+                .isAudioReprocess(false)
                 .status(JobStatusEnum.PENDING)
                 .currentStage(JobStageEnum.QUEUED)
                 .createdAt(LocalDateTime.now())
@@ -177,6 +246,76 @@ public class SongService {
         audioProcessingQueue.queueAudioProcessing(new AudioProcessingQueueDto(jobId));
 
         log.info("Video reprocess job {} created for existing song {}", jobId, songId);
+        return new CreateSongResponseDto(jobId, JobStatusEnum.PENDING.name());
+    }
+
+    @Transactional
+    public CreateSongResponseDto reprocessVideo(String songId, String tempVideoKey) {
+        return reprocessVideo(songId, new ReprocessVideoRequestDto(tempVideoKey, null, null, null, null));
+    }
+
+    /**
+     * Unified media recovery for an existing song. Recovers corrupted audio, video, or both.
+     */
+    @Transactional
+    public CreateSongResponseDto recoverMedia(String songId, RecoverSongMediaRequestDto data) {
+        boolean hasAudio = data.tempSongKey() != null && !data.tempSongKey().isBlank();
+        boolean hasVideo = data.tempVideoKey() != null && !data.tempVideoKey().isBlank();
+
+        if (!hasAudio && !hasVideo) {
+            throw new IllegalArgumentException("Either replacement audio (tempSongKey) or video (tempVideoKey) must be provided");
+        }
+
+        SongsEntity existingSong = songsRepository.findById(songId)
+                .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + songId));
+
+        Integer clipStartSec = null;
+        if (data.clipStartMin() != null || data.clipStartSec() != null) {
+            int min = data.clipStartMin() != null ? data.clipStartMin() : 0;
+            int sec = data.clipStartSec() != null ? data.clipStartSec() : 0;
+            clipStartSec = min * 60 + sec;
+        }
+
+        Integer clipEndSec = null;
+        if (data.clipEndMin() != null || data.clipEndSec() != null) {
+            int min = data.clipEndMin() != null ? data.clipEndMin() : 0;
+            int sec = data.clipEndSec() != null ? data.clipEndSec() : 0;
+            clipEndSec = min * 60 + sec;
+        }
+
+        String jobId = UUID.randomUUID().toString();
+        JobsEntity job = JobsEntity.builder()
+                .id(jobId)
+                .title(existingSong.getTitle())
+                .artistName(existingSong.getArtistName())
+                .tempSongKey(hasAudio ? data.tempSongKey().trim() : null)
+                .tempVideoKey(hasVideo ? data.tempVideoKey().trim() : null)
+                .clipStartSec(clipStartSec)
+                .clipEndSec(clipEndSec)
+                .imageKey(existingSong.getImageKey())
+                .videoKey(existingSong.getVideoKey())
+                .previewStartTime(existingSong.getPreviewStartTime())
+                .previewEndTime(existingSong.getPreviewEndTime())
+                .language(existingSong.getLanguage())
+                .lrclibId(existingSong.getLrclibId() != null ? existingSong.getLrclibId() : "0")
+                .songId(songId)
+                .transcodingAttempt(0)
+                .transcoded(false)
+                .savedInSearch(false)
+                .savedInRecommendation(false)
+                .isAudioReprocess(hasAudio)
+                .isVideoReprocess(hasVideo)
+                .status(JobStatusEnum.PENDING)
+                .currentStage(JobStageEnum.QUEUED)
+                .createdAt(LocalDateTime.now())
+                .build();
+        jobsRepository.save(job);
+        paginationMetaDataService.incrementStatus("JobsEntity", StatusEnum.ACTIVE);
+
+        audioProcessingQueue.queueAudioProcessing(new AudioProcessingQueueDto(jobId));
+
+        log.info("Media recovery job {} created for existing song {} (audio: {}, video: {})",
+                jobId, songId, hasAudio, hasVideo);
         return new CreateSongResponseDto(jobId, JobStatusEnum.PENDING.name());
     }
 

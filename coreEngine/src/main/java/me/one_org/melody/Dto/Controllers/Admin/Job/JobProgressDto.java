@@ -28,6 +28,7 @@ public class JobProgressDto {
     private JobStageEnum currentStage;
     private Integer transcodingAttempt;
     private Boolean isVideoReprocess;
+    private Boolean isAudioReprocess;
 
     private LocalDateTime createdAt;
     private LocalDateTime transcodingStartedAt;
