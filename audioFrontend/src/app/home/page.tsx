@@ -170,9 +170,9 @@ export default function HomePage() {
 
   if (isInitialPageLoading) {
     return (
-      <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-[var(--app-content-pt,5rem)] space-y-16 animate-pulse select-none">
+      <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-[var(--app-content-pt,1.5rem)] space-y-10 animate-pulse select-none">
         {/* Hero Skeleton */}
-        <div className="w-full h-[290px] md:h-[325px] rounded-2xl bg-zinc-900/60 border border-[#282828] flex flex-col justify-end p-8 md:p-10 space-y-3">
+        <div className="w-full h-[335px] md:h-[375px] rounded-2xl bg-zinc-900/60 border border-[#282828] flex flex-col justify-end p-8 md:p-10 space-y-3">
           <div className="h-4 w-28 bg-zinc-800/80 rounded-full" />
           <div className="h-10 w-2/5 bg-zinc-800/80 rounded-xl" />
           <div className="h-4 w-1/4 bg-zinc-800/80 rounded-md" />

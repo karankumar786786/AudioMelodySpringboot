@@ -23,7 +23,7 @@ export function HeroSection({
 
   if (isLoading || !currentSong) {
     return (
-      <div className="w-full h-[290px] md:h-[325px] rounded-2xl bg-zinc-900/60 border border-[#282828] overflow-hidden relative flex flex-col justify-end p-7 md:p-9 animate-pulse select-none">
+      <div className="w-full h-[335px] md:h-[375px] rounded-2xl bg-zinc-900/60 border border-[#282828] overflow-hidden relative flex flex-col justify-end p-7 md:p-9 animate-pulse select-none">
         <div className="space-y-3 max-w-lg mb-2">
           <div className="h-4 w-28 bg-zinc-800/80 rounded-full" />
           <div className="h-10 w-3/4 bg-zinc-800/80 rounded-xl" />
@@ -58,7 +58,7 @@ export function HeroSection({
     <>
     <section
       onClick={() => playerActions.playWithRadio(mapToPlayerSong(currentSong))}
-      className="relative w-full h-[290px] md:h-[325px] rounded-2xl overflow-hidden group bg-zinc-900 border border-white/10 shadow-2xl cursor-pointer hover:border-white/20 transition-all select-none"
+      className="relative w-full h-[335px] md:h-[375px] rounded-2xl overflow-hidden group bg-zinc-900 border border-white/10 shadow-2xl cursor-pointer hover:border-white/20 transition-all select-none"
     >
       {/* ─── Video or High-Res Background Image ─── */}
       <div className="absolute inset-0 z-0">
