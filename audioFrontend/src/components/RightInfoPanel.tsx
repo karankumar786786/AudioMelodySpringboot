@@ -283,6 +283,8 @@ export function RightInfoPanel() {
                 loop
                 muted
                 playsInline
+                preload="auto"
+                disablePictureInPicture
                 onLoadedData={() => setMediaLoaded(true)}
                 onCanPlay={() => setMediaLoaded(true)}
                 onPlay={() => setMediaLoaded(true)}

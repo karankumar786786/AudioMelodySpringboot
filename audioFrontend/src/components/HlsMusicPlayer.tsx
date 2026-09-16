@@ -247,7 +247,7 @@ export function HlsMusicPlayer() {
 
   return (
     <>
-      <audio ref={audioRef} crossOrigin="anonymous" className="hidden" />
+      <audio ref={audioRef} crossOrigin="anonymous" preload="auto" className="hidden" />
       <audio
         ref={standbyAudioRef}
         crossOrigin="anonymous"

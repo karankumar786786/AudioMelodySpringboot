@@ -623,6 +623,8 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
           ref={videoRef}
           className="w-full h-full object-contain"
           playsInline
+          preload="auto"
+          crossOrigin="anonymous"
         />
 
         {/* Hover Controls Overlay */}
@@ -733,6 +735,8 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
           ref={videoRef}
           className="w-full h-full object-contain"
           playsInline
+          preload="auto"
+          crossOrigin="anonymous"
         />
 
         {/* Mid-playback buffering spinner (not shown during init — that's handled above) */}
