@@ -327,7 +327,7 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.98 }}
         transition={{ duration: 0.35, ease: "easeOut" }}
-        className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-3xl text-white flex flex-col justify-between p-4 sm:p-8 lg:p-10 select-none overflow-hidden"
+        className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-3xl text-white flex flex-col justify-between p-4 sm:p-8 lg:p-10 select-none overflow-hidden"
       >
         {/* ─── Aesthetic Ambient Background: Looping Canvas Video or Blurred Album Art ─── */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden z-0 select-none">
@@ -399,7 +399,7 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
           />
 
           {/* Cinematic Dark Vignette Overlay for Ultra-Crisp Lyric Legibility */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/45 to-black/90 pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/35 to-black/80 pointer-events-none" />
         </div>
 
         {/* Floating Top-Right Exit Button (Auto-hides on inactivity for Zen Focus immersion) */}
@@ -442,7 +442,13 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
             }}
             className="flex lg:hidden items-center gap-3.5 w-full px-2 py-2 shrink-0 rounded-2xl border border-white/20 backdrop-blur-3xl backdrop-saturate-[190%]"
           >
-            <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden shadow-md border border-white/10 bg-zinc-900 shrink-0">
+            <div
+              style={{
+                boxShadow:
+                  "inset 0 1px 1px 0 rgba(255, 255, 255, 0.3), 0 6px 20px rgba(0, 0, 0, 0.5)",
+              }}
+              className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden border border-white/20 bg-zinc-900 shrink-0"
+            >
               {coverUrl ? (
                 <Image
                   src={coverUrl}
@@ -453,7 +459,7 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
                   sizes="56px"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-zinc-500">
+                <div className="w-full h-full flex items-center justify-center bg-zinc-800/80 text-zinc-500">
                   <Radio size={20} />
                 </div>
               )}
@@ -462,7 +468,7 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
               <h1 className="text-base sm:text-lg font-black tracking-tight text-white truncate">
                 {currentSong.title}
               </h1>
-              <p className="text-xs sm:text-sm font-semibold text-zinc-400 truncate">
+              <p className="text-xs sm:text-sm font-semibold text-white/50 truncate">
                 {currentSong.artistName}
               </p>
             </div>
@@ -473,7 +479,11 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
             <motion.div
               animate={{ scale: isPlaying ? 1 : 0.97 }}
               transition={{ duration: 0.6, ease: "easeInOut" }}
-              className="relative w-72 h-72 lg:w-80 lg:h-80 xl:w-[380px] xl:h-[380px] rounded-3xl overflow-hidden shadow-[0_25px_60px_rgba(0,0,0,0.85)] border border-white/15 bg-zinc-900 group"
+              style={{
+                boxShadow:
+                  "inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.35)",
+              }}
+              className="relative w-72 h-72 lg:w-80 lg:h-80 xl:w-[380px] xl:h-[380px] rounded-3xl overflow-hidden border border-white/20 bg-zinc-900 group"
             >
               {coverUrl ? (
                 <Image
@@ -485,24 +495,32 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
                   sizes="(max-width: 1280px) 320px, 380px"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-zinc-600">
+                <div className="w-full h-full flex items-center justify-center bg-zinc-800/80 text-zinc-600">
                   <Radio size={64} />
                 </div>
               )}
+              {/* Glass reflection overlay on album art */}
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background:
+                    "linear-gradient(165deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 25%, transparent 50%)",
+                }}
+              />
             </motion.div>
 
             <div className="space-y-2 max-w-md">
               <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white line-clamp-2">
                 {currentSong.title}
               </h1>
-              <p className="text-base sm:text-lg font-semibold text-zinc-400 line-clamp-1">
+              <p className="text-base sm:text-lg font-semibold text-white/50 line-clamp-1">
                 {currentSong.artistName}
               </p>
             </div>
           </div>
 
           {/* Lyrics Column: Live Synced Karaoke Lyrics with Silky Gradient Fade Mask */}
-          <div className="flex-1 lg:col-span-7 h-full w-full flex flex-col justify-center min-h-0 overflow-hidden relative">
+          <div className="flex-1 lg:col-span-7 h-full w-full flex flex-col justify-center min-h-0 overflow-hidden relative rounded-3xl">
             <div
               ref={lyricsContainerRef}
               onScroll={handleScroll}
@@ -517,9 +535,9 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
               className="h-full w-full overflow-y-auto no-scrollbar py-24 sm:py-36 lg:py-44 pr-2 sm:pr-4 space-y-6 sm:space-y-8 text-left select-none relative"
             >
               {isLyricsLoading ? (
-                <div className="flex items-center gap-3 text-zinc-400 font-medium animate-pulse py-16 justify-center">
-                  <Sparkles size={18} />
-                  <span>Loading synchronized lyrics...</span>
+                <div className="flex items-center gap-3 text-white/50 font-medium animate-pulse py-16 justify-center">
+                  <Sparkles size={18} className="text-white/40" />
+                  <span className="text-sm">Loading synchronized lyrics...</span>
                 </div>
               ) : hasSyncedLyrics ? (
                 transcriptions.map((entry, idx) => {
@@ -582,17 +600,29 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
                           setSelectedLyricForCard(entry.transcript);
                           setIsLyricCardModalOpen(true);
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-2 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-all cursor-pointer shrink-0"
+                        style={{
+                          boxShadow:
+                            "inset 0 1px 1px 0 rgba(255, 255, 255, 0.3), 0 4px 12px rgba(0, 0, 0, 0.3)",
+                        }}
+                        className="opacity-0 group-hover:opacity-100 p-2 rounded-full hover:bg-white/15 border border-transparent hover:border-white/20 text-white/40 hover:text-white transition-all cursor-pointer shrink-0 backdrop-blur-xl"
                         title="Share Lyric Quote"
                       >
-                        <Share2 size={18} />
+                        <Share2 size={16} />
                       </button>
                     </div>
                   );
                 })
               ) : plainLyrics ? (
-                <div className="space-y-4 text-zinc-300 font-medium text-base sm:text-lg leading-relaxed py-8">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 text-zinc-400 text-xs font-semibold mb-4">
+                <div className="space-y-4 text-white/70 font-medium text-base sm:text-lg leading-relaxed py-8">
+                  <div
+                    style={{
+                      background:
+                        "linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.06) 100%), rgba(20, 20, 25, 0.4)",
+                      boxShadow:
+                        "inset 0 1px 1px 0 rgba(255, 255, 255, 0.4), 0 4px 12px rgba(0, 0, 0, 0.3)",
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-white/20 text-white/60 text-xs font-semibold mb-4 backdrop-blur-xl"
+                  >
                     <span>Static lyrics</span>
                   </div>
                   {plainLyrics.split("\n").map((line, i) => (
@@ -600,12 +630,22 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
                   ))}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center py-24 text-center text-zinc-500 space-y-3">
-                  <Radio size={40} className="text-zinc-600 animate-pulse" />
-                  <p className="text-lg font-medium text-zinc-400">
+                <div className="flex flex-col items-center justify-center py-24 text-center space-y-4">
+                  <div
+                    style={{
+                      background:
+                        "linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.04) 100%), rgba(20, 20, 25, 0.35)",
+                      boxShadow:
+                        "inset 0 1px 1px 0 rgba(255, 255, 255, 0.35), 0 12px 30px rgba(0, 0, 0, 0.4)",
+                    }}
+                    className="w-20 h-20 rounded-3xl flex items-center justify-center border border-white/20 backdrop-blur-3xl backdrop-saturate-[190%]"
+                  >
+                    <Radio size={36} className="text-white/40 animate-pulse" />
+                  </div>
+                  <p className="text-lg font-medium text-white/50">
                     Immerse in the sound
                   </p>
-                  <p className="text-xs text-zinc-600 max-w-xs">
+                  <p className="text-xs text-white/30 max-w-xs">
                     No synchronized lyrics available for this track. Relax and enjoy the flow.
                   </p>
                 </div>

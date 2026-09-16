@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { playerActions, playerStore } from "../../../store/player.store";
 import { type QualityTrack } from "@/lib/player-utils";
 
-const MAX_NETWORK_RETRIES = 3;
+const MAX_NETWORK_RETRIES = 5;
 const MAX_MEDIA_RETRIES = 2;
 
 export function useHlsPlayer(
@@ -139,23 +139,30 @@ export function useHlsPlayer(
               if (!isMounted) return;
 
               if (data.fatal) {
-                console.error("[Hls.js] ❌ Fatal error details:", data);
                 switch (data.type) {
                   case Hls.ErrorTypes.NETWORK_ERROR: {
                     networkRetryCountRef.current += 1;
-                    if (networkRetryCountRef.current <= MAX_NETWORK_RETRIES) {
-                      const delay = Math.pow(2, networkRetryCountRef.current) * 500;
+                    const attempt = networkRetryCountRef.current;
+                    const isManifestError = data.details === "manifestLoadError" || data.details === "manifestLoadTimeOut";
+
+                    if (attempt <= MAX_NETWORK_RETRIES) {
+                      // Exponential backoff: 1s, 2s, 4s, 8s, 16s
+                      const delay = Math.min(Math.pow(2, attempt - 1) * 1000, 16000);
                       console.warn(
-                        `[Hls.js] Fatal network error (attempt ${networkRetryCountRef.current}/${MAX_NETWORK_RETRIES}), retrying in ${delay}ms...`,
+                        `[Hls.js] Network error (${data.details}), attempt ${attempt}/${MAX_NETWORK_RETRIES}, retrying in ${delay}ms...`,
                       );
                       if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
                       retryTimeoutRef.current = setTimeout(() => {
                         if (isMounted && hlsRef.current) {
+                          if (isManifestError) {
+                            // Manifest errors need a full source reload, startLoad() alone won't re-fetch the manifest
+                            hlsRef.current.loadSource(streamUrl);
+                          }
                           hlsRef.current.startLoad();
                         }
                       }, delay);
                     } else {
-                      console.error("[Hls.js] Network retry limit reached.");
+                      console.error(`[Hls.js] Network retry limit reached after ${MAX_NETWORK_RETRIES} attempts (${data.details}).`);
                       playerActions.setIsLoading(false);
                       toast.error("Stream connection failed", {
                         description: "Network issue loading audio stream. Click to retry.",
@@ -170,6 +177,10 @@ export function useHlsPlayer(
                           },
                         },
                       });
+                      if (hlsInstance) {
+                        hlsInstance.destroy();
+                        hlsRef.current = null;
+                      }
                     }
                     break;
                   }
