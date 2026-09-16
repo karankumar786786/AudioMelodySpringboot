@@ -24,10 +24,24 @@ public class AccountController {
     @GetMapping
     public ResponseEntity<PaginatedResponseDto<UsersEntity>> getAllAccounts(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        List<UsersEntity> users = accountService.getAccountsPaginated(page, size);
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) String status) {
+        List<UsersEntity> users = accountService.getAccountsPaginated(page, size, search, role, status);
+        long totalCount = accountService.countAccounts(search, role, status);
         PaginationMetaDataEntity metaData = accountService.getPaginationMetaData();
-        return ResponseEntity.ok(new PaginatedResponseDto<>(users, page, size, metaData));
+
+        PaginationMetaDataEntity responseMeta = PaginationMetaDataEntity.builder()
+                .id(metaData != null ? metaData.getId() : "UsersEntity")
+                .entityName("UsersEntity")
+                .totalCount(totalCount)
+                .activeCount(metaData != null ? metaData.getActiveCount() : totalCount)
+                .blockedCount(metaData != null ? metaData.getBlockedCount() : 0L)
+                .deletedCount(metaData != null ? metaData.getDeletedCount() : 0L)
+                .build();
+
+        return ResponseEntity.ok(new PaginatedResponseDto<>(users, page, size, responseMeta));
     }
 
     @DeleteMapping("/{email}")
