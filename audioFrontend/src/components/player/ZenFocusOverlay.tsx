@@ -94,8 +94,14 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
   // Auto-hide Exit (Esc/Z) button on inactivity for deep Zen Focus
   const [showExitButton, setShowExitButton] = useState(true);
   const hideButtonTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastActivityRef = useRef(Date.now());
 
   const resetHideTimer = useCallback(() => {
+    // Debounce: ignore calls within 200ms of the last one to prevent flicker from rapid events
+    const now = Date.now();
+    if (now - lastActivityRef.current < 200) return;
+    lastActivityRef.current = now;
+
     setShowExitButton(true);
     if (hideButtonTimerRef.current) {
       clearTimeout(hideButtonTimerRef.current);
@@ -116,11 +122,13 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
 
     window.addEventListener("mousemove", onActivity);
     window.addEventListener("touchstart", onActivity);
+    window.addEventListener("keydown", onActivity);
 
     return () => {
       if (hideButtonTimerRef.current) clearTimeout(hideButtonTimerRef.current);
       window.removeEventListener("mousemove", onActivity);
       window.removeEventListener("touchstart", onActivity);
+      window.removeEventListener("keydown", onActivity);
     };
   }, [resetHideTimer]);
 
