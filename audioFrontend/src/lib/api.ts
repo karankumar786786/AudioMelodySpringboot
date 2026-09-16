@@ -161,7 +161,10 @@ async function refreshAccessToken(): Promise<string> {
       });
 
       if (!response.ok) {
-        clearSessionStorage();
+        // Only purge session if the refresh token is explicitly rejected as unauthorized/invalid
+        if (response.status === 401 || response.status === 403 || response.status === 400) {
+          clearSessionStorage();
+        }
         let errMessage = `HTTP error ${response.status}`;
         try {
           const errData = await response.json();
@@ -209,16 +212,26 @@ async function request<T = any>(endpoint: string, options: RequestInit = {}, ret
   }
 
   const url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      ...options,
+      headers,
+    });
+  } catch (err: any) {
+    const error: any = new Error(err?.message || "Network request failed");
+    error.isOffline = typeof navigator !== "undefined" && !navigator.onLine;
+    error.status = 0;
+    throw error;
+  }
 
   if (!response.ok) {
     const isAuthFailure = response.status === 401 || response.status === 403;
     const isAuthEndpoint = endpoint.includes("/auth/");
+    const storedRefreshToken = getStoredItem("system_refresh_token");
 
-    if (isAuthFailure && retry && !isAuthEndpoint) {
+    if (isAuthFailure && retry && !isAuthEndpoint && storedRefreshToken) {
       try {
         const refreshedToken = await refreshAccessToken();
         headers["Authorization"] = `Bearer ${refreshedToken}`;
@@ -226,18 +239,30 @@ async function request<T = any>(endpoint: string, options: RequestInit = {}, ret
         // Retry request with updated auth header and retry set to false
         return await request<T>(endpoint, { ...options, headers }, false);
       } catch (err) {
-        clearSessionStorage();
-
         // If public endpoint (like /api/songs, /api/artists, /api/playlists), retry without Authorization header
         if (endpoint.startsWith("/api/songs") || endpoint.startsWith("/api/artists") || endpoint.startsWith("/api/playlists")) {
           delete headers["Authorization"];
+          try {
+            const publicRetryRes = await fetch(url, { ...options, headers });
+            if (publicRetryRes.ok) {
+              if (publicRetryRes.status === 204) return {} as T;
+              return publicRetryRes.json();
+            }
+          } catch {}
+        }
+        throw err;
+      }
+    } else if (isAuthFailure && !storedRefreshToken) {
+      // Guest or unauthenticated user hit an endpoint; retry public endpoints without auth header
+      if (endpoint.startsWith("/api/songs") || endpoint.startsWith("/api/artists") || endpoint.startsWith("/api/playlists")) {
+        delete headers["Authorization"];
+        try {
           const publicRetryRes = await fetch(url, { ...options, headers });
           if (publicRetryRes.ok) {
             if (publicRetryRes.status === 204) return {} as T;
             return publicRetryRes.json();
           }
-        }
-        throw err;
+        } catch {}
       }
     }
 

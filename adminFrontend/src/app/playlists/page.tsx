@@ -2,12 +2,15 @@
 
 import {
   FolderPlus,
+  ListMusic,
   Loader2,
   Music,
   Plus,
+  Search,
   Sparkles,
   Trash2,
   Video,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Toast, type ToastType } from "@/components/Toast";
@@ -76,6 +79,9 @@ export default function PlaylistsPage() {
     message: string;
     type: ToastType;
   } | null>(null);
+  const [songSearchQuery, setSongSearchQuery] = useState("");
+  const [showSongDropdown, setShowSongDropdown] = useState(false);
+  const songSearchRef = useRef<HTMLDivElement>(null);
   const hasFetchedRef = useRef(false);
 
   const showToast = (message: string, type: ToastType = "info") => {

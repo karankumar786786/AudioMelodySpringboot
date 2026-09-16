@@ -43,7 +43,9 @@ export function NetworkStatusBanner() {
         wasOfflineRef.current = false;
         setTimeout(() => setShowRestoredBadge(false), 2500);
       }
-      queryClient.refetchQueries();
+      setTimeout(() => {
+        queryClient.refetchQueries();
+      }, 300);
     } else {
       setIsOnline(false);
       wasOfflineRef.current = true;
@@ -68,7 +70,9 @@ export function NetworkStatusBanner() {
           wasOfflineRef.current = false;
           setTimeout(() => setShowRestoredBadge(false), 2500);
         }
-        queryClient.refetchQueries();
+        setTimeout(() => {
+          queryClient.refetchQueries();
+        }, 300);
       }
     };
 
@@ -99,7 +103,9 @@ export function NetworkStatusBanner() {
             wasOfflineRef.current = false;
             setTimeout(() => setShowRestoredBadge(false), 2500);
           }
-          queryClient.refetchQueries();
+          setTimeout(() => {
+            queryClient.refetchQueries();
+          }, 300);
         }
       }, 4000);
     } else if (retryTimerRef.current) {
