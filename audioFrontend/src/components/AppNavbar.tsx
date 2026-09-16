@@ -20,6 +20,7 @@ import {
   Heart,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -229,15 +230,37 @@ export function AppNavbar() {
   const recentHistory: SearchHistoryItem[] = searchHistoryData?.data?.recent || [];
 
   return (
-    <header className="absolute top-0 left-0 right-0 z-40 px-4 sm:px-6 md:px-8 xl:px-10 pt-[var(--app-navbar-pt,1rem)] pb-4 flex items-center justify-between pointer-events-none bg-gradient-to-b from-black/50 via-black/15 to-transparent">
-      {/* Search Input Container */}
-      <div
-        className="flex items-center gap-6 pointer-events-auto relative"
-        ref={menuRef}
-      >
+    <header className="fixed top-0 left-0 right-0 h-16 z-50 flex items-center bg-black  select-none pointer-events-auto">
+      {/* 1. Left: Brand & Logo (aligned with sidebar width) */}
+      <div className="w-[64px] xl:w-[192px] shrink-0 h-full px-2 xl:px-3 flex items-center">
+        <Link
+          href="/home"
+          className="flex items-center gap-2.5 px-1 group cursor-pointer"
+          title="One Melody"
+        >
+          <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center overflow-hidden shrink-0 border border-white/10 group-hover:border-white/20 transition-all">
+            <img
+              src="/image.png"
+              alt="Logo"
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <span className="hidden xl:inline text-base xl:text-lg font-bold text-white tracking-tight group-hover:text-white/90 transition-colors">
+            One Melody
+          </span>
+        </Link>
+      </div>
+
+      {/* 2. Main Section Header: Search starts exactly at main section position */}
+      <div className="flex-1 flex items-center justify-between min-w-0 px-4 sm:px-6 md:px-8 xl:px-10 h-full">
+        {/* Search Input Container */}
+        <div
+          className="w-full max-w-md sm:max-w-lg lg:max-w-xl relative"
+          ref={menuRef}
+        >
         <form
           onSubmit={handleSearch}
-          className="relative group rounded-full w-60 sm:w-80 md:w-96 lg:w-[440px] xl:w-[480px]"
+          className="relative group rounded-full w-full"
         >
           <input
             ref={searchInputRef}
@@ -246,16 +269,18 @@ export function AppNavbar() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setIsFocused(true)}
-            className="bg-[#121212] border border-white/10 hover:border-white/20 focus:border-white/30 rounded-full py-2.5 pl-11 pr-16 text-xs sm:text-[13px] font-medium focus:ring-0 transition-all outline-none w-full text-white placeholder-zinc-400 shadow-inner relative z-10"
+            className="bg-[#16171b] border border-white/10 hover:border-white/20 focus:border-white/30 rounded-full py-2.5 pl-11 pr-16 text-xs sm:text-[13px] font-medium focus:ring-0 transition-all outline-none w-full text-white placeholder-zinc-400 shadow-inner relative z-10"
           />
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-400 group-focus-within:text-white transition-colors z-20">
             <Search size={16} />
           </div>
-          <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none z-20">
-            <span className="hidden sm:inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-[#222222] border border-white/10 text-[10px] font-mono text-zinc-400 select-none">
-              <span>⌘</span>
-              <span>K</span>
-            </span>
+          <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center gap-1 pointer-events-none z-20">
+            <kbd className="hidden sm:inline-flex items-center justify-center w-[20px] h-[20px] rounded bg-white/[0.08] border border-white/10 text-[10px] font-mono text-zinc-400 select-none shadow-sm">
+              ⌘
+            </kbd>
+            <kbd className="hidden sm:inline-flex items-center justify-center w-[20px] h-[20px] rounded bg-white/[0.08] border border-white/10 text-[10px] font-mono text-zinc-400 select-none shadow-sm">
+              K
+            </kbd>
           </div>
         </form>
 
@@ -265,7 +290,7 @@ export function AppNavbar() {
               initial={{ opacity: 0, y: 8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.98 }}
-              className="absolute top-full left-0 mt-2 w-[calc(100vw-6rem)] sm:w-[440px] md:w-[500px] max-w-[500px] bg-[#181818] border border-[#282828] rounded-xl shadow-2xl overflow-hidden pointer-events-auto z-50 max-h-[70vh] flex flex-col"
+              className="absolute top-full left-0 mt-2 w-full bg-[#181818] border border-[#282828] rounded-2xl shadow-2xl overflow-hidden pointer-events-auto z-50 max-h-[70vh] flex flex-col"
             >
               {!query.trim() ? (
                 /* RECENT SEARCHES (RICH CARDS & LIST) */
@@ -644,15 +669,15 @@ export function AppNavbar() {
       </div>
 
       {/* User & Actions */}
-      <div className="flex items-center gap-4 sm:gap-5 pointer-events-auto">
+      <div className="flex items-center gap-4 sm:gap-5 shrink-0 pointer-events-auto ml-4">
         {mounted && !!systemUser ? (
           <div className="flex items-center gap-3 sm:gap-4">
             {/* Sun icon & Greeting */}
-            <div className="flex items-center gap-2 text-xs sm:text-[13px] text-zinc-400 select-none">
-              <Sun size={17} className="text-zinc-300 shrink-0" />
-              <span className="truncate max-w-[180px] sm:max-w-none">
+            <div className="hidden sm:flex items-center gap-2 text-xs sm:text-[13px] text-zinc-300 select-none">
+              <Sun size={17} className="text-zinc-300 stroke-[1.75] shrink-0" />
+              <span className="truncate max-w-[180px] md:max-w-none">
                 {getGreeting()},{" "}
-                <span className="text-white font-bold capitalize">
+                <span className="text-white font-medium capitalize">
                   {systemUser?.name || "karan"}
                 </span>
               </span>
@@ -742,6 +767,7 @@ export function AppNavbar() {
             <User size={18} />
           </button>
         )}
+      </div>
       </div>
     </header>
   );

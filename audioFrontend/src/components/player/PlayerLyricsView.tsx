@@ -33,7 +33,7 @@ export const PlayerLyricsView: React.FC<PlayerLyricsViewProps> = ({
   return (
     <div
       style={{ backgroundColor: solidBgColor }}
-      className="fixed left-0 md:left-[72px] xl:left-[240px] right-0 lg:right-[290px] xl:right-[320px] 2xl:right-[340px] top-0 bottom-20 z-40 flex flex-col p-4 sm:p-6 md:p-8 overflow-y-auto no-scrollbar animate-in fade-in duration-300 transition-all duration-200"
+      className="fixed left-0 md:left-[64px] xl:left-[192px] right-0 lg:right-[290px] xl:right-[320px] 2xl:right-[340px] top-0 bottom-20 z-40 flex flex-col p-4 sm:p-6 md:p-8 overflow-y-auto no-scrollbar animate-in fade-in duration-300 transition-all duration-200"
     >
       {/* Header pinned at top */}
       <div className="sticky top-0 z-50 flex items-center justify-between pb-4 border-b border-[#282828] bg-inherit backdrop-blur-md shrink-0 pt-2">

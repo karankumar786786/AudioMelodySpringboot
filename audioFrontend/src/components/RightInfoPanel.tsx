@@ -186,7 +186,7 @@ export function RightInfoPanel() {
 
   if (!currentSong) {
     return (
-      <aside className="w-80 bg-black border-l border-[#282828] h-screen fixed right-0 top-0 z-40 p-6 flex flex-col items-center justify-center text-center pb-24">
+      <aside className="w-80 bg-black  h-screen fixed right-0 top-0 z-40 p-6 flex flex-col items-center justify-center text-center pb-24">
         <div className="w-14 h-14 rounded-full bg-[#181818] border border-[#282828] flex items-center justify-center text-zinc-600 mb-3">
           <Info size={24} />
         </div>
@@ -268,7 +268,7 @@ export function RightInfoPanel() {
 
   return (
     <>
-      <aside className="hidden lg:block w-[290px] xl:w-[320px] 2xl:w-[340px] bg-black border-l border-[#282828] h-screen fixed right-0 top-0 z-40 overflow-y-auto no-scrollbar pb-28">
+      <aside className="hidden lg:block w-[290px] xl:w-[320px] 2xl:w-[340px] bg-black  h-[calc(100vh-64px)] fixed right-0 top-16 z-40 overflow-y-auto no-scrollbar pb-28">
         <div>
           {/* ========================================================== */}
           {/* 1. MEDIA DISPLAY (Full-bleed Video Canvas OR Card Cover Art) */}

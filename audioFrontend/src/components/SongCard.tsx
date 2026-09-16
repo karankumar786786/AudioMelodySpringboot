@@ -174,12 +174,12 @@ export function SongCard({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
         onClick={handlePlayToggle}
-        className={`bg-black p-4 rounded-md group cursor-pointer relative transition-all duration-300 hover:bg-[#282828] ${
+        className={`bg-black p-2.5 rounded-lg group cursor-pointer relative transition-all duration-300 hover:bg-[#282828] ${
           isActiveSong ? "bg-[#282828] border border-primary/30" : ""
         } ${className || ""}`}
       >
         <div
-          className="aspect-square bg-zinc-900 rounded-md mb-3 relative shadow-md overflow-hidden"
+          className="aspect-square bg-zinc-900 rounded-md mb-2 relative shadow-md overflow-hidden"
         >
           {imageUrl ? (
             <Image
@@ -358,15 +358,15 @@ export function SongCard({
           </div>
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           <h3
-            className={`font-bold truncate text-[14.5px] tracking-tight transition-colors ${
+            className={`font-bold truncate text-[13.5px] tracking-tight transition-colors ${
               isActiveSong ? "text-primary" : "text-white"
             }`}
           >
             {song.title}
           </h3>
-          <p className="text-xs font-medium text-zinc-300 truncate hover:text-white">
+          <p className="text-[11.5px] font-medium text-zinc-400 truncate hover:text-white">
             {song.artistName}
           </p>
         </div>

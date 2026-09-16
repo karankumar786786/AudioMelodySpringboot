@@ -54,26 +54,8 @@ export function LeftSidebar() {
   const userPlaylists = playlistsResponse?.data?.data || [];
 
   return (
-    <aside className="w-[72px] xl:w-[240px] bg-black border-r border-[#282828] flex flex-col h-screen fixed left-0 top-0 z-50 overflow-hidden transition-[width] duration-200">
-      <div className="pt-[var(--app-sidebar-pt,1.25rem)] px-2 xl:px-4 pb-5 flex flex-col h-full bg-black">
-        {/* Logo */}
-        <div
-          onClick={handleSidebarClick}
-          className="flex items-center justify-center xl:justify-start gap-3 mb-8 group cursor-pointer shrink-0 px-1"
-          title="One Melody"
-        >
-          <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center overflow-hidden shrink-0">
-            <img
-              src="/image.png"
-              alt="Logo"
-              className="w-full h-full object-contain"
-            />
-          </div>
-          <span className="hidden xl:inline text-xl font-black text-white tracking-tight">
-            One Melody
-          </span>
-        </div>
-
+    <aside className="w-[64px] xl:w-[192px] bg-black flex flex-col h-[calc(100vh-64px)] fixed left-0 top-16 z-40 overflow-hidden transition-[width] duration-200">
+      <div className="pt-4 px-1.5 xl:px-3 pb-5 flex flex-col h-full bg-black">
         <div className="space-y-7 flex-1 overflow-y-auto no-scrollbar pb-24">
           {/* Main Menu */}
           <section>
