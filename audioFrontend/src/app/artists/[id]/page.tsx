@@ -325,12 +325,6 @@ export default function ArtistPage() {
                     delay: Math.min(index * 0.015, 0.3),
                   }}
                   onClick={() => handlePlaySong(song, index)}
-                  onMouseEnter={() => {
-                    if (!isActive || !isPlaying) {
-                      previewPlayer.startHoverCountdown(song);
-                    }
-                  }}
-                  onMouseLeave={() => previewPlayer.stopPreview()}
                   className={`group grid cursor-pointer grid-cols-12 items-center rounded-md px-4 py-2.5 transition-colors duration-150 ${
                     isActive ? "bg-white/10" : "hover:bg-white/[0.07]"
                   }`}
@@ -370,7 +364,7 @@ export default function ArtistPage() {
                       song={song}
                       sizeClass="h-11 w-11"
                       roundedClass="rounded-md"
-                      enablePreviewHover={false}
+                      enablePreviewHover={true}
                       onPlayClick={() => handlePlaySong(song, index)}
                     />
 

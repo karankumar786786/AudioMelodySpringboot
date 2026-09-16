@@ -323,10 +323,6 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                         onDragOver={(e) => handleDragOver(e, index)}
                         onDrop={(e) => handleDrop(e, index)}
                         onDragEnd={handleDragEnd}
-                        onMouseEnter={() =>
-                          previewPlayer.startHoverCountdown(song)
-                        }
-                        onMouseLeave={() => previewPlayer.stopPreview()}
                         className={`group flex items-center gap-2 rounded-lg border p-2 transition-all select-none ${
                           isDraggingThis
                             ? "opacity-30 border-dashed border-primary"
@@ -348,7 +344,7 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                           song={song}
                           sizeClass="w-8 h-8"
                           roundedClass="rounded"
-                          enablePreviewHover={false}
+                          enablePreviewHover={true}
                           onPlayClick={() => playerActions.playFromQueue(index)}
                         />
 

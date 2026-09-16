@@ -304,7 +304,7 @@ export function AppNavbar() {
                                 song={item.song}
                                 sizeClass="w-10 h-10"
                                 roundedClass="rounded-md"
-                                enablePreviewHover={false}
+                                enablePreviewHover={true}
                                 onPlayClick={() => handlePlaySong(item.song!)}
                               />
                             ) : isArtist && item.artist ? (
@@ -433,14 +433,12 @@ export function AppNavbar() {
                           <div
                             key={song.id}
                             onClick={() => handlePlaySong(song)}
-                            onMouseEnter={() => previewPlayer.startHoverCountdown(song)}
-                            onMouseLeave={() => previewPlayer.stopPreview()}
                             className="w-full flex items-center gap-3 p-2 hover:bg-[#282828] rounded-lg transition-all text-left group cursor-pointer"
                           >
                             <SongThumbnail
                               song={song}
                               sizeClass="w-10 h-10"
-                              enablePreviewHover={false}
+                              enablePreviewHover={true}
                               onPlayClick={() => handlePlaySong(song)}
                             />
                             <div className="flex-1 min-w-0">

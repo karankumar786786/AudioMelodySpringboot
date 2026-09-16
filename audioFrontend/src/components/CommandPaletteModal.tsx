@@ -419,14 +419,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                   data-index={idx}
                   onMouseEnter={() => {
                     setSelectedIndex(idx);
-                    if (item.type === "song" && item.data) {
-                      previewPlayer.startHoverCountdown(item.data);
-                    }
-                  }}
-                  onMouseLeave={() => {
-                    if (item.type === "song") {
-                      previewPlayer.stopPreview();
-                    }
                   }}
                   onClick={() => handleSelectItem(item)}
                   className={`flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-colors select-none group ${
@@ -442,7 +434,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                         song={item.data}
                         sizeClass="w-10 h-10"
                         roundedClass="rounded-lg"
-                        enablePreviewHover={false}
+                        enablePreviewHover={true}
                         onPlayClick={() => handleSelectItem(item)}
                       />
                     ) : (
