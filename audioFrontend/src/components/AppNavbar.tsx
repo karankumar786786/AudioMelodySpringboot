@@ -15,6 +15,9 @@ import {
   X,
   Trash2,
   Music,
+  Sun,
+  Moon,
+  Heart,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -40,9 +43,11 @@ export function AppNavbar() {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
   const queryClient = useQueryClient();
   const router = useRouter();
   const menuRef = useRef<HTMLDivElement>(null);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const getGreeting = () => {
     const hrs = new Date().getHours();
