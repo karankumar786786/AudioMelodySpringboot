@@ -129,6 +129,12 @@ export function usePlayerShortcuts({
         playerActions.openFullVideo();
       }
 
+      // Z: Toggle Zen Focus Mode
+      if (e.key === "z" || e.key === "Z") {
+        e.preventDefault();
+        playerActions.toggleZenMode();
+      }
+
       // ArrowRight (Ctrl/Cmd): Next Track
       if (e.key === "ArrowRight" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();

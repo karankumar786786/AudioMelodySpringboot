@@ -327,4 +327,15 @@ export const playbackActions = {
       sleepTimer: { targetTimestamp: null, mode: null },
     }));
   },
+
+  toggleZenMode: () => {
+    playerStore.setState((s) => {
+      const nextZen = !s.isZenMode;
+      return { ...s, isZenMode: nextZen };
+    });
+  },
+
+  closeZenMode: () => {
+    playerStore.setState((s) => (s.isZenMode ? { ...s, isZenMode: false } : s));
+  },
 };

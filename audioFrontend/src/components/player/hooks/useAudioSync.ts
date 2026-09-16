@@ -17,7 +17,7 @@ export function useAudioSync(
   setBuffered: (t: number) => void,
   fadeIn?: (dur?: number) => void,
   fadeOut?: (dur?: number) => void,
-  crossfadeDuration: number = 0.5,
+  crossfadeDuration: number = 3.0,
   fadeTo?: (targetGain: number, dur?: number) => void,
   setGainImmediate?: (val: number) => void,
 ) {

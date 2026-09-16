@@ -50,6 +50,7 @@ const SHORTCUT_GROUPS: ShortcutCategory[] = [
     category: "Panels & Views",
     items: [
       { keys: ["V"], label: "Watch Full Video (if available)" },
+      { keys: ["Z"], label: "Zen Focus Mode (Minimalist)" },
       { keys: ["L"], label: "Spotify Synced Lyrics" },
       { keys: ["Q"], label: "Queue Drawer" },
       { keys: ["E"], label: "Equalizer & Visualizer" },

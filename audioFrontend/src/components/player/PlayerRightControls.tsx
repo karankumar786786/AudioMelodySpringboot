@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Mic2, ListMusic, TvMinimalPlay } from "lucide-react";
+import { Mic2, ListMusic, TvMinimalPlay, Sparkles } from "lucide-react";
 import { playerActions } from "@/store/player.store";
 import { type PlayerSong } from "@/lib/player-utils";
 import { PlayerTooltip } from "./PlayerTooltip";
@@ -71,6 +71,18 @@ export const PlayerRightControls: React.FC<PlayerRightControlsProps> = ({
           </button>
         </PlayerTooltip>
       )}
+
+      {/* Zen Focus Mode Button */}
+      <PlayerTooltip content="Zen Focus Mode" shortcut="Z">
+        <button
+          type="button"
+          onClick={() => playerActions.toggleZenMode()}
+          className="p-1.5 rounded-md text-zinc-400 hover:text-yellow-400 transition-colors cursor-pointer"
+          aria-label="Zen Focus Mode"
+        >
+          <Sparkles size={16} />
+        </button>
+      </PlayerTooltip>
 
       {/* Lyrics Button */}
       <PlayerTooltip content="Lyrics" shortcut="L">

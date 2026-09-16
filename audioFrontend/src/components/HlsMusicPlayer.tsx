@@ -52,6 +52,7 @@ import { PlayerTrackCard } from "./player/PlayerTrackCard";
 import { PlayerControlButtons } from "./player/PlayerControlButtons";
 import { PlayerProgressBar } from "./player/PlayerProgressBar";
 import { PlayerRightControls } from "./player/PlayerRightControls";
+import { ZenFocusOverlay } from "./player/ZenFocusOverlay";
 
 // Hooks
 import { useHlsPlayer } from "./player/hooks/useHlsPlayer";
@@ -276,14 +277,48 @@ export function HlsMusicPlayer() {
         />
       )}
 
-      {/* Multi-layered Ambient Dynamic Background Glow */}
+      {/* Full-Screen Zen Focus Mode */}
+      {state.isZenMode && (
+        <ZenFocusOverlay
+          analyser={webAudio.analyser}
+          currentTime={localTime}
+          duration={duration}
+          solidBgColor={solidBgColor}
+          transcriptions={transcriptions}
+          plainLyrics={plainLyrics}
+          isLoading={isLyricsLoading}
+          buffered={buffered}
+          onSeek={(time) => {
+            if (audioRef.current) {
+              audioRef.current.currentTime = time;
+              setLocalTime(time);
+            }
+          }}
+        />
+      )}
+
+      {/* Multi-layered Atmospheric Dynamic Ambient Glow */}
       <div
         aria-hidden="true"
-        style={{
-          background: `radial-gradient(ellipse 85% 120px at 50% 100%, ${solidBgColor}66 0%, ${solidBgColor}22 55%, transparent 80%)`,
-        }}
-        className="fixed bottom-20 left-0 right-0 h-32 pointer-events-none z-40 transition-all duration-700 ease-out blur-2xl opacity-90"
-      />
+        className="fixed inset-0 pointer-events-none z-0 overflow-hidden"
+      >
+        <div
+          style={{
+            background: `radial-gradient(ellipse 65% 50% at 50% 10%, ${solidBgColor}28 0%, ${solidBgColor}0a 45%, transparent 80%)`,
+          }}
+          className={`absolute top-0 left-0 right-0 h-[450px] transition-all duration-1000 ease-out blur-3xl ${
+            isPlaying ? "opacity-100 scale-105" : "opacity-35 scale-100"
+          }`}
+        />
+        <div
+          style={{
+            background: `radial-gradient(ellipse 85% 140px at 50% 100%, ${solidBgColor}66 0%, ${solidBgColor}22 55%, transparent 85%)`,
+          }}
+          className={`absolute bottom-20 left-0 right-0 h-36 transition-all duration-700 ease-out blur-2xl ${
+            isPlaying ? "opacity-90 scale-100" : "opacity-35 scale-95"
+          }`}
+        />
+      </div>
 
       {/* Spotify Bottom Persistent Audio Player Bar */}
       <footer className="fixed bottom-0 left-0 right-0 h-20 bg-black/95 backdrop-blur-md border-t border-[#282828] z-50 px-3 sm:px-4 md:px-6 flex items-center justify-between select-none shadow-[0_-8px_30px_rgba(0,0,0,0.7)]">

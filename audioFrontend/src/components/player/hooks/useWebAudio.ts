@@ -21,9 +21,9 @@ export function useWebAudio(
   const isInitializedRef = useRef<boolean>(false);
 
   const [crossfadeDuration, setCrossfadeDurationState] = useState<number>(() => {
-    if (typeof window === "undefined") return 0.5;
+    if (typeof window === "undefined") return 3.0;
     const saved = localStorage.getItem("audiomelody_crossfade_sec");
-    return saved !== null ? parseFloat(saved) : 0.5;
+    return saved !== null ? parseFloat(saved) : 3.0;
   });
 
   const [isEqEnabled, setIsEqEnabled] = useState<boolean>(() => {

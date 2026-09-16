@@ -4,8 +4,9 @@ import React, { useRef, useEffect, useState, useCallback } from "react";
 import { useStore } from "@tanstack/react-store";
 import { playerStore } from "../../store/player.store";
 import { type TranscriptionEntry } from "./hooks/useLyrics";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Share2 } from "lucide-react";
 import { toast } from "sonner";
+import { LyricCardModal } from "./LyricCardModal";
 
 interface AudioVisualizerFallbackProps {
   analyser?: AnalyserNode | null;
@@ -99,10 +100,7 @@ function AudioVisualizerFallback({
     <div className="flex flex-col items-center justify-center gap-6 py-8 w-full max-w-3xl my-auto px-4">
       {/* Live Equalizer Canvas (Transparent Background blending into song ambient color) */}
       <div className="relative w-full overflow-hidden flex items-center justify-center">
-        <canvas
-          ref={canvasRef}
-          className="w-full h-52 sm:h-64 block"
-        />
+        <canvas ref={canvasRef} className="w-full h-52 sm:h-64 block" />
       </div>
 
       {/* Info Badge */}
@@ -151,6 +149,8 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
   const lastActiveIndexRef = useRef(-1);
 
   const [isUserScrolled, setIsUserScrolled] = useState(false);
+  const [isLyricCardModalOpen, setIsLyricCardModalOpen] = useState(false);
+  const [selectedLyricForCard, setSelectedLyricForCard] = useState("");
 
   // Smoothly center the active lyric line in container
   const scrollToActiveLine = useCallback((smooth = true) => {
@@ -170,18 +170,21 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
   }, []);
 
   // Manual or automatic resync back to live audio
-  const handleResync = useCallback((notify = false) => {
-    if (autoResyncTimerRef.current) {
-      clearTimeout(autoResyncTimerRef.current);
-      autoResyncTimerRef.current = null;
-    }
-    isUserScrolledRef.current = false;
-    setIsUserScrolled(false);
-    scrollToActiveLine(true);
-    if (notify) {
-      toast.success("Lyrics synced with audio");
-    }
-  }, [scrollToActiveLine]);
+  const handleResync = useCallback(
+    (notify = false) => {
+      if (autoResyncTimerRef.current) {
+        clearTimeout(autoResyncTimerRef.current);
+        autoResyncTimerRef.current = null;
+      }
+      isUserScrolledRef.current = false;
+      setIsUserScrolled(false);
+      scrollToActiveLine(true);
+      if (notify) {
+        toast.success("Lyrics synced with audio");
+      }
+    },
+    [scrollToActiveLine],
+  );
 
   // Reset user scroll state on song change
   useEffect(() => {
@@ -219,7 +222,11 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
     if (isProgrammaticScrollRef.current) return;
 
     // Check if user manually scrolled back into center of active line
-    if (isUserScrolledRef.current && activeLineRef.current && containerRef.current) {
+    if (
+      isUserScrolledRef.current &&
+      activeLineRef.current &&
+      containerRef.current
+    ) {
       const activeRect = activeLineRef.current.getBoundingClientRect();
       const containerRect = containerRef.current.getBoundingClientRect();
       const isNearCenter =
@@ -243,7 +250,8 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
     return () => {
       window.removeEventListener("lyrics-resync", onGlobalResync);
       if (autoResyncTimerRef.current) clearTimeout(autoResyncTimerRef.current);
-      if (programmaticScrollTimerRef.current) clearTimeout(programmaticScrollTimerRef.current);
+      if (programmaticScrollTimerRef.current)
+        clearTimeout(programmaticScrollTimerRef.current);
     };
   }, [handleResync]);
 
@@ -380,44 +388,60 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
                     if (onSeek) onSeek(entry.start_time_seconds);
                     handleResync(false);
                   }}
-                  className={`cursor-pointer transition-all duration-200 py-1 rounded-lg ${
+                  className={`group flex items-center justify-between gap-4 cursor-pointer transition-all duration-200 py-1 rounded-lg ${
                     isActive
                       ? "text-white"
                       : "text-white/40 hover:text-white/80"
                   }`}
                 >
-                  {entry.words && entry.words.length > 0 ? (
-                    <div className="flex flex-wrap gap-x-2 sm:gap-x-2.5 gap-y-1">
-                      {entry.words.map((word, wIdx) => {
-                        const isWordActive =
-                          localTime >= word.start && localTime <= word.end;
-                        return (
-                          <span
-                            key={wIdx}
-                            className={`text-xl sm:text-2xl md:text-3xl lg:text-[32px] font-extrabold tracking-tight transition-colors duration-100 ${
-                              isWordActive
-                                ? "text-white drop-shadow-[0_0_16px_rgba(255,255,255,0.85)]"
-                                : isActive
-                                  ? "text-white"
-                                  : "text-white/40 hover:text-white/80"
-                            }`}
-                          >
-                            {word.text}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p
-                      className={`text-xl sm:text-2xl md:text-3xl lg:text-[32px] font-extrabold tracking-tight transition-colors duration-200 ${
-                        isActive
-                          ? "text-white drop-shadow-md"
-                          : "text-white/40 hover:text-white/80"
-                      }`}
-                    >
-                      {entry.transcript}
-                    </p>
-                  )}
+                  <div className="flex-1">
+                    {entry.words && entry.words.length > 0 ? (
+                      <div className="flex flex-wrap gap-x-2 sm:gap-x-2.5 gap-y-1">
+                        {entry.words.map((word, wIdx) => {
+                          const isWordActive =
+                            localTime >= word.start && localTime <= word.end;
+                          return (
+                            <span
+                              key={wIdx}
+                              className={`text-xl sm:text-2xl md:text-3xl lg:text-[32px] font-extrabold tracking-tight transition-colors duration-100 ${
+                                isWordActive
+                                  ? "text-white opacity-100"
+                                  : isActive
+                                    ? "text-white/80"
+                                    : "text-white/40 hover:text-white/80"
+                              }`}
+                            >
+                              {word.text}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p
+                        className={`text-xl sm:text-2xl md:text-3xl lg:text-[32px] font-extrabold tracking-tight transition-colors duration-200 ${
+                          isActive
+                            ? "text-white opacity-100"
+                            : "text-white/40 hover:text-white/80"
+                        }`}
+                      >
+                        {entry.transcript}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* 1-Click Share Lyric Quote Card Button */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedLyricForCard(entry.transcript);
+                      setIsLyricCardModalOpen(true);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-2 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-all cursor-pointer shrink-0"
+                    title="Share Lyric Quote"
+                  >
+                    <Share2 size={16} />
+                  </button>
                 </div>
               );
             })}
@@ -477,6 +501,16 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
       ) : (
         // 🎵 Live Audio Visualizer Equalizer when no lyrics present
         <AudioVisualizerFallback analyser={analyser} isPlaying={isPlaying} />
+      )}
+
+      {/* Share Lyric Card Modal */}
+      {currentSong && (
+        <LyricCardModal
+          isOpen={isLyricCardModalOpen}
+          onClose={() => setIsLyricCardModalOpen(false)}
+          song={currentSong}
+          initialLyric={selectedLyricForCard}
+        />
       )}
     </div>
   );
