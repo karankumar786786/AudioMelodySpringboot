@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 import {
   Play,
   Pause,
@@ -64,6 +65,16 @@ export function SongCard({
   const isFavourite = song?.id
     ? Array.from(favourites).some((id) => String(id) === String(song.id))
     : false;
+
+  const rawImageKey = song.imageKey || (song as any).coverImageKey;
+  const imageUrl = rawImageKey
+    ? getImageUrl(rawImageKey, {
+        width: 400,
+        height: 400,
+        focus: "auto",
+        aspectRatio: "1-1",
+      })
+    : (song as any).posterUrl || "";
 
   const handleToggleFavourite = async () => {
     if (!systemUser?.id) {
@@ -157,17 +168,20 @@ export function SongCard({
         } ${className || ""}`}
       >
         <div className="aspect-square bg-zinc-900 rounded-md mb-3 relative shadow-md overflow-hidden">
-          <img
-            src={getImageUrl(song.imageKey, {
-              width: 400,
-              height: 400,
-              focus: "auto",
-              aspectRatio: "1-1",
-            })}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
-            alt={song.title}
-            loading={priority ? "eager" : "lazy"}
-          />
+          {imageUrl ? (
+            <Image
+              src={imageUrl}
+              alt={song.title || "Song cover"}
+              fill
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 250px"
+              priority={priority}
+              className="object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-zinc-600">
+              <span className="text-xs">No Image</span>
+            </div>
+          )}
 
           {/* Best Part Badge if preview is active */}
           {isPreviewPlaying && (

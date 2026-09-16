@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { Play, Pause, Music, Loader2 } from "lucide-react";
 import { type Song } from "@/lib/api";
 import { previewPlayer, previewStore } from "@/lib/preview-player";
@@ -94,11 +95,13 @@ export function SongThumbnail({
     >
       {/* Background Image or Fallback */}
       {imageUrl ? (
-        <img
+        <Image
           src={imageUrl}
           alt={song.title || "Song thumbnail"}
-          loading={priority ? "eager" : "lazy"}
-          className="w-full h-full object-cover transition-transform duration-300 group-hover/thumb:scale-105"
+          fill
+          priority={priority}
+          sizes="64px"
+          className="object-cover transition-transform duration-300 group-hover/thumb:scale-105"
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center text-zinc-600 bg-zinc-800">
