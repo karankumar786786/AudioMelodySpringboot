@@ -553,11 +553,16 @@ export const queueActions = {
     }
   },
 
-  next: () => {
-    const { queue, lastQueueIndex, repeatMode, currentSong } =
+  next: (isExplicitSkip = true) => {
+    const { queue, lastQueueIndex, repeatMode, currentSong, currentTime, duration } =
       playerStore.state;
 
-    if (currentSong?.id) {
+    // Only record an explicit skip penalty (-1.0) if the user actively skipped before 75% completion
+    const listenRatio = duration > 0 ? currentTime / duration : 0;
+    if (isExplicitSkip && currentSong?.id && listenRatio < 0.75) {
+      console.log(
+        `[Interaction] Recording explicit skip (-1.0) for "${currentSong.title}" (Listened: ${(listenRatio * 100).toFixed(1)}%)`,
+      );
       import("@/store/player/playback.actions").then(({ playbackActions }) => {
         playbackActions.recordSkip(currentSong.id);
       });

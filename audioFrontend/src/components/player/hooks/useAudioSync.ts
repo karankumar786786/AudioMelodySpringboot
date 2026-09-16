@@ -355,7 +355,7 @@ export function useAudioSync(
         return;
       }
 
-      playerActions.next();
+      playerActions.next(false);
     };
 
     // Handle when the audio element can play after a pause -> play toggle
