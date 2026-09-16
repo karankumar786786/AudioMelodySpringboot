@@ -446,6 +446,14 @@ public class SongService {
         return songsRepository.findAllPaginated(page, size);
     }
 
+    public List<SongsEntity> getSongsPaginated(int page, int size, String search) {
+        return songsRepository.findAllPaginated(page, size, search);
+    }
+
+    public long countSongs(String search) {
+        return songsRepository.countSongs(search);
+    }
+
     public List<JobsEntity> getJobsPaginated(int page, int size) {
         return jobsRepository.findAllPaginated(page, size);
     }

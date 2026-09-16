@@ -40,6 +40,30 @@ public class SongsRepository {
                 .getResultList();
     }
 
+    public List<SongsEntity> findAllPaginated(int page, int size, String search) {
+        if (search == null || search.trim().isEmpty()) {
+            return findAllPaginated(page, size);
+        }
+        return entityManager.createQuery(
+                "SELECT s FROM SongsEntity s WHERE LOWER(s.title) LIKE LOWER(:search) OR LOWER(s.artistName) LIKE LOWER(:search) ORDER BY s.createdAt DESC",
+                SongsEntity.class)
+                .setParameter("search", "%" + search.trim() + "%")
+                .setFirstResult(page * size)
+                .setMaxResults(size)
+                .getResultList();
+    }
+
+    public long countSongs(String search) {
+        if (search == null || search.trim().isEmpty()) {
+            return entityManager.createQuery("SELECT COUNT(s) FROM SongsEntity s", Long.class).getSingleResult();
+        }
+        return entityManager.createQuery(
+                "SELECT COUNT(s) FROM SongsEntity s WHERE LOWER(s.title) LIKE LOWER(:search) OR LOWER(s.artistName) LIKE LOWER(:search)",
+                Long.class)
+                .setParameter("search", "%" + search.trim() + "%")
+                .getSingleResult();
+    }
+
     public List<SongsEntity> findTrending(int limit) {
         List<SongsEntity> trending = entityManager.createQuery(
                 "SELECT h.song FROM UserHistoryEntity h " +

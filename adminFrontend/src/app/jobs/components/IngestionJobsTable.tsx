@@ -57,33 +57,36 @@ export function IngestionJobsTable({
   onPageChange,
   onPageSizeChange,
 }: IngestionJobsTableProps) {
+  const hasFailedJobs = jobs.some((j) => j.status === "FAILED");
+
   return (
     <div className="space-y-4">
-      {/* Filters & Actions Bar */}
+      {/* Table Filters & Purge Action */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Filter Status:</span>
-          {["ALL", "PROCESSING", "PENDING", "COMPLETED", "FAILED"].map((s) => (
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          {["ALL", "PENDING", "PROCESSING", "COMPLETED", "FAILED"].map((s) => (
             <button
               key={s}
               onClick={() => onStatusFilterChange(s)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
                 statusFilter === s
-                  ? "bg-white text-black border-white shadow-sm"
-                  : "bg-[#121212] text-zinc-400 border-[#282828] hover:text-white hover:border-zinc-700"
+                  ? "bg-white text-black shadow-sm"
+                  : "bg-black/50 text-zinc-400 hover:text-white border border-[#282828]"
               }`}
             >
-              {s}
+              {s === "ALL" ? "All Jobs" : s}
             </button>
           ))}
-          {statusFilter === "FAILED" && (
+
+          {/* Bulk Purge Failed Jobs */}
+          {hasFailedJobs && (
             <button
               onClick={onPurgeAllFailed}
               disabled={isPurgingFailed}
-              className="ml-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all border bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-600 hover:text-white flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="ml-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 transition-all flex items-center gap-1.5 disabled:opacity-50"
             >
-              <Trash2 className={`w-3.5 h-3.5 ${isPurgingFailed ? "animate-spin" : ""}`} />
-              <span>{isPurgingFailed ? "Purging Failed Jobs..." : "Purge All Failed"}</span>
+              <Trash2 className="w-3.5 h-3.5" />
+              {isPurgingFailed ? "Purging..." : "Purge All Failed"}
             </button>
           )}
         </div>
@@ -101,7 +104,12 @@ export function IngestionJobsTable({
       </div>
 
       {/* Ingestion Jobs Table */}
-      <div className="bg-[#121212] border border-[#282828] rounded-2xl overflow-hidden shadow-sm">
+      <div className="relative bg-[#121212] border border-[#282828] rounded-2xl overflow-hidden shadow-sm">
+        {/* Top Animated Pulse Line during page/filter transitions */}
+        {loading && (
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-500 via-indigo-500 to-emerald-400 animate-pulse z-20" />
+        )}
+
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-black/60 border-b border-[#282828] text-zinc-400 uppercase font-bold tracking-wider text-[10px]">
@@ -118,7 +126,7 @@ export function IngestionJobsTable({
             </thead>
             <tbody className="divide-y divide-[#282828] font-mono">
               {loading ? (
-                <TableSkeleton columns={8} rows={5} variant="job" />
+                <TableSkeleton columns={8} rows={Math.min(pageSize, 8)} variant="job" />
               ) : jobs.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="py-12 text-center text-zinc-500 font-sans">
@@ -129,115 +137,111 @@ export function IngestionJobsTable({
                 jobs.map((job) => {
                   const statusBadge = getStatusBadge(job.status);
                   const stageBadge = getStageBadge(job.currentStage);
+                  const isRetrying = retryingJobId === job.id;
+                  const isDeleting = deletingJobId === job.id;
 
                   return (
                     <tr
                       key={job.id}
                       onClick={() => onSelectJob(job)}
-                      className="hover:bg-[#181818] transition-colors cursor-pointer group"
+                      className="hover:bg-zinc-800/20 cursor-pointer transition-colors"
                     >
+                      {/* Song details */}
                       <td className="py-3 px-4 font-sans">
                         <div className="flex items-center gap-3">
-                          <div className="relative w-8 h-8 rounded-lg overflow-hidden bg-black shrink-0 border border-[#282828]">
+                          <div className="relative w-8 h-8 rounded-lg overflow-hidden bg-black/60 border border-[#282828] shrink-0">
                             {job.imageKey ? (
                               <Image
-                                src={getImageUrl(job.imageKey, { width: 80, height: 80 })}
-                                alt={job.title}
+                                src={getImageUrl(job.imageKey)}
+                                alt={job.title || "Song cover"}
                                 fill
+                                sizes="32px"
                                 className="object-cover"
-                                unoptimized
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center text-[9px] text-zinc-500">
-                                IMG
+                              <div className="w-full h-full flex items-center justify-center text-zinc-600">
+                                🎵
                               </div>
                             )}
                           </div>
                           <div className="min-w-0">
-                            <div className="font-bold text-white truncate max-w-[200px] group-hover:underline transition-colors">
-                              {job.title}
-                            </div>
-                            <div className="text-[11px] text-zinc-400 truncate max-w-[200px]">
+                            <p className="font-bold text-white truncate max-w-[180px]">{job.title}</p>
+                            <p className="text-[11px] text-zinc-400 truncate max-w-[180px]">
                               {job.artistName}
-                            </div>
+                            </p>
                           </div>
                         </div>
                       </td>
 
-                      <td className="py-3 px-4">
+                      {/* Status */}
+                      <td className="py-3 px-4 font-sans">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-sans font-bold border ${statusBadge.bg} ${statusBadge.text}`}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border ${statusBadge.bg}`}
                         >
                           <span className={`w-1.5 h-1.5 rounded-full ${statusBadge.dot}`} />
                           {statusBadge.label}
                         </span>
                       </td>
 
-                      <td className="py-3 px-4">
+                      {/* Stage */}
+                      <td className="py-3 px-4 font-sans">
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-sans font-bold border ${stageBadge.bg}`}
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border ${stageBadge.bg}`}
                         >
                           {stageBadge.label}
                         </span>
                       </td>
 
+                      {/* Attempts */}
                       <td className="py-3 px-4 text-zinc-400">
-                        {job.transcodingAttempt > 1 ? (
-                          <span className="font-bold text-amber-400">#{job.transcodingAttempt}</span>
-                        ) : (
-                          "#1"
-                        )}
+                        {job.transcodingAttempt ?? 1}
                       </td>
 
-                      <td className="py-3 px-4 text-zinc-400">{formatMs(job.transcodingDurationMs)}</td>
-
-                      <td className="py-3 px-4 font-bold text-white">
-                        {formatMs(job.totalDurationMs || job.elapsedTotalMs)}
+                      {/* Transcode Duration */}
+                      <td className="py-3 px-4 text-zinc-400">
+                        {formatMs(job.transcodingDurationMs)}
                       </td>
 
-                      <td className="py-3 px-4 text-zinc-500 text-[11px]">{formatTime(job.createdAt)}</td>
+                      {/* Total Duration */}
+                      <td className="py-3 px-4 text-zinc-400 font-bold text-white">
+                        {formatMs(job.totalDurationMs)}
+                      </td>
 
-                      <td className="py-3 px-4 text-right font-sans">
-                        <div className="flex items-center justify-end gap-2">
+                      {/* Created At */}
+                      <td className="py-3 px-4 text-zinc-500 text-[11px]">
+                        {formatTime(job.createdAt)}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
                           {job.status === "FAILED" && (
-                            <>
-                              <button
-                                onClick={(e) => onOpenRecoverModal(job, e)}
-                                className="px-2.5 py-1 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-600 hover:text-white border border-emerald-500/30 font-bold text-[11px] rounded-lg transition-all flex items-center gap-1 shadow-sm cursor-pointer"
-                                title="Upload replacement audio/video and recover job"
-                              >
-                                <UploadCloud className="w-3 h-3" />
-                                Recover
-                              </button>
-                              <button
-                                onClick={(e) => onRetryJob(job.id, e)}
-                                disabled={retryingJobId === job.id}
-                                className="px-2.5 py-1 bg-amber-500/10 text-amber-400 hover:bg-amber-600 hover:text-white border border-amber-500/30 font-bold text-[11px] rounded-lg transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                                title="1-Click Retry Ingestion"
-                              >
-                                <RotateCcw
-                                  className={`w-3 h-3 ${retryingJobId === job.id ? "animate-spin" : ""}`}
-                                />
-                                Retry
-                              </button>
-                            </>
+                            <button
+                              onClick={(e) => onOpenRecoverModal(job, e)}
+                              disabled={isRetrying || isDeleting}
+                              className="p-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-colors title='Upload fresh media & reprocess'"
+                              title="Upload fresh media & reprocess"
+                            >
+                              <UploadCloud className="w-4 h-4" />
+                            </button>
+                          )}
+                          {(job.status === "FAILED" || job.status === "PROCESSING") && (
+                            <button
+                              onClick={(e) => onRetryJob(job.id, e)}
+                              disabled={isRetrying || isDeleting}
+                              className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                              title="Retry pipeline job now"
+                            >
+                              <RotateCcw className={`w-4 h-4 ${isRetrying ? "animate-spin text-white" : ""}`} />
+                            </button>
                           )}
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onSelectJob(job);
-                            }}
-                            className="px-3 py-1 bg-black/60 hover:bg-white hover:text-black border border-[#282828] text-zinc-300 font-bold text-[11px] rounded-lg transition-all cursor-pointer"
-                          >
-                            View Stages
-                          </button>
-                          <button
                             onClick={(e) => onDeleteJob(job.id, e)}
-                            disabled={deletingJobId === job.id}
-                            className="p-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-600 hover:text-white border border-rose-500/20 rounded-lg transition-all cursor-pointer disabled:opacity-50"
-                            title="Delete Job & Purge Cloud Artifacts"
+                            disabled={isDeleting}
+                            className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                            title="Delete job & wipe cloud storage"
                           >
-                            <Trash2 className={`w-3.5 h-3.5 ${deletingJobId === job.id ? "animate-spin" : ""}`} />
+                            <Trash2 className={`w-4 h-4 ${isDeleting ? "animate-spin text-rose-400" : ""}`} />
                           </button>
                         </div>
                       </td>
@@ -249,13 +253,13 @@ export function IngestionJobsTable({
           </table>
         </div>
 
-        {/* Ingestion Table Pagination Bar */}
+        {/* Ingestion Table Pagination Bar with Loading Feedback */}
         <PaginationBar
           page={page}
           pageSize={pageSize}
           totalItems={totalJobsCount}
           currentCount={jobs.length}
-          itemLabel="jobs"
+          itemLabel="ingestion jobs"
           onPageChange={onPageChange}
           onPageSizeChange={onPageSizeChange}
           loading={loading}

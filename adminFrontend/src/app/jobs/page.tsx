@@ -66,7 +66,10 @@ export default function JobMonitoringPage() {
 
   const fetchData = useCallback(
     async (showLoader = false) => {
-      if (showLoader) setRefreshing(true);
+      if (showLoader) {
+        setLoading(true);
+        setRefreshing(true);
+      }
       try {
         if (activeTab === "INGESTION") {
           const queryParams = new URLSearchParams({
@@ -181,7 +184,7 @@ export default function JobMonitoringPage() {
     fetchData(true);
   }, [fetchData]);
 
-  // Live Auto-Refresh (every 4 seconds)
+  // Live Auto-Refresh (every 4 seconds, quiet in background without flashing skeleton)
   useEffect(() => {
     if (!autoRefresh) {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -396,7 +399,10 @@ export default function JobMonitoringPage() {
           {/* Tab Selector */}
           <div className="flex bg-black/60 p-1 rounded-full border border-[#282828]">
             <button
-              onClick={() => setActiveTab("INGESTION")}
+              onClick={() => {
+                setLoading(true);
+                setActiveTab("INGESTION");
+              }}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all ${
                 activeTab === "INGESTION"
                   ? "bg-white text-black shadow-sm"
@@ -407,7 +413,10 @@ export default function JobMonitoringPage() {
               Ingestion Pipeline
             </button>
             <button
-              onClick={() => setActiveTab("DELETION")}
+              onClick={() => {
+                setLoading(true);
+                setActiveTab("DELETION");
+              }}
               className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all ${
                 activeTab === "DELETION"
                   ? "bg-white text-black shadow-sm"
@@ -482,11 +491,13 @@ export default function JobMonitoringPage() {
             loading={loading}
             searchQuery={searchQuery}
             onSearchChange={(query) => {
+              setLoading(true);
               setSearchQuery(query);
               setPage(0);
             }}
             statusFilter={statusFilter}
             onStatusFilterChange={(status) => {
+              setLoading(true);
               setStatusFilter(status);
               setPage(0);
             }}
@@ -501,8 +512,12 @@ export default function JobMonitoringPage() {
             page={page}
             pageSize={pageSize}
             totalJobsCount={totalJobsCount}
-            onPageChange={(newPage) => setPage(newPage)}
+            onPageChange={(newPage) => {
+              setLoading(true);
+              setPage(newPage);
+            }}
             onPageSizeChange={(newSize) => {
+              setLoading(true);
               setPageSize(newSize);
               setPage(0);
             }}
@@ -515,16 +530,19 @@ export default function JobMonitoringPage() {
           loading={loading}
           searchQuery={deleteSearchQuery}
           onSearchChange={(query) => {
+            setLoading(true);
             setDeleteSearchQuery(query);
             setDeletePage(0);
           }}
           statusFilter={deleteStatusFilter}
           onStatusFilterChange={(status) => {
+            setLoading(true);
             setDeleteStatusFilter(status);
             setDeletePage(0);
           }}
           typeFilter={deleteTypeFilter}
           onTypeFilterChange={(type) => {
+            setLoading(true);
             setDeleteTypeFilter(type);
             setDeletePage(0);
           }}
@@ -536,8 +554,12 @@ export default function JobMonitoringPage() {
           page={deletePage}
           pageSize={deletePageSize}
           totalJobsCount={totalDeleteJobsCount}
-          onPageChange={(newPage) => setDeletePage(newPage)}
+          onPageChange={(newPage) => {
+            setLoading(true);
+            setDeletePage(newPage);
+          }}
           onPageSizeChange={(newSize) => {
+            setLoading(true);
             setDeletePageSize(newSize);
             setDeletePage(0);
           }}

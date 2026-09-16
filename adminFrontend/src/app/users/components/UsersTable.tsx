@@ -43,7 +43,12 @@ export const UsersTable: React.FC<UsersTableProps> = ({
   onPageSizeChange,
 }) => {
   return (
-    <div className="bg-[#121212] rounded-3xl border border-[#282828] overflow-hidden shadow-sm">
+    <div className="relative bg-[#121212] rounded-3xl border border-[#282828] overflow-hidden shadow-sm">
+      {/* Top Animated Pulse Line during page/filter transitions */}
+      {loading && (
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-500 via-indigo-500 to-emerald-400 animate-pulse z-20" />
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
@@ -57,7 +62,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
           </thead>
           <tbody className="divide-y divide-[#282828]">
             {loading ? (
-              <TableSkeleton variant="user" rows={pageSize > 10 ? 8 : pageSize} />
+              <TableSkeleton variant="user" rows={Math.min(pageSize, 8)} />
             ) : users.length === 0 ? (
               <tr>
                 <td colSpan={5} className="py-16 text-center text-zinc-400">
@@ -171,7 +176,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                             {isAdmin ? (
                               <button
                                 onClick={() => onUserAction(u, "demote")}
-                                disabled={!!currentOp}
+                                disabled={!!currentOp || loading}
                                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold text-zinc-300 bg-black/60 hover:bg-white hover:text-black border border-[#282828] transition-all disabled:opacity-40"
                                 title="Demote to standard User"
                               >
@@ -185,7 +190,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                             ) : (
                               <button
                                 onClick={() => onUserAction(u, "promote")}
-                                disabled={!!currentOp}
+                                disabled={!!currentOp || loading}
                                 className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold text-zinc-300 bg-black/60 hover:bg-white hover:text-black border border-[#282828] transition-all disabled:opacity-40"
                                 title="Promote to Admin"
                               >
@@ -206,7 +211,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                             onClick={() =>
                               onUserAction(u, isBlocked ? "unblock" : "block")
                             }
-                            disabled={!!currentOp}
+                            disabled={!!currentOp || loading}
                             className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all disabled:opacity-40 bg-black/60 hover:bg-white hover:text-black ${
                               isBlocked
                                 ? "text-emerald-400 border-[#282828]"
@@ -231,7 +236,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                         {!isSuperAdmin && !isSelf && (
                           <button
                             onClick={() => onUserAction(u, "delete")}
-                            disabled={!!currentOp}
+                            disabled={!!currentOp || loading}
                             className="p-2 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-full border border-transparent transition-all disabled:opacity-40"
                             title="Delete user account"
                           >

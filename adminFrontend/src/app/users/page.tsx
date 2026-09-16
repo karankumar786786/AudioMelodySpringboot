@@ -47,6 +47,7 @@ export default function UsersPage() {
 
   const fetchUsers = useCallback(
     async (isManualRefresh = false) => {
+      setLoading(true);
       if (isManualRefresh) setRefreshing(true);
       try {
         const params = new URLSearchParams({
@@ -211,6 +212,7 @@ export default function UsersPage() {
   }, [users, debouncedSearch, roleFilter, statusFilter]);
 
   const handleResetFilters = () => {
+    setLoading(true);
     setSearchQuery("");
     setRoleFilter("ALL");
     setStatusFilter("ALL");
@@ -256,14 +258,19 @@ export default function UsersPage() {
       {/* Controls: Search + Filters + Counters */}
       <UserFilterBar
         searchQuery={searchQuery}
-        onSearchChange={(val) => setSearchQuery(val)}
+        onSearchChange={(val) => {
+          setLoading(true);
+          setSearchQuery(val);
+        }}
         roleFilter={roleFilter}
         onRoleFilterChange={(role) => {
+          setLoading(true);
           setRoleFilter(role);
           setPage(0);
         }}
         statusFilter={statusFilter}
         onStatusFilterChange={(status) => {
+          setLoading(true);
           setStatusFilter(status);
           setPage(0);
         }}
@@ -286,8 +293,12 @@ export default function UsersPage() {
         page={page}
         pageSize={pageSize}
         totalUsers={totalUsers}
-        onPageChange={(newPage) => setPage(newPage)}
+        onPageChange={(newPage) => {
+          setLoading(true);
+          setPage(newPage);
+        }}
         onPageSizeChange={(newSize) => {
+          setLoading(true);
           setPageSize(newSize);
           setPage(0);
         }}

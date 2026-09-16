@@ -50,54 +50,63 @@ export function CascadeDeleteTable({
 }: CascadeDeleteTableProps) {
   return (
     <div className="space-y-4">
-      {/* Filters & Search */}
+      {/* Table Filters */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Status:</span>
-          {["ALL", "QUEUED", "PROCESSING", "COMPLETED", "FAILED"].map((s) => (
-            <button
-              key={s}
-              onClick={() => onStatusFilterChange(s)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border cursor-pointer ${
-                statusFilter === s
-                  ? "bg-white text-black border-white shadow-sm"
-                  : "bg-black/60 text-zinc-400 border-[#282828] hover:text-white hover:border-zinc-500"
-              }`}
-            >
-              {s}
-            </button>
-          ))}
+          {/* Status filter */}
+          <div className="flex items-center bg-black/50 p-1 rounded-full border border-[#282828] text-xs">
+            {["ALL", "PENDING", "PROCESSING", "COMPLETED", "FAILED"].map((s) => (
+              <button
+                key={s}
+                onClick={() => onStatusFilterChange(s)}
+                className={`px-3 py-1 rounded-full font-bold transition-all ${
+                  statusFilter === s
+                    ? "bg-white text-black shadow-sm"
+                    : "text-zinc-400 hover:text-white"
+                }`}
+              >
+                {s === "ALL" ? "All Status" : s}
+              </button>
+            ))}
+          </div>
 
-          <span className="text-xs font-bold uppercase tracking-wider text-zinc-400 ml-3">Type:</span>
-          {["ALL", "SONG", "PLAYLIST", "ARTIST"].map((t) => (
-            <button
-              key={t}
-              onClick={() => onTypeFilterChange(t)}
-              className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border cursor-pointer ${
-                typeFilter === t
-                  ? "bg-white text-black border-white shadow-sm"
-                  : "bg-black/60 text-zinc-400 border-[#282828] hover:text-white hover:border-zinc-500"
-              }`}
-            >
-              {t}
-            </button>
-          ))}
+          {/* Entity type filter */}
+          <div className="flex items-center bg-black/50 p-1 rounded-full border border-[#282828] text-xs">
+            {["ALL", "SONG", "ARTIST", "ALBUM"].map((t) => (
+              <button
+                key={t}
+                onClick={() => onTypeFilterChange(t)}
+                className={`px-3 py-1 rounded-full font-bold transition-all ${
+                  typeFilter === t
+                    ? "bg-white text-black shadow-sm"
+                    : "text-zinc-400 hover:text-white"
+                }`}
+              >
+                {t === "ALL" ? "All Types" : t}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="relative w-full sm:w-72">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
           <input
             type="text"
-            placeholder="Search title, entity ID, job ID..."
+            placeholder="Search entity ID, title, job ID..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-[#121212] border border-[#282828] rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-400 transition-all"
+            className="w-full pl-9 pr-4 py-2 bg-[#121212] border border-[#282828] rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white focus:ring-1 focus:ring-white/20 transition-all"
           />
         </div>
       </div>
 
-      {/* Delete Jobs Table */}
-      <div className="bg-[#121212] border border-[#282828] rounded-3xl overflow-hidden shadow-sm">
+      {/* Cascade Delete Table */}
+      <div className="relative bg-[#121212] border border-[#282828] rounded-3xl overflow-hidden shadow-sm">
+        {/* Top Animated Pulse Line during page/filter transitions */}
+        {loading && (
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-500 via-indigo-500 to-emerald-400 animate-pulse z-20" />
+        )}
+
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-black/60 border-b border-[#282828] text-zinc-400 uppercase font-bold tracking-wider text-[10px]">
@@ -115,7 +124,7 @@ export function CascadeDeleteTable({
             </thead>
             <tbody className="divide-y divide-[#282828] font-mono">
               {loading ? (
-                <TableSkeleton columns={9} rows={5} variant="audit" />
+                <TableSkeleton columns={9} rows={Math.min(pageSize, 8)} variant="audit" />
               ) : jobs.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-12 text-center text-zinc-500 font-sans">
@@ -127,93 +136,92 @@ export function CascadeDeleteTable({
                   const statusBadge = getStatusBadge(job.status);
                   const stageBadge = getDeleteStageBadge(job.currentStage);
                   const isRetrying = retryingJobId === job.id;
+                  const isDeleting = deletingJobId === job.id;
 
                   return (
                     <tr
                       key={job.id}
                       onClick={() => onSelectJob(job)}
-                      className="hover:bg-zinc-800/30 transition-colors cursor-pointer group"
+                      className="hover:bg-zinc-800/20 cursor-pointer transition-colors"
                     >
+                      {/* Entity details */}
                       <td className="py-3 px-4 font-sans">
                         <div className="min-w-0">
-                          <div className="font-bold text-white truncate max-w-[220px] group-hover:text-rose-400 transition-colors">
+                          <p className="font-bold text-white truncate max-w-[180px]">
                             {job.entityTitle || "Untitled Entity"}
-                          </div>
-                          <div className="text-[11px] text-zinc-500 font-mono truncate max-w-[220px]">
-                            {job.entityId}
-                          </div>
+                          </p>
+                          <p className="text-[11px] text-zinc-500 font-mono truncate max-w-[180px]">
+                            ID: {job.entityId}
+                          </p>
                         </div>
                       </td>
 
+                      {/* Entity Type */}
                       <td className="py-3 px-4 font-sans">
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-black/60 border border-[#282828] text-zinc-300">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-white/5 text-zinc-300 border border-white/10">
                           {job.entityType}
                         </span>
                       </td>
 
-                      <td className="py-3 px-4">
+                      {/* Status */}
+                      <td className="py-3 px-4 font-sans">
                         <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-sans font-bold border ${statusBadge.bg} ${statusBadge.text}`}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border ${statusBadge.bg}`}
                         >
                           <span className={`w-1.5 h-1.5 rounded-full ${statusBadge.dot}`} />
                           {statusBadge.label}
                         </span>
                       </td>
 
-                      <td className="py-3 px-4">
+                      {/* Stage */}
+                      <td className="py-3 px-4 font-sans">
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-sans font-bold border ${stageBadge.bg}`}
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border ${stageBadge.bg}`}
                         >
                           {stageBadge.label}
                         </span>
                       </td>
 
-                      <td className="py-3 px-4 text-zinc-300">
-                        {job.attemptCount > 1 ? (
-                          <span className="font-bold text-amber-400">#{job.attemptCount}</span>
-                        ) : (
-                          "#1"
-                        )}
-                        <span className="text-[10px] text-zinc-500"> / {job.maxAttempts}</span>
+                      {/* Attempts */}
+                      <td className="py-3 px-4 text-zinc-400">
+                        {job.attemptCount ?? 0} / {job.maxAttempts ?? 3}
                       </td>
 
-                      <td className="py-3 px-4 text-zinc-300">{formatMs(job.s3DurationMs)}</td>
+                      {/* S3 Purge Duration */}
+                      <td className="py-3 px-4 text-zinc-400">
+                        {formatMs(job.s3DurationMs)}
+                      </td>
 
+                      {/* Total Duration */}
                       <td className="py-3 px-4 font-bold text-white">
-                        {formatMs(job.totalDurationMs || job.elapsedTotalMs)}
+                        {formatMs(job.totalDurationMs)}
                       </td>
 
-                      <td className="py-3 px-4 text-zinc-400 text-[11px]">{formatTime(job.createdAt)}</td>
+                      {/* Created At */}
+                      <td className="py-3 px-4 text-zinc-500 text-[11px]">
+                        {formatTime(job.createdAt)}
+                      </td>
 
-                      <td className="py-3 px-4 text-right font-sans">
-                        <div className="flex items-center justify-end gap-2">
+                      {/* Actions */}
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
                           {job.status === "FAILED" && (
                             <button
                               onClick={(e) => onRetryJob(job.id, e)}
-                              disabled={isRetrying}
-                              className="px-2.5 py-1 bg-rose-500/10 text-rose-400 hover:bg-rose-600 hover:text-white border border-rose-500/30 font-bold text-[11px] rounded-lg transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
-                              title="1-Click Retry"
+                              disabled={isRetrying || isDeleting}
+                              className="p-1.5 text-zinc-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+                              title="Retry cascade delete job"
                             >
-                              <RotateCcw className={`w-3 h-3 ${isRetrying ? "animate-spin" : ""}`} />
-                              Retry
+                              <RotateCcw className={`w-4 h-4 ${isRetrying ? "animate-spin text-white" : ""}`} />
                             </button>
                           )}
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onSelectJob(job);
-                            }}
-                            className="px-3 py-1 bg-black/60 hover:bg-white hover:text-black border border-[#282828] text-zinc-300 font-bold text-[11px] rounded-lg transition-all cursor-pointer"
-                          >
-                            Details
-                          </button>
-                          <button
                             onClick={(e) => onDeleteJob(job.id, e)}
-                            disabled={deletingJobId === job.id}
-                            className="p-1.5 bg-rose-500/10 text-rose-400 hover:bg-rose-600 hover:text-white border border-rose-500/20 rounded-lg transition-all cursor-pointer disabled:opacity-50"
-                            title="Delete Audit Record"
+                            disabled={isDeleting}
+                            className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+                            title="Delete cascade delete audit record"
                           >
-                            <Trash2 className={`w-3.5 h-3.5 ${deletingJobId === job.id ? "animate-pulse" : ""}`} />
+                            <Trash2 className={`w-4 h-4 ${isDeleting ? "animate-spin text-rose-400" : ""}`} />
                           </button>
                         </div>
                       </td>
@@ -225,13 +233,13 @@ export function CascadeDeleteTable({
           </table>
         </div>
 
-        {/* Cascade Delete Table Pagination Bar */}
+        {/* Cascade Delete Table Pagination Bar with Loading Feedback */}
         <PaginationBar
           page={page}
           pageSize={pageSize}
           totalItems={totalJobsCount}
           currentCount={jobs.length}
-          itemLabel="audit records"
+          itemLabel="delete records"
           onPageChange={onPageChange}
           onPageSizeChange={onPageSizeChange}
           loading={loading}

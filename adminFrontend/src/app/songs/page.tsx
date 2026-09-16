@@ -2,9 +2,10 @@
 
 import { Loader2, Music, CheckCircle2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { Toast, type ToastType } from "@/components/Toast";
 import { UploadProgressBar } from "@/components/UploadProgressBar";
+import { PaginationBar } from "@/components/PaginationBar";
 import { adminFetch } from "@/lib/adminFetch";
 import { getImageUrl } from "@/lib/image-utils";
 import {
@@ -51,6 +52,10 @@ function SongsContent() {
   const [editingSong, setEditingSong] = useState<Song | null>(null);
   const [uploadMode, setUploadMode] = useState<"audio" | "videoOnly">("audio");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
+  const [totalSongs, setTotalSongs] = useState(0);
   const [deletingSongId, setDeletingSongId] = useState<string | null>(null);
   const [togglingSongId, setTogglingSongId] = useState<string | null>(null);
   const [uploadStep, setUploadStep] = useState(0);
@@ -58,6 +63,15 @@ function SongsContent() {
     message: string;
     type: ToastType;
   } | null>(null);
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(0);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const showToast = (message: string, type: ToastType = "success") => {
     setToast({ message, type });
@@ -152,13 +166,35 @@ function SongsContent() {
     handleDismissUploadError();
   };
 
-  const fetchSongs = async () => {
+  const fetchSongs = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await adminFetch("/admin/song?page=0&size=100");
+      const params = new URLSearchParams({
+        page: String(page),
+        size: String(pageSize),
+      });
+      if (debouncedSearch.trim()) {
+        params.set("search", debouncedSearch.trim());
+      }
+      const response = await adminFetch(`/admin/song?${params.toString()}`);
       if (response.ok) {
         const result = await response.json();
-        setSongs(result.content || result.data?.content || result.data || []);
+        const content = result.content || result.data?.content || result.data || [];
+        setSongs(content);
+        const meta =
+          result.paginationMetaData ||
+          result.data?.paginationMetaData ||
+          result.metadata;
+        const metaTotal = Number(meta?.totalCount ?? result.totalCount);
+        let total: number;
+        if (!isNaN(metaTotal) && metaTotal > 0) {
+          total = metaTotal;
+        } else if (content.length < pageSize) {
+          total = page * pageSize + content.length;
+        } else {
+          total = (page + 2) * pageSize;
+        }
+        setTotalSongs(total);
       } else {
         setError("Failed to fetch songs");
       }
@@ -167,11 +203,11 @@ function SongsContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, pageSize, debouncedSearch]);
 
   useEffect(() => {
     fetchSongs();
-  }, []);
+  }, [fetchSongs]);
 
   const handleCloseEdit = () => {
     if (uploading && !editUploadError) return;
@@ -207,7 +243,8 @@ function SongsContent() {
     try {
       const res = await adminFetch(`/admin/song/${id}`, { method: "DELETE" });
       if (res.ok) {
-        setSongs(songs.filter((s) => s.id !== id));
+        setSongs((prev) => prev.filter((s) => s.id !== id));
+        setTotalSongs((prev) => Math.max(0, prev - 1));
         showToast("Song deleted successfully", "success");
       } else {
         showToast("Failed to delete song", "error");
@@ -866,8 +903,7 @@ function SongsContent() {
             Song Library
           </h1>
           <p className="text-zinc-400 text-sm mt-0.5">
-            {songs.length} tracks · {featuredCount} featured · {videoCount} with
-            video canvas
+            {totalSongs} total tracks · {featuredCount} featured on this page · {videoCount} with video canvas
           </p>
         </div>
         <button
@@ -916,19 +952,23 @@ function SongsContent() {
       </div>
 
       {/* Song Grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {[...Array(8)].map((_, i) => (
-            <div
-              key={i}
-              className="bg-[#121212] rounded-2xl border border-[#282828] p-4 animate-pulse"
-            >
-              <div className="w-full aspect-square rounded-xl bg-zinc-800 mb-3" />
-              <div className="h-4 bg-zinc-800 rounded w-3/4 mb-2" />
-              <div className="h-3 bg-zinc-800/60 rounded w-1/2" />
-            </div>
-          ))}
-        </div>
+      <div className="relative">
+        {loading && (
+          <div className="absolute -top-3 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-500 via-indigo-500 to-emerald-400 animate-pulse z-20" />
+        )}
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {[...Array(Math.min(pageSize, 8))].map((_, i) => (
+              <div
+                key={i}
+                className="bg-[#121212] rounded-2xl border border-[#282828] p-4 animate-pulse"
+              >
+                <div className="w-full aspect-square rounded-xl bg-zinc-800 mb-3" />
+                <div className="h-4 bg-zinc-800 rounded w-3/4 mb-2" />
+                <div className="h-3 bg-zinc-800/60 rounded w-1/2" />
+              </div>
+            ))}
+          </div>
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-zinc-500">
           <svg
@@ -1171,6 +1211,29 @@ function SongsContent() {
           ))}
         </div>
       )}
+      </div>
+
+      {/* Pagination Bar */}
+      <div className="mt-8 rounded-2xl overflow-hidden border border-[#282828] shadow-sm">
+        <PaginationBar
+          page={page}
+          pageSize={pageSize}
+          totalItems={totalSongs}
+          currentCount={filtered.length}
+          itemLabel="tracks"
+          onPageChange={(newPage) => {
+            setLoading(true);
+            setPage(newPage);
+          }}
+          onPageSizeChange={(newSize) => {
+            setLoading(true);
+            setPageSize(newSize);
+            setPage(0);
+          }}
+          pageSizeOptions={[8, 16, 20, 40, 60, 100]}
+          loading={loading}
+        />
+      </div>
 
       {/* Upload Modal */}
       {isModalOpen && (
