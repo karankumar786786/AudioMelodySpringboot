@@ -2,11 +2,16 @@ package me.one_org.melody.Repository;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.TypedQuery;
 import me.one_org.melody.Entity.UsersEntity;
+import me.one_org.melody.Enums.RoleEnum;
+import me.one_org.melody.Enums.StatusEnum;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @Repository
@@ -63,6 +68,54 @@ public class UsersRepository {
     public long count() {
         return entityManager.createQuery("SELECT COUNT(u) FROM UsersEntity u", Long.class)
                 .getSingleResult();
+    }
+
+    public List<UsersEntity> findFilteredPaginated(String search, RoleEnum role, StatusEnum status, int page, int size) {
+        StringBuilder jpql = new StringBuilder("SELECT u FROM UsersEntity u WHERE 1=1");
+        Map<String, Object> params = new HashMap<>();
+
+        if (search != null && !search.trim().isEmpty()) {
+            jpql.append(" AND (LOWER(u.email) LIKE :search OR LOWER(u.userName) LIKE :search OR LOWER(u.id) LIKE :search)");
+            params.put("search", "%" + search.trim().toLowerCase() + "%");
+        }
+        if (role != null) {
+            jpql.append(" AND u.role = :role");
+            params.put("role", role);
+        }
+        if (status != null) {
+            jpql.append(" AND u.status = :status");
+            params.put("status", status);
+        }
+
+        jpql.append(" ORDER BY u.createdAt DESC");
+
+        TypedQuery<UsersEntity> query = entityManager.createQuery(jpql.toString(), UsersEntity.class);
+        params.forEach(query::setParameter);
+        query.setFirstResult(page * size);
+        query.setMaxResults(size);
+        return query.getResultList();
+    }
+
+    public long countFiltered(String search, RoleEnum role, StatusEnum status) {
+        StringBuilder jpql = new StringBuilder("SELECT COUNT(u) FROM UsersEntity u WHERE 1=1");
+        Map<String, Object> params = new HashMap<>();
+
+        if (search != null && !search.trim().isEmpty()) {
+            jpql.append(" AND (LOWER(u.email) LIKE :search OR LOWER(u.userName) LIKE :search OR LOWER(u.id) LIKE :search)");
+            params.put("search", "%" + search.trim().toLowerCase() + "%");
+        }
+        if (role != null) {
+            jpql.append(" AND u.role = :role");
+            params.put("role", role);
+        }
+        if (status != null) {
+            jpql.append(" AND u.status = :status");
+            params.put("status", status);
+        }
+
+        TypedQuery<Long> query = entityManager.createQuery(jpql.toString(), Long.class);
+        params.forEach(query::setParameter);
+        return query.getSingleResult();
     }
 
     public List<me.one_org.melody.Entity.SongsEntity> findFavouriteSongsPaginated(String userId, int page, int size) {

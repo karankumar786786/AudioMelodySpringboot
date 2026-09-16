@@ -33,6 +33,40 @@ public class AccountService {
         return usersRepository.findAllPaginated(page, size);
     }
 
+    public List<UsersEntity> getAccountsPaginated(int page, int size, String search, String roleStr, String statusStr) {
+        RoleEnum role = parseRole(roleStr);
+        StatusEnum status = parseStatus(statusStr);
+        return usersRepository.findFilteredPaginated(search, role, status, page, size);
+    }
+
+    public long countAccounts(String search, String roleStr, String statusStr) {
+        RoleEnum role = parseRole(roleStr);
+        StatusEnum status = parseStatus(statusStr);
+        return usersRepository.countFiltered(search, role, status);
+    }
+
+    private RoleEnum parseRole(String roleStr) {
+        if (roleStr == null || roleStr.trim().isEmpty() || roleStr.equalsIgnoreCase("ALL")) {
+            return null;
+        }
+        try {
+            return RoleEnum.valueOf(roleStr.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private StatusEnum parseStatus(String statusStr) {
+        if (statusStr == null || statusStr.trim().isEmpty() || statusStr.equalsIgnoreCase("ALL")) {
+            return null;
+        }
+        try {
+            return StatusEnum.valueOf(statusStr.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return null;
+        }
+    }
+
     public PaginationMetaDataEntity getPaginationMetaData() {
         return paginationMetaDataService.getMetaData("UsersEntity");
     }
