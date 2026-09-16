@@ -26,14 +26,17 @@ public class AdminDeleteJobService {
     private final DeleteJobsRepository deleteJobsRepository;
     private final DeleteEventQueue deleteEventQueue;
     private final QueueMonitoringService queueMonitoringService;
+    private final me.one_org.melody.Services.General.PaginationMetaDataService paginationMetaDataService;
 
     public AdminDeleteJobService(
             DeleteJobsRepository deleteJobsRepository,
             DeleteEventQueue deleteEventQueue,
-            QueueMonitoringService queueMonitoringService) {
+            QueueMonitoringService queueMonitoringService,
+            me.one_org.melody.Services.General.PaginationMetaDataService paginationMetaDataService) {
         this.deleteJobsRepository = deleteJobsRepository;
         this.deleteEventQueue = deleteEventQueue;
         this.queueMonitoringService = queueMonitoringService;
+        this.paginationMetaDataService = paginationMetaDataService;
     }
 
     public DeleteJobSummaryMetricsDto getSummaryMetrics() {
@@ -135,6 +138,7 @@ public class AdminDeleteJobService {
         DeleteJobsEntity job = deleteJobsRepository.findById(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("Delete job not found: " + jobId));
         deleteJobsRepository.deleteById(jobId);
+        paginationMetaDataService.decrementDeleteJob(job.getStatus());
         log.info("DeleteJob [{}] deleted by admin", jobId);
     }
 

@@ -133,7 +133,7 @@ public class SongService {
                 .createdAt(LocalDateTime.now())
                 .build();
         jobsRepository.save(job);
-        paginationMetaDataService.incrementStatus("JobsEntity", StatusEnum.ACTIVE);
+        paginationMetaDataService.incrementJob();
 
         // Push to audio processing queue
         audioProcessingQueue.queueAudioProcessing(
@@ -180,7 +180,7 @@ public class SongService {
                 .createdAt(LocalDateTime.now())
                 .build();
         jobsRepository.save(job);
-        paginationMetaDataService.incrementStatus("JobsEntity", StatusEnum.ACTIVE);
+        paginationMetaDataService.incrementJob();
 
         audioProcessingQueue.queueAudioProcessing(new AudioProcessingQueueDto(jobId));
 
@@ -241,7 +241,7 @@ public class SongService {
                 .createdAt(LocalDateTime.now())
                 .build();
         jobsRepository.save(job);
-        paginationMetaDataService.incrementStatus("JobsEntity", StatusEnum.ACTIVE);
+        paginationMetaDataService.incrementJob();
 
         audioProcessingQueue.queueAudioProcessing(new AudioProcessingQueueDto(jobId));
 
@@ -310,7 +310,7 @@ public class SongService {
                 .createdAt(LocalDateTime.now())
                 .build();
         jobsRepository.save(job);
-        paginationMetaDataService.incrementStatus("JobsEntity", StatusEnum.ACTIVE);
+        paginationMetaDataService.incrementJob();
 
         audioProcessingQueue.queueAudioProcessing(new AudioProcessingQueueDto(jobId));
 

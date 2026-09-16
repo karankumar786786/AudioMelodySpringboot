@@ -19,9 +19,13 @@ import java.util.Map;
 public class AdminJobController {
 
     private final JobMonitoringService jobMonitoringService;
+    private final me.one_org.melody.Services.General.PaginationMetaDataService paginationMetaDataService;
 
-    public AdminJobController(JobMonitoringService jobMonitoringService) {
+    public AdminJobController(
+            JobMonitoringService jobMonitoringService,
+            me.one_org.melody.Services.General.PaginationMetaDataService paginationMetaDataService) {
         this.jobMonitoringService = jobMonitoringService;
+        this.paginationMetaDataService = paginationMetaDataService;
     }
 
     /**
@@ -72,12 +76,18 @@ public class AdminJobController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         List<JobProgressDto> content = jobMonitoringService.getJobsPaginated(status, stage, search, page, size);
-        long totalCount = jobMonitoringService.countJobs(status, stage, search);
 
-        PaginationMetaDataEntity meta = new PaginationMetaDataEntity();
-        meta.setTotalCount(totalCount);
-        meta.setActiveCount(totalCount);
-        meta.setBlockedCount(0L);
+        PaginationMetaDataEntity meta;
+        if (status == null && stage == null && (search == null || search.trim().isEmpty())) {
+            meta = paginationMetaDataService.getMetaData("JobsEntity");
+        } else {
+            long totalCount = jobMonitoringService.countJobs(status, stage, search);
+            meta = new PaginationMetaDataEntity();
+            meta.setTotalCount(totalCount);
+            meta.setActiveCount(totalCount);
+            meta.setBlockedCount(0L);
+            meta.setDeletedCount(0L);
+        }
 
         return ResponseEntity.ok(new PaginatedResponseDto<>(content, page, size, meta));
     }
@@ -186,5 +196,15 @@ public class AdminJobController {
     public ResponseEntity<Map<String, Object>> deleteAllFailedJobs() {
         int count = jobMonitoringService.deleteAllFailedJobs();
         return ResponseEntity.ok(Map.of("success", true, "deletedCount", count));
+    }
+
+    /**
+     * One-time or on-demand forced database reconciliation for pagination_metadata table.
+     * Computes real row counts for all entities across the database and evicts Redis caches.
+     */
+    @PostMapping("/sync-metadata")
+    public ResponseEntity<Map<String, PaginationMetaDataEntity>> syncMetadata() {
+        Map<String, PaginationMetaDataEntity> res = paginationMetaDataService.syncAllMetadata();
+        return ResponseEntity.ok(res);
     }
 }

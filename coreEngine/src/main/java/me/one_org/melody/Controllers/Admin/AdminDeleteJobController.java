@@ -18,9 +18,13 @@ import java.util.List;
 public class AdminDeleteJobController {
 
     private final AdminDeleteJobService adminDeleteJobService;
+    private final me.one_org.melody.Services.General.PaginationMetaDataService paginationMetaDataService;
 
-    public AdminDeleteJobController(AdminDeleteJobService adminDeleteJobService) {
+    public AdminDeleteJobController(
+            AdminDeleteJobService adminDeleteJobService,
+            me.one_org.melody.Services.General.PaginationMetaDataService paginationMetaDataService) {
         this.adminDeleteJobService = adminDeleteJobService;
+        this.paginationMetaDataService = paginationMetaDataService;
     }
 
     /**
@@ -63,12 +67,18 @@ public class AdminDeleteJobController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         List<DeleteJobProgressDto> content = adminDeleteJobService.getJobsPaginated(status, stage, entityType, search, page, size);
-        long totalCount = adminDeleteJobService.countJobs(status, stage, entityType, search);
 
-        PaginationMetaDataEntity meta = new PaginationMetaDataEntity();
-        meta.setTotalCount(totalCount);
-        meta.setActiveCount(totalCount);
-        meta.setBlockedCount(0L);
+        PaginationMetaDataEntity meta;
+        if (status == null && stage == null && entityType == null && (search == null || search.trim().isEmpty())) {
+            meta = paginationMetaDataService.getMetaData("DeleteJobsEntity");
+        } else {
+            long totalCount = adminDeleteJobService.countJobs(status, stage, entityType, search);
+            meta = new PaginationMetaDataEntity();
+            meta.setTotalCount(totalCount);
+            meta.setActiveCount(totalCount);
+            meta.setBlockedCount(0L);
+            meta.setDeletedCount(0L);
+        }
 
         return ResponseEntity.ok(new PaginatedResponseDto<>(content, page, size, meta));
     }

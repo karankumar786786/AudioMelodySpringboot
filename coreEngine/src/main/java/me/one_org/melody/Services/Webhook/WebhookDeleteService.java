@@ -18,6 +18,7 @@ import me.one_org.melody.ImageStorage.ImageKit;
 import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.ArtistsRepository;
 import me.one_org.melody.Repository.DeleteJobsRepository;
+import me.one_org.melody.Repository.JobsRepository;
 import me.one_org.melody.Repository.PlaylistsRepository;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
@@ -34,6 +35,7 @@ public class WebhookDeleteService {
     private final PlaylistsRepository playlistsRepository;
     private final ArtistsRepository artistsRepository;
     private final DeleteJobsRepository deleteJobsRepository;
+    private final JobsRepository jobsRepository;
     private final AlgoliaSearch algoliaSearch;
     private final Recombee recombee;
     private final ImageKit imageKit;
@@ -44,6 +46,7 @@ public class WebhookDeleteService {
             PlaylistsRepository playlistsRepository,
             ArtistsRepository artistsRepository,
             DeleteJobsRepository deleteJobsRepository,
+            JobsRepository jobsRepository,
             AlgoliaSearch algoliaSearch,
             Recombee recombee,
             ImageKit imageKit,
@@ -52,6 +55,7 @@ public class WebhookDeleteService {
         this.playlistsRepository = playlistsRepository;
         this.artistsRepository = artistsRepository;
         this.deleteJobsRepository = deleteJobsRepository;
+        this.jobsRepository = jobsRepository;
         this.algoliaSearch = algoliaSearch;
         this.recombee = recombee;
         this.imageKit = imageKit;
@@ -77,6 +81,7 @@ public class WebhookDeleteService {
         jobOpt.ifPresent(job -> {
             if (job.getStatus() == DeleteJobStatusEnum.PENDING) {
                 job.setStatus(DeleteJobStatusEnum.IN_PROGRESS);
+                paginationMetaDataService.transitionDeleteJob(DeleteJobStatusEnum.PENDING, DeleteJobStatusEnum.IN_PROGRESS);
             }
             if (job.getStartedAt() == null) {
                 job.setStartedAt(now);
@@ -171,6 +176,7 @@ public class WebhookDeleteService {
         }
 
         jobOpt.ifPresent(job -> {
+            DeleteJobStatusEnum oldStatus = job.getStatus();
             job.setStatus(DeleteJobStatusEnum.COMPLETED);
             job.setCurrentStage(DeleteJobStageEnum.COMPLETED);
             job.setCompletedAt(now);
@@ -183,6 +189,7 @@ public class WebhookDeleteService {
                 job.setTotalDurationMs(Duration.between(job.getCreatedAt(), now).toMillis());
             }
             deleteJobsRepository.save(job);
+            paginationMetaDataService.transitionDeleteJob(oldStatus, DeleteJobStatusEnum.COMPLETED);
             log.info("DeleteJob [{}] completed successfully in {}ms", job.getId(), job.getTotalDurationMs());
         });
     }
@@ -192,6 +199,7 @@ public class WebhookDeleteService {
         LocalDateTime now = LocalDateTime.now();
         Optional<DeleteJobsEntity> jobOpt = findDeleteJob(entityType, entityId, deleteJobId);
         jobOpt.ifPresent(job -> {
+            DeleteJobStatusEnum oldStatus = job.getStatus();
             job.setStatus(DeleteJobStatusEnum.FAILED);
             job.setCurrentStage(DeleteJobStageEnum.FAILED);
             job.setFailedAt(now);
@@ -200,6 +208,7 @@ public class WebhookDeleteService {
                 job.setTotalDurationMs(Duration.between(job.getCreatedAt(), now).toMillis());
             }
             deleteJobsRepository.save(job);
+            paginationMetaDataService.transitionDeleteJob(oldStatus, DeleteJobStatusEnum.FAILED);
             log.error("DeleteJob [{}] failed after {}ms: {}", job.getId(), job.getTotalDurationMs(), reason);
         });
     }
@@ -245,9 +254,28 @@ public class WebhookDeleteService {
     private void hardDeleteSong(String entityId) {
         SongsEntity song = songsRepository.findById(entityId).orElse(null);
         if (song != null) {
+            String jobId = song.getJobId();
             songsRepository.deleteById(entityId);
             paginationMetaDataService.decrementStatus(DeleteEntityType.SONG.metadataEntityName(),
                     song.getStatus() == null ? StatusEnum.ACTIVE : song.getStatus());
+
+            if (jobId != null && !jobId.isBlank()) {
+                jobsRepository.findById(jobId).ifPresent(job -> {
+                    jobsRepository.deleteById(jobId);
+                    paginationMetaDataService.decrementJob(job.getStatus());
+                    log.info("Deleted associated Job [{}] for hard-deleted song [{}]", jobId, entityId);
+                });
+            }
+            try {
+                var remainingJobs = jobsRepository.findBySongId(entityId);
+                for (var rJob : remainingJobs) {
+                    jobsRepository.deleteById(rJob.getId());
+                    paginationMetaDataService.decrementJob(rJob.getStatus());
+                    log.info("Deleted related Job [{}] for hard-deleted song [{}]", rJob.getId(), entityId);
+                }
+            } catch (Exception e) {
+                log.warn("Failed to delete related jobs for song {}: {}", entityId, e.getMessage());
+            }
         }
     }
 

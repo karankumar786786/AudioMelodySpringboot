@@ -8,7 +8,7 @@ import {
   DeleteJobProgress,
   DeleteJobSummaryMetrics,
 } from "@/lib/api";
-import { Zap, Trash2, Workflow, RotateCcw } from "lucide-react";
+import { Zap, Trash2, Workflow, RotateCcw, Database } from "lucide-react";
 
 import { JobMetricsCards } from "./components/JobMetricsCards";
 import { ActiveJobsLiveMonitor } from "./components/ActiveJobsLiveMonitor";
@@ -61,8 +61,28 @@ export default function JobMonitoringPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [isSyncingMetadata, setIsSyncingMetadata] = useState(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleSyncMetadata = async () => {
+    try {
+      setIsSyncingMetadata(true);
+      const res = await adminFetch("/admin/jobs/sync-metadata", {
+        method: "POST",
+      });
+      if (res.ok) {
+        await fetchData(true);
+      } else {
+        alert("Failed to sync pagination metadata.");
+      }
+    } catch (err) {
+      console.error("Failed to sync metadata:", err);
+      alert("Error syncing metadata");
+    } finally {
+      setIsSyncingMetadata(false);
+    }
+  };
 
   const fetchData = useCallback(
     async (showLoader = false) => {
@@ -453,6 +473,17 @@ export default function JobMonitoringPage() {
             title="Refresh metrics now"
           >
             <RotateCcw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
+
+          {/* Sync DB Metadata */}
+          <button
+            onClick={handleSyncMetadata}
+            disabled={isSyncingMetadata || refreshing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700 transition-all disabled:opacity-50"
+            title="Reconcile pagination metadata with actual PostgreSQL rows and flush caches"
+          >
+            <Database className={`w-3.5 h-3.5 text-zinc-400 ${isSyncingMetadata ? "animate-spin text-emerald-400" : ""}`} />
+            {isSyncingMetadata ? "Syncing..." : "Sync DB"}
           </button>
         </div>
       </div>

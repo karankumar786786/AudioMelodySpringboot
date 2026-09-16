@@ -29,8 +29,17 @@ public class AccountController {
             @RequestParam(required = false) String role,
             @RequestParam(required = false) String status) {
         List<UsersEntity> users = accountService.getAccountsPaginated(page, size, search, role, status);
-        long totalCount = accountService.countAccounts(search, role, status);
         PaginationMetaDataEntity metaData = accountService.getPaginationMetaData();
+
+        boolean hasFilters = (search != null && !search.trim().isEmpty())
+                || (role != null && !role.trim().isEmpty() && !role.equalsIgnoreCase("ALL"))
+                || (status != null && !status.trim().isEmpty() && !status.equalsIgnoreCase("ALL"));
+
+        long totalCount = hasFilters
+                ? accountService.countAccounts(search, role, status)
+                : (metaData != null && metaData.getTotalCount() > 0
+                        ? metaData.getTotalCount()
+                        : accountService.countAccounts(null, null, null));
 
         PaginationMetaDataEntity responseMeta = PaginationMetaDataEntity.builder()
                 .id(metaData != null ? metaData.getId() : "UsersEntity")

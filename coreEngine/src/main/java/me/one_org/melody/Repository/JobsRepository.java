@@ -172,6 +172,12 @@ public class JobsRepository {
         }
     }
 
+    public List<JobsEntity> findBySongId(String songId) {
+        return entityManager.createQuery("SELECT j FROM JobsEntity j WHERE j.songId = :songId", JobsEntity.class)
+                .setParameter("songId", songId)
+                .getResultList();
+    }
+
     @Transactional
     public void deleteById(String id) {
         JobsEntity job = entityManager.find(JobsEntity.class, id);

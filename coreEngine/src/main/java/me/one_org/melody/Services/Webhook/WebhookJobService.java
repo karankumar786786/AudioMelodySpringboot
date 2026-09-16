@@ -64,12 +64,14 @@ public class WebhookJobService {
     @Transactional
     public void transcodingStarted(String jobId, JobStartedRequestDto data) {
         JobsEntity job = getJob(jobId);
+        JobStatusEnum oldStatus = job.getStatus();
         job.setTranscodingId(data.processingId());
         job.setTranscodingAttempt(job.getTranscodingAttempt() != null ? job.getTranscodingAttempt() + 1 : 1);
         job.setStatus(JobStatusEnum.PROCESSING);
         job.setCurrentStage(JobStageEnum.TRANSCODING);
         job.setTranscodingStartedAt(LocalDateTime.now());
         jobsRepository.save(job);
+        paginationMetaDataService.transitionJob(oldStatus, JobStatusEnum.PROCESSING);
         log.info("Job {} transcoding started (attempt {}, stage {})", jobId, job.getTranscodingAttempt(), job.getCurrentStage());
     }
 
@@ -224,9 +226,11 @@ public class WebhookJobService {
 
             evictSongCaches(songId);
 
+            JobStatusEnum oldStatus = job.getStatus();
             job.setStatus(JobStatusEnum.COMPLETED);
             job.setCurrentStage(JobStageEnum.COMPLETED);
             jobsRepository.save(job);
+            paginationMetaDataService.transitionJob(oldStatus, JobStatusEnum.COMPLETED);
             log.info("Reprocess/recovery job {} completed in {}ms — media updated on song {}",
                     jobId, job.getTotalDurationMs(), songId);
             return;
@@ -251,9 +255,11 @@ public class WebhookJobService {
         songsRepository.save(song);
         paginationMetaDataService.incrementStatus("SongsEntity", song.getStatus());
 
+        JobStatusEnum oldStatus = job.getStatus();
         job.setStatus(JobStatusEnum.COMPLETED);
         job.setCurrentStage(JobStageEnum.COMPLETED);
         jobsRepository.save(job);
+        paginationMetaDataService.transitionJob(oldStatus, JobStatusEnum.COMPLETED);
         log.info("Job {} finalized in total {}ms — song {} created successfully",
                 job.getId(), job.getTotalDurationMs(), songId);
     }
@@ -261,6 +267,7 @@ public class WebhookJobService {
     @Transactional
     public void failed(String jobId, JobFailedRequestDto data) {
         JobsEntity job = getJob(jobId);
+        JobStatusEnum oldStatus = job.getStatus();
         LocalDateTime now = LocalDateTime.now();
         job.setStatus(JobStatusEnum.FAILED);
         job.setCurrentStage(JobStageEnum.FAILED);
@@ -270,6 +277,7 @@ public class WebhookJobService {
             job.setTotalDurationMs(Duration.between(job.getCreatedAt(), now).toMillis());
         }
         jobsRepository.save(job);
+        paginationMetaDataService.transitionJob(oldStatus, JobStatusEnum.FAILED);
         log.error("Job {} failed after {}ms: {}", jobId, job.getTotalDurationMs(), data.reason());
     }
 

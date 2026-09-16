@@ -18,20 +18,28 @@ public class DeleteEventQueue {
 
     private final RedisTemplate<String, Object> redisTemplate;
     private final DeleteJobsRepository deleteJobsRepository;
+    private final me.one_org.melody.Services.General.PaginationMetaDataService paginationMetaDataService;
 
     @Value("${spring.data.redis.deletequeue}")
     private String deleteQueue;
 
-    public DeleteEventQueue(RedisTemplate<String, Object> redisTemplate, DeleteJobsRepository deleteJobsRepository) {
+    public DeleteEventQueue(
+            RedisTemplate<String, Object> redisTemplate,
+            DeleteJobsRepository deleteJobsRepository,
+            me.one_org.melody.Services.General.PaginationMetaDataService paginationMetaDataService) {
         this.redisTemplate = redisTemplate;
         this.deleteJobsRepository = deleteJobsRepository;
+        this.paginationMetaDataService = paginationMetaDataService;
     }
 
     public String queueDeleteEvent(DeleteEventQueueDto data) {
         String jobId = data.deleteJobId() != null ? data.deleteJobId() : UUID.randomUUID().toString();
 
         DeleteJobsEntity job = deleteJobsRepository.findById(jobId).orElse(null);
-        if (job == null) {
+        boolean isNew = (job == null);
+        DeleteJobStatusEnum oldStatus = isNew ? null : job.getStatus();
+
+        if (isNew) {
             job = DeleteJobsEntity.builder()
                     .id(jobId)
                     .entityType(data.entityType())
@@ -56,6 +64,12 @@ public class DeleteEventQueue {
             job.setFailedAt(null);
         }
         deleteJobsRepository.save(job);
+
+        if (isNew) {
+            paginationMetaDataService.incrementDeleteJob();
+        } else {
+            paginationMetaDataService.transitionDeleteJob(oldStatus, DeleteJobStatusEnum.PENDING);
+        }
 
         DeleteEventQueueDto payload = data.withDeleteJobId(jobId);
         redisTemplate.opsForList().rightPush(deleteQueue, payload);

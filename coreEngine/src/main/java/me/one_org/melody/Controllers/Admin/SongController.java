@@ -41,8 +41,17 @@ public class SongController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String search) {
         List<SongsEntity> songs = songService.getSongsPaginated(page, size, search);
-        long totalCount = songService.countSongs(search);
         PaginationMetaDataEntity metaData = songService.getSongsPaginationMetaData();
+
+        long totalCount;
+        if (search != null && !search.trim().isEmpty()) {
+            totalCount = songService.countSongs(search);
+        } else {
+            totalCount = (metaData != null && metaData.getTotalCount() > 0)
+                    ? metaData.getTotalCount()
+                    : songService.countSongs(null);
+        }
+
         PaginationMetaDataEntity responseMeta = PaginationMetaDataEntity.builder()
                 .id(metaData != null ? metaData.getId() : "SongsEntity")
                 .entityName("SongsEntity")

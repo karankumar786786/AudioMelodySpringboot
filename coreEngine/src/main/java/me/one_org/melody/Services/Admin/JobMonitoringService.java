@@ -171,6 +171,7 @@ public class JobMonitoringService {
         JobsEntity job = jobsRepository.findById(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("Job not found: " + jobId));
 
+        JobStatusEnum oldStatus = job.getStatus();
         job.setStatus(JobStatusEnum.PENDING);
         job.setCurrentStage(JobStageEnum.QUEUED);
         job.setFailureReason(null);
@@ -191,6 +192,7 @@ public class JobMonitoringService {
         job.setTranscodingAttempt(job.getTranscodingAttempt() != null ? job.getTranscodingAttempt() + 1 : 1);
 
         jobsRepository.save(job);
+        paginationMetaDataService.transitionJob(oldStatus, JobStatusEnum.PENDING);
         audioProcessingQueue.queueAudioProcessing(new AudioProcessingQueueDto(job.getId()));
         log.info("Job [{}] re-queued for retry (transcodingAttempt {})", jobId, job.getTranscodingAttempt());
         return toProgressDto(job);
@@ -232,6 +234,7 @@ public class JobMonitoringService {
             job.setClipEndSec(min * 60 + sec);
         }
 
+        JobStatusEnum oldStatus = job.getStatus();
         job.setStatus(JobStatusEnum.PENDING);
         job.setCurrentStage(JobStageEnum.QUEUED);
         job.setFailureReason(null);
@@ -252,6 +255,7 @@ public class JobMonitoringService {
         job.setTranscodingAttempt(job.getTranscodingAttempt() != null ? job.getTranscodingAttempt() + 1 : 1);
 
         jobsRepository.save(job);
+        paginationMetaDataService.transitionJob(oldStatus, JobStatusEnum.PENDING);
         audioProcessingQueue.queueAudioProcessing(new AudioProcessingQueueDto(job.getId()));
         log.info("Job [{}] recovered with new media (audio: {}, video: {}) and re-queued (transcodingAttempt {})",
                 jobId, hasAudio, hasVideo, job.getTranscodingAttempt());
@@ -452,7 +456,7 @@ public class JobMonitoringService {
 
         // 7. Decrement pagination metadata for JobsEntity
         try {
-            paginationMetaDataService.decrementStatus("JobsEntity", StatusEnum.ACTIVE);
+            paginationMetaDataService.decrementJob(job.getStatus());
         } catch (Exception e) {
             log.warn("Failed to decrement pagination metadata for job {}: {}", jobId, e.getMessage());
         }
