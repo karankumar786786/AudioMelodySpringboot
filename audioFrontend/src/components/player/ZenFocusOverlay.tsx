@@ -413,11 +413,17 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
         >
           <button
             onClick={() => playerActions.closeZenMode()}
-            className="flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-medium text-zinc-300 hover:text-white transition-all cursor-pointer shadow-2xl backdrop-blur-xl active:scale-95 hover:scale-105"
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.05) 100%), rgba(20, 20, 25, 0.45)",
+              boxShadow:
+                "inset 0 1px 1px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.25), 0 12px 28px rgba(0, 0, 0, 0.5)",
+            }}
+            className="flex items-center gap-2 px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full border border-white/25 text-xs font-medium text-white/80 hover:text-white transition-all cursor-pointer backdrop-blur-3xl backdrop-saturate-[190%] active:scale-95 hover:scale-105"
             title="Exit Zen Mode (Esc or Z)"
           >
             <span>Exit</span>
-            <kbd className="hidden sm:inline px-1.5 py-0.5 text-[10px] bg-black/50 rounded border border-white/10 font-mono">
+            <kbd className="hidden sm:inline px-1.5 py-0.5 text-[10px] bg-black/40 rounded border border-white/15 font-mono text-white/90">
               Esc / Z
             </kbd>
             <X size={14} className="ml-0.5" />
@@ -427,7 +433,15 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
         {/* Center Section: Responsive Mobile Strip & Desktop High-Res Grid */}
         <main className="relative z-10 flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-4 sm:gap-6 lg:gap-14 items-center min-h-0 overflow-hidden w-full max-w-7xl mx-auto my-auto">
           {/* Mobile Only: Compact Horizontal Track Header (Saves vertical space for lyrics) */}
-          <div className="flex lg:hidden items-center gap-3.5 w-full px-1 py-1.5 shrink-0 bg-white/5 border border-white/10 rounded-2xl backdrop-blur-md">
+          <div
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.04) 100%), rgba(20, 20, 25, 0.4)",
+              boxShadow:
+                "inset 0 1px 1px 0 rgba(255, 255, 255, 0.35), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.2), 0 12px 30px rgba(0, 0, 0, 0.4)",
+            }}
+            className="flex lg:hidden items-center gap-3.5 w-full px-2 py-2 shrink-0 rounded-2xl border border-white/20 backdrop-blur-3xl backdrop-saturate-[190%]"
+          >
             <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden shadow-md border border-white/10 bg-zinc-900 shrink-0">
               {coverUrl ? (
                 <Image
@@ -602,7 +616,13 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
             {isUserScrolled && (
               <button
                 onClick={() => handleResync(true)}
-                className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-4.5 py-2.5 rounded-full border border-white/25 backdrop-blur-xl shadow-2xl hover:scale-105 active:scale-95 transition-all cursor-pointer z-30"
+                style={{
+                  background:
+                    "linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.08) 100%), rgba(20, 20, 25, 0.5)",
+                  boxShadow:
+                    "inset 0 1px 1px 0 rgba(255, 255, 255, 0.5), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.25), 0 16px 36px rgba(0, 0, 0, 0.6)",
+                }}
+                className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 text-white text-xs font-semibold px-4.5 py-2.5 rounded-full border border-white/25 backdrop-blur-3xl backdrop-saturate-[190%] hover:scale-105 active:scale-95 transition-all cursor-pointer z-30"
               >
                 <RotateCcw size={14} className="animate-spin-once" />
                 <span>Sync Lyrics</span>
@@ -614,10 +634,12 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
         {/* Bottom Floating Glass Player Dock */}
         <footer className="relative z-10 flex flex-col items-center max-w-xl mx-auto w-full space-y-2.5 sm:space-y-3 shrink-0 pt-2">
           {/* Progress Slider with Buffer & Hover effect */}
-          <div className="w-full flex items-center gap-3 text-xs font-mono text-zinc-400 select-none">
-            <span>{formatTime(currentTime)}</span>
+          <div className="w-full flex items-center gap-3 select-none px-1">
+            <span className="text-[11px] font-medium text-white/60 tabular-nums select-none min-w-[32px] text-right">
+              {formatTime(currentTime)}
+            </span>
             <div
-              className="flex-1 h-1.5 hover:h-2.5 bg-white/15 rounded-full overflow-hidden cursor-pointer relative transition-all group/seek"
+              className="flex-1 h-1.5 hover:h-2.5 bg-white/20 hover:bg-white/25 border border-white/10 rounded-full overflow-hidden cursor-pointer relative transition-all group/seek backdrop-blur-md"
               onClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
                 const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -636,14 +658,24 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
                 style={{
                   width: `${duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0}%`,
                 }}
-                className="absolute left-0 top-0 bottom-0 bg-primary rounded-full pointer-events-none transition-all"
+                className="absolute left-0 top-0 bottom-0 bg-white rounded-full pointer-events-none transition-all shadow-[0_0_8px_rgba(255,255,255,0.4)]"
               />
             </div>
-            <span>{formatTime(duration)}</span>
+            <span className="text-[11px] font-medium text-white/60 tabular-nums select-none min-w-[32px]">
+              {formatTime(duration)}
+            </span>
           </div>
 
-          {/* Controls Bar */}
-          <div className="flex items-center justify-between w-full px-5 sm:px-6 py-2.5 sm:py-3 rounded-full bg-white/10 border border-white/15 backdrop-blur-2xl shadow-2xl">
+          {/* Controls Bar (Apple Liquid Frosted Glass Dock) */}
+          <div
+            style={{
+              background:
+                "linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.07) 50%, rgba(255, 255, 255, 0.02) 100%), rgba(22, 22, 26, 0.45)",
+              boxShadow:
+                "inset 0 1.25px 1px 0 rgba(255, 255, 255, 0.5), inset 0 -1px 1px 0 rgba(0, 0, 0, 0.25), 0 24px 48px -12px rgba(0, 0, 0, 0.7), 0 8px 20px -4px rgba(0, 0, 0, 0.4)",
+            }}
+            className="flex items-center justify-between w-full px-4 sm:px-6 py-2 sm:py-2.5 rounded-full border border-white/25 backdrop-blur-3xl backdrop-saturate-[190%] backdrop-brightness-105"
+          >
             {/* Volume Control (Toggle + Desktop Slider with Fill) */}
             <div
               onWheel={(e) => {
@@ -652,15 +684,15 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
                 const delta = e.deltaY < 0 ? 0.05 : -0.05;
                 playerActions.setVolume(Math.min(1, Math.max(0, volume + delta)));
               }}
-              className="flex items-center gap-2.5"
+              className="flex items-center gap-2"
             >
               <button
                 type="button"
                 onClick={() => playerActions.setIsMuted(!isMuted)}
-                className="text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/12 active:bg-white/20 active:scale-90 transition-all cursor-pointer"
                 title={isMuted ? "Unmute" : "Mute"}
               >
-                {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+                {isMuted || volume === 0 ? <VolumeX size={17} /> : <Volume2 size={17} />}
               </button>
               <input
                 type="range"
@@ -676,7 +708,7 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
                 style={{
                   background: `linear-gradient(to right, #ffffff ${
                     isMuted ? 0 : Math.round(volume * 100)
-                  }%, rgba(255, 255, 255, 0.25) ${
+                  }%, rgba(255, 255, 255, 0.22) ${
                     isMuted ? 0 : Math.round(volume * 100)
                   }%)`,
                 }}
@@ -686,18 +718,18 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
             </div>
 
             {/* Transport Buttons */}
-            <div className="flex items-center gap-4 sm:gap-5">
+            <div className="flex items-center gap-3 sm:gap-4">
               <button
                 onClick={() => playerActions.previous()}
-                className="text-zinc-300 hover:text-white hover:scale-110 active:scale-95 transition-all cursor-pointer"
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/12 active:bg-white/20 hover:scale-105 active:scale-90 transition-all cursor-pointer"
                 title="Previous track"
               >
-                <SkipBack size={20} />
+                <SkipBack size={19} />
               </button>
 
               <button
                 onClick={() => playerActions.setIsPlaying(!isPlaying)}
-                className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 active:scale-95 transition-all shadow-xl cursor-pointer"
+                className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white text-black flex items-center justify-center shadow-[0_4px_16px_rgba(255,255,255,0.3),0_2px_6px_rgba(0,0,0,0.3)] hover:scale-105 active:scale-95 transition-all cursor-pointer hover:bg-white/95"
                 title={isPlaying ? "Pause" : "Play"}
               >
                 {isPlaying ? (
@@ -709,10 +741,10 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
 
               <button
                 onClick={() => playerActions.next(true)}
-                className="text-zinc-300 hover:text-white hover:scale-110 active:scale-95 transition-all cursor-pointer"
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-white/80 hover:text-white hover:bg-white/12 active:bg-white/20 hover:scale-105 active:scale-90 transition-all cursor-pointer"
                 title="Next track"
               >
-                <SkipForward size={20} />
+                <SkipForward size={19} />
               </button>
             </div>
 
@@ -725,10 +757,10 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
                   document.exitFullscreen().catch(() => {});
                 }
               }}
-              className="text-zinc-400 hover:text-white transition-colors cursor-pointer"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/12 active:bg-white/20 active:scale-90 transition-all cursor-pointer"
               title="Toggle Fullscreen"
             >
-              <Maximize size={18} />
+              <Maximize size={17} />
             </button>
           </div>
         </footer>
