@@ -123,9 +123,9 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
 
   const handlePlayHistoryItem = (song: Song) => {
     previewPlayer.stopPreview(true);
-    playerActions.play(mapToPlayerSong(song));
-    toast.success("Playing track", {
-      description: `Now playing "${song.title}"`,
+    playerActions.playWithRadio(mapToPlayerSong(song));
+    toast.success("Playing track radio", {
+      description: `Now playing "${song.title}" with infinite radio`,
     });
   };
 

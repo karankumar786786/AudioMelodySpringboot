@@ -119,9 +119,9 @@ export function AppNavbar() {
 
   const handlePlaySong = (song: Song) => {
     previewPlayer.stopPreview(true);
-    playerActions.play(mapToPlayerSong(song));
-    toast.success("Playing Song", {
-      description: `Starting playback for "${song.title}"...`,
+    playerActions.playWithRadio(mapToPlayerSong(song));
+    toast.success("Playing Song Radio", {
+      description: `Starting infinite radio for "${song.title}"...`,
     });
     if (systemUser?.id && song.id) {
       saveHistory.mutate({ type: "SONG", songId: song.id });

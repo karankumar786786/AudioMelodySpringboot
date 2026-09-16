@@ -35,4 +35,16 @@ public class RecombeeApiController {
                 log.info("recommeded for songs");
         return ResponseEntity.ok(recommendationApiService.recommendSimilar(songId, count));
     }
+
+    @GetMapping("/radio")
+    public ResponseEntity<List<SongsEntity>> recommendRadio(
+            @RequestParam String seedSongId,
+            @RequestParam(required = false) String excludeIds,
+            @RequestParam(defaultValue = "10") int count) {
+        List<String> excludedList = (excludeIds != null && !excludeIds.isBlank())
+                ? List.of(excludeIds.split(","))
+                : List.of();
+        log.info("Generating radio stream for seedSongId [{}] with [{}] excluded IDs", seedSongId, excludedList.size());
+        return ResponseEntity.ok(recommendationApiService.recommendRadio(seedSongId, excludedList, count));
+    }
 }

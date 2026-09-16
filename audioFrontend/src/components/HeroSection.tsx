@@ -57,7 +57,7 @@ export function HeroSection({
   return (
     <>
     <section
-      onClick={() => playerActions.play(mapToPlayerSong(currentSong))}
+      onClick={() => playerActions.playWithRadio(mapToPlayerSong(currentSong))}
       className="relative w-full h-[290px] md:h-[325px] rounded-2xl overflow-hidden group bg-zinc-900 border border-white/10 shadow-2xl cursor-pointer hover:border-white/20 transition-all select-none"
     >
       {/* ─── Video or High-Res Background Image ─── */}
@@ -146,7 +146,7 @@ export function HeroSection({
                 onClick={(e) => {
                   e.stopPropagation();
                   if (playerStore.state.currentSong?.id !== currentSong.id) {
-                    playerActions.play(mapToPlayerSong(currentSong));
+                    playerActions.playWithRadio(mapToPlayerSong(currentSong));
                   }
                   playerActions.openFullVideo();
                 }}

@@ -73,6 +73,11 @@ export const queueActions = {
         originalQueue: isShuffle ? originalQueue : [],
         currentSong: queueToPlay[0] || null,
         lastQueueIndex: nextIndex,
+        radioSession: {
+          seedSongId: null,
+          isActive: false,
+          sessionHistoryIds: [],
+        },
       };
     });
   },
@@ -101,6 +106,11 @@ export const queueActions = {
         originalQueue: isShuffle ? originalQueue : [],
         currentSong: queueToPlay[0] || null,
         lastQueueIndex: 0,
+        radioSession: {
+          seedSongId: null,
+          isActive: false,
+          sessionHistoryIds: [],
+        },
       };
     });
 
@@ -142,6 +152,11 @@ export const queueActions = {
         originalQueue: isShuffle ? originalQueue : [],
         currentSong: queueToPlay[playIndex] || null,
         lastQueueIndex: playIndex,
+        radioSession: {
+          seedSongId: null,
+          isActive: false,
+          sessionHistoryIds: [],
+        },
       };
     });
 
@@ -150,6 +165,51 @@ export const queueActions = {
         playbackActions.play(queueToPlay[playIndex]);
       });
     }
+  },
+
+  playWithRadio: (seedSong: PlayerSong) => {
+    console.log(`[Queue] Starting Infinite Radio for song: "${seedSong.title}" (${seedSong.id})`);
+    const preparedSong: PlayerSong = {
+      ...seedSong,
+      queueId:
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `${seedSong.id}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+    };
+
+    playerStore.setState((s) => {
+      persistQueue([preparedSong], 0);
+      return {
+        ...s,
+        queue: [preparedSong],
+        originalQueue: [],
+        currentSong: preparedSong,
+        lastQueueIndex: 0,
+        isPlaying: true,
+        isLoading: true,
+        currentTime: 0,
+        radioSession: {
+          seedSongId: seedSong.id,
+          seedTitle: seedSong.title,
+          isActive: true,
+          sessionHistoryIds: [seedSong.id],
+        },
+      };
+    });
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("last_current_time", "0");
+      localStorage.setItem("last_current_song", JSON.stringify(preparedSong));
+    }
+
+    import("@/store/player/playback.actions").then(({ playbackActions }) => {
+      playbackActions.play(preparedSong);
+    });
+
+    // Proactively fetch first radio batch for upcoming queue buffer
+    setTimeout(() => {
+      queueActions.refillQueue(true, "Radio session initialized");
+    }, 80);
   },
 
   enqueue: (songs: PlayerSong[]) => {
@@ -335,7 +395,7 @@ export const queueActions = {
       return activeRefillPromise;
     }
 
-    const { queue, currentSong, systemUser, lastQueueIndex } =
+    const { queue, currentSong, systemUser, lastQueueIndex, radioSession } =
       playerStore.state;
 
     const remaining = queue.length - (lastQueueIndex + 1);
@@ -348,13 +408,32 @@ export const queueActions = {
       try {
         playerStore.setState((s) => ({ ...s, isRefilling: true }));
         const isLoggedIn = Boolean(systemUser?.id);
+        const isRadioActive = Boolean(radioSession?.isActive && radioSession?.seedSongId);
 
         console.group(`🎵 [Queue Refill Triggered] Reason: ${reason}`);
         console.log(`📊 Queue status: ${playerStore.state.queue.length} total songs | Current index: ${playerStore.state.lastQueueIndex} | Remaining ahead: ${Math.max(0, remaining)}`);
+        console.log(`📻 Radio mode: ${isRadioActive ? `ACTIVE (Seed: ${radioSession?.seedTitle || radioSession?.seedSongId})` : "INACTIVE (Standard recommendations)"}`);
         console.log(`👤 User authentication: ${isLoggedIn ? `Logged in (${systemUser?.name || systemUser?.email || systemUser?.id})` : "Unauthenticated (Guest)"}`);
 
         let res: any;
-        if (isLoggedIn) {
+        if (isRadioActive) {
+          try {
+            console.log(`📡 Endpoint: Requesting Radio stream for seed [${radioSession.seedSongId}] with history exclusions...`);
+            res = await musicApi.interactions.getRadioSongs(
+              radioSession.seedSongId!,
+              radioSession.sessionHistoryIds || [],
+              10
+            );
+            const data = res?.data?.data || res?.data;
+            if (!data || (Array.isArray(data) && data.length === 0)) {
+              console.log("⚠️ Radio stream returned 0 tracks. Fallback: Requesting trending songs from GET /api/songs...");
+              res = await musicApi.interactions.getTrending(20);
+            }
+          } catch (err) {
+            console.warn("⚠️ Radio stream request failed. Fallback: Requesting trending songs...", err);
+            res = await musicApi.interactions.getTrending(20);
+          }
+        } else if (isLoggedIn) {
           try {
             console.log("📡 Endpoint: Requesting recommendations from GET /api/recommendations/user...");
             res = await musicApi.interactions.getRecommendations();
@@ -402,9 +481,20 @@ export const queueActions = {
           if (uniqueNewSongs.length > 0) {
             playerStore.setState((s) => {
               const updatedQueue = [...s.queue, ...uniqueNewSongs];
+              const nextHistory = isRadioActive
+                ? Array.from(new Set([...(s.radioSession?.sessionHistoryIds || []), ...uniqueNewSongs.map((song) => song.id)]))
+                : s.radioSession?.sessionHistoryIds || [];
+
               console.log(`📈 [QUEUE SIZE UPDATE]: Previous: ${s.queue.length} songs ➔ New total: ${updatedQueue.length} songs.`);
               persistQueue(updatedQueue, s.lastQueueIndex);
-              return { ...s, queue: updatedQueue };
+              return {
+                ...s,
+                queue: updatedQueue,
+                radioSession: {
+                  ...s.radioSession,
+                  sessionHistoryIds: nextHistory,
+                },
+              };
             });
 
             // If no song is loaded in player, set first song as current
@@ -527,7 +617,20 @@ export const queueActions = {
         );
       }
     } else {
-      console.log("[Queue Next] Reached end of queue. Awaiting recommendations refill...");
+      console.log("[Queue Next] Reached end of queue. Awaiting recommendations/radio refill...");
+      // If we weren't in radio mode, promote currentSong to seed the radio for infinite playback!
+      if (!playerStore.state.radioSession.isActive && currentSong?.id) {
+        console.log(`📻 [Autoplay Promotion] Promoting "${currentSong.title}" as Radio Seed for infinite autoplay.`);
+        playerStore.setState((s) => ({
+          ...s,
+          radioSession: {
+            seedSongId: currentSong.id,
+            seedTitle: currentSong.title,
+            isActive: true,
+            sessionHistoryIds: [currentSong.id],
+          },
+        }));
+      }
       queueActions.refillQueue(false, "End of queue reached").then(() => {
         const { queue: updatedQueue, lastQueueIndex: updatedIdx } = playerStore.state;
         const targetIdx = updatedIdx + 1;

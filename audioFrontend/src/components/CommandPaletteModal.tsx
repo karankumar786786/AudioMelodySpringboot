@@ -260,9 +260,9 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   const handleSelectItem = (item: NavigableItem) => {
     previewPlayer.stopPreview(true);
     if (item.type === "song") {
-      playerActions.play(mapToPlayerSong(item.data));
-      toast.success("Playing song", {
-        description: `Now playing "${item.title}"`,
+      playerActions.playWithRadio(mapToPlayerSong(item.data));
+      toast.success("Playing song radio", {
+        description: `Now playing "${item.title}" with infinite radio`,
       });
       if (systemUser?.id && item.data.id) {
         saveHistory.mutate({ type: "SONG", songId: item.data.id });

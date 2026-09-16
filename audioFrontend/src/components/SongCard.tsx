@@ -13,6 +13,7 @@ import {
   Heart,
   Share2,
   Loader2,
+  Radio,
 } from "lucide-react";
 import { type Song } from "../lib/api";
 import { playerActions, playerStore } from "../store/player.store";
@@ -104,7 +105,7 @@ export function SongCard({
     if (isActiveSong) {
       playerActions.setIsPlaying(!isPlaying);
     } else {
-      playerActions.play(mapToPlayerSong(song));
+      playerActions.playWithRadio(mapToPlayerSong(song));
     }
   };
 
@@ -124,6 +125,16 @@ export function SongCard({
     playerActions.playNext(mapToPlayerSong(song));
     toast.success("Playing next", {
       description: `"${song.title}" will play next.`,
+    });
+  };
+
+  const handleStartRadio = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(false);
+    previewPlayer.stopPreview(true);
+    playerActions.playWithRadio(mapToPlayerSong(song));
+    toast.success("Playing Song Radio", {
+      description: `Starting infinite radio for "${song.title}"...`,
     });
   };
 
@@ -432,6 +443,15 @@ export function SongCard({
                   >
                     <CornerDownRight size={14} className="text-primary" />
                     <span>Play next</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleStartRadio}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-zinc-200 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <Radio size={14} className="text-cyan-400" />
+                    <span>Start song radio</span>
                   </button>
 
                   <button

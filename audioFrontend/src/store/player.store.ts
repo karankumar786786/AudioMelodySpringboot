@@ -80,7 +80,8 @@ export const playerActions = {
   },
 
   // Alias for backward compatibility
-  playSong: (song: any) => playbackActions.play(normalizePlayerSong(song)),
+  playSong: (song: any) => queueActions.playWithRadio(normalizePlayerSong(song)),
+  playWithRadio: (song: any) => queueActions.playWithRadio(normalizePlayerSong(song)),
   playFromQueue: (index: number) => {
     const { queue } = playerStore.state;
     if (index >= 0 && index < queue.length) {

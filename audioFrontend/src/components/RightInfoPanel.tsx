@@ -124,12 +124,12 @@ export function RightInfoPanel() {
     staleTime: 1000 * 60 * 60,
   });
 
-  // 1. Similar songs from Recombee recommendation engine
+  // 1. Similar songs from Radio recommendation engine
   const { data: similarSongs = [], isLoading: isSimilarLoading } = useQuery({
     queryKey: ["similar-songs", currentSong?.id],
     queryFn: async () => {
       if (!currentSong?.id) return [];
-      const res = await musicApi.interactions.getSimilarSongs(currentSong.id, 10);
+      const res = await musicApi.interactions.getRadioSongs(currentSong.id, [currentSong.id], 10);
       return res?.data?.data || [];
     },
     enabled: !!currentSong?.id,

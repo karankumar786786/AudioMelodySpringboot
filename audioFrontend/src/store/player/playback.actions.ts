@@ -45,6 +45,16 @@ export const playbackActions = {
         `[Queue State] Current Index: ${idx}, Total Songs: ${updatedQueue.length}`,
       );
 
+      const radioSession =
+        s.radioSession.isActive && s.radioSession.seedSongId
+          ? s.radioSession
+          : {
+              seedSongId: song.id,
+              seedTitle: song.title,
+              isActive: true,
+              sessionHistoryIds: [song.id],
+            };
+
       const newState = {
         ...s,
         queue: updatedQueue,
@@ -53,6 +63,7 @@ export const playbackActions = {
         isLoading: true,
         lastQueueIndex: idx,
         currentTime: 0,
+        radioSession,
       };
 
       if (typeof window !== "undefined") {
@@ -64,6 +75,14 @@ export const playbackActions = {
           // Ignore quota errors
         }
       }
+
+      // If queue is near the end, trigger proactive background radio refill
+      if (updatedQueue.length - (idx + 1) <= 2) {
+        import("@/store/player/queue.actions").then(({ queueActions }) => {
+          queueActions.refillQueue(false, "Playback radio auto-refill");
+        });
+      }
+
       return newState;
     });
   },

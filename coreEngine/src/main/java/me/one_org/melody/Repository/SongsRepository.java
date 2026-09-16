@@ -125,6 +125,66 @@ public class SongsRepository {
                 .getResultList();
     }
 
+    public List<SongsEntity> findRadioFallback(String artistName, String language, List<String> excludeIds, int limit) {
+        List<SongsEntity> results = new java.util.ArrayList<>();
+        List<String> excluded = excludeIds != null ? new java.util.ArrayList<>(excludeIds) : new java.util.ArrayList<>();
+
+        // Priority 1: Same Artist & ACTIVE
+        if (artistName != null && !artistName.isBlank() && results.size() < limit) {
+            String q1 = excluded.isEmpty()
+                    ? "SELECT s FROM SongsEntity s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.artistName) = LOWER(:artistName) ORDER BY s.createdAt DESC"
+                    : "SELECT s FROM SongsEntity s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.artistName) = LOWER(:artistName) AND s.id NOT IN :excluded ORDER BY s.createdAt DESC";
+
+            var query = entityManager.createQuery(q1, SongsEntity.class)
+                    .setParameter("artistName", artistName.trim())
+                    .setMaxResults(limit - results.size());
+            if (!excluded.isEmpty()) {
+                query.setParameter("excluded", excluded);
+            }
+            List<SongsEntity> artistMatches = query.getResultList();
+            for (SongsEntity s : artistMatches) {
+                results.add(s);
+                excluded.add(s.getId());
+            }
+        }
+
+        // Priority 2: Same Language & ACTIVE
+        if (language != null && !language.isBlank() && results.size() < limit) {
+            String q2 = excluded.isEmpty()
+                    ? "SELECT s FROM SongsEntity s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.language) = LOWER(:language) ORDER BY s.createdAt DESC"
+                    : "SELECT s FROM SongsEntity s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.language) = LOWER(:language) AND s.id NOT IN :excluded ORDER BY s.createdAt DESC";
+
+            var query = entityManager.createQuery(q2, SongsEntity.class)
+                    .setParameter("language", language.trim())
+                    .setMaxResults(limit - results.size());
+            if (!excluded.isEmpty()) {
+                query.setParameter("excluded", excluded);
+            }
+            List<SongsEntity> langMatches = query.getResultList();
+            for (SongsEntity s : langMatches) {
+                results.add(s);
+                excluded.add(s.getId());
+            }
+        }
+
+        // Priority 3: Any other ACTIVE songs (trending / recent)
+        if (results.size() < limit) {
+            String q3 = excluded.isEmpty()
+                    ? "SELECT s FROM SongsEntity s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt DESC"
+                    : "SELECT s FROM SongsEntity s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND s.id NOT IN :excluded ORDER BY s.createdAt DESC";
+
+            var query = entityManager.createQuery(q3, SongsEntity.class)
+                    .setMaxResults(limit - results.size());
+            if (!excluded.isEmpty()) {
+                query.setParameter("excluded", excluded);
+            }
+            List<SongsEntity> generalMatches = query.getResultList();
+            results.addAll(generalMatches);
+        }
+
+        return results;
+    }
+
     @Transactional
     public void deleteById(String id) {
         SongsEntity song = entityManager.find(SongsEntity.class, id);

@@ -536,6 +536,22 @@ export const musicApi = {
         return { data: { data: [] } };
       }
     },
+    getRadioSongs: async (seedSongId: string, excludeIds: string[] = [], count = 10) => {
+      try {
+        const excludeParam =
+          excludeIds.length > 0
+            ? `&excludeIds=${encodeURIComponent(excludeIds.join(","))}`
+            : "";
+        const res = await request<Song[]>(
+          `/api/recommendations/radio?seedSongId=${encodeURIComponent(seedSongId)}&count=${count}${excludeParam}`
+        );
+        const list = Array.isArray(res) ? res : [];
+        return { data: { data: list } };
+      } catch (err) {
+        console.warn("[API] getRadioSongs failed, falling back to getSimilarSongs", err);
+        return musicApi.interactions.getSimilarSongs(seedSongId, count);
+      }
+    },
     recordListen: async (songId: string, percentage = 0.05) => {
       if (!songId) return;
       try {

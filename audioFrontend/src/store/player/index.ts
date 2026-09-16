@@ -8,6 +8,13 @@ export interface SleepTimerState {
   durationMinutes?: number;
 }
 
+export interface RadioSession {
+  seedSongId: string | null;
+  seedTitle?: string;
+  isActive: boolean;
+  sessionHistoryIds: string[];
+}
+
 export interface PlayerState {
   currentSong: PlayerSong | null;
   isPlaying: boolean;
@@ -35,6 +42,7 @@ export interface PlayerState {
   isFullVideoOpen: boolean;
   sleepTimer: SleepTimerState;
   playbackRate: number;
+  radioSession: RadioSession;
 }
 
 const _initSystemUser = (() => {
@@ -153,6 +161,11 @@ export const playerStore = new Store<PlayerState>({
     mode: null,
   },
   playbackRate: _initPlaybackRate,
+  radioSession: {
+    seedSongId: null,
+    isActive: false,
+    sessionHistoryIds: [],
+  },
 });
 
 // Hydrate token, repeatMode, isShuffle, currentTime, and currentSong on client side only
