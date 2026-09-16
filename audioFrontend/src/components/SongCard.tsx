@@ -180,8 +180,6 @@ export function SongCard({
       >
         <div
           className="aspect-square bg-zinc-900 rounded-md mb-3 relative shadow-md overflow-hidden"
-          onMouseEnter={handlePlayMouseEnter}
-          onMouseLeave={handlePlayMouseLeave}
         >
           {imageUrl ? (
             <Image
@@ -219,6 +217,8 @@ export function SongCard({
                 ? "opacity-100 translate-y-0"
                 : "opacity-0 group-hover:opacity-100"
             }`}
+            onMouseEnter={handlePlayMouseEnter}
+            onMouseLeave={handlePlayMouseLeave}
           >
             <div className="relative flex items-center justify-center">
               {/* Circular SVG countdown progress ring when counting down */}
@@ -277,7 +277,7 @@ export function SongCard({
                       cy="28"
                       r="25"
                       fill="none"
-                      stroke="#1ed760"
+                      stroke="#ffffffff"
                       strokeWidth="3"
                       strokeDasharray={157}
                       strokeDashoffset={
