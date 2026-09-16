@@ -216,8 +216,15 @@ export const queueActions = {
     if (songs.length === 0) return;
 
     playerStore.setState((s) => {
+      // Filter out immediate duplicate if the first enqueued song is identical to currentSong
+      const filteredSongs = s.currentSong?.id
+        ? songs.filter((song, idx) => !(idx === 0 && song.id === s.currentSong?.id))
+        : songs;
+
+      if (filteredSongs.length === 0) return s;
+
       // Ensure each enqueued song has its own distinct unique queueId
-      const preparedSongs: PlayerSong[] = songs.map((song) => ({
+      const preparedSongs: PlayerSong[] = filteredSongs.map((song) => ({
         ...song,
         queueId:
           typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -263,6 +270,12 @@ export const queueActions = {
 
   playNext: (song: PlayerSong) => {
     playerStore.setState((s) => {
+      // If the song to play next is the exact same as the currently playing song, skip adding duplicate
+      if (s.currentSong && s.currentSong.id === song.id) {
+        console.log(`[Queue] "${song.title}" is already the playing song. Skipping duplicate playNext.`);
+        return s;
+      }
+
       const preparedSong: PlayerSong = {
         ...song,
         queueId:
@@ -284,6 +297,21 @@ export const queueActions = {
 
       const updatedQueue = [...s.queue];
       const insertIdx = Math.min(Math.max(0, s.lastQueueIndex + 1), updatedQueue.length);
+
+      // If the track immediately next at insertIdx is already this song, don't duplicate
+      if (updatedQueue[insertIdx] && updatedQueue[insertIdx].id === song.id) {
+        console.log(`[Queue] "${song.title}" is already next in queue.`);
+        return s;
+      }
+
+      // Remove any other instance of this song in upcoming queue so it cleanly moves to "play next"
+      const existingUpcomingIdx = updatedQueue.findIndex(
+        (item, i) => i > s.lastQueueIndex && item.id === song.id,
+      );
+      if (existingUpcomingIdx !== -1) {
+        updatedQueue.splice(existingUpcomingIdx, 1);
+      }
+
       updatedQueue.splice(insertIdx, 0, preparedSong);
 
       persistQueue(updatedQueue, s.lastQueueIndex);
@@ -586,20 +614,31 @@ export const queueActions = {
       return;
     }
 
-    const nextIdx = lastQueueIndex + 1;
+    let workingQueue = [...queue];
+    let nextIdx = lastQueueIndex + 1;
+
+    // If repeatMode is not "one", remove any consecutive duplicate track matching the current song
+    if (repeatMode !== "one" && currentSong?.id) {
+      while (nextIdx < workingQueue.length && workingQueue[nextIdx].id === currentSong.id) {
+        console.log(
+          `[Queue Next] Removed duplicate consecutive track: "${workingQueue[nextIdx].title}" (${workingQueue[nextIdx].id})`,
+        );
+        workingQueue.splice(nextIdx, 1);
+      }
+    }
 
     // Proactive background refill when within 2 songs of the end
-    if (queue.length - (nextIdx + 1) <= 2) {
+    if (workingQueue.length - (nextIdx + 1) <= 2) {
       queueActions.refillQueue(false, "Proactive background refill near end of queue");
     }
 
-    if (nextIdx < queue.length) {
+    if (nextIdx < workingQueue.length) {
       console.log(
-        `[Queue Next] Advancing to song index ${nextIdx}: "${queue[nextIdx].title}"`,
+        `[Queue Next] Advancing to song index ${nextIdx}: "${workingQueue[nextIdx].title}"`,
       );
 
       // 🔑 Apply rolling window: trim played songs > MAX_HISTORY behind new index
-      const { trimmedQueue, adjustedIndex } = applyRollingWindow(queue, nextIdx);
+      const { trimmedQueue, adjustedIndex } = applyRollingWindow(workingQueue, nextIdx);
 
       playerStore.setState((s) => ({
         ...s,
@@ -637,13 +676,22 @@ export const queueActions = {
         }));
       }
       queueActions.refillQueue(false, "End of queue reached").then(() => {
-        const { queue: updatedQueue, lastQueueIndex: updatedIdx } = playerStore.state;
-        const targetIdx = updatedIdx + 1;
-        if (targetIdx < updatedQueue.length) {
+        const { queue: updatedQueue, lastQueueIndex: updatedIdx, currentSong: activeSong, repeatMode: activeRepeat } = playerStore.state;
+        let workingRefilled = [...updatedQueue];
+        let targetIdx = updatedIdx + 1;
+
+        if (activeRepeat !== "one" && activeSong?.id) {
+          while (targetIdx < workingRefilled.length && workingRefilled[targetIdx].id === activeSong.id) {
+            console.log(`[Queue Next] Removed duplicate consecutive track from refilled queue: "${workingRefilled[targetIdx].title}"`);
+            workingRefilled.splice(targetIdx, 1);
+          }
+        }
+
+        if (targetIdx < workingRefilled.length) {
           console.log(
-            `[Queue Next] Auto-playing refilled recommended song at index ${targetIdx}: "${updatedQueue[targetIdx].title}"`,
+            `[Queue Next] Auto-playing refilled recommended song at index ${targetIdx}: "${workingRefilled[targetIdx].title}"`,
           );
-          const { trimmedQueue, adjustedIndex } = applyRollingWindow(updatedQueue, targetIdx);
+          const { trimmedQueue, adjustedIndex } = applyRollingWindow(workingRefilled, targetIdx);
           playerStore.setState((s) => ({
             ...s,
             queue: trimmedQueue,
@@ -653,11 +701,11 @@ export const queueActions = {
           import("@/store/player/playback.actions").then(({ playbackActions }) =>
             playbackActions.play(trimmedQueue[adjustedIndex]),
           );
-        } else if (updatedQueue.length > 0) {
+        } else if (workingRefilled.length > 0) {
           console.log("[Queue Next] Restarting from first song as fallback.");
-          persistQueue(updatedQueue, 0);
+          persistQueue(workingRefilled, 0);
           import("@/store/player/playback.actions").then(({ playbackActions }) =>
-            playbackActions.play(updatedQueue[0]),
+            playbackActions.play(workingRefilled[0]),
           );
         } else {
           console.log("[Queue Next] No new tracks available. Stopping playback.");

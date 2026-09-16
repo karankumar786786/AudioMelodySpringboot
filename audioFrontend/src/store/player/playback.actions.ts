@@ -45,6 +45,14 @@ export const playbackActions = {
         `[Queue State] Current Index: ${idx}, Total Songs: ${updatedQueue.length}`,
       );
 
+      // If consecutive duplicate tracks matching the played song exist immediately next in queue, remove them
+      while (idx + 1 < updatedQueue.length && updatedQueue[idx + 1].id === song.id) {
+        console.log(
+          `[Playback] Removed consecutive duplicate song "${song.title}" (${song.id}) at index ${idx + 1}`,
+        );
+        updatedQueue.splice(idx + 1, 1);
+      }
+
       const radioSession =
         s.radioSession.isActive && s.radioSession.seedSongId
           ? s.radioSession
