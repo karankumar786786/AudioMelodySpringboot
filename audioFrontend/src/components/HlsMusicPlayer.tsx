@@ -321,7 +321,7 @@ export function HlsMusicPlayer() {
       </div>
 
       {/* Spotify Bottom Persistent Audio Player Bar */}
-      <footer className="fixed bottom-0 left-0 right-0 h-20 bg-black/95 backdrop-blur-md border-t border-[#282828] z-50 px-3 sm:px-4 md:px-6 flex items-center justify-between select-none shadow-[0_-8px_30px_rgba(0,0,0,0.7)]">
+      <footer className="fixed bottom-0 left-0 right-0 h-20 bg-black/95 backdrop-blur-md border-t border-[#282828] z-50 px-3 sm:px-4 md:px-6 flex items-center justify-between select-none">
         {/* Left Section: Track Info & Quick Actions */}
         <PlayerTrackCard currentSong={currentSong} posterUrl={posterUrl} />
 

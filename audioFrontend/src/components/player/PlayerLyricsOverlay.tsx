@@ -451,7 +451,7 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
           {isUserScrolled && (
             <button
               onClick={() => handleResync(true)}
-              className="fixed bottom-28 left-1/2 -translate-x-1/2 group flex items-center gap-2.5 bg-white/15 hover:bg-white/25 text-white text-xs font-semibold px-4.5 py-2.5 rounded-full border border-white/25 hover:border-white/40 backdrop-blur-xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37),inset_0_1px_1px_0_rgba(255,255,255,0.25)] hover:shadow-[0_12px_40px_0_rgba(0,0,0,0.45),inset_0_1px_1px_0_rgba(255,255,255,0.35)] hover:scale-105 active:scale-95 transition-all duration-200 z-10 cursor-pointer"
+              className="sticky bottom-6 mx-auto group flex items-center gap-2.5 bg-white/15 hover:bg-white/25 text-white text-xs font-semibold px-4.5 py-2.5 rounded-full border border-white/25 hover:border-white/40 backdrop-blur-xl shadow-[0_8px_32px_0_rgba(0,0,0,0.37),inset_0_1px_1px_0_rgba(255,255,255,0.25)] hover:shadow-[0_12px_40px_0_rgba(0,0,0,0.45),inset_0_1px_1px_0_rgba(255,255,255,0.35)] hover:scale-105 active:scale-95 transition-all duration-200 z-20 cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5 transition-transform duration-300 group-hover:-rotate-45" />
               <span className="tracking-wide">Sync lyrics</span>
