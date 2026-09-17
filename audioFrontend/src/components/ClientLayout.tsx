@@ -13,6 +13,7 @@ import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const systemUser = useStore(playerStore, (s) => s.systemUser);
+  const isLyricsOpen = useStore(playerStore, (s) => s.isLyricsOpen);
   const [isReady, setIsReady] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -110,11 +111,18 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       <AppNavbar />
 
       <LeftSidebar />
-      <div className="flex-1 flex flex-col min-w-0 ml-0 md:ml-[64px] xl:ml-[192px] mr-0 lg:mr-[290px] xl:mr-[320px] 2xl:mr-[340px] overflow-hidden relative z-10 bg-black pt-16 transition-[margin] duration-200">
-        <main className="flex-1 overflow-y-auto no-scrollbar pb-24">
+      <section
+        id="main-section"
+        className="flex-1 flex flex-col min-w-0 ml-0 md:ml-[64px] xl:ml-[192px] mr-0 lg:mr-[290px] xl:mr-[320px] 2xl:mr-[340px] overflow-hidden relative z-10 bg-black pt-16 transition-[margin] duration-200"
+      >
+        <main
+          className={`flex-1 ${
+            isLyricsOpen ? "overflow-hidden pointer-events-none invisible" : "overflow-y-auto"
+          } no-scrollbar pb-24`}
+        >
           {children}
         </main>
-      </div>
+      </section>
       <RightInfoPanel />
       <HlsMusicPlayer />
     </>

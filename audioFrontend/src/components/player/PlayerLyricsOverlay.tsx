@@ -415,9 +415,9 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
                               key={wIdx}
                               className={`text-2xl sm:text-3xl md:text-4xl lg:text-[36px] font-extrabold tracking-tight transition-all duration-150 inline-block transform-gpu ${
                                 isWordActive
-                                  ? "text-white opacity-100 drop-shadow-[0_0_20px_rgba(255,255,255,0.85)] scale-[1.02]"
+                                  ? "text-white opacity-100 scale-[1.02]"
                                   : isActive
-                                    ? "text-white/85 drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]"
+                                    ? "text-white/85"
                                     : "text-white/60"
                               }`}
                             >
@@ -430,7 +430,7 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
                       <p
                         className={`text-2xl sm:text-3xl md:text-4xl lg:text-[36px] font-extrabold tracking-tight transition-all duration-300 leading-snug transform-gpu ${
                           isActive
-                            ? "text-white opacity-100 drop-shadow-[0_0_24px_rgba(255,255,255,0.7)]"
+                            ? "text-white opacity-100"
                             : "text-white/70"
                         }`}
                       >

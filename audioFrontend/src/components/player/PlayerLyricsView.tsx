@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { PlayerLyricsOverlay } from "./PlayerLyricsOverlay";
 import { type TranscriptionEntry } from "./hooks/useLyrics";
 
@@ -26,12 +27,25 @@ export const PlayerLyricsView: React.FC<PlayerLyricsViewProps> = ({
   isLyricsLoading,
   onSeek,
 }) => {
-  return (
+  const [targetElement, setTargetElement] = useState<HTMLElement | null>(() => {
+    if (typeof document !== "undefined") {
+      return document.getElementById("main-section");
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (!targetElement && typeof document !== "undefined") {
+      setTargetElement(document.getElementById("main-section"));
+    }
+  }, [targetElement]);
+
+  const content = (
     <div
       style={{ backgroundColor: solidBgColor }}
-      className="fixed left-0 md:left-[64px] xl:left-[192px] right-0 lg:right-[290px] xl:right-[320px] 2xl:right-[340px]  top-16 bottom-20 rounded-2xl mx-5 my-3 z-40 flex flex-col p-2 sm:p-4 md:p-6 overflow-y-auto no-scrollbar animate-in fade-in duration-300 transition-[left,right] duration-200"
+      className="absolute inset-x-0 top-16 bottom-20 z-40 flex flex-col px-2 sm:px-4 md:px-6 py-2 sm:py-4 md:py-6 overflow-hidden rounded-2xl animate-in fade-in duration-300 select-none"
     >
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden  relative">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
         <PlayerLyricsOverlay
           currentCaption={currentCaption}
           transcriptions={displayTranscriptions}
@@ -44,4 +58,11 @@ export const PlayerLyricsView: React.FC<PlayerLyricsViewProps> = ({
       </div>
     </div>
   );
+
+  if (targetElement) {
+    return createPortal(content, targetElement);
+  }
+
+  return null;
 };
+
