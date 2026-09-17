@@ -43,7 +43,7 @@ export const PlayerLyricsView: React.FC<PlayerLyricsViewProps> = ({
   const content = (
     <div
       style={{ backgroundColor: solidBgColor }}
-      className="absolute inset-x-0 top-16 bottom-20 z-40 flex flex-col px-2 sm:px-4 md:px-6 py-2 sm:py-4 md:py-6 overflow-hidden rounded-2xl animate-in fade-in duration-300 select-none"
+      className="absolute inset-x-2 top-16 bottom-20 z-40 flex flex-col px-2 sm:px-4 md:px-6 py-2 sm:py-4 md:py-6 overflow-hidden rounded-2xl animate-in fade-in duration-300 select-none"
     >
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
         <PlayerLyricsOverlay
