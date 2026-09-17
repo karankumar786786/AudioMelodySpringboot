@@ -376,9 +376,23 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
       ) : hasTranscriptions ? (
         // ✅ Synced karaoke lyrics
         <>
-          <div className="space-y-5 sm:space-y-6 md:space-y-7 w-full max-w-2xl lg:max-w-3xl text-left py-4 md:py-8">
+          <div className="space-y-6 sm:space-y-8 md:space-y-9 w-full max-w-2xl lg:max-w-3xl text-left py-24 sm:py-32 md:py-40">
             {transcriptions.map((entry, idx) => {
               const isActive = idx === activeIndex;
+              const distance = activeIndex === -1 ? 0 : Math.abs(idx - activeIndex);
+
+              // Calculate graduated blur and opacity based on distance from active line
+              let focusStyle = "blur-0 opacity-100 scale-[1.03] origin-left";
+              if (!isActive && activeIndex !== -1) {
+                if (distance === 1) {
+                  focusStyle = "blur-[0.5px] opacity-55 scale-100 group-hover:blur-0 group-hover:opacity-90";
+                } else if (distance === 2) {
+                  focusStyle = "blur-[1.2px] opacity-35 scale-100 group-hover:blur-0 group-hover:opacity-90";
+                } else {
+                  focusStyle = "blur-[2px] opacity-20 scale-100 group-hover:blur-0 group-hover:opacity-90";
+                }
+              }
+
               return (
                 <div
                   key={`${entry.start_time_seconds}-${idx}`}
@@ -388,27 +402,23 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
                     if (onSeek) onSeek(entry.start_time_seconds);
                     handleResync(false);
                   }}
-                  className={`group flex items-center justify-between gap-4 cursor-pointer transition-all duration-200 py-1 rounded-lg ${
-                    isActive
-                      ? "text-white"
-                      : "text-white/40 hover:text-white/80"
-                  }`}
+                  className={`group relative flex items-center justify-between gap-4 cursor-pointer transition-all duration-300 py-1.5 px-3 -mx-3 rounded-xl transform-gpu ${focusStyle}`}
                 >
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     {entry.words && entry.words.length > 0 ? (
-                      <div className="flex flex-wrap gap-x-2 sm:gap-x-2.5 gap-y-1">
+                      <div className="flex flex-wrap gap-x-2.5 sm:gap-x-3 gap-y-1.5 items-center">
                         {entry.words.map((word, wIdx) => {
                           const isWordActive =
                             localTime >= word.start && localTime <= word.end;
                           return (
                             <span
                               key={wIdx}
-                              className={`text-xl sm:text-2xl md:text-3xl lg:text-[32px] font-extrabold tracking-tight transition-colors duration-100 ${
+                              className={`text-2xl sm:text-3xl md:text-4xl lg:text-[36px] font-extrabold tracking-tight transition-all duration-150 inline-block transform-gpu ${
                                 isWordActive
-                                  ? "text-white opacity-100"
+                                  ? "text-white opacity-100 drop-shadow-[0_0_20px_rgba(255,255,255,0.85)] scale-[1.02]"
                                   : isActive
-                                    ? "text-white/80"
-                                    : "text-white/40 hover:text-white/80"
+                                    ? "text-white/85 drop-shadow-[0_0_12px_rgba(255,255,255,0.4)]"
+                                    : "text-white/60"
                               }`}
                             >
                               {word.text}
@@ -418,10 +428,10 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
                       </div>
                     ) : (
                       <p
-                        className={`text-xl sm:text-2xl md:text-3xl lg:text-[32px] font-extrabold tracking-tight transition-colors duration-200 ${
+                        className={`text-2xl sm:text-3xl md:text-4xl lg:text-[36px] font-extrabold tracking-tight transition-all duration-300 leading-snug transform-gpu ${
                           isActive
-                            ? "text-white opacity-100"
-                            : "text-white/40 hover:text-white/80"
+                            ? "text-white opacity-100 drop-shadow-[0_0_24px_rgba(255,255,255,0.7)]"
+                            : "text-white/70"
                         }`}
                       >
                         {entry.transcript}
@@ -437,7 +447,7 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
                       setSelectedLyricForCard(entry.transcript);
                       setIsLyricCardModalOpen(true);
                     }}
-                    className="opacity-0 group-hover:opacity-100 p-2 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-all cursor-pointer shrink-0"
+                    className="opacity-0 group-hover:opacity-100 p-2 rounded-full hover:bg-white/15 text-white/50 hover:text-white transition-all cursor-pointer shrink-0 backdrop-blur-sm"
                     title="Share Lyric Quote"
                   >
                     <Share2 size={16} />
