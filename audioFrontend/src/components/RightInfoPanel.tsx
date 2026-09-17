@@ -274,8 +274,8 @@ export function RightInfoPanel() {
           {/* 1. MEDIA DISPLAY (Full-bleed Video Canvas OR Card Cover Art) */}
           {/* ========================================================== */}
           {directVideoUrl ? (
-            /* Full-bleed Tall Video Canvas when Video is Available */
-            <div className="relative w-full h-[440px] overflow-hidden bg-zinc-900 shadow-2xl flex flex-col justify-end group">
+            /* Full-bleed Video Canvas when Video is Available */
+            <div className="relative w-full h-[350px] overflow-hidden bg-zinc-900 shadow-2xl flex flex-col justify-end group">
               <video
                 key={`canvas-video-${currentSong.id}-${activeVideoKey}`}
                 src={directVideoUrl}
@@ -300,10 +300,10 @@ export function RightInfoPanel() {
               )}
 
               {/* Seamless Bottom Gradient Overlay */}
-              <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none" />
+              <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none" />
 
               {/* Overlaid Song Title, Artist & Actions */}
-              <div className="relative z-10 p-4 pb-4 flex items-end justify-between gap-3">
+              <div className="relative z-10 p-4 pb-3.5 flex items-end justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <MarqueeTitle
                     text={currentSong.title}
@@ -346,8 +346,8 @@ export function RightInfoPanel() {
               </div>
             </div>
           ) : (
-            /* Card-Style Cover Art in fixed h-[440px] container (prevents layout jump) */
-            <div className="relative w-full h-[440px] p-4 flex flex-col justify-between overflow-hidden bg-black">
+            /* Card-Style Cover Art in fixed h-[350px] container (prevents layout jump) */
+            <div className="relative w-full h-[350px] p-4 flex flex-col justify-between overflow-hidden bg-black">
               {/* Subtle Ambient Glow from Cover Art */}
               {songImage && (
                 <div
@@ -357,7 +357,7 @@ export function RightInfoPanel() {
 
               {/* Centered Artwork Card */}
               <div className="relative z-10 w-full flex-1 flex items-center justify-center pt-2">
-                <div className="relative w-full max-w-[280px] aspect-square overflow-hidden rounded-2xl bg-zinc-900 border border-white/10 shadow-2xl group">
+                <div className="relative w-full max-w-[220px] xl:max-w-[230px] aspect-square overflow-hidden rounded-2xl bg-zinc-900 border border-white/10 shadow-2xl group">
                   {songImage ? (
                     <img
                       src={songImage}
