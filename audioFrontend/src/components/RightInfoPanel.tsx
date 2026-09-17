@@ -275,7 +275,7 @@ export function RightInfoPanel() {
           {/* ========================================================== */}
           {directVideoUrl ? (
             /* Full-bleed Video Canvas when Video is Available */
-            <div className="relative w-full h-[350px] overflow-hidden bg-zinc-900 shadow-2xl flex flex-col justify-end group">
+            <div className="relative w-full h-[350px] overflow-hidden rounded-t-2xl bg-zinc-900 shadow-2xl flex flex-col justify-end group">
               <video
                 key={`canvas-video-${currentSong.id}-${activeVideoKey}`}
                 src={directVideoUrl}
@@ -288,13 +288,13 @@ export function RightInfoPanel() {
                 onLoadedData={() => setMediaLoaded(true)}
                 onCanPlay={() => setMediaLoaded(true)}
                 onPlay={() => setMediaLoaded(true)}
-                className={`absolute inset-0 w-full h-full object-cover object-center transition-opacity duration-500 ease-in-out ${
+                className={`absolute inset-0 w-full h-full object-cover object-center rounded-t-2xl transition-opacity duration-500 ease-in-out ${
                   mediaLoaded ? "opacity-100" : "opacity-0"
                 }`}
               />
 
               {!mediaLoaded && (
-                <div className="absolute inset-0 bg-zinc-900 animate-pulse flex items-center justify-center transition-opacity duration-500">
+                <div className="absolute inset-0 bg-zinc-900 rounded-t-2xl animate-pulse flex items-center justify-center transition-opacity duration-500">
                   <Music size={36} className="text-zinc-700 animate-pulse" />
                 </div>
               )}
@@ -347,11 +347,11 @@ export function RightInfoPanel() {
             </div>
           ) : (
             /* Card-Style Cover Art in fixed h-[350px] container (prevents layout jump) */
-            <div className="relative w-full h-[350px] p-4 flex flex-col justify-between overflow-hidden bg-black">
+            <div className="relative w-full h-[350px] p-4 flex flex-col justify-between overflow-hidden rounded-t-2xl bg-black">
               {/* Subtle Ambient Glow from Cover Art */}
               {songImage && (
                 <div
-                  className="absolute inset-0 bg-cover bg-center blur-3xl opacity-20 scale-125 pointer-events-none transition-opacity duration-500"
+                  className="absolute inset-0 bg-cover bg-center blur-3xl opacity-20 scale-125 pointer-events-none transition-opacity duration-500 rounded-t-2xl"
                 />
               )}
 
