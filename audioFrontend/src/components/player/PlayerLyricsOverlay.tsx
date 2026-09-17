@@ -4,9 +4,8 @@ import React, { useRef, useEffect, useState, useCallback } from "react";
 import { useStore } from "@tanstack/react-store";
 import { playerStore } from "../../store/player.store";
 import { type TranscriptionEntry } from "./hooks/useLyrics";
-import { RotateCcw, Share2 } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
-import { LyricCardModal } from "./LyricCardModal";
 
 interface AudioVisualizerFallbackProps {
   analyser?: AnalyserNode | null;
@@ -149,8 +148,6 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
   const lastActiveIndexRef = useRef(-1);
 
   const [isUserScrolled, setIsUserScrolled] = useState(false);
-  const [isLyricCardModalOpen, setIsLyricCardModalOpen] = useState(false);
-  const [selectedLyricForCard, setSelectedLyricForCard] = useState("");
 
   // Smoothly center the active lyric line in container
   const scrollToActiveLine = useCallback((smooth = true) => {
@@ -438,20 +435,6 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
                       </p>
                     )}
                   </div>
-
-                  {/* 1-Click Share Lyric Quote Card Button */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedLyricForCard(entry.transcript);
-                      setIsLyricCardModalOpen(true);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 p-2 rounded-full hover:bg-white/15 text-white/50 hover:text-white transition-all cursor-pointer shrink-0 backdrop-blur-sm"
-                    title="Share Lyric Quote"
-                  >
-                    <Share2 size={16} />
-                  </button>
                 </div>
               );
             })}
@@ -511,16 +494,6 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
       ) : (
         // 🎵 Live Audio Visualizer Equalizer when no lyrics present
         <AudioVisualizerFallback analyser={analyser} isPlaying={isPlaying} />
-      )}
-
-      {/* Share Lyric Card Modal */}
-      {currentSong && (
-        <LyricCardModal
-          isOpen={isLyricCardModalOpen}
-          onClose={() => setIsLyricCardModalOpen(false)}
-          song={currentSong}
-          initialLyric={selectedLyricForCard}
-        />
       )}
     </div>
   );

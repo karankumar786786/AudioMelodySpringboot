@@ -15,14 +15,12 @@ import {
   Radio,
   Sparkles,
   RotateCcw,
-  Share2,
 } from "lucide-react";
 import { useStore } from "@tanstack/react-store";
 import { playerStore, playerActions } from "@/store/player.store";
 import { getImageUrl, getVideoUrl } from "@/lib/image-utils";
 import { useLyrics, type TranscriptionEntry } from "./hooks/useLyrics";
 import { toast } from "sonner";
-import { LyricCardModal } from "./LyricCardModal";
 
 interface ZenFocusOverlayProps {
   analyser?: AnalyserNode | null;
@@ -88,8 +86,6 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
   const lastActiveIndexRef = useRef(-1);
 
   const [isUserScrolled, setIsUserScrolled] = useState(false);
-  const [isLyricCardModalOpen, setIsLyricCardModalOpen] = useState(false);
-  const [selectedLyricForCard, setSelectedLyricForCard] = useState("");
 
   // Auto-hide Exit (Esc/Z) button on inactivity for deep Zen Focus
   const [showExitButton, setShowExitButton] = useState(true);
@@ -599,24 +595,6 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
                           </p>
                         )}
                       </div>
-
-                      {/* 1-Click Share Lyric Quote Card Button */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedLyricForCard(entry.transcript);
-                          setIsLyricCardModalOpen(true);
-                        }}
-                        style={{
-                          boxShadow:
-                            "inset 0 1px 1px 0 rgba(255, 255, 255, 0.3), 0 4px 12px rgba(0, 0, 0, 0.3)",
-                        }}
-                        className="opacity-0 group-hover:opacity-100 p-2 rounded-full hover:bg-white/15 border border-transparent hover:border-white/20 text-white/40 hover:text-white transition-all cursor-pointer shrink-0 backdrop-blur-xl"
-                        title="Share Lyric Quote"
-                      >
-                        <Share2 size={16} />
-                      </button>
                     </div>
                   );
                 })
@@ -812,16 +790,6 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
             </button>
           </div>
         </footer>
-
-        {/* Viral Lyric Card Generator Modal */}
-        {currentSong && (
-          <LyricCardModal
-            isOpen={isLyricCardModalOpen}
-            onClose={() => setIsLyricCardModalOpen(false)}
-            song={currentSong}
-            initialLyric={selectedLyricForCard}
-          />
-        )}
       </motion.div>
     </AnimatePresence>
   );
