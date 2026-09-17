@@ -152,7 +152,7 @@ export function AppNavbar() {
   };
 
   const handleUserPlaylistClick = (playlist: UserPlaylist) => {
-    router.push(`/userplaylist/${playlist.id}`);
+    router.push(`/my-playlists/${playlist.id}`);
     if (systemUser?.id && playlist.id) {
       saveHistory.mutate({ type: "USER_PLAYLIST", userPlaylistId: playlist.id });
     }

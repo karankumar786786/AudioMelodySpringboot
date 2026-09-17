@@ -276,7 +276,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       onClose();
     } else if (item.type === "playlist") {
       if (item.data?.isUserPlaylist) {
-        router.push(`/userplaylist/${item.data.id}`);
+        router.push(`/my-playlists/${item.data.id}`);
         if (systemUser?.id && item.data.id) {
           saveHistory.mutate({ type: "USER_PLAYLIST", userPlaylistId: item.data.id });
         }

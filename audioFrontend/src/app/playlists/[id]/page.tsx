@@ -29,7 +29,7 @@ export default function PlaylistPage() {
 
   useEffect(() => {
     if (playlistType === "user") {
-      router.replace(`/userplaylist/${id}`);
+      router.replace(`/my-playlists/${id}`);
     }
   }, [playlistType, id, router]);
 
@@ -68,7 +68,7 @@ export default function PlaylistPage() {
         "ownerName" in playlistResponse.data ||
         "privacy" in playlistResponse.data)
     ) {
-      router.replace(`/userplaylist/${id}`);
+      router.replace(`/my-playlists/${id}`);
     }
   }, [playlistResponse, id, router]);
 

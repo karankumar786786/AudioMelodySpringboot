@@ -54,6 +54,20 @@ const nextConfig: NextConfig = {
       "framer-motion",
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: "/user-playlist/:id",
+        destination: "/my-playlists/:id",
+        permanent: true,
+      },
+      {
+        source: "/userplaylist/:id",
+        destination: "/my-playlists/:id",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

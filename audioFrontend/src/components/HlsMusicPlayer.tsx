@@ -54,6 +54,8 @@ import { PlayerProgressBar } from "./player/PlayerProgressBar";
 import { PlayerRightControls } from "./player/PlayerRightControls";
 import { ZenFocusOverlay } from "./player/ZenFocusOverlay";
 
+import { toast } from "sonner";
+
 // Hooks
 import { useHlsPlayer } from "./player/hooks/useHlsPlayer";
 import { useLyrics } from "./player/hooks/useLyrics";
@@ -61,6 +63,7 @@ import { useAudioSync } from "./player/hooks/useAudioSync";
 import { useWebAudio } from "./player/hooks/useWebAudio";
 import { useNextTrackPreloader } from "./player/hooks/useNextTrackPreloader";
 import { usePlayerShortcuts } from "./player/hooks/usePlayerShortcuts";
+import { useMediaSession } from "./player/hooks/useMediaSession";
 
 export function HlsMusicPlayer() {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -90,21 +93,6 @@ export function HlsMusicPlayer() {
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-
-  // Sleep Timer countdown check
-  useEffect(() => {
-    if (!state.sleepTimer?.targetTimestamp || state.sleepTimer.mode !== "minutes") return;
-
-    const checkTimer = () => {
-      if (Date.now() >= state.sleepTimer.targetTimestamp!) {
-        playerActions.setIsPlaying(false);
-        playerActions.clearSleepTimer();
-      }
-    };
-
-    const interval = setInterval(checkTimer, 1000);
-    return () => clearInterval(interval);
-  }, [state.sleepTimer?.targetTimestamp, state.sleepTimer?.mode]);
 
   // Compute solid color matching current song image
   useEffect(() => {
@@ -151,8 +139,68 @@ export function HlsMusicPlayer() {
   // Web Audio EQ Graph
   const webAudio = useWebAudio(audioRef.current, isPlaying);
 
+  // Sleep Timer countdown check with gradual volume fade-out
+  const isSleepFadingRef = useRef(false);
+  useEffect(() => {
+    if (!state.sleepTimer?.targetTimestamp || state.sleepTimer.mode !== "minutes") {
+      if (isSleepFadingRef.current) {
+        webAudio.setGainImmediate(1);
+        isSleepFadingRef.current = false;
+      }
+      return;
+    }
+
+    const checkTimer = () => {
+      const now = Date.now();
+      const target = state.sleepTimer?.targetTimestamp;
+      if (!target) return;
+
+      const remainingMs = target - now;
+
+      // Start gentle fade-out in the last 15 seconds
+      if (remainingMs <= 15000 && remainingMs > 0 && !isSleepFadingRef.current) {
+        isSleepFadingRef.current = true;
+        const remainingSec = Math.max(0.5, remainingMs / 1000);
+        webAudio.fadeTo(0, remainingSec);
+      }
+
+      if (remainingMs <= 0) {
+        playerActions.setIsPlaying(false);
+        playerActions.clearSleepTimer();
+        webAudio.setGainImmediate(1);
+        isSleepFadingRef.current = false;
+        toast("Sleep timer finished", {
+          description: "Playback smoothly stopped. Sweet dreams!",
+          icon: "🌙",
+        });
+      }
+    };
+
+    const interval = setInterval(checkTimer, 1000);
+    checkTimer();
+
+    return () => {
+      clearInterval(interval);
+      if (isSleepFadingRef.current) {
+        webAudio.setGainImmediate(1);
+        isSleepFadingRef.current = false;
+      }
+    };
+  }, [state.sleepTimer?.targetTimestamp, state.sleepTimer?.mode, webAudio.fadeTo, webAudio.setGainImmediate]);
+
   // Next-Track Pre-buffering & Gapless Engine
   useNextTrackPreloader(standbyAudioRef.current);
+
+  // MediaSession API Integration (Lockscreen, Control Center & Notification Controls)
+  useMediaSession({
+    currentSong,
+    isPlaying,
+    currentTime: localTime,
+    duration,
+    playbackRate: state.playbackRate,
+    audioElement: audioRef.current,
+    setLocalTime,
+  });
 
   // Audio Progress & Crossfade Synchronizer
   useAudioSync(
