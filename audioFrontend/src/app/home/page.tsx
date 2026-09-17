@@ -136,15 +136,15 @@ export default function HomePage() {
         if (song?.id && !seen.has(String(song.id))) {
           seen.add(String(song.id));
           result.push(song);
-          if (result.length >= 8) return;
+          if (result.length >= 6) return;
         }
       }
     };
 
     addSongs(recentList);
-    if (result.length < 8) addSongs(trendingList);
-    if (result.length < 8) addSongs(featuredList);
-    if (result.length < 8) addSongs(feedList);
+    if (result.length < 6) addSongs(trendingList);
+    if (result.length < 6) addSongs(featuredList);
+    if (result.length < 6) addSongs(feedList);
 
     return result;
   }, [
@@ -238,10 +238,10 @@ export default function HomePage() {
 
   if (isInitialPageLoading) {
     return (
-      <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-[var(--app-content-pt,1.5rem)] space-y-8 animate-pulse select-none">
+      <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-[var(--app-content-pt,1.5rem)] space-y-5 sm:space-y-6 animate-pulse select-none">
         {/* Header & Filter Pills Skeleton */}
-        <div className="space-y-3">
-          <div className="h-8 w-48 bg-zinc-800/80 rounded-lg" />
+        <div className="space-y-2.5">
+          <div className="h-7 sm:h-8 w-48 bg-zinc-800/80 rounded-lg" />
           <div className="flex gap-2">
             {[1, 2, 3, 4, 5].map((i) => (
               <div
@@ -253,13 +253,13 @@ export default function HomePage() {
         </div>
 
         {/* Quick Picks Skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5 sm:gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
               key={i}
-              className="h-14 sm:h-16 rounded-lg bg-zinc-900/80 border border-white/5 flex items-center gap-3 overflow-hidden"
+              className="h-13 sm:h-14 rounded-lg bg-zinc-900/80 border border-white/5 flex items-center gap-3 overflow-hidden"
             >
-              <div className="w-14 sm:w-16 h-full bg-zinc-800 shrink-0" />
+              <div className="w-13 sm:w-14 h-full bg-zinc-800 shrink-0" />
               <div className="flex-1 space-y-1.5 pr-4">
                 <div className="h-3 w-3/5 bg-zinc-800 rounded" />
                 <div className="h-2.5 w-2/5 bg-zinc-850 rounded" />
@@ -306,9 +306,9 @@ export default function HomePage() {
   const trendingSongs: Song[] = trending?.data?.data || [];
 
   return (
-    <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-[var(--app-content-pt,1.5rem)] space-y-8 select-none">
+    <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-[var(--app-content-pt,1.5rem)] space-y-5 sm:space-y-6 select-none">
       {/* 1. Header with Time-of-Day Greeting, User Welcome & Filter Pills */}
-      <section className="space-y-3.5">
+      <section className="space-y-2.5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">

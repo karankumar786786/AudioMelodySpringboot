@@ -26,13 +26,13 @@ export function QuickPicksGrid({
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5 sm:gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3">
         {[1, 2, 3, 4, 5, 6].map((i) => (
           <div
             key={i}
-            className="h-14 sm:h-16 rounded-lg bg-zinc-900/80 border border-white/5 flex items-center gap-3 overflow-hidden animate-pulse"
+            className="h-13 sm:h-14 rounded-lg bg-zinc-900/80 border border-white/5 flex items-center gap-3 overflow-hidden animate-pulse"
           >
-            <div className="w-14 sm:w-16 h-full bg-zinc-800 shrink-0" />
+            <div className="w-13 sm:w-14 h-full bg-zinc-800 shrink-0" />
             <div className="flex-1 space-y-1.5 pr-4">
               <div className="h-3 w-3/5 bg-zinc-800 rounded" />
               <div className="h-2.5 w-2/5 bg-zinc-850 rounded" />
@@ -43,15 +43,15 @@ export function QuickPicksGrid({
     );
   }
 
-  // Display top 6 to 8 items
-  const displaySongs = songs.slice(0, 8);
+  // Display top 6 items (2 rows x 3 columns on desktop)
+  const displaySongs = songs.slice(0, 6);
 
   if (displaySongs.length === 0) {
     return null;
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-2.5 sm:gap-3 select-none">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3 select-none">
       {displaySongs.map((song, index) => {
         const isCurrent = currentSong?.id === song.id;
         const isCurrentActive = isCurrent && isPlaying;
