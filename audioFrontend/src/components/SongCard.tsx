@@ -1,30 +1,30 @@
 "use client";
 
+import { useStore } from "@tanstack/react-store";
 import { motion } from "framer-motion";
-import Image from "next/image";
 import {
-  Play,
-  Pause,
-  MoreVertical,
-  ListPlus,
   CornerDownRight,
-  Plus,
-  X,
   Heart,
-  Share2,
+  ListPlus,
   Loader2,
+  MoreVertical,
+  Pause,
+  Play,
+  Plus,
   Radio,
+  Share2,
+  X,
 } from "lucide-react";
-import { type Song } from "../lib/api";
-import { playerActions, playerStore } from "../store/player.store";
+import Image from "next/image";
+import { useState } from "react";
+import { toast } from "sonner";
+import type { Song } from "../lib/api";
+import { getImageUrl } from "../lib/image-utils";
 import { mapToPlayerSong } from "../lib/player-utils";
 import { previewPlayer, previewStore } from "../lib/preview-player";
-import { useStore } from "@tanstack/react-store";
-import { toast } from "sonner";
-import { useState } from "react";
+import { playerActions, playerStore } from "../store/player.store";
 import { PlaylistPickerModal } from "./PlaylistPickerModal";
 import { ShareSongModal } from "./ShareSongModal";
-import { getImageUrl } from "../lib/image-utils";
 
 const formatTime = (seconds: number) => {
   if (isNaN(seconds) || seconds < 0) return "0:00";
@@ -174,13 +174,11 @@ export function SongCard({
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
         onClick={handlePlayToggle}
-        className={`bg-black p-2.5 rounded-lg group cursor-pointer relative transition-all duration-300 hover:bg-[#282828] ${
+        className={`bg-black p-2 rounded-lg group cursor-pointer relative transition-all duration-300 hover:bg-[#282828] ${
           isActiveSong ? "bg-[#282828] border border-primary/30" : ""
         } ${className || ""}`}
       >
-        <div
-          className="aspect-square bg-zinc-900 rounded-md mb-2 relative shadow-md overflow-hidden"
-        >
+        <div className="aspect-square bg-zinc-900 rounded-md mb-1.5 relative shadow-md overflow-hidden">
           {imageUrl ? (
             <Image
               src={imageUrl}
@@ -224,26 +222,27 @@ export function SongCard({
               {/* Circular SVG countdown progress ring when counting down */}
               {isCountingDown && (
                 <svg
-                  className="absolute -inset-1 w-14 h-14 -rotate-90 pointer-events-none"
-                  viewBox="0 0 56 56"
+                  className="absolute -inset-1 w-[52px] h-[52px] -rotate-90 pointer-events-none"
+                  viewBox="0 0 52 52"
+                  aria-hidden="true"
                 >
                   <circle
-                    cx="28"
-                    cy="28"
-                    r="25"
+                    cx="26"
+                    cy="26"
+                    r="23"
                     fill="none"
                     stroke="rgba(255, 255, 255, 0.15)"
-                    strokeWidth="3"
+                    strokeWidth="2.5"
                   />
                   <motion.circle
-                    cx="28"
-                    cy="28"
-                    r="25"
+                    cx="26"
+                    cy="26"
+                    r="23"
                     fill="none"
                     stroke="#ffffffff"
-                    strokeWidth="3"
-                    strokeDasharray={157}
-                    initial={{ strokeDashoffset: 157 }}
+                    strokeWidth="2.5"
+                    strokeDasharray={145}
+                    initial={{ strokeDashoffset: 145 }}
                     animate={{ strokeDashoffset: 0 }}
                     transition={{ duration: 1, ease: "linear" }}
                     strokeLinecap="round"
@@ -254,35 +253,41 @@ export function SongCard({
               {/* Real-time Progress Ring & Pulsing Beat Expansion when preview is playing */}
               {isPreviewPlaying && (
                 <>
-                  <span className="absolute -inset-1.5 rounded-full border-2 border-primary animate-ping opacity-60 pointer-events-none" />
+                  <span className="absolute -inset-1 rounded-full border-2 border-primary animate-ping opacity-60 pointer-events-none" />
                   <motion.span
-                    className="absolute -inset-2.5 rounded-full border border-primary/40 pointer-events-none"
+                    className="absolute -inset-2 rounded-full border border-primary/40 pointer-events-none"
                     animate={{ scale: [1, 1.2, 1], opacity: [0.6, 0, 0.6] }}
-                    transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
+                    transition={{
+                      duration: 1.2,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
                   />
                   <svg
-                    className="absolute -inset-1 w-14 h-14 -rotate-90 pointer-events-none drop-shadow-[0_0_8px_rgba(30,215,96,0.6)]"
-                    viewBox="0 0 56 56"
+                    className="absolute -inset-1 w-[52px] h-[52px] -rotate-90 pointer-events-none drop-shadow-[0_0_8px_rgba(30,215,96,0.6)]"
+                    viewBox="0 0 52 52"
+                    aria-hidden="true"
                   >
                     <circle
-                      cx="28"
-                      cy="28"
-                      r="25"
+                      cx="26"
+                      cy="26"
+                      r="23"
                       fill="none"
                       stroke="rgba(255, 255, 255, 0.2)"
-                      strokeWidth="3"
+                      strokeWidth="2.5"
                     />
                     <circle
-                      cx="28"
-                      cy="28"
-                      r="25"
+                      cx="26"
+                      cy="26"
+                      r="23"
                       fill="none"
                       stroke="#ffffffff"
-                      strokeWidth="3"
-                      strokeDasharray={157}
+                      strokeWidth="2.5"
+                      strokeDasharray={145}
                       strokeDashoffset={
-                        157 *
-                        (1 - Math.min(1, Math.max(0, previewState.progress || 0)))
+                        145 *
+                        (1 -
+                          Math.min(1, Math.max(0, previewState.progress || 0)))
                       }
                       strokeLinecap="round"
                       className="transition-[stroke-dashoffset] duration-150 ease-linear"
@@ -292,8 +297,9 @@ export function SongCard({
               )}
 
               <button
+                type="button"
                 onClick={handlePlayToggle}
-                className={`w-12 h-12 rounded-full bg-primary hover:scale-105 flex items-center justify-center text-black shadow-xl cursor-pointer transition-transform relative ${
+                className={`w-11 h-11 rounded-full bg-primary hover:scale-105 flex items-center justify-center text-black shadow-xl cursor-pointer transition-transform relative ${
                   isPreviewPlaying
                     ? "ring-2 ring-primary ring-offset-2 ring-offset-black"
                     : ""
@@ -309,14 +315,14 @@ export function SongCard({
               >
                 {isActiveSong && isPlaying ? (
                   isAudioLoading ? (
-                    <Loader2 size={20} className="animate-spin text-black" />
+                    <Loader2 size={18} className="animate-spin text-black" />
                   ) : (
-                    <Pause fill="black" size={20} />
+                    <Pause fill="black" size={18} />
                   )
                 ) : isPreviewLoading ? (
-                  <Loader2 size={20} className="animate-spin text-black" />
+                  <Loader2 size={18} className="animate-spin text-black" />
                 ) : isPreviewPlaying ? (
-                  <div className="flex items-end justify-center gap-0.5 h-4 w-4">
+                  <div className="flex items-end justify-center gap-0.5 h-3.5 w-3.5">
                     <motion.span
                       animate={{ height: ["30%", "100%", "40%"] }}
                       transition={{
@@ -325,7 +331,7 @@ export function SongCard({
                         repeatType: "reverse",
                         ease: "easeInOut",
                       }}
-                      className="w-1 bg-black rounded-full"
+                      className="w-0.5 bg-black rounded-full"
                     />
                     <motion.span
                       animate={{ height: ["80%", "30%", "90%"] }}
@@ -336,7 +342,7 @@ export function SongCard({
                         ease: "easeInOut",
                         delay: 0.1,
                       }}
-                      className="w-1 bg-black rounded-full"
+                      className="w-0.5 bg-black rounded-full"
                     />
                     <motion.span
                       animate={{ height: ["40%", "90%", "30%"] }}
@@ -347,42 +353,43 @@ export function SongCard({
                         ease: "easeInOut",
                         delay: 0.2,
                       }}
-                      className="w-1 bg-black rounded-full"
+                      className="w-0.5 bg-black rounded-full"
                     />
                   </div>
                 ) : (
-                  <Play fill="black" size={20} className="translate-x-0.5" />
+                  <Play fill="black" size={18} className="translate-x-0.5" />
                 )}
               </button>
             </div>
           </div>
         </div>
 
-        <div className="space-y-0.5">
+        <div className="space-y-0.5 px-0.5">
           <h3
-            className={`font-bold truncate text-[13.5px] tracking-tight transition-colors ${
+            className={`font-bold truncate text-[12.5px] sm:text-[13px] tracking-tight transition-colors ${
               isActiveSong ? "text-primary" : "text-white"
             }`}
           >
             {song.title}
           </h3>
-          <p className="text-[11.5px] font-medium text-zinc-400 truncate hover:text-white">
+          <p className="text-[11px] sm:text-[11.5px] font-medium text-zinc-400 truncate hover:text-white">
             {song.artistName}
           </p>
         </div>
 
         {/* Quick Actions Bar */}
-        <div className="absolute top-3 right-3 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
+        <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
           {onRemove && (
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 onRemove();
               }}
-              className="w-8 h-8 rounded-full bg-black/60 hover:bg-black text-white flex items-center justify-center transition-all shadow-md cursor-pointer"
+              className="w-7 h-7 rounded-full bg-black/60 hover:bg-black text-white flex items-center justify-center transition-all shadow-md cursor-pointer"
               title="Remove"
             >
-              <X size={14} />
+              <X size={13} />
             </button>
           )}
 
@@ -394,10 +401,10 @@ export function SongCard({
                 e.stopPropagation();
                 setShowMenu((v) => !v);
               }}
-              className="w-8 h-8 rounded-full bg-black/60 hover:bg-black flex items-center justify-center text-zinc-300 hover:text-white transition-all shadow-md cursor-pointer"
+              className="w-7 h-7 rounded-full bg-black/60 hover:bg-black flex items-center justify-center text-zinc-300 hover:text-white transition-all shadow-md cursor-pointer"
               title="More options"
             >
-              <MoreVertical size={14} />
+              <MoreVertical size={13} />
             </button>
 
             {showMenu && (

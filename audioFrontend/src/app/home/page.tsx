@@ -253,16 +253,16 @@ export default function HomePage() {
         </div>
 
         {/* Quick Picks Skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 sm:gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-2.5">
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
               key={i}
-              className="h-13 sm:h-14 rounded-lg bg-zinc-900/80 border border-white/5 flex items-center gap-3 overflow-hidden"
+              className="h-11 sm:h-12 rounded-lg bg-zinc-900/80 border border-white/5 flex items-center gap-2.5 overflow-hidden"
             >
-              <div className="w-13 sm:w-14 h-full bg-zinc-800 shrink-0" />
-              <div className="flex-1 space-y-1.5 pr-4">
-                <div className="h-3 w-3/5 bg-zinc-800 rounded" />
-                <div className="h-2.5 w-2/5 bg-zinc-850 rounded" />
+              <div className="w-11 sm:w-12 h-full bg-zinc-800 shrink-0" />
+              <div className="flex-1 space-y-1 pr-3">
+                <div className="h-2.5 w-3/5 bg-zinc-800 rounded" />
+                <div className="h-2 w-2/5 bg-zinc-850 rounded" />
               </div>
             </div>
           ))}
@@ -306,12 +306,12 @@ export default function HomePage() {
   const trendingSongs: Song[] = trending?.data?.data || [];
 
   return (
-    <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-[var(--app-content-pt,1.5rem)] space-y-5 sm:space-y-6 select-none">
+    <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-2 sm:pt-2.5 space-y-3 sm:space-y-3.5 select-none">
       {/* 1. Header with Time-of-Day Greeting, User Welcome & Filter Pills */}
-      <section className="space-y-2.5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <section className="space-y-1.5 sm:space-y-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center">
               <span>{greeting}</span>
               {systemUser?.name && (
                 <span className="text-zinc-200">
@@ -348,13 +348,13 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* 2. Quick Picks 6-to-8 Card Grid (Spotify Style: Instant 1-Click Play) */}
+        {/* 2. Quick Picks 6-Card Grid (Spotify Style: Instant 1-Click Play) */}
         <QuickPicksGrid songs={quickPicks} isLoading={isQuickPicksLoading} />
       </section>
 
       {/* 2. Trending Hits Section (Always visible with rich track cards) */}
       {trendingSongs.length > 0 && (
-        <section ref={trendingSectionRef} className="space-y-3">
+        <section ref={trendingSectionRef} className="space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Flame size={20} className="text-amber-500 fill-amber-500/20" />
@@ -388,7 +388,7 @@ export default function HomePage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.3 }}
-              className="flex flex-row overflow-x-auto gap-3 pb-3 no-scrollbar px-1 snap-x snap-mandatory scroll-smooth"
+              className="flex flex-row overflow-x-auto gap-3 pb-1 no-scrollbar px-1 snap-x snap-mandatory scroll-smooth"
             >
               {trendingSongs.map((song: Song) => (
                 <SongCard
@@ -403,8 +403,8 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* 3. Top Artists Section */}
-      <section ref={artistsSectionRef} className="space-y-2.5">
+      {/* 3. Top Artists Section (Tightened gap so names are prominently visible above bottom player) */}
+      <section ref={artistsSectionRef} className="space-y-1.5 -mt-1 sm:-mt-2">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-bold text-white tracking-tight">
             Top Artists
@@ -434,7 +434,7 @@ export default function HomePage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3 }}
-          className="flex flex-row overflow-x-auto gap-3 pb-3 no-scrollbar px-1 scroll-smooth"
+          className="flex flex-row overflow-x-auto gap-2.5 pb-1 no-scrollbar px-1 scroll-smooth"
         >
           {isArtistsLoading
             ? [1, 2, 3, 4, 5, 6].map((i) => (
