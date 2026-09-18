@@ -43,11 +43,16 @@ export const PlayerLyricsView: React.FC<PlayerLyricsViewProps> = ({
   const content = (
     <div
       style={{
-        background: `radial-gradient(ellipse 90% 75% at 50% 20%, ${solidBgColor}d9 0%, ${solidBgColor}66 35%, #0d0d10 80%, #000000 100%)`,
+        background: `radial-gradient(ellipse 110% 85% at 50% 12%, ${solidBgColor}f0 0%, ${solidBgColor}99 42%, #0e0f14 82%, #050507 100%)`,
       }}
-      className="absolute inset-x-2 top-16 bottom-20 z-40 flex flex-col px-2 sm:px-4 md:px-6 py-2 sm:py-4 md:py-6 overflow-hidden rounded-2xl backdrop-blur-2xl border border-white/10 shadow-2xl animate-in fade-in zoom-in-[0.99] duration-300 select-none"
+      className="absolute inset-x-2 top-16 bottom-20 z-40 flex flex-col px-2 sm:px-4 md:px-6 py-2 sm:py-4 md:py-6 overflow-hidden rounded-2xl backdrop-blur-2xl border border-white/10 shadow-2xl animate-in fade-in zoom-in-[0.99] duration-300 select-none bg-zinc-950"
     >
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
+      {/* Ambient background glow orb matching song dominant color */}
+      <div
+        className="pointer-events-none absolute -top-28 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[420px] opacity-40 blur-3xl rounded-full"
+        style={{ backgroundColor: solidBgColor }}
+      />
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative z-10">
         <PlayerLyricsOverlay
           currentCaption={currentCaption}
           transcriptions={displayTranscriptions}

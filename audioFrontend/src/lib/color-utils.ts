@@ -3,15 +3,31 @@
  * the dominant color of a song's image — similar to Spotify's "Now Playing" backdrop.
  */
 
-// Deterministic hash to rich, vibrant HSL color fallback
+/**
+ * Converts HSL color values to a standard 6-character hex color (#rrggbb).
+ */
+export function hslToHex(h: number, s: number, l: number): string {
+  l /= 100;
+  const a = (s * Math.min(l, 1 - l)) / 100;
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color)
+      .toString(16)
+      .padStart(2, "0");
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+// Deterministic hash to rich, vibrant HEX color fallback (never muddy pitch black)
 export function stringToSolidDarkColor(str: string): string {
-  if (!str) return "hsl(15, 85%, 22%)";
+  if (!str) return "#1e3a8a";
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
   const hue = Math.abs(hash) % 360;
-  return `hsl(${hue}, 80%, 22%)`;
+  return hslToHex(hue, 75, 26);
 }
 
 /**
@@ -196,38 +212,23 @@ export async function getSolidBgFromImage(
         const { r: majR, g: majG, b: majB } = majorityBucket;
         const hsl = rgbToHsl(majR, majG, majB);
 
-        // Calibrate to a Spotify-style solid background: dark enough to sit
-        // behind white text/controls, but NOT flattened to one narrow band.
-        // Spotify keeps real brightness for punchy dominant colors (hot pink,
-        // orange, lime) and only pulls truly pale/washed colors down dark.
-        //
-        // Strategy: treat the *original* lightness as a signal of how vivid
-        // the source color already is, and only compress the top and bottom
-        // extremes instead of squashing everything toward one value.
+        // Calibrate to a Spotify-style solid background: rich, vibrant jewel tone
+        // that contrasts cleanly against white lyrics text, never murky charcoal.
         let targetLightness: number;
-        if (hsl.l < 15) {
-          // Too close to black — lift it slightly so it doesn't look muddy/dead.
-          targetLightness = Math.round(hsl.l * 1.6 + 8);
-        } else if (hsl.l <= 55) {
-          // Sweet spot: this is already a rich, usable tone — keep it close
-          // to its natural lightness rather than darkening it.
-          targetLightness = hsl.l;
+        if (hsl.l < 18) {
+          targetLightness = Math.round(hsl.l * 1.3 + 22);
+        } else if (hsl.l <= 48) {
+          targetLightness = Math.max(24, hsl.l);
         } else {
-          // Too bright/pale — pull down toward a punchy-but-dark value,
-          // but let genuinely vivid bright colors retain more brightness
-          // than washed-out pastel ones (saturation-aware).
-          const saturationFactor = hsl.s / 100; // 0..1
-          const pulledDown = 55 - (hsl.l - 55) * 0.5;
+          const saturationFactor = hsl.s / 100;
+          const pulledDown = 48 - (hsl.l - 48) * 0.4;
           targetLightness = Math.round(pulledDown * (0.7 + saturationFactor * 0.3));
         }
 
-        // Clamp to a broader usable band than a pure-dark version would allow,
-        // so vivid mid-bright colors are permitted through.
-        targetLightness = Math.min(48, Math.max(16, targetLightness));
-
-        const targetSaturation = Math.min(92, Math.max(70, hsl.s));
-        const solidRichHsl = `hsl(${hsl.h}, ${targetSaturation}%, ${targetLightness}%)`;
-        resolve(solidRichHsl);
+        targetLightness = Math.min(42, Math.max(22, targetLightness));
+        const targetSaturation = Math.min(92, Math.max(68, hsl.s));
+        const hexColor = hslToHex(hsl.h, targetSaturation, targetLightness);
+        resolve(hexColor);
       } catch {
         resolve(fallbackColor);
       }
@@ -238,6 +239,10 @@ export async function getSolidBgFromImage(
       resolve(fallbackColor);
     };
 
-    img.src = imageUrl;
+    // Append cors query param to avoid tainted disk-cache collisions with <img> tags
+    const safeUrl = imageUrl.includes("?")
+      ? `${imageUrl}&cors=1`
+      : `${imageUrl}?cors=1`;
+    img.src = safeUrl;
   });
 }

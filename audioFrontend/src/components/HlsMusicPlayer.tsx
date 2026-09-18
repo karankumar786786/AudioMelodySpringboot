@@ -89,7 +89,7 @@ export function HlsMusicPlayer() {
   const [showEqualizerModal, setShowEqualizerModal] = useState(false);
   const [showSleepTimerModal, setShowSleepTimerModal] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
-  const [solidBgColor, setSolidBgColor] = useState("#181818");
+  const [solidBgColor, setSolidBgColor] = useState("#1e3a8a");
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -97,15 +97,31 @@ export function HlsMusicPlayer() {
   // Compute solid color matching current song image
   useEffect(() => {
     if (!currentSong) return;
-    const url = currentSong.imageKey
-      ? getImageUrl(currentSong.imageKey, { width: 100, height: 100, aspectRatio: "1-1" })
-      : currentSong.posterUrl;
+    const rawImageKey =
+      currentSong.imageKey || (currentSong as any).coverImageKey;
+    const url = rawImageKey
+      ? getImageUrl(rawImageKey, {
+          width: 120,
+          height: 120,
+          aspectRatio: "1-1",
+        })
+      : currentSong.coverUrl || currentSong.posterUrl;
     const fallbackKey = `${currentSong.title}-${currentSong.artistName}-${currentSong.id}`;
     getSolidBgFromImage(url, fallbackKey).then((color) => {
-      setSolidBgColor(color);
-      playerActions.setDominantColor(color);
+      if (color) {
+        setSolidBgColor(color);
+        playerActions.setDominantColor(color);
+      }
     });
-  }, [currentSong?.id, currentSong?.title, currentSong?.artistName, currentSong?.imageKey, currentSong?.posterUrl]);
+  }, [
+    currentSong?.id,
+    currentSong?.title,
+    currentSong?.artistName,
+    currentSong?.imageKey,
+    (currentSong as any)?.coverImageKey,
+    currentSong?.posterUrl,
+    currentSong?.coverUrl,
+  ]);
 
   // Initialize Player State & hydrate saved time
   useEffect(() => {
