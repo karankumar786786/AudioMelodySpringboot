@@ -32,8 +32,11 @@ export function ArtistCard({ artist }: ArtistCardProps) {
             className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300 ease-out"
           />
         </div>
-        <div className="space-y-0.5 px-0.5">
-          <h3 className="font-bold text-white truncate text-[13px] sm:text-[13.5px]">
+        <div className="px-0.5 min-h-[34px] flex items-center justify-center">
+          <h3
+            className="font-semibold text-zinc-100 group-hover:text-white line-clamp-2 leading-tight text-[12px] sm:text-[12.5px] text-center transition-colors"
+            title={artist.name}
+          >
             {artist.name}
           </h3>
         </div>

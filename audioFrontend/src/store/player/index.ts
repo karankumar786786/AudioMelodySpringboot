@@ -44,6 +44,7 @@ export interface PlayerState {
   playbackRate: number;
   radioSession: RadioSession;
   isZenMode: boolean;
+  dominantColor: string;
 }
 
 const _initSystemUser = (() => {
@@ -168,6 +169,7 @@ export const playerStore = new Store<PlayerState>({
     sessionHistoryIds: [],
   },
   isZenMode: false,
+  dominantColor: "#181818",
 });
 
 // Hydrate token, repeatMode, isShuffle, currentTime, and currentSong on client side only

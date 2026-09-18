@@ -103,6 +103,7 @@ export function HlsMusicPlayer() {
     const fallbackKey = `${currentSong.title}-${currentSong.artistName}-${currentSong.id}`;
     getSolidBgFromImage(url, fallbackKey).then((color) => {
       setSolidBgColor(color);
+      playerActions.setDominantColor(color);
     });
   }, [currentSong?.id, currentSong?.title, currentSong?.artistName, currentSong?.imageKey, currentSong?.posterUrl]);
 

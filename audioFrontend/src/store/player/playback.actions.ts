@@ -159,6 +159,10 @@ export const playbackActions = {
     playerStore.setState((s) => ({ ...s, isMuted }));
   },
 
+  setDominantColor: (dominantColor: string) => {
+    playerStore.setState((s) => ({ ...s, dominantColor }));
+  },
+
   setQualityTracks: (tracks: any[]) => {
     playerStore.setState((s) => ({ ...s, qualityTracks: tracks }));
   },

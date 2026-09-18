@@ -20,8 +20,16 @@ import { playerActions, playerStore } from "../../store/player.store";
 export default function HomePage() {
   const systemUser = useStore(playerStore, (s) => s.systemUser);
   const systemToken = useStore(playerStore, (s) => s.systemToken);
+  const dominantColor = useStore(playerStore, (s) => s.dominantColor);
   const [activeFilter, setActiveFilter] = useState("All");
   const triggerRef = useRef<HTMLDivElement>(null);
+
+  const userName = useMemo(() => {
+    if (!systemUser?.name) return null;
+    const first = systemUser.name.trim().split(" ")[0];
+    if (!first) return null;
+    return first.charAt(0).toUpperCase() + first.slice(1);
+  }, [systemUser?.name]);
 
   // Section anchor refs for filter pills
   const trendingSectionRef = useRef<HTMLElement>(null);
@@ -306,16 +314,26 @@ export default function HomePage() {
   const trendingSongs: Song[] = trending?.data?.data || [];
 
   return (
-    <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-2 sm:pt-2.5 space-y-3 sm:space-y-3.5 select-none">
+    <div className="relative px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-2 sm:pt-2.5 space-y-3 sm:space-y-3.5 select-none overflow-hidden min-h-full">
+      {/* Dynamic Ambient Color Glow bleeding smoothly behind top section */}
+      <div
+        className="pointer-events-none absolute -top-28 left-1/2 -translate-x-1/2 w-full max-w-6xl h-[420px] transition-all duration-1000 ease-out opacity-20 blur-3xl -z-0"
+        style={{
+          background: `radial-gradient(ellipse 80% 60% at 50% 15%, ${
+            dominantColor || "#2563eb"
+          } 0%, transparent 75%)`,
+        }}
+      />
+
       {/* 1. Header with Time-of-Day Greeting, User Welcome & Filter Pills */}
-      <section className="space-y-1.5 sm:space-y-2">
+      <section className="relative z-10 space-y-1.5 sm:space-y-2">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center">
               <span>{greeting}</span>
-              {systemUser?.name && (
+              {userName && (
                 <span className="text-zinc-200">
-                  , {systemUser.name.split(" ")[0]}
+                  , {userName}
                 </span>
               )}
             </h1>
@@ -440,9 +458,9 @@ export default function HomePage() {
             ? [1, 2, 3, 4, 5, 6].map((i) => (
                 <div
                   key={i}
-                  className="flex-none w-[125px] sm:w-[130px] space-y-3"
+                  className="flex-none w-[115px] sm:w-[124px] p-2 space-y-2"
                 >
-                  <div className="aspect-square rounded-full bg-zinc-900 animate-pulse border border-white/5" />
+                  <div className="aspect-square rounded-full bg-zinc-900 animate-pulse border border-white/5 mx-auto" />
                   <div className="h-3 w-3/4 bg-zinc-900 rounded mx-auto animate-pulse" />
                 </div>
               ))

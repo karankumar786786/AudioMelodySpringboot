@@ -268,7 +268,7 @@ export function RightInfoPanel() {
 
   return (
     <>
-      <aside className="hidden lg:block w-[290px] xl:w-[320px] 2xl:w-[340px] bg-black  h-[calc(100vh-64px)] fixed right-0 top-16 z-40 overflow-y-auto no-scrollbar pb-28">
+      <aside className="hidden lg:block w-[290px] xl:w-[320px] 2xl:w-[340px] bg-black h-[calc(100vh-64px)] fixed right-0 top-16 z-40 overflow-y-auto no-scrollbar pb-36">
         <div>
           {/* ========================================================== */}
           {/* 1. MEDIA DISPLAY (Full-bleed Video Canvas OR Card Cover Art) */}
@@ -299,22 +299,37 @@ export function RightInfoPanel() {
                 </div>
               )}
 
+              {/* Floating Full Video Badge at Top-Right */}
+              {currentSong.fullVideoKey && (
+                <div className="absolute top-3 right-3 z-20">
+                  <PlayerTooltip content="Watch Full Video" shortcut="V">
+                    <button
+                      onClick={() => playerActions.openFullVideo()}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 hover:bg-black/85 backdrop-blur-md border border-white/20 text-white text-[11px] font-semibold transition-all hover:scale-105 active:scale-95 shadow-lg cursor-pointer"
+                    >
+                      <Play size={11} fill="currentColor" />
+                      Full Video
+                    </button>
+                  </PlayerTooltip>
+                </div>
+              )}
+
               {/* Seamless Bottom Gradient Overlay */}
               <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none" />
 
               {/* Overlaid Song Title, Artist & Actions */}
-              <div className="relative z-10 p-4 pb-3.5 flex items-end justify-between gap-3">
+              <div className="relative z-10 p-4 pb-3 flex items-end justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <MarqueeTitle
                     text={currentSong.title}
-                    className="text-xl font-bold text-white tracking-tight cursor-pointer leading-tight drop-shadow-md hover:underline"
+                    className="text-lg xl:text-xl font-bold text-white tracking-tight cursor-pointer leading-snug drop-shadow-md hover:underline"
                   />
                   <p className="text-xs font-medium text-zinc-300 truncate mt-1 hover:text-white hover:underline cursor-pointer drop-shadow">
                     {currentSong.artistName}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2.5 shrink-0 pb-0.5">
+                <div className="flex items-center gap-2 shrink-0 pb-0.5">
                   <button
                     onClick={handlePlaylist}
                     className="text-zinc-400 hover:text-white transition-colors cursor-pointer p-1"
@@ -329,19 +344,6 @@ export function RightInfoPanel() {
                     size={20}
                     disabled={isFavLoading}
                   />
-
-                  {/* Watch Full Video – video canvas display */}
-                  {currentSong.fullVideoKey && (
-                    <PlayerTooltip content="Watch Full Video" shortcut="V">
-                      <button
-                        onClick={() => playerActions.openFullVideo()}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/15 hover:bg-white/25 border border-white/20 text-white text-[11px] font-bold transition-all hover:scale-105 cursor-pointer"
-                      >
-                        <Play size={11} fill="currentColor" />
-                        Full Video
-                      </button>
-                    </PlayerTooltip>
-                  )}
                 </div>
               </div>
             </div>
@@ -383,6 +385,21 @@ export function RightInfoPanel() {
                       <Music size={36} className="text-zinc-700 animate-pulse" />
                     </div>
                   )}
+
+                  {/* Watch Full Video – floating on cover art */}
+                  {currentSong.fullVideoKey && (
+                    <div className="absolute bottom-2.5 right-2.5 z-20">
+                      <PlayerTooltip content="Watch Full Video" shortcut="V">
+                        <button
+                          onClick={() => playerActions.openFullVideo()}
+                          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/75 hover:bg-black/90 backdrop-blur-md border border-white/20 text-white text-[11px] font-semibold transition-all hover:scale-105 active:scale-95 shadow-md cursor-pointer"
+                        >
+                          <Play size={10} fill="currentColor" />
+                          Full Video
+                        </button>
+                      </PlayerTooltip>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -398,7 +415,7 @@ export function RightInfoPanel() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2.5 shrink-0">
+                <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={handlePlaylist}
                     className="text-zinc-400 hover:text-white transition-colors cursor-pointer p-1"
@@ -413,19 +430,6 @@ export function RightInfoPanel() {
                     size={20}
                     disabled={isFavLoading}
                   />
-
-                  {/* Watch Full Video – cover-art display */}
-                  {currentSong.fullVideoKey && (
-                    <PlayerTooltip content="Watch Full Video" shortcut="V">
-                      <button
-                        onClick={() => playerActions.openFullVideo()}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 text-white text-[11px] font-bold transition-all hover:scale-105 cursor-pointer"
-                      >
-                        <Play size={11} fill="currentColor" />
-                        Full Video
-                      </button>
-                    </PlayerTooltip>
-                  )}
                 </div>
               </div>
             </div>

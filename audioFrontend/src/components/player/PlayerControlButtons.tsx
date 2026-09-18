@@ -56,7 +56,7 @@ export const PlayerControlButtons: React.FC<PlayerControlButtonsProps> = ({
             playerActions.toggleShuffle();
             toast.success(isShuffle ? "Shuffle Off" : "Shuffle On");
           }}
-          className={`relative flex flex-col items-center justify-center p-1.5 transition-colors cursor-pointer ${
+          className={`relative flex flex-col items-center justify-center p-1.5 transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 rounded-full ${
             isShuffle ? "text-primary" : "text-zinc-400 hover:text-white"
           }`}
           aria-label={isShuffle ? "Disable shuffle" : "Enable shuffle"}
@@ -72,7 +72,7 @@ export const PlayerControlButtons: React.FC<PlayerControlButtonsProps> = ({
         <button
           type="button"
           onClick={() => playerActions.previous()}
-          className="text-zinc-300 hover:text-white transition-colors cursor-pointer"
+          className="text-zinc-300 hover:text-white transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 rounded-full p-1"
           aria-label="Previous track"
         >
           <SkipBack size={18} fill="currentColor" />
@@ -86,7 +86,7 @@ export const PlayerControlButtons: React.FC<PlayerControlButtonsProps> = ({
         <button
           type="button"
           onClick={handlePlayPause}
-          className="w-9 h-9 rounded-full bg-white text-black hover:scale-105 flex items-center justify-center cursor-pointer transition-transform shadow-md"
+          className="w-9 h-9 rounded-full bg-white text-black hover:scale-105 flex items-center justify-center cursor-pointer transition-transform shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
           aria-label={isPlaying ? (isLoading ? "Loading" : "Pause") : "Play"}
         >
           {isPlaying ? (
@@ -105,7 +105,7 @@ export const PlayerControlButtons: React.FC<PlayerControlButtonsProps> = ({
         <button
           type="button"
           onClick={() => playerActions.next()}
-          className="text-zinc-300 hover:text-white transition-colors cursor-pointer"
+          className="text-zinc-300 hover:text-white transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 rounded-full p-1"
           aria-label="Next track"
         >
           <SkipForward size={18} fill="currentColor" />
@@ -124,7 +124,7 @@ export const PlayerControlButtons: React.FC<PlayerControlButtonsProps> = ({
         <button
           type="button"
           onClick={handleToggleRepeat}
-          className={`relative flex flex-col items-center justify-center p-1.5 transition-colors cursor-pointer ${
+          className={`relative flex flex-col items-center justify-center p-1.5 transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 rounded-full ${
             repeatMode !== "none"
               ? "text-primary"
               : "text-zinc-400 hover:text-white"

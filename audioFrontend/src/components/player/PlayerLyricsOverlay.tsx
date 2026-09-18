@@ -352,7 +352,7 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
       onScroll={handleScroll}
       onWheel={handleManualUserScroll}
       onTouchMove={handleManualUserScroll}
-      className="flex-1 w-full overflow-y-auto no-scrollbar px-3 sm:px-6 md:px-10 py-6 md:py-8 flex flex-col items-center select-none relative"
+      className="flex-1 w-full overflow-y-auto no-scrollbar px-3 sm:px-6 md:px-10 py-6 md:py-8 flex flex-col items-center select-none relative [mask-image:linear-gradient(to_bottom,transparent_0%,black_10%,black_90%,transparent_100%)]"
     >
       {isLoading ? (
         // ⏳ Beautiful Animated Loading State
@@ -379,7 +379,7 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
               const distance = activeIndex === -1 ? 0 : Math.abs(idx - activeIndex);
 
               // Calculate graduated blur and opacity based on distance from active line
-              let focusStyle = "blur-0 opacity-100 scale-[1.03] origin-left";
+              let focusStyle = "blur-0 opacity-100 scale-[1.03] origin-left drop-shadow-[0_4px_20px_rgba(255,255,255,0.2)]";
               if (!isActive && activeIndex !== -1) {
                 if (distance === 1) {
                   focusStyle = "blur-[0.5px] opacity-55 scale-100 group-hover:blur-0 group-hover:opacity-90";
@@ -412,7 +412,7 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
                               key={wIdx}
                               className={`text-2xl sm:text-3xl md:text-4xl lg:text-[36px] font-extrabold tracking-tight transition-all duration-150 inline-block transform-gpu ${
                                 isWordActive
-                                  ? "text-white opacity-100 scale-[1.02]"
+                                  ? "text-white opacity-100 scale-[1.03] drop-shadow-[0_2px_14px_rgba(255,255,255,0.4)]"
                                   : isActive
                                     ? "text-white/85"
                                     : "text-white/60"
@@ -427,7 +427,7 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
                       <p
                         className={`text-2xl sm:text-3xl md:text-4xl lg:text-[36px] font-extrabold tracking-tight transition-all duration-300 leading-snug transform-gpu ${
                           isActive
-                            ? "text-white opacity-100"
+                            ? "text-white opacity-100 drop-shadow-[0_2px_14px_rgba(255,255,255,0.3)]"
                             : "text-white/70"
                         }`}
                       >
