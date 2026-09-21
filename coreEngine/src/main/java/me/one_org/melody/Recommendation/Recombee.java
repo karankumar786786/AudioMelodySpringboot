@@ -55,6 +55,7 @@ public class Recombee {
             recombeeClient.send(new AddItemProperty("artistName", "string"));
             recombeeClient.send(new AddItemProperty("language", "string"));
             recombeeClient.send(new AddItemProperty("genre", "string"));
+            recombeeClient.send(new AddItemProperty("duration", "int"));
             log.info("Recombee item properties registered successfully");
         } catch (Exception e) {
             // Properties may already exist — Recombee throws if re-adding
@@ -72,6 +73,9 @@ public class Recombee {
         if (song.getGenre() != null && !song.getGenre().isBlank()) {
             values.put("genre", song.getGenre());
         }
+        if (song.getDuration() != null && song.getDuration() > 0) {
+            values.put("duration", song.getDuration());
+        }
         recombeeClient.send(new SetItemValues(song.getId(), values).setCascadeCreate(true));
     }
 
@@ -82,6 +86,20 @@ public class Recombee {
         values.put("language", language);
         if (genre != null && !genre.isBlank()) {
             values.put("genre", genre);
+        }
+        recombeeClient.send(new SetItemValues(songId, values).setCascadeCreate(true));
+    }
+
+    public void saveSong(String songId, String title, String artistName, String language, String genre, Integer duration) throws Exception {
+        Map<String, Object> values = new HashMap<>();
+        values.put("title", title);
+        values.put("artistName", artistName);
+        values.put("language", language);
+        if (genre != null && !genre.isBlank()) {
+            values.put("genre", genre);
+        }
+        if (duration != null && duration > 0) {
+            values.put("duration", duration);
         }
         recombeeClient.send(new SetItemValues(songId, values).setCascadeCreate(true));
     }
@@ -123,6 +141,21 @@ public class Recombee {
     // user played a song that appeared in search results — strong active-discovery signal
     public void trackSearchPlay(String userId, String songId) throws Exception {
         recombeeClient.send(new AddDetailView(userId, songId).setCascadeCreate(true));
+    }
+
+    // user explicitly added a song to their queue — strong intent signal
+    public void trackQueueAdd(String userId, String songId) throws Exception {
+        recombeeClient.send(new AddBookmark(userId, songId).setCascadeCreate(true));
+    }
+
+    // user explicitly removed a song from their queue — negative intent signal
+    public void trackQueueRemove(String userId, String songId) throws Exception {
+        try {
+            recombeeClient.send(new DeleteBookmark(userId, songId));
+        } catch (Exception ignored) {
+            // Bookmark may not exist if song was queued from radio/playlist
+        }
+        recombeeClient.send(new AddRating(userId, songId, -0.4).setCascadeCreate(true));
     }
 
     // added to favourites
@@ -168,6 +201,21 @@ public class Recombee {
         return songIds;
     }
 
+    /**
+     * Sequential "what to play next" recommendation.
+     * Uses RecommendNextItems which accounts for the user's current listening sequence,
+     * producing better auto-play transitions than generic item-to-item similarity.
+     */
+    public List<String> recommendNextItems(String userId, String recommId, int count) throws Exception {
+        RecommendationResponse response = recombeeClient.send(
+                new RecommendNextItems(recommId, count));
+        List<String> songIds = new ArrayList<>();
+        for (Recommendation hit : response) {
+            songIds.add(hit.getId());
+        }
+        return songIds;
+    }
+
     // ── Bulk resync ──
 
     public void reindexAll(List<SongsEntity> songs) throws Exception {
@@ -179,6 +227,9 @@ public class Recombee {
             values.put("language", song.getLanguage());
             if (song.getGenre() != null && !song.getGenre().isBlank()) {
                 values.put("genre", song.getGenre());
+            }
+            if (song.getDuration() != null && song.getDuration() > 0) {
+                values.put("duration", song.getDuration());
             }
             requests.add(new SetItemValues(song.getId(), values).setCascadeCreate(true));
         }

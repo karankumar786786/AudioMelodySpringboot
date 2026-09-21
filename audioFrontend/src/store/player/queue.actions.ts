@@ -258,6 +258,11 @@ export const queueActions = {
         `[Queue] Enqueued ${preparedSongs.length} songs at upcoming position ${insertIdx}. Total: ${nextQueue.length}`,
       );
 
+      // Fire background Recombee queue-add signals for each song
+      for (const song of preparedSongs) {
+        musicApi.interactions.recordQueueAdd(song.id);
+      }
+
       return {
         ...s,
         queue: nextQueue,
@@ -338,8 +343,16 @@ export const queueActions = {
     playerStore.setState((s) => {
       if (index < 0 || index >= s.queue.length) return s;
 
+      const removedItem = s.queue[index];
       const nextQueue = [...s.queue];
       nextQueue.splice(index, 1);
+
+      let nextOriginalQueue = s.originalQueue;
+      if (removedItem && s.originalQueue && s.originalQueue.length > 0) {
+        nextOriginalQueue = s.originalQueue.filter(
+          (item) => item.queueId !== removedItem.queueId && item.id !== removedItem.id,
+        );
+      }
 
       let nextIndex = s.lastQueueIndex;
       let nextCurrent = s.currentSong;
@@ -360,12 +373,57 @@ export const queueActions = {
       persistQueue(nextQueue, nextIndex);
       console.log(`[Queue] Removed item at index ${index}. Remaining: ${nextQueue.length}`);
 
+      if (removedItem?.id) {
+        musicApi.interactions.recordQueueRemove(removedItem.id);
+      }
+
       return {
         ...s,
         queue: nextQueue,
+        originalQueue: nextOriginalQueue,
         currentSong: nextCurrent,
         lastQueueIndex: nextIndex,
         isPlaying,
+      };
+    });
+  },
+
+  removeSongFromQueue: (songId: string) => {
+    const { queue, lastQueueIndex } = playerStore.state;
+    // Prefer removing from upcoming queue (after current song) first
+    let targetIdx = queue.findIndex((s, i) => i > lastQueueIndex && s.id === songId);
+    if (targetIdx === -1) {
+      targetIdx = queue.findIndex((s) => s.id === songId);
+    }
+    if (targetIdx !== -1) {
+      queueActions.removeFromQueue(targetIdx);
+    }
+  },
+
+  clearUpcomingQueue: () => {
+    playerStore.setState((s) => {
+      if (s.queue.length === 0) return s;
+      const keepCount = Math.max(0, s.lastQueueIndex + 1);
+      const removedUpcoming = s.queue.slice(keepCount);
+      const nextQueue = s.queue.slice(0, keepCount);
+      let nextOriginalQueue = s.originalQueue;
+      if (s.originalQueue && s.originalQueue.length > 0) {
+        const keptIds = new Set(nextQueue.map((item) => item.queueId || item.id));
+        nextOriginalQueue = s.originalQueue.filter((item) => keptIds.has(item.queueId || item.id));
+      }
+      persistQueue(nextQueue, s.lastQueueIndex);
+      console.log(`[Queue] Cleared upcoming queue. Retained count: ${nextQueue.length}`);
+
+      for (const item of removedUpcoming) {
+        if (item?.id) {
+          musicApi.interactions.recordQueueRemove(item.id);
+        }
+      }
+
+      return {
+        ...s,
+        queue: nextQueue,
+        originalQueue: nextOriginalQueue,
       };
     });
   },

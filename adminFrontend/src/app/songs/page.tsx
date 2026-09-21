@@ -22,6 +22,7 @@ interface Song {
   artistName: string;
   duration: number;
   language: string;
+  genre?: string;
   imageKey: string;
   videoKey?: string;
   fullVideoKey?: string;
@@ -82,6 +83,7 @@ function SongsContent() {
     title: "",
     artistName: "",
     language: "Hindi",
+    genre: "",
     lrclibId: "",
     songFile: null as File | null,
     imageFile: null as File | null,
@@ -102,6 +104,7 @@ function SongsContent() {
     title: "",
     artistName: "",
     language: "Hindi",
+    genre: "",
     lrclibId: "",
     previewStartMin: "" as string | number,
     previewStartSec: "" as string | number,
@@ -526,6 +529,7 @@ function SongsContent() {
             previewStartTime !== null ? previewStartTime : undefined,
           previewEndTime: previewEndTime !== null ? previewEndTime : undefined,
           language: formData.language || "Hindi",
+          genre: formData.genre.trim() || undefined,
           lrclibId: formData.lrclibId.trim() || "0",
         }),
       });
@@ -537,6 +541,7 @@ function SongsContent() {
           title: "",
           artistName: "",
           language: "Hindi",
+          genre: "",
           lrclibId: "",
           songFile: null,
           imageFile: null,
@@ -599,6 +604,7 @@ function SongsContent() {
       title: song.title,
       artistName: song.artistName,
       language: song.language || "Hindi",
+      genre: song.genre || "",
       lrclibId: song.lrclibId || "",
       previewStartMin: startTotal !== null ? Math.floor(startTotal / 60) : "",
       previewStartSec: startTotal !== null ? startTotal % 60 : "",
@@ -842,6 +848,7 @@ function SongsContent() {
           title: editFormData.title,
           artistName: editFormData.artistName,
           language: editFormData.language,
+          genre: editFormData.genre.trim() || undefined,
           lrclibId: editFormData.lrclibId.trim() || "0",
           previewStartTime: previewStartTime !== null ? previewStartTime : -1,
           previewEndTime: previewEndTime !== null ? previewEndTime : -1,
@@ -1176,9 +1183,16 @@ function SongsContent() {
                   {song.artistName}
                 </p>
                 <div className="flex items-center justify-between mt-3 gap-2">
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-black/60 border border-[#282828] text-zinc-300 font-bold uppercase tracking-wider shrink-0">
-                    {song.language}
-                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-black/60 border border-[#282828] text-zinc-300 font-bold uppercase tracking-wider shrink-0">
+                      {song.language}
+                    </span>
+                    {song.genre && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary font-bold uppercase tracking-wider shrink-0">
+                        {song.genre}
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-2 text-[10px] text-zinc-400 font-mono">
                     {song.lrclibId && song.lrclibId !== "0" && (
                       <span
@@ -1413,6 +1427,21 @@ function SongsContent() {
                             })
                           }
                           placeholder="e.g. 123456"
+                          className={inputCls}
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className={labelCls}>Genre</label>
+                        <input
+                          type="text"
+                          value={formData.genre}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              genre: e.target.value,
+                            })
+                          }
+                          placeholder="e.g. Pop, Hip-Hop, Bollywood, Lo-Fi, Acoustic"
                           className={inputCls}
                         />
                       </div>
@@ -2035,6 +2064,21 @@ function SongsContent() {
                         language: e.target.value,
                       })
                     }
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Genre</label>
+                  <input
+                    type="text"
+                    value={editFormData.genre}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        genre: e.target.value,
+                      })
+                    }
+                    placeholder="e.g. Pop, Bollywood, Lo-Fi"
                     className={inputCls}
                   />
                 </div>

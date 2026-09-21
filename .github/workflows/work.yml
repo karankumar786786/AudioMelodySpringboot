@@ -1,97 +1,97 @@
-name: CI / CD Pipeline
+# name: CI / CD Pipeline
 
-on:
-  push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+# on:
+#   push:
+#     branches:
+#       - main
+#   pull_request:
+#     branches:
+#       - main
 
-# Cancel redundant in-progress runs when new commits are pushed
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+# # Cancel redundant in-progress runs when new commits are pushed
+# concurrency:
+#   group: ${{ github.workflow }}-${{ github.ref }}
+#   cancel-in-progress: true
 
-jobs:
-  # 1. Parallel Multi-Service Matrix Build with Caching
-  build-and-push:
-    name: Build & Push (${{ matrix.service }})
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - service: core
-            context: ./coreEngine
-            image_name: core
-          - service: mail
-            context: ./workers/mailEvents
-            image_name: mail
-          - service: audioprocessing
-            context: ./audioProcessing
-            image_name: audioprocessing
+# jobs:
+#   # 1. Parallel Multi-Service Matrix Build with Caching
+#   build-and-push:
+#     name: Build & Push (${{ matrix.service }})
+#     runs-on: ubuntu-latest
+#     strategy:
+#       fail-fast: false
+#       matrix:
+#         include:
+#           - service: core
+#             context: ./coreEngine
+#             image_name: core
+#           - service: mail
+#             context: ./workers/mailEvents
+#             image_name: mail
+#           - service: audioprocessing
+#             context: ./audioProcessing
+#             image_name: audioprocessing
 
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+#     steps:
+#       - name: Checkout Code
+#         uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+#       - name: Set up Docker Buildx
+#         uses: docker/setup-buildx-action@v3
 
-      - name: Login to Docker Hub
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_TOKEN }}
+#       - name: Login to Docker Hub
+#         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+#         uses: docker/login-action@v3
+#         with:
+#           username: ${{ secrets.DOCKER_USERNAME }}
+#           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Extract Docker Metadata & Tags
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ secrets.DOCKER_USERNAME }}/${{ matrix.image_name }}
-          tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,prefix=sha-,format=short
-            type=ref,event=branch
+#       - name: Extract Docker Metadata & Tags
+#         id: meta
+#         uses: docker/metadata-action@v5
+#         with:
+#           images: ${{ secrets.DOCKER_USERNAME }}/${{ matrix.image_name }}
+#           tags: |
+#             type=raw,value=latest,enable={{is_default_branch}}
+#             type=sha,prefix=sha-,format=short
+#             type=ref,event=branch
 
-      - name: Build and Push Docker Image
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ matrix.context }}
-          platforms: linux/amd64
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+#       - name: Build and Push Docker Image
+#         uses: docker/build-push-action@v5
+#         with:
+#           context: ${{ matrix.context }}
+#           platforms: linux/amd64
+#           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+#           tags: ${{ steps.meta.outputs.tags }}
+#           labels: ${{ steps.meta.outputs.labels }}
+#           cache-from: type=gha
+#           cache-to: type=gha,mode=max
 
-  # 2. Automated Continuous Deployment to EC2
-  deploy:
-    name: Deploy to EC2
-    needs: build-and-push
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+#   # 2. Automated Continuous Deployment to EC2
+#   deploy:
+#     name: Deploy to EC2
+#     needs: build-and-push
+#     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+#     runs-on: ubuntu-latest
 
-    steps:
-      - name: SSH into EC2 & Deploy
-        uses: appleboy/ssh-action@v1.2.2
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd /home/ubuntu/audioMelody
+#     steps:
+#       - name: SSH into EC2 & Deploy
+#         uses: appleboy/ssh-action@v1.2.2
+#         with:
+#           host: ${{ secrets.EC2_HOST }}
+#           username: ${{ secrets.EC2_USER }}
+#           key: ${{ secrets.EC2_SSH_KEY }}
+#           script: |
+#             cd /home/ubuntu/audioMelody
 
-            # Authenticate with Docker Hub (in case images are private)
-            echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+#             # Authenticate with Docker Hub (in case images are private)
+#             echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-            # Pull latest service images defined in docker-compose.yml
-            docker compose pull || sudo docker compose pull
+#             # Pull latest service images defined in docker-compose.yml
+#             docker compose pull || sudo docker compose pull
 
-            # Recreate containers with zero downtime
-            docker compose up -d --remove-orphans || sudo docker compose up -d --remove-orphans
+#             # Recreate containers with zero downtime
+#             docker compose up -d --remove-orphans || sudo docker compose up -d --remove-orphans
 
-            # Clean up old unused image layers to save EC2 disk space
-            docker image prune -f || sudo docker image prune -f
+#             # Clean up old unused image layers to save EC2 disk space
+#             docker image prune -f || sudo docker image prune -f

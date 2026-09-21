@@ -337,6 +337,13 @@ export function useAudioSync(
         console.log(
           "[Player] Repeat Mode 'one' active. Looping current track with fade.",
         );
+
+        // Replay is the strongest positive signal — fire a perfect listen
+        const replayId = curId || currentSongRef.current?.id;
+        if (replayId) {
+          playerActions.recordListen(replayId, 1.0);
+        }
+
         hasFadedOutRef.current = false;
         audioElement.currentTime = 0;
         setLocalTime(0);

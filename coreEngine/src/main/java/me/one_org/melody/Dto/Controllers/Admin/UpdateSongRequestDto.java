@@ -7,6 +7,7 @@ public record UpdateSongRequestDto(
     String videoKey,
     String fullVideoKey,
     String language,
+    String genre,
     String lrclibId,
     Boolean isFeatured,
     Integer previewStartTime,

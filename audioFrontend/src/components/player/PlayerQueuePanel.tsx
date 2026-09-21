@@ -266,9 +266,23 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
 
             {/* Upcoming Section */}
             <div className="space-y-1.5">
-              <h4 className="text-[11px] font-bold text-zinc-400 tracking-wider uppercase px-1">
-                Next Up ({upcoming.length})
-              </h4>
+              <div className="flex items-center justify-between px-1">
+                <h4 className="text-[11px] font-bold text-zinc-400 tracking-wider uppercase">
+                  Next Up ({upcoming.length})
+                </h4>
+                {upcoming.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      playerActions.clearUpcomingQueue();
+                      toast.success("Upcoming queue cleared");
+                    }}
+                    className="text-[11px] font-medium text-zinc-400 hover:text-red-400 transition-colors cursor-pointer"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
 
               {queue.length === 0 || upcoming.length === 0 ? (
                 isRefilling ? (
@@ -359,7 +373,7 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                         </div>
 
                         {/* Queue Actions */}
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="flex items-center gap-1 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                           <button
                             type="button"
                             onClick={(e) => {
@@ -369,7 +383,7 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                             className="p-1 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 cursor-pointer"
                             title="Remove from queue"
                           >
-                            <Trash2 size={12} />
+                            <Trash2 size={13} />
                           </button>
                         </div>
 

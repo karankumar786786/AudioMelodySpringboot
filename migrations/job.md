@@ -30,7 +30,17 @@ ALTER TABLE jobs ADD COLUMN IF NOT EXISTS genre VARCHAR(100);
 
 ## 🔑 Recombee Schema
 
-The `genre` property registration is handled automatically at app startup via `@PostConstruct` in `Recombee.java` — **no manual action needed** for this. Recombee silently ignores re-registering properties that already exist.
+The following property registrations are handled automatically at app startup via `@PostConstruct` in `Recombee.java` — **no manual action needed**:
+
+| Property | Type | Auto-registered? |
+|---|---|---|
+| `title` | string | ✅ Yes |
+| `artistName` | string | ✅ Yes |
+| `language` | string | ✅ Yes |
+| `genre` | string | ✅ Yes |
+| `duration` | int | ✅ Yes (NEW) |
+
+Recombee silently ignores re-registering properties that already exist.
 
 ---
 
@@ -41,6 +51,11 @@ The `genre` property registration is handled automatically at app startup via `@
 | `ALTER TABLE songs ADD COLUMN genre` | `SongsEntity.java` | ⏳ Pending | Yes — app will fail if deployed before migration |
 | `ALTER TABLE jobs ADD COLUMN genre` | `JobsEntity.java` | ⏳ Pending | Yes — app will fail if deployed before migration |
 | Recombee `genre` property registration | `Recombee.configureSchema()` | ✅ Auto on startup | No |
+| Recombee `duration` property registration | `Recombee.configureSchema()` | ✅ Auto on startup | No |
+| Queue-add tracking (`AddBookmark`) | `InteractionApiController.java` | ✅ Implemented | No — no DB changes |
+| Repeat play detection (1.0 rating) | `useAudioSync.ts` | ✅ Implemented | No — frontend only |
+| Bulk reindex endpoint | `SongController.java` | ✅ Implemented | No — no DB changes |
+| `RecommendNextItems` support | `Recombee.java` | ✅ Implemented | No — no DB changes |
 
 ---
 
@@ -50,7 +65,8 @@ When ready to deploy:
 
 1. Run both `ALTER TABLE` statements above on the production DB
 2. Deploy the coreEngine backend
-3. The `@PostConstruct` will auto-register the `genre` Recombee property on first startup
+3. The `@PostConstruct` will auto-register `genre` + `duration` Recombee properties on first startup
+4. Hit `POST /admin/song/reindex-recombee` to bulk-sync all song metadata (including duration) into Recombee
 
 ---
 
@@ -58,6 +74,12 @@ When ready to deploy:
 
 | Feature | Notes |
 |---|---|
-| Search-click tracking (`AddDetailView`) | New endpoint `POST /api/interaction/search-play` — no DB changes |
+| Search-click tracking (`AddDetailView`) | `POST /api/interaction/search-play` — no DB changes |
+| Queue-add tracking (`AddBookmark`) | `POST /api/interaction/queue-add` — fired from frontend enqueue action |
+| Queue-remove tracking (`DeleteBookmark` + `-0.4` rating) | `POST /api/interaction/queue-remove` — fired from frontend remove queue action |
+| Repeat play detection | `useAudioSync.ts` fires 1.0 rating on repeat-one loop |
+| `duration` in Recombee indexing | Wired through `saveSong()` and `reindexAll()` |
 | `genre` field in Recombee indexing | Wired through job pipeline — just needs DB columns above |
-| Playlist add/remove logging fix | Silent catches now log warnings |
+| Playlist add/remove Recombee tracking | Already wired in `UserPlaylistApiService` |
+| `RecommendNextItems` API | Sequential "what plays next" support in `Recombee.java` |
+| Bulk Recombee reindex endpoint | `POST /admin/song/reindex-recombee` |

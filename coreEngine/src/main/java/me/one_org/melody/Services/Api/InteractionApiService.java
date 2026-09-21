@@ -81,6 +81,22 @@ public class InteractionApiService {
         }
     }
 
+    public void trackQueueAdd(String userId, String songId) {
+        try {
+            recombee.trackQueueAdd(userId, songId);
+        } catch (Exception e) {
+            log.error("Failed to track queue-add in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
+        }
+    }
+
+    public void trackQueueRemove(String userId, String songId) {
+        try {
+            recombee.trackQueueRemove(userId, songId);
+        } catch (Exception e) {
+            log.error("Failed to track queue-remove in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
+        }
+    }
+
     @Transactional
     public void addFavourite(String userId, String songId) {
         UsersEntity user = getUser(userId);

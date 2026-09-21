@@ -17,6 +17,9 @@ import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Entity.JobsEntity;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.Enums.StatusEnum;
+import me.one_org.melody.Recommendation.Recombee;
+import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Services.General.SongService;
 
 @RestController
@@ -24,9 +27,13 @@ import me.one_org.melody.Services.General.SongService;
 public class SongController {
 
     private final SongService songService;
+    private final Recombee recombee;
+    private final SongsRepository songsRepository;
 
-    public SongController(SongService songService){
+    public SongController(SongService songService, Recombee recombee, SongsRepository songsRepository){
         this.songService = songService;
+        this.recombee = recombee;
+        this.songsRepository = songsRepository;
     }
 
     @PostMapping
@@ -70,7 +77,12 @@ public class SongController {
 
     @PutMapping("/{id}")
     public ResponseEntity<SongsEntity> updateSong(@PathVariable String id, @Valid @RequestBody me.one_org.melody.Dto.Controllers.Admin.UpdateSongRequestDto data) {
-        return ResponseEntity.ok(songService.updateSong(id, data));
+        SongsEntity updated = songService.updateSong(id, data);
+        try {
+            recombee.saveSong(updated.getId(), updated.getTitle(), updated.getArtistName(), updated.getLanguage(), updated.getGenre(), updated.getDuration());
+        } catch (Exception ignored) {
+        }
+        return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")
@@ -134,5 +146,25 @@ public class SongController {
             @RequestBody RecoverSongMediaRequestDto data) {
         CreateSongResponseDto response = songService.recoverMedia(id, data);
         return ResponseEntity.accepted().body(response);
+    }
+
+    /**
+     * Bulk reindex all active songs in Recombee.
+     * Call this after genre backfill or schema changes to sync all metadata.
+     */
+    @PostMapping("/reindex-recombee")
+    public ResponseEntity<java.util.Map<String, Object>> reindexRecombee() {
+        List<SongsEntity> activeSongs = songsRepository.findByStatus(StatusEnum.ACTIVE);
+        try {
+            recombee.reindexAll(activeSongs);
+            return ResponseEntity.ok(java.util.Map.of(
+                    "status", "success",
+                    "reindexed", activeSongs.size()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(java.util.Map.of(
+                            "status", "error",
+                            "message", e.getMessage()));
+        }
     }
 }

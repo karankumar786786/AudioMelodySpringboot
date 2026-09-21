@@ -56,6 +56,36 @@ public class InteractionApiController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * Fires when a user explicitly adds a song to their queue.
+     * Sends an AddBookmark signal to Recombee — strong intent-to-listen signal.
+     * Silently no-ops for unauthenticated (guest) users.
+     */
+    @PostMapping("/queue-add")
+    public ResponseEntity<Void> trackQueueAdd(
+            @RequestAttribute(value = "userId", required = false) String userId,
+            @Valid @RequestBody TrackSearchPlayRequestDto data) {
+        if (userId != null) {
+            interactionAppService.trackQueueAdd(userId, data.songId());
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Fires when a user explicitly removes a song from their queue.
+     * Deletes bookmark and adds negative rating (-0.4) to Recombee.
+     * Silently no-ops for unauthenticated (guest) users.
+     */
+    @PostMapping("/queue-remove")
+    public ResponseEntity<Void> trackQueueRemove(
+            @RequestAttribute(value = "userId", required = false) String userId,
+            @Valid @RequestBody TrackSearchPlayRequestDto data) {
+        if (userId != null) {
+            interactionAppService.trackQueueRemove(userId, data.songId());
+        }
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/favourite/{songId}")
     public ResponseEntity<Void> addFavourite(
             @RequestAttribute("userId") String userId,

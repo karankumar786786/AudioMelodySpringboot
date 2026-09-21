@@ -612,6 +612,28 @@ export const musicApi = {
         // Silently catch background telemetry drops
       }
     },
+    recordQueueAdd: async (songId: string) => {
+      try {
+        await request("/api/interaction/queue-add", {
+          method: "POST",
+          body: JSON.stringify({ songId }),
+          keepalive: true,
+        });
+      } catch {
+        // Silently catch background telemetry drops
+      }
+    },
+    recordQueueRemove: async (songId: string) => {
+      try {
+        await request("/api/interaction/queue-remove", {
+          method: "POST",
+          body: JSON.stringify({ songId }),
+          keepalive: true,
+        });
+      } catch {
+        // Silently catch background telemetry drops
+      }
+    },
   },
   search: {
     unified: async (query: string) => {

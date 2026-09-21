@@ -339,6 +339,9 @@ public class SongService {
         if (data.language() != null && !data.language().isBlank()) {
             song.setLanguage(data.language());
         }
+        if (data.genre() != null) {
+            song.setGenre(data.genre().isBlank() ? null : data.genre().trim());
+        }
         if (data.lrclibId() != null) {
             song.setLrclibId(data.lrclibId());
         }

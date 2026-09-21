@@ -3,6 +3,7 @@ package me.one_org.melody.Repository;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.Enums.StatusEnum;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +31,13 @@ public class SongsRepository {
 
     public List<SongsEntity> findAll() {
         return entityManager.createQuery("SELECT s FROM SongsEntity s", SongsEntity.class)
+                .getResultList();
+    }
+
+    public List<SongsEntity> findByStatus(StatusEnum status) {
+        return entityManager.createQuery(
+                "SELECT s FROM SongsEntity s WHERE s.status = :status", SongsEntity.class)
+                .setParameter("status", status)
                 .getResultList();
     }
 

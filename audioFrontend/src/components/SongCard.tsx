@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import {
   CornerDownRight,
   Heart,
+  ListMinus,
   ListPlus,
   Loader2,
   MoreVertical,
@@ -51,6 +52,9 @@ export function SongCard({
   const isPlaying = useStore(playerStore, (s) => s.isPlaying);
   const isAudioLoading = useStore(playerStore, (s) => s.isLoading);
   const favourites = useStore(playerStore, (s) => s.favourites);
+  const isInQueue = useStore(playerStore, (s) =>
+    s.queue.some((item, idx) => idx > s.lastQueueIndex && item.id === song.id),
+  );
   const previewState = useStore(previewStore, (s) => s);
 
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
@@ -144,6 +148,15 @@ export function SongCard({
     playerActions.enqueue([mapToPlayerSong(song)]);
     toast.success("Added to queue", {
       description: `"${song.title}" added to queue.`,
+    });
+  };
+
+  const handleRemoveFromQueue = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(false);
+    playerActions.removeSongFromQueue(song.id);
+    toast.success("Removed from queue", {
+      description: `"${song.title}" removed from queue.`,
     });
   };
 
@@ -463,14 +476,25 @@ export function SongCard({
                     <span>Start song radio</span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={handleAddToQueue}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-zinc-200 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
-                  >
-                    <ListPlus size={14} className="text-zinc-400" />
-                    <span>Add to queue</span>
-                  </button>
+                  {isInQueue ? (
+                    <button
+                      type="button"
+                      onClick={handleRemoveFromQueue}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer"
+                    >
+                      <ListMinus size={14} className="text-red-400" />
+                      <span>Remove from queue</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleAddToQueue}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-zinc-200 hover:bg-white/10 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <ListPlus size={14} className="text-zinc-400" />
+                      <span>Add to queue</span>
+                    </button>
+                  )}
 
                   <button
                     type="button"
