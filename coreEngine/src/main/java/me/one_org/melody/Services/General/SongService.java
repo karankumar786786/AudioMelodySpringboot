@@ -123,6 +123,7 @@ public class SongService {
                 .videoKey(data.videoKey())
                 .language(data.language())
                 .lrclibId(data.lrclibId())
+                .genre(data.genre())
                 .songId(songId)
                 .transcodingAttempt(0)
                 .transcoded(false)

@@ -285,6 +285,17 @@ export const playbackActions = {
     }
   },
 
+  recordSearchPlay: async (songId: string) => {
+    const { systemUser } = playerStore.state;
+    if (systemUser?.id && songId) {
+      try {
+        await musicApi.interactions.recordSearchPlay(songId);
+      } catch {
+        // Ignored offline telemetry drop
+      }
+    }
+  },
+
   setIsLyricsOpen: (isLyricsOpen: boolean) => {
     playerStore.setState((s) => ({ ...s, isLyricsOpen }));
   },

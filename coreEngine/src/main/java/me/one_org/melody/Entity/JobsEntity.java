@@ -34,6 +34,7 @@ public class JobsEntity {
     private Integer previewStartTime;
     private Integer previewEndTime;
     private String language;
+    private String genre;
     private String lrclibId;
     @Column(nullable = false)
     private String songId;

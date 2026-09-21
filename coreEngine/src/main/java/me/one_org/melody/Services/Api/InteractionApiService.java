@@ -73,6 +73,14 @@ public class InteractionApiService {
         }
     }
 
+    public void trackSearchPlay(String userId, String songId) {
+        try {
+            recombee.trackSearchPlay(userId, songId);
+        } catch (Exception e) {
+            log.error("Failed to track search-play in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
+        }
+    }
+
     @Transactional
     public void addFavourite(String userId, String songId) {
         UsersEntity user = getUser(userId);

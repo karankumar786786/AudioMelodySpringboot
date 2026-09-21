@@ -23,6 +23,7 @@ public record CreateSongRequestDto(
     @NotBlank
     String language,
     @NotBlank
-    String lrclibId
+    String lrclibId,
+    String genre
 ) {
 }

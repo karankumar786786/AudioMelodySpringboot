@@ -54,6 +54,7 @@ public class Recombee {
             recombeeClient.send(new AddItemProperty("title", "string"));
             recombeeClient.send(new AddItemProperty("artistName", "string"));
             recombeeClient.send(new AddItemProperty("language", "string"));
+            recombeeClient.send(new AddItemProperty("genre", "string"));
             log.info("Recombee item properties registered successfully");
         } catch (Exception e) {
             // Properties may already exist — Recombee throws if re-adding
@@ -68,14 +69,20 @@ public class Recombee {
         values.put("title", song.getTitle());
         values.put("artistName", song.getArtistName());
         values.put("language", song.getLanguage());
+        if (song.getGenre() != null && !song.getGenre().isBlank()) {
+            values.put("genre", song.getGenre());
+        }
         recombeeClient.send(new SetItemValues(song.getId(), values).setCascadeCreate(true));
     }
 
-    public void saveSong(String songId, String title, String artistName, String language) throws Exception {
+    public void saveSong(String songId, String title, String artistName, String language, String genre) throws Exception {
         Map<String, Object> values = new HashMap<>();
         values.put("title", title);
         values.put("artistName", artistName);
         values.put("language", language);
+        if (genre != null && !genre.isBlank()) {
+            values.put("genre", genre);
+        }
         recombeeClient.send(new SetItemValues(songId, values).setCascadeCreate(true));
     }
 
@@ -111,6 +118,11 @@ public class Recombee {
     // explicit skip button pressed
     public void trackSkip(String userId, String songId) throws Exception {
         recombeeClient.send(new AddRating(userId, songId, -1.0).setCascadeCreate(true));
+    }
+
+    // user played a song that appeared in search results — strong active-discovery signal
+    public void trackSearchPlay(String userId, String songId) throws Exception {
+        recombeeClient.send(new AddDetailView(userId, songId).setCascadeCreate(true));
     }
 
     // added to favourites
@@ -165,6 +177,9 @@ public class Recombee {
             values.put("title", song.getTitle());
             values.put("artistName", song.getArtistName());
             values.put("language", song.getLanguage());
+            if (song.getGenre() != null && !song.getGenre().isBlank()) {
+                values.put("genre", song.getGenre());
+            }
             requests.add(new SetItemValues(song.getId(), values).setCascadeCreate(true));
         }
         if (!requests.isEmpty()) {

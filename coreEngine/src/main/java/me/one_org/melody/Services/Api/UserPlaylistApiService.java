@@ -219,7 +219,7 @@ public class UserPlaylistApiService {
         try {
             recombee.trackPlaylistAdd(userId, songId);
         } catch (Exception e) {
-            // Log but don't fail
+            log.warn("Failed to track playlist add in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
         }
         return playlist;
     }
@@ -354,7 +354,7 @@ public class UserPlaylistApiService {
         try {
             recombee.trackPlaylistRemove(userId, songId);
         } catch (Exception e) {
-            // Log but don't fail
+            log.warn("Failed to track playlist remove in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
         }
         return playlist;
     }

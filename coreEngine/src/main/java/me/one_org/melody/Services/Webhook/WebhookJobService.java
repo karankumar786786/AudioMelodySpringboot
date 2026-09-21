@@ -126,7 +126,8 @@ public class WebhookJobService {
         JobsEntity job = getJob(jobId);
         try {
             recombee.saveSong(job.getSongId(), job.getTitle(), job.getArtistName(),
-                    job.getLanguage() != null ? job.getLanguage() : "unknown");
+                    job.getLanguage() != null ? job.getLanguage() : "unknown",
+                    job.getGenre());
             job.setSavedInRecommendation(true);
             LocalDateTime now = LocalDateTime.now();
             job.setRecommendationSavedAt(now);
@@ -250,6 +251,7 @@ public class WebhookJobService {
                 .previewEndTime(job.getPreviewEndTime())
                 .language(job.getLanguage() != null ? job.getLanguage() : "unknown")
                 .lrclibId(job.getLrclibId())
+                .genre(job.getGenre())
                 .jobId(job.getId())
                 .build();
         songsRepository.save(song);

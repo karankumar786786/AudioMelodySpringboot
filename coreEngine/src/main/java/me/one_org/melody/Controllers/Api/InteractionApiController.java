@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
 import me.one_org.melody.Dto.Controllers.Api.TrackPlayRequestDto;
+import me.one_org.melody.Dto.Controllers.Api.TrackSearchPlayRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.TrackSkipRequestDto;
 import me.one_org.melody.Entity.SongsEntity;
 import me.one_org.melody.Services.Api.InteractionApiService;
@@ -37,6 +38,21 @@ public class InteractionApiController {
             @RequestAttribute("userId") String userId,
             @Valid @RequestBody TrackSkipRequestDto data) {
         interactionAppService.trackSkip(userId, data.songId());
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Fires when a user plays a song that was surfaced via search results.
+     * Sends an AddDetailView signal to Recombee — strong active-discovery intent.
+     * Silently no-ops for unauthenticated (guest) users.
+     */
+    @PostMapping("/search-play")
+    public ResponseEntity<Void> trackSearchPlay(
+            @RequestAttribute(value = "userId", required = false) String userId,
+            @Valid @RequestBody TrackSearchPlayRequestDto data) {
+        if (userId != null) {
+            interactionAppService.trackSearchPlay(userId, data.songId());
+        }
         return ResponseEntity.ok().build();
     }
 

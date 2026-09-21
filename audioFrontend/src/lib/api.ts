@@ -601,6 +601,17 @@ export const musicApi = {
         // Silently catch background telemetry drops
       }
     },
+    recordSearchPlay: async (songId: string) => {
+      try {
+        await request("/api/interaction/search-play", {
+          method: "POST",
+          body: JSON.stringify({ songId }),
+          keepalive: true,
+        });
+      } catch {
+        // Silently catch background telemetry drops
+      }
+    },
   },
   search: {
     unified: async (query: string) => {

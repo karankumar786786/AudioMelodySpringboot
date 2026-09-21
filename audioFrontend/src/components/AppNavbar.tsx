@@ -131,6 +131,8 @@ export function AppNavbar() {
     });
     if (systemUser?.id && song.id) {
       saveHistory.mutate({ type: "SONG", songId: song.id });
+      // Track search-play intent in Recombee (AddDetailView — strong active-discovery signal)
+      playerActions.recordSearchPlay(song.id);
     }
     setIsFocused(false);
   };
