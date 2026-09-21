@@ -13,6 +13,7 @@ export interface RadioSession {
   seedTitle?: string;
   isActive: boolean;
   sessionHistoryIds: string[];
+  skippedSongIds?: string[];
 }
 
 export interface PlayerState {
@@ -45,6 +46,8 @@ export interface PlayerState {
   radioSession: RadioSession;
   isZenMode: boolean;
   dominantColor: string;
+  pendingSearchConfirmation: { songId: string } | null;
+  dislikedSongIds: string[];
 }
 
 const _initSystemUser = (() => {
@@ -167,9 +170,12 @@ export const playerStore = new Store<PlayerState>({
     seedSongId: null,
     isActive: false,
     sessionHistoryIds: [],
+    skippedSongIds: [],
   },
   isZenMode: false,
   dominantColor: "#181818",
+  pendingSearchConfirmation: null,
+  dislikedSongIds: [],
 });
 
 // Hydrate token, repeatMode, isShuffle, currentTime, and currentSong on client side only

@@ -430,6 +430,7 @@ export function useAudioSync(
     const last = lastStateRef.current;
     if (currentSong?.id !== last.id) {
       hasFadedOutRef.current = false;
+      playerActions.cancelSearchPlay();
       if (last.id) {
         setLocalTime(0);
         setBuffered(0);
@@ -500,6 +501,15 @@ export function useAudioSync(
     const t = audioElement.currentTime;
     setLocalTime(t);
     playerActions.setCurrentTime(t);
+
+    // Search Dwell Validation: confirm search conversion if listened for >= 15s or >= 15% of song
+    const pendingSearch = playerStore.state.pendingSearchConfirmation;
+    if (pendingSearch && currentSong?.id === pendingSearch.songId) {
+      const dur = audioElement.duration || currentSong.duration || 0;
+      if (t >= 15 || (dur > 0 && t / dur >= 0.15)) {
+        playerActions.confirmSearchPlay(pendingSearch.songId);
+      }
+    }
 
     if (playerStore.state.isLoading && !audioElement.paused && audioElement.readyState >= 3) {
       playerActions.setIsLoading(false);

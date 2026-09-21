@@ -268,7 +268,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       if (systemUser?.id && item.data.id) {
         saveHistory.mutate({ type: "SONG", songId: item.data.id });
       }
-      playerActions.recordSearchPlay(item.data.id, debouncedQuery || query);
+      // Search Dwell Validation: Stage search conversion (only confirmed after >= 15s listening)
+      playerActions.stageSearchPlay(item.data.id);
       onClose();
     } else if (item.type === "artist") {
       router.push(`/artists/${item.data.id}`);

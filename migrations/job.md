@@ -84,3 +84,7 @@ When ready to deploy:
 | `RecommendNextItems` API | Sequential "what plays next" support in `Recombee.java` |
 | Bulk Recombee reindex endpoint | `POST /admin/song/reindex-recombee` |
 | Search Frequency & Auto Ranking | Algolia `customRanking: ["desc(searchCount)"]` with atomic `_operation: Increment` — no Redis, no DB changes |
+| Search Dwell Validation | Only confirms Algolia `searchCount` after >= 15s of listening; cancels on early skip |
+| Explicit Dislike ("Don't play this again") | `POST /api/interaction/dislike` (-1.0 rating) + excluded from radio refills |
+| Song Share Tracking | `POST /api/interaction/share` (+0.6 rating) when user shares or copies song link |
+| Session-Level Dynamic Radio Steering | Skips in radio session added to `excludeIds`; songs played > 75% re-seed radio dynamically |

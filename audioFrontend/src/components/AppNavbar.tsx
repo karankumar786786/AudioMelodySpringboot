@@ -133,8 +133,8 @@ export function AppNavbar() {
     if (systemUser?.id && song.id) {
       saveHistory.mutate({ type: "SONG", songId: song.id });
     }
-    // Track search-play intent & boost ranking in Redis
-    playerActions.recordSearchPlay(song.id, debouncedQuery || query);
+    // Search Dwell Validation: Stage search conversion (only confirmed after >= 15s listening)
+    playerActions.stageSearchPlay(song.id);
     setIsFocused(false);
   };
 

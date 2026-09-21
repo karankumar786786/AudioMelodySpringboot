@@ -649,6 +649,28 @@ export const musicApi = {
         // Silently catch background telemetry drops
       }
     },
+    recordDislike: async (songId: string) => {
+      try {
+        await request("/api/interaction/dislike", {
+          method: "POST",
+          body: JSON.stringify({ songId }),
+          keepalive: true,
+        });
+      } catch {
+        // Silently catch background telemetry drops
+      }
+    },
+    recordShare: async (songId: string) => {
+      try {
+        await request("/api/interaction/share", {
+          method: "POST",
+          body: JSON.stringify({ songId }),
+          keepalive: true,
+        });
+      } catch {
+        // Silently catch background telemetry drops
+      }
+    },
   },
   search: {
     unified: async (query: string) => {

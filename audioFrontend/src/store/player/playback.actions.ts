@@ -61,6 +61,7 @@ export const playbackActions = {
               seedTitle: song.title,
               isActive: true,
               sessionHistoryIds: [song.id],
+              skippedSongIds: [],
             };
 
       const newState = {
@@ -285,6 +286,32 @@ export const playbackActions = {
     }
   },
 
+  stageSearchPlay: (songId: string) => {
+    if (!songId) return;
+    playerStore.setState((s) => ({
+      ...s,
+      pendingSearchConfirmation: { songId },
+    }));
+  },
+
+  confirmSearchPlay: async (songId: string) => {
+    const { pendingSearchConfirmation } = playerStore.state;
+    if (pendingSearchConfirmation && pendingSearchConfirmation.songId === songId) {
+      playerStore.setState((s) => ({
+        ...s,
+        pendingSearchConfirmation: null,
+      }));
+      await playbackActions.recordSearchPlay(songId);
+    }
+  },
+
+  cancelSearchPlay: () => {
+    playerStore.setState((s) => ({
+      ...s,
+      pendingSearchConfirmation: null,
+    }));
+  },
+
   recordSearchPlay: async (songId: string, query?: string) => {
     if (songId) {
       try {
@@ -292,6 +319,24 @@ export const playbackActions = {
       } catch {
         // Ignored offline telemetry drop
       }
+    }
+  },
+
+  recordDislike: async (songId: string) => {
+    if (!songId) return;
+    try {
+      await musicApi.interactions.recordDislike(songId);
+    } catch {
+      // Ignored offline telemetry drop
+    }
+  },
+
+  recordShare: async (songId: string) => {
+    if (!songId) return;
+    try {
+      await musicApi.interactions.recordShare(songId);
+    } catch {
+      // Ignored offline telemetry drop
     }
   },
 

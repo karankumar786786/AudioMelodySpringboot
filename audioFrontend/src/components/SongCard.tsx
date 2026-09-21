@@ -3,6 +3,7 @@
 import { useStore } from "@tanstack/react-store";
 import { motion } from "framer-motion";
 import {
+  Ban,
   CornerDownRight,
   Heart,
   ListMinus,
@@ -513,6 +514,20 @@ export function SongCard({
                   >
                     <Share2 size={14} className="text-primary" />
                     <span>Share track</span>
+                  </button>
+
+                  {/* Explicit Negative Feedback: Don't Play This Again */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowMenu(false);
+                      playerActions.dislikeSong(song.id);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer border-t border-white/5 mt-1 pt-1.5"
+                  >
+                    <Ban size={14} className="text-zinc-400" />
+                    <span>Don't play this again</span>
                   </button>
                 </div>
               </>

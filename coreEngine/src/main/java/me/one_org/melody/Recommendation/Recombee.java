@@ -178,6 +178,16 @@ public class Recombee {
         recombeeClient.send(new AddRating(userId, songId, -0.4).setCascadeCreate(true));
     }
 
+    // user explicitly disliked / hid a song — strong negative signal
+    public void trackDislike(String userId, String songId) throws Exception {
+        recombeeClient.send(new AddRating(userId, songId, -1.0).setCascadeCreate(true));
+    }
+
+    // user shared a song — high intent advocacy signal
+    public void trackShare(String userId, String songId) throws Exception {
+        recombeeClient.send(new AddRating(userId, songId, 0.6).setCascadeCreate(true));
+    }
+
     // ── Recommendations — return only IDs, caller fetches from DB ──
 
     public List<String> recommendForUser(String userId, int count) throws Exception {

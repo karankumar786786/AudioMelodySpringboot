@@ -1,6 +1,7 @@
 import { playerStore } from "./index";
 import { musicApi } from "@/lib/api";
 import { mapListToPlayerSongs, type PlayerSong } from "@/lib/player-utils";
+import { toast } from "sonner";
 
 const persistQueue = (_queue: PlayerSong[], _currentIndex: number) => {
   // Queue persistence to localStorage is disabled
@@ -504,10 +505,17 @@ export const queueActions = {
         let res: any;
         if (isRadioActive) {
           try {
-            console.log(`📡 Endpoint: Requesting Radio stream for seed [${radioSession.seedSongId}] with history exclusions...`);
+            const combinedExcludes = Array.from(
+              new Set([
+                ...(radioSession.sessionHistoryIds || []),
+                ...(radioSession.skippedSongIds || []),
+                ...(playerStore.state.dislikedSongIds || []),
+              ])
+            );
+            console.log(`📡 Endpoint: Requesting Radio stream for seed [${radioSession.seedSongId}] with ${combinedExcludes.length} exclusions...`);
             res = await musicApi.interactions.getRadioSongs(
               radioSession.seedSongId!,
-              radioSession.sessionHistoryIds || [],
+              combinedExcludes,
               10
             );
             const data = res?.data?.data || res?.data;
@@ -548,18 +556,19 @@ export const queueActions = {
           }
 
           const newSongs = mapListToPlayerSongs(rawData);
-          const { queue: latestQueue, lastQueueIndex: latestIndex, currentSong: activeSong } = playerStore.state;
+          const { queue: latestQueue, lastQueueIndex: latestIndex, currentSong: activeSong, dislikedSongIds } = playerStore.state;
+          const dislikedSet = new Set(dislikedSongIds || []);
 
-          // 🔑 KEY FIX: Only exclude UPCOMING songs from dedup, not played ones.
+          // 🔑 KEY FIX: Only exclude UPCOMING songs and disliked songs from dedup, not played ones.
           const upcomingSongs = latestQueue.slice(latestIndex + 1);
           const existingIds = new Set(upcomingSongs.map((s) => s.id));
           if (activeSong?.id) existingIds.add(activeSong.id);
 
-          let uniqueNewSongs = newSongs.filter((s) => !existingIds.has(s.id));
+          let uniqueNewSongs = newSongs.filter((s) => !existingIds.has(s.id) && !dislikedSet.has(s.id));
 
-          // If all tracks were duplicates against upcoming, relax dedup to current song only
+          // If all tracks were duplicates against upcoming, relax dedup to current song only (still excluding disliked)
           if (uniqueNewSongs.length === 0 && newSongs.length > 0) {
-            uniqueNewSongs = newSongs.filter((s) => s.id !== activeSong?.id);
+            uniqueNewSongs = newSongs.filter((s) => s.id !== activeSong?.id && !dislikedSet.has(s.id));
           }
 
           console.log(`✨ [UNIQUE FILTERED]: ${uniqueNewSongs.length} new songs added to queue.`);
@@ -640,7 +649,7 @@ export const queueActions = {
   },
 
   next: (isExplicitSkip = true) => {
-    const { queue, lastQueueIndex, repeatMode, currentSong, currentTime, duration } =
+    const { queue, lastQueueIndex, repeatMode, currentSong, currentTime, duration, radioSession } =
       playerStore.state;
 
     // Only record an explicit skip penalty (-1.0) if the user actively skipped before 75% completion
@@ -649,9 +658,29 @@ export const queueActions = {
       console.log(
         `[Interaction] Recording explicit skip (-1.0) for "${currentSong.title}" (Listened: ${(listenRatio * 100).toFixed(1)}%)`,
       );
+      if (radioSession.isActive) {
+        playerStore.setState((s) => ({
+          ...s,
+          radioSession: {
+            ...s.radioSession,
+            skippedSongIds: Array.from(new Set([...(s.radioSession.skippedSongIds || []), currentSong.id])),
+          },
+        }));
+      }
       import("@/store/player/playback.actions").then(({ playbackActions }) => {
         playbackActions.recordSkip(currentSong.id);
+        playbackActions.cancelSearchPlay();
       });
+    } else if (currentSong?.id && listenRatio >= 0.75 && radioSession.isActive) {
+      // Dynamic Radio Re-seeding: user finished/enjoyed this song, steer future radio refills around it!
+      playerStore.setState((s) => ({
+        ...s,
+        radioSession: {
+          ...s.radioSession,
+          seedSongId: currentSong.id,
+          seedTitle: currentSong.title,
+        },
+      }));
     }
 
     console.log(
@@ -805,5 +834,45 @@ export const queueActions = {
         playbackActions.setCurrentTime(0),
       );
     }
+  },
+
+  /**
+   * Explicit negative feedback: hides/dislikes a song.
+   * Removes from queue, adds to disliked list, stops if currently playing,
+   * sends -1.0 rating to Recombee, and displays feedback toast.
+   */
+  dislikeSong: (songId: string) => {
+    if (!songId) return;
+    const { currentSong } = playerStore.state;
+
+    const updatedDisliked = Array.from(
+      new Set([...(playerStore.state.dislikedSongIds || []), songId])
+    );
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("audiomelody_disliked_songs", JSON.stringify(updatedDisliked));
+      } catch {}
+    }
+
+    playerStore.setState((s) => ({
+      ...s,
+      dislikedSongIds: updatedDisliked,
+      queue: s.queue.filter((item) => item.id !== songId),
+      originalQueue: s.originalQueue.filter((item) => item.id !== songId),
+      radioSession: {
+        ...s.radioSession,
+        skippedSongIds: Array.from(new Set([...(s.radioSession.skippedSongIds || []), songId])),
+      },
+    }));
+
+    import("@/store/player/playback.actions").then(({ playbackActions }) => {
+      playbackActions.recordDislike(songId);
+    });
+
+    if (currentSong?.id === songId) {
+      queueActions.next(true);
+    }
+
+    toast.success("We won't recommend this song again");
   },
 };

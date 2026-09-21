@@ -45,9 +45,16 @@ export const playerActions = {
         // ignore
       }
 
+      let savedDisliked: string[] = [];
+      try {
+        const raw = localStorage.getItem("audiomelody_disliked_songs");
+        if (raw) savedDisliked = JSON.parse(raw);
+      } catch {}
+
       playerStore.setState((s) => {
         const nextState: typeof s = {
           ...s,
+          dislikedSongIds: Array.isArray(savedDisliked) ? savedDisliked : s.dislikedSongIds,
           currentTime:
             !isNaN(parsedTime) && parsedTime > 0 ? parsedTime : s.currentTime,
           repeatMode:

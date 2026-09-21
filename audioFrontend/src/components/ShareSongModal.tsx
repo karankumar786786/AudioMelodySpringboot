@@ -6,6 +6,7 @@ import { type Song } from "@/lib/api";
 import { type PlayerSong } from "@/lib/player-utils";
 import { getImageUrl } from "@/lib/image-utils";
 import { toast } from "sonner";
+import { playerActions } from "@/store/player.store";
 
 interface ShareSongModalProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export const ShareSongModal: React.FC<ShareSongModalProps> = ({
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareUrl);
     setCopied(true);
+    playerActions.recordShare(song.id);
     toast.success("Link copied to clipboard", {
       description: `Share link for "${song.title}" is ready.`,
     });
@@ -43,6 +45,7 @@ export const ShareSongModal: React.FC<ShareSongModalProps> = ({
 
   const handleShareTwitter = () => {
     const text = encodeURIComponent(`Listening to "${song.title}" by ${song.artistName} on AudioMelody 🎵✨\n${shareUrl}`);
+    playerActions.recordShare(song.id);
     window.open(`https://twitter.com/intent/tweet?text=${text}`, "_blank");
   };
 

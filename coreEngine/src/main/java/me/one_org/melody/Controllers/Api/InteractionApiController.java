@@ -96,6 +96,34 @@ public class InteractionApiController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * Explicit dislike / "Don't play this again".
+     * Sends -1.0 rating to Recombee.
+     */
+    @PostMapping("/dislike")
+    public ResponseEntity<Void> trackDislike(
+            @RequestAttribute(value = "userId", required = false) String userId,
+            @Valid @RequestBody TrackSkipRequestDto data) {
+        if (userId != null) {
+            interactionAppService.trackDislike(userId, data.songId());
+        }
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * User shared / copied link of a song.
+     * Sends +0.6 rating to Recombee (high intent advocacy signal).
+     */
+    @PostMapping("/share")
+    public ResponseEntity<Void> trackShare(
+            @RequestAttribute(value = "userId", required = false) String userId,
+            @Valid @RequestBody TrackSkipRequestDto data) {
+        if (userId != null) {
+            interactionAppService.trackShare(userId, data.songId());
+        }
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/favourite/{songId}")
     public ResponseEntity<Void> addFavourite(
             @RequestAttribute("userId") String userId,

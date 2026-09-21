@@ -124,6 +124,28 @@ public class InteractionApiService {
         }
     }
 
+    public void trackDislike(String userId, String songId) {
+        if (userId != null && songId != null) {
+            try {
+                recombee.trackDislike(userId, songId);
+                log.info("Tracked dislike signal in Recombee for user [{}] song [{}]", userId, songId);
+            } catch (Exception e) {
+                log.error("Failed to track dislike in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
+            }
+        }
+    }
+
+    public void trackShare(String userId, String songId) {
+        if (userId != null && songId != null) {
+            try {
+                recombee.trackShare(userId, songId);
+                log.info("Tracked share signal in Recombee for user [{}] song [{}]", userId, songId);
+            } catch (Exception e) {
+                log.error("Failed to track share in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
+            }
+        }
+    }
+
     @Transactional
     public void addFavourite(String userId, String songId) {
         UsersEntity user = getUser(userId);
