@@ -217,10 +217,13 @@ export const queueActions = {
     if (songs.length === 0) return;
 
     playerStore.setState((s) => {
-      // Filter out immediate duplicate if the first enqueued song is identical to currentSong
-      const filteredSongs = s.currentSong?.id
-        ? songs.filter((song, idx) => !(idx === 0 && song.id === s.currentSong?.id))
-        : songs;
+      const dislikedSet = new Set(s.dislikedSongIds || []);
+      // Filter out disliked songs and immediate duplicate if the first enqueued song is identical to currentSong
+      const filteredSongs = songs.filter((song, idx) => {
+        if (dislikedSet.has(song.id)) return false;
+        if (s.currentSong?.id && idx === 0 && song.id === s.currentSong?.id) return false;
+        return true;
+      });
 
       if (filteredSongs.length === 0) return s;
 
