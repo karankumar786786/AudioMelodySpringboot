@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import lombok.extern.slf4j.Slf4j;
+import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
 import me.one_org.melody.Entity.SongsEntity;
 import me.one_org.melody.Entity.UserHistoryEntity;
 import me.one_org.melody.Entity.UsersEntity;
@@ -27,15 +28,18 @@ public class InteractionApiService {
     private final SongsRepository songsRepository;
     private final UserHistoryRepository userHistoryRepository;
     private final PaginationMetaDataService paginationMetaDataService;
+    private final AlgoliaSearch algoliaSearch;
 
     public InteractionApiService(Recombee recombee, UsersRepository usersRepository,
                                   SongsRepository songsRepository, UserHistoryRepository userHistoryRepository,
-                                  PaginationMetaDataService paginationMetaDataService) {
+                                  PaginationMetaDataService paginationMetaDataService,
+                                  AlgoliaSearch algoliaSearch) {
         this.recombee = recombee;
         this.usersRepository = usersRepository;
         this.songsRepository = songsRepository;
         this.userHistoryRepository = userHistoryRepository;
         this.paginationMetaDataService = paginationMetaDataService;
+        this.algoliaSearch = algoliaSearch;
     }
 
     @Transactional
@@ -75,9 +79,32 @@ public class InteractionApiService {
 
     public void trackSearchPlay(String userId, String songId) {
         try {
-            recombee.trackSearchPlay(userId, songId);
+            algoliaSearch.incrementSearchCount(songId);
         } catch (Exception e) {
-            log.error("Failed to track search-play in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
+            log.warn("Failed to increment search count in Algolia for song {}: {}", songId, e.getMessage());
+        }
+
+        if (userId != null) {
+            try {
+                recombee.trackSearchPlay(userId, songId);
+            } catch (Exception e) {
+                log.error("Failed to track search-play in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
+            }
+        }
+    }
+
+    public void trackSearchClick(String userId, String type, String entityId) {
+        try {
+            algoliaSearch.incrementSearchCount(entityId);
+        } catch (Exception e) {
+            log.warn("Failed to increment search count in Algolia for type {} id {}: {}", type, entityId, e.getMessage());
+        }
+
+        if ("SONG".equalsIgnoreCase(type) && userId != null) {
+            try {
+                recombee.trackSearchPlay(userId, entityId);
+            } catch (Exception ignored) {
+            }
         }
     }
 

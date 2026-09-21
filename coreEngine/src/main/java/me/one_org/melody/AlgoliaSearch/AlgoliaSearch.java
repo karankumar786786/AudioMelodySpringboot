@@ -37,12 +37,32 @@ public class AlgoliaSearch {
 
     @PostConstruct
     public void configureIndex() throws Exception {
-        searchClient.setSettings(indexName, new IndexSettings().setSearchableAttributes(List.of(
-                "title",
-                "artistName",
-                "language",
-                "name")));
-        log.info("Algolia index configured with searchable attributes");
+        searchClient.setSettings(indexName, new IndexSettings()
+                .setSearchableAttributes(List.of(
+                        "title",
+                        "artistName",
+                        "language",
+                        "name"))
+                .setCustomRanking(List.of(
+                        "desc(searchCount)")));
+        log.info("Algolia index configured with searchable attributes and customRanking desc(searchCount)");
+    }
+
+    public void incrementSearchCount(String objectId) {
+        if (objectId == null || objectId.isBlank()) return;
+        try {
+            Map<String, Object> operation = new HashMap<>();
+            operation.put("_operation", "Increment");
+            operation.put("value", 1);
+
+            Map<String, Object> update = new HashMap<>();
+            update.put("searchCount", operation);
+
+            searchClient.partialUpdateObject(indexName, objectId, update, true);
+            log.info("Incremented Algolia searchCount for object [{}]", objectId);
+        } catch (Exception e) {
+            log.warn("Failed to increment searchCount in Algolia for [{}]: {}", objectId, e.getMessage());
+        }
     }
 
 

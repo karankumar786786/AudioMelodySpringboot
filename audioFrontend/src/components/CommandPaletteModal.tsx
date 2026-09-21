@@ -100,6 +100,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     enabled: isOpen && !!systemUser?.id && !debouncedQuery,
   });
 
+
   const saveHistory = useMutation({
     mutationFn: (payload: SaveSearchHistoryPayload) =>
       musicApi.users.saveSearchHistory(payload),
@@ -267,14 +268,17 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
       if (systemUser?.id && item.data.id) {
         saveHistory.mutate({ type: "SONG", songId: item.data.id });
       }
+      playerActions.recordSearchPlay(item.data.id, debouncedQuery || query);
       onClose();
     } else if (item.type === "artist") {
       router.push(`/artists/${item.data.id}`);
       if (systemUser?.id && item.data.id) {
         saveHistory.mutate({ type: "ARTIST", artistId: item.data.id });
       }
+      playerActions.recordSearchClick("ARTIST", item.data.id, debouncedQuery || query);
       onClose();
     } else if (item.type === "playlist") {
+      playerActions.recordSearchClick("PLAYLIST", item.data.id, debouncedQuery || query);
       if (item.data?.isUserPlaylist) {
         router.push(`/my-playlists/${item.data.id}`);
         if (systemUser?.id && item.data.id) {
@@ -392,6 +396,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
           ref={listRef}
           className="max-h-[50vh] overflow-y-auto no-scrollbar p-2 space-y-1"
         >
+
           {!debouncedQuery && recentHistory.length > 0 && (
             <div className="px-3 py-1.5 flex items-center justify-between text-xs text-zinc-400">
               <span className="font-semibold text-zinc-400">Recent Searches</span>

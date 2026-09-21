@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotBlank;
  * Used to track strong intent signals in Recombee (search → play = very high interest).
  */
 public record TrackSearchPlayRequestDto(
-    @NotBlank String songId
+    @NotBlank String songId,
+    String query
 ) {
 }

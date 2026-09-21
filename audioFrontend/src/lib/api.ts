@@ -601,11 +601,26 @@ export const musicApi = {
         // Silently catch background telemetry drops
       }
     },
-    recordSearchPlay: async (songId: string) => {
+    recordSearchPlay: async (songId: string, query?: string) => {
       try {
         await request("/api/interaction/search-play", {
           method: "POST",
-          body: JSON.stringify({ songId }),
+          body: JSON.stringify({ songId, query: query || undefined }),
+          keepalive: true,
+        });
+      } catch {
+        // Silently catch background telemetry drops
+      }
+    },
+    recordSearchClick: async (
+      type: "SONG" | "ARTIST" | "PLAYLIST",
+      id: string,
+      query?: string,
+    ) => {
+      try {
+        await request("/api/interaction/search-click", {
+          method: "POST",
+          body: JSON.stringify({ type, id, query: query || undefined }),
           keepalive: true,
         });
       } catch {
@@ -653,7 +668,6 @@ export const musicApi = {
       } catch {
         return { data: { songs: [], artists: [], playlists: [], userPlaylists: [] } };
       }
-    },
   },
   auth: {
     login: async (email: string) => {

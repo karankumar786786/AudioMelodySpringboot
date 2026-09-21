@@ -50,8 +50,18 @@ public class InteractionApiController {
     public ResponseEntity<Void> trackSearchPlay(
             @RequestAttribute(value = "userId", required = false) String userId,
             @Valid @RequestBody TrackSearchPlayRequestDto data) {
-        if (userId != null) {
-            interactionAppService.trackSearchPlay(userId, data.songId());
+        interactionAppService.trackSearchPlay(userId, data.songId());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/search-click")
+    public ResponseEntity<Void> trackSearchClick(
+            @RequestAttribute(value = "userId", required = false) String userId,
+            @RequestBody java.util.Map<String, String> data) {
+        String type = data.get("type");
+        String id = data.get("id");
+        if (id != null && type != null) {
+            interactionAppService.trackSearchClick(userId, type, id);
         }
         return ResponseEntity.ok().build();
     }

@@ -285,11 +285,24 @@ export const playbackActions = {
     }
   },
 
-  recordSearchPlay: async (songId: string) => {
-    const { systemUser } = playerStore.state;
-    if (systemUser?.id && songId) {
+  recordSearchPlay: async (songId: string, query?: string) => {
+    if (songId) {
       try {
-        await musicApi.interactions.recordSearchPlay(songId);
+        await musicApi.interactions.recordSearchPlay(songId, query);
+      } catch {
+        // Ignored offline telemetry drop
+      }
+    }
+  },
+
+  recordSearchClick: async (
+    type: "SONG" | "ARTIST" | "PLAYLIST",
+    id: string,
+    query?: string,
+  ) => {
+    if (id && type) {
+      try {
+        await musicApi.interactions.recordSearchClick(type, id, query);
       } catch {
         // Ignored offline telemetry drop
       }

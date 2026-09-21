@@ -81,6 +81,7 @@ export function AppNavbar() {
     enabled: isFocused && !!debouncedQuery.trim(),
   });
 
+
   const saveHistory = useMutation({
     mutationFn: (payload: SaveSearchHistoryPayload) =>
       musicApi.users.saveSearchHistory(payload),
@@ -131,9 +132,9 @@ export function AppNavbar() {
     });
     if (systemUser?.id && song.id) {
       saveHistory.mutate({ type: "SONG", songId: song.id });
-      // Track search-play intent in Recombee (AddDetailView — strong active-discovery signal)
-      playerActions.recordSearchPlay(song.id);
     }
+    // Track search-play intent & boost ranking in Redis
+    playerActions.recordSearchPlay(song.id, debouncedQuery || query);
     setIsFocused(false);
   };
 
@@ -142,6 +143,7 @@ export function AppNavbar() {
     if (systemUser?.id && artist.id) {
       saveHistory.mutate({ type: "ARTIST", artistId: artist.id });
     }
+    playerActions.recordSearchClick("ARTIST", artist.id, debouncedQuery || query);
     setIsFocused(false);
   };
 
@@ -150,6 +152,7 @@ export function AppNavbar() {
     if (systemUser?.id && playlist.id) {
       saveHistory.mutate({ type: "PLAYLIST", playlistId: playlist.id });
     }
+    playerActions.recordSearchClick("PLAYLIST", playlist.id, debouncedQuery || query);
     setIsFocused(false);
   };
 
@@ -158,6 +161,7 @@ export function AppNavbar() {
     if (systemUser?.id && playlist.id) {
       saveHistory.mutate({ type: "USER_PLAYLIST", userPlaylistId: playlist.id });
     }
+    playerActions.recordSearchClick("PLAYLIST", playlist.id, debouncedQuery || query);
     setIsFocused(false);
   };
 
@@ -297,6 +301,7 @@ export function AppNavbar() {
               {!query.trim() ? (
                 /* RECENT SEARCHES (RICH CARDS & LIST) */
                 <div className="flex-1 overflow-y-auto no-scrollbar">
+
                   <div className="p-3 border-b border-[#282828] flex items-center justify-between sticky top-0 bg-[#181818] z-10">
                     <span className="text-xs font-semibold text-zinc-400">
                       Recent Searches
