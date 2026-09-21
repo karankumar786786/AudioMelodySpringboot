@@ -668,6 +668,7 @@ export const musicApi = {
       } catch {
         return { data: { songs: [], artists: [], playlists: [], userPlaylists: [] } };
       }
+    },
   },
   auth: {
     login: async (email: string) => {
