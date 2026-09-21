@@ -83,5 +83,4 @@ When ready to deploy:
 | Playlist add/remove Recombee tracking | Already wired in `UserPlaylistApiService` |
 | `RecommendNextItems` API | Sequential "what plays next" support in `Recombee.java` |
 | Bulk Recombee reindex endpoint | `POST /admin/song/reindex-recombee` |
-| Search Popularity & Frequency Ranking | Redis sorted sets (`search:popularity:*`, `search:query:*`) — no DB changes |
-| Trending Search Queries API | `GET /api/search/trending` — powered by Redis |
+| Search Frequency & Auto Ranking | Algolia `customRanking: ["desc(searchCount)"]` with atomic `_operation: Increment` — no Redis, no DB changes |
