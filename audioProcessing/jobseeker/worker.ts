@@ -1,13 +1,14 @@
 import { redis } from "../redis";
 import { inngest } from "../inngest";
 import { config } from "dotenv";
+import { QUEUES } from "../lib/queues";
 config();
 
 const EMPTY_QUEUE_DELAY_MS = Number(process.env.QUEUE_EMPTY_DELAY_MS) || 2000;
 const POLL_TIMEOUT_SECONDS = Number(process.env.QUEUE_POLL_TIMEOUT_SECS) || 2;
 
 export async function fetchJobsFromList() {
-    const jobQueue = process.env.JOB_PROCESSING_QUEUE || "audio_processing_queue";
+    const jobQueue = QUEUES.AUDIO_PROCESSING;
     console.log(`Worker starting, listening on Redis queue: "${jobQueue}" (idle wait: ${EMPTY_QUEUE_DELAY_MS}ms)`);
     while (true) {
         try {

@@ -49,6 +49,7 @@ spring:
       mailqueue: ${REDIS_MAIL_QUEUE:mail_queue}
       audioprocessingqueue: ${REDIS_AUDIO_PROCESSING_QUEUE:audio_processing_queue}
       deletequeue: ${REDIS_DELETE_QUEUE:delete_event_queue}
+      cancelqueue: ${REDIS_CANCEL_QUEUE:audio_cancel_queue}
       ssl:
         enabled: ${REDIS_SSL_ENABLED:true}
 
@@ -69,6 +70,28 @@ jwt:
   secret: ${JWT_SECRET:super_secret_jwt_key_that_is_at_least_32_bytes_long_and_very_secure_12345}
 server:
   port: ${PORT:8080}
+  shutdown: graceful
+
+spring.lifecycle:
+  timeout-per-shutdown-phase: 30s
+
+# Actuator endpoint protection — only expose safe endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+# OpenAPI / Swagger configuration
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
 
 algolia:
   app-id: ${ALGOLIA_APP_ID:default_algolia_app_id}
@@ -100,4 +123,5 @@ imagekit:
   public-key: ${IMAGEKIT_PUBLIC_KEY:default_public_key}
   private-key: ${IMAGEKIT_PRIVATE_KEY:default_private_key}
   url-endpoint: ${IMAGEKIT_URL_ENDPOINT:https://ik.imagekit.io/default}
+
 

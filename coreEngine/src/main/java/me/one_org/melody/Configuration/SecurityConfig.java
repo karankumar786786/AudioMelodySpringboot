@@ -20,6 +20,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Filters.ApiKeyFilter;
 import me.one_org.melody.Filters.JwtFilter;
+import me.one_org.melody.Filters.RateLimitFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -27,10 +28,12 @@ public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
     private final ApiKeyFilter apiKeyFilter;
+    private final RateLimitFilter rateLimitFilter;
 
-    public SecurityConfig(JwtFilter jwtFilter, ApiKeyFilter apiKeyFilter){
+    public SecurityConfig(JwtFilter jwtFilter, ApiKeyFilter apiKeyFilter, RateLimitFilter rateLimitFilter){
         this.jwtFilter = jwtFilter;
         this.apiKeyFilter = apiKeyFilter;
+        this.rateLimitFilter = rateLimitFilter;
     }
 
     @Bean
@@ -43,11 +46,13 @@ public class SecurityConfig {
                 .requestMatchers("/api/user/playlists/shared/**").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/user/playlists/*").permitAll()
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/user/playlists/*/songs").permitAll()
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/admin/**").hasAnyRole(RoleEnum.ADMIN.name(), RoleEnum.SUPER_ADMIN.name())
                 .requestMatchers("/api/**", "/app/**","/webhook/**").authenticated()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(apiKeyFilter, JwtFilter.class);
 

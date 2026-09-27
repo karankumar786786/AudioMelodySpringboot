@@ -2,6 +2,7 @@ import { redis } from "../redis";
 import { inngest } from "../inngest";
 import { config } from "dotenv";
 import type { DeleteEventPayload } from "../types/delete";
+import { QUEUES } from "../lib/queues";
 
 config();
 
@@ -9,7 +10,7 @@ const EMPTY_QUEUE_DELAY_MS = Number(process.env.QUEUE_EMPTY_DELAY_MS) || 2000;
 const POLL_TIMEOUT_SECONDS = Number(process.env.QUEUE_POLL_TIMEOUT_SECS) || 2;
 
 export async function fetchDeleteEventsFromList() {
-    const deleteQueue = process.env.DELETE_EVENT_QUEUE || "delete_event_queue";
+    const deleteQueue = QUEUES.DELETE_EVENT;
     console.log(`Delete worker starting, listening on Redis queue: "${deleteQueue}" (idle wait: ${EMPTY_QUEUE_DELAY_MS}ms)`);
 
     while (true) {

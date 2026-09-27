@@ -2,6 +2,7 @@ import { redis } from "../redis";
 import { inngest } from "../inngest";
 import { config } from "dotenv";
 import { cleanupStaleTmpFiles } from "../lib/transcode/cleanup";
+import { QUEUES } from "../lib/queues";
 config();
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -9,7 +10,7 @@ const EMPTY_QUEUE_DELAY_MS = Number(process.env.QUEUE_EMPTY_DELAY_MS) || 2000;
 const POLL_TIMEOUT_SECONDS = Number(process.env.QUEUE_POLL_TIMEOUT_SECS) || 2;
 
 export async function fetchCancelEventsFromList() {
-    const cancelQueue = process.env.CANCEL_EVENT_QUEUE || "audio_cancel_queue";
+    const cancelQueue = QUEUES.CANCEL_EVENT;
     console.log(`Cancel worker starting, listening on Redis queue: "${cancelQueue}" (idle wait: ${EMPTY_QUEUE_DELAY_MS}ms)`);
 
     while (true) {
