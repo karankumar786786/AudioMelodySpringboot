@@ -239,30 +239,7 @@ async function request<T = any>(endpoint: string, options: RequestInit = {}, ret
         // Retry request with updated auth header and retry set to false
         return await request<T>(endpoint, { ...options, headers }, false);
       } catch (err) {
-        // If public endpoint (like /api/songs, /api/artists, /api/playlists), retry without Authorization header
-        if (endpoint.startsWith("/api/songs") || endpoint.startsWith("/api/artists") || endpoint.startsWith("/api/playlists")) {
-          delete headers["Authorization"];
-          try {
-            const publicRetryRes = await fetch(url, { ...options, headers });
-            if (publicRetryRes.ok) {
-              if (publicRetryRes.status === 204) return {} as T;
-              return publicRetryRes.json();
-            }
-          } catch {}
-        }
         throw err;
-      }
-    } else if (isAuthFailure && !storedRefreshToken) {
-      // Guest or unauthenticated user hit an endpoint; retry public endpoints without auth header
-      if (endpoint.startsWith("/api/songs") || endpoint.startsWith("/api/artists") || endpoint.startsWith("/api/playlists")) {
-        delete headers["Authorization"];
-        try {
-          const publicRetryRes = await fetch(url, { ...options, headers });
-          if (publicRetryRes.ok) {
-            if (publicRetryRes.status === 204) return {} as T;
-            return publicRetryRes.json();
-          }
-        } catch {}
       }
     }
 
