@@ -1,4 +1,5 @@
 import express from "express";
+import { timingSafeEqual } from "crypto";
 import { serve } from "inngest/express";
 import { inngest } from "./inngest";
 import { fetchJobsFromList } from "./jobseeker/worker";
@@ -78,7 +79,13 @@ const requireApiKey: express.RequestHandler = (req, res, next) => {
     return next();
   }
 
-  if (!providedKey || providedKey !== configuredKey) {
+  const isValid =
+    Boolean(providedKey) &&
+    Boolean(configuredKey) &&
+    providedKey!.length === configuredKey.length &&
+    timingSafeEqual(Buffer.from(providedKey!), Buffer.from(configuredKey));
+
+  if (!isValid) {
     console.warn(
       `[AUTH REJECT] Unauthorized attempt from ${req.ip} for ${req.method} ${req.originalUrl}`
     );

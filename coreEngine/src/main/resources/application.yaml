@@ -4,11 +4,12 @@ spring:
     openfeign:
       client:
         config:
-          audioProcessingApi:
-            # retryer: feign.Retryer.Default
-            # max-attempts: 3
-            # period: 100
-            # max-period: 1000
+          default:
+            connectTimeout: 3000
+            readTimeout: 5000
+          audio-processing-api:
+            connectTimeout: 3000
+            readTimeout: 5000
 
   config:
     import:
