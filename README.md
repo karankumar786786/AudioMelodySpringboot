@@ -26,28 +26,28 @@ This platform was engineered to conquer the most challenging architectural hurdl
 
 ```mermaid
 graph LR
-    subgraph 🛡️ Fault Tolerance & Retry Architecture
+    subgraph S_RETRY ["🛡️ Fault Tolerance & Retry Architecture"]
         R1["1-Click Ingestion Retry<br/>Atomic State Reset & Queue Re-dispatch"]
         R2["Cascade Teardown Breaker<br/>Max 3 Attempts + Manual Audit Lock"]
         R3["Mail Worker DLQ<br/>EAUTH Circuit Breaker + Truncated Backoff"]
         R4["HLS Playback Self-Healing<br/>2^n x 500ms Backoff + Codec Swapping"]
     end
 
-    subgraph ⚡ Hardware & Client Buffer Engine
+    subgraph S_HW ["⚡ Hardware & Client Buffer Engine"]
         H1["hwaccel.ts Probe Ladder<br/>1-Frame Null Muxer Test @ 3.5s Timeout"]
         H2["Dynamic CPU/GPU Concurrency<br/>Automated Thread & Worker Throttling"]
         H3["HLS Dual Buffer Window<br/>backBuffer: 90s, maxBuffer: 20s"]
         H4["Buffer Hole Auto-Jumping<br/>Micro-Gap Skipping @ 0.5s Tolerance"]
     end
 
-    subgraph ☁️ Multi-Bucket S3, CDN & Security
+    subgraph S_S3 ["☁️ Multi-Bucket S3, CDN & Security"]
         S1["Dual-Bucket Isolation<br/>melody-temp (TTL 30m) vs melody-songs"]
         S2["Parallel S3 Multipart PUTs<br/>p-limit(5) NVMe Direct Streaming"]
         S3["ImageKit Global Media Edge<br/>Real-Time AVIF/WebP Dynamic Transforms"]
         S4["Zero-Trust Security Mesh<br/>TLS 1.3, SigV4 Presign, HMAC & x-api-key"]
     end
 
-    subgraph 🔄 Inngest & DSP Karaoke Sync
+    subgraph S_DSP ["🔄 Inngest & DSP Karaoke Sync"]
         W1["Inngest Durable Checkpoints<br/>step.run Memoization & State Resumption"]
         W2["LRCLIB Karaoke Engine<br/>Regex Quantization + O(log n) Lookup"]
         W3["Double-RAF Render Lock<br/>4s Idle Auto-Sync & 1.5s Scrub Resync"]
@@ -63,43 +63,43 @@ In distributed streaming platforms, component failures are constant: GPU encoder
 
 ```mermaid
 flowchart TD
-    subgraph Tier 1: Ingestion Pipeline Self-Healing
-        A1[Job Fails in TRANSCODING / PACKAGING / UPLOADING] --> A2["JobsEntity updated: status=FAILED, failedAt=NOW(), failureReason=Stack"]
+    subgraph T1 ["Tier 1: Ingestion Pipeline Self-Healing"]
+        A1["Job Fails in TRANSCODING / PACKAGING / UPLOADING"] --> A2["JobsEntity updated: status=FAILED, failedAt=NOW(), failureReason=Stack"]
         A2 --> A3["Admin triggers 1-Click Retry: POST /admin/jobs/{jobId}/retry"]
         A3 --> A4{"Is job.status == FAILED?"}
-        A4 -- No --> A5["Throw IllegalStateException 400 Bad Request"]
-        A4 -- Yes --> A6["Execute Atomic State Reset inside @Transactional:<br/>• status = PENDING, stage = QUEUED<br/>• failureReason = null, failedAt = null<br/>• Wipe startedAt, transcodeStartedAt, uploadStartedAt, etc.<br/>• Wipe downloadDurationMs, transcodeDurationMs, etc.<br/>• transcodingAttempt++"]
+        A4 -->|No| A5["Throw IllegalStateException 400 Bad Request"]
+        A4 -->|Yes| A6["Execute Atomic State Reset inside @Transactional:<br/>• status = PENDING, stage = QUEUED<br/>• failureReason = null, failedAt = null<br/>• Wipe startedAt, transcodeStartedAt, uploadStartedAt, etc.<br/>• Wipe downloadDurationMs, transcodeDurationMs, etc.<br/>• transcodingAttempt++"]
         A6 --> A7["Construct AudioProcessingQueueDto with song & temp metadata"]
         A7 --> A8["Push to Redis list: redisTemplate.opsForList().rightPush('audio_processing_queue')"]
-        A8 --> A9["Worker daemon pops via blpop(5s) -> Inngest resumes execution"]
+        A8 --> A9["Worker daemon pops via blpop(5s) &rarr; Inngest resumes execution"]
     end
 
-    subgraph Tier 2: Cascade Teardown Durability & Circuit Breakers
+    subgraph T2 ["Tier 2: Cascade Teardown Durability & Circuit Breakers"]
         B1["Teardown failure during S3 / ImageKit / Algolia / Recombee purge"] --> B2["DeleteJobsEntity updated: status=FAILED, errorMessage=Exception"]
         B2 --> B3["Admin triggers Retry: POST /admin/delete-jobs/{jobId}/retry"]
-        B3 --> B4{"attemptCount < maxAttempts (3)?"}
-        B4 -- Yes --> B5["attemptCount++ & status = PENDING<br/>Re-enqueue to Redis delete_event_queue"]
-        B4 -- No --> B6["Circuit Breaker TRIPPED:<br/>Lock job permanently & require manual admin intervention<br/>Option to purge audit record via DELETE /admin/delete-jobs/{id}"]
+        B3 --> B4{"attemptCount &lt; maxAttempts (3)?"}
+        B4 -->|Yes| B5["attemptCount++ & status = PENDING<br/>Re-enqueue to Redis delete_event_queue"]
+        B4 -->|No| B6["Circuit Breaker TRIPPED:<br/>Lock job permanently & require manual admin intervention<br/>Option to purge audit record via DELETE /admin/delete-jobs/{id}"]
     end
 
-    subgraph Tier 3: Transactional Mail Worker Protection
+    subgraph T3 ["Tier 3: Transactional Mail Worker Protection"]
         C1["Redis mail_queue pop"] --> C2["Dispatch OTP / Verification Email via Google SMTP"]
-        C2 -- "EAUTH / 454 / 535 / Lockout" --> C3["Authentication Circuit Breaker:<br/>1. Push job directly to mail_queue_dlq<br/>2. Sleep worker loop 30 seconds (await sleep(30000))<br/>3. Prevent SMTP ban and IP blacklisting"]
-        C2 -- "Network / Timeout / Socket Error" --> C4["Calculate Truncated Exponential Backoff:<br/>delay = min(5000 * 2^(retries-1), 30000) ms"]
-        C4 --> C5{"retries < MAX_RETRIES (3)?"}
-        C5 -- Yes --> C6["Increment retry counter & re-push to Redis mail_queue"]
-        C5 -- No --> C7["Push to mail_queue_dlq with full error diagnostics & audit timestamp"]
+        C2 -->|"EAUTH / 454 / 535 / Lockout"| C3["Authentication Circuit Breaker:<br/>1. Push job directly to mail_queue_dlq<br/>2. Sleep worker loop 30 seconds (await sleep(30000))<br/>3. Prevent SMTP ban and IP blacklisting"]
+        C2 -->|"Network / Timeout / Socket Error"| C4["Calculate Truncated Exponential Backoff:<br/>delay = min(5000 * 2^(retries-1), 30000) ms"]
+        C4 --> C5{"retries &lt; MAX_RETRIES (3)?"}
+        C5 -->|Yes| C6["Increment retry counter & re-push to Redis mail_queue"]
+        C5 -->|No| C7["Push to mail_queue_dlq with full error diagnostics & audit timestamp"]
     end
 
-    subgraph Tier 4: Client-Side HLS Playback Self-Healing
+    subgraph T4 ["Tier 4: Client-Side HLS Playback Self-Healing"]
         D1["HLS.js emits ERROR event"] --> D2{"data.fatal == true?"}
-        D2 -- No --> D3["Filter non-fatal warnings (e.g. fragParsingError)<br/>Let internal demuxer auto-recover"]
-        D2 -- Yes --> D4{"Classify Error Type"}
-        D4 -- NETWORK_ERROR --> D5["Exponential Backoff Retry:<br/>delay = 2^attempt * 500 ms (max 3 attempts)<br/>Clear active timer & trigger hls.startLoad()"]
-        D5 -- "Retries Exceeded" --> D6["Trigger Interactive Sonner Toast with 1-Click 'Retry Stream'"]
-        D4 -- MEDIA_ERROR --> D7{"mediaRetryCount <= 1?"}
-        D7 -- Yes --> D8["Call hls.recoverMediaError()"]
-        D7 -- No --> D9["Persistent Glitch: Call hls.swapAudioCodec()<br/>Followed by hls.recoverMediaError() to switch decoder pipelines"]
+        D2 -->|No| D3["Filter non-fatal warnings (e.g. fragParsingError)<br/>Let internal demuxer auto-recover"]
+        D2 -->|Yes| D4{"Classify Error Type"}
+        D4 -->|NETWORK_ERROR| D5["Exponential Backoff Retry:<br/>delay = 2^attempt * 500 ms (max 3 attempts)<br/>Clear active timer & trigger hls.startLoad()"]
+        D5 -->|"Retries Exceeded"| D6["Trigger Interactive Sonner Toast with 1-Click 'Retry Stream'"]
+        D4 -->|MEDIA_ERROR| D7{"mediaRetryCount &le; 1?"}
+        D7 -->|Yes| D8["Call hls.recoverMediaError()"]
+        D7 -->|No| D9["Persistent Glitch: Call hls.swapAudioCodec()<br/>Followed by hls.recoverMediaError() to switch decoder pipelines"]
     end
 ```
 
@@ -195,25 +195,25 @@ await execFileAsync("ffmpeg", [
 ```mermaid
 flowchart TD
     Start["Worker Startup: detectHardwareCapabilities()"] --> EnvCheck{"DISABLE_HWACCEL == true?"}
-    EnvCheck -- Yes --> ForceSW["Use Software Baseline:<br/>video: libx264, audio: aac"]
-    EnvCheck -- No --> ProbeEncoders["Query ffmpeg -encoders & ffmpeg -hwaccels"]
+    EnvCheck -->|Yes| ForceSW["Use Software Baseline:<br/>video: libx264, audio: aac"]
+    EnvCheck -->|No| ProbeEncoders["Query ffmpeg -encoders & ffmpeg -hwaccels"]
     
     ProbeEncoders --> PlatformCheck{"Host Operating System?"}
     
-    PlatformCheck -- macOS (Darwin) --> AppleProbe["Test Apple VideoToolbox:<br/>probeVideoEncoder('h264_videotoolbox')<br/>probeAudioEncoder('aac_at')"]
-    AppleProbe -- Success --> SetApple["Active: Apple Silicon VideoToolbox (GPU + ANE)"]
-    AppleProbe -- Failure --> CPUFall
+    PlatformCheck -->|"macOS (Darwin)"| AppleProbe["Test Apple VideoToolbox:<br/>probeVideoEncoder('h264_videotoolbox')<br/>probeAudioEncoder('aac_at')"]
+    AppleProbe -->|Success| SetApple["Active: Apple Silicon VideoToolbox (GPU + ANE)"]
+    AppleProbe -->|Failure| CPUFall["Active: Software CPU (libx264 -preset veryfast -crf 22)"]
     
-    PlatformCheck -- Linux / Windows --> GPUInspect["Inspect Device Nodes:<br/>/dev/nvidia*, /dev/dri/renderD128"]
-    GPUInspect --> NVENC["1. Priority: NVIDIA NVENC<br/>probeVideoEncoder('h264_nvenc', ['-preset', 'p4'])"]
-    NVENC -- Success --> SetNVENC["Active: NVIDIA NVENC Hardware GPU"]
-    NVENC -- Fail / Absent --> QSV["2. Priority: Intel Quick Sync (QSV)<br/>probeVideoEncoder('h264_qsv', ['-preset', 'fast'])"]
-    QSV -- Success --> SetQSV["Active: Intel Quick Sync Video (QSV)"]
-    QSV -- Fail / Absent --> AMF["3. Priority: AMD AMF<br/>probeVideoEncoder('h264_amf')"]
-    AMF -- Success --> SetAMF["Active: AMD AMF Hardware GPU"]
-    AMF -- Fail / Absent --> V4L2["4. Priority: Linux ARM V4L2 M2M<br/>probeVideoEncoder('h264_v4l2m2m')"]
-    V4L2 -- Success --> SetV4L2["Active: ARM V4L2 M2M Video Engine"]
-    V4L2 -- Fail / Absent --> CPUFall["Active: Software CPU (libx264 -preset veryfast -crf 22)"]
+    PlatformCheck -->|"Linux / Windows"| GPUInspect["Inspect Device Nodes:<br/>/dev/nvidia*, /dev/dri/renderD128"]
+    GPUInspect --> NVENC["1. Priority: NVIDIA NVENC<br/>probeVideoEncoder('h264_nvenc', ('-preset', 'p4'))"]
+    NVENC -->|Success| SetNVENC["Active: NVIDIA NVENC Hardware GPU"]
+    NVENC -->|"Fail / Absent"| QSV["2. Priority: Intel Quick Sync (QSV)<br/>probeVideoEncoder('h264_qsv', ('-preset', 'fast'))"]
+    QSV -->|Success| SetQSV["Active: Intel Quick Sync Video (QSV)"]
+    QSV -->|"Fail / Absent"| AMF["3. Priority: AMD AMF<br/>probeVideoEncoder('h264_amf')"]
+    AMF -->|Success| SetAMF["Active: AMD AMF Hardware GPU"]
+    AMF -->|"Fail / Absent"| V4L2["4. Priority: Linux ARM V4L2 M2M<br/>probeVideoEncoder('h264_v4l2m2m')"]
+    V4L2 -->|Success| SetV4L2["Active: ARM V4L2 M2M Video Engine"]
+    V4L2 -->|"Fail / Absent"| CPUFall
     
     SetApple --> Concurrency["Compute Concurrency Limits based on Core Count"]
     SetNVENC --> Concurrency
@@ -259,33 +259,33 @@ The frontend HLS player enforces a dual-buffer window strategy that delivers ins
 
 ```mermaid
 graph TB
-    subgraph Client Application Layer
+    subgraph CAL ["Client Application Layer"]
         AF_U["audioFrontend / adminFrontend"]
     end
 
-    subgraph AWS Storage Tier (Dual-Bucket Isolation)
+    subgraph AST ["AWS Storage Tier (Dual-Bucket Isolation)"]
         direction TB
         B_TEMP[("🪣 AWS S3: melody-temp<br/>• Staging bucket for raw media uploads<br/>• Pre-signed PUT URLs with 30m TTL<br/>• Strict Content-Type enforcement<br/>• Auto-abort incomplete multipart after 24h<br/>• Auto-expire unreferenced objects after 3 days<br/>• Explicit worker deletion post-packaging")]
         B_PROD[("🪣 AWS S3: melody-songs<br/>• Production permanent streaming repository<br/>• Partitioned: audios/{id}/* & videos/{id}/*<br/>• Multi-bitrate HLS (.m3u8) & DASH (.mpd)<br/>• Parallel multipart PUTs via p-limit(5)<br/>• Immutable chunk caching headers")]
     end
 
-    subgraph Global Edge Media CDN (ImageKit)
+    subgraph GEMC ["Global Edge Media CDN (ImageKit)"]
         IK_EDGE["⚡ ImageKit Global CDN Edge<br/>• Origin Shielding & Global PoP Distribution<br/>• On-the-Fly WebP / AVIF Format Auto-Negotiation<br/>• Responsive Cover Transformations: tr=w-500,h-500,fo-auto,q-85<br/>• Cryptographic Client Upload Tokens (HMAC-SHA1)<br/>• Cache-Control: public, max-age=31536000, immutable")]
     end
 
-    subgraph Zero-Trust Security Mesh
+    subgraph ZTSM ["Zero-Trust Security Mesh"]
         SEC_TLS["🔒 Strict TLS 1.3 Transport Security<br/>ChaCha20-Poly1305 & AES-256-GCM Modern Ciphers"]
-        SEC_SIG["🔑 AWS SigV4 Presigned Direct Uploads<br/>Client -> S3 PUT without passing large binaries through API"]
+        SEC_SIG["🔑 AWS SigV4 Presigned Direct Uploads<br/>Client &rarr; S3 PUT without passing large binaries through API"]
         SEC_KEY["🛡️ Microservice Webhook Authentication<br/>Worker-to-Backend HTTP Header: x-api-key validated via ApiKeyFilter"]
         SEC_RED["🔐 Redis In-Transit TLS<br/>Encrypted job queues over rediss:// connection strings"]
     end
 
-    AF_U -->|1. Request Presigned URL| SEC_SIG
-    SEC_SIG -->|2. Upload Raw Binary| B_TEMP
-    B_TEMP -->|3. Transcode & Package| B_PROD
-    AF_U -->|4. Upload Artwork via Signed Token| IK_EDGE
-    AF_U -->|5. Stream HLS / DASH Chunks| B_PROD
-    AF_U -->|6. Fetch WebP Covers| IK_EDGE
+    AF_U -->|"1. Request Presigned URL"| SEC_SIG
+    SEC_SIG -->|"2. Upload Raw Binary"| B_TEMP
+    B_TEMP -->|"3. Transcode & Package"| B_PROD
+    AF_U -->|"4. Upload Artwork via Signed Token"| IK_EDGE
+    AF_U -->|"5. Stream HLS / DASH Chunks"| B_PROD
+    AF_U -->|"6. Fetch WebP Covers"| IK_EDGE
     B_PROD -.-> SEC_TLS
     IK_EDGE -.-> SEC_TLS
     SEC_KEY -.-> AF_U
@@ -346,14 +346,14 @@ sequenceDiagram
     participant Algolia as Algolia InstantSearch
     participant Spring as Spring Boot coreEngine
 
-    Worker->>Redis: blpop("audio_processing_queue", 5)
+    Worker->>Redis: blpop('audio_processing_queue', 5)
     Redis-->>Worker: Dequeue Job Payload
-    Worker->>Inngest: inngest.send({ name: "audio/fetchjob", data: job })
+    Worker->>Inngest: inngest.send({ name: 'audio/fetchjob', data: job })
 
     rect rgb(20, 20, 20)
         Note over Inngest,Spring: Step 1: Download Source (Checkpointed)
         Inngest->>Spring: POST /webhook/job/stage (DOWNLOADING)
-        Inngest->>S3Temp: Stream raw media to /tmp/raw_{id}
+        Inngest->>S3Temp: Stream raw media to /tmp/raw_id
         Inngest-->>Inngest: Checkpoint Step 1 return value
     end
 
@@ -361,7 +361,7 @@ sequenceDiagram
         Note over Inngest,Spring: Step 2: Transcode Media (Checkpointed)
         Inngest->>Spring: POST /webhook/job/stage (TRANSCODING)
         Inngest->>FFmpeg: Execute multi-bitrate transcode with hwaccel fallback
-        FFmpeg-->>Inngest: Outputs in /tmp/transcoded_{id}
+        FFmpeg-->>Inngest: Outputs in /tmp/transcoded_id
         Inngest-->>Inngest: Checkpoint Step 2 return value
     end
 
@@ -380,7 +380,7 @@ sequenceDiagram
     end
 
     rect rgb(20, 20, 20)
-        Note over Inngest,Spring: Step 5 & 6: AI Vector & Search Indexing (Parallel Steps)
+        Note over Inngest,Spring: Step 5 and 6: AI Vector & Search Indexing (Parallel Steps)
         par Recombee Recommendation
             Inngest->>Recombee: Upsert song entity & feature vectors
         and Algolia InstantSearch
@@ -423,8 +423,8 @@ sequenceDiagram
     alt Cache Hit
         Cache-->>Hook: Return cached TranscriptionEntry[]
     else Cache Miss
-        Hook->>LRCLIB: GET https://lrclib.net/api/get/{lrclibId}
-        LRCLIB-->>Hook: Return raw LRC: "[00:14.25] Line text..."
+        Hook->>LRCLIB: GET https://lrclib.net/api/get/lrclibId
+        LRCLIB-->>Hook: Return raw LRC: '[00:14.25] Line text...'
         Hook->>Hook: Parse timestamps into float seconds via Regex
         Hook->>Cache: Store parsed lines in memory cache
     end
@@ -434,16 +434,16 @@ sequenceDiagram
         Overlay->>Overlay: Determine activeIndex via O(log n) search
         alt User is NOT manually scrolling
             Overlay->>Overlay: activeLine.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            Overlay->>Overlay: Apply high-contrast #ffffff text & ambient glow
+            Overlay->>Overlay: Apply high-contrast text & ambient glow
         else User IS manually scrolling
             Overlay->>Overlay: Pause auto-scroll & start 4000ms idle timer
         end
     end
 
     alt Idle Auto-Resync (User stops scrolling for 4s)
-        Overlay->>Overlay: Idle timer expires -> autoResync to live activeLine
+        Overlay->>Overlay: Idle timer expires to autoResync to live activeLine
     else Scrub-to-Seek Interaction
-        User->>Overlay: Click line 8 "[00:32.10] Second verse starts..."
+        User->>Overlay: Click line 8 '[00:32.10] Second verse starts...'
         Overlay->>Player: onSeek(32.10)
         Player->>Player: Flush HLS buffer & snap playback clock
         Overlay->>Overlay: Clear user scroll lock & center line 8 immediately
@@ -530,28 +530,28 @@ One Melody decouples API request coordination, heavy CPU/GPU multimedia packagin
 
 ```mermaid
 graph TB
-    subgraph Client Tier
+    subgraph CT ["Client Tier"]
         AF["audioFrontend (Port 3000)<br/>• Next.js 16 / React 19 / Turbopack<br/>• Web Audio API DSP Engine<br/>• LRCLIB Synced Karaoke Lyrics<br/>• Video Canvas & Adaptive Player"]
         ADF["adminFrontend (Port 3001)<br/>• Next.js 16 / React 19 / Turbopack<br/>• Real-Time Byte XHR Upload Engine<br/>• Dual Gantt / Timeline Monitor<br/>• 1-Click Self-Healing Retries"]
     end
 
-    subgraph Core Orchestration Tier
+    subgraph COT ["Core Orchestration Tier"]
         CE["coreEngine (Port 9090)<br/>• Spring Boot 3.4 / Java 21<br/>• Dual Security Filters (API Key + JWT)<br/>• Redis Metadata & Pagination Cache<br/>• Algolia & Recombee Clients"]
     end
 
-    subgraph Messaging & Cache Tier
+    subgraph MCT ["Messaging & Cache Tier"]
         RD[("Redis 7 (Port 6379)<br/>• audio_processing_queue<br/>• delete_event_queue<br/>• mail_queue & mail_queue_dlq<br/>• paginationMetaData cache")]
     end
 
-    subgraph Media Processing Cluster
+    subgraph MPC ["Media Processing Cluster"]
         AP["audioProcessing (Port 5010)<br/>• Inngest Durable Execution (Port 8288)<br/>• FFmpeg Hardware Probing (hwaccel.ts)<br/>• Google Shaka Packager (HLS/DASH)<br/>• Active Path Registry & Temp Cleanup"]
     end
 
-    subgraph Transactional Messaging Worker
+    subgraph TMW ["Transactional Messaging Worker"]
         MW["workers/mailEvents<br/>• Bun / ioredis Daemon<br/>• Google SMTP Auth Lockout Breaker<br/>• Exponential Backoff & DLQ Handler"]
     end
 
-    subgraph Data & Storage Tier
+    subgraph DST ["Data & Storage Tier"]
         PG[("PostgreSQL 15+ (Port 5432)<br/>• Songs, Artists, Playlists<br/>• Ingestion & Delete Audit Jobs<br/>• Versioned Migrations (v2-v6)")]
         S3[("AWS S3 Multi-Bucket<br/>• melody-temp (Raw uploads)<br/>• melody-songs (HLS/DASH Segments)")]
         IK[("ImageKit Global CDN<br/>• High-Res Artwork Transformations<br/>• Canvas Background Video Host")]
@@ -559,23 +559,23 @@ graph TB
         RC[("Recombee AI Engine<br/>• Collaborative Filtering Models<br/>• Continuous User Signal Training")]
     end
 
-    AF -->|REST & HLS Streaming| CE
-    ADF -->|REST, Uploads & Job Controls| CE
-    CE -->|Read / Write| PG
-    CE -->|Atomic Counters & Cache| RD
-    CE -->|Enqueue Audio Jobs| RD
-    CE -->|Enqueue Delete Events| RD
-    CE -->|Enqueue OTP Mails| RD
-    RD -->|blpop Job| AP
-    RD -->|blpop Delete| AP
-    RD -->|blpop Mail| MW
-    AP -->|Fetch Raw Temp Asset| S3
-    AP -->|Multi-Part Parallel PUT| S3
-    AP -->|Signed Webhook Callbacks| CE
-    CE -->|Direct Sync| AL
-    CE -->|Direct Sync| RC
-    CE -->|Presigned URLs| S3
-    CE -->|Auth Signatures| IK
+    AF -->|"REST & HLS Streaming"| CE
+    ADF -->|"REST, Uploads & Job Controls"| CE
+    CE -->|"Read / Write"| PG
+    CE -->|"Atomic Counters & Cache"| RD
+    CE -->|"Enqueue Audio Jobs"| RD
+    CE -->|"Enqueue Delete Events"| RD
+    CE -->|"Enqueue OTP Mails"| RD
+    RD -->|"blpop Job"| AP
+    RD -->|"blpop Delete"| AP
+    RD -->|"blpop Mail"| MW
+    AP -->|"Fetch Raw Temp Asset"| S3
+    AP -->|"Multi-Part Parallel PUT"| S3
+    AP -->|"Signed Webhook Callbacks"| CE
+    CE -->|"Direct Sync"| AL
+    CE -->|"Direct Sync"| RC
+    CE -->|"Presigned URLs"| S3
+    CE -->|"Auth Signatures"| IK
 ```
 
 ---
@@ -677,8 +677,8 @@ sequenceDiagram
     ADF->>S3: Upload raw audio via XHR with live speed/progress
     ADF->>CE: POST /admin/song (Job creation payload)
     CE->>CE: Save JobsEntity (status=PENDING, stage=QUEUED)
-    CE->>RD: rpush audio_processing_queue { jobId }
-    CE-->>ADF: 202 Accepted { jobId }
+    CE->>RD: rpush audio_processing_queue (jobId)
+    CE-->>ADF: 202 Accepted (jobId)
 
     RD->>AP: blpop audio_processing_queue
     AP->>CE: POST /webhook/job/started
@@ -688,8 +688,8 @@ sequenceDiagram
     HW-->>AP: Capabilities (e.g. VideoToolbox, NVENC, or CPU fallback)
     AP->>S3: Download raw audio from melody-temp
     AP->>HW: Encode multi-bitrate AAC (128k, 240k, 320k)
-    AP->>SP: Package HLS (master.m3u8) & DASH (master.mpd) [4s chunks]
-    AP->>S3: Upload packaged segments to melody-songs/audios/{songId}/*
+    AP->>SP: Package HLS (master.m3u8) & DASH (master.mpd) (4s chunks)
+    AP->>S3: Upload packaged segments to melody-songs/audios/songId/*
     AP->>CE: POST /webhook/job/transcoded
     
     AP->>CE: POST /webhook/job/save/recommendation
@@ -737,44 +737,44 @@ sequenceDiagram
     participant S3 as AWS S3
     participant PG as PostgreSQL
 
-    Admin->>CE: DELETE /admin/song/{id}
+    Admin->>CE: DELETE /admin/song/:id
     CE->>PG: Create DeleteJobsEntity (status=PENDING, stage=QUEUED)
-    CE->>RD: rpush delete_event_queue { deleteJobPayload }
-    CE-->>Admin: 202 Accepted { deleteJobId }
+    CE->>RD: rpush delete_event_queue (deleteJobPayload)
+    CE-->>Admin: 202 Accepted (deleteJobId)
 
     RD->>AP: blpop delete_event_queue
     
     rect rgb(20, 20, 30)
         Note over AP,AL: Stage 1: Algolia Search Purge
-        AP->>CE: POST /webhook/delete/{type}/{id}/delete-search
+        AP->>CE: POST /webhook/delete/:type/:id/delete-search
         CE->>AL: deleteObject(indexName, entityId)
         CE->>PG: Update stage to SEARCH_DELETED
     end
 
     rect rgb(20, 30, 20)
         Note over AP,RC: Stage 2: Recombee AI Eviction
-        AP->>CE: POST /webhook/delete/{type}/{id}/delete-recommendation
+        AP->>CE: POST /webhook/delete/:type/:id/delete-recommendation
         CE->>RC: deleteItem(entityId) / deleteUserInteractions
         CE->>PG: Update stage to RECOMMENDATION_DELETED
     end
 
     rect rgb(30, 20, 30)
         Note over AP,IK: Stage 3: ImageKit CDN Purge
-        AP->>CE: POST /webhook/delete/{type}/{id}/delete-imagekit
-        CE->>IK: Search file by key name -> deleteFile(fileId)
+        AP->>CE: POST /webhook/delete/:type/:id/delete-imagekit
+        CE->>IK: Search file by key name to deleteFile(fileId)
         CE->>PG: Update stage to IMAGEKIT_DELETED
     end
 
     rect rgb(30, 30, 20)
         Note over AP,S3: Stage 4: AWS S3 Prefix Teardown
-        AP->>CE: POST /webhook/delete/{type}/{id}/delete-s3
-        CE->>S3: Recursively delete audios/{id}/* & videos/{id}/*
+        AP->>CE: POST /webhook/delete/:type/:id/delete-s3
+        CE->>S3: Recursively delete audios/:id/* & videos/:id/*
         CE->>PG: Update stage to S3_DELETED
     end
 
     rect rgb(40, 20, 20)
         Note over AP,PG: Stage 5: Database Hard Delete
-        AP->>CE: POST /webhook/delete/{type}/{id}/hard-delete
+        AP->>CE: POST /webhook/delete/:type/:id/hard-delete
         CE->>PG: Hard DELETE SongsEntity / Cascade Relationships
         CE->>PG: Mark DeleteJobsEntity status=COMPLETED
         CE->>CE: Decrement PaginationMetaData active counter
@@ -787,11 +787,11 @@ sequenceDiagram
 
 ```mermaid
 graph LR
-    subgraph HTML5 Media Element
-        A["<audio> Stream Source<br/>• Native HLS.js Demuxer<br/>• Adaptive Bitrate Switching"]
+    subgraph HME ["HTML5 Media Element"]
+        A["&lt;audio&gt; Stream Source<br/>• Native HLS.js Demuxer<br/>• Adaptive Bitrate Switching"]
     end
 
-    subgraph Web Audio DSP Graph
+    subgraph DSP ["Web Audio DSP Graph"]
         B["AudioContext<br/>MediaElementSourceNode"]
         C["10-Band Parametric Equalizer<br/>10x BiquadFilterNode<br/>32Hz, 64Hz, 125Hz, 250Hz, 500Hz,<br/>1kHz, 2kHz, 4kHz, 8kHz, 16kHz"]
         D["Bass Booster<br/>BiquadFilterNode (LowShelf @ 100Hz)"]
@@ -800,7 +800,7 @@ graph LR
         G["AnalyserNode<br/>FFT Size: 128, Smoothing: 0.8"]
     end
 
-    subgraph Output & Visual Rendering
+    subgraph OVR ["Output & Visual Rendering"]
         H["HTML5 Canvas Visualizer<br/>Real-Time 60 FPS Frequency Spectrum"]
         I["AudioContext.destination<br/>(Physical Headphones / Speakers)"]
     end
@@ -821,27 +821,27 @@ graph LR
 
 ```mermaid
 flowchart TD
-    Start([User Drops Audio/Video File]) --> Validate{Client MIME & Size Validation}
-    Validate -- Invalid --> ErrorToast[Display Error Toast & Halt]
-    Validate -- Valid --> RequestToken[Request Pre-Signed S3 PUT URL / ImageKit Signature]
+    Start(["User Drops Audio/Video File"]) --> Validate{"Client MIME & Size Validation"}
+    Validate -->|Invalid| ErrorToast["Display Error Toast & Halt"]
+    Validate -->|Valid| RequestToken["Request Pre-Signed S3 PUT URL / ImageKit Signature"]
     
-    RequestToken --> InitXHR[Instantiate XMLHttpRequest]
-    InitXHR --> SetupProgress[Attach xhr.upload.onprogress Listener]
+    RequestToken --> InitXHR["Instantiate XMLHttpRequest"]
+    InitXHR --> SetupProgress["Attach xhr.upload.onprogress Listener"]
     
-    SetupProgress --> TransferLoop[Transferring Bytes to AWS S3 / ImageKit]
+    SetupProgress --> TransferLoop["Transferring Bytes to AWS S3 / ImageKit"]
     
-    TransferLoop --> ProgressEvent{progress event fired}
-    ProgressEvent --> CalcBytes[Extract loaded & total bytes]
-    CalcBytes --> CalcSpeed[Compute instant speed = deltaLoaded / deltaTime]
-    CalcSpeed --> CalcEMA[Apply Exponential Moving Average smoothing]
-    CalcEMA --> CalcETA[Compute estimated remaining seconds = remainingBytes / speed]
-    CalcETA --> UpdateState[Update React UploadProgressBar Component]
+    TransferLoop --> ProgressEvent{"progress event fired"}
+    ProgressEvent --> CalcBytes["Extract loaded & total bytes"]
+    CalcBytes --> CalcSpeed["Compute instant speed = deltaLoaded / deltaTime"]
+    CalcSpeed --> CalcEMA["Apply Exponential Moving Average smoothing"]
+    CalcEMA --> CalcETA["Compute estimated remaining seconds = remainingBytes / speed"]
+    CalcETA --> UpdateState["Update React UploadProgressBar Component"]
     UpdateState --> RenderUI["Overlay / Inline Bar:<br/>• Speed: 14.2 MB/s<br/>• Transferred: 32.4 / 64.0 MB<br/>• ETA: 2s"]
     
-    RenderUI --> CheckDone{Is upload complete?}
-    CheckDone -- No --> TransferLoop
-    CheckDone -- Yes --> TriggerRegistration[Send Song Metadata Payload to coreEngine]
-    TriggerRegistration --> Complete([Job Enqueued & Polling Initiated])
+    RenderUI --> CheckDone{"Is upload complete?"}
+    CheckDone -->|No| TransferLoop
+    CheckDone -->|Yes| TriggerRegistration["Send Song Metadata Payload to coreEngine"]
+    TriggerRegistration --> Complete(["Job Enqueued & Polling Initiated"])
 ```
 
 ---
@@ -853,11 +853,11 @@ erDiagram
     USERS ||--o{ USER_PLAYLISTS : owns
     USERS ||--o{ USER_HISTORY : listens
     USERS ||--o{ USER_SEARCH_HISTORY : searches
-    USERS }o--o{ SONGS : "favourite_songs"
+    USERS }o--o{ SONGS : favourite_songs
     
     SONGS ||--o| JOBS : tracks_ingestion
-    SONGS }o--o{ PLAYLISTS : "playlist_songs"
-    SONGS }o--o{ USER_PLAYLISTS : "user_playlist_songs"
+    SONGS }o--o{ PLAYLISTS : playlist_songs
+    SONGS }o--o{ USER_PLAYLISTS : user_playlist_songs
     
     ARTISTS ||--o{ SONGS : performs
     
@@ -865,8 +865,8 @@ erDiagram
         string id PK
         string userName
         string email UK
-        string role "USER, ADMIN, SUPER_ADMIN"
-        string status "ACTIVE, BLOCKED, DELETED"
+        string role "USER ADMIN SUPER_ADMIN"
+        string status "ACTIVE BLOCKED DELETED"
         timestamp createdAt
     }
 
@@ -875,7 +875,7 @@ erDiagram
         string title
         string artistName
         int duration
-        string songKey "S3 Prefix (HLS Master)"
+        string songKey "S3 Prefix HLS Master"
         string imageKey "ImageKit Artwork Key"
         string videoKey "Canvas Video Key"
         string fullVideoKey "Full Video S3 Prefix"
@@ -884,7 +884,7 @@ erDiagram
         boolean isFeatured
         string language
         string lrclibId "LRCLIB Lyrics Sync ID"
-        string status "ACTIVE, BLOCKED, DELETED"
+        string status "ACTIVE BLOCKED DELETED"
         string job_id FK
         timestamp createdAt
     }
@@ -895,7 +895,7 @@ erDiagram
         string about
         timestamp dob
         string coverImageKey
-        string status "ACTIVE, BLOCKED, DELETED"
+        string status "ACTIVE BLOCKED DELETED"
         timestamp createdAt
     }
 
@@ -905,7 +905,7 @@ erDiagram
         string description
         string coverImageKey
         string videoKey
-        string status "ACTIVE, BLOCKED, DELETED"
+        string status "ACTIVE BLOCKED DELETED"
         timestamp createdAt
         timestamp updatedAt
     }
@@ -914,8 +914,8 @@ erDiagram
         string id PK
         string user_id FK
         string name
-        string status "ACTIVE, BLOCKED, DELETED"
-        string privacy "PUBLIC, PRIVATE"
+        string status "ACTIVE BLOCKED DELETED"
+        string privacy "PUBLIC PRIVATE"
         string share_token UK "Public Share UUID"
     }
 
@@ -924,8 +924,8 @@ erDiagram
         string songId
         string title
         string artistName
-        string status "PENDING, PROCESSING, COMPLETED, FAILED"
-        string currentStage "QUEUED, TRANSCODING, RECOMMENDATION, SEARCH, FINALIZING"
+        string status "PENDING PROCESSING COMPLETED FAILED"
+        string currentStage "QUEUED TRANSCODING RECOMMENDATION SEARCH FINALIZING"
         int transcodingAttempt
         boolean isVideoReprocess
         timestamp transcodingStartedAt
@@ -942,13 +942,13 @@ erDiagram
 
     DELETE_JOBS {
         string id PK
-        string entityType "SONG, ARTIST, PLAYLIST, USER_PLAYLIST"
+        string entityType "SONG ARTIST PLAYLIST USER_PLAYLIST"
         string entityId
         string entityTitle
         string songKey
         string imageKey
-        string status "PENDING, IN_PROGRESS, COMPLETED, FAILED"
-        string currentStage "QUEUED, SEARCH_DELETED, RECOMMENDATION_DELETED, IMAGEKIT_DELETED, S3_DELETED, COMPLETED"
+        string status "PENDING IN_PROGRESS COMPLETED FAILED"
+        string currentStage "QUEUED SEARCH_DELETED RECOMMENDATION_DELETED IMAGEKIT_DELETED S3_DELETED COMPLETED"
         int attemptCount
         int maxAttempts
         string failureReason
@@ -974,20 +974,20 @@ erDiagram
 ### Ingestion Pipeline State Machine
 ```mermaid
 stateDiagram-v2
-    [*] --> PENDING_QUEUED: Admin Upload & Job Registration
+    [*] --> PENDING_QUEUED: Admin Upload and Job Registration
     PENDING_QUEUED --> TRANSCODING: Worker Picks Job (job/started webhook)
     TRANSCODING --> RECOMMENDATION_INDEXING: Shaka Packaging Complete (job/transcoded)
     RECOMMENDATION_INDEXING --> SEARCH_INDEXING: Recombee Indexing Complete
     SEARCH_INDEXING --> FINALIZING: Algolia Indexing Complete
-    FINALIZING --> COMPLETED: SongsEntity Saved & Published
+    FINALIZING --> COMPLETED: SongsEntity Saved and Published
     
-    TRANSCODING --> FAILED: Transcoding Error / Host Crash
+    TRANSCODING --> FAILED: Transcoding Error or Host Crash
     RECOMMENDATION_INDEXING --> FAILED: Recombee API Timeout
     SEARCH_INDEXING --> FAILED: Algolia API Error
     FINALIZING --> FAILED: Database Write Error
     
-    FAILED --> PENDING_QUEUED: 1-Click Retry (POST /admin/jobs/{id}/retry)
-    FAILED --> [*]: Purge Record (DELETE /admin/jobs/{id})
+    FAILED --> PENDING_QUEUED: 1-Click Retry (POST /admin/jobs/:id/retry)
+    FAILED --> [*]: Purge Record (DELETE /admin/jobs/:id)
     COMPLETED --> [*]
 ```
 
@@ -1001,13 +1001,13 @@ stateDiagram-v2
     IMAGEKIT_DELETED --> S3_DELETED: S3 Directory Prefixes Purged
     S3_DELETED --> COMPLETED: PostgreSQL Hard Delete Committed
     
-    SEARCH_DELETED --> FAILED: API Rate Limit / Network Partition
+    SEARCH_DELETED --> FAILED: API Rate Limit or Network Partition
     RECOMMENDATION_DELETED --> FAILED: Network Timeout
     IMAGEKIT_DELETED --> FAILED: CDN Auth Failure
     S3_DELETED --> FAILED: S3 Access Denied
     
-    FAILED --> PENDING_QUEUED: 1-Click Retry (POST /admin/delete-jobs/{id}/retry)
-    FAILED --> [*]: Purge Audit Record (DELETE /admin/delete-jobs/{id})
+    FAILED --> PENDING_QUEUED: 1-Click Retry (POST /admin/delete-jobs/:id/retry)
+    FAILED --> [*]: Purge Audit Record (DELETE /admin/delete-jobs/:id)
     COMPLETED --> [*]
 ```
 
@@ -1045,10 +1045,10 @@ sequenceDiagram
     participant SMTP as Google SMTP
 
     User->>AF: Enter Email for Passwordless OTP
-    AF->>CE: POST /auth/login-otp { email }
+    AF->>CE: POST /auth/login-otp (email)
     CE->>CE: Generate 6-digit cryptographic OTP
-    CE->>RD: SETEX otp:email 300 { otp, attempts=0 }
-    CE->>MQ: rpush mail_queue { to, subject, otp }
+    CE->>RD: SETEX otp:email 300 (otp, attempts=0)
+    CE->>MQ: rpush mail_queue (to, subject, otp)
     CE-->>AF: 200 OK (OTP Dispatched)
 
     MQ->>MW: blpop mail_queue
@@ -1056,7 +1056,7 @@ sequenceDiagram
     SMTP-->>User: Delivery to user inbox
     
     User->>AF: Submit OTP Code
-    AF->>CE: POST /auth/verify-otp { email, otp }
+    AF->>CE: POST /auth/verify-otp (email, otp)
     CE->>RD: GET otp:email
     alt Invalid OTP
         CE->>RD: Increment attempts counter (lock after 5)
@@ -1064,12 +1064,12 @@ sequenceDiagram
     else Valid OTP
         CE->>RD: DEL otp:email
         CE->>CE: Generate HMAC-SHA512 JWT (claims: userId, role, status)
-        CE-->>AF: 200 OK { token, refreshToken, user }
+        CE-->>AF: 200 OK (token, refreshToken, user)
     end
 
     Note over AF,CE: Subsequent Requests Filter Routing
     alt Request has Header: x-api-key
-        AF->>CE: ApiKeyFilter validates internal microservice key -> Bypasses JWT
+        AF->>CE: ApiKeyFilter validates internal microservice key to bypass JWT
     else Request has Header: Authorization Bearer JWT
         AF->>CE: JwtFilter extracts claims, checks expiration, injects SecurityContext
     end
