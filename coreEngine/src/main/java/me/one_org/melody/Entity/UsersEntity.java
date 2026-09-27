@@ -11,8 +11,13 @@ import me.one_org.melody.Enums.StatusEnum;
 
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
@@ -22,7 +27,7 @@ import java.util.Set;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class UsersEntity {
+public class UsersEntity implements UserDetails {
 
     @Id
     private String id;
@@ -74,4 +79,52 @@ public class UsersEntity {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private List<UserSearchHistoryEntity> searchHistory;
+
+    public String getUserName() {
+        return this.userName;
+    }
+
+    @Override
+    @JsonIgnore
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return role != null
+                ? List.of(new SimpleGrantedAuthority("ROLE_" + role.name()))
+                : Collections.emptyList();
+    }
+
+    @Override
+    @JsonIgnore
+    public String getPassword() {
+        return "";
+    }
+
+    @Override
+    @JsonIgnore
+    public String getUsername() {
+        return email != null ? email : userName;
+    }
+
+    @Override
+    @JsonIgnore
+    public boolean isAccountNonExpired() {
+        return true;
+    }
+
+    @Override
+    @JsonIgnore
+    public boolean isAccountNonLocked() {
+        return status != StatusEnum.BLOCKED;
+    }
+
+    @Override
+    @JsonIgnore
+    public boolean isCredentialsNonExpired() {
+        return true;
+    }
+
+    @Override
+    @JsonIgnore
+    public boolean isEnabled() {
+        return status == StatusEnum.ACTIVE;
+    }
 }

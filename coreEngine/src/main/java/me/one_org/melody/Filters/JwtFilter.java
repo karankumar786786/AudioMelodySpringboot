@@ -5,24 +5,21 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import me.one_org.melody.Dto.Internal.JwtPayloadDto;
+import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Utils.JwtUtil;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
-
-import org.springframework.security.core.GrantedAuthority;
-import java.util.List;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
 
-    public JwtFilter(JwtUtil jwtUtil){
+    public JwtFilter(JwtUtil jwtUtil) {
         this.jwtUtil = jwtUtil;
     }
 
@@ -32,23 +29,31 @@ public class JwtFilter extends OncePerRequestFilter {
         if (SecurityContextHolder.getContext().getAuthentication() != null) {
             filterChain.doFilter(request, response);
             return;
-        };
+        }
+
         String authHeader = request.getHeader("Authorization");
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String token = authHeader.substring(7);
             try {
                 JwtPayloadDto jwtDto = jwtUtil.validateAndGetPayload(token);
                 if (jwtDto != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    List<GrantedAuthority> authorities = jwtDto.role() != null
-                            ? Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + jwtDto.role().name()))
-                            : Collections.emptyList();
-                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            jwtDto, null, authorities);
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
-                    request.setAttribute("userId", jwtDto.id());
+                    CustomUserDetails userDetails = new CustomUserDetails(jwtDto);
+
+                    if (userDetails.isEnabled() && userDetails.isAccountNonLocked()) {
+                        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                                userDetails,
+                                null,
+                                userDetails.getAuthorities()
+                        );
+                        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                        SecurityContextHolder.getContext().setAuthentication(authToken);
+
+                        // Preserved for backwards compatibility with existing @RequestAttribute("userId")
+                        request.setAttribute("userId", userDetails.getId());
+                    }
                 }
             } catch (Exception e) {
-                // Ignore invalid tokens, request will just remain unauthenticated
+                // Ignore invalid tokens; request remains unauthenticated and will be handled by JwtAuthenticationEntryPoint
             }
         }
         filterChain.doFilter(request, response);
