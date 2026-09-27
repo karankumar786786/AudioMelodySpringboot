@@ -17,6 +17,10 @@ FROM eclipse-temurin:21-jre AS runner
 
 WORKDIR /app
 
+# Install curl for container health checks (tiny footprint)
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Run as non-root for security
 RUN addgroup --system app && adduser --system --ingroup app app
 
@@ -27,7 +31,9 @@ USER app
 
 EXPOSE 9090
 
-HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+# Spring Boot Actuator health probe — permitted through Spring Security (permitAll).
+# Used by Docker, Kubernetes liveness/readiness probes, and load balancers.
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=40s \
   CMD curl -f http://localhost:9090/actuator/health || exit 1
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
