@@ -63,4 +63,13 @@ public class AuthenticationController {
         RefreshTokenResponseDto response = authenticationService.refreshToken(request.refreshToken());
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<java.util.Map<String, String>> logout(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            authenticationService.logout(authHeader.substring(7));
+        }
+        return ResponseEntity.ok(java.util.Map.of("message", "Logged out successfully"));
+    }
 }

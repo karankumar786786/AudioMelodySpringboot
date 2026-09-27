@@ -40,9 +40,11 @@ public class AuthenticationService {
     private final Redis<OtpDataDto> cache;
     private final PaginationMetaDataService paginationMetaDataService;
     private final MailQueue mailQueue;
+    private final me.one_org.melody.Security.TokenBlacklistService tokenBlacklistService;
 
     public AuthenticationService(UsersRepository usersRepository, JwtUtil jwtUtil, HmacUtil hmacUtil, OtpUtil otpUtil,
-            Redis<OtpDataDto> cache, PaginationMetaDataService paginationMetaDataService,MailQueue mailQueue) {
+            Redis<OtpDataDto> cache, PaginationMetaDataService paginationMetaDataService, MailQueue mailQueue,
+            me.one_org.melody.Security.TokenBlacklistService tokenBlacklistService) {
         this.usersRepository = usersRepository;
         this.jwtUtil = jwtUtil;
         this.hmacUtil = hmacUtil;
@@ -50,6 +52,7 @@ public class AuthenticationService {
         this.cache = cache.of("otp", OtpDataDto.class);
         this.paginationMetaDataService = paginationMetaDataService;
         this.mailQueue = mailQueue;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     public String register(RegisterRequestDto request) {
@@ -179,6 +182,12 @@ public class AuthenticationService {
             throw e;
         } catch (Exception e) {
             throw new UnauthorizedException("Invalid or expired refresh token");
+        }
+    }
+
+    public void logout(String token) {
+        if (token != null && !token.isBlank()) {
+            tokenBlacklistService.blacklistToken(token);
         }
     }
 }

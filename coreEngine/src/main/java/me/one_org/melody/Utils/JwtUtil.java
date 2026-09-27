@@ -49,4 +49,20 @@ public class JwtUtil {
             claims.get("role") != null ? me.one_org.melody.Enums.RoleEnum.valueOf(claims.get("role", String.class)) : null
         );
     }
+
+    public Date getExpirationDate(String token) {
+        return Jwts.parser()
+                .verifyWith(getKey())
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getExpiration();
+    }
+
+    public long getRemainingSeconds(String token) {
+        Date exp = getExpirationDate(token);
+        if (exp == null) return 0;
+        long remaining = (exp.getTime() - System.currentTimeMillis()) / 1000;
+        return Math.max(remaining, 0);
+    }
 }

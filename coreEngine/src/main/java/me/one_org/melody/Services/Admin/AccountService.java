@@ -21,12 +21,15 @@ public class AccountService {
     private final UsersRepository usersRepository;
     private final Recombee recombee;
     private final PaginationMetaDataService paginationMetaDataService;
+    private final me.one_org.melody.Security.TokenBlacklistService tokenBlacklistService;
 
     public AccountService(UsersRepository usersRepository, Recombee recombee,
-                          PaginationMetaDataService paginationMetaDataService) {
+                          PaginationMetaDataService paginationMetaDataService,
+                          me.one_org.melody.Security.TokenBlacklistService tokenBlacklistService) {
         this.usersRepository = usersRepository;
         this.recombee = recombee;
         this.paginationMetaDataService = paginationMetaDataService;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     public List<UsersEntity> getAccountsPaginated(int page, int size) {
@@ -87,6 +90,7 @@ public class AccountService {
         }
 
         usersRepository.deleteById(user.getId());
+        tokenBlacklistService.blockUser(user.getId());
         paginationMetaDataService.decrementStatus("UsersEntity", user.getStatus());
     }
 
@@ -114,6 +118,7 @@ public class AccountService {
         }
         user.setStatus(StatusEnum.BLOCKED);
         usersRepository.save(user);
+        tokenBlacklistService.blockUser(user.getId());
         paginationMetaDataService.transitionStatus("UsersEntity", oldStatus, StatusEnum.BLOCKED);
     }
 
@@ -127,6 +132,7 @@ public class AccountService {
         }
         user.setStatus(StatusEnum.ACTIVE);
         usersRepository.save(user);
+        tokenBlacklistService.unblockUser(user.getId());
         paginationMetaDataService.transitionStatus("UsersEntity", oldStatus, StatusEnum.ACTIVE);
     }
 
@@ -142,5 +148,6 @@ public class AccountService {
         }
         user.setRole(RoleEnum.USER);
         usersRepository.save(user);
+        tokenBlacklistService.blockUser(user.getId());
     }
 }

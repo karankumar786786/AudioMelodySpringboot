@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import me.one_org.melody.Dto.Internal.JwtPayloadDto;
 import me.one_org.melody.Security.CustomUserDetails;
+import me.one_org.melody.Security.TokenBlacklistService;
 import me.one_org.melody.Utils.JwtUtil;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -18,9 +19,11 @@ import java.io.IOException;
 @Component
 public class JwtFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
+    private final TokenBlacklistService tokenBlacklistService;
 
-    public JwtFilter(JwtUtil jwtUtil) {
+    public JwtFilter(JwtUtil jwtUtil, TokenBlacklistService tokenBlacklistService) {
         this.jwtUtil = jwtUtil;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Override
@@ -37,6 +40,12 @@ public class JwtFilter extends OncePerRequestFilter {
             try {
                 JwtPayloadDto jwtDto = jwtUtil.validateAndGetPayload(token);
                 if (jwtDto != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                    // Check if token has been revoked or user has been blocked
+                    if (tokenBlacklistService.isTokenBlacklisted(token) || tokenBlacklistService.isUserBlocked(jwtDto.id())) {
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+
                     CustomUserDetails userDetails = new CustomUserDetails(jwtDto);
 
                     if (userDetails.isEnabled() && userDetails.isAccountNonLocked()) {
