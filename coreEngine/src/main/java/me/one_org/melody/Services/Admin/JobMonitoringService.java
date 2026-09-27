@@ -26,6 +26,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
+
+import me.one_org.melody.Controllers.Webhook.ApiHook;
+import me.one_org.melody.Dto.Queue.JobCleanupRequestDto;
 
 @Service
 @Slf4j
@@ -40,6 +44,7 @@ public class JobMonitoringService {
     private final Recombee recombee;
     private final S3 s3;
     private final ImageKit imageKit;
+    private final ApiHook apiHook;
 
     @Value("${s3.temp-bucket:melody-temp}")
     private String tempBucket;
@@ -62,7 +67,8 @@ public class JobMonitoringService {
             AlgoliaSearch algoliaSearch,
             Recombee recombee,
             S3 s3,
-            ImageKit imageKit) {
+            ImageKit imageKit,
+            ApiHook apiHook) {
         this.jobsRepository = jobsRepository;
         this.songsRepository = songsRepository;
         this.queueMonitoringService = queueMonitoringService;
@@ -72,6 +78,7 @@ public class JobMonitoringService {
         this.recombee = recombee;
         this.s3 = s3;
         this.imageKit = imageKit;
+        this.apiHook = apiHook;
     }
 
     public JobSummaryMetricsDto getSummaryMetrics() {
@@ -278,39 +285,26 @@ public class JobMonitoringService {
             // B. Push cancellation event to Redis audio_cancel_queue
             audioProcessingQueue.cancelJob(jobId);
 
-            // C. Fire HTTP cleanup & cancel request to audioProcessing worker Express endpoint
+            // C. Fire HTTP cleanup & cancel request to audioProcessing worker via FeignClient
             try {
-                java.net.http.HttpClient httpClient = java.net.http.HttpClient.newBuilder()
-                        .connectTimeout(Duration.ofSeconds(2))
-                        .build();
+                JobCleanupRequestDto cleanupDto = new JobCleanupRequestDto(
+                        songId,
+                        job.getTempSongKey(),
+                        job.getTempVideoKey(),
+                        job.getSongKey(),
+                        job.getFullVideoKey()
+                );
 
-                Map<String, String> body = new HashMap<>();
-                if (songId != null) body.put("songId", songId);
-                if (job.getTempSongKey() != null) body.put("tempSongKey", job.getTempSongKey());
-                if (job.getTempVideoKey() != null) body.put("tempVideoKey", job.getTempVideoKey());
-                if (job.getSongKey() != null) body.put("songKey", job.getSongKey());
-                if (job.getFullVideoKey() != null) body.put("fullVideoKey", job.getFullVideoKey());
-
-                StringBuilder jsonBuilder = new StringBuilder("{");
-                boolean first = true;
-                for (Map.Entry<String, String> entry : body.entrySet()) {
-                    if (!first) jsonBuilder.append(",");
-                    jsonBuilder.append("\"").append(entry.getKey()).append("\":\"").append(entry.getValue()).append("\"");
-                    first = false;
-                }
-                jsonBuilder.append("}");
-
-                java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
-                        .uri(java.net.URI.create(audioProcessingUrl + "/api/jobs/" + jobId + "/cleanup"))
-                        .header("Content-Type", "application/json")
-                        .timeout(Duration.ofSeconds(2))
-                        .POST(java.net.http.HttpRequest.BodyPublishers.ofString(jsonBuilder.toString()))
-                        .build();
-
-                httpClient.sendAsync(req, java.net.http.HttpResponse.BodyHandlers.discarding());
-                log.info("Dispatched async HTTP cleanup & cancel request to audioProcessing for job [{}]", jobId);
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        apiHook.cleanupJob(jobId, cleanupDto);
+                        log.info("Dispatched cleanup & cancel request via FeignClient to audioProcessing for job [{}]", jobId);
+                    } catch (Exception ex) {
+                        log.warn("FeignClient cleanup error for job [{}]: {}", jobId, ex.getMessage());
+                    }
+                });
             } catch (Exception e) {
-                log.warn("Could not dispatch HTTP cleanup to audioProcessing: {}", e.getMessage());
+                log.warn("Could not dispatch Feign cleanup to audioProcessing: {}", e.getMessage());
             }
 
             // D. Fire event directly to Inngest Dev Server / Inngest Event API

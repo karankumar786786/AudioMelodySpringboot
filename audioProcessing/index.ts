@@ -63,6 +63,38 @@ const functions = [
   finalizeDelete,
 ];
 
+// Security middleware: Protect internal API endpoints with API key
+const requireApiKey: express.RequestHandler = (req, res, next) => {
+  const configuredKey =
+    process.env.AUDIO_PROCESSING_API_KEY ||
+    process.env.APPLICATION_API_KEY;
+
+  const providedKey = req.header("X-API-KEY") || req.header("x-api-key");
+
+  if (!configuredKey) {
+    console.warn(
+      "[AUTH WARN] Neither AUDIO_PROCESSING_API_KEY nor APPLICATION_API_KEY is configured in audioProcessing environment."
+    );
+    return next();
+  }
+
+  if (!providedKey || providedKey !== configuredKey) {
+    console.warn(
+      `[AUTH REJECT] Unauthorized attempt from ${req.ip} for ${req.method} ${req.originalUrl}`
+    );
+    return res.status(401).json({
+      status: 401,
+      error: "Unauthorized",
+      message: "Invalid or missing X-API-KEY header",
+    });
+  }
+
+  next();
+};
+
+// Protect all internal job management endpoints with API key authentication
+app.use("/api/jobs", requireApiKey);
+
 // Explicit cancellation endpoint for halting Inngest runs & cleaning scratch space
 app.post("/api/jobs/:jobId/cancel", async (req, res) => {
   const { jobId } = req.params;

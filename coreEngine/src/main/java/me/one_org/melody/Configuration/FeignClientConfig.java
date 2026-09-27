@@ -15,7 +15,11 @@ public class FeignClientConfig {
 
     @Bean
     public RequestInterceptor requestInterceptor() {
-        return template -> template.header("X-API-KEY", apiKey);
+        return template -> {
+            if (apiKey != null && !apiKey.isBlank()) {
+                template.header("X-API-KEY", apiKey);
+            }
+        };
     }
 
     @Bean

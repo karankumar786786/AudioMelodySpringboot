@@ -116,8 +116,8 @@ s3:
 
 audio-processing:
     api:
-      key: ${AUDIO_PROCESSING_API_KEY:default_audio_processing_key}
-      url: ${AUDIO_PROCESSING_URL:http://localhost:8000}
+      key: ${AUDIO_PROCESSING_API_KEY:${APPLICATION_API_KEY:default_audio_processing_key}}
+      url: ${AUDIO_PROCESSING_URL:http://localhost:5010}
 
 imagekit:
   public-key: ${IMAGEKIT_PUBLIC_KEY:default_public_key}
