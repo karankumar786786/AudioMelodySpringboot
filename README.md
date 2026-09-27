@@ -25,29 +25,29 @@
 This platform was engineered to conquer the most challenging architectural hurdles in cloud multimedia delivery: **multi-tiered fault-tolerant retries**, **zero-stall hardware acceleration probing**, **mathematically tuned client buffer windowing**, **zero-orphan multi-cloud teardown**, **tamper-proof S3/CDN/TLS delivery**, and **sub-millisecond karaoke lyrics synchronization**.
 
 ```mermaid
-graph LR
-    subgraph S_RETRY ["🛡️ Fault Tolerance & Retry Architecture"]
+flowchart LR
+    subgraph S_RETRY ["Fault Tolerance & Retry Architecture"]
         R1["1-Click Ingestion Retry<br/>Atomic State Reset & Queue Re-dispatch"]
         R2["Cascade Teardown Breaker<br/>Max 3 Attempts + Manual Audit Lock"]
         R3["Mail Worker DLQ<br/>EAUTH Circuit Breaker + Truncated Backoff"]
         R4["HLS Playback Self-Healing<br/>2^n x 500ms Backoff + Codec Swapping"]
     end
 
-    subgraph S_HW ["⚡ Hardware & Client Buffer Engine"]
+    subgraph S_HW ["Hardware & Client Buffer Engine"]
         H1["hwaccel.ts Probe Ladder<br/>1-Frame Null Muxer Test @ 3.5s Timeout"]
         H2["Dynamic CPU/GPU Concurrency<br/>Automated Thread & Worker Throttling"]
         H3["HLS Dual Buffer Window<br/>backBuffer: 90s, maxBuffer: 20s"]
         H4["Buffer Hole Auto-Jumping<br/>Micro-Gap Skipping @ 0.5s Tolerance"]
     end
 
-    subgraph S_S3 ["☁️ Multi-Bucket S3, CDN & Security"]
+    subgraph S_S3 ["Multi-Bucket S3, CDN & Security"]
         S1["Dual-Bucket Isolation<br/>melody-temp (TTL 30m) vs melody-songs"]
         S2["Parallel S3 Multipart PUTs<br/>p-limit(5) NVMe Direct Streaming"]
         S3["ImageKit Global Media Edge<br/>Real-Time AVIF/WebP Dynamic Transforms"]
         S4["Zero-Trust Security Mesh<br/>TLS 1.3, SigV4 Presign, HMAC & x-api-key"]
     end
 
-    subgraph S_DSP ["🔄 Inngest & DSP Karaoke Sync"]
+    subgraph S_DSP ["Inngest & DSP Karaoke Sync"]
         W1["Inngest Durable Checkpoints<br/>step.run Memoization & State Resumption"]
         W2["LRCLIB Karaoke Engine<br/>Regex Quantization + O(log n) Lookup"]
         W3["Double-RAF Render Lock<br/>4s Idle Auto-Sync & 1.5s Scrub Resync"]
@@ -68,7 +68,7 @@ flowchart TD
         A2 --> A3["Admin triggers 1-Click Retry: POST /admin/jobs/{jobId}/retry"]
         A3 --> A4{"Is job.status == FAILED?"}
         A4 -->|No| A5["Throw IllegalStateException 400 Bad Request"]
-        A4 -->|Yes| A6["Execute Atomic State Reset inside @Transactional:<br/>• status = PENDING, stage = QUEUED<br/>• failureReason = null, failedAt = null<br/>• Wipe startedAt, transcodeStartedAt, uploadStartedAt, etc.<br/>• Wipe downloadDurationMs, transcodeDurationMs, etc.<br/>• transcodingAttempt++"]
+        A4 -->|Yes| A6["Execute Atomic State Reset inside @Transactional:<br/>- status = PENDING, stage = QUEUED<br/>- failureReason = null, failedAt = null<br/>- Wipe startedAt, transcodeStartedAt, uploadStartedAt, etc.<br/>- Wipe downloadDurationMs, transcodeDurationMs, etc.<br/>- transcodingAttempt++"]
         A6 --> A7["Construct AudioProcessingQueueDto with song & temp metadata"]
         A7 --> A8["Push to Redis list: redisTemplate.opsForList().rightPush('audio_processing_queue')"]
         A8 --> A9["Worker daemon pops via blpop(5s) &rarr; Inngest resumes execution"]
@@ -258,26 +258,26 @@ The frontend HLS player enforces a dual-buffer window strategy that delivers ins
 ### ☁️ 3. AWS S3 Multi-Bucket Architecture, Global CDN & Zero-Trust HTTPS
 
 ```mermaid
-graph TB
+flowchart TB
     subgraph CAL ["Client Application Layer"]
         AF_U["audioFrontend / adminFrontend"]
     end
 
     subgraph AST ["AWS Storage Tier (Dual-Bucket Isolation)"]
         direction TB
-        B_TEMP[("🪣 AWS S3: melody-temp<br/>• Staging bucket for raw media uploads<br/>• Pre-signed PUT URLs with 30m TTL<br/>• Strict Content-Type enforcement<br/>• Auto-abort incomplete multipart after 24h<br/>• Auto-expire unreferenced objects after 3 days<br/>• Explicit worker deletion post-packaging")]
-        B_PROD[("🪣 AWS S3: melody-songs<br/>• Production permanent streaming repository<br/>• Partitioned: audios/{id}/* & videos/{id}/*<br/>• Multi-bitrate HLS (.m3u8) & DASH (.mpd)<br/>• Parallel multipart PUTs via p-limit(5)<br/>• Immutable chunk caching headers")]
+        B_TEMP[("AWS S3: melody-temp<br/>- Staging bucket for raw media uploads<br/>- Pre-signed PUT URLs with 30m TTL<br/>- Strict Content-Type enforcement<br/>- Auto-abort incomplete multipart after 24h<br/>- Auto-expire unreferenced objects after 3 days<br/>- Explicit worker deletion post-packaging")]
+        B_PROD[("AWS S3: melody-songs<br/>- Production permanent streaming repository<br/>- Partitioned: audios/:id/* & videos/:id/*<br/>- Multi-bitrate HLS (.m3u8) & DASH (.mpd)<br/>- Parallel multipart PUTs via p-limit(5)<br/>- Immutable chunk caching headers")]
     end
 
     subgraph GEMC ["Global Edge Media CDN (ImageKit)"]
-        IK_EDGE["⚡ ImageKit Global CDN Edge<br/>• Origin Shielding & Global PoP Distribution<br/>• On-the-Fly WebP / AVIF Format Auto-Negotiation<br/>• Responsive Cover Transformations: tr=w-500,h-500,fo-auto,q-85<br/>• Cryptographic Client Upload Tokens (HMAC-SHA1)<br/>• Cache-Control: public, max-age=31536000, immutable")]
+        IK_EDGE["ImageKit Global CDN Edge<br/>- Origin Shielding & Global PoP Distribution<br/>- On-the-Fly WebP / AVIF Format Auto-Negotiation<br/>- Responsive Cover Transformations: tr=w-500,h-500,fo-auto,q-85<br/>- Cryptographic Client Upload Tokens (HMAC-SHA1)<br/>- Cache-Control: public, max-age=31536000, immutable"]
     end
 
     subgraph ZTSM ["Zero-Trust Security Mesh"]
-        SEC_TLS["🔒 Strict TLS 1.3 Transport Security<br/>ChaCha20-Poly1305 & AES-256-GCM Modern Ciphers"]
-        SEC_SIG["🔑 AWS SigV4 Presigned Direct Uploads<br/>Client &rarr; S3 PUT without passing large binaries through API"]
-        SEC_KEY["🛡️ Microservice Webhook Authentication<br/>Worker-to-Backend HTTP Header: x-api-key validated via ApiKeyFilter"]
-        SEC_RED["🔐 Redis In-Transit TLS<br/>Encrypted job queues over rediss:// connection strings"]
+        SEC_TLS["Strict TLS 1.3 Transport Security<br/>ChaCha20-Poly1305 & AES-256-GCM Modern Ciphers"]
+        SEC_SIG["AWS SigV4 Presigned Direct Uploads<br/>Client &rarr; S3 PUT without passing large binaries through API"]
+        SEC_KEY["Microservice Webhook Authentication<br/>Worker-to-Backend HTTP Header: x-api-key validated via ApiKeyFilter"]
+        SEC_RED["Redis In-Transit TLS<br/>Encrypted job queues over rediss:// connection strings"]
     end
 
     AF_U -->|"1. Request Presigned URL"| SEC_SIG
@@ -529,34 +529,34 @@ export function parseLrcToTranscriptions(lrcText: string): TranscriptionEntry[] 
 One Melody decouples API request coordination, heavy CPU/GPU multimedia packaging, transactional email dispatch, and database interactions into specialized, asynchronously connected services communicating over Redis FIFO queues and signed webhooks.
 
 ```mermaid
-graph TB
+flowchart TB
     subgraph CT ["Client Tier"]
-        AF["audioFrontend (Port 3000)<br/>• Next.js 16 / React 19 / Turbopack<br/>• Web Audio API DSP Engine<br/>• LRCLIB Synced Karaoke Lyrics<br/>• Video Canvas & Adaptive Player"]
-        ADF["adminFrontend (Port 3001)<br/>• Next.js 16 / React 19 / Turbopack<br/>• Real-Time Byte XHR Upload Engine<br/>• Dual Gantt / Timeline Monitor<br/>• 1-Click Self-Healing Retries"]
+        AF["audioFrontend (Port 3000)<br/>- Next.js 16 / React 19 / Turbopack<br/>- Web Audio API DSP Engine<br/>- LRCLIB Synced Karaoke Lyrics<br/>- Video Canvas & Adaptive Player"]
+        ADF["adminFrontend (Port 3001)<br/>- Next.js 16 / React 19 / Turbopack<br/>- Real-Time Byte XHR Upload Engine<br/>- Dual Gantt / Timeline Monitor<br/>- 1-Click Self-Healing Retries"]
     end
 
     subgraph COT ["Core Orchestration Tier"]
-        CE["coreEngine (Port 9090)<br/>• Spring Boot 3.4 / Java 21<br/>• Dual Security Filters (API Key + JWT)<br/>• Redis Metadata & Pagination Cache<br/>• Algolia & Recombee Clients"]
+        CE["coreEngine (Port 9090)<br/>- Spring Boot 3.4 / Java 21<br/>- Dual Security Filters (API Key + JWT)<br/>- Redis Metadata & Pagination Cache<br/>- Algolia & Recombee Clients"]
     end
 
     subgraph MCT ["Messaging & Cache Tier"]
-        RD[("Redis 7 (Port 6379)<br/>• audio_processing_queue<br/>• delete_event_queue<br/>• mail_queue & mail_queue_dlq<br/>• paginationMetaData cache")]
+        RD[("Redis 7 (Port 6379)<br/>- audio_processing_queue<br/>- delete_event_queue<br/>- mail_queue & mail_queue_dlq<br/>- paginationMetaData cache")]
     end
 
     subgraph MPC ["Media Processing Cluster"]
-        AP["audioProcessing (Port 5010)<br/>• Inngest Durable Execution (Port 8288)<br/>• FFmpeg Hardware Probing (hwaccel.ts)<br/>• Google Shaka Packager (HLS/DASH)<br/>• Active Path Registry & Temp Cleanup"]
+        AP["audioProcessing (Port 5010)<br/>- Inngest Durable Execution (Port 8288)<br/>- FFmpeg Hardware Probing (hwaccel.ts)<br/>- Google Shaka Packager (HLS/DASH)<br/>- Active Path Registry & Temp Cleanup"]
     end
 
     subgraph TMW ["Transactional Messaging Worker"]
-        MW["workers/mailEvents<br/>• Bun / ioredis Daemon<br/>• Google SMTP Auth Lockout Breaker<br/>• Exponential Backoff & DLQ Handler"]
+        MW["workers/mailEvents<br/>- Bun / ioredis Daemon<br/>- Google SMTP Auth Lockout Breaker<br/>- Exponential Backoff & DLQ Handler"]
     end
 
     subgraph DST ["Data & Storage Tier"]
-        PG[("PostgreSQL 15+ (Port 5432)<br/>• Songs, Artists, Playlists<br/>• Ingestion & Delete Audit Jobs<br/>• Versioned Migrations (v2-v6)")]
-        S3[("AWS S3 Multi-Bucket<br/>• melody-temp (Raw uploads)<br/>• melody-songs (HLS/DASH Segments)")]
-        IK[("ImageKit Global CDN<br/>• High-Res Artwork Transformations<br/>• Canvas Background Video Host")]
-        AL[("Algolia Search Engine<br/>• Typo-Tolerant Multi-Index<br/>• Sub-50ms Global Querying")]
-        RC[("Recombee AI Engine<br/>• Collaborative Filtering Models<br/>• Continuous User Signal Training")]
+        PG[("PostgreSQL 15+ (Port 5432)<br/>- Songs, Artists, Playlists<br/>- Ingestion & Delete Audit Jobs<br/>- Versioned Migrations (v2-v6)")]
+        S3[("AWS S3 Multi-Bucket<br/>- melody-temp (Raw uploads)<br/>- melody-songs (HLS/DASH Segments)")]
+        IK[("ImageKit Global CDN<br/>- High-Res Artwork Transformations<br/>- Canvas Background Video Host")]
+        AL[("Algolia Search Engine<br/>- Typo-Tolerant Multi-Index<br/>- Sub-50ms Global Querying")]
+        RC[("Recombee AI Engine<br/>- Collaborative Filtering Models<br/>- Continuous User Signal Training")]
     end
 
     AF -->|"REST & HLS Streaming"| CE
@@ -786,9 +786,9 @@ sequenceDiagram
 ## 5. Hi-Fi Web Audio API & DSP Sound Architecture
 
 ```mermaid
-graph LR
+flowchart LR
     subgraph HME ["HTML5 Media Element"]
-        A["&lt;audio&gt; Stream Source<br/>• Native HLS.js Demuxer<br/>• Adaptive Bitrate Switching"]
+        A["&lt;audio&gt; Stream Source<br/>- Native HLS.js Demuxer<br/>- Adaptive Bitrate Switching"]
     end
 
     subgraph DSP ["Web Audio DSP Graph"]
@@ -836,7 +836,7 @@ flowchart TD
     CalcSpeed --> CalcEMA["Apply Exponential Moving Average smoothing"]
     CalcEMA --> CalcETA["Compute estimated remaining seconds = remainingBytes / speed"]
     CalcETA --> UpdateState["Update React UploadProgressBar Component"]
-    UpdateState --> RenderUI["Overlay / Inline Bar:<br/>• Speed: 14.2 MB/s<br/>• Transferred: 32.4 / 64.0 MB<br/>• ETA: 2s"]
+    UpdateState --> RenderUI["Overlay / Inline Bar:<br/>- Speed: 14.2 MB/s<br/>- Transferred: 32.4 / 64.0 MB<br/>- ETA: 2s"]
     
     RenderUI --> CheckDone{"Is upload complete?"}
     CheckDone -->|No| TransferLoop
