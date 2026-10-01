@@ -20,7 +20,8 @@ type AuthView = "login" | "register" | "otp";
 
 export function AuthModal() {
   const isAuthModalOpen = useStore(playerStore, (s) => s.isAuthModalOpen);
-  const [view, setView] = useState<AuthView>("login");
+  const [view, setView] = useState<AuthView>("register");
+  const [authOrigin, setAuthOrigin] = useState<"login" | "register">("register");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -34,7 +35,8 @@ export function AuthModal() {
   // Reset state on open/close
   useEffect(() => {
     if (!isAuthModalOpen) {
-      setView("login");
+      setView("register");
+      setAuthOrigin("register");
       setEmail("");
       setName("");
       setSessionToken("");
@@ -68,6 +70,7 @@ export function AuthModal() {
     try {
       const res = await musicApi.auth.login(email);
       setSessionToken(res.data.token);
+      setAuthOrigin("login");
       setView("otp");
       setTimeLeft(300);
       setResendCooldown(30);
@@ -91,6 +94,7 @@ export function AuthModal() {
     try {
       const res = await musicApi.auth.register(name, email);
       setSessionToken(res.data.token);
+      setAuthOrigin("register");
       setView("otp");
       setTimeLeft(300);
       setResendCooldown(30);
@@ -321,6 +325,7 @@ export function AuthModal() {
                       <input
                         type="text"
                         required
+                        autoFocus
                         placeholder="John Doe"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
@@ -380,10 +385,11 @@ export function AuthModal() {
                 transition={{ duration: 0.2 }}
               >
                 <button
-                  onClick={() => setView("login")}
+                  onClick={() => setView(authOrigin)}
                   className="flex items-center gap-1.5 text-xs font-semibold text-zinc-400 hover:text-white tracking-wider mb-5 transition-colors uppercase bg-transparent border-none cursor-pointer"
                 >
-                  <ArrowLeft className="h-4 w-4" /> Back to Sign In
+                  <ArrowLeft className="h-4 w-4" />{" "}
+                  {authOrigin === "register" ? "Back to Sign Up" : "Back to Sign In"}
                 </button>
 
                 <div className="text-center mb-6">
@@ -454,6 +460,8 @@ export function AuthModal() {
                   >
                     {loading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : authOrigin === "register" ? (
+                      "Verify OTP & Complete Registration"
                     ) : (
                       "Verify OTP & Sign In"
                     )}

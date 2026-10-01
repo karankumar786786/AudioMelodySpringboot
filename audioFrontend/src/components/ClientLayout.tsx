@@ -55,7 +55,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       }
     } else {
       if (!isPublicRoute) {
-        router.replace("/login");
+        router.replace("/signup");
       } else {
         setIsReady(true);
       }

@@ -20,12 +20,15 @@ interface AuthPageProps {
   initialMode?: "login" | "signup";
 }
 
-export function AuthPage({ initialMode = "login" }: AuthPageProps) {
+export function AuthPage({ initialMode = "signup" }: AuthPageProps) {
   const router = useRouter();
   const systemUser = useStore(playerStore, (s) => s.systemUser);
 
   const [view, setView] = useState<"login" | "register" | "otp">(
-    initialMode === "signup" ? "register" : "login"
+    initialMode === "login" ? "login" : "register"
+  );
+  const [authOrigin, setAuthOrigin] = useState<"login" | "register">(
+    initialMode === "login" ? "login" : "register"
   );
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -45,7 +48,9 @@ export function AuthPage({ initialMode = "login" }: AuthPageProps) {
   }, [systemUser, router]);
 
   useEffect(() => {
-    setView(initialMode === "signup" ? "register" : "login");
+    const target = initialMode === "login" ? "login" : "register";
+    setView(target);
+    setAuthOrigin(target);
     setOtpValues(Array(6).fill(""));
     setTimerActive(false);
   }, [initialMode]);
@@ -73,6 +78,7 @@ export function AuthPage({ initialMode = "login" }: AuthPageProps) {
     try {
       const res = await musicApi.auth.login(email.trim());
       setSessionToken(res.data.token);
+      setAuthOrigin("login");
       setView("otp");
       setTimeLeft(300);
       setResendCooldown(30);
@@ -97,6 +103,7 @@ export function AuthPage({ initialMode = "login" }: AuthPageProps) {
     try {
       const res = await musicApi.auth.register(name.trim(), email.trim());
       setSessionToken(res.data.token);
+      setAuthOrigin("register");
       setView("otp");
       setTimeLeft(300);
       setResendCooldown(30);
@@ -377,6 +384,7 @@ export function AuthPage({ initialMode = "login" }: AuthPageProps) {
                       <input
                         type="text"
                         required
+                        autoFocus
                         placeholder="John Doe"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
@@ -439,10 +447,11 @@ export function AuthPage({ initialMode = "login" }: AuthPageProps) {
               >
                 <button
                   type="button"
-                  onClick={() => setView("login")}
+                  onClick={() => setView(authOrigin)}
                   className="flex items-center gap-1.5 text-xs font-semibold text-zinc-400 hover:text-white tracking-wider mb-5 transition-colors uppercase cursor-pointer"
                 >
-                  <ArrowLeft className="h-4 w-4" /> Back to Sign In
+                  <ArrowLeft className="h-4 w-4" />{" "}
+                  {authOrigin === "register" ? "Back to Sign Up" : "Back to Sign In"}
                 </button>
 
                 <div className="text-center mb-6">
@@ -524,6 +533,8 @@ export function AuthPage({ initialMode = "login" }: AuthPageProps) {
                   >
                     {loading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : authOrigin === "register" ? (
+                      "Verify OTP & Complete Registration"
                     ) : (
                       "Verify OTP & Sign In"
                     )}
