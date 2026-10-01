@@ -11,7 +11,7 @@ These SQL statements must be run **before deploying** the code changes that depe
 ### 1. Add `genre` column to `songs` table
 
 **Needed by**: `SongsEntity.java`, `WebhookJobService.finalizeJob`, Recombee saveSong  
-**Status**: Code is ready — column not yet added to DB
+**Status**: ✅ Applied to DB (`v7_add_genre_column.sql`)
 
 ```sql
 ALTER TABLE songs ADD COLUMN IF NOT EXISTS genre VARCHAR(100);
@@ -20,7 +20,7 @@ ALTER TABLE songs ADD COLUMN IF NOT EXISTS genre VARCHAR(100);
 ### 2. Add `genre` column to `jobs` table
 
 **Needed by**: `JobsEntity.java`, `SongService.createSong`, `WebhookJobService.saveRecommendation`  
-**Status**: Code is ready — column not yet added to DB
+**Status**: ✅ Applied to DB (`v7_add_genre_column.sql`)
 
 ```sql
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS genre VARCHAR(100);
@@ -48,8 +48,8 @@ Recombee silently ignores re-registering properties that already exist.
 
 | Task | File | Status | Blocking? |
 |---|---|---|---|
-| `ALTER TABLE songs ADD COLUMN genre` | `SongsEntity.java` | ⏳ Pending | Yes — app will fail if deployed before migration |
-| `ALTER TABLE jobs ADD COLUMN genre` | `JobsEntity.java` | ⏳ Pending | Yes — app will fail if deployed before migration |
+| `ALTER TABLE songs ADD COLUMN genre` | `SongsEntity.java` | ✅ Applied | No — completed |
+| `ALTER TABLE jobs ADD COLUMN genre` | `JobsEntity.java` | ✅ Applied | No — completed |
 | Recombee `genre` property registration | `Recombee.configureSchema()` | ✅ Auto on startup | No |
 | Recombee `duration` property registration | `Recombee.configureSchema()` | ✅ Auto on startup | No |
 | Queue-add tracking (`AddBookmark`) | `InteractionApiController.java` | ✅ Implemented | No — no DB changes |
