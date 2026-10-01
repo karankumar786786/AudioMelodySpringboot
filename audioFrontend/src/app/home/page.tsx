@@ -314,7 +314,7 @@ export default function HomePage() {
   const trendingSongs: Song[] = trending?.data?.data || [];
 
   return (
-    <div className="relative px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-2 sm:pt-2.5 space-y-3 sm:space-y-3.5 select-none overflow-hidden min-h-full">
+    <div className="relative px-4  pb-20 bg-black pt-2 sm:pt-2.5 space-y-3 sm:space-y-3.5 select-none overflow-hidden min-h-full">
       {/* Dynamic Ambient Color Glow bleeding smoothly behind top section */}
       <div
         className="pointer-events-none absolute -top-28 left-1/2 -translate-x-1/2 w-full max-w-6xl h-[420px] transition-all duration-1000 ease-out opacity-20 blur-3xl -z-0"
