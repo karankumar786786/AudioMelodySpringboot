@@ -273,6 +273,19 @@ class AdminEndpointRoutingTests(SimpleTestCase):
             res_upgrade_ok = super_client.post("/admin/account/target@example.com")
             self.assertEqual(res_upgrade_ok.status_code, 202)
 
+        # 3. Super Admin deleting user via DELETE /admin/account/<email> and /admin/account/<email>/delete
+        with patch("api.views.get_object_or_404", return_value=fake_target), \
+             patch.object(RecombeeService, "delete_user"), \
+             patch.object(RedisService, "block_user_in_redis"), \
+             patch.object(PaginationMetadataService, "decrement_status"), \
+             patch.object(Admin.objects, "filter"):
+            fake_target.delete = MagicMock()
+            res_del_1 = super_client.delete("/admin/account/target@example.com")
+            self.assertEqual(res_del_1.status_code, 204)
+
+            res_del_2 = super_client.delete("/admin/account/target@example.com/delete")
+            self.assertEqual(res_del_2.status_code, 204)
+
 
     def test_redis_blocked_user_rejection(self):
         with patch.object(RedisService, "is_user_blocked", return_value=True):
@@ -397,5 +410,50 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
             new_tokens = res_refresh.json()
             self.assertIn("accessToken", new_tokens)
             self.assertIn("refreshToken", new_tokens)
+
+    def test_global_search_api(self):
+        authed_client = APIClient()
+        token = jwt.encode({"sub": "admin-1", "email": "a@b.com", "role": "ADMIN", "exp": time.time() + 3600}, settings.JWT_SECRET, algorithm="HS256")
+        authed_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        with patch.object(Song.objects, "filter") as mock_songs, \
+             patch.object(Artist.objects, "filter") as mock_artists, \
+             patch.object(Playlist.objects, "filter") as mock_playlists:
+
+            mock_songs.return_value.order_by.return_value = []
+            mock_artists.return_value.order_by.return_value = []
+            mock_playlists.return_value.order_by.return_value = []
+
+            res = authed_client.get("/api/search?q=melody")
+            self.assertEqual(res.status_code, 200)
+            data = res.json()
+            self.assertIn("songs", data)
+            self.assertIn("artists", data)
+            self.assertIn("playlists", data)
+
+    def test_artist_songs_api(self):
+        authed_client = APIClient()
+        token = jwt.encode({"sub": "admin-1", "email": "a@b.com", "role": "ADMIN", "exp": time.time() + 3600}, settings.JWT_SECRET, algorithm="HS256")
+        authed_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        fake_artist = MagicMock()
+        fake_artist.id = "art-1"
+        fake_artist.name = "Test Artist"
+
+        with patch("api.views.get_object_or_404", return_value=fake_artist), \
+             patch.object(Song.objects, "filter") as mock_songs, \
+             patch.object(PaginationMetadataService, "get_metadata", return_value=None):
+
+            mock_qs = MagicMock()
+            mock_qs.__getitem__.return_value = []
+            mock_qs.count.return_value = 0
+            mock_songs.return_value.order_by.return_value = mock_qs
+
+            res = authed_client.get("/api/artists/art-1/songs?page=0&size=200")
+            self.assertEqual(res.status_code, 200)
+            data = res.json()
+            self.assertIn("content", data)
+            self.assertIn("paginationMetaData", data)
+
 
 

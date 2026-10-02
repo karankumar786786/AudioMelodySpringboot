@@ -4,7 +4,6 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.TypedQuery;
 import me.one_org.melody.Entity.UsersEntity;
-import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Enums.StatusEnum;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -70,17 +69,13 @@ public class UsersRepository {
                 .getSingleResult();
     }
 
-    public List<UsersEntity> findFilteredPaginated(String search, RoleEnum role, StatusEnum status, int page, int size) {
+    public List<UsersEntity> findFilteredPaginated(String search, StatusEnum status, int page, int size) {
         StringBuilder jpql = new StringBuilder("SELECT u FROM UsersEntity u WHERE 1=1");
         Map<String, Object> params = new HashMap<>();
 
         if (search != null && !search.trim().isEmpty()) {
             jpql.append(" AND (LOWER(u.email) LIKE :search OR LOWER(u.userName) LIKE :search OR LOWER(u.id) LIKE :search)");
             params.put("search", "%" + search.trim().toLowerCase() + "%");
-        }
-        if (role != null) {
-            jpql.append(" AND u.role = :role");
-            params.put("role", role);
         }
         if (status != null) {
             jpql.append(" AND u.status = :status");
@@ -96,17 +91,13 @@ public class UsersRepository {
         return query.getResultList();
     }
 
-    public long countFiltered(String search, RoleEnum role, StatusEnum status) {
+    public long countFiltered(String search, StatusEnum status) {
         StringBuilder jpql = new StringBuilder("SELECT COUNT(u) FROM UsersEntity u WHERE 1=1");
         Map<String, Object> params = new HashMap<>();
 
         if (search != null && !search.trim().isEmpty()) {
             jpql.append(" AND (LOWER(u.email) LIKE :search OR LOWER(u.userName) LIKE :search OR LOWER(u.id) LIKE :search)");
             params.put("search", "%" + search.trim().toLowerCase() + "%");
-        }
-        if (role != null) {
-            jpql.append(" AND u.role = :role");
-            params.put("role", role);
         }
         if (status != null) {
             jpql.append(" AND u.status = :status");

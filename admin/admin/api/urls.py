@@ -2,9 +2,11 @@ from django.urls import path
 from .views import (
     # Dashboard
     DashboardStatsView,
+    GlobalSearchView,
     # Artist
     ArtistListView,
     ArtistDetailView,
+    ArtistSongsView,
     # Playlist
     PlaylistListView,
     PlaylistDetailView,
@@ -91,12 +93,19 @@ urlpatterns = [
     path("admin/auth/profile", AdminProfileView.as_view(), name="admin-auth-profile"),
     path("admin/auth/me", AdminProfileView.as_view(), name="admin-auth-me"),
 
+    # Search (called by GlobalSearch component)
+    path("api/search", GlobalSearchView.as_view(), name="api-search"),
+    path("admin/search", GlobalSearchView.as_view(), name="admin-search"),
+
     # Dashboard
     path("admin/dashboard/stats", DashboardStatsView.as_view(), name="admin-dashboard-stats"),
 
     # Artists
     path("admin/artist", ArtistListView.as_view(), name="admin-artist-list"),
+    path("api/artists/<str:pk>/songs", ArtistSongsView.as_view(), name="api-artist-songs"),
+    path("admin/artist/<str:pk>/songs", ArtistSongsView.as_view(), name="admin-artist-songs"),
     path("admin/artist/<str:pk>", ArtistDetailView.as_view(), name="admin-artist-detail"),
+
 
     # Playlists
     path("admin/playlist", PlaylistListView.as_view(), name="admin-playlist-list"),
@@ -148,6 +157,7 @@ urlpatterns = [
     path("admin/account/<str:email>/block", AccountBlockView.as_view(), name="admin-account-block"),
     path("admin/account/<str:email>/unblock", AccountUnblockView.as_view(), name="admin-account-unblock"),
     path("admin/account/<str:email>/demote", AccountDemoteView.as_view(), name="admin-account-demote"),
+    path("admin/account/<str:email>/delete", AccountDeleteView.as_view(), name="admin-account-delete"),
     path("admin/account/<str:email>", AccountUpgradeView.as_view(), name="admin-account-action"),
     path("admin/account", AccountListView.as_view(), name="admin-account-list"),
 

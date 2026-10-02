@@ -17,7 +17,6 @@ import me.one_org.melody.Dto.Internal.OtpDataDto;
 import me.one_org.melody.Dto.Queue.MailQueueDto;
 import me.one_org.melody.Entity.UsersEntity;
 import me.one_org.melody.Enums.PurposeEnum;
-import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Exceptions.BadRequestException;
 import me.one_org.melody.Exceptions.ConflictException;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
@@ -106,7 +105,6 @@ public class AuthenticationService {
                     .id(UUID.randomUUID().toString())
                     .userName(data.userName())
                     .email(data.email())
-                    .role(RoleEnum.USER)
                     .build();
             usersRepository.save(user);
             paginationMetaDataService.incrementStatus("UsersEntity", user.getStatus());

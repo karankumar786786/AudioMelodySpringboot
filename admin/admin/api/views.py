@@ -327,10 +327,74 @@ class AdminLogoutView(APIView):
         return Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
 
 
+class GlobalSearchView(BaseAdminView):
+    """
+    GET /api/search?q=<query> and /admin/search?q=<query>
+    Unified multi-entity search for songs, artists, and playlists used by GlobalSearch component.
+    """
+    def get(self, request):
+        q = (request.query_params.get("q") or "").strip()
+        if not q or len(q) < 2:
+            return Response({"songs": [], "artists": [], "playlists": []}, status=status.HTTP_200_OK)
+
+        # 1. Search Songs
+        songs_qs = Song.objects.filter(
+            Q(title__icontains=q) | Q(artist_name__icontains=q) | Q(language__icontains=q),
+            status="ACTIVE",
+        ).order_by("-created_at")[:15]
+        songs = [
+            {
+                "id": s.id,
+                "title": s.title,
+                "artistName": s.artist_name,
+                "imageKey": s.image_key,
+                "duration": s.duration,
+            }
+            for s in songs_qs
+        ]
+
+        # 2. Search Artists
+        artists_qs = Artist.objects.filter(
+            name__icontains=q,
+            status="ACTIVE",
+        ).order_by("-created_at")[:15]
+        artists = [
+            {
+                "id": a.id,
+                "name": a.name,
+                "coverImageKey": a.cover_image_key,
+                "about": a.about,
+            }
+            for a in artists_qs
+        ]
+
+        # 3. Search Playlists
+        playlists_qs = Playlist.objects.filter(
+            name__icontains=q,
+            status="ACTIVE",
+        ).order_by("-created_at")[:15]
+        playlists = [
+            {
+                "id": p.id,
+                "name": p.name,
+                "coverImageKey": p.cover_image_key,
+                "description": p.description,
+            }
+            for p in playlists_qs
+        ]
+
+        return Response({
+            "songs": songs,
+            "artists": artists,
+            "playlists": playlists,
+        }, status=status.HTTP_200_OK)
+
+
 
 # ==============================================================================
 # 1. Dashboard Stats
 # ==============================================================================
+
 
 class DashboardStatsView(BaseAdminView):
     def get(self, request):
@@ -469,9 +533,48 @@ class ArtistDetailView(BaseAdminView):
         return Response(status=status.HTTP_202_ACCEPTED)
 
 
+class ArtistSongsView(BaseAdminView):
+    """
+    GET /api/artists/<pk>/songs and /admin/artist/<pk>/songs
+    Returns paginated songs for a specific artist.
+    """
+    def get(self, request, pk):
+        artist = get_object_or_404(Artist, pk=pk)
+        page = int(request.query_params.get("page", 0))
+        size = int(request.query_params.get("size", 200))
+        offset = page * size
+
+        qs = Song.objects.filter(
+            Q(artist_name__iexact=artist.name) | Q(artist_name__icontains=artist.name),
+            status="ACTIVE",
+        ).order_by("-created_at")
+
+        songs = list(qs[offset : offset + size])
+        try:
+            total = qs.count()
+        except (TypeError, AttributeError):
+            total = len(songs)
+        meta = PaginationMetadataService.get_metadata(f"ArtistSongs_{pk}")
+
+        meta_dict = {
+            "id": meta.id if meta else f"ArtistSongs_{pk}",
+            "entityName": f"ArtistSongs_{pk}",
+            "totalCount": total,
+            "activeCount": total,
+            "blockedCount": 0,
+            "deletedCount": 0,
+        }
+
+        return Response(
+            format_paginated_response(SongSerializer(songs, many=True).data, page, size, meta_dict),
+            status=status.HTTP_200_OK,
+        )
+
+
 # ==============================================================================
 # 3. Playlist Management
 # ==============================================================================
+
 
 class PlaylistListView(BaseAdminView):
     def get(self, request):
@@ -1466,6 +1569,9 @@ class AccountDeleteView(BaseAdminView):
         user.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    def post(self, request, email):
+        return self.delete(request, email)
+
 
 class AccountUpgradeView(BaseAdminView):
     permission_classes = [IsSuperAdminUserPermission]
@@ -1484,6 +1590,9 @@ class AccountUpgradeView(BaseAdminView):
         admin.status = "ACTIVE"
         admin.save()
         return Response(status=status.HTTP_202_ACCEPTED)
+
+    def delete(self, request, email):
+        return AccountDeleteView().delete(request, email)
 
 
 class AccountBlockView(BaseAdminView):

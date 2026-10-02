@@ -40,10 +40,6 @@ public class UsersEntity implements UserDetails {
 
     @Default
     @Enumerated(EnumType.STRING)
-    private RoleEnum role = RoleEnum.USER;
-
-    @Default
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatusEnum status = StatusEnum.ACTIVE;
 
@@ -84,12 +80,14 @@ public class UsersEntity implements UserDetails {
         return this.userName;
     }
 
+    public RoleEnum getRole() {
+        return RoleEnum.USER;
+    }
+
     @Override
     @JsonIgnore
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return role != null
-                ? List.of(new SimpleGrantedAuthority("ROLE_" + role.name()))
-                : Collections.emptyList();
+        return List.of(new SimpleGrantedAuthority("ROLE_USER"));
     }
 
     @Override
