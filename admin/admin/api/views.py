@@ -1,3 +1,4 @@
+import jwt
 from datetime import datetime, timezone
 import logging
 from typing import Any, Dict, List, Optional
@@ -22,6 +23,7 @@ from .helpers import (
     to_job_progress_dto,
 )
 from .models import (
+    Admin,
     Artist,
     DeleteJob,
     Job,
@@ -32,6 +34,7 @@ from .models import (
     User,
 )
 from .serializers import (
+    AdminSerializer,
     ArtistSerializer,
     JobSerializer,
     PaginationMetadataSerializer,
@@ -40,6 +43,7 @@ from .serializers import (
     UserSerializer,
 )
 from .services import (
+    AdminAuthService,
     AlgoliaService,
     ExternalJobDispatcher,
     ImageKitService,
@@ -56,6 +60,272 @@ logger = logging.getLogger(__name__)
 class BaseAdminView(APIView):
     authentication_classes = [AdminJWTAuthentication]
     permission_classes = [IsAdminUserPermission]
+
+
+# ==============================================================================
+# 0. Admin Authentication & Session Management (/auth/*, /api/user/profile)
+# ==============================================================================
+
+class AdminLoginView(APIView):
+    """
+    POST /auth/login
+    Accepts { "email": "...", "password": "..." }
+    Verifies admin exists in admin_users table and generates an OTP.
+    Returns { "tempToken": "<tempToken>", "message": "OTP sent" }
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = (request.data.get("email") or "").strip().lower()
+        if not email:
+            return Response({"message": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        admin = Admin.objects.filter(email__iexact=email).first()
+        if not admin:
+            return Response(
+                {"message": f"No admin account found with email '{email}'. Please contact your super administrator."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if admin.status == "BLOCKED":
+            return Response(
+                {"message": "Your admin account has been suspended or blocked."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        otp = AdminAuthService.generate_otp()
+        temp_token = AdminAuthService.create_temp_token(admin.email, purpose="LOGIN")
+        AdminAuthService.save_otp(admin.email, {
+            "otp": otp,
+            "email": admin.email,
+            "role": admin.role,
+            "purpose": "LOGIN"
+        })
+        AdminAuthService.notify_otp(admin.email, "LOGIN", otp)
+
+        return Response({
+            "tempToken": temp_token,
+            "message": "Verification code has been sent to your email.",
+        }, status=status.HTTP_200_OK)
+
+
+class AdminRegisterView(APIView):
+    """
+    POST /auth/register
+    Accepts { "userName": "...", "email": "...", "password": "..." }
+    Initiates registration of a new admin in admin_users table via OTP.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = (request.data.get("email") or "").strip().lower()
+        name = (request.data.get("userName") or request.data.get("name") or "").strip()
+
+        if not email:
+            return Response({"message": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
+        if not name:
+            return Response({"message": "Name is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if Admin.objects.filter(email__iexact=email).exists():
+            return Response(
+                {"message": f"An admin account with email '{email}' already exists. Please log in."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # First registered admin automatically becomes SUPER_ADMIN, otherwise ADMIN
+        assigned_role = "SUPER_ADMIN" if Admin.objects.count() == 0 else "ADMIN"
+        otp = AdminAuthService.generate_otp()
+        temp_token = AdminAuthService.create_temp_token(email, purpose="REGISTER")
+        AdminAuthService.save_otp(email, {
+            "otp": otp,
+            "email": email,
+            "userName": name,
+            "role": assigned_role,
+            "purpose": "REGISTER"
+        })
+        AdminAuthService.notify_otp(email, "REGISTER", otp)
+
+        return Response({
+            "tempToken": temp_token,
+            "message": "Registration verification code sent.",
+        }, status=status.HTTP_201_CREATED)
+
+
+class AdminVerifyOtpView(APIView):
+    """
+    POST /auth/verify-otp
+    Header: X-TEMP-TOKEN: <tempToken> (or body { "token": "..." })
+    Body: { "otp": "..." }
+    Verifies OTP and returns { "accessToken": "...", "refreshToken": "..." }
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        temp_token = (
+            request.headers.get("X-TEMP-TOKEN")
+            or request.headers.get("x-temp-token")
+            or request.data.get("token")
+            or request.data.get("tempToken")
+            or ""
+        ).strip()
+        otp = str(request.data.get("otp", "")).strip()
+
+        if not temp_token:
+            return Response(
+                {"message": "Temporary verification token is required in X-TEMP-TOKEN header."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not otp:
+            return Response({"message": "OTP code is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        decoded = AdminAuthService.decode_temp_token(temp_token)
+        if not decoded:
+            return Response(
+                {"message": "Verification session has expired or is invalid. Please log in again."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        email = decoded.get("email")
+        otp_data = AdminAuthService.get_otp(email)
+        if not otp_data:
+            return Response(
+                {"message": "Verification code has expired. Please request a new OTP."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if str(otp_data.get("otp", "")).strip() != otp:
+            return Response(
+                {"message": "Invalid verification code. Please check and try again."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        purpose = otp_data.get("purpose", "LOGIN")
+        if purpose == "REGISTER":
+            admin, _ = Admin.objects.get_or_create(
+                email=email,
+                defaults={
+                    "id": str(uuid.uuid4()),
+                    "name": otp_data.get("userName") or email.split("@")[0],
+                    "role": otp_data.get("role", "ADMIN"),
+                    "status": "ACTIVE",
+                }
+            )
+        else:
+            admin = Admin.objects.filter(email__iexact=email).first()
+            if not admin:
+                return Response({"message": "Admin account not found."}, status=status.HTTP_404_NOT_FOUND)
+            if admin.status == "BLOCKED":
+                return Response({"message": "Your admin account is suspended or blocked."}, status=status.HTTP_403_FORBIDDEN)
+
+        AdminAuthService.delete_otp(email)
+        tokens = AdminAuthService.issue_tokens_for_admin(admin)
+        return Response(tokens, status=status.HTTP_200_OK)
+
+
+class AdminResendOtpView(APIView):
+    """
+    POST /auth/resend-otp
+    Header: X-TEMP-TOKEN: <tempToken>
+    Generates and resends a new OTP code.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        temp_token = (
+            request.headers.get("X-TEMP-TOKEN")
+            or request.headers.get("x-temp-token")
+            or request.data.get("token")
+            or request.data.get("tempToken")
+            or ""
+        ).strip()
+
+        if not temp_token:
+            return Response({"message": "Missing temporary verification token."}, status=status.HTTP_400_BAD_REQUEST)
+
+        decoded = AdminAuthService.decode_temp_token(temp_token)
+        if not decoded:
+            return Response({"message": "Verification session has expired."}, status=status.HTTP_400_BAD_REQUEST)
+
+        email = decoded.get("email")
+        purpose = decoded.get("purpose", "LOGIN")
+        cached = AdminAuthService.get_otp(email) or {"email": email, "purpose": purpose}
+
+        new_otp = AdminAuthService.generate_otp()
+        cached["otp"] = new_otp
+        AdminAuthService.save_otp(email, cached)
+        AdminAuthService.notify_otp(email, purpose, new_otp)
+
+        return Response({
+            "tempToken": temp_token,
+            "message": "New OTP sent successfully.",
+        }, status=status.HTTP_200_OK)
+
+
+class AdminRefreshTokenView(APIView):
+    """
+    POST /auth/refresh-token
+    Body: { "refreshToken": "..." }
+    Validates refresh token and issues a new pair of access/refresh tokens.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        refresh_token = (request.data.get("refreshToken") or "").strip()
+        if not refresh_token:
+            return Response({"message": "Refresh token is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            payload = jwt.decode(
+                refresh_token,
+                settings.JWT_SECRET,
+                algorithms=["HS256"],
+                options={"verify_signature": True, "verify_exp": True},
+            )
+        except Exception as e:
+            return Response({"message": f"Invalid or expired refresh token: {str(e)}"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        user_id = payload.get("id") or payload.get("sub")
+        email = payload.get("email")
+
+        admin = None
+        if user_id:
+            admin = Admin.objects.filter(id=user_id).first()
+        if not admin and email:
+            admin = Admin.objects.filter(email__iexact=email).first()
+
+        if not admin or admin.status == "BLOCKED":
+            return Response({"message": "Admin session revoked or account suspended."}, status=status.HTTP_403_FORBIDDEN)
+
+        tokens = AdminAuthService.issue_tokens_for_admin(admin)
+        return Response(tokens, status=status.HTTP_200_OK)
+
+
+class AdminProfileView(BaseAdminView):
+    """
+    GET /api/user/profile (and /auth/me, /admin/auth/me)
+    Returns the currently authenticated admin's profile data.
+    """
+    def get(self, request):
+        user = request.user
+        return Response({
+            "id": user.id,
+            "email": user.email,
+            "userName": getattr(user, "userName", "") or getattr(user, "name", "") or getattr(user, "user_name", ""),
+            "name": getattr(user, "userName", "") or getattr(user, "name", "") or getattr(user, "user_name", ""),
+            "role": user.role,
+            "status": user.status,
+        }, status=status.HTTP_200_OK)
+
+
+class AdminLogoutView(APIView):
+    """
+    POST /auth/logout
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        return Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
+
 
 
 # ==============================================================================
@@ -328,6 +598,10 @@ class PlaylistSongsView(BaseAdminView):
             format_paginated_response(SongSerializer(songs, many=True).data, page, size, meta_dict),
             status=status.HTTP_200_OK,
         )
+
+    def post(self, request, pk):
+        return PlaylistAddSongView().post(request, pk)
+
 
 
 class PlaylistAddSongView(BaseAdminView):
@@ -1188,6 +1462,7 @@ class AccountDeleteView(BaseAdminView):
         RecombeeService.delete_user(user.id)
         RedisService.block_user_in_redis(user.id)
         PaginationMetadataService.decrement_status("UsersEntity", user.status)
+        Admin.objects.filter(email=user.email).delete()
         user.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -1201,6 +1476,13 @@ class AccountUpgradeView(BaseAdminView):
             return Response({"error": "User is already an Admin or Super Admin"}, status=status.HTTP_409_CONFLICT)
         user.role = "ADMIN"
         user.save()
+        admin, _ = Admin.objects.get_or_create(
+            email=user.email,
+            defaults={"id": user.id, "name": user.user_name, "role": "ADMIN", "status": "ACTIVE"}
+        )
+        admin.role = "ADMIN"
+        admin.status = "ACTIVE"
+        admin.save()
         return Response(status=status.HTTP_202_ACCEPTED)
 
 
@@ -1215,6 +1497,7 @@ class AccountBlockView(BaseAdminView):
         if old_status != "BLOCKED":
             user.status = "BLOCKED"
             user.save()
+            Admin.objects.filter(email=user.email).update(status="BLOCKED")
             RedisService.block_user_in_redis(user.id)
             PaginationMetadataService.transition_status("UsersEntity", old_status, "BLOCKED")
         return Response(status=status.HTTP_200_OK)
@@ -1229,6 +1512,7 @@ class AccountUnblockView(BaseAdminView):
         if old_status != "ACTIVE":
             user.status = "ACTIVE"
             user.save()
+            Admin.objects.filter(email=user.email).update(status="ACTIVE")
             RedisService.unblock_user_in_redis(user.id)
             PaginationMetadataService.transition_status("UsersEntity", old_status, "ACTIVE")
         return Response(status=status.HTTP_200_OK)
@@ -1243,7 +1527,9 @@ class AccountDemoteView(BaseAdminView):
             return Response({"error": "Super Admin cannot be demoted"}, status=status.HTTP_409_CONFLICT)
         user.role = "USER"
         user.save()
+        Admin.objects.filter(email=user.email).delete()
         return Response(status=status.HTTP_200_OK)
+
 
 
 # ==============================================================================

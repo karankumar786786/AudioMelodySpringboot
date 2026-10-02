@@ -1,6 +1,7 @@
 from datetime import datetime
 from rest_framework import serializers
 from .models import (
+    Admin,
     Artist,
     DeleteJob,
     Job,
@@ -117,6 +118,27 @@ class UserSerializer(serializers.ModelSerializer):
             "status",
             "createdAt",
         ]
+
+
+class AdminSerializer(serializers.ModelSerializer):
+    userName = serializers.CharField(source="name", required=False, allow_null=True)
+    name = serializers.CharField(required=False, allow_null=True)
+    createdAt = serializers.DateTimeField(source="created_at", format="%Y-%m-%dT%H:%M:%S", required=False)
+    updatedAt = serializers.DateTimeField(source="updated_at", format="%Y-%m-%dT%H:%M:%S", required=False)
+
+    class Meta:
+        model = Admin
+        fields = [
+            "id",
+            "userName",
+            "name",
+            "email",
+            "role",
+            "status",
+            "createdAt",
+            "updatedAt",
+        ]
+
 
 
 class JobSerializer(serializers.ModelSerializer):

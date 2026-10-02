@@ -8,6 +8,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+import secrets
+import jwt
 import boto3
 import redis
 import requests
@@ -15,6 +17,7 @@ from django.conf import settings
 from django.db import connection, transaction
 
 from .models import (
+    Admin,
     Artist,
     DeleteJob,
     Job,
@@ -850,4 +853,137 @@ class PaginationMetadataService:
         }
 
         return results
+
+
+# ==============================================================================
+# 8. Admin Authentication & OTP Service
+# ==============================================================================
+
+class AdminAuthService:
+    """Handles admin authentication, OTP generation/validation, and JWT issuing."""
+    _MEMORY_OTP_CACHE: Dict[str, Dict[str, Any]] = {}
+
+    @staticmethod
+    def generate_otp() -> str:
+        return f"{secrets.randbelow(1000000):06d}"
+
+    @classmethod
+    def create_temp_token(cls, email: str, purpose: str = "LOGIN") -> str:
+        payload = {
+            "email": email.strip().lower(),
+            "purpose": purpose,
+            "iat": int(time.time()),
+            "exp": int(time.time()) + 600,  # 10 minutes validity
+        }
+        return jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
+
+    @classmethod
+    def decode_temp_token(cls, temp_token: str) -> Optional[Dict[str, Any]]:
+        if not temp_token:
+            return None
+        try:
+            return jwt.decode(
+                temp_token,
+                settings.JWT_SECRET,
+                algorithms=["HS256"],
+                options={"verify_signature": True, "verify_exp": True},
+            )
+        except Exception as e:
+            logger.warning("Failed to decode admin temp token: %s", e)
+            return None
+
+    @classmethod
+    def save_otp(cls, email: str, data: Dict[str, Any], ttl_seconds: int = 600) -> None:
+        norm_email = email.strip().lower()
+        key = f"admin:otp:{norm_email}"
+        data["expires_at"] = time.time() + ttl_seconds
+        try:
+            r = RedisService.get_client()
+            r.setex(key, ttl_seconds, json.dumps(data))
+        except Exception as e:
+            logger.debug("Redis unavailable for OTP, falling back to memory: %s", e)
+        cls._MEMORY_OTP_CACHE[norm_email] = data
+
+    @classmethod
+    def get_otp(cls, email: str) -> Optional[Dict[str, Any]]:
+        norm_email = email.strip().lower()
+        key = f"admin:otp:{norm_email}"
+        try:
+            r = RedisService.get_client()
+            raw = r.get(key)
+            if raw:
+                return json.loads(raw)
+        except Exception:
+            pass
+        cached = cls._MEMORY_OTP_CACHE.get(norm_email)
+        if cached:
+            if cached.get("expires_at", 0) > time.time():
+                return cached
+            del cls._MEMORY_OTP_CACHE[norm_email]
+        return None
+
+    @classmethod
+    def delete_otp(cls, email: str) -> None:
+        norm_email = email.strip().lower()
+        key = f"admin:otp:{norm_email}"
+        try:
+            r = RedisService.get_client()
+            r.delete(key)
+        except Exception:
+            pass
+        cls._MEMORY_OTP_CACHE.pop(norm_email, None)
+
+    @classmethod
+    def notify_otp(cls, email: str, purpose: str, otp: str) -> None:
+        # 1. Output clearly in console for instant developer feedback
+        print("\n" + "=" * 60)
+        print(f" [ADMIN AUTH OTP] Purpose: {purpose} | Email: {email}")
+        print(f" >>> VERIFICATION OTP CODE: {otp} <<< (Valid 10 mins)")
+        print("=" * 60 + "\n")
+        logger.info("[ADMIN AUTH] Generated OTP for %s (%s): %s", email, purpose, otp)
+
+        # 2. Push to Redis mail queue if running
+        try:
+            r = RedisService.get_client()
+            payload = {
+                "email": email,
+                "purpose": purpose,
+                "otp": otp,
+            }
+            r.rpush(settings.REDIS_MAIL_QUEUE, json.dumps(payload))
+        except Exception as e:
+            logger.debug("Failed to push OTP to mail queue: %s", e)
+
+    @classmethod
+    def issue_tokens_for_admin(cls, admin: Admin) -> Dict[str, str]:
+        now = int(time.time())
+        payload = {
+            "id": admin.id,
+            "sub": admin.id,
+            "email": admin.email,
+            "userName": admin.name or admin.email.split("@")[0],
+            "name": admin.name or admin.email.split("@")[0],
+            "role": admin.role,
+            "status": admin.status,
+            "iat": now,
+            "exp": now + 86400,  # 24 hours access token
+        }
+        refresh_payload = {
+            "id": admin.id,
+            "sub": admin.id,
+            "email": admin.email,
+            "userName": admin.name or admin.email.split("@")[0],
+            "name": admin.name or admin.email.split("@")[0],
+            "role": admin.role,
+            "status": admin.status,
+            "iat": now,
+            "exp": now + (30 * 86400),  # 30 days refresh token
+        }
+        access_token = jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
+        refresh_token = jwt.encode(refresh_payload, settings.JWT_SECRET, algorithm="HS256")
+        return {
+            "accessToken": access_token,
+            "refreshToken": refresh_token,
+        }
+
 

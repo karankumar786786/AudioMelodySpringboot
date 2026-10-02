@@ -6,6 +6,31 @@ def generate_uuid() -> str:
     return str(uuid.uuid4())
 
 
+class Admin(models.Model):
+    id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
+    email = models.CharField(unique=True, max_length=255)
+    name = models.CharField(max_length=255, blank=True, null=True, db_column="name")
+    role = models.CharField(max_length=255, default="ADMIN")
+    status = models.CharField(max_length=255, default="ACTIVE")
+    created_at = models.DateTimeField(auto_now_add=True, db_column="created_at")
+    updated_at = models.DateTimeField(auto_now=True, db_column="updated_at")
+
+    class Meta:
+        managed = True
+        db_table = "admin_users"
+
+    @property
+    def user_name(self):
+        return self.name
+
+    @user_name.setter
+    def user_name(self, value):
+        self.name = value
+
+    def __str__(self):
+        return f"{self.email} ({self.role})"
+
+
 class User(models.Model):
     id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
     user_name = models.CharField(max_length=255, blank=True, null=True, db_column="user_name")
@@ -20,6 +45,7 @@ class User(models.Model):
 
     def __str__(self):
         return f"{self.email} ({self.role})"
+
 
 
 class Artist(models.Model):

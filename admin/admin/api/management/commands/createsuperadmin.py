@@ -2,16 +2,14 @@ import re
 import uuid
 from django.core.management.base import BaseCommand, CommandError
 # pyrefly: ignore [missing-import]
-from api.models import User
-# pyrefly: ignore [missing-import]
-from api.services import PaginationMetadataService
+from api.models import Admin
 
 
 EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 class Command(BaseCommand):
-    help = "Creates or promotes a user to SUPER_ADMIN in the AudioMelody database."
+    help = "Creates or promotes an admin to SUPER_ADMIN in the admin_users table."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -63,58 +61,55 @@ class Command(BaseCommand):
             else:
                 username = email.split("@")[0]
 
-        # 2. Check if user already exists
-        existing_user = User.objects.filter(email__iexact=email).first()
+        # 2. Check if admin user already exists in admin_users table
+        existing_admin = Admin.objects.filter(email__iexact=email).first()
 
-        if existing_user:
-            old_role = existing_user.role
-            was_already_super = (old_role == "SUPER_ADMIN" and existing_user.status == "ACTIVE")
+        if existing_admin:
+            old_role = existing_admin.role
+            was_already_super = (old_role == "SUPER_ADMIN" and existing_admin.status == "ACTIVE")
             
-            existing_user.role = "SUPER_ADMIN"
-            existing_user.status = "ACTIVE"
-            if username and not existing_user.user_name:
-                existing_user.user_name = username
-            existing_user.save()
+            existing_admin.role = "SUPER_ADMIN"
+            existing_admin.status = "ACTIVE"
+            if username and not existing_admin.name:
+                existing_admin.name = username
+            existing_admin.save()
 
             if was_already_super:
                 self.stdout.write(
-                    self.style.SUCCESS(f"\n[OK] User '{email}' (ID: {existing_user.id}) is already an ACTIVE SUPER_ADMIN.")
+                    self.style.SUCCESS(f"\n[OK] Admin '{email}' (ID: {existing_admin.id}) is already an ACTIVE SUPER_ADMIN.")
                 )
             else:
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f"\n[OK] Successfully promoted user '{email}' (ID: {existing_user.id}) from {old_role} to SUPER_ADMIN!"
+                        f"\n[OK] Successfully promoted admin '{email}' (ID: {existing_admin.id}) from {old_role} to SUPER_ADMIN!"
                     )
                 )
-            user = existing_user
+            admin = existing_admin
         else:
-            # Create new Super Admin user
+            # Create new Super Admin user in admin_users table
             user_id = str(uuid.uuid4())
-            user = User.objects.create(
+            admin = Admin.objects.create(
                 id=user_id,
                 email=email,
-                user_name=username,
+                name=username,
                 role="SUPER_ADMIN",
                 status="ACTIVE",
             )
-            try:
-                PaginationMetadataService.increment_status("UsersEntity", "ACTIVE")
-            except Exception as e:
-                self.stderr.write(self.style.WARNING(f"Note: Could not increment pagination metadata: {e}"))
 
             self.stdout.write(
                 self.style.SUCCESS(
-                    f"\n[OK] Successfully created new SUPER_ADMIN user:\n"
-                    f"     ID:       {user.id}\n"
-                    f"     Email:    {user.email}\n"
-                    f"     Name:     {user.user_name}\n"
-                    f"     Role:     {user.role}\n"
-                    f"     Status:   {user.status}"
+                    f"\n[OK] Successfully created new SUPER_ADMIN user in admin_users table:\n"
+                    f"     ID:       {admin.id}\n"
+                    f"     Email:    {admin.email}\n"
+                    f"     Name:     {admin.name}\n"
+                    f"     Role:     {admin.role}\n"
+                    f"     Status:   {admin.status}"
                 )
             )
 
         self.stdout.write(
             self.style.NOTICE(
-                f"\nSuper Admin '{user.email}' is configured. You can now log in directly via the Admin Frontend."
+                f"\nSuper Admin '{admin.email}' is configured. You can now log in directly via the Admin Frontend."
             )
         )
+

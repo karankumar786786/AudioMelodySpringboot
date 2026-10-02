@@ -10,7 +10,7 @@ from unittest.mock import patch, MagicMock
 from django.conf import settings
 from django.test import SimpleTestCase
 from rest_framework.test import APIClient
-from .models import User, Artist, Song, Playlist, Job, DeleteJob
+from .models import Admin, User, Artist, Song, Playlist, Job, DeleteJob
 from .helpers import format_ms, format_paginated_response, to_job_progress_dto
 from .services import (
     AlgoliaService,
@@ -268,9 +268,11 @@ class AdminEndpointRoutingTests(SimpleTestCase):
         super_client = APIClient()
         super_client.credentials(HTTP_AUTHORIZATION=f"Bearer {super_token}")
 
-        with patch("api.views.get_object_or_404", return_value=fake_target):
+        with patch("api.views.get_object_or_404", return_value=fake_target), \
+             patch.object(Admin.objects, "get_or_create", return_value=(MagicMock(), True)):
             res_upgrade_ok = super_client.post("/admin/account/target@example.com")
             self.assertEqual(res_upgrade_ok.status_code, 202)
+
 
     def test_redis_blocked_user_rejection(self):
         with patch.object(RedisService, "is_user_blocked", return_value=True):
@@ -283,18 +285,17 @@ class AdminEndpointRoutingTests(SimpleTestCase):
         from django.core.management import call_command
 
         out = StringIO()
-        with patch.object(User.objects, "filter") as mock_filter, \
-             patch.object(User.objects, "create") as mock_create, \
-             patch.object(PaginationMetadataService, "increment_status"):
+        with patch.object(Admin.objects, "filter") as mock_filter, \
+             patch.object(Admin.objects, "create") as mock_create:
 
             mock_filter.return_value.first.return_value = None
-            mock_new_user = MagicMock()
-            mock_new_user.id = "new-uuid"
-            mock_new_user.email = "testsuper@one-org.me"
-            mock_new_user.user_name = "SuperTest"
-            mock_new_user.role = "SUPER_ADMIN"
-            mock_new_user.status = "ACTIVE"
-            mock_create.return_value = mock_new_user
+            mock_new_admin = MagicMock()
+            mock_new_admin.id = "new-uuid"
+            mock_new_admin.email = "testsuper@one-org.me"
+            mock_new_admin.name = "SuperTest"
+            mock_new_admin.role = "SUPER_ADMIN"
+            mock_new_admin.status = "ACTIVE"
+            mock_create.return_value = mock_new_admin
 
             call_command(
                 "createsuperadmin",
@@ -303,7 +304,98 @@ class AdminEndpointRoutingTests(SimpleTestCase):
                 stdout=out
             )
             output = out.getvalue()
-            self.assertIn("Successfully created new SUPER_ADMIN", output)
+            self.assertIn("Successfully created new SUPER_ADMIN user in admin_users table", output)
             self.assertIn("You can now log in directly via the Admin Frontend", output)
             self.assertNotIn("JWT", output)
+
+
+class AdminAuthenticationFlowTests(SimpleTestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_admin_login_not_found(self):
+        with patch.object(Admin.objects, "filter") as mock_filter:
+            mock_filter.return_value.first.return_value = None
+            res = self.client.post("/auth/login", {"email": "unknown@example.com"}, format="json")
+            self.assertEqual(res.status_code, 404)
+            self.assertIn("No admin account found", res.json()["message"])
+
+    def test_admin_login_blocked(self):
+        fake_admin = MagicMock()
+        fake_admin.status = "BLOCKED"
+        with patch.object(Admin.objects, "filter") as mock_filter:
+            mock_filter.return_value.first.return_value = fake_admin
+            res = self.client.post("/auth/login", {"email": "blocked@example.com"}, format="json")
+            self.assertEqual(res.status_code, 403)
+            self.assertIn("blocked", res.json()["message"].lower())
+
+    def test_admin_login_success_and_verify_otp(self):
+        fake_admin = MagicMock()
+        fake_admin.id = "admin-123"
+        fake_admin.email = "admin@example.com"
+        fake_admin.name = "Test Admin"
+        fake_admin.role = "ADMIN"
+        fake_admin.status = "ACTIVE"
+
+        with patch.object(Admin.objects, "filter") as mock_filter, \
+             patch.object(RedisService, "is_user_blocked", return_value=False), \
+             patch("api.services.RedisService.get_client"):
+
+
+            mock_filter.return_value.first.return_value = fake_admin
+
+            # 1. POST /auth/login
+            res_login = self.client.post("/auth/login", {"email": "admin@example.com"}, format="json")
+            self.assertEqual(res_login.status_code, 200)
+            data_login = res_login.json()
+            self.assertIn("tempToken", data_login)
+            temp_token = data_login["tempToken"]
+
+            # Read generated OTP from cache
+            from .services import AdminAuthService
+            otp_data = AdminAuthService.get_otp("admin@example.com")
+            self.assertIsNotNone(otp_data)
+            otp_code = otp_data["otp"]
+
+            # 2. POST /auth/verify-otp with incorrect OTP
+            res_bad_otp = self.client.post(
+                "/auth/verify-otp",
+                {"otp": "000000"},
+                HTTP_X_TEMP_TOKEN=temp_token,
+                format="json"
+            )
+            self.assertEqual(res_bad_otp.status_code, 400)
+
+            # 3. POST /auth/verify-otp with correct OTP
+            res_verify = self.client.post(
+                "/auth/verify-otp",
+                {"otp": otp_code},
+                HTTP_X_TEMP_TOKEN=temp_token,
+                format="json"
+            )
+            self.assertEqual(res_verify.status_code, 200)
+            tokens = res_verify.json()
+            self.assertIn("accessToken", tokens)
+            self.assertIn("refreshToken", tokens)
+
+            # 4. GET /api/user/profile with issued access token
+            authed_client = APIClient()
+            authed_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['accessToken']}")
+            res_profile = authed_client.get("/api/user/profile")
+            self.assertEqual(res_profile.status_code, 200)
+            profile = res_profile.json()
+            self.assertEqual(profile["email"], "admin@example.com")
+            self.assertEqual(profile["role"], "ADMIN")
+
+            # 5. POST /auth/refresh-token
+            res_refresh = self.client.post(
+                "/auth/refresh-token",
+                {"refreshToken": tokens["refreshToken"]},
+                format="json"
+            )
+            self.assertEqual(res_refresh.status_code, 200)
+            new_tokens = res_refresh.json()
+            self.assertIn("accessToken", new_tokens)
+            self.assertIn("refreshToken", new_tokens)
+
 

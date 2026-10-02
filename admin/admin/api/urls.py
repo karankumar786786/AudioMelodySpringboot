@@ -44,6 +44,14 @@ from .views import (
     AccountBlockView,
     AccountUnblockView,
     AccountDemoteView,
+    # Auth
+    AdminLoginView,
+    AdminRegisterView,
+    AdminVerifyOtpView,
+    AdminResendOtpView,
+    AdminRefreshTokenView,
+    AdminProfileView,
+    AdminLogoutView,
     # Webhooks
     SongUploadUrlWebhookView,
     VideoUploadUrlWebhookView,
@@ -65,6 +73,24 @@ from .views import (
 )
 
 urlpatterns = [
+    # Authentication & User Profile for adminFrontend
+    path("auth/login", AdminLoginView.as_view(), name="auth-login"),
+    path("auth/register", AdminRegisterView.as_view(), name="auth-register"),
+    path("auth/verify-otp", AdminVerifyOtpView.as_view(), name="auth-verify-otp"),
+    path("auth/resend-otp", AdminResendOtpView.as_view(), name="auth-resend-otp"),
+    path("auth/refresh-token", AdminRefreshTokenView.as_view(), name="auth-refresh-token"),
+    path("auth/logout", AdminLogoutView.as_view(), name="auth-logout"),
+    path("api/user/profile", AdminProfileView.as_view(), name="api-user-profile"),
+
+    # Admin prefixed aliases
+    path("admin/auth/login", AdminLoginView.as_view(), name="admin-auth-login"),
+    path("admin/auth/register", AdminRegisterView.as_view(), name="admin-auth-register"),
+    path("admin/auth/verify-otp", AdminVerifyOtpView.as_view(), name="admin-auth-verify-otp"),
+    path("admin/auth/resend-otp", AdminResendOtpView.as_view(), name="admin-auth-resend-otp"),
+    path("admin/auth/refresh-token", AdminRefreshTokenView.as_view(), name="admin-auth-refresh-token"),
+    path("admin/auth/profile", AdminProfileView.as_view(), name="admin-auth-profile"),
+    path("admin/auth/me", AdminProfileView.as_view(), name="admin-auth-me"),
+
     # Dashboard
     path("admin/dashboard/stats", DashboardStatsView.as_view(), name="admin-dashboard-stats"),
 
@@ -75,8 +101,10 @@ urlpatterns = [
     # Playlists
     path("admin/playlist", PlaylistListView.as_view(), name="admin-playlist-list"),
     path("admin/playlist/<str:pk>/songs/<str:song_id>", PlaylistRemoveSongView.as_view(), name="admin-playlist-remove-song"),
+    path("admin/playlist/<str:pk>/songs/add", PlaylistAddSongView.as_view(), name="admin-playlist-add-song"),
     path("admin/playlist/<str:pk>/songs", PlaylistSongsView.as_view(), name="admin-playlist-songs"),
     path("admin/playlist/<str:pk>", PlaylistDetailView.as_view(), name="admin-playlist-detail"),
+
 
     # Songs (static routes first)
     path("admin/song/jobs", SongJobsListView.as_view(), name="admin-song-jobs"),

@@ -2,7 +2,7 @@ import jwt
 import logging
 from django.conf import settings
 from rest_framework import authentication, exceptions, permissions
-from .models import User
+from .models import Admin
 from .services import RedisService
 
 logger = logging.getLogger(__name__)
@@ -16,6 +16,8 @@ class AdminUser:
         self.email = email
         self.role = role
         self.userName = user_name
+        self.name = user_name
+        self.user_name = user_name
         self.status = status
         self.is_authenticated = True
 
@@ -35,7 +37,7 @@ class AdminJWTAuthentication(authentication.BaseAuthentication):
     """
     Validates HMAC-SHA256 JWT tokens created by CoreEngine / auth system.
     Extracts user_id, email, and role from token claims.
-    Enforces real-time Redis and database blocklist verification.
+    Enforces real-time Redis and database blocklist verification against admin_users.
     """
     def authenticate(self, request):
         # 1. Check for Internal API Key header (service-to-service)
@@ -80,7 +82,7 @@ class AdminJWTAuthentication(authentication.BaseAuthentication):
         user_id = str(payload.get("id") or payload.get("sub", "")).strip()
         email = str(payload.get("email", "")).strip().lower()
         role = payload.get("role", "USER")
-        user_name = payload.get("userName", "")
+        user_name = payload.get("userName") or payload.get("name", "")
         status_val = "ACTIVE"
 
         # 3. Security: Check real-time Redis blacklist
@@ -88,29 +90,29 @@ class AdminJWTAuthentication(authentication.BaseAuthentication):
             logger.warning("Blocked user [%s - %s] attempted admin request", user_id, email)
             raise exceptions.AuthenticationFailed("Your account has been blocked or suspended")
 
-        # 4. Security: Check PostgreSQL database state
+        # 4. Security: Check PostgreSQL database state in admin_users table
         if user_id or email:
             try:
-                db_user = None
+                db_admin = None
                 if user_id:
-                    db_user = User.objects.filter(id=user_id).first()
-                if not db_user and email:
-                    db_user = User.objects.filter(email__iexact=email).first()
+                    db_admin = Admin.objects.filter(id=user_id).first()
+                if not db_admin and email:
+                    db_admin = Admin.objects.filter(email__iexact=email).first()
 
-                if db_user and isinstance(db_user, User):
-                    if db_user.status == "BLOCKED":
-                        RedisService.block_user_in_redis(db_user.id)
+                if db_admin and isinstance(db_admin, Admin):
+                    if db_admin.status == "BLOCKED":
+                        RedisService.block_user_in_redis(db_admin.id)
                         raise exceptions.AuthenticationFailed("Your account has been blocked or suspended")
                     # Dynamically reflect live role changes (promotion/demotion)
-                    role = db_user.role
-                    user_id = db_user.id
-                    email = db_user.email
-                    user_name = db_user.user_name or user_name
-                    status_val = db_user.status
+                    role = db_admin.role
+                    user_id = db_admin.id
+                    email = db_admin.email
+                    user_name = db_admin.name or user_name
+                    status_val = db_admin.status
             except exceptions.AuthenticationFailed:
                 raise
             except Exception as e:
-                logger.debug("Database user lookup during auth skipped or mocked: %s", e)
+                logger.debug("Database admin lookup during auth skipped or mocked: %s", e)
 
         user = AdminUser(
             user_id=user_id,
