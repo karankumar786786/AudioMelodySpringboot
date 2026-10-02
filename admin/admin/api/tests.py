@@ -247,3 +247,63 @@ class AdminEndpointRoutingTests(SimpleTestCase):
             # 6. failed
             res_fail = self.client.post("/webhook/delete/SONG/song-123/failed", {"reason": "Delete timeout"}, format="json")
             self.assertEqual(res_fail.status_code, 200)
+
+    def test_superadmin_role_enforcement(self):
+        # 1. Normal ADMIN cannot promote users (requires SUPER_ADMIN)
+        fake_target = MagicMock()
+        fake_target.role = "USER"
+        with patch("api.views.get_object_or_404", return_value=fake_target):
+            # self.client is configured with role="ADMIN"
+            res_upgrade_denied = self.client.post("/admin/account/target@example.com")
+            self.assertEqual(res_upgrade_denied.status_code, 403)
+
+        # 2. Authenticate as SUPER_ADMIN
+        super_payload = {
+            "sub": "user_super_1",
+            "email": "super@example.com",
+            "role": "SUPER_ADMIN",
+            "exp": time.time() + 3600
+        }
+        super_token = jwt.encode(super_payload, settings.JWT_SECRET, algorithm="HS256")
+        super_client = APIClient()
+        super_client.credentials(HTTP_AUTHORIZATION=f"Bearer {super_token}")
+
+        with patch("api.views.get_object_or_404", return_value=fake_target):
+            res_upgrade_ok = super_client.post("/admin/account/target@example.com")
+            self.assertEqual(res_upgrade_ok.status_code, 202)
+
+    def test_redis_blocked_user_rejection(self):
+        with patch.object(RedisService, "is_user_blocked", return_value=True):
+            res = self.client.get("/admin/jobs/queues")
+            self.assertIn(res.status_code, [401, 403])
+            self.assertIn("blocked", str(res.data).lower())
+
+    def test_createsuperadmin_command_execution(self):
+        from io import StringIO
+        from django.core.management import call_command
+
+        out = StringIO()
+        with patch.object(User.objects, "filter") as mock_filter, \
+             patch.object(User.objects, "create") as mock_create, \
+             patch.object(PaginationMetadataService, "increment_status"):
+
+            mock_filter.return_value.first.return_value = None
+            mock_new_user = MagicMock()
+            mock_new_user.id = "new-uuid"
+            mock_new_user.email = "testsuper@one-org.me"
+            mock_new_user.user_name = "SuperTest"
+            mock_new_user.role = "SUPER_ADMIN"
+            mock_new_user.status = "ACTIVE"
+            mock_create.return_value = mock_new_user
+
+            call_command(
+                "createsuperadmin",
+                email="testsuper@one-org.me",
+                username="SuperTest",
+                stdout=out
+            )
+            output = out.getvalue()
+            self.assertIn("Successfully created new SUPER_ADMIN", output)
+            self.assertIn("You can now log in directly via the Admin Frontend", output)
+            self.assertNotIn("JWT", output)
+

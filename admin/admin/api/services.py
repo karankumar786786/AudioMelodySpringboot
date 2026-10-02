@@ -250,6 +250,17 @@ class RedisService:
         except Exception as e:
             logger.warning("Failed to delete blocked user in Redis: %s", e)
 
+    @classmethod
+    def is_user_blocked(cls, user_id: str) -> bool:
+        if not user_id:
+            return False
+        try:
+            r = cls.get_client()
+            return bool(r.exists(f"blocked_user:{user_id}"))
+        except Exception as e:
+            logger.warning("Failed to check blocked user status in Redis: %s", e)
+            return False
+
 
 # ==============================================================================
 # 2. S3 Blob Storage Service

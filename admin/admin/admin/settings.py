@@ -33,6 +33,8 @@ ALLOWED_HOSTS = ["*"]
 
 # Application definition
 INSTALLED_APPS = [
+    # Local apps (placed first so custom management commands like createsuperuser take precedence)
+    "api.apps.ApiConfig",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -42,12 +44,11 @@ INSTALLED_APPS = [
     # Third-party apps
     "rest_framework",
     "corsheaders",
-    # Local apps
-    "api.apps.ApiConfig",
 ]
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
+    "api.middleware.SecurityHeadersAndAuditMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -58,8 +59,29 @@ MIDDLEWARE = [
 ]
 
 # CORS Configuration
-CORS_ALLOW_ALL_ORIGINS = True
+_cors_origins = os.getenv("CORS_ALLOWED_ORIGINS", "")
+if _cors_origins:
+    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in _cors_origins.split(",") if origin.strip()]
+    CORS_ALLOW_ALL_ORIGINS = False
+else:
+    CORS_ALLOWED_ORIGINS = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+    ]
+    CORS_ALLOW_ALL_ORIGINS = DEBUG
+
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_METHODS = [
+    "GET",
+    "POST",
+    "PUT",
+    "PATCH",
+    "DELETE",
+    "OPTIONS",
+]
 CORS_ALLOW_HEADERS = [
     "accept",
     "accept-encoding",
@@ -71,8 +93,20 @@ CORS_ALLOW_HEADERS = [
     "x-csrftoken",
     "x-requested-with",
     "x-api-key",
+    "x-application-api-key",
+    "api-key",
     "x-temp-token",
 ]
+
+# Security Headers & Cookie Policies
+SECURE_BROWSER_XSS_FILTER = True
+SECURE_CONTENT_TYPE_NOSNIFF = True
+X_FRAME_OPTIONS = "DENY"
+SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_HTTPONLY = True
+CSRF_COOKIE_SAMESITE = "Lax"
 
 ROOT_URLCONF = "admin.urls"
 
@@ -137,6 +171,14 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "api.authentication.IsAdminUserPermission",
     ],
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "100/minute",
+        "user": "600/minute",
+    },
     "UNAUTHENTICATED_USER": None,
 }
 

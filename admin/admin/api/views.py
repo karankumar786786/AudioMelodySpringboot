@@ -11,7 +11,11 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .authentication import AdminJWTAuthentication, IsAdminUserPermission
+from .authentication import (
+    AdminJWTAuthentication,
+    IsAdminUserPermission,
+    IsSuperAdminUserPermission,
+)
 from .helpers import (
     format_paginated_response,
     to_delete_job_progress_dto,
@@ -950,6 +954,8 @@ class JobRecoverMediaView(BaseAdminView):
 
 
 class JobDeleteAllFailedView(BaseAdminView):
+    permission_classes = [IsSuperAdminUserPermission]
+
     def delete(self, request):
         failed_jobs = list(Job.objects.filter(status="FAILED"))
         count = 0
@@ -980,6 +986,8 @@ class JobDeleteAllFailedView(BaseAdminView):
 
 
 class JobSyncMetadataView(BaseAdminView):
+    permission_classes = [IsSuperAdminUserPermission]
+
     def post(self, request):
         res = PaginationMetadataService.sync_all_metadata()
         return Response(res, status=status.HTTP_200_OK)
@@ -1171,8 +1179,12 @@ class AccountListView(BaseAdminView):
 
 
 class AccountDeleteView(BaseAdminView):
+    permission_classes = [IsSuperAdminUserPermission]
+
     def delete(self, request, email):
         user = get_object_or_404(User, email=email)
+        if user.role == "SUPER_ADMIN" and user.id == request.user.id:
+            return Response({"error": "Super Admin cannot delete their own account"}, status=status.HTTP_400_BAD_REQUEST)
         RecombeeService.delete_user(user.id)
         RedisService.block_user_in_redis(user.id)
         PaginationMetadataService.decrement_status("UsersEntity", user.status)
@@ -1181,6 +1193,8 @@ class AccountDeleteView(BaseAdminView):
 
 
 class AccountUpgradeView(BaseAdminView):
+    permission_classes = [IsSuperAdminUserPermission]
+
     def post(self, request, email):
         user = get_object_or_404(User, email=email)
         if user.role in ("ADMIN", "SUPER_ADMIN"):
@@ -1195,6 +1209,8 @@ class AccountBlockView(BaseAdminView):
         user = get_object_or_404(User, email=email)
         if user.role == "SUPER_ADMIN":
             return Response({"error": "Super Admin cannot be blocked"}, status=status.HTTP_409_CONFLICT)
+        if user.role == "ADMIN" and not getattr(request.user, "is_super_admin", False):
+            return Response({"error": "Only Super Admin can block another Admin"}, status=status.HTTP_403_FORBIDDEN)
         old_status = user.status
         if old_status != "BLOCKED":
             user.status = "BLOCKED"
@@ -1207,6 +1223,8 @@ class AccountBlockView(BaseAdminView):
 class AccountUnblockView(BaseAdminView):
     def post(self, request, email):
         user = get_object_or_404(User, email=email)
+        if user.role == "ADMIN" and not getattr(request.user, "is_super_admin", False):
+            return Response({"error": "Only Super Admin can unblock an Admin"}, status=status.HTTP_403_FORBIDDEN)
         old_status = user.status
         if old_status != "ACTIVE":
             user.status = "ACTIVE"
@@ -1217,6 +1235,8 @@ class AccountUnblockView(BaseAdminView):
 
 
 class AccountDemoteView(BaseAdminView):
+    permission_classes = [IsSuperAdminUserPermission]
+
     def post(self, request, email):
         user = get_object_or_404(User, email=email)
         if user.role == "SUPER_ADMIN":
