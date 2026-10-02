@@ -269,7 +269,9 @@ class AdminEndpointRoutingTests(SimpleTestCase):
         super_client.credentials(HTTP_AUTHORIZATION=f"Bearer {super_token}")
 
         with patch("api.views.get_object_or_404", return_value=fake_target), \
+             patch.object(Admin.objects, "filter") as mock_admin_filter, \
              patch.object(Admin.objects, "get_or_create", return_value=(MagicMock(), True)):
+            mock_admin_filter.return_value.first.return_value = None
             res_upgrade_ok = super_client.post("/admin/account/target@example.com")
             self.assertEqual(res_upgrade_ok.status_code, 202)
 

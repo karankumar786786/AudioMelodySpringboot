@@ -106,6 +106,7 @@ class PlaylistSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.ModelSerializer):
     userName = serializers.CharField(source="user_name", required=False, allow_null=True)
+    role = serializers.CharField(read_only=True)
     createdAt = serializers.DateTimeField(source="created_at", format="%Y-%m-%dT%H:%M:%S", required=False)
 
     class Meta:

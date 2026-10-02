@@ -35,13 +35,17 @@ class User(models.Model):
     id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
     user_name = models.CharField(max_length=255, blank=True, null=True, db_column="user_name")
     email = models.CharField(unique=True, max_length=255)
-    role = models.CharField(max_length=255, default="USER")
     status = models.CharField(max_length=255, default="ACTIVE")
     created_at = models.DateTimeField(auto_now_add=True, db_column="created_at")
 
     class Meta:
         managed = False
         db_table = "users"
+
+    @property
+    def role(self):
+        admin = Admin.objects.filter(email=self.email).first()
+        return admin.role if admin else "USER"
 
     def __str__(self):
         return f"{self.email} ({self.role})"

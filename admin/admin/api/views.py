@@ -1530,7 +1530,13 @@ class AccountListView(BaseAdminView):
         if search:
             qs = qs.filter(Q(email__icontains=search) | Q(user_name__icontains=search))
         if role and role.upper() != "ALL":
-            qs = qs.filter(role=role.upper())
+            target_role = role.upper()
+            if target_role in ("ADMIN", "SUPER_ADMIN"):
+                admin_emails = Admin.objects.filter(role=target_role).values_list("email", flat=True)
+                qs = qs.filter(email__in=admin_emails)
+            elif target_role == "USER":
+                all_admin_emails = Admin.objects.values_list("email", flat=True)
+                qs = qs.exclude(email__in=all_admin_emails)
         if status_param and status_param.upper() != "ALL":
             qs = qs.filter(status=status_param.upper())
 
@@ -1560,12 +1566,14 @@ class AccountDeleteView(BaseAdminView):
 
     def delete(self, request, email):
         user = get_object_or_404(User, email=email)
-        if user.role == "SUPER_ADMIN" and user.id == request.user.id:
+        admin_rec = Admin.objects.filter(email=email).first()
+        if admin_rec and admin_rec.role == "SUPER_ADMIN" and user.id == request.user.id:
             return Response({"error": "Super Admin cannot delete their own account"}, status=status.HTTP_400_BAD_REQUEST)
         RecombeeService.delete_user(user.id)
         RedisService.block_user_in_redis(user.id)
         PaginationMetadataService.decrement_status("UsersEntity", user.status)
-        Admin.objects.filter(email=user.email).delete()
+        if admin_rec:
+            admin_rec.delete()
         user.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -1578,10 +1586,9 @@ class AccountUpgradeView(BaseAdminView):
 
     def post(self, request, email):
         user = get_object_or_404(User, email=email)
-        if user.role in ("ADMIN", "SUPER_ADMIN"):
+        admin_rec = Admin.objects.filter(email=email).first()
+        if admin_rec and admin_rec.role in ("ADMIN", "SUPER_ADMIN"):
             return Response({"error": "User is already an Admin or Super Admin"}, status=status.HTTP_409_CONFLICT)
-        user.role = "ADMIN"
-        user.save()
         admin, _ = Admin.objects.get_or_create(
             email=user.email,
             defaults={"id": user.id, "name": user.user_name, "role": "ADMIN", "status": "ACTIVE"}
@@ -1598,15 +1605,18 @@ class AccountUpgradeView(BaseAdminView):
 class AccountBlockView(BaseAdminView):
     def post(self, request, email):
         user = get_object_or_404(User, email=email)
-        if user.role == "SUPER_ADMIN":
+        admin_rec = Admin.objects.filter(email=email).first()
+        if admin_rec and admin_rec.role == "SUPER_ADMIN":
             return Response({"error": "Super Admin cannot be blocked"}, status=status.HTTP_409_CONFLICT)
-        if user.role == "ADMIN" and not getattr(request.user, "is_super_admin", False):
+        if admin_rec and admin_rec.role == "ADMIN" and not getattr(request.user, "is_super_admin", False):
             return Response({"error": "Only Super Admin can block another Admin"}, status=status.HTTP_403_FORBIDDEN)
         old_status = user.status
         if old_status != "BLOCKED":
             user.status = "BLOCKED"
             user.save()
-            Admin.objects.filter(email=user.email).update(status="BLOCKED")
+            if admin_rec:
+                admin_rec.status = "BLOCKED"
+                admin_rec.save()
             RedisService.block_user_in_redis(user.id)
             PaginationMetadataService.transition_status("UsersEntity", old_status, "BLOCKED")
         return Response(status=status.HTTP_200_OK)
@@ -1615,13 +1625,16 @@ class AccountBlockView(BaseAdminView):
 class AccountUnblockView(BaseAdminView):
     def post(self, request, email):
         user = get_object_or_404(User, email=email)
-        if user.role == "ADMIN" and not getattr(request.user, "is_super_admin", False):
+        admin_rec = Admin.objects.filter(email=email).first()
+        if admin_rec and admin_rec.role == "ADMIN" and not getattr(request.user, "is_super_admin", False):
             return Response({"error": "Only Super Admin can unblock an Admin"}, status=status.HTTP_403_FORBIDDEN)
         old_status = user.status
         if old_status != "ACTIVE":
             user.status = "ACTIVE"
             user.save()
-            Admin.objects.filter(email=user.email).update(status="ACTIVE")
+            if admin_rec:
+                admin_rec.status = "ACTIVE"
+                admin_rec.save()
             RedisService.unblock_user_in_redis(user.id)
             PaginationMetadataService.transition_status("UsersEntity", old_status, "ACTIVE")
         return Response(status=status.HTTP_200_OK)
@@ -1632,11 +1645,12 @@ class AccountDemoteView(BaseAdminView):
 
     def post(self, request, email):
         user = get_object_or_404(User, email=email)
-        if user.role == "SUPER_ADMIN":
+        admin_rec = Admin.objects.filter(email=email).first()
+        if not admin_rec:
+            return Response({"error": "User is not an Admin"}, status=status.HTTP_400_BAD_REQUEST)
+        if admin_rec.role == "SUPER_ADMIN":
             return Response({"error": "Super Admin cannot be demoted"}, status=status.HTTP_409_CONFLICT)
-        user.role = "USER"
-        user.save()
-        Admin.objects.filter(email=user.email).delete()
+        admin_rec.delete()
         return Response(status=status.HTTP_200_OK)
 
 
