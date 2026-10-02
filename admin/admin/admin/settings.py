@@ -10,118 +10,185 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+import os
 from pathlib import Path
+from dotenv import load_dotenv
+import dj_database_url
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Load environment variables with fallback
+load_dotenv(BASE_DIR.parent / ".env")
+load_dotenv(BASE_DIR.parent.parent / "coreEngine" / ".env")
+load_dotenv(BASE_DIR.parent.parent / ".env")
 
 # Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-+q972&qv$kay2p)ugul7gq!xzs2vvgug=tdn6p(223^us^llj2")
+JWT_SECRET = os.getenv("JWT_SECRET", "super_secret_jwt_key_that_is_at_least_32_bytes_long_and_very_secure_12345")
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-+q972&qv$kay2p)ugul7gq!xzs2vvgug=tdn6p(223^us^llj2'
+DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() in ("true", "1", "yes")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ["*"]
 
 # Application definition
-
 INSTALLED_APPS = [
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
+    "django.contrib.admin",
+    "django.contrib.auth",
+    "django.contrib.contenttypes",
+    "django.contrib.sessions",
+    "django.contrib.messages",
+    "django.contrib.staticfiles",
+    # Third-party apps
+    "rest_framework",
+    "corsheaders",
+    # Local apps
+    "api.apps.ApiConfig",
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "corsheaders.middleware.CorsMiddleware",
+    "django.middleware.security.SecurityMiddleware",
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = 'admin.urls'
+# CORS Configuration
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "x-api-key",
+    "x-temp-token",
+]
+
+ROOT_URLCONF = "admin.urls"
 
 TEMPLATES = [
     {
-        'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
-        'APP_DIRS': True,
-        'OPTIONS': {
-            'context_processors': [
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages',
+        "BACKEND": "django.template.backends.django.DjangoTemplates",
+        "DIRS": [],
+        "APP_DIRS": True,
+        "OPTIONS": {
+            "context_processors": [
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.contrib.messages.context_processors.messages",
             ],
         },
     },
 ]
 
-WSGI_APPLICATION = 'admin.wsgi.application'
+WSGI_APPLICATION = "admin.wsgi.application"
 
+# Database Configuration via dj-database-url
+# Supports DB_URL, DATABASE_URL, DB_USER, DB_PASSWORD from Spring Boot / root config
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 
-# Database
-# https://docs.djangoproject.com/en/6.1/ref/settings/#databases
+raw_db_url = os.getenv("DB_URL", os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/melody"))
+if raw_db_url.startswith("jdbc:postgresql://"):
+    raw_db_url = raw_db_url.replace("jdbc:postgresql://", "postgresql://")
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+_parsed = urlparse(raw_db_url)
+_qs = parse_qs(_parsed.query)
+_valid_params = {"sslmode", "connect_timeout", "options", "keepalives", "sslcert", "sslkey", "sslrootcert"}
+_filtered_qs = {k: v for k, v in _qs.items() if k.lower() in _valid_params}
+_cleaned_db_url = urlunparse(_parsed._replace(query=urlencode(_filtered_qs, doseq=True)))
+
+_db_config = dj_database_url.parse(_cleaned_db_url)
+if not _db_config.get("USER") and os.getenv("DB_USER"):
+    _db_config["USER"] = os.getenv("DB_USER")
+if not _db_config.get("PASSWORD") and os.getenv("DB_PASSWORD"):
+    _db_config["PASSWORD"] = os.getenv("DB_PASSWORD")
+
+_db_config["CONN_MAX_AGE"] = 600
+_db_config["CONN_HEALTH_CHECKS"] = True
+
+import sys
+if "test" in sys.argv:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": _db_config
+    }
 
+# REST Framework Configuration
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "api.authentication.AdminJWTAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "api.authentication.IsAdminUserPermission",
+    ],
+    "UNAUTHENTICATED_USER": None,
+}
 
 # Password validation
-# https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-
 # Internationalization
-# https://docs.djangoproject.com/en/6.1/topics/i18n/
-
-LANGUAGE_CODE = 'en-us'
-
-TIME_ZONE = 'UTC'
-
+LANGUAGE_CODE = "en-us"
+TIME_ZONE = "UTC"
 USE_I18N = True
-
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/6.1/howto/static-files/
+STATIC_URL = "static/"
 
-STATIC_URL = 'static/'
+# External Services Settings
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None) or None
+REDIS_SSL = os.getenv("REDIS_SSL_ENABLED", "false").lower() in ("true", "1", "yes")
+REDIS_AUDIO_PROCESSING_QUEUE = os.getenv("REDIS_AUDIO_PROCESSING_QUEUE", "audio_processing_queue")
+REDIS_DELETE_QUEUE = os.getenv("REDIS_DELETE_QUEUE", "delete_event_queue")
+REDIS_CANCEL_QUEUE = os.getenv("REDIS_CANCEL_QUEUE", "audio_cancel_queue")
+REDIS_MAIL_QUEUE = os.getenv("REDIS_MAIL_QUEUE", "mail_queue")
+
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", os.getenv("ACCESS_KEY_ID", "default_access_key"))
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", os.getenv("SECRET_KEY", "default_secret_key"))
+AWS_REGION = os.getenv("AWS_REGION", os.getenv("REGION", "ap-south-1"))
+AWS_ENDPOINT = os.getenv("AWS_ENDPOINT", None) or None
+S3_TEMP_BUCKET = os.getenv("S3_TEMP_BUCKET", os.getenv("TEMP_BUCKET_NAME", "audiomelodyspringboottemp"))
+S3_PRODUCTION_BUCKET = os.getenv("S3_PRODUCTION_BUCKET", os.getenv("PRODUCTION_BUCKET_NAME", "audiomelodyspringboot"))
+
+IMAGEKIT_PUBLIC_KEY = os.getenv("IMAGEKIT_PUBLIC_KEY", "")
+IMAGEKIT_PRIVATE_KEY = os.getenv("IMAGEKIT_PRIVATE_KEY", "")
+IMAGEKIT_URL_ENDPOINT = os.getenv("IMAGEKIT_URL_ENDPOINT", "")
+
+ALGOLIA_APP_ID = os.getenv("ALGOLIA_APP_ID", "")
+ALGOLIA_API_KEY = os.getenv("ALGOLIA_API_KEY", "")
+ALGOLIA_INDEX_NAME = os.getenv("ALGOLIA_INDEX_NAME", "one_melody_springboot")
+
+RECOMBEE_DATABASE_ID = os.getenv("RECOMBEE_DATABASE_ID", "")
+RECOMBEE_DATABASE_SECRET = os.getenv("RECOMBEE_DATABASE_SECRET", "")
+RECOMBEE_DATABASE_REGION = os.getenv("RECOMBEE_DATABASE_REGION", "EU_WEST")
+
+AUDIO_PROCESSING_URL = os.getenv("AUDIO_PROCESSING_URL", "http://localhost:5010")
+AUDIO_PROCESSING_API_KEY = os.getenv("AUDIO_PROCESSING_API_KEY", "")
+APPLICATION_API_KEY = os.getenv("APPLICATION_API_KEY", os.getenv("SPRING_APPLICATION_API_KEY", AUDIO_PROCESSING_API_KEY))
+INNGEST_DEV_URL = os.getenv("INNGEST_DEV_URL", "http://localhost:8288")
 
 
-# Email
-# https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
-
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
