@@ -1,6 +1,5 @@
 package me.one_org.melody.Entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -72,13 +71,6 @@ public class SongsEntity implements Serializable{
 
     @Column(name = "job_id", nullable = false)
     private String jobId;
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "job_id", insertable = false, updatable = false)
-    @JsonIgnore
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private JobsEntity job;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

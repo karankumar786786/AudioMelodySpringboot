@@ -18,7 +18,6 @@
 
 	<properties>
 		<java.version>21</java.version>
-		<aws.sdk.version>2.25.0</aws.sdk.version>
 	</properties>
 
 	<repositories>
@@ -27,25 +26,6 @@
 			<url>https://jitpack.io</url>
 		</repository>
 	</repositories>
-
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>software.amazon.awssdk</groupId>
-				<artifactId>bom</artifactId>
-				<version>${aws.sdk.version}</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
-			<dependency>
-				<groupId>org.springframework.cloud</groupId>
-				<artifactId>spring-cloud-dependencies</artifactId>
-				<version>2025.1.2</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
 
 	<dependencies>
 
@@ -90,35 +70,7 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- AWS SDK v2 - version managed by BOM above -->
-		<dependency>
-			<groupId>software.amazon.awssdk</groupId>
-			<artifactId>s3</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>software.amazon.awssdk</groupId>
-			<artifactId>s3-transfer-manager</artifactId>
-		</dependency>
 
-		<!-- ImageKit -->
-		<dependency>
-			<groupId>com.github.imagekit-developer</groupId>
-			<artifactId>imagekit-java</artifactId>
-			<version>2.0.0</version>
-			<exclusions>
-				<exclusion>
-					<groupId>com.squareup.okio</groupId>
-					<artifactId>okio</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
-		<!-- Okio 3.x for OkHttp 4.x compatibility -->
-		<dependency>
-			<groupId>com.squareup.okio</groupId>
-			<artifactId>okio</artifactId>
-			<version>3.9.0</version>
-		</dependency>
 
 		<!-- Dotenv -->
 		<dependency>
@@ -183,11 +135,7 @@
 			<version>4.1.0</version>
 		</dependency>
 
-		<!-- OpenFeign -->
-		<dependency>
-			<groupId>org.springframework.cloud</groupId>
-			<artifactId>spring-cloud-starter-openfeign</artifactId>
-		</dependency>
+
 
 		<!-- OpenAPI / Swagger UI -->
 		<dependency>
