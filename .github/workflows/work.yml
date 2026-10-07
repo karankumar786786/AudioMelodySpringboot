@@ -31,6 +31,9 @@ jobs:
           - service: audioprocessing
             context: ./audioProcessing
             image_name: audioprocessing
+          - service: admin
+            context: ./admin
+            image_name: admin
 
     steps:
       - name: Checkout Code
@@ -92,6 +95,9 @@ jobs:
 
             # Recreate containers with zero downtime
             docker compose up -d --remove-orphans || sudo docker compose up -d --remove-orphans
+
+            # Apply Django database migrations inside admin container
+            docker compose exec -T admin python manage.py migrate --noinput || sudo docker compose exec -T admin python manage.py migrate --noinput || true
 
             # Clean up old unused image layers to save EC2 disk space
             docker image prune -f || sudo docker image prune -f

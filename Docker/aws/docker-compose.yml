@@ -1,8 +1,9 @@
 services:
 
   core:
-    image: karankumar9955/core:v1
+    image: karankumar9955/core:latest
     container_name: core
+    pull_policy: always
     restart: unless-stopped
     env_file:
       - core.env
@@ -12,11 +13,24 @@ services:
       - app
 
   mail:
-    image: karankumar9955/mail:v1
+    image: karankumar9955/mail:latest
     container_name: mail
+    pull_policy: always
     restart: unless-stopped
     env_file:
       - mail.env
+    networks:
+      - app
+
+  admin:
+    image: karankumar9955/admin:latest
+    container_name: admin
+    pull_policy: always
+    restart: unless-stopped
+    env_file:
+      - admin.env
+    expose:
+      - "8000"
     networks:
       - app
 

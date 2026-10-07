@@ -57,6 +57,17 @@ from .services import (
 logger = logging.getLogger(__name__)
 
 
+class HealthCheckView(APIView):
+    """
+    Lightweight, unauthenticated health check endpoint for container probes & Caddy.
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response({"status": "UP", "service": "admin"}, status=status.HTTP_200_OK)
+
+
 # Base Admin API View with standard JWT + Role authentication
 class BaseAdminView(APIView):
     authentication_classes = [AdminJWTAuthentication]

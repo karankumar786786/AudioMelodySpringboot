@@ -26,6 +26,16 @@ spring:
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
+    # --- Neon scale-to-zero friendly pool ---
+    hikari:
+      minimum-idle: 0                    # no idle connections kept open
+      maximum-pool-size: 5
+      idle-timeout: 60000                # close idle connections after 1 min
+      max-lifetime: 240000
+      keepalive-time: 0                  # no keepalive pings
+      connection-timeout: 30000          # allow time for Neon cold start
+      initialization-fail-timeout: -1    # app can boot even if DB is asleep
+      # do NOT set connection-test-query
 
   data:
     redis:
@@ -37,28 +47,32 @@ spring:
         enabled: ${REDIS_SSL_ENABLED:true}
 
   jpa:
+    open-in-view: false                  # don't hold a connection for the whole request
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: update
+      ddl-auto: update                   # consider "none" or "validate" in production
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        temp:
+          use_jdbc_metadata_defaults: false   # skip metadata connection at startup
 
   jackson:
     deserialization:
       fail-on-null-for-primitives: false
       fail-on-unknown-properties: false
 
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
 jwt:
   secret: ${JWT_SECRET:super_secret_jwt_key_that_is_at_least_32_bytes_long_and_very_secure_12345}
+
 server:
   port: ${PORT:8080}
   shutdown: graceful
 
-spring.lifecycle:
-  timeout-per-shutdown-phase: 30s
-
-# Actuator endpoint protection — only expose safe endpoints
+# Actuator: only safe endpoints, and NO database pings
 management:
   endpoints:
     web:
@@ -67,9 +81,21 @@ management:
   endpoint:
     health:
       show-details: when_authorized
+      probes:
+        enabled: true                    # /actuator/health/liveness and /readiness
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState        # no db check, so Neon can sleep
   health:
+    db:
+      enabled: false                     # main culprit: stops "SELECT 1" every few seconds
     mail:
       enabled: false
+    diskspace:
+      enabled: false
+    # redis check is fine to keep: it hits Redis, not Neon
 
 # OpenAPI / Swagger configuration
 springdoc:

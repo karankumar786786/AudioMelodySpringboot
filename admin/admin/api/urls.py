@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import (
+    HealthCheckView,
     # Dashboard
     DashboardStatsView,
     GlobalSearchView,
@@ -77,6 +78,10 @@ from .views import (
 )
 
 urlpatterns = [
+    # Health checks for Docker & reverse proxies
+    path("health", HealthCheckView.as_view(), name="health"),
+    path("api/health", HealthCheckView.as_view(), name="api-health"),
+
     # Authentication & User Profile for adminFrontend
     path("auth/login", AdminLoginView.as_view(), name="auth-login"),
     path("auth/register", AdminRegisterView.as_view(), name="auth-register"),
