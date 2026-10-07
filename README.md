@@ -2,21 +2,24 @@
 
 [![Java](https://img.shields.io/badge/Java-21-orange.svg?style=flat&logo=openjdk)](https://openjdk.org/projects/jdk/21/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.x-brightgreen.svg?style=flat&logo=springboot)](https://spring.io/projects/spring-boot)
+[![Python](https://img.shields.io/badge/Python-3.12-3776AB.svg?style=flat&logo=python)](https://www.python.org/)
+[![Django](https://img.shields.io/badge/Django-6.1-092E20.svg?style=flat&logo=django)](https://www.djangoproject.com/)
+[![uv](https://img.shields.io/badge/uv-Fast%20Python%20Manager-DE5FE9.svg?style=flat)](https://github.com/astral-sh/uv)
 [![Next.js](https://img.shields.io/badge/Next.js-16.2-black.svg?style=flat&logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-blue.svg?style=flat&logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg?style=flat&logo=typescript)](https://www.typescriptlang.org/)
 [![Bun](https://img.shields.io/badge/Bun-1.3+-black.svg?style=flat&logo=bun)](https://bun.sh/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-v4-38bdf8.svg?style=flat&logo=tailwindcss)](https://tailwindcss.com/)
+[![Caddy](https://img.shields.io/badge/Caddy-2.x%20Auto%20TLS-22B573.svg?style=flat&logo=caddy)](https://caddyserver.com/)
 [![AWS S3](https://img.shields.io/badge/AWS-S3-569A31.svg?style=flat&logo=amazons3)](https://aws.amazon.com/s3/)
 [![Algolia](https://img.shields.io/badge/Algolia-InstantSearch-003DFF.svg?style=flat&logo=algolia)](https://www.algolia.com/)
 [![Recombee](https://img.shields.io/badge/Recombee-AI%20Recommendations-00D4B2.svg?style=flat)](https://www.recombee.com/)
 [![ImageKit](https://img.shields.io/badge/ImageKit-Media%20CDN-0570FF.svg?style=flat)](https://imagekit.io/)
 [![Inngest](https://img.shields.io/badge/Inngest-Durable%20Execution-8855FF.svg?style=flat&logo=inngest)](https://www.inngest.com/)
-[![Redis](https://img.shields.io/badge/Redis-7.x-DC382D.svg?style=flat&logo=redis)](https://redis.io/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-4169E1.svg?style=flat&logo=postgresql)](https://www.postgresql.org/)
-[![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED.svg?style=flat&logo=docker)](https://www.docker.com/)
+[![Redis](https://img.shields.io/badge/Redis-7.x%20(Upstash)-DC382D.svg?style=flat&logo=redis)](https://redis.io/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon%20Serverless-4169E1.svg?style=flat&logo=postgresql)](https://www.postgresql.org/)
+[![Docker](https://img.shields.io/badge/Docker-Multi--Stage-2496ED.svg?style=flat&logo=docker)](https://www.docker.com/)
 
-**One Melody** is an enterprise-grade, distributed multimedia streaming ecosystem engineered for high concurrency, low-latency playback, and automated cloud operations. Built with modern microservice design principles, it couples high-performance **Java 21 / Spring Boot 3** API gateways with **Node.js / Bun / Inngest** asynchronous media processing workers, **Google Shaka Packager** multi-bitrate HLS/DASH chunking, and dual **Next.js 16** frontends delivering a pitch-black OLED monochrome aesthetic.
+**One Melody** is an enterprise-grade, distributed multimedia streaming ecosystem engineered for high concurrency, low-latency playback, and automated cloud operations. Built with modern microservice design principles, it couples high-performance **Java 21 / Spring Boot 3** streaming gateways (`api.one-org.me`) with a dedicated **Python 3.12 / Django 6** administrative command microservice (`admin.one-org.me`), **Node.js / Bun / Inngest** asynchronous media processing workers (`process.one-org.me`), **Google Shaka Packager** multi-bitrate HLS/DASH chunking, and dual **Next.js 16** frontends (`adm.one-org.me` and consumer apps) delivering a pitch-black OLED monochrome aesthetic.
 
 ---
 
@@ -25,35 +28,74 @@
 This platform was engineered to conquer the most challenging architectural hurdles in cloud multimedia delivery: **multi-tiered fault-tolerant retries**, **zero-stall hardware acceleration probing**, **mathematically tuned client buffer windowing**, **zero-orphan multi-cloud teardown**, **tamper-proof S3/CDN/TLS delivery**, and **sub-millisecond karaoke lyrics synchronization**.
 
 ```mermaid
-flowchart LR
-    subgraph S_RETRY ["Fault Tolerance & Retry Architecture"]
-        R1["1-Click Ingestion Retry<br/>Atomic State Reset & Queue Re-dispatch"]
-        R2["Cascade Teardown Breaker<br/>Max 3 Attempts + Manual Audit Lock"]
-        R3["Mail Worker DLQ<br/>EAUTH Circuit Breaker + Truncated Backoff"]
-        R4["HLS Playback Self-Healing<br/>2^n x 500ms Backoff + Codec Swapping"]
+flowchart TD
+    subgraph P1 ["1. Ingestion & Pre-Signing Guardrails"]
+        direction TB
+        UI["Admin Command Center<br/>(adm.one-org.me)"]
+        AUTH["Edge Gateway & Auto-TLS<br/>(Caddy 2 &bull; admin.one-org.me)"]
+        S3_TEMP[("AWS S3 melody-temp<br/>(Raw Uploads &bull; 30-min Auto-TTL)")]
+        
+        UI -->|"1. Request SigV4 Pre-signed PUT"| AUTH
+        AUTH -->|"2. Return Pre-signed URL & Locks"| UI
+        UI -->|"3. Direct Byte-Level Multipart Upload"| S3_TEMP
     end
 
-    subgraph S_HW ["Hardware & Client Buffer Engine"]
-        H1["hwaccel.ts Probe Ladder<br/>1-Frame Null Muxer Test @ 3.5s Timeout"]
-        H2["Dynamic CPU/GPU Concurrency<br/>Automated Thread & Worker Throttling"]
-        H3["HLS Dual Buffer Window<br/>backBuffer: 90s, maxBuffer: 20s"]
-        H4["Buffer Hole Auto-Jumping<br/>Micro-Gap Skipping @ 0.5s Tolerance"]
+    subgraph P2 ["2. Processing & Self-Healing Pipeline"]
+        direction TB
+        QUEUE[("Redis FIFO Queue<br/>(audio_processing_queue)")]
+        PROBE["hwaccel.ts Probe Ladder<br/>(NVENC &rarr; VAAPI &rarr; QSV &rarr; CPU)"]
+        INNGEST["Inngest Durable Workflows<br/>(Step Checkpoints & Memoization)"]
+        SHAKA["FFmpeg & Shaka Packager<br/>(Multi-Bitrate HLS & DASH Chunks)"]
+        RETRY_LOOP{{"1-Click Self-Healing Retry<br/>Atomic State Reset & Re-dispatch"}}
+
+        S3_TEMP -->|"4. Register Job"| QUEUE
+        QUEUE -->|"5. Worker blpop"| PROBE
+        PROBE -->|"6. Optimal Codec Flag"| INNGEST
+        INNGEST -->|"7. Package Chunks"| SHAKA
+        SHAKA -.->|"Failure / Timeout"| RETRY_LOOP
+        RETRY_LOOP -.->|"Purge Timers & Re-queue"| QUEUE
     end
 
-    subgraph S_S3 ["Multi-Bucket S3, CDN & Security"]
-        S1["Dual-Bucket Isolation<br/>melody-temp (TTL 30m) vs melody-songs"]
-        S2["Parallel S3 Multipart PUTs<br/>p-limit(5) NVMe Direct Streaming"]
-        S3["ImageKit Global Media Edge<br/>Real-Time AVIF/WebP Dynamic Transforms"]
-        S4["Zero-Trust Security Mesh<br/>TLS 1.3, SigV4 Presign, HMAC & x-api-key"]
+    subgraph P3 ["3. Multi-Cloud Storage & Teardown Protection"]
+        direction TB
+        S3_PERM[("AWS S3 melody-songs<br/>(HLS Playlists & Audio Chunks)")]
+        IMAGEKIT[("ImageKit Global CDN<br/>(Dynamic AVIF/WebP Transforms)")]
+        SEARCH_AI[("Search & Recommendation<br/>(Algolia &bull; Recombee AI Models)")]
+        TEARDOWN{{"5-Stage Cascade Teardown<br/>Circuit Breaker &bull; Max 3 Retries"}}
+
+        SHAKA -->|"8. Parallel Multipart PUT"| S3_PERM
+        SHAKA -->|"9. Sync Vector Metadata"| SEARCH_AI
+        TEARDOWN -.->|"Safe Chunks Purge"| S3_PERM
+        TEARDOWN -.->|"Evict Media Assets"| IMAGEKIT
+        TEARDOWN -.->|"Purge Search & AI"| SEARCH_AI
     end
 
-    subgraph S_DSP ["Inngest & DSP Karaoke Sync"]
-        W1["Inngest Durable Checkpoints<br/>step.run Memoization & State Resumption"]
-        W2["LRCLIB Karaoke Engine<br/>Regex Quantization + O(log n) Lookup"]
-        W3["Double-RAF Render Lock<br/>4s Idle Auto-Sync & 1.5s Scrub Resync"]
-        W4["Web Audio 46-Band Visualizer<br/>AnalyserNode Stereo Spectrum Canvas"]
+    subgraph P4 ["4. Resilient Client Playback & DSP Engine"]
+        direction TB
+        PLAYER["audioFrontend Web App<br/>(one-melody.vercel.app)"]
+        HLS_ENGINE["HLS.js Self-Healing Engine<br/>(Dual Buffer: 90s Back / 20s Max<br/>Exponential Backoff & Codec Auto-Swap)"]
+        DSP_GRAPH["Web Audio API DSP Graph<br/>(10-Band EQ &bull; 46-Band Visualizer)"]
+        KARAOKE["LRCLIB Karaoke Sync<br/>(Sub-ms Double-RAF Lock &bull; Scrub Resync)"]
+
+        S3_PERM -->|"10. Stream .m3u8 & Segments"| PLAYER
+        IMAGEKIT -->|"Artwork & Video Canvas"| PLAYER
+        PLAYER --> HLS_ENGINE
+        HLS_ENGINE --> DSP_GRAPH
+        DSP_GRAPH --> KARAOKE
     end
+
+    P1 ==>|"Job Registered"| P2
+    P2 ==>|"Transcoding Complete"| P3
+    P3 ==>|"Edge Delivery"| P4
 ```
+
+| Resilience Pillar | Technical Challenge | Platform Solution | Automated Self-Healing Mechanism |
+| :--- | :--- | :--- | :--- |
+| **Ingestion & Security** | Large raw media files exhausting backend API bandwidth and memory. | Direct client &rarr; S3 uploads via SigV4 pre-signed PUT URLs with strict content-type locking. | 30-minute S3 lifecycle auto-purge cleans abandoned temporary uploads with zero operator intervention. |
+| **Media Processing** | Unpredictable GPU encoder crashes, worker OOMs, and network drops. | `hwaccel.ts` dynamic encoder probe ladder (NVENC &rarr; VAAPI &rarr; QSV &rarr; CPU) with Inngest step memoization. | **1-Click Self-Healing**: Atomic state reset purges stage timers and re-dispatches to Redis `audio_processing_queue`. |
+| **Multi-Cloud Teardown** | Partial deletions leaving orphan files across S3, CDN, Algolia, and Postgres. | 5-stage transactional cascade state machine across Algolia, Recombee, ImageKit, S3, and database. | Max 3 retry threshold before trip-lock circuit breaker freezes job for manual audit, preventing cloud cascade storms. |
+| **Client HLS Playback** | Transient packet loss, audio decoder stalls, and micro-buffer holes. | Mathematically tuned dual buffer window (90s back / 20s max) with micro-gap auto-jumping ($0.5\text{s}$ tolerance). | Exponential backoff reconnects ($2^n \times 500\text{ms}$), automatic codec swapping via `hls.swapAudioCodec()`. |
+| **Karaoke Lyrics Sync** | Frame jitter and desynchronization when users scrub the playback bar. | Continuous double-`requestAnimationFrame` render loop with $O(\log n)$ binary search lookup. | Instant re-anchor upon $\Delta t > 1.5\text{s}$ seek jumps, smoothly releasing user scroll locks after 4 seconds of idle. |
 
 ---
 
@@ -103,8 +145,48 @@ flowchart TD
     end
 ```
 
-#### Atomic State Reset Mechanics ([JobMonitoringService.java](file:///Users/Karan/Desktop/Coding/AudioMelodySpringboot/coreEngine/src/main/java/me/one_org/melody/Services/Admin/JobMonitoringService.java))
-When an administrator triggers a retry from the modern admin panel, the backend executes an atomic reset within an isolated database transaction to guarantee zero race conditions:
+#### Atomic State Reset Mechanics ([`JobRetryView`](file:///Users/Karan/Desktop/Coding/AudioMelodySpringboot/admin/admin/api/views.py#L1540-L1569) & [`JobMonitoringService.java`](file:///Users/Karan/Desktop/Coding/AudioMelodySpringboot/coreEngine/src/main/java/me/one_org/melody/Services/Admin/JobMonitoringService.java))
+When an administrator triggers a retry from the modern admin panel (`POST /admin/jobs/{jobId}/retry`), the administrative backend executes an atomic reset within an isolated database transaction to guarantee zero race conditions. In the Python 3.12 / Django 6.1 administrative microservice:
+
+```python
+class JobRetryView(BaseAdminView):
+    def post(self, request, pk):
+        job = get_object_or_404(Job, pk=pk)
+        old_status = job.status
+
+        # 1. Reset high-level status & stage
+        job.status = "PENDING"
+        job.current_stage = "QUEUED"
+        job.failure_reason = None
+        job.failed_at = None
+
+        # 2. Wipe previous stage execution timers and durations
+        job.completed_at = None
+        job.transcoding_started_at = None
+        job.transcoded_at = None
+        job.recommendation_saved_at = None
+        job.search_saved_at = None
+        job.transcoding_duration_ms = None
+        job.recommendation_duration_ms = None
+        job.search_duration_ms = None
+        job.finalize_duration_ms = None
+        job.total_duration_ms = None
+        job.transcoded = False
+        job.saved_in_search = False
+        job.saved_in_recommendation = False
+
+        # 3. Increment retry telemetry counter
+        job.transcoding_attempt = (job.transcoding_attempt or 0) + 1
+        job.save()
+
+        # 4. Invalidate pagination metadata cache & dispatch to Redis FIFO queue
+        PaginationMetadataService.transition_job(old_status, "PENDING")
+        RedisService.queue_audio_processing(job.id)
+
+        return Response(to_job_progress_dto(job), status=status.HTTP_200_OK)
+```
+
+The corresponding Java / Spring Boot transaction follows identical state invariance:
 
 ```java
 @Transactional
@@ -526,56 +608,72 @@ export function parseLrcToTranscriptions(lrcText: string): TranscriptionEntry[] 
 
 ## 1. System Architecture & Distributed Topology
 
-One Melody decouples API request coordination, heavy CPU/GPU multimedia packaging, transactional email dispatch, and database interactions into specialized, asynchronously connected services communicating over Redis FIFO queues and signed webhooks.
+One Melody decouples public streaming APIs, administrative fleet orchestration, CPU/GPU media packaging, and transactional messaging into dedicated services routed via **Caddy 2** reverse proxy with automated Let's Encrypt TLS:
 
 ```mermaid
 flowchart TB
-    subgraph CT ["Client Tier"]
-        AF["audioFrontend (Port 3000)<br/>- Next.js 16 / React 19 / Turbopack<br/>- Web Audio API DSP Engine<br/>- LRCLIB Synced Karaoke Lyrics<br/>- Video Canvas & Adaptive Player"]
-        ADF["adminFrontend (Port 3001)<br/>- Next.js 16 / React 19 / Turbopack<br/>- Real-Time Byte XHR Upload Engine<br/>- Dual Gantt / Timeline Monitor<br/>- 1-Click Self-Healing Retries"]
+    subgraph ET ["Edge & Reverse Proxy Tier (AWS EC2 / Caddy 2)"]
+        CAD["Caddy 2 (Ports 80 / 443)<br/>- Automatic Let's Encrypt / ZeroSSL TLS<br/>- HTTP/2 & HTTP/3 Termination<br/>- api.one-org.me &rarr; core:9090<br/>- admin.one-org.me &rarr; admin:8000"]
     end
 
-    subgraph COT ["Core Orchestration Tier"]
-        CE["coreEngine (Port 9090)<br/>- Spring Boot 3.4 / Java 21<br/>- Dual Security Filters (API Key + JWT)<br/>- Redis Metadata & Pagination Cache<br/>- Algolia & Recombee Clients"]
+    subgraph CT ["Client Applications"]
+        AF["audioFrontend (Port 3000)<br/>- Next.js 16 / React 19 / Turbopack<br/>- Web Audio API DSP Engine<br/>- LRCLIB Synced Karaoke Lyrics<br/>- Audio/Video Canvas Player"]
+        ADF["adminFrontend (adm.one-org.me / Vercel)<br/>- Next.js 16 / React 19 / Turbopack<br/>- Real-Time Byte XHR Upload Engine<br/>- Dual Gantt Timeline Monitors<br/>- 1-Click Pipeline Self-Healing"]
     end
 
-    subgraph MCT ["Messaging & Cache Tier"]
-        RD[("Redis 7 (Port 6379)<br/>- audio_processing_queue<br/>- delete_event_queue<br/>- mail_queue & mail_queue_dlq<br/>- paginationMetaData cache")]
+    subgraph COT ["Core Streaming Gateway"]
+        CE["coreEngine (Port 9090)<br/>- Spring Boot 3.4 / Java 21<br/>- Neon Scale-to-Zero Friendly Pool<br/>- Dual Security Filters (API Key + JWT)<br/>- Algolia & Recombee Consumer Querying"]
+    end
+
+    subgraph AOT ["Administrative Command Microservice"]
+        ADM["admin (Port 8000)<br/>- Django 6.1 / Python 3.12 / uv / Gunicorn<br/>- Stateful Redis Session Auth + Cookies<br/>- 5-Attempt OTP Lockout Breaker<br/>- Catalog CRUD, Job Monitoring & Retries<br/>- Direct S3 / Algolia / Recombee Sync"]
+    end
+
+    subgraph MCT ["Messaging & Cache Tier (Upstash / Redis)"]
+        RD[("Redis 7 (Port 6379)<br/>- audio_processing_queue<br/>- delete_event_queue<br/>- mail_queue & mail_queue_dlq<br/>- admin_session & OTP store<br/>- paginationMetaData cache")]
     end
 
     subgraph MPC ["Media Processing Cluster"]
-        AP["audioProcessing (Port 5010)<br/>- Inngest Durable Execution (Port 8288)<br/>- FFmpeg Hardware Probing (hwaccel.ts)<br/>- Google Shaka Packager (HLS/DASH)<br/>- Active Path Registry & Temp Cleanup"]
+        AP["audioProcessing (Port 5010 / process.one-org.me)<br/>- Inngest Durable Execution Engine<br/>- FFmpeg Hardware Probing (hwaccel.ts)<br/>- Google Shaka Packager (HLS/DASH)<br/>- Active Path Registry & Temp Cleaner"]
     end
 
     subgraph TMW ["Transactional Messaging Worker"]
         MW["workers/mailEvents<br/>- Bun / ioredis Daemon<br/>- Google SMTP Auth Lockout Breaker<br/>- Exponential Backoff & DLQ Handler"]
     end
 
-    subgraph DST ["Data & Storage Tier"]
-        PG[("PostgreSQL 15+ (Port 5432)<br/>- Songs, Artists, Playlists<br/>- Ingestion & Delete Audit Jobs<br/>- Versioned Migrations (v2-v6)")]
+    subgraph DST ["Data & Cloud Storage Tier"]
+        PG[("PostgreSQL (Neon Serverless)<br/>- Scale-to-Zero Optimization<br/>- Songs, Artists, Playlists, Jobs<br/>- Versioned Schema Migrations")]
         S3[("AWS S3 Multi-Bucket<br/>- melody-temp (Raw uploads)<br/>- melody-songs (HLS/DASH Segments)")]
-        IK[("ImageKit Global CDN<br/>- High-Res Artwork Transformations<br/>- Canvas Background Video Host")]
+        IK[("ImageKit Global CDN<br/>- Dynamic AVIF/WebP Transformations<br/>- Canvas Background Video Host")]
         AL[("Algolia Search Engine<br/>- Typo-Tolerant Multi-Index<br/>- Sub-50ms Global Querying")]
         RC[("Recombee AI Engine<br/>- Collaborative Filtering Models<br/>- Continuous User Signal Training")]
     end
 
-    AF -->|"REST & HLS Streaming"| CE
-    ADF -->|"REST, Uploads & Job Controls"| CE
+    AF -->|"REST & HLS Streaming"| CAD
+    ADF -->|"REST, Uploads & Telemetry"| CAD
+    CAD -->|"api.one-org.me"| CE
+    CAD -->|"admin.one-org.me"| ADM
+
     CE -->|"Read / Write"| PG
-    CE -->|"Atomic Counters & Cache"| RD
-    CE -->|"Enqueue Audio Jobs"| RD
-    CE -->|"Enqueue Delete Events"| RD
-    CE -->|"Enqueue OTP Mails"| RD
+    CE -->|"Cache & OTP"| RD
+
+    ADM -->|"Read / Write"| PG
+    ADM -->|"Sessions & Job Queues"| RD
+    ADM -->|"Enqueue Audio Job"| RD
+    ADM -->|"Enqueue Delete Event"| RD
+    ADM -->|"Enqueue Mail"| RD
+    ADM -->|"Direct Sync"| AL
+    ADM -->|"Direct Sync"| RC
+    ADM -->|"Presigned URLs"| S3
+    ADM -->|"Auth Signatures"| IK
+
     RD -->|"blpop Job"| AP
     RD -->|"blpop Delete"| AP
     RD -->|"blpop Mail"| MW
+
     AP -->|"Fetch Raw Temp Asset"| S3
     AP -->|"Multi-Part Parallel PUT"| S3
-    AP -->|"Signed Webhook Callbacks"| CE
-    CE -->|"Direct Sync"| AL
-    CE -->|"Direct Sync"| RC
-    CE -->|"Presigned URLs"| S3
-    CE -->|"Auth Signatures"| IK
+    AP -->|"Signed Webhooks"| ADM
 ```
 
 ---
@@ -588,8 +686,39 @@ Throughout the design and implementation of One Melody, every architectural deci
 - **The Problem**: Monolithic frontends combine consumer streaming interfaces with heavy administrative dashboards, leading to bloated JavaScript bundles, leaking sensitive admin API routes/types into public bundles, and forcing simultaneous redeployments for unrelated fixes.
 - **The Solution**: Created two completely distinct Next.js 16 applications with isolated bundle budgets:
   - [`audioFrontend`](file:///Users/Karan/Desktop/Coding/AudioMelodySpringboot/audioFrontend): Consumer client focused on instant initial load, audio playback smoothness, Web Audio API latency, and PWA responsiveness.
-  - [`adminFrontend`](file:///Users/Karan/Desktop/Coding/AudioMelodySpringboot/adminFrontend): Administrative suite containing real-time queue backpressure widgets, raw media upload progress engines, deep-linked modals, and pipeline self-healing tools.
+  - [`adminFrontend`](file:///Users/Karan/Desktop/Coding/AudioMelodySpringboot/adminFrontend): Administrative suite deployed on `https://adm.one-org.me` containing real-time queue backpressure widgets, raw media upload progress engines, deep-linked modals, and pipeline self-healing tools.
 - **Why Alternatives Were Rejected**: Combining both into Next.js route groups (`app/(consumer)` and `app/(admin)`) still shares `node_modules`, builds a single monolithic server bundle, and risks leaking admin management utilities into client chunks.
+
+### Decision 1b: Autonomous Dedicated Admin Microservice (`admin` in Django 6.1 / Python 3.12 / uv)
+- **The Problem**: Entangling admin orchestration (batch metadata edits, cascade cloud purges, job retries, telemetry polling) inside the high-concurrency Spring Boot consumer streaming engine creates resource contention. Heavy administrative database queries starve public audio playback requests of connections and CPU threads.
+- **The Solution**: Created a dedicated, decoupled Python 3.12 / Django 6.1 microservice ([`admin`](file:///Users/Karan/Desktop/Coding/AudioMelodySpringboot/admin)) packaged via `uv` and served with Gunicorn over a 2-stage multi-stage Docker build at `https://admin.one-org.me`:
+  - Complete operational autonomy with independent scaling and deployments.
+  - Directly handles administrative CRUD for Songs, Artists, Playlists, and Accounts.
+  - Controls S3 upload pre-signing, Algolia index synchronizations, and Recombee recommendations.
+  - Consumes media processing webhooks without impacting consumer API performance.
+
+### Decision 1c: Stateful Redis Session Security & 5-Attempt OTP Lockout
+- **The Problem**: Stateless JWT tokens cannot be instantly revoked if an administrator's credentials are leaked, and token blacklists stored in databases incur expensive disk lookups on every request.
+- **The Solution**: Built a hybrid **Stateful Redis Session + Dual HTTP-Only Cookie** regime:
+  - Admin login issues a 6-digit cryptographic OTP dispatched via async email.
+  - **OTP Brute-Force Lockout**: Strictly enforces a maximum of 5 verification attempts via atomic Redis counters; subsequent invalid attempts trigger permanent OTP lockout.
+  - **Instant Session Revocation**: Valid logins generate an `admin_session` UUID token stored in Redis with 7-day TTL containing IP, user agent, and telemetry metadata.
+  - Admins can revoke individual active sessions or execute `/admin/auth/sessions/revoke-all` to instantly terminate all logged-in devices across the fleet.
+  - Dual authentication: HTTP-only cookies (`admin_session`, `access_token`, `refresh_token`) with fallback to `Authorization: Bearer <token>` for programmatic API consumers.
+
+### Decision 1d: Neon Serverless Scale-to-Zero Friendly Database Architecture
+- **The Problem**: Cloud-native serverless PostgreSQL (like Neon) charges by active compute seconds. Standard Spring Boot Hikari connection pools keep idle connections open permanently (`minimum-idle: 10`) and Spring Boot Actuator pings `SELECT 1` every 10-30 seconds, preventing Neon compute nodes from ever entering sleep state (scale-to-zero) during off-peak hours.
+- **The Solution**: Tuned both `coreEngine` and `admin`:
+  - **Hikari Pool**: Configured `minimum-idle: 0`, `idle-timeout: 60000ms`, `max-lifetime: 240000ms`, and `keepalive-time: 0` so all connections close after 1 minute of inactivity.
+  - **Actuator Health Probes**: Decoupled database health checks from Kubernetes/Docker readiness probes, stopping background "SELECT 1" queries and allowing Neon compute to cleanly scale to zero.
+  - **Cold-Start Resilience**: Set `connection-timeout: 30000ms` and `initialization-fail-timeout: -1` so services boot cleanly and wait for Neon's cold-start wake-up without crashing.
+
+### Decision 1e: Edge Multi-Domain Gateway with Caddy 2 Automated TLS
+- **The Problem**: Managing reverse proxies, SSL certificate renewal scripts, Nginx configurations, and CORS policies across distinct microservice subdomains (`api.one-org.me`, `admin.one-org.me`, `process.one-org.me`) is brittle and error-prone.
+- **The Solution**: Deployed **Caddy 2** on AWS EC2:
+  - Automates Let's Encrypt / ZeroSSL ACME challenge resolution and renewal with zero maintenance.
+  - Provides native HTTP/2 and HTTP/3 support with automatic HTTP &rarr; HTTPS redirection.
+  - Reverse proxies `api.one-org.me` to Spring Boot (`core:9090`) and `admin.one-org.me` to Django (`admin:8000`).
 
 ### Decision 2: Asynchronous Media Packaging with Redis + Inngest + Shaka Packager
 - **The Problem**: Media encoding is intensely CPU/GPU bound. Synchronously processing audio files within the main Spring Boot web container blocks worker threads, causes HTTP gateway timeouts (e.g., 504 Gateway Timeout), and starves regular API users of database connections.
@@ -1033,12 +1162,17 @@ The continuous personalization engine tracks real-time listening behavior, conve
 
 ## 10. Dual-Layer Security & Authentication Architecture
 
+One Melody implements distinct, zero-trust security regimes tailored for high-throughput public consumers versus high-privilege administrative operators:
+
+### A. Consumer Authentication (`coreEngine` @ `api.one-org.me`)
+Designed for passwordless simplicity and low-latency token verification:
+
 ```mermaid
 sequenceDiagram
     autonumber
     actor User
-    participant AF as Client App
-    participant CE as coreEngine (Security Filter Chain)
+    participant AF as audioFrontend
+    participant CE as coreEngine (Spring Security)
     participant RD as Redis Cache
     participant MQ as Redis mail_queue
     participant MW as mailEvents Worker
@@ -1077,28 +1211,98 @@ sequenceDiagram
 
 ---
 
+### B. Administrative Fleet Authentication (`admin` @ `admin.one-org.me`)
+Designed with stateful Redis session tracking, instant remote revocation, and HTTP-only cookie security:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Admin
+    participant ADF as adminFrontend (adm.one-org.me)
+    participant ADM as admin (Django 6.1 / Port 8000)
+    participant RD as Redis (Upstash)
+    participant MQ as Redis mail_queue
+
+    Admin->>ADF: Submit Admin Email
+    ADF->>ADM: POST /admin/auth/login (email)
+    ADM->>ADM: Verify superadmin / admin role in DB
+    ADM->>RD: Store OTP with 10m TTL & set attempt_counter = 0
+    ADM->>MQ: rpush mail_queue (OTP email payload)
+    ADM-->>ADF: 200 OK (OTP Dispatched)
+
+    Admin->>ADF: Enter 6-digit verification code
+    ADF->>ADM: POST /admin/auth/verify-otp (email, otp)
+    ADM->>RD: Check attempt_counter
+    alt Attempt counter >= 5
+        ADM-->>ADF: 403 Forbidden (Brute-Force Lockout: OTP invalidated)
+    else Invalid OTP Code
+        ADM->>RD: Increment attempt_counter
+        ADM-->>ADF: 400 Bad Request (Remaining attempts: 5 - count)
+    else Valid OTP Code
+        ADM->>RD: Delete OTP key
+        ADM->>RD: Create stateful admin_session (UUIDv4, 7-day TTL, IP, User-Agent)
+        ADM->>ADM: Generate HMAC access_token & refresh_token
+        ADM-->>ADF: Set HTTP-Only Cookies: [admin_session, access_token, refresh_token]<br/>Body: { accessToken, refreshToken, user }
+    end
+
+    Note over ADF,ADM: Stateful Session Validation on Protected Endpoints
+    ADF->>ADM: GET /admin/dashboard/stats (credentials: 'include')
+    ADM->>ADM: Check 'admin_session' Cookie (fallback: Authorization Bearer)
+    ADM->>RD: Lookup session:{sessionId} & touch last_activity timestamp
+    alt Session Not Found in Redis or Revoked
+        ADM-->>ADF: 401 Unauthorized (Session Expired / Terminated)
+    else Session Active
+        ADM-->>ADF: 200 OK (Dashboard Data)
+    end
+
+    Note over ADF,ADM: Emergency Remote Revocation
+    Admin->>ADF: Click "Revoke All Active Sessions"
+    ADF->>ADM: POST /admin/auth/sessions/revoke-all
+    ADM->>RD: Scan & delete all admin:session:{adminId}:* keys
+    ADM-->>ADF: 200 OK (All sessions terminated across all devices)
+```
+
+---
+
 ## 11. Repository Catalog & File Tree
 
 ```
 AudioMelodySpringboot/
-├── coreEngine/                   # Spring Boot 3.4 / Java 21 API Gateway & Orchestrator
+├── coreEngine/                   # Spring Boot 3.4 / Java 21 High-Concurrency Audio & API Engine
 │   ├── src/main/java/me/one_org/melody/
-│   │   ├── AlgoliaSearch/        # Algolia indexing, search, and multi-index reindexing
-│   │   ├── BlobStorage/          # AWS S3 S3Client & S3Presigner pre-signed URL factory
-│   │   ├── Configuration/       # Spring Security, CORS, Redis & Feign clients
-│   │   ├── Controllers/          # REST endpoints (Admin, Api, Authentication, Webhook)
+│   │   ├── AlgoliaSearch/        # Algolia indexing, search client, and multi-index reindexing
+│   │   ├── Configuration/        # Spring Security, CORS, Redis & Actuator health configurations
+│   │   ├── Controllers/          # REST endpoints (Authentication, Consumer Api, User Playlists)
 │   │   ├── Dto/                  # Strongly-typed Data Transfer Objects & records
 │   │   ├── Entity/               # JPA Hibernate PostgreSQL entity mappings
-│   │   ├── Enums/                # Job stages, statuses, roles, and entity types
+│   │   ├── Enums/                # User roles, playlist privacy, audio bitrates
 │   │   ├── Exceptions/           # Global controller advice and custom HTTP exceptions
-│   │   ├── Filters/              # ApiKeyFilter & JwtFilter authentication chain
-│   │   ├── ImageStorage/         # ImageKit SDK authentication and media deletion
-│   │   ├── Queue/                # RedisTemplate queues (AudioProcessing, Delete, Mail)
-│   │   ├── Recommendation/       # Recombee client, schema initialization, and ratings
-│   │   ├── Repository/           # JPA Repositories with custom criteria queries
-│   │   └── Services/             # Domain logic (Admin, API, Webhook, General)
-│   ├── src/main/resources/       # application.yaml & production profiles
+│   │   ├── Filters/              # JwtFilter stateless authentication filter chain
+│   │   ├── Recommendation/       # Recombee AI client & real-time interaction listeners
+│   │   ├── Repository/           # Spring Data JPA Repositories with custom criteria queries
+│   │   └── Services/             # Consumer music, playback tracking, auth & user services
+│   ├── src/main/resources/       # application.yaml (Hikari scale-to-zero tuned) & profiles
 │   └── pom.xml                   # Maven dependencies and Java 21 compiler configuration
+│
+├── admin/                        # Python 3.12 / Django 6.1 Dedicated Administrative Microservice
+│   ├── admin/                    # Django project core & WSGI / ASGI entrypoints
+│   │   ├── admin/                # Settings, ASGI, WSGI, base routing
+│   │   │   ├── settings.py       # CORS, Redis session store, DB pool & security configs
+│   │   │   ├── urls.py           # Core URL gateway dispatching to API routes
+│   │   │   └── wsgi.py           # Production Gunicorn entrypoint
+│   │   ├── api/                  # Administrative REST & Webhook API application
+│   │   │   ├── views.py          # 2,400+ LOC REST controllers (CRUD, Retries, Sessions, Dashboard)
+│   │   │   ├── urls.py           # Route declarations for admin management and webhook events
+│   │   │   ├── models.py         # Django ORM models matching database schemas
+│   │   │   ├── serializers.py    # DRF serializers for request validation and response mapping
+│   │   │   ├── authentication.py # Stateful Redis session authenticator & HTTP-only cookie handler
+│   │   │   ├── middleware.py     # Request telemetry, session refresh, and security headers
+│   │   │   ├── services.py       # S3 pre-signed URLs, ImageKit, Algolia, Recombee & Redis queue ops
+│   │   │   └── helpers.py        # DTO conversion helpers, metric aggregators, audit tools
+│   │   └── manage.py             # Django management CLI script
+│   ├── Dockerfile                # High-performance 2-stage build (uv builder -> non-root runner)
+│   ├── pyproject.toml            # Astral uv dependency manifest
+│   └── uv.lock                   # Deterministic dependency lockfile
 │
 ├── audioProcessing/              # Bun / Inngest Media Packaging Worker
 │   ├── functions/                # Inngest step functions (fetchJob, transcode, delete)
@@ -1111,7 +1315,7 @@ AudioMelodySpringboot/
 │   ├── index.ts                  # Express API server & Inngest endpoint dispatcher
 │   └── package.json              # Bun runtime dependencies
 │
-├── audioFrontend/                # Next.js 16 Consumer Streaming Web Application
+├── audioFrontend/                # Next.js 16 Consumer Streaming Web Application (Vercel)
 │   ├── src/app/                  # App Router pages (home, songs, artists, playlists)
 │   ├── src/components/player/    # Web Audio API DSP player, equalizer, queue & visualizer
 │   │   ├── hooks/                # Custom hooks (useAudioSync, useHlsPlayer, useWebAudio)
@@ -1119,10 +1323,12 @@ AudioMelodySpringboot/
 │   ├── src/lib/                  # API clients, player utils, and preview player
 │   └── src/store/player/         # @tanstack/react-store reactive playback & queue store
 │
-├── adminFrontend/                # Next.js 16 Administrative Command Center
+├── adminFrontend/                # Next.js 16 Administrative Command Center (adm.one-org.me)
 │   ├── src/app/                  # Management dashboards (songs, artists, playlists, jobs)
-│   │   └── jobs/page.tsx         # Dual-pipeline monitoring console with 1-click retries
+│   │   ├── jobs/page.tsx         # Dual-pipeline monitoring console with 1-click retries
+│   │   └── ...                   # Media management & session telemetry views
 │   ├── src/components/           # Byte-level upload progress bar & portalized modals
+│   ├── src/lib/adminFetch.ts     # Credentials-included fetch wrapper for cross-subdomain sessions
 │   └── src/lib/upload-utils.ts   # XHR byte-level upload speed and ETA streaming engine
 │
 ├── workers/mailEvents/           # Asynchronous Transactional Email Worker
@@ -1136,80 +1342,144 @@ AudioMelodySpringboot/
 │   ├── v4_schema_job_tracking_migration.sql
 │   ├── v5_sync_jobs_with_songs.sql
 │   ├── v6_create_delete_jobs_table.sql
+│   ├── v7_add_genre_column.sql
 │   └── index.ts                  # Bun migration runner script
 │
-└── Docker/                       # Containerization & Environment Configuration
-    ├── aws/                      # Production AWS deployment environment templates
-    ├── docker-compose.yml        # Multi-container local orchestration
-    ├── core.env.example          # Spring Boot environment dictionary
-    ├── frontend.env.example      # Next.js environment dictionary
-    └── mail.env.example          # Mail worker environment dictionary
+├── Docker/                       # Containerization & Environment Configuration
+│   ├── aws/                      # Production AWS deployment environment templates
+│   ├── docker-compose.yml        # Multi-container local orchestration
+│   ├── core.env.example          # Spring Boot environment dictionary
+│   ├── admin.env.example         # Django admin environment dictionary
+│   ├── frontend.env.example      # Next.js consumer environment dictionary
+│   └── mail.env.example          # Mail worker environment dictionary
+│
+└── .github/workflows/            # Continuous Integration & Zero-Downtime Deployment
+    └── work.yml                  # 4-service parallel build matrix + automated EC2 SSH rollouts
 ```
 
 ---
 
 ## 12. API Reference & Webhook Contracts
 
-### Authentication APIs
-- `POST /auth/login-otp`: Requests a 6-digit cryptographic OTP dispatched via async email.
-- `POST /auth/verify-otp`: Verifies OTP and issues HMAC-SHA512 JWT access tokens.
-- `POST /auth/refresh-token`: Rotates access tokens without requiring re-authentication.
+The One Melody ecosystem cleanly isolates public consumer audio streaming operations from administrative command endpoints and media packaging webhooks.
 
-### Consumer Music APIs (`/api/v1`)
-- `GET /api/songs`: Paginated song catalogue with filtering by status and language.
-- `GET /api/songs/{id}`: Detailed track metadata including HLS master playlist URL.
-- `GET /api/songs/{id}/similar`: Fetches AI recommendations based on acoustic similarity.
-- `GET /api/artists`: Paginated artist catalogue.
-- `GET /api/artists/{id}/songs`: Full discography for a given artist.
+### 🎧 Consumer Audio & Identity APIs (`https://api.one-org.me`)
+*Powered by Spring Boot 3.4 / Java 21 ([`coreEngine`](file:///Users/Karan/Desktop/Coding/AudioMelodySpringboot/coreEngine))*
+
+#### Authentication & Session Lifecycle (`/auth/*`)
+- `POST /auth/login-otp`: Requests a 6-digit cryptographic OTP dispatched asynchronously to user email.
+- `POST /auth/verify-otp`: Verifies OTP and returns HMAC-SHA512 access and refresh tokens.
+- `POST /auth/refresh-token`: Rotates access tokens without requiring re-authentication.
+- `GET /auth/me`: Retrieves current authenticated user profile and subscription details.
+- `POST /auth/logout`: Invalidates client session.
+
+#### Music Catalogue & Adaptive Streaming (`/api/*`)
+- `GET /api/songs`: Filterable, paginated track catalog (`page`, `size`, `status`, `language`).
+- `GET /api/songs/{id}`: Detailed track metadata including HLS master playlist URL (`.m3u8`), canvas video URL, and bitrate manifests.
+- `GET /api/songs/{id}/similar`: Fetches AI recommendations based on acoustic similarity vectors.
+- `GET /api/artists`: Paginated artist catalogue with artwork URLs and follower counts.
+- `GET /api/artists/{id}`: Artist biography and social profiles.
+- `GET /api/artists/{id}/songs`: Full verified discography for a given artist.
 - `GET /api/playlists`: Public curated playlists.
-- `GET /api/user/playlists`: User-owned playlists.
+- `GET /api/user/playlists`: User-owned custom playlists.
 - `POST /api/user/playlists`: Creates a user playlist with custom privacy settings.
 - `GET /api/user/playlists/shared/{shareToken}`: Public unauthenticated shared playlist access.
 - `POST /api/interaction/track-play`: Tracks listening completion percentage for Recombee AI training.
 - `POST /api/interaction/favourite/{songId}`: Adds song to user favourites.
 - `DELETE /api/interaction/favourite/{songId}`: Removes song from user favourites.
+- `GET /api/search`: Instant search across tracks, artists, and albums.
 
-### Admin Management APIs (`/admin`)
-- `POST /admin/song/pre-signed-url`: Generates S3 pre-signed PUT URLs for raw audio uploads.
-- `POST /admin/song`: Initializes audio ingestion job.
+---
+
+### 🛡️ Administrative Fleet & Management APIs (`https://admin.one-org.me`)
+*Powered by Python 3.12 / Django 6.1 / Gunicorn ([`admin`](file:///Users/Karan/Desktop/Coding/AudioMelodySpringboot/admin))*
+
+#### Health & Diagnostic Probe
+- `GET /health`: Liveness and readiness health probe returning `{ "status": "ok" }`.
+
+#### Stateful Session Authentication (`/admin/auth/*`)
+- `POST /admin/auth/login`: Validates admin credentials; dispatches 6-digit OTP via Redis `mail_queue`.
+- `POST /admin/auth/verify-otp`: Verifies OTP with **5-attempt brute-force lockout** protection. Issues `admin_session` HTTP-only cookie and JWT tokens.
+- `POST /admin/auth/resend-otp`: Dispatches a fresh OTP code subject to active cooldown timers.
+- `POST /admin/auth/refresh-token`: Rotates access tokens via HTTP-only cookie validation.
+- `GET /admin/auth/me`: Returns current administrator role, permissions, and active session details.
+- `POST /admin/auth/logout`: Invalidates session key from Redis and clears browser cookies.
+- `GET /admin/auth/sessions`: Lists all active administrative sessions across devices with IP and User-Agent telemetry.
+- `POST /admin/auth/sessions/{sessionId}`: Revokes an individual active device session.
+- `POST /admin/auth/sessions/revoke-all`: **Fleet Revocation** — immediately terminates all active sessions across all devices for the administrator.
+
+#### Administrative Dashboard & Deep Search
+- `GET /admin/dashboard/stats`: Aggregates real-time metrics (total songs, active ingestion jobs, artists, storage utilization, and system health).
+- `GET /admin/search`: Administrative deep search across draft, processing, and published media records.
+
+#### Media & Catalogue Management (`/admin/song`, `/admin/artist`, `/admin/playlist`, `/admin/account`)
+- `GET /admin/song`: Filterable, paginated track catalog (`status`, `genre`, `language`, `featured`).
+- `POST /admin/song`: Initializes audio track and registers background ingestion job.
+- `GET /admin/song/{id}`: Detailed track record with transcoding telemetry and stage timestamps.
 - `PUT /admin/song/{id}`: Updates track metadata, album artwork, or canvas video.
-- `POST /admin/song/{id}/reprocess-video`: Initiates background Shaka repackaging of music videos.
 - `DELETE /admin/song/{id}`: Initiates 5-stage atomic cascade deletion teardown.
-- `POST /admin/artist`: Creates artist profile with ImageKit CDN media.
-- `POST /admin/playlist`: Creates curated playlist with artwork and video backdrops.
-- `PUT /admin/playlist/{id}/songs`: Batch updates song composition of a playlist.
+- `POST /admin/song/{id}/featured`: Toggles featured showcase status on home feed.
+- `POST /admin/song/{id}/reprocess-audio`: Re-dispatches track for multi-bitrate audio transcoding.
+- `POST /admin/song/{id}/reprocess-video`: Initiates background repackaging of video canvases.
+- `POST /admin/song/{id}/recover-media`: Restores S3 media references for orphan tracks.
+- `POST /admin/song/reindex-recombee`: Batch re-indexes entire song library into Recombee AI engine.
+- `GET /admin/artist` & `POST /admin/artist`: Artist list and creation with ImageKit CDN media.
+- `GET /admin/artist/{id}` & `PUT /admin/artist/{id}`: Artist metadata and discography management.
+- `GET /admin/playlist` & `POST /admin/playlist`: Curated playlist management.
+- `POST /admin/playlist/{id}/songs/add`: Batch appends songs to curated playlist.
+- `DELETE /admin/playlist/{id}/songs/{songId}`: Removes track from playlist.
+- `GET /admin/account`: Admin operator and user management console.
+- `POST /admin/account/{email}/block`: Blocks user from streaming or login.
+- `POST /admin/account/{email}/unblock`: Restores user account access.
+- `POST /admin/account/{email}/demote`: Revokes administrative privileges.
+- `DELETE /admin/account/{email}`: Cascades complete user profile deletion.
 
-### Operational & Monitoring APIs (`/admin/jobs` & `/admin/delete-jobs`)
-- `GET /admin/jobs/summary`: High-level metrics (processing, queued, completed, failed, avg stage durations).
-- `GET /admin/jobs/queues`: Live Redis queue depths and backpressure indicators.
-- `GET /admin/jobs`: Filterable, paginated audit list of ingestion jobs (`page`, `size`, `status`, `stage`, `search`).
-- `GET /admin/jobs/active`: Real-time active ingestion jobs with elapsed stage timers (supports optional `page`, `size`).
-- `GET /admin/jobs/status/{status}`: Paginated ingestion jobs partitioned by status enum (`PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`).
-- `GET /admin/jobs/pending`: Convenient paginated helper for queued / pending ingestion jobs.
-- `GET /admin/jobs/processing`: Convenient paginated helper for in-flight worker ingestion jobs.
-- `GET /admin/jobs/failed`: Dedicated paginated helper for failed ingestion jobs requiring review or retry.
-- `GET /admin/jobs/completed`: Dedicated paginated helper for successfully archived ingestion jobs.
-- `POST /admin/jobs/{jobId}/retry`: **1-Click Retry** for failed or stuck ingestion jobs.
-- `DELETE /admin/jobs/{jobId}`: Deletes ingestion job audit record from PostgreSQL.
+#### Dual Ingestion & Teardown Monitoring Console (`/admin/jobs` & `/admin/delete-jobs`)
+- `GET /admin/jobs/summary`: Ingestion metrics (processing, queued, completed, failed, stage durations).
+- `GET /admin/jobs/queues`: Live Redis queue depths (`audio_processing_queue`, `delete_event_queue`, `mail_queue`).
+- `GET /admin/jobs/active`: Real-time active ingestion jobs with elapsed stage timers.
+- `GET /admin/jobs`: Filterable, paginated audit list of ingestion jobs (`status`, `stage`, `search`).
+- `GET /admin/jobs/status/{status}`: Paginated ingestion jobs filtered by enum (`PENDING`, `PROCESSING`, `COMPLETED`, `FAILED`).
+- `GET /admin/jobs/pending`, `/processing`, `/failed`, `/completed`: Paginated status helpers.
+- `POST /admin/jobs/{jobId}/retry`: **1-Click Retry** with atomic state wipe and Redis re-enqueue.
+- `POST /admin/jobs/{jobId}/recover-media`: Recovers broken media pointers.
+- `DELETE /admin/jobs/failed`: Cleans all failed ingestion job records.
+- `DELETE /admin/jobs/{jobId}`: Deletes individual job audit record.
+- `POST /admin/jobs/sync-metadata`: Synchronizes job metadata with published song records.
 - `GET /admin/delete-jobs/summary`: High-level metrics for cascade teardown jobs.
-- `GET /admin/delete-jobs`: Filterable, paginated audit list of cascade delete jobs (`page`, `size`, `status`, `search`).
 - `GET /admin/delete-jobs/active`: Paginated active cascade teardown jobs.
-- `GET /admin/delete-jobs/status/{status}`: Paginated cascade jobs partitioned by status enum (`PENDING`, `IN_PROGRESS`, `COMPLETED`, `FAILED`).
-- `GET /admin/delete-jobs/pending`: Convenient paginated helper for queued cascade deletions.
-- `GET /admin/delete-jobs/in-progress`: Convenient paginated helper for actively running cascade deletions.
-- `GET /admin/delete-jobs/failed`: Dedicated paginated helper for failed cascade deletions.
-- `GET /admin/delete-jobs/completed`: Dedicated paginated helper for successfully completed cascade teardowns.
+- `GET /admin/delete-jobs`: Filterable, paginated audit list of cascade delete jobs.
+- `GET /admin/delete-jobs/status/{status}`: Paginated cascade jobs filtered by enum.
+- `GET /admin/delete-jobs/pending`, `/in-progress`, `/failed`, `/completed`: Paginated status helpers.
 - `POST /admin/delete-jobs/{jobId}/retry`: **1-Click Retry** for failed cascade deletion jobs.
-- `DELETE /admin/delete-jobs/{jobId}`: Deletes cascade teardown audit record from PostgreSQL.
+- `DELETE /admin/delete-jobs/{jobId}`: Deletes cascade teardown audit record.
 
-### Signed Webhook Protocol (`/webhook`)
-*(Protected by `ApiKeyFilter` requiring valid `x-api-key` header)*
-- `POST /webhook/job/started`: Notifies API that transcoding worker has popped the job.
-- `POST /webhook/job/transcoded`: Notifies API that multi-bitrate HLS/DASH packaging is complete.
-- `POST /webhook/job/save/recommendation`: Signals successful Recombee item property registration.
-- `POST /webhook/job/save/search`: Signals successful Algolia search indexation.
-- `POST /webhook/job/finalize`: Signals song record finalization and publication.
-- `POST /webhook/job/failed`: Reports failure reason and timestamps for admin inspection.
+---
+
+### ⚡ Signed Worker Webhook Protocol (`/webhook`)
+*Managed by the [`admin`](file:///Users/Karan/Desktop/Coding/AudioMelodySpringboot/admin) microservice*
+
+#### Pre-Signed Media Generation (`/webhook/internal/*`)
+- `POST /webhook/internal/song-upload-url`: Generates S3 SigV4 pre-signed PUT URLs with content-type locks.
+- `POST /webhook/internal/video-upload-url`: Generates S3 pre-signed URLs for background canvas video uploads.
+- `GET /webhook/internal/image-upload-param`: Generates ImageKit client-side auth signature, token, and expire timestamp.
+- `GET /webhook/internal/video-upload-param`: Generates ImageKit upload authentication token for video canvases.
+
+#### Media Ingestion Lifecycle Webhooks (`/webhook/job/*`)
+- `POST /webhook/job/{jobId}/transcoding-started`: Worker signals start of FFmpeg multi-bitrate transcoding.
+- `POST /webhook/job/{jobId}/transcoded`: Worker signals Shaka Packager HLS/DASH chunking completed.
+- `POST /webhook/job/{jobId}/save-recommendation`: Worker signals Recombee AI vector properties saved.
+- `POST /webhook/job/{jobId}/save-search`: Worker signals Algolia InstantSearch index updated.
+- `POST /webhook/job/{jobId}/finalize`: Finalizes job, calculates duration, and marks song `PUBLISHED`.
+- `POST /webhook/job/{jobId}/failed`: Reports failure stack, stage, and triggers telemetry alert.
+
+#### Atomic Cascade Teardown Webhooks (`/webhook/delete/*`)
+- `POST /webhook/delete/{entityType}/{entityId}/delete-search`: Step 1 — Purges record from Algolia.
+- `POST /webhook/delete/{entityType}/{entityId}/delete-recommendation`: Step 2 — Purges record from Recombee.
+- `POST /webhook/delete/{entityType}/{entityId}/delete-imagekit`: Step 3 — Deletes artwork/canvas from ImageKit CDN.
+- `POST /webhook/delete/{entityType}/{entityId}/delete-s3`: Step 4 — Purges master playlist & chunks from AWS S3.
+- `POST /webhook/delete/{entityType}/{entityId}/hard-delete`: Step 5 — Hard deletes entity row from PostgreSQL.
+- `POST /webhook/delete/{entityType}/{entityId}/failed`: Reports cascade failure and trips circuit breaker.
 
 ---
 
@@ -1218,12 +1488,15 @@ AudioMelodySpringboot/
 ### Prerequisites
 - **Java Development Kit (JDK)**: Version 21 or higher
 - **Maven**: Version 3.9+
+- **Python**: Version 3.12+
+- **Astral uv**: Fast Python package and environment manager (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - **Bun**: Version 1.3+ (or Node.js 20+)
-- **FFmpeg**: Version 6.0+ compiled with libx264 and libaac
-- **Google Shaka Packager**: Version 3.0+ executable in system PATH
-- **Docker & Docker Compose**: For container orchestration
-- **PostgreSQL**: Version 15+
-- **Redis**: Version 7+
+- **FFmpeg**: Version 6.0+ compiled with `libx264` and `libaac`
+- **Google Shaka Packager**: Version 3.0+ executable in system `PATH`
+- **Docker & Docker Compose**: For local container orchestration
+- **Caddy**: Version 2.x (or containerized Caddy)
+- **PostgreSQL**: Neon Serverless or Local 15+
+- **Redis**: Upstash Redis or Local 7+
 
 ---
 
@@ -1233,25 +1506,32 @@ git clone https://github.com/karankumar786786/AudioMelodySpringboot.git
 cd AudioMelodySpringboot
 ```
 
-Copy the example environment configurations:
+Create environment configuration files for each service:
 ```bash
 cp coreEngine/.env.example coreEngine/.env
+cp admin/.env.example admin/.env
 cp audioProcessing/.env.example audioProcessing/.env
 cp workers/mailEvents/.env.example workers/mailEvents/.env
 cp audioFrontend/.env.example audioFrontend/.env.local
 cp adminFrontend/.env.example adminFrontend/.env.local
 ```
 
+Key environment configurations:
+- **Database**: Neon PostgreSQL connection string (`DB_URL`, `DB_USER`, `DB_PASSWORD`).
+- **Redis**: Upstash Redis host, port, password, and queue identifiers (`REDIS_HOST`, `REDIS_PASSWORD`, etc.).
+- **Cloud Providers**: AWS S3 credentials (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BUCKET_NAME`), ImageKit keys, Algolia App ID & Admin Key, and Recombee Database ID & Secret.
+- **Cross-Origin**: `CORS_ALLOWED_ORIGINS=https://adm.one-org.me,http://localhost:3000,http://localhost:3001`.
+
 ---
 
 ### Step 2: Database Setup & Schema Migrations
-Ensure PostgreSQL and Redis are running locally or via Docker:
+If running databases locally:
 ```bash
 docker run -d --name melody-postgres -p 5432:5432 -e POSTGRES_DB=melody -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres postgres:15
 docker run -d --name melody-redis -p 6379:6379 redis:7-alpine
 ```
 
-Execute versioned schema migrations:
+Execute schema migrations:
 ```bash
 cd migrations
 bun install
@@ -1261,7 +1541,7 @@ cd ..
 
 ---
 
-### Step 3: Launch Microservices
+### Step 3: Launch Microservices Locally
 
 #### 1. Start Core Engine (`coreEngine`)
 ```bash
@@ -1271,7 +1551,15 @@ mvn spring-boot:run
 ```
 *Access API on: `http://localhost:9090`*
 
-#### 2. Start Media Packaging Worker (`audioProcessing`)
+#### 2. Start Administrative Command Microservice (`admin`)
+```bash
+cd admin
+uv sync
+uv run python admin/manage.py runserver 8000
+```
+*Access Admin API on: `http://localhost:8000` (Health: `http://localhost:8000/health`)*
+
+#### 3. Start Media Packaging Worker (`audioProcessing`)
 ```bash
 cd audioProcessing
 bun install
@@ -1283,14 +1571,14 @@ bun run inngest
 ```
 *Inngest dashboard available at: `http://localhost:8288`*
 
-#### 3. Start Transactional Mail Worker (`workers/mailEvents`)
+#### 4. Start Transactional Mail Worker (`workers/mailEvents`)
 ```bash
 cd workers/mailEvents
 bun install
 bun run index.ts
 ```
 
-#### 4. Start Consumer Frontend (`audioFrontend`)
+#### 5. Start Consumer Frontend (`audioFrontend`)
 ```bash
 cd audioFrontend
 bun install
@@ -1298,7 +1586,7 @@ bun run dev
 ```
 *Streaming app available at: `http://localhost:3000`*
 
-#### 5. Start Administration Console (`adminFrontend`)
+#### 6. Start Administration Console (`adminFrontend`)
 ```bash
 cd adminFrontend
 bun install
@@ -1308,11 +1596,114 @@ bun run dev --port 3001
 
 ---
 
-### Step 4: Docker Compose Orchestration (Production-Ready)
-To spin up all services simultaneously using Docker Compose:
-```bash
-docker compose -f docker-compose.yml up --build -d
+### Step 4: AWS EC2 Production Orchestration & Caddy Reverse Proxy
+
+In production, all backend services run containerized on an AWS EC2 instance (`13.126.178.32`) behind a **Caddy 2** reverse proxy that automatically provisions and renews TLS certificates via Let's Encrypt:
+
+#### Production `docker-compose.yml` (`/home/ubuntu/audioMelody/docker-compose.yml`)
+```yaml
+services:
+  core:
+    image: karankumar9955/core:latest
+    container_name: core
+    pull_policy: always
+    restart: unless-stopped
+    env_file:
+      - core.env
+    expose:
+      - "9090"
+    networks:
+      - app
+
+  admin:
+    image: karankumar9955/admin:latest
+    container_name: admin
+    pull_policy: always
+    restart: unless-stopped
+    env_file:
+      - admin.env
+    expose:
+      - "8000"
+    networks:
+      - app
+
+  mail:
+    image: karankumar9955/mail:latest
+    container_name: mail
+    pull_policy: always
+    restart: unless-stopped
+    env_file:
+      - mail.env
+    networks:
+      - app
+
+  caddy:
+    image: caddy:2
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - app
+
+networks:
+  app:
+
+volumes:
+  caddy_data:
+  caddy_config:
 ```
+
+#### Production `Caddyfile` (`/home/ubuntu/audioMelody/Caddyfile`)
+```caddyfile
+api.one-org.me {
+    reverse_proxy core:9090
+}
+
+admin.one-org.me {
+    reverse_proxy admin:8000
+}
+```
+
+#### Zero-Downtime Caddy Configuration Reload
+```bash
+docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile
+```
+
+---
+
+### Step 5: Automated CI/CD Pipeline (`.github/workflows/work.yml`)
+
+The repository leverages a fully automated continuous integration and continuous deployment pipeline powered by GitHub Actions:
+
+```mermaid
+flowchart LR
+    Push["Push to main"] --> Matrix{"Parallel Matrix Build"}
+    Matrix --> CoreBuild["coreEngine (Java 21)"]
+    Matrix --> AdminBuild["admin (Django 6 / uv)"]
+    Matrix --> MailBuild["mailEvents (Bun)"]
+    Matrix --> MediaBuild["audioProcessing (Bun)"]
+    
+    CoreBuild --> Hub["Docker Hub Tagging<br/>:latest & :sha-xxxx"]
+    AdminBuild --> Hub
+    MailBuild --> Hub
+    MediaBuild --> Hub
+    
+    Hub --> SSH["SSH into AWS EC2 (appleboy/ssh-action)"]
+    SSH --> Pull["docker compose pull"]
+    Pull --> Up["docker compose up -d --remove-orphans"]
+    Up --> Prune["docker image prune -f"]
+```
+
+1. **Parallel Multi-Service Matrix Build**: Concurrent builds compile and test each microservice independently.
+2. **Docker Layer Caching (`type=gha`)**: GitHub Actions caching speeds up image builds from minutes to seconds.
+3. **Automated Zero-Downtime EC2 Rolling Deploy**: Upon successful image push, the workflow SSHs into the production EC2 host, pulls new images, rolling restarts containers, and purges stale layers.
+4. **Vercel Edge Frontends**: `audioFrontend` and `adminFrontend` (`adm.one-org.me`) deploy automatically on commit to their production domains.
 
 ---
 
