@@ -8,10 +8,8 @@ import java.util.UUID;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -191,15 +189,4 @@ public class PaginationMetaDataService {
         return getMetaData(entityName);
     }
 
-    /**
-     * Automatic sync on application startup.
-     */
-    @EventListener(ApplicationReadyEvent.class)
-    public void onStartup() {
-        try {
-            syncAllMetadata();
-        } catch (Exception e) {
-            log.error("Failed to auto-sync pagination_metadata table on startup: {}", e.getMessage());
-        }
-    }
 }

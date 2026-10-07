@@ -943,16 +943,19 @@ class AdminAuthService:
         logger.info("[ADMIN AUTH] Generated OTP for %s (%s): %s", email, purpose, otp)
 
         # 2. Push to Redis mail queue if running
+        # Payload must match MailQueueDto format expected by mailEvents worker:
+        # { "to": email, "subject": purpose, "otp": code }
         try:
             r = RedisService.get_client()
             payload = {
-                "email": email,
-                "purpose": purpose,
+                "to": email,
+                "subject": purpose,
                 "otp": otp,
             }
             r.rpush(settings.REDIS_MAIL_QUEUE, json.dumps(payload))
         except Exception as e:
-            logger.debug("Failed to push OTP to mail queue: %s", e)
+            logger.warning("Failed to push OTP to mail queue: %s", e)
+            print(f" [WARN] Could not push OTP to Redis mail queue: {e}")
 
     @classmethod
     def issue_tokens_for_admin(cls, admin: Admin) -> Dict[str, str]:
