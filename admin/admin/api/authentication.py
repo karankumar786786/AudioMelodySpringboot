@@ -57,16 +57,50 @@ class AdminJWTAuthentication(authentication.BaseAuthentication):
             )
             return (user, api_key)
 
-        # 2. Check Bearer Authorization Token
+        # 2. Check HTTP-Only Cookie Session directly
+        session_id = request.COOKIES.get("admin_session")
+        if session_id:
+            session = RedisService.get_admin_session(session_id)
+            if not session:
+                raise exceptions.AuthenticationFailed("Admin session has been revoked or expired. Please log in again.")
+
+            user_id = session.get("userId", "")
+            email = session.get("email", "")
+            role = session.get("role", "ADMIN")
+            user_name = session.get("userName", "")
+            status_val = session.get("status", "ACTIVE")
+
+            if user_id and RedisService.is_user_blocked(user_id):
+                raise exceptions.AuthenticationFailed("Your account has been blocked or suspended")
+            if status_val == "BLOCKED":
+                raise exceptions.AuthenticationFailed("Your account has been blocked or suspended")
+
+            RedisService.touch_admin_session(session_id)
+            request.session_id = session_id
+
+            user = AdminUser(
+                user_id=user_id,
+                email=email,
+                role=role,
+                user_name=user_name,
+                status=status_val
+            )
+            return (user, session_id)
+
+        # 3. Check Bearer Authorization Header OR access_token Cookie
+        token = None
         auth_header = request.headers.get("Authorization")
-        if not auth_header:
+        if auth_header:
+            parts = auth_header.split()
+            if len(parts) == 2 and parts[0].lower() == "bearer":
+                token = parts[1]
+
+        if not token:
+            token = request.COOKIES.get("access_token")
+
+        if not token:
             return None
 
-        parts = auth_header.split()
-        if len(parts) != 2 or parts[0].lower() != "bearer":
-            return None
-
-        token = parts[1]
         try:
             payload = jwt.decode(
                 token,
@@ -79,18 +113,28 @@ class AdminJWTAuthentication(authentication.BaseAuthentication):
         except jwt.InvalidTokenError as e:
             raise exceptions.AuthenticationFailed(f"Invalid authentication token: {str(e)}")
 
+        sid = payload.get("sid")
+        if sid:
+            session = RedisService.get_admin_session(sid)
+            if not session:
+                raise exceptions.AuthenticationFailed("Admin session has been revoked or expired. Please log in again.")
+            if session.get("status") == "BLOCKED":
+                raise exceptions.AuthenticationFailed("Your account has been blocked or suspended")
+            RedisService.touch_admin_session(sid)
+            request.session_id = sid
+
         user_id = str(payload.get("id") or payload.get("sub", "")).strip()
         email = str(payload.get("email", "")).strip().lower()
         role = payload.get("role", "USER")
         user_name = payload.get("userName") or payload.get("name", "")
         status_val = "ACTIVE"
 
-        # 3. Security: Check real-time Redis blacklist
+        # Security: Check real-time Redis blacklist
         if user_id and RedisService.is_user_blocked(user_id):
             logger.warning("Blocked user [%s - %s] attempted admin request", user_id, email)
             raise exceptions.AuthenticationFailed("Your account has been blocked or suspended")
 
-        # 4. Security: Check PostgreSQL database state in admin_users table
+        # Security: Check PostgreSQL database state in admin_users table
         if user_id or email:
             try:
                 db_admin = None

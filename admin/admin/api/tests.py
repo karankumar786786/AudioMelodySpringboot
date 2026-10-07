@@ -394,26 +394,69 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
             tokens = res_verify.json()
             self.assertIn("accessToken", tokens)
             self.assertIn("refreshToken", tokens)
+            self.assertIn("sessionId", tokens)
+            self.assertIn("admin_session", res_verify.cookies)
 
-            # 4. GET /api/user/profile with issued access token
-            authed_client = APIClient()
-            authed_client.credentials(HTTP_AUTHORIZATION=f"Bearer {tokens['accessToken']}")
-            res_profile = authed_client.get("/api/user/profile")
-            self.assertEqual(res_profile.status_code, 200)
-            profile = res_profile.json()
-            self.assertEqual(profile["email"], "admin@example.com")
-            self.assertEqual(profile["role"], "ADMIN")
+            # 4. Authenticate using HTTP-Only Cookie instead of Bearer token
+            cookie_client = APIClient()
+            cookie_client.cookies["admin_session"] = res_verify.cookies["admin_session"].value
+            res_cookie_profile = cookie_client.get("/api/user/profile")
+            self.assertEqual(res_cookie_profile.status_code, 200)
+            self.assertEqual(res_cookie_profile.json()["email"], "admin@example.com")
 
-            # 5. POST /auth/refresh-token
-            res_refresh = self.client.post(
-                "/auth/refresh-token",
-                {"refreshToken": tokens["refreshToken"]},
-                format="json"
-            )
-            self.assertEqual(res_refresh.status_code, 200)
-            new_tokens = res_refresh.json()
-            self.assertIn("accessToken", new_tokens)
-            self.assertIn("refreshToken", new_tokens)
+            # 5. POST /auth/logout revokes the session
+            res_logout = cookie_client.post("/auth/logout")
+            self.assertEqual(res_logout.status_code, 200)
+
+            # Verifying revoked session can no longer access protected views
+            res_revoked = cookie_client.get("/api/user/profile")
+            self.assertIn(res_revoked.status_code, [401, 403])
+
+    def test_otp_brute_force_lockout(self):
+        from .services import AdminAuthService
+        fake_admin = MagicMock()
+        fake_admin.id = "admin-lockout"
+        fake_admin.email = "lockout@example.com"
+        fake_admin.name = "Lockout Admin"
+        fake_admin.role = "ADMIN"
+        fake_admin.status = "ACTIVE"
+
+        with patch.object(Admin.objects, "filter") as mock_filter, \
+             patch.object(RedisService, "is_user_blocked", return_value=False), \
+             patch("api.services.RedisService.get_client"):
+
+            mock_filter.return_value.first.return_value = fake_admin
+            res_login = self.client.post("/auth/login", {"email": "lockout@example.com"}, format="json")
+            temp_token = res_login.json()["tempToken"]
+
+            # Fail 4 times (400)
+            for _ in range(4):
+                res_fail = self.client.post("/auth/verify-otp", {"otp": "000000"}, HTTP_X_TEMP_TOKEN=temp_token, format="json")
+                self.assertEqual(res_fail.status_code, 400)
+
+            # 5th failure exceeds max_attempts and returns 429
+            res_lockout = self.client.post("/auth/verify-otp", {"otp": "000000"}, HTTP_X_TEMP_TOKEN=temp_token, format="json")
+            self.assertEqual(res_lockout.status_code, 429)
+            self.assertIn("exceeded", res_lockout.json()["message"].lower())
+
+    def test_admin_profile_patch_update(self):
+        fake_admin = MagicMock()
+        fake_admin.id = "admin-patch-1"
+        fake_admin.email = "patch@example.com"
+        fake_admin.name = "Old Name"
+        fake_admin.role = "ADMIN"
+        fake_admin.status = "ACTIVE"
+
+        with patch.object(Admin.objects, "filter") as mock_filter:
+            mock_filter.return_value.first.return_value = fake_admin
+
+            token = jwt.encode({"sub": fake_admin.id, "email": fake_admin.email, "role": "ADMIN", "exp": time.time() + 3600}, settings.JWT_SECRET, algorithm="HS256")
+            client = APIClient()
+            client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+            res = client.patch("/api/user/profile", {"name": "Updated Admin Name"}, format="json")
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(fake_admin.name, "Updated Admin Name")
 
     def test_global_search_api(self):
         authed_client = APIClient()

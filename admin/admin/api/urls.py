@@ -54,6 +54,8 @@ from .views import (
     AdminRefreshTokenView,
     AdminProfileView,
     AdminLogoutView,
+    AdminSessionsListView,
+    AdminSessionRevokeView,
     # Webhooks
     SongUploadUrlWebhookView,
     VideoUploadUrlWebhookView,
@@ -92,6 +94,11 @@ urlpatterns = [
     path("admin/auth/refresh-token", AdminRefreshTokenView.as_view(), name="admin-auth-refresh-token"),
     path("admin/auth/profile", AdminProfileView.as_view(), name="admin-auth-profile"),
     path("admin/auth/me", AdminProfileView.as_view(), name="admin-auth-me"),
+
+    # Admin Sessions & Security Management
+    path("admin/auth/sessions/revoke-all", AdminSessionRevokeView.as_view(), name="admin-auth-sessions-revoke-all"),
+    path("admin/auth/sessions/<str:session_id>", AdminSessionRevokeView.as_view(), name="admin-auth-session-revoke"),
+    path("admin/auth/sessions", AdminSessionsListView.as_view(), name="admin-auth-sessions"),
 
     # Search (called by GlobalSearch component)
     path("api/search", GlobalSearchView.as_view(), name="api-search"),

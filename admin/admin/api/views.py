@@ -1,3 +1,4 @@
+from django.core.serializers import json
 import jwt
 from datetime import datetime, timezone
 import logging
@@ -66,6 +67,53 @@ class BaseAdminView(APIView):
 # 0. Admin Authentication & Session Management (/auth/*, /api/user/profile)
 # ==============================================================================
 
+def set_auth_cookies(response: Response, session_id: str, access_token: str, refresh_token: str) -> None:
+    """
+    Sets secure, HTTP-only authentication cookies on the HTTP response.
+    - admin_session: stateful Redis session token
+    - access_token: bearer access JWT
+    - refresh_token: 30-day refresh token
+    """
+    is_secure = not settings.DEBUG
+    # admin_session cookie (HTTP-only)
+    response.set_cookie(
+        key="admin_session",
+        value=session_id,
+        max_age=7 * 86400,
+        httponly=True,
+        secure=is_secure,
+        samesite="Lax",
+        path="/",
+    )
+    # access_token cookie (HTTP-only)
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        max_age=86400,
+        httponly=True,
+        secure=is_secure,
+        samesite="Lax",
+        path="/",
+    )
+    # refresh_token cookie (HTTP-only)
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        max_age=30 * 86400,
+        httponly=True,
+        secure=is_secure,
+        samesite="Lax",
+        path="/",
+    )
+
+
+def clear_auth_cookies(response: Response) -> None:
+    """Clears all admin authentication cookies."""
+    response.delete_cookie("admin_session", path="/")
+    response.delete_cookie("access_token", path="/")
+    response.delete_cookie("refresh_token", path="/")
+
+
 class AdminLoginView(APIView):
     """
     POST /auth/login
@@ -82,6 +130,17 @@ class AdminLoginView(APIView):
 
         admin = Admin.objects.filter(email__iexact=email).first()
         if not admin:
+            try:
+                if Admin.objects.count() == 0:
+                    return Response(
+                        {
+                            "message": "No administrator accounts registered yet. Please navigate to the Register tab to create the initial Super Administrator.",
+                            "initialSetupRequired": True,
+                        },
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+            except Exception:
+                pass
             return Response(
                 {"message": f"No admin account found with email '{email}'. Please contact your super administrator."},
                 status=status.HTTP_404_NOT_FOUND,
@@ -99,7 +158,9 @@ class AdminLoginView(APIView):
             "otp": otp,
             "email": admin.email,
             "role": admin.role,
-            "purpose": "LOGIN"
+            "purpose": "LOGIN",
+            "failed_attempts": 0,
+            "max_attempts": 5,
         })
         AdminAuthService.notify_otp(admin.email, "LOGIN", otp)
 
@@ -141,7 +202,9 @@ class AdminRegisterView(APIView):
             "email": email,
             "userName": name,
             "role": assigned_role,
-            "purpose": "REGISTER"
+            "purpose": "REGISTER",
+            "failed_attempts": 0,
+            "max_attempts": 5,
         })
         AdminAuthService.notify_otp(email, "REGISTER", otp)
 
@@ -156,7 +219,8 @@ class AdminVerifyOtpView(APIView):
     POST /auth/verify-otp
     Header: X-TEMP-TOKEN: <tempToken> (or body { "token": "..." })
     Body: { "otp": "..." }
-    Verifies OTP and returns { "accessToken": "...", "refreshToken": "..." }
+    Verifies OTP, establishes Redis session, sets HTTP-only cookies,
+    and returns { "sessionId": "...", "accessToken": "...", "refreshToken": "..." }
     """
     permission_classes = [AllowAny]
 
@@ -193,9 +257,28 @@ class AdminVerifyOtpView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if str(otp_data.get("otp", "")).strip() != otp:
+        failed_attempts = otp_data.get("failed_attempts", 0)
+        max_attempts = otp_data.get("max_attempts", 5)
+        if failed_attempts >= max_attempts:
+            AdminAuthService.delete_otp(email)
             return Response(
-                {"message": "Invalid verification code. Please check and try again."},
+                {"message": "Maximum verification attempts exceeded. For security, this OTP has been invalidated. Please request a new OTP."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        if str(otp_data.get("otp", "")).strip() != otp:
+            failed_attempts += 1
+            otp_data["failed_attempts"] = failed_attempts
+            AdminAuthService.save_otp(email, otp_data)
+            remaining = max_attempts - failed_attempts
+            if remaining <= 0:
+                AdminAuthService.delete_otp(email)
+                return Response(
+                    {"message": "Maximum verification attempts exceeded. For security, this OTP has been invalidated. Please request a new OTP."},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                )
+            return Response(
+                {"message": f"Invalid verification code. {remaining} attempt(s) remaining."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -218,8 +301,11 @@ class AdminVerifyOtpView(APIView):
                 return Response({"message": "Your admin account is suspended or blocked."}, status=status.HTTP_403_FORBIDDEN)
 
         AdminAuthService.delete_otp(email)
-        tokens = AdminAuthService.issue_tokens_for_admin(admin)
-        return Response(tokens, status=status.HTTP_200_OK)
+        tokens = AdminAuthService.issue_tokens_for_admin(admin, request)
+
+        res = Response(tokens, status=status.HTTP_200_OK)
+        set_auth_cookies(res, tokens["sessionId"], tokens["accessToken"], tokens["refreshToken"])
+        return res
 
 
 class AdminResendOtpView(APIView):
@@ -252,6 +338,8 @@ class AdminResendOtpView(APIView):
 
         new_otp = AdminAuthService.generate_otp()
         cached["otp"] = new_otp
+        cached["failed_attempts"] = 0
+        cached["max_attempts"] = 5
         AdminAuthService.save_otp(email, cached)
         AdminAuthService.notify_otp(email, purpose, new_otp)
 
@@ -264,13 +352,17 @@ class AdminResendOtpView(APIView):
 class AdminRefreshTokenView(APIView):
     """
     POST /auth/refresh-token
-    Body: { "refreshToken": "..." }
-    Validates refresh token and issues a new pair of access/refresh tokens.
+    Accepts refreshToken from HTTP-Only cookie OR request body { "refreshToken": "..." }
+    Validates refresh token and issues a new pair of access/refresh tokens with active Redis session.
     """
     permission_classes = [AllowAny]
 
     def post(self, request):
-        refresh_token = (request.data.get("refreshToken") or "").strip()
+        refresh_token = (
+            request.COOKIES.get("refresh_token")
+            or request.data.get("refreshToken")
+            or ""
+        ).strip()
         if not refresh_token:
             return Response({"message": "Refresh token is required."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -286,6 +378,11 @@ class AdminRefreshTokenView(APIView):
 
         user_id = payload.get("id") or payload.get("sub")
         email = payload.get("email")
+        old_sid = payload.get("sid")
+
+        # Invalidate old session on refresh token rotation
+        if old_sid:
+            RedisService.revoke_admin_session(old_sid)
 
         admin = None
         if user_id:
@@ -294,19 +391,33 @@ class AdminRefreshTokenView(APIView):
             admin = Admin.objects.filter(email__iexact=email).first()
 
         if not admin or admin.status == "BLOCKED":
-            return Response({"message": "Admin session revoked or account suspended."}, status=status.HTTP_403_FORBIDDEN)
+            res = Response({"message": "Admin session revoked or account suspended."}, status=status.HTTP_403_FORBIDDEN)
+            clear_auth_cookies(res)
+            return res
 
-        tokens = AdminAuthService.issue_tokens_for_admin(admin)
-        return Response(tokens, status=status.HTTP_200_OK)
+        tokens = AdminAuthService.issue_tokens_for_admin(admin, request)
+        res = Response(tokens, status=status.HTTP_200_OK)
+        set_auth_cookies(res, tokens["sessionId"], tokens["accessToken"], tokens["refreshToken"])
+        return res
 
 
 class AdminProfileView(BaseAdminView):
     """
     GET /api/user/profile (and /auth/me, /admin/auth/me)
-    Returns the currently authenticated admin's profile data.
+    PATCH /api/user/profile
+    Manages authenticated admin profile.
     """
     def get(self, request):
         user = request.user
+        last_login = None
+        try:
+            r = RedisService.get_client()
+            raw = r.get(f"admin:last_login:{user.email.lower()}")
+            if raw:
+                last_login = json.loads(raw)
+        except Exception:
+            pass
+
         return Response({
             "id": user.id,
             "email": user.email,
@@ -314,17 +425,97 @@ class AdminProfileView(BaseAdminView):
             "name": getattr(user, "userName", "") or getattr(user, "name", "") or getattr(user, "user_name", ""),
             "role": user.role,
             "status": user.status,
+            "sessionId": getattr(request, "session_id", None),
+            "lastLogin": last_login,
+        }, status=status.HTTP_200_OK)
+
+    def patch(self, request):
+        user = request.user
+        admin = Admin.objects.filter(id=user.id).first()
+        if not admin and user.email:
+            admin = Admin.objects.filter(email__iexact=user.email).first()
+        if not admin:
+            return Response({"message": "Admin profile not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        new_name = (request.data.get("name") or request.data.get("userName") or "").strip()
+        if new_name:
+            admin.name = new_name
+            admin.save()
+            sid = getattr(request, "session_id", None)
+            if sid:
+                RedisService.update_session_user_name(sid, new_name)
+
+        return Response({
+            "id": admin.id,
+            "email": admin.email,
+            "userName": admin.name or "",
+            "name": admin.name or "",
+            "role": admin.role,
+            "status": admin.status,
+            "message": "Profile updated successfully.",
         }, status=status.HTTP_200_OK)
 
 
 class AdminLogoutView(APIView):
     """
     POST /auth/logout
+    Instantly revokes Redis session and clears HTTP-only authentication cookies.
     """
     permission_classes = [AllowAny]
 
     def post(self, request):
-        return Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
+        session_id = request.COOKIES.get("admin_session") or getattr(request, "session_id", None)
+        if not session_id:
+            auth_header = request.headers.get("Authorization")
+            if auth_header and "bearer " in auth_header.lower():
+                token = auth_header.split()[1]
+                try:
+                    payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"], options={"verify_signature": False})
+                    session_id = payload.get("sid")
+                except Exception:
+                    pass
+
+        if session_id:
+            RedisService.revoke_admin_session(session_id)
+
+        res = Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
+        clear_auth_cookies(res)
+        return res
+
+
+class AdminSessionsListView(BaseAdminView):
+    """
+    GET /admin/auth/sessions
+    Returns all active Redis sessions for the current administrator.
+    """
+    def get(self, request):
+        user = request.user
+        current_sid = getattr(request, "session_id", None) or request.COOKIES.get("admin_session")
+        sessions = RedisService.list_user_sessions(user.email, current_session_id=current_sid)
+        return Response({"sessions": sessions}, status=status.HTTP_200_OK)
+
+
+class AdminSessionRevokeView(BaseAdminView):
+    """
+    DELETE /admin/auth/sessions/<session_id>
+    Revokes a specific session.
+    POST /admin/auth/sessions/revoke-all
+    Revokes all sessions except the current one.
+    """
+    def delete(self, request, session_id):
+        user = request.user
+        sess = RedisService.get_admin_session(session_id)
+        if sess and sess.get("email", "").lower() != user.email.lower() and not getattr(user, "is_super_admin", False):
+            return Response({"error": "Cannot revoke another admin's session"}, status=status.HTTP_403_FORBIDDEN)
+
+        RedisService.revoke_admin_session(session_id)
+        return Response({"message": f"Session {session_id} revoked successfully"}, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        user = request.user
+        current_sid = getattr(request, "session_id", None) or request.COOKIES.get("admin_session")
+        revoked = RedisService.revoke_all_admin_sessions(user.email, except_session_id=current_sid)
+        return Response({"message": f"Revoked {revoked} session(s). Current session preserved."}, status=status.HTTP_200_OK)
 
 
 class GlobalSearchView(BaseAdminView):

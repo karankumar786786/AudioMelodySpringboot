@@ -301,6 +301,211 @@ class RedisService:
         except Exception as e:
             logger.warning("Failed to evict all Redis pagination cache: %s", e)
 
+    # In-memory session fallbacks
+    _MEMORY_SESSIONS: Dict[str, Dict[str, Any]] = {}
+    _MEMORY_USER_SESSIONS: Dict[str, set] = {}
+
+    @classmethod
+    def create_admin_session(
+        cls,
+        admin: Any,
+        ip_address: str = "127.0.0.1",
+        user_agent: str = "Unknown",
+        ttl_seconds: int = 7 * 86400,
+    ) -> str:
+        """
+        Creates a stateful admin session in Redis with 7-day TTL.
+        Returns the unique session_id.
+        """
+        session_id = str(uuid.uuid4())
+        norm_email = admin.email.strip().lower()
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        session_data = {
+            "sessionId": session_id,
+            "userId": admin.id,
+            "email": norm_email,
+            "userName": getattr(admin, "name", None) or getattr(admin, "user_name", "") or norm_email.split("@")[0],
+            "role": admin.role,
+            "status": admin.status,
+            "ipAddress": ip_address,
+            "userAgent": user_agent,
+            "createdAt": now_iso,
+            "lastActivityAt": now_iso,
+            "expiresAt": time.time() + ttl_seconds,
+        }
+
+        try:
+            r = cls.get_client()
+            r.setex(f"admin:session:{session_id}", ttl_seconds, json.dumps(session_data))
+            r.sadd(f"admin:user_sessions:{norm_email}", session_id)
+            # Store last login summary for audit
+            r.set(f"admin:last_login:{norm_email}", json.dumps({"at": now_iso, "ip": ip_address, "ua": user_agent}))
+            logger.info("Created Redis admin session [%s] for %s (%s)", session_id, norm_email, admin.role)
+        except Exception as e:
+            logger.warning("Redis unavailable for session creation, using in-memory: %s", e)
+
+        cls._MEMORY_SESSIONS[session_id] = session_data
+        cls._MEMORY_USER_SESSIONS.setdefault(norm_email, set()).add(session_id)
+        return session_id
+
+    @classmethod
+    def get_admin_session(cls, session_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves active admin session from Redis. Returns None if revoked or expired.
+        """
+        if not session_id:
+            return None
+        try:
+            r = cls.get_client()
+            raw = r.get(f"admin:session:{session_id}")
+            if raw and isinstance(raw, (str, bytes, bytearray)):
+                return json.loads(raw)
+        except Exception as e:
+            logger.debug("Redis error retrieving session: %s", e)
+
+        # Fallback to memory
+        cached = cls._MEMORY_SESSIONS.get(session_id)
+        if cached:
+            if cached.get("expiresAt", 0) > time.time():
+                return cached
+            cls.revoke_admin_session(session_id)
+        return None
+
+    @classmethod
+    def touch_admin_session(cls, session_id: str, sliding_window_ttl: int = 7 * 86400) -> None:
+        """
+        Refreshes the session's lastActivityAt timestamp and resets its TTL in Redis.
+        """
+        if not session_id:
+            return
+        now_iso = datetime.now(timezone.utc).isoformat()
+        try:
+            r = cls.get_client()
+            raw = r.get(f"admin:session:{session_id}")
+            if raw and isinstance(raw, (str, bytes, bytearray)):
+                data = json.loads(raw)
+                data["lastActivityAt"] = now_iso
+                data["expiresAt"] = time.time() + sliding_window_ttl
+                r.setex(f"admin:session:{session_id}", sliding_window_ttl, json.dumps(data))
+                return
+        except Exception:
+            pass
+
+        if session_id in cls._MEMORY_SESSIONS:
+            cls._MEMORY_SESSIONS[session_id]["lastActivityAt"] = now_iso
+            cls._MEMORY_SESSIONS[session_id]["expiresAt"] = time.time() + sliding_window_ttl
+
+    @classmethod
+    def revoke_admin_session(cls, session_id: str) -> bool:
+        """
+        Instantly revokes a specific admin session.
+        """
+        if not session_id:
+            return False
+        email = None
+        try:
+            r = cls.get_client()
+            raw = r.get(f"admin:session:{session_id}")
+            if raw and isinstance(raw, (str, bytes, bytearray)):
+                data = json.loads(raw)
+                email = data.get("email", "").lower()
+                if email:
+                    r.srem(f"admin:user_sessions:{email}", session_id)
+            r.delete(f"admin:session:{session_id}")
+            logger.info("Revoked Redis admin session [%s]", session_id)
+        except Exception as e:
+            logger.warning("Failed to revoke session in Redis: %s", e)
+
+        cached = cls._MEMORY_SESSIONS.pop(session_id, None)
+        if cached and not email:
+            email = cached.get("email", "").lower()
+        if email and email in cls._MEMORY_USER_SESSIONS:
+            cls._MEMORY_USER_SESSIONS[email].discard(session_id)
+        return True
+
+    @classmethod
+    def revoke_all_admin_sessions(cls, email: str, except_session_id: Optional[str] = None) -> int:
+        """
+        Revokes all active sessions for an admin user (e.g. on logout all devices or block).
+        Optionally preserves except_session_id.
+        """
+        norm_email = email.strip().lower()
+        count = 0
+        try:
+            r = cls.get_client()
+            session_ids = r.smembers(f"admin:user_sessions:{norm_email}")
+            for sid in session_ids:
+                sid_str = sid.decode() if isinstance(sid, bytes) else str(sid)
+                if except_session_id and sid_str == except_session_id:
+                    continue
+                r.delete(f"admin:session:{sid_str}")
+                r.srem(f"admin:user_sessions:{norm_email}", sid_str)
+                count += 1
+            if not except_session_id:
+                r.delete(f"admin:user_sessions:{norm_email}")
+        except Exception as e:
+            logger.warning("Failed to revoke all sessions in Redis: %s", e)
+
+        mem_sids = list(cls._MEMORY_USER_SESSIONS.get(norm_email, set()))
+        for sid in mem_sids:
+            if except_session_id and sid == except_session_id:
+                continue
+            cls._MEMORY_SESSIONS.pop(sid, None)
+            cls._MEMORY_USER_SESSIONS[norm_email].discard(sid)
+            count += 1
+        return count
+
+    @classmethod
+    def list_user_sessions(cls, email: str, current_session_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Returns all active sessions for an administrator.
+        """
+        norm_email = email.strip().lower()
+        sessions = []
+        try:
+            r = cls.get_client()
+            session_ids = r.smembers(f"admin:user_sessions:{norm_email}")
+            for sid in session_ids:
+                sid_str = sid.decode() if isinstance(sid, bytes) else str(sid)
+                raw = r.get(f"admin:session:{sid_str}")
+                if raw:
+                    sess = json.loads(raw)
+                    sess["isCurrent"] = bool(current_session_id and sess.get("sessionId") == current_session_id)
+                    sessions.append(sess)
+                else:
+                    r.srem(f"admin:user_sessions:{norm_email}", sid)
+        except Exception:
+            for sid in cls._MEMORY_USER_SESSIONS.get(norm_email, set()):
+                if sid in cls._MEMORY_SESSIONS:
+                    sess = dict(cls._MEMORY_SESSIONS[sid])
+                    sess["isCurrent"] = bool(current_session_id and sess.get("sessionId") == current_session_id)
+                    sessions.append(sess)
+
+        sessions.sort(key=lambda s: s.get("createdAt", ""), reverse=True)
+        return sessions
+
+    @classmethod
+    def update_session_user_name(cls, session_id: str, new_name: str) -> None:
+        """
+        Updates display name in an active session.
+        """
+        if not session_id:
+            return
+        try:
+            r = cls.get_client()
+            raw = r.get(f"admin:session:{session_id}")
+            if raw:
+                data = json.loads(raw)
+                data["userName"] = new_name
+                ttl = r.ttl(f"admin:session:{session_id}")
+                if ttl > 0:
+                    r.setex(f"admin:session:{session_id}", ttl, json.dumps(data))
+        except Exception:
+            pass
+        if session_id in cls._MEMORY_SESSIONS:
+            cls._MEMORY_SESSIONS[session_id]["userName"] = new_name
+
 
 # ==============================================================================
 # 2. S3 Blob Storage Service
@@ -973,6 +1178,8 @@ class AdminAuthService:
         norm_email = email.strip().lower()
         key = f"admin:otp:{norm_email}"
         data["expires_at"] = time.time() + ttl_seconds
+        data.setdefault("failed_attempts", 0)
+        data.setdefault("max_attempts", 5)
         try:
             r = RedisService.get_client()
             r.setex(key, ttl_seconds, json.dumps(data))
@@ -1034,11 +1241,23 @@ class AdminAuthService:
             print(f" [WARN] Could not push OTP to Redis mail queue: {e}")
 
     @classmethod
-    def issue_tokens_for_admin(cls, admin: Admin) -> Dict[str, str]:
+    def issue_tokens_for_admin(cls, admin: Admin, request=None) -> Dict[str, Any]:
+        ip_address = "127.0.0.1"
+        user_agent = "Unknown"
+        if request:
+            xff = request.META.get("HTTP_X_FORWARDED_FOR")
+            if xff:
+                ip_address = xff.split(",")[0].strip()
+            else:
+                ip_address = request.META.get("REMOTE_ADDR", "127.0.0.1")
+            user_agent = request.META.get("HTTP_USER_AGENT", "Unknown")[:255]
+
+        session_id = RedisService.create_admin_session(admin, ip_address, user_agent)
         now = int(time.time())
         payload = {
             "id": admin.id,
             "sub": admin.id,
+            "sid": session_id,
             "email": admin.email,
             "userName": admin.name or admin.email.split("@")[0],
             "name": admin.name or admin.email.split("@")[0],
@@ -1050,6 +1269,7 @@ class AdminAuthService:
         refresh_payload = {
             "id": admin.id,
             "sub": admin.id,
+            "sid": session_id,
             "email": admin.email,
             "userName": admin.name or admin.email.split("@")[0],
             "name": admin.name or admin.email.split("@")[0],
@@ -1061,6 +1281,7 @@ class AdminAuthService:
         access_token = jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
         refresh_token = jwt.encode(refresh_payload, settings.JWT_SECRET, algorithm="HS256")
         return {
+            "sessionId": session_id,
             "accessToken": access_token,
             "refreshToken": refresh_token,
         }

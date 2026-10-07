@@ -32,22 +32,23 @@ function clearAdminSession() {
   localStorage.removeItem("admin_token");
   localStorage.removeItem("admin_refresh_token");
   localStorage.removeItem("admin_user");
+  // Notify backend to revoke session and clear HTTP-only cookies
+  fetch(`${apiBase}/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+  }).catch(() => {});
   // Dispatch event for auth-context to clear React state
   window.dispatchEvent(new Event("admin:session-expired"));
 }
 
 async function refreshAccessToken(): Promise<string | null> {
   const refreshToken = getRefreshToken();
-  if (!refreshToken) {
-    clearAdminSession();
-    return null;
-  }
-
   try {
     const res = await fetch(`${apiBase}/auth/refresh-token`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken }),
+      body: JSON.stringify({ refreshToken: refreshToken || "" }),
+      credentials: "include",
     });
 
     if (!res.ok) {
@@ -83,6 +84,7 @@ export async function adminFetch(
   }
 
   const response = await fetch(url, {
+    credentials: "include",
     ...init,
     headers,
   });
@@ -105,6 +107,7 @@ export async function adminFetch(
       const retryHeaders = new Headers(init?.headers);
       retryHeaders.set("Authorization", `Bearer ${newToken}`);
       return fetch(url, {
+        credentials: "include",
         ...init,
         headers: retryHeaders,
       });
