@@ -6,7 +6,7 @@
  * and automatic token refresh on 401.
  */
 
-const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9090";
+const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
