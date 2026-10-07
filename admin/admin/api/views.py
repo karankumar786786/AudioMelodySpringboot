@@ -743,9 +743,26 @@ class SongListView(BaseAdminView):
         page = int(request.query_params.get("page", 0))
         size = int(request.query_params.get("size", 20))
         search = (request.query_params.get("search") or "").strip()
+        status_param = (request.query_params.get("status") or "").strip()
+        genre_param = (request.query_params.get("genre") or "").strip()
+        lang_param = (request.query_params.get("language") or "").strip()
+        featured_param = request.query_params.get("featured") or request.query_params.get("isFeatured")
         offset = page * size
 
-        qs = Song.objects.filter(status="ACTIVE")
+        qs = Song.objects.all()
+        if status_param and status_param.upper() != "ALL":
+            qs = qs.filter(status=status_param.upper())
+        elif not status_param:
+            qs = qs.filter(status="ACTIVE")
+
+        if genre_param and genre_param.upper() != "ALL":
+            qs = qs.filter(genre__iexact=genre_param)
+        if lang_param and lang_param.upper() != "ALL":
+            qs = qs.filter(language__iexact=lang_param)
+        if featured_param is not None and str(featured_param).strip() != "":
+            is_feat = str(featured_param).lower() in ("true", "1")
+            qs = qs.filter(is_featured=is_feat)
+
         if search:
             qs = qs.filter(
                 Q(title__icontains=search)
@@ -756,7 +773,15 @@ class SongListView(BaseAdminView):
         songs = list(qs.order_by("-created_at")[offset : offset + size])
         meta = PaginationMetadataService.get_metadata("SongsEntity")
 
-        if search:
+        has_filters = bool(
+            search
+            or (genre_param and genre_param.upper() != "ALL")
+            or (lang_param and lang_param.upper() != "ALL")
+            or (featured_param is not None and str(featured_param).strip() != "")
+            or (status_param and status_param.upper() != "ACTIVE")
+        )
+
+        if has_filters:
             total_count = qs.count()
         else:
             total_count = meta.total_count if (meta and meta.total_count > 0) else qs.count()
