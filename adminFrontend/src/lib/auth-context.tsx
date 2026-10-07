@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setToken(savedToken);
 
         // Validate the token against the backend
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:9090";
+        const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
         fetch(`${apiBase}/api/user/profile`, {
           headers: { "Authorization": `Bearer ${savedToken}` },
         }).then(async (res) => {
@@ -192,6 +192,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    fetch(`${apiBase}/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    }).catch(() => {});
     localStorage.removeItem("admin_token");
     localStorage.removeItem("admin_refresh_token");
     localStorage.removeItem("admin_user");

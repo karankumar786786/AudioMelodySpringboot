@@ -5,5 +5,16 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "algoliasearch>=4.47.0",
+    "boto3>=1.43.107",
+    "dj-database-url>=3.1.2",
     "django>=6.1.1",
+    "django-cors-headers>=4.9.0",
+    "djangorestframework>=3.18.1",
+    "gunicorn>=26.2.0",
+    "psycopg2-binary>=2.9.13",
+    "pyjwt>=2.15.1",
+    "python-dotenv>=1.2.4",
+    "recombee-api-client>=6.3.1",
+    "redis>=8.1.0",
 ]

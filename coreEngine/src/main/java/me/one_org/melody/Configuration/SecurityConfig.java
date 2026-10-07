@@ -21,7 +21,6 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import me.one_org.melody.Enums.RoleEnum;
-import me.one_org.melody.Filters.ApiKeyFilter;
 import me.one_org.melody.Filters.JwtFilter;
 import me.one_org.melody.Filters.RateLimitFilter;
 import me.one_org.melody.Security.CustomUserDetailsService;
@@ -34,7 +33,6 @@ import me.one_org.melody.Security.JwtAuthenticationEntryPoint;
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
-    private final ApiKeyFilter apiKeyFilter;
     private final RateLimitFilter rateLimitFilter;
     private final CustomUserDetailsService customUserDetailsService;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
@@ -42,13 +40,11 @@ public class SecurityConfig {
 
     public SecurityConfig(
             JwtFilter jwtFilter,
-            ApiKeyFilter apiKeyFilter,
             RateLimitFilter rateLimitFilter,
             CustomUserDetailsService customUserDetailsService,
             JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
             JwtAccessDeniedHandler jwtAccessDeniedHandler) {
         this.jwtFilter = jwtFilter;
-        this.apiKeyFilter = apiKeyFilter;
         this.rateLimitFilter = rateLimitFilter;
         this.customUserDetailsService = customUserDetailsService;
         this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
@@ -76,16 +72,13 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
                 .requestMatchers("/actuator/**").hasAnyRole(RoleEnum.ADMIN.name(), RoleEnum.SUPER_ADMIN.name())
-                .requestMatchers("/admin/**").hasAnyRole(RoleEnum.ADMIN.name(), RoleEnum.SUPER_ADMIN.name())
-                .requestMatchers("/webhook/**").hasAnyRole("API", RoleEnum.ADMIN.name(), RoleEnum.SUPER_ADMIN.name())
                 .requestMatchers("/api/**", "/app/**").authenticated()
                 .anyRequest().authenticated()
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(apiKeyFilter, JwtFilter.class);
+            .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

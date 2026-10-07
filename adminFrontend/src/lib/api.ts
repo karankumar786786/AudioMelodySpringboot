@@ -1,5 +1,5 @@
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:9090";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export interface Song {
   id: string;
@@ -268,6 +268,7 @@ export const adminClient = {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password: "password" }),
+        credentials: "include",
       });
       if (!res.ok) {
         let msg = "Login failed";
@@ -282,6 +283,7 @@ export const adminClient = {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userName: name, email, password: "password" }),
+        credentials: "include",
       });
       if (!res.ok) {
         let msg = "Registration failed";
@@ -292,7 +294,7 @@ export const adminClient = {
       return { data: { token: data.tempToken } };
     },
     verifyOtp: async (token: string, otp: string, email: string) => {
-      // 1. Verify OTP with the real backend
+      // 1. Verify OTP with the real backend (sets HTTP-only session cookies)
       const verifyRes = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
         method: "POST",
         headers: {
@@ -300,6 +302,7 @@ export const adminClient = {
           "X-TEMP-TOKEN": token,
         },
         body: JSON.stringify({ otp }),
+        credentials: "include",
       });
       if (!verifyRes.ok) {
         let msg = "OTP verification failed";
@@ -307,13 +310,14 @@ export const adminClient = {
         throw new Error(msg);
       }
       const verifyData = await verifyRes.json();
-      const { accessToken, refreshToken } = verifyData;
+      const { accessToken, refreshToken, sessionId } = verifyData;
 
-      // 2. Fetch user profile with the real access token
+      // 2. Fetch user profile with the real access token & session
       const profileRes = await fetch(`${API_BASE_URL}/api/user/profile`, {
         headers: {
           "Authorization": `Bearer ${accessToken}`,
         },
+        credentials: "include",
       });
 
       let user: any = { id: "unknown", email, name: "Admin", role: "admin" };
@@ -324,6 +328,7 @@ export const adminClient = {
           email: profile.email,
           name: profile.userName || profile.name || "Admin",
           role: profile.role || "user",
+          sessionId: profile.sessionId || sessionId,
         };
       }
 
@@ -331,6 +336,7 @@ export const adminClient = {
         data: {
           accessToken,
           refreshToken,
+          sessionId,
           user,
         },
       };
@@ -342,13 +348,13 @@ export const adminClient = {
           "Content-Type": "application/json",
           "X-TEMP-TOKEN": token,
         },
+        credentials: "include",
       });
       if (!res.ok) {
         let msg = "Failed to resend OTP";
         try { const d = await res.json(); msg = d.message || msg; } catch {}
         throw new Error(msg);
       }
-      // resend-otp returns void (200), keep using the same token
       return { data: { token } };
     },
   },

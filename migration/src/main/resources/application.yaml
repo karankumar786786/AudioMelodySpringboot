@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: melody-migration
+
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:coreEngine/.env[.properties]
+      - optional:file:../coreEngine/.env[.properties]
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/melody}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: "0"
+    locations: classpath:db/migration
+    validate-on-migrate: true
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+
+logging:
+  level:
+    org.flywaydb: INFO
+    org.springframework.boot: INFO

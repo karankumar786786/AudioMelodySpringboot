@@ -1,16 +1,5 @@
 spring:
 
-  cloud:
-    openfeign:
-      client:
-        config:
-          default:
-            connectTimeout: 3000
-            readTimeout: 5000
-          audio-processing-api:
-            connectTimeout: 3000
-            readTimeout: 5000
-
   config:
     import:
       - optional:file:.env[.properties]
@@ -31,16 +20,22 @@ spring:
   application:
     name: ${APPLICATION_NAME:melody}
     api-key: ${APPLICATION_API_KEY:default_api_key}
-    admin:
-      id: ${ADMIN_ID:default_admin_id}
-      name: ${ADMIN_NAME:default_admin_name}
-      email: ${ADMIN_EMAIL:admin@melody.com}
 
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/melody}
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
+    # --- Neon scale-to-zero friendly pool ---
+    hikari:
+      minimum-idle: 0                    # no idle connections kept open
+      maximum-pool-size: 5
+      idle-timeout: 60000                # close idle connections after 1 min
+      max-lifetime: 240000
+      keepalive-time: 0                  # no keepalive pings
+      connection-timeout: 30000          # allow time for Neon cold start
+      initialization-fail-timeout: -1    # app can boot even if DB is asleep
+      # do NOT set connection-test-query
 
   data:
     redis:
@@ -48,35 +43,36 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
       mailqueue: ${REDIS_MAIL_QUEUE:mail_queue}
-      audioprocessingqueue: ${REDIS_AUDIO_PROCESSING_QUEUE:audio_processing_queue}
-      deletequeue: ${REDIS_DELETE_QUEUE:delete_event_queue}
-      cancelqueue: ${REDIS_CANCEL_QUEUE:audio_cancel_queue}
       ssl:
         enabled: ${REDIS_SSL_ENABLED:true}
 
   jpa:
+    open-in-view: false                  # don't hold a connection for the whole request
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: update
+      ddl-auto: update                   # consider "none" or "validate" in production
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        temp:
+          use_jdbc_metadata_defaults: false   # skip metadata connection at startup
 
   jackson:
     deserialization:
       fail-on-null-for-primitives: false
       fail-on-unknown-properties: false
 
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
 jwt:
   secret: ${JWT_SECRET:super_secret_jwt_key_that_is_at_least_32_bytes_long_and_very_secure_12345}
+
 server:
   port: ${PORT:8080}
   shutdown: graceful
 
-spring.lifecycle:
-  timeout-per-shutdown-phase: 30s
-
-# Actuator endpoint protection — only expose safe endpoints
+# Actuator: only safe endpoints, and NO database pings
 management:
   endpoints:
     web:
@@ -85,9 +81,21 @@ management:
   endpoint:
     health:
       show-details: when_authorized
+      probes:
+        enabled: true                    # /actuator/health/liveness and /readiness
+      group:
+        liveness:
+          include: livenessState
+        readiness:
+          include: readinessState        # no db check, so Neon can sleep
   health:
+    db:
+      enabled: false                     # main culprit: stops "SELECT 1" every few seconds
     mail:
       enabled: false
+    diskspace:
+      enabled: false
+    # redis check is fine to keep: it hits Redis, not Neon
 
 # OpenAPI / Swagger configuration
 springdoc:
@@ -106,26 +114,3 @@ recombee:
   database-id: ${RECOMBEE_DATABASE_ID:default_recombee_db_id}
   secret-token: ${RECOMBEE_DATABASE_SECRET:default_recombee_token}
   region: ${RECOMBEE_DATABASE_REGION:EU_WEST}
-
-aws:
-  accesskeyid: ${AWS_ACCESS_KEY_ID:default_access_key}
-  secretkey: ${AWS_SECRET_ACCESS_KEY:default_secret_key}
-  region: ${AWS_REGION:ap-south-1}
-  endpoint: ${AWS_ENDPOINT:}
-
-s3:
-  temp-bucket: ${S3_TEMP_BUCKET:melody-temp}
-  production-bucket: ${S3_PRODUCTION_BUCKET:melody-songs}
-  temp-url-validity-min: 30
-
-audio-processing:
-    api:
-      key: ${AUDIO_PROCESSING_API_KEY:${APPLICATION_API_KEY:default_audio_processing_key}}
-      url: ${AUDIO_PROCESSING_URL:http://localhost:5010}
-
-imagekit:
-  public-key: ${IMAGEKIT_PUBLIC_KEY:default_public_key}
-  private-key: ${IMAGEKIT_PRIVATE_KEY:default_private_key}
-  url-endpoint: ${IMAGEKIT_URL_ENDPOINT:https://ik.imagekit.io/default}
-
-
