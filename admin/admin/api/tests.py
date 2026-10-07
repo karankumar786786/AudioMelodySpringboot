@@ -4,10 +4,12 @@ import django
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "admin.settings")
 django.setup()
 
+import io
 import jwt
 import time
 from unittest.mock import patch, MagicMock
 from django.conf import settings
+from django.core.management import call_command
 from django.test import SimpleTestCase
 from rest_framework.test import APIClient
 from .models import Admin, User, Artist, Song, Playlist, Job, DeleteJob
@@ -456,6 +458,29 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
             data = res.json()
             self.assertIn("content", data)
             self.assertIn("paginationMetaData", data)
+
+    def test_sync_metadata_endpoints(self):
+        authed_client = APIClient()
+        token = jwt.encode({"sub": "admin-1", "email": "a@b.com", "role": "SUPER_ADMIN", "exp": time.time() + 3600}, settings.JWT_SECRET, algorithm="HS256")
+        authed_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        fake_res = {"SongsEntity": {"totalCount": 10}}
+        with patch.object(PaginationMetadataService, "sync_all_metadata", return_value=fake_res):
+            res1 = authed_client.post("/admin/jobs/sync-metadata")
+            self.assertEqual(res1.status_code, 200)
+            self.assertEqual(res1.json(), fake_res)
+
+            res2 = authed_client.post("/admin/sync-metadata")
+            self.assertEqual(res2.status_code, 200)
+            self.assertEqual(res2.json(), fake_res)
+
+    def test_sync_pagination_metadata_command(self):
+        fake_res = {"SongsEntity": {"totalCount": 10}}
+        with patch.object(PaginationMetadataService, "sync_all_metadata", return_value=fake_res):
+            out = io.StringIO()
+            call_command("sync_pagination_metadata", stdout=out)
+            self.assertIn("Reconciliation completed successfully", out.getvalue())
+
 
 
 

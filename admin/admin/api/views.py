@@ -715,14 +715,18 @@ class PlaylistAddSongView(BaseAdminView):
             return Response({"error": "songId is required"}, status=status.HTTP_400_BAD_REQUEST)
         song = get_object_or_404(Song, pk=song_id)
 
-        PlaylistSong.objects.get_or_create(playlist=playlist, song=song)
+        _, created = PlaylistSong.objects.get_or_create(playlist=playlist, song=song)
+        if created:
+            PaginationMetadataService.increment_status(f"PlaylistSongs_{pk}", "ACTIVE")
         return Response(PlaylistSerializer(playlist).data, status=status.HTTP_200_OK)
 
 
 class PlaylistRemoveSongView(BaseAdminView):
     def delete(self, request, pk, song_id):
         playlist = get_object_or_404(Playlist, pk=pk)
-        PlaylistSong.objects.filter(playlist=playlist, song_id=song_id).delete()
+        deleted_count, _ = PlaylistSong.objects.filter(playlist=playlist, song_id=song_id).delete()
+        if deleted_count > 0:
+            PaginationMetadataService.decrement_status(f"PlaylistSongs_{pk}", "ACTIVE")
         return Response(PlaylistSerializer(playlist).data, status=status.HTTP_200_OK)
 
 
@@ -902,6 +906,13 @@ class SongDetailView(BaseAdminView):
             song.status = "DELETED"
             song.save()
             PaginationMetadataService.transition_status("SongsEntity", old_status, "DELETED")
+            if song.artist_name:
+                try:
+                    art = Artist.objects.filter(name__iexact=song.artist_name.strip()).first()
+                    if art:
+                        PaginationMetadataService.transition_status(f"ArtistSongs_{art.id}", old_status, "DELETED")
+                except Exception as e:
+                    logger.warning("Failed to update artist song metadata for '%s': %s", song.artist_name, e)
             RedisService.queue_delete_event({
                 "entityType": "SONG",
                 "entityId": song.id,
@@ -1921,6 +1932,13 @@ class WebhookJobFinalizeView(BaseAdminView):
             status="ACTIVE",
         )
         PaginationMetadataService.increment_status("SongsEntity", "ACTIVE")
+        if job.artist_name:
+            try:
+                art = Artist.objects.filter(name__iexact=job.artist_name.strip()).first()
+                if art:
+                    PaginationMetadataService.increment_status(f"ArtistSongs_{art.id}", "ACTIVE")
+            except Exception as e:
+                logger.warning("Failed to update artist song metadata for '%s': %s", job.artist_name, e)
 
         job.status = "COMPLETED"
         job.current_stage = "COMPLETED"
@@ -2067,8 +2085,16 @@ class WebhookDeleteHardDeleteView(BaseAdminView):
             if song:
                 job_id = song.job_id
                 status_val = song.status or "ACTIVE"
+                artist_name = song.artist_name
                 song.delete()
                 PaginationMetadataService.decrement_status("SongsEntity", status_val)
+                if artist_name:
+                    try:
+                        art = Artist.objects.filter(name__iexact=artist_name.strip()).first()
+                        if art:
+                            PaginationMetadataService.decrement_status(f"ArtistSongs_{art.id}", status_val)
+                    except Exception as e:
+                        logger.warning("Failed to update artist song metadata for '%s': %s", artist_name, e)
                 if job_id:
                     assoc_job = Job.objects.filter(id=job_id).first()
                     if assoc_job:
@@ -2083,14 +2109,20 @@ class WebhookDeleteHardDeleteView(BaseAdminView):
             pl = Playlist.objects.filter(id=entity_id).first()
             if pl:
                 status_val = pl.status or "ACTIVE"
+                pl_id = pl.id
                 pl.delete()
                 PaginationMetadataService.decrement_status("PlaylistsEntity", status_val)
+                PaginationMetadata.objects.filter(entity_name=f"PlaylistSongs_{pl_id}").delete()
+                RedisService.evict_pagination_cache(f"PlaylistSongs_{pl_id}")
         elif etype == "ARTIST":
             art = Artist.objects.filter(id=entity_id).first()
             if art:
                 status_val = art.status or "ACTIVE"
+                art_id = art.id
                 art.delete()
                 PaginationMetadataService.decrement_status("ArtistsEntity", status_val)
+                PaginationMetadata.objects.filter(entity_name=f"ArtistSongs_{art_id}").delete()
+                RedisService.evict_pagination_cache(f"ArtistSongs_{art_id}")
 
         if job:
             old_status = job.status

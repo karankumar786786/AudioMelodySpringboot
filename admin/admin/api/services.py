@@ -1,4 +1,3 @@
-import base64
 import hashlib
 import hmac
 import json
@@ -15,6 +14,7 @@ import redis
 import requests
 from django.conf import settings
 from django.db import connection, transaction
+from django.db.models import Q
 
 from .models import (
     Admin,
@@ -23,6 +23,7 @@ from .models import (
     Job,
     PaginationMetadata,
     Playlist,
+    PlaylistSong,
     Song,
     User,
 )
@@ -263,6 +264,42 @@ class RedisService:
         except Exception as e:
             logger.warning("Failed to check blocked user status in Redis: %s", e)
             return False
+
+    @classmethod
+    def evict_pagination_cache(cls, entity_name: str) -> None:
+        """
+        Evicts the Spring Boot / CoreEngine Redis cache entry for the specified pagination metadata entity.
+        Spring Data Redis cache key default format: 'paginationMetaData::<entityName>'
+        """
+        if not entity_name:
+            return
+        try:
+            r = cls.get_client()
+            r.delete(f"paginationMetaData::{entity_name}")
+            logger.info("Evicted Redis pagination cache for '%s'", entity_name)
+        except Exception as e:
+            logger.warning("Failed to evict Redis pagination cache for '%s': %s", entity_name, e)
+
+    @classmethod
+    def evict_all_pagination_cache(cls) -> None:
+        """
+        Evicts all Spring Boot / CoreEngine Redis cache entries for pagination metadata.
+        """
+        try:
+            r = cls.get_client()
+            cursor = 0
+            keys_to_del = []
+            while True:
+                cursor, keys = r.scan(cursor=cursor, match="paginationMetaData::*", count=100)
+                if keys:
+                    keys_to_del.extend(keys)
+                if cursor == 0:
+                    break
+            if keys_to_del:
+                r.delete(*keys_to_del)
+                logger.info("Evicted %d pagination metadata keys from Redis cache", len(keys_to_del))
+        except Exception as e:
+            logger.warning("Failed to evict all Redis pagination cache: %s", e)
 
 
 # ==============================================================================
@@ -673,6 +710,7 @@ class PaginationMetadataService:
             elif st == "DELETED":
                 meta.deleted_count += 1
             meta.save()
+            RedisService.evict_pagination_cache(entity_name)
         except Exception as e:
             logger.warning("Failed to increment status for '%s': %s", entity_name, e)
 
@@ -691,15 +729,25 @@ class PaginationMetadataService:
             elif st == "DELETED":
                 meta.deleted_count = max(0, meta.deleted_count - 1)
             meta.save()
+            RedisService.evict_pagination_cache(entity_name)
         except Exception as e:
             logger.warning("Failed to decrement status for '%s': %s", entity_name, e)
 
     @classmethod
     def transition_status(cls, entity_name: str, old_status: str, new_status: str) -> None:
         try:
+            if (old_status or "").upper() == (new_status or "").upper():
+                return
             meta = PaginationMetadata.objects.filter(entity_name=entity_name).first()
             if not meta:
-                return
+                meta = PaginationMetadata(
+                    id=str(uuid.uuid4()),
+                    entity_name=entity_name,
+                    total_count=0,
+                    active_count=0,
+                    blocked_count=0,
+                    deleted_count=0,
+                )
             old_st = (old_status or "").upper()
             new_st = (new_status or "").upper()
             if old_st == "ACTIVE":
@@ -716,6 +764,7 @@ class PaginationMetadataService:
             elif new_st == "DELETED":
                 meta.deleted_count += 1
             meta.save()
+            RedisService.evict_pagination_cache(entity_name)
         except Exception as e:
             logger.warning("Failed to transition status for '%s': %s", entity_name, e)
 
@@ -725,11 +774,11 @@ class PaginationMetadataService:
 
     @classmethod
     def decrement_job(cls, status: Optional[str]) -> None:
-        cls.decrement_status("JobsEntity", "ACTIVE")
+        cls.decrement_status("JobsEntity", status or "ACTIVE")
 
     @classmethod
     def transition_job(cls, old_status: Optional[str], new_status: str) -> None:
-        pass
+        cls.transition_status("JobsEntity", old_status or "PENDING", new_status)
 
     @classmethod
     def increment_delete_job(cls) -> None:
@@ -737,11 +786,11 @@ class PaginationMetadataService:
 
     @classmethod
     def decrement_delete_job(cls, status: Optional[str]) -> None:
-        cls.decrement_status("DeleteJobsEntity", "ACTIVE")
+        cls.decrement_status("DeleteJobsEntity", status or "ACTIVE")
 
     @classmethod
     def transition_delete_job(cls, old_status: Optional[str], new_status: str) -> None:
-        pass
+        cls.transition_status("DeleteJobsEntity", old_status or "PENDING", new_status)
 
     @classmethod
     def _save_or_update(cls, entity_name: str, total: int, active: int, blocked: int, deleted: int) -> PaginationMetadata:
@@ -761,12 +810,13 @@ class PaginationMetadataService:
                 blocked_count=blocked,
                 deleted_count=deleted,
             )
+        RedisService.evict_pagination_cache(entity_name)
         return meta
 
     @classmethod
     def sync_all_metadata(cls) -> Dict[str, Any]:
         """
-        Reconciles actual DB table counts with pagination_metadata rows.
+        Reconciles actual DB table counts with pagination_metadata rows and flushes Redis cache.
         """
         results = {}
 
@@ -803,8 +853,9 @@ class PaginationMetadataService:
         # 3. ArtistsEntity
         artists_total = Artist.objects.count()
         artists_active = Artist.objects.filter(status="ACTIVE").count()
+        artists_blocked = Artist.objects.filter(status="BLOCKED").count()
         artists_deleted = Artist.objects.filter(status="DELETED").count()
-        a_meta = cls._save_or_update("ArtistsEntity", artists_total, artists_active, 0, artists_deleted)
+        a_meta = cls._save_or_update("ArtistsEntity", artists_total, artists_active, artists_blocked, artists_deleted)
         results["ArtistsEntity"] = {
             "id": a_meta.id,
             "entityName": a_meta.entity_name,
@@ -817,8 +868,9 @@ class PaginationMetadataService:
         # 4. PlaylistsEntity
         playlists_total = Playlist.objects.count()
         playlists_active = Playlist.objects.filter(status="ACTIVE").count()
+        playlists_blocked = Playlist.objects.filter(status="BLOCKED").count()
         playlists_deleted = Playlist.objects.filter(status="DELETED").count()
-        p_meta = cls._save_or_update("PlaylistsEntity", playlists_total, playlists_active, 0, playlists_deleted)
+        p_meta = cls._save_or_update("PlaylistsEntity", playlists_total, playlists_active, playlists_blocked, playlists_deleted)
         results["PlaylistsEntity"] = {
             "id": p_meta.id,
             "entityName": p_meta.entity_name,
@@ -830,7 +882,10 @@ class PaginationMetadataService:
 
         # 5. JobsEntity
         jobs_total = Job.objects.count()
-        j_meta = cls._save_or_update("JobsEntity", jobs_total, jobs_total, 0, 0)
+        jobs_active = Job.objects.filter(status__in=["PENDING", "PROCESSING", "QUEUED"]).count()
+        jobs_failed = Job.objects.filter(status="FAILED").count()
+        jobs_completed = Job.objects.filter(status="COMPLETED").count()
+        j_meta = cls._save_or_update("JobsEntity", jobs_total, jobs_active, jobs_failed, jobs_completed)
         results["JobsEntity"] = {
             "id": j_meta.id,
             "entityName": j_meta.entity_name,
@@ -842,7 +897,10 @@ class PaginationMetadataService:
 
         # 6. DeleteJobsEntity
         del_jobs_total = DeleteJob.objects.count()
-        dj_meta = cls._save_or_update("DeleteJobsEntity", del_jobs_total, del_jobs_total, 0, 0)
+        del_jobs_active = DeleteJob.objects.filter(status__in=["PENDING", "IN_PROGRESS"]).count()
+        del_jobs_failed = DeleteJob.objects.filter(status="FAILED").count()
+        del_jobs_completed = DeleteJob.objects.filter(status="COMPLETED").count()
+        dj_meta = cls._save_or_update("DeleteJobsEntity", del_jobs_total, del_jobs_active, del_jobs_failed, del_jobs_completed)
         results["DeleteJobsEntity"] = {
             "id": dj_meta.id,
             "entityName": dj_meta.entity_name,
@@ -852,7 +910,25 @@ class PaginationMetadataService:
             "deletedCount": dj_meta.deleted_count,
         }
 
+        # 7. Reconcile PlaylistSongs metadata for all playlists
+        for pl in Playlist.objects.all():
+            count = PlaylistSong.objects.filter(playlist=pl).count()
+            cls._save_or_update(f"PlaylistSongs_{pl.id}", count, count, 0, 0)
+
+        # 8. Reconcile ArtistSongs metadata for all artists
+        for art in Artist.objects.all():
+            count = Song.objects.filter(
+                Q(artist_name__iexact=art.name) | Q(artist_name__icontains=art.name),
+                status="ACTIVE",
+            ).count()
+            cls._save_or_update(f"ArtistSongs_{art.id}", count, count, 0, 0)
+
+        # Evict all Spring Boot / CoreEngine Redis cache entries
+        RedisService.evict_all_pagination_cache()
+
+        logger.info("Pagination metadata reconciliation complete: %s", results)
         return results
+
 
 
 # ==============================================================================
