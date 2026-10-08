@@ -97,15 +97,13 @@ public class UserPlaylistApiService {
         userPlaylistsRepository.save(playlist);
         paginationMetaDataService.incrementStatus("UserPlaylists_" + userId, playlist.getStatus());
 
-        // If public, index in Algolia search via virtual thread
+        // If public, index in Algolia search
         if (playlist.getPrivacy() == PlaylistPrivacyEnum.PUBLIC) {
-            Thread.startVirtualThread(() -> {
-                try {
-                    algoliaSearch.save(playlist);
-                } catch (Exception e) {
-                    log.warn("Failed to index public user playlist in Algolia: {}", e.getMessage());
-                }
-            });
+            try {
+                algoliaSearch.save(playlist);
+            } catch (Exception e) {
+                log.warn("Failed to index public user playlist in Algolia: {}", e.getMessage());
+            }
         }
 
         return playlist;
@@ -117,15 +115,13 @@ public class UserPlaylistApiService {
         playlist.setName(name);
         userPlaylistsRepository.save(playlist);
 
-        // If public, update in Algolia via virtual thread
+        // If public, update in Algolia
         if (playlist.getPrivacy() == PlaylistPrivacyEnum.PUBLIC) {
-            Thread.startVirtualThread(() -> {
-                try {
-                    algoliaSearch.save(playlist);
-                } catch (Exception e) {
-                    log.warn("Failed to update public user playlist in Algolia: {}", e.getMessage());
-                }
-            });
+            try {
+                algoliaSearch.save(playlist);
+            } catch (Exception e) {
+                log.warn("Failed to update public user playlist in Algolia: {}", e.getMessage());
+            }
         }
 
         return playlist;
@@ -142,17 +138,15 @@ public class UserPlaylistApiService {
         userPlaylistsRepository.save(playlist);
 
         // Algolia & Followers Sync:
-        // If public -> index in Algolia via virtual thread.
+        // If public -> index in Algolia.
         // If private or share by link -> delete all follower library references AND delete from Algolia.
         final String pid = playlist.getId();
         if (newPrivacy == PlaylistPrivacyEnum.PUBLIC) {
-            Thread.startVirtualThread(() -> {
-                try {
-                    algoliaSearch.save(playlist);
-                } catch (Exception e) {
-                    log.warn("Failed to index public user playlist in Algolia: {}", e.getMessage());
-                }
-            });
+            try {
+                algoliaSearch.save(playlist);
+            } catch (Exception e) {
+                log.warn("Failed to index public user playlist in Algolia: {}", e.getMessage());
+            }
         } else {
             // Revoke followers: delete saved references from all other users' libraries
             try {
@@ -168,14 +162,12 @@ public class UserPlaylistApiService {
                 log.warn("Failed to delete search history for non-public playlist: {}", e.getMessage());
             }
 
-            // Revoke search index: delete from Algolia via virtual thread
-            Thread.startVirtualThread(() -> {
-                try {
-                    algoliaSearch.delete(pid);
-                } catch (Exception e) {
-                    log.warn("Failed to delete revoked user playlist from Algolia: {}", e.getMessage());
-                }
-            });
+            // Revoke search index: delete from Algolia
+            try {
+                algoliaSearch.delete(pid);
+            } catch (Exception e) {
+                log.warn("Failed to delete revoked user playlist from Algolia: {}", e.getMessage());
+            }
         }
 
         return playlist;
@@ -202,15 +194,12 @@ public class UserPlaylistApiService {
         userPlaylistsRepository.deleteById(playlistId);
         paginationMetaDataService.decrementStatus("UserPlaylists_" + userId, playlist.getStatus());
 
-        // Delete from Algolia search index via virtual thread
-        final String pid = playlistId;
-        Thread.startVirtualThread(() -> {
-            try {
-                algoliaSearch.delete(pid);
-            } catch (Exception e) {
-                log.warn("Failed to remove deleted user playlist from Algolia: {}", e.getMessage());
-            }
-        });
+        // Delete from Algolia search index
+        try {
+            algoliaSearch.delete(playlistId);
+        } catch (Exception e) {
+            log.warn("Failed to remove deleted user playlist from Algolia: {}", e.getMessage());
+        }
     }
 
     @Transactional
@@ -225,14 +214,12 @@ public class UserPlaylistApiService {
             playlist.setTotalSongs(playlist.getTotalSongs() + 1);
         }
 
-        // Track in Recombee via virtual thread (decoupled from DB transaction)
-        Thread.startVirtualThread(() -> {
-            try {
-                recombee.trackPlaylistAdd(userId, songId);
-            } catch (Exception e) {
-                log.warn("Failed to track playlist add in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
-            }
-        });
+        // Track in Recombee
+        try {
+            recombee.trackPlaylistAdd(userId, songId);
+        } catch (Exception e) {
+            log.warn("Failed to track playlist add in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
+        }
 
         return playlist;
     }
@@ -367,14 +354,12 @@ public class UserPlaylistApiService {
             playlist.setTotalSongs(Math.max(0, playlist.getTotalSongs() - 1));
         }
 
-        // Track in Recombee via virtual thread (decoupled from DB transaction)
-        Thread.startVirtualThread(() -> {
-            try {
-                recombee.trackPlaylistRemove(userId, songId);
-            } catch (Exception e) {
-                log.warn("Failed to track playlist remove in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
-            }
-        });
+        // Track in Recombee
+        try {
+            recombee.trackPlaylistRemove(userId, songId);
+        } catch (Exception e) {
+            log.warn("Failed to track playlist remove in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
+        }
 
         return playlist;
     }

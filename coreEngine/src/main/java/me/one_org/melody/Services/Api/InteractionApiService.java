@@ -60,105 +60,89 @@ public class InteractionApiService {
                 .build();
         userHistoryRepository.save(history);
 
-        // Track in Recombee via virtual thread (decoupled from DB transaction)
-        Thread.startVirtualThread(() -> {
-            try {
-                recombee.trackPlay(userId, songId, percentage);
-            } catch (Exception e) {
-                log.error("Failed to track play in Recombee: {}", e.getMessage());
-            }
-        });
+        // Track in Recombee
+        try {
+            recombee.trackPlay(userId, songId, percentage);
+        } catch (Exception e) {
+            log.error("Failed to track play in Recombee: {}", e.getMessage());
+        }
         log.info("saved song in history");
     }
 
     public void trackSkip(String userId, String songId) {
-        Thread.startVirtualThread(() -> {
-            try {
-                recombee.trackSkip(userId, songId);
-            } catch (Exception e) {
-                log.error("Failed to track skip in Recombee: {}", e.getMessage());
-            }
-        });
+        try {
+            recombee.trackSkip(userId, songId);
+        } catch (Exception e) {
+            log.error("Failed to track skip in Recombee: {}", e.getMessage());
+        }
     }
 
     public void trackSearchPlay(String userId, String songId) {
-        Thread.startVirtualThread(() -> {
-            try {
-                algoliaSearch.incrementSearchCount(songId);
-            } catch (Exception e) {
-                log.warn("Failed to increment search count in Algolia for song {}: {}", songId, e.getMessage());
-            }
+        try {
+            algoliaSearch.incrementSearchCount(songId);
+        } catch (Exception e) {
+            log.warn("Failed to increment search count in Algolia for song {}: {}", songId, e.getMessage());
+        }
 
-            if (userId != null) {
-                try {
-                    recombee.trackSearchPlay(userId, songId);
-                } catch (Exception e) {
-                    log.error("Failed to track search-play in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
-                }
+        if (userId != null) {
+            try {
+                recombee.trackSearchPlay(userId, songId);
+            } catch (Exception e) {
+                log.error("Failed to track search-play in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
             }
-        });
+        }
     }
 
     public void trackSearchClick(String userId, String type, String entityId) {
-        Thread.startVirtualThread(() -> {
-            try {
-                algoliaSearch.incrementSearchCount(entityId);
-            } catch (Exception e) {
-                log.warn("Failed to increment search count in Algolia for type {} id {}: {}", type, entityId, e.getMessage());
-            }
+        try {
+            algoliaSearch.incrementSearchCount(entityId);
+        } catch (Exception e) {
+            log.warn("Failed to increment search count in Algolia for type {} id {}: {}", type, entityId, e.getMessage());
+        }
 
-            if ("SONG".equalsIgnoreCase(type) && userId != null) {
-                try {
-                    recombee.trackSearchPlay(userId, entityId);
-                } catch (Exception ignored) {
-                }
+        if ("SONG".equalsIgnoreCase(type) && userId != null) {
+            try {
+                recombee.trackSearchPlay(userId, entityId);
+            } catch (Exception ignored) {
             }
-        });
+        }
     }
 
     public void trackQueueAdd(String userId, String songId) {
-        Thread.startVirtualThread(() -> {
-            try {
-                recombee.trackQueueAdd(userId, songId);
-            } catch (Exception e) {
-                log.error("Failed to track queue-add in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
-            }
-        });
+        try {
+            recombee.trackQueueAdd(userId, songId);
+        } catch (Exception e) {
+            log.error("Failed to track queue-add in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
+        }
     }
 
     public void trackQueueRemove(String userId, String songId) {
-        Thread.startVirtualThread(() -> {
-            try {
-                recombee.trackQueueRemove(userId, songId);
-            } catch (Exception e) {
-                log.error("Failed to track queue-remove in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
-            }
-        });
+        try {
+            recombee.trackQueueRemove(userId, songId);
+        } catch (Exception e) {
+            log.error("Failed to track queue-remove in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
+        }
     }
 
     public void trackDislike(String userId, String songId) {
         if (userId != null && songId != null) {
-            Thread.startVirtualThread(() -> {
-                try {
-                    recombee.trackDislike(userId, songId);
-                    log.info("Tracked dislike signal in Recombee for user [{}] song [{}]", userId, songId);
-                } catch (Exception e) {
-                    log.error("Failed to track dislike in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
-                }
-            });
+            try {
+                recombee.trackDislike(userId, songId);
+                log.info("Tracked dislike signal in Recombee for user [{}] song [{}]", userId, songId);
+            } catch (Exception e) {
+                log.error("Failed to track dislike in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
+            }
         }
     }
 
     public void trackShare(String userId, String songId) {
         if (userId != null && songId != null) {
-            Thread.startVirtualThread(() -> {
-                try {
-                    recombee.trackShare(userId, songId);
-                    log.info("Tracked share signal in Recombee for user [{}] song [{}]", userId, songId);
-                } catch (Exception e) {
-                    log.error("Failed to track share in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
-                }
-            });
+            try {
+                recombee.trackShare(userId, songId);
+                log.info("Tracked share signal in Recombee for user [{}] song [{}]", userId, songId);
+            } catch (Exception e) {
+                log.error("Failed to track share in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
+            }
         }
     }
 
@@ -173,13 +157,11 @@ public class InteractionApiService {
             paginationMetaDataService.incrementStatus("UserFavourites_" + userId, null);
         }
 
-        Thread.startVirtualThread(() -> {
-            try {
-                recombee.trackFavouriteAdd(userId, songId);
-            } catch (Exception e) {
-                log.error("Failed to track favourite add in Recombee: {}", e.getMessage());
-            }
-        });
+        try {
+            recombee.trackFavouriteAdd(userId, songId);
+        } catch (Exception e) {
+            log.error("Failed to track favourite add in Recombee: {}", e.getMessage());
+        }
     }
 
     @Transactional
@@ -190,13 +172,11 @@ public class InteractionApiService {
             paginationMetaDataService.decrementStatus("UserFavourites_" + userId, null);
         }
 
-        Thread.startVirtualThread(() -> {
-            try {
-                recombee.trackFavouriteRemove(userId, songId);
-            } catch (Exception e) {
-                log.error("Failed to track favourite remove in Recombee: {}", e.getMessage());
-            }
-        });
+        try {
+            recombee.trackFavouriteRemove(userId, songId);
+        } catch (Exception e) {
+            log.error("Failed to track favourite remove in Recombee: {}", e.getMessage());
+        }
     }
 
     @Transactional(readOnly = true)
