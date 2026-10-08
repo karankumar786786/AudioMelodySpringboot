@@ -253,7 +253,6 @@ public class ArtistApiService {
         return results;
     }
 
-    @Transactional
     public Map<String, Object> completeOnboarding(String userId, List<String> artistIds) {
         if (userId == null || userId.isBlank()) {
             throw new ResourceNotFoundException("User must be authenticated to complete onboarding");
@@ -268,28 +267,43 @@ public class ArtistApiService {
         } catch (Exception ignored) {}
 
         List<String> followedNames = new ArrayList<>();
+        List<String> skippedIds = new ArrayList<>();
 
         for (String idOrName : artistIds) {
-            ArtistsEntity artist = findArtist(idOrName)
-                    .orElseThrow(() -> new ResourceNotFoundException("Artist not found with identifier: " + idOrName));
-            ArtistFollowStatusDto status = followArtist(userId, artist.getId());
-            followedNames.add(status.artistName());
-
-            // Seed positive play interaction signals for artist's top songs in Recombee
             try {
-                List<SongsEntity> topSongs = getArtistSongsPaginated(status.artistId(), 0, 3);
-                for (SongsEntity song : topSongs) {
-                    try {
-                        recombee.trackPlay(userId, song.getId(), 0.95);
-                    } catch (Exception ignored) {}
-                }
-            } catch (Exception ignored) {}
+                ArtistsEntity artist = findArtist(idOrName)
+                        .orElseThrow(() -> new ResourceNotFoundException("Artist not found: " + idOrName));
+
+                ArtistFollowStatusDto status = followArtist(userId, artist.getId());
+                followedNames.add(status.artistName());
+
+                // Seed positive play interaction signals for artist's top songs in Recombee
+                try {
+                    List<SongsEntity> topSongs = getArtistSongsPaginated(status.artistId(), 0, 3);
+                    for (SongsEntity song : topSongs) {
+                        try {
+                            recombee.trackPlay(userId, song.getId(), 0.95);
+                        } catch (Exception ignored) {}
+                    }
+                } catch (Exception ignored) {}
+
+            } catch (Exception e) {
+                log.warn("Skipping artist [{}] during onboarding for user [{}]: {}", idOrName, userId, e.getMessage());
+                skippedIds.add(idOrName);
+            }
+        }
+
+        // Require at least one artist to have been successfully followed
+        if (followedNames.isEmpty()) {
+            throw new BadRequestException(
+                "None of the selected artists could be found. Please search and select valid artists.");
         }
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         response.put("followedCount", followedNames.size());
         response.put("followedArtists", followedNames);
+        response.put("skippedArtists", skippedIds);
         response.put("message", "Cold-start onboarding complete. Recommendation profile seeded.");
         return response;
     }
