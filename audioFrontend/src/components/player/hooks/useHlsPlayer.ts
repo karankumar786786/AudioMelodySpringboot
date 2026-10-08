@@ -66,9 +66,58 @@ export function useHlsPlayer(
           const Hls = HlsModule.default;
 
           if (Hls.isSupported()) {
+            const { audioCache } = await import("@/lib/audio-cache");
+
+            class CachedFragmentLoader extends Hls.DefaultConfig.loader {
+              load(context: any, config: any, callbacks: any) {
+                const url = context.url;
+                audioCache
+                  .getSegment(url)
+                  .then((cached) => {
+                    if (cached) {
+                      const now = performance.now();
+                      const stats = {
+                        trequest: now,
+                        tfirst: now,
+                        tload: now,
+                        loaded: cached.byteLength,
+                        total: cached.byteLength,
+                        bw: 0,
+                      };
+                      callbacks.onSuccess(
+                        { url, data: cached },
+                        stats,
+                        context,
+                        null,
+                      );
+                      return;
+                    }
+
+                    const originalOnSuccess = callbacks.onSuccess;
+                    callbacks.onSuccess = (
+                      response: any,
+                      stats: any,
+                      ctx: any,
+                      networkDetails: any,
+                    ) => {
+                      if (response && response.data instanceof ArrayBuffer) {
+                        audioCache.putSegment(url, response.data);
+                      }
+                      originalOnSuccess(response, stats, ctx, networkDetails);
+                    };
+
+                    super.load(context, config, callbacks);
+                  })
+                  .catch(() => {
+                    super.load(context, config, callbacks);
+                  });
+              }
+            }
+
             hlsInstance = new Hls({
               enableWorker: true,
               lowLatencyMode: false,
+              fLoader: CachedFragmentLoader as any,
               backBufferLength: 90,
               maxBufferLength: 20,
               maxMaxBufferLength: 20,

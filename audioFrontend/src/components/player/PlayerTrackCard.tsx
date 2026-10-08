@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { Music, Play } from "lucide-react";
 import { playerActions } from "@/store/player.store";
 import { type PlayerSong } from "@/lib/player-utils";
@@ -53,7 +54,14 @@ export const PlayerTrackCard: React.FC<PlayerTrackCardProps> = ({
         <p className="text-[11px] sm:text-xs text-zinc-400 truncate hover:underline hover:text-white cursor-pointer mt-0.5 font-normal">
           {currentSong.artistName}
           {currentSong.album && (
-            <span className="text-zinc-400"> • {currentSong.album}</span>
+            <Link
+              href={`/albums/${encodeURIComponent(currentSong.album)}`}
+              onClick={(e) => e.stopPropagation()}
+              className="text-zinc-400 hover:text-white hover:underline transition-colors"
+              title={`View Album: ${currentSong.album}`}
+            >
+              {" "}• {currentSong.album}
+            </Link>
           )}
           {currentSong.genre && (
             <span className="text-zinc-500"> • {currentSong.genre}</span>

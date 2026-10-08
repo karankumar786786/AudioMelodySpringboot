@@ -445,6 +445,8 @@ export function HlsMusicPlayer() {
           setBandGain={webAudio.setBandGain}
           applyPreset={webAudio.applyPreset}
           resetEq={webAudio.resetEq}
+          isNormalizationEnabled={webAudio.isNormalizationEnabled}
+          toggleNormalization={webAudio.toggleNormalization}
         />
       )}
 

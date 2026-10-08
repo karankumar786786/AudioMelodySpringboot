@@ -1,6 +1,7 @@
 "use client";
 
 import { useStore } from "@tanstack/react-store";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Ban,
@@ -391,7 +392,16 @@ export function SongCard({
             title={[song.artistName, song.album, song.genre].filter(Boolean).join(" • ")}
           >
             {song.artistName}
-            {song.album && <span className="text-zinc-400 font-normal"> • {song.album}</span>}
+            {song.album && (
+              <Link
+                href={`/albums/${encodeURIComponent(song.album)}`}
+                onClick={(e) => e.stopPropagation()}
+                className="text-zinc-400 font-normal hover:text-white hover:underline transition-colors"
+                title={`View Album: ${song.album}`}
+              >
+                {" "}• {song.album}
+              </Link>
+            )}
             {song.genre && <span className="text-zinc-500 font-normal"> • {song.genre}</span>}
           </p>
         </div>

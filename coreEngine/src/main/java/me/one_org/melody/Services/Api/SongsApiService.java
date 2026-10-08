@@ -44,4 +44,20 @@ public class SongsApiService {
     public List<SongsEntity> getFeaturedSongs() {
         return songsRepository.findFeatured();
     }
+
+    public List<SongsEntity> getSongsByAlbum(String albumName) {
+        return songsRepository.findByAlbum(albumName);
+    }
+
+    public List<me.one_org.melody.Dto.Controllers.AlbumDto> getAllAlbums() {
+        return songsRepository.findDistinctAlbums().stream()
+                .map(row -> new me.one_org.melody.Dto.Controllers.AlbumDto(
+                        (String) row[0],
+                        (String) row[1],
+                        ((Number) row[2]).longValue(),
+                        (String) row[3],
+                        (String) row[4]
+                ))
+                .toList();
+    }
 }

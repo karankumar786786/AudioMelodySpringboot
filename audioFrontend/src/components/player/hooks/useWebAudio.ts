@@ -15,10 +15,17 @@ export function useWebAudio(
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const filtersRef = useRef<BiquadFilterNode[]>([]);
   const bassBoostRef = useRef<BiquadFilterNode | null>(null);
+  const compressorRef = useRef<DynamicsCompressorNode | null>(null);
   const pannerRef = useRef<StereoPannerNode | null>(null);
   const fadeGainRef = useRef<GainNode | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const isInitializedRef = useRef<boolean>(false);
+
+  const [isNormalizationEnabled, setIsNormalizationEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    const saved = localStorage.getItem("audiomelody_audio_normalization");
+    return saved !== null ? saved === "true" : true;
+  });
 
   const [crossfadeDuration, setCrossfadeDurationState] = useState<number>(() => {
     if (typeof window === "undefined") return 3.0;
@@ -125,8 +132,17 @@ export function useWebAudio(
           }
         }
 
+        // Create Loudness Normalization DynamicsCompressorNode (ReplayGain Equivalent)
+        const compressor = ctx.createDynamicsCompressor();
+        compressor.threshold.setValueAtTime(isNormalizationEnabled ? -24 : 0, ctx.currentTime);
+        compressor.knee.setValueAtTime(30, ctx.currentTime);
+        compressor.ratio.setValueAtTime(isNormalizationEnabled ? 12 : 1, ctx.currentTime);
+        compressor.attack.setValueAtTime(0.003, ctx.currentTime);
+        compressor.release.setValueAtTime(0.25, ctx.currentTime);
+        compressorRef.current = compressor;
+
         if (sourceRef.current) {
-          // Connect: Source -> Filters -> BassBoost -> FadeGain -> Panner -> Analyser -> Destination
+          // Connect: Source -> Filters -> BassBoost -> Compressor -> FadeGain -> Panner -> Analyser -> Destination
           let prevNode: AudioNode = sourceRef.current;
           filters.forEach((filter) => {
             prevNode.connect(filter);
@@ -134,7 +150,8 @@ export function useWebAudio(
           });
 
           prevNode.connect(bassBoost);
-          bassBoost.connect(fadeGain);
+          bassBoost.connect(compressor);
+          compressor.connect(fadeGain);
 
           if (pannerNode) {
             fadeGain.connect(pannerNode);
@@ -196,6 +213,30 @@ export function useWebAudio(
       localStorage.setItem("audiomelody_spatial_audio", String(isSpatialAudioEnabled));
     }
   }, [isSpatialAudioEnabled]);
+
+  // Apply Loudness Normalization (ReplayGain dynamic thresholding)
+  useEffect(() => {
+    if (compressorRef.current && globalAudioCtx) {
+      const now = globalAudioCtx.currentTime;
+      compressorRef.current.threshold.setTargetAtTime(
+        isNormalizationEnabled ? -24 : 0,
+        now,
+        0.05
+      );
+      compressorRef.current.ratio.setTargetAtTime(
+        isNormalizationEnabled ? 12 : 1,
+        now,
+        0.05
+      );
+    }
+    if (typeof window !== "undefined") {
+      localStorage.setItem("audiomelody_audio_normalization", String(isNormalizationEnabled));
+    }
+  }, [isNormalizationEnabled]);
+
+  const toggleNormalization = useCallback(() => {
+    setIsNormalizationEnabled((prev) => !prev);
+  }, []);
 
   const toggleBassBoost = useCallback(() => {
     setIsBassBoostEnabled((prev) => !prev);
@@ -323,6 +364,9 @@ export function useWebAudio(
     toggleBassBoost,
     isSpatialAudioEnabled,
     toggleSpatialAudio,
+    isNormalizationEnabled,
+    toggleNormalization,
+    setIsNormalizationEnabled,
     setBandGain,
     applyPreset,
     resetEq,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { musicApi, UserPlaylist, type PlaylistPrivacy } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
@@ -676,9 +677,18 @@ export default function MyPlaylistPage() {
 
                   {/* Album */}
                   <div className="col-span-2 hidden min-w-0 md:block">
-                    <span className="block truncate text-sm text-zinc-400 transition-colors group-hover:text-zinc-300" title={song.album || undefined}>
-                      {song.album || "—"}
-                    </span>
+                    {song.album ? (
+                      <Link
+                        href={`/albums/${encodeURIComponent(song.album)}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="block truncate text-sm text-zinc-400 hover:text-white hover:underline transition-colors"
+                        title={`View Album: ${song.album}`}
+                      >
+                        {song.album}
+                      </Link>
+                    ) : (
+                      <span className="block truncate text-sm text-zinc-500">—</span>
+                    )}
                   </div>
 
                   {/* Genre */}

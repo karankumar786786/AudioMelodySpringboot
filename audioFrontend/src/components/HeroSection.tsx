@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Disc } from "lucide-react";
 import { type Song } from "../lib/api";
@@ -141,10 +142,15 @@ export function HeroSection({
             {currentSong.album && (
               <>
                 <span className="w-1 h-1 rounded-full bg-zinc-400" />
-                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/10 text-zinc-200 text-[11px] font-medium border border-white/10 max-w-[180px]" title={`Album: ${currentSong.album}`}>
+                <Link
+                  href={`/albums/${encodeURIComponent(currentSong.album)}`}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white text-[11px] font-medium border border-white/10 max-w-[180px] transition-colors cursor-pointer"
+                  title={`View Album: ${currentSong.album}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <Disc size={11} className="text-zinc-400 shrink-0" />
                   <span className="truncate">{currentSong.album}</span>
-                </span>
+                </Link>
               </>
             )}
             <span className="w-1 h-1 rounded-full bg-zinc-400" />

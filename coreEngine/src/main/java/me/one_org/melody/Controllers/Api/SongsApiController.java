@@ -44,4 +44,14 @@ public class SongsApiController {
     public ResponseEntity<SongsEntity> getSongById(@PathVariable String id) {
         return ResponseEntity.ok(songsAppService.getSongById(id));
     }
+
+    @GetMapping("/album/{albumName}")
+    public ResponseEntity<List<SongsEntity>> getSongsByAlbum(@PathVariable String albumName) {
+        return ResponseEntity.ok(songsAppService.getSongsByAlbum(albumName));
+    }
+
+    @GetMapping("/albums")
+    public ResponseEntity<List<me.one_org.melody.Dto.Controllers.AlbumDto>> getAllAlbums() {
+        return ResponseEntity.ok(songsAppService.getAllAlbums());
+    }
 }

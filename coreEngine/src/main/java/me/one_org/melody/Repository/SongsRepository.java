@@ -222,4 +222,23 @@ public class SongsRepository {
             entityManager.remove(song);
         }
     }
+
+    public List<SongsEntity> findByAlbum(String album) {
+        if (album == null || album.trim().isEmpty()) return List.of();
+        return entityManager.createQuery(
+                "SELECT s FROM SongsEntity s WHERE LOWER(s.album) = LOWER(:album) AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt ASC",
+                SongsEntity.class)
+                .setParameter("album", album.trim())
+                .getResultList();
+    }
+
+    public List<Object[]> findDistinctAlbums() {
+        return entityManager.createQuery(
+                "SELECT s.album, s.artistName, COUNT(s), MIN(s.imageKey), MIN(s.genre) " +
+                "FROM SongsEntity s " +
+                "WHERE s.album IS NOT NULL AND TRIM(s.album) != '' AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
+                "GROUP BY s.album, s.artistName " +
+                "ORDER BY s.album ASC", Object[].class)
+                .getResultList();
+    }
 }

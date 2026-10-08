@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import {
@@ -331,10 +332,14 @@ export function RightInfoPanel() {
                   {(currentSong.genre || currentSong.album) && (
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                       {currentSong.album && (
-                        <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-zinc-200 font-semibold truncate max-w-[170px] inline-flex items-center gap-1 shadow-sm" title={`Album: ${currentSong.album}`}>
+                        <Link
+                          href={`/albums/${encodeURIComponent(currentSong.album)}`}
+                          className="text-[10px] px-2.5 py-0.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-zinc-200 font-semibold truncate max-w-[170px] inline-flex items-center gap-1 shadow-sm transition-colors cursor-pointer"
+                          title={`View Album: ${currentSong.album}`}
+                        >
                           <Disc size={11} className="text-zinc-400 shrink-0" />
                           <span className="truncate">{currentSong.album}</span>
-                        </span>
+                        </Link>
                       )}
                       {currentSong.genre && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 border border-primary/30 text-primary font-bold uppercase tracking-wider">
@@ -432,10 +437,14 @@ export function RightInfoPanel() {
                   {(currentSong.genre || currentSong.album) && (
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                       {currentSong.album && (
-                        <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-zinc-200 font-semibold truncate max-w-[170px] inline-flex items-center gap-1 shadow-sm" title={`Album: ${currentSong.album}`}>
+                        <Link
+                          href={`/albums/${encodeURIComponent(currentSong.album)}`}
+                          className="text-[10px] px-2.5 py-0.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-zinc-200 font-semibold truncate max-w-[170px] inline-flex items-center gap-1 shadow-sm transition-colors cursor-pointer"
+                          title={`View Album: ${currentSong.album}`}
+                        >
                           <Disc size={11} className="text-zinc-400 shrink-0" />
                           <span className="truncate">{currentSong.album}</span>
-                        </span>
+                        </Link>
                       )}
                       {currentSong.genre && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 border border-primary/30 text-primary font-bold uppercase tracking-wider">
@@ -537,10 +546,15 @@ export function RightInfoPanel() {
                 </h3>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   {currentSong.album && (
-                    <div className="bg-white/5 border border-white/5 rounded-xl p-2.5 space-y-0.5 col-span-2 sm:col-span-1">
+                    <Link
+                      href={`/albums/${encodeURIComponent(currentSong.album)}`}
+                      className="bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl p-2.5 space-y-0.5 col-span-2 sm:col-span-1 transition-colors cursor-pointer group"
+                    >
                       <p className="text-[10px] uppercase font-semibold text-zinc-500 tracking-wider">Album</p>
-                      <p className="font-semibold text-white truncate" title={currentSong.album}>{currentSong.album}</p>
-                    </div>
+                      <p className="font-semibold text-white group-hover:text-primary transition-colors truncate" title={currentSong.album}>
+                        {currentSong.album}
+                      </p>
+                    </Link>
                   )}
                   {currentSong.genre && (
                     <div className="bg-white/5 border border-white/5 rounded-xl p-2.5 space-y-0.5 col-span-2 sm:col-span-1">

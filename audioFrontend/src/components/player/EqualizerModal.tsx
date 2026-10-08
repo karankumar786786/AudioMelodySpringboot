@@ -1,10 +1,10 @@
-"use client";
-
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sliders, X, RotateCcw, Volume2 } from "lucide-react";
+import { Sliders, X, RotateCcw, Volume2, Sparkles, Database, Trash2 } from "lucide-react";
 import { DEFAULT_BANDS, EQUALIZER_PRESETS } from "@/lib/equalizer-presets";
 import { VisualizerCanvas } from "./VisualizerCanvas";
+import { audioCache } from "@/lib/audio-cache";
+import { toast } from "sonner";
 
 interface EqualizerModalProps {
   isOpen: boolean;
@@ -16,6 +16,8 @@ interface EqualizerModalProps {
   setBandGain: (index: number, value: number) => void;
   applyPreset: (presetId: string) => void;
   resetEq: () => void;
+  isNormalizationEnabled?: boolean;
+  toggleNormalization?: () => void;
 }
 
 export function EqualizerModal({
@@ -28,7 +30,37 @@ export function EqualizerModal({
   setBandGain,
   applyPreset,
   resetEq,
+  isNormalizationEnabled = true,
+  toggleNormalization,
 }: EqualizerModalProps) {
+  const [cacheStats, setCacheStats] = useState<{
+    count: number;
+    totalSizeBytes: number;
+    maxBytes: number;
+  }>({ count: 0, totalSizeBytes: 0, maxBytes: 80 * 1024 * 1024 });
+  const [isClearing, setIsClearing] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      audioCache.getCacheStats().then(setCacheStats);
+    }
+  }, [isOpen]);
+
+  const handleClearCache = async () => {
+    setIsClearing(true);
+    try {
+      await audioCache.clearCache();
+      const updated = await audioCache.getCacheStats();
+      setCacheStats(updated);
+      toast.success("Audio cache cleared", {
+        description: "IndexedDB chunks wiped successfully",
+      });
+    } catch {
+      toast.error("Failed to clear audio cache");
+    } finally {
+      setIsClearing(false);
+    }
+  };
   if (!isOpen) return null;
 
   return (
@@ -84,6 +116,61 @@ export function EqualizerModal({
               isPlaying={isPlaying}
               className="h-32"
             />
+
+            {/* Audio Normalization (ReplayGain) & Audio Cache */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {/* Loudness Normalization */}
+              <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+                <div className="space-y-0.5 pr-2">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles size={13} className="text-primary" />
+                    <span className="text-xs font-bold text-white">Loudness Normalization</span>
+                  </div>
+                  <p className="text-[10.5px] text-zinc-400 leading-tight">
+                    ReplayGain DSP equalizes track volume to eliminate abrupt loudness jumps.
+                  </p>
+                </div>
+                {toggleNormalization && (
+                  <button
+                    type="button"
+                    onClick={toggleNormalization}
+                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                      isNormalizationEnabled ? "bg-primary" : "bg-zinc-700"
+                    }`}
+                    title={isNormalizationEnabled ? "Disable normalization" : "Enable normalization"}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-black shadow ring-0 transition duration-200 ease-in-out ${
+                        isNormalizationEnabled ? "translate-x-4" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                )}
+              </div>
+
+              {/* IndexedDB Offline Chunk Cache */}
+              <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+                <div className="space-y-0.5 pr-2">
+                  <div className="flex items-center gap-1.5">
+                    <Database size={13} className="text-primary" />
+                    <span className="text-xs font-bold text-white">Instant Audio Cache</span>
+                  </div>
+                  <p className="text-[10.5px] text-zinc-400 leading-tight">
+                    {(cacheStats.totalSizeBytes / (1024 * 1024)).toFixed(1)} MB / 80 MB ({cacheStats.count} chunks)
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleClearCache}
+                  disabled={isClearing || cacheStats.count === 0}
+                  className="px-2 py-1 rounded-md text-[11px] font-semibold bg-white/10 hover:bg-red-500/20 hover:text-red-300 text-zinc-300 transition-colors flex items-center gap-1 cursor-pointer disabled:opacity-40"
+                  title="Clear cached audio chunks from IndexedDB"
+                >
+                  <Trash2 size={11} />
+                  <span>Clear</span>
+                </button>
+              </div>
+            </div>
 
             {/* 2. Equalizer Presets */}
             <div className="space-y-2">

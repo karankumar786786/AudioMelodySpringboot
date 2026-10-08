@@ -581,9 +581,18 @@ export default function SharedPlaylistPage() {
 
                   {/* Album */}
                   <div className="col-span-2 hidden min-w-0 md:block">
-                    <span className="block truncate text-sm text-zinc-400 transition-colors group-hover:text-zinc-300" title={song.album || undefined}>
-                      {song.album || "—"}
-                    </span>
+                    {song.album ? (
+                      <Link
+                        href={`/albums/${encodeURIComponent(song.album)}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="block truncate text-sm text-zinc-400 hover:text-white hover:underline transition-colors"
+                        title={`View Album: ${song.album}`}
+                      >
+                        {song.album}
+                      </Link>
+                    ) : (
+                      <span className="block truncate text-sm text-zinc-500">—</span>
+                    )}
                   </div>
 
                   {/* Genre */}

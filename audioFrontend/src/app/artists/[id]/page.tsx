@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
@@ -390,9 +391,18 @@ export default function ArtistPage() {
                   {/* ======================================================== */}
 
                   <div className="col-span-3 hidden min-w-0 md:block">
-                    <span className="block truncate text-sm text-zinc-400 transition-colors group-hover:text-white" title={song.album || undefined}>
-                      {song.album || "—"}
-                    </span>
+                    {song.album ? (
+                      <Link
+                        href={`/albums/${encodeURIComponent(song.album)}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="block truncate text-sm text-zinc-400 hover:text-white hover:underline transition-colors"
+                        title={`View Album: ${song.album}`}
+                      >
+                        {song.album}
+                      </Link>
+                    ) : (
+                      <span className="block truncate text-sm text-zinc-500">—</span>
+                    )}
                   </div>
 
                   {/* ======================================================== */}

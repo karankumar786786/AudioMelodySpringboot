@@ -50,6 +50,14 @@ export interface UserPlaylist {
   updatedAt?: string;
 }
 
+export interface Album {
+  name: string;
+  artistName: string;
+  trackCount: number;
+  imageKey?: string;
+  genre?: string;
+}
+
 export interface Playlist {
   id: string;
   name: string;
@@ -336,6 +344,16 @@ export const musicApi = {
     getSongs: async (id: string, page = 1, size = 20) => {
       const res = await request(`/api/playlists/${id}/songs?page=${page - 1}&size=${size}`);
       return formatPaginated<Song>(res);
+    },
+  },
+  albums: {
+    list: async () => {
+      const res = await request<Album[]>(`/api/songs/albums`);
+      return Array.isArray(res) ? res : [];
+    },
+    getByName: async (name: string) => {
+      const res = await request<Song[]>(`/api/songs/album/${encodeURIComponent(name)}`);
+      return Array.isArray(res) ? res : [];
     },
   },
   users: {
