@@ -367,9 +367,9 @@ export default function MyPlaylistPage() {
       {/* ====================================================================== */}
 
       <section
-        className="relative overflow-hidden px-8 pb-8 pt-24 md:px-10 md:pt-28"
+        className="relative overflow-hidden px-8 pb-8 pt-24 md:px-10 md:pt-28 rounded-2xl mx-2"
         style={{
-          background: `linear-gradient(to bottom, ${backgroundColor} 0%, ${backgroundColor} 35%, rgba(0,0,0,0.92) 100%)`,
+          background: `linear-gradient(to bottom, ${backgroundColor} 0%, ${backgroundColor} 35%, rgba(0,0,0,0.92) 100%) `,
         }}
       >
         {/* Playlist information */}
