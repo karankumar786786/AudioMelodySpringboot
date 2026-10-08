@@ -40,10 +40,12 @@ public class AuthenticationService {
     private final PaginationMetaDataService paginationMetaDataService;
     private final MailQueue mailQueue;
     private final me.one_org.melody.Security.TokenBlacklistService tokenBlacklistService;
+    private final me.one_org.melody.Recommendation.Recombee recombee;
 
     public AuthenticationService(UsersRepository usersRepository, JwtUtil jwtUtil, HmacUtil hmacUtil, OtpUtil otpUtil,
             Redis<OtpDataDto> cache, PaginationMetaDataService paginationMetaDataService, MailQueue mailQueue,
-            me.one_org.melody.Security.TokenBlacklistService tokenBlacklistService) {
+            me.one_org.melody.Security.TokenBlacklistService tokenBlacklistService,
+            me.one_org.melody.Recommendation.Recombee recombee) {
         this.usersRepository = usersRepository;
         this.jwtUtil = jwtUtil;
         this.hmacUtil = hmacUtil;
@@ -52,6 +54,7 @@ public class AuthenticationService {
         this.paginationMetaDataService = paginationMetaDataService;
         this.mailQueue = mailQueue;
         this.tokenBlacklistService = tokenBlacklistService;
+        this.recombee = recombee;
     }
 
     public String register(RegisterRequestDto request) {
@@ -98,6 +101,7 @@ public class AuthenticationService {
 
         Optional<UsersEntity> existingUser = usersRepository.findByEmail(data.email());
         UsersEntity user;
+        boolean isNewUser = existingUser.isEmpty();
         if (existingUser.isPresent()) {
             user = existingUser.get();
         } else {
@@ -108,6 +112,12 @@ public class AuthenticationService {
                     .build();
             usersRepository.save(user);
             paginationMetaDataService.incrementStatus("UsersEntity", user.getStatus());
+            try {
+                recombee.addUser(user.getId());
+                log.info("Registered new user [{}] in Recombee", user.getId());
+            } catch (Exception e) {
+                log.warn("Failed to register new user in Recombee: {}", e.getMessage());
+            }
         }
         cache.delete(email);
 
@@ -119,7 +129,7 @@ public class AuthenticationService {
         );
         String accessToken = jwtUtil.generateToken(payload, 1);
         String refreshToken = jwtUtil.generateToken(payload, 168);
-        return new VerifyOtpResponse(accessToken, refreshToken);
+        return new VerifyOtpResponse(accessToken, refreshToken, isNewUser);
     }
 
     public String resendOtp(String tempToken) {

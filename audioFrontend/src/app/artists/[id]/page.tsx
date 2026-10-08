@@ -234,13 +234,13 @@ export default function ArtistPage() {
   /* -------------------------------------------------------------------------- */
 
   return (
-    <div className="min-h-full pb-24">
+    <div className="min-h-full pb-24 px-2">
       {/* ====================================================================== */}
       {/*                              HERO                                      */}
       {/* ====================================================================== */}
 
       <section
-        className="relative overflow-hidden px-8 pb-8 pt-24 md:px-10 md:pt-28"
+        className="relative overflow-hidden px-8 pb-8 pt-24 md:px-10 md:pt-28 rounded-2xl "
         style={{
           background: `
             linear-gradient(
@@ -253,7 +253,7 @@ export default function ArtistPage() {
         }}
       >
         {/* Subtle dark overlay */}
-        <div className="pointer-events-none absolute inset-0 bg-black/10" />
+        <div className="pointer-events-none absolute inset-0 bg-black/10 " />
 
 
         {/* Artist information */}

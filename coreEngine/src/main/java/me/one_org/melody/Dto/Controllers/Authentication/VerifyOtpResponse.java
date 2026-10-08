@@ -6,6 +6,10 @@ public record VerifyOtpResponse(
     @NotBlank
     String accessToken,
     @NotBlank
-    String refreshToken
+    String refreshToken,
+    Boolean isNewUser
 ) {
+    public VerifyOtpResponse(String accessToken, String refreshToken) {
+        this(accessToken, refreshToken, false);
+    }
 }

@@ -73,4 +73,22 @@ public class ArtistApiController {
             @PathVariable String id) {
         return ResponseEntity.ok(artistAppService.getFollowStatus(userId, id));
     }
+
+    @GetMapping("/onboarding-list")
+    public ResponseEntity<List<ArtistsEntity>> getOnboardingList() {
+        return ResponseEntity.ok(artistAppService.getOnboardingArtists());
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<List<ArtistsEntity>> searchArtists(
+            @RequestParam(name = "q", required = false, defaultValue = "") String query) {
+        return ResponseEntity.ok(artistAppService.searchArtists(query));
+    }
+
+    @PostMapping("/onboarding")
+    public ResponseEntity<java.util.Map<String, Object>> completeOnboarding(
+            @RequestAttribute("userId") String userId,
+            @jakarta.validation.Valid @RequestBody me.one_org.melody.Dto.Controllers.Api.ArtistOnboardingRequestDto request) {
+        return ResponseEntity.ok(artistAppService.completeOnboarding(userId, request.artistIds()));
+    }
 }

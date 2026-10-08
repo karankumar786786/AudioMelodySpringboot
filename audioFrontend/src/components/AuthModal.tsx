@@ -15,8 +15,9 @@ import {
 import { playerStore, playerActions } from "@/store/player.store";
 import { musicApi } from "@/lib/api";
 import { toast } from "sonner";
+import { ArtistOnboardingView } from "./ArtistOnboardingView";
 
-type AuthView = "login" | "register" | "otp";
+type AuthView = "login" | "register" | "otp" | "onboarding";
 
 export function AuthModal() {
   const isAuthModalOpen = useStore(playerStore, (s) => s.isAuthModalOpen);
@@ -145,10 +146,15 @@ export function AuthModal() {
     setLoading(true);
     try {
       const res = await musicApi.auth.verifyOtp(sessionToken, code);
-      const { accessToken, refreshToken, user } = res.data;
+      const { accessToken, refreshToken, user, isNewUser } = res.data;
 
       // Set session in global store
       playerActions.setSystemSession(accessToken, refreshToken, user);
+
+      if (authOrigin === "register" || isNewUser) {
+        setView("onboarding");
+        return;
+      }
 
       toast.success(`Welcome back, ${user.name}!`, {
         description: "You are now logged in.",
@@ -227,12 +233,14 @@ export function AuthModal() {
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-md overflow-hidden rounded-xl border border-[#282828] bg-[#181818] p-8 shadow-2xl"
+          className={`relative w-full overflow-hidden rounded-2xl border border-[#282828] bg-[#121212] shadow-2xl transition-all duration-300 ${
+            view === "onboarding" ? "max-w-3xl p-0" : "max-w-md p-8"
+          }`}
         >
           {/* Close Button */}
           <button
             onClick={() => playerActions.closeAuthModal()}
-            className="absolute top-4 right-4 text-zinc-400 hover:text-white transition-colors"
+            className="absolute top-4 right-4 z-30 text-zinc-400 hover:text-white transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
@@ -467,6 +475,24 @@ export function AuthModal() {
                     )}
                   </button>
                 </form>
+              </motion.div>
+            )}
+
+            {view === "onboarding" && (
+              <motion.div
+                key="onboarding"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.25 }}
+              >
+                <ArtistOnboardingView
+                  userName={name}
+                  onComplete={() => {
+                    playerActions.fetchFavourites();
+                    playerActions.closeAuthModal();
+                  }}
+                />
               </motion.div>
             )}
           </AnimatePresence>

@@ -354,6 +354,21 @@ export const musicApi = {
       const data = await request<ArtistFollowStatus>(`/api/artists/${encodeURIComponent(idOrName)}/follow-status`);
       return { data };
     },
+    getOnboardingList: async () => {
+      const res = await request<Artist[]>("/api/artists/onboarding-list");
+      return { data: res || [] };
+    },
+    search: async (query: string) => {
+      const res = await request<Artist[]>(`/api/artists/search?q=${encodeURIComponent(query)}`);
+      return { data: res || [] };
+    },
+    completeOnboarding: async (artistIds: string[]) => {
+      const data = await request<{ success: boolean; followedCount: number; message: string }>("/api/artists/onboarding", {
+        method: "POST",
+        body: JSON.stringify({ artistIds }),
+      });
+      return { data };
+    },
   },
   playlists: {
     list: async (page = 1, size = 15) => {
@@ -755,6 +770,7 @@ export const musicApi = {
         data: {
           accessToken,
           refreshToken,
+          isNewUser: Boolean(verifyRes?.isNewUser),
           user: {
             ...profile,
             name: profile.userName || "User",

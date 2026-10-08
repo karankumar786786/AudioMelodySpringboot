@@ -1,8 +1,14 @@
 package me.one_org.melody.Services.Api;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -17,6 +23,7 @@ import me.one_org.melody.Entity.ArtistsEntity;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.SongsEntity;
 import me.one_org.melody.Enums.StatusEnum;
+import me.one_org.melody.Exceptions.BadRequestException;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.ArtistFollowEventRepository;
@@ -207,5 +214,120 @@ public class ArtistApiService {
                 .orElse(0L);
 
         return new ArtistFollowStatusDto(artistId, artistName, followersCount, isFollowing);
+    }
+
+    // ── Cold-Start Artist Onboarding ──
+
+    public List<ArtistsEntity> getOnboardingArtists() {
+        List<ArtistsEntity> artists = new ArrayList<>(artistsRepository.findAll());
+        Set<String> existingNames = artists.stream()
+                .map(a -> a.getName().toLowerCase().trim())
+                .collect(Collectors.toSet());
+
+        List<SongsEntity> allSongs = songsRepository.findAll();
+        for (SongsEntity song : allSongs) {
+            String name = song.getArtistName() != null ? song.getArtistName().trim() : "";
+            if (!name.isBlank() && !existingNames.contains(name.toLowerCase())) {
+                ArtistsEntity placeholder = ArtistsEntity.builder()
+                        .id(name)
+                        .name(name)
+                        .coverImageKey(song.getImageKey())
+                        .status(StatusEnum.ACTIVE)
+                        .build();
+                artists.add(placeholder);
+                existingNames.add(name.toLowerCase());
+            }
+        }
+        return artists;
+    }
+
+    public List<ArtistsEntity> searchArtists(String query) {
+        if (query == null || query.isBlank()) {
+            return getOnboardingArtists();
+        }
+        String cleanQuery = query.trim().toLowerCase();
+        Set<String> seenNames = new HashSet<>();
+        List<ArtistsEntity> results = new ArrayList<>();
+
+        // 1. Search DB artists table by name
+        List<ArtistsEntity> fromArtists = artistsRepository.searchByName(cleanQuery, 20);
+        for (ArtistsEntity a : fromArtists) {
+            if (a.getName() != null && seenNames.add(a.getName().trim().toLowerCase())) {
+                results.add(a);
+            }
+        }
+
+        // 2. Search distinct artists from songs table matching query
+        List<SongsEntity> matchingSongs = songsRepository.findAllPaginated(0, 50, cleanQuery);
+        for (SongsEntity song : matchingSongs) {
+            String artistName = song.getArtistName() != null ? song.getArtistName().trim() : "";
+            if (!artistName.isBlank() && artistName.toLowerCase().contains(cleanQuery) && seenNames.add(artistName.toLowerCase())) {
+                results.add(ArtistsEntity.builder()
+                        .id(artistName)
+                        .name(artistName)
+                        .coverImageKey(song.getImageKey())
+                        .status(StatusEnum.ACTIVE)
+                        .build());
+            }
+        }
+
+        // 3. Search Algolia for artists
+        try {
+            var algoliaRes = algoliaSearch.search(cleanQuery);
+            List<String> algoliaArtistIds = algoliaRes.artists().stream().map(a -> a.id()).toList();
+            if (!algoliaArtistIds.isEmpty()) {
+                List<ArtistsEntity> algoliaArtists = artistsRepository.findAllByIds(algoliaArtistIds);
+                for (ArtistsEntity a : algoliaArtists) {
+                    if (a.getName() != null && seenNames.add(a.getName().trim().toLowerCase())) {
+                        results.add(a);
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+
+        return results;
+    }
+
+    @Transactional
+    public Map<String, Object> completeOnboarding(String userId, List<String> artistIds) {
+        if (userId == null || userId.isBlank()) {
+            throw new ResourceNotFoundException("User must be authenticated to complete onboarding");
+        }
+        if (artistIds == null || artistIds.isEmpty()) {
+            throw new BadRequestException("Please select artists for onboarding");
+        }
+
+        // Ensure user is provisioned in Recombee
+        try {
+            recombee.addUser(userId);
+        } catch (Exception ignored) {}
+
+        List<String> followedNames = new ArrayList<>();
+
+        for (String idOrName : artistIds) {
+            try {
+                ArtistFollowStatusDto status = followArtist(userId, idOrName);
+                followedNames.add(status.artistName());
+
+                // Seed positive play interaction signals for artist's top songs in Recombee
+                try {
+                    List<SongsEntity> topSongs = getArtistSongsPaginated(status.artistId(), 0, 3);
+                    for (SongsEntity song : topSongs) {
+                        try {
+                            recombee.trackPlay(userId, song.getId(), 0.95);
+                        } catch (Exception ignored) {}
+                    }
+                } catch (Exception ignored) {}
+            } catch (Exception e) {
+                log.error("Failed to follow artist during onboarding for user [{}]: {}", userId, e.getMessage());
+            }
+        }
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("followedCount", followedNames.size());
+        response.put("followedArtists", followedNames);
+        response.put("message", "Cold-start onboarding complete. Recommendation profile seeded.");
+        return response;
     }
 }

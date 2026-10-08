@@ -38,6 +38,15 @@ public class ArtistsRepository {
         return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
     }
 
+    public List<ArtistsEntity> searchByName(String query, int limit) {
+        if (query == null || query.isBlank()) return List.of();
+        return entityManager.createQuery(
+                "SELECT a FROM ArtistsEntity a WHERE LOWER(a.name) LIKE LOWER(:query) ORDER BY a.name ASC", ArtistsEntity.class)
+                .setParameter("query", "%" + query.trim() + "%")
+                .setMaxResults(limit)
+                .getResultList();
+    }
+
     public List<ArtistsEntity> findAll() {
         return entityManager.createQuery("SELECT a FROM ArtistsEntity a", ArtistsEntity.class)
                 .getResultList();

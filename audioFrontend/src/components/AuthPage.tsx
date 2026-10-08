@@ -15,6 +15,7 @@ import {
 import { playerStore, playerActions } from "@/store/player.store";
 import { musicApi } from "@/lib/api";
 import { toast } from "sonner";
+import { ArtistOnboardingView } from "./ArtistOnboardingView";
 
 interface AuthPageProps {
   initialMode?: "login" | "signup";
@@ -24,7 +25,7 @@ export function AuthPage({ initialMode = "signup" }: AuthPageProps) {
   const router = useRouter();
   const systemUser = useStore(playerStore, (s) => s.systemUser);
 
-  const [view, setView] = useState<"login" | "register" | "otp">(
+  const [view, setView] = useState<"login" | "register" | "otp" | "onboarding">(
     initialMode === "login" ? "login" : "register"
   );
   const [authOrigin, setAuthOrigin] = useState<"login" | "register">(
@@ -153,10 +154,15 @@ export function AuthPage({ initialMode = "signup" }: AuthPageProps) {
     setLoading(true);
     try {
       const res = await musicApi.auth.verifyOtp(sessionToken, code);
-      const { accessToken, refreshToken, user } = res.data;
+      const { accessToken, refreshToken, user, isNewUser } = res.data;
 
       // Set session in global store and storage
       playerActions.setSystemSession(accessToken, refreshToken, user);
+
+      if (authOrigin === "register" || isNewUser) {
+        setView("onboarding");
+        return;
+      }
 
       toast.success(`Welcome to One Melody, ${user.name}!`, {
         description: "You are now logged in.",
@@ -241,8 +247,8 @@ export function AuthPage({ initialMode = "signup" }: AuthPageProps) {
     }
   };
 
-  // If already authenticated, show nothing while router replaces with /home
-  if (systemUser) {
+  // If already authenticated, show nothing while router replaces with /home (unless completing onboarding)
+  if (systemUser && view !== "onboarding") {
     return null;
   }
 
@@ -263,11 +269,11 @@ export function AuthPage({ initialMode = "signup" }: AuthPageProps) {
       </div>
 
       {/* Main Form Container matching App Theme with smooth layout resizing */}
-      <main className="w-full max-w-[420px] my-auto pt-16 pb-8">
+      <main className={`w-full my-auto pt-16 pb-8 transition-all duration-300 ${view === "onboarding" ? "max-w-3xl" : "max-w-[420px]"}`}>
         <motion.div
           layout
           transition={{ duration: 0.25, ease: "easeInOut" }}
-          className="rounded-xl border border-[#282828] bg-[#181818] p-7 sm:p-8 shadow-2xl"
+          className={`rounded-2xl border border-[#282828] bg-[#121212] shadow-2xl ${view === "onboarding" ? "p-0 overflow-hidden" : "p-7 sm:p-8"}`}
         >
           {/* View Switcher Tabs (Only if not in OTP step) */}
           {view !== "otp" && (
@@ -540,6 +546,24 @@ export function AuthPage({ initialMode = "signup" }: AuthPageProps) {
                     )}
                   </button>
                 </form>
+              </motion.div>
+            )}
+
+            {view === "onboarding" && (
+              <motion.div
+                key="onboarding-view"
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.25 }}
+              >
+                <ArtistOnboardingView
+                  userName={name}
+                  onComplete={() => {
+                    playerActions.fetchFavourites();
+                    router.replace("/home");
+                  }}
+                />
               </motion.div>
             )}
           </AnimatePresence>
