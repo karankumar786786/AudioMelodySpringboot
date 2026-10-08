@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -22,7 +21,6 @@ import me.one_org.melody.Entity.ArtistMetadataEntity;
 import me.one_org.melody.Entity.ArtistsEntity;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.SongsEntity;
-import me.one_org.melody.Enums.StatusEnum;
 import me.one_org.melody.Exceptions.BadRequestException;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Recommendation.Recombee;
@@ -119,25 +117,6 @@ public class ArtistApiService {
         return artistsRepository.findByNameIgnoreCase(artistIdOrName);
     }
 
-    public ArtistsEntity resolveOrCreateArtist(String artistIdOrName) {
-        if (artistIdOrName == null || artistIdOrName.isBlank()) {
-            throw new ResourceNotFoundException("Artist identifier cannot be empty");
-        }
-        Optional<ArtistsEntity> existing = findArtist(artistIdOrName);
-        if (existing.isPresent()) {
-            return existing.get();
-        }
-
-        // Auto-provision artist entity when explicitly needed (e.g. onboarding)
-        ArtistsEntity newArtist = ArtistsEntity.builder()
-                .id(UUID.randomUUID().toString())
-                .name(artistIdOrName.trim())
-                .status(StatusEnum.ACTIVE)
-                .build();
-        artistsRepository.save(newArtist);
-        return newArtist;
-    }
-
     @Transactional
     public ArtistFollowStatusDto followArtist(String userId, String artistIdOrName) {
         if (userId == null || userId.isBlank()) {
@@ -185,7 +164,7 @@ public class ArtistApiService {
         }
         Optional<ArtistsEntity> artistOpt = findArtist(artistIdOrName);
         if (artistOpt.isEmpty()) {
-            return new ArtistFollowStatusDto(artistIdOrName, artistIdOrName, 0L, false);
+            throw new ResourceNotFoundException("Artist not found with identifier: " + artistIdOrName);
         }
         ArtistsEntity artist = artistOpt.get();
         String artistId = artist.getId();
@@ -238,26 +217,7 @@ public class ArtistApiService {
     // ── Cold-Start Artist Onboarding ──
 
     public List<ArtistsEntity> getOnboardingArtists() {
-        List<ArtistsEntity> artists = new ArrayList<>(artistsRepository.findAll());
-        Set<String> existingNames = artists.stream()
-                .map(a -> a.getName().toLowerCase().trim())
-                .collect(Collectors.toSet());
-
-        List<SongsEntity> allSongs = songsRepository.findAll();
-        for (SongsEntity song : allSongs) {
-            String name = song.getArtistName() != null ? song.getArtistName().trim() : "";
-            if (!name.isBlank() && !existingNames.contains(name.toLowerCase())) {
-                ArtistsEntity placeholder = ArtistsEntity.builder()
-                        .id(name)
-                        .name(name)
-                        .coverImageKey(song.getImageKey())
-                        .status(StatusEnum.ACTIVE)
-                        .build();
-                artists.add(placeholder);
-                existingNames.add(name.toLowerCase());
-            }
-        }
-        return artists;
+        return artistsRepository.findAll();
     }
 
     public List<ArtistsEntity> searchArtists(String query) {
@@ -276,21 +236,7 @@ public class ArtistApiService {
             }
         }
 
-        // 2. Search distinct artists from songs table matching query
-        List<SongsEntity> matchingSongs = songsRepository.findAllPaginated(0, 50, cleanQuery);
-        for (SongsEntity song : matchingSongs) {
-            String artistName = song.getArtistName() != null ? song.getArtistName().trim() : "";
-            if (!artistName.isBlank() && artistName.toLowerCase().contains(cleanQuery) && seenNames.add(artistName.toLowerCase())) {
-                results.add(ArtistsEntity.builder()
-                        .id(artistName)
-                        .name(artistName)
-                        .coverImageKey(song.getImageKey())
-                        .status(StatusEnum.ACTIVE)
-                        .build());
-            }
-        }
-
-        // 3. Search Algolia for artists
+        // 2. Search Algolia for artists
         try {
             var algoliaRes = algoliaSearch.search(cleanQuery);
             List<String> algoliaArtistIds = algoliaRes.artists().stream().map(a -> a.id()).toList();
@@ -324,23 +270,20 @@ public class ArtistApiService {
         List<String> followedNames = new ArrayList<>();
 
         for (String idOrName : artistIds) {
-            try {
-                ArtistsEntity artist = resolveOrCreateArtist(idOrName);
-                ArtistFollowStatusDto status = followArtist(userId, artist.getId());
-                followedNames.add(status.artistName());
+            ArtistsEntity artist = findArtist(idOrName)
+                    .orElseThrow(() -> new ResourceNotFoundException("Artist not found with identifier: " + idOrName));
+            ArtistFollowStatusDto status = followArtist(userId, artist.getId());
+            followedNames.add(status.artistName());
 
-                // Seed positive play interaction signals for artist's top songs in Recombee
-                try {
-                    List<SongsEntity> topSongs = getArtistSongsPaginated(status.artistId(), 0, 3);
-                    for (SongsEntity song : topSongs) {
-                        try {
-                            recombee.trackPlay(userId, song.getId(), 0.95);
-                        } catch (Exception ignored) {}
-                    }
-                } catch (Exception ignored) {}
-            } catch (Exception e) {
-                log.error("Failed to follow artist during onboarding for user [{}]: {}", userId, e.getMessage());
-            }
+            // Seed positive play interaction signals for artist's top songs in Recombee
+            try {
+                List<SongsEntity> topSongs = getArtistSongsPaginated(status.artistId(), 0, 3);
+                for (SongsEntity song : topSongs) {
+                    try {
+                        recombee.trackPlay(userId, song.getId(), 0.95);
+                    } catch (Exception ignored) {}
+                }
+            } catch (Exception ignored) {}
         }
 
         Map<String, Object> response = new HashMap<>();
