@@ -23,6 +23,7 @@ interface Song {
   duration: number;
   language: string;
   genre?: string;
+  album?: string;
   imageKey: string;
   videoKey?: string;
   fullVideoKey?: string;
@@ -84,6 +85,7 @@ function SongsContent() {
     artistName: "",
     language: "Hindi",
     genre: "",
+    album: "",
     lrclibId: "",
     songFile: null as File | null,
     imageFile: null as File | null,
@@ -105,6 +107,7 @@ function SongsContent() {
     artistName: "",
     language: "Hindi",
     genre: "",
+    album: "",
     lrclibId: "",
     previewStartMin: "" as string | number,
     previewStartSec: "" as string | number,
@@ -530,6 +533,7 @@ function SongsContent() {
           previewEndTime: previewEndTime !== null ? previewEndTime : undefined,
           language: formData.language || "Hindi",
           genre: formData.genre.trim() || undefined,
+          album: formData.album.trim() || undefined,
           lrclibId: formData.lrclibId.trim() || "0",
         }),
       });
@@ -542,6 +546,7 @@ function SongsContent() {
           artistName: "",
           language: "Hindi",
           genre: "",
+          album: "",
           lrclibId: "",
           songFile: null,
           imageFile: null,
@@ -605,6 +610,7 @@ function SongsContent() {
       artistName: song.artistName,
       language: song.language || "Hindi",
       genre: song.genre || "",
+      album: song.album || "",
       lrclibId: song.lrclibId || "",
       previewStartMin: startTotal !== null ? Math.floor(startTotal / 60) : "",
       previewStartSec: startTotal !== null ? startTotal % 60 : "",
@@ -849,6 +855,7 @@ function SongsContent() {
           artistName: editFormData.artistName,
           language: editFormData.language,
           genre: editFormData.genre.trim() || undefined,
+          album: editFormData.album.trim() || undefined,
           lrclibId: editFormData.lrclibId.trim() || "0",
           previewStartTime: previewStartTime !== null ? previewStartTime : -1,
           previewEndTime: previewEndTime !== null ? previewEndTime : -1,
@@ -895,7 +902,8 @@ function SongsContent() {
   const filtered = songs.filter(
     (s) =>
       s.title.toLowerCase().includes(search.toLowerCase()) ||
-      s.artistName.toLowerCase().includes(search.toLowerCase()),
+      s.artistName.toLowerCase().includes(search.toLowerCase()) ||
+      (s.album && s.album.toLowerCase().includes(search.toLowerCase())),
   );
 
   const featuredCount = songs.filter((s) => s.isFeatured).length;
@@ -951,7 +959,7 @@ function SongsContent() {
         </svg>
         <input
           type="text"
-          placeholder="Search by title or artist..."
+          placeholder="Search by title, artist, or album..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="w-full pl-11 pr-4 py-2.5 bg-[#121212] border border-[#282828] rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-white focus:ring-1 focus:ring-white/20 transition-all"
@@ -1181,6 +1189,7 @@ function SongsContent() {
                 </h3>
                 <p className="text-xs text-zinc-400 truncate">
                   {song.artistName}
+                  {song.album && <span className="text-zinc-500"> • {song.album}</span>}
                 </p>
                 <div className="flex items-center justify-between mt-3 gap-2">
                   <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
@@ -1190,6 +1199,11 @@ function SongsContent() {
                     {song.genre && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary font-bold uppercase tracking-wider shrink-0">
                         {song.genre}
+                      </span>
+                    )}
+                    {song.album && (
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-300 font-semibold truncate max-w-[120px]">
+                        {song.album}
                       </span>
                     )}
                   </div>
@@ -1430,7 +1444,7 @@ function SongsContent() {
                           className={inputCls}
                         />
                       </div>
-                      <div className="col-span-2">
+                      <div className="col-span-2 sm:col-span-1">
                         <label className={labelCls}>Genre</label>
                         <input
                           type="text"
@@ -1441,7 +1455,22 @@ function SongsContent() {
                               genre: e.target.value,
                             })
                           }
-                          placeholder="e.g. Pop, Hip-Hop, Bollywood, Lo-Fi, Acoustic"
+                          placeholder="e.g. Pop, Hip-Hop, Bollywood"
+                          className={inputCls}
+                        />
+                      </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <label className={labelCls}>Album</label>
+                        <input
+                          type="text"
+                          value={formData.album}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              album: e.target.value,
+                            })
+                          }
+                          placeholder="e.g. Aashiqui 2, Thriller"
                           className={inputCls}
                         />
                       </div>
@@ -2079,6 +2108,21 @@ function SongsContent() {
                       })
                     }
                     placeholder="e.g. Pop, Bollywood, Lo-Fi"
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Album</label>
+                  <input
+                    type="text"
+                    value={editFormData.album}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        album: e.target.value,
+                      })
+                    }
+                    placeholder="e.g. Aashiqui 2, Thriller"
                     className={inputCls}
                   />
                 </div>

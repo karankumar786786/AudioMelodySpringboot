@@ -30,6 +30,8 @@ export interface SongData {
   artistName: string;
   duration?: number;
   language?: string;
+  album?: string;
+  genre?: string;
   imageKey?: string;
   videoKey?: string | null;
   fullVideoKey?: string | null;
@@ -57,6 +59,7 @@ export function EditSongModal({
     title: "",
     artistName: "",
     language: "Hindi",
+    album: "",
     lrclibId: "",
     previewStartMin: "" as string | number,
     previewStartSec: "" as string | number,
@@ -107,6 +110,7 @@ export function EditSongModal({
       title: song.title || "",
       artistName: song.artistName || "",
       language: song.language || "Hindi",
+      album: song.album || "",
       lrclibId: song.lrclibId ? String(song.lrclibId) : "",
       previewStartMin: startTotal !== null ? Math.floor(startTotal / 60) : "",
       previewStartSec: startTotal !== null ? startTotal % 60 : "",
@@ -358,6 +362,7 @@ export function EditSongModal({
           title: formData.title,
           artistName: formData.artistName,
           language: formData.language,
+          album: formData.album.trim() || undefined,
           lrclibId: formData.lrclibId.trim() || "0",
           previewStartTime: previewStartTime !== null ? previewStartTime : -1,
           previewEndTime: previewEndTime !== null ? previewEndTime : -1,
@@ -377,6 +382,7 @@ export function EditSongModal({
         title: formData.title,
         artistName: formData.artistName,
         language: formData.language,
+        album: formData.album,
         lrclibId: formData.lrclibId,
         imageKey,
         videoKey: videoKey === "" ? null : (videoKey ?? null),
@@ -539,6 +545,19 @@ export function EditSongModal({
                 }
                 className={inputCls}
                 placeholder="e.g. Hindi, English"
+              />
+            </div>
+
+            <div>
+              <label className={labelCls}>Album</label>
+              <input
+                type="text"
+                value={formData.album}
+                onChange={(e) =>
+                  setFormData({ ...formData, album: e.target.value })
+                }
+                className={inputCls}
+                placeholder="e.g. Aashiqui 2"
               />
             </div>
 

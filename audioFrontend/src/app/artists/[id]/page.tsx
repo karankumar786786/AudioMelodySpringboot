@@ -293,11 +293,13 @@ export default function ArtistPage() {
         <div className="grid grid-cols-12 items-center border-b border-white/10 px-4 pb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
           <div className="col-span-1 text-center">#</div>
 
-          <div className="col-span-7 md:col-span-6">Title</div>
+          <div className="col-span-6 md:col-span-5">Title</div>
 
-          <div className="col-span-3 hidden md:block">Genre</div>
+          <div className="col-span-3 hidden md:block">Album</div>
 
-          <div className="col-span-4 text-right md:col-span-2">
+          <div className="col-span-1 hidden lg:block">Genre</div>
+
+          <div className="col-span-5 text-right md:col-span-3 lg:col-span-2">
             <Clock size={16} className="ml-auto" />
           </div>
         </div>
@@ -359,7 +361,7 @@ export default function ArtistPage() {
                   {/* TITLE */}
                   {/* ======================================================== */}
 
-                  <div className="col-span-7 flex min-w-0 items-center gap-3 md:col-span-6">
+                  <div className="col-span-6 flex min-w-0 items-center gap-3 md:col-span-5">
                     <SongThumbnail
                       song={song}
                       sizeClass="h-11 w-11"
@@ -378,18 +380,28 @@ export default function ArtistPage() {
                       </h4>
 
                       <p className="mt-0.5 truncate text-xs text-zinc-400 md:hidden">
-                        {song.genre || "Single"}
+                        {[song.album, song.genre].filter(Boolean).join(" • ") || "Single"}
                       </p>
                     </div>
+                  </div>
+
+                  {/* ======================================================== */}
+                  {/* ALBUM */}
+                  {/* ======================================================== */}
+
+                  <div className="col-span-3 hidden min-w-0 md:block">
+                    <span className="block truncate text-sm text-zinc-400 transition-colors group-hover:text-white" title={song.album || undefined}>
+                      {song.album || "—"}
+                    </span>
                   </div>
 
                   {/* ======================================================== */}
                   {/* GENRE */}
                   {/* ======================================================== */}
 
-                  <div className="col-span-3 hidden min-w-0 md:block">
+                  <div className="col-span-1 hidden min-w-0 lg:block">
                     <span className="block truncate text-sm text-zinc-400 transition-colors group-hover:text-white">
-                      {song.genre || "Single"}
+                      {song.genre || "—"}
                     </span>
                   </div>
 
@@ -397,7 +409,7 @@ export default function ArtistPage() {
                   {/* DURATION & ACTIONS */}
                   {/* ======================================================== */}
 
-                  <div className="col-span-4 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-2">
+                  <div className="col-span-5 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-3 lg:col-span-2">
                     <span>{formatDuration(song.duration)}</span>
                   </div>
                 </motion.div>

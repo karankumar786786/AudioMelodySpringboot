@@ -41,6 +41,7 @@ public class AlgoliaSearch {
                 .setSearchableAttributes(List.of(
                         "title",
                         "artistName",
+                        "album",
                         "language",
                         "name"))
                 .setCustomRanking(List.of(
@@ -72,6 +73,7 @@ public class AlgoliaSearch {
         record.put("type", "song");
         record.put("title", song.getTitle());
         record.put("artistName", song.getArtistName());
+        record.put("album", song.getAlbum());
         record.put("language", song.getLanguage());
         searchClient.saveObject(indexName, record);
     }
@@ -174,6 +176,7 @@ public class AlgoliaSearch {
             record.put("type", "song");
             record.put("title", song.getTitle());
             record.put("artistName", song.getArtistName());
+            record.put("album", song.getAlbum());
             record.put("language", song.getLanguage());
             records.add(record);
         }

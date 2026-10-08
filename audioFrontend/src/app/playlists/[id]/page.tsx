@@ -231,12 +231,12 @@ export default function PlaylistPage() {
   /* -------------------------------------------------------------------------- */
 
   return (
-    <div className="min-h-full pb-24">
+    <div className="min-h-full pb-24 mx-2">
       {/* ====================================================================== */}
       {/*                    HERO — full-bleed background video / image         */}
       {/* ====================================================================== */}
 
-      <section className="relative h-[45vh] min-h-[360px] max-h-[460px] w-full overflow-hidden">
+      <section className="relative h-[45vh] min-h-[360px] max-h-[460px] w-full overflow-hidden rounded-2xl">
         {/* Background video / image */}
         {videoUrl ? (
           <video
@@ -345,9 +345,11 @@ export default function PlaylistPage() {
         {/* Header */}
         <div className="grid grid-cols-12 items-center border-b border-white/10 px-4 pb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
           <div className="col-span-1 text-center">#</div>
-          <div className="col-span-7 md:col-span-6">Title</div>
-          <div className="col-span-3 hidden md:block">Artist</div>
-          <div className="col-span-4 text-right md:col-span-2">
+          <div className="col-span-6 md:col-span-4 lg:col-span-3">Title</div>
+          <div className="col-span-3 hidden md:block lg:col-span-3">Artist</div>
+          <div className="col-span-2 hidden md:block">Album</div>
+          <div className="col-span-1 hidden xl:block">Genre</div>
+          <div className="col-span-5 text-right md:col-span-2 lg:col-span-3 xl:col-span-2">
             <Clock size={16} className="ml-auto" />
           </div>
         </div>
@@ -387,7 +389,7 @@ export default function PlaylistPage() {
                     {isActive ? (
                       isCurrentPlaying ? (
                         <Pause
-                          size={14}
+                           size={14}
                           className="text-primary"
                           fill="currentColor"
                         />
@@ -413,7 +415,7 @@ export default function PlaylistPage() {
                   </div>
 
                   {/* TITLE */}
-                  <div className="col-span-7 flex min-w-0 items-center gap-3 md:col-span-6">
+                  <div className="col-span-6 flex min-w-0 items-center gap-3 md:col-span-4 lg:col-span-3">
                     <SongThumbnail
                       song={song}
                       sizeClass="h-11 w-11"
@@ -430,21 +432,35 @@ export default function PlaylistPage() {
                       >
                         {song.title}
                       </h4>
-                      <p className="mt-0.5 truncate text-xs text-zinc-400">
-                        {song.artistName}
+                      <p className="mt-0.5 truncate text-xs text-zinc-400 md:hidden">
+                        {[song.artistName, song.album, song.genre].filter(Boolean).join(" • ")}
                       </p>
                     </div>
                   </div>
 
                   {/* ARTIST */}
-                  <div className="col-span-3 hidden min-w-0 md:block">
+                  <div className="col-span-3 hidden min-w-0 md:block lg:col-span-3">
                     <span className="block truncate text-sm text-zinc-400 transition-colors group-hover:text-white">
                       {song.artistName}
                     </span>
                   </div>
 
+                  {/* ALBUM */}
+                  <div className="col-span-2 hidden min-w-0 md:block">
+                    <span className="block truncate text-sm text-zinc-400 transition-colors group-hover:text-zinc-300" title={song.album || undefined}>
+                      {song.album || "—"}
+                    </span>
+                  </div>
+
+                  {/* GENRE */}
+                  <div className="col-span-1 hidden min-w-0 xl:block">
+                    <span className="block truncate text-xs text-zinc-400 transition-colors group-hover:text-zinc-300">
+                      {song.genre || "—"}
+                    </span>
+                  </div>
+
                   {/* DURATION / ACTIONS */}
-                  <div className="col-span-4 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-2">
+                  <div className="col-span-5 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-2 lg:col-span-3 xl:col-span-2">
                     {isUserPlaylist && (
                       <button
                         onClick={(e) => {

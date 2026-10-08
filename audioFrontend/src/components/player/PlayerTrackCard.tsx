@@ -52,6 +52,12 @@ export const PlayerTrackCard: React.FC<PlayerTrackCardProps> = ({
         </h4>
         <p className="text-[11px] sm:text-xs text-zinc-400 truncate hover:underline hover:text-white cursor-pointer mt-0.5 font-normal">
           {currentSong.artistName}
+          {currentSong.album && (
+            <span className="text-zinc-400"> • {currentSong.album}</span>
+          )}
+          {currentSong.genre && (
+            <span className="text-zinc-500"> • {currentSong.genre}</span>
+          )}
         </p>
       </div>
     </div>

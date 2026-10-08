@@ -53,7 +53,7 @@ public class SongsRepository {
             return findAllPaginated(page, size);
         }
         return entityManager.createQuery(
-                "SELECT s FROM SongsEntity s WHERE LOWER(s.title) LIKE LOWER(:search) OR LOWER(s.artistName) LIKE LOWER(:search) ORDER BY s.createdAt DESC",
+                "SELECT s FROM SongsEntity s WHERE LOWER(s.title) LIKE LOWER(:search) OR LOWER(s.artistName) LIKE LOWER(:search) OR LOWER(s.album) LIKE LOWER(:search) ORDER BY s.createdAt DESC",
                 SongsEntity.class)
                 .setParameter("search", "%" + search.trim() + "%")
                 .setFirstResult(page * size)
@@ -66,7 +66,7 @@ public class SongsRepository {
             return entityManager.createQuery("SELECT COUNT(s) FROM SongsEntity s", Long.class).getSingleResult();
         }
         return entityManager.createQuery(
-                "SELECT COUNT(s) FROM SongsEntity s WHERE LOWER(s.title) LIKE LOWER(:search) OR LOWER(s.artistName) LIKE LOWER(:search)",
+                "SELECT COUNT(s) FROM SongsEntity s WHERE LOWER(s.title) LIKE LOWER(:search) OR LOWER(s.artistName) LIKE LOWER(:search) OR LOWER(s.album) LIKE LOWER(:search)",
                 Long.class)
                 .setParameter("search", "%" + search.trim() + "%")
                 .getSingleResult();

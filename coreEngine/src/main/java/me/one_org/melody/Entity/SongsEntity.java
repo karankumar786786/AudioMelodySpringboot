@@ -61,6 +61,8 @@ public class SongsEntity implements Serializable{
 
     private String genre;
 
+    private String album;
+
     @Column(nullable = false)
     private String lrclibId;
 

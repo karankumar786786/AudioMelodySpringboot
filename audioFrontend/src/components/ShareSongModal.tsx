@@ -106,10 +106,11 @@ export const ShareSongModal: React.FC<ShareSongModalProps> = ({
         const title = song.title.length > 25 ? song.title.substring(0, 25) + "..." : song.title;
         ctx.fillText(title, 540, 1160);
 
-        // Artist Name
+        // Artist Name & Album
         ctx.fillStyle = "#22c55e";
         ctx.font = "600 40px sans-serif";
-        ctx.fillText(song.artistName, 540, 1240);
+        const artistSub = song.album ? `${song.artistName} • ${song.album}` : song.artistName;
+        ctx.fillText(artistSub, 540, 1240);
 
         // Soundwave simulation bars
         ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
@@ -149,7 +150,7 @@ export const ShareSongModal: React.FC<ShareSongModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+      className="fixed inset-0 z-300 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -176,7 +177,7 @@ export const ShareSongModal: React.FC<ShareSongModalProps> = ({
         {/* 9:16 Visual Story Card Preview */}
         <div
           ref={cardRef}
-          className="w-full aspect-[9/14] rounded-2xl bg-gradient-to-b from-zinc-800 via-zinc-900 to-black p-5 flex flex-col items-center justify-between shadow-xl border border-white/10 relative overflow-hidden"
+          className="w-full aspect-9/14 rounded-2xl bg-linear-to-b from-zinc-800 via-zinc-900 to-black p-5 flex flex-col items-center justify-between shadow-xl border border-white/10 relative overflow-hidden"
         >
           {/* Ambient Glow */}
           <div className="absolute inset-0 bg-primary/10 blur-2xl pointer-events-none" />
@@ -209,6 +210,8 @@ export const ShareSongModal: React.FC<ShareSongModalProps> = ({
             </h4>
             <p className="text-xs font-semibold text-primary truncate px-2">
               {song.artistName}
+              {song.album && <span className="text-zinc-300 font-normal"> • {song.album}</span>}
+              {song.genre && <span className="text-zinc-400 font-normal"> • {song.genre}</span>}
             </p>
           </div>
         </div>

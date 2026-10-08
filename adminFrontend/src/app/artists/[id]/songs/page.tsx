@@ -21,6 +21,7 @@ interface Song {
   songKey: string;
   imageKey: string;
   videoKey?: string;
+  album?: string;
 }
 
 export default function ArtistSongsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -94,7 +95,7 @@ export default function ArtistSongsPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="min-h-screen bg-black">
       {/* Hero Section */}
-      <div className="relative h-[340px] w-full overflow-hidden">
+      <div className="relative h-85 w-full overflow-hidden">
         {artist.coverImageKey ? (
           <img
             src={getImageUrl(artist.coverImageKey, { width: 1200, height: 400, crop: "at_max", focus: "auto" })}
@@ -102,14 +103,14 @@ export default function ArtistSongsPage({ params }: { params: Promise<{ id: stri
             className="w-full h-full object-cover"
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-zinc-900 via-zinc-950 to-black" />
+          <div className="w-full h-full bg-linear-to-br from-zinc-900 via-zinc-950 to-black" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+        <div className="absolute inset-0 bg-linear-to-t from-black via-black/60 to-transparent" />
 
         <div className="absolute bottom-0 left-0 w-full p-8 md:p-12">
           <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-end gap-8">
             {/* Avatar */}
-            <div className="w-36 h-36 rounded-[2rem] border-2 border-[#282828] bg-black/60 overflow-hidden shadow-2xl shrink-0">
+            <div className="w-36 h-36 rounded-4xl border-2 border-[#282828] bg-black/60 overflow-hidden shadow-2xl shrink-0">
               {artist.coverImageKey ? (
                 <img
                   src={getImageUrl(artist.coverImageKey, { width: 300, height: 300, focus: "auto", aspectRatio: "1-1" })}
@@ -171,6 +172,7 @@ export default function ArtistSongsPage({ params }: { params: Promise<{ id: stri
                 <tr className="border-b border-[#282828] bg-black/60">
                   <th className="p-6 text-xs font-black uppercase tracking-widest text-zinc-400">#</th>
                   <th className="p-6 text-xs font-black uppercase tracking-widest text-zinc-400">Track</th>
+                  <th className="p-6 text-xs font-black uppercase tracking-widest text-zinc-400">Album</th>
                   <th className="p-6 text-xs font-black uppercase tracking-widest text-zinc-400">Duration</th>
                   <th className="p-6 text-xs font-black uppercase tracking-widest text-zinc-400">Video Canvas</th>
                 </tr>
@@ -203,6 +205,11 @@ export default function ArtistSongsPage({ params }: { params: Promise<{ id: stri
                           <div className="text-zinc-500 text-xs font-mono mt-0.5">ID: {song.id.slice(0, 8)}...</div>
                         </div>
                       </div>
+                    </td>
+                    <td className="p-6">
+                      <span className="text-zinc-400 text-sm font-medium">
+                        {song.album || "—"}
+                      </span>
                     </td>
                     <td className="p-6">
                       <span className="bg-black/60 border border-[#282828] text-zinc-300 px-3 py-1.5 rounded-full font-mono text-xs">

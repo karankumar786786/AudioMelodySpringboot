@@ -255,6 +255,12 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                     </p>
                     <p className="text-[11px] text-zinc-400 truncate">
                       {currentSong.artistName}
+                      {currentSong.album && (
+                        <span className="text-zinc-400"> • {currentSong.album}</span>
+                      )}
+                      {currentSong.genre && (
+                        <span className="text-zinc-500"> • {currentSong.genre}</span>
+                      )}
                     </p>
                   </div>
                   <span className="text-[11px] font-medium text-zinc-400 tabular-nums shrink-0 pr-1">
@@ -369,6 +375,12 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                           </p>
                           <p className="text-[11px] text-zinc-400 truncate">
                             {song.artistName}
+                            {song.album && (
+                              <span className="text-zinc-400"> • {song.album}</span>
+                            )}
+                            {song.genre && (
+                              <span className="text-zinc-500"> • {song.genre}</span>
+                            )}
                           </p>
                         </div>
 
@@ -484,6 +496,12 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
                         </p>
                         <p className="text-[11px] text-zinc-400 truncate">
                           {song.artistName}
+                          {song.album && (
+                            <span className="text-zinc-400"> • {song.album}</span>
+                          )}
+                          {song.genre && (
+                            <span className="text-zinc-500"> • {song.genre}</span>
+                          )}
                         </p>
                       </div>
 

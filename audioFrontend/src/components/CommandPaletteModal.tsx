@@ -151,7 +151,11 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
               historyId: item.id,
               type: "song" as const,
               title: item.song.title,
-              subtitle: item.song.artistName || "Recent Song",
+              subtitle: [
+                item.song.artistName || "Recent Song",
+                item.song.album,
+                item.song.genre,
+              ].filter(Boolean).join(" • "),
               imageKey: item.song.imageKey,
               data: item.song,
             };
@@ -198,7 +202,11 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
           id: `song-${song.id}`,
           type: "song",
           title: song.title,
-          subtitle: song.artistName || "Track",
+          subtitle: [
+            song.artistName || "Track",
+            song.album,
+            song.genre,
+          ].filter(Boolean).join(" • "),
           imageKey: song.imageKey,
           data: song,
         });

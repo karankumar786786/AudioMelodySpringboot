@@ -474,6 +474,12 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
               </h1>
               <p className="text-xs sm:text-sm font-semibold text-white/50 truncate">
                 {currentSong.artistName}
+                {currentSong.album && (
+                  <span className="text-white/40"> • {currentSong.album}</span>
+                )}
+                {currentSong.genre && (
+                  <span className="text-white/40"> • {currentSong.genre}</span>
+                )}
               </p>
             </div>
           </div>
@@ -519,6 +525,12 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
               </h1>
               <p className="text-base sm:text-lg font-semibold text-white/50 line-clamp-1">
                 {currentSong.artistName}
+                {currentSong.album && (
+                  <span className="text-white/40"> • {currentSong.album}</span>
+                )}
+                {currentSong.genre && (
+                  <span className="text-white/40"> • {currentSong.genre}</span>
+                )}
               </p>
             </div>
           </div>

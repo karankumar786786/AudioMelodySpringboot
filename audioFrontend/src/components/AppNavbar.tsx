@@ -409,7 +409,7 @@ export function AppNavbar() {
                               </p>
                               <p className="text-[11px] text-zinc-400 font-normal truncate">
                                 {isSong
-                                  ? item.song?.artistName || "Song"
+                                  ? [item.song?.artistName || "Song", item.song?.album, item.song?.genre].filter(Boolean).join(" • ")
                                   : isArtist
                                   ? "Artist"
                                   : isPlaylist
@@ -493,6 +493,12 @@ export function AppNavbar() {
                               </p>
                               <p className="text-[11px] text-zinc-400 font-normal truncate">
                                 {song.artistName}
+                                {song.album && (
+                                  <span className="text-zinc-400"> • {song.album}</span>
+                                )}
+                                {song.genre && (
+                                  <span className="text-zinc-500"> • {song.genre}</span>
+                                )}
                               </p>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0 mr-1">

@@ -166,8 +166,13 @@ export function QuickPicksGrid({
                   </span>
                 )}
               </div>
-              <p className="text-[10.5px] sm:text-[11px] text-zinc-400 truncate mt-0.5 font-medium">
+              <p
+                className="text-[10.5px] sm:text-[11px] text-zinc-400 truncate mt-0.5 font-medium"
+                title={[song.artistName || "Unknown Artist", song.album, song.genre].filter(Boolean).join(" • ")}
+              >
                 {song.artistName || "Unknown Artist"}
+                {song.album && <span className="text-zinc-400 font-normal"> • {song.album}</span>}
+                {song.genre && <span className="text-zinc-500 font-normal"> • {song.genre}</span>}
               </p>
             </div>
 

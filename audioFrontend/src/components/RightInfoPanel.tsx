@@ -11,6 +11,7 @@ import {
   Plus,
   ChevronLeft,
   ChevronRight,
+  Disc,
 } from "lucide-react";
 
 import { playerStore, playerActions } from "@/store/player.store";
@@ -327,6 +328,21 @@ export function RightInfoPanel() {
                   <p className="text-xs font-medium text-zinc-300 truncate mt-1 hover:text-white hover:underline cursor-pointer drop-shadow">
                     {currentSong.artistName}
                   </p>
+                  {(currentSong.genre || currentSong.album) && (
+                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                      {currentSong.album && (
+                        <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-zinc-200 font-semibold truncate max-w-[170px] inline-flex items-center gap-1 shadow-sm" title={`Album: ${currentSong.album}`}>
+                          <Disc size={11} className="text-zinc-400 shrink-0" />
+                          <span className="truncate">{currentSong.album}</span>
+                        </span>
+                      )}
+                      {currentSong.genre && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 border border-primary/30 text-primary font-bold uppercase tracking-wider">
+                          {currentSong.genre}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0 pb-0.5">
@@ -413,6 +429,21 @@ export function RightInfoPanel() {
                   <p className="text-xs font-medium text-zinc-400 truncate mt-0.5 hover:text-white hover:underline cursor-pointer">
                     {currentSong.artistName}
                   </p>
+                  {(currentSong.genre || currentSong.album) && (
+                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                      {currentSong.album && (
+                        <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-white/10 border border-white/20 text-zinc-200 font-semibold truncate max-w-[170px] inline-flex items-center gap-1 shadow-sm" title={`Album: ${currentSong.album}`}>
+                          <Disc size={11} className="text-zinc-400 shrink-0" />
+                          <span className="truncate">{currentSong.album}</span>
+                        </span>
+                      )}
+                      {currentSong.genre && (
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 border border-primary/30 text-primary font-bold uppercase tracking-wider">
+                          {currentSong.genre}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
@@ -494,6 +525,32 @@ export function RightInfoPanel() {
                 <p className="text-xs text-zinc-500 py-2 px-1">No other tracks found for this artist.</p>
               )}
             </section>
+
+            {/* ========================================================== */}
+            {/* 2.5. TRACK DETAILS (Album, Genre)                          */}
+            {/* ========================================================== */}
+            {(currentSong.album || currentSong.genre) && (
+              <section className="bg-[#121212] border border-[#222] rounded-2xl overflow-hidden p-4 shadow-xl space-y-3">
+                <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+                  <Disc className="text-primary" size={14} />
+                  <span>Track Details</span>
+                </h3>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {currentSong.album && (
+                    <div className="bg-white/5 border border-white/5 rounded-xl p-2.5 space-y-0.5 col-span-2 sm:col-span-1">
+                      <p className="text-[10px] uppercase font-semibold text-zinc-500 tracking-wider">Album</p>
+                      <p className="font-semibold text-white truncate" title={currentSong.album}>{currentSong.album}</p>
+                    </div>
+                  )}
+                  {currentSong.genre && (
+                    <div className="bg-white/5 border border-white/5 rounded-xl p-2.5 space-y-0.5 col-span-2 sm:col-span-1">
+                      <p className="text-[10px] uppercase font-semibold text-zinc-500 tracking-wider">Genre</p>
+                      <p className="font-semibold text-primary truncate">{currentSong.genre}</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+            )}
 
             {/* ========================================================== */}
             {/* 3. ABOUT THE ARTIST (hydrates in background)               */}

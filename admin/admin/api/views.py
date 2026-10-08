@@ -980,6 +980,7 @@ class SongListView(BaseAdminView):
             qs = qs.filter(
                 Q(title__icontains=search)
                 | Q(artist_name__icontains=search)
+                | Q(album__icontains=search)
                 | Q(language__icontains=search)
             )
 
@@ -1066,6 +1067,7 @@ class SongListView(BaseAdminView):
             language=data.get("language", "English"),
             lrclib_id=data.get("lrclibId", "0"),
             genre=data.get("genre"),
+            album=data.get("album"),
             song_id=song_id,
             transcoding_attempt=0,
             transcoded=False,
@@ -1129,6 +1131,9 @@ class SongDetailView(BaseAdminView):
         if "genre" in data:
             g = str(data["genre"]).strip() if data["genre"] else None
             song.genre = g
+        if "album" in data:
+            alb = str(data["album"]).strip() if data["album"] else None
+            song.album = alb
         if "lrclibId" in data and data["lrclibId"]:
             song.lrclib_id = str(data["lrclibId"])
         if "isFeatured" in data:
@@ -1252,6 +1257,8 @@ class SongReprocessAudioView(BaseAdminView):
             preview_end_time=song.preview_end_time,
             language=song.language,
             lrclib_id=song.lrclib_id or "0",
+            genre=song.genre,
+            album=song.album,
             song_id=song.id,
             transcoding_attempt=0,
             transcoded=False,
@@ -1297,6 +1304,8 @@ class SongReprocessVideoView(BaseAdminView):
             preview_end_time=song.preview_end_time,
             language=song.language,
             lrclib_id=song.lrclib_id or "0",
+            genre=song.genre,
+            album=song.album,
             song_id=song.id,
             transcoding_attempt=0,
             transcoded=False,
@@ -1348,6 +1357,8 @@ class SongRecoverMediaView(BaseAdminView):
             preview_end_time=song.preview_end_time,
             language=song.language,
             lrclib_id=song.lrclib_id or "0",
+            genre=song.genre,
+            album=song.album,
             song_id=song.id,
             transcoding_attempt=0,
             transcoded=False,
@@ -2152,6 +2163,7 @@ class WebhookJobSaveSearchView(BaseAdminView):
                 full_video_key=job.full_video_key,
                 preview_start_time=job.preview_start_time,
                 preview_end_time=job.preview_end_time,
+                album=job.album,
                 language=job.language or "unknown",
                 lrclib_id=job.lrclib_id,
                 job_id=job.id,
@@ -2210,6 +2222,7 @@ class WebhookJobFinalizeView(BaseAdminView):
                         full_video_key=song.full_video_key,
                         preview_start_time=song.preview_start_time,
                         preview_end_time=song.preview_end_time,
+                        album=song.album,
                         language=song.language or "unknown",
                         lrclib_id=song.lrclib_id,
                         job_id=job.id,
@@ -2238,6 +2251,7 @@ class WebhookJobFinalizeView(BaseAdminView):
             language=job.language or "unknown",
             lrclib_id=job.lrclib_id,
             genre=job.genre,
+            album=job.album,
             job_id=job.id,
             status="ACTIVE",
         )

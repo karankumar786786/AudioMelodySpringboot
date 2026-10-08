@@ -10,6 +10,8 @@ export interface Song {
   imageKey: string;
   videoKey?: string;
   fullVideoKey?: string;
+  album?: string | null;
+  genre?: string | null;
   language: string;
   lrclibId: string;
   status?: string;

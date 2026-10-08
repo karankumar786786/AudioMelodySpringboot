@@ -599,9 +599,11 @@ export default function MyPlaylistPage() {
         {/* Header */}
         <div className="grid grid-cols-12 items-center border-b border-white/10 px-4 pb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
           <div className="col-span-1 text-center">#</div>
-          <div className="col-span-7 md:col-span-6">Title</div>
-          <div className="col-span-3 hidden md:block">Artist</div>
-          <div className="col-span-4 text-right md:col-span-2">
+          <div className="col-span-6 md:col-span-4 lg:col-span-3">Title</div>
+          <div className="col-span-3 hidden md:block lg:col-span-3">Artist</div>
+          <div className="col-span-2 hidden md:block">Album</div>
+          <div className="col-span-1 hidden xl:block">Genre</div>
+          <div className="col-span-5 text-right md:col-span-2 lg:col-span-3 xl:col-span-2">
             <Clock size={16} className="ml-auto" />
           </div>
         </div>
@@ -647,7 +649,7 @@ export default function MyPlaylistPage() {
                   </div>
 
                   {/* Title */}
-                  <div className="col-span-7 flex min-w-0 items-center gap-3 md:col-span-6">
+                  <div className="col-span-6 flex min-w-0 items-center gap-3 md:col-span-4 lg:col-span-3">
                     <SongThumbnail
                       song={song}
                       sizeClass="h-11 w-11"
@@ -659,19 +661,35 @@ export default function MyPlaylistPage() {
                       <h4 className={`truncate text-sm font-medium transition-colors ${isActive ? "text-primary" : "text-white"}`}>
                         {song.title}
                       </h4>
-                      <p className="mt-0.5 truncate text-xs text-zinc-400">{song.artistName}</p>
+                      <p className="mt-0.5 truncate text-xs text-zinc-400 md:hidden">
+                        {[song.artistName, song.album, song.genre].filter(Boolean).join(" • ")}
+                      </p>
                     </div>
                   </div>
 
                   {/* Artist */}
-                  <div className="col-span-3 hidden min-w-0 md:block">
+                  <div className="col-span-3 hidden min-w-0 md:block lg:col-span-3">
                     <span className="block truncate text-sm text-zinc-400 transition-colors group-hover:text-white">
                       {song.artistName}
                     </span>
                   </div>
 
+                  {/* Album */}
+                  <div className="col-span-2 hidden min-w-0 md:block">
+                    <span className="block truncate text-sm text-zinc-400 transition-colors group-hover:text-zinc-300" title={song.album || undefined}>
+                      {song.album || "—"}
+                    </span>
+                  </div>
+
+                  {/* Genre */}
+                  <div className="col-span-1 hidden min-w-0 xl:block">
+                    <span className="block truncate text-xs text-zinc-400 transition-colors group-hover:text-zinc-300">
+                      {song.genre || "—"}
+                    </span>
+                  </div>
+
                   {/* Duration / Actions */}
-                  <div className="col-span-4 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-2">
+                  <div className="col-span-5 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-2 lg:col-span-3 xl:col-span-2">
                     {isOwner && (
                       <button
                         onClick={(e) => {

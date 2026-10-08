@@ -386,8 +386,13 @@ export function SongCard({
           >
             {song.title}
           </h3>
-          <p className="text-[11px] sm:text-[11.5px] font-medium text-zinc-400 truncate hover:text-white">
+          <p
+            className="text-[11px] sm:text-[11.5px] font-medium text-zinc-400 truncate hover:text-white"
+            title={[song.artistName, song.album, song.genre].filter(Boolean).join(" • ")}
+          >
             {song.artistName}
+            {song.album && <span className="text-zinc-400 font-normal"> • {song.album}</span>}
+            {song.genre && <span className="text-zinc-500 font-normal"> • {song.genre}</span>}
           </p>
         </div>
 

@@ -657,6 +657,7 @@ class AlgoliaService:
         job_id: Optional[str] = None,
         preview_start_time: Optional[int] = None,
         preview_end_time: Optional[int] = None,
+        album: Optional[str] = None,
         lrclib_id: Optional[str] = None,
     ) -> None:
         client = cls.get_client()
@@ -673,12 +674,14 @@ class AlgoliaService:
             s_full_vid = song.full_video_key if song else full_video_key
             s_skey = song.song_key if song else song_key
             s_jid = song.job_id if song else job_id
+            s_album = song.album if song else album
 
             record = {
                 "objectID": s_id,
                 "type": "song",
                 "title": s_title,
                 "artistName": s_artist,
+                "album": s_album,
                 "duration": s_dur,
                 "songKey": s_skey or "",
                 "imageKey": s_img,
