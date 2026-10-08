@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import me.one_org.melody.Dto.Controllers.Api.SaveSearchHistoryRequestDto;
@@ -32,6 +33,7 @@ import me.one_org.melody.Repository.UsersRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 
 @Service
+@Transactional(readOnly = true)
 public class UserHistoryApiService {
 
     private final UserHistoryRepository userHistoryRepository;
@@ -133,6 +135,7 @@ public class UserHistoryApiService {
                 .toList();
     }
 
+    @Transactional
     public void saveSearchHistory(String userId, SaveSearchHistoryRequestDto request) {
         if (request == null) return;
         UsersEntity user = getUser(userId);
@@ -183,11 +186,13 @@ public class UserHistoryApiService {
         searchHistoryRepository.save(builder.build());
     }
 
+    @Transactional
     public void deleteSearchHistoryItem(String userId, String id) {
         UsersEntity user = getUser(userId);
         searchHistoryRepository.deleteByIdAndUser(id, user);
     }
 
+    @Transactional
     public void clearSearchHistory(String userId) {
         UsersEntity user = getUser(userId);
         searchHistoryRepository.deleteByUser(user);

@@ -29,7 +29,7 @@ public class UserHistoryEntity {
     @EqualsAndHashCode.Exclude
     private UsersEntity user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "song_id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
     @ToString.Exclude
