@@ -30,6 +30,7 @@ interface Playlist {
   description: string;
   coverImageKey: string;
   videoKey?: string;
+  totalSongs: number;
 }
 
 interface Song {
@@ -386,6 +387,16 @@ export default function PlaylistsPage() {
       );
       if (res.ok) {
         await fetchPlaylistSongs(selectedPlaylist.id);
+        setPlaylists((prev) =>
+          prev.map((p) =>
+            p.id === selectedPlaylist.id
+              ? { ...p, totalSongs: p.totalSongs + 1 }
+              : p
+          )
+        );
+        setSelectedPlaylist((prev) =>
+          prev ? { ...prev, totalSongs: prev.totalSongs + 1 } : null
+        );
         showToast(`Added "${song?.title || "track"}" to playlist`, "success");
       } else {
         const data = await res.json().catch(() => null);
@@ -413,6 +424,16 @@ export default function PlaylistsPage() {
       );
       if (res.ok) {
         setPlaylistSongs((prev) => prev.filter((s) => s.id !== songId));
+        setPlaylists((prev) =>
+          prev.map((p) =>
+            p.id === selectedPlaylist.id
+              ? { ...p, totalSongs: Math.max(0, p.totalSongs - 1) }
+              : p
+          )
+        );
+        setSelectedPlaylist((prev) =>
+          prev ? { ...prev, totalSongs: Math.max(0, prev.totalSongs - 1) } : null
+        );
         showToast(`Removed "${songTitle || "track"}" from playlist`, "success");
       } else {
         const data = await res.json().catch(() => null);
@@ -520,9 +541,15 @@ export default function PlaylistsPage() {
                       />
                     )}
                   </div>
-                  <p className="text-xs text-zinc-400 truncate mt-0.5">
-                    {playlist.description || "No description."}
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5 text-xs text-zinc-400 truncate">
+                    <span className="truncate">
+                      {playlist.description || "No description."}
+                    </span>
+                    <span>&bull;</span>
+                    <span className="font-medium text-zinc-300 shrink-0">
+                      {playlist.totalSongs} {playlist.totalSongs === 1 ? "track" : "tracks"}
+                    </span>
+                  </div>
                 </div>
                 <button
                   onClick={(e) => {
@@ -731,7 +758,7 @@ export default function PlaylistsPage() {
               {/* Current Songs */}
               <div>
                 <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">
-                  Current Tracks ({playlistSongs.length})
+                  Current Tracks ({selectedPlaylist.totalSongs})
                 </h4>
                 <div className="divide-y divide-[#282828] border border-[#282828] rounded-2xl overflow-hidden bg-black/40">
                   {playlistSongs.length === 0 ? (

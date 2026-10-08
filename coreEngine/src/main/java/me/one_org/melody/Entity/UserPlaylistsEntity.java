@@ -40,6 +40,10 @@ public class UserPlaylistsEntity {
     @Column(name = "share_token")
     private String shareToken;
 
+    @Default
+    @Column(name = "total_songs", nullable = false)
+    private int totalSongs = 0;
+
     public PlaylistPrivacyEnum getPrivacy() {
         return privacy != null ? privacy : PlaylistPrivacyEnum.PRIVATE;
     }

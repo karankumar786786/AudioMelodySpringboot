@@ -97,6 +97,7 @@ public class UserPlaylistApiService {
                 .privacy(chosenPrivacy)
                 .shareToken(shareToken)
                 .user(user)
+                .totalSongs(0)
                 .songs(new HashSet<>())
                 .build();
         userPlaylistsRepository.save(playlist);
@@ -212,7 +213,10 @@ public class UserPlaylistApiService {
         SongsEntity song = songsRepository.findById(songId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Song not found"));
 
-        playlist.getSongs().add(song);
+        boolean added = playlist.getSongs().add(song);
+        if (added) {
+            playlist.setTotalSongs(playlist.getTotalSongs() + 1);
+        }
         userPlaylistsRepository.save(playlist);
 
         // Track in Recombee
@@ -334,6 +338,7 @@ public class UserPlaylistApiService {
                 .privacy(PlaylistPrivacyEnum.PRIVATE)
                 .shareToken(newShareToken)
                 .user(user)
+                .totalSongs(songs.size())
                 .songs(new HashSet<>(songs))
                 .build();
 
@@ -347,7 +352,11 @@ public class UserPlaylistApiService {
     @Transactional
     public UserPlaylistsEntity removeSong(String userId, String playlistId, String songId) {
         UserPlaylistsEntity playlist = getPlaylistOwnedBy(userId, playlistId);
+        int initialSize = playlist.getSongs().size();
         playlist.getSongs().removeIf(s -> s.getId().equals(songId));
+        if (playlist.getSongs().size() < initialSize) {
+            playlist.setTotalSongs(Math.max(0, playlist.getTotalSongs() - 1));
+        }
         userPlaylistsRepository.save(playlist);
 
         // Track in Recombee

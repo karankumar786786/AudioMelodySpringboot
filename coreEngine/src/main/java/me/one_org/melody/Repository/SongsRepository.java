@@ -197,6 +197,14 @@ public class SongsRepository {
     public void deleteById(String id) {
         SongsEntity song = entityManager.find(SongsEntity.class, id);
         if (song != null) {
+            // Update cached total_songs counts in playlists and user_playlists before removing join rows
+            entityManager.createNativeQuery("UPDATE playlists SET total_songs = GREATEST(0, total_songs - 1) WHERE id IN (SELECT playlist_id FROM playlist_songs WHERE song_id = :id)")
+                    .setParameter("id", id)
+                    .executeUpdate();
+            entityManager.createNativeQuery("UPDATE user_playlists SET total_songs = GREATEST(0, total_songs - 1) WHERE id IN (SELECT user_playlist_id FROM user_playlist_songs WHERE song_id = :id)")
+                    .setParameter("id", id)
+                    .executeUpdate();
+
             // Clean up referencing foreign key records in join & history tables before deleting song
             entityManager.createNativeQuery("DELETE FROM playlist_songs WHERE song_id = :id")
                     .setParameter("id", id)

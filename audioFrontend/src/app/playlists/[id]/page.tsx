@@ -306,11 +306,12 @@ export default function PlaylistPage() {
               {systemUser?.username || "OneMelody"}
             </span>
 
-            {songs.length > 0 && (
+            {playlist && playlist.totalSongs > 0 && (
               <>
                 <span>•</span>
                 <span>
-                  {songs.length} {songs.length === 1 ? "song" : "songs"}
+                  {playlist.totalSongs}{" "}
+                  {playlist.totalSongs === 1 ? "song" : "songs"}
                 </span>
                 <span>•</span>
                 <span>

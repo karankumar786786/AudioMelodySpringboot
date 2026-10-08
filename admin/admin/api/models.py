@@ -152,6 +152,7 @@ class Playlist(models.Model):
     description = models.CharField(max_length=255, blank=True, null=True)
     cover_image_key = models.CharField(max_length=255, db_column="cover_image_key")
     video_key = models.CharField(max_length=255, blank=True, null=True, db_column="video_key")
+    total_songs = models.IntegerField(default=0, db_column="total_songs")
     status = models.CharField(max_length=255, default="ACTIVE")
     created_at = models.DateTimeField(auto_now_add=True, db_column="created_at")
     updated_at = models.DateTimeField(auto_now=True, db_column="updated_at")

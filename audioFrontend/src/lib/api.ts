@@ -39,6 +39,7 @@ export interface UserPlaylist {
   shareToken?: string;
   ownerName?: string;
   ownerId?: string;
+  totalSongs: number;
   status?: string;
   description?: string;
   coverImageKey?: string;
@@ -54,6 +55,7 @@ export interface Playlist {
   description?: string;
   coverImageKey?: string;
   videoKey?: string;
+  totalSongs: number;
   status?: string;
   createdAt?: string;
   updatedAt?: string;

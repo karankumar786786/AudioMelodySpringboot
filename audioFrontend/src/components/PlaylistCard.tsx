@@ -58,7 +58,7 @@ export function PlaylistCard({ playlist }: PlaylistCardProps) {
             {playlist.name}
           </h3>
           <p className="text-[11.5px] text-zinc-400 truncate font-medium">
-            {playlist.description || "Playlist"}
+            {playlist.totalSongs} {playlist.totalSongs === 1 ? "track" : "tracks"}
           </p>
         </div>
       </motion.div>

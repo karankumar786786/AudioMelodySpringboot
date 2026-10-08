@@ -524,6 +524,30 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
             call_command("sync_pagination_metadata", stdout=out)
             self.assertIn("Reconciliation completed successfully", out.getvalue())
 
+    def test_playlist_total_songs_serialization(self):
+        authed_client = APIClient()
+        token = jwt.encode({"sub": "admin-1", "email": "a@b.com", "role": "ADMIN", "exp": time.time() + 3600}, settings.JWT_SECRET, algorithm="HS256")
+        authed_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        fake_playlist = MagicMock()
+        fake_playlist.id = "pl-123"
+        fake_playlist.name = "Top Hits"
+        fake_playlist.description = "Popular songs"
+        fake_playlist.cover_image_key = "covers/tophits.jpg"
+        fake_playlist.video_key = None
+        fake_playlist.total_songs = 42
+        fake_playlist.status = "ACTIVE"
+        fake_playlist.created_at = None
+        fake_playlist.updated_at = None
+
+        with patch("api.views.get_object_or_404", return_value=fake_playlist):
+            res = authed_client.get("/admin/playlist/pl-123")
+            self.assertEqual(res.status_code, 200)
+            data = res.json()
+            self.assertIn("totalSongs", data)
+            self.assertEqual(data["totalSongs"], 42)
+
+
 
 
 

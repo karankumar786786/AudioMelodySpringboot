@@ -1,3 +1,4 @@
+from django.db import models
 from django.core.serializers import json
 import jwt
 from datetime import datetime, timezone
@@ -923,6 +924,8 @@ class PlaylistAddSongView(BaseAdminView):
 
         _, created = PlaylistSong.objects.get_or_create(playlist=playlist, song=song)
         if created:
+            Playlist.objects.filter(pk=playlist.pk).update(total_songs=models.F("total_songs") + 1)
+            playlist.refresh_from_db()
             PaginationMetadataService.increment_status(f"PlaylistSongs_{pk}", "ACTIVE")
         return Response(PlaylistSerializer(playlist).data, status=status.HTTP_200_OK)
 
@@ -932,6 +935,14 @@ class PlaylistRemoveSongView(BaseAdminView):
         playlist = get_object_or_404(Playlist, pk=pk)
         deleted_count, _ = PlaylistSong.objects.filter(playlist=playlist, song_id=song_id).delete()
         if deleted_count > 0:
+            Playlist.objects.filter(pk=playlist.pk).update(
+                total_songs=models.Case(
+                    models.When(total_songs__gte=deleted_count, then=models.F("total_songs") - deleted_count),
+                    default=models.Value(0),
+                    output_field=models.IntegerField(),
+                )
+            )
+            playlist.refresh_from_db()
             PaginationMetadataService.decrement_status(f"PlaylistSongs_{pk}", "ACTIVE")
         return Response(PlaylistSerializer(playlist).data, status=status.HTTP_200_OK)
 
@@ -1530,6 +1541,13 @@ class JobDetailView(BaseAdminView):
                     except Exception as e:
                         logger.warning("Failed to update artist song metadata: %s", e)
                 for ps in PlaylistSong.objects.filter(song_id=song_id):
+                    Playlist.objects.filter(pk=ps.playlist_id).update(
+                        total_songs=models.Case(
+                            models.When(total_songs__gt=0, then=models.F("total_songs") - 1),
+                            default=models.Value(0),
+                            output_field=models.IntegerField(),
+                        )
+                    )
                     PaginationMetadataService.decrement_status(f"PlaylistSongs_{ps.playlist_id}", s_status)
 
         PaginationMetadataService.decrement_job(job.status)
@@ -2379,6 +2397,13 @@ class WebhookDeleteHardDeleteView(BaseAdminView):
                 status_val = song.status or "ACTIVE"
                 artist_name = song.artist_name
                 for ps in PlaylistSong.objects.filter(song_id=entity_id):
+                    Playlist.objects.filter(pk=ps.playlist_id).update(
+                        total_songs=models.Case(
+                            models.When(total_songs__gt=0, then=models.F("total_songs") - 1),
+                            default=models.Value(0),
+                            output_field=models.IntegerField(),
+                        )
+                    )
                     PaginationMetadataService.decrement_status(f"PlaylistSongs_{ps.playlist_id}", status_val)
                 PlaylistSong.objects.filter(song_id=entity_id).delete()
                 song.delete()

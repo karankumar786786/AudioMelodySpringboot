@@ -33,6 +33,9 @@ public class PlaylistsEntity implements Serializable{
     private String coverImageKey;
     private String videoKey;
     @Default
+    @Column(name = "total_songs", nullable = false)
+    private int totalSongs = 0;
+    @Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatusEnum status = StatusEnum.ACTIVE;

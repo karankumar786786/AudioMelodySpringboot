@@ -398,7 +398,8 @@ export default function SharedPlaylistPage() {
               </span>
               <span>•</span>
               <span>
-                {songs.length} {songs.length === 1 ? "song" : "songs"}
+                {playlist.totalSongs}{" "}
+                {playlist.totalSongs === 1 ? "song" : "songs"}
               </span>
 
               {songs.length > 0 && (

@@ -87,6 +87,7 @@ class ArtistSerializer(serializers.ModelSerializer):
 class PlaylistSerializer(serializers.ModelSerializer):
     coverImageKey = serializers.CharField(source="cover_image_key")
     videoKey = serializers.CharField(source="video_key", required=False, allow_null=True)
+    totalSongs = serializers.IntegerField(source="total_songs", read_only=True)
     createdAt = serializers.DateTimeField(source="created_at", format="%Y-%m-%dT%H:%M:%S", required=False)
     updatedAt = serializers.DateTimeField(source="updated_at", format="%Y-%m-%dT%H:%M:%S", required=False)
 
@@ -98,6 +99,7 @@ class PlaylistSerializer(serializers.ModelSerializer):
             "description",
             "coverImageKey",
             "videoKey",
+            "totalSongs",
             "status",
             "createdAt",
             "updatedAt",

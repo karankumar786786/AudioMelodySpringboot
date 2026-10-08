@@ -1034,6 +1034,7 @@ erDiagram
         string description
         string coverImageKey
         string videoKey
+        int total_songs "Precomputed track count"
         string status "ACTIVE BLOCKED DELETED"
         timestamp createdAt
         timestamp updatedAt
@@ -1043,6 +1044,7 @@ erDiagram
         string id PK
         string user_id FK
         string name
+        int total_songs "Precomputed track count"
         string status "ACTIVE BLOCKED DELETED"
         string privacy "PUBLIC PRIVATE"
         string share_token UK "Public Share UUID"

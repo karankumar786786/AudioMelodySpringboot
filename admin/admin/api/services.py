@@ -1118,6 +1118,8 @@ class PaginationMetadataService:
         # 7. Reconcile PlaylistSongs metadata for all playlists
         for pl in Playlist.objects.all():
             count = PlaylistSong.objects.filter(playlist=pl).count()
+            if pl.total_songs != count:
+                Playlist.objects.filter(pk=pl.pk).update(total_songs=count)
             cls._save_or_update(f"PlaylistSongs_{pl.id}", count, count, 0, 0)
 
         # 8. Reconcile ArtistSongs metadata for all artists

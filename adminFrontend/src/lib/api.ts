@@ -33,6 +33,7 @@ export interface Playlist {
   description?: string;
   coverImageKey?: string;
   videoKey?: string;
+  totalSongs: number;
   status?: string;
   createdAt?: string;
   updatedAt?: string;
