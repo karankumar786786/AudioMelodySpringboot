@@ -93,6 +93,40 @@ public class UserPlaylistsRepository {
     }
 
     @Transactional
+    public boolean addSongToPlaylist(String playlistId, String songId) {
+        int inserted = entityManager.createNativeQuery(
+                "INSERT INTO user_playlist_songs (user_playlist_id, song_id) VALUES (:playlistId, :songId) ON CONFLICT DO NOTHING")
+                .setParameter("playlistId", playlistId)
+                .setParameter("songId", songId)
+                .executeUpdate();
+        if (inserted > 0) {
+            entityManager.createNativeQuery(
+                    "UPDATE user_playlists SET total_songs = total_songs + 1 WHERE id = :playlistId")
+                    .setParameter("playlistId", playlistId)
+                    .executeUpdate();
+            return true;
+        }
+        return false;
+    }
+
+    @Transactional
+    public boolean removeSongFromPlaylist(String playlistId, String songId) {
+        int deleted = entityManager.createNativeQuery(
+                "DELETE FROM user_playlist_songs WHERE user_playlist_id = :playlistId AND song_id = :songId")
+                .setParameter("playlistId", playlistId)
+                .setParameter("songId", songId)
+                .executeUpdate();
+        if (deleted > 0) {
+            entityManager.createNativeQuery(
+                    "UPDATE user_playlists SET total_songs = GREATEST(0, total_songs - 1) WHERE id = :playlistId")
+                    .setParameter("playlistId", playlistId)
+                    .executeUpdate();
+            return true;
+        }
+        return false;
+    }
+
+    @Transactional
     public void deleteById(String id) {
         UserPlaylistsEntity playlist = entityManager.find(UserPlaylistsEntity.class, id);
         if (playlist != null) {

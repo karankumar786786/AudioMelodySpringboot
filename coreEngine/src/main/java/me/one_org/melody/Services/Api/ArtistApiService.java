@@ -142,12 +142,14 @@ public class ArtistApiService {
 
             artistMetadataRepository.incrementFollowers(artistId, artistName);
 
-            try {
-                recombee.trackArtistFollow(userId, artistId);
-                log.info("Tracked artist follow in Recombee for user [{}] artist [{}]", userId, artistId);
-            } catch (Exception e) {
-                log.error("Failed to track artist follow in Recombee for user [{}] artist [{}]: {}", userId, artistId, e.getMessage());
-            }
+            Thread.startVirtualThread(() -> {
+                try {
+                    recombee.trackArtistFollow(userId, artistId);
+                    log.info("Tracked artist follow in Recombee for user [{}] artist [{}]", userId, artistId);
+                } catch (Exception e) {
+                    log.error("Failed to track artist follow in Recombee for user [{}] artist [{}]: {}", userId, artistId, e.getMessage());
+                }
+            });
         }
 
         Long followersCount = artistMetadataRepository.findById(artistId)
@@ -182,12 +184,14 @@ public class ArtistApiService {
 
             artistMetadataRepository.decrementFollowers(artistId);
 
-            try {
-                recombee.trackArtistUnfollow(userId, artistId);
-                log.info("Tracked artist unfollow in Recombee for user [{}] artist [{}]", userId, artistId);
-            } catch (Exception e) {
-                log.error("Failed to track artist unfollow in Recombee for user [{}] artist [{}]: {}", userId, artistId, e.getMessage());
-            }
+            Thread.startVirtualThread(() -> {
+                try {
+                    recombee.trackArtistUnfollow(userId, artistId);
+                    log.info("Tracked artist unfollow in Recombee for user [{}] artist [{}]", userId, artistId);
+                } catch (Exception e) {
+                    log.error("Failed to track artist unfollow in Recombee for user [{}] artist [{}]: {}", userId, artistId, e.getMessage());
+                }
+            });
         }
 
         Long followersCount = artistMetadataRepository.findById(artistId)
@@ -281,15 +285,18 @@ public class ArtistApiService {
                 ArtistFollowStatusDto status = followArtist(userId, artist.getId());
                 followedNames.add(status.artistName());
 
-                // Seed positive play interaction signals for artist's top songs in Recombee
-                try {
-                    List<SongsEntity> topSongs = getArtistSongsPaginated(status.artistId(), 0, 3);
-                    for (SongsEntity song : topSongs) {
-                        try {
-                            recombee.trackPlay(userId, song.getId(), 0.95);
-                        } catch (Exception ignored) {}
-                    }
-                } catch (Exception ignored) {}
+                // Seed positive play interaction signals for artist's top songs in Recombee via virtual thread
+                final String targetArtistId = status.artistId();
+                Thread.startVirtualThread(() -> {
+                    try {
+                        List<SongsEntity> topSongs = getArtistSongsPaginated(targetArtistId, 0, 3);
+                        for (SongsEntity song : topSongs) {
+                            try {
+                                recombee.trackPlay(userId, song.getId(), 0.95);
+                            } catch (Exception ignored) {}
+                        }
+                    } catch (Exception ignored) {}
+                });
 
             } catch (Exception e) {
                 log.warn("Skipping artist [{}] during onboarding for user [{}]: {}", idOrName, userId, e.getMessage());

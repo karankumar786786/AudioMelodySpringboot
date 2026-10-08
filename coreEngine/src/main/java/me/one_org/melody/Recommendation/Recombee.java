@@ -39,23 +39,30 @@ import me.one_org.melody.Entity.SongsEntity;
 @Slf4j
 public class Recombee {
 
+    private static final long DEFAULT_TIMEOUT_MS = 3000L; // 3 seconds resilient timeout
 
     private final RecombeeClient recombeeClient;
 
-
     public Recombee(RecombeeClient recombeeClient) {
         this.recombeeClient = recombeeClient;
+    }
+
+    private <T extends Request> T withTimeout(T request) {
+        if (request != null && request.getTimeout() <= 0) {
+            request.setTimeout(DEFAULT_TIMEOUT_MS);
+        }
+        return request;
     }
 
     @PostConstruct
     public void configureSchema() throws Exception {
         // Register item properties — these define what metadata Recombee knows about each song
         try {
-            recombeeClient.send(new AddItemProperty("title", "string"));
-            recombeeClient.send(new AddItemProperty("artistName", "string"));
-            recombeeClient.send(new AddItemProperty("language", "string"));
-            recombeeClient.send(new AddItemProperty("genre", "string"));
-            recombeeClient.send(new AddItemProperty("duration", "int"));
+            recombeeClient.send(withTimeout(new AddItemProperty("title", "string")));
+            recombeeClient.send(withTimeout(new AddItemProperty("artistName", "string")));
+            recombeeClient.send(withTimeout(new AddItemProperty("language", "string")));
+            recombeeClient.send(withTimeout(new AddItemProperty("genre", "string")));
+            recombeeClient.send(withTimeout(new AddItemProperty("duration", "int")));
             log.info("Recombee item properties registered successfully");
         } catch (Exception e) {
             // Properties may already exist — Recombee throws if re-adding
@@ -76,7 +83,7 @@ public class Recombee {
         if (song.getDuration() != null && song.getDuration() > 0) {
             values.put("duration", song.getDuration());
         }
-        recombeeClient.send(new SetItemValues(song.getId(), values).setCascadeCreate(true));
+        recombeeClient.send(withTimeout(new SetItemValues(song.getId(), values).setCascadeCreate(true)));
     }
 
     public void saveSong(String songId, String title, String artistName, String language, String genre) throws Exception {
@@ -87,7 +94,7 @@ public class Recombee {
         if (genre != null && !genre.isBlank()) {
             values.put("genre", genre);
         }
-        recombeeClient.send(new SetItemValues(songId, values).setCascadeCreate(true));
+        recombeeClient.send(withTimeout(new SetItemValues(songId, values).setCascadeCreate(true)));
     }
 
     public void saveSong(String songId, String title, String artistName, String language, String genre, Integer duration) throws Exception {
@@ -101,19 +108,19 @@ public class Recombee {
         if (duration != null && duration > 0) {
             values.put("duration", duration);
         }
-        recombeeClient.send(new SetItemValues(songId, values).setCascadeCreate(true));
+        recombeeClient.send(withTimeout(new SetItemValues(songId, values).setCascadeCreate(true)));
     }
 
     public void delete(String songId) throws Exception {
-        recombeeClient.send(new DeleteItem(songId));
+        recombeeClient.send(withTimeout(new DeleteItem(songId)));
     }
 
     public void addUser(String userId) throws Exception {
-        recombeeClient.send(new AddUser(userId));
+        recombeeClient.send(withTimeout(new AddUser(userId)));
     }
 
     public void deleteUser(String userId) throws Exception {
-        recombeeClient.send(new DeleteUser(userId));
+        recombeeClient.send(withTimeout(new DeleteUser(userId)));
     }
 
     // ── Interaction tracking ──
@@ -130,80 +137,80 @@ public class Recombee {
         } else {
             rating = -0.3; // drop-off — soft negative
         }
-        recombeeClient.send(new AddRating(userId, songId, rating).setCascadeCreate(true));
+        recombeeClient.send(withTimeout(new AddRating(userId, songId, rating).setCascadeCreate(true)));
     }
 
     // explicit skip button pressed
     public void trackSkip(String userId, String songId) throws Exception {
-        recombeeClient.send(new AddRating(userId, songId, -1.0).setCascadeCreate(true));
+        recombeeClient.send(withTimeout(new AddRating(userId, songId, -1.0).setCascadeCreate(true)));
     }
 
     // user played a song that appeared in search results — strong active-discovery signal
     public void trackSearchPlay(String userId, String songId) throws Exception {
-        recombeeClient.send(new AddDetailView(userId, songId).setCascadeCreate(true));
+        recombeeClient.send(withTimeout(new AddDetailView(userId, songId).setCascadeCreate(true)));
     }
 
     // user explicitly added a song to their queue — strong intent signal
     public void trackQueueAdd(String userId, String songId) throws Exception {
-        recombeeClient.send(new AddBookmark(userId, songId).setCascadeCreate(true));
+        recombeeClient.send(withTimeout(new AddBookmark(userId, songId).setCascadeCreate(true)));
     }
 
     // user explicitly removed a song from their queue — negative intent signal
     public void trackQueueRemove(String userId, String songId) throws Exception {
         try {
-            recombeeClient.send(new DeleteBookmark(userId, songId));
+            recombeeClient.send(withTimeout(new DeleteBookmark(userId, songId)));
         } catch (Exception ignored) {
             // Bookmark may not exist if song was queued from radio/playlist
         }
-        recombeeClient.send(new AddRating(userId, songId, -0.4).setCascadeCreate(true));
+        recombeeClient.send(withTimeout(new AddRating(userId, songId, -0.4).setCascadeCreate(true)));
     }
 
     // added to favourites
     public void trackFavouriteAdd(String userId, String songId) throws Exception {
-        recombeeClient.send(new AddRating(userId, songId, 1.0).setCascadeCreate(true));
+        recombeeClient.send(withTimeout(new AddRating(userId, songId, 1.0).setCascadeCreate(true)));
     }
 
     // removed from favourites
     public void trackFavouriteRemove(String userId, String songId) throws Exception {
-        recombeeClient.send(new AddRating(userId, songId, -0.5).setCascadeCreate(true));
+        recombeeClient.send(withTimeout(new AddRating(userId, songId, -0.5).setCascadeCreate(true)));
     }
 
     // added to user's own playlist
     public void trackPlaylistAdd(String userId, String songId) throws Exception {
-        recombeeClient.send(new AddRating(userId, songId, 0.8).setCascadeCreate(true));
+        recombeeClient.send(withTimeout(new AddRating(userId, songId, 0.8).setCascadeCreate(true)));
     }
 
     // removed from user's own playlist
     public void trackPlaylistRemove(String userId, String songId) throws Exception {
-        recombeeClient.send(new AddRating(userId, songId, -0.4).setCascadeCreate(true));
+        recombeeClient.send(withTimeout(new AddRating(userId, songId, -0.4).setCascadeCreate(true)));
     }
 
     // user explicitly disliked / hid a song — strong negative signal
     public void trackDislike(String userId, String songId) throws Exception {
-        recombeeClient.send(new AddRating(userId, songId, -1.0).setCascadeCreate(true));
+        recombeeClient.send(withTimeout(new AddRating(userId, songId, -1.0).setCascadeCreate(true)));
     }
 
     // user shared a song — high intent advocacy signal
     public void trackShare(String userId, String songId) throws Exception {
-        recombeeClient.send(new AddRating(userId, songId, 0.6).setCascadeCreate(true));
+        recombeeClient.send(withTimeout(new AddRating(userId, songId, 0.6).setCascadeCreate(true)));
     }
 
     // added to artist follow — highest user advocacy signal
     public void trackArtistFollow(String userId, String artistId) throws Exception {
-        recombeeClient.send(new AddRating(userId, artistId, 1.0).setCascadeCreate(true));
+        recombeeClient.send(withTimeout(new AddRating(userId, artistId, 1.0).setCascadeCreate(true)));
     }
 
     // removed from artist follow — negative preference adjustment
     public void trackArtistUnfollow(String userId, String artistId) throws Exception {
-        recombeeClient.send(new AddRating(userId, artistId, -0.5).setCascadeCreate(true));
+        recombeeClient.send(withTimeout(new AddRating(userId, artistId, -0.5).setCascadeCreate(true)));
     }
 
     // ── Recommendations — return only IDs, caller fetches from DB ──
 
     public List<String> recommendForUser(String userId, int count) throws Exception {
         RecommendationResponse response = recombeeClient.send(
-                new RecommendItemsToUser(userId, count)
-                        .setCascadeCreate(true));
+                withTimeout(new RecommendItemsToUser(userId, count)
+                        .setCascadeCreate(true)));
         List<String> songIds = new ArrayList<>();
         for (Recommendation hit : response) {
             songIds.add(hit.getId());
@@ -213,7 +220,7 @@ public class Recombee {
 
     public List<String> recommendSimilar(String songId, int count) throws Exception {
         RecommendationResponse response = recombeeClient.send(
-                new RecommendItemsToItem(songId, null, count));
+                withTimeout(new RecommendItemsToItem(songId, null, count)));
         List<String> songIds = new ArrayList<>();
         for (Recommendation hit : response) {
             songIds.add(hit.getId());
@@ -228,7 +235,7 @@ public class Recombee {
      */
     public List<String> recommendNextItems(String userId, String recommId, int count) throws Exception {
         RecommendationResponse response = recombeeClient.send(
-                new RecommendNextItems(recommId, count));
+                withTimeout(new RecommendNextItems(recommId, count)));
         List<String> songIds = new ArrayList<>();
         for (Recommendation hit : response) {
             songIds.add(hit.getId());
@@ -251,10 +258,10 @@ public class Recombee {
             if (song.getDuration() != null && song.getDuration() > 0) {
                 values.put("duration", song.getDuration());
             }
-            requests.add(new SetItemValues(song.getId(), values).setCascadeCreate(true));
+            requests.add(withTimeout(new SetItemValues(song.getId(), values).setCascadeCreate(true)));
         }
         if (!requests.isEmpty()) {
-            recombeeClient.send(new Batch(requests));
+            recombeeClient.send(withTimeout(new Batch(requests)));
         }
         log.info("Reindexed {} songs in Recombee", songs.size());
     }

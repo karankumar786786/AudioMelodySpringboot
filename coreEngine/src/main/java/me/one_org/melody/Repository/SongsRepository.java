@@ -29,6 +29,11 @@ public class SongsRepository {
         return Optional.ofNullable(entityManager.find(SongsEntity.class, id));
     }
 
+    public boolean existsById(String id) {
+        if (id == null || id.isBlank()) return false;
+        return entityManager.find(SongsEntity.class, id) != null;
+    }
+
     public List<SongsEntity> findAll() {
         return entityManager.createQuery("SELECT s FROM SongsEntity s", SongsEntity.class)
                 .getResultList();
