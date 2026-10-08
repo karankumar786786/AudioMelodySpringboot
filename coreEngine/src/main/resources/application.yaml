@@ -97,14 +97,6 @@ management:
       enabled: false
     # redis check is fine to keep: it hits Redis, not Neon
 
-# OpenAPI / Swagger configuration
-springdoc:
-  api-docs:
-    path: /v3/api-docs
-  swagger-ui:
-    path: /swagger-ui.html
-    operations-sorter: method
-
 algolia:
   app-id: ${ALGOLIA_APP_ID:default_algolia_app_id}
   api-key: ${ALGOLIA_API_KEY:default_algolia_api_key}
