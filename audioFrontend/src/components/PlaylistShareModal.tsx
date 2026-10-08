@@ -81,9 +81,9 @@ export function PlaylistShareModal({
         description: `Playlist is now ${label}.`,
       });
     },
-    onError: () => {
+    onError: (err: any) => {
       setCurrentPrivacy(playlist.privacy || "PRIVATE");
-      toast.error("Failed to update privacy");
+      toast.error(err?.response?.data?.message || err?.message || "Failed to update privacy");
     },
   });
 

@@ -241,8 +241,8 @@ export default function ArtistPage() {
           queryClient.setQueryData(["artist-follow-status", artist.name], res.data);
         }
       }
-    } catch (err) {
-      toast.error("Failed to update follow status");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to update follow status");
     } finally {
       setIsFollowLoading(false);
     }

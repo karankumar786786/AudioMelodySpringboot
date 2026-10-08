@@ -77,8 +77,8 @@ export function PlaylistPickerModal({
       }
       onClose();
     },
-    onError: () => {
-      toast.error("Failed to add song to playlist");
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to add song to playlist");
     },
   });
 
@@ -99,8 +99,8 @@ export function PlaylistPickerModal({
       toast.success(`Created "${newName}" and added "${songTitle}"`);
       onClose();
     },
-    onError: () => {
-      toast.error("Failed to create playlist");
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to create playlist");
     },
   });
 

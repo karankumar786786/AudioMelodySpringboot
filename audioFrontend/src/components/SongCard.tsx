@@ -100,8 +100,8 @@ export function SongCard({
             : `"${song.title}" saved to your favourites.`,
         },
       );
-    } catch {
-      toast.error("Failed to update favourites");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to update favourites");
     }
   };
 

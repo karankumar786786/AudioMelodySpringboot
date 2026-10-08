@@ -179,8 +179,8 @@ export function AppNavbar() {
           : undefined,
       });
     },
-    onError: () => {
-      toast.error("Failed to save playlist");
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to save playlist");
     },
   });
 

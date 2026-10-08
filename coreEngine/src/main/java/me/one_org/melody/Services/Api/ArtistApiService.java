@@ -217,7 +217,11 @@ public class ArtistApiService {
     // ── Cold-Start Artist Onboarding ──
 
     public List<ArtistsEntity> getOnboardingArtists() {
-        return artistsRepository.findAll();
+        return getOnboardingArtists(0, 100);
+    }
+
+    public List<ArtistsEntity> getOnboardingArtists(int page, int size) {
+        return artistsRepository.findAllPaginated(page, size);
     }
 
     public List<ArtistsEntity> searchArtists(String query) {

@@ -261,8 +261,8 @@ export function RightInfoPanel() {
             : `"${currentSong.title}" added to your collection.`,
         },
       );
-    } catch (err) {
-      toast.error("Failed to update favourites");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to update favourites");
     } finally {
       setIsFavLoading(false);
     }

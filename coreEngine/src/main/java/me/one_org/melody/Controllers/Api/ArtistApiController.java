@@ -75,8 +75,10 @@ public class ArtistApiController {
     }
 
     @GetMapping("/onboarding-list")
-    public ResponseEntity<List<ArtistsEntity>> getOnboardingList() {
-        return ResponseEntity.ok(artistAppService.getOnboardingArtists());
+    public ResponseEntity<List<ArtistsEntity>> getOnboardingList(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        return ResponseEntity.ok(artistAppService.getOnboardingArtists(page, size));
     }
 
     @GetMapping("/search")

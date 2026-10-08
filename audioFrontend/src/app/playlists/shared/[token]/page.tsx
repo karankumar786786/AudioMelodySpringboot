@@ -126,8 +126,8 @@ export default function SharedPlaylistPage() {
         toast.info("Removed from your Library");
       }
     },
-    onError: () => {
-      toast.error("Failed to update library");
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to update library");
     },
   });
 

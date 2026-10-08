@@ -65,7 +65,9 @@ public class UserPlaylistsRepository {
 
     public List<UserPlaylistsEntity> findByUserPaginated(UsersEntity user, int page, int size) {
         return entityManager.createQuery(
-                "SELECT up FROM UserPlaylistsEntity up WHERE up.user = :user", UserPlaylistsEntity.class)
+                "SELECT DISTINCT up FROM UserPlaylistsEntity up WHERE up.user = :user " +
+                "OR up.id IN (SELECT usp.playlist.id FROM UserSavedPlaylistsEntity usp WHERE usp.user = :user) " +
+                "ORDER BY up.name ASC, up.id ASC", UserPlaylistsEntity.class)
                 .setParameter("user", user)
                 .setFirstResult(page * size)
                 .setMaxResults(size)
@@ -74,7 +76,8 @@ public class UserPlaylistsRepository {
 
     public long countByUser(UsersEntity user) {
         return entityManager.createQuery(
-                "SELECT COUNT(up) FROM UserPlaylistsEntity up WHERE up.user = :user", Long.class)
+                "SELECT COUNT(DISTINCT up) FROM UserPlaylistsEntity up WHERE up.user = :user " +
+                "OR up.id IN (SELECT usp.playlist.id FROM UserSavedPlaylistsEntity usp WHERE usp.user = :user)", Long.class)
                 .setParameter("user", user)
                 .getSingleResult();
     }

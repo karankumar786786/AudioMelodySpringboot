@@ -161,7 +161,7 @@ export default function MyPlaylistPage() {
           description: "Sign in to save this playlist to your library.",
         });
       } else {
-        toast.error("Failed to update library");
+        toast.error(err?.response?.data?.message || err?.message || "Failed to update library");
       }
     },
   });

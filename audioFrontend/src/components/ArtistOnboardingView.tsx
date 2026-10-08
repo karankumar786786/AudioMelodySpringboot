@@ -165,7 +165,7 @@ export function ArtistOnboardingView({ onComplete, userName }: ArtistOnboardingV
       onComplete();
     } catch (err: any) {
       toast.error("Onboarding Failed", {
-        description: err?.message || "Could not save selected artists. Please try again.",
+        description: err?.response?.data?.message || err?.message || "Could not save selected artists. Please try again.",
       });
     } finally {
       setIsSubmitting(false);

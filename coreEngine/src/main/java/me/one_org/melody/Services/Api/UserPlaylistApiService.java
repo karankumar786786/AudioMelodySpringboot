@@ -72,13 +72,8 @@ public class UserPlaylistApiService {
     }
 
     public List<UserPlaylistsEntity> getUserPlaylistsPaginated(String userId, int page, int size) {
-        List<UserPlaylistsEntity> all = getUserPlaylists(userId);
-        int fromIndex = page * size;
-        if (fromIndex >= all.size()) {
-            return Collections.emptyList();
-        }
-        int toIndex = Math.min(fromIndex + size, all.size());
-        return all.subList(fromIndex, toIndex);
+        UsersEntity user = getUser(userId);
+        return userPlaylistsRepository.findByUserPaginated(user, page, size);
     }
 
     public PaginationMetaDataEntity getPaginationMetaData(String userId) {
