@@ -19,6 +19,9 @@ import me.one_org.melody.Repository.UserHistoryRepository;
 import me.one_org.melody.Repository.UsersRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 
+import org.springframework.context.ApplicationEventPublisher;
+import me.one_org.melody.Events.TelemetryEvents;
+
 @Service
 @Slf4j
 public class InteractionApiService {
@@ -29,17 +32,20 @@ public class InteractionApiService {
     private final UserHistoryRepository userHistoryRepository;
     private final PaginationMetaDataService paginationMetaDataService;
     private final AlgoliaSearch algoliaSearch;
+    private final ApplicationEventPublisher eventPublisher;
 
     public InteractionApiService(Recombee recombee, UsersRepository usersRepository,
                                   SongsRepository songsRepository, UserHistoryRepository userHistoryRepository,
                                   PaginationMetaDataService paginationMetaDataService,
-                                  AlgoliaSearch algoliaSearch) {
+                                  AlgoliaSearch algoliaSearch,
+                                  ApplicationEventPublisher eventPublisher) {
         this.recombee = recombee;
         this.usersRepository = usersRepository;
         this.songsRepository = songsRepository;
         this.userHistoryRepository = userHistoryRepository;
         this.paginationMetaDataService = paginationMetaDataService;
         this.algoliaSearch = algoliaSearch;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -60,12 +66,8 @@ public class InteractionApiService {
                 .build();
         userHistoryRepository.save(history);
 
-        // Track in Recombee
-        try {
-            recombee.trackPlay(userId, songId, percentage);
-        } catch (Exception e) {
-            log.error("Failed to track play in Recombee: {}", e.getMessage());
-        }
+        // Emit telemetry event AFTER_COMMIT
+        eventPublisher.publishEvent(new TelemetryEvents.SongPlayEvent(userId, songId, percentage));
         log.info("saved song in history");
     }
 
@@ -157,11 +159,7 @@ public class InteractionApiService {
             paginationMetaDataService.incrementStatus("UserFavourites_" + userId, null);
         }
 
-        try {
-            recombee.trackFavouriteAdd(userId, songId);
-        } catch (Exception e) {
-            log.error("Failed to track favourite add in Recombee: {}", e.getMessage());
-        }
+        eventPublisher.publishEvent(new TelemetryEvents.SongFavouriteEvent(userId, songId, true));
     }
 
     @Transactional
@@ -172,11 +170,7 @@ public class InteractionApiService {
             paginationMetaDataService.decrementStatus("UserFavourites_" + userId, null);
         }
 
-        try {
-            recombee.trackFavouriteRemove(userId, songId);
-        } catch (Exception e) {
-            log.error("Failed to track favourite remove in Recombee: {}", e.getMessage());
-        }
+        eventPublisher.publishEvent(new TelemetryEvents.SongFavouriteEvent(userId, songId, false));
     }
 
     @Transactional(readOnly = true)

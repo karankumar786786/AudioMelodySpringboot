@@ -27,6 +27,10 @@ import me.one_org.melody.Repository.UserSearchHistoryRepository;
 import me.one_org.melody.Repository.UsersRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 
+import org.springframework.context.ApplicationEventPublisher;
+import me.one_org.melody.Events.AlgoliaEvents;
+import me.one_org.melody.Events.TelemetryEvents;
+
 @Service
 @Slf4j
 public class UserPlaylistApiService {
@@ -36,24 +40,22 @@ public class UserPlaylistApiService {
     private final UserSearchHistoryRepository userSearchHistoryRepository;
     private final SongsRepository songsRepository;
     private final UsersRepository usersRepository;
-    private final Recombee recombee;
     private final PaginationMetaDataService paginationMetaDataService;
-    private final AlgoliaSearch algoliaSearch;
+    private final ApplicationEventPublisher eventPublisher;
 
     public UserPlaylistApiService(UserPlaylistsRepository userPlaylistsRepository,
             UserSavedPlaylistsRepository userSavedPlaylistsRepository,
             UserSearchHistoryRepository userSearchHistoryRepository,
             SongsRepository songsRepository, UsersRepository usersRepository,
-            Recombee recombee, PaginationMetaDataService paginationMetaDataService,
-            AlgoliaSearch algoliaSearch) {
+            PaginationMetaDataService paginationMetaDataService,
+            ApplicationEventPublisher eventPublisher) {
         this.userPlaylistsRepository = userPlaylistsRepository;
         this.userSavedPlaylistsRepository = userSavedPlaylistsRepository;
         this.userSearchHistoryRepository = userSearchHistoryRepository;
         this.songsRepository = songsRepository;
         this.usersRepository = usersRepository;
-        this.recombee = recombee;
         this.paginationMetaDataService = paginationMetaDataService;
-        this.algoliaSearch = algoliaSearch;
+        this.eventPublisher = eventPublisher;
     }
 
     public List<UserPlaylistsEntity> getUserPlaylists(String userId) {
@@ -97,13 +99,9 @@ public class UserPlaylistApiService {
         userPlaylistsRepository.save(playlist);
         paginationMetaDataService.incrementStatus("UserPlaylists_" + userId, playlist.getStatus());
 
-        // If public, index in Algolia search
+        // If public, sync to Algolia AFTER_COMMIT
         if (playlist.getPrivacy() == PlaylistPrivacyEnum.PUBLIC) {
-            try {
-                algoliaSearch.save(playlist);
-            } catch (Exception e) {
-                log.warn("Failed to index public user playlist in Algolia: {}", e.getMessage());
-            }
+            eventPublisher.publishEvent(new AlgoliaEvents.PlaylistIndexSyncEvent(playlist.getId(), playlist.getName()));
         }
 
         return playlist;
@@ -115,13 +113,9 @@ public class UserPlaylistApiService {
         playlist.setName(name);
         userPlaylistsRepository.save(playlist);
 
-        // If public, update in Algolia
+        // If public, sync to Algolia AFTER_COMMIT
         if (playlist.getPrivacy() == PlaylistPrivacyEnum.PUBLIC) {
-            try {
-                algoliaSearch.save(playlist);
-            } catch (Exception e) {
-                log.warn("Failed to update public user playlist in Algolia: {}", e.getMessage());
-            }
+            eventPublisher.publishEvent(new AlgoliaEvents.PlaylistIndexSyncEvent(playlist.getId(), playlist.getName()));
         }
 
         return playlist;
@@ -138,15 +132,11 @@ public class UserPlaylistApiService {
         userPlaylistsRepository.save(playlist);
 
         // Algolia & Followers Sync:
-        // If public -> index in Algolia.
-        // If private or share by link -> delete all follower library references AND delete from Algolia.
+        // If public -> index in Algolia AFTER_COMMIT.
+        // If private or share by link -> delete all follower library references AND delete from Algolia AFTER_COMMIT.
         final String pid = playlist.getId();
         if (newPrivacy == PlaylistPrivacyEnum.PUBLIC) {
-            try {
-                algoliaSearch.save(playlist);
-            } catch (Exception e) {
-                log.warn("Failed to index public user playlist in Algolia: {}", e.getMessage());
-            }
+            eventPublisher.publishEvent(new AlgoliaEvents.PlaylistIndexSyncEvent(playlist.getId(), playlist.getName()));
         } else {
             // Revoke followers: delete saved references from all other users' libraries
             try {
@@ -162,12 +152,8 @@ public class UserPlaylistApiService {
                 log.warn("Failed to delete search history for non-public playlist: {}", e.getMessage());
             }
 
-            // Revoke search index: delete from Algolia
-            try {
-                algoliaSearch.delete(pid);
-            } catch (Exception e) {
-                log.warn("Failed to delete revoked user playlist from Algolia: {}", e.getMessage());
-            }
+            // Revoke search index: delete from Algolia AFTER_COMMIT
+            eventPublisher.publishEvent(new AlgoliaEvents.PlaylistIndexDeleteEvent(pid));
         }
 
         return playlist;
@@ -194,12 +180,8 @@ public class UserPlaylistApiService {
         userPlaylistsRepository.deleteById(playlistId);
         paginationMetaDataService.decrementStatus("UserPlaylists_" + userId, playlist.getStatus());
 
-        // Delete from Algolia search index
-        try {
-            algoliaSearch.delete(playlistId);
-        } catch (Exception e) {
-            log.warn("Failed to remove deleted user playlist from Algolia: {}", e.getMessage());
-        }
+        // Delete from Algolia search index AFTER_COMMIT
+        eventPublisher.publishEvent(new AlgoliaEvents.PlaylistIndexDeleteEvent(playlistId));
     }
 
     @Transactional
@@ -214,12 +196,8 @@ public class UserPlaylistApiService {
             playlist.setTotalSongs(playlist.getTotalSongs() + 1);
         }
 
-        // Track in Recombee
-        try {
-            recombee.trackPlaylistAdd(userId, songId);
-        } catch (Exception e) {
-            log.warn("Failed to track playlist add in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
-        }
+        // Track in Recombee AFTER_COMMIT
+        eventPublisher.publishEvent(new TelemetryEvents.PlaylistSongEvent(userId, songId, true));
 
         return playlist;
     }
@@ -354,12 +332,8 @@ public class UserPlaylistApiService {
             playlist.setTotalSongs(Math.max(0, playlist.getTotalSongs() - 1));
         }
 
-        // Track in Recombee
-        try {
-            recombee.trackPlaylistRemove(userId, songId);
-        } catch (Exception e) {
-            log.warn("Failed to track playlist remove in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
-        }
+        // Track in Recombee AFTER_COMMIT
+        eventPublisher.publishEvent(new TelemetryEvents.PlaylistSongEvent(userId, songId, false));
 
         return playlist;
     }

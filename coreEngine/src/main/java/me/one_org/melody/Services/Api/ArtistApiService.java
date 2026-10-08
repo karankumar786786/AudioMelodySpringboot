@@ -27,6 +27,8 @@ import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.ArtistFollowEventRepository;
 import me.one_org.melody.Repository.ArtistMetadataRepository;
 import me.one_org.melody.Repository.ArtistsRepository;
+import org.springframework.context.ApplicationEventPublisher;
+import me.one_org.melody.Events.TelemetryEvents;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 
@@ -40,7 +42,7 @@ public class ArtistApiService {
     private final PaginationMetaDataService paginationMetaDataService;
     private final ArtistMetadataRepository artistMetadataRepository;
     private final ArtistFollowEventRepository artistFollowEventRepository;
-    private final Recombee recombee;
+    private final ApplicationEventPublisher eventPublisher;
 
     public ArtistApiService(ArtistsRepository artistsRepository,
                             SongsRepository songsRepository,
@@ -48,14 +50,14 @@ public class ArtistApiService {
                             PaginationMetaDataService paginationMetaDataService,
                             ArtistMetadataRepository artistMetadataRepository,
                             ArtistFollowEventRepository artistFollowEventRepository,
-                            Recombee recombee) {
+                            ApplicationEventPublisher eventPublisher) {
         this.artistsRepository = artistsRepository;
         this.songsRepository = songsRepository;
         this.algoliaSearch = algoliaSearch;
         this.paginationMetaDataService = paginationMetaDataService;
         this.artistMetadataRepository = artistMetadataRepository;
         this.artistFollowEventRepository = artistFollowEventRepository;
-        this.recombee = recombee;
+        this.eventPublisher = eventPublisher;
     }
 
     public List<ArtistsEntity> getArtistsPaginated(int page, int size) {
@@ -142,12 +144,7 @@ public class ArtistApiService {
 
             artistMetadataRepository.incrementFollowers(artistId, artistName);
 
-            try {
-                recombee.trackArtistFollow(userId, artistId);
-                log.info("Tracked artist follow in Recombee for user [{}] artist [{}]", userId, artistId);
-            } catch (Exception e) {
-                log.error("Failed to track artist follow in Recombee for user [{}] artist [{}]: {}", userId, artistId, e.getMessage());
-            }
+            eventPublisher.publishEvent(new TelemetryEvents.ArtistFollowEvent(userId, artistId));
         }
 
         Long followersCount = artistMetadataRepository.findById(artistId)
@@ -182,12 +179,7 @@ public class ArtistApiService {
 
             artistMetadataRepository.decrementFollowers(artistId);
 
-            try {
-                recombee.trackArtistUnfollow(userId, artistId);
-                log.info("Tracked artist unfollow in Recombee for user [{}] artist [{}]", userId, artistId);
-            } catch (Exception e) {
-                log.error("Failed to track artist unfollow in Recombee for user [{}] artist [{}]: {}", userId, artistId, e.getMessage());
-            }
+            eventPublisher.publishEvent(new TelemetryEvents.ArtistUnfollowEvent(userId, artistId));
         }
 
         Long followersCount = artistMetadataRepository.findById(artistId)
@@ -265,12 +257,8 @@ public class ArtistApiService {
             throw new BadRequestException("Please select artists for onboarding");
         }
 
-        // Ensure user is provisioned in Recombee
-        try {
-            recombee.addUser(userId);
-        } catch (Exception ignored) {}
-
         List<String> followedNames = new ArrayList<>();
+        List<String> followedArtistIds = new ArrayList<>();
         List<String> skippedIds = new ArrayList<>();
 
         for (String idOrName : artistIds) {
@@ -280,17 +268,7 @@ public class ArtistApiService {
 
                 ArtistFollowStatusDto status = followArtist(userId, artist.getId());
                 followedNames.add(status.artistName());
-
-                // Seed positive play interaction signals for artist's top songs in Recombee
-                try {
-                    List<SongsEntity> topSongs = getArtistSongsPaginated(status.artistId(), 0, 3);
-                    for (SongsEntity song : topSongs) {
-                        try {
-                            recombee.trackPlay(userId, song.getId(), 0.95);
-                        } catch (Exception ignored) {}
-                    }
-                } catch (Exception ignored) {}
-
+                followedArtistIds.add(status.artistId());
             } catch (Exception e) {
                 log.warn("Skipping artist [{}] during onboarding for user [{}]: {}", idOrName, userId, e.getMessage());
                 skippedIds.add(idOrName);
@@ -302,6 +280,9 @@ public class ArtistApiService {
             throw new BadRequestException(
                 "None of the selected artists could be found. Please search and select valid artists.");
         }
+
+        // Decoupled telemetry: provision user and seed recommendation profile AFTER transaction commits
+        eventPublisher.publishEvent(new TelemetryEvents.OnboardingSeededEvent(userId, followedArtistIds));
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);

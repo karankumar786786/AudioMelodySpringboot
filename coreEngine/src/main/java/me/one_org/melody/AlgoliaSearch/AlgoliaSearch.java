@@ -94,12 +94,16 @@ public class AlgoliaSearch {
         searchClient.saveObject(indexName, record);
     }
 
-    public void save(UserPlaylistsEntity playlist) throws Exception {
+    public void savePlaylist(String id, String name) throws Exception {
         Map<String, Object> record = new HashMap<>();
-        record.put("objectID", playlist.getId());
+        record.put("objectID", id);
         record.put("type", "playlist");
-        record.put("name", playlist.getName());
+        record.put("name", name);
         searchClient.saveObject(indexName, record);
+    }
+
+    public void save(UserPlaylistsEntity playlist) throws Exception {
+        savePlaylist(playlist.getId(), playlist.getName());
     }
 
     public void delete(String id) {

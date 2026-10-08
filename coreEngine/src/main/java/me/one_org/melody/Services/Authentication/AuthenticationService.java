@@ -40,12 +40,12 @@ public class AuthenticationService {
     private final PaginationMetaDataService paginationMetaDataService;
     private final MailQueue mailQueue;
     private final me.one_org.melody.Security.TokenBlacklistService tokenBlacklistService;
-    private final me.one_org.melody.Recommendation.Recombee recombee;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     public AuthenticationService(UsersRepository usersRepository, JwtUtil jwtUtil, HmacUtil hmacUtil, OtpUtil otpUtil,
             Redis<OtpDataDto> cache, PaginationMetaDataService paginationMetaDataService, MailQueue mailQueue,
             me.one_org.melody.Security.TokenBlacklistService tokenBlacklistService,
-            me.one_org.melody.Recommendation.Recombee recombee) {
+            org.springframework.context.ApplicationEventPublisher eventPublisher) {
         this.usersRepository = usersRepository;
         this.jwtUtil = jwtUtil;
         this.hmacUtil = hmacUtil;
@@ -54,7 +54,7 @@ public class AuthenticationService {
         this.paginationMetaDataService = paginationMetaDataService;
         this.mailQueue = mailQueue;
         this.tokenBlacklistService = tokenBlacklistService;
-        this.recombee = recombee;
+        this.eventPublisher = eventPublisher;
     }
 
     public String register(RegisterRequestDto request) {
@@ -112,12 +112,7 @@ public class AuthenticationService {
                     .build();
             usersRepository.save(user);
             paginationMetaDataService.incrementStatus("UsersEntity", user.getStatus());
-            try {
-                recombee.addUser(user.getId());
-                log.info("Registered new user [{}] in Recombee", user.getId());
-            } catch (Exception e) {
-                log.warn("Failed to register new user in Recombee: {}", e.getMessage());
-            }
+            eventPublisher.publishEvent(new me.one_org.melody.Events.TelemetryEvents.UserRegisteredEvent(user.getId()));
         }
         cache.delete(email);
 
