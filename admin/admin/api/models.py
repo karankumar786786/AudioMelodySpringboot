@@ -69,6 +69,36 @@ class Artist(models.Model):
         return self.name
 
 
+class ArtistMetadata(models.Model):
+    artist_id = models.CharField(primary_key=True, max_length=255, db_column="artist_id")
+    artist_name = models.CharField(max_length=255, db_column="artist_name")
+    followers_count = models.BigIntegerField(default=0, db_column="followers_count")
+    created_at = models.DateTimeField(auto_now_add=True, db_column="created_at")
+    updated_at = models.DateTimeField(auto_now=True, db_column="updated_at")
+
+    class Meta:
+        managed = False
+        db_table = "artist_metadata"
+
+    def __str__(self):
+        return f"{self.artist_name} ({self.followers_count} followers)"
+
+
+class ArtistFollowEvent(models.Model):
+    id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
+    user_id = models.CharField(max_length=255, db_column="user_id")
+    artist_id = models.CharField(max_length=255, db_column="artist_id")
+    event_type = models.CharField(max_length=50, db_column="event_type")
+    created_at = models.DateTimeField(auto_now_add=True, db_column="created_at")
+
+    class Meta:
+        managed = False
+        db_table = "artist_follow_events"
+
+    def __str__(self):
+        return f"{self.user_id} -> {self.artist_id} ({self.event_type})"
+
+
 class Job(models.Model):
     id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
     title = models.CharField(max_length=255)

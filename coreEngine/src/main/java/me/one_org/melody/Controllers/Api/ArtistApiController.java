@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
+import me.one_org.melody.Dto.Controllers.Api.ArtistFollowStatusDto;
 import me.one_org.melody.Entity.ArtistsEntity;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.SongsEntity;
@@ -43,5 +44,33 @@ public class ArtistApiController {
         List<SongsEntity> songs = artistAppService.getArtistSongsPaginated(id, page, size);
         PaginationMetaDataEntity metaData = artistAppService.getArtistSongsPaginationMetaData(id);
         return ResponseEntity.ok(new PaginatedResponseDto<>(songs, page, size, metaData));
+    }
+
+    @PostMapping("/{id}/follow")
+    public ResponseEntity<ArtistFollowStatusDto> followArtist(
+            @RequestAttribute("userId") String userId,
+            @PathVariable String id) {
+        return ResponseEntity.ok(artistAppService.followArtist(userId, id));
+    }
+
+    @PostMapping("/{id}/unfollow")
+    public ResponseEntity<ArtistFollowStatusDto> unfollowArtist(
+            @RequestAttribute("userId") String userId,
+            @PathVariable String id) {
+        return ResponseEntity.ok(artistAppService.unfollowArtist(userId, id));
+    }
+
+    @DeleteMapping("/{id}/follow")
+    public ResponseEntity<ArtistFollowStatusDto> deleteFollowArtist(
+            @RequestAttribute("userId") String userId,
+            @PathVariable String id) {
+        return ResponseEntity.ok(artistAppService.unfollowArtist(userId, id));
+    }
+
+    @GetMapping("/{id}/follow-status")
+    public ResponseEntity<ArtistFollowStatusDto> getFollowStatus(
+            @RequestAttribute(value = "userId", required = false) String userId,
+            @PathVariable String id) {
+        return ResponseEntity.ok(artistAppService.getFollowStatus(userId, id));
     }
 }

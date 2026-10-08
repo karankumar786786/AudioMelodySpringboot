@@ -28,6 +28,16 @@ public class ArtistsRepository {
         return Optional.ofNullable(entityManager.find(ArtistsEntity.class, id));
     }
 
+    public Optional<ArtistsEntity> findByNameIgnoreCase(String name) {
+        if (name == null || name.isBlank()) return Optional.empty();
+        List<ArtistsEntity> list = entityManager.createQuery(
+                "SELECT a FROM ArtistsEntity a WHERE LOWER(TRIM(a.name)) = LOWER(TRIM(:name))", ArtistsEntity.class)
+                .setParameter("name", name)
+                .setMaxResults(1)
+                .getResultList();
+        return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
+    }
+
     public List<ArtistsEntity> findAll() {
         return entityManager.createQuery("SELECT a FROM ArtistsEntity a", ArtistsEntity.class)
                 .getResultList();

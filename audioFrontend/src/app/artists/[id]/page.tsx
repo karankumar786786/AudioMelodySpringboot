@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -16,6 +16,8 @@ import {
   Music,
   ArrowLeft,
   Shuffle,
+  UserPlus,
+  Check,
 } from "lucide-react";
 import { playerStore, playerActions } from "@/store/player.store";
 import { mapListToPlayerSongs, formatDuration } from "@/lib/player-utils";
@@ -31,8 +33,11 @@ export default function ArtistPage() {
 
   const currentSong = useStore(playerStore, (s) => s.currentSong);
   const isPlaying = useStore(playerStore, (s) => s.isPlaying);
+  const systemUser = useStore(playerStore, (s) => s.systemUser);
+  const queryClient = useQueryClient();
 
   const [backgroundColor, setBackgroundColor] = useState("#181818");
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
 
   /* -------------------------------------------------------------------------- */
   /*                                ARTIST QUERY                                */
@@ -50,6 +55,21 @@ export default function ArtistPage() {
   const { data: songsResponse, isLoading: isSongsLoading, error: songsError, refetch: refetchSongs } = useQuery({
     queryKey: ["artist-songs", id],
     queryFn: () => musicApi.artists.getSongs(id as string),
+  });
+
+  /* -------------------------------------------------------------------------- */
+  /*                              FOLLOW STATUS QUERY                           */
+  /* -------------------------------------------------------------------------- */
+
+  const { data: followStatusData } = useQuery({
+    queryKey: ["artist-follow-status", id],
+    queryFn: async () => {
+      if (!id) return null;
+      const res = await musicApi.artists.getFollowStatus(id as string);
+      return res?.data;
+    },
+    enabled: !!id,
+    staleTime: 1000 * 60 * 2,
   });
 
   /* -------------------------------------------------------------------------- */
@@ -167,6 +187,49 @@ export default function ArtistPage() {
   };
 
   /* -------------------------------------------------------------------------- */
+  /*                              FOLLOW HANDLER                                */
+  /* -------------------------------------------------------------------------- */
+
+  const handleFollowToggle = async () => {
+    if (!systemUser?.id) {
+      toast.error("Sign in required", {
+        description: "Please sign in to follow artists.",
+      });
+      return;
+    }
+    if (!id || isFollowLoading) return;
+
+    try {
+      setIsFollowLoading(true);
+      const isCurrentlyFollowing = followStatusData?.isFollowing;
+      let res;
+      if (isCurrentlyFollowing) {
+        res = await musicApi.artists.unfollow(id as string);
+        toast.success("Unfollowed", {
+          description: `You are no longer following ${artist?.name || "this artist"}.`,
+        });
+      } else {
+        res = await musicApi.artists.follow(id as string);
+        toast.success("Following", {
+          description: `You are now following ${artist?.name || "this artist"}.`,
+        });
+      }
+
+      if (res?.data) {
+        queryClient.setQueryData(["artist-follow-status", id], res.data);
+        if (artist?.name) {
+          queryClient.setQueryData(["artist-follow-status", artist.name], res.data);
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ["artist-follow-status"] });
+    } catch (err) {
+      toast.error("Failed to update follow status");
+    } finally {
+      setIsFollowLoading(false);
+    }
+  };
+
+  /* -------------------------------------------------------------------------- */
   /*                                   UI                                       */
   /* -------------------------------------------------------------------------- */
 
@@ -242,7 +305,14 @@ export default function ArtistPage() {
               </p>
             )}
 
-            <div className="mt-4 flex items-center gap-2 text-xs text-white/80">
+            <div className="mt-4 flex items-center gap-3 text-xs text-white/80 flex-wrap">
+              <span className="font-semibold">
+                {(followStatusData?.followersCount ?? 0).toLocaleString()}{" "}
+                {(followStatusData?.followersCount === 1) ? "follower" : "followers"}
+              </span>
+
+              <span>•</span>
+
               <span className="font-semibold">
                 {songs.length} {songs.length === 1 ? "song" : "songs"}
               </span>
@@ -259,18 +329,45 @@ export default function ArtistPage() {
                       )
                     )}
                   </span>
+                </>
+              )}
 
+              <div className="flex items-center gap-2.5 ml-1">
+                {songs.length > 0 && (
                   <button
                     type="button"
                     onClick={handlePlayAll}
                     disabled={songs.length === 0}
-                    className="ml-3 flex items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-lg active:scale-95"
                   >
                     <Play size={16} fill="black" />
                     Play All
                   </button>
-                </>
-              )}
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleFollowToggle}
+                  disabled={isFollowLoading}
+                  className={`flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-semibold transition-all cursor-pointer shadow-lg active:scale-95 ${
+                    followStatusData?.isFollowing
+                      ? "bg-zinc-800/80 hover:bg-zinc-700 text-white border border-white/20 hover:border-red-500/40 hover:text-red-400"
+                      : "bg-primary hover:bg-primary/90 text-white"
+                  }`}
+                >
+                  {followStatusData?.isFollowing ? (
+                    <>
+                      <Check size={16} className="stroke-[3]" />
+                      Following
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={16} className="stroke-[2.5]" />
+                      Follow
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </motion.div>
         </div>

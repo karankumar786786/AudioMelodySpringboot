@@ -34,6 +34,15 @@ Naming convention:
   - `user_search_history` (Search history)
   - `delete_jobs` (Multi-cloud cascade teardown jobs)
   - `pagination_metadata` (Fast entity counters & pagination metadata)
+- **`V2__add_total_songs_to_playlists.sql`**:
+  - `playlists.total_songs` counter column
+  - `user_playlists.total_songs` counter column
+- **`V3__add_album_to_songs.sql`**:
+  - `songs.album` attribute and index
+  - `jobs.album` pipeline attribute
+- **`V4__add_artist_metadata_and_follow_events.sql`**:
+  - `artist_metadata` (Stores follower counts and timestamps)
+  - `artist_follow_events` (Audit log for follow/unfollow events with user & artist tracking)
 
 ---
 

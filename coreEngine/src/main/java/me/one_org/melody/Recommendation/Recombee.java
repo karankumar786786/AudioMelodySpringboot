@@ -188,6 +188,16 @@ public class Recombee {
         recombeeClient.send(new AddRating(userId, songId, 0.6).setCascadeCreate(true));
     }
 
+    // added to artist follow — highest user advocacy signal
+    public void trackArtistFollow(String userId, String artistId) throws Exception {
+        recombeeClient.send(new AddRating(userId, artistId, 1.0).setCascadeCreate(true));
+    }
+
+    // removed from artist follow — negative preference adjustment
+    public void trackArtistUnfollow(String userId, String artistId) throws Exception {
+        recombeeClient.send(new AddRating(userId, artistId, -0.5).setCascadeCreate(true));
+    }
+
     // ── Recommendations — return only IDs, caller fetches from DB ──
 
     public List<String> recommendForUser(String userId, int count) throws Exception {

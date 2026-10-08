@@ -31,6 +31,13 @@ export interface Artist {
   createdAt?: string;
 }
 
+export interface ArtistFollowStatus {
+  artistId: string;
+  artistName: string;
+  followersCount: number;
+  isFollowing: boolean;
+}
+
 export type PlaylistPrivacy = "PUBLIC" | "PRIVATE" | "SHARE_BY_LINK";
 
 export interface UserPlaylist {
@@ -330,6 +337,22 @@ export const musicApi = {
     getSongs: async (id: string, page = 1, size = 20) => {
       const res = await request(`/api/artists/${id}/songs?page=${page - 1}&size=${size}`);
       return formatPaginated<Song>(res);
+    },
+    follow: async (idOrName: string) => {
+      const data = await request<ArtistFollowStatus>(`/api/artists/${encodeURIComponent(idOrName)}/follow`, {
+        method: "POST",
+      });
+      return { data };
+    },
+    unfollow: async (idOrName: string) => {
+      const data = await request<ArtistFollowStatus>(`/api/artists/${encodeURIComponent(idOrName)}/unfollow`, {
+        method: "POST",
+      });
+      return { data };
+    },
+    getFollowStatus: async (idOrName: string) => {
+      const data = await request<ArtistFollowStatus>(`/api/artists/${encodeURIComponent(idOrName)}/follow-status`);
+      return { data };
     },
   },
   playlists: {

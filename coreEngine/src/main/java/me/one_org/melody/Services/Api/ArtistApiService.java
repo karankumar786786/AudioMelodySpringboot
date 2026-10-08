@@ -2,35 +2,55 @@ package me.one_org.melody.Services.Api;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
+import me.one_org.melody.Dto.Controllers.Api.ArtistFollowStatusDto;
+import me.one_org.melody.Entity.ArtistFollowEventEntity;
+import me.one_org.melody.Entity.ArtistMetadataEntity;
 import me.one_org.melody.Entity.ArtistsEntity;
 import me.one_org.melody.Entity.PaginationMetaDataEntity;
 import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.Enums.StatusEnum;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
+import me.one_org.melody.Recommendation.Recombee;
+import me.one_org.melody.Repository.ArtistFollowEventRepository;
+import me.one_org.melody.Repository.ArtistMetadataRepository;
 import me.one_org.melody.Repository.ArtistsRepository;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 
 @Service
+@Slf4j
 public class ArtistApiService {
 
     private final ArtistsRepository artistsRepository;
     private final SongsRepository songsRepository;
     private final AlgoliaSearch algoliaSearch;
     private final PaginationMetaDataService paginationMetaDataService;
+    private final ArtistMetadataRepository artistMetadataRepository;
+    private final ArtistFollowEventRepository artistFollowEventRepository;
+    private final Recombee recombee;
 
     public ArtistApiService(ArtistsRepository artistsRepository,
                             SongsRepository songsRepository,
                             AlgoliaSearch algoliaSearch,
-                            PaginationMetaDataService paginationMetaDataService) {
+                            PaginationMetaDataService paginationMetaDataService,
+                            ArtistMetadataRepository artistMetadataRepository,
+                            ArtistFollowEventRepository artistFollowEventRepository,
+                            Recombee recombee) {
         this.artistsRepository = artistsRepository;
         this.songsRepository = songsRepository;
         this.algoliaSearch = algoliaSearch;
         this.paginationMetaDataService = paginationMetaDataService;
+        this.artistMetadataRepository = artistMetadataRepository;
+        this.artistFollowEventRepository = artistFollowEventRepository;
+        this.recombee = recombee;
     }
 
     public List<ArtistsEntity> getArtistsPaginated(int page, int size) {
@@ -74,5 +94,118 @@ public class ArtistApiService {
 
     public PaginationMetaDataEntity getArtistSongsPaginationMetaData(String artistId) {
         return paginationMetaDataService.getMetaData("ArtistSongs_" + artistId);
+    }
+
+    // ── Artist Follow & Metadata Operations ──
+
+    public ArtistsEntity resolveArtist(String artistIdOrName) {
+        if (artistIdOrName == null || artistIdOrName.isBlank()) {
+            throw new ResourceNotFoundException("Artist identifier cannot be empty");
+        }
+        // 1. Try finding by ID
+        Optional<ArtistsEntity> byId = artistsRepository.findById(artistIdOrName);
+        if (byId.isPresent()) {
+            return byId.get();
+        }
+
+        // 2. Try finding by Name (case-insensitive)
+        Optional<ArtistsEntity> byName = artistsRepository.findByNameIgnoreCase(artistIdOrName);
+        if (byName.isPresent()) {
+            return byName.get();
+        }
+
+        // 3. Auto-provision artist entity so follow works for any song artist
+        ArtistsEntity newArtist = ArtistsEntity.builder()
+                .id(UUID.randomUUID().toString())
+                .name(artistIdOrName.trim())
+                .status(StatusEnum.ACTIVE)
+                .build();
+        artistsRepository.save(newArtist);
+        return newArtist;
+    }
+
+    @Transactional
+    public ArtistFollowStatusDto followArtist(String userId, String artistIdOrName) {
+        if (userId == null || userId.isBlank()) {
+            throw new ResourceNotFoundException("User must be authenticated to follow an artist");
+        }
+        ArtistsEntity artist = resolveArtist(artistIdOrName);
+        String artistId = artist.getId();
+        String artistName = artist.getName();
+
+        boolean alreadyFollowing = artistFollowEventRepository.isUserFollowingArtist(userId, artistId);
+        if (!alreadyFollowing) {
+            ArtistFollowEventEntity event = ArtistFollowEventEntity.builder()
+                    .id(UUID.randomUUID().toString())
+                    .userId(userId)
+                    .artistId(artistId)
+                    .eventType("FOLLOW")
+                    .build();
+            artistFollowEventRepository.save(event);
+
+            artistMetadataRepository.incrementFollowers(artistId, artistName);
+
+            try {
+                recombee.trackArtistFollow(userId, artistId);
+                log.info("Tracked artist follow in Recombee for user [{}] artist [{}]", userId, artistId);
+            } catch (Exception e) {
+                log.error("Failed to track artist follow in Recombee for user [{}] artist [{}]: {}", userId, artistId, e.getMessage());
+            }
+        }
+
+        Long followersCount = artistMetadataRepository.findById(artistId)
+                .map(ArtistMetadataEntity::getFollowersCount)
+                .orElse(1L);
+
+        return new ArtistFollowStatusDto(artistId, artistName, followersCount, true);
+    }
+
+    @Transactional
+    public ArtistFollowStatusDto unfollowArtist(String userId, String artistIdOrName) {
+        if (userId == null || userId.isBlank()) {
+            throw new ResourceNotFoundException("User must be authenticated to unfollow an artist");
+        }
+        ArtistsEntity artist = resolveArtist(artistIdOrName);
+        String artistId = artist.getId();
+        String artistName = artist.getName();
+
+        boolean wasFollowing = artistFollowEventRepository.isUserFollowingArtist(userId, artistId);
+        if (wasFollowing) {
+            ArtistFollowEventEntity event = ArtistFollowEventEntity.builder()
+                    .id(UUID.randomUUID().toString())
+                    .userId(userId)
+                    .artistId(artistId)
+                    .eventType("UNFOLLOW")
+                    .build();
+            artistFollowEventRepository.save(event);
+
+            artistMetadataRepository.decrementFollowers(artistId);
+
+            try {
+                recombee.trackArtistUnfollow(userId, artistId);
+                log.info("Tracked artist unfollow in Recombee for user [{}] artist [{}]", userId, artistId);
+            } catch (Exception e) {
+                log.error("Failed to track artist unfollow in Recombee for user [{}] artist [{}]: {}", userId, artistId, e.getMessage());
+            }
+        }
+
+        Long followersCount = artistMetadataRepository.findById(artistId)
+                .map(ArtistMetadataEntity::getFollowersCount)
+                .orElse(0L);
+
+        return new ArtistFollowStatusDto(artistId, artistName, followersCount, false);
+    }
+
+    public ArtistFollowStatusDto getFollowStatus(String userId, String artistIdOrName) {
+        ArtistsEntity artist = resolveArtist(artistIdOrName);
+        String artistId = artist.getId();
+        String artistName = artist.getName();
+
+        boolean isFollowing = userId != null && artistFollowEventRepository.isUserFollowingArtist(userId, artistId);
+        Long followersCount = artistMetadataRepository.findById(artistId)
+                .map(ArtistMetadataEntity::getFollowersCount)
+                .orElse(0L);
+
+        return new ArtistFollowStatusDto(artistId, artistName, followersCount, isFollowing);
     }
 }
