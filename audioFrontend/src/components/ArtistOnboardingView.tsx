@@ -10,8 +10,6 @@ import {
   Loader2,
   Users,
   X,
-  Plus,
-  Music,
 } from "lucide-react";
 import { musicApi, Artist } from "@/lib/api";
 import { getImageUrl } from "@/lib/image-utils";
@@ -118,12 +116,6 @@ export function ArtistOnboardingView({ onComplete, userName }: ArtistOnboardingV
     return merged;
   }, [debouncedQuery, initialArtists, backendSearchResults]);
 
-  // Check if the current search query already exactly matches an artist
-  const hasExactMatch = useMemo(() => {
-    if (!debouncedQuery) return true;
-    const clean = debouncedQuery.toLowerCase();
-    return displayedArtists.some((a) => a.name.toLowerCase().trim() === clean);
-  }, [debouncedQuery, displayedArtists]);
 
   // Toggle selection by artist object
   const toggleArtist = (artist: Artist) => {
@@ -329,49 +321,7 @@ export function ArtistOnboardingView({ onComplete, userName }: ArtistOnboardingV
           </div>
         ) : (
           <div className="space-y-4">
-            {/* Custom Artist option if user typed a name that isn't already an exact match */}
-            {debouncedQuery.length > 1 && !hasExactMatch && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                onClick={() =>
-                  toggleArtist({
-                    id: debouncedQuery,
-                    name: debouncedQuery,
-                  })
-                }
-                className="flex items-center justify-between p-3.5 rounded-2xl bg-zinc-900/90 border border-primary/40 hover:border-primary cursor-pointer transition-all duration-200 group shadow-lg shadow-black/40"
-              >
-                <div className="flex items-center gap-3.5">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-primary/30 to-primary/10 border border-primary/30 flex items-center justify-center text-primary group-hover:scale-105 transition-transform">
-                    <Music size={20} />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs sm:text-sm font-bold text-white">
-                        {debouncedQuery}
-                      </span>
-                      <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30">
-                        Custom Artist
-                      </span>
-                    </div>
-                    <p className="text-xs text-zinc-400 mt-0.5">
-                      Select "{debouncedQuery}" as one of your 5 favorite artists
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-primary text-black font-bold text-xs group-hover:brightness-110 transition-all cursor-pointer"
-                >
-                  <Plus size={14} className="stroke-[3]" />
-                  <span>Select</span>
-                </button>
-              </motion.div>
-            )}
-
-            {displayedArtists.length === 0 && hasExactMatch ? (
+            {displayedArtists.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-48 text-center text-zinc-400 px-4">
                 <Users size={36} className="text-zinc-600 mb-2" />
                 <p className="text-sm font-semibold">No artists found</p>
