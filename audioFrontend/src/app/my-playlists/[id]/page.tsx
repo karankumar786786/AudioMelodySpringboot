@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { musicApi, type PlaylistPrivacy } from "@/lib/api";
+import { musicApi, UserPlaylist, type PlaylistPrivacy } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -22,6 +22,7 @@ import {
   BookmarkCheck,
   Copy,
   Check,
+  Heart,
 } from "lucide-react";
 import { playerActions, playerStore } from "@/store/player.store";
 import { mapListToPlayerSongs, formatDuration } from "@/lib/player-utils";
@@ -46,14 +47,33 @@ export default function MyPlaylistPage() {
   const [backgroundColor, setBackgroundColor] = useState("#181818");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
+  const isFavourites = id === "favourites";
+
   /* -------------------------------------------------------------------------- */
   /*                                  PLAYLIST                                  */
   /* -------------------------------------------------------------------------- */
 
   const { data: playlistResponse, isLoading: isPlaylistLoading, error: playlistError, refetch: refetchPlaylist } = useQuery({
     queryKey: ["user-playlist", id],
-    queryFn: () => musicApi.users.getPlaylistById(id as string),
-    enabled: !!id,
+    queryFn: async () => {
+      if (isFavourites) {
+        const favouritesPlaylist: UserPlaylist = {
+          id: "favourites",
+          name: "Favourites",
+          description: "Your saved collection of favourite tracks and songs.",
+          privacy: "PRIVATE" as PlaylistPrivacy,
+          ownerName: systemUser?.username || systemUser?.name || "You",
+          ownerId: systemUser?.id || "",
+          totalSongs: 0,
+          coverImageKey: undefined,
+        };
+        return {
+          data: favouritesPlaylist,
+        };
+      }
+      return await musicApi.users.getPlaylistById(id as string);
+    },
+    enabled: isFavourites ? true : !!id,
   });
 
   /* -------------------------------------------------------------------------- */
@@ -61,9 +81,9 @@ export default function MyPlaylistPage() {
   /* -------------------------------------------------------------------------- */
 
   const { data: songsResponse, isLoading: isSongsLoading, error: songsError, refetch: refetchSongs } = useQuery({
-    queryKey: ["user-playlist-songs", id],
-    queryFn: () => musicApi.users.getPlaylistSongs(id as string),
-    enabled: !!id,
+    queryKey: isFavourites ? ["favourites", systemUser?.id] : ["user-playlist-songs", id],
+    queryFn: () => isFavourites ? musicApi.users.getFavourites() : musicApi.users.getPlaylistSongs(id as string),
+    enabled: isFavourites ? !!systemUser?.id : !!id,
   });
 
   /* -------------------------------------------------------------------------- */
@@ -150,13 +170,23 @@ export default function MyPlaylistPage() {
   /* -------------------------------------------------------------------------- */
 
   const removeSong = useMutation({
-    mutationFn: (songId: string) =>
-      musicApi.users.removeSongFromPlaylist(id as string, songId),
+    mutationFn: async (songId: string) => {
+      if (isFavourites) {
+        await musicApi.users.removeFavourite(songId);
+      } else {
+        await musicApi.users.removeSongFromPlaylist(id as string, songId);
+      }
+    },
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["user-playlist-songs", id],
-        exact: false,
-      });
+      if (isFavourites) {
+        queryClient.invalidateQueries({ queryKey: ["favourites"] });
+        playerActions.fetchFavourites();
+      } else {
+        queryClient.invalidateQueries({
+          queryKey: ["user-playlist-songs", id],
+          exact: false,
+        });
+      }
     },
   });
 
@@ -164,14 +194,19 @@ export default function MyPlaylistPage() {
   /*                                  DATA                                      */
   /* -------------------------------------------------------------------------- */
 
-  const playlist = playlistResponse?.data;
+  const rawPlaylist = playlistResponse?.data;
   const songs = songsResponse?.data?.data || [];
+  const playlist = isFavourites && rawPlaylist
+    ? { ...rawPlaylist, totalSongs: songs.length }
+    : rawPlaylist;
 
-  const isOwner = Boolean(
-    systemUser?.id &&
-      playlist?.ownerId &&
-      playlist.ownerId === systemUser.id
-  );
+  const isOwner = isFavourites
+    ? true
+    : Boolean(
+        systemUser?.id &&
+          playlist?.ownerId &&
+          playlist.ownerId === systemUser.id
+      );
 
   /* -------------------------------------------------------------------------- */
   /*                                COVER IMAGE                                 */
@@ -214,6 +249,10 @@ export default function MyPlaylistPage() {
   useEffect(() => {
     let cancelled = false;
     async function extractColor() {
+      if (isFavourites) {
+        setBackgroundColor("#2e1065");
+        return;
+      }
       if (!colorSourceImage) {
         setBackgroundColor("#181818");
         return;
@@ -228,7 +267,7 @@ export default function MyPlaylistPage() {
     return () => {
       cancelled = true;
     };
-  }, [colorSourceImage, playlist?.name]);
+  }, [colorSourceImage, playlist?.name, isFavourites]);
 
   /* -------------------------------------------------------------------------- */
   /*                                  LOADING                                   */
@@ -342,7 +381,11 @@ export default function MyPlaylistPage() {
             transition={{ duration: 0.35 }}
             className="h-52 w-52 shrink-0 overflow-hidden rounded-md bg-zinc-900 shadow-2xl md:h-56 md:w-56"
           >
-            {hasCustomCover ? (
+            {isFavourites ? (
+              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 shadow-2xl shadow-purple-500/20">
+                <Heart size={72} fill="white" className="text-white drop-shadow-md" />
+              </div>
+            ) : hasCustomCover ? (
               <img
                 src={coverUrl}
                 alt={playlist?.name || "Playlist"}
@@ -390,39 +433,43 @@ export default function MyPlaylistPage() {
           >
             <div className="mb-2 flex items-center gap-2.5">
               <span className="text-xs font-semibold uppercase tracking-wider text-white/80">
-                {isOwner ? "Your Playlist" : "Dynamic Playlist"}
+                {isFavourites ? "Personal Collection" : isOwner ? "Your Playlist" : "Dynamic Playlist"}
               </span>
-              <span>•</span>
-              {/* Privacy Badge / Quick Trigger */}
-              {isOwner ? (
-                <button
-                  type="button"
-                  onClick={() => setIsShareModalOpen(true)}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide border transition-all cursor-pointer hover:scale-105 ${
-                    privacy === "PUBLIC"
-                      ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30"
-                      : privacy === "SHARE_BY_LINK"
-                      ? "bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30"
-                      : "bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30"
-                  }`}
-                  title="Click to manage playlist privacy & share"
-                >
-                  {privacy === "PUBLIC" && <Globe size={11} />}
-                  {privacy === "SHARE_BY_LINK" && <Link2 size={11} />}
-                  {privacy === "PRIVATE" && <Lock size={11} />}
-                  <span>
-                    {privacy === "PUBLIC"
-                      ? "Public"
-                      : privacy === "SHARE_BY_LINK"
-                      ? "Share by link"
-                      : "Private"}
-                  </span>
-                </button>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide border bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
-                  <Sparkles size={11} />
-                  <span>Dynamic Live Sync</span>
-                </span>
+              {!isFavourites && (
+                <>
+                  <span>•</span>
+                  {/* Privacy Badge / Quick Trigger */}
+                  {isOwner ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsShareModalOpen(true)}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide border transition-all cursor-pointer hover:scale-105 ${
+                        privacy === "PUBLIC"
+                          ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30"
+                          : privacy === "SHARE_BY_LINK"
+                          ? "bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30"
+                          : "bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30"
+                      }`}
+                      title="Click to manage playlist privacy & share"
+                    >
+                      {privacy === "PUBLIC" && <Globe size={11} />}
+                      {privacy === "SHARE_BY_LINK" && <Link2 size={11} />}
+                      {privacy === "PRIVATE" && <Lock size={11} />}
+                      <span>
+                        {privacy === "PUBLIC"
+                          ? "Public"
+                          : privacy === "SHARE_BY_LINK"
+                          ? "Share by link"
+                          : "Private"}
+                      </span>
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide border bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
+                      <Sparkles size={11} />
+                      <span>Dynamic Live Sync</span>
+                    </span>
+                  )}
+                </>
               )}
             </div>
 
@@ -473,7 +520,7 @@ export default function MyPlaylistPage() {
               )}
 
               {/* Save / Unsave to library for visitors (Spotify Dynamic Reference) */}
-              {!isOwner && (
+              {!isOwner && !isFavourites && (
                 <button
                   type="button"
                   onClick={() => toggleSaveMutation.mutate()}
@@ -499,8 +546,8 @@ export default function MyPlaylistPage() {
                 </button>
               )}
 
-              {/* Delete playlist (owner only) */}
-              {isOwner && (
+              {/* Delete playlist (owner only, not for favourites) */}
+              {isOwner && !isFavourites && (
                 <button
                   onClick={() => {
                     if (!confirm(`Delete "${playlist.name}"? This cannot be undone.`)) return;
@@ -517,16 +564,18 @@ export default function MyPlaylistPage() {
                 </button>
               )}
 
-              {/* Share button (on right side of delete button) */}
-              <button
-                type="button"
-                onClick={() => setIsShareModalOpen(true)}
-                className="flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-1.5 text-xs font-semibold text-white transition-all cursor-pointer"
-                title="Share playlist"
-              >
-                <Share2 size={13} />
-                <span>Share</span>
-              </button>
+              {/* Share button (not for personal favourites) */}
+              {!isFavourites && (
+                <button
+                  type="button"
+                  onClick={() => setIsShareModalOpen(true)}
+                  className="flex items-center gap-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 px-3.5 py-1.5 text-xs font-semibold text-white transition-all cursor-pointer"
+                  title="Share playlist"
+                >
+                  <Share2 size={13} />
+                  <span>Share</span>
+                </button>
+              )}
             </div>
           </motion.div>
         </div>
@@ -628,14 +677,16 @@ export default function MyPlaylistPage() {
                         onClick={(e) => {
                           e.stopPropagation();
                           toast.promise(removeSong.mutateAsync(song.id), {
-                            loading: "Removing track...",
-                            success: "Track removed",
+                            loading: isFavourites ? "Removing from favourites..." : "Removing track...",
+                            success: isFavourites ? "Removed from favourites" : "Track removed",
                             error: "Failed to remove",
-                            description: `"${song.title}" removed from playlist.`,
+                            description: isFavourites
+                              ? `"${song.title}" removed from your favourites.`
+                              : `"${song.title}" removed from playlist.`,
                           });
                         }}
                         className="hidden rounded p-1 text-zinc-500 transition-colors hover:text-red-400 group-hover:block"
-                        title="Remove from playlist"
+                        title={isFavourites ? "Remove from favourites" : "Remove from playlist"}
                       >
                         <Trash2 size={14} />
                       </button>
@@ -647,9 +698,25 @@ export default function MyPlaylistPage() {
             })
           ) : (
             <div className="rounded-xl border border-dashed border-white/10 py-20 text-center">
-              <Music size={40} className="mx-auto mb-4 text-zinc-700" />
-              <p className="text-sm text-zinc-500">No songs in this playlist yet.</p>
-              <p className="mt-1 text-xs text-zinc-600">Add songs using the playlist picker on any song.</p>
+              {isFavourites ? (
+                <>
+                  <Heart size={40} className="mx-auto mb-4 text-purple-400" />
+                  <p className="text-sm text-zinc-300 font-semibold">
+                    {systemUser ? "No favourite songs yet" : "Sign in to view your favourites"}
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {systemUser
+                      ? "Tap the heart icon on any song across OneMelody to save it here."
+                      : "Sign in with your account to access your saved favourites."}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Music size={40} className="mx-auto mb-4 text-zinc-700" />
+                  <p className="text-sm text-zinc-500">No songs in this playlist yet.</p>
+                  <p className="mt-1 text-xs text-zinc-600">Add songs using the playlist picker on any song.</p>
+                </>
+              )}
             </div>
           )}
         </div>

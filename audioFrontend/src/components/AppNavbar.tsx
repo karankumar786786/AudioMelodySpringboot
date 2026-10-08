@@ -724,7 +724,7 @@ export function AppNavbar() {
                       type="button"
                       onClick={() => {
                         setShowProfileMenu(false);
-                        router.push("/favourites");
+                        router.push("/my-playlists/favourites");
                       }}
                       className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-pointer"
                     >

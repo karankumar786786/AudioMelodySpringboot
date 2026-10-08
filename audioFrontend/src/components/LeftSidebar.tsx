@@ -24,10 +24,6 @@ const menuItems = [
   { icon: Users2, label: "Artists", href: "/artists" },
 ];
 
-const libraryItems = [
-  { icon: Heart, label: "Favourites", href: "/favourites" },
-];
-
 export function LeftSidebar() {
   const pathname = usePathname();
   const systemUser = useStore(playerStore, (s) => s.systemUser);
@@ -87,36 +83,6 @@ export function LeftSidebar() {
             </nav>
           </section>
 
-          {/* Library Section */}
-          <section>
-            <h3 className="hidden xl:block px-2 text-[12.5px] font-bold text-zinc-300 mb-2.5 uppercase tracking-wider">
-              Library
-            </h3>
-            <nav className="space-y-1">
-              {libraryItems.map((item) => (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  onClick={handleSidebarClick}
-                  title={item.label}
-                  className={`flex items-center justify-center xl:justify-start gap-3.5 px-2 xl:px-3 py-2.5 rounded-lg text-[15.5px] font-bold transition-all duration-200 ${
-                    pathname === item.href
-                      ? "bg-[#282828] text-white"
-                      : "text-zinc-200 hover:text-white hover:bg-[#1a1a1a]"
-                  }`}
-                >
-                  <item.icon
-                    size={20}
-                    className={`shrink-0 ${
-                      pathname === item.href ? "text-primary" : "text-zinc-300"
-                    }`}
-                  />
-                  <span className="hidden xl:inline">{item.label}</span>
-                </Link>
-              ))}
-            </nav>
-          </section>
-
           {/* User Playlists */}
           <section suppressHydrationWarning>
             <div className="hidden xl:block px-2 mb-2.5">
@@ -126,8 +92,30 @@ export function LeftSidebar() {
             </div>
 
             <nav className="space-y-1">
+              {/* Pinned Favourites Playlist */}
+              <Link
+                href="/my-playlists/favourites"
+                onClick={handleSidebarClick}
+                title="Favourites"
+                className={`flex items-center justify-center xl:justify-start gap-3 px-1.5 xl:px-3 py-2 rounded-md text-[14px] font-bold transition-all group ${
+                  pathname === "/my-playlists/favourites"
+                    ? "text-white bg-[#282828]"
+                    : "text-zinc-300 hover:text-white hover:bg-[#1a1a1a]"
+                }`}
+              >
+                <div className="w-[34px] h-[34px] rounded-md bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shrink-0 shadow-md">
+                  <Heart size={16} fill="white" className="text-white" />
+                </div>
+                <div className="hidden xl:flex flex-col min-w-0 flex-1">
+                  <span className="truncate">Favourites</span>
+                  <span className="text-[10px] font-medium text-purple-300/80 truncate">
+                    Liked Songs
+                  </span>
+                </div>
+              </Link>
+
               {!hasMounted || isLoading ? (
-                <div className="space-y-2 px-2 opacity-20">
+                <div className="space-y-2 px-2 opacity-20 pt-1">
                   <div className="h-8 bg-zinc-800 rounded-md animate-pulse" />
                   <div className="h-8 bg-zinc-800 rounded-md animate-pulse" />
                 </div>
