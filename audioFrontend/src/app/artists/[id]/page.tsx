@@ -351,8 +351,8 @@ export default function ArtistPage() {
                   disabled={isFollowLoading}
                   className={`flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-semibold transition-all cursor-pointer shadow-lg active:scale-95 ${
                     followStatusData?.isFollowing
-                      ? "bg-zinc-800/80 hover:bg-zinc-700 text-white border border-white/20 hover:border-red-500/40 hover:text-red-400"
-                      : "bg-primary hover:bg-primary/90 text-white"
+                      ? "bg-zinc-800/80 hover:bg-zinc-700 text-black border border-white/20 hover:border-red-500/40 hover:text-red-400"
+                      : "bg-primary hover:bg-primary/90 text-black"
                   }`}
                 >
                   {followStatusData?.isFollowing ? (
