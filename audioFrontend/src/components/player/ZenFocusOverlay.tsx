@@ -305,7 +305,16 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isZenMode]);
 
-  if (!isZenMode || !currentSong) return null;
+  // Auto-exit Zen Mode if lyrics finish loading and there are none
+  useEffect(() => {
+    if (isZenMode && !isLyricsLoading && !transcriptions.length && !plainLyrics) {
+      playerActions.closeZenMode();
+    }
+  }, [isZenMode, isLyricsLoading, transcriptions.length, plainLyrics]);
+
+  if (!isZenMode || !currentSong || (!isLyricsLoading && !transcriptions.length && !plainLyrics)) {
+    return null;
+  }
 
   const coverUrl = currentSong.imageKey
     ? getImageUrl(currentSong.imageKey, {

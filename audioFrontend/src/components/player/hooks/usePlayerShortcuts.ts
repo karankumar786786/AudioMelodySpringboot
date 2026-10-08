@@ -121,10 +121,7 @@ export function usePlayerShortcuts({
       }
 
       // V: Open Full Video
-      if (
-        (e.key === "v" || e.key === "V") &&
-        (currentSong?.fullVideoKey || (currentSong as any)?.full_video_key)
-      ) {
+      if (e.key === "v" || e.key === "V") {
         e.preventDefault();
         playerActions.openFullVideo();
       }

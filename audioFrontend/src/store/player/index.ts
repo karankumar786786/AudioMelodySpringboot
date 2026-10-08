@@ -45,6 +45,7 @@ export interface PlayerState {
   playbackRate: number;
   radioSession: RadioSession;
   isZenMode: boolean;
+  hasLyrics: boolean;
   dominantColor: string;
   pendingSearchConfirmation: { songId: string } | null;
   dislikedSongIds: string[];
@@ -173,6 +174,7 @@ export const playerStore = new Store<PlayerState>({
     skippedSongIds: [],
   },
   isZenMode: false,
+  hasLyrics: false,
   dominantColor: "#181818",
   pendingSearchConfirmation: null,
   dislikedSongIds: [],

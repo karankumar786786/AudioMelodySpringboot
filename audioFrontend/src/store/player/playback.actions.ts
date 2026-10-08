@@ -114,6 +114,14 @@ export const playbackActions = {
   },
 
   openFullVideo: () => {
+    const song = playerStore.state.currentSong;
+    const hasVideo = Boolean(song?.fullVideoKey || (song as any)?.full_video_key);
+    if (!hasVideo) {
+      toast.info("Video unavailable", {
+        description: "Music video is not available for this track.",
+      });
+      return;
+    }
     playerStore.setState((s) => ({ ...s, isFullVideoOpen: true, isVideoActive: true }));
   },
 
@@ -122,6 +130,14 @@ export const playbackActions = {
   },
 
   toggleFullVideo: () => {
+    const song = playerStore.state.currentSong;
+    const hasVideo = Boolean(song?.fullVideoKey || (song as any)?.full_video_key);
+    if (!playerStore.state.isFullVideoOpen && !hasVideo) {
+      toast.info("Video unavailable", {
+        description: "Music video is not available for this track.",
+      });
+      return;
+    }
     playerStore.setState((s) => {
       const next = !s.isFullVideoOpen;
       return { ...s, isFullVideoOpen: next, isVideoActive: next };
@@ -409,8 +425,28 @@ export const playbackActions = {
     }));
   },
 
+  setHasLyrics: (hasLyrics: boolean) => {
+    playerStore.setState((s) => {
+      if (s.hasLyrics === hasLyrics) return s;
+      const nextState = { ...s, hasLyrics };
+      if (!hasLyrics && s.isZenMode) {
+        nextState.isZenMode = false;
+        toast.info("Zen Focus Mode disabled", {
+          description: "Lyrics are not available for this track.",
+        });
+      }
+      return nextState;
+    });
+  },
+
   toggleZenMode: () => {
     playerStore.setState((s) => {
+      if (!s.isZenMode && !s.hasLyrics) {
+        toast.info("Zen Focus Mode unavailable", {
+          description: "Lyrics are not available for this track.",
+        });
+        return s;
+      }
       const nextZen = !s.isZenMode;
       return { ...s, isZenMode: nextZen };
     });

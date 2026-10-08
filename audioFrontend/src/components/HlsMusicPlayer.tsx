@@ -153,6 +153,31 @@ export function HlsMusicPlayer() {
     localTime,
   );
 
+  // Synchronize lyrics availability to playerStore to enable/disable Zen Focus Mode
+  useEffect(() => {
+    if (!currentSong) {
+      playerActions.setHasLyrics(false);
+      return;
+    }
+    if (!isLyricsLoading) {
+      const hasAvailableLyrics = transcriptions.length > 0 || Boolean(plainLyrics);
+      playerActions.setHasLyrics(hasAvailableLyrics);
+    }
+  }, [currentSong?.id, isLyricsLoading, transcriptions.length, plainLyrics]);
+
+  // Auto-close Full Video if current track does not have a video available
+  useEffect(() => {
+    if (state.isFullVideoOpen && currentSong) {
+      const hasVideo = Boolean(currentSong.fullVideoKey || (currentSong as any).full_video_key);
+      if (!hasVideo) {
+        playerActions.closeFullVideo();
+        toast.info("Video closed", {
+          description: "Music video is not available for this track.",
+        });
+      }
+    }
+  }, [currentSong?.id, state.isFullVideoOpen]);
+
   // Web Audio EQ Graph
   const webAudio = useWebAudio(audioRef.current, isPlaying);
 

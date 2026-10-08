@@ -2,8 +2,10 @@
 
 import React from "react";
 import { Mic2, ListMusic, TvMinimalPlay, Sparkles } from "lucide-react";
-import { playerActions } from "@/store/player.store";
+import { useStore } from "@tanstack/react-store";
+import { playerStore, playerActions } from "@/store/player.store";
 import { type PlayerSong } from "@/lib/player-utils";
+import { toast } from "sonner";
 import { PlayerTooltip } from "./PlayerTooltip";
 import { PlayerVolumeSlider } from "./PlayerVolumeSlider";
 import { PlayerMoreMenu } from "./PlayerMoreMenu";
@@ -52,33 +54,59 @@ export const PlayerRightControls: React.FC<PlayerRightControlsProps> = ({
   bufferedTime = 0,
   onOpenShare,
 }) => {
+  const hasLyrics = useStore(playerStore, (s) => s.hasLyrics);
   const hasFullVideo = Boolean(
     currentSong.fullVideoKey || (currentSong as any).full_video_key,
   );
 
   return (
     <div className="flex items-center justify-end gap-1.5 sm:gap-2 md:gap-2.5 w-[34%] md:w-[38%] max-w-[400px]">
-      {/* Watch Full Video Button (when video key is present) */}
-      {hasFullVideo && (
-        <PlayerTooltip content="Watch Full Video" shortcut="V">
-          <button
-            type="button"
-            onClick={() => playerActions.openFullVideo()}
-            className="p-1.5 rounded-md transition-colors cursor-pointer text-zinc-400 hover:text-white hover:bg-[#282828]"
-            aria-label="Watch Full Video"
-          >
-            <TvMinimalPlay size={16} />
-          </button>
-        </PlayerTooltip>
-      )}
-
-      {/* Zen Focus Mode Button */}
-      <PlayerTooltip content="Zen Focus Mode" shortcut="Z">
+      {/* Watch Full Video Button */}
+      <PlayerTooltip
+        content={hasFullVideo ? "Watch Full Video" : "Watch Full Video (Not available)"}
+        shortcut={hasFullVideo ? "V" : undefined}
+      >
         <button
           type="button"
-          onClick={() => playerActions.toggleZenMode()}
-          className="p-1.5 rounded-md text-zinc-400 hover:text-yellow-400 transition-colors cursor-pointer"
-          aria-label="Zen Focus Mode"
+          disabled={!hasFullVideo}
+          onClick={() => {
+            if (!hasFullVideo) {
+              toast.info("Video unavailable", {
+                description: "Music video is not available for this track.",
+              });
+              return;
+            }
+            playerActions.openFullVideo();
+          }}
+          className={`p-1.5 rounded-md transition-colors ${
+            hasFullVideo
+              ? "text-zinc-400 hover:text-white hover:bg-[#282828] cursor-pointer"
+              : "text-zinc-600 opacity-40 cursor-not-allowed hover:text-zinc-600"
+          }`}
+          aria-label={hasFullVideo ? "Watch Full Video" : "Watch Full Video (Not available)"}
+        >
+          <TvMinimalPlay size={16} />
+        </button>
+      </PlayerTooltip>
+
+      {/* Zen Focus Mode Button (Disabled when lyrics are not available) */}
+      <PlayerTooltip
+        content={hasLyrics ? "Zen Focus Mode" : "Zen Focus Mode (Lyrics not available)"}
+        shortcut={hasLyrics ? "Z" : undefined}
+      >
+        <button
+          type="button"
+          disabled={!hasLyrics}
+          onClick={() => {
+            if (!hasLyrics) return;
+            playerActions.toggleZenMode();
+          }}
+          className={`p-1.5 rounded-md transition-colors ${
+            hasLyrics
+              ? "text-zinc-400 hover:text-yellow-400 cursor-pointer"
+              : "text-zinc-600 opacity-40 cursor-not-allowed hover:text-zinc-600"
+          }`}
+          aria-label={hasLyrics ? "Zen Focus Mode" : "Zen Focus Mode (Lyrics not available)"}
         >
           <Sparkles size={16} />
         </button>
