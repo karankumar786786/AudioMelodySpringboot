@@ -14,10 +14,9 @@ import {
   Pause,
   Clock,
   Music,
-  ArrowLeft,
-  Shuffle,
   UserPlus,
   Check,
+  Loader2,
 } from "lucide-react";
 import { playerStore, playerActions } from "@/store/player.store";
 import { mapListToPlayerSongs, formatDuration } from "@/lib/player-utils";
@@ -38,6 +37,10 @@ export default function ArtistPage() {
 
   const [backgroundColor, setBackgroundColor] = useState("#181818");
   const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const [localFollowStatus, setLocalFollowStatus] = useState<{
+    followersCount: number;
+    isFollowing: boolean;
+  } | null>(null);
 
   /* -------------------------------------------------------------------------- */
   /*                                ARTIST QUERY                                */
@@ -71,6 +74,19 @@ export default function ArtistPage() {
     enabled: !!id,
     staleTime: 1000 * 60 * 2,
   });
+
+  // Keep local follower UI state in sync with server query cache
+  useEffect(() => {
+    if (followStatusData) {
+      setLocalFollowStatus({
+        followersCount: followStatusData.followersCount,
+        isFollowing: followStatusData.isFollowing,
+      });
+    }
+  }, [followStatusData]);
+
+  const isFollowing = localFollowStatus?.isFollowing ?? followStatusData?.isFollowing ?? false;
+  const followersCount = localFollowStatus?.followersCount ?? followStatusData?.followersCount ?? 0;
 
   /* -------------------------------------------------------------------------- */
   /*                              DERIVED VALUES                                */
@@ -201,7 +217,7 @@ export default function ArtistPage() {
 
     try {
       setIsFollowLoading(true);
-      const isCurrentlyFollowing = followStatusData?.isFollowing;
+      const isCurrentlyFollowing = isFollowing;
       let res;
       if (isCurrentlyFollowing) {
         res = await musicApi.artists.unfollow(id as string);
@@ -216,12 +232,15 @@ export default function ArtistPage() {
       }
 
       if (res?.data) {
+        setLocalFollowStatus({
+          followersCount: res.data.followersCount,
+          isFollowing: res.data.isFollowing,
+        });
         queryClient.setQueryData(["artist-follow-status", id], res.data);
         if (artist?.name) {
           queryClient.setQueryData(["artist-follow-status", artist.name], res.data);
         }
       }
-      queryClient.invalidateQueries({ queryKey: ["artist-follow-status"] });
     } catch (err) {
       toast.error("Failed to update follow status");
     } finally {
@@ -307,8 +326,8 @@ export default function ArtistPage() {
 
             <div className="mt-4 flex items-center gap-3 text-xs text-white/80 flex-wrap">
               <span className="font-semibold">
-                {(followStatusData?.followersCount ?? 0).toLocaleString()}{" "}
-                {(followStatusData?.followersCount === 1) ? "follower" : "followers"}
+                {followersCount.toLocaleString()}{" "}
+                {followersCount === 1 ? "follower" : "followers"}
               </span>
 
               <span>•</span>
@@ -349,21 +368,26 @@ export default function ArtistPage() {
                   type="button"
                   onClick={handleFollowToggle}
                   disabled={isFollowLoading}
-                  className={`flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-semibold transition-all cursor-pointer shadow-lg active:scale-95 ${
-                    followStatusData?.isFollowing
-                      ? "bg-zinc-800/80 hover:bg-zinc-700 text-black border border-white/20 hover:border-red-500/40 hover:text-red-400"
+                  className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-all cursor-pointer shadow-lg active:scale-95 disabled:opacity-75 ${
+                    isFollowing
+                      ? "bg-zinc-800/90 hover:bg-zinc-700 text-white border border-white/20 hover:border-red-500/40 hover:text-red-400"
                       : "bg-primary hover:bg-primary/90 text-black"
                   }`}
                 >
-                  {followStatusData?.isFollowing ? (
+                  {isFollowLoading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin text-current" />
+                      <span>{isFollowing ? "Unfollowing..." : "Following..."}</span>
+                    </>
+                  ) : isFollowing ? (
                     <>
                       <Check size={16} className="stroke-[3]" />
-                      Following
+                      <span>Following</span>
                     </>
                   ) : (
                     <>
                       <UserPlus size={16} className="stroke-[2.5]" />
-                      Follow
+                      <span>Follow</span>
                     </>
                   )}
                 </button>

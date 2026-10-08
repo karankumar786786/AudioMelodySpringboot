@@ -13,8 +13,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Disc,
-  UserPlus,
-  Check,
 } from "lucide-react";
 
 import { playerStore, playerActions } from "@/store/player.store";
@@ -272,56 +270,6 @@ export function RightInfoPanel() {
 
   const artistName = currentSong?.artistName?.trim() || "";
 
-  // Query artist follow status & count
-  const { data: followStatusData } = useQuery({
-    queryKey: ["artist-follow-status", artistName],
-    queryFn: async () => {
-      if (!artistName) return null;
-      const res = await musicApi.artists.getFollowStatus(artistName);
-      return res?.data;
-    },
-    enabled: !!artistName,
-    staleTime: 1000 * 60 * 2,
-  });
-
-  const [isFollowLoading, setIsFollowLoading] = useState(false);
-
-  const handleFollowToggle = async () => {
-    if (!systemUser?.id) {
-      toast.error("Sign in required", {
-        description: "Please sign in to follow artists.",
-      });
-      return;
-    }
-    if (!artistName || isFollowLoading) return;
-
-    try {
-      setIsFollowLoading(true);
-      const isCurrentlyFollowing = followStatusData?.isFollowing;
-      let res;
-      if (isCurrentlyFollowing) {
-        res = await musicApi.artists.unfollow(artistName);
-        toast.success("Unfollowed", {
-          description: `You are no longer following ${artistName}.`,
-        });
-      } else {
-        res = await musicApi.artists.follow(artistName);
-        toast.success("Following", {
-          description: `You are now following ${artistName}.`,
-        });
-      }
-
-      if (res?.data) {
-        queryClient.setQueryData(["artist-follow-status", artistName], res.data);
-      }
-      queryClient.invalidateQueries({ queryKey: ["artist-follow-status", artistName] });
-    } catch (err) {
-      toast.error("Failed to update follow status");
-    } finally {
-      setIsFollowLoading(false);
-    }
-  };
-
   return (
     <>
       <aside className="hidden lg:block w-[290px] xl:w-[320px] 2xl:w-[340px] bg-black h-[calc(100vh-64px)] fixed right-0 top-16 z-40 overflow-y-auto no-scrollbar pb-36">
@@ -541,28 +489,6 @@ export function RightInfoPanel() {
                 <h3 className="text-sm font-bold text-white">
                   About the artist
                 </h3>
-                <button
-                  onClick={handleFollowToggle}
-                  disabled={isFollowLoading}
-                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-md ${
-                    followStatusData?.isFollowing
-                      ? "bg-zinc-800/90 hover:bg-zinc-700 text-zinc-200 border border-white/20 hover:border-red-500/40 hover:text-red-400"
-                      : "bg-white hover:bg-zinc-200 text-black active:scale-95"
-                  }`}
-                  title={followStatusData?.isFollowing ? "Click to unfollow" : "Click to follow artist"}
-                >
-                  {followStatusData?.isFollowing ? (
-                    <>
-                      <Check size={12} className="stroke-[3]" />
-                      <span>Following</span>
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus size={12} className="stroke-[2.5]" />
-                      <span>Follow</span>
-                    </>
-                  )}
-                </button>
               </div>
 
               {/* Artist image */}
@@ -591,8 +517,7 @@ export function RightInfoPanel() {
                       {info?.artist?.name || currentSong.artistName}
                     </h4>
                     <p className="text-[11px] font-medium text-zinc-300 drop-shadow">
-                      {(followStatusData?.followersCount ?? 0).toLocaleString()}{" "}
-                      {(followStatusData?.followersCount === 1) ? "follower" : "followers"}
+                      Artist
                     </p>
                   </div>
                 </div>

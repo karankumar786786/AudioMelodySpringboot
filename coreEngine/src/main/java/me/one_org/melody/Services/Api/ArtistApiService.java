@@ -105,23 +105,30 @@ public class ArtistApiService {
 
     // ── Artist Follow & Metadata Operations ──
 
-    public ArtistsEntity resolveArtist(String artistIdOrName) {
+    public Optional<ArtistsEntity> findArtist(String artistIdOrName) {
         if (artistIdOrName == null || artistIdOrName.isBlank()) {
-            throw new ResourceNotFoundException("Artist identifier cannot be empty");
+            return Optional.empty();
         }
         // 1. Try finding by ID
         Optional<ArtistsEntity> byId = artistsRepository.findById(artistIdOrName);
         if (byId.isPresent()) {
-            return byId.get();
+            return byId;
         }
 
         // 2. Try finding by Name (case-insensitive)
-        Optional<ArtistsEntity> byName = artistsRepository.findByNameIgnoreCase(artistIdOrName);
-        if (byName.isPresent()) {
-            return byName.get();
+        return artistsRepository.findByNameIgnoreCase(artistIdOrName);
+    }
+
+    public ArtistsEntity resolveOrCreateArtist(String artistIdOrName) {
+        if (artistIdOrName == null || artistIdOrName.isBlank()) {
+            throw new ResourceNotFoundException("Artist identifier cannot be empty");
+        }
+        Optional<ArtistsEntity> existing = findArtist(artistIdOrName);
+        if (existing.isPresent()) {
+            return existing.get();
         }
 
-        // 3. Auto-provision artist entity so follow works for any song artist
+        // Auto-provision artist entity when explicitly needed (e.g. onboarding)
         ArtistsEntity newArtist = ArtistsEntity.builder()
                 .id(UUID.randomUUID().toString())
                 .name(artistIdOrName.trim())
@@ -136,7 +143,11 @@ public class ArtistApiService {
         if (userId == null || userId.isBlank()) {
             throw new ResourceNotFoundException("User must be authenticated to follow an artist");
         }
-        ArtistsEntity artist = resolveArtist(artistIdOrName);
+        Optional<ArtistsEntity> artistOpt = findArtist(artistIdOrName);
+        if (artistOpt.isEmpty()) {
+            throw new ResourceNotFoundException("Artist not found with identifier: " + artistIdOrName);
+        }
+        ArtistsEntity artist = artistOpt.get();
         String artistId = artist.getId();
         String artistName = artist.getName();
 
@@ -172,7 +183,11 @@ public class ArtistApiService {
         if (userId == null || userId.isBlank()) {
             throw new ResourceNotFoundException("User must be authenticated to unfollow an artist");
         }
-        ArtistsEntity artist = resolveArtist(artistIdOrName);
+        Optional<ArtistsEntity> artistOpt = findArtist(artistIdOrName);
+        if (artistOpt.isEmpty()) {
+            return new ArtistFollowStatusDto(artistIdOrName, artistIdOrName, 0L, false);
+        }
+        ArtistsEntity artist = artistOpt.get();
         String artistId = artist.getId();
         String artistName = artist.getName();
 
@@ -204,7 +219,11 @@ public class ArtistApiService {
     }
 
     public ArtistFollowStatusDto getFollowStatus(String userId, String artistIdOrName) {
-        ArtistsEntity artist = resolveArtist(artistIdOrName);
+        Optional<ArtistsEntity> artistOpt = findArtist(artistIdOrName);
+        if (artistOpt.isEmpty()) {
+            return new ArtistFollowStatusDto(artistIdOrName, artistIdOrName, 0L, false);
+        }
+        ArtistsEntity artist = artistOpt.get();
         String artistId = artist.getId();
         String artistName = artist.getName();
 
@@ -306,7 +325,8 @@ public class ArtistApiService {
 
         for (String idOrName : artistIds) {
             try {
-                ArtistFollowStatusDto status = followArtist(userId, idOrName);
+                ArtistsEntity artist = resolveOrCreateArtist(idOrName);
+                ArtistFollowStatusDto status = followArtist(userId, artist.getId());
                 followedNames.add(status.artistName());
 
                 // Seed positive play interaction signals for artist's top songs in Recombee
