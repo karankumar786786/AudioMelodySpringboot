@@ -53,7 +53,7 @@ spring:
     open-in-view: false                  # don't hold a connection for the whole request
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: update                   # consider "none" or "validate" in production
+      ddl-auto: validate                  # consider "none" or "validate" in production
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
