@@ -133,6 +133,7 @@ class AdminLoginView(APIView):
     Verifies admin exists in admin_users table and generates an OTP.
     Returns { "tempToken": "<tempToken>", "message": "OTP sent" }
     """
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -188,6 +189,7 @@ class AdminRegisterView(APIView):
     Accepts { "userName": "...", "email": "...", "password": "..." }
     Initiates registration of a new admin in admin_users table via OTP.
     """
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -234,6 +236,7 @@ class AdminVerifyOtpView(APIView):
     Verifies OTP, establishes Redis session, sets HTTP-only cookies,
     and returns { "sessionId": "...", "accessToken": "...", "refreshToken": "..." }
     """
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -326,6 +329,7 @@ class AdminResendOtpView(APIView):
     Header: X-TEMP-TOKEN: <tempToken>
     Generates and resends a new OTP code.
     """
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -368,6 +372,7 @@ class AdminRefreshTokenView(APIView):
     Validates refresh session in Redis and issues a fresh pair of active Redis sessions.
     Zero JWT. Pure Redis session invalidation & rotation.
     """
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -473,6 +478,7 @@ class AdminLogoutView(APIView):
     POST /auth/logout
     Instantly revokes Redis session and clears HTTP-only authentication cookies.
     """
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -2003,6 +2009,7 @@ class AccountDemoteView(BaseAdminView):
 # ==============================================================================
 
 class SongUploadUrlWebhookView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -2012,6 +2019,7 @@ class SongUploadUrlWebhookView(APIView):
 
 
 class VideoUploadUrlWebhookView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -2021,6 +2029,7 @@ class VideoUploadUrlWebhookView(APIView):
 
 
 class ImageUploadParamWebhookView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def get(self, request):
@@ -2029,6 +2038,7 @@ class ImageUploadParamWebhookView(APIView):
 
 
 class VideoUploadParamWebhookView(APIView):
+    authentication_classes = []
     permission_classes = [AllowAny]
 
     def get(self, request):

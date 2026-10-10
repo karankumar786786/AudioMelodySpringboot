@@ -55,6 +55,11 @@ function clearAdminSession() {
 
   // Dispatch event for auth-context to clear React state
   window.dispatchEvent(new Event("admin:session-expired"));
+
+  // Redirect to login page if currently on any protected page
+  if (window.location.pathname !== "/") {
+    window.location.href = "/";
+  }
 }
 
 async function refreshAdminSession(): Promise<string | null> {
@@ -138,14 +143,24 @@ export async function adminFetch(
       const retryHeaders = new Headers(init?.headers);
       retryHeaders.set("X-Session-Id", newSessionId);
       retryHeaders.set("Authorization", `Session ${newSessionId}`);
-      return fetch(url, {
+      const retryResponse = await fetch(url, {
         credentials: "include",
         ...init,
         headers: retryHeaders,
       });
+
+      // If retry still fails with 401 or 403, force redirect to login
+      if (
+        (retryResponse.status === 401 || retryResponse.status === 403) &&
+        !url.includes("/auth/")
+      ) {
+        clearAdminSession();
+      }
+      return retryResponse;
     }
 
-    // Refresh failed — session already cleared by refreshAdminSession
+    // Refresh failed — clear session and redirect to login
+    clearAdminSession();
     return response;
   }
 

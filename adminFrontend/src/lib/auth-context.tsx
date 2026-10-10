@@ -112,23 +112,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     clearStorage();
                     setUser(null);
                     setToken(null);
+                    if (typeof window !== "undefined" && window.location.pathname !== "/") {
+                      router.push("/");
+                    }
                   }
                 } else {
                   console.warn("[Admin Auth] Session refresh failed. Clearing stale session.");
                   clearStorage();
                   setUser(null);
                   setToken(null);
+                  if (typeof window !== "undefined" && window.location.pathname !== "/") {
+                    router.push("/");
+                  }
                 }
               } catch {
                 clearStorage();
                 setUser(null);
                 setToken(null);
+                if (typeof window !== "undefined" && window.location.pathname !== "/") {
+                  router.push("/");
+                }
               }
             } else {
               console.warn("[Admin Auth] No refresh session available. Clearing stale session.");
               clearStorage();
               setUser(null);
               setToken(null);
+              if (typeof window !== "undefined" && window.location.pathname !== "/") {
+                router.push("/");
+              }
             }
           } else {
             // Session valid — update profile from server
@@ -149,22 +161,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (err) {
         console.error("Failed to parse admin_user", err);
         clearStorage();
+        if (typeof window !== "undefined" && window.location.pathname !== "/") {
+          router.push("/");
+        }
+      }
+    } else {
+      if (typeof window !== "undefined" && window.location.pathname !== "/") {
+        router.push("/");
       }
     }
     setLoading(false);
-  }, []);
+  }, [router]);
 
   // Listen for session-expired events from adminFetch
   useEffect(() => {
     const handleSessionExpired = () => {
-      console.warn("[Admin Auth] Session expired event received. Clearing session.");
+      console.warn("[Admin Auth] Session expired event received. Redirecting to login.");
       clearStorage();
       setUser(null);
       setToken(null);
+      if (typeof window !== "undefined" && window.location.pathname !== "/") {
+        router.push("/");
+      }
     };
     window.addEventListener("admin:session-expired", handleSessionExpired);
     return () => window.removeEventListener("admin:session-expired", handleSessionExpired);
-  }, []);
+  }, [router]);
 
   const login = async (email: string) => {
     try {
