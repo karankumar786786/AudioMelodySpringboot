@@ -190,6 +190,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string) => {
     try {
+      clearStorage();
       const res = await adminClient.auth.login(email);
       return { success: true, token: res.data.token };
     } catch (err: any) {
@@ -199,6 +200,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (name: string, email: string) => {
     try {
+      clearStorage();
       const res = await adminClient.auth.register(name, email);
       return { success: true, token: res.data.token };
     } catch (err: any) {

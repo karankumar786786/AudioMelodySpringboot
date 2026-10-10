@@ -119,11 +119,9 @@ def set_auth_cookies(response: Response, session_id: str, refresh_session_id: st
 
 def clear_auth_cookies(response: Response) -> None:
     """Clears all admin authentication cookies."""
-    response.delete_cookie("admin_session", path="/")
-    response.delete_cookie("session_id", path="/")
-    response.delete_cookie("refresh_session", path="/")
-    response.delete_cookie("refresh_token", path="/")
-    response.delete_cookie("access_token", path="/")
+    for key in ("admin_session", "session_id", "refresh_session", "refresh_token", "access_token"):
+        response.delete_cookie(key, path="/", samesite="Lax")
+
 
 
 class AdminLoginView(APIView):
@@ -177,10 +175,12 @@ class AdminLoginView(APIView):
         })
         AdminAuthService.notify_otp(admin.email, "LOGIN", otp)
 
-        return Response({
+        res = Response({
             "tempToken": temp_token,
             "message": "Verification code has been sent to your email.",
         }, status=status.HTTP_200_OK)
+        clear_auth_cookies(res)
+        return res
 
 
 class AdminRegisterView(APIView):
@@ -222,10 +222,12 @@ class AdminRegisterView(APIView):
         })
         AdminAuthService.notify_otp(email, "REGISTER", otp)
 
-        return Response({
+        res = Response({
             "tempToken": temp_token,
             "message": "Registration verification code sent.",
         }, status=status.HTTP_201_CREATED)
+        clear_auth_cookies(res)
+        return res
 
 
 class AdminVerifyOtpView(APIView):
@@ -384,11 +386,15 @@ class AdminRefreshTokenView(APIView):
             or ""
         ).strip()
         if not refresh_id:
-            return Response({"message": "Refresh session ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+            res = Response({"message": "Refresh session ID is required."}, status=status.HTTP_400_BAD_REQUEST)
+            clear_auth_cookies(res)
+            return res
 
         refresh_data = RedisService.get_refresh_session(refresh_id)
         if not refresh_data:
-            return Response({"message": "Refresh session has expired or is invalid. Please log in again."}, status=status.HTTP_401_UNAUTHORIZED)
+            res = Response({"message": "Refresh session has expired or is invalid. Please log in again."}, status=status.HTTP_401_UNAUTHORIZED)
+            clear_auth_cookies(res)
+            return res
 
         user_id = refresh_data.get("userId")
         email = refresh_data.get("email")
