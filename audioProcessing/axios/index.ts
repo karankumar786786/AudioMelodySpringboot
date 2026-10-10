@@ -2,7 +2,7 @@ import axios from "axios";
 import { config } from "dotenv";
 config();
 
-const baseURL = process.env.APPLICATION_URL || "http://localhost:9090/webhook/job";
+const baseURL = process.env.APPLICATION_URL || "http://localhost:8000/webhook/job";
 const deleteBaseURL = process.env.APPLICATION_DELETE_URL || baseURL.replace(/\/job\/?$/, "/delete");
 
 export const api = axios.create({

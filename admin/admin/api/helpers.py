@@ -12,6 +12,21 @@ def format_ms(ms: Optional[int]) -> str:
     return f"{sec:.1f}s"
 
 
+def safe_diff_ms(t2: Optional[datetime], t1: Optional[datetime]) -> Optional[int]:
+    """Calculates millisecond difference between two timestamps safely,
+    handling offset-naive and offset-aware datetimes across databases."""
+    if not t1 or not t2:
+        return None
+    try:
+        if t2.tzinfo is not None and t1.tzinfo is None:
+            t1 = t1.replace(tzinfo=t2.tzinfo)
+        elif t2.tzinfo is None and t1.tzinfo is not None:
+            t2 = t2.replace(tzinfo=t1.tzinfo)
+        return int((t2 - t1).total_seconds() * 1000)
+    except Exception:
+        return None
+
+
 def to_job_progress_dto(job: Job) -> Dict[str, Any]:
     now = datetime.now(timezone.utc)
     current_stage = job.current_stage or "QUEUED"
@@ -23,12 +38,12 @@ def to_job_progress_dto(job: Job) -> Dict[str, Any]:
     if elapsed_total_ms is None and job.created_at:
         if status == "COMPLETED":
             end = job.completed_at or job.search_saved_at or job.transcoded_at or job.created_at
-            elapsed_total_ms = int((end - job.created_at).total_seconds() * 1000)
+            elapsed_total_ms = safe_diff_ms(end, job.created_at)
         elif status == "FAILED":
             end = job.failed_at or job.search_saved_at or job.transcoded_at or job.created_at
-            elapsed_total_ms = int((end - job.created_at).total_seconds() * 1000)
+            elapsed_total_ms = safe_diff_ms(end, job.created_at)
         else:
-            elapsed_total_ms = int((now - job.created_at).total_seconds() * 1000)
+            elapsed_total_ms = safe_diff_ms(now, job.created_at)
 
     # Calculate current stage elapsed time
     current_stage_elapsed_ms = None
@@ -44,7 +59,8 @@ def to_job_progress_dto(job: Job) -> Dict[str, Any]:
             stage_start = job.search_saved_at or job.transcoded_at or job.created_at
 
         if stage_start:
-            current_stage_elapsed_ms = max(0, int((now - stage_start).total_seconds() * 1000))
+            diff = safe_diff_ms(now, stage_start)
+            current_stage_elapsed_ms = max(0, diff) if diff is not None else None
 
     stages = []
 
@@ -53,17 +69,14 @@ def to_job_progress_dto(job: Job) -> Dict[str, Any]:
     q_duration = None
     if job.transcoding_started_at:
         q_status = "COMPLETED"
-        if job.created_at:
-            q_duration = int((job.transcoding_started_at - job.created_at).total_seconds() * 1000)
+        q_duration = safe_diff_ms(job.transcoding_started_at, job.created_at)
     elif status == "FAILED" and current_stage == "QUEUED":
         q_status = "FAILED"
         end = job.failed_at or job.created_at
-        if job.created_at:
-            q_duration = int((end - job.created_at).total_seconds() * 1000)
+        q_duration = safe_diff_ms(end, job.created_at)
     elif status in ("PENDING", "PROCESSING"):
         q_status = "IN_PROGRESS"
-        if job.created_at:
-            q_duration = int((now - job.created_at).total_seconds() * 1000)
+        q_duration = safe_diff_ms(now, job.created_at)
     stages.append({
         "stageName": "QUEUED",
         "label": "Queue & Pickup",
@@ -83,7 +96,7 @@ def to_job_progress_dto(job: Job) -> Dict[str, Any]:
         t_status = "FAILED" if status == "FAILED" else "IN_PROGRESS"
         if t_duration is None and job.transcoding_started_at:
             end = job.failed_at if (status == "FAILED" and job.failed_at) else now
-            t_duration = int((end - job.transcoding_started_at).total_seconds() * 1000)
+            t_duration = safe_diff_ms(end, job.transcoding_started_at)
     elif not job.transcoding_started_at:
         t_status = "PENDING"
     else:
@@ -109,7 +122,7 @@ def to_job_progress_dto(job: Job) -> Dict[str, Any]:
         r_status = "FAILED" if status == "FAILED" else "IN_PROGRESS"
         if r_duration is None and job.transcoded_at:
             end = job.failed_at if (status == "FAILED" and job.failed_at) else now
-            r_duration = int((end - job.transcoded_at).total_seconds() * 1000)
+            r_duration = safe_diff_ms(end, job.transcoded_at)
     elif not job.transcoded_at:
         r_status = "PENDING"
     else:
@@ -135,7 +148,7 @@ def to_job_progress_dto(job: Job) -> Dict[str, Any]:
         s_status = "FAILED" if status == "FAILED" else "IN_PROGRESS"
         if s_duration is None and job.recommendation_saved_at:
             end = job.failed_at if (status == "FAILED" and job.failed_at) else now
-            s_duration = int((end - job.recommendation_saved_at).total_seconds() * 1000)
+            s_duration = safe_diff_ms(end, job.recommendation_saved_at)
     elif not job.recommendation_saved_at:
         s_status = "PENDING"
     else:
@@ -160,7 +173,7 @@ def to_job_progress_dto(job: Job) -> Dict[str, Any]:
         prev = job.search_saved_at or job.transcoded_at
         if f_duration is None and prev:
             end = job.failed_at if (status == "FAILED" and job.failed_at) else now
-            f_duration = int((end - prev).total_seconds() * 1000)
+            f_duration = safe_diff_ms(end, prev)
     else:
         f_status = "FAILED" if status == "FAILED" else "PENDING"
     stages.append({
@@ -215,12 +228,12 @@ def to_delete_job_progress_dto(job: DeleteJob) -> Dict[str, Any]:
     if elapsed_total_ms is None and job.created_at:
         if status == "COMPLETED":
             end = job.completed_at or job.s3_deleted_at or job.created_at
-            elapsed_total_ms = int((end - job.created_at).total_seconds() * 1000)
+            elapsed_total_ms = safe_diff_ms(end, job.created_at)
         elif status == "FAILED":
             end = job.failed_at or job.created_at
-            elapsed_total_ms = int((end - job.created_at).total_seconds() * 1000)
+            elapsed_total_ms = safe_diff_ms(end, job.created_at)
         else:
-            elapsed_total_ms = int((now - job.created_at).total_seconds() * 1000)
+            elapsed_total_ms = safe_diff_ms(now, job.created_at)
 
     current_stage_elapsed_ms = None
     if status in ("IN_PROGRESS", "PENDING"):
@@ -237,7 +250,8 @@ def to_delete_job_progress_dto(job: DeleteJob) -> Dict[str, Any]:
             stage_start = job.s3_deleted_at or job.created_at
 
         if stage_start:
-            current_stage_elapsed_ms = max(0, int((now - stage_start).total_seconds() * 1000))
+            diff = safe_diff_ms(now, stage_start)
+            current_stage_elapsed_ms = max(0, diff) if diff is not None else None
 
     stages = []
 
@@ -246,17 +260,14 @@ def to_delete_job_progress_dto(job: DeleteJob) -> Dict[str, Any]:
     q_duration = None
     if job.started_at:
         q_status = "COMPLETED"
-        if job.created_at:
-            q_duration = int((job.started_at - job.created_at).total_seconds() * 1000)
+        q_duration = safe_diff_ms(job.started_at, job.created_at)
     elif status == "FAILED" and current_stage == "QUEUED":
         q_status = "FAILED"
         end = job.failed_at or job.created_at
-        if job.created_at:
-            q_duration = int((end - job.created_at).total_seconds() * 1000)
+        q_duration = safe_diff_ms(end, job.created_at)
     elif status in ("PENDING", "IN_PROGRESS"):
         q_status = "IN_PROGRESS"
-        if job.created_at:
-            q_duration = int((now - job.created_at).total_seconds() * 1000)
+        q_duration = safe_diff_ms(now, job.created_at)
     stages.append({
         "stageName": "QUEUED",
         "label": "Queue & Pickup",
@@ -276,7 +287,7 @@ def to_delete_job_progress_dto(job: DeleteJob) -> Dict[str, Any]:
         s_status = "FAILED" if status == "FAILED" else "IN_PROGRESS"
         if s_duration is None and job.started_at:
             end = job.failed_at if (status == "FAILED" and job.failed_at) else now
-            s_duration = int((end - job.started_at).total_seconds() * 1000)
+            s_duration = safe_diff_ms(end, job.started_at)
     elif not job.started_at:
         s_status = "PENDING"
     else:
@@ -302,7 +313,7 @@ def to_delete_job_progress_dto(job: DeleteJob) -> Dict[str, Any]:
         r_status = "FAILED" if status == "FAILED" else "IN_PROGRESS"
         if r_duration is None and job.search_deleted_at:
             end = job.failed_at if (status == "FAILED" and job.failed_at) else now
-            r_duration = int((end - job.search_deleted_at).total_seconds() * 1000)
+            r_duration = safe_diff_ms(end, job.search_deleted_at)
     elif not job.search_deleted_at:
         r_status = "PENDING"
     else:
@@ -327,7 +338,7 @@ def to_delete_job_progress_dto(job: DeleteJob) -> Dict[str, Any]:
         prev = job.recommendation_deleted_at or job.search_deleted_at
         if i_duration is None and prev:
             end = job.failed_at if (status == "FAILED" and job.failed_at) else now
-            i_duration = int((end - prev).total_seconds() * 1000)
+            i_duration = safe_diff_ms(end, prev)
     elif not (job.recommendation_deleted_at or job.search_deleted_at):
         i_status = "PENDING"
     else:
@@ -351,7 +362,7 @@ def to_delete_job_progress_dto(job: DeleteJob) -> Dict[str, Any]:
         s3_status = "FAILED" if status == "FAILED" else "IN_PROGRESS"
         if s3_duration is None and job.imagekit_deleted_at:
             end = job.failed_at if (status == "FAILED" and job.failed_at) else now
-            s3_duration = int((end - job.imagekit_deleted_at).total_seconds() * 1000)
+            s3_duration = safe_diff_ms(end, job.imagekit_deleted_at)
     elif not job.imagekit_deleted_at:
         s3_status = "PENDING"
     else:
@@ -375,7 +386,7 @@ def to_delete_job_progress_dto(job: DeleteJob) -> Dict[str, Any]:
         c_status = "FAILED" if status == "FAILED" else "IN_PROGRESS"
         if c_duration is None and job.s3_deleted_at:
             end = job.failed_at if (status == "FAILED" and job.failed_at) else now
-            c_duration = int((end - job.s3_deleted_at).total_seconds() * 1000)
+            c_duration = safe_diff_ms(end, job.s3_deleted_at)
     else:
         c_status = "FAILED" if status == "FAILED" else "PENDING"
     stages.append({
@@ -387,6 +398,7 @@ def to_delete_job_progress_dto(job: DeleteJob) -> Dict[str, Any]:
         "durationMs": c_duration,
         "formattedDuration": format_ms(c_duration),
     })
+
 
     return {
         "id": job.id,

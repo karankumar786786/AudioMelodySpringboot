@@ -21,6 +21,7 @@ from .authentication import (
 )
 from .helpers import (
     format_paginated_response,
+    safe_diff_ms,
     to_delete_job_progress_dto,
     to_job_progress_dto,
 )
@@ -2129,7 +2130,7 @@ class WebhookJobTranscodedView(BaseAdminView):
         job.transcoded = True
         job.transcoded_at = now
         if job.transcoding_started_at:
-            job.transcoding_duration_ms = int((now - job.transcoding_started_at).total_seconds() * 1000)
+            job.transcoding_duration_ms = safe_diff_ms(now, job.transcoding_started_at)
 
         is_reprocess = bool(job.is_video_reprocess or job.is_audio_reprocess)
         job.current_stage = "FINALIZING" if is_reprocess else "RECOMMENDATION_INDEXING"
@@ -2169,7 +2170,7 @@ class WebhookJobSaveRecommendationView(BaseAdminView):
         job.saved_in_recommendation = True
         job.recommendation_saved_at = now
         if job.transcoded_at:
-            job.recommendation_duration_ms = int((now - job.transcoded_at).total_seconds() * 1000)
+            job.recommendation_duration_ms = safe_diff_ms(now, job.transcoded_at)
         job.current_stage = "SEARCH_INDEXING"
         job.save()
         return Response(status=status.HTTP_200_OK)
@@ -2204,7 +2205,7 @@ class WebhookJobSaveSearchView(BaseAdminView):
         job.search_saved_at = now
         prev = job.recommendation_saved_at or job.transcoded_at
         if prev:
-            job.search_duration_ms = int((now - prev).total_seconds() * 1000)
+            job.search_duration_ms = safe_diff_ms(now, prev)
         job.current_stage = "FINALIZING"
         job.save()
         return Response(status=status.HTTP_200_OK)
@@ -2217,9 +2218,9 @@ class WebhookJobFinalizeView(BaseAdminView):
         job.completed_at = now
         prev = job.search_saved_at or job.transcoded_at
         if prev:
-            job.finalize_duration_ms = int((now - prev).total_seconds() * 1000)
+            job.finalize_duration_ms = safe_diff_ms(now, prev)
         if job.created_at:
-            job.total_duration_ms = int((now - job.created_at).total_seconds() * 1000)
+            job.total_duration_ms = safe_diff_ms(now, job.created_at)
 
         is_reprocess = bool(job.is_video_reprocess or job.is_audio_reprocess)
         old_status = job.status
@@ -2309,7 +2310,7 @@ class WebhookJobFailedView(BaseAdminView):
         job.failed_at = now
         job.failure_reason = reason
         if job.created_at:
-            job.total_duration_ms = int((now - job.created_at).total_seconds() * 1000)
+            job.total_duration_ms = safe_diff_ms(now, job.created_at)
         job.save()
         PaginationMetadataService.transition_job(old_status, "FAILED")
         return Response(status=status.HTTP_200_OK)
@@ -2339,7 +2340,7 @@ class WebhookDeleteSearchView(BaseAdminView):
             job.current_stage = "SEARCH_DELETED"
             job.search_deleted_at = now
             if job.created_at:
-                job.search_duration_ms = int((now - job.created_at).total_seconds() * 1000)
+                job.search_duration_ms = safe_diff_ms(now, job.created_at)
             job.save()
 
         try:
@@ -2360,7 +2361,7 @@ class WebhookDeleteRecommendationView(BaseAdminView):
             job.recommendation_deleted_at = now
             prev = job.search_deleted_at or job.created_at
             if prev:
-                job.recommendation_duration_ms = int((now - prev).total_seconds() * 1000)
+                job.recommendation_duration_ms = safe_diff_ms(now, prev)
             job.save()
 
         if entity_type.upper() == "SONG":
@@ -2382,7 +2383,7 @@ class WebhookDeleteImageKitView(BaseAdminView):
             job.imagekit_deleted_at = now
             prev = job.recommendation_deleted_at or job.search_deleted_at or job.created_at
             if prev:
-                job.imagekit_duration_ms = int((now - prev).total_seconds() * 1000)
+                job.imagekit_duration_ms = safe_diff_ms(now, prev)
             job.save()
 
         etype = entity_type.upper()
@@ -2418,7 +2419,7 @@ class WebhookDeleteS3View(BaseAdminView):
             job.s3_deleted_at = now
             prev = job.imagekit_deleted_at or job.created_at
             if prev:
-                job.s3_duration_ms = int((now - prev).total_seconds() * 1000)
+                job.s3_duration_ms = safe_diff_ms(now, prev)
             job.save()
 
         return Response(status=status.HTTP_200_OK)
@@ -2493,9 +2494,9 @@ class WebhookDeleteHardDeleteView(BaseAdminView):
             job.completed_at = now
             prev = job.s3_deleted_at or job.imagekit_deleted_at or job.created_at
             if prev:
-                job.finalize_duration_ms = int((now - prev).total_seconds() * 1000)
+                job.finalize_duration_ms = safe_diff_ms(now, prev)
             if job.created_at:
-                job.total_duration_ms = int((now - job.created_at).total_seconds() * 1000)
+                job.total_duration_ms = safe_diff_ms(now, job.created_at)
             job.save()
             PaginationMetadataService.transition_delete_job(old_status, "COMPLETED")
 
@@ -2515,7 +2516,7 @@ class WebhookDeleteFailedView(BaseAdminView):
             job.failed_at = now
             job.failure_reason = reason
             if job.created_at:
-                job.total_duration_ms = int((now - job.created_at).total_seconds() * 1000)
+                job.total_duration_ms = safe_diff_ms(now, job.created_at)
             job.save()
             PaginationMetadataService.transition_delete_job(old_status, "FAILED")
 
