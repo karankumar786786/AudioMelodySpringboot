@@ -272,7 +272,7 @@ export function RightInfoPanel() {
 
   return (
     <>
-      <aside className="hidden lg:block w-[290px] xl:w-[320px] 2xl:w-[340px] bg-black h-[calc(100vh-64px)] fixed right-0 top-16 z-40 overflow-y-auto no-scrollbar pb-36">
+      <aside className="hidden lg:block w-[290px]  xl:w-[320px] 2xl:w-[340px] bg-black h-[calc(100vh-64px)] fixed right-0 top-16 z-40 overflow-y-auto no-scrollbar pb-36">
         <div>
           {/* ========================================================== */}
           {/* 1. MEDIA DISPLAY (Full-bleed Video or Cover Image in identical dimension) */}
@@ -450,36 +450,7 @@ export function RightInfoPanel() {
               )}
             </section>
 
-            {/* ========================================================== */}
-            {/* 2.5. TRACK DETAILS (Album, Genre)                          */}
-            {/* ========================================================== */}
-            {(currentSong.album || currentSong.genre) && (
-              <section className="bg-[#121212] border border-[#222] rounded-2xl overflow-hidden p-4 shadow-xl space-y-3">
-                <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-                  <Disc className="text-primary" size={14} />
-                  <span>Track Details</span>
-                </h3>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  {currentSong.album && (
-                    <Link
-                      href={`/albums/${encodeURIComponent(currentSong.album)}`}
-                      className="bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl p-2.5 space-y-0.5 col-span-2 sm:col-span-1 transition-colors cursor-pointer group"
-                    >
-                      <p className="text-[10px] uppercase font-semibold text-zinc-500 tracking-wider">Album</p>
-                      <p className="font-semibold text-white group-hover:text-primary transition-colors truncate" title={currentSong.album}>
-                        {currentSong.album}
-                      </p>
-                    </Link>
-                  )}
-                  {currentSong.genre && (
-                    <div className="bg-white/5 border border-white/5 rounded-xl p-2.5 space-y-0.5 col-span-2 sm:col-span-1">
-                      <p className="text-[10px] uppercase font-semibold text-zinc-500 tracking-wider">Genre</p>
-                      <p className="font-semibold text-primary truncate">{currentSong.genre}</p>
-                    </div>
-                  )}
-                </div>
-              </section>
-            )}
+            
 
             {/* ========================================================== */}
             {/* 3. ABOUT THE ARTIST (hydrates in background)               */}

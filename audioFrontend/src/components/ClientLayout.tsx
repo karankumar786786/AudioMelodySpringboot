@@ -62,6 +62,13 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     }
   }, [systemUser, pathname, isPublicRoute, router]);
 
+  useEffect(() => {
+    const mainEl = document.querySelector("main");
+    if (mainEl) {
+      mainEl.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+    }
+  }, [pathname]);
+
   // Loading Screen while resolving session from local storage or redirecting
   if (
     !isReady ||
@@ -113,12 +120,12 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       <LeftSidebar />
       <section
         id="main-section"
-        className="flex-1 flex flex-col min-w-0 ml-0 md:ml-[64px] xl:ml-[192px] mr-0 lg:mr-[290px] xl:mr-[320px] 2xl:mr-[340px] overflow-hidden relative z-10 bg-black pt-16 transition-[margin] duration-200"
+        className="flex-1 flex flex-col min-w-0 ml-0 md:ml-[64px] xl:ml-[192px] mr-0 lg:mr-[290px] xl:mr-[320px] 2xl:mr-[340px] overflow-hidden relative z-10 bg-black transition-[margin] duration-200"
       >
         <main
           className={`flex-1 ${
             isLyricsOpen ? "overflow-hidden pointer-events-none invisible" : "overflow-y-auto"
-          } no-scrollbar pb-24`}
+          } no-scrollbar pt-16 pb-24`}
         >
           {children}
         </main>

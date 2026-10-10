@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import { motion } from "framer-motion";
@@ -11,6 +11,7 @@ import { formatDuration, mapListToPlayerSongs } from "@/lib/player-utils";
 import { playerActions, playerStore } from "@/store/player.store";
 import { previewPlayer } from "@/lib/preview-player";
 import { SongThumbnail } from "@/components/SongThumbnail";
+import { getSolidBgFromImage } from "@/lib/color-utils";
 import { toast } from "sonner";
 
 interface AlbumPageProps {
@@ -42,6 +43,8 @@ export default function AlbumPage({ params }: AlbumPageProps) {
     return songs.find((s) => s.genre)?.genre || null;
   }, [songs]);
 
+  const [backgroundColor, setBackgroundColor] = useState("#181818");
+
   const coverImage = useMemo(() => {
     const songWithImage = songs.find((s) => s.imageKey);
     if (!songWithImage?.imageKey) return null;
@@ -51,6 +54,32 @@ export default function AlbumPage({ params }: AlbumPageProps) {
       aspectRatio: "1-1",
     });
   }, [songs]);
+
+  /* -------------------------------------------------------------------------- */
+  /*                          EXTRACT DOMINANT COLOR                            */
+  /* -------------------------------------------------------------------------- */
+  useEffect(() => {
+    let cancelled = false;
+
+    async function extractColor() {
+      if (!coverImage) {
+        setBackgroundColor("#181818");
+        return;
+      }
+
+      const color = await getSolidBgFromImage(coverImage, albumName || "album");
+
+      if (!cancelled) {
+        setBackgroundColor(color);
+      }
+    }
+
+    extractColor();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [coverImage, albumName]);
 
   const handlePlaySong = (song: Song, index: number) => {
     previewPlayer.stopPreview(true);
@@ -109,11 +138,18 @@ export default function AlbumPage({ params }: AlbumPageProps) {
   }
 
   return (
-    <div className="min-h-full pb-24">
+    <div className="min-h-full pb-24 px-2">
       {/* ====================================================================== */}
       {/*                              HERO                                      */}
-      {/* ====================================================================== */}
-      <section className="relative overflow-hidden px-8 pb-8 pt-20 md:px-10 md:pt-24 bg-gradient-to-b from-primary/20 via-zinc-900/60 to-black/90 border-b border-white/5">
+      <section
+        className="relative overflow-hidden px-8 pb-8 pt-20 md:px-10 md:pt-24 rounded-2xl border-b border-white/5 transition-colors duration-500"
+        style={{
+          background: `linear-gradient(to bottom, ${backgroundColor} 0%, ${backgroundColor} 35%, rgba(0,0,0,0.92) 100%)`,
+        }}
+      >
+        {/* Subtle dark overlay */}
+        <div className="pointer-events-none absolute inset-0 bg-black/10" />
+
         <div className="relative z-10 flex flex-col items-center gap-7 md:flex-row md:items-end">
           {/* Cover Art */}
           <motion.div
@@ -154,7 +190,7 @@ export default function AlbumPage({ params }: AlbumPageProps) {
               )}
             </div>
 
-            <h1 className="text-3xl font-black tracking-tight text-white md:text-5xl lg:text-6xl line-clamp-2">
+            <h1 className="text-3xl font-black tracking-tight my-2 py-2 text-white md:text-5xl lg:text-6xl line-clamp-2">
               {albumName}
             </h1>
 

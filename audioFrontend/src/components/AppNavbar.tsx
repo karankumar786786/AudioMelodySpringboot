@@ -19,7 +19,7 @@ import {
   Moon,
   Heart,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -45,10 +45,37 @@ export function AppNavbar() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const pathname = usePathname();
   const queryClient = useQueryClient();
   const router = useRouter();
   const menuRef = useRef<HTMLDivElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const mainEl = document.querySelector("main");
+      const scrollY = mainEl ? mainEl.scrollTop : window.scrollY;
+      setIsScrolled(scrollY > 10);
+    };
+
+    const mainEl = document.querySelector("main");
+    if (mainEl) {
+      mainEl.addEventListener("scroll", handleScroll, { passive: true });
+    }
+    window.addEventListener("scroll", handleScroll, { capture: true, passive: true });
+    handleScroll();
+
+    const t = setTimeout(handleScroll, 100);
+
+    return () => {
+      clearTimeout(t);
+      if (mainEl) {
+        mainEl.removeEventListener("scroll", handleScroll);
+      }
+      window.removeEventListener("scroll", handleScroll, { capture: true } as any);
+    };
+  }, [pathname]);
 
   const getGreeting = () => {
     const hrs = new Date().getHours();
@@ -236,7 +263,13 @@ export function AppNavbar() {
   const recentHistory: SearchHistoryItem[] = searchHistoryData?.data?.recent || [];
 
   return (
-    <header className="fixed top-0 left-0 right-0 h-16 z-50 flex items-center bg-black  select-none pointer-events-auto">
+    <header
+      className={`fixed top-0 left-0 right-0 h-16 z-50 flex items-center select-none pointer-events-auto transition-all duration-300 ease-out ${
+        isScrolled
+          ? "bg-black/60 backdrop-blur-xl border-b border-white/[0.08] shadow-lg shadow-black/40"
+          : "bg-transparent backdrop-blur-sm border-b border-white/[0.03]"
+      }`}
+    >
       {/* 1. Left: Brand & Logo (aligned with sidebar width) */}
       <div className="w-[64px] xl:w-[192px] shrink-0 h-full px-2 xl:px-3 flex items-center">
         <Link
@@ -275,7 +308,11 @@ export function AppNavbar() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setIsFocused(true)}
-            className="bg-[#16171b] border border-white/10 hover:border-white/20 focus:border-white/30 rounded-full py-2.5 pl-11 pr-16 text-xs sm:text-[13px] font-medium focus:ring-0 transition-all outline-none w-full text-white placeholder-zinc-400 shadow-inner relative z-10"
+            className={`rounded-full py-2.5 pl-11 pr-16 text-xs sm:text-[13px] font-medium focus:ring-0 transition-all duration-200 outline-none w-full text-white placeholder-zinc-400 shadow-inner relative z-10 backdrop-blur-md ${
+              isScrolled
+                ? "bg-white/[0.08] border border-white/10 hover:border-white/20 focus:border-white/30 focus:bg-black/80"
+                : "bg-white/[0.06] border border-white/10 hover:border-white/20 focus:border-white/30 focus:bg-black/70"
+            }`}
           />
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-400 group-focus-within:text-white transition-colors z-20">
             <Search size={16} />
@@ -701,7 +738,7 @@ export function AppNavbar() {
               <button
                 type="button"
                 onClick={() => setShowProfileMenu((prev) => !prev)}
-                className="w-9 h-9 rounded-full bg-[#181818] hover:bg-[#222222] border border-white/10 hover:border-white/25 flex items-center justify-center text-zinc-300 hover:text-white transition-all shadow-md cursor-pointer focus:outline-none"
+                className="w-9 h-9 rounded-full bg-white/[0.07] hover:bg-white/[0.14] backdrop-blur-md border border-white/10 hover:border-white/25 flex items-center justify-center text-zinc-300 hover:text-white transition-all shadow-md cursor-pointer focus:outline-none"
                 title={systemUser?.name || "Profile"}
                 aria-label="User profile"
               >
