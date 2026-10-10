@@ -24,45 +24,78 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function clearStorage() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("admin_session_id");
+  localStorage.removeItem("admin_refresh_session_id");
+  localStorage.removeItem("admin_token");
+  localStorage.removeItem("admin_refresh_token");
+  localStorage.removeItem("admin_user");
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null); // Represents active session ID
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    // Hydrate session from localStorage and validate the token
+    // Hydrate session from localStorage and validate the session against backend
     const savedUser = localStorage.getItem("admin_user");
-    const savedToken = localStorage.getItem("admin_token");
-    if (savedUser && savedToken) {
+    const savedSessionId =
+      localStorage.getItem("admin_session_id") ||
+      localStorage.getItem("admin_token");
+
+    if (savedUser && savedSessionId) {
       try {
         const parsedUser = JSON.parse(savedUser);
         setUser(parsedUser);
-        setToken(savedToken);
+        setToken(savedSessionId);
 
-        // Validate the token against the backend
+        // Validate the stateful Redis session against the backend
         const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
         fetch(`${apiBase}/api/user/profile`, {
-          headers: { "Authorization": `Bearer ${savedToken}` },
+          headers: {
+            "X-Session-Id": savedSessionId,
+            "Authorization": `Session ${savedSessionId}`,
+          },
+          credentials: "include",
         }).then(async (res) => {
           if (!res.ok) {
-            // Token is invalid or expired — try refreshing
-            const refreshToken = localStorage.getItem("admin_refresh_token");
-            if (refreshToken) {
+            // Session is invalid or expired — try refreshing
+            const refreshId =
+              localStorage.getItem("admin_refresh_session_id") ||
+              localStorage.getItem("admin_refresh_token");
+
+            if (refreshId) {
               try {
                 const refreshRes = await fetch(`${apiBase}/auth/refresh-token`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ refreshToken }),
+                  body: JSON.stringify({
+                    refreshSessionId: refreshId,
+                    refreshToken: refreshId,
+                  }),
+                  credentials: "include",
                 });
                 if (refreshRes.ok) {
                   const refreshData = await refreshRes.json();
-                  localStorage.setItem("admin_token", refreshData.accessToken);
-                  localStorage.setItem("admin_refresh_token", refreshData.refreshToken);
-                  setToken(refreshData.accessToken);
-                  // Re-fetch profile with new token
+                  const newSessionId = refreshData.sessionId || refreshData.accessToken;
+                  const newRefreshId = refreshData.refreshSessionId || refreshData.refreshToken;
+
+                  localStorage.setItem("admin_session_id", newSessionId);
+                  localStorage.setItem("admin_refresh_session_id", newRefreshId);
+                  localStorage.setItem("admin_token", newSessionId);
+                  localStorage.setItem("admin_refresh_token", newRefreshId);
+                  setToken(newSessionId);
+
+                  // Re-fetch profile with new session
                   const profileRes = await fetch(`${apiBase}/api/user/profile`, {
-                    headers: { "Authorization": `Bearer ${refreshData.accessToken}` },
+                    headers: {
+                      "X-Session-Id": newSessionId,
+                      "Authorization": `Session ${newSessionId}`,
+                    },
+                    credentials: "include",
                   });
                   if (profileRes.ok) {
                     const profile = await profileRes.json();
@@ -75,41 +108,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     localStorage.setItem("admin_user", JSON.stringify(updatedUser));
                     setUser(updatedUser as User);
                   } else {
-                    // Still failing — clear session
-                    console.warn("[Admin Auth] Token refresh succeeded but profile fetch failed. Clearing session.");
-                    localStorage.removeItem("admin_token");
-                    localStorage.removeItem("admin_refresh_token");
-                    localStorage.removeItem("admin_user");
+                    console.warn("[Admin Auth] Session refresh succeeded but profile fetch failed. Clearing session.");
+                    clearStorage();
                     setUser(null);
                     setToken(null);
                   }
                 } else {
-                  // Refresh failed — clear session
-                  console.warn("[Admin Auth] Token refresh failed. Clearing stale session.");
-                  localStorage.removeItem("admin_token");
-                  localStorage.removeItem("admin_refresh_token");
-                  localStorage.removeItem("admin_user");
+                  console.warn("[Admin Auth] Session refresh failed. Clearing stale session.");
+                  clearStorage();
                   setUser(null);
                   setToken(null);
                 }
               } catch {
-                localStorage.removeItem("admin_token");
-                localStorage.removeItem("admin_refresh_token");
-                localStorage.removeItem("admin_user");
+                clearStorage();
                 setUser(null);
                 setToken(null);
               }
             } else {
-              // No refresh token — clear session
-              console.warn("[Admin Auth] No refresh token available. Clearing stale session.");
-              localStorage.removeItem("admin_token");
-              localStorage.removeItem("admin_refresh_token");
-              localStorage.removeItem("admin_user");
+              console.warn("[Admin Auth] No refresh session available. Clearing stale session.");
+              clearStorage();
               setUser(null);
               setToken(null);
             }
           } else {
-            // Token valid — update profile from server
+            // Session valid — update profile from server
             res.json().then((profile) => {
               const updatedUser = {
                 id: profile.id,
@@ -122,13 +144,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }).catch(() => {});
           }
         }).catch(() => {
-          // Network error — keep existing session (might be offline)
+          // Network error — keep existing session
         });
       } catch (err) {
         console.error("Failed to parse admin_user", err);
-        localStorage.removeItem("admin_user");
-        localStorage.removeItem("admin_token");
-        localStorage.removeItem("admin_refresh_token");
+        clearStorage();
       }
     }
     setLoading(false);
@@ -138,9 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const handleSessionExpired = () => {
       console.warn("[Admin Auth] Session expired event received. Clearing session.");
-      localStorage.removeItem("admin_token");
-      localStorage.removeItem("admin_refresh_token");
-      localStorage.removeItem("admin_user");
+      clearStorage();
       setUser(null);
       setToken(null);
     };
@@ -169,13 +187,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const verifyOtp = async (email: string, otp: string, emailToken: string) => {
     try {
       const res = await adminClient.auth.verifyOtp(emailToken, otp, email);
-      const { accessToken, refreshToken, user: userData } = res.data;
-      localStorage.setItem("admin_token", accessToken);
-      localStorage.setItem("admin_refresh_token", refreshToken);
+      const { sessionId, refreshSessionId, user: userData } = res.data;
+      localStorage.setItem("admin_session_id", sessionId);
+      localStorage.setItem("admin_refresh_session_id", refreshSessionId);
+      localStorage.setItem("admin_token", sessionId);
+      localStorage.setItem("admin_refresh_token", refreshSessionId);
       localStorage.setItem("admin_user", JSON.stringify(userData));
 
       setUser(userData);
-      setToken(accessToken);
+      setToken(sessionId);
       return { success: true };
     } catch (err: any) {
       throw new Error(err.message || "Failed to verify OTP");
@@ -193,13 +213,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+    const currentSessionId =
+      localStorage.getItem("admin_session_id") ||
+      localStorage.getItem("admin_token");
     fetch(`${apiBase}/auth/logout`, {
       method: "POST",
+      headers: currentSessionId ? { "X-Session-Id": currentSessionId } : {},
       credentials: "include",
     }).catch(() => {});
-    localStorage.removeItem("admin_token");
-    localStorage.removeItem("admin_refresh_token");
-    localStorage.removeItem("admin_user");
+    clearStorage();
     setUser(null);
     setToken(null);
     router.push("/");

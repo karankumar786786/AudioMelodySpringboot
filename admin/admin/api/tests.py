@@ -5,7 +5,6 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "admin.settings")
 django.setup()
 
 import io
-import jwt
 import time
 from unittest.mock import patch, MagicMock
 from django.conf import settings
@@ -53,23 +52,31 @@ class AdminHelperAndAuthTests(SimpleTestCase):
         self.assertEqual(res["paginationMetaData"]["totalCount"], 42)
         self.assertEqual(res["paginationMetaData"]["activeCount"], 30)
 
-    def test_admin_jwt_authentication_unauthorized(self):
+    def test_admin_session_authentication_unauthorized(self):
         anon_client = APIClient()
         resp = anon_client.get("/admin/dashboard/stats")
         self.assertIn(resp.status_code, [401, 403])
 
 
+def make_test_session(user_id="user_admin_123", email="admin@example.com", role="ADMIN"):
+    sid = f"test_sess_{user_id}_{role}"
+    RedisService._MEMORY_SESSIONS[sid] = {
+        "sessionId": sid,
+        "userId": user_id,
+        "email": email,
+        "userName": "Test Admin",
+        "role": role,
+        "status": "ACTIVE",
+        "expiresAt": time.time() + 7200,
+    }
+    return sid
+
+
 class AdminEndpointRoutingTests(SimpleTestCase):
     def setUp(self):
         self.client = APIClient()
-        payload = {
-            "sub": "user_admin_123",
-            "email": "admin@example.com",
-            "role": "ADMIN",
-            "exp": time.time() + 3600
-        }
-        self.token = jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
-        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {self.token}")
+        self.session_id = make_test_session("user_admin_123", "admin@example.com", "ADMIN")
+        self.client.credentials(HTTP_X_SESSION_ID=self.session_id)
 
     def test_dashboard_stats(self):
         with patch.object(PaginationMetadataService, "get_metadata", return_value=None), \
@@ -260,15 +267,9 @@ class AdminEndpointRoutingTests(SimpleTestCase):
             self.assertEqual(res_upgrade_denied.status_code, 403)
 
         # 2. Authenticate as SUPER_ADMIN
-        super_payload = {
-            "sub": "user_super_1",
-            "email": "super@example.com",
-            "role": "SUPER_ADMIN",
-            "exp": time.time() + 3600
-        }
-        super_token = jwt.encode(super_payload, settings.JWT_SECRET, algorithm="HS256")
+        super_sid = make_test_session("user_super_1", "super@example.com", "SUPER_ADMIN")
         super_client = APIClient()
-        super_client.credentials(HTTP_AUTHORIZATION=f"Bearer {super_token}")
+        super_client.credentials(HTTP_X_SESSION_ID=super_sid)
 
         with patch("api.views.get_object_or_404", return_value=fake_target), \
              patch.object(Admin.objects, "filter") as mock_admin_filter, \
@@ -450,9 +451,9 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
         with patch.object(Admin.objects, "filter") as mock_filter:
             mock_filter.return_value.first.return_value = fake_admin
 
-            token = jwt.encode({"sub": fake_admin.id, "email": fake_admin.email, "role": "ADMIN", "exp": time.time() + 3600}, settings.JWT_SECRET, algorithm="HS256")
+            sid = make_test_session(fake_admin.id, fake_admin.email, "ADMIN")
             client = APIClient()
-            client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+            client.credentials(HTTP_X_SESSION_ID=sid)
 
             res = client.patch("/api/user/profile", {"name": "Updated Admin Name"}, format="json")
             self.assertEqual(res.status_code, 200)
@@ -460,8 +461,8 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
 
     def test_global_search_api(self):
         authed_client = APIClient()
-        token = jwt.encode({"sub": "admin-1", "email": "a@b.com", "role": "ADMIN", "exp": time.time() + 3600}, settings.JWT_SECRET, algorithm="HS256")
-        authed_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+        sid = make_test_session("admin-1", "a@b.com", "ADMIN")
+        authed_client.credentials(HTTP_X_SESSION_ID=sid)
 
         with patch.object(Song.objects, "filter") as mock_songs, \
              patch.object(Artist.objects, "filter") as mock_artists, \
@@ -480,8 +481,8 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
 
     def test_artist_songs_api(self):
         authed_client = APIClient()
-        token = jwt.encode({"sub": "admin-1", "email": "a@b.com", "role": "ADMIN", "exp": time.time() + 3600}, settings.JWT_SECRET, algorithm="HS256")
-        authed_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+        sid = make_test_session("admin-1", "a@b.com", "ADMIN")
+        authed_client.credentials(HTTP_X_SESSION_ID=sid)
 
         fake_artist = MagicMock()
         fake_artist.id = "art-1"
@@ -504,8 +505,8 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
 
     def test_sync_metadata_endpoints(self):
         authed_client = APIClient()
-        token = jwt.encode({"sub": "admin-1", "email": "a@b.com", "role": "SUPER_ADMIN", "exp": time.time() + 3600}, settings.JWT_SECRET, algorithm="HS256")
-        authed_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+        sid = make_test_session("admin-1", "a@b.com", "SUPER_ADMIN")
+        authed_client.credentials(HTTP_X_SESSION_ID=sid)
 
         fake_res = {"SongsEntity": {"totalCount": 10}}
         with patch.object(PaginationMetadataService, "sync_all_metadata", return_value=fake_res):
@@ -526,8 +527,8 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
 
     def test_playlist_total_songs_serialization(self):
         authed_client = APIClient()
-        token = jwt.encode({"sub": "admin-1", "email": "a@b.com", "role": "ADMIN", "exp": time.time() + 3600}, settings.JWT_SECRET, algorithm="HS256")
-        authed_client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+        sid = make_test_session("admin-1", "a@b.com", "ADMIN")
+        authed_client.credentials(HTTP_X_SESSION_ID=sid)
 
         fake_playlist = MagicMock()
         fake_playlist.id = "pl-123"

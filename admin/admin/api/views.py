@@ -1,9 +1,8 @@
 from django.db import models
 from django.core.serializers import json
-import jwt
 from datetime import datetime, timezone
 import logging
-from typing import  Optional
+from typing import Optional
 import uuid
 
 from django.conf import settings
@@ -15,6 +14,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .authentication import (
+    AdminSessionAuthentication,
     AdminJWTAuthentication,
     IsAdminUserPermission,
     IsSuperAdminUserPermission,
@@ -69,9 +69,9 @@ class HealthCheckView(APIView):
         return Response({"status": "UP", "service": "admin"}, status=status.HTTP_200_OK)
 
 
-# Base Admin API View with standard JWT + Role authentication
+# Base Admin API View with standard Redis Session + Role authentication
 class BaseAdminView(APIView):
-    authentication_classes = [AdminJWTAuthentication]
+    authentication_classes = [AdminSessionAuthentication]
     permission_classes = [IsAdminUserPermission]
 
 
@@ -79,12 +79,11 @@ class BaseAdminView(APIView):
 # 0. Admin Authentication & Session Management (/auth/*, /api/user/profile)
 # ==============================================================================
 
-def set_auth_cookies(response: Response, session_id: str, access_token: str, refresh_token: str) -> None:
+def set_auth_cookies(response: Response, session_id: str, refresh_session_id: str = "") -> None:
     """
     Sets secure, HTTP-only authentication cookies on the HTTP response.
-    - admin_session: stateful Redis session token
-    - access_token: bearer access JWT
-    - refresh_token: 30-day refresh token
+    - admin_session: stateful Redis access session ID
+    - refresh_session: stateful Redis refresh session ID
     """
     is_secure = not settings.DEBUG
     # admin_session cookie (HTTP-only)
@@ -97,33 +96,34 @@ def set_auth_cookies(response: Response, session_id: str, access_token: str, ref
         samesite="Lax",
         path="/",
     )
-    # access_token cookie (HTTP-only)
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        max_age=86400,
-        httponly=True,
-        secure=is_secure,
-        samesite="Lax",
-        path="/",
-    )
-    # refresh_token cookie (HTTP-only)
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        max_age=30 * 86400,
-        httponly=True,
-        secure=is_secure,
-        samesite="Lax",
-        path="/",
-    )
+    if refresh_session_id:
+        response.set_cookie(
+            key="refresh_session",
+            value=refresh_session_id,
+            max_age=30 * 86400,
+            httponly=True,
+            secure=is_secure,
+            samesite="Lax",
+            path="/",
+        )
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_session_id,
+            max_age=30 * 86400,
+            httponly=True,
+            secure=is_secure,
+            samesite="Lax",
+            path="/",
+        )
 
 
 def clear_auth_cookies(response: Response) -> None:
     """Clears all admin authentication cookies."""
     response.delete_cookie("admin_session", path="/")
-    response.delete_cookie("access_token", path="/")
+    response.delete_cookie("session_id", path="/")
+    response.delete_cookie("refresh_session", path="/")
     response.delete_cookie("refresh_token", path="/")
+    response.delete_cookie("access_token", path="/")
 
 
 class AdminLoginView(APIView):
@@ -316,7 +316,7 @@ class AdminVerifyOtpView(APIView):
         tokens = AdminAuthService.issue_tokens_for_admin(admin, request)
 
         res = Response(tokens, status=status.HTTP_200_OK)
-        set_auth_cookies(res, tokens["sessionId"], tokens["accessToken"], tokens["refreshToken"])
+        set_auth_cookies(res, tokens["sessionId"], tokens["refreshSessionId"])
         return res
 
 
@@ -364,35 +364,32 @@ class AdminResendOtpView(APIView):
 class AdminRefreshTokenView(APIView):
     """
     POST /auth/refresh-token
-    Accepts refreshToken from HTTP-Only cookie OR request body { "refreshToken": "..." }
-    Validates refresh token and issues a new pair of access/refresh tokens with active Redis session.
+    Accepts refreshSessionId from HTTP-Only cookie OR request body { "refreshSessionId": "..." }
+    Validates refresh session in Redis and issues a fresh pair of active Redis sessions.
+    Zero JWT. Pure Redis session invalidation & rotation.
     """
     permission_classes = [AllowAny]
 
     def post(self, request):
-        refresh_token = (
-            request.COOKIES.get("refresh_token")
+        refresh_id = (
+            request.COOKIES.get("refresh_session")
+            or request.COOKIES.get("refresh_token")
+            or request.data.get("refreshSessionId")
             or request.data.get("refreshToken")
             or ""
         ).strip()
-        if not refresh_token:
-            return Response({"message": "Refresh token is required."}, status=status.HTTP_400_BAD_REQUEST)
+        if not refresh_id:
+            return Response({"message": "Refresh session ID is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        try:
-            payload = jwt.decode(
-                refresh_token,
-                settings.JWT_SECRET,
-                algorithms=["HS256"],
-                options={"verify_signature": True, "verify_exp": True},
-            )
-        except Exception as e:
-            return Response({"message": f"Invalid or expired refresh token: {str(e)}"}, status=status.HTTP_401_UNAUTHORIZED)
+        refresh_data = RedisService.get_refresh_session(refresh_id)
+        if not refresh_data:
+            return Response({"message": "Refresh session has expired or is invalid. Please log in again."}, status=status.HTTP_401_UNAUTHORIZED)
 
-        user_id = payload.get("id") or payload.get("sub")
-        email = payload.get("email")
-        old_sid = payload.get("sid")
+        user_id = refresh_data.get("userId")
+        email = refresh_data.get("email")
+        old_sid = refresh_data.get("sessionId")
 
-        # Invalidate old session on refresh token rotation
+        # Invalidate old access session
         if old_sid:
             RedisService.revoke_admin_session(old_sid)
 
@@ -403,13 +400,16 @@ class AdminRefreshTokenView(APIView):
             admin = Admin.objects.filter(email__iexact=email).first()
 
         if not admin or admin.status == "BLOCKED":
+            RedisService.revoke_refresh_session(refresh_id)
             res = Response({"message": "Admin session revoked or account suspended."}, status=status.HTTP_403_FORBIDDEN)
             clear_auth_cookies(res)
             return res
 
+        # Rotate: revoke old refresh session and issue new pair
+        RedisService.revoke_refresh_session(refresh_id)
         tokens = AdminAuthService.issue_tokens_for_admin(admin, request)
         res = Response(tokens, status=status.HTTP_200_OK)
-        set_auth_cookies(res, tokens["sessionId"], tokens["accessToken"], tokens["refreshToken"])
+        set_auth_cookies(res, tokens["sessionId"], tokens["refreshSessionId"])
         return res
 
 
@@ -476,19 +476,30 @@ class AdminLogoutView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        session_id = request.COOKIES.get("admin_session") or getattr(request, "session_id", None)
+        session_id = (
+            request.headers.get("X-Session-Id")
+            or request.headers.get("X-Admin-Session")
+            or request.COOKIES.get("admin_session")
+            or getattr(request, "session_id", None)
+        )
         if not session_id:
             auth_header = request.headers.get("Authorization")
-            if auth_header and "bearer " in auth_header.lower():
-                token = auth_header.split()[1]
-                try:
-                    payload = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"], options={"verify_signature": False})
-                    session_id = payload.get("sid")
-                except Exception:
-                    pass
+            if auth_header:
+                parts = auth_header.split()
+                if len(parts) == 2:
+                    session_id = parts[1]
+
+        refresh_id = (
+            request.COOKIES.get("refresh_session")
+            or request.COOKIES.get("refresh_token")
+            or request.data.get("refreshSessionId")
+            or request.data.get("refreshToken")
+        )
 
         if session_id:
             RedisService.revoke_admin_session(session_id)
+        if refresh_id:
+            RedisService.revoke_refresh_session(refresh_id)
 
         res = Response({"message": "Logged out successfully"}, status=status.HTTP_200_OK)
         clear_auth_cookies(res)

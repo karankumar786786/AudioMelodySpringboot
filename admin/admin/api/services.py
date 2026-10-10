@@ -8,7 +8,6 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import secrets
-import jwt
 import boto3
 import redis
 import requests
@@ -304,6 +303,7 @@ class RedisService:
     # In-memory session fallbacks
     _MEMORY_SESSIONS: Dict[str, Dict[str, Any]] = {}
     _MEMORY_USER_SESSIONS: Dict[str, set] = {}
+    _MEMORY_REFRESH_SESSIONS: Dict[str, Dict[str, Any]] = {}
 
     @classmethod
     def create_admin_session(
@@ -455,6 +455,80 @@ class RedisService:
             cls._MEMORY_USER_SESSIONS[norm_email].discard(sid)
             count += 1
         return count
+
+    @classmethod
+    def create_refresh_session(
+        cls,
+        session_id: str,
+        admin: Any,
+        ttl_seconds: int = 30 * 86400,
+    ) -> str:
+        """
+        Creates a stateful refresh session in Redis with 30-day TTL.
+        Tied to the access session_id and admin user.
+        """
+        refresh_id = f"ref_{secrets.token_urlsafe(32)}"
+        norm_email = admin.email.strip().lower()
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        refresh_data = {
+            "refreshSessionId": refresh_id,
+            "sessionId": session_id,
+            "userId": admin.id,
+            "email": norm_email,
+            "role": admin.role,
+            "createdAt": now_iso,
+            "expiresAt": time.time() + ttl_seconds,
+        }
+
+        try:
+            r = cls.get_client()
+            r.setex(f"admin:refresh:{refresh_id}", ttl_seconds, json.dumps(refresh_data))
+            logger.info("Created Redis refresh session [%s] for %s", refresh_id, norm_email)
+        except Exception as e:
+            logger.warning("Redis unavailable for refresh session creation, using in-memory: %s", e)
+
+        cls._MEMORY_REFRESH_SESSIONS[refresh_id] = refresh_data
+        return refresh_id
+
+    @classmethod
+    def get_refresh_session(cls, refresh_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves active refresh session from Redis. Returns None if revoked or expired.
+        """
+        if not refresh_id:
+            return None
+        try:
+            r = cls.get_client()
+            raw = r.get(f"admin:refresh:{refresh_id}")
+            if raw and isinstance(raw, (str, bytes, bytearray)):
+                return json.loads(raw)
+        except Exception as e:
+            logger.debug("Redis error retrieving refresh session: %s", e)
+
+        cached = cls._MEMORY_REFRESH_SESSIONS.get(refresh_id)
+        if cached:
+            if cached.get("expiresAt", 0) > time.time():
+                return cached
+            cls.revoke_refresh_session(refresh_id)
+        return None
+
+    @classmethod
+    def revoke_refresh_session(cls, refresh_id: str) -> bool:
+        """
+        Revokes a refresh session in Redis.
+        """
+        if not refresh_id:
+            return False
+        try:
+            r = cls.get_client()
+            r.delete(f"admin:refresh:{refresh_id}")
+            logger.info("Revoked Redis refresh session [%s]", refresh_id)
+        except Exception as e:
+            logger.warning("Failed to revoke refresh session in Redis: %s", e)
+
+        cls._MEMORY_REFRESH_SESSIONS.pop(refresh_id, None)
+        return True
 
     @classmethod
     def list_user_sessions(cls, email: str, current_session_id: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -1146,8 +1220,9 @@ class PaginationMetadataService:
 # ==============================================================================
 
 class AdminAuthService:
-    """Handles admin authentication, OTP generation/validation, and JWT issuing."""
+    """Handles admin authentication, OTP generation/validation, and Redis session issuing."""
     _MEMORY_OTP_CACHE: Dict[str, Dict[str, Any]] = {}
+    _MEMORY_TEMP_TOKENS: Dict[str, Dict[str, Any]] = {}
 
     @staticmethod
     def generate_otp() -> str:
@@ -1155,28 +1230,37 @@ class AdminAuthService:
 
     @classmethod
     def create_temp_token(cls, email: str, purpose: str = "LOGIN") -> str:
+        temp_token = f"tmp_{secrets.token_urlsafe(32)}"
+        norm_email = email.strip().lower()
         payload = {
-            "email": email.strip().lower(),
+            "email": norm_email,
             "purpose": purpose,
-            "iat": int(time.time()),
-            "exp": int(time.time()) + 600,  # 10 minutes validity
+            "createdAt": time.time(),
+            "expiresAt": time.time() + 600,
         }
-        return jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
+        try:
+            r = RedisService.get_client()
+            r.setex(f"admin:temp_token:{temp_token}", 600, json.dumps(payload))
+        except Exception:
+            pass
+        cls._MEMORY_TEMP_TOKENS[temp_token] = payload
+        return temp_token
 
     @classmethod
     def decode_temp_token(cls, temp_token: str) -> Optional[Dict[str, Any]]:
         if not temp_token:
             return None
         try:
-            return jwt.decode(
-                temp_token,
-                settings.JWT_SECRET,
-                algorithms=["HS256"],
-                options={"verify_signature": True, "verify_exp": True},
-            )
-        except Exception as e:
-            logger.warning("Failed to decode admin temp token: %s", e)
-            return None
+            r = RedisService.get_client()
+            raw = r.get(f"admin:temp_token:{temp_token}")
+            if raw:
+                return json.loads(raw)
+        except Exception:
+            pass
+        cached = cls._MEMORY_TEMP_TOKENS.get(temp_token)
+        if cached and cached.get("expiresAt", 0) > time.time():
+            return cached
+        return None
 
     @classmethod
     def save_otp(cls, email: str, data: Dict[str, Any], ttl_seconds: int = 600) -> None:
@@ -1231,8 +1315,6 @@ class AdminAuthService:
         logger.info("[ADMIN AUTH] Generated OTP for %s (%s): %s", email, purpose, otp)
 
         # 2. Push to Redis mail queue if running
-        # Payload must match MailQueueDto format expected by mailEvents worker:
-        # { "to": email, "subject": purpose, "otp": code }
         try:
             r = RedisService.get_client()
             payload = {
@@ -1247,6 +1329,10 @@ class AdminAuthService:
 
     @classmethod
     def issue_tokens_for_admin(cls, admin: Admin, request=None) -> Dict[str, Any]:
+        """
+        Creates a stateful Redis session bundle (access session + refresh session).
+        Zero JWT. Pure Redis storage.
+        """
         ip_address = "127.0.0.1"
         user_agent = "Unknown"
         if request:
@@ -1258,37 +1344,14 @@ class AdminAuthService:
             user_agent = request.META.get("HTTP_USER_AGENT", "Unknown")[:255]
 
         session_id = RedisService.create_admin_session(admin, ip_address, user_agent)
-        now = int(time.time())
-        payload = {
-            "id": admin.id,
-            "sub": admin.id,
-            "sid": session_id,
-            "email": admin.email,
-            "userName": admin.name or admin.email.split("@")[0],
-            "name": admin.name or admin.email.split("@")[0],
-            "role": admin.role,
-            "status": admin.status,
-            "iat": now,
-            "exp": now + 86400,  # 24 hours access token
-        }
-        refresh_payload = {
-            "id": admin.id,
-            "sub": admin.id,
-            "sid": session_id,
-            "email": admin.email,
-            "userName": admin.name or admin.email.split("@")[0],
-            "name": admin.name or admin.email.split("@")[0],
-            "role": admin.role,
-            "status": admin.status,
-            "iat": now,
-            "exp": now + (30 * 86400),  # 30 days refresh token
-        }
-        access_token = jwt.encode(payload, settings.JWT_SECRET, algorithm="HS256")
-        refresh_token = jwt.encode(refresh_payload, settings.JWT_SECRET, algorithm="HS256")
+        refresh_session_id = RedisService.create_refresh_session(session_id, admin)
+
         return {
             "sessionId": session_id,
-            "accessToken": access_token,
-            "refreshToken": refresh_token,
+            "refreshSessionId": refresh_session_id,
+            # Backward-compat aliases for clients expecting accessToken/refreshToken
+            "accessToken": session_id,
+            "refreshToken": refresh_session_id,
         }
 
 

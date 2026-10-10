@@ -96,6 +96,9 @@ CORS_ALLOW_HEADERS = [
     "x-application-api-key",
     "api-key",
     "x-temp-token",
+    "x-session-id",
+    "x-admin-session",
+    "session-id",
 ]
 
 # Security Headers & Cookie Policies
@@ -166,7 +169,7 @@ else:
 # REST Framework Configuration
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "api.authentication.AdminJWTAuthentication",
+        "api.authentication.AdminSessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "api.authentication.IsAdminUserPermission",

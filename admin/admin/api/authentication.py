@@ -1,4 +1,3 @@
-import jwt
 import logging
 from django.conf import settings
 from rest_framework import authentication, exceptions, permissions
@@ -9,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class AdminUser:
-    """Lightweight user representation from validated JWT claims."""
+    """Lightweight user representation from validated Redis session."""
     def __init__(self, user_id: str, email: str, role: str, user_name: str = "", status: str = "ACTIVE"):
         self.id = user_id
         self.pk = user_id
@@ -33,15 +32,26 @@ class AdminUser:
         return f"{self.email} ({self.role})"
 
 
-class AdminJWTAuthentication(authentication.BaseAuthentication):
+class AdminSessionAuthentication(authentication.BaseAuthentication):
     """
-    Validates HMAC-SHA256 JWT tokens created by CoreEngine / auth system.
-    Extracts user_id, email, and role from token claims.
-    Enforces real-time Redis and database blocklist verification against admin_users.
+    Validates stateful Redis admin sessions.
+    Completely eliminates JWT. Pure session storage in Redis.
+    Accepts session ID via:
+    1. X-Session-Id header (or X-Admin-Session / Session-Id)
+    2. Authorization header ("Session <session_id>" or "Bearer <session_id>")
+    3. HTTP-Only Cookie ("admin_session" or "session_id")
     """
+
+    def authenticate_header(self, request):
+        return 'Session realm="admin"'
+
     def authenticate(self, request):
         # 1. Check for Internal API Key header (service-to-service)
-        api_key = request.headers.get("X-API-KEY") or request.headers.get("X-APPLICATION-API-KEY") or request.headers.get("api-key")
+        api_key = (
+            request.headers.get("X-API-KEY")
+            or request.headers.get("X-APPLICATION-API-KEY")
+            or request.headers.get("api-key")
+        )
         expected_keys = [
             getattr(settings, "AUDIO_PROCESSING_API_KEY", None),
             getattr(settings, "APPLICATION_API_KEY", None),
@@ -57,84 +67,46 @@ class AdminJWTAuthentication(authentication.BaseAuthentication):
             )
             return (user, api_key)
 
-        # 2. Check HTTP-Only Cookie Session directly
-        session_id = request.COOKIES.get("admin_session")
-        if session_id:
-            session = RedisService.get_admin_session(session_id)
-            if not session:
-                raise exceptions.AuthenticationFailed("Admin session has been revoked or expired. Please log in again.")
+        # 2. Extract Session ID (Header takes precedence over Cookies)
+        session_id = (
+            request.headers.get("X-Session-Id")
+            or request.headers.get("X-Admin-Session")
+            or request.headers.get("Session-Id")
+        )
 
-            user_id = session.get("userId", "")
-            email = session.get("email", "")
-            role = session.get("role", "ADMIN")
-            user_name = session.get("userName", "")
-            status_val = session.get("status", "ACTIVE")
+        if not session_id:
+            auth_header = request.headers.get("Authorization")
+            if auth_header:
+                parts = auth_header.split()
+                if len(parts) == 2 and parts[0].lower() in ("session", "bearer", "token"):
+                    session_id = parts[1]
 
-            if user_id and RedisService.is_user_blocked(user_id):
-                raise exceptions.AuthenticationFailed("Your account has been blocked or suspended")
-            if status_val == "BLOCKED":
-                raise exceptions.AuthenticationFailed("Your account has been blocked or suspended")
+        if not session_id:
+            session_id = request.COOKIES.get("admin_session") or request.COOKIES.get("session_id")
 
-            RedisService.touch_admin_session(session_id)
-            request.session_id = session_id
-
-            user = AdminUser(
-                user_id=user_id,
-                email=email,
-                role=role,
-                user_name=user_name,
-                status=status_val
-            )
-            return (user, session_id)
-
-        # 3. Check Bearer Authorization Header OR access_token Cookie
-        token = None
-        auth_header = request.headers.get("Authorization")
-        if auth_header:
-            parts = auth_header.split()
-            if len(parts) == 2 and parts[0].lower() == "bearer":
-                token = parts[1]
-
-        if not token:
-            token = request.COOKIES.get("access_token")
-
-        if not token:
+        if not session_id:
             return None
 
-        try:
-            payload = jwt.decode(
-                token,
-                settings.JWT_SECRET,
-                algorithms=["HS256"],
-                options={"verify_signature": True, "verify_exp": True}
-            )
-        except jwt.ExpiredSignatureError:
-            raise exceptions.AuthenticationFailed("Authentication token has expired")
-        except jwt.InvalidTokenError as e:
-            raise exceptions.AuthenticationFailed(f"Invalid authentication token: {str(e)}")
+        # 3. Lookup session directly in Redis
+        session = RedisService.get_admin_session(session_id)
+        if not session:
+            raise exceptions.AuthenticationFailed("Admin session has expired or is invalid. Please log in again.")
 
-        sid = payload.get("sid")
-        if sid:
-            session = RedisService.get_admin_session(sid)
-            if not session:
-                raise exceptions.AuthenticationFailed("Admin session has been revoked or expired. Please log in again.")
-            if session.get("status") == "BLOCKED":
-                raise exceptions.AuthenticationFailed("Your account has been blocked or suspended")
-            RedisService.touch_admin_session(sid)
-            request.session_id = sid
+        user_id = session.get("userId", "")
+        email = session.get("email", "")
+        role = session.get("role", "ADMIN")
+        user_name = session.get("userName", "")
+        status_val = session.get("status", "ACTIVE")
 
-        user_id = str(payload.get("id") or payload.get("sub", "")).strip()
-        email = str(payload.get("email", "")).strip().lower()
-        role = payload.get("role", "USER")
-        user_name = payload.get("userName") or payload.get("name", "")
-        status_val = "ACTIVE"
-
-        # Security: Check real-time Redis blacklist
+        # 4. Check real-time Redis blacklist
         if user_id and RedisService.is_user_blocked(user_id):
             logger.warning("Blocked user [%s - %s] attempted admin request", user_id, email)
-            raise exceptions.AuthenticationFailed("Your account has been blocked or suspended")
+            raise exceptions.AuthenticationFailed("Your account has been blocked or suspended.")
 
-        # Security: Check PostgreSQL database state in admin_users table
+        if status_val == "BLOCKED":
+            raise exceptions.AuthenticationFailed("Your account has been blocked or suspended.")
+
+        # 5. Check PostgreSQL database state in admin_users table
         if user_id or email:
             try:
                 db_admin = None
@@ -146,7 +118,7 @@ class AdminJWTAuthentication(authentication.BaseAuthentication):
                 if db_admin and isinstance(db_admin, Admin):
                     if db_admin.status == "BLOCKED":
                         RedisService.block_user_in_redis(db_admin.id)
-                        raise exceptions.AuthenticationFailed("Your account has been blocked or suspended")
+                        raise exceptions.AuthenticationFailed("Your account has been blocked or suspended.")
                     # Dynamically reflect live role changes (promotion/demotion)
                     role = db_admin.role
                     user_id = db_admin.id
@@ -156,7 +128,11 @@ class AdminJWTAuthentication(authentication.BaseAuthentication):
             except exceptions.AuthenticationFailed:
                 raise
             except Exception as e:
-                logger.debug("Database admin lookup during auth skipped or mocked: %s", e)
+                logger.debug("Database admin lookup during auth skipped: %s", e)
+
+        # 6. Slide Redis session window and set request context
+        RedisService.touch_admin_session(session_id)
+        request.session_id = session_id
 
         user = AdminUser(
             user_id=user_id,
@@ -165,7 +141,11 @@ class AdminJWTAuthentication(authentication.BaseAuthentication):
             user_name=user_name,
             status=status_val
         )
-        return (user, token)
+        return (user, session_id)
+
+
+# Backward compatibility alias
+AdminJWTAuthentication = AdminSessionAuthentication
 
 
 class IsAdminUserPermission(permissions.BasePermission):

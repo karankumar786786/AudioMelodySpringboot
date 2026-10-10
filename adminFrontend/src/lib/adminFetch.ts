@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * A fetch wrapper for adminFrontend to execute API calls against coreEngine
- * with automatic bearer authorization headers, base URL handling,
- * and automatic token refresh on 401.
+ * A fetch wrapper for adminFrontend to execute API calls against admin backend
+ * using stateful Redis sessions with X-Session-Id headers, cookie handling,
+ * and automatic session refresh on 401/403.
+ * Zero JWT. Pure Redis session based authentication.
  */
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -11,43 +12,61 @@ const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
 
-function getToken(): string | null {
+function getSessionId(): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("admin_token");
+  return (
+    localStorage.getItem("admin_session_id") ||
+    localStorage.getItem("admin_token")
+  );
 }
 
-function getRefreshToken(): string | null {
+function getRefreshSessionId(): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem("admin_refresh_token");
+  return (
+    localStorage.getItem("admin_refresh_session_id") ||
+    localStorage.getItem("admin_refresh_token")
+  );
 }
 
-function saveTokens(accessToken: string, refreshToken: string) {
+function saveSessions(sessionId: string, refreshSessionId: string) {
   if (typeof window === "undefined") return;
-  localStorage.setItem("admin_token", accessToken);
-  localStorage.setItem("admin_refresh_token", refreshToken);
+  localStorage.setItem("admin_session_id", sessionId);
+  localStorage.setItem("admin_refresh_session_id", refreshSessionId);
+  // Backward compatibility aliases
+  localStorage.setItem("admin_token", sessionId);
+  localStorage.setItem("admin_refresh_token", refreshSessionId);
 }
 
 function clearAdminSession() {
   if (typeof window === "undefined") return;
+  const currentSessionId = getSessionId();
+  localStorage.removeItem("admin_session_id");
+  localStorage.removeItem("admin_refresh_session_id");
   localStorage.removeItem("admin_token");
   localStorage.removeItem("admin_refresh_token");
   localStorage.removeItem("admin_user");
+
   // Notify backend to revoke session and clear HTTP-only cookies
   fetch(`${apiBase}/auth/logout`, {
     method: "POST",
+    headers: currentSessionId ? { "X-Session-Id": currentSessionId } : {},
     credentials: "include",
   }).catch(() => {});
+
   // Dispatch event for auth-context to clear React state
   window.dispatchEvent(new Event("admin:session-expired"));
 }
 
-async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = getRefreshToken();
+async function refreshAdminSession(): Promise<string | null> {
+  const refreshId = getRefreshSessionId();
   try {
     const res = await fetch(`${apiBase}/auth/refresh-token`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken: refreshToken || "" }),
+      body: JSON.stringify({
+        refreshSessionId: refreshId || "",
+        refreshToken: refreshId || "",
+      }),
       credentials: "include",
     });
 
@@ -57,8 +76,16 @@ async function refreshAccessToken(): Promise<string | null> {
     }
 
     const data = await res.json();
-    saveTokens(data.accessToken, data.refreshToken);
-    return data.accessToken;
+    const newSessionId = data.sessionId || data.accessToken;
+    const newRefreshId = data.refreshSessionId || data.refreshToken;
+
+    if (newSessionId && newRefreshId) {
+      saveSessions(newSessionId, newRefreshId);
+      return newSessionId;
+    }
+
+    clearAdminSession();
+    return null;
   } catch {
     clearAdminSession();
     return null;
@@ -76,11 +103,12 @@ export async function adminFetch(
     url = `${apiBase}${url.startsWith("/") ? "" : "/"}${url}`;
   }
 
-  const token = getToken();
+  const sessionId = getSessionId();
   const headers = new Headers(init?.headers);
 
-  if (token && !headers.has("Authorization")) {
-    headers.set("Authorization", `Bearer ${token}`);
+  if (sessionId) {
+    headers.set("X-Session-Id", sessionId);
+    headers.set("Authorization", `Session ${sessionId}`);
   }
 
   const response = await fetch(url, {
@@ -89,23 +117,27 @@ export async function adminFetch(
     headers,
   });
 
-  // If 401 and not an auth endpoint, try to refresh the token
-  if (response.status === 401 && !url.includes("/auth/")) {
+  // If unauthorized (401 or 403) and not an auth endpoint, refresh session & retry
+  if (
+    (response.status === 401 || response.status === 403) &&
+    !url.includes("/auth/")
+  ) {
     // Deduplicate concurrent refresh attempts
     if (!isRefreshing) {
       isRefreshing = true;
-      refreshPromise = refreshAccessToken().finally(() => {
+      refreshPromise = refreshAdminSession().finally(() => {
         isRefreshing = false;
         refreshPromise = null;
       });
     }
 
-    const newToken = await (refreshPromise || refreshAccessToken());
+    const newSessionId = await (refreshPromise || refreshAdminSession());
 
-    if (newToken) {
-      // Retry the original request with new token
+    if (newSessionId) {
+      // Retry the original request with new session ID
       const retryHeaders = new Headers(init?.headers);
-      retryHeaders.set("Authorization", `Bearer ${newToken}`);
+      retryHeaders.set("X-Session-Id", newSessionId);
+      retryHeaders.set("Authorization", `Session ${newSessionId}`);
       return fetch(url, {
         credentials: "include",
         ...init,
@@ -113,7 +145,7 @@ export async function adminFetch(
       });
     }
 
-    // Refresh failed — session already cleared by refreshAccessToken
+    // Refresh failed — session already cleared by refreshAdminSession
     return response;
   }
 

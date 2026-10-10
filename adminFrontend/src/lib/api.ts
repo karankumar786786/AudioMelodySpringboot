@@ -313,12 +313,14 @@ export const adminClient = {
         throw new Error(msg);
       }
       const verifyData = await verifyRes.json();
-      const { accessToken, refreshToken, sessionId } = verifyData;
+      const sessionId = verifyData.sessionId || verifyData.accessToken;
+      const refreshSessionId = verifyData.refreshSessionId || verifyData.refreshToken;
 
-      // 2. Fetch user profile with the real access token & session
+      // 2. Fetch user profile with the stateful Redis session
       const profileRes = await fetch(`${API_BASE_URL}/api/user/profile`, {
         headers: {
-          "Authorization": `Bearer ${accessToken}`,
+          "X-Session-Id": sessionId,
+          "Authorization": `Session ${sessionId}`,
         },
         credentials: "include",
       });
@@ -337,9 +339,10 @@ export const adminClient = {
 
       return {
         data: {
-          accessToken,
-          refreshToken,
           sessionId,
+          refreshSessionId,
+          accessToken: sessionId,
+          refreshToken: refreshSessionId,
           user,
         },
       };
