@@ -40,26 +40,38 @@ export function PlaylistThumbnail({
 
   /* ── Derived image state ─────────────────────────────────────────── */
 
+  // High-DPI dimension (2x-3x) so thumbnails look sharp on Retina and modern screens
+  const targetDimension = Math.max(size * 3, 120);
+  const mosaicDimension = Math.max(Math.ceil(size * 1.5), 80);
+
   const coverUrl = getImageUrl(playlist.coverImageKey, {
-    width: size * 2,
-    height: size * 2,
+    width: targetDimension,
+    height: targetDimension,
+    quality: 90,
     focus: "auto",
     aspectRatio: "1-1",
   });
 
-  const imgSize = Math.ceil(size / 2) * 2;
-
   const mosaicImages = songs.slice(0, 4).map((song: any) =>
     getImageUrl(song.imageKey || song.coverImageKey, {
-      width: imgSize,
-      height: imgSize,
+      width: mosaicDimension,
+      height: mosaicDimension,
+      quality: 90,
       aspectRatio: "1-1",
     })
   );
 
   const showMosaic = !coverUrl && songs.length >= 4;
   const showSingle = !coverUrl && songs.length > 0 && songs.length < 4;
-  const singleImg = showSingle ? mosaicImages[0] : null;
+  const firstSong = songs[0];
+  const singleImg = showSingle
+    ? getImageUrl(firstSong?.imageKey || firstSong?.coverImageKey, {
+        width: targetDimension,
+        height: targetDimension,
+        quality: 90,
+        aspectRatio: "1-1",
+      })
+    : null;
 
   /* ── Render ──────────────────────────────────────────────────────── */
 
