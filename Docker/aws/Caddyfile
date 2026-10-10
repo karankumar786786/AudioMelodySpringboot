@@ -1,3 +1,9 @@
 api.one-org.me {
     reverse_proxy core:9090
 }
+admin.one-org.me {
+    reverse_proxy admin:8000
+}
+process.one-org.me {
+    reverse_proxy process:5010
+}

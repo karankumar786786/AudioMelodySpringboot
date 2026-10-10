@@ -1,5 +1,4 @@
 services:
-
   core:
     image: karankumar9955/core:latest
     container_name: core
@@ -31,6 +30,18 @@ services:
       - admin.env
     expose:
       - "8000"
+    networks:
+      - app
+
+  process:
+    image: karankumar9955/audioprocessing:latest
+    container_name: process
+    pull_policy: always
+    restart: unless-stopped
+    env_file:
+      - process.env
+    expose:
+      - "5010"
     networks:
       - app
 
