@@ -24,12 +24,10 @@ public class ArtistMetadata {
     @Column(nullable = false)
     private Long followersCount;
 
-
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;

@@ -1,60 +1,65 @@
 package me.one_org.melody.Repository;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import me.one_org.melody.Entity.ArtistMetadataEntity;
+import me.one_org.melody.Entity.ArtistMetadata;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
-@Repository
-public class ArtistMetadataRepository {
+@Repository 
+public interface ArtistMetadataRepository extends JpaRepository<ArtistMetadata, String> {
 
-    @PersistenceContext
-    private EntityManager entityManager;
+    @Query("SELECT m FROM ArtistMetadata m WHERE m.id = :artistId")
+    Optional<ArtistMetadata> findByArtistId(@Param("artistId") String artistId);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE ArtistMetadata m SET m.followersCount = m.followersCount + 1, m.updatedAt = CURRENT_TIMESTAMP WHERE m.id = :artistId")
+    int incrementFollowersCount(@Param("artistId") String artistId);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE ArtistMetadata m SET m.followersCount = CASE WHEN m.followersCount > 0 THEN m.followersCount - 1 ELSE 0 END, m.updatedAt = CURRENT_TIMESTAMP WHERE m.id = :artistId")
+    int decrementFollowersCount(@Param("artistId") String artistId);
 
     @Transactional
-    public void save(ArtistMetadataEntity metadata) {
-        if (entityManager.find(ArtistMetadataEntity.class, metadata.getArtistId()) != null) {
-            entityManager.merge(metadata);
-        } else {
-            entityManager.persist(metadata);
-        }
-    }
-
-    public Optional<ArtistMetadataEntity> findById(String artistId) {
-        return Optional.ofNullable(entityManager.find(ArtistMetadataEntity.class, artistId));
-    }
-
-    @Transactional
-    public ArtistMetadataEntity incrementFollowers(String artistId, String artistName) {
-        ArtistMetadataEntity metadata = entityManager.find(ArtistMetadataEntity.class, artistId);
-        if (metadata == null) {
-            metadata = ArtistMetadataEntity.builder()
-                    .artistId(artistId)
-                    .artistName(artistName != null ? artistName : "")
-                    .followersCount(1L)
-                    .build();
-            entityManager.persist(metadata);
-        } else {
+    default ArtistMetadata incrementFollowers(String artistId, String artistName) {
+        Optional<ArtistMetadata> opt = findById(artistId);
+        if (opt.isPresent()) {
+            ArtistMetadata metadata = opt.get();
             metadata.setFollowersCount(metadata.getFollowersCount() + 1L);
             if (artistName != null && !artistName.isBlank()) {
                 metadata.setArtistName(artistName);
             }
-            metadata = entityManager.merge(metadata);
+            metadata.setUpdatedAt(LocalDateTime.now());
+            return save(metadata);
+        } else {
+            ArtistMetadata metadata = ArtistMetadata.builder()
+                    .id(artistId)
+                    .artistName(artistName != null ? artistName : "")
+                    .followersCount(1L)
+                    .createdAt(LocalDateTime.now())
+                    .updatedAt(LocalDateTime.now())
+                    .build();
+            return save(metadata);
         }
-        return metadata;
     }
 
     @Transactional
-    public ArtistMetadataEntity decrementFollowers(String artistId) {
-        ArtistMetadataEntity metadata = entityManager.find(ArtistMetadataEntity.class, artistId);
-        if (metadata != null) {
+    default ArtistMetadata decrementFollowers(String artistId) {
+        Optional<ArtistMetadata> opt = findById(artistId);
+        if (opt.isPresent()) {
+            ArtistMetadata metadata = opt.get();
             long newCount = Math.max(0L, metadata.getFollowersCount() - 1L);
             metadata.setFollowersCount(newCount);
-            metadata = entityManager.merge(metadata);
+            metadata.setUpdatedAt(LocalDateTime.now());
+            return save(metadata);
         }
-        return metadata;
+        return null;
     }
 }

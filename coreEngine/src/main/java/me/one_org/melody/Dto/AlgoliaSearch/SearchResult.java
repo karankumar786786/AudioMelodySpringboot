@@ -2,19 +2,19 @@ package me.one_org.melody.Dto.AlgoliaSearch;
 
 import java.util.List;
 
-import me.one_org.melody.Entity.ArtistsEntity;
-import me.one_org.melody.Entity.PlaylistsEntity;
-import me.one_org.melody.Entity.SongsEntity;
-import me.one_org.melody.Entity.UserPlaylistsEntity;
+import me.one_org.melody.Dto.Controllers.Api.ArtistDto;
+import me.one_org.melody.Dto.Controllers.Api.PlaylistDto;
+import me.one_org.melody.Dto.Controllers.Api.SongDto;
+import me.one_org.melody.Dto.Controllers.Api.UserPlaylistDto;
 
 /**
  * Final search result after fetching full data from DB.
- * Algolia returns IDs → DB fetch → this DTO is returned to the client.
+ * Algolia returns IDs -> DB fetch -> this DTO is returned to the client.
  */
 public record SearchResult(
-    List<SongsEntity> songs,
-    List<ArtistsEntity> artists,
-    List<PlaylistsEntity> playlists,
-    List<UserPlaylistsEntity> userPlaylists
+    List<SongDto> songs,
+    List<ArtistDto> artists,
+    List<PlaylistDto> playlists,
+    List<UserPlaylistDto> userPlaylists
 ) {
 }

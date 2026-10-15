@@ -1,67 +1,41 @@
 package me.one_org.melody.Repository;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import me.one_org.melody.Entity.UserHistoryEntity;
-import me.one_org.melody.Entity.UsersEntity;
+import me.one_org.melody.Entity.User;
+import me.one_org.melody.Entity.UserHistory;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 
 @Repository
-public class UserHistoryRepository {
+public interface UserHistoryRepository extends JpaRepository<UserHistory, String> {
 
-    @PersistenceContext
-    private EntityManager entityManager;
+    @Query("SELECT h FROM UserHistory h JOIN FETCH h.song WHERE h.user = :user ORDER BY h.listenedAt DESC")
+    List<UserHistory> findByUserOrderByListenedAtDescQuery(@Param("user") User user, Pageable pageable);
 
+    default List<UserHistory> findByUserOrderByListenedAtDesc(User user, int page, int size) {
+        return findByUserOrderByListenedAtDescQuery(user, PageRequest.of(page, size));
+    }
+
+    @Query("SELECT h FROM UserHistory h JOIN FETCH h.song WHERE h.user = :user " +
+           "AND h.listenedAt = (SELECT MAX(h2.listenedAt) FROM UserHistory h2 WHERE h2.user = :user AND h2.song = h.song) " +
+           "ORDER BY h.listenedAt DESC")
+    List<UserHistory> findRecentByUserQuery(@Param("user") User user, Pageable pageable);
+
+    default List<UserHistory> findRecentByUser(User user, int limit) {
+        return findRecentByUserQuery(user, PageRequest.of(0, limit));
+    }
+
+    long countByUser(User user);
+
+    @Modifying
     @Transactional
-    public void save(UserHistoryEntity history) {
-        if (entityManager.find(UserHistoryEntity.class, history.getId()) != null) {
-            entityManager.merge(history);
-        } else {
-            entityManager.persist(history);
-        }
-    }
-
-    public Optional<UserHistoryEntity> findById(String id) {
-        return Optional.ofNullable(entityManager.find(UserHistoryEntity.class, id));
-    }
-
-    public List<UserHistoryEntity> findByUserOrderByListenedAtDesc(UsersEntity user, int page, int size) {
-        return entityManager.createQuery(
-                "SELECT h FROM UserHistoryEntity h JOIN FETCH h.song WHERE h.user = :user ORDER BY h.listenedAt DESC",
-                UserHistoryEntity.class)
-                .setParameter("user", user)
-                .setFirstResult(page * size)
-                .setMaxResults(size)
-                .getResultList();
-    }
-
-    public List<UserHistoryEntity> findRecentByUser(UsersEntity user, int limit) {
-        // Get the most recent listen per distinct song for this user
-        return entityManager.createQuery(
-                "SELECT h FROM UserHistoryEntity h JOIN FETCH h.song WHERE h.user = :user " +
-                "AND h.listenedAt = (SELECT MAX(h2.listenedAt) FROM UserHistoryEntity h2 WHERE h2.user = :user AND h2.song = h.song) " +
-                "ORDER BY h.listenedAt DESC",
-                UserHistoryEntity.class)
-                .setParameter("user", user)
-                .setMaxResults(limit)
-                .getResultList();
-    }
-
-    public long countByUser(UsersEntity user) {
-        return entityManager.createQuery(
-                "SELECT COUNT(h) FROM UserHistoryEntity h WHERE h.user = :user", Long.class)
-                .setParameter("user", user)
-                .getSingleResult();
-    }
-
-    @Transactional
-    public void deleteByUser(UsersEntity user) {
-        entityManager.createQuery("DELETE FROM UserHistoryEntity h WHERE h.user = :user")
-                .setParameter("user", user)
-                .executeUpdate();
-    }
+    @Query("DELETE FROM UserHistory h WHERE h.user = :user")
+    void deleteByUser(@Param("user") User user);
 }

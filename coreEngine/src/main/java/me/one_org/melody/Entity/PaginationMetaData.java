@@ -38,4 +38,20 @@ public class PaginationMetaData {
     @UpdateTimestamp 
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    public String getEntityName() {
+        return this.tableName;
+    }
+
+    public void setEntityName(String entityName) {
+        this.tableName = entityName;
+    }
+
+    public long getDeletedCount() {
+        return this.softDeletedCount;
+    }
+
+    public void setDeletedCount(long deletedCount) {
+        this.softDeletedCount = deletedCount;
+    }
 }

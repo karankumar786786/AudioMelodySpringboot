@@ -1,129 +1,73 @@
 package me.one_org.melody.Repository;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import jakarta.persistence.TypedQuery;
-import me.one_org.melody.Entity.UsersEntity;
+import me.one_org.melody.Entity.Song;
+import me.one_org.melody.Entity.User;
 import me.one_org.melody.Enums.StatusEnum;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @Repository
-public class UsersRepository {
+public interface UsersRepository extends JpaRepository<User, String> {
 
-    @PersistenceContext
-    private EntityManager entityManager;
+    boolean existsByEmail(String email);
 
+    Optional<User> findByEmail(String email);
+
+    @Query("SELECT u FROM User u ORDER BY u.createdAt DESC")
+    List<User> findAllPaginatedQuery(Pageable pageable);
+
+    default List<User> findAllPaginated(int page, int size) {
+        return findAllPaginatedQuery(PageRequest.of(page, size));
+    }
+
+    @Query("SELECT u FROM User u WHERE " +
+           "(:search IS NULL OR :search = '' OR " +
+           " LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           " LOWER(u.userName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           " LOWER(u.id) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
+           "(:status IS NULL OR u.status = :status) " +
+           "ORDER BY u.createdAt DESC")
+    List<User> findFilteredPaginatedQuery(@Param("search") String search, @Param("status") StatusEnum status, Pageable pageable);
+
+    default List<User> findFilteredPaginated(String search, StatusEnum status, int page, int size) {
+        return findFilteredPaginatedQuery(search, status, PageRequest.of(page, size));
+    }
+
+    @Query("SELECT COUNT(u) FROM User u WHERE " +
+           "(:search IS NULL OR :search = '' OR " +
+           " LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           " LOWER(u.userName) LIKE LOWER(CONCAT('%', :search, '%')) OR " +
+           " LOWER(u.id) LIKE LOWER(CONCAT('%', :search, '%'))) AND " +
+           "(:status IS NULL OR u.status = :status)")
+    long countFiltered(@Param("search") String search, @Param("status") StatusEnum status);
+
+    @Query(value = "SELECT s.* FROM songs s JOIN user_favourite_songs ufs ON s.id = ufs.song_id WHERE ufs.user_id = :userId ORDER BY s.title ASC",
+           nativeQuery = true)
+    List<Song> findFavouriteSongsPaginatedNative(@Param("userId") String userId, Pageable pageable);
+
+    default List<Song> findFavouriteSongsPaginated(String userId, int page, int size) {
+        return findFavouriteSongsPaginatedNative(userId, PageRequest.of(page, size));
+    }
+
+    @Modifying
     @Transactional
-    public void save(UsersEntity user) {
-        if (entityManager.find(UsersEntity.class, user.getId()) != null) {
-            entityManager.merge(user);
-        } else {
-            entityManager.persist(user);
-        }
-    }
+    @Query(value = "INSERT INTO user_favourite_songs (user_id, song_id) VALUES (:userId, :songId) ON CONFLICT DO NOTHING", nativeQuery = true)
+    int addFavouriteSong(@Param("userId") String userId, @Param("songId") String songId);
 
-    public Optional<UsersEntity> findById(String id) {
-        return Optional.ofNullable(entityManager.find(UsersEntity.class, id));
-    }
-
-    public boolean existsById(String id) {
-        return entityManager.find(UsersEntity.class, id) != null;
-    }
-
-    public boolean existsByEmail(String email) {
-        Long count = entityManager.createQuery(
-                "SELECT COUNT(u) FROM UsersEntity u WHERE u.email = :email", Long.class)
-                .setParameter("email", email)
-                .getSingleResult();
-        return count > 0;
-    }
-
-    public Optional<UsersEntity> findByEmail(String email) {
-        List<UsersEntity> results = entityManager.createQuery(
-                "SELECT u FROM UsersEntity u WHERE u.email = :email", UsersEntity.class)
-                .setParameter("email", email)
-                .getResultList();
-        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
-    }
-
-    public List<UsersEntity> findAll() {
-        return entityManager.createQuery("SELECT u FROM UsersEntity u", UsersEntity.class)
-                .getResultList();
-    }
-
-    public List<UsersEntity> findAllPaginated(int page, int size) {
-        return entityManager.createQuery("SELECT u FROM UsersEntity u ORDER BY u.createdAt DESC", UsersEntity.class)
-                .setFirstResult(page * size)
-                .setMaxResults(size)
-                .getResultList();
-    }
-
-    public long count() {
-        return entityManager.createQuery("SELECT COUNT(u) FROM UsersEntity u", Long.class)
-                .getSingleResult();
-    }
-
-    public List<UsersEntity> findFilteredPaginated(String search, StatusEnum status, int page, int size) {
-        StringBuilder jpql = new StringBuilder("SELECT u FROM UsersEntity u WHERE 1=1");
-        Map<String, Object> params = new HashMap<>();
-
-        if (search != null && !search.trim().isEmpty()) {
-            jpql.append(" AND (LOWER(u.email) LIKE :search OR LOWER(u.userName) LIKE :search OR LOWER(u.id) LIKE :search)");
-            params.put("search", "%" + search.trim().toLowerCase() + "%");
-        }
-        if (status != null) {
-            jpql.append(" AND u.status = :status");
-            params.put("status", status);
-        }
-
-        jpql.append(" ORDER BY u.createdAt DESC");
-
-        TypedQuery<UsersEntity> query = entityManager.createQuery(jpql.toString(), UsersEntity.class);
-        params.forEach(query::setParameter);
-        query.setFirstResult(page * size);
-        query.setMaxResults(size);
-        return query.getResultList();
-    }
-
-    public long countFiltered(String search, StatusEnum status) {
-        StringBuilder jpql = new StringBuilder("SELECT COUNT(u) FROM UsersEntity u WHERE 1=1");
-        Map<String, Object> params = new HashMap<>();
-
-        if (search != null && !search.trim().isEmpty()) {
-            jpql.append(" AND (LOWER(u.email) LIKE :search OR LOWER(u.userName) LIKE :search OR LOWER(u.id) LIKE :search)");
-            params.put("search", "%" + search.trim().toLowerCase() + "%");
-        }
-        if (status != null) {
-            jpql.append(" AND u.status = :status");
-            params.put("status", status);
-        }
-
-        TypedQuery<Long> query = entityManager.createQuery(jpql.toString(), Long.class);
-        params.forEach(query::setParameter);
-        return query.getSingleResult();
-    }
-
-    public List<me.one_org.melody.Entity.SongsEntity> findFavouriteSongsPaginated(String userId, int page, int size) {
-        return entityManager.createQuery(
-                "SELECT s FROM UsersEntity u JOIN u.favouriteSongs s WHERE u.id = :userId ORDER BY s.title ASC",
-                me.one_org.melody.Entity.SongsEntity.class)
-                .setParameter("userId", userId)
-                .setFirstResult(page * size)
-                .setMaxResults(size)
-                .getResultList();
-    }
-
+    @Modifying
     @Transactional
-    public void deleteById(String id) {
-        UsersEntity user = entityManager.find(UsersEntity.class, id);
-        if (user != null) {
-            entityManager.remove(user);
-        }
-    }
+    @Query(value = "DELETE FROM user_favourite_songs WHERE user_id = :userId AND song_id = :songId", nativeQuery = true)
+    int removeFavouriteSong(@Param("userId") String userId, @Param("songId") String songId);
+
+    @Query(value = "SELECT COUNT(*) > 0 FROM user_favourite_songs WHERE user_id = :userId AND song_id = :songId", nativeQuery = true)
+    boolean isFavouriteSong(@Param("userId") String userId, @Param("songId") String songId);
 }

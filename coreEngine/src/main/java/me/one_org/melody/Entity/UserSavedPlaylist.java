@@ -40,7 +40,7 @@ public class UserSavedPlaylist {
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "playlist_id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
-    private Playlist playlist;
+    private UserPlaylist playlist;
 
     @CreationTimestamp
     @Column(name = "saved_at", nullable = false, updatable = false)

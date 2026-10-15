@@ -5,7 +5,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import me.one_org.melody.Entity.UsersEntity;
+import me.one_org.melody.Entity.User;
 import me.one_org.melody.Repository.UsersRepository;
 
 /**
@@ -23,7 +23,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
-        UsersEntity user = usersRepository.findByEmail(identifier)
+        User user = usersRepository.findByEmail(identifier)
                 .or(() -> usersRepository.findById(identifier))
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email or id: " + identifier));
 
@@ -31,7 +31,7 @@ public class CustomUserDetailsService implements UserDetailsService {
     }
 
     public CustomUserDetails loadUserById(String id) throws UsernameNotFoundException {
-        UsersEntity user = usersRepository.findById(id)
+        User user = usersRepository.findById(id)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + id));
 
         return new CustomUserDetails(user);

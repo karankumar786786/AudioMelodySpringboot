@@ -1,36 +1,26 @@
 package me.one_org.melody.Repository;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import me.one_org.melody.Entity.ArtistFollowEventEntity;
-import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
+import me.one_org.melody.Entity.ArtistFollowEvent;
+import me.one_org.melody.Enums.FollowEvent;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
-@Repository
-public class ArtistFollowEventRepository {
+public interface ArtistFollowEventRepository extends JpaRepository<ArtistFollowEvent, String> {
 
-    @PersistenceContext
-    private EntityManager entityManager;
+    @Query("SELECT e.followEvent FROM ArtistFollowEvent e " +
+           "WHERE e.user.id = :userId AND e.artist.id = :artistId " +
+           "ORDER BY e.createdAt DESC")
+    List<FollowEvent> findLatestFollowEvent(@Param("userId") String userId, @Param("artistId") String artistId, Pageable pageable);
 
-    @Transactional
-    public void save(ArtistFollowEventEntity event) {
-        entityManager.persist(event);
-    }
-
-    public boolean isUserFollowingArtist(String userId, String artistId) {
+    default boolean isUserFollowingArtist(String userId, String artistId) {
         if (userId == null || artistId == null) {
             return false;
         }
-        List<String> list = entityManager.createQuery(
-                "SELECT e.eventType FROM ArtistFollowEventEntity e " +
-                "WHERE e.userId = :userId AND e.artistId = :artistId " +
-                "ORDER BY e.createdAt DESC", String.class)
-                .setParameter("userId", userId)
-                .setParameter("artistId", artistId)
-                .setMaxResults(1)
-                .getResultList();
-        return !list.isEmpty() && "FOLLOW".equalsIgnoreCase(list.get(0));
+        List<FollowEvent> events = findLatestFollowEvent(userId, artistId, org.springframework.data.domain.PageRequest.of(0, 1));
+        return !events.isEmpty() && events.get(0) == FollowEvent.FOLLOW;
     }
 }

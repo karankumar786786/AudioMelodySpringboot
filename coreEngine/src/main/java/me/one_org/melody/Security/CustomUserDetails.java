@@ -12,7 +12,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import me.one_org.melody.Dto.Internal.JwtPayloadDto;
-import me.one_org.melody.Entity.UsersEntity;
+import me.one_org.melody.Entity.User;
 import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Enums.StatusEnum;
 
@@ -30,9 +30,9 @@ public class CustomUserDetails implements UserDetails, Serializable {
     private final RoleEnum role;
     private final StatusEnum status;
     private final Collection<? extends GrantedAuthority> authorities;
-    private transient UsersEntity user;
+    private transient User user;
 
-    public CustomUserDetails(UsersEntity user) {
+    public CustomUserDetails(User user) {
         this.id = user.getId();
         this.email = user.getEmail();
         this.userName = user.getUserName() != null ? user.getUserName() : user.getEmail();
@@ -88,7 +88,7 @@ public class CustomUserDetails implements UserDetails, Serializable {
         return status;
     }
 
-    public UsersEntity getUser() {
+    public User getUser() {
         return user;
     }
 

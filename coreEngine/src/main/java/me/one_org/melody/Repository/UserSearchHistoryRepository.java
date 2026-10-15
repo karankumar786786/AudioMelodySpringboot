@@ -1,114 +1,91 @@
 package me.one_org.melody.Repository;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import me.one_org.melody.Entity.UserPlaylistsEntity;
-import me.one_org.melody.Entity.UserSearchHistoryEntity;
-import me.one_org.melody.Entity.UsersEntity;
+import me.one_org.melody.Entity.User;
+import me.one_org.melody.Entity.UserPlaylist;
+import me.one_org.melody.Entity.UserSearchHistory;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Repository
-public class UserSearchHistoryRepository {
+public interface UserSearchHistoryRepository extends JpaRepository<UserSearchHistory, String> {
 
-    @PersistenceContext
-    private EntityManager entityManager;
+    @Query("SELECT h FROM UserSearchHistory h " +
+           "LEFT JOIN FETCH h.song " +
+           "LEFT JOIN FETCH h.artist " +
+           "LEFT JOIN FETCH h.playlist " +
+           "LEFT JOIN FETCH h.userPlaylist " +
+           "WHERE h.user = :user ORDER BY h.createdAt DESC")
+    List<UserSearchHistory> findByUserQuery(@Param("user") User user, Pageable pageable);
 
-    @Transactional
-    public void save(UserSearchHistoryEntity history) {
-        if (entityManager.find(UserSearchHistoryEntity.class, history.getId()) != null) {
-            entityManager.merge(history);
-        } else {
-            entityManager.persist(history);
-        }
-    }
-
-    public List<UserSearchHistoryEntity> findByUser(UsersEntity user) {
+    default List<UserSearchHistory> findByUser(User user) {
         return findByUser(user, 20);
     }
 
-    public List<UserSearchHistoryEntity> findByUser(UsersEntity user, int limit) {
-        return entityManager.createQuery(
-                "SELECT h FROM UserSearchHistoryEntity h " +
-                "LEFT JOIN FETCH h.song " +
-                "LEFT JOIN FETCH h.artist " +
-                "LEFT JOIN FETCH h.playlist " +
-                "LEFT JOIN FETCH h.userPlaylist " +
-                "WHERE h.user = :user ORDER BY h.createdAt DESC",
-                UserSearchHistoryEntity.class)
-                .setParameter("user", user)
-                .setMaxResults(limit)
-                .getResultList();
+    default List<UserSearchHistory> findByUser(User user, int limit) {
+        return findByUserQuery(user, PageRequest.of(0, limit));
     }
 
+    @Modifying
     @Transactional
-    public void deleteByUserAndItem(UsersEntity user, String entityType, String entityId) {
+    @Query("DELETE FROM UserSearchHistory h WHERE h.user = :user AND h.song.id = :entityId")
+    void deleteByUserAndSongId(@Param("user") User user, @Param("entityId") String entityId);
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM UserSearchHistory h WHERE h.user = :user AND h.artist.id = :entityId")
+    void deleteByUserAndArtistId(@Param("user") User user, @Param("entityId") String entityId);
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM UserSearchHistory h WHERE h.user = :user AND h.playlist.id = :entityId")
+    void deleteByUserAndPlaylistId(@Param("user") User user, @Param("entityId") String entityId);
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM UserSearchHistory h WHERE h.user = :user AND h.userPlaylist.id = :entityId")
+    void deleteByUserAndUserPlaylistId(@Param("user") User user, @Param("entityId") String entityId);
+
+    default void deleteByUserAndItem(User user, String entityType, String entityId) {
         if (entityType == null || entityId == null) return;
         try {
             if ("SONG".equalsIgnoreCase(entityType)) {
-                entityManager.createQuery("DELETE FROM UserSearchHistoryEntity h WHERE h.user = :user AND h.song.id = :entityId")
-                        .setParameter("user", user)
-                        .setParameter("entityId", entityId)
-                        .executeUpdate();
+                deleteByUserAndSongId(user, entityId);
             } else if ("ARTIST".equalsIgnoreCase(entityType)) {
-                entityManager.createQuery("DELETE FROM UserSearchHistoryEntity h WHERE h.user = :user AND h.artist.id = :entityId")
-                        .setParameter("user", user)
-                        .setParameter("entityId", entityId)
-                        .executeUpdate();
+                deleteByUserAndArtistId(user, entityId);
             } else if ("PLAYLIST".equalsIgnoreCase(entityType)) {
-                entityManager.createQuery("DELETE FROM UserSearchHistoryEntity h WHERE h.user = :user AND h.playlist.id = :entityId")
-                        .setParameter("user", user)
-                        .setParameter("entityId", entityId)
-                        .executeUpdate();
+                deleteByUserAndPlaylistId(user, entityId);
             } else if ("USER_PLAYLIST".equalsIgnoreCase(entityType)) {
-                entityManager.createQuery("DELETE FROM UserSearchHistoryEntity h WHERE h.user = :user AND h.userPlaylist.id = :entityId")
-                        .setParameter("user", user)
-                        .setParameter("entityId", entityId)
-                        .executeUpdate();
+                deleteByUserAndUserPlaylistId(user, entityId);
             }
-        } catch (Exception e) {
-            // ignore
+        } catch (Exception ignored) {
         }
     }
 
+    @Modifying
     @Transactional
-    public void deleteByUserPlaylist(UserPlaylistsEntity userPlaylist) {
-        if (userPlaylist == null) return;
-        try {
-            entityManager.createQuery("DELETE FROM UserSearchHistoryEntity h WHERE h.userPlaylist = :userPlaylist")
-                    .setParameter("userPlaylist", userPlaylist)
-                    .executeUpdate();
-        } catch (Exception e) {
-            // ignore
-        }
-    }
+    @Query("DELETE FROM UserSearchHistory h WHERE h.userPlaylist = :userPlaylist")
+    void deleteByUserPlaylist(@Param("userPlaylist") UserPlaylist userPlaylist);
 
+    @Modifying
     @Transactional
-    public void deleteByUserPlaylistId(String userPlaylistId) {
-        if (userPlaylistId == null) return;
-        try {
-            entityManager.createQuery("DELETE FROM UserSearchHistoryEntity h WHERE h.userPlaylist.id = :userPlaylistId")
-                    .setParameter("userPlaylistId", userPlaylistId)
-                    .executeUpdate();
-        } catch (Exception e) {
-            // ignore
-        }
-    }
+    @Query("DELETE FROM UserSearchHistory h WHERE h.userPlaylist.id = :userPlaylistId")
+    void deleteByUserPlaylistId(@Param("userPlaylistId") String userPlaylistId);
 
+    @Modifying
     @Transactional
-    public void deleteByIdAndUser(String id, UsersEntity user) {
-        entityManager.createQuery("DELETE FROM UserSearchHistoryEntity h WHERE h.id = :id AND h.user = :user")
-                .setParameter("id", id)
-                .setParameter("user", user)
-                .executeUpdate();
-    }
+    @Query("DELETE FROM UserSearchHistory h WHERE h.id = :id AND h.user = :user")
+    void deleteByIdAndUser(@Param("id") String id, @Param("user") User user);
 
+    @Modifying
     @Transactional
-    public void deleteByUser(UsersEntity user) {
-        entityManager.createQuery("DELETE FROM UserSearchHistoryEntity h WHERE h.user = :user")
-                .setParameter("user", user)
-                .executeUpdate();
-    }
+    @Query("DELETE FROM UserSearchHistory h WHERE h.user = :user")
+    void deleteByUser(@Param("user") User user);
 }

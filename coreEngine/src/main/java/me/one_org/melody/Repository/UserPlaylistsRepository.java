@@ -1,9 +1,15 @@
 package me.one_org.melody.Repository;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import me.one_org.melody.Entity.UserPlaylistsEntity;
-import me.one_org.melody.Entity.UsersEntity;
+import me.one_org.melody.Entity.Song;
+import me.one_org.melody.Entity.User;
+import me.one_org.melody.Entity.UserPlaylist;
+import me.one_org.melody.Enums.PlaylistPrivacyEnum;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,129 +17,90 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public class UserPlaylistsRepository {
+public interface UserPlaylistsRepository extends JpaRepository<UserPlaylist, String> {
 
-    @PersistenceContext
-    private EntityManager entityManager;
+    Optional<UserPlaylist> findByShareToken(String shareToken);
 
-    @Transactional
-    public void save(UserPlaylistsEntity userPlaylist) {
-        if (entityManager.find(UserPlaylistsEntity.class, userPlaylist.getId()) != null) {
-            entityManager.merge(userPlaylist);
-        } else {
-            entityManager.persist(userPlaylist);
-        }
-    }
+    @Query("SELECT up FROM UserPlaylist up WHERE up.id = :tokenOrId OR up.shareToken = :tokenOrId")
+    List<UserPlaylist> findByIdOrShareTokenList(@Param("tokenOrId") String tokenOrId);
 
-    public Optional<UserPlaylistsEntity> findById(String id) {
-        return Optional.ofNullable(entityManager.find(UserPlaylistsEntity.class, id));
-    }
-
-    public Optional<UserPlaylistsEntity> findByShareToken(String shareToken) {
-        if (shareToken == null || shareToken.isBlank()) return Optional.empty();
-        List<UserPlaylistsEntity> results = entityManager.createQuery(
-                "SELECT up FROM UserPlaylistsEntity up WHERE up.shareToken = :shareToken", UserPlaylistsEntity.class)
-                .setParameter("shareToken", shareToken)
-                .getResultList();
-        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
-    }
-
-    public Optional<UserPlaylistsEntity> findByIdOrShareToken(String tokenOrId) {
+    default Optional<UserPlaylist> findByIdOrShareToken(String tokenOrId) {
         if (tokenOrId == null || tokenOrId.isBlank()) return Optional.empty();
-        List<UserPlaylistsEntity> results = entityManager.createQuery(
-                "SELECT up FROM UserPlaylistsEntity up WHERE up.id = :tokenOrId OR up.shareToken = :tokenOrId", UserPlaylistsEntity.class)
-                .setParameter("tokenOrId", tokenOrId)
-                .getResultList();
-        return results.isEmpty() ? Optional.empty() : Optional.of(results.get(0));
+        List<UserPlaylist> list = findByIdOrShareTokenList(tokenOrId);
+        return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
     }
 
-    public List<UserPlaylistsEntity> findAllPublicByIds(List<String> ids) {
-        if (ids == null || ids.isEmpty()) return List.of();
-        return entityManager.createQuery(
-                "SELECT up FROM UserPlaylistsEntity up WHERE up.id IN :ids AND up.privacy = :privacy", UserPlaylistsEntity.class)
-                .setParameter("ids", ids)
-                .setParameter("privacy", me.one_org.melody.Enums.PlaylistPrivacyEnum.PUBLIC)
-                .getResultList();
+    @Query("SELECT up FROM UserPlaylist up WHERE up.id IN :ids AND up.privacy = :privacy")
+    List<UserPlaylist> findAllPublicByIds(@Param("ids") List<String> ids, @Param("privacy") PlaylistPrivacyEnum privacy);
+
+    List<UserPlaylist> findByUser(User user);
+
+    @Query("SELECT DISTINCT up FROM UserPlaylist up WHERE up.user = :user " +
+           "OR up.id IN (SELECT usp.playlist.id FROM UserSavedPlaylist usp WHERE usp.user = :user) " +
+           "ORDER BY up.name ASC, up.id ASC")
+    List<UserPlaylist> findByUserPaginatedQuery(@Param("user") User user, Pageable pageable);
+
+    default List<UserPlaylist> findByUserPaginated(User user, int page, int size) {
+        return findByUserPaginatedQuery(user, PageRequest.of(page, size));
     }
 
-    public List<UserPlaylistsEntity> findByUser(UsersEntity user) {
-        return entityManager.createQuery(
-                "SELECT up FROM UserPlaylistsEntity up WHERE up.user = :user", UserPlaylistsEntity.class)
-                .setParameter("user", user)
-                .getResultList();
+    @Query("SELECT COUNT(DISTINCT up) FROM UserPlaylist up WHERE up.user = :user " +
+           "OR up.id IN (SELECT usp.playlist.id FROM UserSavedPlaylist usp WHERE usp.user = :user)")
+    long countByUser(@Param("user") User user);
+
+    @Query("SELECT s FROM UserPlaylist up JOIN up.songs s WHERE up.id = :userPlaylistId ORDER BY s.createdAt DESC")
+    List<Song> findSongsByUserPlaylistIdPaginatedQuery(@Param("userPlaylistId") String userPlaylistId, Pageable pageable);
+
+    default List<Song> findSongsByUserPlaylistIdPaginated(String userPlaylistId, int page, int size) {
+        return findSongsByUserPlaylistIdPaginatedQuery(userPlaylistId, PageRequest.of(page, size));
     }
 
-    public List<UserPlaylistsEntity> findByUserPaginated(UsersEntity user, int page, int size) {
-        return entityManager.createQuery(
-                "SELECT DISTINCT up FROM UserPlaylistsEntity up WHERE up.user = :user " +
-                "OR up.id IN (SELECT usp.playlist.id FROM UserSavedPlaylistsEntity usp WHERE usp.user = :user) " +
-                "ORDER BY up.name ASC, up.id ASC", UserPlaylistsEntity.class)
-                .setParameter("user", user)
-                .setFirstResult(page * size)
-                .setMaxResults(size)
-                .getResultList();
-    }
-
-    public long countByUser(UsersEntity user) {
-        return entityManager.createQuery(
-                "SELECT COUNT(DISTINCT up) FROM UserPlaylistsEntity up WHERE up.user = :user " +
-                "OR up.id IN (SELECT usp.playlist.id FROM UserSavedPlaylistsEntity usp WHERE usp.user = :user)", Long.class)
-                .setParameter("user", user)
-                .getSingleResult();
-    }
-
-    public List<me.one_org.melody.Entity.SongsEntity> findSongsByUserPlaylistIdPaginated(String userPlaylistId, int page, int size) {
-        return entityManager.createQuery(
-                "SELECT s FROM UserPlaylistsEntity up JOIN up.songs s WHERE up.id = :userPlaylistId ORDER BY s.createdAt DESC",
-                me.one_org.melody.Entity.SongsEntity.class)
-                .setParameter("userPlaylistId", userPlaylistId)
-                .setFirstResult(page * size)
-                .setMaxResults(size)
-                .getResultList();
-    }
-
+    @Modifying
     @Transactional
-    public boolean addSongToPlaylist(String playlistId, String songId) {
-        int inserted = entityManager.createNativeQuery(
-                "INSERT INTO user_playlist_songs (user_playlist_id, song_id) VALUES (:playlistId, :songId) ON CONFLICT DO NOTHING")
-                .setParameter("playlistId", playlistId)
-                .setParameter("songId", songId)
-                .executeUpdate();
+    @Query(value = "INSERT INTO user_playlist_songs (user_playlist_id, song_id) VALUES (:playlistId, :songId) ON CONFLICT DO NOTHING", nativeQuery = true)
+    int insertSongToPlaylist(@Param("playlistId") String playlistId, @Param("songId") String songId);
+
+    @Modifying
+    @Transactional
+    @Query(value = "UPDATE user_playlists SET total_songs = total_songs + 1 WHERE id = :playlistId", nativeQuery = true)
+    int incrementTotalSongs(@Param("playlistId") String playlistId);
+
+    @Modifying
+    @Transactional
+    @Query(value = "DELETE FROM user_playlist_songs WHERE user_playlist_id = :playlistId AND song_id = :songId", nativeQuery = true)
+    int deleteSongFromPlaylist(@Param("playlistId") String playlistId, @Param("songId") String songId);
+
+    @Modifying
+    @Transactional
+    @Query(value = "UPDATE user_playlists SET total_songs = GREATEST(0, total_songs - 1) WHERE id = :playlistId", nativeQuery = true)
+    int decrementTotalSongs(@Param("playlistId") String playlistId);
+
+    @Modifying
+    @Transactional
+    @Query(value = "DELETE FROM user_playlist_songs WHERE user_playlist_id = :id", nativeQuery = true)
+    void deletePlaylistSongs(@Param("id") String id);
+
+    default boolean addSongToPlaylist(String playlistId, String songId) {
+        int inserted = insertSongToPlaylist(playlistId, songId);
         if (inserted > 0) {
-            entityManager.createNativeQuery(
-                    "UPDATE user_playlists SET total_songs = total_songs + 1 WHERE id = :playlistId")
-                    .setParameter("playlistId", playlistId)
-                    .executeUpdate();
+            incrementTotalSongs(playlistId);
             return true;
         }
         return false;
     }
 
-    @Transactional
-    public boolean removeSongFromPlaylist(String playlistId, String songId) {
-        int deleted = entityManager.createNativeQuery(
-                "DELETE FROM user_playlist_songs WHERE user_playlist_id = :playlistId AND song_id = :songId")
-                .setParameter("playlistId", playlistId)
-                .setParameter("songId", songId)
-                .executeUpdate();
+    default boolean removeSongFromPlaylist(String playlistId, String songId) {
+        int deleted = deleteSongFromPlaylist(playlistId, songId);
         if (deleted > 0) {
-            entityManager.createNativeQuery(
-                    "UPDATE user_playlists SET total_songs = GREATEST(0, total_songs - 1) WHERE id = :playlistId")
-                    .setParameter("playlistId", playlistId)
-                    .executeUpdate();
+            decrementTotalSongs(playlistId);
             return true;
         }
         return false;
     }
 
     @Transactional
-    public void deleteById(String id) {
-        UserPlaylistsEntity playlist = entityManager.find(UserPlaylistsEntity.class, id);
-        if (playlist != null) {
-            entityManager.createNativeQuery("DELETE FROM user_playlist_songs WHERE user_playlist_id = :id")
-                    .setParameter("id", id)
-                    .executeUpdate();
-            entityManager.remove(playlist);
-        }
+    default void deletePlaylistByIdCascade(String id) {
+        deletePlaylistSongs(id);
+        deleteById(id);
     }
 }

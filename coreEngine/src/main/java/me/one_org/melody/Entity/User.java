@@ -5,6 +5,8 @@ import jakarta.validation.constraints.Email;
 import lombok.*;
 import lombok.Builder.Default;
 import org.hibernate.annotations.CreationTimestamp;
+
+import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Enums.StatusEnum;
 
 import java.time.LocalDateTime;
@@ -34,4 +36,8 @@ public class User {
 
     @CreationTimestamp
     private LocalDateTime createdAt;
+
+    public RoleEnum getRole() {
+        return me.one_org.melody.Enums.RoleEnum.USER;
+    }
 }

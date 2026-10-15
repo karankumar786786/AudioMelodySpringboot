@@ -1,249 +1,197 @@
 package me.one_org.melody.Repository;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Enums.StatusEnum;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 @Repository
-public class SongsRepository {
+public interface SongsRepository extends JpaRepository<Song, String> {
 
-    @PersistenceContext
-    private EntityManager entityManager;
+    List<Song> findByStatus(StatusEnum status);
 
-    @Transactional
-    public void save(SongsEntity song) {
-        if (entityManager.find(SongsEntity.class, song.getId()) != null) {
-            entityManager.merge(song);
-        } else {
-            entityManager.persist(song);
-        }
+    @Query("SELECT s FROM Song s ORDER BY s.createdAt DESC")
+    List<Song> findAllPaginatedQuery(Pageable pageable);
+
+    default List<Song> findAllPaginated(int page, int size) {
+        return findAllPaginatedQuery(PageRequest.of(page, size));
     }
 
-    public Optional<SongsEntity> findById(String id) {
-        return Optional.ofNullable(entityManager.find(SongsEntity.class, id));
-    }
+    @Query("SELECT s FROM Song s WHERE LOWER(s.title) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(s.artistName) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(s.album) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "ORDER BY s.createdAt DESC")
+    List<Song> findAllPaginatedWithSearch(@Param("search") String search, Pageable pageable);
 
-    public boolean existsById(String id) {
-        if (id == null || id.isBlank()) return false;
-        return entityManager.find(SongsEntity.class, id) != null;
-    }
-
-    public List<SongsEntity> findAll() {
-        return entityManager.createQuery("SELECT s FROM SongsEntity s", SongsEntity.class)
-                .getResultList();
-    }
-
-    public List<SongsEntity> findByStatus(StatusEnum status) {
-        return entityManager.createQuery(
-                "SELECT s FROM SongsEntity s WHERE s.status = :status", SongsEntity.class)
-                .setParameter("status", status)
-                .getResultList();
-    }
-
-    public List<SongsEntity> findAllPaginated(int page, int size) {
-        return entityManager.createQuery("SELECT s FROM SongsEntity s ORDER BY s.createdAt DESC", SongsEntity.class)
-                .setFirstResult(page * size)
-                .setMaxResults(size)
-                .getResultList();
-    }
-
-    public List<SongsEntity> findAllPaginated(int page, int size, String search) {
+    default List<Song> findAllPaginated(int page, int size, String search) {
         if (search == null || search.trim().isEmpty()) {
             return findAllPaginated(page, size);
         }
-        return entityManager.createQuery(
-                "SELECT s FROM SongsEntity s WHERE LOWER(s.title) LIKE LOWER(:search) OR LOWER(s.artistName) LIKE LOWER(:search) OR LOWER(s.album) LIKE LOWER(:search) ORDER BY s.createdAt DESC",
-                SongsEntity.class)
-                .setParameter("search", "%" + search.trim() + "%")
-                .setFirstResult(page * size)
-                .setMaxResults(size)
-                .getResultList();
+        return findAllPaginatedWithSearch(search.trim(), PageRequest.of(page, size));
     }
 
-    public long countSongs(String search) {
+    @Query("SELECT COUNT(s) FROM Song s WHERE LOWER(s.title) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(s.artistName) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(s.album) LIKE LOWER(CONCAT('%', :search, '%'))")
+    long countSongsWithSearch(@Param("search") String search);
+
+    default long countSongs(String search) {
         if (search == null || search.trim().isEmpty()) {
-            return entityManager.createQuery("SELECT COUNT(s) FROM SongsEntity s", Long.class).getSingleResult();
+            return count();
         }
-        return entityManager.createQuery(
-                "SELECT COUNT(s) FROM SongsEntity s WHERE LOWER(s.title) LIKE LOWER(:search) OR LOWER(s.artistName) LIKE LOWER(:search) OR LOWER(s.album) LIKE LOWER(:search)",
-                Long.class)
-                .setParameter("search", "%" + search.trim() + "%")
-                .getSingleResult();
+        return countSongsWithSearch(search.trim());
     }
 
-    public List<SongsEntity> findTrending(int limit) {
-        List<SongsEntity> trending = entityManager.createQuery(
-                "SELECT h.song FROM UserHistoryEntity h " +
-                "WHERE h.song.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
-                "GROUP BY h.song " +
-                "ORDER BY COUNT(h) DESC", SongsEntity.class)
-                .setMaxResults(limit)
-                .getResultList();
+    @Query("SELECT h.song FROM UserHistory h " +
+           "WHERE h.song.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
+           "GROUP BY h.song " +
+           "ORDER BY COUNT(h) DESC")
+    List<Song> findTrendingSongs(Pageable pageable);
 
+    @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt DESC")
+    List<Song> findActiveSongs(Pageable pageable);
+
+    @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND s.id NOT IN :existingIds ORDER BY s.createdAt DESC")
+    List<Song> findActiveSongsExcluding(@Param("existingIds") List<String> existingIds, Pageable pageable);
+
+    default List<Song> findTrending(int limit) {
+        List<Song> trending = findTrendingSongs(PageRequest.of(0, limit));
         if (trending.size() < limit) {
-            List<String> existingIds = trending.stream().map(SongsEntity::getId).toList();
+            List<String> existingIds = trending.stream().map(Song::getId).toList();
             int remaining = limit - trending.size();
-            List<SongsEntity> fallback;
+            List<Song> fallback;
             if (existingIds.isEmpty()) {
-                fallback = entityManager.createQuery(
-                        "SELECT s FROM SongsEntity s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt DESC",
-                        SongsEntity.class)
-                        .setMaxResults(remaining)
-                        .getResultList();
+                fallback = findActiveSongs(PageRequest.of(0, remaining));
             } else {
-                fallback = entityManager.createQuery(
-                        "SELECT s FROM SongsEntity s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND s.id NOT IN :existingIds ORDER BY s.createdAt DESC",
-                        SongsEntity.class)
-                        .setParameter("existingIds", existingIds)
-                        .setMaxResults(remaining)
-                        .getResultList();
+                fallback = findActiveSongsExcluding(existingIds, PageRequest.of(0, remaining));
             }
-            List<SongsEntity> combined = new java.util.ArrayList<>(trending);
+            List<Song> combined = new ArrayList<>(trending);
             combined.addAll(fallback);
             return combined;
         }
         return trending;
     }
 
-    public List<SongsEntity> findFeatured() {
-        return entityManager.createQuery(
-                "SELECT s FROM SongsEntity s WHERE s.isFeatured = true AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt DESC",
-                SongsEntity.class)
-                .getResultList();
-    }
+    @Query("SELECT s FROM Song s WHERE s.isFeatured = true AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt DESC")
+    List<Song> findFeatured();
 
-    public long countFeatured() {
-        return entityManager.createQuery(
-                "SELECT COUNT(s) FROM SongsEntity s WHERE s.isFeatured = true AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE",
-                Long.class)
-                .getSingleResult();
-    }
+    @Query("SELECT COUNT(s) FROM Song s WHERE s.isFeatured = true AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE")
+    long countFeatured();
 
-    public long count() {
-        return entityManager.createQuery("SELECT COUNT(s) FROM SongsEntity s", Long.class)
-                .getSingleResult();
-    }
+    @Query("SELECT s FROM Song s WHERE s.id IN :ids")
+    List<Song> findAllByIdsQuery(@Param("ids") List<String> ids);
 
-    public List<SongsEntity> findAllByIds(List<String> ids) {
+    default List<Song> findAllByIds(List<String> ids) {
         if (ids == null || ids.isEmpty()) return List.of();
-        return entityManager.createQuery(
-                "SELECT s FROM SongsEntity s WHERE s.id IN :ids", SongsEntity.class)
-                .setParameter("ids", ids)
-                .getResultList();
+        return findAllByIdsQuery(ids);
     }
 
-    public List<SongsEntity> findRadioFallback(String artistName, String language, List<String> excludeIds, int limit) {
-        List<SongsEntity> results = new java.util.ArrayList<>();
-        List<String> excluded = excludeIds != null ? new java.util.ArrayList<>(excludeIds) : new java.util.ArrayList<>();
+    @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.artistName) = LOWER(:artistName) ORDER BY s.createdAt DESC")
+    List<Song> findActiveByArtistName(@Param("artistName") String artistName, Pageable pageable);
 
-        // Priority 1: Same Artist & ACTIVE
+    @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.artistName) = LOWER(:artistName) AND s.id NOT IN :excluded ORDER BY s.createdAt DESC")
+    List<Song> findActiveByArtistNameExcluding(@Param("artistName") String artistName, @Param("excluded") List<String> excluded, Pageable pageable);
+
+    @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.language) = LOWER(:language) ORDER BY s.createdAt DESC")
+    List<Song> findActiveByLanguage(@Param("language") String language, Pageable pageable);
+
+    @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.language) = LOWER(:language) AND s.id NOT IN :excluded ORDER BY s.createdAt DESC")
+    List<Song> findActiveByLanguageExcluding(@Param("language") String language, @Param("excluded") List<String> excluded, Pageable pageable);
+
+    default List<Song> findRadioFallback(String artistName, String language, List<String> excludeIds, int limit) {
+        List<Song> results = new ArrayList<>();
+        List<String> excluded = excludeIds != null ? new ArrayList<>(excludeIds) : new ArrayList<>();
+
         if (artistName != null && !artistName.isBlank() && results.size() < limit) {
-            String q1 = excluded.isEmpty()
-                    ? "SELECT s FROM SongsEntity s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.artistName) = LOWER(:artistName) ORDER BY s.createdAt DESC"
-                    : "SELECT s FROM SongsEntity s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.artistName) = LOWER(:artistName) AND s.id NOT IN :excluded ORDER BY s.createdAt DESC";
-
-            var query = entityManager.createQuery(q1, SongsEntity.class)
-                    .setParameter("artistName", artistName.trim())
-                    .setMaxResults(limit - results.size());
-            if (!excluded.isEmpty()) {
-                query.setParameter("excluded", excluded);
-            }
-            List<SongsEntity> artistMatches = query.getResultList();
-            for (SongsEntity s : artistMatches) {
+            int needed = limit - results.size();
+            List<Song> artistMatches = excluded.isEmpty()
+                    ? findActiveByArtistName(artistName.trim(), PageRequest.of(0, needed))
+                    : findActiveByArtistNameExcluding(artistName.trim(), excluded, PageRequest.of(0, needed));
+            for (Song s : artistMatches) {
                 results.add(s);
                 excluded.add(s.getId());
             }
         }
 
-        // Priority 2: Same Language & ACTIVE
         if (language != null && !language.isBlank() && results.size() < limit) {
-            String q2 = excluded.isEmpty()
-                    ? "SELECT s FROM SongsEntity s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.language) = LOWER(:language) ORDER BY s.createdAt DESC"
-                    : "SELECT s FROM SongsEntity s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.language) = LOWER(:language) AND s.id NOT IN :excluded ORDER BY s.createdAt DESC";
-
-            var query = entityManager.createQuery(q2, SongsEntity.class)
-                    .setParameter("language", language.trim())
-                    .setMaxResults(limit - results.size());
-            if (!excluded.isEmpty()) {
-                query.setParameter("excluded", excluded);
-            }
-            List<SongsEntity> langMatches = query.getResultList();
-            for (SongsEntity s : langMatches) {
+            int needed = limit - results.size();
+            List<Song> langMatches = excluded.isEmpty()
+                    ? findActiveByLanguage(language.trim(), PageRequest.of(0, needed))
+                    : findActiveByLanguageExcluding(language.trim(), excluded, PageRequest.of(0, needed));
+            for (Song s : langMatches) {
                 results.add(s);
                 excluded.add(s.getId());
             }
         }
 
-        // Priority 3: Any other ACTIVE songs (trending / recent)
         if (results.size() < limit) {
-            String q3 = excluded.isEmpty()
-                    ? "SELECT s FROM SongsEntity s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt DESC"
-                    : "SELECT s FROM SongsEntity s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND s.id NOT IN :excluded ORDER BY s.createdAt DESC";
-
-            var query = entityManager.createQuery(q3, SongsEntity.class)
-                    .setMaxResults(limit - results.size());
-            if (!excluded.isEmpty()) {
-                query.setParameter("excluded", excluded);
-            }
-            List<SongsEntity> generalMatches = query.getResultList();
+            int needed = limit - results.size();
+            List<Song> generalMatches = excluded.isEmpty()
+                    ? findActiveSongs(PageRequest.of(0, needed))
+                    : findActiveSongsExcluding(excluded, PageRequest.of(0, needed));
             results.addAll(generalMatches);
         }
 
         return results;
     }
 
+    @Query("SELECT s FROM Song s WHERE LOWER(s.album) = LOWER(:album) AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt ASC")
+    List<Song> findByAlbum(@Param("album") String album);
+
+    @Query("SELECT s.album, s.artistName, COUNT(s), MIN(s.imageKey), MIN(s.genre) " +
+           "FROM Song s " +
+           "WHERE s.album IS NOT NULL AND TRIM(s.album) != '' AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
+           "GROUP BY s.album, s.artistName " +
+           "ORDER BY s.album ASC")
+    List<Object[]> findDistinctAlbums();
+
+    @Modifying
     @Transactional
-    public void deleteById(String id) {
-        SongsEntity song = entityManager.find(SongsEntity.class, id);
-        if (song != null) {
-            // Update cached total_songs counts in playlists and user_playlists before removing join rows
-            entityManager.createNativeQuery("UPDATE playlists SET total_songs = GREATEST(0, total_songs - 1) WHERE id IN (SELECT playlist_id FROM playlist_songs WHERE song_id = :id)")
-                    .setParameter("id", id)
-                    .executeUpdate();
-            entityManager.createNativeQuery("UPDATE user_playlists SET total_songs = GREATEST(0, total_songs - 1) WHERE id IN (SELECT user_playlist_id FROM user_playlist_songs WHERE song_id = :id)")
-                    .setParameter("id", id)
-                    .executeUpdate();
+    @Query(value = "UPDATE playlists SET total_songs = GREATEST(0, total_songs - 1) WHERE id IN (SELECT playlist_id FROM playlist_songs WHERE song_id = :id)", nativeQuery = true)
+    void decrementPlaylistTotalSongs(@Param("id") String id);
 
-            // Clean up referencing foreign key records in join & history tables before deleting song
-            entityManager.createNativeQuery("DELETE FROM playlist_songs WHERE song_id = :id")
-                    .setParameter("id", id)
-                    .executeUpdate();
-            entityManager.createNativeQuery("DELETE FROM user_playlist_songs WHERE song_id = :id")
-                    .setParameter("id", id)
-                    .executeUpdate();
-            entityManager.createNativeQuery("DELETE FROM user_favourite_songs WHERE song_id = :id")
-                    .setParameter("id", id)
-                    .executeUpdate();
-            entityManager.createNativeQuery("DELETE FROM user_history WHERE song_id = :id")
-                    .setParameter("id", id)
-                    .executeUpdate();
+    @Modifying
+    @Transactional
+    @Query(value = "UPDATE user_playlists SET total_songs = GREATEST(0, total_songs - 1) WHERE id IN (SELECT user_playlist_id FROM user_playlist_songs WHERE song_id = :id)", nativeQuery = true)
+    void decrementUserPlaylistTotalSongs(@Param("id") String id);
 
-            entityManager.remove(song);
-        }
-    }
+    @Modifying
+    @Transactional
+    @Query(value = "DELETE FROM playlist_songs WHERE song_id = :id", nativeQuery = true)
+    void deletePlaylistSongsBySongId(@Param("id") String id);
 
-    public List<SongsEntity> findByAlbum(String album) {
-        if (album == null || album.trim().isEmpty()) return List.of();
-        return entityManager.createQuery(
-                "SELECT s FROM SongsEntity s WHERE LOWER(s.album) = LOWER(:album) AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt ASC",
-                SongsEntity.class)
-                .setParameter("album", album.trim())
-                .getResultList();
-    }
+    @Modifying
+    @Transactional
+    @Query(value = "DELETE FROM user_playlist_songs WHERE song_id = :id", nativeQuery = true)
+    void deleteUserPlaylistSongsBySongId(@Param("id") String id);
 
-    public List<Object[]> findDistinctAlbums() {
-        return entityManager.createQuery(
-                "SELECT s.album, s.artistName, COUNT(s), MIN(s.imageKey), MIN(s.genre) " +
-                "FROM SongsEntity s " +
-                "WHERE s.album IS NOT NULL AND TRIM(s.album) != '' AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
-                "GROUP BY s.album, s.artistName " +
-                "ORDER BY s.album ASC", Object[].class)
-                .getResultList();
+    @Modifying
+    @Transactional
+    @Query(value = "DELETE FROM user_favourite_songs WHERE song_id = :id", nativeQuery = true)
+    void deleteUserFavouriteSongsBySongId(@Param("id") String id);
+
+    @Modifying
+    @Transactional
+    @Query(value = "DELETE FROM user_history WHERE song_id = :id", nativeQuery = true)
+    void deleteUserHistoryBySongId(@Param("id") String id);
+
+    @Transactional
+    default void deleteSongCascade(String id) {
+        decrementPlaylistTotalSongs(id);
+        decrementUserPlaylistTotalSongs(id);
+        deletePlaylistSongsBySongId(id);
+        deleteUserPlaylistSongsBySongId(id);
+        deleteUserFavouriteSongsBySongId(id);
+        deleteUserHistoryBySongId(id);
+        deleteById(id);
     }
 }

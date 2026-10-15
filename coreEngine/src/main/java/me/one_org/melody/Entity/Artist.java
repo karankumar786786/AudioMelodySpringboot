@@ -35,7 +35,7 @@ public class Artist{
     @Column(nullable = false)
     private StatusEnum status;
 
-    @OneToOne(mappedBy = "artist_metadata_id",fetch = FetchType.EAGER)
+    @OneToOne(mappedBy = "artist",fetch = FetchType.EAGER)
     private ArtistMetadata artistMetadata;
 
     @CreationTimestamp

@@ -10,8 +10,11 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "user_search_history")
+@Data
+@AllArgsConstructor
 @NoArgsConstructor
-public class UserSearchHistor {
+@Builder
+public class UserSearchHistory {
 
     @Id
     private String id;
@@ -21,8 +24,8 @@ public class UserSearchHistor {
     @OnDelete(action = OnDeleteAction.CASCADE)
     private User user;
 
-    @Column( nullable = false)
-    private String tableName; // "SONG", "ARTIST", "PLAYLIST", "USER_PLAYLIST"
+    @Column(name = "entity_type", nullable = false)
+    private String entityType; // "SONG", "ARTIST", "PLAYLIST", "USER_PLAYLIST"
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "song_id")
@@ -47,6 +50,14 @@ public class UserSearchHistor {
     private UserPlaylist userPlaylist;
 
     @CreationTimestamp
-    @Column(name = "created_at",nullable = false)
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    public String getTableName() {
+        return this.entityType;
+    }
+
+    public void setTableName(String tableName) {
+        this.entityType = tableName;
+    }
 }
