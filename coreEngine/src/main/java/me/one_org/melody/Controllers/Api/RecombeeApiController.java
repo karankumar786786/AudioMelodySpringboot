@@ -6,7 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import lombok.extern.slf4j.Slf4j;
-import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Services.Api.RecommendationApiService;
 
 @RestController
@@ -21,7 +21,7 @@ public class RecombeeApiController {
     }
 
     @GetMapping("/user")
-    public ResponseEntity<List<SongsEntity>> recommendForUser(
+    public ResponseEntity<List<SongDto>> recommendForUser(
             @RequestAttribute("userId") String userId,
             @RequestParam(defaultValue = "10") int count) {
                 log.info("recommended to user");
@@ -29,7 +29,7 @@ public class RecombeeApiController {
     }
 
     @GetMapping("/similar/{songId}")
-    public ResponseEntity<List<SongsEntity>> recommendSimilar(
+    public ResponseEntity<List<SongDto>> recommendSimilar(
             @PathVariable String songId,
             @RequestParam(defaultValue = "10") int count) {
                 log.info("recommeded for songs");
@@ -37,7 +37,7 @@ public class RecombeeApiController {
     }
 
     @GetMapping("/radio")
-    public ResponseEntity<List<SongsEntity>> recommendRadio(
+    public ResponseEntity<List<SongDto>> recommendRadio(
             @RequestParam String seedSongId,
             @RequestParam(required = false) String excludeIds,
             @RequestParam(defaultValue = "10") int count) {

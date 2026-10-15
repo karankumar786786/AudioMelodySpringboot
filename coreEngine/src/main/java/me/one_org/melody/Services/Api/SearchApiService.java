@@ -10,10 +10,14 @@ import org.springframework.stereotype.Service;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
 import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaSearchResult;
 import me.one_org.melody.Dto.AlgoliaSearch.SearchResult;
-import me.one_org.melody.Entity.ArtistsEntity;
-import me.one_org.melody.Entity.PlaylistsEntity;
-import me.one_org.melody.Entity.SongsEntity;
-import me.one_org.melody.Entity.UserPlaylistsEntity;
+import me.one_org.melody.Dto.Controllers.Api.ArtistDto;
+import me.one_org.melody.Dto.Controllers.Api.PlaylistDto;
+import me.one_org.melody.Dto.Controllers.Api.SongDto;
+import me.one_org.melody.Dto.Controllers.Api.UserPlaylistDto;
+import me.one_org.melody.Entity.Artist;
+import me.one_org.melody.Entity.Playlist;
+import me.one_org.melody.Entity.Song;
+import me.one_org.melody.Entity.UserPlaylist;
 import me.one_org.melody.Repository.ArtistsRepository;
 import me.one_org.melody.Repository.PlaylistsRepository;
 import me.one_org.melody.Repository.SongsRepository;
@@ -51,38 +55,38 @@ public class SearchApiService {
                 .map(p -> p.id()).collect(Collectors.toList());
 
         // 3. Fetch full entities from DB
-        List<SongsEntity> rawSongs = songsRepository.findAllByIds(songIds);
-        List<ArtistsEntity> rawArtists = artistsRepository.findAllByIds(artistIds);
-        List<PlaylistsEntity> rawPlaylists = playlistsRepository.findAllByIds(playlistIds);
-        List<UserPlaylistsEntity> rawUserPlaylists = userPlaylistsRepository.findAllPublicByIds(playlistIds);
+        List<Song> rawSongs = songsRepository.findAllByIds(songIds);
+        List<Artist> rawArtists = artistsRepository.findAllByIds(artistIds);
+        List<Playlist> rawPlaylists = playlistsRepository.findAllByIds(playlistIds);
+        List<UserPlaylist> rawUserPlaylists = userPlaylistsRepository.findAllPublicByIds(playlistIds);
 
-        // 4. Preserve Algolia's exact ranking order
-        Map<String, SongsEntity> songMap = rawSongs.stream().collect(Collectors.toMap(SongsEntity::getId, s -> s));
-        List<SongsEntity> songs = new ArrayList<>();
+        // 4. Preserve Algolia's exact ranking order and convert to DTOs
+        Map<String, Song> songMap = rawSongs.stream().collect(Collectors.toMap(Song::getId, s -> s));
+        List<SongDto> songs = new ArrayList<>();
         for (String id : songIds) {
-            SongsEntity s = songMap.get(id);
-            if (s != null) songs.add(s);
+            Song s = songMap.get(id);
+            if (s != null) songs.add(SongDto.fromEntity(s));
         }
 
-        Map<String, ArtistsEntity> artistMap = rawArtists.stream().collect(Collectors.toMap(ArtistsEntity::getId, a -> a));
-        List<ArtistsEntity> artists = new ArrayList<>();
+        Map<String, Artist> artistMap = rawArtists.stream().collect(Collectors.toMap(Artist::getId, a -> a));
+        List<ArtistDto> artists = new ArrayList<>();
         for (String id : artistIds) {
-            ArtistsEntity a = artistMap.get(id);
-            if (a != null) artists.add(a);
+            Artist a = artistMap.get(id);
+            if (a != null) artists.add(ArtistDto.fromEntity(a));
         }
 
-        Map<String, PlaylistsEntity> playlistMap = rawPlaylists.stream().collect(Collectors.toMap(PlaylistsEntity::getId, p -> p));
-        List<PlaylistsEntity> playlists = new ArrayList<>();
+        Map<String, Playlist> playlistMap = rawPlaylists.stream().collect(Collectors.toMap(Playlist::getId, p -> p));
+        List<PlaylistDto> playlists = new ArrayList<>();
         for (String id : playlistIds) {
-            PlaylistsEntity p = playlistMap.get(id);
-            if (p != null) playlists.add(p);
+            Playlist p = playlistMap.get(id);
+            if (p != null) playlists.add(PlaylistDto.fromEntity(p));
         }
 
-        Map<String, UserPlaylistsEntity> userPlaylistMap = rawUserPlaylists.stream().collect(Collectors.toMap(UserPlaylistsEntity::getId, up -> up));
-        List<UserPlaylistsEntity> userPlaylists = new ArrayList<>();
+        Map<String, UserPlaylist> userPlaylistMap = rawUserPlaylists.stream().collect(Collectors.toMap(UserPlaylist::getId, up -> up));
+        List<UserPlaylistDto> userPlaylists = new ArrayList<>();
         for (String id : playlistIds) {
-            UserPlaylistsEntity up = userPlaylistMap.get(id);
-            if (up != null) userPlaylists.add(up);
+            UserPlaylist up = userPlaylistMap.get(id);
+            if (up != null) userPlaylists.add(UserPlaylistDto.fromEntity(up));
         }
 
         return new SearchResult(songs, artists, playlists, userPlaylists);

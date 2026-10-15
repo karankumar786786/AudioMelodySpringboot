@@ -15,7 +15,7 @@ import com.recombee.api_client.bindings.RecommendationResponse;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.Entity.Song;
 
 /*
  * ╔══════════════════════════════════════════════════════════════╗
@@ -72,7 +72,7 @@ public class Recombee {
 
     // ── Save song item with properties ──
 
-    public void saveSong(SongsEntity song) throws Exception {
+    public void saveSong(Song song) throws Exception {
         Map<String, Object> values = new HashMap<>();
         values.put("title", song.getTitle());
         values.put("artistName", song.getArtistName());
@@ -245,9 +245,9 @@ public class Recombee {
 
     // ── Bulk resync ──
 
-    public void reindexAll(List<SongsEntity> songs) throws Exception {
+    public void reindexAll(List<Song> songs) throws Exception {
         ArrayList<Request> requests = new ArrayList<>();
-        for (SongsEntity song : songs) {
+        for (Song song : songs) {
             Map<String, Object> values = new HashMap<>();
             values.put("title", song.getTitle());
             values.put("artistName", song.getArtistName());
