@@ -21,16 +21,16 @@ public class ArtistMetadata {
     @JoinColumn(name = "artist_id")
     private Artist artist;
 
-    @Column(name = "followers_count", nullable = false)
+    @Column(nullable = false)
     private Long followersCount;
 
 
     @CreationTimestamp
-    @Column(name = "created_at",nullable = false, updatable = false)
+    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     
     @UpdateTimestamp
-    @Column(name = "updated_at",nullable = false)
+    @Column(nullable = false)
     private LocalDateTime updatedAt;
 }

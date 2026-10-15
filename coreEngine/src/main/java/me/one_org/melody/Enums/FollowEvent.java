@@ -1,6 +1,6 @@
 package me.one_org.melody.Enums;
 
-public enum FollowEvents {
+public enum FollowEvent {
     FOLLOW,
     UNFOLLOW
 }

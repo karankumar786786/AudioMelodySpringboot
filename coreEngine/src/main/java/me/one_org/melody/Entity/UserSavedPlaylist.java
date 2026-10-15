@@ -2,36 +2,47 @@ package me.one_org.melody.Entity;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(
     name = "user_saved_playlists",
-    uniqueConstraints = {
-        @UniqueConstraint(columnNames = {"user_id", "playlist_id"})
-    }
+    uniqueConstraints = @UniqueConstraint(
+        name = "uk_user_saved_playlist",
+        columnNames = { "user_id", "playlist_id" }
+    ),
+    indexes = @Index(name = "idx_saved_playlist_playlist", columnList = "playlist_id")
 )
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class UserSavedPlaylist {
 
     @Id
     private String id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
-    @JsonIgnore
     private User user;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "playlist_id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
-    private User playlist;
+    private Playlist playlist;
 
-    @Column(name = "saved_at", nullable = false)
-    private LocalDateTime savedAt = LocalDateTime.now();
+    @CreationTimestamp
+    @Column(name = "saved_at", nullable = false, updatable = false)
+    private LocalDateTime savedAt;
 }

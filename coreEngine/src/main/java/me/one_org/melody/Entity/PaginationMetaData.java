@@ -21,7 +21,7 @@ public class PaginationMetaData {
     private String id;
 
     @Column(nullable = false, unique = true)
-    private String entityName;
+    private String tableName;
 
     @Column(nullable = false)
     private long totalCount;
@@ -33,9 +33,9 @@ public class PaginationMetaData {
     private long blockedCount;
 
     @Column(nullable = false)
-    private long deletedCount;
+    private long softDeletedCount;
 
     @UpdateTimestamp 
-    @Column(name = "updated_at",nullable = false)
+    @Column(nullable = false)
     private LocalDateTime updatedAt;
 }

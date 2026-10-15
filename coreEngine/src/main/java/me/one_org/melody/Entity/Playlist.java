@@ -34,7 +34,7 @@ public class Playlist{
 
     private String videoKey;
 
-    @Column(name = "total_songs", nullable = false)
+    @Column(nullable = false)
     private int totalSongs;
 
     @Enumerated(EnumType.STRING)
@@ -51,9 +51,11 @@ public class Playlist{
     private List<Song> songs;
 
     @CreationTimestamp
+    @Column(nullable = false,updatable = false)
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
+    @Column(nullable = false)
     private LocalDateTime updatedAt;
 }
 

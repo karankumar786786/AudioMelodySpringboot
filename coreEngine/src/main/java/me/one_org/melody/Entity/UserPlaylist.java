@@ -32,11 +32,10 @@ public class UserPlaylist{
     @Column(nullable = true)
     private PlaylistPrivacyEnum privacy;
 
-    @Column(name = "share_token")
     private String shareToken;
 
 
-    @Column(name = "total_songs", nullable = false)
+    @Column(nullable = false)
     private int totalSongs;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -48,7 +47,8 @@ public class UserPlaylist{
     @JoinTable(
         name = "user_playlist_songs",
         joinColumns = @JoinColumn(name = "user_playlist_id"),
-        inverseJoinColumns = @JoinColumn(name = "song_id")
+        inverseJoinColumns = @JoinColumn(name = "song_id"),
+        foreignKey = @ForeignKey(foreignKeyDefinition = "FOREIGN KEY (song_id) REFERENCES songs(id) ON DELETE CASCADE")
     )
     private List<Song> songs;
     

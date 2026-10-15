@@ -21,36 +21,32 @@ public class UserSearchHistor {
     @OnDelete(action = OnDeleteAction.CASCADE)
     private User user;
 
-    @Column(name = "entity_type", nullable = false)
-    private String entityType; // "SONG", "ARTIST", "PLAYLIST", "USER_PLAYLIST"
+    @Column( nullable = false)
+    private String tableName; // "SONG", "ARTIST", "PLAYLIST", "USER_PLAYLIST"
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "song_id", nullable = true)
+    @JoinColumn(name = "song_id")
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Song song;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "artist_id", nullable = true)
+    @JoinColumn(name = "artist_id")
     @OnDelete(action = OnDeleteAction.CASCADE)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Artist artist;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "playlist_id", nullable = true)
+    @JoinColumn(name = "playlist_id")
     @OnDelete(action = OnDeleteAction.CASCADE)
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
     private Playlist playlist;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "user_playlist_id", nullable = true)
+    @JoinColumn(name = "user_playlist_id")
     @OnDelete(action = OnDeleteAction.CASCADE)
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
     private UserPlaylist userPlaylist;
 
     @CreationTimestamp
-    @Column(name = "created_at")
+    @Column(name = "created_at",nullable = false)
     private LocalDateTime createdAt;
 }

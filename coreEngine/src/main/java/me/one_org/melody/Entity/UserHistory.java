@@ -38,7 +38,7 @@ public class UserHistory {
     @Column(nullable = false)
     private Integer part;
 
-    @Default 
     @CreationTimestamp
-    private LocalDateTime listenedAt = LocalDateTime.now();
+    @Column(nullable = false)
+    private LocalDateTime listenedAt;
 }

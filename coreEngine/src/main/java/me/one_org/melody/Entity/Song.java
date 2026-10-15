@@ -65,6 +65,9 @@ public class Song{
     @Column(nullable = false)
     private StatusEnum status;
 
+    @OneToOne(mappedBy = "song",fetch = FetchType.EAGER)
+    private SongMetadata songMetadata;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 }

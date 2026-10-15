@@ -2,7 +2,8 @@ package me.one_org.melody.Entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import me.one_org.melody.Enums.FollowEvents;
+import me.one_org.melody.Enums.FollowEvent;
+
 
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -28,10 +29,10 @@ public class ArtistFollowEvent{
     private Artist artist;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "event_type", nullable = false)
-    private FollowEvents event;
+    @Column(nullable = false)
+    private FollowEvent followEvent;
      
     @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 }
