@@ -27,24 +27,24 @@ public class UserSearchHistory {
     @Column(name = "entity_type", nullable = false)
     private String entityType; // "SONG", "ARTIST", "PLAYLIST", "USER_PLAYLIST"
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "song_id")
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Song song;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "artist_id")
     @OnDelete(action = OnDeleteAction.CASCADE)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private Artist artist;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "playlist_id")
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Playlist playlist;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_playlist_id")
     @OnDelete(action = OnDeleteAction.CASCADE)
     private UserPlaylist userPlaylist;

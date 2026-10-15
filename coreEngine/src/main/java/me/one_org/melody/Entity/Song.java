@@ -65,7 +65,7 @@ public class Song{
     @Column(nullable = false)
     private StatusEnum status;
 
-    @OneToOne(mappedBy = "song",fetch = FetchType.EAGER)
+    @OneToOne(mappedBy = "song", fetch = FetchType.LAZY)
     private SongMetadata songMetadata;
 
     @CreationTimestamp

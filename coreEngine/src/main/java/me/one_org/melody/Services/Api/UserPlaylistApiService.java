@@ -304,21 +304,14 @@ public class UserPlaylistApiService {
 
     @Transactional
     public void unsavePlaylistFromLibrary(String userId, String playlistId) {
-        User user = usersRepository.getReferenceById(userId);
-        UserPlaylist targetPlaylist = userPlaylistsRepository.findByIdOrShareToken(playlistId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
-
-        userSavedPlaylistsRepository.deleteByUserAndPlaylist(user, targetPlaylist);
+        if (userId == null || playlistId == null) return;
+        userSavedPlaylistsRepository.deleteByUserIdAndPlaylistTokenOrId(userId, playlistId);
     }
 
     @Transactional(readOnly = true)
     public boolean isPlaylistSaved(String userId, String playlistId) {
-        if (userId == null) return false;
-        User user = usersRepository.getReferenceById(userId);
-        UserPlaylist targetPlaylist = userPlaylistsRepository.findByIdOrShareToken(playlistId).orElse(null);
-        if (targetPlaylist == null) return false;
-        if (targetPlaylist.getUser().getId().equals(userId)) return true;
-        return userSavedPlaylistsRepository.existsByUserAndPlaylist(user, targetPlaylist);
+        if (userId == null || playlistId == null) return false;
+        return userSavedPlaylistsRepository.isPlaylistSavedByUser(userId, playlistId);
     }
 
     @Transactional

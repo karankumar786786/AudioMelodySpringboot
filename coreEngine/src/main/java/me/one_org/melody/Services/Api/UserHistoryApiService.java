@@ -17,9 +17,6 @@ import me.one_org.melody.Dto.Controllers.Api.UserHistoryResponseDto;
 import me.one_org.melody.Dto.Controllers.Api.UserPlaylistDto;
 import me.one_org.melody.Dto.Controllers.Api.UserSearchHistoryGroupedResponseDto;
 import me.one_org.melody.Dto.Controllers.Api.UserSearchHistoryItemDto;
-import me.one_org.melody.Entity.Artist;
-import me.one_org.melody.Entity.Playlist;
-import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Entity.User;
 import me.one_org.melody.Entity.UserHistory;
 import me.one_org.melody.Entity.UserPlaylist;
@@ -172,29 +169,30 @@ public class UserHistoryApiService {
                 .createdAt(LocalDateTime.now());
 
         if ("SONG".equalsIgnoreCase(type) && request.songId() != null) {
-            Song song = songsRepository.findById(request.songId()).orElse(null);
-            if (song == null) return;
-            searchHistoryRepository.deleteByUserAndItem(user, "SONG", song.getId());
-            builder.song(song);
+            String sid = request.songId().trim();
+            if (!songsRepository.existsById(sid)) return;
+            searchHistoryRepository.deleteByUserAndItem(user, "SONG", sid);
+            builder.song(songsRepository.getReferenceById(sid));
         } else if ("ARTIST".equalsIgnoreCase(type) && request.artistId() != null) {
-            Artist artist = artistsRepository.findById(request.artistId()).orElse(null);
-            if (artist == null) return;
-            searchHistoryRepository.deleteByUserAndItem(user, "ARTIST", artist.getId());
-            builder.artist(artist);
+            String aid = request.artistId().trim();
+            if (!artistsRepository.existsById(aid)) return;
+            searchHistoryRepository.deleteByUserAndItem(user, "ARTIST", aid);
+            builder.artist(artistsRepository.getReferenceById(aid));
         } else if ("PLAYLIST".equalsIgnoreCase(type) && request.playlistId() != null) {
-            Playlist playlist = playlistsRepository.findById(request.playlistId()).orElse(null);
-            if (playlist == null) return;
-            searchHistoryRepository.deleteByUserAndItem(user, "PLAYLIST", playlist.getId());
-            builder.playlist(playlist);
+            String pid = request.playlistId().trim();
+            if (!playlistsRepository.existsById(pid)) return;
+            searchHistoryRepository.deleteByUserAndItem(user, "PLAYLIST", pid);
+            builder.playlist(playlistsRepository.getReferenceById(pid));
         } else if ("USER_PLAYLIST".equalsIgnoreCase(type) && request.userPlaylistId() != null) {
-            UserPlaylist userPlaylist = userPlaylistsRepository.findById(request.userPlaylistId()).orElse(null);
+            String upid = request.userPlaylistId().trim();
+            UserPlaylist userPlaylist = userPlaylistsRepository.findById(upid).orElse(null);
             if (userPlaylist == null) return;
             // Only allow saving public user playlists or user's own playlist
             if (userPlaylist.getPrivacy() == PlaylistPrivacyEnum.PRIVATE && !userPlaylist.getUser().getId().equals(userId)) {
                 return;
             }
-            searchHistoryRepository.deleteByUserAndItem(user, "USER_PLAYLIST", userPlaylist.getId());
-            builder.userPlaylist(userPlaylist);
+            searchHistoryRepository.deleteByUserAndItem(user, "USER_PLAYLIST", upid);
+            builder.userPlaylist(userPlaylistsRepository.getReferenceById(upid));
         } else {
             return;
         }

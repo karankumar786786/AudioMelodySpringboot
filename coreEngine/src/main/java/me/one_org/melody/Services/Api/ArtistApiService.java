@@ -160,8 +160,7 @@ public class ArtistApiService {
             eventPublisher.publishEvent(new TelemetryEvents.ArtistFollowEvent(userId, artistId));
         }
 
-        Long followersCount = artistMetadataRepository.findById(artistId)
-                .map(ArtistMetadata::getFollowersCount)
+        Long followersCount = artistMetadataRepository.findFollowersCountById(artistId)
                 .orElse(1L);
 
         return new ArtistFollowStatusDto(artistId, artistName, followersCount, true);
@@ -195,8 +194,7 @@ public class ArtistApiService {
             eventPublisher.publishEvent(new TelemetryEvents.ArtistUnfollowEvent(userId, artistId));
         }
 
-        Long followersCount = artistMetadataRepository.findById(artistId)
-                .map(ArtistMetadata::getFollowersCount)
+        Long followersCount = artistMetadataRepository.findFollowersCountById(artistId)
                 .orElse(0L);
 
         return new ArtistFollowStatusDto(artistId, artistName, followersCount, false);
@@ -212,8 +210,7 @@ public class ArtistApiService {
         String artistName = artist.getName();
 
         boolean isFollowing = userId != null && artistFollowEventRepository.isUserFollowingArtist(userId, artistId);
-        Long followersCount = artistMetadataRepository.findById(artistId)
-                .map(ArtistMetadata::getFollowersCount)
+        Long followersCount = artistMetadataRepository.findFollowersCountById(artistId)
                 .orElse(0L);
 
         return new ArtistFollowStatusDto(artistId, artistName, followersCount, isFollowing);

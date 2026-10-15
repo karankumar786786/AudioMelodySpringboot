@@ -15,6 +15,9 @@ public interface ArtistMetadataRepository extends JpaRepository<ArtistMetadata, 
     @Query("SELECT m FROM ArtistMetadata m WHERE m.id = :artistId")
     Optional<ArtistMetadata> findByArtistId(@Param("artistId") String artistId);
 
+    @Query("SELECT m.followersCount FROM ArtistMetadata m WHERE m.id = :artistId")
+    Optional<Long> findFollowersCountById(@Param("artistId") String artistId);
+
     @Modifying
     @Transactional
     @Query("UPDATE ArtistMetadata m SET m.followersCount = m.followersCount + 1, m.updatedAt = CURRENT_TIMESTAMP WHERE m.id = :artistId")

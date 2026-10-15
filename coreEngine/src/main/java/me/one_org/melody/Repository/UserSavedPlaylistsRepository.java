@@ -24,6 +24,14 @@ public interface UserSavedPlaylistsRepository extends JpaRepository<UserSavedPla
 
     void deleteByUserAndPlaylist(User user, UserPlaylist playlist);
 
+    @Query("SELECT COUNT(usp) > 0 FROM UserSavedPlaylist usp WHERE usp.user.id = :userId AND (usp.playlist.id = :tokenOrId OR usp.playlist.shareToken = :tokenOrId)")
+    boolean isPlaylistSavedByUser(@Param("userId") String userId, @Param("tokenOrId") String tokenOrId);
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM UserSavedPlaylist usp WHERE usp.user.id = :userId AND (usp.playlist.id = :tokenOrId OR usp.playlist.shareToken = :tokenOrId)")
+    int deleteByUserIdAndPlaylistTokenOrId(@Param("userId") String userId, @Param("tokenOrId") String tokenOrId);
+
     @Modifying
     @Transactional
     @Query("DELETE FROM UserSavedPlaylist usp WHERE usp.playlist = :playlist")
