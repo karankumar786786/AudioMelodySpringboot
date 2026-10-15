@@ -15,7 +15,7 @@ import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpResponse;
 import me.one_org.melody.Dto.Internal.JwtPayloadDto;
 import me.one_org.melody.Dto.Internal.OtpDataDto;
 import me.one_org.melody.Dto.Queue.MailQueueDto;
-import me.one_org.melody.Entity.UsersEntity;
+import me.one_org.melody.Entity.User;
 import me.one_org.melody.Enums.PurposeEnum;
 import me.one_org.melody.Exceptions.BadRequestException;
 import me.one_org.melody.Exceptions.ConflictException;
@@ -31,7 +31,7 @@ import me.one_org.melody.Utils.OtpUtil;
 @Service
 @Slf4j
 public class AuthenticationService {
-    
+
     private final UsersRepository usersRepository;
     private final JwtUtil jwtUtil;
     private final HmacUtil hmacUtil;
@@ -63,7 +63,7 @@ public class AuthenticationService {
         }
         String tempToken = hmacUtil.hash(request.email());
         String otp = otpUtil.generateOtp();
-        OtpDataDto data = new OtpDataDto(otp, tempToken, request.email(), request.userName(),PurposeEnum.REGISTER);
+        OtpDataDto data = new OtpDataDto(otp, tempToken, request.email(), request.userName(), PurposeEnum.REGISTER);
         MailQueueDto mqd = new MailQueueDto(request.email(), PurposeEnum.REGISTER.name(), otp);
         mailQueue.queueMail(mqd);
         cache.set(data.email(), data, Duration.ofMinutes(10));
@@ -71,12 +71,12 @@ public class AuthenticationService {
     }
 
     public String login(LoginRequestDto request) {
-        UsersEntity user = usersRepository.findByEmail(request.email())
+        User user = usersRepository.findByEmail(request.email())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + request.email()));
         String tempToken = hmacUtil.hash(user.getEmail());
         String otp = otpUtil.generateOtp();
-        OtpDataDto data = new OtpDataDto(otp, tempToken, user.getEmail(), user.getUserName(),PurposeEnum.LOGIN);
-        MailQueueDto mqd = new MailQueueDto(user.getEmail(),PurposeEnum.LOGIN.name(), otp);
+        OtpDataDto data = new OtpDataDto(otp, tempToken, user.getEmail(), user.getUserName(), PurposeEnum.LOGIN);
+        MailQueueDto mqd = new MailQueueDto(user.getEmail(), PurposeEnum.LOGIN.name(), otp);
         mailQueue.queueMail(mqd);
         cache.set(data.email(), data, Duration.ofMinutes(10));
         return tempToken;
@@ -95,17 +95,17 @@ public class AuthenticationService {
         if (!data.email().equals(email)) {
             throw new BadRequestException("Token validation failed");
         }
-        if (!data.otp().equals(otp)){
+        if (!data.otp().equals(otp)) {
             throw new BadRequestException("Invalid OTP");
         }
 
-        Optional<UsersEntity> existingUser = usersRepository.findByEmail(data.email());
-        UsersEntity user;
+        Optional<User> existingUser = usersRepository.findByEmail(data.email());
+        User user;
         boolean isNewUser = existingUser.isEmpty();
         if (existingUser.isPresent()) {
             user = existingUser.get();
         } else {
-            user = UsersEntity.builder()
+            user = User.builder()
                     .id(UUID.randomUUID().toString())
                     .userName(data.userName())
                     .email(data.email())
@@ -120,8 +120,7 @@ public class AuthenticationService {
                 user.getId(),
                 user.getUserName(),
                 user.getEmail(),
-                user.getRole()
-        );
+                user.getRole());
         String accessToken = jwtUtil.generateToken(payload, 1);
         String refreshToken = jwtUtil.generateToken(payload, 168);
         return new VerifyOtpResponse(accessToken, refreshToken, isNewUser);
@@ -140,16 +139,15 @@ public class AuthenticationService {
                 throw new BadRequestException("Token validation failed");
             }
         } else {
-            Optional<UsersEntity> existingUser = usersRepository.findByEmail(email);
+            Optional<User> existingUser = usersRepository.findByEmail(email);
             if (existingUser.isPresent()) {
-                UsersEntity user = existingUser.get();
+                User user = existingUser.get();
                 data = new OtpDataDto(
                         otpUtil.generateOtp(),
                         tempToken,
                         user.getEmail(),
                         user.getUserName() != null ? user.getUserName() : "User",
-                        PurposeEnum.LOGIN
-                );
+                        PurposeEnum.LOGIN);
             } else {
                 throw new BadRequestException("Verification session has expired. Please sign up or log in again");
             }
@@ -167,15 +165,14 @@ public class AuthenticationService {
     public RefreshTokenResponseDto refreshToken(String refreshToken) {
         try {
             JwtPayloadDto payload = jwtUtil.validateAndGetPayload(refreshToken);
-            UsersEntity user = usersRepository.findById(payload.id())
+            User user = usersRepository.findById(payload.id())
                     .orElseThrow(() -> new UnauthorizedException("User not found or inactive"));
 
             JwtPayloadDto newPayload = new JwtPayloadDto(
                     user.getId(),
                     user.getUserName(),
                     user.getEmail(),
-                    user.getRole()
-            );
+                    user.getRole());
 
             String newAccessToken = jwtUtil.generateToken(newPayload, 1);
             String newRefreshToken = jwtUtil.generateToken(newPayload, 168);

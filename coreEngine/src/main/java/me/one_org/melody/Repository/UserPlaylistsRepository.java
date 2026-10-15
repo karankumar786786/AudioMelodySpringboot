@@ -31,6 +31,11 @@ public interface UserPlaylistsRepository extends JpaRepository<UserPlaylist, Str
     @Query("SELECT up FROM UserPlaylist up WHERE up.id IN :ids AND up.privacy = :privacy")
     List<UserPlaylist> findAllPublicByIds(@Param("ids") List<String> ids, @Param("privacy") PlaylistPrivacyEnum privacy);
 
+    default List<UserPlaylist> findAllPublicByIds(List<String> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        return findAllPublicByIds(ids, PlaylistPrivacyEnum.PUBLIC);
+    }
+
     List<UserPlaylist> findByUser(User user);
 
     @Query("SELECT DISTINCT up FROM UserPlaylist up WHERE up.user = :user " +
