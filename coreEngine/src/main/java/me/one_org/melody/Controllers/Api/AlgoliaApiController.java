@@ -3,6 +3,7 @@ package me.one_org.melody.Controllers.Api;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaClientConfigDto;
 import me.one_org.melody.Dto.AlgoliaSearch.SearchResult;
 import me.one_org.melody.Services.Api.SearchApiService;
 
@@ -14,6 +15,11 @@ public class AlgoliaApiController {
 
     public AlgoliaApiController(SearchApiService searchApiService) {
         this.searchApiService = searchApiService;
+    }
+
+    @GetMapping("/config")
+    public ResponseEntity<AlgoliaClientConfigDto> getSearchConfig() {
+        return ResponseEntity.ok(searchApiService.getFrontendSearchConfig());
     }
 
     @GetMapping

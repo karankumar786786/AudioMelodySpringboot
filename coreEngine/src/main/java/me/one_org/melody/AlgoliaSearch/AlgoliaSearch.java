@@ -22,6 +22,8 @@ import me.one_org.melody.Entity.UserPlaylist;
 import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaSearchArtistDto;
 import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaSearchPlaylistDto;
 
+import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaClientConfigDto;
+
 @Component
 @Slf4j
 public class AlgoliaSearch {
@@ -30,6 +32,15 @@ public class AlgoliaSearch {
 
     @Value("${algolia.index-name}")
     private String indexName;
+
+    @Value("${algolia.app-id}")
+    private String appId;
+
+    @Value("${algolia.api-key}")
+    private String apiKey;
+
+    @Value("${algolia.search-api-key:}")
+    private String searchApiKey;
 
     public AlgoliaSearch(SearchClient searchClient){
         this.searchClient = searchClient;
@@ -42,11 +53,32 @@ public class AlgoliaSearch {
                         "title",
                         "artistName",
                         "album",
+                        "name",
                         "language",
-                        "name"))
+                        "genre"))
+                .setAttributesForFaceting(List.of(
+                        "filterOnly(type)",
+                        "searchable(language)",
+                        "searchable(genre)"))
                 .setCustomRanking(List.of(
                         "desc(searchCount)")));
-        log.info("Algolia index configured with searchable attributes and customRanking desc(searchCount)");
+        log.info("Algolia index configured with searchable attributes, facets, and customRanking desc(searchCount)");
+    }
+
+    public AlgoliaClientConfigDto getClientSearchConfig() {
+        if (searchApiKey != null && !searchApiKey.isBlank()) {
+            return new AlgoliaClientConfigDto(appId, indexName, searchApiKey);
+        }
+        try {
+            SecuredApiKeyRestrictions restrictions = new SecuredApiKeyRestrictions()
+                    .setRestrictIndices(List.of(indexName))
+                    .setValidUntil((System.currentTimeMillis() / 1000L) + 86400L); // 24 hours validity
+            String generatedKey = searchClient.generateSecuredApiKey(apiKey, restrictions);
+            return new AlgoliaClientConfigDto(appId, indexName, generatedKey);
+        } catch (Exception e) {
+            log.warn("Failed to generate secured Algolia API key, falling back to searchApiKey: {}", e.getMessage());
+            return new AlgoliaClientConfigDto(appId, indexName, searchApiKey != null ? searchApiKey : "");
+        }
     }
 
     public void incrementSearchCount(String objectId) {
@@ -75,6 +107,15 @@ public class AlgoliaSearch {
         record.put("artistName", song.getArtistName());
         record.put("album", song.getAlbum());
         record.put("language", song.getLanguage());
+        if (song.getGenre() != null && !song.getGenre().isBlank()) {
+            record.put("genre", song.getGenre());
+        }
+        if (song.getDuration() != null && song.getDuration() > 0) {
+            record.put("duration", song.getDuration());
+        }
+        if (song.getImageKey() != null && !song.getImageKey().isBlank()) {
+            record.put("imageKey", song.getImageKey());
+        }
         searchClient.saveObject(indexName, record);
     }
 
@@ -83,6 +124,9 @@ public class AlgoliaSearch {
         record.put("objectID", artist.getId());
         record.put("type", "artist");
         record.put("name", artist.getName());
+        if (artist.getCoverImageKey() != null && !artist.getCoverImageKey().isBlank()) {
+            record.put("coverImageKey", artist.getCoverImageKey());
+        }
         searchClient.saveObject(indexName, record);
     }
 
@@ -91,6 +135,10 @@ public class AlgoliaSearch {
         record.put("objectID", playlist.getId());
         record.put("type", "playlist");
         record.put("name", playlist.getName());
+        if (playlist.getCoverImageKey() != null && !playlist.getCoverImageKey().isBlank()) {
+            record.put("coverImageKey", playlist.getCoverImageKey());
+        }
+        record.put("totalSongs", playlist.getTotalSongs());
         searchClient.saveObject(indexName, record);
     }
 
@@ -103,7 +151,12 @@ public class AlgoliaSearch {
     }
 
     public void save(UserPlaylist playlist) throws Exception {
-        savePlaylist(playlist.getId(), playlist.getName());
+        Map<String, Object> record = new HashMap<>();
+        record.put("objectID", playlist.getId());
+        record.put("type", "playlist");
+        record.put("name", playlist.getName());
+        record.put("totalSongs", playlist.getTotalSongs());
+        searchClient.saveObject(indexName, record);
     }
 
     public void delete(String id) {
@@ -182,6 +235,15 @@ public class AlgoliaSearch {
             record.put("artistName", song.getArtistName());
             record.put("album", song.getAlbum());
             record.put("language", song.getLanguage());
+            if (song.getGenre() != null && !song.getGenre().isBlank()) {
+                record.put("genre", song.getGenre());
+            }
+            if (song.getDuration() != null && song.getDuration() > 0) {
+                record.put("duration", song.getDuration());
+            }
+            if (song.getImageKey() != null && !song.getImageKey().isBlank()) {
+                record.put("imageKey", song.getImageKey());
+            }
             records.add(record);
         }
         if (!records.isEmpty()) {
@@ -197,6 +259,9 @@ public class AlgoliaSearch {
             record.put("objectID", artist.getId());
             record.put("type", "artist");
             record.put("name", artist.getName());
+            if (artist.getCoverImageKey() != null && !artist.getCoverImageKey().isBlank()) {
+                record.put("coverImageKey", artist.getCoverImageKey());
+            }
             records.add(record);
         }
         if (!records.isEmpty()) {
@@ -212,6 +277,10 @@ public class AlgoliaSearch {
             record.put("objectID", playlist.getId());
             record.put("type", "playlist");
             record.put("name", playlist.getName());
+            if (playlist.getCoverImageKey() != null && !playlist.getCoverImageKey().isBlank()) {
+                record.put("coverImageKey", playlist.getCoverImageKey());
+            }
+            record.put("totalSongs", playlist.getTotalSongs());
             records.add(record);
         }
         if (!records.isEmpty()) {

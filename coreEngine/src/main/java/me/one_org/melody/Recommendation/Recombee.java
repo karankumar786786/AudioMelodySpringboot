@@ -62,6 +62,7 @@ public class Recombee {
             recombeeClient.send(withTimeout(new AddItemProperty("artistName", "string")));
             recombeeClient.send(withTimeout(new AddItemProperty("language", "string")));
             recombeeClient.send(withTimeout(new AddItemProperty("genre", "string")));
+            recombeeClient.send(withTimeout(new AddItemProperty("album", "string")));
             recombeeClient.send(withTimeout(new AddItemProperty("duration", "int")));
             log.info("Recombee item properties registered successfully");
         } catch (Exception e) {
@@ -79,6 +80,9 @@ public class Recombee {
         values.put("language", song.getLanguage());
         if (song.getGenre() != null && !song.getGenre().isBlank()) {
             values.put("genre", song.getGenre());
+        }
+        if (song.getAlbum() != null && !song.getAlbum().isBlank()) {
+            values.put("album", song.getAlbum());
         }
         if (song.getDuration() != null && song.getDuration() > 0) {
             values.put("duration", song.getDuration());
