@@ -1,5 +1,9 @@
 package me.one_org.melody.Entity;
 
+import java.time.LocalDateTime;
+
+import org.hibernate.annotations.UpdateTimestamp;
+
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -30,4 +34,8 @@ public class PaginationMetaData {
 
     @Column(nullable = false)
     private long deletedCount;
+
+    @UpdateTimestamp 
+    @Column(name = "updated_at",nullable = false)
+    private LocalDateTime updatedAt;
 }

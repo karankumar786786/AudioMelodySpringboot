@@ -45,7 +45,8 @@ public class Playlist{
     @JoinTable(
         name = "playlist_songs",
         joinColumns = @JoinColumn(name="playlist_id"),
-        inverseJoinColumns = @JoinColumn(name="song_id")
+        inverseJoinColumns = @JoinColumn(name="song_id"),
+        inverseForeignKey = @ForeignKey(foreignKeyDefinition = "FOREIGN KEY (song_id) REFERENCES songs(id) ON DELETE CASCADE")
     )
     private List<Song> songs;
 

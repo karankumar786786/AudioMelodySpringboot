@@ -14,23 +14,23 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Builder
 public class ArtistMetadata {
-
     @Id
     private String id;
 
-    @OneToOne 
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "artist_id")
     private Artist artist;
 
     @Column(name = "followers_count", nullable = false)
     private Long followersCount;
 
+
     @CreationTimestamp
-    @Column(name = "created_at", nullable = false, updatable = false)
+    @Column(name = "created_at",nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     
     @UpdateTimestamp
-    @Column(name = "updated_at")
+    @Column(name = "updated_at",nullable = false)
     private LocalDateTime updatedAt;
 }
