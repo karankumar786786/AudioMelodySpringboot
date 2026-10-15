@@ -1,6 +1,7 @@
 package me.one_org.melody.Events;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
@@ -9,8 +10,12 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import lombok.extern.slf4j.Slf4j;
+import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
 import me.one_org.melody.Entity.Song;
+import me.one_org.melody.Entity.SongMetadata;
 import me.one_org.melody.Recommendation.Recombee;
+import me.one_org.melody.Repository.SongMetadataRepository;
+import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Services.Api.ArtistApiService;
 
 @Component
@@ -19,10 +24,20 @@ public class TelemetryEventListener {
 
     private final Recombee recombee;
     private final ArtistApiService artistApiService;
+    private final AlgoliaSearch algoliaSearch;
+    private final SongMetadataRepository songMetadataRepository;
+    private final SongsRepository songsRepository;
 
-    public TelemetryEventListener(Recombee recombee, @Lazy ArtistApiService artistApiService) {
+    public TelemetryEventListener(Recombee recombee,
+                                  @Lazy ArtistApiService artistApiService,
+                                  AlgoliaSearch algoliaSearch,
+                                  SongMetadataRepository songMetadataRepository,
+                                  SongsRepository songsRepository) {
         this.recombee = recombee;
         this.artistApiService = artistApiService;
+        this.algoliaSearch = algoliaSearch;
+        this.songMetadataRepository = songMetadataRepository;
+        this.songsRepository = songsRepository;
     }
 
     @Async
@@ -50,10 +65,50 @@ public class TelemetryEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onSongPlay(TelemetryEvents.SongPlayEvent event) {
+        long currentStreams = 1L;
+        try {
+            int updated = songMetadataRepository.incrementStreams(event.songId());
+            if (updated == 0) {
+                try {
+                    Song songRef = songsRepository.getReferenceById(event.songId());
+                    SongMetadata meta = SongMetadata.builder()
+                            .id(UUID.randomUUID().toString())
+                            .song(songRef)
+                            .totalStreams(1L)
+                            .build();
+                    songMetadataRepository.save(meta);
+                    currentStreams = 1L;
+                } catch (Exception ex) {
+                    songMetadataRepository.incrementStreams(event.songId());
+                    currentStreams = songMetadataRepository.findBySong_Id(event.songId())
+                            .map(sm -> sm.getTotalStreams() != null ? sm.getTotalStreams() : 1L)
+                            .orElse(1L);
+                }
+            } else {
+                currentStreams = songMetadataRepository.findBySong_Id(event.songId())
+                        .map(sm -> sm.getTotalStreams() != null ? sm.getTotalStreams() : 1L)
+                        .orElse(1L);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to increment stream count in database for song [{}]: {}", event.songId(), e.getMessage());
+        }
+
+        try {
+            algoliaSearch.incrementListenCount(event.songId());
+        } catch (Exception e) {
+            log.warn("Failed to increment listenCount in Algolia for song [{}]: {}", event.songId(), e.getMessage());
+        }
+
         try {
             recombee.trackPlay(event.userId(), event.songId(), event.percentage());
         } catch (Exception e) {
             log.error("Failed to track play in Recombee for user [{}] song [{}]: {}", event.userId(), event.songId(), e.getMessage());
+        }
+
+        try {
+            recombee.updateListenCount(event.songId(), currentStreams);
+        } catch (Exception e) {
+            log.warn("Failed to update listenCount in Recombee for song [{}]: {}", event.songId(), e.getMessage());
         }
     }
 

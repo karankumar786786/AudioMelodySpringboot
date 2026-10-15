@@ -54,6 +54,9 @@ public class Recombee {
         return request;
     }
 
+    private static final String LISTEN_COUNT_BOOSTER =
+            "if 'listenCount' != null and 'listenCount' > 0 then (if 'listenCount' > 5000 then 1.4 else if 'listenCount' > 500 then 1.25 else if 'listenCount' > 50 then 1.1 else 1.03) else 1.0";
+
     @PostConstruct
     public void configureSchema() throws Exception {
         // Register item properties — these define what metadata Recombee knows about each song
@@ -64,6 +67,7 @@ public class Recombee {
             recombeeClient.send(withTimeout(new AddItemProperty("genre", "string")));
             recombeeClient.send(withTimeout(new AddItemProperty("album", "string")));
             recombeeClient.send(withTimeout(new AddItemProperty("duration", "int")));
+            recombeeClient.send(withTimeout(new AddItemProperty("listenCount", "int")));
             log.info("Recombee item properties registered successfully");
         } catch (Exception e) {
             // Properties may already exist — Recombee throws if re-adding
@@ -87,21 +91,28 @@ public class Recombee {
         if (song.getDuration() != null && song.getDuration() > 0) {
             values.put("duration", song.getDuration());
         }
+        Long listenCount = (song.getSongMetadata() != null && song.getSongMetadata().getTotalStreams() != null)
+                ? song.getSongMetadata().getTotalStreams()
+                : 0L;
+        values.put("listenCount", (int) Math.min(listenCount, Integer.MAX_VALUE));
         recombeeClient.send(withTimeout(new SetItemValues(song.getId(), values).setCascadeCreate(true)));
     }
 
-    public void saveSong(String songId, String title, String artistName, String language, String genre) throws Exception {
+    public void updateListenCount(String songId, long listenCount) throws Exception {
         Map<String, Object> values = new HashMap<>();
-        values.put("title", title);
-        values.put("artistName", artistName);
-        values.put("language", language);
-        if (genre != null && !genre.isBlank()) {
-            values.put("genre", genre);
-        }
+        values.put("listenCount", (int) Math.min(listenCount, Integer.MAX_VALUE));
         recombeeClient.send(withTimeout(new SetItemValues(songId, values).setCascadeCreate(true)));
     }
 
+    public void saveSong(String songId, String title, String artistName, String language, String genre) throws Exception {
+        saveSong(songId, title, artistName, language, genre, null, 0L);
+    }
+
     public void saveSong(String songId, String title, String artistName, String language, String genre, Integer duration) throws Exception {
+        saveSong(songId, title, artistName, language, genre, duration, 0L);
+    }
+
+    public void saveSong(String songId, String title, String artistName, String language, String genre, Integer duration, Long listenCount) throws Exception {
         Map<String, Object> values = new HashMap<>();
         values.put("title", title);
         values.put("artistName", artistName);
@@ -111,6 +122,9 @@ public class Recombee {
         }
         if (duration != null && duration > 0) {
             values.put("duration", duration);
+        }
+        if (listenCount != null && listenCount >= 0) {
+            values.put("listenCount", (int) Math.min(listenCount, Integer.MAX_VALUE));
         }
         recombeeClient.send(withTimeout(new SetItemValues(songId, values).setCascadeCreate(true)));
     }
@@ -212,9 +226,18 @@ public class Recombee {
     // ── Recommendations — return only IDs, caller fetches from DB ──
 
     public List<String> recommendForUser(String userId, int count) throws Exception {
-        RecommendationResponse response = recombeeClient.send(
-                withTimeout(new RecommendItemsToUser(userId, count)
-                        .setCascadeCreate(true)));
+        RecommendationResponse response;
+        try {
+            response = recombeeClient.send(
+                    withTimeout(new RecommendItemsToUser(userId, count)
+                            .setCascadeCreate(true)
+                            .setBooster(LISTEN_COUNT_BOOSTER)));
+        } catch (Exception e) {
+            log.warn("Recombee recommendForUser with booster failed, retrying without booster: {}", e.getMessage());
+            response = recombeeClient.send(
+                    withTimeout(new RecommendItemsToUser(userId, count)
+                            .setCascadeCreate(true)));
+        }
         List<String> songIds = new ArrayList<>();
         for (Recommendation hit : response) {
             songIds.add(hit.getId());
@@ -223,8 +246,16 @@ public class Recombee {
     }
 
     public List<String> recommendSimilar(String songId, int count) throws Exception {
-        RecommendationResponse response = recombeeClient.send(
-                withTimeout(new RecommendItemsToItem(songId, null, count)));
+        RecommendationResponse response;
+        try {
+            response = recombeeClient.send(
+                    withTimeout(new RecommendItemsToItem(songId, null, count)
+                            .setBooster(LISTEN_COUNT_BOOSTER)));
+        } catch (Exception e) {
+            log.warn("Recombee recommendSimilar with booster failed, retrying without booster: {}", e.getMessage());
+            response = recombeeClient.send(
+                    withTimeout(new RecommendItemsToItem(songId, null, count)));
+        }
         List<String> songIds = new ArrayList<>();
         for (Recommendation hit : response) {
             songIds.add(hit.getId());
@@ -262,6 +293,10 @@ public class Recombee {
             if (song.getDuration() != null && song.getDuration() > 0) {
                 values.put("duration", song.getDuration());
             }
+            Long listenCount = (song.getSongMetadata() != null && song.getSongMetadata().getTotalStreams() != null)
+                    ? song.getSongMetadata().getTotalStreams()
+                    : 0L;
+            values.put("listenCount", (int) Math.min(listenCount, Integer.MAX_VALUE));
             requests.add(withTimeout(new SetItemValues(song.getId(), values).setCascadeCreate(true)));
         }
         if (!requests.isEmpty()) {

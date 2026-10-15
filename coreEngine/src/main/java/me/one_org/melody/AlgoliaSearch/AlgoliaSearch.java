@@ -61,8 +61,9 @@ public class AlgoliaSearch {
                         "searchable(language)",
                         "searchable(genre)"))
                 .setCustomRanking(List.of(
+                        "desc(listenCount)",
                         "desc(searchCount)")));
-        log.info("Algolia index configured with searchable attributes, facets, and customRanking desc(searchCount)");
+        log.info("Algolia index configured with searchable attributes, facets, and customRanking desc(listenCount), desc(searchCount)");
     }
 
     public AlgoliaClientConfigDto getClientSearchConfig() {
@@ -98,6 +99,22 @@ public class AlgoliaSearch {
         }
     }
 
+    public void incrementListenCount(String songId) {
+        if (songId == null || songId.isBlank()) return;
+        try {
+            Map<String, Object> operation = new HashMap<>();
+            operation.put("_operation", "Increment");
+            operation.put("value", 1);
+
+            Map<String, Object> update = new HashMap<>();
+            update.put("listenCount", operation);
+
+            searchClient.partialUpdateObject(indexName, songId, update, true);
+            log.info("Incremented Algolia listenCount for song [{}]", songId);
+        } catch (Exception e) {
+            log.warn("Failed to increment listenCount in Algolia for [{}]: {}", songId, e.getMessage());
+        }
+    }
 
     public void save(Song song) throws Exception {
         Map<String, Object> record = new HashMap<>();
@@ -116,6 +133,10 @@ public class AlgoliaSearch {
         if (song.getImageKey() != null && !song.getImageKey().isBlank()) {
             record.put("imageKey", song.getImageKey());
         }
+        Long listenCount = (song.getSongMetadata() != null && song.getSongMetadata().getTotalStreams() != null)
+                ? song.getSongMetadata().getTotalStreams()
+                : 0L;
+        record.put("listenCount", listenCount);
         searchClient.saveObject(indexName, record);
     }
 
@@ -244,6 +265,10 @@ public class AlgoliaSearch {
             if (song.getImageKey() != null && !song.getImageKey().isBlank()) {
                 record.put("imageKey", song.getImageKey());
             }
+            Long listenCount = (song.getSongMetadata() != null && song.getSongMetadata().getTotalStreams() != null)
+                    ? song.getSongMetadata().getTotalStreams()
+                    : 0L;
+            record.put("listenCount", listenCount);
             records.add(record);
         }
         if (!records.isEmpty()) {
