@@ -68,7 +68,16 @@ public class UserHistoryApiService {
     }
 
     public List<UserHistoryResponseDto> getHistory(String userId, int page, int size) {
-        User user = getUser(userId);
+        if (userId == null || userId.isBlank() || size <= 0 || page < 0) {
+            return java.util.Collections.emptyList();
+        }
+
+        PaginationMetaDataDto meta = getPaginationMetaData(userId);
+        if (meta == null || meta.totalCount() == 0 || (long) page * size >= meta.totalCount()) {
+            return java.util.Collections.emptyList();
+        }
+
+        User user = usersRepository.getReferenceById(userId);
         List<UserHistory> history = userHistoryRepository.findByUserOrderByListenedAtDesc(user, page, size);
         return history.stream()
                 .map(this::mapToDto)

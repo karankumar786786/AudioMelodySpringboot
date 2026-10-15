@@ -1,8 +1,10 @@
 package me.one_org.melody.Services.Api;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,14 +16,12 @@ import me.one_org.melody.Entity.PaginationMetaData;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Entity.User;
 import me.one_org.melody.Entity.UserHistory;
+import me.one_org.melody.Events.TelemetryEvents;
 import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserHistoryRepository;
 import me.one_org.melody.Repository.UsersRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
-
-import org.springframework.context.ApplicationEventPublisher;
-import me.one_org.melody.Events.TelemetryEvents;
 
 @Service
 @Slf4j
@@ -51,28 +51,43 @@ public class InteractionApiService {
 
     @Transactional
     public void trackPlay(String userId, String songId, double percentage) {
-        Song song = songsRepository.findById(songId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Song not found"));
-        User user = getUser(userId);
+        if (songId == null || songId.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Song ID cannot be empty");
+        }
+        if (!songsRepository.existsById(songId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Song not found");
+        }
+        if (!usersRepository.existsById(userId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
 
-        // Calculate listen part (percentage bucket)
-        int part = (int) (percentage * 100);
+        // Use JPA entity reference proxies to assign foreign keys without loading entire column rows
+        Song songRef = songsRepository.getReferenceById(songId);
+        User userRef = usersRepository.getReferenceById(userId);
+
+        // Clamp listen percentage bucket (0 - 100%)
+        double clampedPercentage = Math.max(0.0, Math.min(1.0, percentage));
+        int part = (int) (clampedPercentage * 100);
 
         // Save to listening history
         UserHistory history = UserHistory.builder()
                 .id(UUID.randomUUID().toString())
-                .user(user)
-                .song(song)
+                .user(userRef)
+                .song(songRef)
                 .part(part)
                 .build();
         userHistoryRepository.save(history);
 
+        // Keep pagination metadata for history in sync
+        paginationMetaDataService.incrementStatus("UserHistory_" + userId, null);
+
         // Emit telemetry event AFTER_COMMIT
-        eventPublisher.publishEvent(new TelemetryEvents.SongPlayEvent(userId, songId, percentage));
-        log.info("saved song in history");
+        eventPublisher.publishEvent(new TelemetryEvents.SongPlayEvent(userId, songId, clampedPercentage));
+        log.info("Saved song [{}] in user history for user [{}]", songId, userId);
     }
 
     public void trackSkip(String userId, String songId) {
+        if (songId == null || songId.isBlank()) return;
         try {
             recombee.trackSkip(userId, songId);
         } catch (Exception e) {
@@ -81,13 +96,14 @@ public class InteractionApiService {
     }
 
     public void trackSearchPlay(String userId, String songId) {
+        if (songId == null || songId.isBlank()) return;
         try {
             algoliaSearch.incrementSearchCount(songId);
         } catch (Exception e) {
             log.warn("Failed to increment search count in Algolia for song {}: {}", songId, e.getMessage());
         }
 
-        if (userId != null) {
+        if (userId != null && !userId.isBlank()) {
             try {
                 recombee.trackSearchPlay(userId, songId);
             } catch (Exception e) {
@@ -97,13 +113,14 @@ public class InteractionApiService {
     }
 
     public void trackSearchClick(String userId, String type, String entityId) {
+        if (entityId == null || entityId.isBlank()) return;
         try {
             algoliaSearch.incrementSearchCount(entityId);
         } catch (Exception e) {
             log.warn("Failed to increment search count in Algolia for type {} id {}: {}", type, entityId, e.getMessage());
         }
 
-        if ("SONG".equalsIgnoreCase(type) && userId != null) {
+        if ("SONG".equalsIgnoreCase(type) && userId != null && !userId.isBlank()) {
             try {
                 recombee.trackSearchPlay(userId, entityId);
             } catch (Exception ignored) {
@@ -112,6 +129,7 @@ public class InteractionApiService {
     }
 
     public void trackQueueAdd(String userId, String songId) {
+        if (songId == null || songId.isBlank()) return;
         try {
             recombee.trackQueueAdd(userId, songId);
         } catch (Exception e) {
@@ -120,6 +138,7 @@ public class InteractionApiService {
     }
 
     public void trackQueueRemove(String userId, String songId) {
+        if (songId == null || songId.isBlank()) return;
         try {
             recombee.trackQueueRemove(userId, songId);
         } catch (Exception e) {
@@ -128,7 +147,7 @@ public class InteractionApiService {
     }
 
     public void trackDislike(String userId, String songId) {
-        if (userId != null && songId != null) {
+        if (userId != null && songId != null && !songId.isBlank()) {
             try {
                 recombee.trackDislike(userId, songId);
                 log.info("Tracked dislike signal in Recombee for user [{}] song [{}]", userId, songId);
@@ -139,7 +158,7 @@ public class InteractionApiService {
     }
 
     public void trackShare(String userId, String songId) {
-        if (userId != null && songId != null) {
+        if (userId != null && songId != null && !songId.isBlank()) {
             try {
                 recombee.trackShare(userId, songId);
                 log.info("Tracked share signal in Recombee for user [{}] song [{}]", userId, songId);
@@ -151,41 +170,55 @@ public class InteractionApiService {
 
     @Transactional
     public void addFavourite(String userId, String songId) {
-        getUser(userId);
-        songsRepository.findById(songId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Song not found"));
+        if (songId == null || songId.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Song ID cannot be empty");
+        }
+
+        // Fast existence checks without hydrating full entity models into memory
+        if (!songsRepository.existsById(songId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Song not found");
+        }
+        if (!usersRepository.existsById(userId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
 
         int inserted = usersRepository.addFavouriteSong(userId, songId);
         if (inserted > 0) {
             paginationMetaDataService.incrementStatus("UserFavourites_" + userId, null);
+            eventPublisher.publishEvent(new TelemetryEvents.SongFavouriteEvent(userId, songId, true));
         }
-
-        eventPublisher.publishEvent(new TelemetryEvents.SongFavouriteEvent(userId, songId, true));
     }
 
     @Transactional
     public void removeFavourite(String userId, String songId) {
-        getUser(userId);
+        if (songId == null || songId.isBlank()) return;
+
         int deleted = usersRepository.removeFavouriteSong(userId, songId);
         if (deleted > 0) {
             paginationMetaDataService.decrementStatus("UserFavourites_" + userId, null);
+            eventPublisher.publishEvent(new TelemetryEvents.SongFavouriteEvent(userId, songId, false));
+        } else if (!usersRepository.existsById(userId)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
         }
-
-        eventPublisher.publishEvent(new TelemetryEvents.SongFavouriteEvent(userId, songId, false));
     }
 
     @Transactional(readOnly = true)
     public List<Song> getFavouritesPaginated(String userId, int page, int size) {
-        getUser(userId);
+        if (userId == null || userId.isBlank() || size <= 0 || page < 0) {
+            return Collections.emptyList();
+        }
+
+        // Optimization: Use cached pagination metadata as an early boundary guard
+        // Prevents querying PostgreSQL join table if user has 0 favourites or requesting past the end
+        PaginationMetaData meta = paginationMetaDataService.getMetaData("UserFavourites_" + userId);
+        if (meta == null || meta.getTotalCount() == 0 || (long) page * size >= meta.getTotalCount()) {
+            return Collections.emptyList();
+        }
+
         return usersRepository.findFavouriteSongsPaginated(userId, page, size);
     }
 
     public PaginationMetaData getFavouritesPaginationMetaData(String userId) {
         return paginationMetaDataService.getMetaData("UserFavourites_" + userId);
-    }
-
-    private User getUser(String userId) {
-        return usersRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 }
