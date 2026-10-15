@@ -16,7 +16,7 @@ import java.util.List;
 
 public interface UserSearchHistoryRepository extends JpaRepository<UserSearchHistory, String> {
 
-    @EntityGraph(attributePaths = {"song", "song.songMetadata", "artist", "artist.artistMetadata", "playlist", "userPlaylist"})
+    @EntityGraph(attributePaths = {"song", "song.songMetadata", "artist", "artist.artistMetadata", "playlist", "userPlaylist", "userPlaylist.user"})
     @Query("SELECT h FROM UserSearchHistory h WHERE h.user = :user ORDER BY h.createdAt DESC")
     List<UserSearchHistory> findByUserQuery(@Param("user") User user, Pageable pageable);
 

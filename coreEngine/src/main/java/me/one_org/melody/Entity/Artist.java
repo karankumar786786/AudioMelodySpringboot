@@ -35,6 +35,7 @@ public class Artist{
     @Column(nullable = false)
     private StatusEnum status;
 
+    @org.hibernate.annotations.BatchSize(size = 50)
     @OneToOne(mappedBy = "artist", fetch = FetchType.LAZY)
     private ArtistMetadata artistMetadata;
 

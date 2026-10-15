@@ -19,7 +19,7 @@ public interface UserSavedPlaylistsRepository extends JpaRepository<UserSavedPla
 
     boolean existsByUserAndPlaylist(User user, UserPlaylist playlist);
 
-    @Query("SELECT usp.playlist FROM UserSavedPlaylist usp WHERE usp.user.id = :userId ORDER BY usp.savedAt DESC")
+    @Query("SELECT p FROM UserSavedPlaylist usp JOIN usp.playlist p LEFT JOIN FETCH p.user WHERE usp.user.id = :userId ORDER BY usp.savedAt DESC")
     List<UserPlaylist> findSavedPlaylistsByUserId(@Param("userId") String userId);
 
     void deleteByUserAndPlaylist(User user, UserPlaylist playlist);
