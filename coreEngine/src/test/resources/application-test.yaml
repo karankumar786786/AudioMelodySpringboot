@@ -1,0 +1,33 @@
+spring:
+  threads:
+    virtual:
+      enabled: false
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      ssl:
+        enabled: false
+
+jwt:
+  secret: test_super_secret_jwt_key_that_is_at_least_32_bytes_long_12345
+
+algolia:
+  app-id: test_algolia_app
+  api-key: test_algolia_key
+  index-name: test_melody_index
+
+recombee:
+  database-id: test_db
+  secret-token: test_token
+  region: EU_WEST
