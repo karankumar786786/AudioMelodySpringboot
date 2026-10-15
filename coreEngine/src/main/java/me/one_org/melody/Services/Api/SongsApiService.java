@@ -11,7 +11,10 @@ import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
+@Transactional(readOnly = true)
 public class SongsApiService {
 
     private final SongsRepository songsRepository;
@@ -23,6 +26,14 @@ public class SongsApiService {
     }
 
     public List<Song> browseSongs(int page, int size) {
+        if (size <= 0 || page < 0) return List.of();
+
+        // Early guard against out-of-bounds page requests via cached Redis metadata
+        PaginationMetaData meta = paginationMetaDataService.getMetaData("SongsEntity");
+        if (meta == null || meta.getTotalCount() == 0 || (long) page * size >= meta.getTotalCount()) {
+            return List.of();
+        }
+
         return songsRepository.findAllPaginated(page, size);
     }
 

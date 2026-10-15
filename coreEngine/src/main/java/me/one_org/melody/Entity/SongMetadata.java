@@ -2,6 +2,7 @@ package me.one_org.melody.Entity;
 
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.Column;
@@ -18,6 +19,7 @@ import lombok.NoArgsConstructor;
 
 @Entity 
 @Table(name = "song_metadata")
+@BatchSize(size = 50)
 @Data 
 @AllArgsConstructor 
 @NoArgsConstructor 

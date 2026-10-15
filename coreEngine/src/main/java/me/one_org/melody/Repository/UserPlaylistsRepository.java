@@ -38,7 +38,7 @@ public interface UserPlaylistsRepository extends JpaRepository<UserPlaylist, Str
 
     List<UserPlaylist> findByUser(User user);
 
-    @Query("SELECT DISTINCT up FROM UserPlaylist up WHERE up.user = :user " +
+    @Query("SELECT DISTINCT up FROM UserPlaylist up JOIN FETCH up.user WHERE up.user = :user " +
            "OR up.id IN (SELECT usp.playlist.id FROM UserSavedPlaylist usp WHERE usp.user = :user) " +
            "ORDER BY up.name ASC, up.id ASC")
     List<UserPlaylist> findByUserPaginatedQuery(@Param("user") User user, Pageable pageable);
@@ -51,7 +51,7 @@ public interface UserPlaylistsRepository extends JpaRepository<UserPlaylist, Str
            "OR up.id IN (SELECT usp.playlist.id FROM UserSavedPlaylist usp WHERE usp.user = :user)")
     long countByUser(@Param("user") User user);
 
-    @Query("SELECT s FROM UserPlaylist up JOIN up.songs s WHERE up.id = :userPlaylistId ORDER BY s.createdAt DESC")
+    @Query("SELECT s FROM UserPlaylist up JOIN up.songs s LEFT JOIN FETCH s.songMetadata WHERE up.id = :userPlaylistId ORDER BY s.createdAt DESC")
     List<Song> findSongsByUserPlaylistIdPaginatedQuery(@Param("userPlaylistId") String userPlaylistId, Pageable pageable);
 
     default List<Song> findSongsByUserPlaylistIdPaginated(String userPlaylistId, int page, int size) {

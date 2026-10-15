@@ -14,14 +14,14 @@ import java.util.List;
 
 public interface UserHistoryRepository extends JpaRepository<UserHistory, String> {
 
-    @Query("SELECT h FROM UserHistory h JOIN FETCH h.song WHERE h.user = :user ORDER BY h.listenedAt DESC")
+    @Query("SELECT h FROM UserHistory h JOIN FETCH h.song s LEFT JOIN FETCH s.songMetadata WHERE h.user = :user ORDER BY h.listenedAt DESC")
     List<UserHistory> findByUserOrderByListenedAtDescQuery(@Param("user") User user, Pageable pageable);
 
     default List<UserHistory> findByUserOrderByListenedAtDesc(User user, int page, int size) {
         return findByUserOrderByListenedAtDescQuery(user, PageRequest.of(page, size));
     }
 
-    @Query("SELECT h FROM UserHistory h JOIN FETCH h.song WHERE h.user = :user " +
+    @Query("SELECT h FROM UserHistory h JOIN FETCH h.song s LEFT JOIN FETCH s.songMetadata WHERE h.user = :user " +
            "AND h.listenedAt = (SELECT MAX(h2.listenedAt) FROM UserHistory h2 WHERE h2.user = :user AND h2.song = h.song) " +
            "ORDER BY h.listenedAt DESC")
     List<UserHistory> findRecentByUserQuery(@Param("user") User user, Pageable pageable);

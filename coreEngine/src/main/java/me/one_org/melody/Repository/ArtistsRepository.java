@@ -12,7 +12,7 @@ import java.util.Optional;
 
 public interface ArtistsRepository extends JpaRepository<Artist, String> {
 
-    @Query("SELECT a FROM Artist a WHERE LOWER(TRIM(a.name)) = LOWER(TRIM(:name))")
+    @Query("SELECT a FROM Artist a LEFT JOIN FETCH a.artistMetadata WHERE LOWER(TRIM(a.name)) = LOWER(TRIM(:name))")
     List<Artist> findByNameIgnoreCaseList(@Param("name") String name, Pageable pageable);
 
     default Optional<Artist> findByNameIgnoreCase(String name) {
@@ -21,7 +21,7 @@ public interface ArtistsRepository extends JpaRepository<Artist, String> {
         return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
     }
 
-    @Query("SELECT a FROM Artist a WHERE LOWER(a.name) LIKE LOWER(CONCAT('%', :query, '%')) ORDER BY a.name ASC")
+    @Query("SELECT a FROM Artist a LEFT JOIN FETCH a.artistMetadata WHERE LOWER(a.name) LIKE LOWER(CONCAT('%', :query, '%')) ORDER BY a.name ASC")
     List<Artist> searchByNameQuery(@Param("query") String query, Pageable pageable);
 
     default List<Artist> searchByName(String query, int limit) {
@@ -29,14 +29,14 @@ public interface ArtistsRepository extends JpaRepository<Artist, String> {
         return searchByNameQuery(query.trim(), PageRequest.of(0, limit));
     }
 
-    @Query("SELECT a FROM Artist a ORDER BY a.createdAt DESC")
+    @Query("SELECT a FROM Artist a LEFT JOIN FETCH a.artistMetadata ORDER BY a.createdAt DESC")
     List<Artist> findAllPaginatedQuery(Pageable pageable);
 
     default List<Artist> findAllPaginated(int page, int size) {
         return findAllPaginatedQuery(PageRequest.of(page, size));
     }
 
-    @Query("SELECT a FROM Artist a WHERE a.id IN :ids")
+    @Query("SELECT a FROM Artist a LEFT JOIN FETCH a.artistMetadata WHERE a.id IN :ids")
     List<Artist> findAllByIdsQuery(@Param("ids") List<String> ids);
 
     default List<Artist> findAllByIds(List<String> ids) {

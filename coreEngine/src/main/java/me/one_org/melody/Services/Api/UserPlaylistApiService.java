@@ -55,8 +55,9 @@ public class UserPlaylistApiService {
         this.eventPublisher = eventPublisher;
     }
 
+    @Transactional(readOnly = true)
     public List<UserPlaylist> getUserPlaylists(String userId) {
-        User user = getUser(userId);
+        User user = usersRepository.getReferenceById(userId);
         List<UserPlaylist> owned = userPlaylistsRepository.findByUser(user);
         List<UserPlaylist> saved = userSavedPlaylistsRepository.findSavedPlaylistsByUserId(userId);
 
@@ -69,8 +70,19 @@ public class UserPlaylistApiService {
         return combined;
     }
 
+    @Transactional(readOnly = true)
     public List<UserPlaylist> getUserPlaylistsPaginated(String userId, int page, int size) {
-        User user = getUser(userId);
+        if (userId == null || userId.isBlank() || size <= 0 || page < 0) {
+            return List.of();
+        }
+
+        // Early guard against out-of-bounds page requests via cached Redis metadata
+        PaginationMetaData meta = paginationMetaDataService.getMetaData("UserPlaylists_" + userId);
+        if (meta == null || meta.getTotalCount() == 0 || (long) page * size >= meta.getTotalCount()) {
+            return List.of();
+        }
+
+        User user = usersRepository.getReferenceById(userId);
         return userPlaylistsRepository.findByUserPaginated(user, page, size);
     }
 
@@ -80,7 +92,7 @@ public class UserPlaylistApiService {
 
     @Transactional
     public UserPlaylist createPlaylist(String userId, String name, PlaylistPrivacyEnum privacy) {
-        User user = getUser(userId);
+        User user = usersRepository.getReferenceById(userId);
         PlaylistPrivacyEnum chosenPrivacy = privacy != null ? privacy : PlaylistPrivacyEnum.PRIVATE;
         String shareToken = UUID.randomUUID().toString().replace("-", "");
 
@@ -191,6 +203,7 @@ public class UserPlaylistApiService {
         boolean added = userPlaylistsRepository.addSongToPlaylist(playlistId, songId);
         if (added) {
             playlist.setTotalSongs(playlist.getTotalSongs() + 1);
+            paginationMetaDataService.incrementStatus("UserPlaylistSongs_" + playlistId, null);
         }
 
         // Track in Recombee AFTER_COMMIT
@@ -213,7 +226,17 @@ public class UserPlaylistApiService {
 
     @Transactional(readOnly = true)
     public List<Song> getPlaylistSongsPaginated(String userId, String playlistId, int page, int size) {
+        if (playlistId == null || playlistId.isBlank() || size <= 0 || page < 0) {
+            return List.of();
+        }
         getPlaylistById(userId, playlistId);
+
+        // Early guard against out-of-bounds page requests via cached Redis metadata
+        PaginationMetaData meta = paginationMetaDataService.getMetaData("UserPlaylistSongs_" + playlistId);
+        if (meta == null || meta.getTotalCount() == 0 || (long) page * size >= meta.getTotalCount()) {
+            return List.of();
+        }
+
         return userPlaylistsRepository.findSongsByUserPlaylistIdPaginated(playlistId, page, size);
     }
 
@@ -236,13 +259,23 @@ public class UserPlaylistApiService {
 
     @Transactional(readOnly = true)
     public List<Song> getSharedPlaylistSongsPaginated(String tokenOrId, String callerUserId, int page, int size) {
+        if (tokenOrId == null || tokenOrId.isBlank() || size <= 0 || page < 0) {
+            return List.of();
+        }
         UserPlaylist playlist = getSharedPlaylist(tokenOrId, callerUserId);
+
+        // Early guard against out-of-bounds page requests via cached Redis metadata
+        PaginationMetaData meta = paginationMetaDataService.getMetaData("UserPlaylistSongs_" + playlist.getId());
+        if (meta == null || meta.getTotalCount() == 0 || (long) page * size >= meta.getTotalCount()) {
+            return List.of();
+        }
+
         return userPlaylistsRepository.findSongsByUserPlaylistIdPaginated(playlist.getId(), page, size);
     }
 
     @Transactional
     public UserPlaylist savePlaylistToLibrary(String userId, String playlistId) {
-        User user = getUser(userId);
+        User user = usersRepository.getReferenceById(userId);
         UserPlaylist targetPlaylist = userPlaylistsRepository.findByIdOrShareToken(playlistId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
 
@@ -271,7 +304,7 @@ public class UserPlaylistApiService {
 
     @Transactional
     public void unsavePlaylistFromLibrary(String userId, String playlistId) {
-        User user = getUser(userId);
+        User user = usersRepository.getReferenceById(userId);
         UserPlaylist targetPlaylist = userPlaylistsRepository.findByIdOrShareToken(playlistId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
 
@@ -281,7 +314,7 @@ public class UserPlaylistApiService {
     @Transactional(readOnly = true)
     public boolean isPlaylistSaved(String userId, String playlistId) {
         if (userId == null) return false;
-        User user = getUser(userId);
+        User user = usersRepository.getReferenceById(userId);
         UserPlaylist targetPlaylist = userPlaylistsRepository.findByIdOrShareToken(playlistId).orElse(null);
         if (targetPlaylist == null) return false;
         if (targetPlaylist.getUser().getId().equals(userId)) return true;
@@ -290,7 +323,7 @@ public class UserPlaylistApiService {
 
     @Transactional
     public UserPlaylist duplicatePlaylist(String userId, String playlistId) {
-        User user = getUser(userId);
+        User user = usersRepository.getReferenceById(userId);
         UserPlaylist sourcePlaylist = userPlaylistsRepository.findByIdOrShareToken(playlistId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
 
@@ -327,6 +360,7 @@ public class UserPlaylistApiService {
         boolean removed = userPlaylistsRepository.removeSongFromPlaylist(playlistId, songId);
         if (removed) {
             playlist.setTotalSongs(Math.max(0, playlist.getTotalSongs() - 1));
+            paginationMetaDataService.decrementStatus("UserPlaylistSongs_" + playlistId, null);
         }
 
         // Track in Recombee AFTER_COMMIT
@@ -336,8 +370,7 @@ public class UserPlaylistApiService {
     }
 
     private User getUser(String userId) {
-        return usersRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        return usersRepository.findById(userId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 
     private UserPlaylist getPlaylistOwnedBy(String userId, String playlistId) {

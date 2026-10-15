@@ -17,14 +17,14 @@ public interface SongsRepository extends JpaRepository<Song, String> {
 
     List<Song> findByStatus(StatusEnum status);
 
-    @Query("SELECT s FROM Song s ORDER BY s.createdAt DESC")
+    @Query("SELECT s FROM Song s LEFT JOIN FETCH s.songMetadata ORDER BY s.createdAt DESC")
     List<Song> findAllPaginatedQuery(Pageable pageable);
 
     default List<Song> findAllPaginated(int page, int size) {
         return findAllPaginatedQuery(PageRequest.of(page, size));
     }
 
-    @Query("SELECT s FROM Song s WHERE LOWER(s.title) LIKE LOWER(CONCAT('%', :search, '%')) " +
+    @Query("SELECT s FROM Song s LEFT JOIN FETCH s.songMetadata WHERE LOWER(s.title) LIKE LOWER(CONCAT('%', :search, '%')) " +
            "OR LOWER(s.artistName) LIKE LOWER(CONCAT('%', :search, '%')) " +
            "OR LOWER(s.album) LIKE LOWER(CONCAT('%', :search, '%')) " +
            "ORDER BY s.createdAt DESC")
@@ -55,10 +55,10 @@ public interface SongsRepository extends JpaRepository<Song, String> {
            "ORDER BY COUNT(h) DESC")
     List<Song> findTrendingSongs(Pageable pageable);
 
-    @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt DESC")
+    @Query("SELECT s FROM Song s LEFT JOIN FETCH s.songMetadata WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt DESC")
     List<Song> findActiveSongs(Pageable pageable);
 
-    @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND s.id NOT IN :existingIds ORDER BY s.createdAt DESC")
+    @Query("SELECT s FROM Song s LEFT JOIN FETCH s.songMetadata WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND s.id NOT IN :existingIds ORDER BY s.createdAt DESC")
     List<Song> findActiveSongsExcluding(@Param("existingIds") List<String> existingIds, Pageable pageable);
 
     default List<Song> findTrending(int limit) {
@@ -79,13 +79,13 @@ public interface SongsRepository extends JpaRepository<Song, String> {
         return trending;
     }
 
-    @Query("SELECT s FROM Song s WHERE s.isFeatured = true AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt DESC")
+    @Query("SELECT s FROM Song s LEFT JOIN FETCH s.songMetadata WHERE s.isFeatured = true AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt DESC")
     List<Song> findFeatured();
 
     @Query("SELECT COUNT(s) FROM Song s WHERE s.isFeatured = true AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE")
     long countFeatured();
 
-    @Query("SELECT s FROM Song s WHERE s.id IN :ids")
+    @Query("SELECT s FROM Song s LEFT JOIN FETCH s.songMetadata WHERE s.id IN :ids")
     List<Song> findAllByIdsQuery(@Param("ids") List<String> ids);
 
     default List<Song> findAllByIds(List<String> ids) {
@@ -93,16 +93,16 @@ public interface SongsRepository extends JpaRepository<Song, String> {
         return findAllByIdsQuery(ids);
     }
 
-    @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.artistName) = LOWER(:artistName) ORDER BY s.createdAt DESC")
+    @Query("SELECT s FROM Song s LEFT JOIN FETCH s.songMetadata WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.artistName) = LOWER(:artistName) ORDER BY s.createdAt DESC")
     List<Song> findActiveByArtistName(@Param("artistName") String artistName, Pageable pageable);
 
-    @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.artistName) = LOWER(:artistName) AND s.id NOT IN :excluded ORDER BY s.createdAt DESC")
+    @Query("SELECT s FROM Song s LEFT JOIN FETCH s.songMetadata WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.artistName) = LOWER(:artistName) AND s.id NOT IN :excluded ORDER BY s.createdAt DESC")
     List<Song> findActiveByArtistNameExcluding(@Param("artistName") String artistName, @Param("excluded") List<String> excluded, Pageable pageable);
 
-    @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.language) = LOWER(:language) ORDER BY s.createdAt DESC")
+    @Query("SELECT s FROM Song s LEFT JOIN FETCH s.songMetadata WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.language) = LOWER(:language) ORDER BY s.createdAt DESC")
     List<Song> findActiveByLanguage(@Param("language") String language, Pageable pageable);
 
-    @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.language) = LOWER(:language) AND s.id NOT IN :excluded ORDER BY s.createdAt DESC")
+    @Query("SELECT s FROM Song s LEFT JOIN FETCH s.songMetadata WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.language) = LOWER(:language) AND s.id NOT IN :excluded ORDER BY s.createdAt DESC")
     List<Song> findActiveByLanguageExcluding(@Param("language") String language, @Param("excluded") List<String> excluded, Pageable pageable);
 
     default List<Song> findRadioFallback(String artistName, String language, List<String> excludeIds, int limit) {
@@ -142,7 +142,7 @@ public interface SongsRepository extends JpaRepository<Song, String> {
         return results;
     }
 
-    @Query("SELECT s FROM Song s WHERE LOWER(s.album) = LOWER(:album) AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt ASC")
+    @Query("SELECT s FROM Song s LEFT JOIN FETCH s.songMetadata WHERE LOWER(s.album) = LOWER(:album) AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt ASC")
     List<Song> findByAlbum(@Param("album") String album);
 
     @Query("SELECT s.album, s.artistName, COUNT(s), MIN(s.imageKey), MIN(s.genre) " +

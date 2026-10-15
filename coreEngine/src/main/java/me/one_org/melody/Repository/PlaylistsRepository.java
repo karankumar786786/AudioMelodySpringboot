@@ -21,7 +21,7 @@ public interface PlaylistsRepository extends JpaRepository<Playlist, String> {
         return findAllPaginatedQuery(PageRequest.of(page, size));
     }
 
-    @Query("SELECT s FROM Playlist p JOIN p.songs s WHERE p.id = :playlistId ORDER BY s.createdAt DESC")
+    @Query("SELECT s FROM Playlist p JOIN p.songs s LEFT JOIN FETCH s.songMetadata WHERE p.id = :playlistId ORDER BY s.createdAt DESC")
     List<Song> findSongsByPlaylistIdPaginatedQuery(@Param("playlistId") String playlistId, Pageable pageable);
 
     default List<Song> findSongsByPlaylistIdPaginated(String playlistId, int page, int size) {

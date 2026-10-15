@@ -2,6 +2,8 @@ package me.one_org.melody.Entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -9,6 +11,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "artist_metadata")
+@BatchSize(size = 50)
 @Data
 @AllArgsConstructor
 @NoArgsConstructor

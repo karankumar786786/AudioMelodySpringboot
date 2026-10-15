@@ -16,8 +16,10 @@ import java.util.List;
 public interface UserSearchHistoryRepository extends JpaRepository<UserSearchHistory, String> {
 
     @Query("SELECT h FROM UserSearchHistory h " +
-           "LEFT JOIN FETCH h.song " +
-           "LEFT JOIN FETCH h.artist " +
+           "LEFT JOIN FETCH h.song s " +
+           "LEFT JOIN FETCH s.songMetadata " +
+           "LEFT JOIN FETCH h.artist a " +
+           "LEFT JOIN FETCH a.artistMetadata " +
            "LEFT JOIN FETCH h.playlist " +
            "LEFT JOIN FETCH h.userPlaylist " +
            "WHERE h.user = :user ORDER BY h.createdAt DESC")

@@ -14,6 +14,7 @@ import me.one_org.melody.Repository.PlaylistsRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 
 @Service
+@Transactional(readOnly = true)
 public class PlaylistApiService {
 
     private final PlaylistsRepository playlistsRepository;
@@ -25,6 +26,13 @@ public class PlaylistApiService {
     }
 
     public List<Playlist> getPlaylistsPaginated(int page, int size) {
+        if (size <= 0 || page < 0) return List.of();
+
+        PaginationMetaData meta = paginationMetaDataService.getMetaData("PlaylistsEntity");
+        if (meta == null || meta.getTotalCount() == 0 || (long) page * size >= meta.getTotalCount()) {
+            return List.of();
+        }
+
         return playlistsRepository.findAllPaginated(page, size);
     }
 
@@ -34,7 +42,7 @@ public class PlaylistApiService {
 
     @Cacheable(value = "playlist_lists", key = "'all'")
     public List<Playlist> getAllPlaylists() {
-        return playlistsRepository.findAll();
+        return playlistsRepository.findAllPaginated(0, 100);
     }
 
     @Cacheable(value = "playlists", key = "#id")
@@ -43,8 +51,17 @@ public class PlaylistApiService {
                 .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + id));
     }
 
-    @Transactional(readOnly = true)
     public List<Song> getPlaylistSongsPaginated(String id, int page, int size) {
+        if (id == null || id.isBlank() || size <= 0 || page < 0) return List.of();
+
+        PaginationMetaData meta = paginationMetaDataService.getMetaData("PlaylistSongs_" + id);
+        if (meta == null || meta.getTotalCount() == 0 || (long) page * size >= meta.getTotalCount()) {
+            if (!playlistsRepository.existsById(id)) {
+                throw new ResourceNotFoundException("Playlist not found with id: " + id);
+            }
+            return List.of();
+        }
+
         getPlaylistById(id);
         return playlistsRepository.findSongsByPlaylistIdPaginated(id, page, size);
     }
