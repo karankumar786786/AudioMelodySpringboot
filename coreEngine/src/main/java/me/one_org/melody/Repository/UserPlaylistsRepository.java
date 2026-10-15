@@ -6,6 +6,7 @@ import me.one_org.melody.Entity.UserPlaylist;
 import me.one_org.melody.Enums.PlaylistPrivacyEnum;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -17,8 +18,14 @@ import java.util.Optional;
 
 public interface UserPlaylistsRepository extends JpaRepository<UserPlaylist, String> {
 
+    @Override
+    @EntityGraph(attributePaths = {"user"})
+    Optional<UserPlaylist> findById(String id);
+
+    @EntityGraph(attributePaths = {"user"})
     Optional<UserPlaylist> findByShareToken(String shareToken);
 
+    @EntityGraph(attributePaths = {"user"})
     @Query("SELECT up FROM UserPlaylist up WHERE up.id = :tokenOrId OR up.shareToken = :tokenOrId")
     List<UserPlaylist> findByIdOrShareTokenList(@Param("tokenOrId") String tokenOrId);
 
@@ -28,6 +35,7 @@ public interface UserPlaylistsRepository extends JpaRepository<UserPlaylist, Str
         return list.isEmpty() ? Optional.empty() : Optional.of(list.get(0));
     }
 
+    @EntityGraph(attributePaths = {"user"})
     @Query("SELECT up FROM UserPlaylist up WHERE up.id IN :ids AND up.privacy = :privacy")
     List<UserPlaylist> findAllPublicByIds(@Param("ids") List<String> ids, @Param("privacy") PlaylistPrivacyEnum privacy);
 
@@ -36,9 +44,11 @@ public interface UserPlaylistsRepository extends JpaRepository<UserPlaylist, Str
         return findAllPublicByIds(ids, PlaylistPrivacyEnum.PUBLIC);
     }
 
+    @EntityGraph(attributePaths = {"user"})
     List<UserPlaylist> findByUser(User user);
 
-    @Query("SELECT DISTINCT up FROM UserPlaylist up JOIN FETCH up.user WHERE up.user = :user " +
+    @EntityGraph(attributePaths = {"user"})
+    @Query("SELECT DISTINCT up FROM UserPlaylist up WHERE up.user = :user " +
            "OR up.id IN (SELECT usp.playlist.id FROM UserSavedPlaylist usp WHERE usp.user = :user) " +
            "ORDER BY up.name ASC, up.id ASC")
     List<UserPlaylist> findByUserPaginatedQuery(@Param("user") User user, Pageable pageable);

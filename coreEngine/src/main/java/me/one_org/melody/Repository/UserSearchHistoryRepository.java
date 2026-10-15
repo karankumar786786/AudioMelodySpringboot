@@ -5,6 +5,7 @@ import me.one_org.melody.Entity.UserPlaylist;
 import me.one_org.melody.Entity.UserSearchHistory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -15,14 +16,8 @@ import java.util.List;
 
 public interface UserSearchHistoryRepository extends JpaRepository<UserSearchHistory, String> {
 
-    @Query("SELECT h FROM UserSearchHistory h " +
-           "LEFT JOIN FETCH h.song s " +
-           "LEFT JOIN FETCH s.songMetadata " +
-           "LEFT JOIN FETCH h.artist a " +
-           "LEFT JOIN FETCH a.artistMetadata " +
-           "LEFT JOIN FETCH h.playlist " +
-           "LEFT JOIN FETCH h.userPlaylist " +
-           "WHERE h.user = :user ORDER BY h.createdAt DESC")
+    @EntityGraph(attributePaths = {"song", "song.songMetadata", "artist", "artist.artistMetadata", "playlist", "userPlaylist"})
+    @Query("SELECT h FROM UserSearchHistory h WHERE h.user = :user ORDER BY h.createdAt DESC")
     List<UserSearchHistory> findByUserQuery(@Param("user") User user, Pageable pageable);
 
     default List<UserSearchHistory> findByUser(User user) {

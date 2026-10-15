@@ -215,6 +215,9 @@ public class UserHistoryApiService {
 
     private UserHistoryResponseDto mapToDto(UserHistory history) {
         var song = history.getSong();
+        if (song == null) {
+            return null;
+        }
         return new UserHistoryResponseDto(
                 history.getId(),
                 song.getId(),

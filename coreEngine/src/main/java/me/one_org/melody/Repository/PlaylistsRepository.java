@@ -28,12 +28,11 @@ public interface PlaylistsRepository extends JpaRepository<Playlist, String> {
         return findSongsByPlaylistIdPaginatedQuery(playlistId, PageRequest.of(page, size));
     }
 
-    @Query("SELECT p FROM Playlist p WHERE p.id IN :ids")
-    List<Playlist> findAllByIdsQuery(@Param("ids") List<String> ids);
+    List<Playlist> findByIdIn(List<String> ids);
 
     default List<Playlist> findAllByIds(List<String> ids) {
         if (ids == null || ids.isEmpty()) return List.of();
-        return findAllByIdsQuery(ids);
+        return findByIdIn(ids);
     }
 
     @Modifying

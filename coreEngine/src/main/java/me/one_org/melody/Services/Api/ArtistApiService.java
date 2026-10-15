@@ -18,7 +18,6 @@ import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
 import me.one_org.melody.Dto.Controllers.Api.ArtistFollowStatusDto;
 import me.one_org.melody.Entity.Artist;
 import me.one_org.melody.Entity.ArtistFollowEvent;
-import me.one_org.melody.Entity.ArtistMetadata;
 import me.one_org.melody.Entity.PaginationMetaData;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Enums.FollowEvent;
