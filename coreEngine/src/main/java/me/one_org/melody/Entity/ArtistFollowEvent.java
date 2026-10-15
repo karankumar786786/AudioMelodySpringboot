@@ -2,6 +2,8 @@ package me.one_org.melody.Entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import me.one_org.melody.Enums.FollowEvents;
+
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.io.Serializable;
@@ -19,20 +21,22 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ArtistFollowEventEntity implements Serializable {
-
+public class ArtistFollowEvent implements Serializable {
     @Id
     private String id;
 
-    @Column(name = "user_id", nullable = false)
-    private String userId;
+    @ManyToOne
+    @JoinColumn(name = "user_id")
+    private User user;
 
-    @Column(name = "artist_id", nullable = false)
-    private String artistId;
+    @ManyToOne
+    @JoinColumn(name = "artist_id")
+    private Artist artist;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "event_type", nullable = false)
-    private String eventType; // "FOLLOW" or "UNFOLLOW"
-
+    private FollowEvents event;
+     
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

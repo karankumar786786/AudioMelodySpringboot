@@ -5,7 +5,6 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Entity
@@ -14,23 +13,23 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ArtistMetadataEntity implements Serializable {
+public class ArtistMetadata {
 
     @Id
-    @Column(name = "artist_id", nullable = false)
-    private String artistId;
+    private String id;
 
-    @Column(name = "artist_name", nullable = false)
-    private String artistName;
+    @OneToOne 
+    @JoinColumn(name = "artist_id")
+    private Artist artist;
 
-    @Builder.Default
     @Column(name = "followers_count", nullable = false)
-    private Long followersCount = 0L;
+    private Long followersCount;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;

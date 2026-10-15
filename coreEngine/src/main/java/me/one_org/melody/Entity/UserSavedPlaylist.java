@@ -8,7 +8,6 @@ import org.hibernate.annotations.OnDeleteAction;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.*;
-import lombok.*;
 
 @Entity
 @Table(
@@ -17,11 +16,7 @@ import lombok.*;
         @UniqueConstraint(columnNames = {"user_id", "playlist_id"})
     }
 )
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-@Builder
-public class UserSavedPlaylistsEntity {
+public class UserSavedPlaylist {
 
     @Id
     private String id;
@@ -30,14 +25,13 @@ public class UserSavedPlaylistsEntity {
     @JoinColumn(name = "user_id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
     @JsonIgnore
-    private UsersEntity user;
+    private User user;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "playlist_id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
-    private UserPlaylistsEntity playlist;
+    private User playlist;
 
-    @Builder.Default
     @Column(name = "saved_at", nullable = false)
     private LocalDateTime savedAt = LocalDateTime.now();
 }

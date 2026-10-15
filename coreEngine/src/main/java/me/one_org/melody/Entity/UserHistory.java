@@ -1,8 +1,12 @@
 package me.one_org.melody.Entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.Builder.Default;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.OnDelete;
@@ -12,33 +16,29 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "user_history")
-@Data
-@AllArgsConstructor
-@NoArgsConstructor
-@Builder
-public class UserHistoryEntity {
+@Data 
+@AllArgsConstructor 
+@NoArgsConstructor 
+@Builder 
+public class UserHistory {
 
     @Id
     private String id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
+    @ManyToOne(optional = false,fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
     @OnDelete(action = OnDeleteAction.CASCADE)
-    @JsonIgnore
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private UsersEntity user;
+    private User user;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(optional = false,fetch = FetchType.EAGER)
     @JoinColumn(name = "song_id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private SongsEntity song;
+    private Song song;
 
     @Column(nullable = false)
     private Integer part;
 
+    @Default 
     @CreationTimestamp
-    private LocalDateTime listenedAt;
+    private LocalDateTime listenedAt = LocalDateTime.now();
 }

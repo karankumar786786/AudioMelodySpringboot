@@ -1,6 +1,5 @@
 package me.one_org.melody.Entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -11,11 +10,8 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "user_search_history")
-@Data
-@AllArgsConstructor
 @NoArgsConstructor
-@Builder
-public class UserSearchHistoryEntity {
+public class UserSearchHistor {
 
     @Id
     private String id;
@@ -23,10 +19,7 @@ public class UserSearchHistoryEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
-    @JsonIgnore
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private UsersEntity user;
+    private User user;
 
     @Column(name = "entity_type", nullable = false)
     private String entityType; // "SONG", "ARTIST", "PLAYLIST", "USER_PLAYLIST"
@@ -34,30 +27,28 @@ public class UserSearchHistoryEntity {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "song_id", nullable = true)
     @OnDelete(action = OnDeleteAction.CASCADE)
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private SongsEntity song;
+    private Song song;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "artist_id", nullable = true)
     @OnDelete(action = OnDeleteAction.CASCADE)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private ArtistsEntity artist;
+    private Artist artist;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "playlist_id", nullable = true)
     @OnDelete(action = OnDeleteAction.CASCADE)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private PlaylistsEntity playlist;
+    private Playlist playlist;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "user_playlist_id", nullable = true)
     @OnDelete(action = OnDeleteAction.CASCADE)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
-    private UserPlaylistsEntity userPlaylist;
+    private UserPlaylist userPlaylist;
 
     @CreationTimestamp
     @Column(name = "created_at")

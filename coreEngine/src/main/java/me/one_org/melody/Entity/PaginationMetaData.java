@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class PaginationMetaDataEntity {
+public class PaginationMetaData {
     @Id
     private String id;
 

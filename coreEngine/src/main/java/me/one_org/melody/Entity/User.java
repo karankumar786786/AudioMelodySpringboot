@@ -1,34 +1,31 @@
 package me.one_org.melody.Entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Email;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-
-import java.io.Serializable;
-import java.time.LocalDateTime;
-
 import lombok.Builder.Default;
+import org.hibernate.annotations.CreationTimestamp;
 import me.one_org.melody.Enums.StatusEnum;
 
+import java.time.LocalDateTime;
+
 @Entity
-@Table(name = "artists")
+@Table(name = "users")
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class ArtistsEntity implements Serializable {
+public class User {
 
     @Id
     private String id;
 
     @Column(nullable = false)
-    private String name;
+    private String userName;
 
-    private String about;
-
-    private LocalDateTime dob;
-
-    private String coverImageKey;
+    @Column(nullable = false, unique = true)
+    @Email
+    private String email;
 
     @Default
     @Enumerated(EnumType.STRING)
@@ -37,6 +34,4 @@ public class ArtistsEntity implements Serializable {
 
     @CreationTimestamp
     private LocalDateTime createdAt;
-
 }
-
