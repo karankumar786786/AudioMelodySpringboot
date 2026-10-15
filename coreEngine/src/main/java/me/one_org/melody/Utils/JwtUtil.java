@@ -1,68 +1,108 @@
 package me.one_org.melody.Utils;
 
-import io.jsonwebtoken.Jwts;
-import me.one_org.melody.Dto.Internal.JwtPayloadDto;
-
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
-import javax.crypto.SecretKey;
-import io.jsonwebtoken.security.Keys;
-import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Date;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.jwt.JwsHeader;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
+import org.springframework.stereotype.Component;
+
+import me.one_org.melody.Dto.Internal.JwtPayloadDto;
+import me.one_org.melody.Entity.User;
+import me.one_org.melody.Enums.RoleEnum;
+import me.one_org.melody.Security.CustomUserDetails;
+
+/**
+ * JWT token utility leveraging Spring Security OAuth2 Nimbus JwtEncoder and JwtDecoder.
+ */
 @Component
 public class JwtUtil {
-    @Value("${jwt.secret:defaultSecretKeyWhichShouldBeLongEnoughToWorkProperly}")
-    private String secret;
 
-    private SecretKey getKey() {
-        String effectiveSecret = (secret != null && secret.trim().length() >= 32)
-                ? secret
-                : "super_secret_jwt_key_that_is_at_least_32_bytes_long_and_very_secure_12345";
-        return Keys.hmacShaKeyFor(effectiveSecret.getBytes(StandardCharsets.UTF_8));
+    private final JwtEncoder jwtEncoder;
+    private final JwtDecoder jwtDecoder;
+
+    public JwtUtil(JwtEncoder jwtEncoder, JwtDecoder jwtDecoder) {
+        this.jwtEncoder = jwtEncoder;
+        this.jwtDecoder = jwtDecoder;
     }
 
-    public String generateToken(JwtPayloadDto payload,int expiryInHr){
-        return Jwts.builder()
-                .claim("id", payload.id())
-                .claim("userName", payload.userName())
-                .claim("email", payload.email())
-                .claim("role", payload.role())
+    public String generateToken(Authentication authentication, int expiryInHr) {
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof CustomUserDetails userDetails) {
+            return generateToken(userDetails, expiryInHr);
+        } else if (principal instanceof User user) {
+            return generateToken(new CustomUserDetails(user), expiryInHr);
+        } else if (principal instanceof JwtPayloadDto payload) {
+            return generateToken(payload, expiryInHr);
+        } else {
+            String id = authentication.getName();
+            return generateToken(new JwtPayloadDto(id, id, null, RoleEnum.USER), expiryInHr);
+        }
+    }
+
+    public String generateToken(CustomUserDetails userDetails, int expiryInHr) {
+        return generateToken(userDetails.toJwtPayload(), expiryInHr);
+    }
+
+    public String generateToken(JwtPayloadDto payload, int expiryInHr) {
+        Instant now = Instant.now();
+        Instant expiresAt = now.plus(Duration.ofHours(expiryInHr));
+
+        String roleStr = payload.role() != null ? payload.role().name() : RoleEnum.USER.name();
+
+        JwtClaimsSet claims = JwtClaimsSet.builder()
+                .issuer("melody")
+                .issuedAt(now)
+                .expiresAt(expiresAt)
                 .subject(payload.id())
-                .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + 1000L * 60 * 60 * expiryInHr))
-                .signWith(getKey())
-                .compact();
+                .claim("id", payload.id())
+                .claim("userName", payload.userName() != null ? payload.userName() : "")
+                .claim("email", payload.email() != null ? payload.email() : "")
+                .claim("role", roleStr)
+                .build();
+
+        JwsHeader jwsHeader = JwsHeader.with(MacAlgorithm.HS256).build();
+        return jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, claims)).getTokenValue();
     }
 
     public JwtPayloadDto validateAndGetPayload(String token) {
-        var claims = Jwts.parser()
-                .verifyWith(getKey())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload();
-        return new JwtPayloadDto(
-            claims.get("id", String.class),
-            claims.get("userName", String.class),
-            claims.get("email", String.class),
-            claims.get("role") != null ? me.one_org.melody.Enums.RoleEnum.valueOf(claims.get("role", String.class)) : null
-        );
+        Jwt jwt = jwtDecoder.decode(token);
+        String id = jwt.getClaimAsString("id");
+        if (id == null || id.isBlank()) {
+            id = jwt.getSubject();
+        }
+        String userName = jwt.getClaimAsString("userName");
+        String email = jwt.getClaimAsString("email");
+        String roleStr = jwt.getClaimAsString("role");
+        RoleEnum role = roleStr != null && !roleStr.isBlank()
+                ? RoleEnum.valueOf(roleStr)
+                : RoleEnum.USER;
+
+        return new JwtPayloadDto(id, userName, email, role);
     }
 
     public Date getExpirationDate(String token) {
-        return Jwts.parser()
-                .verifyWith(getKey())
-                .build()
-                .parseSignedClaims(token)
-                .getPayload()
-                .getExpiration();
+        Jwt jwt = jwtDecoder.decode(token);
+        Instant exp = jwt.getExpiresAt();
+        return exp != null ? Date.from(exp) : null;
     }
 
     public long getRemainingSeconds(String token) {
-        Date exp = getExpirationDate(token);
-        if (exp == null) return 0;
-        long remaining = (exp.getTime() - System.currentTimeMillis()) / 1000;
-        return Math.max(remaining, 0);
+        try {
+            Jwt jwt = jwtDecoder.decode(token);
+            Instant exp = jwt.getExpiresAt();
+            if (exp == null) return 0;
+            long remaining = Duration.between(Instant.now(), exp).toSeconds();
+            return Math.max(remaining, 0);
+        } catch (Exception e) {
+            return 0;
+        }
     }
 }

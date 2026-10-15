@@ -1,6 +1,5 @@
 package me.one_org.melody.Security;
 
-import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -9,18 +8,16 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import me.one_org.melody.Dto.Internal.JwtPayloadDto;
 import me.one_org.melody.Entity.User;
 import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Enums.StatusEnum;
 
 /**
- * Custom Spring Security UserDetails implementation representing an authenticated user.
- * Supports initialization from JPA entity, JWT payload DTO, or explicit parameters.
+ * Clean Spring Security UserDetails implementation representing an authenticated user.
+ * Contains no Jackson annotations (@JsonIgnore) or serialization leaks.
  */
-public class CustomUserDetails implements UserDetails, Serializable {
+public class CustomUserDetails implements UserDetails {
 
     private static final long serialVersionUID = 1L;
 
@@ -48,11 +45,9 @@ public class CustomUserDetails implements UserDetails, Serializable {
         this.id = jwtPayload.id();
         this.email = jwtPayload.email();
         this.userName = jwtPayload.userName() != null ? jwtPayload.userName() : jwtPayload.email();
-        this.role = jwtPayload.role();
+        this.role = jwtPayload.role() != null ? jwtPayload.role() : RoleEnum.USER;
         this.status = StatusEnum.ACTIVE;
-        this.authorities = jwtPayload.role() != null
-                ? List.of(new SimpleGrantedAuthority("ROLE_" + jwtPayload.role().name()))
-                : Collections.emptyList();
+        this.authorities = List.of(new SimpleGrantedAuthority("ROLE_" + this.role.name()));
         this.user = null;
     }
 
@@ -60,11 +55,9 @@ public class CustomUserDetails implements UserDetails, Serializable {
         this.id = id;
         this.email = email;
         this.userName = userName != null ? userName : email;
-        this.role = role;
+        this.role = role != null ? role : RoleEnum.USER;
         this.status = status != null ? status : StatusEnum.ACTIVE;
-        this.authorities = role != null
-                ? List.of(new SimpleGrantedAuthority("ROLE_" + role.name()))
-                : Collections.emptyList();
+        this.authorities = List.of(new SimpleGrantedAuthority("ROLE_" + this.role.name()));
         this.user = null;
     }
 
@@ -102,7 +95,6 @@ public class CustomUserDetails implements UserDetails, Serializable {
     }
 
     @Override
-    @JsonIgnore
     public String getPassword() {
         return "";
     }
@@ -113,25 +105,21 @@ public class CustomUserDetails implements UserDetails, Serializable {
     }
 
     @Override
-    @JsonIgnore
     public boolean isAccountNonExpired() {
         return true;
     }
 
     @Override
-    @JsonIgnore
     public boolean isAccountNonLocked() {
         return status != StatusEnum.BLOCKED;
     }
 
     @Override
-    @JsonIgnore
     public boolean isCredentialsNonExpired() {
         return true;
     }
 
     @Override
-    @JsonIgnore
     public boolean isEnabled() {
         return status == StatusEnum.ACTIVE;
     }

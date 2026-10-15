@@ -23,6 +23,7 @@ import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Exceptions.UnauthorizedException;
 import me.one_org.melody.Queue.MailQueue;
 import me.one_org.melody.Repository.UsersRepository;
+import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 import me.one_org.melody.Utils.HmacUtil;
 import me.one_org.melody.Utils.JwtUtil;
@@ -116,13 +117,17 @@ public class AuthenticationService {
         }
         cache.delete(email);
 
-        JwtPayloadDto payload = new JwtPayloadDto(
-                user.getId(),
-                user.getUserName(),
-                user.getEmail(),
-                user.getRole());
-        String accessToken = jwtUtil.generateToken(payload, 1);
-        String refreshToken = jwtUtil.generateToken(payload, 168);
+        CustomUserDetails userDetails = new CustomUserDetails(user);
+        org.springframework.security.core.Authentication authentication =
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        userDetails,
+                        null,
+                        userDetails.getAuthorities()
+                );
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        String accessToken = jwtUtil.generateToken(authentication, 1);
+        String refreshToken = jwtUtil.generateToken(authentication, 168);
         return new VerifyOtpResponse(accessToken, refreshToken, isNewUser);
     }
 
@@ -168,14 +173,17 @@ public class AuthenticationService {
             User user = usersRepository.findById(payload.id())
                     .orElseThrow(() -> new UnauthorizedException("User not found or inactive"));
 
-            JwtPayloadDto newPayload = new JwtPayloadDto(
-                    user.getId(),
-                    user.getUserName(),
-                    user.getEmail(),
-                    user.getRole());
+            CustomUserDetails userDetails = new CustomUserDetails(user);
+            org.springframework.security.core.Authentication authentication =
+                    new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                            userDetails,
+                            null,
+                            userDetails.getAuthorities()
+                    );
+            org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            String newAccessToken = jwtUtil.generateToken(newPayload, 1);
-            String newRefreshToken = jwtUtil.generateToken(newPayload, 168);
+            String newAccessToken = jwtUtil.generateToken(authentication, 1);
+            String newRefreshToken = jwtUtil.generateToken(authentication, 168);
 
             return new RefreshTokenResponseDto(newAccessToken, newRefreshToken);
         } catch (UnauthorizedException e) {
