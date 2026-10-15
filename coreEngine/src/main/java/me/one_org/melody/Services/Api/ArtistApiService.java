@@ -21,7 +21,6 @@ import me.one_org.melody.Entity.ArtistFollowEvent;
 import me.one_org.melody.Entity.ArtistMetadata;
 import me.one_org.melody.Entity.PaginationMetaData;
 import me.one_org.melody.Entity.Song;
-import me.one_org.melody.Entity.User;
 import me.one_org.melody.Enums.FollowEvent;
 import me.one_org.melody.Exceptions.BadRequestException;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;

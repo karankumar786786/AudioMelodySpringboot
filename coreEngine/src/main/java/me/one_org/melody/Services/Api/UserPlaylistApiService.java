@@ -369,9 +369,6 @@ public class UserPlaylistApiService {
         return playlist;
     }
 
-    private User getUser(String userId) {
-        return usersRepository.findById(userId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-    }
 
     private UserPlaylist getPlaylistOwnedBy(String userId, String playlistId) {
         UserPlaylist playlist = userPlaylistsRepository.findById(playlistId)
