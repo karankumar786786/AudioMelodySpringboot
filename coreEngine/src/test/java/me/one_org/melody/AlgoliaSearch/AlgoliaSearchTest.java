@@ -114,6 +114,6 @@ class AlgoliaSearchTest {
 
         assertThat(config.appId()).isEqualTo(APP_ID);
         assertThat(config.indexName()).isEqualTo(INDEX_NAME);
-        assertThat(config.searchApiKey()).isEqualTo(SEARCH_API_KEY);
+        assertThat(config.apiKey()).isEqualTo(SEARCH_API_KEY);
     }
 }

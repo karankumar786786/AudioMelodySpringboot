@@ -3,7 +3,6 @@ package me.one_org.melody.Entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import lombok.*;
-import lombok.Builder.Default;
 import org.hibernate.annotations.CreationTimestamp;
 
 import me.one_org.melody.Enums.RoleEnum;
@@ -14,9 +13,6 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "users")
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
-@Builder
 public class User {
 
     @Id
@@ -29,7 +25,6 @@ public class User {
     @Email
     private String email;
 
-    @Default
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatusEnum status = StatusEnum.ACTIVE;
@@ -37,7 +32,21 @@ public class User {
     @CreationTimestamp
     private LocalDateTime createdAt;
 
+    public User() {
+        super();
+    }
+
+    @Builder
+    public User(String id, String userName, String email, StatusEnum status, LocalDateTime createdAt) {
+        super();
+        this.id = id;
+        this.userName = userName;
+        this.email = email;
+        this.status = status != null ? status : StatusEnum.ACTIVE;
+        this.createdAt = createdAt;
+    }
+
     public RoleEnum getRole() {
-        return me.one_org.melody.Enums.RoleEnum.USER;
+        return RoleEnum.USER;
     }
 }

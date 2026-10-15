@@ -2,12 +2,14 @@ package me.one_org.melody.Integration;
 
 import java.util.Optional;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Entity.SongMetadata;
@@ -17,8 +19,9 @@ import me.one_org.melody.Repository.SongsRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DataJpaTest
+@SpringBootTest
 @ActiveProfiles("test")
+@Transactional
 class SongMetadataRepositoryIntegrationTest {
 
     @Autowired
@@ -27,8 +30,8 @@ class SongMetadataRepositoryIntegrationTest {
     @Autowired
     private SongsRepository songsRepository;
 
-    @Autowired
-    private TestEntityManager entityManager;
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Test
     @DisplayName("Should atomically increment totalStreams in database")
@@ -47,14 +50,14 @@ class SongMetadataRepositoryIntegrationTest {
                 .lrclibId("lrc-100")
                 .status(StatusEnum.ACTIVE)
                 .build();
-        entityManager.persistAndFlush(song);
+        songsRepository.saveAndFlush(song);
 
         SongMetadata metadata = SongMetadata.builder()
                 .id("meta-int-1")
                 .song(song)
                 .totalStreams(10L)
                 .build();
-        entityManager.persistAndFlush(metadata);
+        songMetadataRepository.saveAndFlush(metadata);
         entityManager.clear();
 
         int rows = songMetadataRepository.incrementStreams("song-int-1");

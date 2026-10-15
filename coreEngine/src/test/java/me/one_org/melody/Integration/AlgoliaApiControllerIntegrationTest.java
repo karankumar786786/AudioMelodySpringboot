@@ -2,14 +2,15 @@ package me.one_org.melody.Integration;
 
 import java.util.List;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import me.one_org.melody.Controllers.Api.AlgoliaApiController;
 import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaClientConfigDto;
@@ -21,15 +22,18 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(AlgoliaApiController.class)
-@AutoConfigureMockMvc(addFilters = false)
+@ExtendWith(MockitoExtension.class)
 class AlgoliaApiControllerIntegrationTest {
 
-    @Autowired
     private MockMvc mockMvc;
 
-    @MockitoBean
+    @Mock
     private SearchApiService searchApiService;
+
+    @BeforeEach
+    void setUp() {
+        mockMvc = MockMvcBuilders.standaloneSetup(new AlgoliaApiController(searchApiService)).build();
+    }
 
     @Test
     @DisplayName("GET /api/search/config should return 200 OK and Algolia credentials")
@@ -42,7 +46,7 @@ class AlgoliaApiControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.appId").value("test-app"))
                 .andExpect(jsonPath("$.indexName").value("melody-songs"))
-                .andExpect(jsonPath("$.searchApiKey").value("sec-key-123"));
+                .andExpect(jsonPath("$.apiKey").value("sec-key-123"));
     }
 
     @Test

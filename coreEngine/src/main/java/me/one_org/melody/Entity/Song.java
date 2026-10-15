@@ -12,10 +12,7 @@ import me.one_org.melody.Enums.StatusEnum;
 
 @Entity
 @Table(name = "songs")
-@Builder
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
 public class Song{
 
     @Id
@@ -71,4 +68,34 @@ public class Song{
 
     @CreationTimestamp
     private LocalDateTime createdAt;
+
+    public Song() {
+        super();
+    }
+
+    @Builder
+    public Song(String id, String title, String artistName, Integer duration, String songKey, String imageKey,
+                String videoKey, String fullVideoKey, Integer previewStartTime, Integer previewEndTime,
+                Boolean isFeatured, String language, String genre, String album, String lrclibId,
+                StatusEnum status, SongMetadata songMetadata, LocalDateTime createdAt) {
+        super();
+        this.id = id;
+        this.title = title;
+        this.artistName = artistName;
+        this.duration = duration;
+        this.songKey = songKey;
+        this.imageKey = imageKey;
+        this.videoKey = videoKey;
+        this.fullVideoKey = fullVideoKey;
+        this.previewStartTime = previewStartTime;
+        this.previewEndTime = previewEndTime;
+        this.isFeatured = isFeatured;
+        this.language = language;
+        this.genre = genre;
+        this.album = album;
+        this.lrclibId = lrclibId;
+        this.status = status;
+        this.songMetadata = songMetadata;
+        this.createdAt = createdAt;
+    }
 }

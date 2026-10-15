@@ -3,30 +3,37 @@ package me.one_org.melody.Integration;
 import java.util.List;
 import java.util.Optional;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Entity.SongMetadata;
 import me.one_org.melody.Enums.StatusEnum;
+import me.one_org.melody.Repository.SongMetadataRepository;
 import me.one_org.melody.Repository.SongsRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DataJpaTest
+@SpringBootTest
 @ActiveProfiles("test")
+@Transactional
 class SongsRepositoryIntegrationTest {
 
     @Autowired
     private SongsRepository songsRepository;
 
     @Autowired
-    private TestEntityManager entityManager;
+    private SongMetadataRepository songMetadataRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     @Test
     @DisplayName("Should fetch song along with its songMetadata via EntityGraph")
@@ -45,14 +52,14 @@ class SongsRepositoryIntegrationTest {
                 .lrclibId("lrc-200")
                 .status(StatusEnum.ACTIVE)
                 .build();
-        entityManager.persistAndFlush(song);
+        songsRepository.saveAndFlush(song);
 
         SongMetadata metadata = SongMetadata.builder()
                 .id("meta-graph-1")
                 .song(song)
                 .totalStreams(9500L)
                 .build();
-        entityManager.persistAndFlush(metadata);
+        songMetadataRepository.saveAndFlush(metadata);
         entityManager.clear();
 
         Optional<Song> result = songsRepository.findById("song-graph-1");
@@ -92,11 +99,11 @@ class SongsRepositoryIntegrationTest {
                 .genre("Latin")
                 .album("Old Hits")
                 .lrclibId("lrc-301")
-                .status(StatusEnum.DISABLE)
+                .status(StatusEnum.BLOCKED)
                 .build();
 
-        entityManager.persistAndFlush(activeSong);
-        entityManager.persistAndFlush(disabledSong);
+        songsRepository.saveAndFlush(activeSong);
+        songsRepository.saveAndFlush(disabledSong);
         entityManager.clear();
 
         List<Song> activeList = songsRepository.findActiveSongs(PageRequest.of(0, 10));

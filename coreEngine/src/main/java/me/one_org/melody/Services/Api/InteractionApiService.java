@@ -83,7 +83,6 @@ public class InteractionApiService {
 
         // Emit telemetry event AFTER_COMMIT
         eventPublisher.publishEvent(new TelemetryEvents.SongPlayEvent(userId, songId, clampedPercentage));
-        log.info("Saved song [{}] in user history for user [{}]", songId, userId);
     }
 
     public void trackSkip(String userId, String songId) {
@@ -150,7 +149,6 @@ public class InteractionApiService {
         if (userId != null && songId != null && !songId.isBlank()) {
             try {
                 recombee.trackDislike(userId, songId);
-                log.info("Tracked dislike signal in Recombee for user [{}] song [{}]", userId, songId);
             } catch (Exception e) {
                 log.error("Failed to track dislike in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
             }
@@ -161,7 +159,6 @@ public class InteractionApiService {
         if (userId != null && songId != null && !songId.isBlank()) {
             try {
                 recombee.trackShare(userId, songId);
-                log.info("Tracked share signal in Recombee for user [{}] song [{}]", userId, songId);
             } catch (Exception e) {
                 log.error("Failed to track share in Recombee for user [{}] song [{}]: {}", userId, songId, e.getMessage());
             }

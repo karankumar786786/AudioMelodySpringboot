@@ -45,7 +45,6 @@ public class TelemetryEventListener {
     public void onArtistFollow(TelemetryEvents.ArtistFollowEvent event) {
         try {
             recombee.trackArtistFollow(event.userId(), event.artistId());
-            log.info("Tracked artist follow in Recombee for user [{}] artist [{}]", event.userId(), event.artistId());
         } catch (Exception e) {
             log.error("Failed to track artist follow in Recombee for user [{}] artist [{}]: {}", event.userId(), event.artistId(), e.getMessage());
         }
@@ -56,7 +55,6 @@ public class TelemetryEventListener {
     public void onArtistUnfollow(TelemetryEvents.ArtistUnfollowEvent event) {
         try {
             recombee.trackArtistUnfollow(event.userId(), event.artistId());
-            log.info("Tracked artist unfollow in Recombee for user [{}] artist [{}]", event.userId(), event.artistId());
         } catch (Exception e) {
             log.error("Failed to track artist unfollow in Recombee for user [{}] artist [{}]: {}", event.userId(), event.artistId(), e.getMessage());
         }
@@ -164,7 +162,6 @@ public class TelemetryEventListener {
     public void onUserRegistered(TelemetryEvents.UserRegisteredEvent event) {
         try {
             recombee.addUser(event.userId());
-            log.info("Registered new user [{}] in Recombee", event.userId());
         } catch (Exception e) {
             log.warn("Failed to register new user in Recombee: {}", e.getMessage());
         }

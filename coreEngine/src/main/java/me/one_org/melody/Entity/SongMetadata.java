@@ -12,18 +12,13 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Entity 
 @Table(name = "song_metadata")
 @BatchSize(size = 50)
 @Data 
-@AllArgsConstructor 
-@NoArgsConstructor 
-@Builder 
 public class SongMetadata {
     @Id 
     private String id;
@@ -37,4 +32,17 @@ public class SongMetadata {
     @UpdateTimestamp 
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    public SongMetadata() {
+        super();
+    }
+
+    @Builder
+    public SongMetadata(String id, Song song, Long totalStreams, LocalDateTime updatedAt) {
+        super();
+        this.id = id;
+        this.song = song;
+        this.totalStreams = totalStreams;
+        this.updatedAt = updatedAt;
+    }
 }

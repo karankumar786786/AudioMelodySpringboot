@@ -96,6 +96,6 @@ class SearchApiServiceTest {
 
         assertThat(res.appId()).isEqualTo("app-1");
         assertThat(res.indexName()).isEqualTo("idx-1");
-        assertThat(res.searchApiKey()).isEqualTo("key-1");
+        assertThat(res.apiKey()).isEqualTo("key-1");
     }
 }

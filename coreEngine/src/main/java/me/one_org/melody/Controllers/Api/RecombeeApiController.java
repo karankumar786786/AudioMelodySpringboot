@@ -4,14 +4,11 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Services.Api.RecommendationApiService;
 
 @RestController
 @RequestMapping("/api/recommendations")
-@Slf4j
 public class RecombeeApiController {
 
     private final RecommendationApiService recommendationApiService;
@@ -24,7 +21,6 @@ public class RecombeeApiController {
     public ResponseEntity<List<SongDto>> recommendForUser(
             @RequestAttribute("userId") String userId,
             @RequestParam(defaultValue = "10") int count) {
-                log.info("recommended to user");
         return ResponseEntity.ok(recommendationApiService.recommendForUser(userId, count));
     }
 
@@ -32,7 +28,6 @@ public class RecombeeApiController {
     public ResponseEntity<List<SongDto>> recommendSimilar(
             @PathVariable String songId,
             @RequestParam(defaultValue = "10") int count) {
-                log.info("recommeded for songs");
         return ResponseEntity.ok(recommendationApiService.recommendSimilar(songId, count));
     }
 
@@ -44,7 +39,6 @@ public class RecombeeApiController {
         List<String> excludedList = (excludeIds != null && !excludeIds.isBlank())
                 ? List.of(excludeIds.split(","))
                 : List.of();
-        log.info("Generating radio stream for seedSongId [{}] with [{}] excluded IDs", seedSongId, excludedList.size());
         return ResponseEntity.ok(recommendationApiService.recommendRadio(seedSongId, excludedList, count));
     }
 }
