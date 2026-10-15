@@ -12,7 +12,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.web.bind.annotation.RequestParam;
+
 import jakarta.validation.Valid;
+import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
+import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
 import me.one_org.melody.Dto.Controllers.Api.SaveSearchHistoryRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.UserHistoryResponseDto;
 import me.one_org.melody.Dto.Controllers.Api.UserSearchHistoryGroupedResponseDto;
@@ -26,6 +30,16 @@ public class UserHistoryApiController {
 
     public UserHistoryApiController(UserHistoryApiService userHistoryAppService) {
         this.userHistoryAppService = userHistoryAppService;
+    }
+
+    @GetMapping
+    public ResponseEntity<PaginatedResponseDto<UserHistoryResponseDto>> getHistory(
+            @RequestAttribute("userId") String userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        List<UserHistoryResponseDto> history = userHistoryAppService.getHistory(userId, page, size);
+        PaginationMetaDataDto meta = userHistoryAppService.getPaginationMetaData(userId);
+        return ResponseEntity.ok(new PaginatedResponseDto<>(history, page, size, meta));
     }
 
     @GetMapping("/recent")

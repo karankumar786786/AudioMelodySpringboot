@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
 import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaSearchResult;
@@ -24,6 +25,7 @@ import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserPlaylistsRepository;
 
 @Service
+@Transactional(readOnly = true)
 public class SearchApiService {
 
     private final AlgoliaSearch algoliaSearch;

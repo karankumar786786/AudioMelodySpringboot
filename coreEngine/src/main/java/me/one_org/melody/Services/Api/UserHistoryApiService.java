@@ -89,7 +89,7 @@ public class UserHistoryApiService {
     }
 
     public UserSearchHistoryGroupedResponseDto getSearchHistory(String userId) {
-        User user = getUser(userId);
+        User user = usersRepository.getReferenceById(userId);
         List<UserSearchHistory> histories = searchHistoryRepository.findByUser(user);
 
         List<UserSearchHistoryItemDto> recentDtos = new ArrayList<>();
@@ -146,7 +146,7 @@ public class UserHistoryApiService {
     }
 
     public List<UserHistoryResponseDto> getRecentlyPlayed(String userId) {
-        User user = getUser(userId);
+        User user = usersRepository.getReferenceById(userId);
         List<UserHistory> recent = userHistoryRepository.findRecentByUser(user, 10);
         return recent.stream()
                 .map(this::mapToDto)
@@ -156,7 +156,7 @@ public class UserHistoryApiService {
     @Transactional
     public void saveSearchHistory(String userId, SaveSearchHistoryRequestDto request) {
         if (request == null) return;
-        User user = getUser(userId);
+        User user = usersRepository.getReferenceById(userId);
         String type = request.type() != null ? request.type().toUpperCase() : null;
 
         if (type == null) {
@@ -206,13 +206,13 @@ public class UserHistoryApiService {
 
     @Transactional
     public void deleteSearchHistoryItem(String userId, String id) {
-        User user = getUser(userId);
+        User user = usersRepository.getReferenceById(userId);
         searchHistoryRepository.deleteByIdAndUser(id, user);
     }
 
     @Transactional
     public void clearSearchHistory(String userId) {
-        User user = getUser(userId);
+        User user = usersRepository.getReferenceById(userId);
         searchHistoryRepository.deleteByUser(user);
     }
 

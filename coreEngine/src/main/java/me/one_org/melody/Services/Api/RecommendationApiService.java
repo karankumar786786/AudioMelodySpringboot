@@ -10,8 +10,11 @@ import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.SongsRepository;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
 @Slf4j
+@Transactional(readOnly = true)
 public class RecommendationApiService {
 
     private final Recombee recombee;

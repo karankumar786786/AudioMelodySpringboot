@@ -33,12 +33,16 @@ import me.one_org.melody.Events.TelemetryEvents;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 
+import me.one_org.melody.Repository.UsersRepository;
+
 @Service
 @Slf4j
+@Transactional(readOnly = true)
 public class ArtistApiService {
 
     private final ArtistsRepository artistsRepository;
     private final SongsRepository songsRepository;
+    private final UsersRepository usersRepository;
     private final AlgoliaSearch algoliaSearch;
     private final PaginationMetaDataService paginationMetaDataService;
     private final ArtistMetadataRepository artistMetadataRepository;
@@ -47,6 +51,7 @@ public class ArtistApiService {
 
     public ArtistApiService(ArtistsRepository artistsRepository,
                             SongsRepository songsRepository,
+                            UsersRepository usersRepository,
                             AlgoliaSearch algoliaSearch,
                             PaginationMetaDataService paginationMetaDataService,
                             ArtistMetadataRepository artistMetadataRepository,
@@ -54,6 +59,7 @@ public class ArtistApiService {
                             ApplicationEventPublisher eventPublisher) {
         this.artistsRepository = artistsRepository;
         this.songsRepository = songsRepository;
+        this.usersRepository = usersRepository;
         this.algoliaSearch = algoliaSearch;
         this.paginationMetaDataService = paginationMetaDataService;
         this.artistMetadataRepository = artistMetadataRepository;
@@ -62,6 +68,13 @@ public class ArtistApiService {
     }
 
     public List<Artist> getArtistsPaginated(int page, int size) {
+        if (size <= 0 || page < 0) return List.of();
+
+        PaginationMetaData meta = paginationMetaDataService.getMetaData("ArtistsEntity");
+        if (meta == null || meta.getTotalCount() == 0 || (long) page * size >= meta.getTotalCount()) {
+            return List.of();
+        }
+
         return artistsRepository.findAllPaginated(page, size);
     }
 
@@ -71,7 +84,7 @@ public class ArtistApiService {
 
     @Cacheable(value = "artist_lists", key = "'all'")
     public List<Artist> getAllArtists() {
-        return artistsRepository.findAll();
+        return artistsRepository.findAllPaginated(0, 100);
     }
 
     @Cacheable(value = "artists", key = "#id")
@@ -137,7 +150,7 @@ public class ArtistApiService {
         if (!alreadyFollowing) {
             ArtistFollowEvent event = ArtistFollowEvent.builder()
                     .id(UUID.randomUUID().toString())
-                    .user(User.builder().id(userId).build())
+                    .user(usersRepository.getReferenceById(userId))
                     .artist(artist)
                     .followEvent(FollowEvent.FOLLOW)
                     .build();
@@ -172,7 +185,7 @@ public class ArtistApiService {
         if (wasFollowing) {
             ArtistFollowEvent event = ArtistFollowEvent.builder()
                     .id(UUID.randomUUID().toString())
-                    .user(User.builder().id(userId).build())
+                    .user(usersRepository.getReferenceById(userId))
                     .artist(artist)
                     .followEvent(FollowEvent.UNFOLLOW)
                     .build();
