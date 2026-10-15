@@ -20,7 +20,6 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Filters.JwtFilter;
 import me.one_org.melody.Filters.RateLimitFilter;
 import me.one_org.melody.Security.CustomUserDetailsService;

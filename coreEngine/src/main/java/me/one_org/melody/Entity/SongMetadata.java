@@ -27,7 +27,7 @@ public class SongMetadata {
     private String id;
 
     @OneToOne(optional = false,fetch = FetchType.LAZY)
-    @JoinColumn(name = "song_id",nullable = false)
+    @JoinColumn(name = "song_id")
     private Song song;
 
     private Long totalStreams;

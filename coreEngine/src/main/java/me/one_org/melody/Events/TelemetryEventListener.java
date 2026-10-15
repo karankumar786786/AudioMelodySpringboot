@@ -9,7 +9,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import lombok.extern.slf4j.Slf4j;
-import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Services.Api.ArtistApiService;
 
@@ -94,8 +94,8 @@ public class TelemetryEventListener {
 
         for (String artistId : event.followedArtistIds()) {
             try {
-                List<SongsEntity> topSongs = artistApiService.getArtistSongsPaginated(artistId, 0, 3);
-                for (SongsEntity song : topSongs) {
+                List<Song> topSongs = artistApiService.getArtistSongsPaginated(artistId, 0, 3);
+                for (Song song : topSongs) {
                     try {
                         recombee.trackPlay(event.userId(), song.getId(), 0.95);
                     } catch (Exception ignored) {}

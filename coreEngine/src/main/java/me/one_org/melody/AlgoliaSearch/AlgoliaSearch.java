@@ -15,12 +15,12 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaSearchResult;
 import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaSearchSongDto;
+import me.one_org.melody.Entity.Artist;
+import me.one_org.melody.Entity.Playlist;
+import me.one_org.melody.Entity.Song;
+import me.one_org.melody.Entity.UserPlaylist;
 import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaSearchArtistDto;
 import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaSearchPlaylistDto;
-import me.one_org.melody.Entity.ArtistsEntity;
-import me.one_org.melody.Entity.PlaylistsEntity;
-import me.one_org.melody.Entity.SongsEntity;
-import me.one_org.melody.Entity.UserPlaylistsEntity;
 
 @Component
 @Slf4j
@@ -67,7 +67,7 @@ public class AlgoliaSearch {
     }
 
 
-    public void save(SongsEntity song) throws Exception {
+    public void save(Song song) throws Exception {
         Map<String, Object> record = new HashMap<>();
         record.put("objectID", song.getId());
         record.put("type", "song");
@@ -78,7 +78,7 @@ public class AlgoliaSearch {
         searchClient.saveObject(indexName, record);
     }
 
-    public void save(ArtistsEntity artist) throws Exception {
+    public void save(Artist artist) throws Exception {
         Map<String, Object> record = new HashMap<>();
         record.put("objectID", artist.getId());
         record.put("type", "artist");
@@ -86,7 +86,7 @@ public class AlgoliaSearch {
         searchClient.saveObject(indexName, record);
     }
 
-    public void save(PlaylistsEntity playlist) throws Exception {
+    public void save(Playlist playlist) throws Exception {
         Map<String, Object> record = new HashMap<>();
         record.put("objectID", playlist.getId());
         record.put("type", "playlist");
@@ -102,7 +102,7 @@ public class AlgoliaSearch {
         searchClient.saveObject(indexName, record);
     }
 
-    public void save(UserPlaylistsEntity playlist) throws Exception {
+    public void save(UserPlaylist playlist) throws Exception {
         savePlaylist(playlist.getId(), playlist.getName());
     }
 
@@ -172,9 +172,9 @@ public class AlgoliaSearch {
 
     // ── Bulk resync ──
 
-    public void reindexAllSongs(List<SongsEntity> songs) throws Exception {
+    public void reindexAllSongs(List<Song> songs) throws Exception {
         List<Map<String, Object>> records = new ArrayList<>();
-        for (SongsEntity song : songs) {
+        for (Song song : songs) {
             Map<String, Object> record = new HashMap<>();
             record.put("objectID", song.getId());
             record.put("type", "song");
@@ -190,9 +190,9 @@ public class AlgoliaSearch {
         log.info("Reindexed {} songs in Algolia", songs.size());
     }
 
-    public void reindexAllArtists(List<ArtistsEntity> artists) throws Exception {
+    public void reindexAllArtists(List<Artist> artists) throws Exception {
         List<Map<String, Object>> records = new ArrayList<>();
-        for (ArtistsEntity artist : artists) {
+        for (Artist artist : artists) {
             Map<String, Object> record = new HashMap<>();
             record.put("objectID", artist.getId());
             record.put("type", "artist");
@@ -205,9 +205,9 @@ public class AlgoliaSearch {
         log.info("Reindexed {} artists in Algolia", artists.size());
     }
 
-    public void reindexAllPlaylists(List<PlaylistsEntity> playlists) throws Exception {
+    public void reindexAllPlaylists(List<Playlist> playlists) throws Exception {
         List<Map<String, Object>> records = new ArrayList<>();
-        for (PlaylistsEntity playlist : playlists) {
+        for (Playlist playlist : playlists) {
             Map<String, Object> record = new HashMap<>();
             record.put("objectID", playlist.getId());
             record.put("type", "playlist");
