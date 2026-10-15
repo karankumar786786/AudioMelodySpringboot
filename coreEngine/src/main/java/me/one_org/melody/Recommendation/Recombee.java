@@ -54,8 +54,8 @@ public class Recombee {
         return request;
     }
 
-    private static final String LISTEN_COUNT_BOOSTER =
-            "if 'listenCount' != null and 'listenCount' > 0 then (if 'listenCount' > 5000 then 1.4 else if 'listenCount' > 500 then 1.25 else if 'listenCount' > 50 then 1.1 else 1.03) else 1.0";
+    private static final String TOTAL_STREAMS_BOOSTER =
+            "if 'totalStreams' != null and 'totalStreams' > 0 then (if 'totalStreams' > 5000 then 1.4 else if 'totalStreams' > 500 then 1.25 else if 'totalStreams' > 50 then 1.1 else 1.03) else 1.0";
 
     @PostConstruct
     public void configureSchema() throws Exception {
@@ -67,7 +67,7 @@ public class Recombee {
             recombeeClient.send(withTimeout(new AddItemProperty("genre", "string")));
             recombeeClient.send(withTimeout(new AddItemProperty("album", "string")));
             recombeeClient.send(withTimeout(new AddItemProperty("duration", "int")));
-            recombeeClient.send(withTimeout(new AddItemProperty("listenCount", "int")));
+            recombeeClient.send(withTimeout(new AddItemProperty("totalStreams", "int")));
             log.info("Recombee item properties registered successfully");
         } catch (Exception e) {
             // Properties may already exist — Recombee throws if re-adding
@@ -91,16 +91,16 @@ public class Recombee {
         if (song.getDuration() != null && song.getDuration() > 0) {
             values.put("duration", song.getDuration());
         }
-        Long listenCount = (song.getSongMetadata() != null && song.getSongMetadata().getTotalStreams() != null)
+        Long totalStreams = (song.getSongMetadata() != null && song.getSongMetadata().getTotalStreams() != null)
                 ? song.getSongMetadata().getTotalStreams()
                 : 0L;
-        values.put("listenCount", (int) Math.min(listenCount, Integer.MAX_VALUE));
+        values.put("totalStreams", (int) Math.min(totalStreams, Integer.MAX_VALUE));
         recombeeClient.send(withTimeout(new SetItemValues(song.getId(), values).setCascadeCreate(true)));
     }
 
-    public void updateListenCount(String songId, long listenCount) throws Exception {
+    public void updateTotalStreams(String songId, long totalStreams) throws Exception {
         Map<String, Object> values = new HashMap<>();
-        values.put("listenCount", (int) Math.min(listenCount, Integer.MAX_VALUE));
+        values.put("totalStreams", (int) Math.min(totalStreams, Integer.MAX_VALUE));
         recombeeClient.send(withTimeout(new SetItemValues(songId, values).setCascadeCreate(true)));
     }
 
@@ -112,7 +112,7 @@ public class Recombee {
         saveSong(songId, title, artistName, language, genre, duration, 0L);
     }
 
-    public void saveSong(String songId, String title, String artistName, String language, String genre, Integer duration, Long listenCount) throws Exception {
+    public void saveSong(String songId, String title, String artistName, String language, String genre, Integer duration, Long totalStreams) throws Exception {
         Map<String, Object> values = new HashMap<>();
         values.put("title", title);
         values.put("artistName", artistName);
@@ -123,8 +123,8 @@ public class Recombee {
         if (duration != null && duration > 0) {
             values.put("duration", duration);
         }
-        if (listenCount != null && listenCount >= 0) {
-            values.put("listenCount", (int) Math.min(listenCount, Integer.MAX_VALUE));
+        if (totalStreams != null && totalStreams >= 0) {
+            values.put("totalStreams", (int) Math.min(totalStreams, Integer.MAX_VALUE));
         }
         recombeeClient.send(withTimeout(new SetItemValues(songId, values).setCascadeCreate(true)));
     }
@@ -231,7 +231,7 @@ public class Recombee {
             response = recombeeClient.send(
                     withTimeout(new RecommendItemsToUser(userId, count)
                             .setCascadeCreate(true)
-                            .setBooster(LISTEN_COUNT_BOOSTER)));
+                            .setBooster(TOTAL_STREAMS_BOOSTER)));
         } catch (Exception e) {
             log.warn("Recombee recommendForUser with booster failed, retrying without booster: {}", e.getMessage());
             response = recombeeClient.send(
@@ -250,7 +250,7 @@ public class Recombee {
         try {
             response = recombeeClient.send(
                     withTimeout(new RecommendItemsToItem(songId, null, count)
-                            .setBooster(LISTEN_COUNT_BOOSTER)));
+                            .setBooster(TOTAL_STREAMS_BOOSTER)));
         } catch (Exception e) {
             log.warn("Recombee recommendSimilar with booster failed, retrying without booster: {}", e.getMessage());
             response = recombeeClient.send(
@@ -293,10 +293,10 @@ public class Recombee {
             if (song.getDuration() != null && song.getDuration() > 0) {
                 values.put("duration", song.getDuration());
             }
-            Long listenCount = (song.getSongMetadata() != null && song.getSongMetadata().getTotalStreams() != null)
+            Long totalStreams = (song.getSongMetadata() != null && song.getSongMetadata().getTotalStreams() != null)
                     ? song.getSongMetadata().getTotalStreams()
                     : 0L;
-            values.put("listenCount", (int) Math.min(listenCount, Integer.MAX_VALUE));
+            values.put("totalStreams", (int) Math.min(totalStreams, Integer.MAX_VALUE));
             requests.add(withTimeout(new SetItemValues(song.getId(), values).setCascadeCreate(true)));
         }
         if (!requests.isEmpty()) {

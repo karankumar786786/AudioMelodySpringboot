@@ -94,9 +94,9 @@ public class TelemetryEventListener {
         }
 
         try {
-            algoliaSearch.incrementListenCount(event.songId());
+            algoliaSearch.incrementTotalStreams(event.songId());
         } catch (Exception e) {
-            log.warn("Failed to increment listenCount in Algolia for song [{}]: {}", event.songId(), e.getMessage());
+            log.warn("Failed to increment totalStreams in Algolia for song [{}]: {}", event.songId(), e.getMessage());
         }
 
         try {
@@ -106,9 +106,9 @@ public class TelemetryEventListener {
         }
 
         try {
-            recombee.updateListenCount(event.songId(), currentStreams);
+            recombee.updateTotalStreams(event.songId(), currentStreams);
         } catch (Exception e) {
-            log.warn("Failed to update listenCount in Recombee for song [{}]: {}", event.songId(), e.getMessage());
+            log.warn("Failed to update totalStreams in Recombee for song [{}]: {}", event.songId(), e.getMessage());
         }
     }
 

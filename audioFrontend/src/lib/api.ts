@@ -19,7 +19,6 @@ export interface Song {
   previewStartTime?: number | null;
   previewEndTime?: number | null;
   totalStreams?: number;
-  listenCount?: number;
   createdAt?: string;
 }
 
@@ -377,7 +376,7 @@ async function searchDirectAlgolia(query: string): Promise<UnifiedSearchResult |
     const type = hit.type;
 
     if (type === "song") {
-      const streams = typeof hit.listenCount === "number" ? hit.listenCount : (typeof hit.totalStreams === "number" ? hit.totalStreams : 0);
+      const streams = typeof hit.totalStreams === "number" ? hit.totalStreams : 0;
       songs.push({
         id,
         title: hit.title || "",
@@ -390,7 +389,6 @@ async function searchDirectAlgolia(query: string): Promise<UnifiedSearchResult |
         language: hit.language || "",
         lrclibId: hit.lrclibId || "",
         totalStreams: streams,
-        listenCount: streams,
       });
     } else if (type === "artist") {
       artists.push({

@@ -61,9 +61,9 @@ public class AlgoliaSearch {
                         "searchable(language)",
                         "searchable(genre)"))
                 .setCustomRanking(List.of(
-                        "desc(listenCount)",
+                        "desc(totalStreams)",
                         "desc(searchCount)")));
-        log.info("Algolia index configured with searchable attributes, facets, and customRanking desc(listenCount), desc(searchCount)");
+        log.info("Algolia index configured with searchable attributes, facets, and customRanking desc(totalStreams), desc(searchCount)");
     }
 
     public AlgoliaClientConfigDto getClientSearchConfig() {
@@ -99,7 +99,7 @@ public class AlgoliaSearch {
         }
     }
 
-    public void incrementListenCount(String songId) {
+    public void incrementTotalStreams(String songId) {
         if (songId == null || songId.isBlank()) return;
         try {
             Map<String, Object> operation = new HashMap<>();
@@ -107,12 +107,12 @@ public class AlgoliaSearch {
             operation.put("value", 1);
 
             Map<String, Object> update = new HashMap<>();
-            update.put("listenCount", operation);
+            update.put("totalStreams", operation);
 
             searchClient.partialUpdateObject(indexName, songId, update, true);
-            log.info("Incremented Algolia listenCount for song [{}]", songId);
+            log.info("Incremented Algolia totalStreams for song [{}]", songId);
         } catch (Exception e) {
-            log.warn("Failed to increment listenCount in Algolia for [{}]: {}", songId, e.getMessage());
+            log.warn("Failed to increment totalStreams in Algolia for [{}]: {}", songId, e.getMessage());
         }
     }
 
@@ -133,10 +133,10 @@ public class AlgoliaSearch {
         if (song.getImageKey() != null && !song.getImageKey().isBlank()) {
             record.put("imageKey", song.getImageKey());
         }
-        Long listenCount = (song.getSongMetadata() != null && song.getSongMetadata().getTotalStreams() != null)
+        Long totalStreams = (song.getSongMetadata() != null && song.getSongMetadata().getTotalStreams() != null)
                 ? song.getSongMetadata().getTotalStreams()
                 : 0L;
-        record.put("listenCount", listenCount);
+        record.put("totalStreams", totalStreams);
         searchClient.saveObject(indexName, record);
     }
 
@@ -265,10 +265,10 @@ public class AlgoliaSearch {
             if (song.getImageKey() != null && !song.getImageKey().isBlank()) {
                 record.put("imageKey", song.getImageKey());
             }
-            Long listenCount = (song.getSongMetadata() != null && song.getSongMetadata().getTotalStreams() != null)
+            Long totalStreams = (song.getSongMetadata() != null && song.getSongMetadata().getTotalStreams() != null)
                     ? song.getSongMetadata().getTotalStreams()
                     : 0L;
-            record.put("listenCount", listenCount);
+            record.put("totalStreams", totalStreams);
             records.add(record);
         }
         if (!records.isEmpty()) {
