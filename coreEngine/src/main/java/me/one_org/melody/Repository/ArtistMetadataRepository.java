@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
-@Repository 
 public interface ArtistMetadataRepository extends JpaRepository<ArtistMetadata, String> {
 
     @Query("SELECT m FROM ArtistMetadata m WHERE m.id = :artistId")

@@ -13,7 +13,7 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import me.one_org.melody.Entity.PaginationMetaDataEntity;
+import me.one_org.melody.Entity.PaginationMetaData;
 import me.one_org.melody.Enums.StatusEnum;
 import me.one_org.melody.Repository.PaginationMetaDataRepository;
 
@@ -31,19 +31,19 @@ public class PaginationMetaDataService {
     }
 
     @Cacheable(value = "paginationMetaData", key = "#entityName")
-    public PaginationMetaDataEntity getMetaData(String entityName) {
-        Optional<PaginationMetaDataEntity> existing = repository.findByEntityName(entityName);
+    public PaginationMetaData getMetaData(String entityName) {
+        Optional<PaginationMetaData> existing = repository.findByEntityName(entityName);
 
         if (existing.isPresent()) {
             return existing.get();
         } else {
-            PaginationMetaDataEntity meta = PaginationMetaDataEntity.builder()
+            PaginationMetaData meta = PaginationMetaData.builder()
                     .id(UUID.randomUUID().toString())
-                    .entityName(entityName)
+                    .tableName(entityName)
                     .totalCount(0L)
                     .activeCount(0L)
                     .blockedCount(0L)
-                    .deletedCount(0L)
+                    .softDeletedCount(0L)
                     .build();
             repository.save(meta);
             return meta;
@@ -53,9 +53,9 @@ public class PaginationMetaDataService {
     @Transactional
     @CacheEvict(value = "paginationMetaData", key = "#entityName")
     public void updateCounts(String entityName, long totalCount, long activeCount, long blockedCount, long deletedCount) {
-        Optional<PaginationMetaDataEntity> existing = repository.findByEntityName(entityName);
+        Optional<PaginationMetaData> existing = repository.findByEntityName(entityName);
 
-        PaginationMetaDataEntity meta;
+        PaginationMetaData meta;
         if (existing.isPresent()) {
             meta = existing.get();
             meta.setTotalCount(totalCount);
@@ -63,13 +63,13 @@ public class PaginationMetaDataService {
             meta.setBlockedCount(blockedCount);
             meta.setDeletedCount(deletedCount);
         } else {
-            meta = PaginationMetaDataEntity.builder()
+            meta = PaginationMetaData.builder()
                     .id(UUID.randomUUID().toString())
-                    .entityName(entityName)
+                    .tableName(entityName)
                     .totalCount(totalCount)
                     .activeCount(activeCount)
                     .blockedCount(blockedCount)
-                    .deletedCount(deletedCount)
+                    .softDeletedCount(deletedCount)
                     .build();
         }
         repository.save(meta);
@@ -78,7 +78,7 @@ public class PaginationMetaDataService {
     @Transactional
     @CacheEvict(value = "paginationMetaData", key = "#entityName")
     public void incrementStatus(String entityName, StatusEnum status) {
-        PaginationMetaDataEntity meta = getMetaData(entityName);
+        PaginationMetaData meta = getMetaData(entityName);
         meta.setTotalCount(meta.getTotalCount() + 1);
 
         StatusEnum currentStatus = status != null ? status : StatusEnum.ACTIVE;
@@ -96,7 +96,7 @@ public class PaginationMetaDataService {
     @Transactional
     @CacheEvict(value = "paginationMetaData", key = "#entityName")
     public void decrementStatus(String entityName, StatusEnum status) {
-        PaginationMetaDataEntity meta = getMetaData(entityName);
+        PaginationMetaData meta = getMetaData(entityName);
         meta.setTotalCount(Math.max(0L, meta.getTotalCount() - 1));
 
         StatusEnum currentStatus = status != null ? status : StatusEnum.ACTIVE;
@@ -116,7 +116,7 @@ public class PaginationMetaDataService {
     public void transitionStatus(String entityName, StatusEnum oldStatus, StatusEnum newStatus) {
         if (oldStatus == newStatus) return;
 
-        PaginationMetaDataEntity meta = getMetaData(entityName);
+        PaginationMetaData meta = getMetaData(entityName);
 
         StatusEnum oldS = oldStatus != null ? oldStatus : StatusEnum.ACTIVE;
         StatusEnum newS = newStatus != null ? newStatus : StatusEnum.ACTIVE;
@@ -143,43 +143,43 @@ public class PaginationMetaDataService {
      */
     @Transactional
     @CacheEvict(value = "paginationMetaData", allEntries = true)
-    public Map<String, PaginationMetaDataEntity> syncAllMetadata() {
+    public Map<String, PaginationMetaData> syncAllMetadata() {
         log.info("Starting complete reconciliation of pagination_metadata table...");
-        Map<String, PaginationMetaDataEntity> results = new LinkedHashMap<>();
+        Map<String, PaginationMetaData> results = new LinkedHashMap<>();
 
-        // 1. SongsEntity
+        // 1. Song
         results.put("SongsEntity", syncEntityCounts("SongsEntity",
-                "SELECT COUNT(s) FROM SongsEntity s",
-                "SELECT COUNT(s) FROM SongsEntity s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE",
-                "SELECT COUNT(s) FROM SongsEntity s WHERE s.status = me.one_org.melody.Enums.StatusEnum.BLOCKED",
-                "SELECT COUNT(s) FROM SongsEntity s WHERE s.status = me.one_org.melody.Enums.StatusEnum.DELETED"));
+                "SELECT COUNT(s) FROM Song s",
+                "SELECT COUNT(s) FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE",
+                "SELECT COUNT(s) FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.BLOCKED",
+                "SELECT COUNT(s) FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.DELETED"));
 
-        // 2. UsersEntity
+        // 2. User
         results.put("UsersEntity", syncEntityCounts("UsersEntity",
-                "SELECT COUNT(u) FROM UsersEntity u",
-                "SELECT COUNT(u) FROM UsersEntity u WHERE u.status = me.one_org.melody.Enums.StatusEnum.ACTIVE",
-                "SELECT COUNT(u) FROM UsersEntity u WHERE u.status = me.one_org.melody.Enums.StatusEnum.BLOCKED",
-                "SELECT COUNT(u) FROM UsersEntity u WHERE u.status = me.one_org.melody.Enums.StatusEnum.DELETED"));
+                "SELECT COUNT(u) FROM User u",
+                "SELECT COUNT(u) FROM User u WHERE u.status = me.one_org.melody.Enums.StatusEnum.ACTIVE",
+                "SELECT COUNT(u) FROM User u WHERE u.status = me.one_org.melody.Enums.StatusEnum.BLOCKED",
+                "SELECT COUNT(u) FROM User u WHERE u.status = me.one_org.melody.Enums.StatusEnum.DELETED"));
 
-        // 3. ArtistsEntity
+        // 3. Artist
         results.put("ArtistsEntity", syncEntityCounts("ArtistsEntity",
-                "SELECT COUNT(a) FROM ArtistsEntity a",
-                "SELECT COUNT(a) FROM ArtistsEntity a WHERE a.status = me.one_org.melody.Enums.StatusEnum.ACTIVE",
-                "SELECT COUNT(a) FROM ArtistsEntity a WHERE a.status = me.one_org.melody.Enums.StatusEnum.BLOCKED",
-                "SELECT COUNT(a) FROM ArtistsEntity a WHERE a.status = me.one_org.melody.Enums.StatusEnum.DELETED"));
+                "SELECT COUNT(a) FROM Artist a",
+                "SELECT COUNT(a) FROM Artist a WHERE a.status = me.one_org.melody.Enums.StatusEnum.ACTIVE",
+                "SELECT COUNT(a) FROM Artist a WHERE a.status = me.one_org.melody.Enums.StatusEnum.BLOCKED",
+                "SELECT COUNT(a) FROM Artist a WHERE a.status = me.one_org.melody.Enums.StatusEnum.DELETED"));
 
-        // 4. PlaylistsEntity
+        // 4. Playlist
         results.put("PlaylistsEntity", syncEntityCounts("PlaylistsEntity",
-                "SELECT COUNT(p) FROM PlaylistsEntity p",
-                "SELECT COUNT(p) FROM PlaylistsEntity p WHERE p.status = me.one_org.melody.Enums.StatusEnum.ACTIVE",
-                "SELECT COUNT(p) FROM PlaylistsEntity p WHERE p.status = me.one_org.melody.Enums.StatusEnum.BLOCKED",
-                "SELECT COUNT(p) FROM PlaylistsEntity p WHERE p.status = me.one_org.melody.Enums.StatusEnum.DELETED"));
+                "SELECT COUNT(p) FROM Playlist p",
+                "SELECT COUNT(p) FROM Playlist p WHERE p.status = me.one_org.melody.Enums.StatusEnum.ACTIVE",
+                "SELECT COUNT(p) FROM Playlist p WHERE p.status = me.one_org.melody.Enums.StatusEnum.BLOCKED",
+                "SELECT COUNT(p) FROM Playlist p WHERE p.status = me.one_org.melody.Enums.StatusEnum.DELETED"));
 
         log.info("pagination_metadata table reconciliation complete: {}", results);
         return results;
     }
 
-    private PaginationMetaDataEntity syncEntityCounts(String entityName, String totalQuery, String activeQuery, String blockedQuery, String deletedQuery) {
+    private PaginationMetaData syncEntityCounts(String entityName, String totalQuery, String activeQuery, String blockedQuery, String deletedQuery) {
         long total = entityManager.createQuery(totalQuery, Long.class).getSingleResult();
         long active = entityManager.createQuery(activeQuery, Long.class).getSingleResult();
         long blocked = entityManager.createQuery(blockedQuery, Long.class).getSingleResult();
@@ -188,5 +188,4 @@ public class PaginationMetaDataService {
         updateCounts(entityName, total, active, blocked, deleted);
         return getMetaData(entityName);
     }
-
 }

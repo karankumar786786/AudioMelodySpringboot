@@ -7,14 +7,12 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import me.one_org.melody.Entity.User;
 import me.one_org.melody.Entity.UserPlaylist;
 import me.one_org.melody.Entity.UserSavedPlaylist;
 
-@Repository
 public interface UserSavedPlaylistsRepository extends JpaRepository<UserSavedPlaylist, String> {
 
     Optional<UserSavedPlaylist> findByUserAndPlaylist(User user, UserPlaylist playlist);

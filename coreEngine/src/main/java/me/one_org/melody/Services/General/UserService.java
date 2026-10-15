@@ -5,7 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import me.one_org.melody.Entity.UsersEntity;
+import me.one_org.melody.Entity.User;
 import me.one_org.melody.Repository.UsersRepository;
 
 @Service
@@ -18,14 +18,14 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public UsersEntity getUserProfile(String userId) {
+    public User getUserProfile(String userId) {
         return usersRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 
     @Transactional
-    public UsersEntity updateProfile(String userId, String userName) {
-        UsersEntity user = getUserProfile(userId);
+    public User updateProfile(String userId, String userName) {
+        User user = getUserProfile(userId);
         if (userName != null && !userName.isBlank()) {
             user.setUserName(userName);
             usersRepository.save(user);

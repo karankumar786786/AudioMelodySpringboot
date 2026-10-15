@@ -10,9 +10,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
-import me.one_org.melody.Entity.SongsEntity;
-import me.one_org.melody.Entity.UserHistoryEntity;
-import me.one_org.melody.Entity.UsersEntity;
+import me.one_org.melody.Entity.PaginationMetaData;
+import me.one_org.melody.Entity.Song;
+import me.one_org.melody.Entity.User;
+import me.one_org.melody.Entity.UserHistory;
 import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserHistoryRepository;
@@ -50,15 +51,15 @@ public class InteractionApiService {
 
     @Transactional
     public void trackPlay(String userId, String songId, double percentage) {
-        SongsEntity song = songsRepository.findById(songId)
+        Song song = songsRepository.findById(songId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Song not found"));
-        UsersEntity user = getUser(userId);
+        User user = getUser(userId);
 
         // Calculate listen part (percentage bucket)
         int part = (int) (percentage * 100);
 
         // Save to listening history
-        UserHistoryEntity history = UserHistoryEntity.builder()
+        UserHistory history = UserHistory.builder()
                 .id(UUID.randomUUID().toString())
                 .user(user)
                 .song(song)
@@ -150,12 +151,12 @@ public class InteractionApiService {
 
     @Transactional
     public void addFavourite(String userId, String songId) {
-        UsersEntity user = getUser(userId);
-        SongsEntity song = songsRepository.findById(songId)
+        getUser(userId);
+        songsRepository.findById(songId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Song not found"));
 
-        if (user.getFavouriteSongs().add(song)) {
-            usersRepository.save(user);
+        int inserted = usersRepository.addFavouriteSong(userId, songId);
+        if (inserted > 0) {
             paginationMetaDataService.incrementStatus("UserFavourites_" + userId, null);
         }
 
@@ -164,9 +165,9 @@ public class InteractionApiService {
 
     @Transactional
     public void removeFavourite(String userId, String songId) {
-        UsersEntity user = getUser(userId);
-        if (user.getFavouriteSongs().removeIf(s -> s.getId().equals(songId))) {
-            usersRepository.save(user);
+        getUser(userId);
+        int deleted = usersRepository.removeFavouriteSong(userId, songId);
+        if (deleted > 0) {
             paginationMetaDataService.decrementStatus("UserFavourites_" + userId, null);
         }
 
@@ -174,16 +175,16 @@ public class InteractionApiService {
     }
 
     @Transactional(readOnly = true)
-    public List<SongsEntity> getFavouritesPaginated(String userId, int page, int size) {
+    public List<Song> getFavouritesPaginated(String userId, int page, int size) {
         getUser(userId);
         return usersRepository.findFavouriteSongsPaginated(userId, page, size);
     }
 
-    public me.one_org.melody.Entity.PaginationMetaDataEntity getFavouritesPaginationMetaData(String userId) {
+    public PaginationMetaData getFavouritesPaginationMetaData(String userId) {
         return paginationMetaDataService.getMetaData("UserFavourites_" + userId);
     }
 
-    private UsersEntity getUser(String userId) {
+    private User getUser(String userId) {
         return usersRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }

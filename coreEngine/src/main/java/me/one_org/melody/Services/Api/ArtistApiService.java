@@ -16,14 +16,15 @@ import org.springframework.transaction.annotation.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
 import me.one_org.melody.Dto.Controllers.Api.ArtistFollowStatusDto;
-import me.one_org.melody.Entity.ArtistFollowEventEntity;
-import me.one_org.melody.Entity.ArtistMetadataEntity;
-import me.one_org.melody.Entity.ArtistsEntity;
-import me.one_org.melody.Entity.PaginationMetaDataEntity;
-import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.Entity.Artist;
+import me.one_org.melody.Entity.ArtistFollowEvent;
+import me.one_org.melody.Entity.ArtistMetadata;
+import me.one_org.melody.Entity.PaginationMetaData;
+import me.one_org.melody.Entity.Song;
+import me.one_org.melody.Entity.User;
+import me.one_org.melody.Enums.FollowEvent;
 import me.one_org.melody.Exceptions.BadRequestException;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
-import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.ArtistFollowEventRepository;
 import me.one_org.melody.Repository.ArtistMetadataRepository;
 import me.one_org.melody.Repository.ArtistsRepository;
@@ -60,32 +61,32 @@ public class ArtistApiService {
         this.eventPublisher = eventPublisher;
     }
 
-    public List<ArtistsEntity> getArtistsPaginated(int page, int size) {
+    public List<Artist> getArtistsPaginated(int page, int size) {
         return artistsRepository.findAllPaginated(page, size);
     }
 
-    public PaginationMetaDataEntity getPaginationMetaData() {
+    public PaginationMetaData getPaginationMetaData() {
         return paginationMetaDataService.getMetaData("ArtistsEntity");
     }
 
     @Cacheable(value = "artist_lists", key = "'all'")
-    public List<ArtistsEntity> getAllArtists() {
+    public List<Artist> getAllArtists() {
         return artistsRepository.findAll();
     }
 
     @Cacheable(value = "artists", key = "#id")
-    public ArtistsEntity getArtistById(String id) {
+    public Artist getArtistById(String id) {
         return artistsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Artist not found with id: " + id));
     }
 
     @Cacheable(value = "artist_songs", key = "#artistIdOrQuery + '_' + #page + '_' + #size")
-    public List<SongsEntity> getArtistSongsPaginated(String artistIdOrQuery, int page, int size) {
+    public List<Song> getArtistSongsPaginated(String artistIdOrQuery, int page, int size) {
         if (artistIdOrQuery == null || artistIdOrQuery.isBlank()) {
             return List.of();
         }
         String searchQuery = artistIdOrQuery;
-        Optional<ArtistsEntity> artistOpt = artistsRepository.findById(artistIdOrQuery);
+        Optional<Artist> artistOpt = artistsRepository.findById(artistIdOrQuery);
         if (artistOpt.isPresent()) {
             searchQuery = artistOpt.get().getName();
         }
@@ -99,18 +100,18 @@ public class ArtistApiService {
         return songsRepository.findAllByIds(pageIds);
     }
 
-    public PaginationMetaDataEntity getArtistSongsPaginationMetaData(String artistId) {
+    public PaginationMetaData getArtistSongsPaginationMetaData(String artistId) {
         return paginationMetaDataService.getMetaData("ArtistSongs_" + artistId);
     }
 
     // ── Artist Follow & Metadata Operations ──
 
-    public Optional<ArtistsEntity> findArtist(String artistIdOrName) {
+    public Optional<Artist> findArtist(String artistIdOrName) {
         if (artistIdOrName == null || artistIdOrName.isBlank()) {
             return Optional.empty();
         }
         // 1. Try finding by ID
-        Optional<ArtistsEntity> byId = artistsRepository.findById(artistIdOrName);
+        Optional<Artist> byId = artistsRepository.findById(artistIdOrName);
         if (byId.isPresent()) {
             return byId;
         }
@@ -124,21 +125,21 @@ public class ArtistApiService {
         if (userId == null || userId.isBlank()) {
             throw new ResourceNotFoundException("User must be authenticated to follow an artist");
         }
-        Optional<ArtistsEntity> artistOpt = findArtist(artistIdOrName);
+        Optional<Artist> artistOpt = findArtist(artistIdOrName);
         if (artistOpt.isEmpty()) {
             throw new ResourceNotFoundException("Artist not found with identifier: " + artistIdOrName);
         }
-        ArtistsEntity artist = artistOpt.get();
+        Artist artist = artistOpt.get();
         String artistId = artist.getId();
         String artistName = artist.getName();
 
         boolean alreadyFollowing = artistFollowEventRepository.isUserFollowingArtist(userId, artistId);
         if (!alreadyFollowing) {
-            ArtistFollowEventEntity event = ArtistFollowEventEntity.builder()
+            ArtistFollowEvent event = ArtistFollowEvent.builder()
                     .id(UUID.randomUUID().toString())
-                    .userId(userId)
-                    .artistId(artistId)
-                    .eventType("FOLLOW")
+                    .user(User.builder().id(userId).build())
+                    .artist(artist)
+                    .followEvent(FollowEvent.FOLLOW)
                     .build();
             artistFollowEventRepository.save(event);
 
@@ -148,7 +149,7 @@ public class ArtistApiService {
         }
 
         Long followersCount = artistMetadataRepository.findById(artistId)
-                .map(ArtistMetadataEntity::getFollowersCount)
+                .map(ArtistMetadata::getFollowersCount)
                 .orElse(1L);
 
         return new ArtistFollowStatusDto(artistId, artistName, followersCount, true);
@@ -159,21 +160,21 @@ public class ArtistApiService {
         if (userId == null || userId.isBlank()) {
             throw new ResourceNotFoundException("User must be authenticated to unfollow an artist");
         }
-        Optional<ArtistsEntity> artistOpt = findArtist(artistIdOrName);
+        Optional<Artist> artistOpt = findArtist(artistIdOrName);
         if (artistOpt.isEmpty()) {
             throw new ResourceNotFoundException("Artist not found with identifier: " + artistIdOrName);
         }
-        ArtistsEntity artist = artistOpt.get();
+        Artist artist = artistOpt.get();
         String artistId = artist.getId();
         String artistName = artist.getName();
 
         boolean wasFollowing = artistFollowEventRepository.isUserFollowingArtist(userId, artistId);
         if (wasFollowing) {
-            ArtistFollowEventEntity event = ArtistFollowEventEntity.builder()
+            ArtistFollowEvent event = ArtistFollowEvent.builder()
                     .id(UUID.randomUUID().toString())
-                    .userId(userId)
-                    .artistId(artistId)
-                    .eventType("UNFOLLOW")
+                    .user(User.builder().id(userId).build())
+                    .artist(artist)
+                    .followEvent(FollowEvent.UNFOLLOW)
                     .build();
             artistFollowEventRepository.save(event);
 
@@ -183,24 +184,24 @@ public class ArtistApiService {
         }
 
         Long followersCount = artistMetadataRepository.findById(artistId)
-                .map(ArtistMetadataEntity::getFollowersCount)
+                .map(ArtistMetadata::getFollowersCount)
                 .orElse(0L);
 
         return new ArtistFollowStatusDto(artistId, artistName, followersCount, false);
     }
 
     public ArtistFollowStatusDto getFollowStatus(String userId, String artistIdOrName) {
-        Optional<ArtistsEntity> artistOpt = findArtist(artistIdOrName);
+        Optional<Artist> artistOpt = findArtist(artistIdOrName);
         if (artistOpt.isEmpty()) {
             return new ArtistFollowStatusDto(artistIdOrName, artistIdOrName, 0L, false);
         }
-        ArtistsEntity artist = artistOpt.get();
+        Artist artist = artistOpt.get();
         String artistId = artist.getId();
         String artistName = artist.getName();
 
         boolean isFollowing = userId != null && artistFollowEventRepository.isUserFollowingArtist(userId, artistId);
         Long followersCount = artistMetadataRepository.findById(artistId)
-                .map(ArtistMetadataEntity::getFollowersCount)
+                .map(ArtistMetadata::getFollowersCount)
                 .orElse(0L);
 
         return new ArtistFollowStatusDto(artistId, artistName, followersCount, isFollowing);
@@ -208,25 +209,25 @@ public class ArtistApiService {
 
     // ── Cold-Start Artist Onboarding ──
 
-    public List<ArtistsEntity> getOnboardingArtists() {
+    public List<Artist> getOnboardingArtists() {
         return getOnboardingArtists(0, 100);
     }
 
-    public List<ArtistsEntity> getOnboardingArtists(int page, int size) {
+    public List<Artist> getOnboardingArtists(int page, int size) {
         return artistsRepository.findAllPaginated(page, size);
     }
 
-    public List<ArtistsEntity> searchArtists(String query) {
+    public List<Artist> searchArtists(String query) {
         if (query == null || query.isBlank()) {
             return getOnboardingArtists();
         }
         String cleanQuery = query.trim().toLowerCase();
         Set<String> seenNames = new HashSet<>();
-        List<ArtistsEntity> results = new ArrayList<>();
+        List<Artist> results = new ArrayList<>();
 
         // 1. Search DB artists table by name
-        List<ArtistsEntity> fromArtists = artistsRepository.searchByName(cleanQuery, 20);
-        for (ArtistsEntity a : fromArtists) {
+        List<Artist> fromArtists = artistsRepository.searchByName(cleanQuery, 20);
+        for (Artist a : fromArtists) {
             if (a.getName() != null && seenNames.add(a.getName().trim().toLowerCase())) {
                 results.add(a);
             }
@@ -237,8 +238,8 @@ public class ArtistApiService {
             var algoliaRes = algoliaSearch.search(cleanQuery);
             List<String> algoliaArtistIds = algoliaRes.artists().stream().map(a -> a.id()).toList();
             if (!algoliaArtistIds.isEmpty()) {
-                List<ArtistsEntity> algoliaArtists = artistsRepository.findAllByIds(algoliaArtistIds);
-                for (ArtistsEntity a : algoliaArtists) {
+                List<Artist> algoliaArtists = artistsRepository.findAllByIds(algoliaArtistIds);
+                for (Artist a : algoliaArtists) {
                     if (a.getName() != null && seenNames.add(a.getName().trim().toLowerCase())) {
                         results.add(a);
                     }
@@ -263,7 +264,7 @@ public class ArtistApiService {
 
         for (String idOrName : artistIds) {
             try {
-                ArtistsEntity artist = findArtist(idOrName)
+                Artist artist = findArtist(idOrName)
                         .orElseThrow(() -> new ResourceNotFoundException("Artist not found: " + idOrName));
 
                 ArtistFollowStatusDto status = followArtist(userId, artist.getId());

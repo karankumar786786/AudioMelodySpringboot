@@ -1,19 +1,20 @@
 package me.one_org.melody.Controllers.Api;
 
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
+import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Dto.Controllers.Api.TrackPlayRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.TrackSearchPlayRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.TrackSkipRequestDto;
-import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
+import me.one_org.melody.Entity.PaginationMetaData;
+import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Services.Api.InteractionApiService;
 
 import java.util.List;
-import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
-import me.one_org.melody.Entity.PaginationMetaDataEntity;
 
 @RestController
 @RequestMapping("/api/interaction")
@@ -41,11 +42,6 @@ public class InteractionApiController {
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * Fires when a user plays a song that was surfaced via search results.
-     * Sends an AddDetailView signal to Recombee — strong active-discovery intent.
-     * Silently no-ops for unauthenticated (guest) users.
-     */
     @PostMapping("/search-play")
     public ResponseEntity<Void> trackSearchPlay(
             @RequestAttribute(value = "userId", required = false) String userId,
@@ -66,11 +62,6 @@ public class InteractionApiController {
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * Fires when a user explicitly adds a song to their queue.
-     * Sends an AddBookmark signal to Recombee — strong intent-to-listen signal.
-     * Silently no-ops for unauthenticated (guest) users.
-     */
     @PostMapping("/queue-add")
     public ResponseEntity<Void> trackQueueAdd(
             @RequestAttribute(value = "userId", required = false) String userId,
@@ -81,11 +72,6 @@ public class InteractionApiController {
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * Fires when a user explicitly removes a song from their queue.
-     * Deletes bookmark and adds negative rating (-0.4) to Recombee.
-     * Silently no-ops for unauthenticated (guest) users.
-     */
     @PostMapping("/queue-remove")
     public ResponseEntity<Void> trackQueueRemove(
             @RequestAttribute(value = "userId", required = false) String userId,
@@ -96,10 +82,6 @@ public class InteractionApiController {
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * Explicit dislike / "Don't play this again".
-     * Sends -1.0 rating to Recombee.
-     */
     @PostMapping("/dislike")
     public ResponseEntity<Void> trackDislike(
             @RequestAttribute(value = "userId", required = false) String userId,
@@ -110,10 +92,6 @@ public class InteractionApiController {
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * User shared / copied link of a song.
-     * Sends +0.6 rating to Recombee (high intent advocacy signal).
-     */
     @PostMapping("/share")
     public ResponseEntity<Void> trackShare(
             @RequestAttribute(value = "userId", required = false) String userId,
@@ -141,12 +119,13 @@ public class InteractionApiController {
     }
 
     @GetMapping("/favourites")
-    public ResponseEntity<PaginatedResponseDto<SongsEntity>> getFavourites(
+    public ResponseEntity<PaginatedResponseDto<SongDto>> getFavourites(
             @RequestAttribute("userId") String userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<SongsEntity> favourites = interactionAppService.getFavouritesPaginated(userId, page, size);
-        PaginationMetaDataEntity metaData = interactionAppService.getFavouritesPaginationMetaData(userId);
-        return ResponseEntity.ok(new PaginatedResponseDto<>(favourites, page, size, metaData));
+        List<Song> favourites = interactionAppService.getFavouritesPaginated(userId, page, size);
+        List<SongDto> dtos = favourites.stream().map(SongDto::fromEntity).toList();
+        PaginationMetaData metaData = interactionAppService.getFavouritesPaginationMetaData(userId);
+        return ResponseEntity.ok(new PaginatedResponseDto<>(dtos, page, size, PaginationMetaDataDto.fromEntity(metaData)));
     }
 }

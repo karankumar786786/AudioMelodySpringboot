@@ -6,10 +6,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
+import me.one_org.melody.Dto.Controllers.Api.ArtistDto;
 import me.one_org.melody.Dto.Controllers.Api.ArtistFollowStatusDto;
-import me.one_org.melody.Entity.ArtistsEntity;
-import me.one_org.melody.Entity.PaginationMetaDataEntity;
-import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
+import me.one_org.melody.Dto.Controllers.Api.SongDto;
+import me.one_org.melody.Entity.Artist;
+import me.one_org.melody.Entity.PaginationMetaData;
+import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Services.Api.ArtistApiService;
 
 @RestController
@@ -23,27 +26,30 @@ public class ArtistApiController {
     }
 
     @GetMapping
-    public ResponseEntity<PaginatedResponseDto<ArtistsEntity>> getAllArtists(
+    public ResponseEntity<PaginatedResponseDto<ArtistDto>> getAllArtists(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<ArtistsEntity> artists = artistAppService.getArtistsPaginated(page, size);
-        PaginationMetaDataEntity metaData = artistAppService.getPaginationMetaData();
-        return ResponseEntity.ok(new PaginatedResponseDto<>(artists, page, size, metaData));
+        List<Artist> artists = artistAppService.getArtistsPaginated(page, size);
+        List<ArtistDto> dtos = artists.stream().map(ArtistDto::fromEntity).toList();
+        PaginationMetaData metaData = artistAppService.getPaginationMetaData();
+        return ResponseEntity.ok(new PaginatedResponseDto<>(dtos, page, size, PaginationMetaDataDto.fromEntity(metaData)));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ArtistsEntity> getArtistById(@PathVariable String id) {
-        return ResponseEntity.ok(artistAppService.getArtistById(id));
+    public ResponseEntity<ArtistDto> getArtistById(@PathVariable String id) {
+        Artist artist = artistAppService.getArtistById(id);
+        return ResponseEntity.ok(ArtistDto.fromEntity(artist));
     }
 
     @GetMapping("/{id}/songs")
-    public ResponseEntity<PaginatedResponseDto<SongsEntity>> getArtistSongs(
+    public ResponseEntity<PaginatedResponseDto<SongDto>> getArtistSongs(
             @PathVariable String id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<SongsEntity> songs = artistAppService.getArtistSongsPaginated(id, page, size);
-        PaginationMetaDataEntity metaData = artistAppService.getArtistSongsPaginationMetaData(id);
-        return ResponseEntity.ok(new PaginatedResponseDto<>(songs, page, size, metaData));
+        List<Song> songs = artistAppService.getArtistSongsPaginated(id, page, size);
+        List<SongDto> dtos = songs.stream().map(SongDto::fromEntity).toList();
+        PaginationMetaData metaData = artistAppService.getArtistSongsPaginationMetaData(id);
+        return ResponseEntity.ok(new PaginatedResponseDto<>(dtos, page, size, PaginationMetaDataDto.fromEntity(metaData)));
     }
 
     @PostMapping("/{id}/follow")
@@ -75,16 +81,18 @@ public class ArtistApiController {
     }
 
     @GetMapping("/onboarding-list")
-    public ResponseEntity<List<ArtistsEntity>> getOnboardingList(
+    public ResponseEntity<List<ArtistDto>> getOnboardingList(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
-        return ResponseEntity.ok(artistAppService.getOnboardingArtists(page, size));
+        List<Artist> artists = artistAppService.getOnboardingArtists(page, size);
+        return ResponseEntity.ok(artists.stream().map(ArtistDto::fromEntity).toList());
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<ArtistsEntity>> searchArtists(
+    public ResponseEntity<List<ArtistDto>> searchArtists(
             @RequestParam(name = "q", required = false, defaultValue = "") String query) {
-        return ResponseEntity.ok(artistAppService.searchArtists(query));
+        List<Artist> artists = artistAppService.searchArtists(query);
+        return ResponseEntity.ok(artists.stream().map(ArtistDto::fromEntity).toList());
     }
 
     @PostMapping("/onboarding")

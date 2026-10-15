@@ -2,7 +2,6 @@ package me.one_org.melody.Services.Api;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.UUID;
 
@@ -12,14 +11,12 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import lombok.extern.slf4j.Slf4j;
-import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
-import me.one_org.melody.Entity.PaginationMetaDataEntity;
-import me.one_org.melody.Entity.SongsEntity;
-import me.one_org.melody.Entity.UserPlaylistsEntity;
-import me.one_org.melody.Entity.UserSavedPlaylistsEntity;
-import me.one_org.melody.Entity.UsersEntity;
+import me.one_org.melody.Entity.PaginationMetaData;
+import me.one_org.melody.Entity.Song;
+import me.one_org.melody.Entity.User;
+import me.one_org.melody.Entity.UserPlaylist;
+import me.one_org.melody.Entity.UserSavedPlaylist;
 import me.one_org.melody.Enums.PlaylistPrivacyEnum;
-import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserPlaylistsRepository;
 import me.one_org.melody.Repository.UserSavedPlaylistsRepository;
@@ -58,13 +55,13 @@ public class UserPlaylistApiService {
         this.eventPublisher = eventPublisher;
     }
 
-    public List<UserPlaylistsEntity> getUserPlaylists(String userId) {
-        UsersEntity user = getUser(userId);
-        List<UserPlaylistsEntity> owned = userPlaylistsRepository.findByUser(user);
-        List<UserPlaylistsEntity> saved = userSavedPlaylistsRepository.findSavedPlaylistsByUserId(userId);
+    public List<UserPlaylist> getUserPlaylists(String userId) {
+        User user = getUser(userId);
+        List<UserPlaylist> owned = userPlaylistsRepository.findByUser(user);
+        List<UserPlaylist> saved = userSavedPlaylistsRepository.findSavedPlaylistsByUserId(userId);
 
-        List<UserPlaylistsEntity> combined = new ArrayList<>(owned);
-        for (UserPlaylistsEntity sp : saved) {
+        List<UserPlaylist> combined = new ArrayList<>(owned);
+        for (UserPlaylist sp : saved) {
             if (combined.stream().noneMatch(p -> p.getId().equals(sp.getId()))) {
                 combined.add(sp);
             }
@@ -72,32 +69,32 @@ public class UserPlaylistApiService {
         return combined;
     }
 
-    public List<UserPlaylistsEntity> getUserPlaylistsPaginated(String userId, int page, int size) {
-        UsersEntity user = getUser(userId);
+    public List<UserPlaylist> getUserPlaylistsPaginated(String userId, int page, int size) {
+        User user = getUser(userId);
         return userPlaylistsRepository.findByUserPaginated(user, page, size);
     }
 
-    public PaginationMetaDataEntity getPaginationMetaData(String userId) {
+    public PaginationMetaData getPaginationMetaData(String userId) {
         return paginationMetaDataService.getMetaData("UserPlaylists_" + userId);
     }
 
     @Transactional
-    public UserPlaylistsEntity createPlaylist(String userId, String name, PlaylistPrivacyEnum privacy) {
-        UsersEntity user = getUser(userId);
+    public UserPlaylist createPlaylist(String userId, String name, PlaylistPrivacyEnum privacy) {
+        User user = getUser(userId);
         PlaylistPrivacyEnum chosenPrivacy = privacy != null ? privacy : PlaylistPrivacyEnum.PRIVATE;
         String shareToken = UUID.randomUUID().toString().replace("-", "");
 
-        UserPlaylistsEntity playlist = UserPlaylistsEntity.builder()
+        UserPlaylist playlist = UserPlaylist.builder()
                 .id(UUID.randomUUID().toString())
                 .name(name)
                 .privacy(chosenPrivacy)
                 .shareToken(shareToken)
                 .user(user)
                 .totalSongs(0)
-                .songs(new HashSet<>())
+                .songs(new ArrayList<>())
                 .build();
         userPlaylistsRepository.save(playlist);
-        paginationMetaDataService.incrementStatus("UserPlaylists_" + userId, playlist.getStatus());
+        paginationMetaDataService.incrementStatus("UserPlaylists_" + userId, null);
 
         // If public, sync to Algolia AFTER_COMMIT
         if (playlist.getPrivacy() == PlaylistPrivacyEnum.PUBLIC) {
@@ -108,8 +105,8 @@ public class UserPlaylistApiService {
     }
 
     @Transactional
-    public UserPlaylistsEntity renamePlaylist(String userId, String playlistId, String name) {
-        UserPlaylistsEntity playlist = getPlaylistOwnedBy(userId, playlistId);
+    public UserPlaylist renamePlaylist(String userId, String playlistId, String name) {
+        UserPlaylist playlist = getPlaylistOwnedBy(userId, playlistId);
         playlist.setName(name);
         userPlaylistsRepository.save(playlist);
 
@@ -122,8 +119,8 @@ public class UserPlaylistApiService {
     }
 
     @Transactional
-    public UserPlaylistsEntity updatePlaylistPrivacy(String userId, String playlistId, PlaylistPrivacyEnum privacy) {
-        UserPlaylistsEntity playlist = getPlaylistOwnedBy(userId, playlistId);
+    public UserPlaylist updatePlaylistPrivacy(String userId, String playlistId, PlaylistPrivacyEnum privacy) {
+        UserPlaylist playlist = getPlaylistOwnedBy(userId, playlistId);
         PlaylistPrivacyEnum newPrivacy = privacy != null ? privacy : PlaylistPrivacyEnum.PRIVATE;
         playlist.setPrivacy(newPrivacy);
         if (playlist.getShareToken() == null || playlist.getShareToken().isBlank()) {
@@ -161,7 +158,7 @@ public class UserPlaylistApiService {
 
     @Transactional
     public void deletePlaylist(String userId, String playlistId) {
-        UserPlaylistsEntity playlist = getPlaylistOwnedBy(userId, playlistId);
+        UserPlaylist playlist = getPlaylistOwnedBy(userId, playlistId);
         
         // Delete all follower references
         try {
@@ -177,16 +174,16 @@ public class UserPlaylistApiService {
             log.warn("Failed to delete search history for deleted playlist: {}", e.getMessage());
         }
 
-        userPlaylistsRepository.deleteById(playlistId);
-        paginationMetaDataService.decrementStatus("UserPlaylists_" + userId, playlist.getStatus());
+        userPlaylistsRepository.deletePlaylistByIdCascade(playlistId);
+        paginationMetaDataService.decrementStatus("UserPlaylists_" + userId, null);
 
         // Delete from Algolia search index AFTER_COMMIT
         eventPublisher.publishEvent(new AlgoliaEvents.PlaylistIndexDeleteEvent(playlistId));
     }
 
     @Transactional
-    public UserPlaylistsEntity addSong(String userId, String playlistId, String songId) {
-        UserPlaylistsEntity playlist = getPlaylistOwnedBy(userId, playlistId);
+    public UserPlaylist addSong(String userId, String playlistId, String songId) {
+        UserPlaylist playlist = getPlaylistOwnedBy(userId, playlistId);
         if (!songsRepository.existsById(songId)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Song not found");
         }
@@ -203,8 +200,8 @@ public class UserPlaylistApiService {
     }
 
     @Transactional(readOnly = true)
-    public UserPlaylistsEntity getPlaylistById(String userId, String playlistId) {
-        UserPlaylistsEntity playlist = userPlaylistsRepository.findById(playlistId)
+    public UserPlaylist getPlaylistById(String userId, String playlistId) {
+        UserPlaylist playlist = userPlaylistsRepository.findById(playlistId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
         if (playlist.getPrivacy() != PlaylistPrivacyEnum.PUBLIC) {
             if (userId == null || !playlist.getUser().getId().equals(userId)) {
@@ -215,18 +212,18 @@ public class UserPlaylistApiService {
     }
 
     @Transactional(readOnly = true)
-    public List<SongsEntity> getPlaylistSongsPaginated(String userId, String playlistId, int page, int size) {
+    public List<Song> getPlaylistSongsPaginated(String userId, String playlistId, int page, int size) {
         getPlaylistById(userId, playlistId);
         return userPlaylistsRepository.findSongsByUserPlaylistIdPaginated(playlistId, page, size);
     }
 
-    public PaginationMetaDataEntity getPlaylistSongsPaginationMetaData(String playlistId) {
+    public PaginationMetaData getPlaylistSongsPaginationMetaData(String playlistId) {
         return paginationMetaDataService.getMetaData("UserPlaylistSongs_" + playlistId);
     }
 
     @Transactional(readOnly = true)
-    public UserPlaylistsEntity getSharedPlaylist(String tokenOrId, String callerUserId) {
-        UserPlaylistsEntity playlist = userPlaylistsRepository.findByIdOrShareToken(tokenOrId)
+    public UserPlaylist getSharedPlaylist(String tokenOrId, String callerUserId) {
+        UserPlaylist playlist = userPlaylistsRepository.findByIdOrShareToken(tokenOrId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
 
         if (playlist.getPrivacy() == PlaylistPrivacyEnum.PRIVATE) {
@@ -238,15 +235,15 @@ public class UserPlaylistApiService {
     }
 
     @Transactional(readOnly = true)
-    public List<SongsEntity> getSharedPlaylistSongsPaginated(String tokenOrId, String callerUserId, int page, int size) {
-        UserPlaylistsEntity playlist = getSharedPlaylist(tokenOrId, callerUserId);
+    public List<Song> getSharedPlaylistSongsPaginated(String tokenOrId, String callerUserId, int page, int size) {
+        UserPlaylist playlist = getSharedPlaylist(tokenOrId, callerUserId);
         return userPlaylistsRepository.findSongsByUserPlaylistIdPaginated(playlist.getId(), page, size);
     }
 
     @Transactional
-    public UserPlaylistsEntity savePlaylistToLibrary(String userId, String playlistId) {
-        UsersEntity user = getUser(userId);
-        UserPlaylistsEntity targetPlaylist = userPlaylistsRepository.findByIdOrShareToken(playlistId)
+    public UserPlaylist savePlaylistToLibrary(String userId, String playlistId) {
+        User user = getUser(userId);
+        UserPlaylist targetPlaylist = userPlaylistsRepository.findByIdOrShareToken(playlistId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
 
         // If user already owns this playlist, it is already in their library
@@ -260,7 +257,7 @@ public class UserPlaylistApiService {
         }
 
         if (!userSavedPlaylistsRepository.existsByUserAndPlaylist(user, targetPlaylist)) {
-            UserSavedPlaylistsEntity saved = UserSavedPlaylistsEntity.builder()
+            UserSavedPlaylist saved = UserSavedPlaylist.builder()
                     .id(UUID.randomUUID().toString())
                     .user(user)
                     .playlist(targetPlaylist)
@@ -274,8 +271,8 @@ public class UserPlaylistApiService {
 
     @Transactional
     public void unsavePlaylistFromLibrary(String userId, String playlistId) {
-        UsersEntity user = getUser(userId);
-        UserPlaylistsEntity targetPlaylist = userPlaylistsRepository.findByIdOrShareToken(playlistId)
+        User user = getUser(userId);
+        UserPlaylist targetPlaylist = userPlaylistsRepository.findByIdOrShareToken(playlistId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
 
         userSavedPlaylistsRepository.deleteByUserAndPlaylist(user, targetPlaylist);
@@ -284,17 +281,17 @@ public class UserPlaylistApiService {
     @Transactional(readOnly = true)
     public boolean isPlaylistSaved(String userId, String playlistId) {
         if (userId == null) return false;
-        UsersEntity user = getUser(userId);
-        UserPlaylistsEntity targetPlaylist = userPlaylistsRepository.findByIdOrShareToken(playlistId).orElse(null);
+        User user = getUser(userId);
+        UserPlaylist targetPlaylist = userPlaylistsRepository.findByIdOrShareToken(playlistId).orElse(null);
         if (targetPlaylist == null) return false;
         if (targetPlaylist.getUser().getId().equals(userId)) return true;
         return userSavedPlaylistsRepository.existsByUserAndPlaylist(user, targetPlaylist);
     }
 
     @Transactional
-    public UserPlaylistsEntity duplicatePlaylist(String userId, String playlistId) {
-        UsersEntity user = getUser(userId);
-        UserPlaylistsEntity sourcePlaylist = userPlaylistsRepository.findByIdOrShareToken(playlistId)
+    public UserPlaylist duplicatePlaylist(String userId, String playlistId) {
+        User user = getUser(userId);
+        UserPlaylist sourcePlaylist = userPlaylistsRepository.findByIdOrShareToken(playlistId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
 
         if (sourcePlaylist.getPrivacy() == PlaylistPrivacyEnum.PRIVATE) {
@@ -303,29 +300,29 @@ public class UserPlaylistApiService {
             }
         }
 
-        List<SongsEntity> songs = userPlaylistsRepository.findSongsByUserPlaylistIdPaginated(sourcePlaylist.getId(), 0, 1000);
+        List<Song> songs = userPlaylistsRepository.findSongsByUserPlaylistIdPaginated(sourcePlaylist.getId(), 0, 1000);
 
         String newShareToken = UUID.randomUUID().toString().replace("-", "");
-        UserPlaylistsEntity cloned = UserPlaylistsEntity.builder()
+        UserPlaylist cloned = UserPlaylist.builder()
                 .id(UUID.randomUUID().toString())
                 .name(sourcePlaylist.getName() + " (Copy)")
                 .privacy(PlaylistPrivacyEnum.PRIVATE)
                 .shareToken(newShareToken)
                 .user(user)
                 .totalSongs(songs.size())
-                .songs(new HashSet<>(songs))
+                .songs(new ArrayList<>(songs))
                 .build();
 
         userPlaylistsRepository.save(cloned);
-        paginationMetaDataService.incrementStatus("UserPlaylists_" + userId, cloned.getStatus());
-        paginationMetaDataService.incrementStatus("UserPlaylistSongs_" + cloned.getId(), cloned.getStatus());
+        paginationMetaDataService.incrementStatus("UserPlaylists_" + userId, null);
+        paginationMetaDataService.incrementStatus("UserPlaylistSongs_" + cloned.getId(), null);
 
         return cloned;
     }
 
     @Transactional
-    public UserPlaylistsEntity removeSong(String userId, String playlistId, String songId) {
-        UserPlaylistsEntity playlist = getPlaylistOwnedBy(userId, playlistId);
+    public UserPlaylist removeSong(String userId, String playlistId, String songId) {
+        UserPlaylist playlist = getPlaylistOwnedBy(userId, playlistId);
 
         boolean removed = userPlaylistsRepository.removeSongFromPlaylist(playlistId, songId);
         if (removed) {
@@ -338,13 +335,13 @@ public class UserPlaylistApiService {
         return playlist;
     }
 
-    private UsersEntity getUser(String userId) {
+    private User getUser(String userId) {
         return usersRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 
-    private UserPlaylistsEntity getPlaylistOwnedBy(String userId, String playlistId) {
-        UserPlaylistsEntity playlist = userPlaylistsRepository.findById(playlistId)
+    private UserPlaylist getPlaylistOwnedBy(String userId, String playlistId) {
+        UserPlaylist playlist = userPlaylistsRepository.findById(playlistId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
         if (!playlist.getUser().getId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not your playlist");

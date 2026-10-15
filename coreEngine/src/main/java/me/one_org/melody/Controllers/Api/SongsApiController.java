@@ -6,8 +6,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
-import me.one_org.melody.Entity.PaginationMetaDataEntity;
-import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
+import me.one_org.melody.Dto.Controllers.Api.SongDto;
+import me.one_org.melody.Entity.PaginationMetaData;
+import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Services.Api.SongsApiService;
 
 @RestController
@@ -21,33 +23,38 @@ public class SongsApiController {
     }
 
     @GetMapping
-    public ResponseEntity<PaginatedResponseDto<SongsEntity>> getAllSongs(
+    public ResponseEntity<PaginatedResponseDto<SongDto>> getAllSongs(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<SongsEntity> songs = songsAppService.browseSongs(page, size);
-        PaginationMetaDataEntity metaData = songsAppService.getPaginationMetaData();
-        return ResponseEntity.ok(new PaginatedResponseDto<>(songs, page, size, metaData));
+        List<Song> songs = songsAppService.browseSongs(page, size);
+        List<SongDto> dtos = songs.stream().map(SongDto::fromEntity).toList();
+        PaginationMetaData metaData = songsAppService.getPaginationMetaData();
+        return ResponseEntity.ok(new PaginatedResponseDto<>(dtos, page, size, PaginationMetaDataDto.fromEntity(metaData)));
     }
 
     @GetMapping("/trending")
-    public ResponseEntity<List<SongsEntity>> getTrendingSongs(
+    public ResponseEntity<List<SongDto>> getTrendingSongs(
             @RequestParam(defaultValue = "10") int limit) {
-        return ResponseEntity.ok(songsAppService.getTrendingSongs(limit));
+        List<Song> songs = songsAppService.getTrendingSongs(limit);
+        return ResponseEntity.ok(songs.stream().map(SongDto::fromEntity).toList());
     }
 
     @GetMapping("/featured")
-    public ResponseEntity<List<SongsEntity>> getFeaturedSongs() {
-        return ResponseEntity.ok(songsAppService.getFeaturedSongs());
+    public ResponseEntity<List<SongDto>> getFeaturedSongs() {
+        List<Song> songs = songsAppService.getFeaturedSongs();
+        return ResponseEntity.ok(songs.stream().map(SongDto::fromEntity).toList());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<SongsEntity> getSongById(@PathVariable String id) {
-        return ResponseEntity.ok(songsAppService.getSongById(id));
+    public ResponseEntity<SongDto> getSongById(@PathVariable String id) {
+        Song song = songsAppService.getSongById(id);
+        return ResponseEntity.ok(SongDto.fromEntity(song));
     }
 
     @GetMapping("/album/{albumName}")
-    public ResponseEntity<List<SongsEntity>> getSongsByAlbum(@PathVariable String albumName) {
-        return ResponseEntity.ok(songsAppService.getSongsByAlbum(albumName));
+    public ResponseEntity<List<SongDto>> getSongsByAlbum(@PathVariable String albumName) {
+        List<Song> songs = songsAppService.getSongsByAlbum(albumName);
+        return ResponseEntity.ok(songs.stream().map(SongDto::fromEntity).toList());
     }
 
     @GetMapping("/albums")

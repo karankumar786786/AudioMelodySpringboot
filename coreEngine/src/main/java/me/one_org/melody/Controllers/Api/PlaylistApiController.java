@@ -6,11 +6,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
-import me.one_org.melody.Entity.PaginationMetaDataEntity;
-import me.one_org.melody.Entity.PlaylistsEntity;
+import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
+import me.one_org.melody.Dto.Controllers.Api.PlaylistDto;
+import me.one_org.melody.Dto.Controllers.Api.SongDto;
+import me.one_org.melody.Entity.PaginationMetaData;
+import me.one_org.melody.Entity.Playlist;
+import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Services.Api.PlaylistApiService;
-
-import me.one_org.melody.Entity.SongsEntity;
 
 @RestController
 @RequestMapping("/api/playlists")
@@ -23,26 +25,29 @@ public class PlaylistApiController {
     }
 
     @GetMapping
-    public ResponseEntity<PaginatedResponseDto<PlaylistsEntity>> getAllPlaylists(
+    public ResponseEntity<PaginatedResponseDto<PlaylistDto>> getAllPlaylists(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<PlaylistsEntity> playlists = playlistAppService.getPlaylistsPaginated(page, size);
-        PaginationMetaDataEntity metaData = playlistAppService.getPaginationMetaData();
-        return ResponseEntity.ok(new PaginatedResponseDto<>(playlists, page, size, metaData));
+        List<Playlist> playlists = playlistAppService.getPlaylistsPaginated(page, size);
+        List<PlaylistDto> dtos = playlists.stream().map(PlaylistDto::fromEntity).toList();
+        PaginationMetaData metaData = playlistAppService.getPaginationMetaData();
+        return ResponseEntity.ok(new PaginatedResponseDto<>(dtos, page, size, PaginationMetaDataDto.fromEntity(metaData)));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PlaylistsEntity> getPlaylistById(@PathVariable String id) {
-        return ResponseEntity.ok(playlistAppService.getPlaylistById(id));
+    public ResponseEntity<PlaylistDto> getPlaylistById(@PathVariable String id) {
+        Playlist playlist = playlistAppService.getPlaylistById(id);
+        return ResponseEntity.ok(PlaylistDto.fromEntity(playlist));
     }
 
     @GetMapping("/{id}/songs")
-    public ResponseEntity<PaginatedResponseDto<SongsEntity>> getPlaylistSongs(
+    public ResponseEntity<PaginatedResponseDto<SongDto>> getPlaylistSongs(
             @PathVariable String id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<SongsEntity> songs = playlistAppService.getPlaylistSongsPaginated(id, page, size);
-        PaginationMetaDataEntity metaData = playlistAppService.getPlaylistSongsPaginationMetaData(id);
-        return ResponseEntity.ok(new PaginatedResponseDto<>(songs, page, size, metaData));
+        List<Song> songs = playlistAppService.getPlaylistSongsPaginated(id, page, size);
+        List<SongDto> dtos = songs.stream().map(SongDto::fromEntity).toList();
+        PaginationMetaData metaData = playlistAppService.getPlaylistSongsPaginationMetaData(id);
+        return ResponseEntity.ok(new PaginatedResponseDto<>(dtos, page, size, PaginationMetaDataDto.fromEntity(metaData)));
     }
 }

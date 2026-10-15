@@ -5,8 +5,8 @@ import java.util.List;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
-import me.one_org.melody.Entity.PaginationMetaDataEntity;
-import me.one_org.melody.Entity.SongsEntity;
+import me.one_org.melody.Entity.PaginationMetaData;
+import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
@@ -22,30 +22,30 @@ public class SongsApiService {
         this.paginationMetaDataService = paginationMetaDataService;
     }
 
-    public List<SongsEntity> browseSongs(int page, int size) {
+    public List<Song> browseSongs(int page, int size) {
         return songsRepository.findAllPaginated(page, size);
     }
 
-    public List<SongsEntity> getTrendingSongs(int limit) {
+    public List<Song> getTrendingSongs(int limit) {
         return songsRepository.findTrending(limit);
     }
 
     @Cacheable(value = "songs", key = "#id")
-    public SongsEntity getSongById(String id) {
+    public Song getSongById(String id) {
         return songsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + id));
     }
 
-    public PaginationMetaDataEntity getPaginationMetaData() {
+    public PaginationMetaData getPaginationMetaData() {
         return paginationMetaDataService.getMetaData("SongsEntity");
     }
 
     @Cacheable(value = "featured_songs", key = "'all'")
-    public List<SongsEntity> getFeaturedSongs() {
+    public List<Song> getFeaturedSongs() {
         return songsRepository.findFeatured();
     }
 
-    public List<SongsEntity> getSongsByAlbum(String albumName) {
+    public List<Song> getSongsByAlbum(String albumName) {
         return songsRepository.findByAlbum(albumName);
     }
 

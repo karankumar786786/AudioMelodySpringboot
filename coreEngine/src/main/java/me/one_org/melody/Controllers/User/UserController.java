@@ -3,7 +3,8 @@ package me.one_org.melody.Controllers.User;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import me.one_org.melody.Entity.UsersEntity;
+import me.one_org.melody.Dto.Controllers.Api.UserDto;
+import me.one_org.melody.Entity.User;
 import me.one_org.melody.Services.General.UserService;
 
 @RestController
@@ -17,14 +18,16 @@ public class UserController {
     }
 
     @GetMapping
-    public ResponseEntity<UsersEntity> getProfile(@RequestAttribute("userId") String userId) {
-        return ResponseEntity.ok(userService.getUserProfile(userId));
+    public ResponseEntity<UserDto> getProfile(@RequestAttribute("userId") String userId) {
+        User user = userService.getUserProfile(userId);
+        return ResponseEntity.ok(UserDto.fromEntity(user));
     }
 
     @PutMapping
-    public ResponseEntity<UsersEntity> updateProfile(
+    public ResponseEntity<UserDto> updateProfile(
             @RequestAttribute("userId") String userId,
             @RequestParam(required = false) String userName) {
-        return ResponseEntity.ok(userService.updateProfile(userId, userName));
+        User user = userService.updateProfile(userId, userName);
+        return ResponseEntity.ok(UserDto.fromEntity(user));
     }
 }
