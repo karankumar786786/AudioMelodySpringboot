@@ -134,48 +134,49 @@ export const ArtistHero: React.FC<ArtistHeroProps> = ({
                 </span>
               </>
             )}
+          </div>
 
-            <div className="flex items-center gap-2.5 ml-1">
-              {songs.length > 0 && (
-                <button
-                  type="button"
-                  onClick={onPlayAll}
-                  disabled={songs.length === 0}
-                  className="flex items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-white/80 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-lg active:scale-95"
-                >
-                  <Play size={16} fill="black" />
-                  Play All
-                </button>
-              )}
-
+          {/* Action buttons row with stable dimensions and zero layout shift */}
+          <div className="mt-6 flex items-center gap-3 flex-wrap">
+            {songs.length > 0 && (
               <button
                 type="button"
-                onClick={onFollowToggle}
-                disabled={isFollowLoading}
-                className={`flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-all cursor-pointer shadow-lg active:scale-95 disabled:opacity-75 ${
-                  isFollowing
-                    ? "bg-zinc-800/90 hover:bg-zinc-700 text-white border border-white/20 hover:border-red-500/40 hover:text-red-400"
-                    : "bg-primary hover:bg-primary/90 text-black"
-                }`}
+                onClick={onPlayAll}
+                disabled={songs.length === 0}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-white px-6 py-2.5 text-sm font-bold text-black transition-all hover:bg-white/90 hover:scale-[1.02] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer shadow-xl select-none"
               >
-                {isFollowLoading ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin text-current" />
-                    <span>{isFollowing ? "Unfollowing..." : "Following..."}</span>
-                  </>
-                ) : isFollowing ? (
-                  <>
-                    <Check size={16} className="stroke-3" />
-                    <span>Following</span>
-                  </>
-                ) : (
-                  <>
-                    <UserPlus size={16} className="stroke-[2.5]" />
-                    <span>Follow</span>
-                  </>
-                )}
+                <Play size={16} fill="black" />
+                <span>Play All</span>
               </button>
-            </div>
+            )}
+
+            <button
+              type="button"
+              onClick={onFollowToggle}
+              disabled={isFollowLoading}
+              className={`inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold transition-all cursor-pointer shadow-xl active:scale-95 disabled:cursor-wait min-w-32.5 h-10 select-none ${
+                isFollowing
+                  ? "bg-zinc-800/90 hover:bg-zinc-700 text-white border border-white/20 hover:border-red-500/40 hover:text-red-300"
+                  : "bg-primary hover:bg-primary/90 text-black font-bold"
+              }`}
+            >
+              {isFollowLoading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin text-current shrink-0" />
+                  <span className="truncate">{isFollowing ? "Unfollowing..." : "Following..."}</span>
+                </>
+              ) : isFollowing ? (
+                <>
+                  <Check size={16} className="stroke-3 shrink-0 text-emerald-400" />
+                  <span>Following</span>
+                </>
+              ) : (
+                <>
+                  <UserPlus size={16} className="stroke-[2.5] shrink-0" />
+                  <span>Follow</span>
+                </>
+              )}
+            </button>
           </div>
         </motion.div>
       </div>
