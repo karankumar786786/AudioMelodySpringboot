@@ -14,7 +14,6 @@ import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Dto.Controllers.Api.UserPlaylistDto;
-import me.one_org.melody.Entity.PaginationMetaData;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Entity.User;
 import me.one_org.melody.Entity.UserPlaylist;

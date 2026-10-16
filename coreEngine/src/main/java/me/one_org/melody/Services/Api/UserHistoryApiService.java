@@ -29,7 +29,6 @@ import me.one_org.melody.Repository.UserHistoryRepository;
 import me.one_org.melody.Repository.UserPlaylistsRepository;
 import me.one_org.melody.Repository.UserSearchHistoryRepository;
 import me.one_org.melody.Repository.UsersRepository;
-import me.one_org.melody.Services.General.PaginationMetaDataService;
 
 @Service
 @Transactional(readOnly = true)
@@ -37,7 +36,6 @@ public class UserHistoryApiService {
 
     private final UserHistoryRepository userHistoryRepository;
     private final UsersRepository usersRepository;
-    private final PaginationMetaDataService paginationMetaDataService;
     private final UserSearchHistoryRepository searchHistoryRepository;
     private final SongsRepository songsRepository;
     private final ArtistsRepository artistsRepository;
@@ -46,7 +44,6 @@ public class UserHistoryApiService {
 
     public UserHistoryApiService(UserHistoryRepository userHistoryRepository,
                                  UsersRepository usersRepository,
-                                 PaginationMetaDataService paginationMetaDataService,
                                  UserSearchHistoryRepository searchHistoryRepository,
                                  SongsRepository songsRepository,
                                  ArtistsRepository artistsRepository,
@@ -54,7 +51,6 @@ public class UserHistoryApiService {
                                  UserPlaylistsRepository userPlaylistsRepository) {
         this.userHistoryRepository = userHistoryRepository;
         this.usersRepository = usersRepository;
-        this.paginationMetaDataService = paginationMetaDataService;
         this.searchHistoryRepository = searchHistoryRepository;
         this.songsRepository = songsRepository;
         this.artistsRepository = artistsRepository;

@@ -9,7 +9,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import me.one_org.melody.Dto.Controllers.Api.SaveSearchHistoryRequestDto;
-import me.one_org.melody.Entity.PaginationMetaData;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Entity.User;
 import me.one_org.melody.Entity.UserSearchHistory;
