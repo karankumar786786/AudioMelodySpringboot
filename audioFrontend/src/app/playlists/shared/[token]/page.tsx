@@ -384,7 +384,7 @@ export default function SharedPlaylistPage() {
               </span>
             </div>
 
-            <h1 className="break-words text-4xl font-black tracking-tight text-white md:text-6xl">
+            <h1 className="wrap-break-word text-4xl font-black tracking-tight text-white md:text-6xl">
               {playlist.name}
             </h1>
 
