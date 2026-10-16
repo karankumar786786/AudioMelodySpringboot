@@ -1,8 +1,12 @@
 import logging
 from typing import Optional, Dict, Any
+import uuid
 from django.db import connection, transaction
 from django.db.models import Q
-from ..models import PaginationMetadata, Song, Artist, Playlist
+from accounts.models import User
+from catalog.models import Artist, Playlist, Song
+from core.models import PaginationMetadata
+from jobs.models import DeleteJob, Job
 from .redis_service import RedisService
 
 logger = logging.getLogger(__name__)

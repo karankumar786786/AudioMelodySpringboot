@@ -3,8 +3,9 @@ import sys
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
+from django.conf import settings
 from django.db import models
-from django.shortcuts import get_object_or_404 as django_get_object_or_404
+from core.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -25,17 +26,6 @@ from jobs.models import DeleteJob, Job
 
 logger = logging.getLogger(__name__)
 
-
-def get_object_or_404(klass, *args, **kwargs):
-    """
-    Delegates to django's get_object_or_404, with fallback checking if
-    api.views.get_object_or_404 has been mocked/patched in tests.
-    """
-    if "api.views" in sys.modules and hasattr(sys.modules["api.views"], "get_object_or_404"):
-        patched = getattr(sys.modules["api.views"], "get_object_or_404")
-        if patched is not get_object_or_404 and patched is not django_get_object_or_404:
-            return patched(klass, *args, **kwargs)
-    return django_get_object_or_404(klass, *args, **kwargs)
 
 
 def find_delete_job(entity_type: str, entity_id: str, delete_job_id: Optional[str] = None) -> Optional[DeleteJob]:

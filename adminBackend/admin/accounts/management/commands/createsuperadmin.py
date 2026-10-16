@@ -97,12 +97,17 @@ class Command(BaseCommand):
 
             self.stdout.write(
                 self.style.SUCCESS(
-                    f"\n[OK] Successfully created Super Admin '{email}' (ID: {admin.id}, Name: {username})!"
+                    f"\n[OK] Successfully created new SUPER_ADMIN user in admin_users table:\n"
+                    f"     ID:       {admin.id}\n"
+                    f"     Email:    {admin.email}\n"
+                    f"     Name:     {admin.name}\n"
+                    f"     Role:     {admin.role}\n"
+                    f"     Status:   {admin.status}"
                 )
             )
 
         self.stdout.write(
             self.style.NOTICE(
-                "You can now log in at the admin frontend. An OTP will be generated on first login."
+                f"\nSuper Admin '{admin.email}' is configured. You can now log in directly via the Admin Frontend."
             )
         )

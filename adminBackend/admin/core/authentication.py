@@ -124,7 +124,7 @@ class AdminSessionAuthentication(authentication.BaseAuthentication):
                 if not db_admin and email:
                     db_admin = Admin.objects.filter(email__iexact=email).first()
 
-                if db_admin:
+                if db_admin and isinstance(db_admin, Admin):
                     if getattr(db_admin, "status", "ACTIVE") == "BLOCKED":
                         RedisService.block_user_in_redis(db_admin.id)
                         raise exceptions.AuthenticationFailed("Your account has been blocked or suspended.")
