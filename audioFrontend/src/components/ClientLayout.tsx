@@ -27,15 +27,20 @@ export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
 
-  // Seed store immediately if server provided a valid session
-  if (initialSession?.user && !playerStore.state.systemUser) {
-    playerStore.setState((s) => ({
-      ...s,
-      systemUser: initialSession.user,
-      systemToken: initialSession.token || null,
-      systemRefreshToken: initialSession.refreshToken || null,
-    }));
-  }
+  // Unified user resolution matching both server SSR and client hydration
+  const currentUser = systemUser || initialSession?.user || null;
+
+  // Sync server session to client store on mount
+  useEffect(() => {
+    if (initialSession?.user && !playerStore.state.systemUser) {
+      playerStore.setState((s) => ({
+        ...s,
+        systemUser: initialSession.user,
+        systemToken: initialSession.token || null,
+        systemRefreshToken: initialSession.refreshToken || null,
+      }));
+    }
+  }, [initialSession]);
 
   const isPublicRoute =
     pathname === "/" ||
@@ -46,10 +51,9 @@ export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
     pathname.startsWith("/albums") ||
     pathname.startsWith("/playlists");
 
-  // If server already authenticated and route is normal app route, start ready immediately
-  const hasInitialAuth = Boolean(initialSession?.isAuthenticated || systemUser);
+  const hasSession = Boolean(currentUser || initialSession?.isAuthenticated);
   const isAuthFormRoute = pathname === "/" || pathname === "/login" || pathname === "/signup";
-  const [isReady, setIsReady] = useState(() => (hasInitialAuth && !isAuthFormRoute) || isPublicRoute);
+  const [isReady, setIsReady] = useState(() => (hasSession && !isAuthFormRoute) || isPublicRoute);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -74,7 +78,7 @@ export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
     const userStr = typeof window !== "undefined" ? localStorage.getItem("system_user") : null;
     const hasLocalSession = !!(token && userStr);
 
-    if (hasLocalSession || systemUser || initialSession?.isAuthenticated) {
+    if (hasLocalSession || currentUser || initialSession?.isAuthenticated) {
       if (pathname === "/" || pathname === "/login" || pathname === "/signup") {
         router.replace("/home");
       } else {
@@ -87,7 +91,7 @@ export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
         setIsReady(true);
       }
     }
-  }, [systemUser, pathname, isPublicRoute, router, initialSession?.isAuthenticated]);
+  }, [currentUser, pathname, isPublicRoute, router, initialSession?.isAuthenticated]);
 
   useEffect(() => {
     const mainEl = document.querySelector("main");
@@ -96,11 +100,11 @@ export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
     }
   }, [pathname]);
 
-  // Loading Screen while resolving session from local storage or redirecting
+  // Loading Screen while resolving session or redirecting
   if (
     !isReady ||
-    (!systemUser && !isPublicRoute) ||
-    (systemUser && (pathname === "/" || pathname === "/login" || pathname === "/signup"))
+    (!currentUser && !isPublicRoute) ||
+    (currentUser && isAuthFormRoute)
   ) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center min-h-screen bg-black select-none">
@@ -124,7 +128,7 @@ export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
   }
 
   // Guest View (Login / Signup Page)
-  if (!systemUser) {
+  if (!currentUser) {
     return (
       <div className="flex-1 flex flex-col min-h-screen bg-black overflow-y-auto">
         <NetworkStatusBanner />
