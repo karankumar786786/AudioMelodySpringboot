@@ -267,9 +267,10 @@ export function PlaylistPickerModal({
 
                   {/* Divider */}
                   {(() => {
-                    const ownedPlaylists = (playlists?.data?.data || []).filter(
-                      (p: any) => !p.ownerId || (systemUser?.id && p.ownerId === systemUser.id)
-                    );
+                    const ownedPlaylists = (playlists?.data?.data || []).filter((p: any) => {
+                      const oId = p.ownerId || p.userId;
+                      return !oId || (systemUser?.id && oId === systemUser.id);
+                    });
 
                     return (
                       <>

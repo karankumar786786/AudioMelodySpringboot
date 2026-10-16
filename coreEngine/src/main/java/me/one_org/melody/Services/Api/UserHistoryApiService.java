@@ -218,6 +218,9 @@ public class UserHistoryApiService {
         if (song == null) {
             return null;
         }
+        Long totalStreams = (song.getSongMetadata() != null && song.getSongMetadata().getTotalStreams() != null)
+                ? song.getSongMetadata().getTotalStreams()
+                : 0L;
         return new UserHistoryResponseDto(
                 history.getId(),
                 song.getId(),
@@ -236,7 +239,8 @@ public class UserHistoryApiService {
                 song.getPreviewStartTime(),
                 song.getPreviewEndTime(),
                 history.getPart(),
-                history.getListenedAt()
+                history.getListenedAt(),
+                totalStreams
         );
     }
 }

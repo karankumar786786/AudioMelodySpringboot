@@ -20,6 +20,7 @@ public record UserHistoryResponseDto(
     Integer previewStartTime,
     Integer previewEndTime,
     Integer part,
-    LocalDateTime listenedAt
+    LocalDateTime listenedAt,
+    Long totalStreams
 ) {}
 

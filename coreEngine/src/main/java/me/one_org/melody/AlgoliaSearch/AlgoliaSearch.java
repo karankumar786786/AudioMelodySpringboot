@@ -183,6 +183,13 @@ public class AlgoliaSearch {
         Map<String, Object> record = new HashMap<>();
         record.put("objectID", playlist.getId());
         record.put("type", "playlist");
+        record.put("isUserPlaylist", true);
+        if (playlist.getUser() != null) {
+            record.put("ownerId", playlist.getUser().getId());
+            if (playlist.getUser().getUserName() != null) {
+                record.put("ownerName", playlist.getUser().getUserName());
+            }
+        }
         record.put("name", playlist.getName());
         record.put("totalSongs", playlist.getTotalSongs());
         record.put("searchCount", 0L);

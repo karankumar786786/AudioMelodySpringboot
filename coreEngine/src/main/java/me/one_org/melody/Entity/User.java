@@ -49,4 +49,8 @@ public class User {
     public RoleEnum getRole() {
         return RoleEnum.USER;
     }
+
+    public String getName() {
+        return this.userName;
+    }
 }

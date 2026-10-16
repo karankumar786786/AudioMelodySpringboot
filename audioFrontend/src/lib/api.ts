@@ -29,6 +29,7 @@ export interface Artist {
   dob?: string;
   coverImageKey?: string;
   status?: string;
+  followersCount?: number;
   createdAt?: string;
 }
 
@@ -49,6 +50,7 @@ export interface UserPlaylist {
   shareToken?: string;
   ownerName?: string;
   ownerId?: string;
+  userId?: string;
   totalSongs: number;
   status?: string;
   description?: string;

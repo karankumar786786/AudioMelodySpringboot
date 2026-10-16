@@ -82,7 +82,7 @@ export default function SharedPlaylistPage() {
   const songs = songsResponse?.data?.data || [];
 
   const isOwner =
-    Boolean(systemUser?.id && playlist?.ownerId && systemUser.id === playlist.ownerId);
+    Boolean(systemUser?.id && (playlist?.ownerId || playlist?.userId) && systemUser.id === (playlist.ownerId || playlist.userId));
 
   /* -------------------------------------------------------------------------- */
   /*                          SAVE PLAYLIST TO LIBRARY                          */

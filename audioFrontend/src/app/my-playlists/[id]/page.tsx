@@ -221,8 +221,8 @@ export default function MyPlaylistPage() {
     ? true
     : Boolean(
         systemUser?.id &&
-          playlist?.ownerId &&
-          playlist.ownerId === systemUser.id
+          (playlist?.ownerId || playlist?.userId) &&
+          (playlist.ownerId || playlist.userId) === systemUser.id
       );
 
   /* -------------------------------------------------------------------------- */

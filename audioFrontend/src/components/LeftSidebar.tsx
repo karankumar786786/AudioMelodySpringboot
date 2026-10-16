@@ -52,7 +52,7 @@ export function LeftSidebar() {
   const userPlaylists = playlistsResponse?.data?.data || [];
 
   return (
-    <aside className="w-[64px] xl:w-[192px] bg-black flex flex-col h-[calc(100vh-64px)] fixed left-0 top-16 z-40 overflow-hidden transition-[width] duration-200">
+    <aside className="w-16 xl:w-48 bg-black flex flex-col h-[calc(100vh-64px)] fixed left-0 top-16 z-40 overflow-hidden transition-[width] duration-200">
       <div className="pt-4 px-1.5 xl:px-3 pb-5 flex flex-col h-full bg-black">
         <div className="space-y-7 flex-1 overflow-y-auto no-scrollbar pb-24">
           {/* Main Menu */}
@@ -105,7 +105,7 @@ export function LeftSidebar() {
                     : "text-zinc-300 hover:text-white hover:bg-[#1a1a1a]"
                 }`}
               >
-                <div className="w-[34px] h-[34px] rounded-md bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shrink-0 shadow-md">
+                <div className="w-8.5 h-8.5 rounded-md bg-lineat-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shrink-0 shadow-md">
                   <Heart size={16} fill="white" className="text-white" />
                 </div>
                 <div className="hidden xl:flex flex-col min-w-0 flex-1">
@@ -123,10 +123,11 @@ export function LeftSidebar() {
                 </div>
               ) : userPlaylists.length > 0 ? (
                 userPlaylists.map((playlist: any) => {
+                  const effectiveOwnerId = playlist.ownerId || playlist.userId;
                   const isDynamicSaved = Boolean(
-                    playlist.ownerId &&
+                    effectiveOwnerId &&
                       systemUser?.id &&
-                      playlist.ownerId !== systemUser.id
+                      effectiveOwnerId !== systemUser.id
                   );
 
                   return (
