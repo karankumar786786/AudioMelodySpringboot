@@ -1,0 +1,1739 @@
+{
+  "info": {
+    "_postman_id": "7f6cebb2-d8f1-496c-8c62-7efb59b32032",
+    "name": "audio springboot",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "41565076",
+    "_collection_link": "https://go.postman.co/collection/41565076-7f6cebb2-d8f1-496c-8c62-7efb59b32032?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "admin",
+      "item": [
+        {
+          "name": "Artist",
+          "item": [
+            {
+              "name": "Create Artist",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzUxMiJ9.eyJpZCI6ImFkbWluMSIsInVzZXJOYW1lIjoia2FyYW4iLCJlbWFpbCI6ImtzMTgwMjI3NkBnbWFpbC5jb20iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJzdWIiOiJhZG1pbjEiLCJpYXQiOjE3ODU4ODcwNTMsImV4cCI6MTc4NTg5MDY1M30.h-8kK7c0aN83k_2jzl4-erfu2qiEb4ui_3HRkEz1tbQlZcbPJI0OdSnYwgR8Acqj-F8MNTw1Wt8JyKMGA40pew",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\":\"Sonu Nigam\",\n    \"about\":\"bollywood singer\",\n    \"coverImageKey\":\"mnbvcfghjkl\",\n    \"bannerImageKey\":\"jhgfdfgyuiuytgfgh\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:9090/admin/artist",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "admin",
+                    "artist"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update Artist",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzUxMiJ9.eyJpZCI6ImFkbWluMSIsInVzZXJOYW1lIjoia2FyYW4iLCJlbWFpbCI6ImtzMTgwMjI3NkBnbWFpbC5jb20iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJzdWIiOiJhZG1pbjEiLCJpYXQiOjE3ODU0OTk5NjgsImV4cCI6MTc4NTUwMzU2OH0.N-S68eodAVVwjFU_2fV82LfiPNbqUpi_GN2As4kt67XbCxBtsWf2PVqyVgu_JVYD_RPKm7CLwb002nojegKCnA",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\":\"karan\",\n    \"about\":\"jhgfdghjk\",\n    \"coverImageKey\":\"hgfdfgyuygfdfghgvcvbh\",\n    \"bannerImageKey\":\"jhgfdfghjkjhgfdcxvbhjgfvbn\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:9090/admin/artist/9e5e4a9a-e1a8-4b0b-8ae3-0e643e1783aa",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "admin",
+                    "artist",
+                    "9e5e4a9a-e1a8-4b0b-8ae3-0e643e1783aa"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get All Artist",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzUxMiJ9.eyJpZCI6ImFkbWluMSIsInVzZXJOYW1lIjoia2FyYW4iLCJlbWFpbCI6ImtzMTgwMjI3NkBnbWFpbC5jb20iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJzdWIiOiJhZG1pbjEiLCJpYXQiOjE3ODU0OTk5NjgsImV4cCI6MTc4NTUwMzU2OH0.N-S68eodAVVwjFU_2fV82LfiPNbqUpi_GN2As4kt67XbCxBtsWf2PVqyVgu_JVYD_RPKm7CLwb002nojegKCnA",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/admin/artist",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "admin",
+                    "artist"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get Artist by Id",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzUxMiJ9.eyJpZCI6ImFkbWluMSIsInVzZXJOYW1lIjoia2FyYW4iLCJlbWFpbCI6ImtzMTgwMjI3NkBnbWFpbC5jb20iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJzdWIiOiJhZG1pbjEiLCJpYXQiOjE3ODU0OTk5NjgsImV4cCI6MTc4NTUwMzU2OH0.N-S68eodAVVwjFU_2fV82LfiPNbqUpi_GN2As4kt67XbCxBtsWf2PVqyVgu_JVYD_RPKm7CLwb002nojegKCnA",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/admin/artist/8456b4e3-bcc1-45c0-933f-de5e25077734",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "admin",
+                    "artist",
+                    "8456b4e3-bcc1-45c0-933f-de5e25077734"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Artist",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzUxMiJ9.eyJpZCI6ImFkbWluMSIsInVzZXJOYW1lIjoia2FyYW4iLCJlbWFpbCI6ImtzMTgwMjI3NkBnbWFpbC5jb20iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJzdWIiOiJhZG1pbjEiLCJpYXQiOjE3ODU0OTk5NjgsImV4cCI6MTc4NTUwMzU2OH0.N-S68eodAVVwjFU_2fV82LfiPNbqUpi_GN2As4kt67XbCxBtsWf2PVqyVgu_JVYD_RPKm7CLwb002nojegKCnA",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/admin/artist/9e5e4a9a-e1a8-4b0b-8ae3-0e643e1783aa",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "admin",
+                    "artist",
+                    "9e5e4a9a-e1a8-4b0b-8ae3-0e643e1783aa"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Playlist",
+          "item": [
+            {
+              "name": "Create Playlist",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{AccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\":\"play1\",\n    \"description\":\"description1\",\n    \"coverImageKey\":\"cover1\",\n    \"bannerImageKey\":\"banner1\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:9090/admin/playlist",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "admin",
+                    "playlist"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Update Playlist",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzUxMiJ9.eyJpZCI6ImFkbWluMSIsInVzZXJOYW1lIjoia2FyYW4iLCJlbWFpbCI6ImtzMTgwMjI3NkBnbWFpbC5jb20iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJzdWIiOiJhZG1pbjEiLCJpYXQiOjE3ODU0OTk5NjgsImV4cCI6MTc4NTUwMzU2OH0.N-S68eodAVVwjFU_2fV82LfiPNbqUpi_GN2As4kt67XbCxBtsWf2PVqyVgu_JVYD_RPKm7CLwb002nojegKCnA",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PUT",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"name\":\"karan\",\n    \"description\":\"karan1\",\n    \"coverImageKey\":\"c2\",\n    \"bannerImageKey\":\"b2\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:9090/admin/playlist/8c6f9ef0-f232-4acb-86fa-50a631077fc2",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "admin",
+                    "playlist",
+                    "8c6f9ef0-f232-4acb-86fa-50a631077fc2"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Playlist",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzUxMiJ9.eyJpZCI6ImFkbWluMSIsInVzZXJOYW1lIjoia2FyYW4iLCJlbWFpbCI6ImtzMTgwMjI3NkBnbWFpbC5jb20iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJzdWIiOiJhZG1pbjEiLCJpYXQiOjE3ODU0OTk5NjgsImV4cCI6MTc4NTUwMzU2OH0.N-S68eodAVVwjFU_2fV82LfiPNbqUpi_GN2As4kt67XbCxBtsWf2PVqyVgu_JVYD_RPKm7CLwb002nojegKCnA",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/admin/playlist/8c6f9ef0-f232-4acb-86fa-50a631077fc2",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "admin",
+                    "playlist",
+                    "8c6f9ef0-f232-4acb-86fa-50a631077fc2"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get All Playlist",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{AccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/admin/playlist",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "admin",
+                    "playlist"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Playlist by Id",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{AccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/admin/playlist/3bc4c6e1-ef01-4c33-a7f8-0eec039988a9",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "admin",
+                    "playlist",
+                    "3bc4c6e1-ef01-4c33-a7f8-0eec039988a9"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Add songs",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{AccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"songId\":\"c3719ad1-0fae-4088-bcb0-0fe5d2c5cd2c\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:9090/admin/playlist/3bc4c6e1-ef01-4c33-a7f8-0eec039988a9/songs",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "admin",
+                    "playlist",
+                    "3bc4c6e1-ef01-4c33-a7f8-0eec039988a9",
+                    "songs"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "remove song",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{AccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "DELETE",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"songId\":\"c3719ad1-0fae-4088-bcb0-0fe5d2c5cd2c\"\n}"
+                },
+                "url": {
+                  "raw": "localhost:9090/admin/playlist/3bc4c6e1-ef01-4c33-a7f8-0eec039988a9/songs/c3719ad1-0fae-4088-bcb0-0fe5d2c5cd2c",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "admin",
+                    "playlist",
+                    "3bc4c6e1-ef01-4c33-a7f8-0eec039988a9",
+                    "songs",
+                    "c3719ad1-0fae-4088-bcb0-0fe5d2c5cd2c"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get playlist songs",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{AccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/admin/playlist/3bc4c6e1-ef01-4c33-a7f8-0eec039988a9/songs",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "admin",
+                    "playlist",
+                    "3bc4c6e1-ef01-4c33-a7f8-0eec039988a9",
+                    "songs"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Songs",
+          "item": [
+            {
+              "name": "Create Song",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzUxMiJ9.eyJpZCI6ImFkbWluMSIsInVzZXJOYW1lIjoia2FyYW4iLCJlbWFpbCI6ImtzMTgwMjI3NkBnbWFpbC5jb20iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJzdWIiOiJhZG1pbjEiLCJpYXQiOjE3ODU4ODcwNTMsImV4cCI6MTc4NTg5MDY1M30.h-8kK7c0aN83k_2jzl4-erfu2qiEb4ui_3HRkEz1tbQlZcbPJI0OdSnYwgR8Acqj-F8MNTw1Wt8JyKMGA40pew",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"title\":\"Dekhte Dekhte\",\n    \"artistName\":\"Atif Aslam\",\n    \"imageKey\":\"82155f86-3aee-4782-bc27-405a8f45a89d\",\n    \"tempSongKey\":\"2b946e68-8552-4bf2-b235-0f8f2b22a7ae\",\n    \"language\":\"Hindi\",\n    \"lrclibId\":\"33044018\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:9090/admin/song",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "admin",
+                    "song"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Fetch Job",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzUxMiJ9.eyJpZCI6ImFkbWluMSIsInVzZXJOYW1lIjoia2FyYW4iLCJlbWFpbCI6ImtzMTgwMjI3NkBnbWFpbC5jb20iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJzdWIiOiJhZG1pbjEiLCJpYXQiOjE3ODU1NTY0NjcsImV4cCI6MTc4NTU2MDA2N30.v0AvY2JIHhzOoICMXibEEOwMuwpDfSXhBn-KPtnw__OxwwAennHkzQA1Pex02Y61z1HLoioihtTGbQ6c-ZSqTA",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/admin/song/job/2b084b98-a963-4d01-b89b-11a3c95d0ee3",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "admin",
+                    "song",
+                    "job",
+                    "2b084b98-a963-4d01-b89b-11a3c95d0ee3"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Delete song",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzUxMiJ9.eyJpZCI6ImFkbWluMSIsInVzZXJOYW1lIjoia2FyYW4iLCJlbWFpbCI6ImtzMTgwMjI3NkBnbWFpbC5jb20iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJzdWIiOiJhZG1pbjEiLCJpYXQiOjE3ODU4NDMwOTksImV4cCI6MTc4NTg0NjY5OX0.4gZOqlC5oAG6l8unkQJxVUczcb3XqJOs84q5lVlVmfB8O1ieF9pNTcqKccpYD_ygXbOmM7AfZ37TjDtNrw8PbA",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/admin/song/f8495115-7364-4844-b7ef-5931f8991f27",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "admin",
+                    "song",
+                    "f8495115-7364-4844-b7ef-5931f8991f27"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get song by id",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{AccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/admin/song/c3719ad1-0fae-4088-bcb0-0fe5d2c5cd2c",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "admin",
+                    "song",
+                    "c3719ad1-0fae-4088-bcb0-0fe5d2c5cd2c"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get all songs",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{AccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/admin/song",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "admin",
+                    "song"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "authentication",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"ks1802276@gmail.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "localhost:9090/auth/login",
+              "host": [
+                "localhost"
+              ],
+              "port": "9090",
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify otp",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-TEMP-TOKEN",
+                "value": "82e339b9ebb0476e8c157d7c85d108ec64f13ad48a7f7deb1373fe1cdf007b99:6b733138303232373640676d61696c2e636f6d",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"otp\": \"338959\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "localhost:9090/auth/verify-otp",
+              "host": [
+                "localhost"
+              ],
+              "port": "9090",
+              "path": [
+                "auth",
+                "verify-otp"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"userName\": \"testuser1\",\n    \"email\": \"bs7819679@gmail.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "localhost:9090/auth/register",
+              "host": [
+                "localhost"
+              ],
+              "port": "9090",
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"refreshToken\":\"eyJhbGciOiJIUzUxMiJ9.eyJpZCI6ImFkbWluMSIsInVzZXJOYW1lIjoia2FyYW4iLCJlbWFpbCI6ImtzMTgwMjI3NkBnbWFpbC5jb20iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJzdWIiOiJhZG1pbjEiLCJpYXQiOjE3ODU4ODcwNTMsImV4cCI6MTc4NjQ5MTg1M30.l5ThUzxoxWt16vSCaUvJTHX3mfE0NpsdjNGch14ytPv_Pk5tKEesBL8iRZCbOFswikQ-spXvE1WLU_qcFNCe7A\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "localhost:9090/auth/refresh-token",
+              "host": [
+                "localhost"
+              ],
+              "port": "9090",
+              "path": [
+                "auth",
+                "refresh-token"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "item": [
+        {
+          "name": "Internal",
+          "item": [
+            {
+              "name": "Image upload url",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-API-KEY",
+                    "value": "this_is_api_key_of_my_application",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "localhost:9090/webhook/internal/image-upload-param",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "webhook",
+                    "internal",
+                    "image-upload-param"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "Song upload url",
+              "request": {
+                "auth": {
+                  "type": "noauth"
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "X-API-KEY",
+                    "value": "this_is_api_key_of_my_application",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "localhost:9090/webhook/internal/song-upload-url",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "webhook",
+                    "internal",
+                    "song-upload-url"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "fetch job by webhook",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "this_is_api_key_of_my_application",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"jobId\":\"fbeda717-f421-4b10-a7ba-a52bf789b410\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "localhost:9090/webhook/job/fbeda717-f421-4b10-a7ba-a52bf789b410",
+              "host": [
+                "localhost"
+              ],
+              "port": "9090",
+              "path": [
+                "webhook",
+                "job",
+                "fbeda717-f421-4b10-a7ba-a52bf789b410"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Save in Recombee",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-KEY",
+                "value": "this_is_api_key_of_my_application",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "localhost:9090/webhook/job/fbeda717-f421-4b10-a7ba-a52bf789b410/save-recommendation",
+              "host": [
+                "localhost"
+              ],
+              "port": "9090",
+              "path": [
+                "webhook",
+                "job",
+                "fbeda717-f421-4b10-a7ba-a52bf789b410",
+                "save-recommendation"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Api",
+      "item": [
+        {
+          "name": "Interaction",
+          "item": [
+            {
+              "name": "Play",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzUxMiJ9.eyJpZCI6ImFkbWluMSIsInVzZXJOYW1lIjoia2FyYW4iLCJlbWFpbCI6ImtzMTgwMjI3NkBnbWFpbC5jb20iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJzdWIiOiJhZG1pbjEiLCJpYXQiOjE3ODU4ODcwNTMsImV4cCI6MTc4NTg5MDY1M30.h-8kK7c0aN83k_2jzl4-erfu2qiEb4ui_3HRkEz1tbQlZcbPJI0OdSnYwgR8Acqj-F8MNTw1Wt8JyKMGA40pew",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"songId\":\"c3719ad1-0fae-4088-bcb0-0fe5d2c5cd2c\",\n    \"percentage\":\"0.9\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "localhost:9090/api/interaction/play",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "api",
+                    "interaction",
+                    "play"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "add favourite song",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzUxMiJ9.eyJpZCI6ImFkbWluMSIsInVzZXJOYW1lIjoia2FyYW4iLCJlbWFpbCI6ImtzMTgwMjI3NkBnbWFpbC5jb20iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJzdWIiOiJhZG1pbjEiLCJpYXQiOjE3ODU4ODcwNTMsImV4cCI6MTc4NTg5MDY1M30.h-8kK7c0aN83k_2jzl4-erfu2qiEb4ui_3HRkEz1tbQlZcbPJI0OdSnYwgR8Acqj-F8MNTw1Wt8JyKMGA40pew",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/api/interaction/favourite/c3719ad1-0fae-4088-bcb0-0fe5d2c5cd2c",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "api",
+                    "interaction",
+                    "favourite",
+                    "c3719ad1-0fae-4088-bcb0-0fe5d2c5cd2c"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "remove favourite song",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzUxMiJ9.eyJpZCI6ImFkbWluMSIsInVzZXJOYW1lIjoia2FyYW4iLCJlbWFpbCI6ImtzMTgwMjI3NkBnbWFpbC5jb20iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJzdWIiOiJhZG1pbjEiLCJpYXQiOjE3ODU4ODcwNTMsImV4cCI6MTc4NTg5MDY1M30.h-8kK7c0aN83k_2jzl4-erfu2qiEb4ui_3HRkEz1tbQlZcbPJI0OdSnYwgR8Acqj-F8MNTw1Wt8JyKMGA40pew",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/api/interaction/favourite/c3719ad1-0fae-4088-bcb0-0fe5d2c5cd2c",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "api",
+                    "interaction",
+                    "favourite",
+                    "c3719ad1-0fae-4088-bcb0-0fe5d2c5cd2c"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get favourite songs",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "eyJhbGciOiJIUzUxMiJ9.eyJpZCI6ImFkbWluMSIsInVzZXJOYW1lIjoia2FyYW4iLCJlbWFpbCI6ImtzMTgwMjI3NkBnbWFpbC5jb20iLCJyb2xlIjoiU1VQRVJfQURNSU4iLCJzdWIiOiJhZG1pbjEiLCJpYXQiOjE3ODU4ODcwNTMsImV4cCI6MTc4NTg5MDY1M30.h-8kK7c0aN83k_2jzl4-erfu2qiEb4ui_3HRkEz1tbQlZcbPJI0OdSnYwgR8Acqj-F8MNTw1Wt8JyKMGA40pew",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/api/interaction/favourites",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "api",
+                    "interaction",
+                    "favourites"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "recommendation",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{AccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/api/recommendations/user",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "api",
+                    "recommendations",
+                    "user"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "similar songs",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{AccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/api/recommendations/similar/598f6f9f-ca56-460a-bda0-6a256003e1d7",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "api",
+                    "recommendations",
+                    "similar",
+                    "598f6f9f-ca56-460a-bda0-6a256003e1d7"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "user",
+          "item": [
+            {
+              "name": "Playlist",
+              "item": [
+                {
+                  "name": "Create Playlist",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{AccessToken}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "POST",
+                    "header": [],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"name\":\"lulu playlist\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "localhost:9090/api/user/playlists",
+                      "host": [
+                        "localhost"
+                      ],
+                      "port": "9090",
+                      "path": [
+                        "api",
+                        "user",
+                        "playlists"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "update playlist",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{AccessToken}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "PUT",
+                    "header": [],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"name\":\"karan\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "localhost:9090/api/user/playlists/2ed55c2f-8c23-4cfe-ae2b-458762bedac7",
+                      "host": [
+                        "localhost"
+                      ],
+                      "port": "9090",
+                      "path": [
+                        "api",
+                        "user",
+                        "playlists",
+                        "2ed55c2f-8c23-4cfe-ae2b-458762bedac7"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "delete playlist",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{AccessToken}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "DELETE",
+                    "header": [],
+                    "url": {
+                      "raw": "localhost:9090/api/user/playlists/473507e7-c8d2-449f-be97-156d542e6745",
+                      "host": [
+                        "localhost"
+                      ],
+                      "port": "9090",
+                      "path": [
+                        "api",
+                        "user",
+                        "playlists",
+                        "473507e7-c8d2-449f-be97-156d542e6745"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "add song",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{AccessToken}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "POST",
+                    "header": [],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n    \"songId\":\"c3719ad1-0fae-4088-bcb0-0fe5d2c5cd2c\"\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "localhost:9090/api/user/playlists/4dd46426-ba52-4253-a758-44d9bdf9cb4d/songs",
+                      "host": [
+                        "localhost"
+                      ],
+                      "port": "9090",
+                      "path": [
+                        "api",
+                        "user",
+                        "playlists",
+                        "4dd46426-ba52-4253-a758-44d9bdf9cb4d",
+                        "songs"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "remove song",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{AccessToken}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "DELETE",
+                    "header": [],
+                    "url": {
+                      "raw": "localhost:9090/api/user/playlists/4dd46426-ba52-4253-a758-44d9bdf9cb4d/songs/c3719ad1-0fae-4088-bcb0-0fe5d2c5cd2c",
+                      "host": [
+                        "localhost"
+                      ],
+                      "port": "9090",
+                      "path": [
+                        "api",
+                        "user",
+                        "playlists",
+                        "4dd46426-ba52-4253-a758-44d9bdf9cb4d",
+                        "songs",
+                        "c3719ad1-0fae-4088-bcb0-0fe5d2c5cd2c"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "get all playlists",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{AccessToken}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "localhost:9090/api/user/playlists",
+                      "host": [
+                        "localhost"
+                      ],
+                      "port": "9090",
+                      "path": [
+                        "api",
+                        "user",
+                        "playlists"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "get playlist by id",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{AccessToken}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "localhost:9090/api/user/playlists/4dd46426-ba52-4253-a758-44d9bdf9cb4d",
+                      "host": [
+                        "localhost"
+                      ],
+                      "port": "9090",
+                      "path": [
+                        "api",
+                        "user",
+                        "playlists",
+                        "4dd46426-ba52-4253-a758-44d9bdf9cb4d"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "get playlist songs",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{AccessToken}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "localhost:9090/api/user/playlists/4dd46426-ba52-4253-a758-44d9bdf9cb4d/songs",
+                      "host": [
+                        "localhost"
+                      ],
+                      "port": "9090",
+                      "path": [
+                        "api",
+                        "user",
+                        "playlists",
+                        "4dd46426-ba52-4253-a758-44d9bdf9cb4d",
+                        "songs"
+                      ]
+                    }
+                  },
+                  "response": []
+                }
+              ]
+            },
+            {
+              "name": "Histoty",
+              "item": [
+                {
+                  "name": "get user search history",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{AccessToken}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "localhost:9090/api/user/history/search",
+                      "host": [
+                        "localhost"
+                      ],
+                      "port": "9090",
+                      "path": [
+                        "api",
+                        "user",
+                        "history",
+                        "search"
+                      ]
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "get user history",
+                  "request": {
+                    "auth": {
+                      "type": "bearer",
+                      "bearer": [
+                        {
+                          "key": "token",
+                          "value": "{{AccessToken}}",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    "method": "GET",
+                    "header": [],
+                    "url": {
+                      "raw": "localhost:9090/api/user/history",
+                      "host": [
+                        "localhost"
+                      ],
+                      "port": "9090",
+                      "path": [
+                        "api",
+                        "user",
+                        "history"
+                      ]
+                    }
+                  },
+                  "response": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "artist",
+          "item": [
+            {
+              "name": "artist songs",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{AccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/api/artists/15580acd-8a76-476d-b6f5-35b8daaec075/songs",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "api",
+                    "artists",
+                    "15580acd-8a76-476d-b6f5-35b8daaec075",
+                    "songs"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get all artist",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{AccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/api/artists",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "api",
+                    "artists"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get artist by id",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{AccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/api/artists/15580acd-8a76-476d-b6f5-35b8daaec075",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "api",
+                    "artists",
+                    "15580acd-8a76-476d-b6f5-35b8daaec075"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "songs",
+          "item": [
+            {
+              "name": "get all songs",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{AccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/api/songs",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "api",
+                    "songs"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get song by id",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{AccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/api/songs/598f6f9f-ca56-460a-bda0-6a256003e1d7",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "api",
+                    "songs",
+                    "598f6f9f-ca56-460a-bda0-6a256003e1d7"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "playlist",
+          "item": [
+            {
+              "name": "get all playlists",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{AccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/api/playlists",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "api",
+                    "playlists"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get playlist by id",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{AccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/api/playlists/3bc4c6e1-ef01-4c33-a7f8-0eec039988a9",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "api",
+                    "playlists",
+                    "3bc4c6e1-ef01-4c33-a7f8-0eec039988a9"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "gat playlist songs",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{AccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/api/playlists/3bc4c6e1-ef01-4c33-a7f8-0eec039988a9/songs",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "api",
+                    "playlists",
+                    "3bc4c6e1-ef01-4c33-a7f8-0eec039988a9",
+                    "songs"
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "others",
+          "item": [
+            {
+              "name": "search",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{AccessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "localhost:9090/api/search?q=sonu",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "9090",
+                  "path": [
+                    "api",
+                    "search"
+                  ],
+                  "query": [
+                    {
+                      "key": "q",
+                      "value": "sonu"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
