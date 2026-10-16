@@ -9,7 +9,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -121,8 +120,6 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/songs/**", "/api/playlists/**", "/api/artists/**", "/api/search/**", "/api/recommendations/similar/**", "/api/recommendations/radio").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/user/playlists/shared/**").permitAll()
                 .requestMatchers("/api/**", "/app/**").authenticated()
                 .anyRequest().authenticated()
             )
