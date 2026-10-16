@@ -1,6 +1,7 @@
 import re
 import uuid
 from django.core.management.base import BaseCommand, CommandError
+# pyrefly: ignore[missing-import]
 from accounts.models import Admin
 
 

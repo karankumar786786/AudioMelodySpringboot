@@ -8,9 +8,11 @@ logger = logging.getLogger(__name__)
 
 def _get_admin_model():
     try:
+        # pyrefly: ignore[missing-import]
         from accounts.models import Admin
         return Admin
     except Exception:
+        # pyrefly: ignore[missing-import]
         from api.models import Admin
         return Admin
 
