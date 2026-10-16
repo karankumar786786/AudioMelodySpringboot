@@ -93,7 +93,7 @@ export function SongCardCover({
           {/* Circular SVG countdown progress ring when counting down */}
           {isCountingDown && (
             <svg
-              className="absolute -inset-1 w-[52px] h-[52px] -rotate-90 pointer-events-none"
+              className="absolute -inset-1 w-13 h-13 -rotate-90 pointer-events-none"
               viewBox="0 0 52 52"
               aria-hidden="true"
             >
@@ -135,7 +135,7 @@ export function SongCardCover({
                 }}
               />
               <svg
-                className="absolute -inset-1 w-[52px] h-[52px] -rotate-90 pointer-events-none drop-shadow-[0_0_8px_rgba(30,215,96,0.6)]"
+                className="absolute -inset-1 w-13 h-13 -rotate-90 pointer-events-none drop-shadow-[0_0_8px_rgba(30,215,96,0.6)]"
                 viewBox="0 0 52 52"
                 aria-hidden="true"
               >

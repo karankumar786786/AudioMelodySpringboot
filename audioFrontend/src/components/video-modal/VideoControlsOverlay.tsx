@@ -199,7 +199,7 @@ export function VideoControlsOverlay({
                 </PlayerTooltip>
                 {showQualityMenu && (
                   <div
-                    className="absolute bottom-full mb-2 right-0 bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden shadow-2xl min-w-[80px] z-20"
+                    className="absolute bottom-full mb-2 right-0 bg-zinc-900 border border-zinc-700 rounded-xl overflow-hidden shadow-2xl min-w-20 z-20"
                     onClick={(e) => e.stopPropagation()}
                   >
                     {[{ height: -1, label: "Auto" }, ...qualityLevels].map((q) => (

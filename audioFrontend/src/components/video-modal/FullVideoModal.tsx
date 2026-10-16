@@ -555,7 +555,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-[200] w-screen h-screen flex items-center justify-center bg-black overflow-hidden"
+      className="fixed inset-0 z-200 w-screen h-screen flex items-center justify-center bg-black overflow-hidden"
       style={{ animation: "fullVideoFadeIn 0.2s ease" }}
       onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
     >
