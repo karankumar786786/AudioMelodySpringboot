@@ -37,9 +37,9 @@ export default function UsersPage() {
   // Toast notifications
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
 
-  const showToast = (message: string, type: ToastType = "success") => {
+  const showToast = useCallback((message: string, type: ToastType = "success") => {
     setToast({ message, type });
-  };
+  }, []);
 
   // Debounce search input
   useEffect(() => {
@@ -93,7 +93,7 @@ export default function UsersPage() {
         setRefreshing(false);
       }
     },
-    [page, pageSize, debouncedSearch, roleFilter, statusFilter]
+    [page, pageSize, debouncedSearch, roleFilter, statusFilter, showToast]
   );
 
   useEffect(() => {

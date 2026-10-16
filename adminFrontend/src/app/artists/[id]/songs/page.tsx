@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, useCallback, use } from "react";
 import Link from "next/link";
 import { adminFetch } from "@/lib/adminFetch";
 import { Artist } from "@/app/artists/types";
@@ -13,7 +13,7 @@ export default function ArtistSongsPage({ params }: { params: Promise<{ id: stri
   const [songs, setSongs] = useState<DiscographySong[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       // 1. Fetch Artist Details
       const artistRes = await adminFetch(`/admin/artist/${id}`);
@@ -33,11 +33,11 @@ export default function ArtistSongsPage({ params }: { params: Promise<{ id: stri
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     fetchData();
-  }, [id]);
+  }, [fetchData]);
 
   if (loading) {
     return (

@@ -220,10 +220,11 @@ export function CreatePlaylistModal({
           )}
 
           <div>
-            <label className={labelCls}>
+            <label htmlFor="playlist-name" className={labelCls}>
               Playlist Name <span className="text-red-400">*</span>
             </label>
             <input
+              id="playlist-name"
               required
               type="text"
               placeholder="e.g. Chill Beats & Coffee"
@@ -234,8 +235,9 @@ export function CreatePlaylistModal({
           </div>
 
           <div>
-            <label className={labelCls}>Description</label>
+            <label htmlFor="playlist-desc" className={labelCls}>Description</label>
             <textarea
+              id="playlist-desc"
               rows={3}
               placeholder="Describe the mood, vibe, or genres in this playlist..."
               value={formData.description}
@@ -245,10 +247,11 @@ export function CreatePlaylistModal({
           </div>
 
           <div>
-            <label className={labelCls}>
+            <label htmlFor="playlist-cover" className={labelCls}>
               Cover Artwork <span className="text-red-400">*</span>
             </label>
             <input
+              id="playlist-cover"
               required
               type="file"
               accept="image/*"
@@ -258,10 +261,11 @@ export function CreatePlaylistModal({
           </div>
 
           <div>
-            <label className={labelCls}>
+            <label htmlFor="playlist-video" className={labelCls}>
               Teaser Video Loop <span className="text-zinc-500 font-normal">(Optional)</span>
             </label>
             <input
+              id="playlist-video"
               type="file"
               accept="video/*"
               onChange={(e) => setFormData({ ...formData, videoFile: e.target.files?.[0] || null })}

@@ -77,10 +77,17 @@ function SongsContent() {
 
   // Handle URL query parameter `?edit=<id>`
   useEffect(() => {
-    if (editId && songs.length > 0) {
+    if (editId) {
       const target = songs.find((s) => s.id === editId);
       if (target) {
         setEditingSong(target as SongData);
+      } else {
+        adminFetch(`/admin/song/${editId}`).then(async (res) => {
+          if (res.ok) {
+            const song = await res.json();
+            setEditingSong(song);
+          }
+        }).catch(() => {});
       }
     }
   }, [editId, songs]);

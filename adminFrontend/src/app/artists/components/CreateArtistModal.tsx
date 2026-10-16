@@ -155,10 +155,11 @@ export function CreateArtistModal({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">
+            <label htmlFor="artist-name" className="block text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">
               Artist Name
             </label>
             <input
+              id="artist-name"
               required
               type="text"
               value={formData.name}
@@ -171,10 +172,11 @@ export function CreateArtistModal({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">
+            <label htmlFor="artist-about" className="block text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">
               Biography / About
             </label>
             <textarea
+              id="artist-about"
               rows={3}
               value={formData.about}
               onChange={(e) =>
@@ -186,10 +188,11 @@ export function CreateArtistModal({
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">
+            <label htmlFor="artist-cover" className="block text-xs font-bold text-zinc-400 mb-2 uppercase tracking-wider">
               Cover Avatar
             </label>
             <input
+              id="artist-cover"
               required
               type="file"
               accept="image/*"

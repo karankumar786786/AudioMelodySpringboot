@@ -391,10 +391,11 @@ export function CreateSongModal({
             {/* Metadata Fields */}
             <div className="space-y-4">
               <div>
-                <label className={labelCls}>
+                <label htmlFor="song-title" className={labelCls}>
                   Track Title <span className="text-red-400">*</span>
                 </label>
                 <input
+                  id="song-title"
                   required
                   type="text"
                   placeholder="e.g. Starboy"
@@ -405,10 +406,11 @@ export function CreateSongModal({
               </div>
 
               <div>
-                <label className={labelCls}>
+                <label htmlFor="song-artist" className={labelCls}>
                   Artist Name <span className="text-red-400">*</span>
                 </label>
                 <input
+                  id="song-artist"
                   required
                   type="text"
                   placeholder="e.g. The Weeknd"
@@ -420,8 +422,9 @@ export function CreateSongModal({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>Language</label>
+                  <label htmlFor="song-language" className={labelCls}>Language</label>
                   <input
+                    id="song-language"
                     type="text"
                     value={formData.language}
                     onChange={(e) => setFormData({ ...formData, language: e.target.value })}
@@ -429,8 +432,9 @@ export function CreateSongModal({
                   />
                 </div>
                 <div>
-                  <label className={labelCls}>Genre</label>
+                  <label htmlFor="song-genre" className={labelCls}>Genre</label>
                   <input
+                    id="song-genre"
                     type="text"
                     placeholder="e.g. Pop"
                     value={formData.genre}
@@ -442,8 +446,9 @@ export function CreateSongModal({
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>Album</label>
+                  <label htmlFor="song-album" className={labelCls}>Album</label>
                   <input
+                    id="song-album"
                     type="text"
                     placeholder="Optional album"
                     value={formData.album}
@@ -452,8 +457,9 @@ export function CreateSongModal({
                   />
                 </div>
                 <div>
-                  <label className={labelCls}>LRCLIB ID</label>
+                  <label htmlFor="song-lrclib" className={labelCls}>LRCLIB ID</label>
                   <input
+                    id="song-lrclib"
                     type="text"
                     placeholder="Lyrics sync ID"
                     value={formData.lrclibId}
