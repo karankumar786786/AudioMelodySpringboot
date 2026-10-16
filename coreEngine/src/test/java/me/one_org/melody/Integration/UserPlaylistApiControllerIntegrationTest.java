@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import me.one_org.melody.Controllers.Api.UserPlaylistApiController;
+import me.one_org.melody.Dto.Controllers.Api.UserPlaylistDto;
 import me.one_org.melody.Entity.User;
 import me.one_org.melody.Entity.UserPlaylist;
 import me.one_org.melody.Enums.PlaylistPrivacyEnum;
@@ -48,7 +49,7 @@ class UserPlaylistApiControllerIntegrationTest {
                 .build();
 
         when(userPlaylistApiService.createPlaylist(eq("u-1"), eq("Morning Coffee"), eq(PlaylistPrivacyEnum.PUBLIC)))
-                .thenReturn(playlist);
+                .thenReturn(UserPlaylistDto.fromEntity(playlist));
 
         mockMvc.perform(post("/api/user/playlists")
                         .requestAttr("userId", "u-1")
@@ -72,7 +73,7 @@ class UserPlaylistApiControllerIntegrationTest {
                 .build();
 
         when(userPlaylistApiService.renamePlaylist("u-1", "upl-2", "Evening Chill"))
-                .thenReturn(playlist);
+                .thenReturn(UserPlaylistDto.fromEntity(playlist));
 
         mockMvc.perform(put("/api/user/playlists/upl-2")
                         .requestAttr("userId", "u-1")
@@ -103,7 +104,7 @@ class UserPlaylistApiControllerIntegrationTest {
                 .totalSongs(1)
                 .build();
 
-        when(userPlaylistApiService.addSong("u-1", "upl-4", "s-123")).thenReturn(playlist);
+        when(userPlaylistApiService.addSong("u-1", "upl-4", "s-123")).thenReturn(UserPlaylistDto.fromEntity(playlist));
 
         mockMvc.perform(post("/api/user/playlists/upl-4/songs")
                         .requestAttr("userId", "u-1")

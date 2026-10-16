@@ -13,7 +13,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import me.one_org.melody.Controllers.Api.ArtistApiController;
+import me.one_org.melody.Dto.Controllers.Api.ArtistDto;
 import me.one_org.melody.Dto.Controllers.Api.ArtistFollowStatusDto;
+import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
 import me.one_org.melody.Entity.Artist;
 import me.one_org.melody.Entity.PaginationMetaData;
 import me.one_org.melody.Services.Api.ArtistApiService;
@@ -40,8 +42,8 @@ class ArtistApiControllerIntegrationTest {
     @DisplayName("GET /api/artists should return paginated artists list")
     void shouldReturnPaginatedArtists() throws Exception {
         Artist artist = Artist.builder().id("art-1").name("Queen").build();
-        when(artistApiService.getArtistsPaginated(0, 20)).thenReturn(List.of(artist));
-        when(artistApiService.getPaginationMetaData()).thenReturn(PaginationMetaData.builder().totalCount(1L).build());
+        when(artistApiService.getArtistsPaginated(0, 20)).thenReturn(List.of(ArtistDto.fromEntity(artist)));
+        when(artistApiService.getPaginationMetaData()).thenReturn(PaginationMetaDataDto.fromEntity(PaginationMetaData.builder().totalCount(1L).build()));
 
         mockMvc.perform(get("/api/artists")
                         .contentType(MediaType.APPLICATION_JSON))
@@ -54,7 +56,7 @@ class ArtistApiControllerIntegrationTest {
     @DisplayName("GET /api/artists/{id} should return artist with Cache-Control header")
     void shouldReturnArtistWithCacheControl() throws Exception {
         Artist artist = Artist.builder().id("art-2").name("Coldplay").build();
-        when(artistApiService.getArtistById("art-2")).thenReturn(artist);
+        when(artistApiService.getArtistById("art-2")).thenReturn(ArtistDto.fromEntity(artist));
 
         mockMvc.perform(get("/api/artists/art-2")
                         .contentType(MediaType.APPLICATION_JSON))

@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import me.one_org.melody.Controllers.Api.SongsApiController;
+import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Entity.SongMetadata;
 import me.one_org.melody.Enums.StatusEnum;
@@ -54,7 +55,7 @@ class SongsApiControllerIntegrationTest {
                 .songMetadata(SongMetadata.builder().totalStreams(88000L).build())
                 .build();
 
-        when(songsApiService.getFeaturedSongs()).thenReturn(List.of(song));
+        when(songsApiService.getFeaturedSongs()).thenReturn(List.of(SongDto.fromEntity(song)));
 
         mockMvc.perform(get("/api/songs/featured")
                         .contentType(MediaType.APPLICATION_JSON))
@@ -83,7 +84,7 @@ class SongsApiControllerIntegrationTest {
                 .songMetadata(SongMetadata.builder().totalStreams(520000L).build())
                 .build();
 
-        when(songsApiService.getSongById("song-42")).thenReturn(song);
+        when(songsApiService.getSongById("song-42")).thenReturn(SongDto.fromEntity(song));
 
         mockMvc.perform(get("/api/songs/song-42")
                         .contentType(MediaType.APPLICATION_JSON))

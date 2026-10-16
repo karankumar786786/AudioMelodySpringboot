@@ -13,6 +13,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import me.one_org.melody.Controllers.Api.PlaylistApiController;
+import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
+import me.one_org.melody.Dto.Controllers.Api.PlaylistDto;
 import me.one_org.melody.Entity.PaginationMetaData;
 import me.one_org.melody.Entity.Playlist;
 import me.one_org.melody.Services.Api.PlaylistApiService;
@@ -38,8 +40,8 @@ class PlaylistApiControllerIntegrationTest {
     @DisplayName("GET /api/playlists should return paginated playlists")
     void shouldReturnPlaylists() throws Exception {
         Playlist playlist = Playlist.builder().id("pl-10").name("Top 50 Global").totalSongs(50).build();
-        when(playlistApiService.getPlaylistsPaginated(0, 20)).thenReturn(List.of(playlist));
-        when(playlistApiService.getPaginationMetaData()).thenReturn(PaginationMetaData.builder().totalCount(1L).build());
+        when(playlistApiService.getPlaylistsPaginated(0, 20)).thenReturn(List.of(PlaylistDto.fromEntity(playlist)));
+        when(playlistApiService.getPaginationMetaData()).thenReturn(PaginationMetaDataDto.fromEntity(PaginationMetaData.builder().totalCount(1L).build()));
 
         mockMvc.perform(get("/api/playlists")
                         .contentType(MediaType.APPLICATION_JSON))
@@ -52,7 +54,7 @@ class PlaylistApiControllerIntegrationTest {
     @DisplayName("GET /api/playlists/{id} should return single playlist")
     void shouldReturnPlaylistById() throws Exception {
         Playlist playlist = Playlist.builder().id("pl-10").name("Top 50 Global").totalSongs(50).build();
-        when(playlistApiService.getPlaylistById("pl-10")).thenReturn(playlist);
+        when(playlistApiService.getPlaylistById("pl-10")).thenReturn(PlaylistDto.fromEntity(playlist));
 
         mockMvc.perform(get("/api/playlists/pl-10")
                         .contentType(MediaType.APPLICATION_JSON))
