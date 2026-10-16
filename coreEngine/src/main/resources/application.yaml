@@ -103,6 +103,7 @@ algolia:
   app-id: ${ALGOLIA_APP_ID:default_algolia_app_id}
   api-key: ${ALGOLIA_API_KEY:default_algolia_api_key}
   index-name: ${ALGOLIA_INDEX_NAME:default_algolia_index_name}
+  search-api-key: ${ALGOLIA_SEARCH_API_KEY:default_key}
 
 recombee:
   database-id: ${RECOMBEE_DATABASE_ID:default_recombee_db_id}

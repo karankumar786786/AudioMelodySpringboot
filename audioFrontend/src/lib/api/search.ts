@@ -16,6 +16,18 @@ let algoliaConfigCache: {
 } | null = null;
 
 export async function getAlgoliaConfig(): Promise<AlgoliaConfig | null> {
+  const envAppId = process.env.NEXT_PUBLIC_ALGOLIA_APP_ID;
+  const envIndexName = process.env.NEXT_PUBLIC_ALGOLIA_INDEX_NAME;
+  const envApiKey = process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_KEY;
+
+  if (envAppId && envIndexName && envApiKey) {
+    return {
+      appId: envAppId,
+      indexName: envIndexName,
+      apiKey: envApiKey,
+    };
+  }
+
   const now = Date.now();
   // Cache credentials in-memory for 1 hour
   if (algoliaConfigCache && now - algoliaConfigCache.fetchedAt < 3600 * 1000) {
