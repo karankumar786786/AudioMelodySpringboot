@@ -56,13 +56,6 @@ public class SongsApiService {
 
     public PaginationMetaDataDto getPaginationMetaData() {
         PaginationMetaData meta = paginationMetaDataService.getMetaData("SongsEntity");
-        if (meta == null || meta.getTotalCount() == 0) {
-            long count = songsRepository.count();
-            if (count > 0) {
-                paginationMetaDataService.updateCounts("SongsEntity", count, count, 0L, 0L);
-                meta = paginationMetaDataService.getMetaData("SongsEntity");
-            }
-        }
         return PaginationMetaDataDto.fromEntity(meta);
     }
 

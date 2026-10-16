@@ -83,13 +83,6 @@ public class ArtistApiService {
 
     public PaginationMetaDataDto getPaginationMetaData() {
         PaginationMetaData meta = paginationMetaDataService.getMetaData("ArtistsEntity");
-        if (meta == null || meta.getTotalCount() == 0) {
-            long count = artistsRepository.count();
-            if (count > 0) {
-                paginationMetaDataService.updateCounts("ArtistsEntity", count, count, 0L, 0L);
-                meta = paginationMetaDataService.getMetaData("ArtistsEntity");
-            }
-        }
         return PaginationMetaDataDto.fromEntity(meta);
     }
 

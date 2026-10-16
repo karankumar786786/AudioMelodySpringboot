@@ -42,13 +42,6 @@ public class PlaylistApiService {
 
     public PaginationMetaDataDto getPaginationMetaData() {
         PaginationMetaData meta = paginationMetaDataService.getMetaData("PlaylistsEntity");
-        if (meta == null || meta.getTotalCount() == 0) {
-            long count = playlistsRepository.count();
-            if (count > 0) {
-                paginationMetaDataService.updateCounts("PlaylistsEntity", count, count, 0L, 0L);
-                meta = paginationMetaDataService.getMetaData("PlaylistsEntity");
-            }
-        }
         return PaginationMetaDataDto.fromEntity(meta);
     }
 

@@ -18,11 +18,8 @@ import org.springframework.data.redis.serializer.GenericJacksonJsonRedisSerializ
 import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
-import tools.jackson.databind.DefaultTyping;
 import tools.jackson.databind.DeserializationFeature;
-import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.cfg.DateTimeFeature;
-import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
 import tools.jackson.databind.jsontype.PolymorphicTypeValidator;
 
@@ -34,15 +31,20 @@ public class RedisConfig implements CachingConfigurer {
 
     private static final Logger log = LoggerFactory.getLogger(RedisConfig.class);
 
-    private ObjectMapper redisObjectMapper() {
+    private GenericJacksonJsonRedisSerializer createJsonRedisSerializer() {
         PolymorphicTypeValidator ptv = BasicPolymorphicTypeValidator.builder()
+                .allowIfBaseType(Object.class)
                 .allowIfSubType(Object.class)
                 .build();
-        return JsonMapper.builder()
-                .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
-                .disable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
-                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                .activateDefaultTyping(ptv, DefaultTyping.NON_FINAL_AND_RECORDS)
+
+        return GenericJacksonJsonRedisSerializer.builder()
+                .enableDefaultTyping(ptv)
+                .typePropertyName("@class")
+                .enableSpringCacheNullValueSupport()
+                .customize(builder -> builder
+                        .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
+                        .disable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
+                        .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES))
                 .build();
     }
 
@@ -52,13 +54,12 @@ public class RedisConfig implements CachingConfigurer {
         template.setConnectionFactory(connectionFactory);
 
         StringRedisSerializer stringSerializer = new StringRedisSerializer();
-        GenericJacksonJsonRedisSerializer jacksonSerializer =
-                new GenericJacksonJsonRedisSerializer(redisObjectMapper());
+        GenericJacksonJsonRedisSerializer jacksonSerializer = createJsonRedisSerializer();
 
         // Use String serializer for keys and hash keys
         template.setKeySerializer(stringSerializer);
         template.setHashKeySerializer(stringSerializer);
-        // Use Jackson 3 JSON serializer for values and hash values
+        // Use Jackson 3 JSON serializer with polymorphic typing and null value support
         template.setValueSerializer(jacksonSerializer);
         template.setHashValueSerializer(jacksonSerializer);
         template.afterPropertiesSet();
@@ -67,11 +68,11 @@ public class RedisConfig implements CachingConfigurer {
 
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory factory) {
-        GenericJacksonJsonRedisSerializer serializer =
-                new GenericJacksonJsonRedisSerializer(redisObjectMapper());
+        GenericJacksonJsonRedisSerializer serializer = createJsonRedisSerializer();
 
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration
                 .defaultCacheConfig()
+                .computePrefixWith(cacheName -> "v2:" + cacheName + "::")
                 .entryTtl(Duration.ofMinutes(10))
                 .serializeKeysWith(
                         RedisSerializationContext.SerializationPair.fromSerializer(
