@@ -71,20 +71,37 @@ export const artistsApi = {
     }
   },
   getSongsFromDbFallback: async (idOrName: string, page = 1, size = 15) => {
-    const res = await request(`/api/artists/${encodeURIComponent(idOrName)}/songs?page=${page - 1}&size=${size}`);
-    return formatPaginated<Song>(res);
+    try {
+      const res = await request(`/api/artists/${encodeURIComponent(idOrName)}/songs?page=${page - 1}&size=${size}`);
+      return formatPaginated<Song>(res);
+    } catch (err) {
+      console.warn(`[ArtistsApi] Database fallback failed for ${idOrName}:`, err);
+      return {
+        data: {
+          data: [],
+          pagination: { page, limit: size, total: 0, hasNext: false },
+        },
+      };
+    }
+  },
+  getBackupSongs: async (idOrName: string, page = 1, size = 15) => {
+    return artistsApi.getSongsFromDbFallback(idOrName, page, size);
   },
   getSongs: async (idOrName: string, page = 1, size = 15, artistName?: string) => {
     // 1. Primary: Load artist songs directly from Algolia with pagination (instant, zero DB queries)
     const targetQuery = artistName || idOrName;
     if (targetQuery) {
-      const algoliaResult = await artistsApi.getSongsFromAlgolia(targetQuery, page, size);
-      if (algoliaResult && algoliaResult.data?.data && algoliaResult.data.data.length > 0) {
-        return algoliaResult;
+      try {
+        const algoliaResult = await artistsApi.getSongsFromAlgolia(targetQuery, page, size);
+        if (algoliaResult && algoliaResult.data?.data && algoliaResult.data.data.length > 0) {
+          return algoliaResult;
+        }
+      } catch (err) {
+        console.warn("[ArtistsApi] Algolia query error, falling back to database backup API:", err);
       }
     }
 
-    // 2. Dedicated fallback: Load from backend database only if Algolia yields 0 results or fails
+    // 2. Dedicated fallback: Load from backend database backup API
     return artistsApi.getSongsFromDbFallback(idOrName, page, size);
   },
   follow: async (idOrName: string) => {

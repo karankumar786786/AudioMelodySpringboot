@@ -41,7 +41,7 @@ public class ArtistApiController {
                 .body(artistAppService.getArtistById(id));
     }
 
-    @GetMapping("/{id}/songs")
+    @GetMapping(value = {"/{id}/songs", "/{id}/backup-songs", "/{id}/fallback-songs"})
     public ResponseEntity<PaginatedResponseDto<SongDto>> getArtistSongs(
             @PathVariable String id,
             @RequestParam(defaultValue = "0") int page,

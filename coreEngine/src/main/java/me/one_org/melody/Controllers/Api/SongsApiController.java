@@ -50,7 +50,7 @@ public class SongsApiController {
                 .body(songsAppService.getSongById(id));
     }
 
-    @GetMapping("/album/{albumName}")
+    @GetMapping(value = {"/album/{albumName}", "/album/{albumName}/songs", "/album/{albumName}/fallback-songs", "/album/{albumName}/backup-songs"})
     public ResponseEntity<List<SongDto>> getSongsByAlbum(@PathVariable String albumName) {
         return ResponseEntity.ok(songsAppService.getSongsByAlbum(albumName));
     }
