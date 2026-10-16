@@ -62,7 +62,7 @@ class UserPlaylistApiServiceTest {
         assertThat(created.getShareToken()).isNotBlank();
         verify(userPlaylistsRepository).save(any(UserPlaylist.class));
         verify(paginationMetaDataService).incrementStatus(eq("UserPlaylists_u-1"), isNull());
-        verify(eventPublisher).publishEvent(any());
+        verify(eventPublisher).publishEvent(any(Object.class));
     }
 
     @Test

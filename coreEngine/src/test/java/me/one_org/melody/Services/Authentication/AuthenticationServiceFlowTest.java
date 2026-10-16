@@ -173,7 +173,7 @@ class AuthenticationServiceFlowTest {
         assertThat(response.refreshToken()).isEqualTo("refresh-jwt");
         verify(usersRepository).save(any(User.class));
         verify(sessionRepository).save(any(Session.class));
-        verify(eventPublisher).publishEvent(any());
+        verify(eventPublisher).publishEvent(any(Object.class));
         verify(cache).delete("newbie@melody.com");
     }
 }
