@@ -117,16 +117,7 @@ public class ArtistApiService {
         if (artistOpt.isPresent()) {
             searchQuery = artistOpt.get().getName();
         }
-        List<String> songIds = algoliaSearch.searchSongsByArtist(searchQuery);
-        if (songIds.isEmpty()) {
-            return songsRepository.findActiveByArtistName(searchQuery.trim(), org.springframework.data.domain.PageRequest.of(page, size)).stream()
-                    .map(SongDto::fromEntity)
-                    .toList();
-        }
-        int fromIndex = Math.min(page * size, songIds.size());
-        int toIndex = Math.min(fromIndex + size, songIds.size());
-        List<String> pageIds = songIds.subList(fromIndex, toIndex);
-        return songsRepository.findAllByIds(pageIds).stream()
+        return songsRepository.findActiveByArtistName(searchQuery.trim(), org.springframework.data.domain.PageRequest.of(page, size)).stream()
                 .map(SongDto::fromEntity)
                 .toList();
     }
@@ -137,8 +128,7 @@ public class ArtistApiService {
         if (artistOpt.isPresent()) {
             searchQuery = artistOpt.get().getName();
         }
-        List<String> songIds = algoliaSearch.searchSongsByArtist(searchQuery);
-        long count = !songIds.isEmpty() ? songIds.size() : songsRepository.countActiveByArtistName(searchQuery.trim());
+        long count = songsRepository.countActiveByArtistName(searchQuery.trim());
         return new PaginationMetaDataDto(
                 "meta_artist_songs_" + artistId,
                 "ArtistSongs_" + artistId,

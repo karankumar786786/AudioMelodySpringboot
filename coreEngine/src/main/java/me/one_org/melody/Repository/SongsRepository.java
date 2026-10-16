@@ -119,10 +119,10 @@ public interface SongsRepository extends JpaRepository<Song, String> {
     }
 
     @EntityGraph(attributePaths = {"songMetadata"})
-    @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.artistName) = LOWER(:artistName) ORDER BY s.createdAt DESC")
+    @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND (LOWER(s.artistName) = LOWER(:artistName) OR LOWER(s.artistName) LIKE LOWER(CONCAT('%', :artistName, '%'))) ORDER BY s.createdAt DESC")
     List<Song> findActiveByArtistName(@Param("artistName") String artistName, Pageable pageable);
 
-    @Query("SELECT COUNT(s) FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.artistName) = LOWER(:artistName)")
+    @Query("SELECT COUNT(s) FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND (LOWER(s.artistName) = LOWER(:artistName) OR LOWER(s.artistName) LIKE LOWER(CONCAT('%', :artistName, '%')))")
     long countActiveByArtistName(@Param("artistName") String artistName);
 
     @EntityGraph(attributePaths = {"songMetadata"})

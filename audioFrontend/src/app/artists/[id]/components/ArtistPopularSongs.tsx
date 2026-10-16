@@ -2,7 +2,7 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { Play, Pause, Clock, Music } from "lucide-react";
+import { Play, Pause, Clock, Music, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { formatDuration, formatStreamCount } from "@/lib/player-utils";
 import { SongThumbnail } from "@/components/SongThumbnail";
@@ -10,16 +10,26 @@ import type { Song } from "@/lib/api/types";
 
 interface ArtistPopularSongsProps {
   songs: Song[];
+  totalCount?: number;
   currentSong: Song | null;
   isPlaying: boolean;
   onPlaySong: (song: Song, index: number) => void;
+  hasNextPage?: boolean;
+  isFetchingNextPage?: boolean;
+  onLoadMore?: () => void;
+  observerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 export const ArtistPopularSongs: React.FC<ArtistPopularSongsProps> = ({
   songs,
+  totalCount,
   currentSong,
   isPlaying,
   onPlaySong,
+  hasNextPage,
+  isFetchingNextPage,
+  onLoadMore,
+  observerRef,
 }) => {
   return (
     <section className="px-6 pb-10 pt-6 md:px-10">
@@ -28,7 +38,9 @@ export const ArtistPopularSongs: React.FC<ArtistPopularSongsProps> = ({
         <h3 className="text-lg font-bold tracking-tight text-white">Popular Songs</h3>
 
         <span className="text-xs font-medium text-zinc-400">
-          {songs.length} {songs.length === 1 ? "track" : "tracks"}
+          {totalCount && totalCount > songs.length
+            ? `${songs.length} of ${totalCount} tracks`
+            : `${songs.length} ${songs.length === 1 ? "track" : "tracks"}`}
         </span>
       </div>
 
@@ -155,6 +167,30 @@ export const ArtistPopularSongs: React.FC<ArtistPopularSongsProps> = ({
           <div className="rounded-xl border border-dashed border-white/10 py-20 text-center">
             <Music size={40} className="mx-auto mb-4 text-zinc-700" />
             <p className="text-sm text-zinc-500">No songs available</p>
+          </div>
+        )}
+
+        {/* Infinite Scroll Trigger Sentinel & Loading State */}
+        {songs.length > 0 && (
+          <div ref={observerRef} className="py-8 flex flex-col items-center justify-center">
+            {isFetchingNextPage ? (
+              <div className="flex items-center gap-2.5 text-xs font-semibold uppercase tracking-wider text-zinc-400 py-2">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span>Loading more tracks...</span>
+              </div>
+            ) : hasNextPage ? (
+              <button
+                type="button"
+                onClick={onLoadMore}
+                className="text-xs font-semibold uppercase tracking-wider text-zinc-400 hover:text-white transition-colors px-5 py-2.5 rounded-full border border-white/10 hover:border-white/20 hover:bg-white/5 active:scale-95 cursor-pointer select-none"
+              >
+                Load More Tracks
+              </button>
+            ) : songs.length > 15 ? (
+              <span className="text-xs text-zinc-600 font-medium">
+                All {songs.length} tracks loaded
+              </span>
+            ) : null}
           </div>
         )}
       </div>

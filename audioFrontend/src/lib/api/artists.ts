@@ -11,7 +11,7 @@ export const artistsApi = {
     const data = await request<Artist>(`/api/artists/${id}`);
     return { data };
   },
-  getSongsFromAlgolia: async (artistName: string, page = 1, size = 50) => {
+  getSongsFromAlgolia: async (artistName: string, page = 1, size = 15) => {
     const config = await getAlgoliaConfig();
     if (!config || !config.apiKey || !artistName?.trim()) return null;
 
@@ -70,8 +70,12 @@ export const artistsApi = {
       return null;
     }
   },
-  getSongs: async (idOrName: string, page = 1, size = 50, artistName?: string) => {
-    // 1. Primary: Load artist songs directly from Algolia (instant, zero DB queries)
+  getSongsFromDbFallback: async (idOrName: string, page = 1, size = 15) => {
+    const res = await request(`/api/artists/${encodeURIComponent(idOrName)}/songs?page=${page - 1}&size=${size}`);
+    return formatPaginated<Song>(res);
+  },
+  getSongs: async (idOrName: string, page = 1, size = 15, artistName?: string) => {
+    // 1. Primary: Load artist songs directly from Algolia with pagination (instant, zero DB queries)
     const targetQuery = artistName || idOrName;
     if (targetQuery) {
       const algoliaResult = await artistsApi.getSongsFromAlgolia(targetQuery, page, size);
@@ -80,9 +84,8 @@ export const artistsApi = {
       }
     }
 
-    // 2. Fallback: Load from backend database only if Algolia yields 0 results or fails
-    const res = await request(`/api/artists/${encodeURIComponent(idOrName)}/songs?page=${page - 1}&size=${size}`);
-    return formatPaginated<Song>(res);
+    // 2. Dedicated fallback: Load from backend database only if Algolia yields 0 results or fails
+    return artistsApi.getSongsFromDbFallback(idOrName, page, size);
   },
   follow: async (idOrName: string) => {
     const data = await request<ArtistFollowStatus>(`/api/artists/${encodeURIComponent(idOrName)}/follow`, {

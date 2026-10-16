@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState, useRef, useMemo } from "react";
+import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { musicApi } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
 import { useStore } from "@tanstack/react-store";
@@ -45,10 +45,26 @@ export default function ArtistPage() {
   /*                                 SONG QUERY                                 */
   /* -------------------------------------------------------------------------- */
 
-  // Load songs directly from Algolia (1ms, zero DB load) using artist.name
-  const { data: songsResponse, isLoading: isSongsLoading, error: _songsError, refetch: refetchSongs } = useQuery({
+  // Load songs directly from Algolia with infinite scroll (15 per page, zero DB load)
+  const {
+    data: songsInfiniteData,
+    isLoading: isSongsLoading,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    error: _songsError,
+    refetch: refetchSongs,
+  } = useInfiniteQuery({
     queryKey: ["artist-songs", id, artist?.name],
-    queryFn: () => musicApi.artists.getSongs(id as string, 1, 50, artist?.name),
+    queryFn: ({ pageParam = 1 }) =>
+      musicApi.artists.getSongs(id as string, pageParam as number, 15, artist?.name),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage?.data?.pagination) return undefined;
+      return lastPage.data.pagination.hasNext
+        ? lastPage.data.pagination.page + 1
+        : undefined;
+    },
     enabled: Boolean(id && (artist?.name || !isArtistLoading)),
   });
 
@@ -81,7 +97,45 @@ export default function ArtistPage() {
   /*                              DERIVED VALUES                                */
   /* -------------------------------------------------------------------------- */
 
-  const songs = songsResponse?.data?.data || [];
+  const songs = useMemo(() => {
+    return (
+      songsInfiniteData?.pages?.flatMap(
+        (page) => page?.data?.data || []
+      ) || []
+    );
+  }, [songsInfiniteData]);
+
+  const totalSongsCount = songsInfiniteData?.pages?.[0]?.data?.pagination?.total;
+
+  /* -------------------------------------------------------------------------- */
+  /*                         INFINITE SCROLL OBSERVER                           */
+  /* -------------------------------------------------------------------------- */
+
+  const observerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const target = observerRef.current;
+    if (!target) return;
+
+    const rootElement = document.querySelector("main");
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      {
+        root: rootElement,
+        rootMargin: "300px",
+        threshold: 0.01,
+      },
+    );
+
+    observer.observe(target);
+    return () => {
+      observer.unobserve(target);
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const isFollowing = localFollowStatus?.isFollowing ?? followStatusData?.isFollowing ?? false;
   const followersCount = localFollowStatus?.followersCount ?? followStatusData?.followersCount ?? artist?.followersCount ?? 0;
@@ -284,9 +338,14 @@ export default function ArtistPage() {
       {/* Popular Tracks */}
       <ArtistPopularSongs
         songs={songs}
+        totalCount={totalSongsCount}
         currentSong={currentSong}
         isPlaying={isPlaying}
         onPlaySong={handlePlaySong}
+        hasNextPage={hasNextPage}
+        isFetchingNextPage={isFetchingNextPage}
+        onLoadMore={() => fetchNextPage()}
+        observerRef={observerRef}
       />
     </div>
   );
