@@ -19,6 +19,7 @@ export * from "./interactions";
 export * from "./search";
 export * from "./auth";
 export * from "./recombee";
+export * from "./home-stream";
 
 export const musicApi = {
   songs: songsApi,

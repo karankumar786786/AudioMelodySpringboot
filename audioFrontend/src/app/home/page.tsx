@@ -1,13 +1,18 @@
 "use client";
 
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ServerErrorPage,
   SomethingWentWrongPage,
 } from "../../components/ErrorPages";
-import { musicApi, type Song } from "../../lib/api";
+import {
+  formatPaginated,
+  musicApi,
+  subscribeHomeStream,
+  type Song,
+} from "../../lib/api";
 import { mapListToPlayerSongs } from "../../lib/player-utils";
 import { playerActions, playerStore } from "../../store/player.store";
 import {
@@ -22,11 +27,61 @@ import {
 } from "./components";
 
 export default function HomePage() {
+  const queryClient = useQueryClient();
   const systemUser = useStore(playerStore, (s) => s.systemUser);
   const systemToken = useStore(playerStore, (s) => s.systemToken);
   const dominantColor = useStore(playerStore, (s) => s.dominantColor);
   const [activeFilter, setActiveFilter] = useState("All");
+  const [streamActive, setStreamActive] = useState(true);
+  const [useFallback, setUseFallback] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
+
+  // 0. Primary: Single SSE Stream to progressively stream all homepage sections in 1 connection
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = setTimeout(() => {
+      // If stream has not completed within 3.5s, trigger query fallback
+      setUseFallback(true);
+      setStreamActive(false);
+    }, 3500);
+
+    const unsubscribe = subscribeHomeStream({
+      userId: systemUser?.id,
+      onSection: (section, payload) => {
+        if (section === "featured") {
+          queryClient.setQueryData(["featured-songs"], payload);
+        } else if (section === "trending") {
+          queryClient.setQueryData(["trending-songs"], payload);
+        } else if (section === "artists") {
+          queryClient.setQueryData(["home-artists"], payload);
+        } else if (section === "playlists") {
+          queryClient.setQueryData(["home-playlists"], payload);
+        } else if (section === "feed") {
+          queryClient.setQueryData(["discover-songs"], {
+            pages: [payload],
+            pageParams: [1],
+          });
+        } else if (section === "recommendations" && systemUser?.id) {
+          queryClient.setQueryData(["recommendations", systemUser.id], payload);
+        } else if (section === "recentlyPlayed" && systemUser?.id) {
+          queryClient.setQueryData(["recently-played", systemUser.id], payload);
+        }
+      },
+      onComplete: () => {
+        if (timer) clearTimeout(timer);
+        setStreamActive(false);
+      },
+      onError: () => {
+        if (timer) clearTimeout(timer);
+        setUseFallback(true);
+        setStreamActive(false);
+      },
+    });
+
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsubscribe();
+    };
+  }, [systemUser?.id, queryClient]);
 
   const userName = useMemo(() => {
     if (!systemUser?.name) return null;
@@ -57,16 +112,18 @@ export default function HomePage() {
     }
   };
 
-  // 1. Admin-Featured Songs
+  // 1. Admin-Featured Songs (Fallback enabled if stream fails or after timeout)
   const { data: featuredSongs, isLoading: isFeaturedLoading } = useQuery({
     queryKey: ["featured-songs"],
     queryFn: () => musicApi.songs.getFeatured(),
+    enabled: useFallback || !streamActive,
   });
 
-  // 2. Trending Songs (Always active to populate quick picks and trending hits)
+  // 2. Trending Songs (Fallback enabled if stream fails or after timeout)
   const { data: trending, isLoading: isTrendingLoading } = useQuery({
     queryKey: ["trending-songs"],
     queryFn: () => musicApi.interactions.getTrending(12),
+    enabled: useFallback || !streamActive,
   });
 
   // 3. Discover Feed (Infinite Scroll)
@@ -80,9 +137,10 @@ export default function HomePage() {
         lastPage.data.pagination.hasNext
           ? lastPage.data.pagination.page + 1
           : undefined,
+      enabled: useFallback || !streamActive,
     });
 
-  // 4. Top Artists
+  // 4. Top Artists (Fallback enabled if stream fails or after timeout)
   const {
     data: artists,
     isLoading: isArtistsLoading,
@@ -90,9 +148,10 @@ export default function HomePage() {
   } = useQuery({
     queryKey: ["home-artists"],
     queryFn: () => musicApi.artists.list(1, 15),
+    enabled: useFallback || !streamActive,
   });
 
-  // 5. Featured Playlists
+  // 5. Featured Playlists (Fallback enabled if stream fails or after timeout)
   const {
     data: playlists,
     isLoading: isPlaylistsLoading,
@@ -100,13 +159,14 @@ export default function HomePage() {
   } = useQuery({
     queryKey: ["home-playlists"],
     queryFn: () => musicApi.playlists.list(1, 15),
+    enabled: useFallback || !streamActive,
   });
 
   // 6. Recommendations (User specific)
   const { data: recommendations } = useQuery({
     queryKey: ["recommendations", systemUser?.id],
     queryFn: () => musicApi.interactions.getRecommendations(),
-    enabled: !!systemUser?.id && !!systemToken,
+    enabled: (useFallback || !streamActive) && !!systemUser?.id && !!systemToken,
   });
 
   // Automatically add recommended songs to queue when loaded
@@ -121,7 +181,7 @@ export default function HomePage() {
   const { data: recentlyPlayed } = useQuery({
     queryKey: ["recently-played", systemUser?.id],
     queryFn: () => musicApi.users.getRecentlyPlayed(),
-    enabled: !!systemUser?.id && !!systemToken,
+    enabled: (useFallback || !streamActive) && !!systemUser?.id && !!systemToken,
   });
 
   // Dynamic Time-aware Greeting
@@ -166,8 +226,15 @@ export default function HomePage() {
     data?.pages,
   ]);
 
+  const effectiveIsArtistsLoading =
+    isArtistsLoading || (streamActive && !artists?.data?.data);
+  const effectiveIsPlaylistsLoading =
+    isPlaylistsLoading || (streamActive && !playlists?.data?.data);
+
   const isQuickPicksLoading =
-    (isFeaturedLoading || isTrendingLoading) && quickPicks.length === 0;
+    ((isFeaturedLoading || (streamActive && !featuredSongs)) ||
+      (isTrendingLoading || (streamActive && !trending))) &&
+    quickPicks.length === 0;
 
   // Filter Pill smooth scroll handler
   const handleFilterClick = (filter: string) => {
@@ -223,9 +290,17 @@ export default function HomePage() {
     };
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
+  const hasAnyData = Boolean(
+    (featuredSongs && featuredSongs.length > 0) ||
+      (trending?.data?.data && trending.data.data.length > 0) ||
+      (artists?.data?.data && artists.data.data.length > 0) ||
+      (playlists?.data?.data && playlists.data.data.length > 0) ||
+      (data?.pages?.[0]?.data?.data && data.pages[0].data.data.length > 0)
+  );
+
   // Initial loading state when critical data is pending
   const isInitialPageLoading =
-    isArtistsLoading && isPlaylistsLoading && status === "pending";
+    !hasAnyData && (effectiveIsArtistsLoading || streamActive);
 
   // Detect if all critical queries have failed (server unreachable / 500)
   const hasCriticalError =
@@ -289,7 +364,7 @@ export default function HomePage() {
         sectionRef={artistsSectionRef}
         scrollRef={artistsScrollRef}
         onScroll={(dist) => scrollContainer(artistsScrollRef, dist)}
-        isArtistsLoading={isArtistsLoading}
+        isArtistsLoading={effectiveIsArtistsLoading}
         artists={artists?.data?.data}
       />
 
@@ -307,7 +382,7 @@ export default function HomePage() {
         sectionRef={playlistsSectionRef}
         scrollRef={playlistsScrollRef}
         onScroll={(dist) => scrollContainer(playlistsScrollRef, dist)}
-        isPlaylistsLoading={isPlaylistsLoading}
+        isPlaylistsLoading={effectiveIsPlaylistsLoading}
         playlists={playlists?.data?.data}
       />
 
