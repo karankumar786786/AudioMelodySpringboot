@@ -1,14 +1,16 @@
 # 🎵 One Melody — Cloud-Native Enterprise Audio & Video Streaming Platform
 
 [![Java](https://img.shields.io/badge/Java-21-orange.svg?style=flat&logo=openjdk)](https://openjdk.org/projects/jdk/21/)
-[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4.x-brightgreen.svg?style=flat&logo=springboot)](https://spring.io/projects/spring-boot)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.x-brightgreen.svg?style=flat&logo=springboot)](https://spring.io/projects/spring-boot)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB.svg?style=flat&logo=python)](https://www.python.org/)
 [![Django](https://img.shields.io/badge/Django-6.1-092E20.svg?style=flat&logo=django)](https://www.djangoproject.com/)
 [![uv](https://img.shields.io/badge/uv-Fast%20Python%20Manager-DE5FE9.svg?style=flat)](https://github.com/astral-sh/uv)
 [![Next.js](https://img.shields.io/badge/Next.js-16.2-black.svg?style=flat&logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-blue.svg?style=flat&logo=react)](https://react.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-v4-38B2AC.svg?style=flat&logo=tailwindcss)](https://tailwindcss.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg?style=flat&logo=typescript)](https://www.typescriptlang.org/)
 [![Bun](https://img.shields.io/badge/Bun-1.3+-black.svg?style=flat&logo=bun)](https://bun.sh/)
+[![Express](https://img.shields.io/badge/Express-5.x-black.svg?style=flat&logo=express)](https://expressjs.com/)
 [![Caddy](https://img.shields.io/badge/Caddy-2.x%20Auto%20TLS-22B573.svg?style=flat&logo=caddy)](https://caddyserver.com/)
 [![AWS S3](https://img.shields.io/badge/AWS-S3-569A31.svg?style=flat&logo=amazons3)](https://aws.amazon.com/s3/)
 [![Algolia](https://img.shields.io/badge/Algolia-InstantSearch-003DFF.svg?style=flat&logo=algolia)](https://www.algolia.com/)
@@ -19,7 +21,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon%20Serverless-4169E1.svg?style=flat&logo=postgresql)](https://www.postgresql.org/)
 [![Tests](https://img.shields.io/badge/Tests-121%20Passed%20(100%25)-success.svg?style=flat)](https://github.com/karankumar786786/AudioMelodySpringboot)
 
-**One Melody** is an enterprise-grade, distributed multimedia streaming platform engineered for high concurrency, low-latency adaptive playback, and automated cloud operations. Built with modern microservice design principles, it couples high-performance **Java 21 / Spring Boot 3.4** streaming gateways (`api.one-org.me`) with a dedicated **Python 3.12 / Django 6.1** administrative command microservice (`admin.one-org.me`), **Node.js / Bun / Inngest** asynchronous media processing workers (`process.one-org.me`), **Google Shaka Packager** multi-bitrate HLS/DASH chunking, and dual **Next.js 16** frontends (`adm.one-org.me` and consumer apps) delivering a pitch-black OLED monochrome aesthetic.
+**One Melody** is an enterprise-grade, distributed multimedia streaming platform engineered for high concurrency, low-latency adaptive playback, and automated cloud operations. Built with modern microservice design principles, it couples high-performance **Java 21 / Spring Boot 4.1** streaming gateways (`api.one-org.me`) with a dedicated **Python 3.12 / Django 6.1** administrative command microservice (`admin.one-org.me`), **Node.js / Bun / Inngest** asynchronous media processing workers (`process.one-org.me`), **Google Shaka Packager** multi-bitrate HLS/DASH chunking, and dual **Next.js 16** frontends (`adm.one-org.me` and consumer apps) delivering a pitch-black OLED monochrome aesthetic.
 
 ---
 
@@ -30,7 +32,7 @@ graph TD
     Client["📱 Consumer Web & Mobile Apps"] --> Gateway["🌐 Caddy 2 Reverse Proxy (Auto TLS)"]
     AdminWeb["🛡️ Admin Management Console"] --> Gateway
 
-    Gateway -->|"api.one-org.me"| Core["⚡ Core Engine (Spring Boot 3.4 / Java 21)"]
+    Gateway -->|"api.one-org.me"| Core["⚡ Core Engine (Spring Boot 4.1 / Java 21)"]
     Gateway -->|"admin.one-org.me"| Admin["🛠️ Admin Backend (Django 6.1 / Python 3.12)"]
     Gateway -->|"process.one-org.me"| Worker["⚙️ Media Worker (Bun / Inngest)"]
 
@@ -45,6 +47,21 @@ graph TD
     Worker --> Cloud
     Worker --> Redis
 ```
+
+---
+
+## 📦 Verified Tech Stack & Version Matrix
+
+| Subsystem / Service | Runtime / Language | Core Framework | Key Dependencies & Tooling | Production Role |
+| :--- | :--- | :--- | :--- | :--- |
+| **`coreEngine`** | Java 21 LTS | **Spring Boot 4.1.1** | Spring Security, Spring Data JPA, HikariCP, JJWT 0.12.6, Algolia 4.5.4, Recombee 4.1.0, Bucket4j 8.14.0 | High-Concurrency Audio Gateway (`api.one-org.me`) |
+| **`adminBackend`** | Python 3.12 | **Django 6.1.1** | Django REST Framework 3.18.1, `uv`, Gunicorn 26.2, Boto3 1.43, Redis 8.1, dj-database-url | Admin Command Center & Ingestion Pipeline (`admin.one-org.me`) |
+| **`audioFrontend`** | TypeScript 5.x | **Next.js 16.2.3** / React 19.2.4 | Tailwind CSS 4, TanStack Query 5.99, TanStack Store 0.10, HLS.js 1.6.16, Shaka Player 5.2.8, Framer Motion 12 | Consumer Streaming Web App (`audio.one-org.me`) |
+| **`adminFrontend`** | TypeScript 5.x | **Next.js 16.2.3** / React 19.2.4 | Tailwind CSS 4, Framer Motion 12, Biome 2.2, Lucide React 1.16 | Administration & Job Monitoring Console (`adm.one-org.me`) |
+| **`audioProcessing`** | Bun 1.3+ | **Express 5.2.1** | Inngest 4.14.0, AWS SDK S3 3.1101, IORedis 6.0, FFmpeg 6.0, Google Shaka Packager 3.0 | Hardware Transcoding & Multi-Bitrate HLS Chunker |
+| **`workers/mailEvents`**| Bun 1.3+ | Native Bun Worker | Nodemailer 9.0.5, IORedis 6.0 | Redis Queue Consumer for OTP & Mail Notifications |
+| **`migration`** | Java 17/21 | **Spring Boot 4.1.1** | Flyway Migration Engine, PostgreSQL Driver | Database Schema Migrations & Baseline Audits |
+| **`Edge Gateway`** | Native Binary | **Caddy 2.x** | Let's Encrypt Auto-TLS, Reverse Proxy, CORS Gateway | Production Ingress Reverse Proxy (`13.126.178.32`) |
 
 ---
 
@@ -139,7 +156,7 @@ flowchart TD
 
 ## 📑 Complete API Reference
 
-### 🎧 Consumer Streaming Gateway (`https://api.one-org.me` &bull; Spring Boot 3.4)
+### 🎧 Consumer Streaming Gateway (`https://api.one-org.me` &bull; Spring Boot 4.1)
 
 | Endpoint | Method | Auth | Description |
 | :--- | :---: | :---: | :--- |
@@ -176,7 +193,7 @@ flowchart TD
 
 ```
 AudioMelodySpringboot/
-├── coreEngine/                   # Spring Boot 3.4 / Java 21 Audio Streaming Gateway
+├── coreEngine/                   # Spring Boot 4.1 / Java 21 Audio Streaming Gateway
 │   ├── src/main/java/            # Controllers, Services, Repositories, Security & Caching
 │   │   ├── Configuration/        # DataSourceConfig (HikariCP), RedisConfig (v2: builder)
 │   │   ├── Controllers/Api/      # HomeApiController (SSE Stream), SongsApiController
@@ -186,15 +203,17 @@ AudioMelodySpringboot/
 ├── adminBackend/                 # Django 6.1 / Python 3.12 Admin Command Center
 │   ├── admin/api/                # Views, Serializers, Stateful Session Auth, Ingestion Audits
 │   └── core/services/            # S3, Algolia, Recombee, ImageKit Cascade Teardown Services
-├── audioFrontend/                # Next.js 16 / React 19 Consumer Web Application
+├── audioFrontend/                # Next.js 16 / React 19 / Tailwind 4 Consumer Web Application
 │   ├── src/app/home/             # Progressive SSE Stream Page with TanStack Query Fallback
 │   ├── src/components/player/    # HLS.js Dual Buffer Player, Web Audio DSP, Lyrics Sync
 │   └── src/lib/api/              # SSE Stream Client, Direct Algolia Search, Music APIs
-├── adminFrontend/                # Next.js 16 / React 19 Admin Portal
+├── adminFrontend/                # Next.js 16 / React 19 / Tailwind 4 Admin Portal
 │   └── src/components/           # Real-Time Byte XHR Uploader, Job Gantt Monitors
-└── audioProcessing/              # Bun / Inngest Media Packaging Worker
-    ├── lib/transcode/            # hwaccel.ts (Hardware Encoder Probe), Shaka Packager
-    └── inngest/                  # Durable Step Workflows & Stage Recovery
+├── audioProcessing/              # Bun 1.3 / Express 5 / Inngest Media Packaging Worker
+│   ├── lib/transcode/            # hwaccel.ts (Hardware Encoder Probe), Shaka Packager
+│   └── inngest/                  # Durable Step Workflows & Stage Recovery
+├── workers/mailEvents/           # Bun 1.3 / Nodemailer Transactional Mail Worker
+└── migration/                    # Spring Boot 4.1 / Flyway Database Migration Service
 ```
 
 ---

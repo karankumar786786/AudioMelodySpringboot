@@ -1,7 +1,7 @@
 # 🚀 Melody Database Migration Service (Flyway)
 
 This standalone Spring Boot service is the **centralized source of truth** for all relational database migrations across the One Melody ecosystem, serving:
-- **`coreEngine`** (Java / Spring Boot 3 streaming & recommendation API)
+- **`coreEngine`** (Java / Spring Boot 4.1 streaming & recommendation API)
 - **`admin`** (Python / Django Admin control plane & moderation)
 - **`workers`** & **`audioProcessing`** (Media transcoding & event processors)
 
