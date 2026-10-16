@@ -31,12 +31,12 @@ spring:
     driver-class-name: org.postgresql.Driver
     # --- Neon scale-to-zero friendly pool ---
     hikari:
-      minimum-idle: 0                    # no idle connections kept open
-      maximum-pool-size: 5
+      minimum-idle: 2                    # maintain 2 warm connections to avoid cold-start SSL handshakes
+      maximum-pool-size: 20              # allow up to 20 concurrent queries without queuing
       idle-timeout: 60000                # close idle connections after 1 min
       max-lifetime: 240000
       keepalive-time: 0                  # no keepalive pings
-      connection-timeout: 30000          # allow time for Neon cold start
+      connection-timeout: 10000          # 10s connection timeout
       initialization-fail-timeout: -1    # app can boot even if DB is asleep
       # do NOT set connection-test-query
 

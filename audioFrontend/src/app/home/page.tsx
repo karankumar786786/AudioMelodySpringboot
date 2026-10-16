@@ -112,21 +112,23 @@ export default function HomePage() {
     }
   };
 
-  // 1. Admin-Featured Songs (Fallback enabled if stream fails or after timeout)
+  // 1. Admin-Featured Songs (ONLY enabled if SSE stream fails)
   const { data: featuredSongs, isLoading: isFeaturedLoading } = useQuery({
     queryKey: ["featured-songs"],
     queryFn: () => musicApi.songs.getFeatured(),
-    enabled: useFallback || !streamActive,
+    enabled: useFallback,
+    staleTime: 5 * 60 * 1000,
   });
 
-  // 2. Trending Songs (Fallback enabled if stream fails or after timeout)
+  // 2. Trending Songs (ONLY enabled if SSE stream fails)
   const { data: trending, isLoading: isTrendingLoading } = useQuery({
     queryKey: ["trending-songs"],
     queryFn: () => musicApi.interactions.getTrending(12),
-    enabled: useFallback || !streamActive,
+    enabled: useFallback,
+    staleTime: 5 * 60 * 1000,
   });
 
-  // 3. Discover Feed (Infinite Scroll)
+  // 3. Discover Feed (Infinite Scroll - enabled once feed page 1 is loaded or if fallback)
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
     useInfiniteQuery({
       queryKey: ["discover-songs"],
@@ -138,9 +140,10 @@ export default function HomePage() {
           ? (lastPage.data.pagination.page || 1) + 1
           : undefined,
       enabled: useFallback || !streamActive,
+      staleTime: 5 * 60 * 1000,
     });
 
-  // 4. Top Artists (Fallback enabled if stream fails or after timeout)
+  // 4. Top Artists (ONLY enabled if SSE stream fails)
   const {
     data: artists,
     isLoading: isArtistsLoading,
@@ -148,10 +151,11 @@ export default function HomePage() {
   } = useQuery({
     queryKey: ["home-artists"],
     queryFn: () => musicApi.artists.list(1, 15),
-    enabled: useFallback || !streamActive,
+    enabled: useFallback,
+    staleTime: 5 * 60 * 1000,
   });
 
-  // 5. Featured Playlists (Fallback enabled if stream fails or after timeout)
+  // 5. Featured Playlists (ONLY enabled if SSE stream fails)
   const {
     data: playlists,
     isLoading: isPlaylistsLoading,
@@ -159,14 +163,16 @@ export default function HomePage() {
   } = useQuery({
     queryKey: ["home-playlists"],
     queryFn: () => musicApi.playlists.list(1, 15),
-    enabled: useFallback || !streamActive,
+    enabled: useFallback,
+    staleTime: 5 * 60 * 1000,
   });
 
-  // 6. Recommendations (User specific)
+  // 6. Recommendations (ONLY enabled if SSE stream fails)
   const { data: recommendations } = useQuery({
     queryKey: ["recommendations", systemUser?.id],
     queryFn: () => musicApi.interactions.getRecommendations(),
-    enabled: (useFallback || !streamActive) && !!systemUser?.id && !!systemToken,
+    enabled: useFallback && !!systemUser?.id && !!systemToken,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Automatically add recommended songs to queue when loaded
@@ -177,11 +183,12 @@ export default function HomePage() {
     }
   }, [recommendations]);
 
-  // 7. Recently Played (User specific)
+  // 7. Recently Played (ONLY enabled if SSE stream fails)
   const { data: recentlyPlayed } = useQuery({
     queryKey: ["recently-played", systemUser?.id],
     queryFn: () => musicApi.users.getRecentlyPlayed(),
-    enabled: (useFallback || !streamActive) && !!systemUser?.id && !!systemToken,
+    enabled: useFallback && !!systemUser?.id && !!systemToken,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Dynamic Time-aware Greeting
