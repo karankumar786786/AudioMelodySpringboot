@@ -13,6 +13,7 @@ interface PlaylistHeroBannerProps {
   coverUrl?: string;
   isUserPlaylist: boolean;
   username?: string;
+  isSongsLoading?: boolean;
   onStreamAll: () => void;
 }
 
@@ -23,6 +24,7 @@ export const PlaylistHeroBanner: React.FC<PlaylistHeroBannerProps> = ({
   coverUrl,
   isUserPlaylist,
   username,
+  isSongsLoading = false,
   onStreamAll,
 }) => {
   return (
@@ -94,7 +96,13 @@ export const PlaylistHeroBanner: React.FC<PlaylistHeroBannerProps> = ({
             {username || "OneMelody"}
           </span>
 
-          {playlist && (playlist.totalSongs > 0 || songs.length > 0) && (
+          {isSongsLoading && songs.length === 0 ? (
+            <>
+              <span>•</span>
+              <span className="inline-block h-3.5 w-16 rounded bg-white/20 animate-pulse" />
+              <div className="ml-3 h-9 w-24 rounded-full bg-white/20 animate-pulse" />
+            </>
+          ) : playlist && (playlist.totalSongs > 0 || songs.length > 0) ? (
             <>
               <span>•</span>
               <span>
@@ -134,7 +142,7 @@ export const PlaylistHeroBanner: React.FC<PlaylistHeroBannerProps> = ({
                 Play All
               </button>
             </>
-          )}
+          ) : null}
         </motion.div>
       </div>
     </section>

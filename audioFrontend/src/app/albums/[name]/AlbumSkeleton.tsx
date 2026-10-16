@@ -5,7 +5,7 @@ export const AlbumSkeleton: React.FC = () => {
     <div className="min-h-full pb-24 px-2 animate-pulse select-none">
       {/* Hero Section Skeleton */}
       <section className="relative overflow-hidden px-8 pb-8 pt-20 md:px-10 md:pt-24 rounded-2xl border-b border-white/5 bg-zinc-900/60">
-        <div className="absolute inset-0 bg-gradient-to-b from-zinc-800/25 via-zinc-900/40 to-black/90 pointer-events-none" />
+        <div className="absolute inset-0 bg-linear-to-b from-zinc-800/25 via-zinc-900/40 to-black/90 pointer-events-none" />
 
         <div className="relative z-10 flex flex-col items-center gap-7 md:flex-row md:items-end">
           {/* Rounded Album Art */}
@@ -28,7 +28,7 @@ export const AlbumSkeleton: React.FC = () => {
               <div className="h-1 w-1 rounded-full bg-zinc-700" />
               <div className="h-4 w-16 rounded bg-zinc-800/60" />
               <div className="h-1 w-1 rounded-full bg-zinc-700" />
-              <div className="h-4 w-20 rounded bg-zinc-800/60" />
+              <div className="h'-4 w-20 rounded bg-zinc-800/60" />
               <div className="h-1 w-1 rounded-full bg-zinc-700" />
               <div className="h-4 w-24 rounded bg-zinc-800/60" />
             </div>

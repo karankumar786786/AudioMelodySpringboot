@@ -14,6 +14,7 @@ interface ArtistHeroProps {
   songs: Song[];
   isFollowing: boolean;
   isFollowLoading: boolean;
+  isSongsLoading?: boolean;
   onPlayAll: () => void;
   onFollowToggle: () => void;
 }
@@ -26,6 +27,7 @@ export const ArtistHero: React.FC<ArtistHeroProps> = ({
   songs,
   isFollowing,
   isFollowLoading,
+  isSongsLoading = false,
   onPlayAll,
   onFollowToggle,
 }) => {
@@ -102,9 +104,13 @@ export const ArtistHero: React.FC<ArtistHeroProps> = ({
 
             <span>•</span>
 
-            <span className="font-semibold">
-              {songs.length} {songs.length === 1 ? "song" : "songs"}
-            </span>
+            {isSongsLoading && songs.length === 0 ? (
+              <span className="inline-block h-3.5 w-16 rounded bg-white/20 animate-pulse" />
+            ) : (
+              <span className="font-semibold">
+                {songs.length} {songs.length === 1 ? "song" : "songs"}
+              </span>
+            )}
 
             {songs.length > 0 && (
               <>
@@ -138,7 +144,9 @@ export const ArtistHero: React.FC<ArtistHeroProps> = ({
 
           {/* Action buttons row with stable dimensions and zero layout shift */}
           <div className="mt-6 flex items-center gap-3 flex-wrap">
-            {songs.length > 0 && (
+            {isSongsLoading && songs.length === 0 ? (
+              <div className="h-10 w-28 rounded-full bg-white/20 animate-pulse" />
+            ) : songs.length > 0 ? (
               <button
                 type="button"
                 onClick={onPlayAll}
@@ -148,7 +156,7 @@ export const ArtistHero: React.FC<ArtistHeroProps> = ({
                 <Play size={16} fill="black" />
                 <span>Play All</span>
               </button>
-            )}
+            ) : null}
 
             <button
               type="button"

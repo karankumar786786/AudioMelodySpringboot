@@ -5,7 +5,7 @@ export const ArtistSkeleton: React.FC = () => {
     <div className="min-h-full pb-20 animate-pulse select-none">
       {/* Hero Banner Skeleton */}
       <section className="relative overflow-hidden px-8 pb-8 pt-24 md:px-10 md:pt-28 rounded-2xl bg-zinc-900/60 border border-white/5">
-        <div className="absolute inset-0 bg-gradient-to-b from-zinc-800/25 via-zinc-900/40 to-black/90 pointer-events-none" />
+        <div className="absolute inset-0 bg-linear-to-b from-zinc-800/25 via-zinc-900/40 to-black/90 pointer-events-none" />
 
         <div className="relative z-10 flex flex-col items-center gap-7 md:flex-row md:items-end">
           {/* Circular Cover Art */}

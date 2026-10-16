@@ -15,6 +15,7 @@ import { playerActions, playerStore } from "@/store/player.store";
 import { NotFoundPage, ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
 import { PlaylistShareModal } from "@/components/PlaylistShareModal";
 import { PlaylistHero, PlaylistRenameModal, PlaylistTrackList } from "./components";
+import { PlaylistSkeleton } from "@/app/playlists/[id]/components/PlaylistSkeleton";
 
 export default function MyPlaylistPage() {
   const { id } = useParams();
@@ -212,15 +213,8 @@ export default function MyPlaylistPage() {
     };
   }, [colorSourceImage, playlist?.name, isFavourites]);
 
-  if (isPlaylistLoading || isSongsLoading) {
-    return (
-      <div className="flex h-[60vh] flex-col items-center justify-center gap-4 text-zinc-500">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
-        <span className="text-xs font-black uppercase italic tracking-widest">
-          Loading Playlist...
-        </span>
-      </div>
-    );
+  if (isPlaylistLoading && !playlist) {
+    return <PlaylistSkeleton />;
   }
 
   if (playlistError || !playlist) {
@@ -338,6 +332,7 @@ export default function MyPlaylistPage() {
 
       <PlaylistTrackList
         songs={songs}
+        isLoading={isSongsLoading && songs.length === 0}
         currentSong={currentSong}
         isPlaying={isPlaying}
         isOwner={isOwner}

@@ -276,7 +276,7 @@ export function AlbumClientView({ albumName, initialSongs = [] }: AlbumClientVie
                     <button
                       type="button"
                       className={`hidden group-hover:flex items-center justify-center text-white ${
-                        isCurrentSongActive ? "!flex text-primary" : ""
+                        isCurrentSongActive ? "flex! text-primary" : ""
                       }`}
                     >
                       {isCurrentSongActive && isPlaying ? (

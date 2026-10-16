@@ -13,6 +13,7 @@ interface ArtistPopularSongsProps {
   totalCount?: number;
   currentSong: Song | null;
   isPlaying: boolean;
+  isLoading?: boolean;
   onPlaySong: (song: Song, index: number) => void;
   hasNextPage?: boolean;
   isFetchingNextPage?: boolean;
@@ -25,6 +26,7 @@ export const ArtistPopularSongs: React.FC<ArtistPopularSongsProps> = ({
   totalCount,
   currentSong,
   isPlaying,
+  isLoading = false,
   onPlaySong,
   hasNextPage,
   isFetchingNextPage,
@@ -38,9 +40,13 @@ export const ArtistPopularSongs: React.FC<ArtistPopularSongsProps> = ({
         <h3 className="text-lg font-bold tracking-tight text-white">Popular Songs</h3>
 
         <span className="text-xs font-medium text-zinc-400">
-          {totalCount && totalCount > songs.length
-            ? `${songs.length} of ${totalCount} tracks`
-            : `${songs.length} ${songs.length === 1 ? "track" : "tracks"}`}
+          {isLoading && songs.length === 0 ? (
+            <span className="inline-block h-3.5 w-16 rounded bg-zinc-800/80 animate-pulse" />
+          ) : totalCount && totalCount > songs.length ? (
+            `${songs.length} of ${totalCount} tracks`
+          ) : (
+            `${songs.length} ${songs.length === 1 ? "track" : "tracks"}`
+          )}
         </span>
       </div>
 
@@ -57,7 +63,50 @@ export const ArtistPopularSongs: React.FC<ArtistPopularSongsProps> = ({
 
       {/* Songs */}
       <div className="mt-2 flex flex-col">
-        {songs.length > 0 ? (
+        {isLoading && songs.length === 0 ? (
+          <div className="flex flex-col gap-1 animate-pulse select-none">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((index) => (
+              <div
+                key={index}
+                className="grid grid-cols-12 items-center rounded-md px-4 py-2.5 bg-zinc-900/20 border border-white/2"
+              >
+                {/* Track Index */}
+                <div className="col-span-1 text-center flex justify-center">
+                  <div className="h-3 w-3 rounded bg-zinc-800" />
+                </div>
+
+                {/* Title + Thumbnail */}
+                <div className="col-span-6 sm:col-span-6 md:col-span-5 lg:col-span-4 flex items-center gap-3 min-w-0 pr-3">
+                  <div className="h-10 w-10 shrink-0 rounded-md bg-zinc-800" />
+                  <div className="flex-1 space-y-1.5 min-w-0">
+                    <div className="h-3.5 w-4/5 rounded bg-zinc-800" />
+                    <div className="h-2.5 w-1/2 rounded bg-zinc-800/60" />
+                  </div>
+                </div>
+
+                {/* Album */}
+                <div className="col-span-3 hidden md:block pr-3">
+                  <div className="h-3 w-3/5 rounded bg-zinc-800/60" />
+                </div>
+
+                {/* Genre */}
+                <div className="col-span-1 hidden lg:block pr-3">
+                  <div className="h-3 w-16 rounded bg-zinc-800/60" />
+                </div>
+
+                {/* Plays */}
+                <div className="col-span-3 sm:col-span-3 md:col-span-2 hidden sm:block text-right pr-2">
+                  <div className="h-3 w-16 rounded bg-zinc-800/60 ml-auto" />
+                </div>
+
+                {/* Duration */}
+                <div className="col-span-5 sm:col-span-2 md:col-span-1 text-right">
+                  <div className="h-3 w-10 rounded bg-zinc-800/60 ml-auto" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : songs.length > 0 ? (
           songs.map((song: any, index: number) => {
             const isActive = currentSong?.id === song.id;
             const isCurrentPlaying = isActive && isPlaying;

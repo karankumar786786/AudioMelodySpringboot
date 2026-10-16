@@ -81,6 +81,7 @@ export function ArtistClientView({
   const {
     data: songsInfiniteData,
     isLoading: isSongsLoading,
+    isFetching: isSongsFetching,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
@@ -364,6 +365,8 @@ export function ArtistClientView({
     }
   };
 
+  const isSongsPending = (isSongsLoading || isSongsFetching) && songs.length === 0;
+
   return (
     <div className="min-h-full pb-24 px-2">
       {/* Hero Header */}
@@ -375,6 +378,7 @@ export function ArtistClientView({
         songs={songs}
         isFollowing={isFollowing}
         isFollowLoading={isFollowLoading}
+        isSongsLoading={isSongsPending}
         onPlayAll={handlePlayAll}
         onFollowToggle={handleFollowToggle}
       />
@@ -385,6 +389,7 @@ export function ArtistClientView({
         totalCount={totalSongsCount}
         currentSong={currentSong}
         isPlaying={isPlaying}
+        isLoading={isSongsPending}
         onPlaySong={handlePlaySong}
         hasNextPage={hasNextPage}
         isFetchingNextPage={isFetchingNextPage}

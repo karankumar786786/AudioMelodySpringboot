@@ -87,6 +87,7 @@ export function PlaylistClientView({
   const {
     data: songsResponse,
     isLoading: isSongsLoading,
+    isFetching: isSongsFetching,
     error: _songsError,
     refetch: refetchSongs,
   } = useQuery({
@@ -232,6 +233,8 @@ export function PlaylistClientView({
     });
   };
 
+  const isSongsPending = (isSongsLoading || isSongsFetching) && songs.length === 0;
+
   return (
     <div className="min-h-full pb-24 mx-2">
       {/* Hero Banner */}
@@ -242,12 +245,14 @@ export function PlaylistClientView({
         coverUrl={coverUrl}
         isUserPlaylist={Boolean(isUserPlaylist)}
         username={systemUser?.username}
+        isSongsLoading={isSongsPending}
         onStreamAll={handleStreamAll}
       />
 
       {/* Track List */}
       <PlaylistTrackTable
         songs={songs}
+        isLoading={isSongsPending}
         currentSong={currentSong}
         isPlaying={isPlaying}
         isUserPlaylist={Boolean(isUserPlaylist)}
