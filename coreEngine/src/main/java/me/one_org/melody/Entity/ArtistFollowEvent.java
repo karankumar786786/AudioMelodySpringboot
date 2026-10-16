@@ -26,7 +26,7 @@ public class ArtistFollowEvent{
     private Artist artist;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "event_type", nullable = false)
     private FollowEvent followEvent;
      
     @CreationTimestamp

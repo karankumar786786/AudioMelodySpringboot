@@ -15,21 +15,25 @@ import java.time.LocalDateTime;
 @Data
 public class ArtistMetadata {
     @Id
+    @Column(name = "artist_id")
     private String id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "artist_id")
+    @JoinColumn(name = "artist_id", insertable = false, updatable = false)
     private Artist artist;
 
-    @Column(nullable = false)
+    @Column(name = "artist_name")
+    private String artistName;
+
+    @Column(name = "followers_count", nullable = false)
     private Long followersCount;
 
     @CreationTimestamp
-    @Column(nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
-    @Column(nullable = false)
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
     public ArtistMetadata() {
@@ -37,10 +41,11 @@ public class ArtistMetadata {
     }
 
     @Builder
-    public ArtistMetadata(String id, Artist artist, Long followersCount, LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public ArtistMetadata(String id, Artist artist, String artistName, Long followersCount, LocalDateTime createdAt, LocalDateTime updatedAt) {
         super();
         this.id = id;
         this.artist = artist;
+        this.artistName = artistName;
         this.followersCount = followersCount;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
