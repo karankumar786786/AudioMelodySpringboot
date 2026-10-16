@@ -733,6 +733,8 @@ class AlgoliaService:
         preview_end_time: Optional[int] = None,
         album: Optional[str] = None,
         lrclib_id: Optional[str] = None,
+        genre: Optional[str] = None,
+        total_streams: Optional[int] = None,
     ) -> None:
         client = cls.get_client()
         if not client:
@@ -749,6 +751,8 @@ class AlgoliaService:
             s_skey = song.song_key if song else song_key
             s_jid = song.job_id if song else job_id
             s_album = song.album if song else album
+            s_genre = song.genre if song else genre
+            s_streams = (song.total_streams if song else total_streams) or 0
 
             record = {
                 "objectID": s_id,
@@ -756,6 +760,7 @@ class AlgoliaService:
                 "title": s_title,
                 "artistName": s_artist,
                 "album": s_album,
+                "genre": s_genre or "",
                 "duration": s_dur,
                 "songKey": s_skey or "",
                 "imageKey": s_img,
@@ -766,6 +771,7 @@ class AlgoliaService:
                 "language": s_lang or "unknown",
                 "lrclibId": lrclib_id,
                 "jobId": s_jid,
+                "totalStreams": s_streams,
             }
             client.save_object(index_name=settings.ALGOLIA_INDEX_NAME, body=record)
             logger.info("Saved song [%s] to Algolia index", s_id)

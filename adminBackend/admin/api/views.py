@@ -6,7 +6,7 @@ from typing import Optional
 import uuid
 
 from django.conf import settings
-from django.db.models import Avg, Q
+from django.db.models import Avg, Q, Sum
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -33,7 +33,9 @@ from .models import (
     PaginationMetadata,
     Playlist,
     PlaylistSong,
+    Session,
     Song,
+    SongMetadata,
     User,
 )
 from .serializers import (
@@ -44,6 +46,7 @@ from .serializers import (
     PlaylistSerializer,
     SongSerializer,
     UserSerializer,
+    UserSessionSerializer,
 )
 from .services import (
     AdminAuthService,
@@ -638,8 +641,10 @@ class DashboardStatsView(BaseAdminView):
         processing_jobs = Job.objects.filter(status="PROCESSING").count()
         completed_jobs = Job.objects.filter(status="COMPLETED").count()
 
-        recent_songs = Song.objects.filter(status="ACTIVE").order_by("-created_at")[:5]
+        recent_songs = Song.objects.filter(status="ACTIVE").select_related("metadata").order_by("-created_at")[:5]
         recent_jobs = Job.objects.all().order_by("-created_at")[:5]
+
+        total_streams = SongMetadata.objects.aggregate(total=Sum("total_streams"))["total"] or 0
 
         queue_summary = RedisService.get_queue_backpressure_summary()
 
@@ -647,6 +652,7 @@ class DashboardStatsView(BaseAdminView):
             "totalSongs": songs_meta.total_count if songs_meta else Song.objects.count(),
             "activeSongs": songs_meta.active_count if songs_meta else Song.objects.filter(status="ACTIVE").count(),
             "featuredSongs": featured_songs,
+            "totalStreams": total_streams,
             "totalArtists": artists_meta.total_count if artists_meta else Artist.objects.count(),
             "activeArtists": artists_meta.active_count if artists_meta else Artist.objects.filter(status="ACTIVE").count(),
             "totalPlaylists": playlists_meta.total_count if playlists_meta else Playlist.objects.count(),

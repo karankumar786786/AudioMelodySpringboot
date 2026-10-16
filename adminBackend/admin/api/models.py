@@ -51,6 +51,23 @@ class User(models.Model):
         return f"{self.email} ({self.role})"
 
 
+class Session(models.Model):
+    id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, db_column="user_id", related_name="sessions")
+    device_id = models.CharField(max_length=255, db_column="device_id")
+    refresh_token = models.CharField(max_length=1000, db_column="refresh_token")
+    expires_at = models.DateTimeField(db_column="expires_at")
+    created_at = models.DateTimeField(auto_now_add=True, db_column="created_at")
+    updated_at = models.DateTimeField(auto_now=True, db_column="updated_at")
+
+    class Meta:
+        managed = False
+        db_table = "sessions"
+
+    def __str__(self):
+        return f"Session {self.id} (User: {self.user_id}, Device: {self.device_id})"
+
+
 
 class Artist(models.Model):
     id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
@@ -174,8 +191,29 @@ class Song(models.Model):
         managed = False
         db_table = "songs"
 
+    @property
+    def total_streams(self) -> int:
+        try:
+            return self.metadata.total_streams if hasattr(self, "metadata") and self.metadata else 0
+        except Exception:
+            return 0
+
     def __str__(self):
         return f"{self.title} - {self.artist_name}"
+
+
+class SongMetadata(models.Model):
+    id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
+    song = models.OneToOneField(Song, on_delete=models.CASCADE, db_column="song_id", related_name="metadata")
+    total_streams = models.BigIntegerField(default=0, db_column="total_streams")
+    updated_at = models.DateTimeField(auto_now=True, db_column="updated_at")
+
+    class Meta:
+        managed = False
+        db_table = "song_metadata"
+
+    def __str__(self):
+        return f"SongMetadata {self.id} (Song: {self.song_id}, Streams: {self.total_streams})"
 
 
 class Playlist(models.Model):

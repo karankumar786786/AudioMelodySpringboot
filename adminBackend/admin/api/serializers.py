@@ -7,7 +7,9 @@ from .models import (
     Job,
     PaginationMetadata,
     Playlist,
+    Session,
     Song,
+    SongMetadata,
     User,
 )
 
@@ -42,6 +44,7 @@ class SongSerializer(serializers.ModelSerializer):
     isFeatured = serializers.BooleanField(source="is_featured")
     lrclibId = serializers.CharField(source="lrclib_id")
     jobId = serializers.CharField(source="job_id")
+    totalStreams = serializers.SerializerMethodField()
     createdAt = serializers.DateTimeField(source="created_at", format="%Y-%m-%dT%H:%M:%S")
 
     class Meta:
@@ -63,8 +66,32 @@ class SongSerializer(serializers.ModelSerializer):
             "album",
             "lrclibId",
             "status",
+            "totalStreams",
             "jobId",
             "createdAt",
+        ]
+
+    def get_totalStreams(self, obj) -> int:
+        try:
+            return obj.metadata.total_streams if hasattr(obj, "metadata") and obj.metadata else 0
+        except Exception:
+            return 0
+
+
+class UserSessionSerializer(serializers.ModelSerializer):
+    deviceId = serializers.CharField(source="device_id")
+    expiresAt = serializers.DateTimeField(source="expires_at", format="%Y-%m-%dT%H:%M:%S")
+    createdAt = serializers.DateTimeField(source="created_at", format="%Y-%m-%dT%H:%M:%S")
+    updatedAt = serializers.DateTimeField(source="updated_at", format="%Y-%m-%dT%H:%M:%S")
+
+    class Meta:
+        model = Session
+        fields = [
+            "id",
+            "deviceId",
+            "expiresAt",
+            "createdAt",
+            "updatedAt",
         ]
 
 
