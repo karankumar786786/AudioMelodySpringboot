@@ -18,6 +18,8 @@ import {
   Sun,
   Moon,
   Heart,
+  Laptop,
+  UserPen,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
@@ -37,6 +39,8 @@ import { mapToPlayerSong } from "@/lib/player-utils";
 import { previewPlayer } from "@/lib/preview-player";
 import { playerActions, playerStore } from "@/store/player.store";
 import { SongThumbnail } from "./SongThumbnail";
+import { ConnectedDevicesModal } from "./ConnectedDevicesModal";
+import { EditProfileModal } from "./EditProfileModal";
 
 export function AppNavbar() {
   const systemUser = useStore(playerStore, (s) => s.systemUser);
@@ -45,6 +49,8 @@ export function AppNavbar() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [isDevicesModalOpen, setIsDevicesModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const pathname = usePathname();
   const queryClient = useQueryClient();
@@ -266,12 +272,12 @@ export function AppNavbar() {
     <header
       className={`fixed top-0 left-0 right-0 h-16 z-50 flex items-center select-none pointer-events-auto transition-all duration-300 ease-out ${
         isScrolled
-          ? "bg-black/60 backdrop-blur-xl border-b border-white/[0.08] shadow-lg shadow-black/40"
-          : "bg-transparent backdrop-blur-sm border-b border-white/[0.03]"
+          ? "bg-black/60 backdrop-blur-xl border-b border-white/8 shadow-lg shadow-black/40"
+          : "bg-transparent backdrop-blur-sm border-b border-white/3"
       }`}
     >
       {/* 1. Left: Brand & Logo (aligned with sidebar width) */}
-      <div className="w-[64px] xl:w-[192px] shrink-0 h-full px-2 xl:px-3 flex items-center">
+      <div className="w-16 xl:w-48 shrink-0 h-full px-2 xl:px-3 flex items-center">
         <Link
           href="/home"
           className="flex items-center gap-2.5 px-1 group cursor-pointer"
@@ -310,18 +316,18 @@ export function AppNavbar() {
             onFocus={() => setIsFocused(true)}
             className={`rounded-full py-2.5 pl-11 pr-16 text-xs sm:text-[13px] font-medium focus:ring-0 transition-all duration-200 outline-none w-full text-white placeholder-zinc-400 shadow-inner relative z-10 backdrop-blur-md ${
               isScrolled
-                ? "bg-white/[0.08] border border-white/10 hover:border-white/20 focus:border-white/30 focus:bg-black/80"
-                : "bg-white/[0.06] border border-white/10 hover:border-white/20 focus:border-white/30 focus:bg-black/70"
+                ? "bg-white/8 border border-white/10 hover:border-white/20 focus:border-white/30 focus:bg-black/80"
+                : "bg-white/6 border border-white/10 hover:border-white/20 focus:border-white/30 focus:bg-black/70"
             }`}
           />
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-zinc-400 group-focus-within:text-white transition-colors z-20">
             <Search size={16} />
           </div>
           <div className="absolute inset-y-0 right-0 pr-3.5 flex items-center gap-1 pointer-events-none z-20">
-            <kbd className="hidden sm:inline-flex items-center justify-center w-[20px] h-[20px] rounded bg-white/[0.08] border border-white/10 text-[10px] font-mono text-zinc-400 select-none shadow-sm">
+            <kbd className="hidden sm:inline-flex items-center justify-center w-5 h-5 rounded bg-white/8 border border-white/10 text-[10px] font-mono text-zinc-400 select-none shadow-sm">
               ⌘
             </kbd>
-            <kbd className="hidden sm:inline-flex items-center justify-center w-[20px] h-[20px] rounded bg-white/[0.08] border border-white/10 text-[10px] font-mono text-zinc-400 select-none shadow-sm">
+            <kbd className="hidden sm:inline-flex items-center justify-center w-5 h-5 rounded bg-white/8 border border-white/10 text-[10px] font-mono text-zinc-400 select-none shadow-sm">
               K
             </kbd>
           </div>
@@ -725,7 +731,7 @@ export function AppNavbar() {
             {/* Sun icon & Greeting */}
             <div className="hidden sm:flex items-center gap-2 text-xs sm:text-[13px] text-zinc-300 select-none">
               <Sun size={17} className="text-zinc-300 stroke-[1.75] shrink-0" />
-              <span className="truncate max-w-[180px] md:max-w-none">
+              <span className="truncate max-w-45 md:max-w-none">
                 {getGreeting()},{" "}
                 <span className="text-white font-medium capitalize">
                   {systemUser?.name || "karan"}
@@ -762,6 +768,42 @@ export function AppNavbar() {
                         {systemUser?.email || "Music Explorer"}
                       </p>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        setIsProfileModalOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-pointer"
+                    >
+                      <UserPen size={14} className="text-zinc-400" />
+                      <span>Edit Profile</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        setIsDevicesModalOpen(true);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-pointer"
+                    >
+                      <Laptop size={14} className="text-zinc-400" />
+                      <span>Connected Devices</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowProfileMenu(false);
+                        router.push("/history");
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-pointer"
+                    >
+                      <History size={14} className="text-zinc-400" />
+                      <span>Listening History</span>
+                    </button>
 
                     <button
                       type="button"
@@ -819,6 +861,18 @@ export function AppNavbar() {
         )}
       </div>
       </div>
+
+      {/* Connected Devices Modal */}
+      <ConnectedDevicesModal
+        isOpen={isDevicesModalOpen}
+        onClose={() => setIsDevicesModalOpen(false)}
+      />
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
     </header>
   );
 }

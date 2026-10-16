@@ -237,7 +237,7 @@ export default function PlaylistPage() {
       {/*                    HERO — full-bleed background video / image         */}
       {/* ====================================================================== */}
 
-      <section className="relative h-[45vh] min-h-[360px] max-h-[460px] w-full overflow-hidden rounded-2xl">
+      <section className="relative h-[45vh] min-h-40 max-h-115 w-full overflow-hidden rounded-2xl">
         {/* Background video / image */}
         {videoUrl ? (
           <video
@@ -263,7 +263,7 @@ export default function PlaylistPage() {
             is applied over the rest of the image. */}
         {(videoUrl || coverUrl) && (
           <>
-            <div className="absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black via-black/70 to-transparent" />
+            <div className="absolute inset-x-0 bottom-0 h-3/4 bg-linear-to-t from-black via-black/70 to-transparent" />
             <div className="absolute inset-0 bg-black/10" />
           </>
         )}
@@ -283,7 +283,7 @@ export default function PlaylistPage() {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, delay: 0.05 }}
-            className="max-w-3xl break-words text-3xl font-black tracking-tight text-white drop-shadow-lg md:text-5xl"
+            className="max-w-3xl wrap-break-word text-3xl font-black tracking-tight text-white drop-shadow-lg md:text-5xl"
           >
             {playlist?.title || playlist?.name}
           </motion.h1>
@@ -487,6 +487,11 @@ export default function PlaylistPage() {
                       >
                         <Trash2 size={14} />
                       </button>
+                    )}
+                    {typeof song.totalStreams === "number" && (
+                      <span className="hidden sm:inline-block font-mono text-[11px] text-zinc-500">
+                        {song.totalStreams.toLocaleString()} plays
+                      </span>
                     )}
                     <span>{formatDuration(song.duration)}</span>
                   </div>

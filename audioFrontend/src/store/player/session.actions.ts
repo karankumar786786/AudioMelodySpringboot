@@ -15,6 +15,18 @@ export const sessionActions = {
     }));
   },
 
+  updateSystemUser: (updatedUser: any) => {
+    const existing = playerStore.state.systemUser || {};
+    const merged = { ...existing, ...updatedUser };
+    if (typeof window !== "undefined") {
+      localStorage.setItem("system_user", JSON.stringify(merged));
+    }
+    playerStore.setState((s) => ({
+      ...s,
+      systemUser: merged,
+    }));
+  },
+
   clearSystemSession: () => {
     console.log("[PlayerStore] clearSystemSession called - purging storage & state");
     localStorage.removeItem("system_token");

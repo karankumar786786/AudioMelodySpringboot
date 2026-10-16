@@ -8,6 +8,7 @@ import {
   Globe,
   Link2,
   Sparkles,
+  History,
 } from "lucide-react";
 import { PlaylistThumbnail } from "@/components/PlaylistThumbnail";
 import Link from "next/link";
@@ -22,6 +23,7 @@ const menuItems = [
   { icon: Home, label: "Home", href: "/home" },
   { icon: ListMusic, label: "Playlists", href: "/playlists" },
   { icon: Users2, label: "Artists", href: "/artists" },
+  { icon: History, label: "History", href: "/history" },
 ];
 
 export function LeftSidebar() {

@@ -24,6 +24,7 @@ import {
   Copy,
   Check,
   Heart,
+  Pencil,
 } from "lucide-react";
 import { playerActions, playerStore } from "@/store/player.store";
 import { mapListToPlayerSongs, formatDuration } from "@/lib/player-utils";
@@ -47,8 +48,23 @@ export default function MyPlaylistPage() {
 
   const [backgroundColor, setBackgroundColor] = useState("#181818");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [renameText, setRenameText] = useState("");
 
   const isFavourites = id === "favourites";
+
+  const renameMutation = useMutation({
+    mutationFn: (name: string) => musicApi.users.renamePlaylist(id as string, name),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-playlist", id] });
+      queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
+      toast.success("Playlist renamed");
+      setIsRenameModalOpen(false);
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || "Failed to rename playlist");
+    },
+  });
 
   /* -------------------------------------------------------------------------- */
   /*                                  PLAYLIST                                  */
@@ -383,7 +399,7 @@ export default function MyPlaylistPage() {
             className="h-52 w-52 shrink-0 overflow-hidden rounded-md bg-zinc-900 shadow-2xl md:h-56 md:w-56"
           >
             {isFavourites ? (
-              <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 shadow-2xl shadow-purple-500/20">
+              <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-indigo-600 via-purple-600 to-pink-500 shadow-2xl shadow-purple-500/20">
                 <Heart size={72} fill="white" className="text-white drop-shadow-md" />
               </div>
             ) : hasCustomCover ? (
@@ -474,9 +490,24 @@ export default function MyPlaylistPage() {
               )}
             </div>
 
-            <h1 className="break-words text-4xl font-black tracking-tight text-white md:text-6xl">
-              {playlist?.name}
-            </h1>
+            <div className="flex items-center gap-3">
+              <h1 className="wrap-break-word text-4xl font-black tracking-tight text-white md:text-6xl">
+                {playlist?.name}
+              </h1>
+              {isOwner && !isFavourites && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRenameText(playlist?.name || "");
+                    setIsRenameModalOpen(true);
+                  }}
+                  className="rounded-full p-2 text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+                  title="Rename playlist"
+                >
+                  <Pencil size={20} />
+                </button>
+              )}
+            </div>
 
             <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/70">
               {playlist?.description || "A curated playlist of songs."}
@@ -590,6 +621,46 @@ export default function MyPlaylistPage() {
           onClose={() => setIsShareModalOpen(false)}
           isOwner={isOwner}
         />
+      )}
+
+      {/* Rename Playlist Modal */}
+      {isRenameModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-[#282828] bg-[#121212] p-6 shadow-2xl">
+            <h3 className="text-lg font-bold text-white mb-1.5">Rename Playlist</h3>
+            <p className="text-xs text-zinc-400 mb-4">Choose a new title for this playlist.</p>
+            <input
+              type="text"
+              value={renameText}
+              onChange={(e) => setRenameText(e.target.value)}
+              placeholder="Playlist name"
+              className="w-full rounded-xl border border-[#282828] bg-black/60 px-4 py-3 text-sm text-white placeholder-zinc-500 focus:border-white focus:outline-none"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && renameText.trim()) {
+                  renameMutation.mutate(renameText.trim());
+                }
+              }}
+            />
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setIsRenameModalOpen(false)}
+                className="px-4 py-2 rounded-xl text-sm font-semibold text-zinc-400 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={!renameText.trim() || renameMutation.isPending}
+                onClick={() => renameMutation.mutate(renameText.trim())}
+                className="px-5 py-2 rounded-xl text-sm font-bold bg-white text-black hover:bg-white/80 transition-all disabled:opacity-40"
+              >
+                {renameMutation.isPending ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ====================================================================== */}
@@ -718,6 +789,11 @@ export default function MyPlaylistPage() {
                       >
                         <Trash2 size={14} />
                       </button>
+                    )}
+                    {typeof song.totalStreams === "number" && (
+                      <span className="hidden sm:inline-block font-mono text-[11px] text-zinc-500">
+                        {song.totalStreams.toLocaleString()} plays
+                      </span>
                     )}
                     <span>{formatDuration(song.duration)}</span>
                   </div>

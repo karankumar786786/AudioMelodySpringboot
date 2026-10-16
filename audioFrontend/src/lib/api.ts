@@ -120,6 +120,15 @@ export interface User {
   role?: string;
 }
 
+export interface UserSession {
+  id: string;
+  deviceId: string;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+  isCurrent?: boolean;
+}
+
 function getStoredItem(key: string) {
   if (typeof window === "undefined") return null;
   return localStorage.getItem(key);
@@ -416,13 +425,25 @@ async function searchDirectAlgolia(query: string): Promise<UnifiedSearchResult |
         name: hit.name || "",
         coverImageKey: hit.coverImageKey || "",
       });
-    } else if (type === "playlist") {
-      playlists.push({
-        id,
-        name: hit.name || "",
-        totalSongs: hit.totalSongs || 0,
-        coverImageKey: hit.coverImageKey || "",
-      });
+    } else if (type === "playlist" || type === "userPlaylist") {
+      const isUserPlaylist = hit.isUserPlaylist || Boolean(hit.ownerId) || hit.type === "userPlaylist";
+      if (isUserPlaylist) {
+        userPlaylists.push({
+          id,
+          name: hit.name || "",
+          totalSongs: hit.totalSongs || 0,
+          coverImageKey: hit.coverImageKey || "",
+          privacy: hit.privacy || "PUBLIC",
+          ownerName: hit.ownerName,
+        });
+      } else {
+        playlists.push({
+          id,
+          name: hit.name || "",
+          totalSongs: hit.totalSongs || 0,
+          coverImageKey: hit.coverImageKey || "",
+        });
+      }
     }
   }
 
@@ -524,6 +545,13 @@ export const musicApi = {
       const data = await request<UserPlaylist>("/api/user/playlists", {
         method: "POST",
         body: JSON.stringify({ name, privacy }),
+      });
+      return { data };
+    },
+    renamePlaylist: async (id: string, name: string) => {
+      const data = await request<UserPlaylist>(`/api/user/playlists/${id}`, {
+        method: "PUT",
+        body: JSON.stringify({ name }),
       });
       return { data };
     },
@@ -690,6 +718,31 @@ export const musicApi = {
       } catch {
         return { success: false };
       }
+    },
+    updateProfile: async (userName: string) => {
+      const data = await request<User>("/api/user/profile", {
+        method: "PUT",
+        body: JSON.stringify({ userName }),
+      });
+      return { data };
+    },
+    getListeningHistory: async (page = 1, size = 20) => {
+      const res = await request(`/api/user/history?page=${page - 1}&size=${size}`);
+      return formatPaginated<any>(res);
+    },
+    getSessions: async () => {
+      const res = await request<UserSession[]>("/api/user/sessions");
+      return Array.isArray(res) ? res : [];
+    },
+    revokeSession: async (sessionId: string) => {
+      await request(`/api/user/sessions/${sessionId}`, { method: "DELETE" });
+      return { success: true };
+    },
+    revokeOtherSessions: async () => {
+      const data = await request<{ message: string }>("/api/user/sessions/revoke-others", {
+        method: "POST",
+      });
+      return data;
     },
   },
   interactions: {

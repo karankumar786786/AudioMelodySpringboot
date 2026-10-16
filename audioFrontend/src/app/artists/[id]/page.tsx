@@ -314,7 +314,7 @@ export default function ArtistPage() {
               </p>
             </div>
 
-            <h1 className="break-words text-4xl font-black tracking-tight text-white md:text-6xl">
+            <h1 className="wrap-break-word text-4xl font-black tracking-tight text-white md:text-6xl">
               {artist?.name}
             </h1>
 
@@ -381,7 +381,7 @@ export default function ArtistPage() {
                     </>
                   ) : isFollowing ? (
                     <>
-                      <Check size={16} className="stroke-[3]" />
+                      <Check size={16} className="stroke-3" />
                       <span>Following</span>
                     </>
                   ) : (
@@ -541,6 +541,11 @@ export default function ArtistPage() {
                   {/* ======================================================== */}
 
                   <div className="col-span-5 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-3 lg:col-span-2">
+                    {typeof song.totalStreams === "number" && (
+                      <span className="hidden sm:inline-block font-mono text-[11px] text-zinc-500">
+                        {song.totalStreams.toLocaleString()} plays
+                      </span>
+                    )}
                     <span>{formatDuration(song.duration)}</span>
                   </div>
                 </motion.div>

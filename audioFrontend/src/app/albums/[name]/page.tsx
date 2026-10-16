@@ -260,7 +260,7 @@ export default function AlbumPage({ params }: AlbumPageProps) {
                 }}
                 onClick={() => handlePlaySong(song, index)}
                 className={`group grid cursor-pointer grid-cols-12 items-center rounded-xl px-4 py-2.5 transition-colors select-none ${
-                  isActive ? "bg-white/10" : "hover:bg-white/[0.06]"
+                  isActive ? "bg-white/10" : "hover:bg-white/6"
                 }`}
               >
                 {/* Index / Play indicator */}
@@ -333,6 +333,11 @@ export default function AlbumPage({ params }: AlbumPageProps) {
 
                 {/* Duration */}
                 <div className="col-span-5 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-3 lg:col-span-2">
+                  {typeof song.totalStreams === "number" && (
+                    <span className="hidden sm:inline-block font-mono text-[11px] text-zinc-500">
+                      {song.totalStreams.toLocaleString()} plays
+                    </span>
+                  )}
                   <span>{formatDuration(song.duration)}</span>
                 </div>
               </motion.div>
