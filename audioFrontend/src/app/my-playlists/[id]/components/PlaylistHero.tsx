@@ -26,11 +26,11 @@ interface PlaylistHeroProps {
   isFavourites: boolean;
   isOwner: boolean;
   hasCustomCover: boolean;
-  coverUrl: string;
+  coverUrl?: string;
   showMosaic: boolean;
   mosaicImages: (string | null | undefined)[];
   showSingleSongImage: boolean;
-  singleSongImage: string | null;
+  singleSongImage?: string | null;
   systemUser: any;
   songs: any[];
   isSaved: boolean;
@@ -81,7 +81,7 @@ export function PlaylistHero({
           className="h-52 w-52 shrink-0 overflow-hidden rounded-md bg-zinc-900 shadow-2xl md:h-56 md:w-56"
         >
           {isFavourites ? (
-            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 shadow-2xl shadow-purple-500/20">
+            <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-indigo-600 via-purple-600 to-pink-500 shadow-2xl shadow-purple-500/20">
               <Heart size={72} fill="white" className="text-white drop-shadow-md" />
             </div>
           ) : hasCustomCover ? (
@@ -172,7 +172,7 @@ export function PlaylistHero({
           </div>
 
           <div className="flex items-center gap-3">
-            <h1 className="break-words text-4xl font-black tracking-tight text-white md:text-6xl">
+            <h1 className="wrap-break-word text-4xl font-black tracking-tight text-white md:text-6xl">
               {playlist?.name}
             </h1>
             {isOwner && !isFavourites && (
