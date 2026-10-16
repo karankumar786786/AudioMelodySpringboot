@@ -185,7 +185,9 @@ class AdminEndpointRoutingTests(SimpleTestCase):
              patch.object(AlgoliaService, "save_song"), \
              patch.object(S3Service, "delete_object"), \
              patch.object(SongMetadata.objects, "get_or_create"), \
-             patch.object(Song.objects, "create"):
+             patch.object(Song.objects, "create"), \
+             patch.object(Artist.objects, "filter") as mock_art_filter:
+            mock_art_filter.return_value.first.return_value = None
 
             # 1. GET /webhook/job/{jobId}
             res_get = self.client.get("/webhook/job/job-123")

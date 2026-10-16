@@ -1,4 +1,5 @@
 from django.db import models
+# pyrefly: ignore[missing-import]
 from core.models import generate_uuid
 
 
@@ -40,6 +41,8 @@ class User(models.Model):
 
     @property
     def role(self):
+        if not self.email:
+            return "USER"
         admin = Admin.objects.filter(email=self.email).first()
         return admin.role if admin else "USER"
 
