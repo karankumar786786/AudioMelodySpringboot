@@ -1,9 +1,5 @@
 package me.one_org.melody.Entity;
 
-import java.time.LocalDateTime;
-
-import org.hibernate.annotations.UpdateTimestamp;
-
 import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Data;
@@ -15,24 +11,20 @@ public class PaginationMetaData {
     @Id
     private String id;
 
-    @Column(nullable = false, unique = true)
+    @Column(name = "entity_name", nullable = false, unique = true)
     private String tableName;
 
-    @Column(nullable = false)
+    @Column(name = "total_count", nullable = false)
     private long totalCount;
 
-    @Column(nullable = false)
+    @Column(name = "active_count", nullable = false)
     private long activeCount;
 
-    @Column(nullable = false)
+    @Column(name = "blocked_count", nullable = false)
     private long blockedCount;
 
-    @Column(nullable = false)
+    @Column(name = "deleted_count", nullable = false)
     private long softDeletedCount;
-
-    @UpdateTimestamp 
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
 
     public PaginationMetaData() {
         super();
@@ -40,7 +32,7 @@ public class PaginationMetaData {
 
     @Builder
     public PaginationMetaData(String id, String tableName, long totalCount, long activeCount,
-                              long blockedCount, long softDeletedCount, LocalDateTime updatedAt) {
+                              long blockedCount, long softDeletedCount) {
         super();
         this.id = id;
         this.tableName = tableName;
@@ -48,7 +40,6 @@ public class PaginationMetaData {
         this.activeCount = activeCount;
         this.blockedCount = blockedCount;
         this.softDeletedCount = softDeletedCount;
-        this.updatedAt = updatedAt;
     }
 
     public String getEntityName() {
@@ -65,5 +56,14 @@ public class PaginationMetaData {
 
     public void setDeletedCount(long deletedCount) {
         this.softDeletedCount = deletedCount;
+    }
+
+    @Transient
+    public java.time.LocalDateTime getUpdatedAt() {
+        return null;
+    }
+
+    public void setUpdatedAt(java.time.LocalDateTime updatedAt) {
+        // no-op, column not present in schema
     }
 }
