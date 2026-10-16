@@ -1,4 +1,4 @@
-# 🎵 One Melody — Enterprise Lossless HLS & DASH Device-Native Multimedia Streaming Platform (157 APIs)
+# 🎵 One Melody — Lossless Multimedia Streaming Platform 
 
 [![APIs](https://img.shields.io/badge/APIs-157%20Endpoints-purple.svg?style=flat)](https://github.com/karankumar786786/AudioMelodySpringboot)
 [![Java](https://img.shields.io/badge/Java-21-orange.svg?style=flat&logo=openjdk)](https://openjdk.org/projects/jdk/21/)
