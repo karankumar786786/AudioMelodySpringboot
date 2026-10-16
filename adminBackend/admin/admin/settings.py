@@ -171,6 +171,18 @@ else:
         "default": _db_config
     }
 
+# Flyway in the migration service is the single source of truth for database schemas.
+# Django in adminBackend must never generate or run migrations.
+MIGRATION_MODULES = {
+    "core": None,
+    "accounts": None,
+    "catalog": None,
+    "jobs": None,
+    "dashboard": None,
+    "webhooks": None,
+    "api": None,
+}
+
 # REST Framework Configuration
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [

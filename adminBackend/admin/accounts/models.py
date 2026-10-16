@@ -13,7 +13,7 @@ class Admin(models.Model):
     updated_at = models.DateTimeField(auto_now=True, db_column="updated_at")
 
     class Meta:
-        managed = True
+        managed = False
         db_table = "admin_users"
 
     @property

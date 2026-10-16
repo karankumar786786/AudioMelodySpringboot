@@ -43,6 +43,9 @@ Naming convention:
 - **`V4__add_artist_metadata_and_follow_events.sql`**:
   - `artist_metadata` (Stores follower counts and timestamps)
   - `artist_follow_events` (Audit log for follow/unfollow events with user & artist tracking)
+- **`V5__add_sessions_and_song_metadata.sql`**:
+  - `sessions` (Multi-device refresh tokens and user sessions)
+  - `song_metadata` (Stream tracking counters and timestamps)
 
 ---
 
