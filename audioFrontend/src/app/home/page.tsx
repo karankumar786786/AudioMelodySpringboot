@@ -52,12 +52,12 @@ export default function HomePage() {
         } else if (section === "trending") {
           queryClient.setQueryData(["trending-songs"], payload);
         } else if (section === "artists") {
-          queryClient.setQueryData(["home-artists"], payload);
+          queryClient.setQueryData(["home-artists"], formatPaginated(payload));
         } else if (section === "playlists") {
-          queryClient.setQueryData(["home-playlists"], payload);
+          queryClient.setQueryData(["home-playlists"], formatPaginated(payload));
         } else if (section === "feed") {
           queryClient.setQueryData(["discover-songs"], {
-            pages: [payload],
+            pages: [formatPaginated(payload)],
             pageParams: [1],
           });
         } else if (section === "recommendations" && systemUser?.id) {
@@ -133,9 +133,9 @@ export default function HomePage() {
       queryFn: ({ pageParam }) =>
         musicApi.songs.getFeed(pageParam as number, 15),
       initialPageParam: 1,
-      getNextPageParam: (lastPage) =>
-        lastPage.data.pagination.hasNext
-          ? lastPage.data.pagination.page + 1
+      getNextPageParam: (lastPage: any) =>
+        lastPage?.data?.pagination?.hasNext
+          ? (lastPage.data.pagination.page || 1) + 1
           : undefined,
       enabled: useFallback || !streamActive,
     });
