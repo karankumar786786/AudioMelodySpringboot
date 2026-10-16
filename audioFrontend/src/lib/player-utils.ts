@@ -1,4 +1,4 @@
-import { type Song } from "./api";
+import { type Song } from "./api/types";
 import { getImageUrl } from "./image-utils";
 
 const S3_BASE_URL =

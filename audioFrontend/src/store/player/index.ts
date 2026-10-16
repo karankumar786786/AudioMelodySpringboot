@@ -1,6 +1,6 @@
 import { Store } from "@tanstack/react-store";
 import { type PlayerSong, type QualityTrack } from "@/lib/player-utils";
-import { type User } from "@/lib/api";
+import { type User } from "@/lib/api/types";
 
 export interface SleepTimerState {
   targetTimestamp: number | null;

@@ -45,3 +45,6 @@ yarn-error.log*
 *.sln
 *.sw?
 *.venv
+.DS_Store
+.idea
+.vscode

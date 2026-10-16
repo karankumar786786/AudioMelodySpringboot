@@ -410,7 +410,7 @@ export default function MyPlaylistPage() {
               />
             ) : showMosaic ? (
               <div className="grid h-full w-full grid-cols-2 grid-rows-2">
-                {mosaicImages.map((img: string | null, i: number) =>
+                {mosaicImages.map((img: string | null | undefined, i: number) =>
                   img ? (
                     <img
                       key={i}
