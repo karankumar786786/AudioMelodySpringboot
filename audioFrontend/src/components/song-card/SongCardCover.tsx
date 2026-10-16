@@ -49,7 +49,7 @@ export function SongCardCover({
   onPlayMouseLeave,
 }: SongCardCoverProps) {
   return (
-    <div className="aspect-square bg-zinc-900 rounded-md mb-1.5 relative shadow-md overflow-hidden">
+    <div className="aspect-square bg-zinc-900 rounded-lg mb-1.5 relative shadow-md overflow-hidden">
       {imageUrl ? (
         <Image
           src={imageUrl}

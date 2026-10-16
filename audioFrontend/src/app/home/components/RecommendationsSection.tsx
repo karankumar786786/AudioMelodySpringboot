@@ -59,7 +59,7 @@ export const RecommendationsSection: React.FC<RecommendationsSectionProps> = ({
             <SongCard
               key={`rec-${song.id}`}
               song={song}
-              className="flex-none snap-start w-[calc(50%-6px)] sm:w-[calc(33.333%-8px)] md:w-[calc(25%-9px)] lg:w-[calc(20%-10px)] xl:w-[calc(20%-10px)] 2xl:w-[calc(16.666%-10px)]"
+              className="flex-none snap-start w-[calc(50%-6px)] sm:w-[calc(33.333%-8px)] md:w-[calc(33.333%-8px)] lg:w-[calc(25%-9px)] xl:w-[calc(20%-10px)] 2xl:w-[calc(16.666%-10px)]"
             />
           ))}
         </motion.div>

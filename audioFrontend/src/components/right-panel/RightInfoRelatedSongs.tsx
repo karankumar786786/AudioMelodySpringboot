@@ -65,7 +65,7 @@ export function RightInfoRelatedSongs({
             <SongCard
               key={song.id}
               song={song}
-              className="shrink-0 w-32 p-2!"
+              className="shrink-0 w-32"
             />
           ))}
         </div>
