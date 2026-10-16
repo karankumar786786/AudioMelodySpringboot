@@ -125,6 +125,22 @@ function getStoredItem(key: string) {
   return localStorage.getItem(key);
 }
 
+export function getDeviceId(): string {
+  if (typeof window === "undefined") {
+    return "server-device";
+  }
+  let deviceId = localStorage.getItem("melody_device_id");
+  if (!deviceId) {
+    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+      deviceId = crypto.randomUUID();
+    } else {
+      deviceId = `dev_${Math.random().toString(36).substring(2, 12)}_${Date.now()}`;
+    }
+    localStorage.setItem("melody_device_id", deviceId);
+  }
+  return deviceId;
+}
+
 function saveSessionTokens(accessToken: string, refreshToken: string) {
   if (typeof window === "undefined") return;
   localStorage.setItem("system_token", accessToken);
@@ -171,13 +187,15 @@ async function refreshAccessToken(): Promise<string> {
         throw new Error("No refresh token available");
       }
 
+      const deviceId = getDeviceId();
       const url = `${API_BASE_URL}/auth/refresh-token`;
       const response = await fetch(url, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "X-Device-Id": deviceId,
         },
-        body: JSON.stringify({ refreshToken }),
+        body: JSON.stringify({ refreshToken, deviceId }),
       });
 
       if (!response.ok) {
@@ -222,8 +240,10 @@ async function request<T = any>(endpoint: string, options: RequestInit = {}, ret
   }
 
   const token = getStoredItem("system_token");
+  const deviceId = getDeviceId();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    "X-Device-Id": deviceId,
     ...(options.headers as Record<string, string>),
   };
 
@@ -864,10 +884,11 @@ export const musicApi = {
       return { data: { token } };
     },
     verifyOtp: async (token: string, code: string) => {
+      const deviceId = getDeviceId();
       const verifyRes = await request("/auth/verify-otp", {
         method: "POST",
-        headers: { "X-TEMP-TOKEN": token },
-        body: JSON.stringify({ otp: code }),
+        headers: { "X-TEMP-TOKEN": token, "X-Device-Id": deviceId },
+        body: JSON.stringify({ otp: code, deviceId }),
       });
       
       const { accessToken, refreshToken } = verifyRes;
@@ -891,6 +912,20 @@ export const musicApi = {
           },
         },
       };
+    },
+    logout: async () => {
+      try {
+        const deviceId = getDeviceId();
+        const refreshToken = getStoredItem("system_refresh_token");
+        await request("/auth/logout", {
+          method: "POST",
+          body: JSON.stringify({ deviceId, refreshToken }),
+        });
+      } catch {
+        // Silently handle logout failure on network error
+      } finally {
+        clearSessionStorage();
+      }
     },
   },
 };
