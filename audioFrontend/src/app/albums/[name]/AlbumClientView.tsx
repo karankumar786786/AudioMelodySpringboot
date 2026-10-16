@@ -13,6 +13,7 @@ import { previewPlayer } from "@/lib/preview-player";
 import { SongThumbnail } from "@/components/SongThumbnail";
 import { getSolidBgFromImage } from "@/lib/color-utils";
 import { toast } from "sonner";
+import { AlbumSkeleton } from "./AlbumSkeleton";
 
 interface AlbumClientViewProps {
   albumName: string;
@@ -118,14 +119,7 @@ export function AlbumClientView({ albumName, initialSongs = [] }: AlbumClientVie
   };
 
   if (isLoading && songs.length === 0) {
-    return (
-      <div className="flex h-full min-h-[50vh] items-center justify-center">
-        <div className="flex items-center gap-2 text-sm text-zinc-400">
-          <Sparkles className="h-4 w-4 animate-spin text-primary" />
-          <span>Loading album tracks...</span>
-        </div>
-      </div>
-    );
+    return <AlbumSkeleton />;
   }
 
   if (error || (songs.length === 0 && !isLoading)) {

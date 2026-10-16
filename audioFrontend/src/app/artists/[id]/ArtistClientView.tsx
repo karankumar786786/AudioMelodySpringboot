@@ -11,7 +11,7 @@ import { getSolidBgFromImage } from "@/lib/color-utils";
 import { toast } from "sonner";
 import { NotFoundPage, ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
 import { previewPlayer } from "@/lib/preview-player";
-import { ArtistHero, ArtistPopularSongs } from "./components";
+import { ArtistHero, ArtistPopularSongs, ArtistSkeleton } from "./components";
 
 interface ArtistClientViewProps {
   id: string;
@@ -219,14 +219,7 @@ export function ArtistClientView({
 
   // Only show loading if we don't even have initialArtist or songs from SSR
   if (!artist && (isArtistLoading || isSongsLoading)) {
-    return (
-      <div className="flex h-[60vh] flex-col items-center justify-center gap-4 text-zinc-500">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
-        <span className="text-xs font-black uppercase italic tracking-widest">
-          Loading Artist...
-        </span>
-      </div>
-    );
+    return <ArtistSkeleton />;
   }
 
   // Error & Not Found handling

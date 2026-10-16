@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { getImageUrl, getVideoUrl } from "@/lib/image-utils";
 import { previewPlayer } from "@/lib/preview-player";
 import { NotFoundPage, ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
-import { PlaylistHeroBanner, PlaylistTrackTable } from "./components";
+import { PlaylistHeroBanner, PlaylistTrackTable, PlaylistSkeleton } from "./components";
 
 interface PlaylistClientViewProps {
   id: string;
@@ -156,14 +156,7 @@ export function PlaylistClientView({
   /* -------------------------------------------------------------------------- */
 
   if (!playlist && (isPlaylistLoading || isSongsLoading)) {
-    return (
-      <div className="flex h-[60vh] flex-col items-center justify-center gap-4 text-zinc-500">
-        <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary/20 border-t-primary" />
-        <span className="text-xs font-black uppercase italic tracking-widest">
-          Loading Playlist...
-        </span>
-      </div>
-    );
+    return <PlaylistSkeleton />;
   }
 
   // Error & Not Found handling
