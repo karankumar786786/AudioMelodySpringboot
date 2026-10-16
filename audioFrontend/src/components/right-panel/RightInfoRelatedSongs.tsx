@@ -49,8 +49,8 @@ export function RightInfoRelatedSongs({
       {isRelatedLoading ? (
         <div className="flex gap-2 overflow-hidden pb-1">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="shrink-0 w-32 space-y-1.5 animate-pulse p-2 bg-zinc-950 rounded-lg">
-              <div className="w-full aspect-square bg-zinc-900 rounded-md" />
+            <div key={i} className="shrink-0 w-32 space-y-1.5 animate-pulse p-2 bg-zinc-950 rounded-xl border border-white/10">
+              <div className="w-full aspect-square bg-zinc-900 rounded-lg" />
               <div className="h-3 w-3/4 bg-zinc-800 rounded" />
               <div className="h-2.5 w-1/2 bg-zinc-800/60 rounded" />
             </div>
