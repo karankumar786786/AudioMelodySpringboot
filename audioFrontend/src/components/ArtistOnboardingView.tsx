@@ -210,7 +210,7 @@ export function ArtistOnboardingView({ onComplete, userName }: ArtistOnboardingV
 
         <div className="w-full bg-zinc-800/80 rounded-full h-2 mt-2 overflow-hidden border border-white/5">
           <motion.div
-            className="h-full bg-gradient-to-r from-primary/80 to-primary rounded-full transition-all duration-300"
+            className="h-full bg-linear-to-r from-primary/80 to-primary rounded-full transition-all duration-300"
             style={{ width: `${progressPercent}%` }}
           />
         </div>
@@ -252,7 +252,7 @@ export function ArtistOnboardingView({ onComplete, userName }: ArtistOnboardingV
                             className="w-full h-full object-cover rounded-full"
                           />
                         ) : (
-                          <div className="w-full h-full rounded-full flex items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900 text-primary font-bold text-sm">
+                          <div className="w-full h-full rounded-full flex items-center justify-center bg-linear-to-br from-zinc-800 to-zinc-900 text-primary font-bold text-sm">
                             {artist.name.charAt(0).toUpperCase()}
                           </div>
                         )}
@@ -264,7 +264,7 @@ export function ArtistOnboardingView({ onComplete, userName }: ArtistOnboardingV
                           title={`Remove ${artist.name}`}
                           className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-lg transition-transform hover:scale-110 cursor-pointer"
                         >
-                          <X size={12} className="stroke-[3]" />
+                          <X size={12} className="stroke-3" />
                         </button>
                       </>
                     ) : (
@@ -366,7 +366,7 @@ export function ArtistOnboardingView({ onComplete, userName }: ArtistOnboardingV
                             exit={{ scale: 0, opacity: 0 }}
                             className="absolute top-2.5 right-2.5 z-20 w-6 h-6 rounded-full bg-primary text-black flex items-center justify-center shadow-md font-bold"
                           >
-                            <Check size={14} className="stroke-[3]" />
+                            <Check size={14} className="stroke-3" />
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -380,7 +380,7 @@ export function ArtistOnboardingView({ onComplete, userName }: ArtistOnboardingV
                             className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-zinc-800 to-black text-zinc-400 font-bold text-xl sm:text-2xl">
+                          <div className="w-full h-full flex items-center justify-center bg-linear-to-br from-zinc-800 to-black text-zinc-400 font-bold text-xl sm:text-2xl">
                             {artist.name.charAt(0).toUpperCase() || "A"}
                           </div>
                         )}

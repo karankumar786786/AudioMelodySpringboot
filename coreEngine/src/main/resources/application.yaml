@@ -56,9 +56,8 @@ spring:
       ddl-auto: validate                  # consider "none" or "validate" in production
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        temp:
-          use_jdbc_metadata_defaults: false   # skip metadata connection at startup
+        boot:
+          allow_jdbc_metadata_access: false   # skip metadata connection at startup
 
   jackson:
     deserialization:
@@ -109,3 +108,7 @@ recombee:
   database-id: ${RECOMBEE_DATABASE_ID:default_recombee_db_id}
   secret-token: ${RECOMBEE_DATABASE_SECRET:default_recombee_token}
   region: ${RECOMBEE_DATABASE_REGION:EU_WEST}
+
+logging:
+  level:
+    org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer: ERROR

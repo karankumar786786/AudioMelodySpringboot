@@ -132,7 +132,7 @@ export function RightInfoPanel() {
 
         <p className="text-sm font-semibold text-white">Song & Artist Info</p>
 
-        <p className="text-xs text-zinc-400 mt-1 max-w-[200px]">
+        <p className="text-xs text-zinc-400 mt-1 max-w-50">
           Play a song to view description, artist biography, and source links.
         </p>
       </aside>
@@ -208,7 +208,7 @@ export function RightInfoPanel() {
 
   return (
     <>
-      <aside className="hidden lg:block w-[290px] xl:w-[320px] 2xl:w-[340px] bg-black h-[calc(100vh-64px)] fixed right-0 top-16 z-40 overflow-y-auto no-scrollbar pb-36">
+      <aside className="hidden lg:block w-72.5 xl:w-[320px] 2xl:w-85 bg-black h-[calc(100vh-64px)] fixed right-0 top-16 z-40 overflow-y-auto no-scrollbar pb-36">
         <div>
           {/* 1. MEDIA DISPLAY */}
           <RightInfoMediaHeader
