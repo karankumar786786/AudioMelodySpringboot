@@ -4,6 +4,10 @@ import jakarta.validation.constraints.NotBlank;
 
 public record VerifyOtpRequest(
     @NotBlank
-    String otp
+    String otp,
+    String deviceId
 ) {
+    public VerifyOtpRequest(String otp) {
+        this(otp, null);
+    }
 }

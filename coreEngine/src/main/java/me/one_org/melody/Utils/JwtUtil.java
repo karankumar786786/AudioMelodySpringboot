@@ -33,27 +33,35 @@ public class JwtUtil {
         this.jwtDecoder = jwtDecoder;
     }
 
-    public String generateToken(Authentication authentication, int expiryInHr) {
+    public String generateAccessToken(Authentication authentication) {
+        return generateToken(authentication, Duration.ofMinutes(5));
+    }
+
+    public String generateRefreshToken(Authentication authentication) {
+        return generateToken(authentication, Duration.ofDays(7));
+    }
+
+    public String generateToken(Authentication authentication, Duration duration) {
         Object principal = authentication.getPrincipal();
         if (principal instanceof CustomUserDetails userDetails) {
-            return generateToken(userDetails, expiryInHr);
+            return generateToken(userDetails, duration);
         } else if (principal instanceof User user) {
-            return generateToken(new CustomUserDetails(user), expiryInHr);
+            return generateToken(new CustomUserDetails(user), duration);
         } else if (principal instanceof JwtPayloadDto payload) {
-            return generateToken(payload, expiryInHr);
+            return generateToken(payload, duration);
         } else {
             String id = authentication.getName();
-            return generateToken(new JwtPayloadDto(id, id, null, RoleEnum.USER), expiryInHr);
+            return generateToken(new JwtPayloadDto(id, id, null, RoleEnum.USER), duration);
         }
     }
 
-    public String generateToken(CustomUserDetails userDetails, int expiryInHr) {
-        return generateToken(userDetails.toJwtPayload(), expiryInHr);
+    public String generateToken(CustomUserDetails userDetails, Duration duration) {
+        return generateToken(userDetails.toJwtPayload(), duration);
     }
 
-    public String generateToken(JwtPayloadDto payload, int expiryInHr) {
+    public String generateToken(JwtPayloadDto payload, Duration duration) {
         Instant now = Instant.now();
-        Instant expiresAt = now.plus(Duration.ofHours(expiryInHr));
+        Instant expiresAt = now.plus(duration);
 
         String roleStr = payload.role() != null ? payload.role().name() : RoleEnum.USER.name();
 
@@ -70,6 +78,18 @@ public class JwtUtil {
 
         JwsHeader jwsHeader = JwsHeader.with(MacAlgorithm.HS256).build();
         return jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, claims)).getTokenValue();
+    }
+
+    public String generateToken(Authentication authentication, int expiryInHr) {
+        return generateToken(authentication, Duration.ofHours(expiryInHr));
+    }
+
+    public String generateToken(CustomUserDetails userDetails, int expiryInHr) {
+        return generateToken(userDetails, Duration.ofHours(expiryInHr));
+    }
+
+    public String generateToken(JwtPayloadDto payload, int expiryInHr) {
+        return generateToken(payload, Duration.ofHours(expiryInHr));
     }
 
     public JwtPayloadDto validateAndGetPayload(String token) {

@@ -38,9 +38,13 @@ public class AuthenticationController {
     @PostMapping("/verify-otp")
     public ResponseEntity<VerifyOtpResponse> verifyOtp(
             @RequestHeader("X-TEMP-TOKEN") String tempToken,
+            @RequestHeader(value = "X-Device-Id", required = false) String deviceIdHeader,
             @Valid @RequestBody VerifyOtpRequest verifyRequest
-        ) {
-        VerifyOtpResponse response = authenticationService.verifyOtp(tempToken, verifyRequest.otp());
+    ) {
+        String effectiveDeviceId = (verifyRequest.deviceId() != null && !verifyRequest.deviceId().isBlank())
+                ? verifyRequest.deviceId()
+                : (deviceIdHeader != null && !deviceIdHeader.isBlank() ? deviceIdHeader : "default-device");
+        VerifyOtpResponse response = authenticationService.verifyOtp(tempToken, verifyRequest.otp(), effectiveDeviceId);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
@@ -59,17 +63,28 @@ public class AuthenticationController {
     }
 
     @PostMapping("/refresh-token")
-    public ResponseEntity<RefreshTokenResponseDto> refreshToken(@Valid @RequestBody RefreshTokenRequestDto request) {
-        RefreshTokenResponseDto response = authenticationService.refreshToken(request.refreshToken());
+    public ResponseEntity<RefreshTokenResponseDto> refreshToken(
+            @RequestHeader(value = "X-Device-Id", required = false) String deviceIdHeader,
+            @Valid @RequestBody RefreshTokenRequestDto request
+    ) {
+        String effectiveDeviceId = (request.deviceId() != null && !request.deviceId().isBlank())
+                ? request.deviceId()
+                : (deviceIdHeader != null && !deviceIdHeader.isBlank() ? deviceIdHeader : null);
+        RefreshTokenResponseDto response = authenticationService.refreshToken(request.refreshToken(), effectiveDeviceId);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @PostMapping("/logout")
     public ResponseEntity<java.util.Map<String, String>> logout(
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            authenticationService.logout(authHeader.substring(7));
-        }
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-Device-Id", required = false) String deviceIdHeader,
+            @RequestBody(required = false) RefreshTokenRequestDto request) {
+        String token = (authHeader != null && authHeader.startsWith("Bearer ")) ? authHeader.substring(7) : null;
+        String refreshToken = request != null ? request.refreshToken() : null;
+        String effectiveDeviceId = (request != null && request.deviceId() != null && !request.deviceId().isBlank())
+                ? request.deviceId()
+                : deviceIdHeader;
+        authenticationService.logout(token, refreshToken, effectiveDeviceId);
         return ResponseEntity.ok(java.util.Map.of("message", "Logged out successfully"));
     }
 }

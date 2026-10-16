@@ -13,7 +13,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -30,7 +29,6 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -41,30 +39,23 @@ import com.nimbusds.jose.proc.SecurityContext;
 
 import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Enums.StatusEnum;
-import me.one_org.melody.Filters.RateLimitFilter;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private final RateLimitFilter rateLimitFilter;
     private final CustomUserDetailsService customUserDetailsService;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
-    private final TokenBlacklistService tokenBlacklistService;
 
     public SecurityConfig(
-            RateLimitFilter rateLimitFilter,
             CustomUserDetailsService customUserDetailsService,
             JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
-            JwtAccessDeniedHandler jwtAccessDeniedHandler,
-            TokenBlacklistService tokenBlacklistService) {
-        this.rateLimitFilter = rateLimitFilter;
+            JwtAccessDeniedHandler jwtAccessDeniedHandler) {
         this.customUserDetailsService = customUserDetailsService;
         this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
         this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
-        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     @Bean
@@ -91,14 +82,9 @@ public class SecurityConfig {
     @Bean
     public Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter() {
         return jwt -> {
-            String tokenValue = jwt.getTokenValue();
             String userId = jwt.getClaimAsString("id");
             if (userId == null || userId.isBlank()) {
                 userId = jwt.getSubject();
-            }
-
-            if (tokenBlacklistService.isTokenBlacklisted(tokenValue) || tokenBlacklistService.isUserBlocked(userId)) {
-                throw new BadCredentialsException("Token is blacklisted or user account is disabled");
             }
 
             String email = jwt.getClaimAsString("email");
@@ -149,8 +135,7 @@ public class SecurityConfig {
                 .authenticationEntryPoint(jwtAuthenticationEntryPoint)
                 .accessDeniedHandler(jwtAccessDeniedHandler)
             )
-            .authenticationProvider(authenticationProvider())
-            .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class);
+            .authenticationProvider(authenticationProvider());
 
         return http.build();
     }
