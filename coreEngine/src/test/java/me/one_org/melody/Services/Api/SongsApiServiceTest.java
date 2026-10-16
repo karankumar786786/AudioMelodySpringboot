@@ -11,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import me.one_org.melody.Dto.Controllers.AlbumDto;
+import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Entity.PaginationMetaData;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
@@ -54,9 +55,9 @@ class SongsApiServiceTest {
         Song song = Song.builder().id("s-1").title("Track 1").build();
         when(songsRepository.findAllPaginated(0, 10)).thenReturn(List.of(song));
 
-        List<Song> result = songsApiService.browseSongs(0, 10);
+        List<SongDto> result = songsApiService.browseSongs(0, 10);
         assertThat(result).hasSize(1);
-        assertThat(result.get(0).getTitle()).isEqualTo("Track 1");
+        assertThat(result.get(0).title()).isEqualTo("Track 1");
     }
 
     @Test
@@ -66,7 +67,7 @@ class SongsApiServiceTest {
         when(songsRepository.findById("s-100")).thenReturn(Optional.of(song));
         when(songsRepository.findById("s-unknown")).thenReturn(Optional.empty());
 
-        assertThat(songsApiService.getSongById("s-100").getTitle()).isEqualTo("Found");
+        assertThat(songsApiService.getSongById("s-100").title()).isEqualTo("Found");
         assertThatThrownBy(() -> songsApiService.getSongById("s-unknown"))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Song not found with id: s-unknown");

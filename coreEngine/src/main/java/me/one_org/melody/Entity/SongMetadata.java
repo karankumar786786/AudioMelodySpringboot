@@ -23,6 +23,7 @@ public class SongMetadata {
     @Id 
     private String id;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @OneToOne(optional = false,fetch = FetchType.LAZY)
     @JoinColumn(name = "song_id")
     private Song song;

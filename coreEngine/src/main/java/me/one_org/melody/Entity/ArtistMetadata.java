@@ -18,6 +18,7 @@ public class ArtistMetadata {
     @Column(name = "artist_id")
     private String id;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "artist_id", insertable = false, updatable = false)
     private Artist artist;

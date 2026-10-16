@@ -12,6 +12,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
+import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
+import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Entity.PaginationMetaData;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Entity.User;
@@ -200,7 +202,7 @@ public class InteractionApiService {
     }
 
     @Transactional(readOnly = true)
-    public List<Song> getFavouritesPaginated(String userId, int page, int size) {
+    public List<SongDto> getFavouritesPaginated(String userId, int page, int size) {
         if (userId == null || userId.isBlank() || size <= 0 || page < 0) {
             return Collections.emptyList();
         }
@@ -212,10 +214,12 @@ public class InteractionApiService {
             return Collections.emptyList();
         }
 
-        return usersRepository.findFavouriteSongsPaginated(userId, page, size);
+        return usersRepository.findFavouriteSongsPaginated(userId, page, size).stream()
+                .map(SongDto::fromEntity)
+                .toList();
     }
 
-    public PaginationMetaData getFavouritesPaginationMetaData(String userId) {
-        return paginationMetaDataService.getMetaData("UserFavourites_" + userId);
+    public PaginationMetaDataDto getFavouritesPaginationMetaData(String userId) {
+        return PaginationMetaDataDto.fromEntity(paginationMetaDataService.getMetaData("UserFavourites_" + userId));
     }
 }

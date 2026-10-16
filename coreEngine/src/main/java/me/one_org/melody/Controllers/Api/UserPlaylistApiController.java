@@ -15,9 +15,6 @@ import me.one_org.melody.Dto.Controllers.Api.RenameUserPlaylistRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Dto.Controllers.Api.UpdatePlaylistPrivacyRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.UserPlaylistDto;
-import me.one_org.melody.Entity.PaginationMetaData;
-import me.one_org.melody.Entity.Song;
-import me.one_org.melody.Entity.UserPlaylist;
 import me.one_org.melody.Services.Api.UserPlaylistApiService;
 
 @RestController
@@ -35,18 +32,16 @@ public class UserPlaylistApiController {
             @RequestAttribute("userId") String userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<UserPlaylist> playlists = userPlaylistAppService.getUserPlaylistsPaginated(userId, page, size);
-        List<UserPlaylistDto> dtos = playlists.stream().map(UserPlaylistDto::fromEntity).toList();
-        PaginationMetaData metaData = userPlaylistAppService.getPaginationMetaData(userId);
-        return ResponseEntity.ok(new PaginatedResponseDto<>(dtos, page, size, PaginationMetaDataDto.fromEntity(metaData)));
+        List<UserPlaylistDto> playlists = userPlaylistAppService.getUserPlaylistsPaginated(userId, page, size);
+        PaginationMetaDataDto metaData = userPlaylistAppService.getPaginationMetaData(userId);
+        return ResponseEntity.ok(new PaginatedResponseDto<>(playlists, page, size, metaData));
     }
 
     @PostMapping
     public ResponseEntity<UserPlaylistDto> createPlaylist(
             @RequestAttribute("userId") String userId,
             @Valid @RequestBody CreateUserPlaylistRequestDto data) {
-        UserPlaylist playlist = userPlaylistAppService.createPlaylist(userId, data.name(), data.privacy());
-        return ResponseEntity.status(HttpStatus.CREATED).body(UserPlaylistDto.fromEntity(playlist));
+        return ResponseEntity.status(HttpStatus.CREATED).body(userPlaylistAppService.createPlaylist(userId, data.name(), data.privacy()));
     }
 
     @PutMapping("/{id}")
@@ -54,8 +49,7 @@ public class UserPlaylistApiController {
             @RequestAttribute("userId") String userId,
             @PathVariable String id,
             @Valid @RequestBody RenameUserPlaylistRequestDto data) {
-        UserPlaylist playlist = userPlaylistAppService.renamePlaylist(userId, id, data.name());
-        return ResponseEntity.ok(UserPlaylistDto.fromEntity(playlist));
+        return ResponseEntity.ok(userPlaylistAppService.renamePlaylist(userId, id, data.name()));
     }
 
     @PatchMapping("/{id}/privacy")
@@ -63,16 +57,14 @@ public class UserPlaylistApiController {
             @RequestAttribute("userId") String userId,
             @PathVariable String id,
             @Valid @RequestBody UpdatePlaylistPrivacyRequestDto data) {
-        UserPlaylist playlist = userPlaylistAppService.updatePlaylistPrivacy(userId, id, data.privacy());
-        return ResponseEntity.ok(UserPlaylistDto.fromEntity(playlist));
+        return ResponseEntity.ok(userPlaylistAppService.updatePlaylistPrivacy(userId, id, data.privacy()));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<UserPlaylistDto> getPlaylistById(
             @RequestAttribute(value = "userId", required = false) String userId,
             @PathVariable String id) {
-        UserPlaylist playlist = userPlaylistAppService.getPlaylistById(userId, id);
-        return ResponseEntity.ok(UserPlaylistDto.fromEntity(playlist));
+        return ResponseEntity.ok(userPlaylistAppService.getPlaylistById(userId, id));
     }
 
     @GetMapping("/{id}/songs")
@@ -81,18 +73,16 @@ public class UserPlaylistApiController {
             @PathVariable String id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<Song> songs = userPlaylistAppService.getPlaylistSongsPaginated(userId, id, page, size);
-        List<SongDto> dtos = songs.stream().map(SongDto::fromEntity).toList();
-        PaginationMetaData metaData = userPlaylistAppService.getPlaylistSongsPaginationMetaData(id);
-        return ResponseEntity.ok(new PaginatedResponseDto<>(dtos, page, size, PaginationMetaDataDto.fromEntity(metaData)));
+        List<SongDto> songs = userPlaylistAppService.getPlaylistSongsPaginated(userId, id, page, size);
+        PaginationMetaDataDto metaData = userPlaylistAppService.getPlaylistSongsPaginationMetaData(id);
+        return ResponseEntity.ok(new PaginatedResponseDto<>(songs, page, size, metaData));
     }
 
     @PostMapping("/{id}/save")
     public ResponseEntity<UserPlaylistDto> savePlaylistToLibrary(
             @RequestAttribute("userId") String userId,
             @PathVariable String id) {
-        UserPlaylist playlist = userPlaylistAppService.savePlaylistToLibrary(userId, id);
-        return ResponseEntity.status(HttpStatus.CREATED).body(UserPlaylistDto.fromEntity(playlist));
+        return ResponseEntity.status(HttpStatus.CREATED).body(userPlaylistAppService.savePlaylistToLibrary(userId, id));
     }
 
     @DeleteMapping("/{id}/save")
@@ -115,16 +105,14 @@ public class UserPlaylistApiController {
     public ResponseEntity<UserPlaylistDto> duplicatePlaylist(
             @RequestAttribute("userId") String userId,
             @PathVariable String id) {
-        UserPlaylist playlist = userPlaylistAppService.duplicatePlaylist(userId, id);
-        return ResponseEntity.status(HttpStatus.CREATED).body(UserPlaylistDto.fromEntity(playlist));
+        return ResponseEntity.status(HttpStatus.CREATED).body(userPlaylistAppService.duplicatePlaylist(userId, id));
     }
 
     @GetMapping("/shared/{tokenOrId}")
     public ResponseEntity<UserPlaylistDto> getSharedPlaylist(
             @RequestAttribute(value = "userId", required = false) String userId,
             @PathVariable String tokenOrId) {
-        UserPlaylist playlist = userPlaylistAppService.getSharedPlaylist(tokenOrId, userId);
-        return ResponseEntity.ok(UserPlaylistDto.fromEntity(playlist));
+        return ResponseEntity.ok(userPlaylistAppService.getSharedPlaylist(tokenOrId, userId));
     }
 
     @GetMapping("/shared/{tokenOrId}/songs")
@@ -133,11 +121,10 @@ public class UserPlaylistApiController {
             @PathVariable String tokenOrId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        UserPlaylist playlist = userPlaylistAppService.getSharedPlaylist(tokenOrId, userId);
-        List<Song> songs = userPlaylistAppService.getSharedPlaylistSongsPaginated(tokenOrId, userId, page, size);
-        List<SongDto> dtos = songs.stream().map(SongDto::fromEntity).toList();
-        PaginationMetaData metaData = userPlaylistAppService.getPlaylistSongsPaginationMetaData(playlist.getId());
-        return ResponseEntity.ok(new PaginatedResponseDto<>(dtos, page, size, PaginationMetaDataDto.fromEntity(metaData)));
+        UserPlaylistDto playlist = userPlaylistAppService.getSharedPlaylist(tokenOrId, userId);
+        List<SongDto> songs = userPlaylistAppService.getSharedPlaylistSongsPaginated(tokenOrId, userId, page, size);
+        PaginationMetaDataDto metaData = userPlaylistAppService.getPlaylistSongsPaginationMetaData(playlist.id());
+        return ResponseEntity.ok(new PaginatedResponseDto<>(songs, page, size, metaData));
     }
 
     @DeleteMapping("/{id}")
@@ -153,8 +140,7 @@ public class UserPlaylistApiController {
             @RequestAttribute("userId") String userId,
             @PathVariable String id,
             @Valid @RequestBody AddSongToUserPlaylistRequestDto data) {
-        UserPlaylist playlist = userPlaylistAppService.addSong(userId, id, data.songId());
-        return ResponseEntity.ok(UserPlaylistDto.fromEntity(playlist));
+        return ResponseEntity.ok(userPlaylistAppService.addSong(userId, id, data.songId()));
     }
 
     @DeleteMapping("/{id}/songs/{songId}")
@@ -162,7 +148,6 @@ public class UserPlaylistApiController {
             @RequestAttribute("userId") String userId,
             @PathVariable String id,
             @PathVariable String songId) {
-        UserPlaylist playlist = userPlaylistAppService.removeSong(userId, id, songId);
-        return ResponseEntity.ok(UserPlaylistDto.fromEntity(playlist));
+        return ResponseEntity.ok(userPlaylistAppService.removeSong(userId, id, songId));
     }
 }

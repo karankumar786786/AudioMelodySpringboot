@@ -6,6 +6,9 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
+import me.one_org.melody.Dto.Controllers.Api.PlaylistDto;
+import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Entity.PaginationMetaData;
 import me.one_org.melody.Entity.Playlist;
 import me.one_org.melody.Entity.Song;
@@ -25,7 +28,7 @@ public class PlaylistApiService {
         this.paginationMetaDataService = paginationMetaDataService;
     }
 
-    public List<Playlist> getPlaylistsPaginated(int page, int size) {
+    public List<PlaylistDto> getPlaylistsPaginated(int page, int size) {
         if (size <= 0 || page < 0) return List.of();
 
         PaginationMetaData meta = paginationMetaDataService.getMetaData("PlaylistsEntity");
@@ -33,25 +36,30 @@ public class PlaylistApiService {
             return List.of();
         }
 
-        return playlistsRepository.findAllPaginated(page, size);
+        return playlistsRepository.findAllPaginated(page, size).stream()
+                .map(PlaylistDto::fromEntity)
+                .toList();
     }
 
-    public PaginationMetaData getPaginationMetaData() {
-        return paginationMetaDataService.getMetaData("PlaylistsEntity");
+    public PaginationMetaDataDto getPaginationMetaData() {
+        return PaginationMetaDataDto.fromEntity(paginationMetaDataService.getMetaData("PlaylistsEntity"));
     }
 
     @Cacheable(value = "playlist_lists", key = "'all'")
-    public List<Playlist> getAllPlaylists() {
-        return playlistsRepository.findAllPaginated(0, 100);
+    public List<PlaylistDto> getAllPlaylists() {
+        return playlistsRepository.findAllPaginated(0, 100).stream()
+                .map(PlaylistDto::fromEntity)
+                .toList();
     }
 
     @Cacheable(value = "playlists", key = "#id")
-    public Playlist getPlaylistById(String id) {
-        return playlistsRepository.findById(id)
+    public PlaylistDto getPlaylistById(String id) {
+        Playlist playlist = playlistsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Playlist not found with id: " + id));
+        return PlaylistDto.fromEntity(playlist);
     }
 
-    public List<Song> getPlaylistSongsPaginated(String id, int page, int size) {
+    public List<SongDto> getPlaylistSongsPaginated(String id, int page, int size) {
         if (id == null || id.isBlank() || size <= 0 || page < 0) return List.of();
 
         PaginationMetaData meta = paginationMetaDataService.getMetaData("PlaylistSongs_" + id);
@@ -63,10 +71,12 @@ public class PlaylistApiService {
         }
 
         getPlaylistById(id);
-        return playlistsRepository.findSongsByPlaylistIdPaginated(id, page, size);
+        return playlistsRepository.findSongsByPlaylistIdPaginated(id, page, size).stream()
+                .map(SongDto::fromEntity)
+                .toList();
     }
 
-    public PaginationMetaData getPlaylistSongsPaginationMetaData(String id) {
-        return paginationMetaDataService.getMetaData("PlaylistSongs_" + id);
+    public PaginationMetaDataDto getPlaylistSongsPaginationMetaData(String id) {
+        return PaginationMetaDataDto.fromEntity(paginationMetaDataService.getMetaData("PlaylistSongs_" + id));
     }
 }

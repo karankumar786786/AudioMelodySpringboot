@@ -69,7 +69,7 @@ class ArtistApiServiceTest {
         when(artistsRepository.findById("art-1")).thenReturn(Optional.of(artist));
         when(artistsRepository.findById("art-none")).thenReturn(Optional.empty());
 
-        assertThat(artistApiService.getArtistById("art-1").getName()).isEqualTo("Queen");
+        assertThat(artistApiService.getArtistById("art-1").name()).isEqualTo("Queen");
         assertThatThrownBy(() -> artistApiService.getArtistById("art-none"))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Artist not found with id: art-none");

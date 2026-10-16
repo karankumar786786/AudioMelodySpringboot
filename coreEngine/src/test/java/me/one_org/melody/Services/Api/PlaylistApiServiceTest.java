@@ -47,7 +47,7 @@ class PlaylistApiServiceTest {
         when(playlistsRepository.findById("pl-1")).thenReturn(Optional.of(playlist));
         when(playlistsRepository.findById("pl-none")).thenReturn(Optional.empty());
 
-        assertThat(playlistApiService.getPlaylistById("pl-1").getName()).isEqualTo("Today's Hits");
+        assertThat(playlistApiService.getPlaylistById("pl-1").name()).isEqualTo("Today's Hits");
         assertThatThrownBy(() -> playlistApiService.getPlaylistById("pl-none"))
                 .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Playlist not found with id: pl-none");

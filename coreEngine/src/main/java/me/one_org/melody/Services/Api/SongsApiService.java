@@ -5,6 +5,8 @@ import java.util.List;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
+import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
+import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Entity.PaginationMetaData;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
@@ -25,7 +27,7 @@ public class SongsApiService {
         this.paginationMetaDataService = paginationMetaDataService;
     }
 
-    public List<Song> browseSongs(int page, int size) {
+    public List<SongDto> browseSongs(int page, int size) {
         if (size <= 0 || page < 0) return List.of();
 
         // Early guard against out-of-bounds page requests via cached Redis metadata
@@ -34,30 +36,39 @@ public class SongsApiService {
             return List.of();
         }
 
-        return songsRepository.findAllPaginated(page, size);
+        return songsRepository.findAllPaginated(page, size).stream()
+                .map(SongDto::fromEntity)
+                .toList();
     }
 
-    public List<Song> getTrendingSongs(int limit) {
-        return songsRepository.findTrending(limit);
+    public List<SongDto> getTrendingSongs(int limit) {
+        return songsRepository.findTrending(limit).stream()
+                .map(SongDto::fromEntity)
+                .toList();
     }
 
     @Cacheable(value = "songs", key = "#id")
-    public Song getSongById(String id) {
-        return songsRepository.findById(id)
+    public SongDto getSongById(String id) {
+        Song song = songsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Song not found with id: " + id));
+        return SongDto.fromEntity(song);
     }
 
-    public PaginationMetaData getPaginationMetaData() {
-        return paginationMetaDataService.getMetaData("SongsEntity");
+    public PaginationMetaDataDto getPaginationMetaData() {
+        return PaginationMetaDataDto.fromEntity(paginationMetaDataService.getMetaData("SongsEntity"));
     }
 
     @Cacheable(value = "featured_songs", key = "'all'")
-    public List<Song> getFeaturedSongs() {
-        return songsRepository.findFeatured();
+    public List<SongDto> getFeaturedSongs() {
+        return songsRepository.findFeatured().stream()
+                .map(SongDto::fromEntity)
+                .toList();
     }
 
-    public List<Song> getSongsByAlbum(String albumName) {
-        return songsRepository.findByAlbum(albumName);
+    public List<SongDto> getSongsByAlbum(String albumName) {
+        return songsRepository.findByAlbum(albumName).stream()
+                .map(SongDto::fromEntity)
+                .toList();
     }
 
     public List<me.one_org.melody.Dto.Controllers.AlbumDto> getAllAlbums() {

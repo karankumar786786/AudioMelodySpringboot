@@ -35,7 +35,7 @@ public class RedisConfig {
                 .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
                 .disable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                .activateDefaultTyping(ptv, DefaultTyping.NON_FINAL)
+                .activateDefaultTyping(ptv, DefaultTyping.NON_FINAL_AND_RECORDS)
                 .build();
     }
 
@@ -82,6 +82,7 @@ public class RedisConfig {
         cacheConfigurations.put("playlists", defaultConfig.entryTtl(Duration.ofMinutes(15)));
         cacheConfigurations.put("artist_lists", defaultConfig.entryTtl(Duration.ofMinutes(15)));
         cacheConfigurations.put("playlist_lists", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+        cacheConfigurations.put("artist_songs", defaultConfig.entryTtl(Duration.ofMinutes(15)));
         cacheConfigurations.put("paginationMetaData", defaultConfig.entryTtl(Duration.ofMinutes(5)));
 
         return RedisCacheManager.builder(factory)

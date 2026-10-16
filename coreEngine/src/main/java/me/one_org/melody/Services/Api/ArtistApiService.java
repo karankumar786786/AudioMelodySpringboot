@@ -15,7 +15,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
+import me.one_org.melody.Dto.Controllers.Api.ArtistDto;
 import me.one_org.melody.Dto.Controllers.Api.ArtistFollowStatusDto;
+import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
+import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Entity.Artist;
 import me.one_org.melody.Entity.ArtistFollowEvent;
 import me.one_org.melody.Entity.PaginationMetaData;
@@ -65,7 +68,7 @@ public class ArtistApiService {
         this.eventPublisher = eventPublisher;
     }
 
-    public List<Artist> getArtistsPaginated(int page, int size) {
+    public List<ArtistDto> getArtistsPaginated(int page, int size) {
         if (size <= 0 || page < 0) return List.of();
 
         PaginationMetaData meta = paginationMetaDataService.getMetaData("ArtistsEntity");
@@ -73,26 +76,31 @@ public class ArtistApiService {
             return List.of();
         }
 
-        return artistsRepository.findAllPaginated(page, size);
+        return artistsRepository.findAllPaginated(page, size).stream()
+                .map(ArtistDto::fromEntity)
+                .toList();
     }
 
-    public PaginationMetaData getPaginationMetaData() {
-        return paginationMetaDataService.getMetaData("ArtistsEntity");
+    public PaginationMetaDataDto getPaginationMetaData() {
+        return PaginationMetaDataDto.fromEntity(paginationMetaDataService.getMetaData("ArtistsEntity"));
     }
 
     @Cacheable(value = "artist_lists", key = "'all'")
-    public List<Artist> getAllArtists() {
-        return artistsRepository.findAllPaginated(0, 100);
+    public List<ArtistDto> getAllArtists() {
+        return artistsRepository.findAllPaginated(0, 100).stream()
+                .map(ArtistDto::fromEntity)
+                .toList();
     }
 
     @Cacheable(value = "artists", key = "#id")
-    public Artist getArtistById(String id) {
-        return artistsRepository.findById(id)
+    public ArtistDto getArtistById(String id) {
+        Artist artist = artistsRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Artist not found with id: " + id));
+        return ArtistDto.fromEntity(artist);
     }
 
     @Cacheable(value = "artist_songs", key = "#artistIdOrQuery + '_' + #page + '_' + #size")
-    public List<Song> getArtistSongsPaginated(String artistIdOrQuery, int page, int size) {
+    public List<SongDto> getArtistSongsPaginated(String artistIdOrQuery, int page, int size) {
         if (artistIdOrQuery == null || artistIdOrQuery.isBlank()) {
             return List.of();
         }
@@ -108,11 +116,13 @@ public class ArtistApiService {
         int fromIndex = Math.min(page * size, songIds.size());
         int toIndex = Math.min(fromIndex + size, songIds.size());
         List<String> pageIds = songIds.subList(fromIndex, toIndex);
-        return songsRepository.findAllByIds(pageIds);
+        return songsRepository.findAllByIds(pageIds).stream()
+                .map(SongDto::fromEntity)
+                .toList();
     }
 
-    public PaginationMetaData getArtistSongsPaginationMetaData(String artistId) {
-        return paginationMetaDataService.getMetaData("ArtistSongs_" + artistId);
+    public PaginationMetaDataDto getArtistSongsPaginationMetaData(String artistId) {
+        return PaginationMetaDataDto.fromEntity(paginationMetaDataService.getMetaData("ArtistSongs_" + artistId));
     }
 
     // ── Artist Follow & Metadata Operations ──
@@ -217,15 +227,17 @@ public class ArtistApiService {
 
     // ── Cold-Start Artist Onboarding ──
 
-    public List<Artist> getOnboardingArtists() {
+    public List<ArtistDto> getOnboardingArtists() {
         return getOnboardingArtists(0, 100);
     }
 
-    public List<Artist> getOnboardingArtists(int page, int size) {
-        return artistsRepository.findAllPaginated(page, size);
+    public List<ArtistDto> getOnboardingArtists(int page, int size) {
+        return artistsRepository.findAllPaginated(page, size).stream()
+                .map(ArtistDto::fromEntity)
+                .toList();
     }
 
-    public List<Artist> searchArtists(String query) {
+    public List<ArtistDto> searchArtists(String query) {
         if (query == null || query.isBlank()) {
             return getOnboardingArtists();
         }
@@ -255,7 +267,9 @@ public class ArtistApiService {
             }
         } catch (Exception ignored) {}
 
-        return results;
+        return results.stream()
+                .map(ArtistDto::fromEntity)
+                .toList();
     }
 
     public Map<String, Object> completeOnboarding(String userId, List<String> artistIds) {

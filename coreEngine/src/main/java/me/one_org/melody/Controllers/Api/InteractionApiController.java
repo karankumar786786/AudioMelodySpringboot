@@ -10,8 +10,6 @@ import me.one_org.melody.Dto.Controllers.Api.TrackPlayRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.TrackSearchPlayRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.TrackSkipRequestDto;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
-import me.one_org.melody.Entity.PaginationMetaData;
-import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Services.Api.InteractionApiService;
 
 import java.util.List;
@@ -123,9 +121,8 @@ public class InteractionApiController {
             @RequestAttribute("userId") String userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<Song> favourites = interactionAppService.getFavouritesPaginated(userId, page, size);
-        List<SongDto> dtos = favourites.stream().map(SongDto::fromEntity).toList();
-        PaginationMetaData metaData = interactionAppService.getFavouritesPaginationMetaData(userId);
-        return ResponseEntity.ok(new PaginatedResponseDto<>(dtos, page, size, PaginationMetaDataDto.fromEntity(metaData)));
+        List<SongDto> favourites = interactionAppService.getFavouritesPaginated(userId, page, size);
+        PaginationMetaDataDto metaData = interactionAppService.getFavouritesPaginationMetaData(userId);
+        return ResponseEntity.ok(new PaginatedResponseDto<>(favourites, page, size, metaData));
     }
 }

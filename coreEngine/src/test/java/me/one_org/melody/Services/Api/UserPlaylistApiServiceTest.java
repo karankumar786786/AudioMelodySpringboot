@@ -12,6 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.web.server.ResponseStatusException;
 
+import me.one_org.melody.Dto.Controllers.Api.UserPlaylistDto;
 import me.one_org.melody.Entity.User;
 import me.one_org.melody.Entity.UserPlaylist;
 import me.one_org.melody.Enums.PlaylistPrivacyEnum;
@@ -55,11 +56,11 @@ class UserPlaylistApiServiceTest {
         User user = User.builder().id("u-1").userName("alice").build();
         when(usersRepository.getReferenceById("u-1")).thenReturn(user);
 
-        UserPlaylist created = userPlaylistApiService.createPlaylist("u-1", "My Chill Vibes", PlaylistPrivacyEnum.PUBLIC);
+        UserPlaylistDto created = userPlaylistApiService.createPlaylist("u-1", "My Chill Vibes", PlaylistPrivacyEnum.PUBLIC);
 
-        assertThat(created.getName()).isEqualTo("My Chill Vibes");
-        assertThat(created.getPrivacy()).isEqualTo(PlaylistPrivacyEnum.PUBLIC);
-        assertThat(created.getShareToken()).isNotBlank();
+        assertThat(created.name()).isEqualTo("My Chill Vibes");
+        assertThat(created.privacy()).isEqualTo(PlaylistPrivacyEnum.PUBLIC);
+        assertThat(created.shareToken()).isNotBlank();
         verify(userPlaylistsRepository).save(any(UserPlaylist.class));
         verify(paginationMetaDataService).incrementStatus(eq("UserPlaylists_u-1"), isNull());
         verify(eventPublisher).publishEvent(any(Object.class));
@@ -93,9 +94,9 @@ class UserPlaylistApiServiceTest {
         when(songsRepository.existsById("song-99")).thenReturn(true);
         when(userPlaylistsRepository.addSongToPlaylist("pl-1", "song-99")).thenReturn(true);
 
-        UserPlaylist updated = userPlaylistApiService.addSong("u-1", "pl-1", "song-99");
+        UserPlaylistDto updated = userPlaylistApiService.addSong("u-1", "pl-1", "song-99");
 
-        assertThat(updated.getTotalSongs()).isEqualTo(1);
+        assertThat(updated.totalSongs()).isEqualTo(1);
         verify(userPlaylistsRepository).addSongToPlaylist("pl-1", "song-99");
         verify(paginationMetaDataService).incrementStatus("UserPlaylistSongs_pl-1", null);
     }
@@ -114,9 +115,9 @@ class UserPlaylistApiServiceTest {
         when(userPlaylistsRepository.findById("pl-1")).thenReturn(Optional.of(playlist));
         when(userPlaylistsRepository.removeSongFromPlaylist("pl-1", "song-99")).thenReturn(true);
 
-        UserPlaylist updated = userPlaylistApiService.removeSong("u-1", "pl-1", "song-99");
+        UserPlaylistDto updated = userPlaylistApiService.removeSong("u-1", "pl-1", "song-99");
 
-        assertThat(updated.getTotalSongs()).isEqualTo(0);
+        assertThat(updated.totalSongs()).isEqualTo(0);
         verify(userPlaylistsRepository).removeSongFromPlaylist("pl-1", "song-99");
         verify(paginationMetaDataService).decrementStatus("UserPlaylistSongs_pl-1", null);
     }

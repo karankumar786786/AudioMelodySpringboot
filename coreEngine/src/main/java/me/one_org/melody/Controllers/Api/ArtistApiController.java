@@ -13,9 +13,6 @@ import me.one_org.melody.Dto.Controllers.Api.ArtistDto;
 import me.one_org.melody.Dto.Controllers.Api.ArtistFollowStatusDto;
 import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
-import me.one_org.melody.Entity.Artist;
-import me.one_org.melody.Entity.PaginationMetaData;
-import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Services.Api.ArtistApiService;
 
 @RestController
@@ -32,18 +29,16 @@ public class ArtistApiController {
     public ResponseEntity<PaginatedResponseDto<ArtistDto>> getAllArtists(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<Artist> artists = artistAppService.getArtistsPaginated(page, size);
-        List<ArtistDto> dtos = artists.stream().map(ArtistDto::fromEntity).toList();
-        PaginationMetaData metaData = artistAppService.getPaginationMetaData();
-        return ResponseEntity.ok(new PaginatedResponseDto<>(dtos, page, size, PaginationMetaDataDto.fromEntity(metaData)));
+        List<ArtistDto> artists = artistAppService.getArtistsPaginated(page, size);
+        PaginationMetaDataDto metaData = artistAppService.getPaginationMetaData();
+        return ResponseEntity.ok(new PaginatedResponseDto<>(artists, page, size, metaData));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ArtistDto> getArtistById(@PathVariable String id) {
-        Artist artist = artistAppService.getArtistById(id);
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(30, TimeUnit.MINUTES).cachePublic())
-                .body(ArtistDto.fromEntity(artist));
+                .body(artistAppService.getArtistById(id));
     }
 
     @GetMapping("/{id}/songs")
@@ -51,10 +46,9 @@ public class ArtistApiController {
             @PathVariable String id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<Song> songs = artistAppService.getArtistSongsPaginated(id, page, size);
-        List<SongDto> dtos = songs.stream().map(SongDto::fromEntity).toList();
-        PaginationMetaData metaData = artistAppService.getArtistSongsPaginationMetaData(id);
-        return ResponseEntity.ok(new PaginatedResponseDto<>(dtos, page, size, PaginationMetaDataDto.fromEntity(metaData)));
+        List<SongDto> songs = artistAppService.getArtistSongsPaginated(id, page, size);
+        PaginationMetaDataDto metaData = artistAppService.getArtistSongsPaginationMetaData(id);
+        return ResponseEntity.ok(new PaginatedResponseDto<>(songs, page, size, metaData));
     }
 
     @PostMapping("/{id}/follow")
@@ -89,15 +83,13 @@ public class ArtistApiController {
     public ResponseEntity<List<ArtistDto>> getOnboardingList(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
-        List<Artist> artists = artistAppService.getOnboardingArtists(page, size);
-        return ResponseEntity.ok(artists.stream().map(ArtistDto::fromEntity).toList());
+        return ResponseEntity.ok(artistAppService.getOnboardingArtists(page, size));
     }
 
     @GetMapping("/search")
     public ResponseEntity<List<ArtistDto>> searchArtists(
             @RequestParam(name = "q", required = false, defaultValue = "") String query) {
-        List<Artist> artists = artistAppService.searchArtists(query);
-        return ResponseEntity.ok(artists.stream().map(ArtistDto::fromEntity).toList());
+        return ResponseEntity.ok(artistAppService.searchArtists(query));
     }
 
     @PostMapping("/onboarding")

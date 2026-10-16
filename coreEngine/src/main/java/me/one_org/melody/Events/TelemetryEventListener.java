@@ -11,6 +11,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
+import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Entity.SongMetadata;
 import me.one_org.melody.Recommendation.Recombee;
@@ -147,10 +148,10 @@ public class TelemetryEventListener {
 
         for (String artistId : event.followedArtistIds()) {
             try {
-                List<Song> topSongs = artistApiService.getArtistSongsPaginated(artistId, 0, 3);
-                for (Song song : topSongs) {
+                List<SongDto> topSongs = artistApiService.getArtistSongsPaginated(artistId, 0, 3);
+                for (SongDto song : topSongs) {
                     try {
-                        recombee.trackPlay(event.userId(), song.getId(), 0.95);
+                        recombee.trackPlay(event.userId(), song.id(), 0.95);
                     } catch (Exception ignored) {}
                 }
             } catch (Exception ignored) {}
