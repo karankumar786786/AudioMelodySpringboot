@@ -67,11 +67,6 @@ public class UserHistoryApiService {
             return java.util.Collections.emptyList();
         }
 
-        PaginationMetaDataDto meta = getPaginationMetaData(userId);
-        if (meta == null || meta.totalCount() == 0 || (long) page * size >= meta.totalCount()) {
-            return java.util.Collections.emptyList();
-        }
-
         User user = usersRepository.getReferenceById(userId);
         List<UserHistory> history = userHistoryRepository.findByUserOrderByListenedAtDesc(user, page, size);
         return history.stream()
@@ -80,7 +75,20 @@ public class UserHistoryApiService {
     }
 
     public PaginationMetaDataDto getPaginationMetaData(String userId) {
-        return PaginationMetaDataDto.fromEntity(paginationMetaDataService.getMetaData("UserHistory_" + userId));
+        if (userId == null || userId.isBlank()) {
+            return null;
+        }
+        User user = usersRepository.getReferenceById(userId);
+        long count = userHistoryRepository.countByUser(user);
+        return new PaginationMetaDataDto(
+                "meta_user_history_" + userId,
+                "UserHistory_" + userId,
+                count,
+                count,
+                0L,
+                0L,
+                LocalDateTime.now()
+        );
     }
 
     public UserSearchHistoryGroupedResponseDto getSearchHistory(String userId) {

@@ -1,5 +1,6 @@
 package me.one_org.melody.Services.Api;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -22,7 +23,6 @@ import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Entity.Artist;
 import me.one_org.melody.Entity.ArtistFollowEvent;
 import me.one_org.melody.Entity.PaginationMetaData;
-import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Enums.FollowEvent;
 import me.one_org.melody.Exceptions.BadRequestException;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
@@ -72,7 +72,7 @@ public class ArtistApiService {
         if (size <= 0 || page < 0) return List.of();
 
         PaginationMetaData meta = paginationMetaDataService.getMetaData("ArtistsEntity");
-        if (meta == null || meta.getTotalCount() == 0 || (long) page * size >= meta.getTotalCount()) {
+        if (meta != null && meta.getTotalCount() > 0 && (long) page * size >= meta.getTotalCount()) {
             return List.of();
         }
 
@@ -82,7 +82,15 @@ public class ArtistApiService {
     }
 
     public PaginationMetaDataDto getPaginationMetaData() {
-        return PaginationMetaDataDto.fromEntity(paginationMetaDataService.getMetaData("ArtistsEntity"));
+        PaginationMetaData meta = paginationMetaDataService.getMetaData("ArtistsEntity");
+        if (meta == null || meta.getTotalCount() == 0) {
+            long count = artistsRepository.count();
+            if (count > 0) {
+                paginationMetaDataService.updateCounts("ArtistsEntity", count, count, 0L, 0L);
+                meta = paginationMetaDataService.getMetaData("ArtistsEntity");
+            }
+        }
+        return PaginationMetaDataDto.fromEntity(meta);
     }
 
     @Cacheable(value = "artist_lists", key = "'all'")
@@ -111,7 +119,9 @@ public class ArtistApiService {
         }
         List<String> songIds = algoliaSearch.searchSongsByArtist(searchQuery);
         if (songIds.isEmpty()) {
-            return List.of();
+            return songsRepository.findActiveByArtistName(searchQuery.trim(), org.springframework.data.domain.PageRequest.of(page, size)).stream()
+                    .map(SongDto::fromEntity)
+                    .toList();
         }
         int fromIndex = Math.min(page * size, songIds.size());
         int toIndex = Math.min(fromIndex + size, songIds.size());
@@ -122,7 +132,22 @@ public class ArtistApiService {
     }
 
     public PaginationMetaDataDto getArtistSongsPaginationMetaData(String artistId) {
-        return PaginationMetaDataDto.fromEntity(paginationMetaDataService.getMetaData("ArtistSongs_" + artistId));
+        String searchQuery = artistId;
+        Optional<Artist> artistOpt = artistsRepository.findById(artistId);
+        if (artistOpt.isPresent()) {
+            searchQuery = artistOpt.get().getName();
+        }
+        List<String> songIds = algoliaSearch.searchSongsByArtist(searchQuery);
+        long count = !songIds.isEmpty() ? songIds.size() : songsRepository.countActiveByArtistName(searchQuery.trim());
+        return new PaginationMetaDataDto(
+                "meta_artist_songs_" + artistId,
+                "ArtistSongs_" + artistId,
+                count,
+                count,
+                0L,
+                0L,
+                LocalDateTime.now()
+        );
     }
 
     // ── Artist Follow & Metadata Operations ──

@@ -79,12 +79,6 @@ public class UserPlaylistApiService {
             return List.of();
         }
 
-        // Early guard against out-of-bounds page requests via cached Redis metadata
-        PaginationMetaData meta = paginationMetaDataService.getMetaData("UserPlaylists_" + userId);
-        if (meta == null || meta.getTotalCount() == 0 || (long) page * size >= meta.getTotalCount()) {
-            return List.of();
-        }
-
         User user = usersRepository.getReferenceById(userId);
         return userPlaylistsRepository.findByUserPaginated(user, page, size).stream()
                 .map(UserPlaylistDto::fromEntity)
@@ -92,7 +86,20 @@ public class UserPlaylistApiService {
     }
 
     public PaginationMetaDataDto getPaginationMetaData(String userId) {
-        return PaginationMetaDataDto.fromEntity(paginationMetaDataService.getMetaData("UserPlaylists_" + userId));
+        if (userId == null || userId.isBlank()) {
+            return null;
+        }
+        User user = usersRepository.getReferenceById(userId);
+        long count = userPlaylistsRepository.countByUser(user);
+        return new PaginationMetaDataDto(
+                "meta_user_playlists_" + userId,
+                "UserPlaylists_" + userId,
+                count,
+                count,
+                0L,
+                0L,
+                LocalDateTime.now()
+        );
     }
 
     @Transactional
@@ -234,11 +241,8 @@ public class UserPlaylistApiService {
         if (playlistId == null || playlistId.isBlank() || size <= 0 || page < 0) {
             return List.of();
         }
-        getPlaylistById(userId, playlistId);
-
-        // Early guard against out-of-bounds page requests via cached Redis metadata
-        PaginationMetaData meta = paginationMetaDataService.getMetaData("UserPlaylistSongs_" + playlistId);
-        if (meta == null || meta.getTotalCount() == 0 || (long) page * size >= meta.getTotalCount()) {
+        UserPlaylistDto playlist = getPlaylistById(userId, playlistId);
+        if (playlist.totalSongs() > 0 && (long) page * size >= playlist.totalSongs()) {
             return List.of();
         }
 
@@ -248,7 +252,18 @@ public class UserPlaylistApiService {
     }
 
     public PaginationMetaDataDto getPlaylistSongsPaginationMetaData(String playlistId) {
-        return PaginationMetaDataDto.fromEntity(paginationMetaDataService.getMetaData("UserPlaylistSongs_" + playlistId));
+        UserPlaylist playlist = userPlaylistsRepository.findById(playlistId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
+        long count = playlist.getTotalSongs();
+        return new PaginationMetaDataDto(
+                "meta_user_playlist_songs_" + playlistId,
+                "UserPlaylistSongs_" + playlistId,
+                count,
+                count,
+                0L,
+                0L,
+                LocalDateTime.now()
+        );
     }
 
     @Transactional(readOnly = true)
@@ -270,10 +285,7 @@ public class UserPlaylistApiService {
             return List.of();
         }
         UserPlaylistDto playlist = getSharedPlaylist(tokenOrId, callerUserId);
-
-        // Early guard against out-of-bounds page requests via cached Redis metadata
-        PaginationMetaData meta = paginationMetaDataService.getMetaData("UserPlaylistSongs_" + playlist.id());
-        if (meta == null || meta.getTotalCount() == 0 || (long) page * size >= meta.getTotalCount()) {
+        if (playlist.totalSongs() > 0 && (long) page * size >= playlist.totalSongs()) {
             return List.of();
         }
 

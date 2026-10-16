@@ -37,6 +37,7 @@ class PlaylistApiServiceTest {
         assertThat(playlistApiService.getPlaylistsPaginated(0, 0)).isEmpty();
 
         when(paginationMetaDataService.getMetaData("PlaylistsEntity")).thenReturn(null);
+        when(playlistsRepository.findAllPaginated(0, 10)).thenReturn(java.util.List.of());
         assertThat(playlistApiService.getPlaylistsPaginated(0, 10)).isEmpty();
     }
 

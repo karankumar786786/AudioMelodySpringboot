@@ -55,6 +55,7 @@ class ArtistApiServiceTest {
     @DisplayName("getArtistsPaginated should return empty list on out-of-bounds or zero count")
     void getArtistsPaginatedOutOfBounds() {
         when(paginationMetaDataService.getMetaData("ArtistsEntity")).thenReturn(null);
+        when(artistsRepository.findAllPaginated(0, 10)).thenReturn(java.util.List.of());
         assertThat(artistApiService.getArtistsPaginated(0, 10)).isEmpty();
 
         PaginationMetaData meta = PaginationMetaData.builder().totalCount(5L).build();

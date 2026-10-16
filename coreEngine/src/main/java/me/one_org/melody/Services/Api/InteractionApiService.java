@@ -1,5 +1,6 @@
 package me.one_org.melody.Services.Api;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -207,19 +208,24 @@ public class InteractionApiService {
             return Collections.emptyList();
         }
 
-        // Optimization: Use cached pagination metadata as an early boundary guard
-        // Prevents querying PostgreSQL join table if user has 0 favourites or requesting past the end
-        PaginationMetaData meta = paginationMetaDataService.getMetaData("UserFavourites_" + userId);
-        if (meta == null || meta.getTotalCount() == 0 || (long) page * size >= meta.getTotalCount()) {
-            return Collections.emptyList();
-        }
-
         return usersRepository.findFavouriteSongsPaginated(userId, page, size).stream()
                 .map(SongDto::fromEntity)
                 .toList();
     }
 
     public PaginationMetaDataDto getFavouritesPaginationMetaData(String userId) {
-        return PaginationMetaDataDto.fromEntity(paginationMetaDataService.getMetaData("UserFavourites_" + userId));
+        if (userId == null || userId.isBlank()) {
+            return null;
+        }
+        long count = usersRepository.countFavouriteSongs(userId);
+        return new PaginationMetaDataDto(
+                "meta_user_favourites_" + userId,
+                "UserFavourites_" + userId,
+                count,
+                count,
+                0L,
+                0L,
+                LocalDateTime.now()
+        );
     }
 }

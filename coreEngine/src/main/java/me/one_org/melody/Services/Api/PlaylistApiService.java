@@ -11,7 +11,6 @@ import me.one_org.melody.Dto.Controllers.Api.PlaylistDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Entity.PaginationMetaData;
 import me.one_org.melody.Entity.Playlist;
-import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Repository.PlaylistsRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
@@ -32,7 +31,7 @@ public class PlaylistApiService {
         if (size <= 0 || page < 0) return List.of();
 
         PaginationMetaData meta = paginationMetaDataService.getMetaData("PlaylistsEntity");
-        if (meta == null || meta.getTotalCount() == 0 || (long) page * size >= meta.getTotalCount()) {
+        if (meta != null && meta.getTotalCount() > 0 && (long) page * size >= meta.getTotalCount()) {
             return List.of();
         }
 
@@ -42,7 +41,15 @@ public class PlaylistApiService {
     }
 
     public PaginationMetaDataDto getPaginationMetaData() {
-        return PaginationMetaDataDto.fromEntity(paginationMetaDataService.getMetaData("PlaylistsEntity"));
+        PaginationMetaData meta = paginationMetaDataService.getMetaData("PlaylistsEntity");
+        if (meta == null || meta.getTotalCount() == 0) {
+            long count = playlistsRepository.count();
+            if (count > 0) {
+                paginationMetaDataService.updateCounts("PlaylistsEntity", count, count, 0L, 0L);
+                meta = paginationMetaDataService.getMetaData("PlaylistsEntity");
+            }
+        }
+        return PaginationMetaDataDto.fromEntity(meta);
     }
 
     @Cacheable(value = "playlist_lists", key = "'all'")
@@ -62,21 +69,27 @@ public class PlaylistApiService {
     public List<SongDto> getPlaylistSongsPaginated(String id, int page, int size) {
         if (id == null || id.isBlank() || size <= 0 || page < 0) return List.of();
 
-        PaginationMetaData meta = paginationMetaDataService.getMetaData("PlaylistSongs_" + id);
-        if (meta == null || meta.getTotalCount() == 0 || (long) page * size >= meta.getTotalCount()) {
-            if (!playlistsRepository.existsById(id)) {
-                throw new ResourceNotFoundException("Playlist not found with id: " + id);
-            }
+        PlaylistDto playlist = getPlaylistById(id);
+        if (playlist.totalSongs() > 0 && (long) page * size >= playlist.totalSongs()) {
             return List.of();
         }
 
-        getPlaylistById(id);
         return playlistsRepository.findSongsByPlaylistIdPaginated(id, page, size).stream()
                 .map(SongDto::fromEntity)
                 .toList();
     }
 
     public PaginationMetaDataDto getPlaylistSongsPaginationMetaData(String id) {
-        return PaginationMetaDataDto.fromEntity(paginationMetaDataService.getMetaData("PlaylistSongs_" + id));
+        PlaylistDto playlist = getPlaylistById(id);
+        long count = playlist.totalSongs();
+        return new PaginationMetaDataDto(
+                "meta_playlist_songs_" + id,
+                "PlaylistSongs_" + id,
+                count,
+                count,
+                0L,
+                0L,
+                java.time.LocalDateTime.now()
+        );
     }
 }

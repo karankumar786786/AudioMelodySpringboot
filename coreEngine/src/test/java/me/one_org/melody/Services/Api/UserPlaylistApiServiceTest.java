@@ -121,4 +121,19 @@ class UserPlaylistApiServiceTest {
         verify(userPlaylistsRepository).removeSongFromPlaylist("pl-1", "song-99");
         verify(paginationMetaDataService).decrementStatus("UserPlaylistSongs_pl-1", null);
     }
+
+    @Test
+    @DisplayName("getUserPlaylistsPaginated and getPaginationMetaData should return paginated playlists and correct metadata")
+    void getPlaylistsPaginatedAndMeta() {
+        User user = User.builder().id("u-1").build();
+        when(usersRepository.getReferenceById("u-1")).thenReturn(user);
+        when(userPlaylistsRepository.countByUser(user)).thenReturn(3L);
+
+        var meta = userPlaylistApiService.getPaginationMetaData("u-1");
+        assertThat(meta.totalCount()).isEqualTo(3L);
+
+        when(userPlaylistsRepository.findByUserPaginated(user, 0, 10)).thenReturn(java.util.List.of());
+        var list = userPlaylistApiService.getUserPlaylistsPaginated("u-1", 0, 10);
+        assertThat(list).isEmpty();
+    }
 }

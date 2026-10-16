@@ -113,4 +113,16 @@ class InteractionApiServiceTest {
 
         verify(recombee).trackSkip("user-1", "song-45");
     }
+
+    @Test
+    @DisplayName("Should return paginated favourites and count metadata")
+    void shouldReturnPaginatedFavourites() {
+        when(usersRepository.findFavouriteSongsPaginated("user-1", 0, 20)).thenReturn(java.util.List.of());
+        var list = interactionApiService.getFavouritesPaginated("user-1", 0, 20);
+        assertThat(list).isEmpty();
+
+        when(usersRepository.countFavouriteSongs("user-1")).thenReturn(5L);
+        var meta = interactionApiService.getFavouritesPaginationMetaData("user-1");
+        assertThat(meta.totalCount()).isEqualTo(5L);
+    }
 }

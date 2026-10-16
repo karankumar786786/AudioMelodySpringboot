@@ -110,6 +110,9 @@ public interface SongsRepository extends JpaRepository<Song, String> {
     @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.artistName) = LOWER(:artistName) ORDER BY s.createdAt DESC")
     List<Song> findActiveByArtistName(@Param("artistName") String artistName, Pageable pageable);
 
+    @Query("SELECT COUNT(s) FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.artistName) = LOWER(:artistName)")
+    long countActiveByArtistName(@Param("artistName") String artistName);
+
     @EntityGraph(attributePaths = {"songMetadata"})
     @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.artistName) = LOWER(:artistName) AND s.id NOT IN :excluded ORDER BY s.createdAt DESC")
     List<Song> findActiveByArtistNameExcluding(@Param("artistName") String artistName, @Param("excluded") List<String> excluded, Pageable pageable);

@@ -50,14 +50,26 @@ class UserHistoryApiServiceTest {
     private UserHistoryApiService userHistoryApiService;
 
     @Test
-    @DisplayName("getHistory should return empty list on out-of-bounds or zero count")
-    void getHistoryOutOfBounds() {
-        when(paginationMetaDataService.getMetaData("UserHistory_u-1")).thenReturn(null);
+    @DisplayName("getHistory should delegate to repository and map to DTO")
+    void getHistory() {
+        User user = User.builder().id("u-1").build();
+        when(usersRepository.getReferenceById("u-1")).thenReturn(user);
+        when(userHistoryRepository.findByUserOrderByListenedAtDesc(user, 0, 10)).thenReturn(java.util.Collections.emptyList());
         assertThat(userHistoryApiService.getHistory("u-1", 0, 10)).isEmpty();
 
-        PaginationMetaData meta = PaginationMetaData.builder().totalCount(5L).build();
-        when(paginationMetaDataService.getMetaData("UserHistory_u-1")).thenReturn(meta);
-        assertThat(userHistoryApiService.getHistory("u-1", 1, 10)).isEmpty();
+        assertThat(userHistoryApiService.getHistory(null, 0, 10)).isEmpty();
+        assertThat(userHistoryApiService.getHistory("u-1", -1, 10)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("getPaginationMetaData should query count from repository")
+    void getPaginationMetaData() {
+        User user = User.builder().id("u-1").build();
+        when(usersRepository.getReferenceById("u-1")).thenReturn(user);
+        when(userHistoryRepository.countByUser(user)).thenReturn(12L);
+
+        var meta = userHistoryApiService.getPaginationMetaData("u-1");
+        assertThat(meta.totalCount()).isEqualTo(12L);
     }
 
     @Test

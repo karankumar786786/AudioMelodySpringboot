@@ -32,7 +32,7 @@ public class SongsApiService {
 
         // Early guard against out-of-bounds page requests via cached Redis metadata
         PaginationMetaData meta = paginationMetaDataService.getMetaData("SongsEntity");
-        if (meta == null || meta.getTotalCount() == 0 || (long) page * size >= meta.getTotalCount()) {
+        if (meta != null && meta.getTotalCount() > 0 && (long) page * size >= meta.getTotalCount()) {
             return List.of();
         }
 
@@ -55,7 +55,15 @@ public class SongsApiService {
     }
 
     public PaginationMetaDataDto getPaginationMetaData() {
-        return PaginationMetaDataDto.fromEntity(paginationMetaDataService.getMetaData("SongsEntity"));
+        PaginationMetaData meta = paginationMetaDataService.getMetaData("SongsEntity");
+        if (meta == null || meta.getTotalCount() == 0) {
+            long count = songsRepository.count();
+            if (count > 0) {
+                paginationMetaDataService.updateCounts("SongsEntity", count, count, 0L, 0L);
+                meta = paginationMetaDataService.getMetaData("SongsEntity");
+            }
+        }
+        return PaginationMetaDataDto.fromEntity(meta);
     }
 
     @Cacheable(value = "featured_songs", key = "'all'")

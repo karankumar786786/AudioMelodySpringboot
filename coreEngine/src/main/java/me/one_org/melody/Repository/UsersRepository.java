@@ -56,6 +56,9 @@ public interface UsersRepository extends JpaRepository<User, String> {
         return findFavouriteSongsPaginatedNative(userId, PageRequest.of(page, size));
     }
 
+    @Query(value = "SELECT COUNT(*) FROM user_favourite_songs WHERE user_id = :userId", nativeQuery = true)
+    long countFavouriteSongs(@Param("userId") String userId);
+
     @Modifying
     @Transactional
     @Query(value = "INSERT INTO user_favourite_songs (user_id, song_id) VALUES (:userId, :songId) ON CONFLICT DO NOTHING", nativeQuery = true)
