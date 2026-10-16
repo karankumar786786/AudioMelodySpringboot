@@ -1,5 +1,7 @@
 package me.one_org.melody.Entity;
 
+import java.time.LocalDateTime;
+import org.hibernate.annotations.UpdateTimestamp;
 import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Data;
@@ -24,7 +26,14 @@ public class PaginationMetaData {
     private long blockedCount;
 
     @Column(name = "deleted_count", nullable = false)
+    private long deletedCount;
+
+    @Column(name = "soft_deleted_count", nullable = false)
     private long softDeletedCount;
+
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
 
     public PaginationMetaData() {
         super();
@@ -32,14 +41,16 @@ public class PaginationMetaData {
 
     @Builder
     public PaginationMetaData(String id, String tableName, long totalCount, long activeCount,
-                              long blockedCount, long softDeletedCount) {
+                              long blockedCount, long deletedCount, long softDeletedCount, LocalDateTime updatedAt) {
         super();
         this.id = id;
         this.tableName = tableName;
         this.totalCount = totalCount;
         this.activeCount = activeCount;
         this.blockedCount = blockedCount;
-        this.softDeletedCount = softDeletedCount;
+        this.deletedCount = deletedCount != 0 ? deletedCount : softDeletedCount;
+        this.softDeletedCount = softDeletedCount != 0 ? softDeletedCount : deletedCount;
+        this.updatedAt = updatedAt != null ? updatedAt : LocalDateTime.now();
     }
 
     public String getEntityName() {
@@ -48,22 +59,5 @@ public class PaginationMetaData {
 
     public void setEntityName(String entityName) {
         this.tableName = entityName;
-    }
-
-    public long getDeletedCount() {
-        return this.softDeletedCount;
-    }
-
-    public void setDeletedCount(long deletedCount) {
-        this.softDeletedCount = deletedCount;
-    }
-
-    @Transient
-    public java.time.LocalDateTime getUpdatedAt() {
-        return null;
-    }
-
-    public void setUpdatedAt(java.time.LocalDateTime updatedAt) {
-        // no-op, column not present in schema
     }
 }
