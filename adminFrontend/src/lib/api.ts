@@ -16,7 +16,16 @@ export interface Song {
   lrclibId: string;
   isFeatured?: boolean;
   status?: string;
+  totalStreams?: number;
   createdAt?: string;
+}
+
+export interface UserSession {
+  id: string;
+  deviceId: string;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Artist {
@@ -234,6 +243,7 @@ export interface DashboardStats {
   totalSongs: number;
   activeSongs: number;
   featuredSongs: number;
+  totalStreams?: number;
   totalArtists: number;
   activeArtists: number;
   totalPlaylists: number;

@@ -114,6 +114,15 @@ export default function DashboardPage() {
       href: "/songs",
     },
     {
+      name: "Total Streams",
+      value: stats?.totalStreams ?? 0,
+      subValue: "Global audio streams",
+      badge: (stats?.totalStreams ?? 0) > 0 ? "Telemetry Active" : null,
+      badgeType: "default",
+      icon: Activity,
+      href: "/songs",
+    },
+    {
       name: "Artists",
       value: stats?.totalArtists ?? 0,
       subValue: `${stats?.activeArtists ?? 0} verified`,
@@ -188,9 +197,9 @@ export default function DashboardPage() {
       )}
 
       {/* Metrics Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {loading ? (
-          <SkeletonCard variant="stat" count={5} />
+          <SkeletonCard variant="stat" count={6} />
         ) : (
           statCards.map((card) => {
             const Icon = card.icon;

@@ -447,7 +447,7 @@ export function EditSongModal({
                 {song.title}
               </h2>
               <p className="text-xs text-zinc-400 truncate">
-                {song.artistName} • ID: {song.id.slice(0, 8)}...
+                {song.artistName} • ID: {song.id.slice(0, 8)}... • <span className="text-emerald-400 font-semibold">{(song.totalStreams || 0).toLocaleString()} streams</span>
               </p>
             </div>
           </div>

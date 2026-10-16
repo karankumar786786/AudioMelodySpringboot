@@ -47,6 +47,9 @@ from .views import (
     AccountBlockView,
     AccountUnblockView,
     AccountDemoteView,
+    AccountSessionsListView,
+    AccountSessionRevokeView,
+    AccountSessionRevokeAllView,
     # Auth
     AdminLoginView,
     AdminRegisterView,
@@ -168,6 +171,9 @@ urlpatterns = [
     path("admin/delete-jobs/<str:pk>", DeleteJobDetailView.as_view(), name="admin-delete-jobs-detail"),
 
     # Account
+    path("admin/account/<str:email>/sessions/revoke-all", AccountSessionRevokeAllView.as_view(), name="admin-account-sessions-revoke-all"),
+    path("admin/account/<str:email>/sessions/<str:session_id>", AccountSessionRevokeView.as_view(), name="admin-account-session-revoke"),
+    path("admin/account/<str:email>/sessions", AccountSessionsListView.as_view(), name="admin-account-sessions"),
     path("admin/account/<str:email>/block", AccountBlockView.as_view(), name="admin-account-block"),
     path("admin/account/<str:email>/unblock", AccountUnblockView.as_view(), name="admin-account-unblock"),
     path("admin/account/<str:email>/demote", AccountDemoteView.as_view(), name="admin-account-demote"),

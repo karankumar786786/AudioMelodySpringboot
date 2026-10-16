@@ -782,7 +782,7 @@ class ArtistSongsView(BaseAdminView):
         qs = Song.objects.filter(
             Q(artist_name__iexact=artist.name) | Q(artist_name__icontains=artist.name),
             status="ACTIVE",
-        ).order_by("-created_at")
+        ).select_related("metadata").order_by("-created_at")
 
         songs = list(qs[offset : offset + size])
         try:
@@ -921,7 +921,7 @@ class PlaylistSongsView(BaseAdminView):
         offset = page * size
 
         song_ids = PlaylistSong.objects.filter(playlist=playlist).values_list("song_id", flat=True)
-        qs = Song.objects.filter(id__in=song_ids, status="ACTIVE").order_by("-created_at")
+        qs = Song.objects.select_related("metadata").filter(id__in=song_ids, status="ACTIVE").order_by("-created_at")
         songs = list(qs[offset : offset + size])
 
         meta = PaginationMetadataService.get_metadata(f"PlaylistSongs_{pk}")
@@ -992,7 +992,7 @@ class SongListView(BaseAdminView):
         featured_param = request.query_params.get("featured") or request.query_params.get("isFeatured")
         offset = page * size
 
-        qs = Song.objects.all()
+        qs = Song.objects.select_related("metadata").all()
         if status_param and status_param.upper() != "ALL":
             qs = qs.filter(status=status_param.upper())
         elif not status_param:
@@ -1114,7 +1114,7 @@ class SongListView(BaseAdminView):
 
 class SongDetailView(BaseAdminView):
     def get(self, request, pk):
-        song = get_object_or_404(Song, pk=pk)
+        song = get_object_or_404(Song.objects.select_related("metadata"), pk=pk)
         return Response(SongSerializer(song).data, status=status.HTTP_200_OK)
 
     def put(self, request, pk):
@@ -1932,6 +1932,7 @@ class AccountDeleteView(BaseAdminView):
         if admin_rec and admin_rec.role == "SUPER_ADMIN" and user.id == request.user.id:
             return Response({"error": "Super Admin cannot delete their own account"}, status=status.HTTP_400_BAD_REQUEST)
         RecombeeService.delete_user(user.id)
+        Session.objects.filter(user=user).delete()
         RedisService.block_user_in_redis(user.id)
         PaginationMetadataService.decrement_status("UsersEntity", user.status)
         if admin_rec:
@@ -1979,6 +1980,7 @@ class AccountBlockView(BaseAdminView):
             if admin_rec:
                 admin_rec.status = "BLOCKED"
                 admin_rec.save()
+            Session.objects.filter(user=user).delete()
             RedisService.block_user_in_redis(user.id)
             PaginationMetadataService.transition_status("UsersEntity", old_status, "BLOCKED")
         return Response(status=status.HTTP_200_OK)
@@ -2014,6 +2016,45 @@ class AccountDemoteView(BaseAdminView):
             return Response({"error": "Super Admin cannot be demoted"}, status=status.HTTP_409_CONFLICT)
         admin_rec.delete()
         return Response(status=status.HTTP_200_OK)
+
+
+class AccountSessionsListView(BaseAdminView):
+    """
+    GET /admin/account/<str:email>/sessions
+    Lists all active client sessions (devices) for a user.
+    """
+    def get(self, request, email):
+        user = get_object_or_404(User, email=email)
+        sessions = Session.objects.filter(user=user).order_by("-updated_at")
+        return Response({
+            "email": user.email,
+            "userId": user.id,
+            "sessions": UserSessionSerializer(sessions, many=True).data,
+        }, status=status.HTTP_200_OK)
+
+
+class AccountSessionRevokeView(BaseAdminView):
+    """
+    DELETE /admin/account/<str:email>/sessions/<str:session_id>
+    Revokes a specific client device session.
+    """
+    def delete(self, request, email, session_id):
+        user = get_object_or_404(User, email=email)
+        deleted_count, _ = Session.objects.filter(user=user, id=session_id).delete()
+        if deleted_count == 0:
+            return Response({"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND)
+        return Response({"message": f"Session {session_id} revoked successfully"}, status=status.HTTP_200_OK)
+
+
+class AccountSessionRevokeAllView(BaseAdminView):
+    """
+    POST /admin/account/<str:email>/sessions/revoke-all
+    Revokes all client device sessions for the user.
+    """
+    def post(self, request, email):
+        user = get_object_or_404(User, email=email)
+        deleted_count, _ = Session.objects.filter(user=user).delete()
+        return Response({"message": f"Revoked {deleted_count} session(s) for {user.email}"}, status=status.HTTP_200_OK)
 
 
 
@@ -2198,9 +2239,11 @@ class WebhookJobSaveSearchView(BaseAdminView):
                 preview_start_time=job.preview_start_time,
                 preview_end_time=job.preview_end_time,
                 album=job.album,
+                genre=job.genre,
                 language=job.language or "unknown",
                 lrclib_id=job.lrclib_id,
                 job_id=job.id,
+                total_streams=0,
             )
         except Exception as e:
             logger.error("Failed to save job %s in Algolia: %s", job_id, e)
@@ -2232,7 +2275,7 @@ class WebhookJobFinalizeView(BaseAdminView):
         old_status = job.status
 
         if is_reprocess:
-            song = get_object_or_404(Song, id=job.song_id)
+            song = get_object_or_404(Song.objects.select_related("metadata"), id=job.song_id)
             if job.song_key:
                 song.song_key = job.song_key
             if job.duration and job.duration > 0:
@@ -2246,19 +2289,7 @@ class WebhookJobFinalizeView(BaseAdminView):
             if job.is_audio_reprocess:
                 try:
                     AlgoliaService.save_song(
-                        song_id=song.id,
-                        title=song.title,
-                        artist_name=song.artist_name,
-                        duration=song.duration,
-                        song_key=song.song_key or "",
-                        image_key=song.image_key or "",
-                        video_key=song.video_key,
-                        full_video_key=song.full_video_key,
-                        preview_start_time=song.preview_start_time,
-                        preview_end_time=song.preview_end_time,
-                        album=song.album,
-                        language=song.language or "unknown",
-                        lrclib_id=song.lrclib_id,
+                        song=song,
                         job_id=job.id,
                     )
                 except Exception as e:
@@ -2289,6 +2320,14 @@ class WebhookJobFinalizeView(BaseAdminView):
             job_id=job.id,
             status="ACTIVE",
         )
+        try:
+            SongMetadata.objects.get_or_create(
+                song=song,
+                defaults={"id": str(uuid.uuid4()), "total_streams": 0}
+            )
+        except Exception as e:
+            logger.warning("Failed to initialize SongMetadata for song %s: %s", song.id, e)
+
         PaginationMetadataService.increment_status("SongsEntity", "ACTIVE")
         if job.artist_name:
             try:

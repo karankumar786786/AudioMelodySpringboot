@@ -11,7 +11,7 @@ from django.conf import settings
 from django.core.management import call_command
 from django.test import SimpleTestCase
 from rest_framework.test import APIClient
-from .models import Admin, User, Artist, Song, Playlist, Job, DeleteJob
+from .models import Admin, User, Artist, Song, Playlist, Job, DeleteJob, Session, SongMetadata
 from .helpers import format_ms, format_paginated_response, to_job_progress_dto
 from .services import (
     AlgoliaService,
@@ -85,13 +85,14 @@ class AdminEndpointRoutingTests(SimpleTestCase):
              patch.object(Playlist, "objects") as mock_playlist, \
              patch.object(User, "objects") as mock_user, \
              patch.object(Job, "objects") as mock_job, \
+             patch.object(SongMetadata, "objects") as mock_metadata, \
              patch.object(SongSerializer, "data", []), \
              patch.object(JobSerializer, "data", []), \
              patch.object(RedisService, "get_queue_backpressure_summary") as mock_redis:
             
             mock_song.count.return_value = 50
             mock_song.filter.return_value.count.return_value = 40
-            mock_song.filter.return_value.order_by.return_value = []
+            mock_song.filter.return_value.select_related.return_value.order_by.return_value = []
             mock_artist.count.return_value = 10
             mock_artist.filter.return_value.count.return_value = 10
             mock_playlist.count.return_value = 5
@@ -101,6 +102,7 @@ class AdminEndpointRoutingTests(SimpleTestCase):
             mock_job.count.return_value = 15
             mock_job.filter.return_value.count.return_value = 2
             mock_job.all.return_value.order_by.return_value = []
+            mock_metadata.aggregate.return_value = {"total": 12500}
             mock_redis.return_value = {"totalQueued": 0, "overallStatus": "HEALTHY", "queues": []}
 
             response = self.client.get("/admin/dashboard/stats")
@@ -108,6 +110,8 @@ class AdminEndpointRoutingTests(SimpleTestCase):
             data = response.json()
             self.assertIn("totalArtists", data)
             self.assertIn("totalSongs", data)
+            self.assertIn("totalStreams", data)
+            self.assertEqual(data["totalStreams"], 12500)
             self.assertIn("totalPlaylists", data)
             self.assertIn("totalUsers", data)
             self.assertIn("totalJobs", data)
@@ -180,6 +184,7 @@ class AdminEndpointRoutingTests(SimpleTestCase):
              patch.object(RecombeeService, "save_song"), \
              patch.object(AlgoliaService, "save_song"), \
              patch.object(S3Service, "delete_object"), \
+             patch.object(SongMetadata.objects, "get_or_create"), \
              patch.object(Song.objects, "create"):
 
             # 1. GET /webhook/job/{jobId}
@@ -283,6 +288,7 @@ class AdminEndpointRoutingTests(SimpleTestCase):
              patch.object(RecombeeService, "delete_user"), \
              patch.object(RedisService, "block_user_in_redis"), \
              patch.object(PaginationMetadataService, "decrement_status"), \
+             patch.object(Session.objects, "filter"), \
              patch.object(Admin.objects, "filter"):
             fake_target.delete = MagicMock()
             res_del_1 = super_client.delete("/admin/account/target@example.com")
@@ -291,6 +297,39 @@ class AdminEndpointRoutingTests(SimpleTestCase):
             res_del_2 = super_client.delete("/admin/account/target@example.com/delete")
             self.assertEqual(res_del_2.status_code, 204)
 
+    def test_account_sessions_management(self):
+        from datetime import datetime
+        fake_user = MagicMock()
+        fake_user.id = "u-123"
+        fake_user.email = "client@example.com"
+
+        fake_session = MagicMock()
+        fake_session.id = "sess-1"
+        fake_session.device_id = "device-android-1"
+        fake_session.expires_at = datetime.now()
+        fake_session.created_at = datetime.now()
+        fake_session.updated_at = datetime.now()
+
+        with patch("api.views.get_object_or_404", return_value=fake_user), \
+             patch.object(Session.objects, "filter") as mock_sess_filter:
+            mock_sess_filter.return_value.order_by.return_value = [fake_session]
+            mock_sess_filter.return_value.delete.return_value = (1, {})
+
+            # 1. GET /admin/account/<email>/sessions
+            res_list = self.client.get("/admin/account/client@example.com/sessions")
+            self.assertEqual(res_list.status_code, 200)
+            data = res_list.json()
+            self.assertEqual(data["email"], "client@example.com")
+            self.assertEqual(len(data["sessions"]), 1)
+            self.assertEqual(data["sessions"][0]["deviceId"], "device-android-1")
+
+            # 2. DELETE /admin/account/<email>/sessions/<id>
+            res_revoke = self.client.delete("/admin/account/client@example.com/sessions/sess-1")
+            self.assertEqual(res_revoke.status_code, 200)
+
+            # 3. POST /admin/account/<email>/sessions/revoke-all
+            res_revoke_all = self.client.post("/admin/account/client@example.com/sessions/revoke-all")
+            self.assertEqual(res_revoke_all.status_code, 200)
 
     def test_redis_blocked_user_rejection(self):
         with patch.object(RedisService, "is_user_blocked", return_value=True):
@@ -495,6 +534,7 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
             mock_qs = MagicMock()
             mock_qs.__getitem__.return_value = []
             mock_qs.count.return_value = 0
+            mock_songs.return_value.select_related.return_value.order_by.return_value = mock_qs
             mock_songs.return_value.order_by.return_value = mock_qs
 
             res = authed_client.get("/api/artists/art-1/songs?page=0&size=200")
