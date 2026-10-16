@@ -25,12 +25,14 @@ spring:
     api-key: ${APPLICATION_API_KEY:default_api_key}
 
   datasource:
+    type: com.zaxxer.hikari.HikariDataSource
     url: ${DB_URL:jdbc:postgresql://localhost:5432/melody}
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
-    # --- Neon scale-to-zero friendly pool ---
+    # --- Hikari Connection Pool Config ---
     hikari:
+      pool-name: MelodyHikariPool
       minimum-idle: 2                    # maintain 2 warm connections to avoid cold-start SSL handshakes
       maximum-pool-size: 20              # allow up to 20 concurrent queries without queuing
       idle-timeout: 60000                # close idle connections after 1 min
@@ -38,6 +40,7 @@ spring:
       keepalive-time: 0                  # no keepalive pings
       connection-timeout: 10000          # 10s connection timeout
       initialization-fail-timeout: -1    # app can boot even if DB is asleep
+      leak-detection-threshold: 30000    # warn if a connection is held > 30s
       # do NOT set connection-test-query
 
   data:
@@ -113,3 +116,4 @@ recombee:
 logging:
   level:
     org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer: ERROR
+    com.zaxxer.hikari: INFO
