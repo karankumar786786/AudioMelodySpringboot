@@ -40,11 +40,11 @@ export function SongCardInfo({ song, isActiveSong }: SongCardInfoProps) {
       </p>
       <div className="flex items-center gap-1.5 text-[10.5px] text-zinc-500 font-mono pt-0.5">
         <span
-          className="inline-flex items-center gap-1 text-zinc-400"
+          className="inline-flex items-center gap-1 text-zinc-300"
           title={`${(song.totalStreams || 0).toLocaleString()} total streams`}
         >
-          <Play size={8.5} className="fill-emerald-400 text-emerald-400 shrink-0" />
-          <span className="text-emerald-400 font-semibold">
+          <Play size={8.5} className="fill-white text-white shrink-0 drop-shadow-[0_0_6px_rgba(255,255,255,0.7)]" />
+          <span className="text-white font-semibold drop-shadow-[0_0_8px_rgba(255,255,255,0.45)]">
             {formatStreamCount(song.totalStreams)}
           </span>
         </span>

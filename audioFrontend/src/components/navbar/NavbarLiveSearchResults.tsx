@@ -77,7 +77,7 @@ export function NavbarLiveSearchResults({
                       <span className="text-zinc-500"> • {song.genre}</span>
                     )}
                     {song.totalStreams !== undefined && (
-                      <span className="text-emerald-400"> • {formatStreamCount(song.totalStreams, true)}</span>
+                      <span className="text-white drop-shadow-[0_0_6px_rgba(255,255,255,0.45)] font-medium"> • {formatStreamCount(song.totalStreams, true)}</span>
                     )}
                   </p>
                 </div>

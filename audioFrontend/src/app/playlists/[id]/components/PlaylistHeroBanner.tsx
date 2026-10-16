@@ -103,10 +103,10 @@ export const PlaylistHeroBanner: React.FC<PlaylistHeroBannerProps> = ({
               </span>
               <span>•</span>
               <span
-                className="font-semibold text-emerald-400 flex items-center gap-1.5"
+                className="font-semibold text-white flex items-center gap-1.5 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]"
                 title="Total streams across playlist"
               >
-                <Headphones size={13} className="text-emerald-400 shrink-0" />
+                <Headphones size={13} className="text-white shrink-0 drop-shadow-[0_0_6px_rgba(255,255,255,0.6)]" />
                 {formatStreamCount(
                   songs.reduce(
                     (total: number, song: any) =>

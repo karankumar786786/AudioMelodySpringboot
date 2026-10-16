@@ -172,7 +172,7 @@ export function QuickPicksGrid({
               >
                 <span className="truncate">{song.artistName || "Unknown Artist"}</span>
                 <span className="text-zinc-600 shrink-0">•</span>
-                <span className="text-emerald-400 font-mono text-[10px] shrink-0 font-semibold">
+                <span className="text-white font-mono text-[10px] shrink-0 font-semibold drop-shadow-[0_0_6px_rgba(255,255,255,0.45)]">
                   {formatStreamCount(song.totalStreams)}
                 </span>
                 {song.album && <span className="text-zinc-500 font-normal truncate hidden sm:inline"> • {song.album}</span>}
