@@ -118,7 +118,22 @@ class PreviewManager {
       audio.volume = 0;
       audio.preload = "auto";
 
-      const streamUrl = `${S3_BASE_URL}/${song.songKey}/master.m3u8`;
+      let resolvedSongKey = song.songKey;
+      if (!resolvedSongKey && song.id) {
+        try {
+          const { musicApi } = await import("@/lib/api");
+          const full = await musicApi.songs.getById(song.id);
+          if (full?.data?.songKey) {
+            resolvedSongKey = full.data.songKey;
+          }
+        } catch {}
+      }
+      if (!resolvedSongKey) {
+        this.stopPreview(true);
+        return;
+      }
+
+      const streamUrl = `${S3_BASE_URL}/${resolvedSongKey}/master.m3u8`;
 
       const startPlayback = () => {
         if (this.audio !== audio || this.currentTargetSongId !== song.id) return;

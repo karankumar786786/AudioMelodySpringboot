@@ -14,6 +14,28 @@ export const playbackActions = {
       playerStore.setState((s) => ({ ...s, isAuthModalOpen: true }));
       return;
     }
+
+    // Fallback: If song is missing songKey (e.g. from an old or incomplete search hit), hydrate from backend
+    if (!song.songKey && song.id) {
+      musicApi.songs
+        .getById(song.id)
+        .then((res) => {
+          if (res?.data?.songKey) {
+            playerStore.setState((s) => ({
+              ...s,
+              currentSong:
+                s.currentSong?.id === song.id
+                  ? { ...s.currentSong, ...res.data }
+                  : s.currentSong,
+              queue: s.queue.map((item) =>
+                item.id === song.id ? { ...item, ...res.data } : item,
+              ),
+            }));
+          }
+        })
+        .catch(() => {});
+    }
+
     playerStore.setState((s) => {
       let updatedQueue = [...s.queue];
       // Match by queueId first (the exact instance), then fallback to song id

@@ -100,6 +100,9 @@ export async function searchDirectAlgolia(query: string): Promise<UnifiedSearchR
         duration: hit.duration || 0,
         songKey: hit.songKey || "",
         imageKey: hit.imageKey || "",
+        videoKey: hit.videoKey || null,
+        previewStartTime: typeof hit.previewStartTime === "number" ? hit.previewStartTime : undefined,
+        previewEndTime: typeof hit.previewEndTime === "number" ? hit.previewEndTime : undefined,
         album: hit.album || null,
         genre: hit.genre || null,
         language: hit.language || "",
@@ -189,6 +192,9 @@ export async function searchDirectAlgolia(query: string): Promise<UnifiedSearchR
             duration: hit.duration || 0,
             songKey: hit.songKey || "",
             imageKey: hit.imageKey || "",
+            videoKey: hit.videoKey || null,
+            previewStartTime: typeof hit.previewStartTime === "number" ? hit.previewStartTime : undefined,
+            previewEndTime: typeof hit.previewEndTime === "number" ? hit.previewEndTime : undefined,
             album: hit.album || null,
             genre: hit.genre || null,
             language: hit.language || "",
@@ -240,32 +246,53 @@ export async function searchDirectAlgolia(query: string): Promise<UnifiedSearchR
 export const searchApi = {
   getConfig: getAlgoliaConfig,
   unified: async (query: string): Promise<{ data: UnifiedSearchResult }> => {
-    if (!query || !query.trim()) {
+    const trimmed = query?.trim();
+    if (!trimmed) {
       return { data: { songs: [], artists: [], playlists: [], userPlaylists: [] } };
     }
-    // 1. Try blazing-fast (<20ms) direct Algolia search from frontend
+
+    // 1. Primary: Fetch from Spring Boot backend (/api/search?q=...)
+    // The backend uses Algolia for search ranking and hydrates full, rich entities directly
+    // from the PostgreSQL database (complete with songKey, album, genre, videoKey,
+    // previewStartTime, previewEndTime, real-time totalStreams, and artist followersCount).
     try {
-      const direct = await searchDirectAlgolia(query);
-      if (direct && (direct.songs.length > 0 || direct.artists.length > 0 || direct.playlists.length > 0)) {
+      const data = await request<UnifiedSearchResult>(`/api/search?q=${encodeURIComponent(trimmed)}`);
+      if (
+        data &&
+        ((data.songs && data.songs.length > 0) ||
+          (data.artists && data.artists.length > 0) ||
+          (data.playlists && data.playlists.length > 0) ||
+          (data.userPlaylists && data.userPlaylists.length > 0))
+      ) {
+        return {
+          data: {
+            songs: data.songs || [],
+            artists: data.artists || [],
+            playlists: data.playlists || [],
+            userPlaylists: data.userPlaylists || [],
+          },
+        };
+      }
+    } catch (err) {
+      console.warn("[Search] Backend search failed, falling back to direct Algolia query:", err);
+    }
+
+    // 2. Fallback: Direct Algolia search if backend /api/search was unreachable
+    try {
+      const direct = await searchDirectAlgolia(trimmed);
+      if (
+        direct &&
+        (direct.songs.length > 0 ||
+          direct.artists.length > 0 ||
+          direct.playlists.length > 0 ||
+          direct.userPlaylists.length > 0)
+      ) {
         return { data: direct };
       }
     } catch {
-      // Fall through to backend unified search
+      // Return empty results
     }
 
-    // 2. Seamless fallback to Spring Boot (/api/search?q=...)
-    try {
-      const data = await request<UnifiedSearchResult>(`/api/search?q=${encodeURIComponent(query)}`);
-      return {
-        data: {
-          songs: data?.songs || [],
-          artists: data?.artists || [],
-          playlists: data?.playlists || [],
-          userPlaylists: data?.userPlaylists || [],
-        },
-      };
-    } catch {
-      return { data: { songs: [], artists: [], playlists: [], userPlaylists: [] } };
-    }
+    return { data: { songs: [], artists: [], playlists: [], userPlaylists: [] } };
   },
 };

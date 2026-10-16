@@ -137,6 +137,18 @@ public class AlgoliaSearch {
         if (song.getImageKey() != null && !song.getImageKey().isBlank()) {
             record.put("imageKey", song.getImageKey());
         }
+        if (song.getSongKey() != null && !song.getSongKey().isBlank()) {
+            record.put("songKey", song.getSongKey());
+        }
+        if (song.getVideoKey() != null && !song.getVideoKey().isBlank()) {
+            record.put("videoKey", song.getVideoKey());
+        }
+        if (song.getPreviewStartTime() != null) {
+            record.put("previewStartTime", song.getPreviewStartTime());
+        }
+        if (song.getPreviewEndTime() != null) {
+            record.put("previewEndTime", song.getPreviewEndTime());
+        }
         Long totalStreams = (song.getSongMetadata() != null && song.getSongMetadata().getTotalStreams() != null)
                 ? song.getSongMetadata().getTotalStreams()
                 : 0L;
@@ -153,6 +165,10 @@ public class AlgoliaSearch {
         if (artist.getCoverImageKey() != null && !artist.getCoverImageKey().isBlank()) {
             record.put("coverImageKey", artist.getCoverImageKey());
         }
+        Long followersCount = (artist.getArtistMetadata() != null && artist.getArtistMetadata().getFollowersCount() != null)
+                ? artist.getArtistMetadata().getFollowersCount()
+                : 0L;
+        record.put("followersCount", followersCount);
         record.put("searchCount", 0L);
         searchClient.saveObject(indexName, record);
     }
@@ -281,6 +297,18 @@ public class AlgoliaSearch {
             if (song.getImageKey() != null && !song.getImageKey().isBlank()) {
                 record.put("imageKey", song.getImageKey());
             }
+            if (song.getSongKey() != null && !song.getSongKey().isBlank()) {
+                record.put("songKey", song.getSongKey());
+            }
+            if (song.getVideoKey() != null && !song.getVideoKey().isBlank()) {
+                record.put("videoKey", song.getVideoKey());
+            }
+            if (song.getPreviewStartTime() != null) {
+                record.put("previewStartTime", song.getPreviewStartTime());
+            }
+            if (song.getPreviewEndTime() != null) {
+                record.put("previewEndTime", song.getPreviewEndTime());
+            }
             Long totalStreams = (song.getSongMetadata() != null && song.getSongMetadata().getTotalStreams() != null)
                     ? song.getSongMetadata().getTotalStreams()
                     : 0L;
@@ -303,6 +331,10 @@ public class AlgoliaSearch {
             if (artist.getCoverImageKey() != null && !artist.getCoverImageKey().isBlank()) {
                 record.put("coverImageKey", artist.getCoverImageKey());
             }
+            Long followersCount = (artist.getArtistMetadata() != null && artist.getArtistMetadata().getFollowersCount() != null)
+                    ? artist.getArtistMetadata().getFollowersCount()
+                    : 0L;
+            record.put("followersCount", followersCount);
             records.add(record);
         }
         if (!records.isEmpty()) {
