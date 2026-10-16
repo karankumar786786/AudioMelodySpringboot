@@ -120,8 +120,6 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
-                .requestMatchers("/api/search", "/api/search/**").permitAll()
-                .requestMatchers("/api/home/stream", "/api/home/**").permitAll()
                 .requestMatchers("/api/**", "/app/**").authenticated()
                 .anyRequest().authenticated()
             )
