@@ -1,0 +1,174 @@
+import { cookies } from "next/headers";
+import type { Artist, Song, Playlist, User } from "./types";
+
+export const SERVER_API_BASE_URL =
+  process.env.INTERNAL_API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:9090";
+
+export interface ServerSession {
+  token: string | null;
+  refreshToken: string | null;
+  user: User | null;
+  isAuthenticated: boolean;
+}
+
+/**
+ * Retrieve session credentials and user profile on the Next.js server via request cookies.
+ */
+export async function getServerSession(): Promise<ServerSession> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("system_token")?.value || null;
+    const refreshToken = cookieStore.get("system_refresh_token")?.value || null;
+    const userRaw = cookieStore.get("system_user")?.value || null;
+
+    let user: User | null = null;
+    if (userRaw) {
+      try {
+        user = JSON.parse(decodeURIComponent(userRaw));
+      } catch {
+        try {
+          user = JSON.parse(userRaw);
+        } catch {
+          user = null;
+        }
+      }
+    }
+
+    return {
+      token,
+      refreshToken,
+      user,
+      isAuthenticated: Boolean(token),
+    };
+  } catch {
+    return {
+      token: null,
+      refreshToken: null,
+      user: null,
+      isAuthenticated: false,
+    };
+  }
+}
+
+/**
+ * Makes an authenticated request from Next.js Server Components to coreEngine.
+ * Automatically injects the user's Bearer token from the incoming request cookies.
+ */
+export async function serverRequest<T = any>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T | null> {
+  const session = await getServerSession();
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "X-Device-Id": "server-rsc",
+    ...(options.headers as Record<string, string>),
+  };
+
+  if (session.token && !headers["Authorization"]) {
+    headers["Authorization"] = `Bearer ${session.token}`;
+  }
+
+  const url = endpoint.startsWith("http")
+    ? endpoint
+    : `${SERVER_API_BASE_URL}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    if (response.status === 204) {
+      return {} as T;
+    }
+
+    const text = await response.text();
+    if (!text || !text.trim()) {
+      return {} as T;
+    }
+
+    return JSON.parse(text) as T;
+  } catch (error) {
+    console.warn(`[ServerClient] Failed to fetch ${url}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Strongly typed Server-Side Music API for Next.js Server Components (RSC)
+ */
+export const serverMusicApi = {
+  artists: {
+    getById: async (id: string) => {
+      const res = await serverRequest<{ data: Artist }>(`/api/artists/${id}`, {
+        next: { revalidate: 30 },
+      });
+      return res;
+    },
+    getSongs: async (
+      id: string,
+      page = 1,
+      size = 15,
+      artistName?: string
+    ) => {
+      const queryParam = artistName ? `&artistName=${encodeURIComponent(artistName)}` : "";
+      const res = await serverRequest<any>(
+        `/api/artists/${id}/songs?page=${page - 1}&size=${size}${queryParam}`,
+        { next: { revalidate: 30 } }
+      );
+      return res;
+    },
+    list: async (page = 1, size = 100) => {
+      const res = await serverRequest<any>(
+        `/api/artists?page=${page - 1}&size=${size}`,
+        { next: { revalidate: 60 } }
+      );
+      return res;
+    },
+  },
+  albums: {
+    getByName: async (name: string) => {
+      const res = await serverRequest<Song[]>(
+        `/api/albums/${encodeURIComponent(name)}`,
+        { next: { revalidate: 60 } }
+      );
+      return res || [];
+    },
+  },
+  playlists: {
+    getById: async (id: string) => {
+      const res = await serverRequest<{ data: Playlist }>(`/api/playlists/${id}`, {
+        next: { revalidate: 30 },
+      });
+      return res;
+    },
+    getSongs: async (id: string) => {
+      const res = await serverRequest<any>(`/api/playlists/${id}/songs`, {
+        next: { revalidate: 30 },
+      });
+      return res;
+    },
+  },
+  songs: {
+    getById: async (id: string) => {
+      const res = await serverRequest<{ data: Song }>(`/api/songs/${id}`, {
+        next: { revalidate: 60 },
+      });
+      return res;
+    },
+    getFeed: async (page = 1, size = 15) => {
+      const res = await serverRequest<any>(
+        `/api/songs/feed?page=${page - 1}&size=${size}`
+      );
+      return res;
+    },
+  },
+};

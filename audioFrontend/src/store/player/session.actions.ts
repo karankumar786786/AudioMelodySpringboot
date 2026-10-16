@@ -1,12 +1,14 @@
 import { playerStore } from "./index";
 import { musicApi } from "@/lib/api";
 import { toast } from "sonner";
+import { saveAuthCookies, clearAuthCookies } from "@/lib/cookies";
 
 export const sessionActions = {
   setSystemSession: (token: string, refreshToken: string, user: any) => {
     localStorage.setItem("system_token", token);
     localStorage.setItem("system_refresh_token", refreshToken);
     localStorage.setItem("system_user", JSON.stringify(user));
+    saveAuthCookies({ accessToken: token, refreshToken, user });
     playerStore.setState((s) => ({
       ...s,
       systemToken: token,
@@ -20,6 +22,11 @@ export const sessionActions = {
     const merged = { ...existing, ...updatedUser };
     if (typeof window !== "undefined") {
       localStorage.setItem("system_user", JSON.stringify(merged));
+      saveAuthCookies({
+        accessToken: playerStore.state.systemToken || "",
+        refreshToken: playerStore.state.systemRefreshToken,
+        user: merged,
+      });
     }
     playerStore.setState((s) => ({
       ...s,
@@ -32,6 +39,7 @@ export const sessionActions = {
     localStorage.removeItem("system_token");
     localStorage.removeItem("system_refresh_token");
     localStorage.removeItem("system_user");
+    clearAuthCookies();
     if (typeof window !== "undefined") {
       localStorage.removeItem("last_queue");
       localStorage.removeItem("last_queue_index");

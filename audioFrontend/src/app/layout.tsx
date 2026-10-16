@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Provider from "./provider";
 import { ClientLayout } from "@/components/ClientLayout";
+import { getServerSession } from "@/lib/api/server-client";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-spotify",
@@ -38,12 +39,14 @@ export const metadata: Metadata = {
 
 console.log("[Layout] 🧬 RootLayout module loaded");
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   console.log("[Layout] 🏗️ Rendering RootLayout shell");
+  const session = await getServerSession();
+
   return (
     <html
       lang="en"
@@ -63,7 +66,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex h-screen bg-black text-white selection:bg-primary/30 overflow-hidden font-sans">
         <Provider>
-          <ClientLayout>{children}</ClientLayout>
+          <ClientLayout initialSession={session}>{children}</ClientLayout>
         </Provider>
       </body>
     </html>

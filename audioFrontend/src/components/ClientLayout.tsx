@@ -11,18 +11,45 @@ import { playerStore } from "@/store/player.store";
 import { RightInfoPanel } from "@/components/RightInfoPanel";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 
-export function ClientLayout({ children }: { children: React.ReactNode }) {
+interface ClientLayoutProps {
+  children: React.ReactNode;
+  initialSession?: {
+    token: string | null;
+    refreshToken: string | null;
+    user: any | null;
+    isAuthenticated: boolean;
+  };
+}
+
+export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
   const systemUser = useStore(playerStore, (s) => s.systemUser);
   const isLyricsOpen = useStore(playerStore, (s) => s.isLyricsOpen);
-  const [isReady, setIsReady] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+
+  // Seed store immediately if server provided a valid session
+  if (initialSession?.user && !playerStore.state.systemUser) {
+    playerStore.setState((s) => ({
+      ...s,
+      systemUser: initialSession.user,
+      systemToken: initialSession.token || null,
+      systemRefreshToken: initialSession.refreshToken || null,
+    }));
+  }
 
   const isPublicRoute =
     pathname === "/" ||
     pathname === "/login" ||
     pathname === "/signup" ||
-    pathname === "/callback";
+    pathname === "/callback" ||
+    pathname.startsWith("/artists") ||
+    pathname.startsWith("/albums") ||
+    pathname.startsWith("/playlists");
+
+  // If server already authenticated and route is normal app route, start ready immediately
+  const hasInitialAuth = Boolean(initialSession?.isAuthenticated || systemUser);
+  const isAuthFormRoute = pathname === "/" || pathname === "/login" || pathname === "/signup";
+  const [isReady, setIsReady] = useState(() => (hasInitialAuth && !isAuthFormRoute) || isPublicRoute);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -47,7 +74,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     const userStr = typeof window !== "undefined" ? localStorage.getItem("system_user") : null;
     const hasLocalSession = !!(token && userStr);
 
-    if (hasLocalSession || systemUser) {
+    if (hasLocalSession || systemUser || initialSession?.isAuthenticated) {
       if (pathname === "/" || pathname === "/login" || pathname === "/signup") {
         router.replace("/home");
       } else {
@@ -60,7 +87,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         setIsReady(true);
       }
     }
-  }, [systemUser, pathname, isPublicRoute, router]);
+  }, [systemUser, pathname, isPublicRoute, router, initialSession?.isAuthenticated]);
 
   useEffect(() => {
     const mainEl = document.querySelector("main");

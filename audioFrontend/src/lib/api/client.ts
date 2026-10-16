@@ -1,3 +1,5 @@
+import { saveAuthCookies, clearAuthCookies } from "@/lib/cookies";
+
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:9090";
 
@@ -26,6 +28,7 @@ export function saveSessionTokens(accessToken: string, refreshToken: string): vo
   if (typeof window === "undefined") return;
   localStorage.setItem("system_token", accessToken);
   localStorage.setItem("system_refresh_token", refreshToken);
+  saveAuthCookies({ accessToken, refreshToken });
   import("@/store/player.store")
     .then(({ playerStore }) => {
       playerStore.setState((s) => ({
@@ -48,6 +51,7 @@ export function clearSessionStorage(): void {
   localStorage.removeItem("system_token");
   localStorage.removeItem("system_refresh_token");
   localStorage.removeItem("system_user");
+  clearAuthCookies();
   notifySessionCleared();
 }
 

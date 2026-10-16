@@ -1,6 +1,7 @@
 import { Store } from "@tanstack/react-store";
 import { type PlayerSong, type QualityTrack } from "@/lib/player-utils";
 import { type User } from "@/lib/api/types";
+import { syncStorageToCookies } from "@/lib/cookies";
 
 export interface SleepTimerState {
   targetTimestamp: number | null;
@@ -182,6 +183,7 @@ export const playerStore = new Store<PlayerState>({
 
 // Hydrate token, repeatMode, isShuffle, currentTime, and currentSong on client side only
 if (typeof window !== "undefined") {
+  syncStorageToCookies();
   const token = localStorage.getItem("system_token");
   const refreshToken = localStorage.getItem("system_refresh_token");
   const savedRepeat = localStorage.getItem("audiomelody_repeat_mode") as
