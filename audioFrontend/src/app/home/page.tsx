@@ -258,7 +258,7 @@ export default function HomePage() {
     <div className="relative px-4 pb-20 bg-black pt-2 sm:pt-2.5 space-y-3 sm:space-y-3.5 select-none overflow-hidden min-h-full">
       {/* Dynamic Ambient Color Glow bleeding smoothly behind top section */}
       <div
-        className="pointer-events-none absolute -top-28 left-1/2 -translate-x-1/2 w-full max-w-6xl h-105 transition-all duration-1000 ease-out opacity-20 blur-3xl -z-0"
+        className="pointer-events-none absolute -top-28 left-1/2 -translate-x-1/2 w-full max-w-6xl h-105 transition-all duration-1000 ease-out opacity-20 blur-3xl z-0"
         style={{
           background: `radial-gradient(ellipse 80% 60% at 50% 15%, ${
             dominantColor || "#2563eb"

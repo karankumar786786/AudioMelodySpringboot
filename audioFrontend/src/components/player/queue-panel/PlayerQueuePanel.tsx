@@ -111,7 +111,7 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
   return (
     <div
       ref={panelRef}
-      className="fixed right-4 md:right-80 bottom-24 z-50 w-[340px] sm:w-96 h-[500px] max-h-[80vh] bg-[#181818] border border-[#282828] rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-200"
+      className="fixed right-4 md:right-80 bottom-24 z-50 w-85 sm:w-96 h-125 max-h-[80vh] bg-[#181818] border border-[#282828] rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-200"
     >
       {/* Header with Segmented Tabs */}
       <QueuePanelHeader

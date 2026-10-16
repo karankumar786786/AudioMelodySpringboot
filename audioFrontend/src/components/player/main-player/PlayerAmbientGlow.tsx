@@ -20,7 +20,7 @@ export const PlayerAmbientGlow: React.FC<PlayerAmbientGlowProps> = ({
         style={{
           background: `radial-gradient(ellipse 65% 50% at 50% 10%, ${solidBgColor}28 0%, ${solidBgColor}0a 45%, transparent 80%)`,
         }}
-        className={`absolute top-0 left-0 right-0 h-[450px] transition-all duration-1000 ease-out blur-3xl ${
+        className={`absolute top-0 left-0 right-0 h-112.5 transition-all duration-1000 ease-out blur-3xl ${
           isPlaying ? "opacity-100 scale-105" : "opacity-35 scale-100"
         }`}
       />

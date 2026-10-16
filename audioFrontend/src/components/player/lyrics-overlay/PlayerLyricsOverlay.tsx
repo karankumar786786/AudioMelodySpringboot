@@ -225,7 +225,7 @@ export const PlayerLyricsOverlay: React.FC<PlayerLyricsOverlayProps> = ({
       onScroll={handleScroll}
       onWheel={handleManualUserScroll}
       onTouchMove={handleManualUserScroll}
-      className="flex-1 w-full overflow-y-auto no-scrollbar px-3 sm:px-6 md:px-10 py-6 md:py-8 flex flex-col items-center select-none relative [mask-image:linear-gradient(to_bottom,transparent_0%,black_10%,black_90%,transparent_100%)]"
+      className="flex-1 w-full overflow-y-auto no-scrollbar px-3 sm:px-6 md:px-10 py-6 md:py-8 flex flex-col items-center select-none relative mask-[linear-gradient(to_bottom,transparent_0%,black_10%,black_90%,transparent_100%)]"
     >
       {isLoading ? (
         <LyricsLoadingState />
