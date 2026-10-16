@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { musicApi, Artist } from "@/lib/api";
 import { getImageUrl } from "@/lib/image-utils";
+import { formatFollowerCount } from "@/lib/player-utils";
 import { toast } from "sonner";
 
 interface ArtistOnboardingViewProps {
@@ -389,8 +390,12 @@ export function ArtistOnboardingView({ onComplete, userName }: ArtistOnboardingV
                       <h4 className="text-xs sm:text-sm font-bold text-white truncate max-w-full group-hover:text-primary transition-colors">
                         {artist.name}
                       </h4>
-                      <p className="text-[10px] text-zinc-400 mt-0.5 truncate max-w-full">
-                        {isSelected ? "Selected" : "Artist"}
+                      <p className="text-[10px] text-zinc-400 mt-0.5 truncate max-w-full font-medium">
+                        {isSelected
+                          ? "Selected"
+                          : artist.followersCount !== undefined
+                          ? formatFollowerCount(artist.followersCount, true)
+                          : "Artist"}
                       </p>
                     </motion.div>
                   );

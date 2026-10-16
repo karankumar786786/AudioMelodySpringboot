@@ -1,13 +1,17 @@
 "use client";
 
 import React from "react";
-import { ExternalLink } from "lucide-react";
+import Link from "next/link";
+import { ExternalLink, Users2 } from "lucide-react";
+import { formatFollowerCount } from "@/lib/player-utils";
 
 interface RightInfoArtistSectionProps {
   info: any;
   isInfoLoading: boolean;
   artistCoverUrl?: string | null;
   artistName: string;
+  followersCount?: number;
+  artistId?: string;
 }
 
 export function RightInfoArtistSection({
@@ -15,6 +19,8 @@ export function RightInfoArtistSection({
   isInfoLoading,
   artistCoverUrl,
   artistName,
+  followersCount,
+  artistId,
 }: RightInfoArtistSectionProps) {
   return (
     <section className="bg-[#121212] border border-[#222] rounded-2xl overflow-hidden p-4 shadow-xl">
@@ -46,11 +52,29 @@ export function RightInfoArtistSection({
 
         <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/40 to-transparent flex items-end justify-between p-3">
           <div className="min-w-0 flex-1">
-            <h4 className="text-sm font-bold text-white truncate">
-              {info?.artist?.name || artistName}
-            </h4>
-            <p className="text-[11px] font-medium text-zinc-300 drop-shadow">
-              Artist
+            {artistId ? (
+              <Link
+                href={`/artists/${artistId}`}
+                className="text-sm font-bold text-white hover:underline truncate block"
+              >
+                {info?.artist?.name || artistName}
+              </Link>
+            ) : (
+              <h4 className="text-sm font-bold text-white truncate">
+                {info?.artist?.name || artistName}
+              </h4>
+            )}
+            <p className="text-[11px] font-medium text-zinc-300 drop-shadow flex items-center gap-1.5 mt-0.5">
+              <span>Artist</span>
+              {followersCount !== undefined && (
+                <>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    <Users2 size={11} className="text-zinc-400" />
+                    {formatFollowerCount(followersCount)}
+                  </span>
+                </>
+              )}
             </p>
           </div>
         </div>

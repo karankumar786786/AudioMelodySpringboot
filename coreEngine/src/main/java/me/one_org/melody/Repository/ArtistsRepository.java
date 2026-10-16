@@ -37,7 +37,7 @@ public interface ArtistsRepository extends JpaRepository<Artist, String> {
     }
 
     @EntityGraph(attributePaths = {"artistMetadata"})
-    @Query("SELECT a FROM Artist a ORDER BY a.createdAt DESC")
+    @Query("SELECT a FROM Artist a LEFT JOIN a.artistMetadata m ORDER BY COALESCE(m.followersCount, 0L) DESC, a.createdAt DESC")
     List<Artist> findAllPaginatedQuery(Pageable pageable);
 
     default List<Artist> findAllPaginated(int page, int size) {

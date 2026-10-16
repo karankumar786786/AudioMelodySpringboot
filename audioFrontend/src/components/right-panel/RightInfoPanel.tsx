@@ -78,6 +78,14 @@ export function RightInfoPanel() {
     staleTime: 1000 * 60 * 5,
   });
 
+  // 3. Artist follow status / metadata for follower count
+  const { data: artistFollowData } = useQuery({
+    queryKey: ["artist-follow-status", currentSong?.artistName],
+    queryFn: () => musicApi.artists.getFollowStatus(currentSong!.artistName),
+    enabled: !!currentSong?.artistName,
+    staleTime: 1000 * 60 * 5,
+  });
+
   const isRelatedLoading = isSimilarLoading && isFeedLoading;
 
   const artistMoreSongs = React.useMemo<Song[]>(() => {
@@ -232,6 +240,8 @@ export function RightInfoPanel() {
               isInfoLoading={isInfoLoading}
               artistCoverUrl={artistCoverUrl}
               artistName={artistName}
+              followersCount={artistFollowData?.data?.followersCount}
+              artistId={artistFollowData?.data?.artistId}
             />
 
             {/* 4. ABOUT THE SONG */}

@@ -15,7 +15,7 @@ import {
   type Song,
   type UserPlaylist,
 } from "@/lib/api";
-import { mapToPlayerSong } from "@/lib/player-utils";
+import { formatFollowerCount, formatStreamCount, mapToPlayerSong } from "@/lib/player-utils";
 import { previewPlayer } from "@/lib/preview-player";
 import { playerActions, playerStore } from "@/store/player.store";
 import { CommandPaletteFooter } from "./CommandPaletteFooter";
@@ -178,6 +178,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
             song.artistName || "Track",
             song.album,
             song.genre,
+            song.totalStreams !== undefined ? formatStreamCount(song.totalStreams, true) : null,
           ].filter(Boolean).join(" • "),
           imageKey: song.imageKey,
           data: song,
@@ -187,11 +188,14 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
 
     if (activeTab === "all" || activeTab === "artists") {
       rawArtists.forEach((artist) => {
+        const followerSubtitle = artist.followersCount !== undefined
+          ? `Artist • ${formatFollowerCount(artist.followersCount)}`
+          : "Artist";
         list.push({
           id: `artist-${artist.id}`,
           type: "artist",
           title: artist.name,
-          subtitle: "Artist",
+          subtitle: followerSubtitle,
           imageKey: artist.coverImageKey,
           data: artist,
         });

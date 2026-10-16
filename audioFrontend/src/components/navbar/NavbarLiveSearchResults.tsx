@@ -4,6 +4,7 @@ import { BookmarkPlus, ListMusic, Loader2, Play, Search, User } from "lucide-rea
 import { toast } from "sonner";
 import { getImageUrl } from "@/lib/image-utils";
 import { SongThumbnail } from "@/components/SongThumbnail";
+import { formatFollowerCount, formatStreamCount } from "@/lib/player-utils";
 import type { Artist, Playlist, Song, UserPlaylist } from "@/lib/api";
 import type { NavbarLiveSearchResultsProps } from "./types";
 
@@ -75,6 +76,9 @@ export function NavbarLiveSearchResults({
                     {song.genre && (
                       <span className="text-zinc-500"> • {song.genre}</span>
                     )}
+                    {song.totalStreams !== undefined && (
+                      <span className="text-emerald-400"> • {formatStreamCount(song.totalStreams, true)}</span>
+                    )}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0 mr-1">
@@ -121,7 +125,9 @@ export function NavbarLiveSearchResults({
                     {artist.name}
                   </p>
                   <p className="text-[11px] text-zinc-400 font-normal">
-                    Artist
+                    {artist.followersCount !== undefined
+                      ? `Artist • ${formatFollowerCount(artist.followersCount)}`
+                      : "Artist"}
                   </p>
                 </div>
               </button>

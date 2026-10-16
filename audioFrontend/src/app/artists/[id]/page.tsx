@@ -73,15 +73,15 @@ export default function ArtistPage() {
     }
   }, [followStatusData]);
 
-  const isFollowing = localFollowStatus?.isFollowing ?? followStatusData?.isFollowing ?? false;
-  const followersCount = localFollowStatus?.followersCount ?? followStatusData?.followersCount ?? 0;
-
   /* -------------------------------------------------------------------------- */
   /*                              DERIVED VALUES                                */
   /* -------------------------------------------------------------------------- */
 
   const artist = artistResponse?.data;
   const songs = songsResponse?.data?.data || [];
+
+  const isFollowing = localFollowStatus?.isFollowing ?? followStatusData?.isFollowing ?? false;
+  const followersCount = localFollowStatus?.followersCount ?? followStatusData?.followersCount ?? artist?.followersCount ?? 0;
 
   const coverUrl = getImageUrl(artist?.coverImageKey, {
     width: 600,

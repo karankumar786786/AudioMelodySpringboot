@@ -164,3 +164,38 @@ export function formatStreamCount(
   return num === 1 ? "1 play" : `${formatted} plays`;
 }
 
+/**
+ * Formats follower counts into a clean, professional string.
+ * Example:
+ *   formatFollowerCount(0) => "0 followers"
+ *   formatFollowerCount(1) => "1 follower"
+ *   formatFollowerCount(1420) => "1,420 followers"
+ *   formatFollowerCount(15200) => "15.2K followers"
+ *   formatFollowerCount(1200000) => "1.2M followers"
+ */
+export function formatFollowerCount(
+  val?: number | string | null,
+  compact: boolean = false,
+  includeLabel: boolean = true
+): string {
+  if (val === undefined || val === null || val === "") {
+    return includeLabel ? "0 followers" : "0";
+  }
+  const num = typeof val === "string" ? parseInt(val, 10) : Math.floor(Number(val));
+  if (isNaN(num) || !isFinite(num) || num <= 0) {
+    return includeLabel ? "0 followers" : "0";
+  }
+
+  let formatted: string;
+  if (num >= 1_000_000) {
+    formatted = `${(num / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  } else if (compact || num >= 10_000) {
+    formatted = `${(num / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
+  } else {
+    formatted = num.toLocaleString();
+  }
+
+  if (!includeLabel) return formatted;
+  return num === 1 ? "1 follower" : `${formatted} followers`;
+}
+

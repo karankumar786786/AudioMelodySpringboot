@@ -62,6 +62,7 @@ export const TopArtistsSection: React.FC<TopArtistsSectionProps> = ({
               >
                 <div className="aspect-square rounded-full bg-zinc-900 animate-pulse border border-white/5 mx-auto" />
                 <div className="h-3 w-3/4 bg-zinc-900 rounded mx-auto animate-pulse" />
+                <div className="h-2.5 w-1/2 bg-zinc-900/70 rounded mx-auto animate-pulse" />
               </div>
             ))
           : artists?.map((artist: Artist) => (
