@@ -1,6 +1,5 @@
 package me.one_org.melody.AlgoliaSearch;
 
-import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;

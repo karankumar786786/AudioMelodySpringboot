@@ -15,7 +15,6 @@ import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Entity.SongMetadata;
 import me.one_org.melody.Entity.User;
 import me.one_org.melody.Enums.StatusEnum;
-import me.one_org.melody.Events.TelemetryEventListener;
 import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.SongMetadataRepository;
 import me.one_org.melody.Repository.SongsRepository;
@@ -33,9 +32,6 @@ class SongTelemetryFlowE2ETest {
 
     @Autowired
     private InteractionApiService interactionApiService;
-
-    @Autowired
-    private TelemetryEventListener telemetryEventListener;
 
     @Autowired
     private SongsRepository songsRepository;
