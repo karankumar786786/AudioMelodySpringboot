@@ -2,7 +2,7 @@ import React from "react";
 
 export const HomeSkeleton: React.FC = () => {
   return (
-    <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-[var(--app-content-pt,1.5rem)] space-y-5 sm:space-y-6 animate-pulse select-none">
+    <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-(--app-content-pt,1.5rem) space-y-5 sm:space-y-6 animate-pulse select-none">
       {/* Header & Filter Pills Skeleton */}
       <div className="space-y-2.5">
         <div className="h-7 sm:h-8 w-48 bg-zinc-800/80 rounded-lg" />
@@ -39,7 +39,7 @@ export const HomeSkeleton: React.FC = () => {
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
               key={i}
-              className="flex-none w-[125px] sm:w-[130px] space-y-3"
+              className="flex-none w-31.5 sm:w-32.5 space-y-3"
             >
               <div className="aspect-square rounded-full bg-zinc-900 border border-white/5" />
               <div className="h-3 w-3/4 bg-zinc-900 rounded mx-auto" />
@@ -55,7 +55,7 @@ export const HomeSkeleton: React.FC = () => {
           {[1, 2, 3, 4, 5, 6].map((i) => (
             <div
               key={i}
-              className="flex-none w-[145px] sm:w-[155px] space-y-3"
+              className="flex-none w-36.25 sm:w-38.75 space-y-3"
             >
               <div className="aspect-square rounded-xl bg-zinc-900 border border-white/5" />
               <div className="h-3 w-3/4 bg-zinc-900 rounded" />

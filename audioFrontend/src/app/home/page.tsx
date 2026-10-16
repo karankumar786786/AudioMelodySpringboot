@@ -2,20 +2,24 @@
 
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
-import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Clock, Flame } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArtistCard } from "../../components/ArtistCard";
 import {
   ServerErrorPage,
   SomethingWentWrongPage,
 } from "../../components/ErrorPages";
-import { PlaylistCard } from "../../components/PlaylistCard";
-import { QuickPicksGrid } from "../../components/QuickPicksGrid";
-import { SongCard } from "../../components/SongCard";
-import { type Artist, musicApi, type Playlist, type Song } from "../../lib/api";
+import { musicApi, type Song } from "../../lib/api";
 import { mapListToPlayerSongs } from "../../lib/player-utils";
 import { playerActions, playerStore } from "../../store/player.store";
+import {
+  HomeSkeleton,
+  HomeHeader,
+  TrendingSection,
+  TopArtistsSection,
+  RecentlyPlayedSection,
+  FeaturedPlaylistsSection,
+  RecommendationsSection,
+  ExploreFeedSection,
+} from "./components";
 
 export default function HomePage() {
   const systemUser = useStore(playerStore, (s) => s.systemUser);
@@ -245,79 +249,16 @@ export default function HomePage() {
   }
 
   if (isInitialPageLoading) {
-    return (
-      <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-[var(--app-content-pt,1.5rem)] space-y-5 sm:space-y-6 animate-pulse select-none">
-        {/* Header & Filter Pills Skeleton */}
-        <div className="space-y-2.5">
-          <div className="h-7 sm:h-8 w-48 bg-zinc-800/80 rounded-lg" />
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div
-                key={i}
-                className="h-7 w-20 bg-zinc-850 rounded-full border border-white/5"
-              />
-            ))}
-          </div>
-        </div>
-
-        {/* Quick Picks Skeleton */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-2.5">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div
-              key={i}
-              className="h-11 sm:h-12 rounded-lg bg-zinc-900/80 border border-white/5 flex items-center gap-2.5 overflow-hidden"
-            >
-              <div className="w-11 sm:w-12 h-full bg-zinc-800 shrink-0" />
-              <div className="flex-1 space-y-1 pr-3">
-                <div className="h-2.5 w-3/5 bg-zinc-800 rounded" />
-                <div className="h-2 w-2/5 bg-zinc-850 rounded" />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* Artists Skeleton */}
-        <div className="space-y-3">
-          <div className="h-6 w-32 bg-zinc-800/80 rounded-lg" />
-          <div className="flex gap-4 overflow-hidden">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div
-                key={i}
-                className="flex-none w-[125px] sm:w-[130px] space-y-3"
-              >
-                <div className="aspect-square rounded-full bg-zinc-900 border border-white/5" />
-                <div className="h-3 w-3/4 bg-zinc-900 rounded mx-auto" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Playlists Skeleton */}
-        <div className="space-y-3">
-          <div className="h-6 w-40 bg-zinc-800/80 rounded-lg" />
-          <div className="flex gap-4 overflow-hidden">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div
-                key={i}
-                className="flex-none w-[145px] sm:w-[155px] space-y-3"
-              >
-                <div className="aspect-square rounded-xl bg-zinc-900 border border-white/5" />
-                <div className="h-3 w-3/4 bg-zinc-900 rounded" />
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
+    return <HomeSkeleton />;
   }
 
   const trendingSongs: Song[] = trending?.data?.data || [];
 
   return (
-    <div className="relative px-4  pb-20 bg-black pt-2 sm:pt-2.5 space-y-3 sm:space-y-3.5 select-none overflow-hidden min-h-full">
+    <div className="relative px-4 pb-20 bg-black pt-2 sm:pt-2.5 space-y-3 sm:space-y-3.5 select-none overflow-hidden min-h-full">
       {/* Dynamic Ambient Color Glow bleeding smoothly behind top section */}
       <div
-        className="pointer-events-none absolute -top-28 left-1/2 -translate-x-1/2 w-full max-w-6xl h-[420px] transition-all duration-1000 ease-out opacity-20 blur-3xl -z-0"
+        className="pointer-events-none absolute -top-28 left-1/2 -translate-x-1/2 w-full max-w-6xl h-105 transition-all duration-1000 ease-out opacity-20 blur-3xl -z-0"
         style={{
           background: `radial-gradient(ellipse 80% 60% at 50% 15%, ${
             dominantColor || "#2563eb"
@@ -326,364 +267,67 @@ export default function HomePage() {
       />
 
       {/* 1. Header with Time-of-Day Greeting, User Welcome & Filter Pills */}
-      <section className="relative z-10 space-y-1.5 sm:space-y-2">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center">
-              <span>{greeting}</span>
-              {userName && (
-                <span className="text-zinc-200">
-                  , {userName}
-                </span>
-              )}
-            </h1>
-          </div>
+      <HomeHeader
+        greeting={greeting}
+        userName={userName}
+        activeFilter={activeFilter}
+        onFilterClick={handleFilterClick}
+        quickPicks={quickPicks}
+        isQuickPicksLoading={isQuickPicksLoading}
+      />
 
-          {/* Quick Filter / Navigation Pills */}
-          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
-            {["All", "Trending", "Artists", "Playlists", "Explore"].map(
-              (filter) => {
-                const isActive = activeFilter === filter;
-                return (
-                  <button
-                    key={filter}
-                    type="button"
-                    onClick={() => handleFilterClick(filter)}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-semibold cursor-pointer transition-all duration-200 shrink-0 ${
-                      isActive
-                        ? "bg-white text-black shadow-sm scale-100"
-                        : "bg-zinc-900/80 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-white/10"
-                    }`}
-                  >
-                    {filter === "Trending" && "🔥 "}
-                    {filter === "Artists" && "🎤 "}
-                    {filter === "Playlists" && "💿 "}
-                    {filter}
-                  </button>
-                );
-              },
-            )}
-          </div>
-        </div>
+      {/* 2. Trending Hits Section */}
+      <TrendingSection
+        sectionRef={trendingSectionRef}
+        scrollRef={trendingScrollRef}
+        onScroll={(dist) => scrollContainer(trendingScrollRef, dist)}
+        trendingSongs={trendingSongs}
+      />
 
-        {/* 2. Quick Picks 6-Card Grid (Spotify Style: Instant 1-Click Play) */}
-        <QuickPicksGrid songs={quickPicks} isLoading={isQuickPicksLoading} />
-      </section>
-
-      {/* 2. Trending Hits Section (Always visible with rich track cards) */}
-      {trendingSongs.length > 0 && (
-        <section ref={trendingSectionRef} className="space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Flame size={20} className="text-amber-500 fill-amber-500/20" />
-              <h2 className="text-xl font-bold text-white tracking-tight">
-                Trending Hits
-              </h2>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                onClick={() => scrollContainer(trendingScrollRef, -380)}
-                type="button"
-                aria-label="Scroll left"
-                className="w-7 h-7 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <button
-                onClick={() => scrollContainer(trendingScrollRef, 380)}
-                type="button"
-                aria-label="Scroll right"
-                className="w-7 h-7 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
-
-          <div className="relative">
-            <motion.div
-              ref={trendingScrollRef}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              className="flex flex-row overflow-x-auto gap-3 pb-1 no-scrollbar px-1 snap-x snap-mandatory scroll-smooth"
-            >
-              {trendingSongs.map((song: Song) => (
-                <SongCard
-                  key={`trending-${song.id}`}
-                  song={song}
-                  className="flex-none snap-start w-[calc(50%-6px)] sm:w-[calc(33.333%-8px)] md:w-[calc(25%-9px)] lg:w-[calc(20%-10px)] xl:w-[calc(20%-10px)] 2xl:w-[calc(16.666%-10px)]"
-                />
-              ))}
-            </motion.div>
-            <div className="pointer-events-none absolute top-0 right-0 h-[calc(100%-1rem)] w-20 " />
-          </div>
-        </section>
-      )}
-
-      {/* 3. Top Artists Section (Tightened gap so names are prominently visible above bottom player) */}
-      <section ref={artistsSectionRef} className="space-y-1.5 -mt-1 sm:-mt-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white tracking-tight">
-            Top Artists
-          </h2>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              onClick={() => scrollContainer(artistsScrollRef, -380)}
-              type="button"
-              aria-label="Scroll left"
-              className="w-7 h-7 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              onClick={() => scrollContainer(artistsScrollRef, 380)}
-              type="button"
-              aria-label="Scroll right"
-              className="w-7 h-7 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </div>
-
-        <motion.div
-          ref={artistsScrollRef}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          className="flex flex-row overflow-x-auto gap-2.5 pb-1 no-scrollbar px-1 scroll-smooth"
-        >
-          {isArtistsLoading
-            ? [1, 2, 3, 4, 5, 6].map((i) => (
-                <div
-                  key={i}
-                  className="flex-none w-[115px] sm:w-[124px] p-2 space-y-2"
-                >
-                  <div className="aspect-square rounded-full bg-zinc-900 animate-pulse border border-white/5 mx-auto" />
-                  <div className="h-3 w-3/4 bg-zinc-900 rounded mx-auto animate-pulse" />
-                </div>
-              ))
-            : artists?.data?.data?.map((artist: Artist) => (
-                <ArtistCard key={artist.id} artist={artist} />
-              ))}
-        </motion.div>
-      </section>
+      {/* 3. Top Artists Section */}
+      <TopArtistsSection
+        sectionRef={artistsSectionRef}
+        scrollRef={artistsScrollRef}
+        onScroll={(dist) => scrollContainer(artistsScrollRef, dist)}
+        isArtistsLoading={isArtistsLoading}
+        artists={artists?.data?.data}
+      />
 
       {/* 4. Recently Played Section (Conditional) */}
-      {systemUser && (recentlyPlayed?.data?.data?.length ?? 0) > 0 && (
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Clock size={20} className="text-primary" />
-              <h2 className="text-xl font-bold text-white tracking-tight">
-                Recently Played
-              </h2>
-            </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                onClick={() => scrollContainer(recentlyPlayedScrollRef, -380)}
-                type="button"
-                aria-label="Scroll left"
-                className="w-7 h-7 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
-              >
-                <ChevronLeft size={16} />
-              </button>
-              <button
-                onClick={() => scrollContainer(recentlyPlayedScrollRef, 380)}
-                type="button"
-                aria-label="Scroll right"
-                className="w-7 h-7 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
-              >
-                <ChevronRight size={16} />
-              </button>
-            </div>
-          </div>
-
-          <div className="relative">
-            <motion.div
-              ref={recentlyPlayedScrollRef}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              className="flex flex-row overflow-x-auto gap-3 pb-3 no-scrollbar px-1 snap-x snap-mandatory scroll-smooth"
-            >
-              {recentlyPlayed?.data?.data?.slice(0, 10).map((song: Song) => (
-                <SongCard
-                  key={`recent-${song.id}`}
-                  song={song}
-                  className="flex-none snap-start w-[calc(50%-6px)] sm:w-[calc(33.333%-8px)] md:w-[calc(25%-9px)] lg:w-[calc(20%-10px)] xl:w-[calc(20%-10px)] 2xl:w-[calc(16.666%-10px)]"
-                />
-              ))}
-            </motion.div>
-            <div className="pointer-events-none absolute top-0 right-0 h-[calc(100%-1rem)] w-20 " />
-          </div>
-        </section>
+      {systemUser && (
+        <RecentlyPlayedSection
+          scrollRef={recentlyPlayedScrollRef}
+          onScroll={(dist) => scrollContainer(recentlyPlayedScrollRef, dist)}
+          songs={recentlyPlayed?.data?.data}
+        />
       )}
 
       {/* 5. Featured Playlists Section */}
-      <section ref={playlistsSectionRef} className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white tracking-tight">
-            Featured Playlists
-          </h2>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              onClick={() => scrollContainer(playlistsScrollRef, -380)}
-              type="button"
-              aria-label="Scroll left"
-              className="w-7 h-7 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              onClick={() => scrollContainer(playlistsScrollRef, 380)}
-              type="button"
-              aria-label="Scroll right"
-              className="w-7 h-7 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
-            >
-              <ChevronRight size={16} />
-            </button>
-          </div>
-        </div>
+      <FeaturedPlaylistsSection
+        sectionRef={playlistsSectionRef}
+        scrollRef={playlistsScrollRef}
+        onScroll={(dist) => scrollContainer(playlistsScrollRef, dist)}
+        isPlaylistsLoading={isPlaylistsLoading}
+        playlists={playlists?.data?.data}
+      />
 
-        <motion.div
-          ref={playlistsScrollRef}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          className="flex flex-row overflow-x-auto gap-3 md:gap-3.5 pb-3 no-scrollbar px-1 scroll-smooth"
-        >
-          {isPlaylistsLoading
-            ? [1, 2, 3, 4, 5, 6].map((i) => (
-                <div
-                  key={i}
-                  className="flex-none w-[150px] sm:w-[180px] space-y-3"
-                >
-                  <div className="aspect-square rounded-xl bg-zinc-900 animate-pulse border border-white/5" />
-                  <div className="h-3 w-1/2 bg-zinc-900 rounded animate-pulse" />
-                </div>
-              ))
-            : playlists?.data?.data?.map((playlist: Playlist) => (
-                <PlaylistCard key={playlist.id} playlist={playlist} />
-              ))}
-        </motion.div>
-      </section>
-
-      {/* 5. Recommendations (Conditional) */}
-      {systemUser &&
-        recommendations?.data?.data &&
-        recommendations.data.data.length > 0 && (
-          <section className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <h2 className="text-xl font-bold text-white tracking-tight">
-                  Recommended for You
-                </h2>
-              </div>
-              <div className="flex items-center gap-1.5 shrink-0">
-                <button
-                  onClick={() =>
-                    scrollContainer(recommendationsScrollRef, -380)
-                  }
-                  type="button"
-                  aria-label="Scroll left"
-                  className="w-7 h-7 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <button
-                  onClick={() => scrollContainer(recommendationsScrollRef, 380)}
-                  type="button"
-                  aria-label="Scroll right"
-                  className="w-7 h-7 rounded-full bg-zinc-900/90 hover:bg-zinc-800 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-all active:scale-95 shadow-sm cursor-pointer"
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            </div>
-
-            <div className="relative">
-              <motion.div
-                ref={recommendationsScrollRef}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-                className="flex flex-row overflow-x-auto gap-3 md:gap-3.5 pb-3 no-scrollbar px-1 snap-x snap-mandatory scroll-smooth"
-              >
-                {recommendations.data.data.slice(0, 10).map((song: Song) => (
-                  <SongCard
-                    key={`rec-${song.id}`}
-                    song={song}
-                    className="flex-none snap-start w-[calc(50%-6px)] sm:w-[calc(33.333%-8px)] md:w-[calc(25%-9px)] lg:w-[calc(20%-10px)] xl:w-[calc(20%-10px)] 2xl:w-[calc(16.666%-10px)]"
-                  />
-                ))}
-              </motion.div>
-              <div className="pointer-events-none absolute top-0 right-0 h-[calc(100%-1rem)] w-20 " />
-            </div>
-          </section>
-        )}
+      {/* 6. Recommendations (Conditional) */}
+      {systemUser && (
+        <RecommendationsSection
+          scrollRef={recommendationsScrollRef}
+          onScroll={(dist) => scrollContainer(recommendationsScrollRef, dist)}
+          songs={recommendations?.data?.data}
+        />
+      )}
 
       {/* 7. Discovery Feed */}
-      <section ref={exploreSectionRef} className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-white tracking-tight">
-            Explore All Tracks
-          </h2>
-        </div>
-
-        {status === "pending" ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-3.5">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((i) => (
-              <div
-                key={i}
-                className="aspect-square bg-zinc-900 rounded-xl animate-pulse border border-white/5"
-              />
-            ))}
-          </div>
-        ) : status === "error" ? (
-          <div className="p-16 text-center text-zinc-500 border border-dashed border-[#282828] rounded-xl font-medium">
-            Failed to load tracks
-          </div>
-        ) : (
-          <motion.div
-            initial="hidden"
-            animate="show"
-            variants={{
-              hidden: { opacity: 0 },
-              show: {
-                opacity: 1,
-                transition: { staggerChildren: 0.05 },
-              },
-            }}
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 sm:gap-3.5"
-          >
-            {data?.pages.map((page, i) =>
-              page.data.data.map((song: Song, songIdx: number) => (
-                <SongCard
-                  key={`${song.id}-${i}-${songIdx}`}
-                  song={song}
-                  priority={i === 0 && songIdx < 6}
-                />
-              )),
-            )}
-          </motion.div>
-        )}
-
-        {/* Loader / Infinite Scroll Trigger */}
-        <div
-          ref={triggerRef}
-          id="infinite-scroll-trigger"
-          className="h-32 flex items-center justify-center mt-12"
-        >
-          {isFetchingNextPage && (
-            <div className="relative w-10 h-10 flex items-center justify-center">
-              <div className="absolute inset-0 border-[3px] border-primary/10 rounded-full" />
-              <div className="absolute inset-0 border-[3px] border-t-primary rounded-full animate-spin" />
-            </div>
-          )}
-        </div>
-      </section>
+      <ExploreFeedSection
+        sectionRef={exploreSectionRef}
+        triggerRef={triggerRef}
+        status={status}
+        pages={data?.pages}
+        isFetchingNextPage={isFetchingNextPage}
+      />
     </div>
   );
 }

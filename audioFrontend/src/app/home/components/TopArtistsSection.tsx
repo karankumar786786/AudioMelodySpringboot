@@ -58,7 +58,7 @@ export const TopArtistsSection: React.FC<TopArtistsSectionProps> = ({
           ? [1, 2, 3, 4, 5, 6].map((i) => (
               <div
                 key={i}
-                className="flex-none w-[115px] sm:w-[124px] p-2 space-y-2"
+                className="flex-none w-28.75 sm:w-31 p-2 space-y-2"
               >
                 <div className="aspect-square rounded-full bg-zinc-900 animate-pulse border border-white/5 mx-auto" />
                 <div className="h-3 w-3/4 bg-zinc-900 rounded mx-auto animate-pulse" />
