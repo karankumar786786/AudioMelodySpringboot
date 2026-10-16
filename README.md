@@ -85,6 +85,54 @@ flowchart TD
 
 ---
 
+## ⚡ Hardware-Accelerated Audio & Video Processing Architecture
+
+The `audioProcessing` microservice (Bun 1.3 / Express 5 / Inngest) features an adaptive hardware-accelerated transcoding engine ([`hwaccel.ts`](file:///Users/Karan/Desktop/Coding/AudioMelodySpringboot/audioProcessing/lib/transcode/hwaccel.ts)) that dynamically probes host capabilities on boot, verifies candidate GPU encoders with a live 1-frame test, and provides seamless self-healing fallback to CPU software encoding.
+
+```mermaid
+flowchart TD
+    %% Input Job
+    Job["1. Ingestion Job Enqueued<br/>(Raw Media on S3 + Redis Event)"] --> Probe["2. Dynamic Hardware Probe (hwaccel.ts)<br/>• Detects OS, CPU & GPU Devices (/dev/nvidia, /dev/dri)<br/>• Live 1-Frame Null Muxer Test (3.5s timeout)"]
+
+    %% Probe Decision Tree
+    Probe --> AccelChoice{"Candidate GPU Available?"}
+
+    %% Hardware Options
+    AccelChoice -->|"macOS (Apple Silicon / Intel)"| VT["Apple VideoToolbox<br/>• Video: h264_videotoolbox<br/>• Audio: aac_at (Hardware Engine)"]
+    AccelChoice -->|"Linux / Windows (NVIDIA)"| NVENC["NVIDIA NVENC<br/>• Video: h264_nvenc (CUDA Preset p4)"]
+    AccelChoice -->|"Intel Core / Xeon"| QSV["Intel Quick Sync Video (QSV)<br/>• Video: h264_qsv (Preset fast)"]
+    AccelChoice -->|"No GPU / Probe Failed"| CPU["CPU Multithreaded Software<br/>• Video: libx264 (Preset fast)<br/>• Audio: native aac"]
+
+    %% Transcode Execution
+    VT --> Exec["3. Transcode Execution<br/>• EBU R128 Audio Normalization (loudnorm)<br/>• Multi-Bitrate AAC (128k / 240k / 320k)"]
+    NVENC --> Exec
+    QSV --> Exec
+    CPU --> Exec
+
+    %% Self Healing Fallback
+    Exec --> FallbackCheck{"Driver Crash or VRAM Exhaustion?"}
+    FallbackCheck -->|"Yes (GPU Fails)"| CPUFallback["Automatic Software Fallback<br/>(Self-healing re-run with libx264 / aac)"]
+    FallbackCheck -->|"No (Success)"| Packager["4. Google Shaka Packager<br/>(4s HLS / DASH Segmentation)"]
+    CPUFallback --> Packager
+
+    %% Packaging to S3
+    Packager --> S3Output["5. Synchronized AWS S3 Upload<br/>• 128 kbps / 240 kbps / 320 kbps Chunks<br/>• master.m3u8 & master.mpd Manifests"]
+```
+
+### 🛠️ Hardware Acceleration Engine Features:
+- **Zero-Stall Probing (`detectHardwareCapabilities()`)**: Runs a live 1-frame test (`-f lavfi -i color=... -f null -`) with a 3.5s timeout. This eliminates false positives (e.g., FFmpeg compiled with NVENC but running on a cloud VM without NVIDIA GPU drivers).
+- **Prioritized Encoder Hierarchy**:
+  - **Apple Silicon / macOS**: `h264_videotoolbox` + `aac_at` (hardware-accelerated AAC audio).
+  - **NVIDIA GPU**: `h264_nvenc` with CUDA hardware context (`preset p4`, `profile high`).
+  - **Intel GPU**: `h264_qsv` with Quick Sync Video (`preset fast`).
+  - **Embedded Linux / ARM**: `h264_v4l2m2m` for single-board devices.
+  - **Software Baseline**: Multithreaded `libx264` + native `aac`.
+- **Dynamic Concurrency Governor**: Dynamically scales parallel transcode workers (2–4 concurrent streams when GPU-accelerated; automatically throttled to 1–2 on CPU VMs to prevent host starvation).
+- **Self-Healing Fallback (`executeFFmpegWithFallback()`)**: If a GPU driver panics or exhausts VRAM mid-encode, the engine catches the failure and immediately retries using multithreaded CPU software encoding (`libx264` / `aac`) without failing the ingestion job.
+- **Multi-Bitrate HLS & DASH Packaging**: Applies EBU R128 loudness normalization (`loudnorm=I=-16:TP=-1.5:LRA=11`) and passes 128 kbps, 240 kbps, and 320 kbps streams to **Google Shaka Packager** for 4-second chunking and manifest generation.
+
+---
+
 ## 🔄 Recent Changes & Engineering Upgrades
 
 We recently completed a major architectural overhaul across the entire platform to optimize database resource utilization, eliminate latency bottlenecks, enhance security, and resolve legacy cache issues:
