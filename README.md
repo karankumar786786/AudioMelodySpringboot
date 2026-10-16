@@ -28,24 +28,58 @@
 ## 🏛️ System Architecture
 
 ```mermaid
-graph TD
-    Client["📱 Consumer Web & Mobile Apps"] --> Gateway["🌐 Caddy 2 Reverse Proxy (Auto TLS)"]
-    AdminWeb["🛡️ Admin Management Console"] --> Gateway
+flowchart TD
+    %% Clients (Square boxes)
+    AF["audioFrontend (Next.js 16 / React 19)"]
+    ADM_FE["adminFrontend (Next.js 16 / React 19)"]
 
-    Gateway -->|"api.one-org.me"| Core["⚡ Core Engine (Spring Boot 4.1 / Java 21)"]
-    Gateway -->|"admin.one-org.me"| Admin["🛠️ Admin Backend (Django 6.1 / Python 3.12)"]
-    Gateway -->|"process.one-org.me"| Worker["⚙️ Media Worker (Bun / Inngest)"]
+    %% Edge Ingress & Content Delivery
+    DNS["DNS & Caddy 2 Reverse Proxy (Auto TLS)"]
+    CDN["ImageKit CDN & AWS S3 (HLS / Media Chunks)"]
 
-    Core --> DB[("🐘 Neon Serverless PostgreSQL")]
-    Core --> Redis[("🔴 Redis 7 Cache & Queues")]
-    Core --> Cloud[("☁️ AWS S3 / Algolia / Recombee")]
+    %% Direct Frontend Cloud Integrations
+    ALG["Algolia (Edge Instant Search)"]
+    REC["Recombee (AI Recommendations)"]
 
-    Admin --> DB
-    Admin --> Redis
-    Admin --> Cloud
+    %% Backend Services
+    CORE["coreEngine (Spring Boot 4.1 / Java 21)<br/>• REST APIs<br/>• SSE Endpoint (/api/home/stream)"]
+    ADM_BE["adminBackend (Django 6.1 / Python 3.12)<br/>• Admin Command & Ingestion"]
+    WORKER["audioProcessing (Bun 1.3 / Express 5)<br/>• FFmpeg & Shaka Packager"]
 
-    Worker --> Cloud
-    Worker --> Redis
+    %% Databases & Storage Behind Core & Admin
+    DB["Neon Serverless PostgreSQL Database"]
+    REDIS["Redis 7 (Upstash Cache & Queues)"]
+    S3["AWS S3 Media Storage"]
+
+    %% Direct Client Connections
+    AF -->|"Direct Instant Search Queries"| ALG
+    AF -->|"Direct Telemetry & AI Model Feed"| REC
+    AF -->|"Stream HLS Audio & Cover Art"| CDN
+    AF -->|"REST & SSE Stream (/api/home/stream)"| DNS
+    ADM_FE -->|"Admin Dashboard Requests"| DNS
+    ADM_FE -->|"Direct Byte Uploads"| S3
+
+    %% DNS / Caddy Routing to Services
+    DNS -->|"api.one-org.me"| CORE
+    DNS -->|"admin.one-org.me"| ADM_BE
+
+    %% Behind coreEngine
+    CORE -->|"SQL Queries (HikariCP)"| DB
+    CORE -->|"v2: Cache & Rate Limits"| REDIS
+    CORE -->|"Search Index Sync"| ALG
+    CORE -->|"Recommendation Ingestion"| REC
+
+    %% Behind adminBackend & Worker
+    ADM_BE -->|"Catalog CRUD"| DB
+    ADM_BE -->|"Admin Sessions & Job States"| REDIS
+    ADM_BE -->|"Pre-signed URLs & Cascade Delete"| S3
+    ADM_BE -->|"Purge Artwork Cache"| CDN
+    ADM_BE -->|"Sync Catalog Updates"| ALG
+    ADM_BE -->|"Sync Catalog Updates"| REC
+
+    WORKER -->|"Consume Transcode Jobs"| REDIS
+    WORKER -->|"Fetch Raw & Push HLS Chunks"| S3
+    S3 -.->|"Serves Media Via"| CDN
 ```
 
 ---
