@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from django.conf import settings
-from ..models import Admin
+from accounts.models import Admin
 from .redis_service import RedisService
 
 logger = logging.getLogger(__name__)

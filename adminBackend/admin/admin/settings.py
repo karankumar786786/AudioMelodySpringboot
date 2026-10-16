@@ -33,8 +33,13 @@ ALLOWED_HOSTS = ["*"]
 
 # Application definition
 INSTALLED_APPS = [
-    # Local apps (placed first so custom management commands like createsuperuser take precedence)
-    "api.apps.ApiConfig",
+    # Domain apps (placed first so custom management commands like createsuperuser take precedence)
+    "core.apps.CoreConfig",
+    "accounts.apps.AccountsConfig",
+    "catalog.apps.CatalogConfig",
+    "jobs.apps.JobsConfig",
+    "dashboard.apps.DashboardConfig",
+    "webhooks.apps.WebhooksConfig",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -48,7 +53,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
-    "api.middleware.SecurityHeadersAndAuditMiddleware",
+    "core.middleware.SecurityHeadersAndAuditMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -169,10 +174,10 @@ else:
 # REST Framework Configuration
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "api.authentication.AdminSessionAuthentication",
+        "core.authentication.AdminSessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
-        "api.authentication.IsAdminUserPermission",
+        "core.authentication.IsAdminUserPermission",
     ],
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",

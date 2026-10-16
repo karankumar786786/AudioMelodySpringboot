@@ -2,7 +2,7 @@ import logging
 from typing import Optional
 import requests
 from django.conf import settings
-from ..models import Job
+from jobs.models import Job
 from .redis_service import RedisService
 
 logger = logging.getLogger(__name__)

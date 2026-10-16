@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, List, Dict, Any
 from django.conf import settings
-from ..models import Song, Artist, Playlist
+from catalog.models import Song, Artist, Playlist
 
 logger = logging.getLogger(__name__)
 
