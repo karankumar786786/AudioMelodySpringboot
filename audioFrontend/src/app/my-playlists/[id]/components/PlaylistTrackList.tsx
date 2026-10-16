@@ -30,11 +30,12 @@ export function PlaylistTrackList({
       {/* Header */}
       <div className="grid grid-cols-12 items-center border-b border-white/10 px-4 pb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
         <div className="col-span-1 text-center">#</div>
-        <div className="col-span-6 md:col-span-4 lg:col-span-3">Title</div>
-        <div className="col-span-3 hidden md:block lg:col-span-3">Artist</div>
-        <div className="col-span-2 hidden md:block">Album</div>
+        <div className="col-span-7 sm:col-span-5 md:col-span-4 lg:col-span-3">Title</div>
+        <div className="col-span-2 hidden md:block">Artist</div>
+        <div className="col-span-2 hidden lg:block">Album</div>
         <div className="col-span-1 hidden xl:block">Genre</div>
-        <div className="col-span-5 text-right md:col-span-2 lg:col-span-3 xl:col-span-2">
+        <div className="col-span-3 sm:col-span-3 md:col-span-3 lg:col-span-2 xl:col-span-2 hidden sm:block text-right">Plays</div>
+        <div className="col-span-4 sm:col-span-3 md:col-span-2 lg:col-span-2 xl:col-span-1 text-right">
           <Clock size={16} className="ml-auto" />
         </div>
       </div>

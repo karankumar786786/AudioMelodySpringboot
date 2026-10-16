@@ -4,10 +4,10 @@ import { use, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import { motion } from "framer-motion";
-import { Play, Pause, Clock, Disc, Share2, Music, Sparkles } from "lucide-react";
+import { Play, Pause, Clock, Disc, Share2, Music, Sparkles, Headphones } from "lucide-react";
 import { musicApi, Song } from "@/lib/api";
 import { getImageUrl } from "@/lib/image-utils";
-import { formatDuration, mapListToPlayerSongs } from "@/lib/player-utils";
+import { formatDuration, formatStreamCount, mapListToPlayerSongs } from "@/lib/player-utils";
 import { playerActions, playerStore } from "@/store/player.store";
 import { previewPlayer } from "@/lib/preview-player";
 import { SongThumbnail } from "@/components/SongThumbnail";
@@ -33,6 +33,10 @@ export default function AlbumPage({ params }: AlbumPageProps) {
 
   const totalDuration = useMemo(() => {
     return songs.reduce((acc, song) => acc + (Number(song.duration) || 0), 0);
+  }, [songs]);
+
+  const totalStreams = useMemo(() => {
+    return songs.reduce((acc, song) => acc + (Number(song.totalStreams) || 0), 0);
   }, [songs]);
 
   const artistName = useMemo(() => {
@@ -202,6 +206,11 @@ export default function AlbumPage({ params }: AlbumPageProps) {
               <span>{songs.length} {songs.length === 1 ? "track" : "tracks"}</span>
               <span>•</span>
               <span>{formatDuration(totalDuration)}</span>
+              <span>•</span>
+              <span className="flex items-center gap-1.5 text-zinc-300">
+                <Headphones size={13} className="text-primary" />
+                <span>{formatStreamCount(totalStreams, false, true)}</span>
+              </span>
 
               {/* Action Buttons */}
               <button
@@ -235,10 +244,11 @@ export default function AlbumPage({ params }: AlbumPageProps) {
         {/* Table Header */}
         <div className="grid grid-cols-12 items-center border-b border-white/10 px-4 pb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
           <div className="col-span-1 text-center">#</div>
-          <div className="col-span-6 md:col-span-5 lg:col-span-4">Title</div>
+          <div className="col-span-7 sm:col-span-5 md:col-span-4 lg:col-span-4">Title</div>
           <div className="col-span-3 hidden md:block lg:col-span-3">Artist</div>
-          <div className="col-span-2 hidden lg:block">Genre</div>
-          <div className="col-span-5 text-right md:col-span-3 lg:col-span-2">
+          <div className="col-span-1 hidden lg:block">Genre</div>
+          <div className="col-span-3 sm:col-span-3 md:col-span-3 lg:col-span-2 hidden sm:block text-right">Plays</div>
+          <div className="col-span-4 sm:col-span-3 md:col-span-1 lg:col-span-2 text-right">
             <Clock size={16} className="ml-auto" />
           </div>
         </div>
@@ -294,7 +304,7 @@ export default function AlbumPage({ params }: AlbumPageProps) {
                 </div>
 
                 {/* Title */}
-                <div className="col-span-6 flex min-w-0 items-center gap-3 md:col-span-5 lg:col-span-4">
+                <div className="col-span-7 flex min-w-0 items-center gap-3 sm:col-span-5 md:col-span-4 lg:col-span-4">
                   <SongThumbnail
                     song={song}
                     sizeClass="h-10 w-10"
@@ -310,9 +320,8 @@ export default function AlbumPage({ params }: AlbumPageProps) {
                     >
                       {song.title}
                     </h4>
-                    <p className="mt-0.5 truncate text-xs text-zinc-400 md:hidden">
-                      {song.artistName}
-                      {song.genre ? ` • ${song.genre}` : ""}
+                    <p className="mt-0.5 truncate text-xs text-zinc-400 sm:hidden">
+                      {[song.artistName, formatStreamCount(song.totalStreams)].filter(Boolean).join(" • ")}
                     </p>
                   </div>
                 </div>
@@ -325,19 +334,21 @@ export default function AlbumPage({ params }: AlbumPageProps) {
                 </div>
 
                 {/* Genre */}
-                <div className="col-span-2 hidden min-w-0 lg:block">
+                <div className="col-span-1 hidden min-w-0 lg:block">
                   <span className="block truncate text-xs text-zinc-400 group-hover:text-zinc-300">
                     {song.genre || "—"}
                   </span>
                 </div>
 
+                {/* Plays */}
+                <div className="col-span-3 sm:col-span-3 md:col-span-3 lg:col-span-2 hidden sm:flex items-center justify-end font-mono text-xs text-zinc-400">
+                  <span className="text-zinc-300 font-medium">
+                    {formatStreamCount(song.totalStreams)}
+                  </span>
+                </div>
+
                 {/* Duration */}
-                <div className="col-span-5 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-3 lg:col-span-2">
-                  {typeof song.totalStreams === "number" && (
-                    <span className="hidden sm:inline-block font-mono text-[11px] text-zinc-500">
-                      {song.totalStreams.toLocaleString()} plays
-                    </span>
-                  )}
+                <div className="col-span-4 sm:col-span-3 md:col-span-1 lg:col-span-2 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400">
                   <span>{formatDuration(song.duration)}</span>
                 </div>
               </motion.div>

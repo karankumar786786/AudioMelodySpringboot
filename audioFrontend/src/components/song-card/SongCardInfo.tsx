@@ -2,7 +2,9 @@
 
 import React from "react";
 import Link from "next/link";
+import { Play } from "lucide-react";
 import type { Song } from "@/lib/api";
+import { formatStreamCount } from "@/lib/player-utils";
 
 interface SongCardInfoProps {
   song: Song;
@@ -36,6 +38,18 @@ export function SongCardInfo({ song, isActiveSong }: SongCardInfoProps) {
         )}
         {song.genre && <span className="text-zinc-500 font-normal"> • {song.genre}</span>}
       </p>
+      <div className="flex items-center gap-1.5 text-[10.5px] text-zinc-500 font-mono pt-0.5">
+        <span
+          className="inline-flex items-center gap-1 text-zinc-400"
+          title={`${(song.totalStreams || 0).toLocaleString()} total streams`}
+        >
+          <Play size={8.5} className="fill-emerald-400 text-emerald-400 shrink-0" />
+          <span className="text-emerald-400 font-semibold">
+            {formatStreamCount(song.totalStreams)}
+          </span>
+        </span>
+      </div>
     </div>
   );
 }
+

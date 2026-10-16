@@ -2,8 +2,8 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { Users, Play, Check, UserPlus, Loader2 } from "lucide-react";
-import { formatDuration } from "@/lib/player-utils";
+import { Users, Play, Check, UserPlus, Loader2, Headphones } from "lucide-react";
+import { formatDuration, formatStreamCount } from "@/lib/player-utils";
 import type { Artist, Song } from "@/lib/api/types";
 
 interface ArtistHeroProps {
@@ -108,6 +108,20 @@ export const ArtistHero: React.FC<ArtistHeroProps> = ({
 
             {songs.length > 0 && (
               <>
+                <span>•</span>
+                <span
+                  className="font-semibold text-emerald-400 flex items-center gap-1.5"
+                  title="Total artist streams across all tracks"
+                >
+                  <Headphones size={13} className="text-emerald-400 shrink-0" />
+                  {formatStreamCount(
+                    songs.reduce(
+                      (total: number, song: any) =>
+                        total + (Number(song.totalStreams) || 0),
+                      0
+                    )
+                  )}
+                </span>
                 <span>•</span>
                 <span>
                   {formatDuration(

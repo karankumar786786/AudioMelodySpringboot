@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Music, Sparkles, Video, Film, Clock, Star, Edit2, Trash2 } from "lucide-react";
+import { Loader2, Music, Sparkles, Video, Film, Clock, Star, Edit2, Trash2, Play } from "lucide-react";
 import { getImageUrl } from "@/lib/image-utils";
 import type { Song } from "../types";
 
@@ -172,7 +172,14 @@ export function SongsGrid({
             </p>
 
             <div className="flex items-center justify-between text-[11px] text-zinc-500 pt-1 border-t border-[#1e1e1e]">
-              <span className="font-mono">{formatDuration(song.duration)}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-mono">{formatDuration(song.duration)}</span>
+                <span className="text-zinc-600">•</span>
+                <span className="flex items-center gap-1 font-mono text-[10px] text-zinc-400" title="Total streams">
+                  <Play className="w-2.5 h-2.5 text-emerald-400 fill-emerald-400" />
+                  {(song.totalStreams ?? 0).toLocaleString()}
+                </span>
+              </div>
               <div className="flex items-center gap-1.5">
                 {song.language && (
                   <span className="bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded text-[10px]">

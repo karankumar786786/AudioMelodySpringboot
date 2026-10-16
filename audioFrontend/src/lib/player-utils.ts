@@ -128,3 +128,39 @@ export function getFullVideoDashUrl(song: any): string | undefined {
   if (!fullVideoKey) return undefined;
   return `${S3_BASE_URL}/${fullVideoKey}/master.mpd`;
 }
+
+/**
+ * Formats stream/play counts into a clean, professional string.
+ * Example:
+ *   formatStreamCount(0) => "0 plays"
+ *   formatStreamCount(1) => "1 play"
+ *   formatStreamCount(1420) => "1,420 plays"
+ *   formatStreamCount(15200) => "15.2K plays"
+ *   formatStreamCount(1200000) => "1.2M plays"
+ */
+export function formatStreamCount(
+  val?: number | string | null,
+  compact: boolean = false,
+  includeLabel: boolean = true
+): string {
+  if (val === undefined || val === null || val === "") {
+    return includeLabel ? "0 plays" : "0";
+  }
+  const num = typeof val === "string" ? parseInt(val, 10) : Math.floor(Number(val));
+  if (isNaN(num) || !isFinite(num) || num <= 0) {
+    return includeLabel ? "0 plays" : "0";
+  }
+
+  let formatted: string;
+  if (num >= 1_000_000) {
+    formatted = `${(num / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+  } else if (compact || num >= 10_000) {
+    formatted = `${(num / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
+  } else {
+    formatted = num.toLocaleString();
+  }
+
+  if (!includeLabel) return formatted;
+  return num === 1 ? "1 play" : `${formatted} plays`;
+}
+

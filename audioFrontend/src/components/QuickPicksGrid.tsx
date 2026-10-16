@@ -6,7 +6,7 @@ import { Loader2, Pause, Play } from "lucide-react";
 import type React from "react";
 import type { Song } from "../lib/api";
 import { getImageUrl } from "../lib/image-utils";
-import { mapToPlayerSong } from "../lib/player-utils";
+import { mapToPlayerSong, formatStreamCount } from "../lib/player-utils";
 import { previewPlayer, previewStore } from "../lib/preview-player";
 import { playerActions, playerStore } from "../store/player.store";
 
@@ -120,7 +120,7 @@ export function QuickPicksGrid({
             className={`group relative flex items-center h-11 sm:h-12 rounded-lg overflow-hidden transition-all duration-200 cursor-pointer border ${
               isCurrent || isPreviewPlaying
                 ? "bg-white/15 border-white/25 shadow-md"
-                : "bg-white/[0.06] hover:bg-white/[0.12] border-white/5 hover:border-white/10"
+                : "bg-white/6 hover:bg-white/12 border-white/5 hover:border-white/10"
             }`}
           >
             {/* Left Cover Artwork */}
@@ -167,12 +167,15 @@ export function QuickPicksGrid({
                 )}
               </div>
               <p
-                className="text-[10.5px] sm:text-[11px] text-zinc-400 truncate mt-0.5 font-medium"
+                className="text-[10.5px] sm:text-[11px] text-zinc-400 truncate mt-0.5 font-medium flex items-center gap-1.5"
                 title={[song.artistName || "Unknown Artist", song.album, song.genre].filter(Boolean).join(" • ")}
               >
-                {song.artistName || "Unknown Artist"}
-                {song.album && <span className="text-zinc-400 font-normal"> • {song.album}</span>}
-                {song.genre && <span className="text-zinc-500 font-normal"> • {song.genre}</span>}
+                <span className="truncate">{song.artistName || "Unknown Artist"}</span>
+                <span className="text-zinc-600 shrink-0">•</span>
+                <span className="text-emerald-400 font-mono text-[10px] shrink-0 font-semibold">
+                  {formatStreamCount(song.totalStreams)}
+                </span>
+                {song.album && <span className="text-zinc-500 font-normal truncate hidden sm:inline"> • {song.album}</span>}
               </p>
             </div>
 

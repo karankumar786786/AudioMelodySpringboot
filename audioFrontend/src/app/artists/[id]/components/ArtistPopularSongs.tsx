@@ -4,7 +4,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Play, Pause, Clock, Music } from "lucide-react";
 import Link from "next/link";
-import { formatDuration } from "@/lib/player-utils";
+import { formatDuration, formatStreamCount } from "@/lib/player-utils";
 import { SongThumbnail } from "@/components/SongThumbnail";
 import type { Song } from "@/lib/api/types";
 
@@ -34,10 +34,11 @@ export const ArtistPopularSongs: React.FC<ArtistPopularSongsProps> = ({
 
       <div className="grid grid-cols-12 items-center border-b border-white/10 px-4 pb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
         <div className="col-span-1 text-center">#</div>
-        <div className="col-span-6 md:col-span-5">Title</div>
+        <div className="col-span-6 sm:col-span-6 md:col-span-5 lg:col-span-4">Title</div>
         <div className="col-span-3 hidden md:block">Album</div>
         <div className="col-span-1 hidden lg:block">Genre</div>
-        <div className="col-span-5 text-right md:col-span-3 lg:col-span-2">
+        <div className="col-span-3 sm:col-span-3 md:col-span-2 hidden sm:block text-right">Plays</div>
+        <div className="col-span-5 sm:col-span-2 md:col-span-1 text-right">
           <Clock size={16} className="ml-auto" />
         </div>
       </div>
@@ -86,7 +87,7 @@ export const ArtistPopularSongs: React.FC<ArtistPopularSongsProps> = ({
                 </div>
 
                 {/* Title */}
-                <div className="col-span-6 flex min-w-0 items-center gap-3 md:col-span-5">
+                <div className="col-span-6 flex min-w-0 items-center gap-3 sm:col-span-6 md:col-span-5 lg:col-span-4">
                   <SongThumbnail
                     song={song}
                     sizeClass="h-11 w-11"
@@ -133,13 +134,18 @@ export const ArtistPopularSongs: React.FC<ArtistPopularSongsProps> = ({
                   </span>
                 </div>
 
-                {/* Duration & Actions */}
-                <div className="col-span-5 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-3 lg:col-span-2">
-                  {typeof song.totalStreams === "number" && (
-                    <span className="hidden sm:inline-block font-mono text-[11px] text-zinc-500">
-                      {song.totalStreams.toLocaleString()} plays
-                    </span>
-                  )}
+                {/* Plays */}
+                <div className="col-span-3 sm:col-span-3 md:col-span-2 hidden sm:flex items-center justify-end font-mono text-xs text-zinc-400">
+                  <span className="text-zinc-300 font-medium">
+                    {formatStreamCount(song.totalStreams)}
+                  </span>
+                </div>
+
+                {/* Duration */}
+                <div className="col-span-5 sm:col-span-2 md:col-span-1 flex items-center justify-end gap-2 text-xs tabular-nums text-zinc-400">
+                  <span className="sm:hidden font-mono text-[11px] text-zinc-500">
+                    {formatStreamCount(song.totalStreams)}
+                  </span>
                   <span>{formatDuration(song.duration)}</span>
                 </div>
               </motion.div>

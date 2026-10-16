@@ -2,8 +2,8 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { Play } from "lucide-react";
-import { formatDuration } from "@/lib/player-utils";
+import { Play, Headphones } from "lucide-react";
+import { formatDuration, formatStreamCount } from "@/lib/player-utils";
 import type { Playlist, Song } from "@/lib/api/types";
 
 interface PlaylistHeroBannerProps {
@@ -94,12 +94,26 @@ export const PlaylistHeroBanner: React.FC<PlaylistHeroBannerProps> = ({
             {username || "OneMelody"}
           </span>
 
-          {playlist && playlist.totalSongs > 0 && (
+          {playlist && (playlist.totalSongs > 0 || songs.length > 0) && (
             <>
               <span>•</span>
               <span>
-                {playlist.totalSongs}{" "}
-                {playlist.totalSongs === 1 ? "song" : "songs"}
+                {playlist.totalSongs || songs.length}{" "}
+                {(playlist.totalSongs || songs.length) === 1 ? "song" : "songs"}
+              </span>
+              <span>•</span>
+              <span
+                className="font-semibold text-emerald-400 flex items-center gap-1.5"
+                title="Total streams across playlist"
+              >
+                <Headphones size={13} className="text-emerald-400 shrink-0" />
+                {formatStreamCount(
+                  songs.reduce(
+                    (total: number, song: any) =>
+                      total + (Number(song.totalStreams) || 0),
+                    0
+                  )
+                )}
               </span>
               <span>•</span>
               <span>
@@ -107,14 +121,14 @@ export const PlaylistHeroBanner: React.FC<PlaylistHeroBannerProps> = ({
                   songs.reduce(
                     (total: number, song: any) =>
                       total + (Number(song.duration) || 0),
-                    0,
-                  ),
+                    0
+                  )
                 )}
               </span>
 
               <button
                 onClick={onStreamAll}
-                className="ml-3 flex items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-white/80"
+                className="ml-3 flex items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-white/80 cursor-pointer shadow-lg active:scale-95"
               >
                 <Play size={16} fill="black" />
                 Play All

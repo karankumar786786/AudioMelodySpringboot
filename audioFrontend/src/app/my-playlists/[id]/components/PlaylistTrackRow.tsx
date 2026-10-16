@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Pause, Play, Trash2 } from "lucide-react";
-import { formatDuration } from "@/lib/player-utils";
+import { formatDuration, formatStreamCount } from "@/lib/player-utils";
 import { SongThumbnail } from "@/components/SongThumbnail";
 
 interface PlaylistTrackRowProps {
@@ -55,7 +55,7 @@ export function PlaylistTrackRow({
       </div>
 
       {/* Title */}
-      <div className="col-span-6 flex min-w-0 items-center gap-3 md:col-span-4 lg:col-span-3">
+      <div className="col-span-7 flex min-w-0 items-center gap-3 sm:col-span-5 md:col-span-4 lg:col-span-3">
         <SongThumbnail
           song={song}
           sizeClass="h-11 w-11"
@@ -67,21 +67,21 @@ export function PlaylistTrackRow({
           <h4 className={`truncate text-sm font-medium transition-colors ${isActive ? "text-primary" : "text-white"}`}>
             {song.title}
           </h4>
-          <p className="mt-0.5 truncate text-xs text-zinc-400 md:hidden">
-            {[song.artistName, song.album, song.genre].filter(Boolean).join(" • ")}
+          <p className="mt-0.5 truncate text-xs text-zinc-400 sm:hidden">
+            {[song.artistName, formatStreamCount(song.totalStreams)].filter(Boolean).join(" • ")}
           </p>
         </div>
       </div>
 
       {/* Artist */}
-      <div className="col-span-3 hidden min-w-0 md:block lg:col-span-3">
+      <div className="col-span-2 hidden min-w-0 md:block">
         <span className="block truncate text-sm text-zinc-400 transition-colors group-hover:text-white">
           {song.artistName}
         </span>
       </div>
 
       {/* Album */}
-      <div className="col-span-2 hidden min-w-0 md:block">
+      <div className="col-span-2 hidden min-w-0 lg:block">
         {song.album ? (
           <Link
             href={`/albums/${encodeURIComponent(song.album)}`}
@@ -103,8 +103,15 @@ export function PlaylistTrackRow({
         </span>
       </div>
 
+      {/* Plays */}
+      <div className="col-span-3 sm:col-span-3 md:col-span-3 lg:col-span-2 xl:col-span-2 hidden sm:flex items-center justify-end font-mono text-xs text-zinc-400">
+        <span className="text-zinc-300 font-medium">
+          {formatStreamCount(song.totalStreams)}
+        </span>
+      </div>
+
       {/* Duration / Actions */}
-      <div className="col-span-5 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-2 lg:col-span-3 xl:col-span-2">
+      <div className="col-span-4 sm:col-span-3 md:col-span-2 lg:col-span-2 xl:col-span-1 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400">
         {isOwner && (
           <button
             onClick={(e) => {
@@ -116,11 +123,6 @@ export function PlaylistTrackRow({
           >
             <Trash2 size={14} />
           </button>
-        )}
-        {typeof song.totalStreams === "number" && (
-          <span className="hidden sm:inline-block font-mono text-[11px] text-zinc-500">
-            {song.totalStreams.toLocaleString()} plays
-          </span>
         )}
         <span>{formatDuration(song.duration)}</span>
       </div>
