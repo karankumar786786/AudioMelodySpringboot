@@ -1,20 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
-import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { musicApi } from "@/lib/api";
+import { musicApi, type Song } from "@/lib/api";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
-import { Play, Pause, Trash2, Clock, Music } from "lucide-react";
 import { playerActions, playerStore } from "@/store/player.store";
-import { mapListToPlayerSongs, formatDuration } from "@/lib/player-utils";
+import { mapListToPlayerSongs } from "@/lib/player-utils";
 import { useStore } from "@tanstack/react-store";
 import { toast } from "sonner";
 import { getImageUrl, getVideoUrl } from "@/lib/image-utils";
 import { previewPlayer } from "@/lib/preview-player";
 import { NotFoundPage, ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
-import { SongThumbnail } from "@/components/SongThumbnail";
+import { PlaylistHeroBanner, PlaylistTrackTable } from "./components";
 
 export default function PlaylistPage() {
   const { id } = useParams();
@@ -80,7 +77,7 @@ export default function PlaylistPage() {
   const {
     data: songsResponse,
     isLoading: isSongsLoading,
-    error: songsError,
+    error: _songsError,
     refetch: refetchSongs,
   } = useQuery({
     queryKey: ["playlist-songs", id, playlistType],
@@ -98,18 +95,6 @@ export default function PlaylistPage() {
       } catch {
         return await musicApi.users.getPlaylistSongs(id as string);
       }
-    },
-  });
-
-  /* -------------------------------------------------------------------------- */
-  /*                               DELETE PLAYLIST                              */
-  /* -------------------------------------------------------------------------- */
-
-  const deletePlaylist = useMutation({
-    mutationFn: () => musicApi.users.deletePlaylist(id as string),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
-      router.push("/playlists");
     },
   });
 
@@ -227,287 +212,37 @@ export default function PlaylistPage() {
     playerActions.playAllFrom(playerSongs, index);
   };
 
-  /* -------------------------------------------------------------------------- */
-  /*                                   UI                                       */
-  /* -------------------------------------------------------------------------- */
+  const handleRemoveSong = (songId: string, songTitle: string) => {
+    toast.promise(removeSong.mutateAsync(songId), {
+      loading: "Removing track...",
+      success: "Track Removed",
+      error: "Failed to remove",
+      description: `"${songTitle}" removed from playlist.`,
+    });
+  };
 
   return (
     <div className="min-h-full pb-24 mx-2">
-      {/* ====================================================================== */}
-      {/*                    HERO — full-bleed background video / image         */}
-      {/* ====================================================================== */}
+      {/* Hero Banner */}
+      <PlaylistHeroBanner
+        playlist={playlist}
+        songs={songs}
+        videoUrl={videoUrl}
+        coverUrl={coverUrl}
+        isUserPlaylist={Boolean(isUserPlaylist)}
+        username={systemUser?.username}
+        onStreamAll={handleStreamAll}
+      />
 
-      <section className="relative h-[45vh] min-h-40 max-h-115 w-full overflow-hidden rounded-2xl">
-        {/* Background video / image */}
-        {videoUrl ? (
-          <video
-            src={videoUrl}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        ) : coverUrl ? (
-          <img
-            src={coverUrl}
-            alt=""
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-zinc-900" />
-        )}
-
-        {/* Gradient only where it's needed: behind the text, and fading
-            the bottom of the hero into the page background. No gradient
-            is applied over the rest of the image. */}
-        {(videoUrl || coverUrl) && (
-          <>
-            <div className="absolute inset-x-0 bottom-0 h-3/4 bg-linear-to-t from-black via-black/70 to-transparent" />
-            <div className="absolute inset-0 bg-black/10" />
-          </>
-        )}
-
-        {/* Content, pinned to the bottom of the image like a Netflix title card */}
-        <div className="relative z-10 flex h-full flex-col justify-end px-8 pb-6 md:px-12 md:pb-8">
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35 }}
-            className="mb-2 text-xs font-semibold uppercase tracking-wider text-white/80"
-          >
-            {isUserPlaylist ? "Playlist" : "Public Playlist"}
-          </motion.p>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.05 }}
-            className="max-w-3xl wrap-break-word text-3xl font-black tracking-tight text-white drop-shadow-lg md:text-5xl"
-          >
-            {playlist?.title || playlist?.name}
-          </motion.h1>
-
-          <motion.p
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.1 }}
-            className="mt-2 max-w-xl text-sm leading-relaxed text-white/80"
-          >
-            {playlist?.description || "A curated playlist of songs."}
-          </motion.p>
-
-          <motion.div
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.35, delay: 0.15 }}
-            className="mt-3 flex flex-wrap items-center gap-2 text-xs text-white/80"
-          >
-            <span className="font-semibold">
-              {systemUser?.username || "OneMelody"}
-            </span>
-
-            {playlist && playlist.totalSongs > 0 && (
-              <>
-                <span>•</span>
-                <span>
-                  {playlist.totalSongs}{" "}
-                  {playlist.totalSongs === 1 ? "song" : "songs"}
-                </span>
-                <span>•</span>
-                <span>
-                  {formatDuration(
-                    songs.reduce(
-                      (total: number, song: any) =>
-                        total + (Number(song.duration) || 0),
-                      0,
-                    ),
-                  )}
-                </span>
-
-                <button
-                  onClick={handleStreamAll}
-                  className="ml-3 flex items-center gap-1.5 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-black transition-colors hover:bg-white/80"
-                >
-                  <Play size={16} fill="black" />
-                  Play All
-                </button>
-              </>
-            )}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ====================================================================== */}
-      {/*                              TRACK LIST                                */}
-      {/* ====================================================================== */}
-
-      <section className="px-6 pb-10 pt-4 md:px-10">
-        {/* Header */}
-        <div className="grid grid-cols-12 items-center border-b border-white/10 px-4 pb-3 text-xs font-medium uppercase tracking-wider text-zinc-500">
-          <div className="col-span-1 text-center">#</div>
-          <div className="col-span-6 md:col-span-4 lg:col-span-3">Title</div>
-          <div className="col-span-3 hidden md:block lg:col-span-3">Artist</div>
-          <div className="col-span-2 hidden md:block">Album</div>
-          <div className="col-span-1 hidden xl:block">Genre</div>
-          <div className="col-span-5 text-right md:col-span-2 lg:col-span-3 xl:col-span-2">
-            <Clock size={16} className="ml-auto" />
-          </div>
-        </div>
-
-        {/* Songs */}
-        <div className="mt-2 flex flex-col">
-          {songs.length > 0 ? (
-            songs.map((song: any, index: number) => {
-              const isActive = currentSong?.id === song.id;
-              const isCurrentPlaying = isActive && isPlaying;
-
-              const songImage = getImageUrl(
-                song.imageKey || song.coverImageKey,
-                {
-                  width: 100,
-                  height: 100,
-                  aspectRatio: "1-1",
-                },
-              );
-
-              return (
-                <motion.div
-                  key={song.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{
-                    duration: 0.2,
-                    delay: Math.min(index * 0.015, 0.3),
-                  }}
-                  onClick={() => handlePlaySong(song, index)}
-                  className={`group grid cursor-pointer grid-cols-12 items-center rounded-md px-4 py-2.5 transition-colors duration-150 ${
-                    isActive ? "bg-white/10" : "hover:bg-white/[0.07]"
-                  }`}
-                >
-                  {/* INDEX */}
-                  <div className="col-span-1 flex items-center justify-center">
-                    {isActive ? (
-                      isCurrentPlaying ? (
-                        <Pause
-                           size={14}
-                          className="text-primary"
-                          fill="currentColor"
-                        />
-                      ) : (
-                        <Play
-                          size={14}
-                          className="text-primary"
-                          fill="currentColor"
-                        />
-                      )
-                    ) : (
-                      <>
-                        <span className="text-xs text-zinc-500 group-hover:hidden">
-                          {index + 1}
-                        </span>
-                        <Play
-                          size={14}
-                          fill="white"
-                          className="hidden text-white group-hover:block"
-                        />
-                      </>
-                    )}
-                  </div>
-
-                  {/* TITLE */}
-                  <div className="col-span-6 flex min-w-0 items-center gap-3 md:col-span-4 lg:col-span-3">
-                    <SongThumbnail
-                      song={song}
-                      sizeClass="h-11 w-11"
-                      roundedClass="rounded-md"
-                      enablePreviewHover={true}
-                      onPlayClick={() => handlePlaySong(song, index)}
-                    />
-
-                    <div className="min-w-0 flex-1">
-                      <h4
-                        className={`truncate text-sm font-medium transition-colors ${
-                          isActive ? "text-primary" : "text-white"
-                        }`}
-                      >
-                        {song.title}
-                      </h4>
-                      <p className="mt-0.5 truncate text-xs text-zinc-400 md:hidden">
-                        {[song.artistName, song.album, song.genre].filter(Boolean).join(" • ")}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* ARTIST */}
-                  <div className="col-span-3 hidden min-w-0 md:block lg:col-span-3">
-                    <span className="block truncate text-sm text-zinc-400 transition-colors group-hover:text-white">
-                      {song.artistName}
-                    </span>
-                  </div>
-
-                  {/* ALBUM */}
-                  <div className="col-span-2 hidden min-w-0 md:block">
-                    {song.album ? (
-                      <Link
-                        href={`/albums/${encodeURIComponent(song.album)}`}
-                        onClick={(e) => e.stopPropagation()}
-                        className="block truncate text-sm text-zinc-400 hover:text-white hover:underline transition-colors"
-                        title={`View Album: ${song.album}`}
-                      >
-                        {song.album}
-                      </Link>
-                    ) : (
-                      <span className="block truncate text-sm text-zinc-500">—</span>
-                    )}
-                  </div>
-
-                  {/* GENRE */}
-                  <div className="col-span-1 hidden min-w-0 xl:block">
-                    <span className="block truncate text-xs text-zinc-400 transition-colors group-hover:text-zinc-300">
-                      {song.genre || "—"}
-                    </span>
-                  </div>
-
-                  {/* DURATION / ACTIONS */}
-                  <div className="col-span-5 flex items-center justify-end gap-3 text-xs tabular-nums text-zinc-400 md:col-span-2 lg:col-span-3 xl:col-span-2">
-                    {isUserPlaylist && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toast.promise(removeSong.mutateAsync(song.id), {
-                            loading: "Removing track...",
-                            success: "Track Removed",
-                            error: "Failed to remove",
-                            description: `"${song.title}" removed from playlist.`,
-                          });
-                        }}
-                        className="hidden rounded p-1 text-zinc-500 transition-colors hover:text-red-400 group-hover:block"
-                        title="Remove from playlist"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                    {typeof song.totalStreams === "number" && (
-                      <span className="hidden sm:inline-block font-mono text-[11px] text-zinc-500">
-                        {song.totalStreams.toLocaleString()} plays
-                      </span>
-                    )}
-                    <span>{formatDuration(song.duration)}</span>
-                  </div>
-                </motion.div>
-              );
-            })
-          ) : (
-            <div className="rounded-xl border border-dashed border-white/10 py-20 text-center">
-              <Music size={40} className="mx-auto mb-4 text-zinc-700" />
-              <p className="text-sm text-zinc-500">
-                No songs in this playlist yet
-              </p>
-            </div>
-          )}
-        </div>
-      </section>
+      {/* Track List */}
+      <PlaylistTrackTable
+        songs={songs}
+        currentSong={currentSong}
+        isPlaying={isPlaying}
+        isUserPlaylist={Boolean(isUserPlaylist)}
+        onPlaySong={handlePlaySong}
+        onRemoveSong={handleRemoveSong}
+      />
     </div>
   );
 }

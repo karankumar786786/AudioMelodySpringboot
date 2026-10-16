@@ -82,7 +82,7 @@ export const UpcomingQueueList: React.FC<UpcomingQueueListProps> = ({
             {[1, 2, 3].map((idx) => (
               <div
                 key={`empty-refill-skeleton-${idx}`}
-                className="flex items-center gap-2.5 rounded-lg border border-white/5 bg-white/[0.03] p-2 animate-pulse"
+                className="flex items-center gap-2.5 rounded-lg border border-white/5 bg-white/3 p-2 animate-pulse"
               >
                 <div className="w-8 h-8 rounded bg-white/10 shrink-0" />
                 <div className="min-w-0 flex-1 space-y-1.5">
@@ -188,7 +188,7 @@ export const UpcomingQueueList: React.FC<UpcomingQueueListProps> = ({
               {[1, 2, 3].map((idx) => (
                 <div
                   key={`refill-skeleton-${idx}`}
-                  className="flex items-center gap-2.5 rounded-lg border border-white/5 bg-white/[0.03] p-2 animate-pulse"
+                  className="flex items-center gap-2.5 rounded-lg border border-white/5 bg-white/3 p-2 animate-pulse"
                 >
                   <div className="w-8 h-8 rounded bg-white/10 shrink-0" />
                   <div className="min-w-0 flex-1 space-y-1.5">
