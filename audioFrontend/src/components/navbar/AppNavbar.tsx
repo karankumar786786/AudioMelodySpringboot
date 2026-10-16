@@ -74,17 +74,31 @@ export function AppNavbar() {
     },
   });
 
-  const handlePlaySong = (song: Song) => {
+  const handlePlaySong = async (song: Song) => {
     previewPlayer.stopPreview(true);
-    playerActions.playWithRadio(mapToPlayerSong(song));
+    let songToPlay: Song = song;
+
+    // Load full song details on-demand from the backend when clicked from Algolia search results
+    if (!song.songKey && song.id) {
+      try {
+        const res = await musicApi.songs.getById(song.id);
+        if (res?.data) {
+          songToPlay = { ...song, ...res.data };
+        }
+      } catch (err) {
+        console.warn("Failed to load song details from backend:", err);
+      }
+    }
+
+    playerActions.playWithRadio(mapToPlayerSong(songToPlay));
     toast.success("Playing Song Radio", {
-      description: `Starting infinite radio for "${song.title}"...`,
+      description: `Starting infinite radio for "${songToPlay.title}"...`,
     });
-    if (systemUser?.id && song.id) {
-      saveHistory.mutate({ type: "SONG", songId: song.id });
+    if (systemUser?.id && songToPlay.id) {
+      saveHistory.mutate({ type: "SONG", songId: songToPlay.id });
     }
     // Search Dwell Validation: Stage search conversion (only confirmed after >= 15s listening)
-    playerActions.stageSearchPlay(song.id);
+    playerActions.stageSearchPlay(songToPlay.id);
     setIsFocused(false);
   };
 

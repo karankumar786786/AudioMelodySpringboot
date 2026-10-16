@@ -242,17 +242,29 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     }
   }, [selectedIndex]);
 
-  const handleSelectItem = (item: NavigableItem) => {
+  const handleSelectItem = async (item: NavigableItem) => {
     previewPlayer.stopPreview(true);
     if (item.type === "song") {
-      playerActions.playWithRadio(mapToPlayerSong(item.data));
-      toast.success("Playing song radio", {
-        description: `Now playing "${item.title}" with infinite radio`,
-      });
-      if (systemUser?.id && item.data.id) {
-        saveHistory.mutate({ type: "SONG", songId: item.data.id });
+      let songToPlay: Song = item.data;
+      if (!songToPlay.songKey && songToPlay.id) {
+        try {
+          const res = await musicApi.songs.getById(songToPlay.id);
+          if (res?.data) {
+            songToPlay = { ...songToPlay, ...res.data };
+          }
+        } catch (err) {
+          console.warn("Failed to load song details from backend:", err);
+        }
       }
-      playerActions.stageSearchPlay(item.data.id);
+
+      playerActions.playWithRadio(mapToPlayerSong(songToPlay));
+      toast.success("Playing song radio", {
+        description: `Now playing "${songToPlay.title}" with infinite radio`,
+      });
+      if (systemUser?.id && songToPlay.id) {
+        saveHistory.mutate({ type: "SONG", songId: songToPlay.id });
+      }
+      playerActions.stageSearchPlay(songToPlay.id);
       onClose();
     } else if (item.type === "artist") {
       router.push(`/artists/${item.data.id}`);

@@ -153,6 +153,7 @@ public class AlgoliaSearch {
                 ? song.getSongMetadata().getTotalStreams()
                 : 0L;
         record.put("totalStreams", totalStreams);
+        record.put("listenCount", totalStreams);
         record.put("searchCount", 0L);
         searchClient.saveObject(indexName, record);
     }
@@ -313,6 +314,7 @@ public class AlgoliaSearch {
                     ? song.getSongMetadata().getTotalStreams()
                     : 0L;
             record.put("totalStreams", totalStreams);
+            record.put("listenCount", totalStreams);
             records.add(record);
         }
         if (!records.isEmpty()) {

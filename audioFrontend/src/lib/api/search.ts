@@ -79,7 +79,7 @@ export async function searchDirectAlgolia(query: string): Promise<UnifiedSearchR
           {
             indexName: config.indexName,
             query: trimmed,
-            filters: "type:playlist",
+            filters: "type:playlist OR type:userPlaylist",
             hitsPerPage: 6,
           },
         ],
@@ -96,10 +96,10 @@ export async function searchDirectAlgolia(query: string): Promise<UnifiedSearchR
       const songs: Song[] = songHits.map((hit: any) => ({
         id: hit.objectID || hit.id,
         title: hit.title || "",
-        artistName: hit.artistName || "",
+        artistName: hit.artistName || hit.artist || "",
         duration: hit.duration || 0,
         songKey: hit.songKey || "",
-        imageKey: hit.imageKey || "",
+        imageKey: hit.imageKey || hit.coverImageKey || "",
         videoKey: hit.videoKey || null,
         previewStartTime: typeof hit.previewStartTime === "number" ? hit.previewStartTime : undefined,
         previewEndTime: typeof hit.previewEndTime === "number" ? hit.previewEndTime : undefined,
@@ -107,7 +107,7 @@ export async function searchDirectAlgolia(query: string): Promise<UnifiedSearchR
         genre: hit.genre || null,
         language: hit.language || "",
         lrclibId: hit.lrclibId || "",
-        totalStreams: typeof hit.totalStreams === "number" ? hit.totalStreams : 0,
+        totalStreams: typeof hit.totalStreams === "number" ? hit.totalStreams : (typeof hit.listenCount === "number" ? hit.listenCount : 0),
       }));
 
       const artists: Artist[] = artistHits.map((hit: any) => ({
@@ -142,9 +142,7 @@ export async function searchDirectAlgolia(query: string): Promise<UnifiedSearchR
         }
       }
 
-      if (songs.length > 0 || artists.length > 0 || playlists.length > 0 || userPlaylists.length > 0) {
-        return { songs, artists, playlists, userPlaylists };
-      }
+      return { songs, artists, playlists, userPlaylists };
     }
   } catch {
     // Continue to single query fallback
@@ -184,14 +182,14 @@ export async function searchDirectAlgolia(query: string): Promise<UnifiedSearchR
 
       if (type === "song") {
         if (songs.length < 20) {
-          const streams = typeof hit.totalStreams === "number" ? hit.totalStreams : 0;
+          const streams = typeof hit.totalStreams === "number" ? hit.totalStreams : (typeof hit.listenCount === "number" ? hit.listenCount : 0);
           songs.push({
             id,
             title: hit.title || "",
-            artistName: hit.artistName || "",
+            artistName: hit.artistName || hit.artist || "",
             duration: hit.duration || 0,
             songKey: hit.songKey || "",
-            imageKey: hit.imageKey || "",
+            imageKey: hit.imageKey || hit.coverImageKey || "",
             videoKey: hit.videoKey || null,
             previewStartTime: typeof hit.previewStartTime === "number" ? hit.previewStartTime : undefined,
             previewEndTime: typeof hit.previewEndTime === "number" ? hit.previewEndTime : undefined,
@@ -251,19 +249,21 @@ export const searchApi = {
       return { data: { songs: [], artists: [], playlists: [], userPlaylists: [] } };
     }
 
-    // 1. Primary: Fetch from Spring Boot backend (/api/search?q=...)
-    // The backend uses Algolia for search ranking and hydrates full, rich entities directly
-    // from the PostgreSQL database (complete with songKey, album, genre, videoKey,
-    // previewStartTime, previewEndTime, real-time totalStreams, and artist followersCount).
+    // 1. PRIMARY: Direct Algolia search using Algolia Search API
+    // Instant client-side search with typo tolerance; avoids unnecessary database load while typing.
+    try {
+      const direct = await searchDirectAlgolia(trimmed);
+      if (direct !== null) {
+        return { data: direct };
+      }
+    } catch (err) {
+      console.warn("[Search] Direct Algolia search failed, falling back to backend:", err);
+    }
+
+    // 2. BACKEND FALLBACK: Only if direct Algolia is unreachable or credentials are missing
     try {
       const data = await request<UnifiedSearchResult>(`/api/search?q=${encodeURIComponent(trimmed)}`);
-      if (
-        data &&
-        ((data.songs && data.songs.length > 0) ||
-          (data.artists && data.artists.length > 0) ||
-          (data.playlists && data.playlists.length > 0) ||
-          (data.userPlaylists && data.userPlaylists.length > 0))
-      ) {
+      if (data) {
         return {
           data: {
             songs: data.songs || [],
@@ -274,23 +274,7 @@ export const searchApi = {
         };
       }
     } catch (err) {
-      console.warn("[Search] Backend search failed, falling back to direct Algolia query:", err);
-    }
-
-    // 2. Fallback: Direct Algolia search if backend /api/search was unreachable
-    try {
-      const direct = await searchDirectAlgolia(trimmed);
-      if (
-        direct &&
-        (direct.songs.length > 0 ||
-          direct.artists.length > 0 ||
-          direct.playlists.length > 0 ||
-          direct.userPlaylists.length > 0)
-      ) {
-        return { data: direct };
-      }
-    } catch {
-      // Return empty results
+      console.warn("[Search] Backend search fallback failed:", err);
     }
 
     return { data: { songs: [], artists: [], playlists: [], userPlaylists: [] } };

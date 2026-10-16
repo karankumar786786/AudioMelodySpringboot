@@ -1,5 +1,5 @@
 import { playerStore } from "./index";
-import { type PlayerSong } from "@/lib/player-utils";
+import { mapToPlayerSong, type PlayerSong } from "@/lib/player-utils";
 import { musicApi } from "@/lib/api";
 import { toast } from "sonner";
 import { previewPlayer } from "@/lib/preview-player";
@@ -21,14 +21,15 @@ export const playbackActions = {
         .getById(song.id)
         .then((res) => {
           if (res?.data?.songKey) {
+            const mapped = mapToPlayerSong(res.data);
             playerStore.setState((s) => ({
               ...s,
               currentSong:
                 s.currentSong?.id === song.id
-                  ? { ...s.currentSong, ...res.data }
+                  ? { ...s.currentSong, ...mapped }
                   : s.currentSong,
               queue: s.queue.map((item) =>
-                item.id === song.id ? { ...item, ...res.data } : item,
+                item.id === song.id ? { ...item, ...mapped } : item,
               ),
             }));
           }
