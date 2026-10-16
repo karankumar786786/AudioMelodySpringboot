@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import lombok.extern.slf4j.Slf4j;
+import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
 import me.one_org.melody.Entity.PaginationMetaData;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Entity.User;
@@ -31,17 +32,20 @@ public class InteractionApiService {
     private final SongsRepository songsRepository;
     private final UserHistoryRepository userHistoryRepository;
     private final PaginationMetaDataService paginationMetaDataService;
+    private final AlgoliaSearch algoliaSearch;
     private final ApplicationEventPublisher eventPublisher;
 
     public InteractionApiService(Recombee recombee, UsersRepository usersRepository,
                                   SongsRepository songsRepository, UserHistoryRepository userHistoryRepository,
                                   PaginationMetaDataService paginationMetaDataService,
+                                  AlgoliaSearch algoliaSearch,
                                   ApplicationEventPublisher eventPublisher) {
         this.recombee = recombee;
         this.usersRepository = usersRepository;
         this.songsRepository = songsRepository;
         this.userHistoryRepository = userHistoryRepository;
         this.paginationMetaDataService = paginationMetaDataService;
+        this.algoliaSearch = algoliaSearch;
         this.eventPublisher = eventPublisher;
     }
 
@@ -92,6 +96,11 @@ public class InteractionApiService {
 
     public void trackSearchPlay(String userId, String songId) {
         if (songId == null || songId.isBlank()) return;
+        try {
+            algoliaSearch.incrementSearchCount(songId);
+        } catch (Exception e) {
+            log.warn("Failed to increment search count in Algolia for song {}: {}", songId, e.getMessage());
+        }
 
         if (userId != null && !userId.isBlank()) {
             try {
@@ -104,6 +113,11 @@ public class InteractionApiService {
 
     public void trackSearchClick(String userId, String type, String entityId) {
         if (entityId == null || entityId.isBlank()) return;
+        try {
+            algoliaSearch.incrementSearchCount(entityId);
+        } catch (Exception e) {
+            log.warn("Failed to increment search count in Algolia for type {} id {}: {}", type, entityId, e.getMessage());
+        }
 
         if ("SONG".equalsIgnoreCase(type) && userId != null && !userId.isBlank()) {
             try {

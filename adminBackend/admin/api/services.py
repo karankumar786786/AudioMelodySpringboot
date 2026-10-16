@@ -772,6 +772,7 @@ class AlgoliaService:
                 "lrclibId": lrclib_id,
                 "jobId": s_jid,
                 "totalStreams": s_streams,
+                "searchCount": 0,
             }
             client.save_object(index_name=settings.ALGOLIA_INDEX_NAME, body=record)
             logger.info("Saved song [%s] to Algolia index", s_id)
@@ -788,6 +789,7 @@ class AlgoliaService:
                 "objectID": artist.id,
                 "type": "artist",
                 "name": artist.name,
+                "searchCount": 0,
             }
             client.save_object(index_name=settings.ALGOLIA_INDEX_NAME, body=record)
             logger.info("Saved artist [%s] to Algolia index", artist.id)
@@ -804,6 +806,7 @@ class AlgoliaService:
                 "objectID": playlist.id,
                 "type": "playlist",
                 "name": playlist.name,
+                "searchCount": 0,
             }
             client.save_object(index_name=settings.ALGOLIA_INDEX_NAME, body=record)
             logger.info("Saved playlist [%s] to Algolia index", playlist.id)
