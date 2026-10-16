@@ -1,4 +1,5 @@
 import { formatPaginated, request } from "./client";
+import { getAlgoliaConfig } from "./search";
 import type { Artist, ArtistFollowStatus, Song } from "./types";
 
 export const artistsApi = {
@@ -10,8 +11,77 @@ export const artistsApi = {
     const data = await request<Artist>(`/api/artists/${id}`);
     return { data };
   },
-  getSongs: async (id: string, page = 1, size = 20) => {
-    const res = await request(`/api/artists/${id}/songs?page=${page - 1}&size=${size}`);
+  getSongsFromAlgolia: async (artistName: string, page = 1, size = 50) => {
+    const config = await getAlgoliaConfig();
+    if (!config || !config.apiKey || !artistName?.trim()) return null;
+
+    try {
+      const url = `https://${config.appId}-dsn.algolia.net/1/indexes/${encodeURIComponent(config.indexName)}/query`;
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-algolia-application-id": config.appId,
+          "x-algolia-api-key": config.apiKey,
+        },
+        body: JSON.stringify({
+          query: artistName.trim(),
+          filters: "type:song",
+          restrictSearchableAttributes: ["artistName", "artist"],
+          hitsPerPage: size,
+          page: Math.max(0, page - 1),
+        }),
+      });
+
+      if (!response.ok) return null;
+      const data = await response.json();
+      const hits: any[] = data.hits || [];
+
+      const songs: Song[] = hits.map((hit: any) => ({
+        id: hit.objectID || hit.id,
+        title: hit.title || "",
+        artistName: hit.artistName || hit.artist || artistName,
+        duration: hit.duration || 0,
+        songKey: hit.songKey || "",
+        imageKey: hit.imageKey || hit.coverImageKey || "",
+        videoKey: hit.videoKey || null,
+        previewStartTime: typeof hit.previewStartTime === "number" ? hit.previewStartTime : undefined,
+        previewEndTime: typeof hit.previewEndTime === "number" ? hit.previewEndTime : undefined,
+        album: hit.album || null,
+        genre: hit.genre || null,
+        language: hit.language || "",
+        lrclibId: hit.lrclibId || "",
+        totalStreams: typeof hit.totalStreams === "number" ? hit.totalStreams : (typeof hit.listenCount === "number" ? hit.listenCount : 0),
+      }));
+
+      return {
+        data: {
+          data: songs,
+          pagination: {
+            page,
+            limit: size,
+            total: data.nbHits || songs.length,
+            hasNext: page * size < (data.nbHits || songs.length),
+          },
+        },
+      };
+    } catch (err) {
+      console.warn("[ArtistsApi] Direct Algolia artist songs query failed:", err);
+      return null;
+    }
+  },
+  getSongs: async (idOrName: string, page = 1, size = 50, artistName?: string) => {
+    // 1. Primary: Load artist songs directly from Algolia (instant, zero DB queries)
+    const targetQuery = artistName || idOrName;
+    if (targetQuery) {
+      const algoliaResult = await artistsApi.getSongsFromAlgolia(targetQuery, page, size);
+      if (algoliaResult && algoliaResult.data?.data && algoliaResult.data.data.length > 0) {
+        return algoliaResult;
+      }
+    }
+
+    // 2. Fallback: Load from backend database only if Algolia yields 0 results or fails
+    const res = await request(`/api/artists/${encodeURIComponent(idOrName)}/songs?page=${page - 1}&size=${size}`);
     return formatPaginated<Song>(res);
   },
   follow: async (idOrName: string) => {
