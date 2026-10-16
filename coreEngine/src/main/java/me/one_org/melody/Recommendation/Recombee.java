@@ -67,6 +67,8 @@ public class Recombee {
         registerPropertySafely("album", "string");
         registerPropertySafely("duration", "int");
         registerPropertySafely("totalStreams", "int");
+        registerPropertySafely("listenCount", "int");
+        registerPropertySafely("imageKey", "string");
     }
 
     private void registerPropertySafely(String name, String type) {
@@ -92,19 +94,26 @@ public class Recombee {
         if (song.getAlbum() != null && !song.getAlbum().isBlank()) {
             values.put("album", song.getAlbum());
         }
+        if (song.getImageKey() != null && !song.getImageKey().isBlank()) {
+            values.put("imageKey", song.getImageKey());
+        }
         if (song.getDuration() != null && song.getDuration() > 0) {
             values.put("duration", song.getDuration());
         }
         Long totalStreams = (song.getSongMetadata() != null && song.getSongMetadata().getTotalStreams() != null)
                 ? song.getSongMetadata().getTotalStreams()
                 : 0L;
-        values.put("totalStreams", (int) Math.min(totalStreams, Integer.MAX_VALUE));
+        int streams = (int) Math.min(totalStreams, Integer.MAX_VALUE);
+        values.put("totalStreams", streams);
+        values.put("listenCount", streams);
         recombeeClient.send(withTimeout(new SetItemValues(song.getId(), values).setCascadeCreate(true)));
     }
 
     public void updateTotalStreams(String songId, long totalStreams) throws Exception {
         Map<String, Object> values = new HashMap<>();
-        values.put("totalStreams", (int) Math.min(totalStreams, Integer.MAX_VALUE));
+        int streams = (int) Math.min(totalStreams, Integer.MAX_VALUE);
+        values.put("totalStreams", streams);
+        values.put("listenCount", streams);
         recombeeClient.send(withTimeout(new SetItemValues(songId, values).setCascadeCreate(true)));
     }
 

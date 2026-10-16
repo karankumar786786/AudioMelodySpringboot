@@ -1,6 +1,7 @@
 import logging
 from typing import Optional, List, Dict, Any
 from django.conf import settings
+# pyrefly: ignore[missing-import]
 from catalog.models import Song
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,18 @@ class RecombeeService:
         return cls._client
 
     @classmethod
-    def save_song(cls, song_id: str, title: str, artist_name: str, language: str, genre: Optional[str] = None, duration: Optional[int] = None) -> None:
+    def save_song(
+        cls,
+        song_id: str,
+        title: str,
+        artist_name: str,
+        language: str,
+        genre: Optional[str] = None,
+        duration: Optional[int] = None,
+        album: Optional[str] = None,
+        image_key: Optional[str] = None,
+        total_streams: Optional[int] = 0,
+    ) -> None:
         client = cls.get_client()
         if not client:
             return
@@ -26,15 +38,22 @@ class RecombeeService:
         values = {
             "title": title,
             "artistName": artist_name,
-            "language": language,
+            "language": language or "",
         }
         if genre and genre.strip():
             values["genre"] = genre.strip()
+        if album and album.strip():
+            values["album"] = album.strip()
+        if image_key and image_key.strip():
+            values["imageKey"] = image_key.strip()
         if duration and duration > 0:
-            values["duration"] = duration
+            values["duration"] = int(duration)
+        if total_streams is not None:
+            values["totalStreams"] = int(total_streams)
+            values["listenCount"] = int(total_streams)
         try:
             client.send(SetItemValues(song_id, values, cascade_create=True))
-            logger.info("Saved song [%s] to Recombee catalogue", song_id)
+            logger.info("Saved song [%s] to Recombee catalogue with full metadata", song_id)
         except Exception as e:
             logger.warning("Recombee save song [%s] failed: %s", song_id, e)
 
@@ -73,17 +92,27 @@ class RecombeeService:
             vals = {
                 "title": s.title,
                 "artistName": s.artist_name,
-                "language": s.language,
+                "language": s.language or "",
             }
             if s.genre and s.genre.strip():
                 vals["genre"] = s.genre.strip()
+            if s.album and s.album.strip():
+                vals["album"] = s.album.strip()
+            if s.image_key and s.image_key.strip():
+                vals["imageKey"] = s.image_key.strip()
             if s.duration and s.duration > 0:
-                vals["duration"] = s.duration
+                vals["duration"] = int(s.duration)
+            streams = int(getattr(s, "total_streams", 0) or 0)
+            vals["totalStreams"] = streams
+            vals["listenCount"] = streams
             requests_list.append(SetItemValues(s.id, vals, cascade_create=True))
 
         try:
-            client.send(Batch(requests_list))
-            logger.info("Re-indexed %d songs in Recombee", len(requests_list))
+            chunk_size = 100
+            for i in range(0, len(requests_list), chunk_size):
+                chunk = requests_list[i : i + chunk_size]
+                client.send(Batch(chunk))
+            logger.info("Re-indexed %d songs in Recombee with full metadata", len(requests_list))
             return len(requests_list)
         except Exception as e:
             logger.error("Failed batch reindex in Recombee: %s", e)

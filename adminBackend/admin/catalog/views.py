@@ -592,7 +592,17 @@ class SongDetailView(BaseAdminView):
         if old_vid:
             ImageKitService.delete_by_key(old_vid)
 
-        RecombeeService.save_song(song.id, song.title, song.artist_name, song.language, song.genre, song.duration)
+        RecombeeService.save_song(
+            song_id=song.id,
+            title=song.title,
+            artist_name=song.artist_name,
+            language=song.language,
+            genre=song.genre,
+            duration=song.duration,
+            album=song.album,
+            image_key=song.image_key,
+            total_streams=song.total_streams,
+        )
         AlgoliaService.save_song(song)
 
         return Response(SongSerializer(song).data, status=status.HTTP_200_OK)

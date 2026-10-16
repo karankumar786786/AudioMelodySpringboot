@@ -1,4 +1,5 @@
 import { request } from "./client";
+import { recombeeApi } from "./recombee";
 import type { Song } from "./types";
 
 export const interactionsApi = {
@@ -7,18 +8,42 @@ export const interactionsApi = {
     const list = Array.isArray(res) ? res : [];
     return { data: { data: list } };
   },
-  getRecommendations: async () => {
+  getRecommendations: async (count = 10) => {
+    // 1. Primary: Direct Recombee query with Algolia edge hydration (~20-30ms, zero DB load)
     try {
-      const res = await request("/api/recommendations/user");
+      const { playerStore } = await import("@/store/player.store");
+      const userId = playerStore.state.systemUser?.id;
+      const direct = await recombeeApi.recommendItemsToUser(userId, count);
+      if (direct && direct.length > 0) {
+        return { data: { data: direct } };
+      }
+    } catch (err) {
+      console.warn("[InteractionsApi] Direct Recombee recommendItemsToUser failed, using DB backup fallback:", err);
+    }
+
+    // 2. Dedicated fallback: Backend Spring Boot database endpoint
+    try {
+      const res = await request(`/api/recommendations/user?count=${count}`);
       const list = Array.isArray(res) ? res : [];
       return { data: { data: list as Song[] } };
     } catch {
-      const res = await request("/api/songs?page=0&size=10");
+      const res = await request(`/api/songs?page=0&size=${count}`);
       const list = res.content || (Array.isArray(res) ? res : []);
       return { data: { data: list as Song[] } };
     }
   },
   getSimilarSongs: async (songId: string, count = 10) => {
+    // 1. Primary: Direct Recombee similarity query with Algolia edge hydration
+    try {
+      const direct = await recombeeApi.recommendSimilarSongs(songId, count);
+      if (direct && direct.length > 0) {
+        return { data: { data: direct } };
+      }
+    } catch (err) {
+      console.warn("[InteractionsApi] Direct Recombee recommendSimilarSongs failed, using DB backup fallback:", err);
+    }
+
+    // 2. Dedicated fallback: Backend Spring Boot database endpoint
     try {
       const res = await request<Song[]>(`/api/recommendations/similar/${songId}?count=${count}`);
       const list = Array.isArray(res) ? res : [];
@@ -28,6 +53,17 @@ export const interactionsApi = {
     }
   },
   getRadioSongs: async (seedSongId: string, excludeIds: string[] = [], count = 10) => {
+    // 1. Primary: Direct Recombee radio query with Algolia edge hydration
+    try {
+      const direct = await recombeeApi.recommendRadioSongs(seedSongId, excludeIds, count);
+      if (direct && direct.length > 0) {
+        return { data: { data: direct } };
+      }
+    } catch (err) {
+      console.warn("[InteractionsApi] Direct Recombee recommendRadioSongs failed, using DB backup fallback:", err);
+    }
+
+    // 2. Dedicated fallback: Backend Spring Boot database endpoint
     try {
       const excludeParam =
         excludeIds.length > 0
@@ -45,6 +81,19 @@ export const interactionsApi = {
   },
   recordListen: async (songId: string, percentage = 0.05) => {
     if (!songId) return;
+
+    // Direct background telemetry to Recombee via public token
+    try {
+      const { playerStore } = await import("@/store/player.store");
+      const userId = playerStore.state.systemUser?.id;
+      if (userId) {
+        recombeeApi.sendDetailView(userId, songId);
+        if (percentage >= 0.75) {
+          recombeeApi.sendRating(userId, songId, 0.8);
+        }
+      }
+    } catch {}
+
     try {
       const safePercentage = Math.min(1.0, Math.max(0.0, isNaN(percentage) ? 0.05 : percentage));
       await request("/api/interaction/play", {
@@ -57,6 +106,15 @@ export const interactionsApi = {
     }
   },
   recordSkip: async (songId: string) => {
+    // Direct negative rating to Recombee via public token
+    try {
+      const { playerStore } = await import("@/store/player.store");
+      const userId = playerStore.state.systemUser?.id;
+      if (userId) {
+        recombeeApi.sendRating(userId, songId, -0.4);
+      }
+    } catch {}
+
     try {
       await request("/api/interaction/skip", {
         method: "POST",

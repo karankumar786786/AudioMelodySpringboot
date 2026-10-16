@@ -190,6 +190,9 @@ class WebhookJobSaveRecommendationView(BaseAdminView):
                 language=job.language,
                 genre=job.genre,
                 duration=job.duration or 0,
+                album=job.album,
+                image_key=job.image_key,
+                total_streams=0,
             )
         except Exception as e:
             logger.warning("Failed to save song to Recombee in webhook: %s", e)
