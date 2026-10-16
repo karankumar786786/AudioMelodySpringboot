@@ -48,7 +48,7 @@ public class Recombee {
     }
 
     private <T extends Request> T withTimeout(T request) {
-        if (request != null && request.getTimeout() <= 0) {
+        if (request != null) {
             request.setTimeout(DEFAULT_TIMEOUT_MS);
         }
         return request;
@@ -58,20 +58,24 @@ public class Recombee {
             "if 'totalStreams' != null and 'totalStreams' > 0 then (if 'totalStreams' > 5000 then 1.4 else if 'totalStreams' > 500 then 1.25 else if 'totalStreams' > 50 then 1.1 else 1.03) else 1.0";
 
     @PostConstruct
-    public void configureSchema() throws Exception {
-        // Register item properties — these define what metadata Recombee knows about each song
+    public void configureSchema() {
+        // Register each item property independently so existence of one does not abort remaining registrations
+        registerPropertySafely("title", "string");
+        registerPropertySafely("artistName", "string");
+        registerPropertySafely("language", "string");
+        registerPropertySafely("genre", "string");
+        registerPropertySafely("album", "string");
+        registerPropertySafely("duration", "int");
+        registerPropertySafely("totalStreams", "int");
+    }
+
+    private void registerPropertySafely(String name, String type) {
         try {
-            recombeeClient.send(withTimeout(new AddItemProperty("title", "string")));
-            recombeeClient.send(withTimeout(new AddItemProperty("artistName", "string")));
-            recombeeClient.send(withTimeout(new AddItemProperty("language", "string")));
-            recombeeClient.send(withTimeout(new AddItemProperty("genre", "string")));
-            recombeeClient.send(withTimeout(new AddItemProperty("album", "string")));
-            recombeeClient.send(withTimeout(new AddItemProperty("duration", "int")));
-            recombeeClient.send(withTimeout(new AddItemProperty("totalStreams", "int")));
-            log.info("Recombee item properties registered successfully");
+            recombeeClient.send(withTimeout(new AddItemProperty(name, type)));
+            log.info("Recombee item property '{}' ({}) registered successfully", name, type);
         } catch (Exception e) {
-            // Properties may already exist — Recombee throws if re-adding
-            log.debug("Recombee properties may already exist: {}", e.getMessage());
+            // Property already exists or transient network note
+            log.debug("Recombee property '{}' check/register note: {}", name, e.getMessage());
         }
     }
 
