@@ -71,33 +71,33 @@ jobs:
           cache-to: type=gha,mode=max
 
   # 2. Automated Continuous Deployment to EC2
-  deploy:
-    name: Deploy to EC2
-    needs: build-and-push
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+  # deploy:
+  #   name: Deploy to EC2
+  #   needs: build-and-push
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  #   runs-on: ubuntu-latest
 
-    steps:
-      - name: SSH into EC2 & Deploy
-        uses: appleboy/ssh-action@v1.2.2
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            cd /home/ubuntu/audioMelody
+  #   steps:
+  #     - name: SSH into EC2 & Deploy
+  #       uses: appleboy/ssh-action@v1.2.2
+  #       with:
+  #         host: ${{ secrets.EC2_HOST }}
+  #         username: ${{ secrets.EC2_USER }}
+  #         key: ${{ secrets.EC2_SSH_KEY }}
+  #         script: |
+  #           cd /home/ubuntu/audioMelody
 
-            # Authenticate with Docker Hub (in case images are private)
-            echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+  #           # Authenticate with Docker Hub (in case images are private)
+  #           echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
-            # Pull latest service images defined in docker-compose.yml
-            docker compose pull || sudo docker compose pull
+  #           # Pull latest service images defined in docker-compose.yml
+  #           docker compose pull || sudo docker compose pull
 
-            # Recreate containers with zero downtime
-            docker compose up -d --remove-orphans || sudo docker compose up -d --remove-orphans
+  #           # Recreate containers with zero downtime
+  #           docker compose up -d --remove-orphans || sudo docker compose up -d --remove-orphans
 
-            # Apply Django database migrations inside admin container
-            docker compose exec -T admin python manage.py migrate --noinput || sudo docker compose exec -T admin python manage.py migrate --noinput || true
+  #           # Apply Django database migrations inside admin container
+  #           docker compose exec -T admin python manage.py migrate --noinput || sudo docker compose exec -T admin python manage.py migrate --noinput || true
 
-            # Clean up old unused image layers to save EC2 disk space
-            docker image prune -f || sudo docker image prune -f
+  #           # Clean up old unused image layers to save EC2 disk space
+  #           docker image prune -f || sudo docker image prune -f

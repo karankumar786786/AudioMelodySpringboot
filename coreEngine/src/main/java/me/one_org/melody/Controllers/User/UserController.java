@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import me.one_org.melody.Dto.Controllers.Api.UserDto;
+import me.one_org.melody.Dto.Controllers.User.UpdateProfileRequestDto;
 import me.one_org.melody.Entity.User;
 import me.one_org.melody.Services.General.UserService;
 
@@ -26,8 +27,12 @@ public class UserController {
     @PutMapping
     public ResponseEntity<UserDto> updateProfile(
             @RequestAttribute("userId") String userId,
-            @RequestParam(required = false) String userName) {
-        User user = userService.updateProfile(userId, userName);
+            @RequestParam(required = false) String userName,
+            @RequestBody(required = false) UpdateProfileRequestDto body) {
+        String effectiveName = (body != null && body.userName() != null && !body.userName().isBlank())
+                ? body.userName()
+                : userName;
+        User user = userService.updateProfile(userId, effectiveName);
         return ResponseEntity.ok(UserDto.fromEntity(user));
     }
 }

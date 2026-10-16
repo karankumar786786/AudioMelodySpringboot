@@ -1,6 +1,7 @@
 package me.one_org.melody.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,6 +18,16 @@ public interface SessionRepository extends JpaRepository<Session, String> {
     Optional<Session> findByRefreshToken(String refreshToken);
 
     Optional<Session> findByUserIdAndRefreshToken(String userId, String refreshToken);
+
+    List<Session> findByUserIdOrderByUpdatedAtDesc(String userId);
+
+    @Modifying
+    @Query("DELETE FROM Session s WHERE s.user.id = :userId AND s.id = :sessionId")
+    int deleteByUserIdAndSessionId(@Param("userId") String userId, @Param("sessionId") String sessionId);
+
+    @Modifying
+    @Query("DELETE FROM Session s WHERE s.user.id = :userId AND s.deviceId != :currentDeviceId")
+    int deleteByUserIdAndDeviceIdNot(@Param("userId") String userId, @Param("currentDeviceId") String currentDeviceId);
 
     @Modifying
     @Query("DELETE FROM Session s WHERE s.user.id = :userId AND s.deviceId = :deviceId")
