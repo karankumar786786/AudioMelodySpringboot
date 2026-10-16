@@ -1,5 +1,6 @@
-# 🎵 One Melody — Cloud-Native Enterprise Audio & Video Streaming Platform
+# 🎵 One Melody — Cloud-Native Enterprise Audio & Video Streaming Platform (157 APIs)
 
+[![APIs](https://img.shields.io/badge/APIs-157%20Endpoints-purple.svg?style=flat)](https://github.com/karankumar786786/AudioMelodySpringboot)
 [![Java](https://img.shields.io/badge/Java-21-orange.svg?style=flat&logo=openjdk)](https://openjdk.org/projects/jdk/21/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.x-brightgreen.svg?style=flat&logo=springboot)](https://spring.io/projects/spring-boot)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB.svg?style=flat&logo=python)](https://www.python.org/)
@@ -81,21 +82,6 @@ flowchart TD
     WORKER -->|"Fetch Raw & Push HLS Chunks"| S3
     S3 -.->|"Serves Media Via"| CDN
 ```
-
----
-
-## 📦 Verified Tech Stack & Version Matrix
-
-| Subsystem / Service | Runtime / Language | Core Framework | Key Dependencies & Tooling | Production Role |
-| :--- | :--- | :--- | :--- | :--- |
-| **`coreEngine`** | Java 21 LTS | **Spring Boot 4.1.1** | Spring Security, Spring Data JPA, HikariCP, JJWT 0.12.6, Algolia 4.5.4, Recombee 4.1.0, Bucket4j 8.14.0 | High-Concurrency Audio Gateway (`api.one-org.me`) |
-| **`adminBackend`** | Python 3.12 | **Django 6.1.1** | Django REST Framework 3.18.1, `uv`, Gunicorn 26.2, Boto3 1.43, Redis 8.1, dj-database-url | Admin Command Center & Ingestion Pipeline (`admin.one-org.me`) |
-| **`audioFrontend`** | TypeScript 5.x | **Next.js 16.2.3** / React 19.2.4 | Tailwind CSS 4, TanStack Query 5.99, TanStack Store 0.10, HLS.js 1.6.16, Shaka Player 5.2.8, Framer Motion 12 | Consumer Streaming Web App (`audio.one-org.me`) |
-| **`adminFrontend`** | TypeScript 5.x | **Next.js 16.2.3** / React 19.2.4 | Tailwind CSS 4, Framer Motion 12, Biome 2.2, Lucide React 1.16 | Administration & Job Monitoring Console (`adm.one-org.me`) |
-| **`audioProcessing`** | Bun 1.3+ | **Express 5.2.1** | Inngest 4.14.0, AWS SDK S3 3.1101, IORedis 6.0, FFmpeg 6.0, Google Shaka Packager 3.0 | Hardware Transcoding & Multi-Bitrate HLS Chunker |
-| **`workers/mailEvents`**| Bun 1.3+ | Native Bun Worker | Nodemailer 9.0.5, IORedis 6.0 | Redis Queue Consumer for OTP & Mail Notifications |
-| **`migration`** | Java 17/21 | **Spring Boot 4.1.1** | Flyway Migration Engine, PostgreSQL Driver | Database Schema Migrations & Baseline Audits |
-| **`Edge Gateway`** | Native Binary | **Caddy 2.x** | Let's Encrypt Auto-TLS, Reverse Proxy, CORS Gateway | Production Ingress Reverse Proxy (`13.126.178.32`) |
 
 ---
 
@@ -188,9 +174,9 @@ flowchart TD
 
 ---
 
-## 📑 Complete API Reference
+## 📑 Complete API Reference (157 Endpoints Total)
 
-### 🎧 1. Consumer Streaming Gateway (`coreEngine` &bull; Spring Boot 4.1 / Java 21)
+### 🎧 1. Consumer Streaming Gateway — 69 APIs (`coreEngine` &bull; Spring Boot 4.1 / Java 21)
 > **Base Domain**: `https://api.one-org.me` (Port `9090`) &bull; Strict JWT Bearer Token Authentication on all `/api/**` routes.
 
 #### 🔐 Authentication & Session Lifecycle
@@ -308,7 +294,7 @@ flowchart TD
 
 ---
 
-### 🛡️ 2. Administrative Command APIs (`adminBackend` &bull; Django 6.1 / Python 3.12)
+### 🛡️ 2. Administrative Command APIs — 88 APIs (`adminBackend` &bull; Django 6.1 / Python 3.12)
 > **Base Domain**: `https://admin.one-org.me` (Port `8000`) &bull; Stateful Redis Session Tracking via HTTP-only cookies (`admin_session`, `access_token`).
 
 #### 🔐 Admin Authentication & Session Management
