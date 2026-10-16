@@ -1,6 +1,8 @@
-# pyrefly: ignore [missing-import]
-from api.management.commands.createsuperadmin import Command as SuperAdminCommand
+"""
+Backwards compatibility facade for createsuperuser.
+Moved to accounts.management.commands.createsuperuser
+"""
+# pyrefly: ignore[missing-import]
+from accounts.management.commands.createsuperuser import Command
 
-
-class Command(SuperAdminCommand):
-    help = "Creates or promotes a user to SUPER_ADMIN in the AudioMelody database (alias for createsuperadmin)."
+__all__ = ["Command"]
