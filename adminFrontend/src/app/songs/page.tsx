@@ -911,7 +911,7 @@ function SongsContent() {
   const videoCount = songs.filter((s) => s.videoKey).length;
 
   return (
-    <div className="p-6 md:p-8 max-w-[1600px] mx-auto text-white font-sans">
+    <div className="p-6 md:p-8 max-w-400 mx-auto text-white font-sans">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
@@ -970,7 +970,7 @@ function SongsContent() {
       {/* Song Grid */}
       <div className="relative">
         {loading && (
-          <div className="absolute -top-3 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-500 via-indigo-500 to-emerald-400 animate-pulse z-20" />
+          <div className="absolute -top-3 left-0 right-0 h-0.5 bg-linear-to-r from-emerald-500 via-indigo-500 to-emerald-400 animate-pulse z-20" />
         )}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -1103,7 +1103,7 @@ function SongsContent() {
                 </div>
 
                 {/* Hover action bar */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end p-3 gap-2">
+                <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end p-3 gap-2">
                   <button
                     disabled={togglingSongId === song.id}
                     onClick={() => handleToggleFeatured(song)}
@@ -1203,7 +1203,7 @@ function SongsContent() {
                       </span>
                     )}
                     {song.album && (
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-300 font-semibold truncate max-w-[120px]">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-300 font-semibold truncate max-w-30">
                         {song.album}
                       </span>
                     )}
@@ -1279,7 +1279,7 @@ function SongsContent() {
 
       {/* Upload Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-black/80 backdrop-blur-md">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 md:p-6 bg-black/80 backdrop-blur-md">
           <div className="bg-[#121212] w-full max-w-5xl rounded-3xl shadow-2xl border border-[#282828] overflow-hidden flex flex-col text-white">
             <div className="px-6 py-4.5 border-b border-[#282828] flex justify-between items-center">
               <div>
@@ -2018,7 +2018,7 @@ function SongsContent() {
 
       {/* Edit Modal */}
       {editingSong && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+        <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
           <div className="bg-[#121212] w-full max-w-lg rounded-2xl shadow-2xl border border-[#282828] overflow-hidden text-white">
             <div className="px-6 py-5 border-b border-[#282828] flex items-center gap-4">
               {editingSong.imageKey && (

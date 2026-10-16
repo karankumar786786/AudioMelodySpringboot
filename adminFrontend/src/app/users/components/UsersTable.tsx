@@ -47,7 +47,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
     <div className="relative bg-[#121212] rounded-3xl border border-[#282828] overflow-hidden shadow-sm">
       {/* Top Animated Pulse Line during page/filter transitions */}
       {loading && (
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-500 via-indigo-500 to-emerald-400 animate-pulse z-20" />
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-linear-to-r from-emerald-500 via-indigo-500 to-emerald-400 animate-pulse z-20" />
       )}
 
       <div className="overflow-x-auto">
@@ -126,7 +126,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1.5 text-zinc-300 text-sm font-mono">
                         <Mail className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                        <span className="truncate max-w-[220px]">{u.email}</span>
+                        <span className="truncate max-w-55">{u.email}</span>
                       </div>
                     </td>
 

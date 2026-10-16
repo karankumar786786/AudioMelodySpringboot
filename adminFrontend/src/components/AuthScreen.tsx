@@ -130,7 +130,7 @@ export function AuthScreen() {
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-black px-4 py-12 text-white overflow-hidden font-sans">
       {/* Subtle monochrome ambient glow */}
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-white/[0.03] rounded-full blur-[140px] pointer-events-none" />
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-150 bg-white/3 rounded-full blur-[140px] pointer-events-none" />
 
       {/* Card container */}
       <motion.div
