@@ -276,7 +276,7 @@ export default function PlaylistsPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="relative min-w-[200px] sm:w-64">
+          <div className="relative min-w-50 sm:w-64">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
             <input
               type="text"

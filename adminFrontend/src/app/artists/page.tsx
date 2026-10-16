@@ -107,7 +107,7 @@ export default function ArtistsPage() {
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           {/* Search Box */}
-          <div className="relative min-w-[260px] sm:w-72">
+          <div className="relative min-w-65 sm:w-72">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
             <input
               type="text"
