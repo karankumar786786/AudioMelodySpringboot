@@ -617,12 +617,12 @@ flowchart TB
     end
 
     subgraph CT ["Client Applications"]
-        AF["audioFrontend (Port 3000)<br/>- Next.js 16 / React 19 / Turbopack<br/>- Web Audio API DSP Engine<br/>- LRCLIB Synced Karaoke Lyrics<br/>- Audio/Video Canvas Player"]
+        AF["audioFrontend (Port 3000)<br/>- Next.js 16 / React 19 / Turbopack<br/>- Progressive SSE Stream Consumer<br/>- Web Audio API DSP Engine<br/>- LRCLIB Synced Karaoke Lyrics<br/>- Audio/Video Canvas Player"]
         ADF["adminFrontend (adm.one-org.me / Vercel)<br/>- Next.js 16 / React 19 / Turbopack<br/>- Real-Time Byte XHR Upload Engine<br/>- Dual Gantt Timeline Monitors<br/>- 1-Click Pipeline Self-Healing"]
     end
 
     subgraph COT ["Core Streaming Gateway"]
-        CE["coreEngine (Port 9090)<br/>- Spring Boot 3.4 / Java 21<br/>- Neon Scale-to-Zero Friendly Pool<br/>- Dual Security Filters (API Key + JWT)<br/>- Algolia & Recombee Consumer Querying"]
+        CE["coreEngine (Port 9090)<br/>- Spring Boot 3.4 / Java 21 (Virtual Threads)<br/>- Neon Scale-to-Zero Hikari Pool (max 20, min-idle 2)<br/>- Progressive SSE Home Stream (/api/home/stream)<br/>- O(1) Pagination (Zero count(*) scans)<br/>- Versioned Redis Cache (v2:) & Auth Filters"]
     end
 
     subgraph AOT ["Administrative Command Microservice"]
@@ -709,9 +709,10 @@ Throughout the design and implementation of One Melody, every architectural deci
 ### Decision 1d: Neon Serverless Scale-to-Zero Friendly Database Architecture
 - **The Problem**: Cloud-native serverless PostgreSQL (like Neon) charges by active compute seconds. Standard Spring Boot Hikari connection pools keep idle connections open permanently (`minimum-idle: 10`) and Spring Boot Actuator pings `SELECT 1` every 10-30 seconds, preventing Neon compute nodes from ever entering sleep state (scale-to-zero) during off-peak hours.
 - **The Solution**: Tuned both `coreEngine` and `admin`:
-  - **Hikari Pool**: Configured `minimum-idle: 0`, `idle-timeout: 60000ms`, `max-lifetime: 240000ms`, and `keepalive-time: 0` so all connections close after 1 minute of inactivity.
+  - **Hikari Pool**: Configured `pool-name: MelodyHikariPool`, `maximum-pool-size: 20`, `minimum-idle: 2` (maintains 2 warm connections to eliminate Neon cold-start SSL handshake delay while preserving scale-to-zero), `idle-timeout: 60000ms`, `max-lifetime: 240000ms`, `leak-detection-threshold: 30000ms`, and `keepalive-time: 0` so idle connections close cleanly after 1 minute of inactivity.
   - **Actuator Health Probes**: Decoupled database health checks from Kubernetes/Docker readiness probes, stopping background "SELECT 1" queries and allowing Neon compute to cleanly scale to zero.
-  - **Cold-Start Resilience**: Set `connection-timeout: 30000ms` and `initialization-fail-timeout: -1` so services boot cleanly and wait for Neon's cold-start wake-up without crashing.
+  - **Cold-Start Resilience**: Set `connection-timeout: 10000ms` and `initialization-fail-timeout: -1` so services boot cleanly and wait for Neon's cold-start wake-up without crashing.
+  - **Connection Lifecycle**: `spring.jpa.open-in-view: false` strictly restricts database connection lifecycles to transactional service boundaries, releasing connections immediately upon method exit.
 
 ### Decision 1e: Edge Multi-Domain Gateway with Caddy 2 Automated TLS
 - **The Problem**: Managing reverse proxies, SSL certificate renewal scripts, Nginx configurations, and CORS policies across distinct microservice subdomains (`api.one-org.me`, `admin.one-org.me`, `process.one-org.me`) is brittle and error-prone.
@@ -766,21 +767,36 @@ Throughout the design and implementation of One Melody, every architectural deci
 - **The Problem**: Continuous music streaming for hours leads to infinite queue array growth, thousands of unmounted DOM nodes, memory leaks, and UI lag.
 - **The Solution**: Implemented `@tanstack/react-store` with rolling window queue trimming (`applyRollingWindow`). Trims played tracks behind the current track index to a fixed historical window of 2 songs, while automatically requesting background Recombee recommendation refills when approaching the end of the queue.
 
-### Decision 10: Redis Metadata & Pagination Cache (`PaginationMetaDataService`)
+### Decision 10: Zero-Table-Scan Redis Metadata & Pagination Cache (`PaginationMetaDataService`)
 - **The Problem**: Running `SELECT COUNT(*)` on relational tables with tens of thousands of rows for every paginated page request triggers slow sequential index scans on PostgreSQL.
-- **The Solution**: Designed [PaginationMetaDataService.java](file:///Users/Karan/Desktop/Coding/AudioMelodySpringboot/coreEngine/src/main/java/me/one_org/melody/Services/General/PaginationMetaDataService.java). Maintains cached active, blocked, and deleted record counters in Redis. Operations (`incrementStatus`, `decrementStatus`, `transitionStatus`) execute in $\mathcal{O}(1)$ time, reducing metadata fetch latency from $150\text{ms}$ to $<2\text{ms}$.
+- **The Solution**: Designed [PaginationMetaDataService.java](file:///Users/Karan/Desktop/Coding/AudioMelodySpringboot/coreEngine/src/main/java/me/one_org/melody/Services/General/PaginationMetaDataService.java). Maintains cached active, blocked, and deleted record counters in Redis and the `pagination_meta_data` table. Operations (`incrementStatus`, `decrementStatus`, `transitionStatus`) execute in $\mathcal{O}(1)$ time. All fallback `count(*)` table scans in `SongsApiService`, `ArtistApiService`, and `PlaylistApiService` were **completely eliminated**, ensuring all pagination endpoints return in $<2\text{ms}$ with zero table scanning.
 
 ### Decision 11: Dual-Filter Security Architecture (`ApiKeyFilter` + `JwtFilter`)
 - **The Problem**: Microservices and webhook callbacks shouldn't maintain user session state or bearer tokens, while human users require role-based access control (RBAC).
 - **The Solution**: Placed two complementary filters before `UsernamePasswordAuthenticationFilter`:
   - `ApiKeyFilter`: Authenticates machine-to-machine internal requests via header `x-api-key`.
-  - `JwtFilter`: Validates HMAC-SHA512 JWT bearer tokens, extracting user claims (`userId`, `role`, `status`) and injecting `SecurityContextHolder` credentials.
+  - `JwtFilter`: Validates HMAC-SHA512 JWT bearer tokens, extracting user claims (`userId`, `role`, `status`) and injecting `SecurityContextHolder` credentials. All `/api/**` and `/app/**` endpoints are strictly authenticated.
 
 ### Decision 12: Unified Pitch-Black OLED Monochrome Design System
 - **The Problem**: Disjointed styling between the consumer application and the administration portal creates visual friction and poor brand identity.
 - **The Solution**: Standardized both frontends on an OLED pitch-black design language:
   - Surface Palette: Pitch black `#000000`, card charcoal `#121212`, card hover `#181818`, borders `#282828`.
   - High-Contrast Controls: Solid white pill buttons (`bg-white text-black font-bold`), translucent badge pill indicators, and high-legibility sans-serif typography.
+
+### Decision 13: Single-Connection Server-Sent Events (SSE) Progressive Home Hydration (`/api/home/stream`)
+- **The Problem**: Traditional media frontends fire 7 to 10 concurrent HTTP requests on homepage mount (`/featured`, `/trending`, `/artists`, `/playlists`, `/feed`, `/recent`, `/recommendations`), creating severe request spikes, connection contention, and 20+ second query stalls on cold databases.
+- **The Solution**: Consolidated homepage data delivery into a single Server-Sent Events stream (`GET /api/home/stream`) managed by Java 21 Virtual Threads:
+  - **Sequential Fetch $\to$ Release $\to$ Emit Cycle**: Processes sections sequentially. A database connection is borrowed strictly for the query execution and **immediately returned to the Hikari pool** before network transmission. **Zero DB connections are held while streaming SSE bytes** to the browser.
+  - **Peak Pool Load**: Slashed from 7 concurrent connections down to **at most 1 connection** (and 0 during network writes).
+  - **Early Disconnect Abort**: Listens via `AtomicBoolean isClosed`. If a user navigates away mid-stream, remaining DB queries are cancelled instantly.
+  - **Dual-Tier Client Fallback**: Seeded into TanStack Query cache. If SSE disconnects or stalls beyond 3.5s, the frontend seamlessly falls back to individual cached REST queries.
+
+### Decision 14: Versioned & Polymorphic Redis In-Memory Layer (`v2:`)
+- **The Problem**: Generic Redis serializers often fail with `JsonToken.START_ARRAY` when deserializing generic DTO collections (e.g. `List<SongDto>`) if type identifiers are omitted or legacy un-typed data exists in the cache.
+- **The Solution**: Engineered an idiomatic Jackson 3 Redis architecture in [RedisConfig.java](file:///Users/Karan/Desktop/Coding/AudioMelodySpringboot/coreEngine/src/main/java/me/one_org/melody/Configuration/RedisConfig.java):
+  - **Cache Key Namespace Versioning**: Enforces `.computePrefixWith(cacheName -> "v2:" + cacheName + "::")`, completely isolating cache entries from stale or legacy data.
+  - **Type-Safe Serialization**: Utilizes `GenericJacksonJsonRedisSerializer.builder()` with `BasicPolymorphicTypeValidator`, `@class` property typing, and `enableSpringCacheNullValueSupport()`.
+  - **Self-Healing Error Handler**: A custom `CacheErrorHandler` intercepts read exceptions, evicts the invalid key, and falls back to the database gracefully.
 
 ---
 
@@ -1375,21 +1391,22 @@ The One Melody ecosystem cleanly isolates public consumer audio streaming operat
 - `GET /auth/me`: Retrieves current authenticated user profile and subscription details.
 - `POST /auth/logout`: Invalidates client session.
 
-#### Music Catalogue & Adaptive Streaming (`/api/*`)
-- `GET /api/songs`: Filterable, paginated track catalog (`page`, `size`, `status`, `language`).
+#### Music Catalogue & Adaptive Streaming (`/api/*` - Strictly Authenticated via Bearer Token)
+- `GET /api/home/stream`: **Progressive Server-Sent Events (SSE) Stream** aggregating all 7 homepage sections (`featured`, `trending`, `artists`, `playlists`, `feed`, `recentlyPlayed`, `recommendations`) down a single HTTP connection. Employs a sequential Fetch $\to$ Release $\to$ Emit cycle on Virtual Threads that borrows at most 1 DB connection for microseconds and holds 0 DB connections during network streaming.
+- `GET /api/songs`: Filterable, paginated track catalog (`page`, `size`, `status`, `language`) with guaranteed $\mathcal{O}(1)$ pagination metadata.
 - `GET /api/songs/{id}`: Detailed track metadata including HLS master playlist URL (`.m3u8`), canvas video URL, and bitrate manifests.
 - `GET /api/songs/{id}/similar`: Fetches AI recommendations based on acoustic similarity vectors.
-- `GET /api/artists`: Paginated artist catalogue with artwork URLs and follower counts.
-- `GET /api/artists/{id}`: Artist biography and social profiles.
-- `GET /api/artists/{id}/songs`: Full verified discography for a given artist.
-- `GET /api/playlists`: Public curated playlists.
+- `GET /api/artists`: Paginated artist catalogue with artwork URLs and follower counts ($\mathcal{O}(1)$ metadata).
+- `GET /api/artists/{id}`: Artist biography, follower count, and social profiles.
+- `GET /api/artists/{id}/songs`: Full verified discography for a given artist (Algolia edge search with DB backup).
+- `GET /api/playlists`: Public curated playlists ($\mathcal{O}(1)$ metadata).
 - `GET /api/user/playlists`: User-owned custom playlists.
 - `POST /api/user/playlists`: Creates a user playlist with custom privacy settings.
 - `GET /api/user/playlists/shared/{shareToken}`: Public unauthenticated shared playlist access.
-- `POST /api/interaction/track-play`: Tracks listening completion percentage for Recombee AI training.
+- `POST /api/interaction/track-play`: Asynchronously increments stream counters and publishes listening events for Recombee AI model training.
 - `POST /api/interaction/favourite/{songId}`: Adds song to user favourites.
 - `DELETE /api/interaction/favourite/{songId}`: Removes song from user favourites.
-- `GET /api/search`: Instant search across tracks, artists, and albums.
+- `GET /api/search`: Fast unified search across tracks, artists, and playlists (client-side Algolia with backend fallback).
 
 ---
 
