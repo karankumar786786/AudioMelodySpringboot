@@ -32,7 +32,7 @@ jobs:
             context: ./audioProcessing
             image_name: audioprocessing
           - service: admin
-            context: ./admin
+            context: ./adminBackend
             image_name: admin
 
     steps:

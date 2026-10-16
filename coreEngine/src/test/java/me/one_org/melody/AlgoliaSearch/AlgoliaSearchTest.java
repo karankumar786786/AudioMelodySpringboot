@@ -46,7 +46,7 @@ class AlgoliaSearchTest {
     }
 
     @Test
-    @DisplayName("Should configure Algolia index with customRanking desc(totalStreams)")
+    @DisplayName("Should configure Algolia index with customRanking desc(totalStreams) and desc(searchCount)")
     void shouldConfigureIndexCorrectly() throws Exception {
         algoliaSearch.configureIndex();
 
@@ -54,8 +54,25 @@ class AlgoliaSearchTest {
         verify(searchClient).setSettings(eq(INDEX_NAME), settingsCaptor.capture());
 
         IndexSettings settings = settingsCaptor.getValue();
-        assertThat(settings.getCustomRanking()).containsExactly("desc(totalStreams)");
+        assertThat(settings.getCustomRanking()).containsExactly("desc(totalStreams)", "desc(searchCount)");
         assertThat(settings.getSearchableAttributes()).contains("title", "artistName", "album");
+    }
+
+    @Test
+    @DisplayName("Should increment searchCount atomically using partialUpdateObject")
+    void shouldIncrementSearchCount() {
+        algoliaSearch.incrementSearchCount("artist-queen");
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> updateCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(searchClient).partialUpdateObject(eq(INDEX_NAME), eq("artist-queen"), updateCaptor.capture(), eq(true));
+
+        Map<String, Object> update = updateCaptor.getValue();
+        assertThat(update).containsKey("searchCount");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> op = (Map<String, Object>) update.get("searchCount");
+        assertThat(op.get("_operation")).isEqualTo("Increment");
+        assertThat(op.get("value")).isEqualTo(1);
     }
 
     @Test
@@ -104,6 +121,7 @@ class AlgoliaSearchTest {
         assertThat(record.get("objectID")).isEqualTo("song-1");
         assertThat(record.get("title")).isEqualTo("Bohemian Rhapsody");
         assertThat(record.get("totalStreams")).isEqualTo(450L);
+        assertThat(record.get("searchCount")).isEqualTo(0L);
     }
 
     @Test

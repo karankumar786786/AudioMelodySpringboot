@@ -10,6 +10,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.web.server.ResponseStatusException;
 
+import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Entity.User;
 import me.one_org.melody.Entity.UserHistory;
@@ -41,6 +42,9 @@ class InteractionApiServiceTest {
 
     @Mock
     private PaginationMetaDataService paginationMetaDataService;
+
+    @Mock
+    private AlgoliaSearch algoliaSearch;
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
@@ -85,11 +89,21 @@ class InteractionApiServiceTest {
     }
 
     @Test
-    @DisplayName("Should track search play in Recombee")
+    @DisplayName("Should increment Algolia search count and track Recombee on search play")
     void shouldTrackSearchPlay() throws Exception {
         interactionApiService.trackSearchPlay("user-1", "song-45");
 
+        verify(algoliaSearch).incrementSearchCount("song-45");
         verify(recombee).trackSearchPlay("user-1", "song-45");
+    }
+
+    @Test
+    @DisplayName("Should increment Algolia search count on search click for artist or playlist")
+    void shouldTrackSearchClickForArtistOrPlaylist() {
+        interactionApiService.trackSearchClick("user-1", "ARTIST", "artist-99");
+
+        verify(algoliaSearch).incrementSearchCount("artist-99");
+        verifyNoInteractions(recombee);
     }
 
     @Test
