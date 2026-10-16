@@ -40,7 +40,8 @@ export function formatDuration(val?: number | string | null): string {
 }
 
 export function mapToPlayerSong(song: any): PlayerSong {
-  const streamBase = `${S3_BASE_URL}/${song.songKey || song.song_key}`;
+  const songKey = song.songKey || song.song_key;
+  const streamBase = songKey ? `${S3_BASE_URL}/${songKey}` : "";
   const fullVideoKey = song.fullVideoKey || song.full_video_key || undefined;
   const videoKey = song.videoKey || song.video_key || undefined;
   const imageKey = song.imageKey || song.image_key || "";
@@ -54,8 +55,8 @@ export function mapToPlayerSong(song: any): PlayerSong {
       typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
         ? crypto.randomUUID()
         : Math.random().toString(36).substring(7),
-    streamUrl: `${streamBase}/master.m3u8`,
-    captionUrl: `${streamBase}/caption.vtt`,
+    streamUrl: streamBase ? `${streamBase}/master.m3u8` : "",
+    captionUrl: streamBase ? `${streamBase}/caption.vtt` : undefined,
     coverUrl:
       getImageUrl(imageKey, {
         width: 400,
@@ -75,7 +76,8 @@ export function mapToPlayerSong(song: any): PlayerSong {
 }
 
 export function normalizePlayerSong(song: any): PlayerSong {
-  const streamBase = `${S3_BASE_URL}/${song.songKey || song.song_key}`;
+  const songKey = song.songKey || song.song_key;
+  const streamBase = songKey ? `${S3_BASE_URL}/${songKey}` : "";
   const fullVideoKey = song.fullVideoKey || song.full_video_key || undefined;
   const videoKey = song.videoKey || song.video_key || undefined;
   const imageKey = song.imageKey || song.image_key || "";
@@ -90,8 +92,8 @@ export function normalizePlayerSong(song: any): PlayerSong {
       (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
         ? crypto.randomUUID()
         : Math.random().toString(36).substring(7)),
-    streamUrl: `${streamBase}/master.m3u8`,
-    captionUrl: `${streamBase}/caption.vtt`,
+    streamUrl: streamBase ? `${streamBase}/master.m3u8` : "",
+    captionUrl: streamBase ? `${streamBase}/caption.vtt` : undefined,
     coverUrl:
       getImageUrl(imageKey, {
         width: 400,

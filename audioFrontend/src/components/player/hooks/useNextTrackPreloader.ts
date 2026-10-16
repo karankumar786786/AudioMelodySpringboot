@@ -34,6 +34,34 @@ export function useNextTrackPreloader(standbyAudioElement: HTMLAudioElement | nu
     return null;
   })();
 
+  // Proactively hydrate nextSong if it originated from Algolia without songKey
+  useEffect(() => {
+    if (!nextSong || nextSong.songKey || !nextSong.id) return;
+    let isCancelled = false;
+
+    import("@/lib/api").then(({ musicApi }) => {
+      musicApi.songs
+        .getById(nextSong.id)
+        .then((res) => {
+          if (isCancelled || !res?.data?.songKey) return;
+          import("@/lib/player-utils").then(({ mapToPlayerSong }) => {
+            const mapped = mapToPlayerSong(res.data);
+            playerStore.setState((s) => ({
+              ...s,
+              queue: s.queue.map((item) =>
+                item.id === nextSong.id ? { ...item, ...mapped } : item,
+              ),
+            }));
+          });
+        })
+        .catch(() => {});
+    });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [nextSong?.id, nextSong?.songKey]);
+
   useEffect(() => {
     // If no next song or no standby element, cleanup standby HLS
     if (!standbyAudioElement || !nextSong?.streamUrl || nextSong.id === currentSong?.id) {

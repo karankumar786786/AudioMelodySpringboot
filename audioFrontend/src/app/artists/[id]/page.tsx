@@ -39,13 +39,17 @@ export default function ArtistPage() {
     queryFn: () => musicApi.artists.getById(id as string),
   });
 
+  const artist = artistResponse?.data;
+
   /* -------------------------------------------------------------------------- */
   /*                                 SONG QUERY                                 */
   /* -------------------------------------------------------------------------- */
 
+  // Load songs directly from Algolia (1ms, zero DB load) using artist.name
   const { data: songsResponse, isLoading: isSongsLoading, error: _songsError, refetch: refetchSongs } = useQuery({
-    queryKey: ["artist-songs", id],
-    queryFn: () => musicApi.artists.getSongs(id as string),
+    queryKey: ["artist-songs", id, artist?.name],
+    queryFn: () => musicApi.artists.getSongs(id as string, 1, 50, artist?.name),
+    enabled: Boolean(id && (artist?.name || !isArtistLoading)),
   });
 
   /* -------------------------------------------------------------------------- */
@@ -77,7 +81,6 @@ export default function ArtistPage() {
   /*                              DERIVED VALUES                                */
   /* -------------------------------------------------------------------------- */
 
-  const artist = artistResponse?.data;
   const songs = songsResponse?.data?.data || [];
 
   const isFollowing = localFollowStatus?.isFollowing ?? followStatusData?.isFollowing ?? false;
@@ -160,11 +163,28 @@ export default function ArtistPage() {
   /*                              PLAY ALL SONGS                                */
   /* -------------------------------------------------------------------------- */
 
-  const handlePlayAll = () => {
+  const handlePlayAll = async () => {
     if (songs.length === 0) return;
-    playerActions.playAll(mapListToPlayerSongs(songs));
+    const firstSong = songs[0];
+    let songToPlay = firstSong;
+
+    // Load full song details (songKey) from DB only on demand for playback
+    if (!firstSong.songKey && firstSong.id) {
+      try {
+        const res = await musicApi.songs.getById(firstSong.id);
+        if (res?.data) {
+          songToPlay = { ...firstSong, ...res.data };
+        }
+      } catch (err) {
+        console.warn("Failed to fetch full song details for playAll:", err);
+      }
+    }
+
+    const updatedSongs = [...songs];
+    updatedSongs[0] = songToPlay;
+    playerActions.playAll(mapListToPlayerSongs(updatedSongs));
     toast.success("Playing Songs", {
-      description: `Starting playback for ${artist?.name}.`,
+      description: `Starting playback for ${artist?.name || "artist"}.`,
     });
   };
 
@@ -172,7 +192,7 @@ export default function ArtistPage() {
   /*                              PLAY SONG                                     */
   /* -------------------------------------------------------------------------- */
 
-  const handlePlaySong = (song: any, index: number) => {
+  const handlePlaySong = async (song: any, index: number) => {
     previewPlayer.stopPreview(true);
     const isActive = currentSong?.id === song.id;
 
@@ -181,7 +201,22 @@ export default function ArtistPage() {
       return;
     }
 
-    const allPlayerSongs = mapListToPlayerSongs(songs);
+    let songToPlay = song;
+    // Load full song details (songKey) from DB only on demand when user clicks to play
+    if (!song.songKey && song.id) {
+      try {
+        const res = await musicApi.songs.getById(song.id);
+        if (res?.data) {
+          songToPlay = { ...song, ...res.data };
+        }
+      } catch (err) {
+        console.warn("Failed to fetch full song details for song playback:", err);
+      }
+    }
+
+    const updatedSongs = [...songs];
+    updatedSongs[index] = songToPlay;
+    const allPlayerSongs = mapListToPlayerSongs(updatedSongs);
     playerActions.playAllFrom(allPlayerSongs, index);
   };
 
