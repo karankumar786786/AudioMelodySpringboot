@@ -50,11 +50,11 @@ public class SearchApiService {
 
         // 2. Extract IDs in Algolia's ranked order
         List<String> songIds = algoliaResult.songs().stream()
-                .map(s -> s.id()).collect(Collectors.toList());
+                .map(s -> s.id()).limit(20).collect(Collectors.toList());
         List<String> artistIds = algoliaResult.artists().stream()
-                .map(a -> a.id()).collect(Collectors.toList());
+                .map(a -> a.id()).limit(10).collect(Collectors.toList());
         List<String> playlistIds = algoliaResult.playlists().stream()
-                .map(p -> p.id()).collect(Collectors.toList());
+                .map(p -> p.id()).limit(10).collect(Collectors.toList());
 
         // 3. Fetch full entities from DB
         List<Song> rawSongs = songsRepository.findAllByIds(songIds);

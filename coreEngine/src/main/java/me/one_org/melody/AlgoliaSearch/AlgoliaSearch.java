@@ -208,7 +208,7 @@ public class AlgoliaSearch {
         try {
             var response = searchClient.searchSingleIndex(
                     indexName,
-                    new SearchParamsObject().setQuery(query).setHitsPerPage(20),
+                    new SearchParamsObject().setQuery(query).setHitsPerPage(100),
                     Map.class);
 
             for (var hit : response.getHits()) {
