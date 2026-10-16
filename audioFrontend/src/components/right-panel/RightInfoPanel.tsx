@@ -67,14 +67,17 @@ export function RightInfoPanel() {
     staleTime: 1000 * 60 * 5,
   });
 
-  // 2. Feed fallback / artist tracks
+  // 2. Feed fallback / artist tracks (only if radio recommendations return fewer than 3 songs)
   const { data: songsFeed, isLoading: isFeedLoading } = useQuery({
     queryKey: ["artist-more-songs", currentSong?.artistName],
     queryFn: async () => {
       const res = await musicApi.songs.getFeed(1, 50);
       return res?.data?.data || [];
     },
-    enabled: !!currentSong?.artistName,
+    enabled:
+      !!currentSong?.artistName &&
+      !isSimilarLoading &&
+      (!similarSongs || similarSongs.length < 3),
     staleTime: 1000 * 60 * 5,
   });
 
