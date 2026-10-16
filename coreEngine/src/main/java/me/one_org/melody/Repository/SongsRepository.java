@@ -58,12 +58,24 @@ public interface SongsRepository extends JpaRepository<Song, String> {
         return countSongsWithSearch(search.trim());
     }
 
-    @EntityGraph(attributePaths = {"songMetadata"})
-    @Query("SELECT h.song FROM UserHistory h " +
+    @Query("SELECT h.song.id FROM UserHistory h " +
            "WHERE h.song.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
-           "GROUP BY h.song " +
+           "GROUP BY h.song.id " +
            "ORDER BY COUNT(h) DESC")
-    List<Song> findTrendingSongs(Pageable pageable);
+    List<String> findTrendingSongIds(Pageable pageable);
+
+    default List<Song> findTrendingSongs(Pageable pageable) {
+        List<String> trendingIds = findTrendingSongIds(pageable);
+        if (trendingIds.isEmpty()) return List.of();
+        java.util.Map<String, Song> songMap = findByIdIn(trendingIds).stream()
+                .collect(java.util.stream.Collectors.toMap(Song::getId, s -> s));
+        List<Song> songs = new ArrayList<>();
+        for (String id : trendingIds) {
+            Song s = songMap.get(id);
+            if (s != null) songs.add(s);
+        }
+        return songs;
+    }
 
     @EntityGraph(attributePaths = {"songMetadata"})
     @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt DESC")
