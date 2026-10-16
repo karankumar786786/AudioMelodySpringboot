@@ -1,4 +1,4 @@
-# 🎵 One Melody — Cloud-Native Enterprise Audio & Video Streaming Platform (157 APIs)
+# 🎵 One Melody — Enterprise Lossless HLS & DASH Device-Native Multimedia Streaming Platform (157 APIs)
 
 [![APIs](https://img.shields.io/badge/APIs-157%20Endpoints-purple.svg?style=flat)](https://github.com/karankumar786786/AudioMelodySpringboot)
 [![Java](https://img.shields.io/badge/Java-21-orange.svg?style=flat&logo=openjdk)](https://openjdk.org/projects/jdk/21/)
@@ -22,7 +22,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon%20Serverless-4169E1.svg?style=flat&logo=postgresql)](https://www.postgresql.org/)
 [![Tests](https://img.shields.io/badge/Tests-121%20Passed%20(100%25)-success.svg?style=flat)](https://github.com/karankumar786786/AudioMelodySpringboot)
 
-**One Melody** is an enterprise-grade, distributed multimedia streaming platform engineered for high concurrency, low-latency adaptive playback, and automated cloud operations. Built with modern microservice design principles, it couples high-performance **Java 21 / Spring Boot 4.1** streaming gateways (`api.one-org.me`) with a dedicated **Python 3.12 / Django 6.1** administrative command microservice (`admin.one-org.me`), **Node.js / Bun / Inngest** asynchronous media processing workers (`process.one-org.me`), **Google Shaka Packager** multi-bitrate HLS/DASH chunking, and dual **Next.js 16** frontends (`adm.one-org.me` and consumer apps) delivering a pitch-black OLED monochrome aesthetic.
+**One Melody** is an enterprise-grade, distributed multimedia streaming platform engineered for lossless adaptive playback (HLS & DASH), low-latency progressive event streaming, and automated cloud operations. Built with modern microservice design principles, it couples high-performance **Java 21 / Spring Boot 4.1** streaming gateways (`api.one-org.me`) with a dedicated **Python 3.12 / Django 6.1** administrative command microservice (`admin.one-org.me`), **Node.js / Bun / Inngest** asynchronous media processing workers (`process.one-org.me`), **Google Shaka Packager** multi-bitrate HLS/DASH chunking, and dual **Next.js 16** frontends (`adm.one-org.me` and consumer apps) delivering a pitch-black OLED monochrome aesthetic.
 
 ---
 
@@ -91,32 +91,30 @@ The `audioProcessing` microservice (Bun 1.3 / Express 5 / Inngest) features an a
 
 ```mermaid
 flowchart TD
-    %% Input Job
-    Job["1. Ingestion Job Enqueued<br/>(Raw Media on S3 + Redis Event)"] --> Probe["2. Dynamic Hardware Probe (hwaccel.ts)<br/>• Detects OS, CPU & GPU Devices (/dev/nvidia, /dev/dri)<br/>• Live 1-Frame Null Muxer Test (3.5s timeout)"]
-
-    %% Probe Decision Tree
-    Probe --> AccelChoice{"Candidate GPU Available?"}
+    %% Compact Nodes
+    Job["1. Ingestion Job Enqueued"] --> Probe["2. Dynamic HW Probe<br/>(1-Frame Test &bull; 3.5s Timeout)"]
+    Probe --> AccelChoice{"Hardware Available?"}
 
     %% Hardware Options
-    AccelChoice -->|"macOS (Apple Silicon / Intel)"| VT["Apple VideoToolbox<br/>• Video: h264_videotoolbox<br/>• Audio: aac_at (Hardware Engine)"]
-    AccelChoice -->|"Linux / Windows (NVIDIA)"| NVENC["NVIDIA NVENC<br/>• Video: h264_nvenc (CUDA Preset p4)"]
-    AccelChoice -->|"Intel Core / Xeon"| QSV["Intel Quick Sync Video (QSV)<br/>• Video: h264_qsv (Preset fast)"]
-    AccelChoice -->|"No GPU / Probe Failed"| CPU["CPU Multithreaded Software<br/>• Video: libx264 (Preset fast)<br/>• Audio: native aac"]
+    AccelChoice -->|"macOS (Apple Silicon)"| VT["Apple VideoToolbox<br/>(h264_videotoolbox + aac_at)"]
+    AccelChoice -->|"Linux/Win (NVIDIA)"| NVENC["NVIDIA NVENC<br/>(h264_nvenc CUDA p4)"]
+    AccelChoice -->|"Intel Core / Xeon"| QSV["Intel Quick Sync<br/>(h264_qsv fast)"]
+    AccelChoice -->|"No GPU / Probe Fails"| CPU["Software CPU<br/>(libx264 + native aac)"]
 
     %% Transcode Execution
-    VT --> Exec["3. Transcode Execution<br/>• EBU R128 Audio Normalization (loudnorm)<br/>• Multi-Bitrate AAC (128k / 240k / 320k)"]
+    VT --> Exec["3. Transcode Execution<br/>(EBU R128 + Multi-Bitrate)"]
     NVENC --> Exec
     QSV --> Exec
     CPU --> Exec
 
     %% Self Healing Fallback
-    Exec --> FallbackCheck{"Driver Crash or VRAM Exhaustion?"}
-    FallbackCheck -->|"Yes (GPU Fails)"| CPUFallback["Automatic Software Fallback<br/>(Self-healing re-run with libx264 / aac)"]
-    FallbackCheck -->|"No (Success)"| Packager["4. Google Shaka Packager<br/>(4s HLS / DASH Segmentation)"]
+    Exec --> FallbackCheck{"HW Crash / OOM?"}
+    FallbackCheck -->|"Yes (GPU Fails)"| CPUFallback["Software Fallback<br/>(libx264 / aac)"]
+    FallbackCheck -->|"No (Success)"| Packager["4. Shaka Packager<br/>(4s HLS / DASH)"]
     CPUFallback --> Packager
 
     %% Packaging to S3
-    Packager --> S3Output["5. Synchronized AWS S3 Upload<br/>• 128 kbps / 240 kbps / 320 kbps Chunks<br/>• master.m3u8 & master.mpd Manifests"]
+    Packager --> S3Output["5. S3 Upload & Manifests<br/>(128k / 240k / 320k)"]
 ```
 
 ### 🛠️ Hardware Acceleration Engine Features:
@@ -130,6 +128,48 @@ flowchart TD
 - **Dynamic Concurrency Governor**: Dynamically scales parallel transcode workers (2–4 concurrent streams when GPU-accelerated; automatically throttled to 1–2 on CPU VMs to prevent host starvation).
 - **Self-Healing Fallback (`executeFFmpegWithFallback()`)**: If a GPU driver panics or exhausts VRAM mid-encode, the engine catches the failure and immediately retries using multithreaded CPU software encoding (`libx264` / `aac`) without failing the ingestion job.
 - **Multi-Bitrate HLS & DASH Packaging**: Applies EBU R128 loudness normalization (`loudnorm=I=-16:TP=-1.5:LRA=11`) and passes 128 kbps, 240 kbps, and 320 kbps streams to **Google Shaka Packager** for 4-second chunking and manifest generation.
+
+---
+
+## 🔄 Complete End-to-End Media Processing Pipeline
+
+The media ingestion and processing pipeline coordinates distributed task execution across AWS S3, Redis queues, Bun microservices, and Inngest durable step workflows:
+
+```mermaid
+flowchart TD
+    %% Phase 1
+    subgraph P1 ["Phase 1: Ingestion & Job Dispatch"]
+        Upload["1. Direct S3 Upload<br/>(SigV4 Pre-signed PUT URL)"] --> AdminJob["2. Admin Ingestion API<br/>(Creates Job in PostgreSQL)"]
+        AdminJob --> RedisQ["3. Redis Queue<br/>(audio_processing_queue)"]
+        RedisQ --> InngestTrigger["4. Inngest Worker Trigger<br/>(audio/song.transcode)"]
+    end
+
+    %% Phase 2
+    subgraph P2 ["Phase 2: Modular Transcode Orchestration"]
+        InngestTrigger --> HookStart["Webhook: /transcoding-started<br/>(Sets Job to PROCESSING)"]
+        HookStart --> ParallelTasks{"Parallel Modular Execution"}
+
+        ParallelTasks --> AudioTask["Audio Transcoder<br/>• EBU R128 Loudness Normalization<br/>• HW/SW 128k, 240k, 320k AAC"]
+        ParallelTasks --> VideoTask["Full Video Transcoder (Optional)<br/>• 1080p / 720p / 480p / 360p<br/>• Multi-Bitrate H.264 Profiles"]
+        ParallelTasks --> CanvasTask["Canvas Clip Generator (Optional)<br/>• 30s Loop &bull; 9:16 Vertical Ratio<br/>• Muted &bull; faststart MP4"]
+    end
+
+    %% Phase 3
+    subgraph P3 ["Phase 3: Adaptive Packaging & Storage"]
+        AudioTask --> ShakaPack["Google Shaka Packager<br/>• 4s Fragments (.mp4 / .aac)<br/>• master.m3u8 & master.mpd"]
+        VideoTask --> ShakaPack
+        CanvasTask --> S3Upload["Parallel S3 Uploader (p-limit 5)<br/>• Uploads HLS / DASH Chunks<br/>• Uploads Canvas & Manifests"]
+        ShakaPack --> S3Upload
+        S3Upload --> HookTranscoded["Webhook: /transcoded<br/>(Saves songKey, duration, videoKeys)"]
+    end
+
+    %% Phase 4
+    subgraph P4 ["Phase 4: Search, AI & Finalization"]
+        HookTranscoded --> RecombeeTask["Recombee AI Ingestion<br/>• Syncs Metadata & Vector Model<br/>• Webhook: /save-recommendation"]
+        RecombeeTask --> AlgoliaTask["Algolia Edge Indexing<br/>• Typo-Tolerant Search Document<br/>• Webhook: /save-search"]
+        AlgoliaTask --> FinalizeHook["Webhook: /finalize<br/>• Marks Song as ACTIVE<br/>• Updates O(1) Pagination Counters<br/>• Purges Temp Files & S3 Ingest Bucket"]
+    end
+```
 
 ---
 
@@ -198,18 +238,7 @@ sequenceDiagram
     Server-->>Browser: Stream Complete Event (Close)
 ```
 
-### 2. Media Ingestion & Processing Pipeline
-
-```mermaid
-flowchart LR
-    Upload["1. Direct S3 Upload<br/>(SigV4 Pre-signed URL)"] --> Queue["2. Redis Queue<br/>(audio_processing_queue)"]
-    Queue --> Worker["3. Bun / Inngest<br/>(Hardware Probe)"]
-    Worker --> Shaka["4. Shaka Packager<br/>(HLS 128k/240k/320k)"]
-    Shaka --> S3["5. AWS S3 Storage<br/>(HLS Fragments)"]
-    Worker --> Sync["6. Search & AI Sync<br/>(Algolia & Recombee)"]
-```
-
-### 3. Dual-Layer Security & Authentication Flow
+### 2. Dual-Layer Security & Authentication Flow
 
 ```mermaid
 flowchart TD
