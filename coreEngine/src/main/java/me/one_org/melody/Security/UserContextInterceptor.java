@@ -56,6 +56,15 @@ public class UserContextInterceptor implements HandlerInterceptor {
                 }
             }
 
+            if ((token == null || token.isBlank()) && request.getCookies() != null) {
+                for (jakarta.servlet.http.Cookie c : request.getCookies()) {
+                    if ("system_token".equals(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) {
+                        token = c.getValue();
+                        break;
+                    }
+                }
+            }
+
             if (token != null && !token.isBlank()) {
                 try {
                     Jwt jwt = jwtDecoder.decode(token);

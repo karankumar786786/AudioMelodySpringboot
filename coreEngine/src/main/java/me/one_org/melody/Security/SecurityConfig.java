@@ -125,6 +125,20 @@ public class SecurityConfig {
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .oauth2ResourceServer(oauth2 -> oauth2
+                .bearerTokenResolver(request -> {
+                    String authHeader = request.getHeader("Authorization");
+                    if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                        return authHeader.substring(7).trim();
+                    }
+                    if (request.getCookies() != null) {
+                        for (jakarta.servlet.http.Cookie c : request.getCookies()) {
+                            if ("system_token".equals(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) {
+                                return c.getValue();
+                            }
+                        }
+                    }
+                    return null;
+                })
                 .jwt(jwt -> jwt
                     .decoder(jwtDecoder)
                     .jwtAuthenticationConverter(jwtAuthenticationConverter)

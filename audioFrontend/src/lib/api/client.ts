@@ -76,9 +76,12 @@ export async function refreshAccessToken(): Promise<string> {
       const url = `${API_BASE_URL}/auth/refresh-token`;
       const response = await fetch(url, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
           "X-Device-Id": deviceId,
+          "Accept-Cookies": "true",
+          "X-Accept-Cookies": "true",
         },
         body: JSON.stringify({ refreshToken, deviceId }),
       });
@@ -141,6 +144,7 @@ export async function request<T = any>(endpoint: string, options: RequestInit = 
   let response: Response;
   try {
     response = await fetch(url, {
+      credentials: "include",
       ...options,
       headers,
     });

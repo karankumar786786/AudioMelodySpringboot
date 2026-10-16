@@ -147,7 +147,7 @@ export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
       <LeftSidebar />
       <section
         id="main-section"
-        className="flex-1 flex flex-col min-w-0 ml-0 md:ml-[64px] xl:ml-[192px] mr-0 lg:mr-[290px] xl:mr-[320px] 2xl:mr-[340px] overflow-hidden relative z-10 bg-black transition-[margin] duration-200"
+        className="flex-1 flex flex-col min-w-0 ml-0 md:ml-16 xl:ml-48 mr-0 lg:mr-72.5 xl:mr-80 2xl:mr-85 overflow-hidden relative z-10 bg-black transition-[margin] duration-200"
       >
         <main
           className={`flex-1 ${

@@ -33,7 +33,12 @@ export const authApi = {
     const deviceId = getDeviceId();
     const verifyRes = await request("/auth/verify-otp", {
       method: "POST",
-      headers: { "X-TEMP-TOKEN": token, "X-Device-Id": deviceId },
+      headers: {
+        "X-TEMP-TOKEN": token,
+        "X-Device-Id": deviceId,
+        "Accept-Cookies": "true",
+        "X-Accept-Cookies": "true",
+      },
       body: JSON.stringify({ otp: code, deviceId }),
     });
 
@@ -73,6 +78,10 @@ export const authApi = {
       const refreshToken = getStoredItem("system_refresh_token");
       await request("/auth/logout", {
         method: "POST",
+        headers: {
+          "Accept-Cookies": "true",
+          "X-Accept-Cookies": "true",
+        },
         body: JSON.stringify({ deviceId, refreshToken }),
       });
     } catch {
