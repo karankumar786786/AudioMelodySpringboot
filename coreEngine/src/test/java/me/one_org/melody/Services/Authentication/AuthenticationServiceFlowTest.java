@@ -48,7 +48,7 @@ class AuthenticationServiceFlowTest {
     @Mock
     private OtpUtil otpUtil;
     @Mock
-    private Redis cache;
+    private Redis<OtpDataDto> cache;
     @Mock
     private JwtUtil jwtUtil;
     @Mock
@@ -62,7 +62,7 @@ class AuthenticationServiceFlowTest {
 
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        when(cache.of(anyString(), any())).thenReturn(cache);
+        when(cache.of(anyString(), eq(OtpDataDto.class))).thenReturn(cache);
         authenticationService = new AuthenticationService(
                 usersRepository, sessionRepository, jwtUtil, hmacUtil, otpUtil,
                 cache, paginationMetaDataService, mailQueue, eventPublisher

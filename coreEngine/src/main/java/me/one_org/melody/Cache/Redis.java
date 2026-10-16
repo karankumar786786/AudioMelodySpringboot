@@ -29,7 +29,7 @@ public class Redis<T> {
         this.type = type;
     }
 
-    public Redis<T> of(String group, Class<T> type) {
+    public <N> Redis<N> of(String group, Class<N> type) {
         return new Redis<>(this.redisTemplate, this.objectMapper, group, type);
     }
 
