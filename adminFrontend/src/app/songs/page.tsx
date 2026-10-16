@@ -32,6 +32,7 @@ interface Song {
   isFeatured?: boolean;
   lrclibId?: string;
   createdAt?: string;
+  totalStreams?: number;
 }
 
 const formatDuration = (num?: number) => {

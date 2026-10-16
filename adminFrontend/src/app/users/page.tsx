@@ -8,6 +8,7 @@ import { RefreshCw } from "lucide-react";
 import { UserItem, RoleFilter, StatusFilter, UserActionType } from "./types";
 import { UserFilterBar } from "./components/UserFilterBar";
 import { UsersTable } from "./components/UsersTable";
+import { UserSessionsModal } from "./components/UserSessionsModal";
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
@@ -18,6 +19,10 @@ export default function UsersPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("ALL");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+
+  // User Device Sessions modal
+  const [sessionsUser, setSessionsUser] = useState<UserItem | null>(null);
+  const [isSessionsModalOpen, setIsSessionsModalOpen] = useState(false);
 
   // Pagination state
   const [page, setPage] = useState(0);
@@ -97,6 +102,12 @@ export default function UsersPage() {
 
   // Execute an action on a user
   const handleUserAction = async (user: UserItem, action: UserActionType) => {
+    if (action === "sessions") {
+      setSessionsUser(user);
+      setIsSessionsModalOpen(true);
+      return;
+    }
+
     const isSelf = user.id === currentUser?.id || user.email === currentUser?.email;
     if (isSelf && (action === "block" || action === "demote" || action === "delete")) {
       showToast("You cannot perform destructive actions on your own active account", "error");
@@ -302,6 +313,17 @@ export default function UsersPage() {
           setPageSize(newSize);
           setPage(0);
         }}
+      />
+
+      {/* User Device Sessions Modal */}
+      <UserSessionsModal
+        user={sessionsUser}
+        isOpen={isSessionsModalOpen}
+        onClose={() => {
+          setIsSessionsModalOpen(false);
+          setSessionsUser(null);
+        }}
+        onNotify={showToast}
       />
     </div>
   );

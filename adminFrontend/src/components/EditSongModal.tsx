@@ -40,6 +40,7 @@ export interface SongData {
   isFeatured?: boolean;
   lrclibId?: string;
   createdAt?: string;
+  totalStreams?: number;
 }
 
 interface EditSongModalProps {

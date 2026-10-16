@@ -12,6 +12,7 @@ import {
   ArrowDownCircle,
   Mail,
   Loader2,
+  Smartphone,
 } from "lucide-react";
 import { UserItem, UserActionType } from "../types";
 import { TableSkeleton } from "@/components/TableSkeleton";
@@ -204,6 +205,17 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                             )}
                           </>
                         )}
+
+                        {/* Devices / Sessions Button */}
+                        <button
+                          onClick={() => onUserAction(u, "sessions")}
+                          disabled={loading}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold text-zinc-300 bg-black/60 hover:bg-white hover:text-black border border-[#282828] transition-all disabled:opacity-40"
+                          title="View and manage connected devices"
+                        >
+                          <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
+                          <span className="hidden sm:inline">Devices</span>
+                        </button>
 
                         {/* Block / Unblock Toggle */}
                         {!isSuperAdmin && !isSelf && (

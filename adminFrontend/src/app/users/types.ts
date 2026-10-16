@@ -10,4 +10,4 @@ export interface UserItem {
 
 export type RoleFilter = "ALL" | "ADMIN" | "USER";
 export type StatusFilter = "ALL" | "ACTIVE" | "BLOCKED";
-export type UserActionType = "promote" | "demote" | "block" | "unblock" | "delete";
+export type UserActionType = "promote" | "demote" | "block" | "unblock" | "delete" | "sessions";

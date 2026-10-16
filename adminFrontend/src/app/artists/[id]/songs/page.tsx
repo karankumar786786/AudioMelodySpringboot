@@ -22,6 +22,7 @@ interface Song {
   imageKey: string;
   videoKey?: string;
   album?: string;
+  totalStreams?: number;
 }
 
 export default function ArtistSongsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -173,6 +174,7 @@ export default function ArtistSongsPage({ params }: { params: Promise<{ id: stri
                   <th className="p-6 text-xs font-black uppercase tracking-widest text-zinc-400">#</th>
                   <th className="p-6 text-xs font-black uppercase tracking-widest text-zinc-400">Track</th>
                   <th className="p-6 text-xs font-black uppercase tracking-widest text-zinc-400">Album</th>
+                  <th className="p-6 text-xs font-black uppercase tracking-widest text-zinc-400">Streams</th>
                   <th className="p-6 text-xs font-black uppercase tracking-widest text-zinc-400">Duration</th>
                   <th className="p-6 text-xs font-black uppercase tracking-widest text-zinc-400">Video Canvas</th>
                 </tr>
@@ -212,6 +214,11 @@ export default function ArtistSongsPage({ params }: { params: Promise<{ id: stri
                       </span>
                     </td>
                     <td className="p-6">
+                      <span className="text-emerald-400 font-mono text-xs font-bold">
+                        {(song.totalStreams || 0).toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="p-6">
                       <span className="bg-black/60 border border-[#282828] text-zinc-300 px-3 py-1.5 rounded-full font-mono text-xs">
                         {formatDuration(song.duration)}
                       </span>
@@ -232,7 +239,7 @@ export default function ArtistSongsPage({ params }: { params: Promise<{ id: stri
                 ))}
                 {songs.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="p-20 text-center text-zinc-500 italic">
+                    <td colSpan={6} className="p-20 text-center text-zinc-500 italic">
                       No songs uploaded for this artist yet.
                     </td>
                   </tr>
