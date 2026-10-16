@@ -35,6 +35,28 @@ export const deleteFromAlgolia = inngest.createFunction(
             await deleteApi.post(`/${data.entityType}/${data.entityId}/delete-search`, null, {
                 params: data.deleteJobId ? { deleteJobId: data.deleteJobId } : undefined,
             });
+
+            // Direct Algolia purge fallback if credentials configured
+            const appId = process.env.ALGOLIA_APP_ID;
+            const apiKey = process.env.ALGOLIA_API_KEY;
+            const indexName = process.env.ALGOLIA_INDEX_NAME || "one_melody_springboot";
+
+            if (appId && apiKey && data.entityId) {
+                try {
+                    const directUrl = `https://${appId}.algolia.net/1/indexes/${encodeURIComponent(indexName)}/${encodeURIComponent(data.entityId)}`;
+                    await fetch(directUrl, {
+                        method: "DELETE",
+                        headers: {
+                            "X-Algolia-Application-Id": appId,
+                            "X-Algolia-API-Key": apiKey,
+                        },
+                    });
+                    console.log(`[DELETE-ALGOLIA] Direct Algolia purge executed for ${data.entityId}`);
+                } catch (delErr) {
+                    console.warn(`[DELETE-ALGOLIA] Direct Algolia purge error (webhook handled it):`, delErr);
+                }
+            }
+
             console.log(`[DELETE-ALGOLIA] Successfully removed ${data.entityType}:${data.entityId} from Algolia`);
         });
 

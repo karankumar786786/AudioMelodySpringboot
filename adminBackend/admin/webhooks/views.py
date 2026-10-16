@@ -24,6 +24,7 @@ from core.services import (
     ImageKitService,
     PaginationMetadataService,
     RecombeeService,
+    RedisService,
     S3Service,
 )
 # pyrefly: ignore[missing-import]
@@ -219,6 +220,14 @@ class WebhookJobSaveSearchView(BaseAdminView):
                     "album": job.album,
                     "image_key": job.image_key,
                     "duration": job.duration,
+                    "song_key": job.song_key,
+                    "video_key": job.video_key,
+                    "full_video_key": job.full_video_key,
+                    "preview_start_time": job.preview_start_time,
+                    "preview_end_time": job.preview_end_time,
+                    "lrclib_id": job.lrclib_id,
+                    "job_id": job.id,
+                    "total_streams": 0,
                     "status": "ACTIVE",
                 },
                 job_id=job.id,
@@ -226,7 +235,7 @@ class WebhookJobSaveSearchView(BaseAdminView):
         except Exception as e:
             logger.warning("Failed to save song to Algolia in webhook: %s", e)
 
-        return Response(status=status.HTTP_200_OK)
+        return Response({"status": "indexed", "songId": job.song_id}, status=status.HTTP_200_OK)
 
 
 class WebhookJobFinalizeView(BaseAdminView):
@@ -303,6 +312,11 @@ class WebhookJobFinalizeView(BaseAdminView):
             job_id=job.id,
             status="ACTIVE",
         )
+        try:
+            AlgoliaService.save_song(song=song, job_id=job.id)
+        except Exception as e:
+            logger.warning("Failed to sync finalized song %s to Algolia: %s", song.id, e)
+
         try:
             SongMetadata.objects.get_or_create(
                 song=song,

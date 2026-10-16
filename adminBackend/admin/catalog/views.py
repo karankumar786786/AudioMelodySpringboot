@@ -2,11 +2,14 @@ import logging
 import uuid
 from django.db import models
 from django.db.models import Q
+# pyrefly: ignore[missing-import]
 from core.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
 
+# pyrefly: ignore[missing-import]
 from core.helpers import format_paginated_response
+# pyrefly: ignore[missing-import]
 from core.services import (
     AlgoliaService,
     ImageKitService,
@@ -14,8 +17,11 @@ from core.services import (
     RecombeeService,
     RedisService,
 )
+# pyrefly: ignore[missing-import]
 from core.views import BaseAdminView
+# pyrefly: ignore[missing-import]
 from jobs.models import Job
+# pyrefly: ignore[missing-import]
 from jobs.serializers import JobSerializer
 from .models import Artist, Playlist, PlaylistSong, Song
 from .serializers import ArtistSerializer, PlaylistSerializer, SongSerializer
@@ -625,6 +631,7 @@ class SongToggleFeaturedView(BaseAdminView):
         featured = bool(request.data.get("featured", not song.is_featured))
         song.is_featured = featured
         song.save()
+        AlgoliaService.save_song(song)
         return Response(SongSerializer(song).data, status=status.HTTP_200_OK)
 
 
