@@ -85,7 +85,7 @@ export default function HistoryPage() {
   };
 
   return (
-    <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-28 bg-black pt-[var(--app-content-pt,5rem)] space-y-8 min-h-screen">
+    <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-28 bg-black pt-(--app-content-pt,5rem) space-y-8 min-h-screen">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -173,14 +173,14 @@ export default function HistoryPage() {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.2 }}
-                    className="group grid grid-cols-[auto_1fr_auto] sm:grid-cols-[auto_1fr_auto_auto] md:grid-cols-[auto_1fr_120px_100px_80px] items-center gap-4 px-4 py-3 hover:bg-white/[0.04] transition-colors"
+                    className="group grid grid-cols-[auto_1fr_auto] sm:grid-cols-[auto_1fr_auto_auto] md:grid-cols-[auto_1fr_120px_100px_80px] items-center gap-4 px-4 py-3 hover:bg-white/4 transition-colors"
                   >
                     {/* Index / Play button */}
                     <div className="w-8 flex items-center justify-center">
                       <button
                         type="button"
                         onClick={() => handlePlaySong(item)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-full bg-white text-black hover:scale-105 transition-transform cursor-pointer"
+                        className="opacity-0 group-hover:opacity-100  p-1.5 rounded-full bg-white text-black hover:scale-105 transition-transform cursor-pointer"
                         title={isThisPlaying ? "Pause" : "Play"}
                       >
                         {isThisPlaying ? (
