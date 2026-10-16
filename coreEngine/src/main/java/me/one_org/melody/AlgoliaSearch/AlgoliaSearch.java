@@ -62,9 +62,8 @@ public class AlgoliaSearch {
                             "searchable(language)",
                             "searchable(genre)"))
                     .setCustomRanking(List.of(
-                            "desc(totalStreams)",
-                            "desc(searchCount)")));
-            log.info("Algolia index configured with searchable attributes, facets, and customRanking desc(totalStreams), desc(searchCount)");
+                            "desc(totalStreams)")));
+            log.info("Algolia index configured with searchable attributes, facets, and customRanking desc(totalStreams)");
         } catch (Exception e) {
             log.warn("Could not configure Algolia index on startup: {}", e.getMessage());
         }
@@ -83,23 +82,6 @@ public class AlgoliaSearch {
         } catch (Exception e) {
             log.warn("Failed to generate secured Algolia API key, falling back to searchApiKey: {}", e.getMessage());
             return new AlgoliaClientConfigDto(appId, indexName, searchApiKey != null ? searchApiKey : "");
-        }
-    }
-
-    public void incrementSearchCount(String objectId) {
-        if (objectId == null || objectId.isBlank()) return;
-        try {
-            Map<String, Object> operation = new HashMap<>();
-            operation.put("_operation", "Increment");
-            operation.put("value", 1);
-
-            Map<String, Object> update = new HashMap<>();
-            update.put("searchCount", operation);
-
-            searchClient.partialUpdateObject(indexName, objectId, update, true);
-            log.info("Incremented Algolia searchCount for object [{}]", objectId);
-        } catch (Exception e) {
-            log.warn("Failed to increment searchCount in Algolia for [{}]: {}", objectId, e.getMessage());
         }
     }
 

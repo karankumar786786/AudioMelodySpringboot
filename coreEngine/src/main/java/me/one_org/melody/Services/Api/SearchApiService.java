@@ -45,7 +45,7 @@ public class SearchApiService {
     }
 
     public SearchResult search(String query, String userId) {
-        // 1. Search Algolia — Algolia ranks candidates by relevance & customRanking desc(searchCount)
+        // 1. Search Algolia — Algolia ranks candidates by relevance & customRanking desc(totalStreams)
         AlgoliaSearchResult algoliaResult = algoliaSearch.search(query);
 
         // 2. Extract IDs in Algolia's ranked order
