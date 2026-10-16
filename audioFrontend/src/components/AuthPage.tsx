@@ -80,7 +80,7 @@ export function AuthPage({ initialMode = "signup" }: AuthPageProps) {
       {/* Main Form Container matching App Theme with smooth layout resizing */}
       <main
         className={`w-full my-auto pt-16 pb-8 transition-all duration-300 ${
-          view === "onboarding" ? "max-w-3xl" : "max-w-[420px]"
+          view === "onboarding" ? "max-w-3xl" : "max-w-105"
         }`}
       >
         <motion.div
