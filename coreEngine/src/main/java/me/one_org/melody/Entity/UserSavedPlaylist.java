@@ -24,9 +24,6 @@ import lombok.Setter;
 )
 @Getter
 @Setter
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class UserSavedPlaylist {
 
     @Id
@@ -45,4 +42,17 @@ public class UserSavedPlaylist {
     @CreationTimestamp
     @Column(name = "saved_at", nullable = false, updatable = false)
     private LocalDateTime savedAt;
+
+    public UserSavedPlaylist() {
+        super();
+    }
+
+    @Builder
+    public UserSavedPlaylist(String id, User user, UserPlaylist playlist, LocalDateTime savedAt) {
+        super();
+        this.id = id;
+        this.user = user;
+        this.playlist = playlist;
+        this.savedAt = savedAt;
+    }
 }

@@ -13,9 +13,6 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "pagination_metadata")
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
-@Builder
 public class PaginationMetaData {
     @Id
     private String id;
@@ -38,6 +35,23 @@ public class PaginationMetaData {
     @UpdateTimestamp 
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    public PaginationMetaData() {
+        super();
+    }
+
+    @Builder
+    public PaginationMetaData(String id, String tableName, long totalCount, long activeCount,
+                              long blockedCount, long softDeletedCount, LocalDateTime updatedAt) {
+        super();
+        this.id = id;
+        this.tableName = tableName;
+        this.totalCount = totalCount;
+        this.activeCount = activeCount;
+        this.blockedCount = blockedCount;
+        this.softDeletedCount = softDeletedCount;
+        this.updatedAt = updatedAt;
+    }
 
     public String getEntityName() {
         return this.tableName;

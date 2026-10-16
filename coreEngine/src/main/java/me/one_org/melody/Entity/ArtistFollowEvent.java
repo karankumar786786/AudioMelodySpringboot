@@ -11,11 +11,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "artist_follow_events") // we dont require here this things because it will be processed before saving
+@Table(name = "artist_follow_events")
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
-@Builder
 public class ArtistFollowEvent{
     @Id
     private String id;
@@ -35,4 +32,18 @@ public class ArtistFollowEvent{
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    public ArtistFollowEvent() {
+        super();
+    }
+
+    @Builder
+    public ArtistFollowEvent(String id, User user, Artist artist, FollowEvent followEvent, LocalDateTime createdAt) {
+        super();
+        this.id = id;
+        this.user = user;
+        this.artist = artist;
+        this.followEvent = followEvent;
+        this.createdAt = createdAt;
+    }
 }

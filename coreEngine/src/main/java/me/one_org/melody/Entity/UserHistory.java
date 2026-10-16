@@ -16,9 +16,6 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "user_history")
 @Data 
-@AllArgsConstructor 
-@NoArgsConstructor 
-@Builder 
 public class UserHistory {
 
     @Id
@@ -40,4 +37,18 @@ public class UserHistory {
     @CreationTimestamp
     @Column(nullable = false)
     private LocalDateTime listenedAt;
+
+    public UserHistory() {
+        super();
+    }
+
+    @Builder
+    public UserHistory(String id, User user, Song song, Integer part, LocalDateTime listenedAt) {
+        super();
+        this.id = id;
+        this.user = user;
+        this.song = song;
+        this.part = part;
+        this.listenedAt = listenedAt;
+    }
 }

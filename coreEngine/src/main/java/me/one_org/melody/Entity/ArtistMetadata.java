@@ -13,9 +13,6 @@ import java.time.LocalDateTime;
 @Table(name = "artist_metadata")
 @BatchSize(size = 50)
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
-@Builder
 public class ArtistMetadata {
     @Id
     private String id;
@@ -34,4 +31,18 @@ public class ArtistMetadata {
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    public ArtistMetadata() {
+        super();
+    }
+
+    @Builder
+    public ArtistMetadata(String id, Artist artist, Long followersCount, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        super();
+        this.id = id;
+        this.artist = artist;
+        this.followersCount = followersCount;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
 }

@@ -47,23 +47,27 @@ public class AlgoliaSearch {
     }
 
     @PostConstruct
-    public void configureIndex() throws Exception {
-        searchClient.setSettings(indexName, new IndexSettings()
-                .setSearchableAttributes(List.of(
-                        "title",
-                        "artistName",
-                        "album",
-                        "name",
-                        "language",
-                        "genre"))
-                .setAttributesForFaceting(List.of(
-                        "filterOnly(type)",
-                        "searchable(language)",
-                        "searchable(genre)"))
-                .setCustomRanking(List.of(
-                        "desc(totalStreams)",
-                        "desc(searchCount)")));
-        log.info("Algolia index configured with searchable attributes, facets, and customRanking desc(totalStreams), desc(searchCount)");
+    public void configureIndex() {
+        try {
+            searchClient.setSettings(indexName, new IndexSettings()
+                    .setSearchableAttributes(List.of(
+                            "title",
+                            "artistName",
+                            "album",
+                            "name",
+                            "language",
+                            "genre"))
+                    .setAttributesForFaceting(List.of(
+                            "filterOnly(type)",
+                            "searchable(language)",
+                            "searchable(genre)"))
+                    .setCustomRanking(List.of(
+                            "desc(totalStreams)",
+                            "desc(searchCount)")));
+            log.info("Algolia index configured with searchable attributes, facets, and customRanking desc(totalStreams), desc(searchCount)");
+        } catch (Exception e) {
+            log.warn("Could not configure Algolia index on startup: {}", e.getMessage());
+        }
     }
 
     public AlgoliaClientConfigDto getClientSearchConfig() {

@@ -11,9 +11,6 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "user_search_history")
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
-@Builder
 public class UserSearchHistory {
 
     @Id
@@ -52,6 +49,24 @@ public class UserSearchHistory {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
+
+    public UserSearchHistory() {
+        super();
+    }
+
+    @Builder
+    public UserSearchHistory(String id, User user, String entityType, Song song, Artist artist,
+                             Playlist playlist, UserPlaylist userPlaylist, LocalDateTime createdAt) {
+        super();
+        this.id = id;
+        this.user = user;
+        this.entityType = entityType;
+        this.song = song;
+        this.artist = artist;
+        this.playlist = playlist;
+        this.userPlaylist = userPlaylist;
+        this.createdAt = createdAt;
+    }
 
     public String getTableName() {
         return this.entityType;

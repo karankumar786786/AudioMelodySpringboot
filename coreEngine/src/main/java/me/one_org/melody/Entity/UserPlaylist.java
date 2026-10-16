@@ -16,9 +16,6 @@ import me.one_org.melody.Enums.PlaylistPrivacyEnum;
 @Entity
 @Table(name = "user_playlists")
 @Data 
-@AllArgsConstructor 
-@NoArgsConstructor 
-@Builder 
 public class UserPlaylist{
 
     @Id
@@ -27,13 +24,11 @@ public class UserPlaylist{
     @Column(nullable = false)
     private String name;
 
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = true)
     private PlaylistPrivacyEnum privacy;
 
     private String shareToken;
-
 
     @Column(nullable = false)
     private int totalSongs;
@@ -51,6 +46,22 @@ public class UserPlaylist{
         foreignKey = @ForeignKey(foreignKeyDefinition = "FOREIGN KEY (song_id) REFERENCES songs(id) ON DELETE CASCADE")
     )
     private List<Song> songs;
-    
+
+    public UserPlaylist() {
+        super();
+    }
+
+    @Builder
+    public UserPlaylist(String id, String name, PlaylistPrivacyEnum privacy, String shareToken,
+                        int totalSongs, User user, List<Song> songs) {
+        super();
+        this.id = id;
+        this.name = name;
+        this.privacy = privacy;
+        this.shareToken = shareToken;
+        this.totalSongs = totalSongs;
+        this.user = user;
+        this.songs = songs;
+    }
 }
 

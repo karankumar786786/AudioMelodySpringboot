@@ -16,8 +16,6 @@ import me.one_org.melody.Enums.StatusEnum;
 @Entity
 @Table(name = "playlists")
 @Data 
-@AllArgsConstructor 
-@NoArgsConstructor 
 public class Playlist{
 
     @Id
@@ -57,5 +55,25 @@ public class Playlist{
     @UpdateTimestamp
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    public Playlist() {
+        super();
+    }
+
+    @Builder
+    public Playlist(String id, String name, String description, String coverImageKey, String videoKey,
+                    int totalSongs, StatusEnum status, List<Song> songs, LocalDateTime createdAt, LocalDateTime updatedAt) {
+        super();
+        this.id = id;
+        this.name = name;
+        this.description = description;
+        this.coverImageKey = coverImageKey;
+        this.videoKey = videoKey;
+        this.totalSongs = totalSongs;
+        this.status = status;
+        this.songs = songs;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
 }
 

@@ -11,9 +11,6 @@ import me.one_org.melody.Enums.StatusEnum;
 @Entity
 @Table(name = "artists")
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
-@Builder
 public class Artist{
 
     @Id
@@ -35,7 +32,6 @@ public class Artist{
     @Column(nullable = false)
     private StatusEnum status;
 
-    @org.hibernate.annotations.BatchSize(size = 50)
     @OneToOne(mappedBy = "artist", fetch = FetchType.LAZY)
     private ArtistMetadata artistMetadata;
 
@@ -43,5 +39,22 @@ public class Artist{
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    public Artist() {
+        super();
+    }
+
+    @Builder
+    public Artist(String id, String name, String about, LocalDateTime dob, String coverImageKey,
+                  StatusEnum status, ArtistMetadata artistMetadata, LocalDateTime createdAt) {
+        super();
+        this.id = id;
+        this.name = name;
+        this.about = about;
+        this.dob = dob;
+        this.coverImageKey = coverImageKey;
+        this.status = status;
+        this.artistMetadata = artistMetadata;
+        this.createdAt = createdAt;
+    }
 }
 

@@ -23,7 +23,7 @@ public class TokenBlacklistService {
     private static final String BLACKLIST_TOKEN_PREFIX = "token:blacklist:";
     private static final String USER_BLOCKED_PREFIX = "user:blocked:";
 
-    public TokenBlacklistService(StringRedisTemplate redisTemplate, JwtUtil jwtUtil) {
+    public TokenBlacklistService(StringRedisTemplate redisTemplate, @org.springframework.context.annotation.Lazy JwtUtil jwtUtil) {
         this.redisTemplate = redisTemplate;
         this.jwtUtil = jwtUtil;
     }
