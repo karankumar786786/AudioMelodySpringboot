@@ -121,7 +121,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/songs/**", "/api/playlists/**", "/api/artists/**", "/api/search/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/songs/**", "/api/playlists/**", "/api/artists/**", "/api/search/**", "/api/recommendations/similar/**", "/api/recommendations/radio").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/user/playlists/shared/**").permitAll()
                 .requestMatchers("/api/**", "/app/**").authenticated()
                 .anyRequest().authenticated()
