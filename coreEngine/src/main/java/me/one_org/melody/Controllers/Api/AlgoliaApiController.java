@@ -1,5 +1,8 @@
 package me.one_org.melody.Controllers.Api;
 
+import java.util.concurrent.TimeUnit;
+
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,7 +22,9 @@ public class AlgoliaApiController {
 
     @GetMapping("/config")
     public ResponseEntity<AlgoliaClientConfigDto> getSearchConfig() {
-        return ResponseEntity.ok(searchApiService.getFrontendSearchConfig());
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+                .body(searchApiService.getFrontendSearchConfig());
     }
 
     @GetMapping

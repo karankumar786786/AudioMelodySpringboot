@@ -2,6 +2,9 @@ package me.one_org.melody.Controllers.Api;
 
 import java.util.List;
 
+import java.util.concurrent.TimeUnit;
+
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -48,7 +51,9 @@ public class SongsApiController {
     @GetMapping("/{id}")
     public ResponseEntity<SongDto> getSongById(@PathVariable String id) {
         Song song = songsAppService.getSongById(id);
-        return ResponseEntity.ok(SongDto.fromEntity(song));
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(30, TimeUnit.MINUTES).cachePublic())
+                .body(SongDto.fromEntity(song));
     }
 
     @GetMapping("/album/{albumName}")
@@ -59,6 +64,8 @@ public class SongsApiController {
 
     @GetMapping("/albums")
     public ResponseEntity<List<me.one_org.melody.Dto.Controllers.AlbumDto>> getAllAlbums() {
-        return ResponseEntity.ok(songsAppService.getAllAlbums());
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(15, TimeUnit.MINUTES).cachePublic())
+                .body(songsAppService.getAllAlbums());
     }
 }
