@@ -2,7 +2,12 @@ package me.one_org.melody.Configuration;
 
 import java.time.Duration;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.CachingConfigurer;
+import org.springframework.cache.interceptor.CacheErrorHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;
@@ -25,7 +30,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Configuration
-public class RedisConfig {
+public class RedisConfig implements CachingConfigurer {
+
+    private static final Logger log = LoggerFactory.getLogger(RedisConfig.class);
 
     private ObjectMapper redisObjectMapper() {
         PolymorphicTypeValidator ptv = BasicPolymorphicTypeValidator.builder()
@@ -89,5 +96,42 @@ public class RedisConfig {
                 .cacheDefaults(defaultConfig)
                 .withInitialCacheConfigurations(cacheConfigurations)
                 .build();
+    }
+
+    @Override
+    @Bean
+    public CacheErrorHandler errorHandler() {
+        return new CacheErrorHandler() {
+            @Override
+            public void handleCacheGetError(RuntimeException exception, Cache cache, Object key) {
+                log.warn("Redis cache GET failed for cache='{}', key='{}'. Evicting stale entry and falling back to DB: {}",
+                        cache != null ? cache.getName() : "unknown", key, exception.getMessage());
+                if (cache != null) {
+                    try {
+                        cache.evict(key);
+                    } catch (Exception e) {
+                        log.warn("Failed to evict stale cache key '{}' from '{}': {}", key, cache.getName(), e.getMessage());
+                    }
+                }
+            }
+
+            @Override
+            public void handleCachePutError(RuntimeException exception, Cache cache, Object key, Object value) {
+                log.warn("Redis cache PUT failed for cache='{}', key='{}'. Continuing without caching: {}",
+                        cache != null ? cache.getName() : "unknown", key, exception.getMessage());
+            }
+
+            @Override
+            public void handleCacheEvictError(RuntimeException exception, Cache cache, Object key) {
+                log.warn("Redis cache EVICT failed for cache='{}', key='{}': {}",
+                        cache != null ? cache.getName() : "unknown", key, exception.getMessage());
+            }
+
+            @Override
+            public void handleCacheClearError(RuntimeException exception, Cache cache) {
+                log.warn("Redis cache CLEAR failed for cache='{}': {}",
+                        cache != null ? cache.getName() : "unknown", exception.getMessage());
+            }
+        };
     }
 }
