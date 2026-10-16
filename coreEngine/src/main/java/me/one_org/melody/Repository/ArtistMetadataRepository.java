@@ -34,11 +34,15 @@ public interface ArtistMetadataRepository extends JpaRepository<ArtistMetadata, 
         if (opt.isPresent()) {
             ArtistMetadata metadata = opt.get();
             metadata.setFollowersCount(metadata.getFollowersCount() + 1L);
+            if ((metadata.getArtistName() == null || metadata.getArtistName().isBlank()) && artistName != null) {
+                metadata.setArtistName(artistName);
+            }
             metadata.setUpdatedAt(LocalDateTime.now());
             return save(metadata);
         } else {
             ArtistMetadata metadata = ArtistMetadata.builder()
                     .id(artistId)
+                    .artistName(artistName != null && !artistName.isBlank() ? artistName : "Unknown Artist")
                     .followersCount(1L)
                     .createdAt(LocalDateTime.now())
                     .updatedAt(LocalDateTime.now())
