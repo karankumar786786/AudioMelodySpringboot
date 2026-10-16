@@ -31,13 +31,28 @@ class ArtistListView(BaseAdminView):
     def get(self, request):
         page = int(request.query_params.get("page", 0))
         size = int(request.query_params.get("size", 20))
+        search = (request.query_params.get("search") or "").strip()
+        status_param = (request.query_params.get("status") or "").strip()
         offset = page * size
 
-        qs = Artist.objects.filter(status="ACTIVE").order_by("-created_at")
-        artists = list(qs[offset : offset + size])
+        qs = Artist.objects.all()
+        if status_param and status_param.upper() != "ALL":
+            qs = qs.filter(status=status_param.upper())
+        elif not status_param:
+            qs = qs.filter(status="ACTIVE")
+
+        if search:
+            qs = qs.filter(Q(name__icontains=search) | Q(about__icontains=search))
+
+        artists = list(qs.order_by("-created_at")[offset : offset + size])
 
         meta = PaginationMetadataService.get_metadata("ArtistsEntity")
-        total_count = meta.total_count if meta and meta.total_count > 0 else qs.count()
+        has_filters = bool(search or (status_param and status_param.upper() != "ACTIVE"))
+        if has_filters:
+            total_count = qs.count()
+        else:
+            total_count = meta.total_count if (meta and meta.total_count > 0) else qs.count()
+
         meta_dict = {
             "id": meta.id if meta else "ArtistsEntity",
             "entityName": "ArtistsEntity",
@@ -127,19 +142,20 @@ class ArtistSongsView(BaseAdminView):
     def get(self, request, pk):
         artist = get_object_or_404(Artist, pk=pk)
         page = int(request.query_params.get("page", 0))
-        size = int(request.query_params.get("size", 200))
+        size = int(request.query_params.get("size", 20))
+        search = (request.query_params.get("search") or "").strip()
         offset = page * size
 
         qs = Song.objects.filter(
             Q(artist_name__iexact=artist.name) | Q(artist_name__icontains=artist.name),
             status="ACTIVE",
-        ).select_related("metadata").order_by("-created_at")
+        ).select_related("metadata")
 
-        songs = list(qs[offset : offset + size])
-        try:
-            total = qs.count()
-        except (TypeError, AttributeError):
-            total = len(songs)
+        if search:
+            qs = qs.filter(Q(title__icontains=search) | Q(album__icontains=search))
+
+        total = qs.count()
+        songs = list(qs.order_by("-created_at")[offset : offset + size])
         meta = PaginationMetadataService.get_metadata(f"ArtistSongs_{pk}")
 
         meta_dict = {
@@ -165,13 +181,28 @@ class PlaylistListView(BaseAdminView):
     def get(self, request):
         page = int(request.query_params.get("page", 0))
         size = int(request.query_params.get("size", 20))
+        search = (request.query_params.get("search") or "").strip()
+        status_param = (request.query_params.get("status") or "").strip()
         offset = page * size
 
-        qs = Playlist.objects.filter(status="ACTIVE").order_by("-created_at")
-        playlists = list(qs[offset : offset + size])
+        qs = Playlist.objects.all()
+        if status_param and status_param.upper() != "ALL":
+            qs = qs.filter(status=status_param.upper())
+        elif not status_param:
+            qs = qs.filter(status="ACTIVE")
+
+        if search:
+            qs = qs.filter(Q(name__icontains=search) | Q(description__icontains=search))
+
+        playlists = list(qs.order_by("-created_at")[offset : offset + size])
 
         meta = PaginationMetadataService.get_metadata("PlaylistsEntity")
-        total_count = meta.total_count if meta and meta.total_count > 0 else qs.count()
+        has_filters = bool(search or (status_param and status_param.upper() != "ACTIVE"))
+        if has_filters:
+            total_count = qs.count()
+        else:
+            total_count = meta.total_count if (meta and meta.total_count > 0) else qs.count()
+
         meta_dict = {
             "id": meta.id if meta else "PlaylistsEntity",
             "entityName": "PlaylistsEntity",
@@ -268,14 +299,18 @@ class PlaylistSongsView(BaseAdminView):
         playlist = get_object_or_404(Playlist, pk=pk)
         page = int(request.query_params.get("page", 0))
         size = int(request.query_params.get("size", 20))
+        search = (request.query_params.get("search") or "").strip()
         offset = page * size
 
         song_ids = PlaylistSong.objects.filter(playlist=playlist).values_list("song_id", flat=True)
-        qs = Song.objects.select_related("metadata").filter(id__in=song_ids, status="ACTIVE").order_by("-created_at")
-        songs = list(qs[offset : offset + size])
+        qs = Song.objects.select_related("metadata").filter(id__in=song_ids, status="ACTIVE")
+        if search:
+            qs = qs.filter(Q(title__icontains=search) | Q(artist_name__icontains=search) | Q(album__icontains=search))
+
+        total = qs.count()
+        songs = list(qs.order_by("-created_at")[offset : offset + size])
 
         meta = PaginationMetadataService.get_metadata(f"PlaylistSongs_{pk}")
-        total = qs.count()
         meta_dict = {
             "id": meta.id if meta else f"PlaylistSongs_{pk}",
             "entityName": f"PlaylistSongs_{pk}",
@@ -603,13 +638,28 @@ class SongJobsListView(BaseAdminView):
     def get(self, request):
         page = int(request.query_params.get("page", 0))
         size = int(request.query_params.get("size", 20))
+        search = (request.query_params.get("search") or "").strip()
         offset = page * size
 
-        jobs = list(Job.objects.all().order_by("-created_at")[offset : offset + size])
+        qs = Job.objects.all()
+        if search:
+            qs = qs.filter(Q(title__icontains=search) | Q(artist_name__icontains=search) | Q(id__icontains=search))
+
         meta = PaginationMetadataService.get_metadata("JobsEntity")
+        total_count = qs.count() if search else (meta.total_count if (meta and meta.total_count > 0) else qs.count())
+        jobs = list(qs.order_by("-created_at")[offset : offset + size])
+
+        meta_dict = {
+            "id": meta.id if meta else "JobsEntity",
+            "entityName": "JobsEntity",
+            "totalCount": total_count,
+            "activeCount": meta.active_count if meta else total_count,
+            "blockedCount": 0,
+            "deletedCount": 0,
+        }
 
         return Response(
-            format_paginated_response(JobSerializer(jobs, many=True).data, page, size, meta),
+            format_paginated_response(JobSerializer(jobs, many=True).data, page, size, meta_dict),
             status=status.HTTP_200_OK,
         )
 

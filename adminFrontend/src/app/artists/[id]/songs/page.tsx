@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, use } from "react";
 import Link from "next/link";
+import { PaginationBar } from "@/components/PaginationBar";
 import { adminFetch } from "@/lib/adminFetch";
 import { Artist } from "@/app/artists/types";
 import { ArtistHeroBanner } from "./components/ArtistHeroBanner";
@@ -12,32 +13,56 @@ export default function ArtistSongsPage({ params }: { params: Promise<{ id: stri
   const [artist, setArtist] = useState<Artist | null>(null);
   const [songs, setSongs] = useState<DiscographySong[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingSongs, setLoadingSongs] = useState(false);
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
+  const [totalSongs, setTotalSongs] = useState(0);
 
-  const fetchData = useCallback(async () => {
-    try {
-      // 1. Fetch Artist Details
-      const artistRes = await adminFetch(`/admin/artist/${id}`);
-      if (artistRes.ok) {
-        const artistData = await artistRes.json();
-        setArtist(artistData);
-      }
-
-      // 2. Fetch Artist Songs via public API
-      const songsRes = await adminFetch(`/api/artists/${id}/songs?page=0&size=200`);
-      if (songsRes.ok) {
-        const songsData = await songsRes.json();
-        setSongs(songsData.content || []);
-      }
-    } catch (err) {
-      console.error("Failed to fetch artist data", err);
-    } finally {
-      setLoading(false);
-    }
+  // Fetch Artist Details (once)
+  useEffect(() => {
+    let isMounted = true;
+    adminFetch(`/admin/artist/${id}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (isMounted && data) setArtist(data);
+      })
+      .catch((err) => console.error("Failed to fetch artist details", err))
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
+  // Fetch Artist Songs (when page/pageSize changes)
+  const fetchArtistSongs = useCallback(async () => {
+    try {
+      setLoadingSongs(true);
+      const res = await adminFetch(`/admin/artist/${id}/songs?page=${page}&size=${pageSize}`);
+      if (res.ok) {
+        const data = await res.json();
+        const content = data.content || [];
+        setSongs(content);
+        const metaTotal = data.paginationMetaData?.totalCount ?? data.totalElements;
+        if (metaTotal !== undefined && metaTotal !== null) {
+          setTotalSongs(Number(metaTotal));
+        } else if (content.length < pageSize) {
+          setTotalSongs(page * pageSize + content.length);
+        } else {
+          setTotalSongs((page + 1) * pageSize);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to fetch artist songs", err);
+    } finally {
+      setLoadingSongs(false);
+    }
+  }, [id, page, pageSize]);
+
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    fetchArtistSongs();
+  }, [fetchArtistSongs]);
 
   if (loading) {
     return (
@@ -73,12 +98,31 @@ export default function ArtistSongsPage({ params }: { params: Promise<{ id: stri
   }
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-black space-y-4">
       {/* Hero Section */}
       <ArtistHeroBanner artist={artist} />
 
       {/* Discography Table */}
       <ArtistDiscographyTable songs={songs} />
+
+      {/* Pagination Controls */}
+      <div className="max-w-7xl mx-auto px-8 md:px-12 pb-12">
+        <PaginationBar
+          page={page}
+          pageSize={pageSize}
+          totalItems={totalSongs}
+          currentCount={songs.length}
+          itemLabel="tracks"
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(0);
+          }}
+          pageSizeOptions={[10, 20, 50, 100]}
+          loading={loadingSongs}
+        />
+      </div>
     </div>
   );
 }
+

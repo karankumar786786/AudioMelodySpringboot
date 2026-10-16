@@ -46,22 +46,26 @@ function SongsContent() {
   const fetchSongs = useCallback(async () => {
     try {
       setLoading(true);
-      let url = `/admin/song?page=${page}&size=${pageSize}`;
-      if (debouncedSearch.trim()) {
-        url = `/api/search?q=${encodeURIComponent(debouncedSearch.trim())}`;
-      }
+      const searchParam = debouncedSearch.trim()
+        ? `&search=${encodeURIComponent(debouncedSearch.trim())}`
+        : "";
+      const url = `/admin/song?page=${page}&size=${pageSize}${searchParam}`;
 
       const res = await adminFetch(url);
       if (res.ok) {
         const data = await res.json();
-        if (debouncedSearch.trim()) {
-          const searchSongs = data.songs || [];
-          setSongs(searchSongs);
-          setTotalSongs(searchSongs.length);
+        const content = data.content || data.data?.content || data.data || [];
+        setSongs(content);
+        const metaTotal = data.paginationMetaData?.totalCount ?? data.totalElements;
+        if (metaTotal !== undefined && metaTotal !== null) {
+          setTotalSongs(Number(metaTotal));
+        } else if (content.length < pageSize) {
+          setTotalSongs(page * pageSize + content.length);
         } else {
-          setSongs(data.content || []);
-          setTotalSongs(data.paginationMetaData?.totalCount ?? data.totalElements ?? 0);
+          setTotalSongs((page + 1) * pageSize);
         }
+      } else {
+        showToast("Unable to fetch songs from server", "error");
       }
     } catch (err) {
       console.error("Failed to fetch songs:", err);
