@@ -144,6 +144,13 @@ export const serverMusicApi = {
     },
   },
   playlists: {
+    list: async (page = 1, size = 30) => {
+      const res = await serverRequest<any>(
+        `/api/playlists?page=${page - 1}&size=${size}`,
+        { next: { revalidate: 60 } }
+      );
+      return res;
+    },
     getById: async (id: string) => {
       const res = await serverRequest<{ data: Playlist }>(`/api/playlists/${id}`, {
         next: { revalidate: 30 },
@@ -167,6 +174,41 @@ export const serverMusicApi = {
     getFeed: async (page = 1, size = 15) => {
       const res = await serverRequest<any>(
         `/api/songs/feed?page=${page - 1}&size=${size}`
+      );
+      return res;
+    },
+  },
+  users: {
+    getPlaylistById: async (id: string) => {
+      const res = await serverRequest<any>(`/api/user/playlists/${id}`);
+      return res ? { data: res } : null;
+    },
+    getPlaylistSongs: async (id: string) => {
+      const res = await serverRequest<any>(`/api/user/playlists/${id}/songs`);
+      const list = res?.content || (Array.isArray(res) ? res : []);
+      return { data: { data: list as Song[] } };
+    },
+    getSharedPlaylist: async (tokenOrId: string) => {
+      const res = await serverRequest<any>(`/api/user/playlists/shared/${tokenOrId}`);
+      return res ? { data: res } : null;
+    },
+    getSharedPlaylistSongs: async (tokenOrId: string, page = 1, size = 50) => {
+      const res = await serverRequest<any>(
+        `/api/user/playlists/shared/${tokenOrId}/songs?page=${page - 1}&size=${size}`
+      );
+      const list = res?.content || (Array.isArray(res) ? res : []);
+      return { data: { data: list as Song[] } };
+    },
+    getFavourites: async (page = 1, size = 100) => {
+      const res = await serverRequest<any>(
+        `/api/interaction/favourites?page=${page - 1}&size=${size}`
+      );
+      const list = res?.content || (Array.isArray(res) ? res : []);
+      return { data: { data: list as Song[] } };
+    },
+    getListeningHistory: async (page = 1, size = 20) => {
+      const res = await serverRequest<any>(
+        `/api/user/history?page=${page - 1}&size=${size}`
       );
       return res;
     },
