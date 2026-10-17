@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Provider from "./provider";
+import { Provider } from "@/components/Provider";
 import { ClientLayout } from "@/components/ClientLayout";
 import { getServerSession } from "@/lib/api/server-client";
 
