@@ -133,7 +133,7 @@ export function useAuthFlow({ onSuccess, onNavigateHome }: UseAuthFlowOptions = 
     setLoading(true);
     try {
       const res = await musicApi.auth.verifyOtp(sessionToken, code);
-      playerActions.setSystemSession(res.data.accessToken, res.data.refreshToken, res.data.user);
+      playerActions.setSystemSession(res.data.user);
 
       if (res.data.isNewUser) {
         setView("onboarding");

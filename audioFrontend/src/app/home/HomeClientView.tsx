@@ -29,20 +29,11 @@ import {
 export function HomeClientView() {
   const queryClient = useQueryClient();
   const systemUser = useStore(playerStore, (s) => s.systemUser);
-  const systemToken = useStore(playerStore, (s) => s.systemToken);
   const dominantColor = useStore(playerStore, (s) => s.dominantColor);
   const [activeFilter, setActiveFilter] = useState("All");
   const [streamActive, setStreamActive] = useState(true);
   const [useFallback, setUseFallback] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
-
-  // Immediately redirect to /signup if no token exists in storage or state
-  useEffect(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("system_token") : null;
-    if (!token && !systemToken) {
-      window.location.replace("/signup");
-    }
-  }, [systemToken]);
 
   // 0. Primary: Single SSE Stream to progressively stream all homepage sections in 1 connection
   useEffect(() => {
@@ -179,7 +170,7 @@ export function HomeClientView() {
   const { data: recommendations } = useQuery({
     queryKey: ["recommendations", systemUser?.id],
     queryFn: () => musicApi.interactions.getRecommendations(),
-    enabled: useFallback && !!systemUser?.id && !!systemToken,
+    enabled: useFallback && !!systemUser?.id,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -195,7 +186,7 @@ export function HomeClientView() {
   const { data: recentlyPlayed } = useQuery({
     queryKey: ["recently-played", systemUser?.id],
     queryFn: () => musicApi.users.getRecentlyPlayed(),
-    enabled: useFallback && !!systemUser?.id && !!systemToken,
+    enabled: useFallback && !!systemUser?.id,
     staleTime: 5 * 60 * 1000,
   });
 

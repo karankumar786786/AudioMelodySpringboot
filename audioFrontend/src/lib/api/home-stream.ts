@@ -1,4 +1,4 @@
-import { API_BASE_URL, getDeviceId, getStoredItem, refreshAccessToken } from "./client";
+import { API_BASE_URL, getDeviceId, refreshAccessToken } from "./client";
 
 export interface HomeStreamOptions {
   userId?: string;
@@ -32,27 +32,14 @@ export function subscribeHomeStream({
 
   (async () => {
     try {
-      let token = getStoredItem("system_token");
-      if (!token) {
-        // SSE home stream requires authentication on /api/home/stream.
-        // Silently trigger standard queries fallback without unauthenticated network errors.
-        onError?.(new Error("Unauthenticated"));
-        return;
-      }
-
       const deviceId = getDeviceId();
       const headers: Record<string, string> = {
         Accept: "text/event-stream",
         "X-Device-Id": deviceId,
       };
 
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
       const params = new URLSearchParams();
       if (userId) params.set("userId", userId);
-      if (token) params.set("token", token);
       const queryStr = params.toString() ? `?${params.toString()}` : "";
       const url = `${API_BASE_URL}/api/home/stream${queryStr}`;
 
@@ -63,21 +50,18 @@ export function subscribeHomeStream({
         signal: activeSignal,
       });
 
-      // If token expired, try refreshing once
-      if (response.status === 401 && getStoredItem("system_refresh_token")) {
+      // If cookies need refreshing, try refreshing once
+      if (response.status === 401) {
         try {
-          const newToken = await refreshAccessToken();
-          headers["Authorization"] = `Bearer ${newToken}`;
-          const retryParams = new URLSearchParams();
-          if (userId) retryParams.set("userId", userId);
-          retryParams.set("token", newToken);
-          const retryUrl = `${API_BASE_URL}/api/home/stream?${retryParams.toString()}`;
-          response = await fetch(retryUrl, {
-            method: "GET",
-            headers,
-            credentials: "include",
-            signal: activeSignal,
-          });
+          const refreshed = await refreshAccessToken();
+          if (refreshed) {
+            response = await fetch(url, {
+              method: "GET",
+              headers,
+              credentials: "include",
+              signal: activeSignal,
+            });
+          }
         } catch {
           // Token refresh failed; fall through to error handling
         }

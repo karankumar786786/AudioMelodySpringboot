@@ -1,13 +1,9 @@
-import { getCookie } from "@/lib/cookies";
-
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:9090";
 
 export function getStoredItem(key: string): string | null {
   if (typeof window === "undefined") return null;
-  const localVal = localStorage.getItem(key);
-  if (localVal) return localVal;
-  return getCookie(key);
+  return localStorage.getItem(key);
 }
 
 export function getDeviceId(): string {
@@ -26,21 +22,6 @@ export function getDeviceId(): string {
   return deviceId;
 }
 
-export function saveSessionTokens(accessToken: string, refreshToken: string): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem("system_token", accessToken);
-  localStorage.setItem("system_refresh_token", refreshToken);
-  import("@/store/player.store")
-    .then(({ playerStore }) => {
-      playerStore.setState((s) => ({
-        ...s,
-        systemToken: accessToken,
-        systemRefreshToken: refreshToken,
-      }));
-    })
-    .catch(() => {});
-}
-
 export function notifySessionCleared(): void {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event("session:cleared"));
@@ -49,17 +30,18 @@ export function notifySessionCleared(): void {
 
 export function clearSessionStorage(): void {
   if (typeof window === "undefined") return;
-  localStorage.removeItem("system_token");
-  localStorage.removeItem("system_refresh_token");
   localStorage.removeItem("system_user");
   notifySessionCleared();
 }
 
 let isRefreshing = false;
-let refreshTokenPromise: Promise<string> | null = null;
+let refreshTokenPromise: Promise<boolean> | null = null;
 
-export async function refreshAccessToken(): Promise<string> {
-  // If a refresh is already in progress, wait for the pending refresh promise
+/**
+ * Refreshes session cookies globally with the backend.
+ * Cookies are managed automatically via Set-Cookie headers in the browser.
+ */
+export async function refreshAccessToken(): Promise<boolean> {
   if (isRefreshing && refreshTokenPromise) {
     return refreshTokenPromise;
   }
@@ -67,11 +49,6 @@ export async function refreshAccessToken(): Promise<string> {
   isRefreshing = true;
   refreshTokenPromise = (async () => {
     try {
-      const refreshToken = getStoredItem("system_refresh_token");
-      if (!refreshToken) {
-        throw new Error("No refresh token available");
-      }
-
       const deviceId = getDeviceId();
       const url = `${API_BASE_URL}/auth/refresh-token`;
       const response = await fetch(url, {
@@ -83,32 +60,18 @@ export async function refreshAccessToken(): Promise<string> {
           "Accept-Cookies": "true",
           "X-Accept-Cookies": "true",
         },
-        body: JSON.stringify({ refreshToken, deviceId }),
       });
 
       if (!response.ok) {
-        // Only purge session if the refresh token is explicitly rejected as unauthorized/invalid
         if (response.status === 401 || response.status === 403 || response.status === 400) {
           clearSessionStorage();
         }
-        let errMessage = `HTTP error ${response.status}`;
-        try {
-          const errData = await response.json();
-          errMessage = errData.message || errMessage;
-        } catch {}
-        const error: any = new Error(errMessage);
-        error.response = { status: response.status };
-        throw error;
+        return false;
       }
 
-      const data = await response.json();
-      if (!data.accessToken || !data.refreshToken) {
-        clearSessionStorage();
-        throw new Error("Invalid refresh token response");
-      }
-
-      saveSessionTokens(data.accessToken, data.refreshToken);
-      return data.accessToken as string;
+      return true;
+    } catch {
+      return false;
     } finally {
       isRefreshing = false;
       refreshTokenPromise = null;
@@ -127,17 +90,12 @@ export async function request<T = any>(endpoint: string, options: RequestInit = 
     throw offlineErr;
   }
 
-  const token = getStoredItem("system_token");
   const deviceId = getDeviceId();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "X-Device-Id": deviceId,
     ...(options.headers as Record<string, string>),
   };
-
-  if (token && !headers["Authorization"]) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
 
   const url = endpoint.startsWith("http") ? endpoint : `${API_BASE_URL}${endpoint.startsWith("/") ? "" : "/"}${endpoint}`;
 
@@ -158,18 +116,15 @@ export async function request<T = any>(endpoint: string, options: RequestInit = 
   if (!response.ok) {
     const isAuthFailure = response.status === 401 || response.status === 403;
     const isAuthEndpoint = endpoint.includes("/auth/");
-    const storedRefreshToken = getStoredItem("system_refresh_token");
 
-    if (isAuthFailure && retry && !isAuthEndpoint && storedRefreshToken) {
+    if (isAuthFailure && retry && !isAuthEndpoint) {
       try {
-        const refreshedToken = await refreshAccessToken();
-        headers["Authorization"] = `Bearer ${refreshedToken}`;
-
-        // Retry request with updated auth header and retry set to false
-        return await request<T>(endpoint, { ...options, headers }, false);
-      } catch (err) {
-        throw err;
-      }
+        const refreshed = await refreshAccessToken();
+        if (refreshed) {
+          // Retry request with updated cookies
+          return await request<T>(endpoint, options, false);
+        }
+      } catch {}
     }
 
     if (isAuthFailure && !isAuthEndpoint) {

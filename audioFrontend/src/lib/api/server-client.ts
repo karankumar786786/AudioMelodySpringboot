@@ -66,7 +66,8 @@ export async function serverRequest<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T | null> {
-  const session = await getServerSession();
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore.toString();
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -74,8 +75,8 @@ export async function serverRequest<T = any>(
     ...(options.headers as Record<string, string>),
   };
 
-  if (session.token && !headers["Authorization"]) {
-    headers["Authorization"] = `Bearer ${session.token}`;
+  if (cookieHeader) {
+    headers["Cookie"] = cookieHeader;
   }
 
   const url = endpoint.startsWith("http")

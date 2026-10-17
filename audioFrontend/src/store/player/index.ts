@@ -33,8 +33,6 @@ export interface PlayerState {
   qualityTracks: QualityTrack[];
   selectedQuality: "auto" | number;
   isAuthModalOpen: boolean;
-  systemToken: string | null;
-  systemRefreshToken: string | null;
   systemUser: User | null;
   favourites: Set<string>;
   isRefilling: boolean;
@@ -66,13 +64,9 @@ const _initSystemUser = (() => {
       return parsed;
     }
     localStorage.removeItem("system_user");
-    localStorage.removeItem("system_token");
-    localStorage.removeItem("system_refresh_token");
     return null;
   } catch {
     localStorage.removeItem("system_user");
-    localStorage.removeItem("system_token");
-    localStorage.removeItem("system_refresh_token");
     return null;
   }
 })();
@@ -154,8 +148,6 @@ export const playerStore = new Store<PlayerState>({
   qualityTracks: [],
   selectedQuality: "auto",
   isAuthModalOpen: false,
-  systemToken: null,
-  systemRefreshToken: null,
   systemUser: _initSystemUser,
   favourites: new Set<string>(),
   isRefilling: false,
@@ -180,10 +172,8 @@ export const playerStore = new Store<PlayerState>({
   dislikedSongIds: [],
 });
 
-// Hydrate token, repeatMode, isShuffle, currentTime, and currentSong on client side only
+// Hydrate repeatMode, isShuffle, currentTime, and currentSong on client side only
 if (typeof window !== "undefined") {
-  const token = localStorage.getItem("system_token");
-  const refreshToken = localStorage.getItem("system_refresh_token");
   const savedRepeat = localStorage.getItem("audiomelody_repeat_mode") as
     | "none"
     | "all"
@@ -194,8 +184,6 @@ if (typeof window !== "undefined") {
   const parsedTime = savedTime ? parseFloat(savedTime) : 0;
 
   const updates: Partial<PlayerState> = {
-    systemToken: token || undefined,
-    systemRefreshToken: refreshToken || undefined,
     currentTime: !isNaN(parsedTime) && parsedTime > 0 ? parsedTime : undefined,
     repeatMode:
       savedRepeat === "none" || savedRepeat === "all" || savedRepeat === "one"
@@ -215,8 +203,6 @@ if (typeof window !== "undefined") {
 
   playerStore.setState((s) => ({
     ...s,
-    ...(updates.systemToken !== undefined && { systemToken: updates.systemToken }),
-    ...(updates.systemRefreshToken !== undefined && { systemRefreshToken: updates.systemRefreshToken }),
     ...(updates.currentTime !== undefined && { currentTime: updates.currentTime }),
     ...(updates.repeatMode !== undefined && { repeatMode: updates.repeatMode }),
     ...(updates.isShuffle !== undefined && { isShuffle: updates.isShuffle }),

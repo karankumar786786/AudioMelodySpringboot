@@ -1,4 +1,4 @@
-import { request, getStoredItem } from "./client";
+import { request } from "./client";
 import { recombeeApi } from "./recombee";
 import type { Song } from "./types";
 
@@ -86,22 +86,17 @@ export const interactionsApi = {
   recordListen: async (songId: string, percentage = 0.05) => {
     if (!songId) return;
 
-    // Direct background telemetry to Recombee via public token
     try {
       const { playerStore } = await import("@/store/player.store");
       const userId = playerStore.state.systemUser?.id;
-      if (userId) {
-        recombeeApi.sendDetailView(userId, songId);
-        if (percentage >= 0.75) {
-          recombeeApi.sendRating(userId, songId, 0.8);
-        }
+      if (!userId) return;
+
+      // Direct background telemetry to Recombee via public token
+      recombeeApi.sendDetailView(userId, songId);
+      if (percentage >= 0.75) {
+        recombeeApi.sendRating(userId, songId, 0.8);
       }
-    } catch {}
 
-    const token = getStoredItem("system_token");
-    if (!token) return;
-
-    try {
       const safePercentage = Math.min(1.0, Math.max(0.0, isNaN(percentage) ? 0.05 : percentage));
       await request("/api/interaction/play", {
         method: "POST",
@@ -109,23 +104,17 @@ export const interactionsApi = {
         keepalive: true,
       });
     } catch {
-      // Silently catch background telemetry drops (offline, unauthenticated, unmount)
+      // Silently catch background telemetry drops
     }
   },
   recordSkip: async (songId: string) => {
-    // Direct negative rating to Recombee via public token
     try {
       const { playerStore } = await import("@/store/player.store");
       const userId = playerStore.state.systemUser?.id;
-      if (userId) {
-        recombeeApi.sendRating(userId, songId, -0.4);
-      }
-    } catch {}
+      if (!userId) return;
 
-    const token = getStoredItem("system_token");
-    if (!token) return;
+      recombeeApi.sendRating(userId, songId, -0.4);
 
-    try {
       await request("/api/interaction/skip", {
         method: "POST",
         body: JSON.stringify({ songId }),
@@ -136,10 +125,10 @@ export const interactionsApi = {
     }
   },
   recordSearchPlay: async (songId: string, query?: string) => {
-    const token = getStoredItem("system_token");
-    if (!token) return;
-
     try {
+      const { playerStore } = await import("@/store/player.store");
+      if (!playerStore.state.systemUser?.id) return;
+
       await request("/api/interaction/search-play", {
         method: "POST",
         body: JSON.stringify({ songId, query: query || undefined }),
@@ -154,10 +143,10 @@ export const interactionsApi = {
     id: string,
     query?: string,
   ) => {
-    const token = getStoredItem("system_token");
-    if (!token) return;
-
     try {
+      const { playerStore } = await import("@/store/player.store");
+      if (!playerStore.state.systemUser?.id) return;
+
       await request("/api/interaction/search-click", {
         method: "POST",
         body: JSON.stringify({ type, id, query: query || undefined }),
@@ -168,10 +157,10 @@ export const interactionsApi = {
     }
   },
   recordQueueAdd: async (songId: string) => {
-    const token = getStoredItem("system_token");
-    if (!token) return;
-
     try {
+      const { playerStore } = await import("@/store/player.store");
+      if (!playerStore.state.systemUser?.id) return;
+
       await request("/api/interaction/queue-add", {
         method: "POST",
         body: JSON.stringify({ songId }),
@@ -182,10 +171,10 @@ export const interactionsApi = {
     }
   },
   recordQueueRemove: async (songId: string) => {
-    const token = getStoredItem("system_token");
-    if (!token) return;
-
     try {
+      const { playerStore } = await import("@/store/player.store");
+      if (!playerStore.state.systemUser?.id) return;
+
       await request("/api/interaction/queue-remove", {
         method: "POST",
         body: JSON.stringify({ songId }),
@@ -196,10 +185,10 @@ export const interactionsApi = {
     }
   },
   recordDislike: async (songId: string) => {
-    const token = getStoredItem("system_token");
-    if (!token) return;
-
     try {
+      const { playerStore } = await import("@/store/player.store");
+      if (!playerStore.state.systemUser?.id) return;
+
       await request("/api/interaction/dislike", {
         method: "POST",
         body: JSON.stringify({ songId }),
@@ -210,10 +199,10 @@ export const interactionsApi = {
     }
   },
   recordShare: async (songId: string) => {
-    const token = getStoredItem("system_token");
-    if (!token) return;
-
     try {
+      const { playerStore } = await import("@/store/player.store");
+      if (!playerStore.state.systemUser?.id) return;
+
       await request("/api/interaction/share", {
         method: "POST",
         body: JSON.stringify({ songId }),

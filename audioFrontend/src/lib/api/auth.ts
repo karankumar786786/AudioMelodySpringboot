@@ -1,9 +1,7 @@
 import {
   clearSessionStorage,
   getDeviceId,
-  getStoredItem,
   request,
-  saveSessionTokens,
 } from "./client";
 
 export const authApi = {
@@ -41,14 +39,8 @@ export const authApi = {
       body: JSON.stringify({ otp: code, deviceId }),
     });
 
-    const { accessToken, refreshToken } = verifyRes;
-
-    if (accessToken && refreshToken) {
-      saveSessionTokens(accessToken, refreshToken);
-    } else if (accessToken && typeof window !== "undefined") {
-      localStorage.setItem("system_token", accessToken);
-    }
-
+    // Cookies are automatically set in the browser via backend Set-Cookie headers.
+    // Fetch profile and store user identity for client-side state
     const profile = await request("/api/user/profile");
     const userPayload = {
       ...profile,
@@ -59,10 +51,16 @@ export const authApi = {
       localStorage.setItem("system_user", JSON.stringify(userPayload));
     }
 
+    try {
+      const { playerStore } = await import("@/store/player.store");
+      playerStore.setState((s) => ({
+        ...s,
+        systemUser: userPayload,
+      }));
+    } catch {}
+
     return {
       data: {
-        accessToken,
-        refreshToken,
         isNewUser: Boolean(verifyRes?.isNewUser),
         user: userPayload,
       },
@@ -71,14 +69,13 @@ export const authApi = {
   logout: async () => {
     try {
       const deviceId = getDeviceId();
-      const refreshToken = getStoredItem("system_refresh_token");
       await request("/auth/logout", {
         method: "POST",
         headers: {
           "Accept-Cookies": "true",
           "X-Accept-Cookies": "true",
         },
-        body: JSON.stringify({ deviceId, refreshToken }),
+        body: JSON.stringify({ deviceId }),
       });
     } catch {
       // Silently handle logout failure on network error

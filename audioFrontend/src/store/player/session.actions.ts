@@ -3,16 +3,16 @@ import { musicApi } from "@/lib/api";
 import { toast } from "sonner";
 
 export const sessionActions = {
-  setSystemSession: (token: string, refreshToken: string, user: any) => {
-    localStorage.setItem("system_token", token);
-    localStorage.setItem("system_refresh_token", refreshToken);
-    localStorage.setItem("system_user", JSON.stringify(user));
-    playerStore.setState((s) => ({
-      ...s,
-      systemToken: token,
-      systemRefreshToken: refreshToken,
-      systemUser: user,
-    }));
+  setSystemSession: (user: any) => {
+    if (user) {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("system_user", JSON.stringify(user));
+      }
+      playerStore.setState((s) => ({
+        ...s,
+        systemUser: user,
+      }));
+    }
   },
 
   updateSystemUser: (updatedUser: any) => {
@@ -29,10 +29,8 @@ export const sessionActions = {
 
   clearSystemSession: () => {
     console.log("[PlayerStore] clearSystemSession called - purging storage & state");
-    localStorage.removeItem("system_token");
-    localStorage.removeItem("system_refresh_token");
-    localStorage.removeItem("system_user");
     if (typeof window !== "undefined") {
+      localStorage.removeItem("system_user");
       localStorage.removeItem("last_queue");
       localStorage.removeItem("last_queue_index");
       localStorage.removeItem("last_current_song");
@@ -40,8 +38,6 @@ export const sessionActions = {
     }
     playerStore.setState((s) => ({
       ...s,
-      systemToken: null,
-      systemRefreshToken: null,
       systemUser: null,
       favourites: new Set(),
       currentSong: null,

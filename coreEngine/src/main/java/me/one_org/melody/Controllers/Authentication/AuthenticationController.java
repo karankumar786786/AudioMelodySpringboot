@@ -98,13 +98,29 @@ public class AuthenticationController {
             @RequestHeader(value = "X-Device-Id", required = false) String deviceIdHeader,
             @RequestHeader(value = "Accept-Cookies", required = false) String acceptCookies,
             @RequestHeader(value = "X-Accept-Cookies", required = false) String xAcceptCookies,
-            @Valid @RequestBody RefreshTokenRequestDto request,
+            @RequestBody(required = false) RefreshTokenRequestDto request,
+            jakarta.servlet.http.HttpServletRequest httpRequest,
             HttpServletResponse httpServletResponse
     ) {
-        String effectiveDeviceId = (request.deviceId() != null && !request.deviceId().isBlank())
+        String effectiveRefreshToken = (request != null && request.refreshToken() != null && !request.refreshToken().isBlank())
+                ? request.refreshToken()
+                : null;
+        if (effectiveRefreshToken == null && httpRequest.getCookies() != null) {
+            for (jakarta.servlet.http.Cookie c : httpRequest.getCookies()) {
+                if ("system_refresh_token".equals(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) {
+                    effectiveRefreshToken = c.getValue();
+                    break;
+                }
+            }
+        }
+        if (effectiveRefreshToken == null || effectiveRefreshToken.isBlank()) {
+            throw new UnauthenticatedException("No refresh token provided");
+        }
+
+        String effectiveDeviceId = (request != null && request.deviceId() != null && !request.deviceId().isBlank())
                 ? request.deviceId()
                 : (deviceIdHeader != null && !deviceIdHeader.isBlank() ? deviceIdHeader : null);
-        RefreshTokenResponseDto response = authenticationService.refreshToken(request.refreshToken(), effectiveDeviceId);
+        RefreshTokenResponseDto response = authenticationService.refreshToken(effectiveRefreshToken, effectiveDeviceId);
 
         boolean wantsCookies = "true".equalsIgnoreCase(acceptCookies) || "true".equalsIgnoreCase(xAcceptCookies);
         if (wantsCookies && response.accessToken() != null) {
@@ -139,9 +155,26 @@ public class AuthenticationController {
             @RequestHeader(value = "Accept-Cookies", required = false) String acceptCookies,
             @RequestHeader(value = "X-Accept-Cookies", required = false) String xAcceptCookies,
             @RequestBody(required = false) RefreshTokenRequestDto request,
+            jakarta.servlet.http.HttpServletRequest httpRequest,
             HttpServletResponse httpServletResponse) {
         String token = (authHeader != null && authHeader.startsWith("Bearer ")) ? authHeader.substring(7) : null;
+        if (token == null && httpRequest.getCookies() != null) {
+            for (jakarta.servlet.http.Cookie c : httpRequest.getCookies()) {
+                if ("system_token".equals(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) {
+                    token = c.getValue();
+                    break;
+                }
+            }
+        }
         String refreshToken = request != null ? request.refreshToken() : null;
+        if (refreshToken == null && httpRequest.getCookies() != null) {
+            for (jakarta.servlet.http.Cookie c : httpRequest.getCookies()) {
+                if ("system_refresh_token".equals(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) {
+                    refreshToken = c.getValue();
+                    break;
+                }
+            }
+        }
         String effectiveDeviceId = (request != null && request.deviceId() != null && !request.deviceId().isBlank())
                 ? request.deviceId()
                 : deviceIdHeader;

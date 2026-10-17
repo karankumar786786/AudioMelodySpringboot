@@ -36,8 +36,6 @@ export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
       playerStore.setState((s) => ({
         ...s,
         systemUser: initialSession.user,
-        systemToken: initialSession.token || null,
-        systemRefreshToken: initialSession.refreshToken || null,
       }));
     }
   }, [initialSession]);
@@ -71,10 +69,9 @@ export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
   }, []);
 
   useEffect(() => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("system_token") : null;
-    const hasLocalSession = !!token;
+    const hasActiveSession = Boolean(currentUser || initialSession?.isAuthenticated);
 
-    if (hasLocalSession || currentUser || initialSession?.isAuthenticated) {
+    if (hasActiveSession) {
       if (pathname === "/" || pathname === "/login" || pathname === "/signup") {
         router.replace("/home");
       } else {
