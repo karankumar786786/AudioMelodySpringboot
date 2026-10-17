@@ -19,26 +19,36 @@ export interface ServerSession {
 export async function getServerSession(): Promise<ServerSession> {
   try {
     const cookieStore = await cookies();
-    const token = cookieStore.get("system_token")?.value || null;
+    const rawToken = cookieStore.get("system_token")?.value || null;
     const refreshToken = cookieStore.get("system_refresh_token")?.value || null;
 
     let user: User | null = null;
-    if (token) {
+    let token: string | null = null;
+
+    if (rawToken) {
       try {
-        const parts = token.split(".");
+        const parts = rawToken.split(".");
         if (parts.length === 3) {
           const payloadJson = Buffer.from(parts[1], "base64").toString("utf-8");
           const claims = JSON.parse(payloadJson);
-          user = {
-            id: claims.id || claims.sub || "",
-            email: claims.email || "",
-            userName: claims.userName || claims.sub || "User",
-            role: claims.role || "USER",
-            name: claims.userName || "User",
-          } as any;
+          const now = Math.floor(Date.now() / 1000);
+          const isExpired =
+            claims.exp && typeof claims.exp === "number" && now >= claims.exp;
+
+          if (!isExpired) {
+            token = rawToken;
+            user = {
+              id: claims.id || claims.sub || "",
+              email: claims.email || "",
+              userName: claims.userName || claims.sub || "User",
+              role: claims.role || "USER",
+              name: claims.userName || "User",
+            } as any;
+          }
         }
       } catch {
         user = null;
+        token = null;
       }
     }
 
@@ -46,7 +56,7 @@ export async function getServerSession(): Promise<ServerSession> {
       token,
       refreshToken,
       user,
-      isAuthenticated: Boolean(token),
+      isAuthenticated: Boolean(token && user),
     };
   } catch {
     return {

@@ -544,8 +544,9 @@ export const queueActions = {
             res = await musicApi.interactions.getTrending(20);
           }
         } else {
-          console.log("📡 Endpoint: Requesting trending songs for guest user from GET /api/songs...");
-          res = await musicApi.interactions.getTrending(20);
+          console.log("ℹ️ [Queue Refill] User is unauthenticated. Skipping protected recommendation requests.");
+          console.groupEnd();
+          return [];
         }
 
         if (res?.data) {
@@ -645,8 +646,8 @@ export const queueActions = {
   },
 
   initQueue: async () => {
-    const { queue } = playerStore.state;
-    if (queue.length === 0) {
+    const { queue, systemUser } = playerStore.state;
+    if (queue.length === 0 && systemUser?.id) {
       await queueActions.refillQueue(true, "App initialisation (empty queue)");
     }
   },

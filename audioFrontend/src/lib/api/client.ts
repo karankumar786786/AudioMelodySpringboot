@@ -31,6 +31,12 @@ export function notifySessionCleared(): void {
 export function clearSessionStorage(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem("system_user");
+  try {
+    document.cookie =
+      "system_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+    document.cookie =
+      "system_refresh_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
+  } catch {}
   notifySessionCleared();
 }
 
@@ -132,7 +138,7 @@ export async function request<T = any>(endpoint: string, options: RequestInit = 
       if (typeof window !== "undefined") {
         const path = window.location.pathname;
         if (path !== "/signup" && path !== "/login" && path !== "/") {
-          window.location.replace("/signup");
+          window.location.replace("/signup?session_expired=1");
         }
       }
     }

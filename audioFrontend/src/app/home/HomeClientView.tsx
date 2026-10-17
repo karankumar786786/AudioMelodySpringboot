@@ -8,6 +8,7 @@ import {
   SomethingWentWrongPage,
 } from "../../components/ErrorPages";
 import {
+  clearSessionStorage,
   formatPaginated,
   musicApi,
   subscribeHomeStream,
@@ -372,7 +373,8 @@ export function HomeClientView() {
 
     if (isAuthError) {
       if (typeof window !== "undefined") {
-        window.location.replace("/signup");
+        clearSessionStorage();
+        window.location.replace("/signup?session_expired=1");
       }
       return <HomeSkeleton />;
     }

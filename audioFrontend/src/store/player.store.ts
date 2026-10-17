@@ -51,9 +51,21 @@ export const playerActions = {
         if (raw) savedDisliked = JSON.parse(raw);
       } catch {}
 
+      let restoredUser: any = null;
+      try {
+        const savedUser = localStorage.getItem("system_user");
+        if (savedUser) {
+          const parsed = JSON.parse(savedUser);
+          if (parsed && typeof parsed === "object" && parsed.id) {
+            restoredUser = parsed;
+          }
+        }
+      } catch {}
+
       playerStore.setState((s) => {
         const nextState: typeof s = {
           ...s,
+          systemUser: s.systemUser || restoredUser,
           dislikedSongIds: Array.isArray(savedDisliked) ? savedDisliked : s.dislikedSongIds,
           currentTime:
             !isNaN(parsedTime) && parsedTime > 0 ? parsedTime : s.currentTime,

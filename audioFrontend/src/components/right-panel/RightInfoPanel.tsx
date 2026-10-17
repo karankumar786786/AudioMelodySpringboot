@@ -23,8 +23,13 @@ export function RightInfoPanel() {
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isFavLoading, setIsFavLoading] = useState(false);
   const [mediaLoaded, setMediaLoaded] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const queryClient = useQueryClient();
   const relatedSongsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Reset mediaLoaded on song change
   useEffect(() => {
@@ -126,9 +131,9 @@ export function RightInfoPanel() {
     return unique.slice(0, 10);
   }, [similarSongs, songsFeed, currentSong]);
 
-  if (!currentSong) {
+  if (!isMounted || !currentSong) {
     return (
-      <aside className="w-80 bg-black h-screen fixed right-0 top-0 z-40 p-6 flex flex-col items-center justify-center text-center pb-24">
+      <aside className="hidden lg:flex w-72.5 xl:w-[320px] 2xl:w-85 bg-black h-[calc(100vh-64px)] fixed right-0 top-16 z-40 p-6 flex-col items-center justify-center text-center pb-24">
         <div className="w-14 h-14 rounded-full bg-[#181818] border border-[#282828] flex items-center justify-center text-zinc-600 mb-3">
           <Info size={24} />
         </div>

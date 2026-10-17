@@ -28,11 +28,16 @@ export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
   const router = useRouter();
 
   // Unified user resolution matching both server SSR and client hydration
-  const currentUser = systemUser || initialSession?.user || null;
+  const currentUser =
+    systemUser || (initialSession?.isAuthenticated ? initialSession.user : null);
 
   // Sync server session to client store on mount
   useEffect(() => {
-    if (initialSession?.user && !playerStore.state.systemUser) {
+    if (
+      initialSession?.isAuthenticated &&
+      initialSession?.user &&
+      !playerStore.state.systemUser
+    ) {
       playerStore.setState((s) => ({
         ...s,
         systemUser: initialSession.user,
@@ -46,16 +51,20 @@ export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
     pathname === "/signup" ||
     pathname === "/callback";
 
-  const hasSession = Boolean(currentUser || initialSession?.isAuthenticated);
-  const isAuthFormRoute = pathname === "/" || pathname === "/login" || pathname === "/signup";
-  const [isReady, setIsReady] = useState(() => (hasSession && !isAuthFormRoute) || isPublicRoute);
+  const hasSession = Boolean(currentUser);
+  const isAuthFormRoute =
+    pathname === "/" || pathname === "/login" || pathname === "/signup";
+  const [isReady, setIsReady] = useState(
+    () => (hasSession && !isAuthFormRoute) || isPublicRoute
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     const checkStandalone = () => {
       const isStandalone =
         window.matchMedia("(display-mode: standalone)").matches ||
-        (window.navigator as unknown as { standalone?: boolean }).standalone === true;
+        (window.navigator as unknown as { standalone?: boolean }).standalone ===
+          true;
       if (isStandalone) {
         document.documentElement.setAttribute("data-standalone", "true");
       } else {
@@ -69,7 +78,7 @@ export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
   }, []);
 
   useEffect(() => {
-    const hasActiveSession = Boolean(currentUser || initialSession?.isAuthenticated);
+    const hasActiveSession = Boolean(currentUser);
 
     if (hasActiveSession) {
       if (pathname === "/" || pathname === "/login" || pathname === "/signup") {

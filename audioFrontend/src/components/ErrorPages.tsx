@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { WifiOff, ServerCrash, AlertCircle, SearchX, RotateCcw, Home } from "lucide-react";
 import Link from "next/link";
+import { clearSessionStorage } from "@/lib/api";
 
 /* ─── Spotify / One Melody Shared Error Container ────────────────── */
 interface ErrorShellProps {
@@ -152,7 +153,8 @@ export const SomethingWentWrongPage: React.FC<{
 
   useEffect(() => {
     if (isAuthError && typeof window !== "undefined") {
-      window.location.replace("/signup");
+      clearSessionStorage();
+      window.location.replace("/signup?session_expired=1");
     }
   }, [isAuthError]);
 

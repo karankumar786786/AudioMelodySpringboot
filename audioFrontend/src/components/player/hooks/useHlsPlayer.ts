@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { playerActions, playerStore } from "../../../store/player.store";
-import { type QualityTrack } from "@/lib/player-utils";
+import { mapToPlayerSong, type QualityTrack } from "@/lib/player-utils";
+import { musicApi } from "@/lib/api";
 
 const MAX_NETWORK_RETRIES = 5;
 const MAX_MEDIA_RETRIES = 2;
@@ -201,11 +202,27 @@ export function useHlsPlayer(
                         `[Hls.js] Network error (${data.details}), attempt ${attempt}/${MAX_NETWORK_RETRIES}, retrying in ${delay}ms...`,
                       );
                       if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
-                      retryTimeoutRef.current = setTimeout(() => {
+                      retryTimeoutRef.current = setTimeout(async () => {
                         if (isMounted && hlsRef.current) {
+                          let effectiveUrl = streamUrl;
+                          if (isManifestError && currentSongId && attempt >= 2) {
+                            try {
+                              const freshRes = await musicApi.songs.getById(currentSongId);
+                              if (freshRes?.data) {
+                                const freshPlayerSong = mapToPlayerSong(freshRes.data);
+                                if (freshPlayerSong.streamUrl && freshPlayerSong.streamUrl !== streamUrl) {
+                                  effectiveUrl = freshPlayerSong.streamUrl;
+                                  playerStore.setState((s) => ({
+                                    ...s,
+                                    currentSong: s.currentSong ? { ...s.currentSong, ...freshPlayerSong, streamUrl: effectiveUrl } : null,
+                                  }));
+                                }
+                              }
+                            } catch {}
+                          }
                           if (isManifestError) {
                             // Manifest errors need a full source reload, startLoad() alone won't re-fetch the manifest
-                            hlsRef.current.loadSource(streamUrl);
+                            hlsRef.current.loadSource(effectiveUrl);
                           }
                           hlsRef.current.startLoad();
                         }
