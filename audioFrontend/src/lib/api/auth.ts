@@ -1,4 +1,3 @@
-import { saveAuthCookies } from "@/lib/cookies";
 import {
   clearSessionStorage,
   getDeviceId,
@@ -48,7 +47,6 @@ export const authApi = {
       saveSessionTokens(accessToken, refreshToken);
     } else if (accessToken && typeof window !== "undefined") {
       localStorage.setItem("system_token", accessToken);
-      saveAuthCookies({ accessToken });
     }
 
     const profile = await request("/api/user/profile");
@@ -57,11 +55,9 @@ export const authApi = {
       name: profile.userName || "User",
     };
 
-    saveAuthCookies({
-      accessToken: accessToken || "",
-      refreshToken: refreshToken || null,
-      user: userPayload,
-    });
+    if (typeof window !== "undefined") {
+      localStorage.setItem("system_user", JSON.stringify(userPayload));
+    }
 
     return {
       data: {

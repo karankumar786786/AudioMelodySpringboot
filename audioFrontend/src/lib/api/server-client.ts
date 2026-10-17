@@ -21,18 +21,24 @@ export async function getServerSession(): Promise<ServerSession> {
     const cookieStore = await cookies();
     const token = cookieStore.get("system_token")?.value || null;
     const refreshToken = cookieStore.get("system_refresh_token")?.value || null;
-    const userRaw = cookieStore.get("system_user")?.value || null;
 
     let user: User | null = null;
-    if (userRaw) {
+    if (token) {
       try {
-        user = JSON.parse(decodeURIComponent(userRaw));
-      } catch {
-        try {
-          user = JSON.parse(userRaw);
-        } catch {
-          user = null;
+        const parts = token.split(".");
+        if (parts.length === 3) {
+          const payloadJson = Buffer.from(parts[1], "base64").toString("utf-8");
+          const claims = JSON.parse(payloadJson);
+          user = {
+            id: claims.id || claims.sub || "",
+            email: claims.email || "",
+            userName: claims.userName || claims.sub || "User",
+            role: claims.role || "USER",
+            name: claims.userName || "User",
+          } as any;
         }
+      } catch {
+        user = null;
       }
     }
 
