@@ -19,13 +19,11 @@ import me.one_org.melody.Dto.Controllers.Api.ArtistDto;
 import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
 import me.one_org.melody.Dto.Controllers.Api.PlaylistDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
-import me.one_org.melody.Dto.Controllers.Api.UserHistoryResponseDto;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Services.Api.ArtistApiService;
 import me.one_org.melody.Services.Api.PlaylistApiService;
 import me.one_org.melody.Services.Api.RecommendationApiService;
 import me.one_org.melody.Services.Api.SongsApiService;
-import me.one_org.melody.Services.Api.UserHistoryApiService;
 
 /**
  * Server-Sent Events (SSE) streaming API for the Home feed.
