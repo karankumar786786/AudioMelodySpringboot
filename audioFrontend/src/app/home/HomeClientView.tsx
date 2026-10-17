@@ -61,8 +61,6 @@ export function HomeClientView() {
           });
         } else if (section === "recommendations" && systemUser?.id) {
           queryClient.setQueryData(["recommendations", systemUser.id], payload);
-        } else if (section === "recentlyPlayed" && systemUser?.id) {
-          queryClient.setQueryData(["recently-played", systemUser.id], payload);
         }
       },
       onComplete: () => {
@@ -182,13 +180,60 @@ export function HomeClientView() {
     }
   }, [recommendations]);
 
-  // 7. Recently Played (ONLY enabled if SSE stream fails)
-  const { data: recentlyPlayed } = useQuery({
+  // 7. Recently Played: Read from localStorage first; if not present, load from separate API call
+  const [localRecentlyPlayed, setLocalRecentlyPlayed] = useState<Song[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const saved = localStorage.getItem("recently_played_songs");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+      const lastSong = localStorage.getItem("last_current_song");
+      if (lastSong) {
+        const parsed = JSON.parse(lastSong);
+        if (parsed?.id) return [parsed];
+      }
+    } catch {}
+    return [];
+  });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleRecentUpdate = (e: any) => {
+      if (e.detail && Array.isArray(e.detail)) {
+        setLocalRecentlyPlayed(e.detail);
+      }
+    };
+    window.addEventListener("audiomelody:recently_played_updated", handleRecentUpdate);
+    return () => {
+      window.removeEventListener("audiomelody:recently_played_updated", handleRecentUpdate);
+    };
+  }, []);
+
+  const { data: serverRecentlyPlayed } = useQuery({
     queryKey: ["recently-played", systemUser?.id],
-    queryFn: () => musicApi.users.getRecentlyPlayed(),
-    enabled: useFallback && !!systemUser?.id,
+    queryFn: async () => {
+      const res = await musicApi.users.getRecentlyPlayed();
+      const songs = res?.data?.data || [];
+      if (Array.isArray(songs) && songs.length > 0 && typeof window !== "undefined") {
+        try {
+          localStorage.setItem("recently_played_songs", JSON.stringify(songs));
+          setLocalRecentlyPlayed(songs);
+        } catch {}
+      }
+      return res;
+    },
+    enabled: !!systemUser?.id && localRecentlyPlayed.length === 0,
     staleTime: 5 * 60 * 1000,
   });
+
+  const effectiveRecentlyPlayed = useMemo(() => {
+    if (localRecentlyPlayed.length > 0) return localRecentlyPlayed;
+    return serverRecentlyPlayed?.data?.data || [];
+  }, [localRecentlyPlayed, serverRecentlyPlayed?.data?.data]);
 
   // Dynamic Time-aware Greeting
   const greeting = useMemo(() => {
@@ -201,7 +246,7 @@ export function HomeClientView() {
 
   // Quick Picks: Deduplicated high-priority songs (Recent -> Trending -> Featured -> Feed)
   const quickPicks = useMemo(() => {
-    const recentList: Song[] = recentlyPlayed?.data?.data || [];
+    const recentList: Song[] = effectiveRecentlyPlayed;
     const trendingList: Song[] = trending?.data?.data || [];
     const featuredList: Song[] = featuredSongs || [];
     const feedList: Song[] = data?.pages[0]?.data?.data || [];
@@ -226,7 +271,7 @@ export function HomeClientView() {
 
     return result;
   }, [
-    recentlyPlayed?.data?.data,
+    effectiveRecentlyPlayed,
     trending?.data?.data,
     featuredSongs,
     data?.pages,
@@ -394,7 +439,7 @@ export function HomeClientView() {
         <RecentlyPlayedSection
           scrollRef={recentlyPlayedScrollRef}
           onScroll={(dist) => scrollContainer(recentlyPlayedScrollRef, dist)}
-          songs={recentlyPlayed?.data?.data}
+          songs={effectiveRecentlyPlayed}
         />
       )}
 

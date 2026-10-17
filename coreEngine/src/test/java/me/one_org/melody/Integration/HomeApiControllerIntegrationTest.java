@@ -22,7 +22,6 @@ import me.one_org.melody.Services.Api.ArtistApiService;
 import me.one_org.melody.Services.Api.PlaylistApiService;
 import me.one_org.melody.Services.Api.RecommendationApiService;
 import me.one_org.melody.Services.Api.SongsApiService;
-import me.one_org.melody.Services.Api.UserHistoryApiService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -48,9 +47,6 @@ class HomeApiControllerIntegrationTest {
     private PlaylistApiService playlistApiService;
 
     @Mock
-    private UserHistoryApiService userHistoryApiService;
-
-    @Mock
     private RecommendationApiService recommendationApiService;
 
     @BeforeEach
@@ -59,7 +55,6 @@ class HomeApiControllerIntegrationTest {
                 songsApiService,
                 artistApiService,
                 playlistApiService,
-                userHistoryApiService,
                 recommendationApiService
         )).build();
     }

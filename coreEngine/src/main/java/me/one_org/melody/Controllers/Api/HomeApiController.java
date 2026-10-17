@@ -48,7 +48,6 @@ public class HomeApiController {
     private final SongsApiService songsApiService;
     private final ArtistApiService artistApiService;
     private final PlaylistApiService playlistApiService;
-    private final UserHistoryApiService userHistoryApiService;
     private final RecommendationApiService recommendationApiService;
 
     // Use Java 21 Virtual Threads for lightweight, non-blocking asynchronous streaming
@@ -58,12 +57,10 @@ public class HomeApiController {
             SongsApiService songsApiService,
             ArtistApiService artistApiService,
             PlaylistApiService playlistApiService,
-            UserHistoryApiService userHistoryApiService,
             RecommendationApiService recommendationApiService) {
         this.songsApiService = songsApiService;
         this.artistApiService = artistApiService;
         this.playlistApiService = playlistApiService;
-        this.userHistoryApiService = userHistoryApiService;
         this.recommendationApiService = recommendationApiService;
     }
 
@@ -153,16 +150,6 @@ public class HomeApiController {
 
                 // 6. User-Specific Personalized Content (if authenticated)
                 if (effectiveUserId != null && !effectiveUserId.isBlank()) {
-                    // Recently Played
-                    if (!isClosed.get()) {
-                        try {
-                            List<UserHistoryResponseDto> recent = userHistoryApiService.getRecentlyPlayed(effectiveUserId);
-                            sendEvent(emitter, isClosed, "recentlyPlayed", Map.of("data", Map.of("data", recent)));
-                        } catch (Exception e) {
-                            log.warn("[HomeStream] Failed to fetch recently played for user [{}]: {}", effectiveUserId, e.getMessage());
-                        }
-                    }
-
                     // Personalized Recommendations
                     if (!isClosed.get()) {
                         try {

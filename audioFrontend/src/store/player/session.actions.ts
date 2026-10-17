@@ -31,6 +31,7 @@ export const sessionActions = {
     console.log("[PlayerStore] clearSystemSession called - purging storage & state");
     if (typeof window !== "undefined") {
       localStorage.removeItem("system_user");
+      localStorage.removeItem("recently_played_songs");
       localStorage.removeItem("last_queue");
       localStorage.removeItem("last_queue_index");
       localStorage.removeItem("last_current_song");

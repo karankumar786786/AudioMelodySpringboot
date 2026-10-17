@@ -103,6 +103,11 @@ export const playbackActions = {
         // Persist full song object so page reload can restore it
         try {
           localStorage.setItem("last_current_song", JSON.stringify(song));
+          const existingRaw = localStorage.getItem("recently_played_songs");
+          const existing: any[] = existingRaw ? JSON.parse(existingRaw) : [];
+          const updated = [song, ...existing.filter((s: any) => s.id !== song.id)].slice(0, 20);
+          localStorage.setItem("recently_played_songs", JSON.stringify(updated));
+          window.dispatchEvent(new CustomEvent("audiomelody:recently_played_updated", { detail: updated }));
         } catch {
           // Ignore quota errors
         }
