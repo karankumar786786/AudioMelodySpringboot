@@ -137,6 +137,10 @@ public class SecurityConfig {
                             }
                         }
                     }
+                    String tokenParam = request.getParameter("token");
+                    if (tokenParam != null && !tokenParam.isBlank()) {
+                        return tokenParam.trim();
+                    }
                     return null;
                 })
                 .jwt(jwt -> jwt

@@ -1,11 +1,20 @@
-import { saveAuthCookies, clearAuthCookies } from "@/lib/cookies";
+import { saveAuthCookies, clearAuthCookies, getCookie } from "@/lib/cookies";
 
 export const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:9090";
 
 export function getStoredItem(key: string): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem(key);
+  const localVal = localStorage.getItem(key);
+  if (localVal) return localVal;
+  const cookieVal = getCookie(key);
+  if (cookieVal) {
+    try {
+      localStorage.setItem(key, cookieVal);
+    } catch {}
+    return cookieVal;
+  }
+  return null;
 }
 
 export function getDeviceId(): string {

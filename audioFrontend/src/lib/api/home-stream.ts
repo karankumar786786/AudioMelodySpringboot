@@ -1,4 +1,4 @@
-import { API_BASE_URL, getDeviceId, getStoredItem } from "./client";
+import { API_BASE_URL, getDeviceId, getStoredItem, refreshAccessToken } from "./client";
 
 export interface HomeStreamOptions {
   userId?: string;
@@ -32,7 +32,14 @@ export function subscribeHomeStream({
 
   (async () => {
     try {
-      const token = getStoredItem("system_token");
+      let token = getStoredItem("system_token");
+      if (!token) {
+        // SSE home stream requires authentication on /api/home/stream.
+        // Silently trigger standard queries fallback without unauthenticated network errors.
+        onError?.(new Error("Unauthenticated"));
+        return;
+      }
+
       const deviceId = getDeviceId();
       const headers: Record<string, string> = {
         Accept: "text/event-stream",
@@ -49,11 +56,32 @@ export function subscribeHomeStream({
       const queryStr = params.toString() ? `?${params.toString()}` : "";
       const url = `${API_BASE_URL}/api/home/stream${queryStr}`;
 
-      const response = await fetch(url, {
+      let response = await fetch(url, {
         method: "GET",
         headers,
+        credentials: "include",
         signal: activeSignal,
       });
+
+      // If token expired, try refreshing once
+      if (response.status === 401 && getStoredItem("system_refresh_token")) {
+        try {
+          const newToken = await refreshAccessToken();
+          headers["Authorization"] = `Bearer ${newToken}`;
+          const retryParams = new URLSearchParams();
+          if (userId) retryParams.set("userId", userId);
+          retryParams.set("token", newToken);
+          const retryUrl = `${API_BASE_URL}/api/home/stream?${retryParams.toString()}`;
+          response = await fetch(retryUrl, {
+            method: "GET",
+            headers,
+            credentials: "include",
+            signal: activeSignal,
+          });
+        } catch {
+          // Token refresh failed; fall through to error handling
+        }
+      }
 
       if (!response.ok || !response.body) {
         throw new Error(`Failed to connect to home stream (HTTP ${response.status})`);
@@ -103,7 +131,9 @@ export function subscribeHomeStream({
       onComplete?.();
     } catch (err: any) {
       if (!isAborted && err.name !== "AbortError") {
-        console.warn("[HomeStream] Stream disconnected, falling back to standard queries:", err?.message);
+        if (!err.message?.includes("401") && !err.message?.includes("Unauthenticated")) {
+          console.warn("[HomeStream] Stream disconnected, falling back to standard queries:", err?.message);
+        }
         onError?.(err);
       }
     }

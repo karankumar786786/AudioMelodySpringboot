@@ -1,4 +1,4 @@
-import { request } from "./client";
+import { request, getStoredItem } from "./client";
 import { recombeeApi } from "./recombee";
 import type { Song } from "./types";
 
@@ -27,9 +27,13 @@ export const interactionsApi = {
       const list = Array.isArray(res) ? res : [];
       return { data: { data: list as Song[] } };
     } catch {
-      const res = await request(`/api/songs?page=0&size=${count}`);
-      const list = res.content || (Array.isArray(res) ? res : []);
-      return { data: { data: list as Song[] } };
+      try {
+        const res = await request(`/api/songs?page=0&size=${count}`);
+        const list = res.content || (Array.isArray(res) ? res : []);
+        return { data: { data: list as Song[] } };
+      } catch {
+        return { data: { data: [] } };
+      }
     }
   },
   getSimilarSongs: async (songId: string, count = 10) => {
@@ -94,6 +98,9 @@ export const interactionsApi = {
       }
     } catch {}
 
+    const token = getStoredItem("system_token");
+    if (!token) return;
+
     try {
       const safePercentage = Math.min(1.0, Math.max(0.0, isNaN(percentage) ? 0.05 : percentage));
       await request("/api/interaction/play", {
@@ -101,8 +108,8 @@ export const interactionsApi = {
         body: JSON.stringify({ songId, percentage: safePercentage }),
         keepalive: true,
       });
-    } catch (err) {
-      console.warn("[Interaction] recordListen failed:", err);
+    } catch {
+      // Silently catch background telemetry drops (offline, unauthenticated, unmount)
     }
   },
   recordSkip: async (songId: string) => {
@@ -115,6 +122,9 @@ export const interactionsApi = {
       }
     } catch {}
 
+    const token = getStoredItem("system_token");
+    if (!token) return;
+
     try {
       await request("/api/interaction/skip", {
         method: "POST",
@@ -126,6 +136,9 @@ export const interactionsApi = {
     }
   },
   recordSearchPlay: async (songId: string, query?: string) => {
+    const token = getStoredItem("system_token");
+    if (!token) return;
+
     try {
       await request("/api/interaction/search-play", {
         method: "POST",
@@ -141,6 +154,9 @@ export const interactionsApi = {
     id: string,
     query?: string,
   ) => {
+    const token = getStoredItem("system_token");
+    if (!token) return;
+
     try {
       await request("/api/interaction/search-click", {
         method: "POST",
@@ -152,6 +168,9 @@ export const interactionsApi = {
     }
   },
   recordQueueAdd: async (songId: string) => {
+    const token = getStoredItem("system_token");
+    if (!token) return;
+
     try {
       await request("/api/interaction/queue-add", {
         method: "POST",
@@ -163,6 +182,9 @@ export const interactionsApi = {
     }
   },
   recordQueueRemove: async (songId: string) => {
+    const token = getStoredItem("system_token");
+    if (!token) return;
+
     try {
       await request("/api/interaction/queue-remove", {
         method: "POST",
@@ -174,6 +196,9 @@ export const interactionsApi = {
     }
   },
   recordDislike: async (songId: string) => {
+    const token = getStoredItem("system_token");
+    if (!token) return;
+
     try {
       await request("/api/interaction/dislike", {
         method: "POST",
@@ -185,6 +210,9 @@ export const interactionsApi = {
     }
   },
   recordShare: async (songId: string) => {
+    const token = getStoredItem("system_token");
+    if (!token) return;
+
     try {
       await request("/api/interaction/share", {
         method: "POST",
