@@ -21,6 +21,7 @@ import me.one_org.melody.Dto.Controllers.Authentication.RegisterAndLoginResponse
 import me.one_org.melody.Dto.Controllers.Authentication.RegisterRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpRequest;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpResponse;
+import me.one_org.melody.Exceptions.UnauthorizedException;
 import me.one_org.melody.Services.Authentication.AuthenticationService;
 
 @RestController
@@ -114,7 +115,7 @@ public class AuthenticationController {
             }
         }
         if (effectiveRefreshToken == null || effectiveRefreshToken.isBlank()) {
-            throw new UnauthenticatedException("No refresh token provided");
+            throw new UnauthorizedException("No refresh token provided");
         }
 
         String effectiveDeviceId = (request != null && request.deviceId() != null && !request.deviceId().isBlank())
