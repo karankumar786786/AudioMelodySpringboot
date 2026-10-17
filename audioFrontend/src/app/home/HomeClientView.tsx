@@ -36,6 +36,14 @@ export function HomeClientView() {
   const [useFallback, setUseFallback] = useState(false);
   const triggerRef = useRef<HTMLDivElement>(null);
 
+  // Immediately redirect to /signup if no token exists in storage or state
+  useEffect(() => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("system_token") : null;
+    if (!token && !systemToken) {
+      window.location.replace("/signup");
+    }
+  }, [systemToken]);
+
   // 0. Primary: Single SSE Stream to progressively stream all homepage sections in 1 connection
   useEffect(() => {
     let timer: NodeJS.Timeout | null = setTimeout(() => {
@@ -317,7 +325,22 @@ export function HomeClientView() {
     !!playlistsError;
 
   if (hasCriticalError) {
-    const anyError = artistsError || playlistsError;
+    const anyError = (artistsError || playlistsError) as any;
+    const isAuthError =
+      anyError?.response?.status === 401 ||
+      anyError?.response?.status === 403 ||
+      anyError?.status === 401 ||
+      anyError?.status === 403 ||
+      anyError?.message?.toLowerCase()?.includes("authentication") ||
+      anyError?.message?.toLowerCase()?.includes("unauthorized");
+
+    if (isAuthError) {
+      if (typeof window !== "undefined") {
+        window.location.replace("/signup");
+      }
+      return <HomeSkeleton />;
+    }
+
     const isServerError = anyError && (anyError as any)?.status >= 500;
     if (isServerError) {
       return <ServerErrorPage onRetry={() => window.location.reload()} />;

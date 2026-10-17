@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { getServerSession } from "@/lib/api/server-client";
+import { redirect } from "next/navigation";
 import { HomeClientView } from "./HomeClientView";
 
 export const metadata: Metadata = {
@@ -10,6 +12,10 @@ export const metadata: Metadata = {
   },
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await getServerSession();
+  if (!session.isAuthenticated) {
+    redirect("/signup");
+  }
   return <HomeClientView />;
 }

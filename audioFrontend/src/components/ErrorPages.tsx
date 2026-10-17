@@ -142,6 +142,24 @@ export const SomethingWentWrongPage: React.FC<{
   error?: Error;
   reset?: () => void;
 }> = ({ error, reset }) => {
+  const isAuthError =
+    (error as any)?.response?.status === 401 ||
+    (error as any)?.response?.status === 403 ||
+    (error as any)?.status === 401 ||
+    (error as any)?.status === 403 ||
+    error?.message?.toLowerCase().includes("authentication") ||
+    error?.message?.toLowerCase().includes("unauthorized");
+
+  useEffect(() => {
+    if (isAuthError && typeof window !== "undefined") {
+      window.location.replace("/signup");
+    }
+  }, [isAuthError]);
+
+  if (isAuthError) {
+    return null;
+  }
+
   return (
     <ErrorShell
       icon={<AlertCircle size={32} className="text-zinc-300" />}

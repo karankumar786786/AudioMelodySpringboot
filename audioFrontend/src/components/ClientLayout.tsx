@@ -46,10 +46,7 @@ export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
     pathname === "/" ||
     pathname === "/login" ||
     pathname === "/signup" ||
-    pathname === "/callback" ||
-    pathname.startsWith("/artists") ||
-    pathname.startsWith("/albums") ||
-    pathname.startsWith("/playlists");
+    pathname === "/callback";
 
   const hasSession = Boolean(currentUser || initialSession?.isAuthenticated);
   const isAuthFormRoute = pathname === "/" || pathname === "/login" || pathname === "/signup";
@@ -75,8 +72,7 @@ export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
 
   useEffect(() => {
     const token = typeof window !== "undefined" ? localStorage.getItem("system_token") : null;
-    const userStr = typeof window !== "undefined" ? localStorage.getItem("system_user") : null;
-    const hasLocalSession = !!(token && userStr);
+    const hasLocalSession = !!token;
 
     if (hasLocalSession || currentUser || initialSession?.isAuthenticated) {
       if (pathname === "/" || pathname === "/login" || pathname === "/signup") {

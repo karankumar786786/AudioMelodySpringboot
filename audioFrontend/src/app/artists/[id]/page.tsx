@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { serverMusicApi } from "@/lib/api/server-client";
+import { getServerSession, serverMusicApi } from "@/lib/api/server-client";
+import { redirect } from "next/navigation";
 import { ArtistClientView } from "./ArtistClientView";
 
 interface ArtistPageProps {
@@ -44,6 +45,11 @@ export async function generateMetadata({
 }
 
 export default async function ArtistPage({ params }: ArtistPageProps) {
+  const session = await getServerSession();
+  if (!session.isAuthenticated) {
+    redirect("/signup");
+  }
+
   const { id } = await params;
 
   // Concurrently fetch artist info & initial songs on the server using incoming cookie auth

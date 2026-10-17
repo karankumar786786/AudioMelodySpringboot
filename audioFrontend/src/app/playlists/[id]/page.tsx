@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { serverMusicApi } from "@/lib/api/server-client";
+import { getServerSession, serverMusicApi } from "@/lib/api/server-client";
+import { redirect } from "next/navigation";
 import { PlaylistClientView } from "./PlaylistClientView";
 
 interface PlaylistPageProps {
@@ -45,6 +46,11 @@ export async function generateMetadata({
 }
 
 export default async function PlaylistPage({ params }: PlaylistPageProps) {
+  const session = await getServerSession();
+  if (!session.isAuthenticated) {
+    redirect("/signup");
+  }
+
   const { id } = await params;
 
   // Concurrently fetch playlist metadata and songs on the server using cookie auth

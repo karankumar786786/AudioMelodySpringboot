@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { serverMusicApi } from "@/lib/api/server-client";
+import { getServerSession, serverMusicApi } from "@/lib/api/server-client";
+import { redirect } from "next/navigation";
 import { MyPlaylistClientView } from "./MyPlaylistClientView";
 
 interface MyPlaylistPageProps {
@@ -38,6 +39,11 @@ export async function generateMetadata({
 }
 
 export default async function MyPlaylistPage({ params }: MyPlaylistPageProps) {
+  const session = await getServerSession();
+  if (!session.isAuthenticated) {
+    redirect("/signup");
+  }
+
   const { id } = await params;
 
   if (id === "favourites") {

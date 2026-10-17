@@ -172,6 +172,16 @@ export async function request<T = any>(endpoint: string, options: RequestInit = 
       }
     }
 
+    if (isAuthFailure && !isAuthEndpoint) {
+      clearSessionStorage();
+      if (typeof window !== "undefined") {
+        const path = window.location.pathname;
+        if (path !== "/signup" && path !== "/login" && path !== "/") {
+          window.location.replace("/signup");
+        }
+      }
+    }
+
     let errMessage = `HTTP error ${response.status}`;
     let errData: any = null;
     try {

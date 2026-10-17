@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { serverMusicApi } from "@/lib/api/server-client";
+import { getServerSession, serverMusicApi } from "@/lib/api/server-client";
+import { redirect } from "next/navigation";
 import { AlbumClientView } from "./AlbumClientView";
 
 interface AlbumPageProps {
@@ -37,6 +38,11 @@ export async function generateMetadata({
 }
 
 export default async function AlbumPage({ params }: AlbumPageProps) {
+  const session = await getServerSession();
+  if (!session.isAuthenticated) {
+    redirect("/signup");
+  }
+
   const resolvedParams = await params;
   const albumName = decodeURIComponent(resolvedParams.name);
 
