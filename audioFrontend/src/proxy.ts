@@ -25,18 +25,49 @@ function isTokenValid(token: string | undefined): boolean {
   }
 }
 
-export function proxy(request: NextRequest) {
+async function refreshCookies(
+  refreshToken: string
+): Promise<{ accessToken: string; refreshToken?: string } | null> {
+  try {
+    const backendUrl =
+      process.env.INTERNAL_API_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      "http://localhost:9090";
+    const res = await fetch(`${backendUrl}/auth/refresh-token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "Accept-Cookies": "true",
+        "X-Accept-Cookies": "true",
+        Cookie: `system_refresh_token=${refreshToken}`,
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data?.accessToken) {
+      return {
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken || refreshToken,
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export async function proxy(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
   const rawToken = request.cookies.get("system_token")?.value;
+  const rawRefreshToken = request.cookies.get("system_refresh_token")?.value;
+
   const isForcedSignout =
     searchParams.has("session_expired") ||
     searchParams.has("auth_error") ||
     searchParams.has("logout");
-
-  const isValid = !isForcedSignout && isTokenValid(rawToken);
-
-  const isAuthPage =
-    pathname === "/" || pathname === "/login" || pathname === "/signup";
 
   // Public assets, next internals, api routes, manifest, sw, images, icons
   if (
@@ -49,15 +80,60 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // If already authenticated with a valid token and navigating to login/signup/landing, redirect to /home
-  if (isValid && isAuthPage) {
-    return NextResponse.redirect(new URL("/home", request.url));
+  const isAuthPage =
+    pathname === "/" || pathname === "/login" || pathname === "/signup";
+
+  if (isForcedSignout) {
+    const response = isAuthPage
+      ? NextResponse.next()
+      : NextResponse.redirect(new URL("/signup?session_expired=1", request.url));
+    response.cookies.delete("system_token");
+    response.cookies.delete("system_refresh_token");
+    return response;
   }
 
-  // If unauthenticated/expired and accessing protected routes, immediately redirect to /signup and purge cookies
-  if (!isValid && !isAuthPage) {
+  let isAccessTokenValid = isTokenValid(rawToken);
+  let refreshedTokens: { accessToken: string; refreshToken?: string } | null =
+    null;
+
+  // 🔄 AUTO-REFRESH ACCESS COOKIE: If access token is missing/expired, refresh it using refresh token
+  if (!isAccessTokenValid && rawRefreshToken && isTokenValid(rawRefreshToken)) {
+    refreshedTokens = await refreshCookies(rawRefreshToken);
+    if (refreshedTokens?.accessToken) {
+      isAccessTokenValid = true;
+    }
+  }
+
+  // If already authenticated and navigating to login/signup/landing, redirect to /home
+  if (isAccessTokenValid && isAuthPage) {
+    const response = NextResponse.redirect(new URL("/home", request.url));
+    if (refreshedTokens) {
+      response.cookies.set("system_token", refreshedTokens.accessToken, {
+        path: "/",
+        maxAge: 7 * 24 * 60 * 60,
+        sameSite: "lax",
+        httpOnly: false,
+      });
+      if (refreshedTokens.refreshToken) {
+        response.cookies.set(
+          "system_refresh_token",
+          refreshedTokens.refreshToken,
+          {
+            path: "/",
+            maxAge: 30 * 24 * 60 * 60,
+            sameSite: "lax",
+            httpOnly: false,
+          }
+        );
+      }
+    }
+    return response;
+  }
+
+  // If unauthenticated (no valid access token and refresh failed/missing) and accessing protected routes
+  if (!isAccessTokenValid && !isAuthPage) {
     const redirectUrl = new URL("/signup", request.url);
-    if (rawToken) {
+    if (rawToken || rawRefreshToken) {
       redirectUrl.searchParams.set("session_expired", "1");
     }
     const response = NextResponse.redirect(redirectUrl);
@@ -66,14 +142,34 @@ export function proxy(request: NextRequest) {
     return response;
   }
 
-  // If accessing auth page with invalid token or forced signout, wipe stale cookies
-  if (isAuthPage && (!isValid || isForcedSignout)) {
+  // If accessing auth page with completely invalid session, ensure cookies are cleared
+  if (isAuthPage && !isAccessTokenValid && (rawToken || rawRefreshToken)) {
     const response = NextResponse.next();
-    if (request.cookies.has("system_token")) {
-      response.cookies.delete("system_token");
-    }
-    if (request.cookies.has("system_refresh_token")) {
-      response.cookies.delete("system_refresh_token");
+    response.cookies.delete("system_token");
+    response.cookies.delete("system_refresh_token");
+    return response;
+  }
+
+  // If on protected page and token was refreshed, attach the new cookies to the response
+  if (refreshedTokens) {
+    const response = NextResponse.next();
+    response.cookies.set("system_token", refreshedTokens.accessToken, {
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60,
+      sameSite: "lax",
+      httpOnly: false,
+    });
+    if (refreshedTokens.refreshToken) {
+      response.cookies.set(
+        "system_refresh_token",
+        refreshedTokens.refreshToken,
+        {
+          path: "/",
+          maxAge: 30 * 24 * 60 * 60,
+          sameSite: "lax",
+          httpOnly: false,
+        }
+      );
     }
     return response;
   }

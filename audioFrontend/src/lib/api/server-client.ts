@@ -7,10 +7,42 @@ export const SERVER_API_BASE_URL =
   "http://localhost:9090";
 
 export interface ServerSession {
-  token: string | null;
-  refreshToken: string | null;
   user: User | null;
   isAuthenticated: boolean;
+}
+
+async function refreshServerTokens(
+  refreshToken: string
+): Promise<{ token: string; refreshToken?: string } | null> {
+  try {
+    const backendUrl =
+      process.env.INTERNAL_API_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      "http://localhost:9090";
+    const res = await fetch(`${backendUrl}/auth/refresh-token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "Accept-Cookies": "true",
+        "X-Accept-Cookies": "true",
+        Cookie: `system_refresh_token=${refreshToken}`,
+      },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data?.accessToken) {
+      return {
+        token: data.accessToken,
+        refreshToken: data.refreshToken || refreshToken,
+      };
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -20,10 +52,12 @@ export async function getServerSession(): Promise<ServerSession> {
   try {
     const cookieStore = await cookies();
     const rawToken = cookieStore.get("system_token")?.value || null;
-    const refreshToken = cookieStore.get("system_refresh_token")?.value || null;
+    const rawRefreshToken =
+      cookieStore.get("system_refresh_token")?.value || null;
 
     let user: User | null = null;
     let token: string | null = null;
+    let effectiveRefreshToken = rawRefreshToken;
 
     if (rawToken) {
       try {
@@ -52,16 +86,42 @@ export async function getServerSession(): Promise<ServerSession> {
       }
     }
 
+    // 🔄 Auto-refresh access token on server if expired but refresh token exists
+    if (!token && rawRefreshToken) {
+      const refreshed = await refreshServerTokens(rawRefreshToken);
+      if (refreshed?.token) {
+        token = refreshed.token;
+        if (refreshed.refreshToken) {
+          effectiveRefreshToken = refreshed.refreshToken;
+        }
+        try {
+          const parts = token.split(".");
+          if (parts.length === 3) {
+            const payloadJson = Buffer.from(parts[1], "base64").toString(
+              "utf-8"
+            );
+            const claims = JSON.parse(payloadJson);
+            user = {
+              id: claims.id || claims.sub || "",
+              email: claims.email || "",
+              userName: claims.userName || claims.sub || "User",
+              role: claims.role || "USER",
+              name: claims.userName || "User",
+            } as any;
+          }
+        } catch {
+          user = null;
+          token = null;
+        }
+      }
+    }
+
     return {
-      token,
-      refreshToken,
       user,
       isAuthenticated: Boolean(token && user),
     };
   } catch {
     return {
-      token: null,
-      refreshToken: null,
       user: null,
       isAuthenticated: false,
     };

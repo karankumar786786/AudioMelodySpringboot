@@ -31,12 +31,6 @@ export function notifySessionCleared(): void {
 export function clearSessionStorage(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem("system_user");
-  try {
-    document.cookie =
-      "system_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
-    document.cookie =
-      "system_refresh_token=; path=/; max-age=0; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax";
-  } catch {}
   notifySessionCleared();
 }
 
@@ -45,7 +39,7 @@ let refreshTokenPromise: Promise<boolean> | null = null;
 
 /**
  * Refreshes session cookies globally with the backend.
- * Cookies are managed automatically via Set-Cookie headers in the browser.
+ * Cookies are managed automatically by the browser via HTTP Set-Cookie headers.
  */
 export async function refreshAccessToken(): Promise<boolean> {
   if (isRefreshing && refreshTokenPromise) {
@@ -57,6 +51,7 @@ export async function refreshAccessToken(): Promise<boolean> {
     try {
       const deviceId = getDeviceId();
       const url = `${API_BASE_URL}/auth/refresh-token`;
+
       const response = await fetch(url, {
         method: "POST",
         credentials: "include",
@@ -66,10 +61,15 @@ export async function refreshAccessToken(): Promise<boolean> {
           "Accept-Cookies": "true",
           "X-Accept-Cookies": "true",
         },
+        body: JSON.stringify({ deviceId }),
       });
 
       if (!response.ok) {
-        if (response.status === 401 || response.status === 403 || response.status === 400) {
+        if (
+          response.status === 401 ||
+          response.status === 403 ||
+          response.status === 400
+        ) {
           clearSessionStorage();
         }
         return false;

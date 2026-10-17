@@ -14,8 +14,6 @@ import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
 interface ClientLayoutProps {
   children: React.ReactNode;
   initialSession?: {
-    token: string | null;
-    refreshToken: string | null;
     user: any | null;
     isAuthenticated: boolean;
   };
