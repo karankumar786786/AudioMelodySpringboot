@@ -1,12 +1,29 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
-import { autocomplete } from "@algolia/autocomplete-js";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  ArrowUpRight,
+  Clock,
+  ListMusic,
+  Loader2,
+  Play,
+  Search,
+  Trash2,
+  User,
+  X,
+} from "lucide-react";
 import { liteClient } from "algoliasearch/lite";
-import "@algolia/autocomplete-theme-classic";
-import "./autocomplete.css";
+import { toast } from "sonner";
 
+import { SongThumbnail } from "@/components/SongThumbnail";
 import { musicApi, type Song } from "@/lib/api";
 import { getImageUrl } from "@/lib/image-utils";
 import {
@@ -16,10 +33,8 @@ import {
 } from "@/lib/player-utils";
 import { previewPlayer } from "@/lib/preview-player";
 import { playerActions } from "@/store/player.store";
-import { toast } from "sonner";
 
 interface AlgoliaAutocompleteProps {
-  container?: string | HTMLElement;
   placeholder?: string;
   onSongSelected?: (song: Song) => void;
   onArtistSelected?: (artistId: string) => void;
@@ -33,6 +48,16 @@ interface WordSuggestion {
   matchedPrefix?: string;
 }
 
+interface RecentSearchItem {
+  id: string;
+  type: "word" | "song" | "artist" | "playlist";
+  label: string;
+  subtitle?: string;
+  imageKey?: string;
+  timestamp: number;
+  data?: any;
+}
+
 const ALGOLIA_APP_ID =
   process.env.NEXT_PUBLIC_ALGOLIA_APP_ID || "NQKIDY69EZ";
 const ALGOLIA_SEARCH_KEY =
@@ -41,9 +66,62 @@ const ALGOLIA_SEARCH_KEY =
 const ALGOLIA_INDEX_NAME =
   process.env.NEXT_PUBLIC_ALGOLIA_INDEX_NAME || "one_melody_springboot";
 
-/**
- * Extracts word-level and title-level completions from Algolia highlights and records.
- */
+const RECENT_SEARCHES_STORAGE_KEY = "one_melody_recent_searches_v2";
+const MAX_RECENT_ITEMS = 12;
+
+function getStoredRecentSearches(): RecentSearchItem[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(RECENT_SEARCHES_STORAGE_KEY);
+    if (!raw) return [];
+    const items = JSON.parse(raw);
+    return Array.isArray(items) ? items : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveRecentSearchItem(entry: Omit<RecentSearchItem, "timestamp">) {
+  if (typeof window === "undefined") return;
+  try {
+    const existing = getStoredRecentSearches();
+    const filtered = existing.filter((item) => {
+      if (item.id === entry.id) return false;
+      if (item.type === "word" && entry.type === "word") {
+        return item.label.toLowerCase() !== entry.label.toLowerCase();
+      }
+      return true;
+    });
+    const updated: RecentSearchItem[] = [
+      { ...entry, timestamp: Date.now() },
+      ...filtered,
+    ].slice(0, MAX_RECENT_ITEMS);
+    localStorage.setItem(RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(updated));
+  } catch (err) {
+    console.warn("Failed to save recent search:", err);
+  }
+}
+
+function removeRecentSearchItem(id: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const existing = getStoredRecentSearches();
+    const updated = existing.filter((item) => item.id !== id);
+    localStorage.setItem(RECENT_SEARCHES_STORAGE_KEY, JSON.stringify(updated));
+  } catch (err) {
+    console.warn("Failed to remove recent search item:", err);
+  }
+}
+
+function clearAllRecentSearches() {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(RECENT_SEARCHES_STORAGE_KEY);
+  } catch (err) {
+    console.warn("Failed to clear recent searches:", err);
+  }
+}
+
 function extractWordSuggestions(query: string, hits: any[]): WordSuggestion[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
@@ -60,7 +138,6 @@ function extractWordSuggestions(query: string, hits: any[]): WordSuggestion[] {
     ].filter(Boolean);
 
     for (const hl of highlights) {
-      // Find <em>matched</em>rest_of_word
       const regex = /<em>([^<]+)<\/em>([\w'-]*)/gi;
       let m: RegExpExecArray | null;
       while ((m = regex.exec(hl)) !== null) {
@@ -98,7 +175,6 @@ function extractWordSuggestions(query: string, hits: any[]): WordSuggestion[] {
 }
 
 export function AlgoliaAutocomplete({
-  container,
   placeholder = "Search for songs, artists, albums or playlists...",
   onSongSelected,
   onArtistSelected,
@@ -106,555 +182,967 @@ export function AlgoliaAutocomplete({
   className = "",
 }: AlgoliaAutocompleteProps) {
   const router = useRouter();
-  const rootRef = useRef<HTMLDivElement>(null);
-  const activeCompletionRef = useRef<string>("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
+  const [query, setQuery] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const [prediction, setPrediction] = useState("");
+  const [wordSuggestions, setWordSuggestions] = useState<WordSuggestion[]>([]);
+  const [songs, setSongs] = useState<any[]>([]);
+  const [artists, setArtists] = useState<any[]>([]);
+  const [playlists, setPlaylists] = useState<any[]>([]);
+  const [recentSearches, setRecentSearches] = useState<RecentSearchItem[]>([]);
+
+  const searchClient = useMemo(
+    () => liteClient(ALGOLIA_APP_ID, ALGOLIA_SEARCH_KEY),
+    []
+  );
+
+  // Sync background account history on mount
   useEffect(() => {
-    const targetContainer = container || rootRef.current || "#autocomplete";
-    if (!targetContainer) return;
+    setRecentSearches(getStoredRecentSearches());
 
-    const searchClient = liteClient(ALGOLIA_APP_ID, ALGOLIA_SEARCH_KEY);
+    musicApi.users
+      .getSearchHistory()
+      .then((res) => {
+        const recent = res?.data?.recent;
+        if (Array.isArray(recent) && recent.length > 0) {
+          const current = getStoredRecentSearches();
+          const currentIds = new Set(current.map((c) => c.id));
+          let changed = false;
 
-    // Helpers to manage ghost text on the input element
-    const getDomElements = () => {
-      const containerEl =
-        typeof targetContainer === "string"
-          ? document.querySelector<HTMLElement>(targetContainer)
-          : (targetContainer as HTMLElement);
-      if (!containerEl)
-        return { inputEl: null, wrapperEl: null, ghostEl: null, containerEl: null };
-
-      const inputEl = containerEl.querySelector<HTMLInputElement>(".aa-Input");
-      const wrapperEl = containerEl.querySelector<HTMLDivElement>(".aa-InputWrapper");
-      let ghostEl = wrapperEl?.querySelector<HTMLDivElement>(".aa-InputGhost") || null;
-
-      if (wrapperEl && !ghostEl) {
-        ghostEl = document.createElement("div");
-        ghostEl.className = "aa-InputGhost";
-        ghostEl.setAttribute("aria-hidden", "true");
-        if (inputEl) {
-          wrapperEl.insertBefore(ghostEl, inputEl);
-        } else {
-          wrapperEl.appendChild(ghostEl);
-        }
-      }
-
-      return { inputEl, wrapperEl, ghostEl, containerEl };
-    };
-
-    let searchApi: any = null;
-
-    const updateGhostText = (typedQuery: string, bestPrediction: string) => {
-      const { ghostEl } = getDomElements();
-      if (!ghostEl) return;
-
-      const trimmedTyped = typedQuery.trim();
-      if (!trimmedTyped || !bestPrediction) {
-        ghostEl.innerHTML = "";
-        activeCompletionRef.current = "";
-        return;
-      }
-
-      activeCompletionRef.current = bestPrediction;
-
-      // Check if prediction starts with the typed query
-      if (bestPrediction.toLowerCase().startsWith(trimmedTyped.toLowerCase())) {
-        const remaining = bestPrediction.slice(trimmedTyped.length);
-        if (remaining) {
-          ghostEl.innerHTML = `<span class="aa-InputGhost-typed">${trimmedTyped}</span><span class="aa-InputGhost-completion">${remaining}</span><span class="aa-InputGhost-hint">Tab ⇥</span>`;
-          return;
-        }
-      } else {
-        // Typo match (e.g. 'dewa' -> 'Deewana')
-        ghostEl.innerHTML = `<span class="aa-InputGhost-typed">${trimmedTyped}</span><span class="aa-InputGhost-completion"> (${bestPrediction})</span><span class="aa-InputGhost-hint">Tab ⇥</span>`;
-        return;
-      }
-
-      ghostEl.innerHTML = "";
-      activeCompletionRef.current = "";
-    };
-
-    const applyCompletion = (completionText: string) => {
-      const clean = completionText.trim();
-      if (!clean) return;
-
-      const { inputEl } = getDomElements();
-      if (!inputEl) return;
-
-      // 1. Force value directly onto the DOM input element
-      inputEl.value = clean;
-      inputEl.focus();
-      inputEl.setSelectionRange(clean.length, clean.length);
-
-      // 2. Clear current ghost hint
-      updateGhostText("", "");
-
-      // 3. Dispatch native DOM input event so Algolia autocomplete syncs internal store
-      inputEl.dispatchEvent(new Event("input", { bubbles: true }));
-
-      // 4. Update Algolia state, ensure panel open, and trigger search
-      if (searchApi) {
-        searchApi.setQuery(clean);
-        searchApi.setIsOpen(true);
-        searchApi.refresh();
-      }
-
-      // 5. Keep input firmly focused across next event loops / microtasks
-      requestAnimationFrame(() => {
-        inputEl.focus();
-        inputEl.setSelectionRange(clean.length, clean.length);
-      });
-      setTimeout(() => {
-        inputEl.focus();
-        inputEl.setSelectionRange(clean.length, clean.length);
-        if (searchApi) {
-          searchApi.setIsOpen(true);
-          searchApi.refresh();
-        }
-      }, 30);
-    };
-
-    const handlePlaySong = async (item: any) => {
-      previewPlayer.stopPreview(true);
-      let songToPlay: Song = {
-        id: item.objectID,
-        title: item.title,
-        artistName: item.artistName || item.artist || "Unknown Artist",
-        album: item.album || null,
-        genre: item.genre || null,
-        language: item.language || "",
-        lrclibId: item.lrclibId || "",
-        imageKey: item.imageKey || "",
-        songKey: item.songKey || "",
-        duration: Number(item.duration || 0),
-        status: "ACTIVE",
-        totalStreams: Number(item.totalStreams || 0),
-        createdAt: "",
-      };
-
-      if (!songToPlay.songKey && songToPlay.id) {
-        try {
-          const res = await musicApi.songs.getById(songToPlay.id);
-          if (res?.data) {
-            songToPlay = { ...songToPlay, ...res.data };
-          }
-        } catch (err) {
-          console.warn("Failed to load full song audio details:", err);
-        }
-      }
-
-      if (onSongSelected) {
-        onSongSelected(songToPlay);
-      } else {
-        playerActions.playWithRadio(mapToPlayerSong(songToPlay));
-        toast.success("Playing Song Radio", {
-          description: `Starting infinite radio for "${songToPlay.title}"...`,
-        });
-        playerActions.stageSearchPlay(songToPlay.id);
-      }
-    };
-
-    const handleArtistClick = (artistId: string) => {
-      if (onArtistSelected) {
-        onArtistSelected(artistId);
-      } else {
-        router.push(`/artists/${artistId}`);
-      }
-    };
-
-    const handlePlaylistClick = (playlistId: string, isUserPlaylist: boolean) => {
-      if (onPlaylistSelected) {
-        onPlaylistSelected(playlistId, isUserPlaylist);
-      } else {
-        router.push(
-          isUserPlaylist ? `/my-playlists/${playlistId}` : `/playlists/${playlistId}`
-        );
-      }
-    };
-
-    const search = autocomplete<any>({
-      container: targetContainer,
-      placeholder,
-      openOnFocus: false,
-      autoFocus: false,
-      onSubmit({ state }: any) {
-        const { inputEl } = getDomElements();
-        inputEl?.focus();
-        if (searchApi) {
-          searchApi.setIsOpen(true);
-          searchApi.refresh();
-        }
-      },
-      onStateChange({ state }) {
-        if (!state.query || !state.query.trim()) {
-          updateGhostText("", "");
-        }
-      },
-      getSources({ query }) {
-        if (!query || !query.trim()) {
-          updateGhostText("", "");
-          return [];
-        }
-
-        const trimmed = query.trim();
-
-        return [
-          // 0. Word & Query Completions (Predictive typing)
-          {
-            sourceId: "suggestions",
-            getItemInputValue({ item }: any) {
-              return item.label;
-            },
-            getItems() {
-              return searchClient
-                .search([
-                  {
-                    indexName: ALGOLIA_INDEX_NAME,
-                    params: {
-                      query: trimmed,
-                      hitsPerPage: 8,
-                    },
-                  },
-                ])
-                .then(({ results }: any) => {
-                  const hits = results[0]?.hits || [];
-                  const suggestions = extractWordSuggestions(trimmed, hits);
-                  if (suggestions.length > 0) {
-                    updateGhostText(trimmed, suggestions[0].label);
-                  } else {
-                    updateGhostText("", "");
-                  }
-                  return suggestions;
-                });
-            },
-            getItemUrl() {
-              return undefined;
-            },
-            templates: {
-              header({ html }: any) {
-                return html`<div class="aa-SourceHeaderTitle">Word & Query Completions</div>`;
-              },
-              item({ item, html }: any) {
-                const badgeText = item.type === "word" ? "Word" : item.type;
-                return html`
-                  <div class="aa-suggestion-item" data-suggestion="${item.label}">
-                    <div class="aa-suggestion-left">
-                      <svg class="aa-suggestion-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                      </svg>
-                      <span class="aa-suggestion-query">${item.label}</span>
-                    </div>
-                    <div class="aa-suggestion-action" title="Complete into search input (Tab)">
-                      <span class="aa-suggestion-type">${badgeText}</span>
-                      <svg class="aa-suggestion-arrow" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <line x1="7" y1="17" x2="17" y2="7"></line>
-                        <polyline points="7 7 17 7 17 17"></polyline>
-                      </svg>
-                    </div>
-                  </div>
-                `;
-              },
-            },
-            onSelect({ item }: any) {
-              applyCompletion(item.label);
-            },
-          },
-
-          // 1. Songs Source
-          {
-            sourceId: "songs",
-            getItems() {
-              return searchClient
-                .search([
-                  {
-                    indexName: ALGOLIA_INDEX_NAME,
-                    params: {
-                      query: trimmed,
-                      hitsPerPage: 5,
-                      facetFilters: ["type:song"],
-                    },
-                  },
-                ])
-                .then(({ results }: any) => results[0]?.hits || []);
-            },
-            getItemUrl() {
-              return undefined;
-            },
-            templates: {
-              header({ html }: any) {
-                return html`<div class="aa-SourceHeaderTitle">Songs</div>`;
-              },
-              item({ item, html }: any) {
-                const imgUrl = item.imageKey
-                  ? getImageUrl(item.imageKey, { width: 80, height: 80, quality: 80 })
-                  : "/images/album-placeholder.png";
-
-                const meta = [
-                  item.artistName || item.artist,
-                  item.album,
-                  item.totalStreams
-                    ? formatStreamCount(Number(item.totalStreams), true)
-                    : null,
-                ]
+          for (const item of recent) {
+            if (
+              item.type === "SONG" &&
+              item.song &&
+              !currentIds.has(`song-${item.song.id}`)
+            ) {
+              current.push({
+                id: `song-${item.song.id}`,
+                type: "song",
+                label: item.song.title,
+                subtitle: [item.song.artistName || "Song", item.song.album]
                   .filter(Boolean)
-                  .join(" • ");
+                  .join(" • "),
+                imageKey: item.song.imageKey || "",
+                timestamp: Date.now(),
+                data: {
+                  objectID: item.song.id,
+                  title: item.song.title,
+                  artistName: item.song.artistName,
+                  album: item.song.album,
+                  genre: item.song.genre,
+                  imageKey: item.song.imageKey,
+                  songKey: item.song.songKey,
+                  duration: item.song.duration,
+                },
+              });
+              changed = true;
+            } else if (
+              item.type === "ARTIST" &&
+              item.artist &&
+              !currentIds.has(`artist-${item.artist.id}`)
+            ) {
+              current.push({
+                id: `artist-${item.artist.id}`,
+                type: "artist",
+                label: item.artist.name,
+                subtitle: "Artist",
+                imageKey: item.artist.coverImageKey || "",
+                timestamp: Date.now(),
+                data: { objectID: item.artist.id, name: item.artist.name },
+              });
+              changed = true;
+            } else if (
+              (item.type === "PLAYLIST" &&
+                item.playlist &&
+                !currentIds.has(`playlist-${item.playlist.id}`)) ||
+              (item.type === "USER_PLAYLIST" &&
+                item.userPlaylist &&
+                !currentIds.has(`playlist-${item.userPlaylist.id}`))
+            ) {
+              const pl = item.playlist || item.userPlaylist;
+              current.push({
+                id: `playlist-${pl!.id}`,
+                type: "playlist",
+                label: pl!.name,
+                subtitle:
+                  item.type === "USER_PLAYLIST" ? "User Playlist" : "Playlist",
+                imageKey: pl!.coverImageKey || "",
+                timestamp: Date.now(),
+                data: {
+                  objectID: pl!.id,
+                  name: pl!.name,
+                  type:
+                    item.type === "USER_PLAYLIST"
+                      ? "userPlaylist"
+                      : "playlist",
+                },
+              });
+              changed = true;
+            }
+          }
 
-                return html`
-                  <div class="aa-music-item group">
-                    <div class="aa-music-thumb">
-                      <img src="${imgUrl}" alt="${item.title}" class="aa-music-img" />
-                      <div class="aa-music-play-overlay">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                          <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                        </svg>
-                      </div>
-                    </div>
-                    <div class="aa-music-info">
-                      <div class="aa-music-title">${item.title}</div>
-                      <div class="aa-music-subtitle">${meta}</div>
-                    </div>
-                    <span class="aa-music-badge">Song</span>
-                  </div>
-                `;
-              },
-              noResults({ html }: any) {
-                return html`<div class="aa-NoResults">No songs found for "${trimmed}"</div>`;
-              },
-            },
-            onSelect({ item }: any) {
-              handlePlaySong(item);
-            },
-          },
-
-          // 2. Artists Source
-          {
-            sourceId: "artists",
-            getItems() {
-              return searchClient
-                .search([
-                  {
-                    indexName: ALGOLIA_INDEX_NAME,
-                    params: {
-                      query: trimmed,
-                      hitsPerPage: 3,
-                      facetFilters: ["type:artist"],
-                    },
-                  },
-                ])
-                .then(({ results }: any) => results[0]?.hits || []);
-            },
-            getItemUrl({ item }: any) {
-              return `/artists/${item.objectID}`;
-            },
-            templates: {
-              header({ html }: any) {
-                return html`<div class="aa-SourceHeaderTitle">Artists</div>`;
-              },
-              item({ item, html }: any) {
-                const imgUrl = item.coverImageKey
-                  ? getImageUrl(item.coverImageKey, { width: 80, height: 80, quality: 80 })
-                  : "/images/artist-placeholder.png";
-
-                const followers =
-                  typeof item.followersCount === "number"
-                    ? formatFollowerCount(item.followersCount)
-                    : "Artist";
-
-                return html`
-                  <div class="aa-music-item group">
-                    <div class="aa-music-thumb aa-artist-thumb">
-                      <img src="${imgUrl}" alt="${item.name}" class="aa-music-img" />
-                    </div>
-                    <div class="aa-music-info">
-                      <div class="aa-music-title">${item.name}</div>
-                      <div class="aa-music-subtitle">${followers}</div>
-                    </div>
-                    <span class="aa-music-badge">Artist</span>
-                  </div>
-                `;
-              },
-            },
-            onSelect({ item }: any) {
-              handleArtistClick(item.objectID);
-            },
-          },
-
-          // 3. Playlists Source
-          {
-            sourceId: "playlists",
-            getItems() {
-              return searchClient
-                .search([
-                  {
-                    indexName: ALGOLIA_INDEX_NAME,
-                    params: {
-                      query: trimmed,
-                      hitsPerPage: 3,
-                      facetFilters: [["type:playlist", "type:userPlaylist"]],
-                    },
-                  },
-                ])
-                .then(({ results }: any) => results[0]?.hits || []);
-            },
-            getItemUrl({ item }: any) {
-              return item.type === "userPlaylist"
-                ? `/my-playlists/${item.objectID}`
-                : `/playlists/${item.objectID}`;
-            },
-            templates: {
-              header({ html }: any) {
-                return html`<div class="aa-SourceHeaderTitle">Playlists</div>`;
-              },
-              item({ item, html }: any) {
-                const imgUrl = item.coverImageKey
-                  ? getImageUrl(item.coverImageKey, { width: 80, height: 80, quality: 80 })
-                  : "/images/playlist-placeholder.png";
-
-                const badge =
-                  item.type === "userPlaylist" ? "User Playlist" : "Playlist";
-                const totalSongs =
-                  typeof item.totalSongs === "number"
-                    ? `${item.totalSongs} tracks`
-                    : badge;
-
-                return html`
-                  <div class="aa-music-item group">
-                    <div class="aa-music-thumb">
-                      <img src="${imgUrl}" alt="${item.name}" class="aa-music-img" />
-                    </div>
-                    <div class="aa-music-info">
-                      <div class="aa-music-title">${item.name}</div>
-                      <div class="aa-music-subtitle">${totalSongs}</div>
-                    </div>
-                    <span class="aa-music-badge">${badge}</span>
-                  </div>
-                `;
-              },
-            },
-            onSelect({ item }: any) {
-              handlePlaylistClick(item.objectID, item.type === "userPlaylist");
-            },
-          },
-        ];
-      },
-    });
-
-    searchApi = search;
-
-    // Delegated click handler on suggestion items to complete and search without blur
-    const handleContainerClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-
-      const suggestionItem = target.closest<HTMLElement>(".aa-suggestion-item");
-      if (suggestionItem) {
-        const text =
-          suggestionItem.getAttribute("data-suggestion") ||
-          suggestionItem.querySelector(".aa-suggestion-query")?.textContent?.trim();
-        if (text) {
-          e.preventDefault();
-          e.stopPropagation();
-          applyCompletion(text);
+          if (changed) {
+            localStorage.setItem(
+              RECENT_SEARCHES_STORAGE_KEY,
+              JSON.stringify(current.slice(0, MAX_RECENT_ITEMS))
+            );
+            setRecentSearches(getStoredRecentSearches());
+          }
         }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Execute Algolia Search
+  const executeSearch = useCallback(
+    async (searchTerm: string) => {
+      const trimmed = searchTerm.trim();
+      if (!trimmed) {
+        setWordSuggestions([]);
+        setSongs([]);
+        setArtists([]);
+        setPlaylists([]);
+        setPrediction("");
+        setIsSearching(false);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        const { results }: any = await searchClient.search([
+          {
+            indexName: ALGOLIA_INDEX_NAME,
+            params: { query: trimmed, hitsPerPage: 8 },
+          },
+          {
+            indexName: ALGOLIA_INDEX_NAME,
+            params: {
+              query: trimmed,
+              hitsPerPage: 5,
+              facetFilters: ["type:song"],
+            },
+          },
+          {
+            indexName: ALGOLIA_INDEX_NAME,
+            params: {
+              query: trimmed,
+              hitsPerPage: 3,
+              facetFilters: ["type:artist"],
+            },
+          },
+          {
+            indexName: ALGOLIA_INDEX_NAME,
+            params: {
+              query: trimmed,
+              hitsPerPage: 3,
+              facetFilters: [["type:playlist", "type:userPlaylist"]],
+            },
+          },
+        ]);
+
+        const suggestionHits = results[0]?.hits || [];
+        const songHits = results[1]?.hits || [];
+        const artistHits = results[2]?.hits || [];
+        const playlistHits = results[3]?.hits || [];
+
+        const words = extractWordSuggestions(trimmed, suggestionHits);
+        setWordSuggestions(words);
+        setSongs(songHits);
+        setArtists(artistHits);
+        setPlaylists(playlistHits);
+
+        if (words.length > 0) {
+          setPrediction(words[0].label);
+        } else if (songHits.length > 0) {
+          setPrediction(songHits[0].title);
+        } else {
+          setPrediction("");
+        }
+      } catch (err) {
+        console.warn("Algolia search failed:", err);
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [searchClient]
+  );
+
+  // Debounced search on input change
+  useEffect(() => {
+    if (!query.trim()) {
+      setWordSuggestions([]);
+      setSongs([]);
+      setArtists([]);
+      setPlaylists([]);
+      setPrediction("");
+      setIsSearching(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      executeSearch(query);
+    }, 180);
+
+    return () => clearTimeout(timer);
+  }, [query, executeSearch]);
+
+  // Click outside listener to close dropdown
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+        setIsFocused(false);
       }
     };
 
-    const containerEl =
-      typeof targetContainer === "string"
-        ? document.querySelector<HTMLElement>(targetContainer)
-        : (targetContainer as HTMLElement);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-    containerEl?.addEventListener("click", handleContainerClick);
-
-    // Keyboard handlers: Tab / ArrowRight auto-completion, Cmd+K / Ctrl+K focus
-    // CRITICAL: Must use CAPTURE phase so we intercept Tab BEFORE Algolia dispatches 'blur'
-    // and before the browser moves focus away from the input!
-    const handleKeydownCapture = (e: KeyboardEvent) => {
-      const { inputEl, containerEl: activeContainer } = getDomElements();
-      if (!inputEl) return;
-
-      const isInputFocused =
-        document.activeElement === inputEl ||
-        inputEl.contains(document.activeElement as Node);
-
-      // Tab completion: complete into search bar, stay focused, immediately search
-      if (e.key === "Tab" && isInputFocused) {
-        const candidate =
-          activeCompletionRef.current ||
-          activeContainer?.querySelector<HTMLElement>(".aa-suggestion-query")?.textContent?.trim() ||
-          activeContainer?.querySelector<HTMLElement>(".aa-music-title")?.textContent?.trim() ||
-          inputEl.value.trim();
-
-        if (candidate) {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-
-          applyCompletion(candidate);
-          return;
-        }
-      }
-
-      // ArrowRight completion: complete if cursor is at the end of input
-      if (
-        e.key === "ArrowRight" &&
-        isInputFocused &&
-        inputEl.selectionStart === inputEl.value.length
-      ) {
-        const candidate =
-          activeCompletionRef.current ||
-          activeContainer?.querySelector<HTMLElement>(".aa-suggestion-query")?.textContent?.trim();
-
-        if (
-          candidate &&
-          candidate.toLowerCase() !== inputEl.value.trim().toLowerCase()
-        ) {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-
-          applyCompletion(candidate);
-          return;
-        }
-      }
-
-      // Cmd+K or Ctrl+K or / shortcut
+  // Global keyboard shortcuts (Cmd+K, Ctrl+K, /)
+  useEffect(() => {
+    const handleGlobalShortcuts = (e: KeyboardEvent) => {
       const activeEl = document.activeElement;
-      const isAnyInput =
+      const isInput =
         activeEl instanceof HTMLInputElement ||
         activeEl instanceof HTMLTextAreaElement;
 
       if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
         e.preventDefault();
-        inputEl.focus();
-      } else if (e.key === "/" && !e.shiftKey && !isAnyInput) {
+        inputRef.current?.focus();
+        setIsOpen(true);
+      } else if (e.key === "/" && !e.shiftKey && !isInput) {
         e.preventDefault();
-        inputEl.focus();
+        inputRef.current?.focus();
+        setIsOpen(true);
       }
     };
 
-    window.addEventListener("keydown", handleKeydownCapture, true);
+    window.addEventListener("keydown", handleGlobalShortcuts);
+    return () => window.removeEventListener("keydown", handleGlobalShortcuts);
+  }, []);
 
-    return () => {
-      window.removeEventListener("keydown", handleKeydownCapture, true);
-      containerEl?.removeEventListener("click", handleContainerClick);
-      search.destroy();
+  // Apply completed word into input & search immediately without losing focus
+  const handleApplyWord = useCallback(
+    (wordToApply: string) => {
+      const clean = wordToApply.trim();
+      if (!clean) return;
+
+      setQuery(clean);
+      saveRecentSearchItem({
+        id: `word-${clean.toLowerCase()}`,
+        type: "word",
+        label: clean,
+        subtitle: "Recent search",
+      });
+      setRecentSearches(getStoredRecentSearches());
+      executeSearch(clean);
+      setIsOpen(true);
+
+      if (inputRef.current) {
+        inputRef.current.focus();
+        requestAnimationFrame(() => {
+          inputRef.current?.focus();
+          inputRef.current?.setSelectionRange(clean.length, clean.length);
+        });
+      }
+    },
+    [executeSearch]
+  );
+
+  // Play a song
+  const handlePlaySong = async (songItem: any) => {
+    previewPlayer.stopPreview(true);
+    let songToPlay: Song = {
+      id: songItem.objectID || songItem.id,
+      title: songItem.title,
+      artistName: songItem.artistName || songItem.artist || "Unknown Artist",
+      album: songItem.album || null,
+      genre: songItem.genre || null,
+      language: songItem.language || "",
+      lrclibId: songItem.lrclibId || "",
+      imageKey: songItem.imageKey || "",
+      songKey: songItem.songKey || "",
+      duration: Number(songItem.duration || 0),
+      status: "ACTIVE",
+      totalStreams: Number(songItem.totalStreams || 0),
+      createdAt: "",
     };
-  }, [
-    container,
-    placeholder,
-    onSongSelected,
-    onArtistSelected,
-    onPlaylistSelected,
-    router,
-  ]);
+
+    if (!songToPlay.songKey && songToPlay.id) {
+      try {
+        const res = await musicApi.songs.getById(songToPlay.id);
+        if (res?.data) {
+          songToPlay = { ...songToPlay, ...res.data };
+        }
+      } catch (err) {
+        console.warn("Failed to load song details from backend:", err);
+      }
+    }
+
+    saveRecentSearchItem({
+      id: `song-${songToPlay.id}`,
+      type: "song",
+      label: songToPlay.title,
+      subtitle:
+        [songToPlay.artistName, songToPlay.album].filter(Boolean).join(" • ") ||
+        "Song",
+      imageKey: songToPlay.imageKey,
+      data: songToPlay,
+    });
+    setRecentSearches(getStoredRecentSearches());
+
+    if (onSongSelected) {
+      onSongSelected(songToPlay);
+    } else {
+      playerActions.playWithRadio(mapToPlayerSong(songToPlay));
+      toast.success("Playing Song Radio", {
+        description: `Starting infinite radio for "${songToPlay.title}"...`,
+      });
+      playerActions.stageSearchPlay(songToPlay.id);
+    }
+    setIsOpen(false);
+  };
+
+  // Click artist
+  const handleArtistClick = (artistId: string, artistData?: any) => {
+    saveRecentSearchItem({
+      id: `artist-${artistId}`,
+      type: "artist",
+      label: artistData?.name || "Artist",
+      subtitle: "Artist",
+      imageKey: artistData?.coverImageKey,
+      data: artistData,
+    });
+    setRecentSearches(getStoredRecentSearches());
+    setIsOpen(false);
+    if (onArtistSelected) {
+      onArtistSelected(artistId);
+    } else {
+      router.push(`/artists/${artistId}`);
+    }
+  };
+
+  // Click playlist
+  const handlePlaylistClick = (
+    playlistId: string,
+    isUserPlaylist: boolean,
+    playlistData?: any
+  ) => {
+    saveRecentSearchItem({
+      id: `playlist-${playlistId}`,
+      type: "playlist",
+      label: playlistData?.name || "Playlist",
+      subtitle: isUserPlaylist ? "User Playlist" : "Playlist",
+      imageKey: playlistData?.coverImageKey,
+      data: playlistData,
+    });
+    setRecentSearches(getStoredRecentSearches());
+    setIsOpen(false);
+    if (onPlaylistSelected) {
+      onPlaylistSelected(playlistId, isUserPlaylist);
+    } else {
+      router.push(
+        isUserPlaylist
+          ? `/my-playlists/${playlistId}`
+          : `/playlists/${playlistId}`
+      );
+    }
+  };
+
+  // Remove individual recent search item
+  const handleDeleteRecent = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    removeRecentSearchItem(id);
+    if (
+      id.startsWith("song-") ||
+      id.startsWith("artist-") ||
+      id.startsWith("playlist-")
+    ) {
+      const rawId = id.replace(/^(song|artist|playlist)-/, "");
+      musicApi.users.deleteSearchHistoryItem(rawId).catch(() => {});
+    }
+    setRecentSearches(getStoredRecentSearches());
+  };
+
+  // Clear all recent searches
+  const handleClearAllRecent = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    clearAllRecentSearches();
+    musicApi.users.clearSearchHistory().catch(() => {});
+    setRecentSearches([]);
+    toast.success("Recent searches cleared");
+  };
+
+  // Keydown handler: Tab / ArrowRight / Enter / Escape
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (
+      e.key === "Tab" ||
+      (e.key === "ArrowRight" &&
+        inputRef.current?.selectionStart === query.length)
+    ) {
+      const candidate =
+        prediction || wordSuggestions[0]?.label || songs[0]?.title || "";
+      if (candidate) {
+        e.preventDefault();
+        handleApplyWord(candidate);
+        return;
+      }
+    }
+
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const trimmed = query.trim();
+      if (trimmed) {
+        saveRecentSearchItem({
+          id: `word-${trimmed.toLowerCase()}`,
+          type: "word",
+          label: trimmed,
+          subtitle: "Recent search",
+        });
+        setRecentSearches(getStoredRecentSearches());
+        executeSearch(trimmed);
+      }
+    }
+
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setIsOpen(false);
+      inputRef.current?.blur();
+    }
+  };
+
+  const hasRecentHistory = recentSearches.length > 0;
+  const fallbackTrending = [
+    {
+      id: "word-trending-1",
+      type: "word" as const,
+      label: "Arijit Singh",
+      subtitle: "Trending Artist",
+      timestamp: Date.now(),
+    },
+    {
+      id: "word-trending-2",
+      type: "word" as const,
+      label: "Bollywood Hits",
+      subtitle: "Popular Search",
+      timestamp: Date.now(),
+    },
+    {
+      id: "word-trending-3",
+      type: "word" as const,
+      label: "Lo-Fi Chill",
+      subtitle: "Trending Genre",
+      timestamp: Date.now(),
+    },
+  ];
+
+  const recentItemsToDisplay = hasRecentHistory
+    ? recentSearches
+    : fallbackTrending;
+
+  const hasResults =
+    wordSuggestions.length > 0 ||
+    songs.length > 0 ||
+    artists.length > 0 ||
+    playlists.length > 0;
 
   return (
     <div
-      id="autocomplete"
-      ref={rootRef}
-      className={`w-full relative ${className}`}
-    />
+      ref={containerRef}
+      className={`w-full relative select-none ${className}`}
+    >
+      {/* Search Input Box */}
+      <div
+        onClick={() => {
+          setIsOpen(true);
+          inputRef.current?.focus();
+        }}
+        className={`relative flex items-center h-[42px] px-3.5 rounded-full transition-all duration-200 border cursor-text shadow-inner ${
+          isFocused || isOpen
+            ? "bg-[#121214] border-white/35 shadow-[0_0_0_1px_rgba(255,255,255,0.25),0_8px_30px_rgba(0,0,0,0.6)]"
+            : "bg-white/6 hover:bg-white/10 border-white/10 hover:border-white/20"
+        }`}
+      >
+        {/* Search Icon / Loading Spinner */}
+        <div className="shrink-0 text-zinc-400 mr-2.5 flex items-center justify-center">
+          {isSearching ? (
+            <Loader2 size={16} className="animate-spin text-white" />
+          ) : (
+            <Search
+              size={16}
+              className={`transition-colors ${
+                isFocused || isOpen ? "text-white" : "text-zinc-400"
+              }`}
+            />
+          )}
+        </div>
+
+        {/* Input Wrapper with Ghost Prediction */}
+        <div className="relative flex-1 min-w-0 flex items-center h-full">
+          {/* Ghost Completion Layer */}
+          {isFocused && query && prediction && (
+            <div
+              className="absolute inset-0 flex items-center pointer-events-none select-none text-[13px] font-medium font-sans overflow-hidden"
+              aria-hidden="true"
+            >
+              {prediction.toLowerCase().startsWith(query.toLowerCase()) ? (
+                <>
+                  <span className="opacity-0 whitespace-pre">{query}</span>
+                  <span className="text-zinc-500 opacity-90 whitespace-pre">
+                    {prediction.slice(query.length)}
+                  </span>
+                  <span className="ml-2 px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider bg-white/10 text-zinc-400 border border-white/15 rounded shrink-0">
+                    Tab ⇥
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="opacity-0 whitespace-pre">{query}</span>
+                  <span className="text-zinc-500 opacity-70 whitespace-pre">
+                    {" "}({prediction})
+                  </span>
+                  <span className="ml-2 px-1.5 py-0.5 text-[9px] font-mono font-semibold uppercase tracking-wider bg-white/10 text-zinc-400 border border-white/15 rounded shrink-0">
+                    Tab ⇥
+                  </span>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Actual HTML Input */}
+          <input
+            ref={inputRef}
+            type="text"
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setIsOpen(true);
+            }}
+            onFocus={() => {
+              setIsFocused(true);
+              setIsOpen(true);
+              setRecentSearches(getStoredRecentSearches());
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder}
+            spellCheck="false"
+            autoComplete="off"
+            autoCorrect="off"
+            className="w-full h-full bg-transparent text-[13px] font-medium font-sans text-white placeholder-zinc-400 outline-none border-none relative z-10 p-0"
+          />
+        </div>
+
+        {/* Clear Button */}
+        {query && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setQuery("");
+              setPrediction("");
+              setWordSuggestions([]);
+              setSongs([]);
+              setArtists([]);
+              setPlaylists([]);
+              setRecentSearches(getStoredRecentSearches());
+              inputRef.current?.focus();
+            }}
+            className="shrink-0 p-1 text-zinc-400 hover:text-white rounded-full hover:bg-white/10 transition-colors ml-1 cursor-pointer relative z-20"
+            title="Clear search"
+          >
+            <X size={15} />
+          </button>
+        )}
+      </div>
+
+      {/* Dropdown Panel with Framer Motion */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 6, scale: 0.99 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 6, scale: 0.99 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            className="absolute top-full left-0 right-0 mt-2 bg-[#121214]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden z-50 max-h-[70vh] flex flex-col"
+          >
+            {/* VIEW A: Blank Query -> Show Recent Searches immediately */}
+            {!query.trim() && (
+              <div className="flex-1 overflow-y-auto no-scrollbar">
+                {/* Header */}
+                <div className="p-3 border-b border-white/8 flex items-center justify-between sticky top-0 bg-[#121214]/95 backdrop-blur-md z-10">
+                  <div className="flex items-center gap-2 text-xs font-semibold text-zinc-400">
+                    <Clock size={13} className="text-zinc-500" />
+                    <span>
+                      {hasRecentHistory
+                        ? "Recent Searches"
+                        : "Trending Searches"}
+                    </span>
+                  </div>
+                  {hasRecentHistory && (
+                    <button
+                      type="button"
+                      onClick={handleClearAllRecent}
+                      className="text-[11px] font-medium text-zinc-500 hover:text-red-400 flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <Trash2 size={12} />
+                      Clear all
+                    </button>
+                  )}
+                </div>
+
+                {/* Recent Items List */}
+                <div className="p-2 space-y-1">
+                  {recentItemsToDisplay.map((item) => {
+                    const isWord = item.type === "word";
+                    const isSong = item.type === "song";
+                    const isArtist = item.type === "artist";
+
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => {
+                          if (isWord) {
+                            handleApplyWord(item.label);
+                          } else if (isSong) {
+                            handlePlaySong(
+                              item.data || {
+                                id: item.id.replace("song-", ""),
+                                title: item.label,
+                              }
+                            );
+                          } else if (isArtist) {
+                            handleArtistClick(
+                              item.data?.objectID ||
+                                item.id.replace("artist-", ""),
+                              item.data
+                            );
+                          } else {
+                            handlePlaylistClick(
+                              item.data?.objectID ||
+                                item.id.replace("playlist-", ""),
+                              item.data?.type === "userPlaylist",
+                              item.data
+                            );
+                          }
+                        }}
+                        className="w-full flex items-center justify-between p-2 hover:bg-white/8 rounded-lg transition-all text-left group cursor-pointer"
+                      >
+                        {/* Left Icon / Thumbnail */}
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          {isWord ? (
+                            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/8 flex items-center justify-center text-zinc-500 group-hover:text-white transition-colors shrink-0">
+                              <Clock size={14} />
+                            </div>
+                          ) : isSong ? (
+                            <SongThumbnail
+                              song={
+                                item.data || {
+                                  id: item.id.replace("song-", ""),
+                                  title: item.label,
+                                  imageKey: item.imageKey,
+                                }
+                              }
+                              sizeClass="w-9 h-9"
+                              roundedClass="rounded-md"
+                              enablePreviewHover={true}
+                              onPlayClick={() =>
+                                handlePlaySong(
+                                  item.data || {
+                                    id: item.id.replace("song-", ""),
+                                    title: item.label,
+                                  }
+                                )
+                              }
+                            />
+                          ) : isArtist ? (
+                            <div className="w-9 h-9 rounded-full bg-zinc-900 overflow-hidden shrink-0 flex items-center justify-center border border-white/10">
+                              {item.imageKey ? (
+                                <img
+                                  src={getImageUrl(item.imageKey, {
+                                    width: 80,
+                                    height: 80,
+                                    focus: "face",
+                                  })}
+                                  className="w-full h-full object-cover"
+                                  alt=""
+                                />
+                              ) : (
+                                <User size={15} className="text-zinc-500" />
+                              )}
+                            </div>
+                          ) : (
+                            <div className="w-9 h-9 rounded-md bg-zinc-900 overflow-hidden shrink-0 flex items-center justify-center border border-white/10">
+                              {item.imageKey ? (
+                                <img
+                                  src={getImageUrl(item.imageKey, {
+                                    width: 80,
+                                    height: 80,
+                                  })}
+                                  className="w-full h-full object-cover"
+                                  alt=""
+                                />
+                              ) : (
+                                <ListMusic
+                                  size={15}
+                                  className="text-zinc-500"
+                                />
+                              )}
+                            </div>
+                          )}
+
+                          {/* Info Text */}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-white truncate">
+                              {item.label}
+                            </p>
+                            <p className="text-[11px] text-zinc-400 truncate">
+                              {item.subtitle ||
+                                (isWord
+                                  ? "Recent search"
+                                  : isSong
+                                  ? "Song"
+                                  : isArtist
+                                  ? "Artist"
+                                  : "Playlist")}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Right Action / Delete */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/6 text-zinc-400 border border-white/8 shrink-0">
+                            {isWord
+                              ? "Search"
+                              : isSong
+                              ? "Song"
+                              : isArtist
+                              ? "Artist"
+                              : "Playlist"}
+                          </span>
+                          {hasRecentHistory && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteRecent(e, item.id)}
+                              className="p-1 rounded-full text-zinc-500 hover:text-white hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                              title="Remove"
+                            >
+                              <X size={13} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* VIEW B: Active Query -> Live Algolia Search Results */}
+            {query.trim() && (
+              <div className="flex-1 overflow-y-auto no-scrollbar">
+                {/* 1. Word & Query Completions */}
+                {wordSuggestions.length > 0 && (
+                  <div className="p-2 border-b border-white/5">
+                    <span className="px-3 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block">
+                      Word & Query Completions
+                    </span>
+                    {wordSuggestions.map((sug) => (
+                      <div
+                        key={sug.label}
+                        onClick={() => handleApplyWord(sug.label)}
+                        className="w-full flex items-center justify-between p-2 hover:bg-white/8 rounded-lg transition-all text-left group cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <Search
+                            size={14}
+                            className="text-zinc-500 group-hover:text-white transition-colors shrink-0"
+                          />
+                          <span className="text-xs font-medium text-white truncate">
+                            {sug.label}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500 group-hover:text-zinc-400">
+                            {sug.type === "word" ? "Word" : sug.type}
+                          </span>
+                          <ArrowUpRight
+                            size={13}
+                            className="text-zinc-500 group-hover:text-white group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 2. Songs Source */}
+                {songs.length > 0 && (
+                  <div className="p-2 border-b border-white/5">
+                    <span className="px-3 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block">
+                      Songs
+                    </span>
+                    {songs.map((song) => (
+                      <div
+                        key={song.id || song.objectID}
+                        onClick={() => handlePlaySong(song)}
+                        className="w-full flex items-center gap-3 p-2 hover:bg-white/8 rounded-lg transition-all text-left group cursor-pointer"
+                      >
+                        <SongThumbnail
+                          song={song}
+                          sizeClass="w-10 h-10"
+                          roundedClass="rounded-md"
+                          enablePreviewHover={true}
+                          onPlayClick={() => handlePlaySong(song)}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-white truncate">
+                            {song.title}
+                          </p>
+                          <p className="text-[11px] text-zinc-400 truncate">
+                            {[song.artistName || song.artist, song.album]
+                              .filter(Boolean)
+                              .join(" • ")}
+                            {song.totalStreams
+                              ? ` • ${formatStreamCount(
+                                  Number(song.totalStreams),
+                                  true
+                                )}`
+                              : ""}
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/6 text-zinc-400 border border-white/8 shrink-0">
+                          Song
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 3. Artists Source */}
+                {artists.length > 0 && (
+                  <div className="p-2 border-b border-white/5">
+                    <span className="px-3 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block">
+                      Artists
+                    </span>
+                    {artists.map((artist) => (
+                      <div
+                        key={artist.objectID || artist.id}
+                        onClick={() =>
+                          handleArtistClick(artist.objectID || artist.id, artist)
+                        }
+                        className="w-full flex items-center gap-3 p-2 hover:bg-white/8 rounded-lg transition-all text-left group cursor-pointer"
+                      >
+                        <div className="w-10 h-10 rounded-full bg-zinc-900 overflow-hidden shrink-0 flex items-center justify-center border border-white/10">
+                          {artist.coverImageKey ? (
+                            <img
+                              src={getImageUrl(artist.coverImageKey, {
+                                width: 80,
+                                height: 80,
+                                focus: "face",
+                              })}
+                              className="w-full h-full object-cover"
+                              alt=""
+                            />
+                          ) : (
+                            <User size={16} className="text-zinc-500" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-white truncate">
+                            {artist.name}
+                          </p>
+                          <p className="text-[11px] text-zinc-400 truncate">
+                            {typeof artist.followersCount === "number"
+                              ? formatFollowerCount(artist.followersCount)
+                              : "Artist"}
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/6 text-zinc-400 border border-white/8 shrink-0">
+                          Artist
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* 4. Playlists Source */}
+                {playlists.length > 0 && (
+                  <div className="p-2">
+                    <span className="px-3 py-1 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider block">
+                      Playlists
+                    </span>
+                    {playlists.map((playlist) => (
+                      <div
+                        key={playlist.objectID || playlist.id}
+                        onClick={() =>
+                          handlePlaylistClick(
+                            playlist.objectID || playlist.id,
+                            playlist.type === "userPlaylist",
+                            playlist
+                          )
+                        }
+                        className="w-full flex items-center gap-3 p-2 hover:bg-white/8 rounded-lg transition-all text-left group cursor-pointer"
+                      >
+                        <div className="w-10 h-10 rounded-md bg-zinc-900 overflow-hidden shrink-0 flex items-center justify-center border border-white/10">
+                          {playlist.coverImageKey ? (
+                            <img
+                              src={getImageUrl(playlist.coverImageKey, {
+                                width: 80,
+                                height: 80,
+                              })}
+                              className="w-full h-full object-cover"
+                              alt=""
+                            />
+                          ) : (
+                            <ListMusic
+                              size={16}
+                              className="text-zinc-500"
+                            />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-white truncate">
+                            {playlist.name}
+                          </p>
+                          <p className="text-[11px] text-zinc-400 truncate">
+                            {typeof playlist.totalSongs === "number"
+                              ? `${playlist.totalSongs} tracks`
+                              : playlist.type === "userPlaylist"
+                              ? "User Playlist"
+                              : "Playlist"}
+                          </p>
+                        </div>
+                        <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/6 text-zinc-400 border border-white/8 shrink-0">
+                          {playlist.type === "userPlaylist"
+                            ? "User Playlist"
+                            : "Playlist"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Empty State */}
+                {!isSearching && !hasResults && (
+                  <div className="p-8 text-center text-zinc-500 text-xs font-normal">
+                    No results found for &quot;{query}&quot;
+                  </div>
+                )}
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
