@@ -9,9 +9,12 @@
     "format": "biome format --write"
   },
   "dependencies": {
+    "@algolia/autocomplete-js": "^1.19.12",
+    "@algolia/autocomplete-theme-classic": "^1.19.12",
     "@next/swc-wasm-nodejs": "latest",
     "@tanstack/react-query": "^5.99.0",
     "@tanstack/react-store": "^0.10.0",
+    "algoliasearch": "^5.60.0",
     "axios": "^1.15.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.38.0",

@@ -1,0 +1,312 @@
+/* ==========================================================================
+   Algolia Autocomplete Dark Theme for One Melody
+   Overrides @algolia/autocomplete-theme-classic
+   ========================================================================== */
+
+:root,
+#autocomplete,
+.aa-Autocomplete,
+.aa-Panel {
+  --aa-background-color-rgb: 20, 20, 20 !important;
+  --aa-background-color-alpha: 1 !important;
+  --aa-input-background-color-rgb: 24, 24, 27 !important;
+  --aa-input-background-color-alpha: 1 !important;
+  --aa-scrollbar-track-background-color-rgb: 20, 20, 20 !important;
+  --aa-scrollbar-thumb-background-color-rgb: 60, 60, 60 !important;
+  --aa-panel-border-color-rgb: 40, 40, 40 !important;
+  --aa-panel-border-color-alpha: 0.8 !important;
+  --aa-muted-color-rgb: 161, 161, 170 !important;
+  --aa-primary-color-rgb: 255, 255, 255 !important;
+}
+
+#autocomplete,
+.aa-Autocomplete {
+  width: 100%;
+  position: relative;
+}
+
+/* Form Container */
+.aa-Form {
+  display: flex !important;
+  align-items: center !important;
+  height: 42px !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 9999px !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  padding: 0 14px !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+
+.aa-Form:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.aa-Form:focus-within {
+  background: rgba(18, 18, 18, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25), 0 8px 30px rgba(0, 0, 0, 0.6) !important;
+}
+
+/* Input Field */
+.aa-Input {
+  color: #ffffff !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  padding: 0 8px !important;
+}
+
+.aa-Input::placeholder {
+  color: #a1a1aa !important;
+  font-weight: 400 !important;
+}
+
+/* Icons */
+.aa-SubmitIcon {
+  color: #a1a1aa !important;
+  width: 16px !important;
+  height: 16px !important;
+  transition: color 0.15s ease !important;
+}
+
+.aa-Form:focus-within .aa-SubmitIcon {
+  color: #ffffff !important;
+}
+
+.aa-ClearButton {
+  color: #a1a1aa !important;
+  width: 20px !important;
+  height: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 9999px !important;
+  transition: all 0.15s ease !important;
+}
+
+.aa-ClearButton:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.aa-LoadingIcon {
+  stroke: #ffffff !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* Autocomplete Floating Dropdown Panel */
+.aa-Panel {
+  background: rgba(20, 20, 20, 0.98) !important;
+  background-color: rgba(20, 20, 20, 0.98) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+  overflow: hidden !important;
+  margin-top: 8px !important;
+  z-index: 99999 !important;
+  max-height: 70vh !important;
+}
+
+.aa-PanelLayout {
+  padding: 8px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+/* Remove White Gradient Bars at Top and Bottom */
+.aa-GradientTop,
+.aa-GradientBottom {
+  display: none !important;
+  background: transparent !important;
+  background-image: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  height: 0 !important;
+}
+
+/* Panel Footer */
+.aa-PanelFooter {
+  display: none !important;
+  background: transparent !important;
+  background-image: none !important;
+  border-top: none !important;
+}
+
+/* Source Container & Headers - Completely Transparent */
+.aa-Source {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.aa-SourceHeader {
+  background: transparent !important;
+  background-color: transparent !important;
+  margin: 4px 0 !important;
+  padding: 0 !important;
+}
+
+.aa-SourceHeaderTitle {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.06em !important;
+  color: #c2c2cb !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  padding: 6px 12px 4px 12px !important;
+  display: inline-block !important;
+}
+
+.aa-SourceHeaderLine {
+  display: none !important;
+}
+
+.aa-SourceFooter {
+  display: none !important;
+  background: transparent !important;
+}
+
+/* Scrollbar Customization - No White Track or Thumb */
+.aa-Panel--scrollable {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent !important;
+  scrollbar-width: thin !important;
+}
+
+.aa-Panel--scrollable::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.aa-Panel--scrollable::-webkit-scrollbar-track {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.aa-Panel--scrollable::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2) !important;
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  border-radius: 9999px !important;
+  border: none !important;
+}
+
+/* Item Wrapper */
+.aa-Item {
+  border-radius: 12px !important;
+  padding: 6px 10px !important;
+  margin-bottom: 2px !important;
+  transition: all 0.15s ease !important;
+  cursor: pointer !important;
+  background: transparent !important;
+}
+
+.aa-Item[aria-selected="true"],
+.aa-Item:hover {
+  background-color: rgba(255, 255, 255, 0.09) !important;
+}
+
+/* Custom Music Item Layout */
+.aa-music-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.aa-music-thumb {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #27272a;
+}
+
+.aa-music-thumb.aa-artist-thumb {
+  border-radius: 9999px;
+}
+
+.aa-music-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.aa-music-play-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.aa-Item[aria-selected="true"] .aa-music-play-overlay,
+.aa-Item:hover .aa-music-play-overlay {
+  opacity: 1;
+}
+
+.aa-music-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.aa-music-title {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.25;
+}
+
+.aa-music-subtitle {
+  color: #a1a1aa;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 3px;
+  line-height: 1.25;
+}
+
+.aa-music-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #a1a1aa;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.aa-Item[aria-selected="true"] .aa-music-badge {
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.aa-NoResults {
+  padding: 20px;
+  text-align: center;
+  font-size: 13px;
+  color: #71717a;
+}
