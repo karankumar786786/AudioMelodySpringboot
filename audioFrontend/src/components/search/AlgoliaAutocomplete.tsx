@@ -667,7 +667,7 @@ export function AlgoliaAutocomplete({
           setIsOpen(true);
           inputRef.current?.focus();
         }}
-        className={`relative flex items-center h-105 px-3.5 rounded-full transition-all duration-200 border cursor-text shadow-inner ${
+        className={`relative flex items-center h-10.5 px-3.5 rounded-full transition-all duration-200 border cursor-text shadow-inner ${
           isFocused || isOpen
             ? "bg-[#121214] border-white/35 shadow-[0_0_0_1px_rgba(255,255,255,0.25),0_8px_30px_rgba(0,0,0,0.6)]"
             : "bg-white/6 hover:bg-white/10 border-white/10 hover:border-white/20"

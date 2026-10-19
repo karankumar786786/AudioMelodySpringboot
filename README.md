@@ -28,59 +28,114 @@
 
 ## 🏛️ System Architecture
 
+> Visual diagram assets: [`assets/architecture_diagram.svg`](assets/architecture_diagram.svg) (Vector SVG) &bull; [`assets/architecture_diagram.html`](assets/architecture_diagram.html) (Interactive Viewer)
+
 ```mermaid
-flowchart TD
-    %% Clients (Square boxes)
-    AF["audioFrontend (Next.js 16 / React 19)"]
-    ADM_FE["adminFrontend (Next.js 16 / React 19)"]
+flowchart LR
+    %% 1. CLIENTS & LOCAL CACHE
+    subgraph Clients ["1. Clients & Local Caching"]
+        direction TB
+        subgraph U1 ["User 1 (Web Player)"]
+            U1_Dev["💻 Desktop / Laptop<br/>Next.js 16 / React 19"]
+            U1_Cache["🗄️ Local Cache<br/>IndexedDB & Audio Buffers"]
+            U1_Dev --- U1_Cache
+        end
 
-    %% Edge Ingress & Content Delivery
-    DNS["DNS & Caddy 2 Reverse Proxy (Auto TLS)"]
-    CDN["ImageKit CDN & AWS S3 (HLS / Media Chunks)"]
+        subgraph U2 ["User 2 (Mobile App)"]
+            U2_Dev["📱 Smartphone<br/>Mobile PWA / iOS / Android"]
+            U2_Cache["🗄️ Local Cache<br/>AsyncStorage & Offline HLS"]
+            U2_Dev --- U2_Cache
+        end
 
-    %% Direct Frontend Cloud Integrations
-    ALG["Algolia (Edge Instant Search)"]
-    REC["Recombee (AI Recommendations)"]
+        subgraph U3 ["Admin Operator"]
+            U3_Dev["🖥️ Workstation<br/>Next.js 16 Admin Portal"]
+            U3_Cache["🗄️ Local Cache<br/>Stateful Redis & SigV4 Tokens"]
+            U3_Dev --- U3_Cache
+        end
+    end
 
-    %% Backend Services
-    CORE["coreEngine (Spring Boot 4.1 / Java 21)<br/>• REST APIs<br/>• SSE Endpoint (/api/home/stream)"]
-    ADM_BE["adminBackend (Django 6.1 / Python 3.12)<br/>• Admin Command & Ingestion"]
-    WORKER["audioProcessing (Bun 1.3 / Express 5)<br/>• FFmpeg & Shaka Packager"]
+    %% PILLAR 1: EXTERNAL LOAD BALANCER
+    LB["<b>LOAD BALANCER</b><br/>Caddy 2 Reverse Proxy<br/>Auto-TLS • HTTP/2 • Ports 80/443"]
 
-    %% Databases & Storage Behind Core & Admin
-    DB["Neon Serverless PostgreSQL Database"]
-    REDIS["Redis 7 (Upstash Cache & Queues)"]
-    S3["AWS S3 Media Storage"]
+    %% 2. GEOGRAPHICALLY DISTRIBUTED GATEWAYS
+    subgraph Gateways ["2. Geographically Distributed Gateways"]
+        direction TB
+        GW1["<b>Consumer Core Gateway 1</b><br/>Spring Boot 4.1 • Java 21<br/>Port 9090 (api.one-org.me)<br/><i>SSE Progressive Streaming & Virtual Threads</i>"]
+        GW2["<b>Admin Command Gateway 2</b><br/>Django 6.1 • Python 3.12<br/>Port 8000 (admin.one-org.me)<br/><i>Stateful Redis Session Governance</i>"]
+        GW3["<b>Media Processing Worker 3</b><br/>Bun 1.3 • Express 5 • Inngest<br/>Port 5010 (process.one-org.me)<br/><i>FFmpeg & Google Shaka Packager</i>"]
 
-    %% Direct Client Connections
-    AF -->|"Direct Instant Search Queries"| ALG
-    AF -->|"Direct Telemetry & AI Model Feed"| REC
-    AF -->|"Stream HLS Audio & Cover Art"| CDN
-    AF -->|"REST & SSE Stream (/api/home/stream)"| DNS
-    ADM_FE -->|"Admin Dashboard Requests"| DNS
-    ADM_FE -->|"Direct Byte Uploads"| S3
+        GW1 ---|"Inter-Gateway Telemetry"| GW2
+        GW2 ---|"Queue & Job Webhooks"| GW3
+    end
 
-    %% DNS / Caddy Routing to Services
-    DNS -->|"api.one-org.me"| CORE
-    DNS -->|"admin.one-org.me"| ADM_BE
+    %% PILLAR 2: INTERNAL LOAD BALANCER
+    ILB["<b>INTERNAL LOAD BALANCER</b><br/>Service Dispatch & Event Bus<br/>Internal Docker Network / Webhooks"]
 
-    %% Behind coreEngine
-    CORE -->|"SQL Queries (HikariCP)"| DB
-    CORE -->|"v2: Cache & Rate Limits"| REDIS
-    CORE -->|"Search Index Sync"| ALG
-    CORE -->|"Recommendation Ingestion"| REC
+    %% 3. SERVICES & MANAGERS
+    subgraph Services ["3. Application Services & Core Managers"]
+        direction TB
+        SSE_SVC["Progressive SSE Hydration Service<br/>Virtual Threads • 7 Home Catalog Sections<br/><code>GET /api/home/stream</code>"]
+        CAT_MGR["Catalog & Session Manager<br/>Spring Boot 4.1 / Java 21<br/><code>getUserProfile()</code> • <code>getFeed()</code><br/><i>O(1) Pagination • Multi-Device JWT</i>"]
+        ADM_MGR["Admin Ingestion Manager<br/>Django 6.1 Microservice<br/><code>createIngestJob()</code><br/><i>5-Stage Cascade Teardown Engine</i>"]
+        TRANS_SVC["Transcoding & Packaging Service<br/>Bun 1.3 / Express 5<br/><i>EBU R128 Normalization • Shaka Packager</i><br/>Multi-Bitrate HLS/DASH (128k, 240k, 320k)"]
+        ASSET_SVC["Asset & Upload Service<br/><i>SigV4 S3 PUT URLs & ImageKit Tokens</i><br/>Bypasses backend server bandwidth"]
+        MAIL_SVC["Mail Events Worker<br/>NodeMailer • Port 5020<br/><i>mail_queue OTP Emails</i>"]
 
-    %% Behind adminBackend & Worker
-    ADM_BE -->|"Catalog CRUD"| DB
-    ADM_BE -->|"Admin Sessions & Job States"| REDIS
-    ADM_BE -->|"Pre-signed URLs & Cascade Delete"| S3
-    ADM_BE -->|"Purge Artwork Cache"| CDN
-    ADM_BE -->|"Sync Catalog Updates"| ALG
-    ADM_BE -->|"Sync Catalog Updates"| REC
+        SSE_SVC --- CAT_MGR
+        CAT_MGR --- ADM_MGR
+    end
 
-    WORKER -->|"Consume Transcode Jobs"| REDIS
-    WORKER -->|"Fetch Raw & Push HLS Chunks"| S3
-    S3 -.->|"Serves Media Via"| CDN
+    %% 4. QUEUES, DATA STORES & CLOUD
+    subgraph DataTier ["4. Storage, Queues, AI & Edge CDN"]
+        direction TB
+        ANALYTICS["Analytics Engine<br/>Play completion %, Skips, Searches"]
+        QUEUE["<b>INNGEST / REDIS QUEUE</b><br/>Durable Step Functions<br/><code>audio_processing_queue</code>"]
+        REDIS[("Upstash Redis 7<br/>Stores User/Admin Sessions<br/>v2: Polymorphic Cache<br/>Rate Limiting")]
+        POSTGRES[("Neon PostgreSQL<br/>Serverless Scale-to-Zero<br/>HikariCP Pool (Max 20)<br/>0 Conns held in SSE<br/>Catalog, Users, O(1) Meta")]
+        ALGOLIA["Algolia Search<br/>Instant Typo-Tolerant Edge Indexing"]
+        RECOMBEE["Recombee AI Engine<br/>Vector User Embeddings<br/>Dynamic Radio Seeds"]
+        S3[("AWS S3 Media Bucket<br/>Raw Masters (FLAC/WAV)<br/>4s HLS/DASH Chunks<br/>Canvas Video MP4 Loops")]
+        CDN(["ImageKit Media CDN<br/>Global Edge Caching<br/>Transformed Artwork & Audio"])
+    end
+
+    %% CONNECTIONS
+    U1_Dev -->|"TCP/HTTPS upgraded to SSE"| LB
+    U2_Dev -->|"HTTPS REST / Token Auth"| LB
+    U3_Dev -->|"HTTPS Admin Curation"| LB
+
+    LB -->|"api.one-org.me"| GW1
+    LB -->|"admin.one-org.me"| GW2
+    LB -->|"process.one-org.me"| GW3
+
+    GW1 --> ILB
+    GW2 --> ILB
+    GW3 --> ILB
+
+    ILB --> SSE_SVC
+    ILB --> CAT_MGR
+    ILB --> ADM_MGR
+    ILB --> TRANS_SVC
+    ILB --> ASSET_SVC
+    ILB --> MAIL_SVC
+
+    CAT_MGR -->|"Stores sessions & v2: cache"| REDIS
+    CAT_MGR -->|"Borrow 1 -> Query -> Release"| POSTGRES
+    ADM_MGR -->|"Enqueues transcode job"| QUEUE
+    ADM_MGR -->|"Catalog CRUD & O(1) sync"| POSTGRES
+
+    ANALYTICS --> QUEUE
+    ANALYTICS --> RECOMBEE
+    QUEUE -->|"save-search"| ALGOLIA
+    QUEUE -->|"save-recommendation"| RECOMBEE
+    QUEUE -->|"Consumes audio/song.transcode"| TRANS_SVC
+
+    TRANS_SVC -->|"Pushes 4s HLS chunks & manifests"| S3
+    ASSET_SVC -->|"SigV4 Pre-signed PUT"| S3
+    ASSET_SVC -->|"Direct image upload params"| CDN
+    S3 -.->|"Origin Fetch & Global Edge Caching"| CDN
+
+    CDN ==>|"Replicates assets for instant playback"| U2_Dev
+    CDN -.->|"Streams 128k/240k/320k Lossless HLS"| U1_Dev
 ```
 
 ---
