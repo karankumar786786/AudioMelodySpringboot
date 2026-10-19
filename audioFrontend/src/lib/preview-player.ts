@@ -1,5 +1,6 @@
 import { Store } from "@tanstack/react-store";
 import { type Song } from "./api";
+import { resolveHlsUrl } from "./player-utils";
 
 const S3_BASE_URL =
   process.env.NEXT_PUBLIC_S3_BASE_URL ||
@@ -133,7 +134,7 @@ class PreviewManager {
         return;
       }
 
-      const streamUrl = `${S3_BASE_URL}/${resolvedSongKey}/master.m3u8`;
+      const streamUrl = resolveHlsUrl(resolvedSongKey);
 
       const startPlayback = () => {
         if (this.audio !== audio || this.currentTargetSongId !== song.id) return;

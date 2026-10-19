@@ -146,7 +146,8 @@ export function getDeleteStageBadge(stage: DeleteJobStage) {
     case "IMAGEKIT_DELETED":
       return { label: "ImageKit Purged", bg: "bg-pink-500/10 text-pink-500 border-pink-500/20" };
     case "S3_DELETED":
-      return { label: "S3 Purged", bg: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" };
+    case "CLOUDINARY_DELETED":
+      return { label: "Media Purged", bg: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" };
     case "COMPLETED":
       return { label: "Hard Deleted", bg: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" };
     case "FAILED":

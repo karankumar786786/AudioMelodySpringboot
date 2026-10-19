@@ -1,6 +1,9 @@
 import { type Song } from "./api/types";
 import { getImageUrl } from "./image-utils";
 
+const CLOUD_NAME =
+  process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "one-melody";
+const CLOUDINARY_VIDEO_BASE = `https://res.cloudinary.com/${CLOUD_NAME}/video/upload`;
 const S3_BASE_URL =
   process.env.NEXT_PUBLIC_S3_BASE_URL ||
   "https://audiomelodyspringboot.s3.ap-south-1.amazonaws.com";
@@ -17,6 +20,64 @@ export interface PlayerSong extends Song {
   coverUrl: string;
   captionUrl?: string;
   posterUrl: string;
+}
+
+/**
+ * Resolves an Adaptive Bitrate Streaming HLS URL for audio or video.
+ * Automatically leverages Cloudinary out-of-the-box ABR (sp_auto) with fallback for legacy S3 keys.
+ */
+export function resolveHlsUrl(key?: string | null): string {
+  if (!key) return "";
+  if (key.startsWith("http://") || key.startsWith("https://")) {
+    return key;
+  }
+  if (
+    key.startsWith("s3/") ||
+    key.includes("amazonaws.com") ||
+    key.includes("cloudfront.net")
+  ) {
+    return `${S3_BASE_URL}/${key}/master.m3u8`;
+  }
+  // Cloudinary out-of-the-box adaptive HLS streaming
+  return `${CLOUDINARY_VIDEO_BASE}/sp_auto/${key}.m3u8`;
+}
+
+/**
+ * Resolves an Adaptive Bitrate Streaming MPEG-DASH URL.
+ */
+export function resolveDashUrl(key?: string | null): string {
+  if (!key) return "";
+  if (key.startsWith("http://") || key.startsWith("https://")) {
+    return key;
+  }
+  if (
+    key.startsWith("s3/") ||
+    key.includes("amazonaws.com") ||
+    key.includes("cloudfront.net")
+  ) {
+    return `${S3_BASE_URL}/${key}/master.mpd`;
+  }
+  // Cloudinary out-of-the-box adaptive MPEG-DASH streaming
+  return `${CLOUDINARY_VIDEO_BASE}/sp_auto/${key}.mpd`;
+}
+
+/**
+ * Returns dynamic vertical 9:16 muted canvas looping video.
+ * Uses Cloudinary URL transformations to crop, mute, and trim on-the-fly without offline FFmpeg.
+ */
+export function getCanvasVideoUrl(song: any): string | undefined {
+  const fullVideoKey = song?.fullVideoKey || song?.full_video_key;
+  const videoKey = song?.videoKey || song?.video_key;
+  const key = fullVideoKey || videoKey;
+  if (!key) return undefined;
+
+  if (key.startsWith("http://") || key.startsWith("https://")) {
+    return key;
+  }
+
+  const start = song.previewStartTime ?? 0;
+  const end = song.previewEndTime ?? (start + 30);
+  return `${CLOUDINARY_VIDEO_BASE}/so_${start},eo_${end},ar_9:16,c_fill,g_auto,vc_h264,ac_none/${key}.mp4`;
 }
 
 /**
@@ -41,7 +102,7 @@ export function formatDuration(val?: number | string | null): string {
 
 export function mapToPlayerSong(song: any): PlayerSong {
   const songKey = song.songKey || song.song_key;
-  const streamBase = songKey ? `${S3_BASE_URL}/${songKey}` : "";
+  const streamUrl = resolveHlsUrl(songKey);
   const fullVideoKey = song.fullVideoKey || song.full_video_key || undefined;
   const videoKey = song.videoKey || song.video_key || undefined;
   const imageKey = song.imageKey || song.image_key || "";
@@ -55,8 +116,8 @@ export function mapToPlayerSong(song: any): PlayerSong {
       typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
         ? crypto.randomUUID()
         : Math.random().toString(36).substring(7),
-    streamUrl: streamBase ? `${streamBase}/master.m3u8` : "",
-    captionUrl: streamBase ? `${streamBase}/caption.vtt` : undefined,
+    streamUrl,
+    captionUrl: songKey ? `${S3_BASE_URL}/${songKey}/caption.vtt` : undefined,
     coverUrl:
       getImageUrl(imageKey, {
         width: 400,
@@ -77,7 +138,7 @@ export function mapToPlayerSong(song: any): PlayerSong {
 
 export function normalizePlayerSong(song: any): PlayerSong {
   const songKey = song.songKey || song.song_key;
-  const streamBase = songKey ? `${S3_BASE_URL}/${songKey}` : "";
+  const streamUrl = resolveHlsUrl(songKey);
   const fullVideoKey = song.fullVideoKey || song.full_video_key || undefined;
   const videoKey = song.videoKey || song.video_key || undefined;
   const imageKey = song.imageKey || song.image_key || "";
@@ -92,8 +153,8 @@ export function normalizePlayerSong(song: any): PlayerSong {
       (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
         ? crypto.randomUUID()
         : Math.random().toString(36).substring(7)),
-    streamUrl: streamBase ? `${streamBase}/master.m3u8` : "",
-    captionUrl: streamBase ? `${streamBase}/caption.vtt` : undefined,
+    streamUrl,
+    captionUrl: songKey ? `${S3_BASE_URL}/${songKey}/caption.vtt` : undefined,
     coverUrl:
       getImageUrl(imageKey, {
         width: 400,
@@ -109,7 +170,7 @@ export function normalizePlayerSong(song: any): PlayerSong {
         aspectRatio: "1-1",
         quality: 90,
       }) || "",
-    fullVideoUrl: fullVideoKey ? `${S3_BASE_URL}/${fullVideoKey}/master.m3u8` : undefined,
+    fullVideoUrl: fullVideoKey ? resolveHlsUrl(fullVideoKey) : undefined,
   };
 }
 
@@ -117,18 +178,18 @@ export function mapListToPlayerSongs(songs: Song[]): PlayerSong[] {
   return songs.map(mapToPlayerSong);
 }
 
-/** Returns the HLS streaming URL for a song's full video (Shaka-packaged on S3) */
+/** Returns the HLS streaming URL for a song's full video */
 export function getFullVideoHlsUrl(song: any): string | undefined {
   const fullVideoKey = song?.fullVideoKey || song?.full_video_key;
   if (!fullVideoKey) return undefined;
-  return `${S3_BASE_URL}/${fullVideoKey}/master.m3u8`;
+  return resolveHlsUrl(fullVideoKey);
 }
 
 /** Returns the DASH streaming URL for a song's full video */
 export function getFullVideoDashUrl(song: any): string | undefined {
   const fullVideoKey = song?.fullVideoKey || song?.full_video_key;
   if (!fullVideoKey) return undefined;
-  return `${S3_BASE_URL}/${fullVideoKey}/master.mpd`;
+  return resolveDashUrl(fullVideoKey);
 }
 
 /**

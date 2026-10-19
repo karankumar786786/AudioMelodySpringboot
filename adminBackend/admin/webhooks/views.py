@@ -21,6 +21,7 @@ from core.models import PaginationMetadata
 # pyrefly: ignore[missing-import]
 from core.services import (
     AlgoliaService,
+    CloudinaryService,
     ImageKitService,
     PaginationMetadataService,
     RecombeeService,
@@ -60,9 +61,23 @@ class SongUploadUrlWebhookView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        if CloudinaryService.is_configured():
+            sig = CloudinaryService.generate_upload_signature(folder="songs", resource_type="video")
+            return Response({
+                "provider": "cloudinary",
+                "key": sig["publicId"],
+                "publicId": sig["publicId"],
+                "signature": sig["signature"],
+                "timestamp": sig["timestamp"],
+                "apiKey": sig["apiKey"],
+                "cloudName": sig["cloudName"],
+                "uploadUrl": sig["uploadUrl"],
+                "resourceType": sig["resourceType"],
+            }, status=status.HTTP_200_OK)
+
         key = str(uuid.uuid4())
         pre_signed_url = S3Service.generate_presigned_upload_url(key)
-        return Response({"key": key, "preSignedUrl": pre_signed_url}, status=status.HTTP_200_OK)
+        return Response({"key": key, "preSignedUrl": pre_signed_url, "provider": "s3"}, status=status.HTTP_200_OK)
 
 
 class VideoUploadUrlWebhookView(APIView):
@@ -70,9 +85,23 @@ class VideoUploadUrlWebhookView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        if CloudinaryService.is_configured():
+            sig = CloudinaryService.generate_upload_signature(folder="videos", resource_type="video")
+            return Response({
+                "provider": "cloudinary",
+                "key": sig["publicId"],
+                "publicId": sig["publicId"],
+                "signature": sig["signature"],
+                "timestamp": sig["timestamp"],
+                "apiKey": sig["apiKey"],
+                "cloudName": sig["cloudName"],
+                "uploadUrl": sig["uploadUrl"],
+                "resourceType": sig["resourceType"],
+            }, status=status.HTTP_200_OK)
+
         key = str(uuid.uuid4())
         pre_signed_url = S3Service.generate_presigned_upload_url(key)
-        return Response({"key": key, "preSignedUrl": pre_signed_url}, status=status.HTTP_200_OK)
+        return Response({"key": key, "preSignedUrl": pre_signed_url, "provider": "s3"}, status=status.HTTP_200_OK)
 
 
 class ImageUploadParamWebhookView(APIView):
@@ -460,6 +489,11 @@ class WebhookDeleteS3View(BaseAdminView):
             if prev:
                 job.s3_duration_ms = safe_diff_ms(now, prev)
             job.save()
+
+            if job.song_key:
+                CloudinaryService.destroy_media(job.song_key, resource_type="video")
+            if job.full_video_key:
+                CloudinaryService.destroy_media(job.full_video_key, resource_type="video")
 
         return Response(status=status.HTTP_200_OK)
 

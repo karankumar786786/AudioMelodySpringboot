@@ -1,6 +1,8 @@
+# pyrefly: ignore[missing-import]
 from core.services import (
     AdminAuthService,
     AlgoliaService,
+    CloudinaryService,
     ExternalJobDispatcher,
     ImageKitService,
     PaginationMetadataService,
@@ -12,6 +14,7 @@ from core.services import (
 __all__ = [
     "RedisService",
     "S3Service",
+    "CloudinaryService",
     "ImageKitService",
     "AlgoliaService",
     "RecombeeService",

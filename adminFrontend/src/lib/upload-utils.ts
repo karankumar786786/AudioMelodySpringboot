@@ -523,3 +523,48 @@ export async function uploadToImageKitWithProgress(
     }
   }
 }
+
+/**
+ * Upload a media file directly to Cloudinary with real-time byte-level progress reporting.
+ */
+export async function uploadToCloudinaryWithProgress(
+  file: File,
+  signatureData: {
+    uploadUrl: string;
+    apiKey: string;
+    timestamp: number;
+    signature: string;
+    publicId: string;
+    folder?: string;
+  },
+  onProgress?: (progress: UploadProgressEvent) => void,
+  options?: UploadOptions,
+): Promise<{
+  public_id: string;
+  duration?: number;
+  format?: string;
+  bytes?: number;
+  secure_url?: string;
+  [key: string]: any;
+}> {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("api_key", signatureData.apiKey);
+  formData.append("timestamp", String(signatureData.timestamp));
+  formData.append("signature", signatureData.signature);
+  formData.append("public_id", signatureData.publicId);
+  if (signatureData.folder) {
+    formData.append("folder", signatureData.folder);
+  }
+
+  const { responseText } = await uploadWithProgress(
+    signatureData.uploadUrl,
+    formData,
+    "POST",
+    {},
+    onProgress,
+    options,
+  );
+
+  return JSON.parse(responseText);
+}

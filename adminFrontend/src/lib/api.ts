@@ -154,6 +154,7 @@ export type DeleteJobStage =
   | "RECOMMENDATION_DELETED"
   | "IMAGEKIT_DELETED"
   | "S3_DELETED"
+  | "CLOUDINARY_DELETED"
   | "COMPLETED"
   | "FAILED";
 
@@ -187,6 +188,7 @@ export interface DeleteJobProgress {
   recommendationDeletedAt?: string | null;
   imagekitDeletedAt?: string | null;
   s3DeletedAt?: string | null;
+  cloudinaryDeletedAt?: string | null;
   completedAt?: string | null;
   failedAt?: string | null;
   failureReason?: string | null;
@@ -194,6 +196,7 @@ export interface DeleteJobProgress {
   recommendationDurationMs?: number | null;
   imagekitDurationMs?: number | null;
   s3DurationMs?: number | null;
+  cloudinaryDurationMs?: number | null;
   finalizeDurationMs?: number | null;
   totalDurationMs?: number | null;
   elapsedTotalMs?: number | null;

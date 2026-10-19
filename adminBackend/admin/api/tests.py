@@ -398,7 +398,7 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
 
         with patch.object(Admin.objects, "filter") as mock_filter, \
              patch.object(RedisService, "is_user_blocked", return_value=False), \
-             patch("api.services.RedisService.get_client"):
+             patch.object(RedisService, "get_client"):
 
 
             mock_filter.return_value.first.return_value = fake_admin
@@ -465,7 +465,7 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
 
         with patch.object(Admin.objects, "filter") as mock_filter, \
              patch.object(RedisService, "is_user_blocked", return_value=False), \
-             patch("api.services.RedisService.get_client"):
+             patch.object(RedisService, "get_client"):
 
             mock_filter.return_value.first.return_value = fake_admin
             res_login = self.client.post("/auth/login", {"email": "lockout@example.com"}, format="json")
@@ -534,9 +534,10 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
              patch.object(PaginationMetadataService, "get_metadata", return_value=None):
 
             mock_qs = MagicMock()
-            mock_qs.__getitem__.return_value = []
             mock_qs.count.return_value = 0
-            mock_songs.return_value.select_related.return_value.order_by.return_value = mock_qs
+            mock_qs.order_by.return_value = mock_qs
+            mock_qs.__getitem__.return_value = []
+            mock_songs.return_value.select_related.return_value = mock_qs
             mock_songs.return_value.order_by.return_value = mock_qs
 
             res = authed_client.get("/api/artists/art-1/songs?page=0&size=200")

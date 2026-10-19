@@ -12,6 +12,7 @@ from core.helpers import format_paginated_response
 # pyrefly: ignore[missing-import]
 from core.services import (
     AlgoliaService,
+    CloudinaryService,
     ImageKitService,
     PaginationMetadataService,
     RecombeeService,
@@ -439,9 +440,13 @@ class SongListView(BaseAdminView):
         temp_song_key = (data.get("tempSongKey") or "").strip()
         temp_video_key = (data.get("tempVideoKey") or "").strip()
 
-        if not temp_song_key and not temp_video_key:
+        song_key = (data.get("songKey") or "").strip()
+        full_video_key = (data.get("fullVideoKey") or "").strip()
+        duration_val = data.get("duration")
+
+        if not temp_song_key and not temp_video_key and not song_key and not full_video_key:
             return Response(
-                {"error": "Either audio file (tempSongKey) or full video file (tempVideoKey) must be provided"},
+                {"error": "Either audio file (songKey/tempSongKey) or full video file (fullVideoKey/tempVideoKey) must be provided"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -469,8 +474,58 @@ class SongListView(BaseAdminView):
         if preview_end is not None and preview_end < 0:
             preview_end = None
 
-        job_id = str(uuid.uuid4())
         song_id = str(uuid.uuid4())
+
+        # Direct activation flow (Cloudinary direct uploads or pre-processed media)
+        if song_key or (full_video_key and not temp_video_key):
+            actual_song_key = song_key or temp_song_key
+            actual_video_key = full_video_key or temp_video_key or None
+
+            song = Song.objects.create(
+                id=song_id,
+                title=str(data.get("title", "")).strip(),
+                artist_name=str(data.get("artistName", "")).strip(),
+                duration=int(round(float(duration_val))) if duration_val is not None else 0,
+                song_key=actual_song_key,
+                image_key=data.get("imageKey", ""),
+                video_key=data.get("videoKey") or None,
+                full_video_key=actual_video_key,
+                preview_start_time=preview_start,
+                preview_end_time=preview_end,
+                is_featured=bool(data.get("isFeatured", False)),
+                language=data.get("language", "English"),
+                genre=data.get("genre", "Pop"),
+                album=data.get("album", "Single"),
+                lrclib_id=str(data.get("lrclibId", "0")),
+                status="ACTIVE",
+            )
+            PaginationMetadataService.increment_status("SongsEntity", "ACTIVE")
+
+            # Direct synchronous sync with Algolia (Option A)
+            try:
+                AlgoliaService.save_song(song)
+            except Exception as e:
+                logger.warning("Algolia direct sync warning for new song [%s]: %s", song.id, e)
+
+            # Direct synchronous sync with Recombee (Option A)
+            try:
+                RecombeeService.save_song(
+                    song_id=song.id,
+                    title=song.title,
+                    artist_name=song.artist_name,
+                    language=song.language,
+                    genre=song.genre,
+                    duration=song.duration,
+                    album=song.album,
+                    image_key=song.image_key,
+                    total_streams=0,
+                )
+            except Exception as e:
+                logger.warning("Recombee direct sync warning for new song [%s]: %s", song.id, e)
+
+            return Response(SongSerializer(song).data, status=status.HTTP_201_CREATED)
+
+        job_id = str(uuid.uuid4())
 
         job = Job.objects.create(
             id=job_id,
@@ -581,12 +636,27 @@ class SongDetailView(BaseAdminView):
                 old_vid = song.video_key
                 song.video_key = new_v
 
+        old_song_key = None
+        if "songKey" in data and str(data["songKey"]).strip():
+            new_sk = str(data["songKey"]).strip()
+            if new_sk != song.song_key:
+                old_song_key = song.song_key
+                song.song_key = new_sk
+
+        if "duration" in data and data["duration"] is not None:
+            try:
+                song.duration = int(round(float(data["duration"])))
+            except (ValueError, TypeError):
+                pass
+
         if "fullVideoKey" in data:
             new_fv = (data["fullVideoKey"] or "").strip()
             song.full_video_key = None if (not new_fv or new_fv.lower() == "null") else new_fv
 
         song.save()
 
+        if old_song_key:
+            CloudinaryService.destroy_media(old_song_key, resource_type="video")
         if old_img:
             ImageKitService.delete_by_key(old_img)
         if old_vid:

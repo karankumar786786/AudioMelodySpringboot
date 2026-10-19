@@ -46,7 +46,7 @@ export function UploadProgressBar({
   speedText,
   step,
   totalSteps = 3,
-  stepLabels = ["S3 Storage", "ImageKit CDN", "Worker Ingestion"],
+  stepLabels = ["Media Cloud", "ImageKit CDN", "Catalog Ingestion"],
   variant = "overlay",
   error,
   onRetry,
@@ -422,10 +422,10 @@ export function UploadProgressBar({
                 </div>
                 <span className="text-[10px] opacity-75 truncate block">
                   {idx === 0
-                    ? "S3 Storage"
+                    ? "Media Cloud"
                     : idx === 1
                       ? "Artwork & Canvas"
-                      : "Background Job"}
+                      : "Catalog Ingestion"}
                 </span>
               </div>
             );

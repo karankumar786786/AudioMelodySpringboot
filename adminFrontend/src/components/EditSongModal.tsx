@@ -19,6 +19,7 @@ import {
   getFriendlyUploadErrorMessage,
   isDeviceOnline,
   UploadError,
+  uploadToCloudinaryWithProgress,
   uploadToImageKitWithProgress,
   uploadWithProgress,
 } from "@/lib/upload-utils";
@@ -228,33 +229,57 @@ export function EditSongModal({
         setRetryStatusText("");
       }
 
+      let newSongKey: string | null = null;
+      let newDuration: number | null = null;
       let tempSongKey: string | null = null;
       if (formData.audioFile) {
-        setProgressText("Uploading replacement audio to S3...");
+        setProgressText("Authorizing audio upload...");
         setUploadPercent(0);
         setUploadStats({ fileName: formData.audioFile.name });
         const songUrlRes = await adminFetch("/webhook/internal/song-upload-url");
         if (!songUrlRes.ok) throw new Error("Failed to get audio upload authorization");
         const songUrlData = await songUrlRes.json();
 
-        await uploadWithProgress(
-          songUrlData.preSignedUrl,
-          formData.audioFile,
-          "PUT",
-          { "Content-Type": formData.audioFile.type || "audio/mpeg" },
-          (p) => {
-            setUploadPercent(p.percent);
-            setUploadStats({
-              loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
-              speedText: p.speedText,
-              fileName: formData.audioFile?.name,
-            });
-          },
-          { onRetry: retryHandler },
-        );
+        if (songUrlData.provider === "cloudinary") {
+          setProgressText("Uploading replacement audio to Cloudinary...");
+          const res = await uploadToCloudinaryWithProgress(
+            formData.audioFile,
+            songUrlData,
+            (p) => {
+              setUploadPercent(p.percent);
+              setUploadStats({
+                loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+                speedText: p.speedText,
+                fileName: formData.audioFile?.name,
+              });
+            },
+            { onRetry: retryHandler },
+          );
+          newSongKey = res.public_id;
+          if (res.duration) {
+            newDuration = Math.round(Number(res.duration));
+          }
+        } else {
+          setProgressText("Uploading replacement audio to S3...");
+          await uploadWithProgress(
+            songUrlData.preSignedUrl,
+            formData.audioFile,
+            "PUT",
+            { "Content-Type": formData.audioFile.type || "audio/mpeg" },
+            (p) => {
+              setUploadPercent(p.percent);
+              setUploadStats({
+                loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+                speedText: p.speedText,
+                fileName: formData.audioFile?.name,
+              });
+            },
+            { onRetry: retryHandler },
+          );
+          tempSongKey = songUrlData.key;
+        }
         setIsRetrying(false);
         setRetryStatusText("");
-        tempSongKey = songUrlData.key;
       }
 
       let fullVideoKey: string | null | undefined = song.fullVideoKey;
@@ -262,7 +287,7 @@ export function EditSongModal({
       if (formData.removeFullVideo) {
         fullVideoKey = "";
       } else if (formData.fullVideoFile) {
-        setProgressText("Uploading full video to S3...");
+        setProgressText("Authorizing video upload...");
         setUploadPercent(0);
         setUploadStats({ fileName: formData.fullVideoFile.name });
         const videoUrlRes = await adminFetch(
@@ -272,25 +297,47 @@ export function EditSongModal({
           throw new Error("Failed to get video upload authorization");
         const videoUrlData = await videoUrlRes.json();
 
-        await uploadWithProgress(
-          videoUrlData.preSignedUrl,
-          formData.fullVideoFile,
-          "PUT",
-          { "Content-Type": formData.fullVideoFile.type || "video/mp4" },
-          (p) => {
-            setUploadPercent(p.percent);
-            setUploadStats({
-              loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
-              speedText: p.speedText,
-              fileName: formData.fullVideoFile?.name,
-            });
-          },
-          { onRetry: retryHandler },
-        );
+        if (videoUrlData.provider === "cloudinary") {
+          setProgressText("Uploading full music video to Cloudinary...");
+          const res = await uploadToCloudinaryWithProgress(
+            formData.fullVideoFile,
+            videoUrlData,
+            (p) => {
+              setUploadPercent(p.percent);
+              setUploadStats({
+                loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+                speedText: p.speedText,
+                fileName: formData.fullVideoFile?.name,
+              });
+            },
+            { onRetry: retryHandler },
+          );
+          fullVideoKey = res.public_id;
+          if (!newDuration && res.duration) {
+            newDuration = Math.round(Number(res.duration));
+          }
+        } else {
+          setProgressText("Uploading full video to S3...");
+          await uploadWithProgress(
+            videoUrlData.preSignedUrl,
+            formData.fullVideoFile,
+            "PUT",
+            { "Content-Type": formData.fullVideoFile.type || "video/mp4" },
+            (p) => {
+              setUploadPercent(p.percent);
+              setUploadStats({
+                loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+                speedText: p.speedText,
+                fileName: formData.fullVideoFile?.name,
+              });
+            },
+            { onRetry: retryHandler },
+          );
+          tempVideoKey = videoUrlData.key;
+          fullVideoKey = song.fullVideoKey;
+        }
         setIsRetrying(false);
         setRetryStatusText("");
-        tempVideoKey = videoUrlData.key;
-        fullVideoKey = song.fullVideoKey;
       }
 
       // Trigger recovery/reprocessing pipelines if audio or video were replaced
@@ -370,6 +417,8 @@ export function EditSongModal({
           imageKey,
           videoKey,
           fullVideoKey,
+          songKey: newSongKey || undefined,
+          duration: newDuration || undefined,
         }),
       });
 

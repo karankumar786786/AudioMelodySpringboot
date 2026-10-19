@@ -236,6 +236,19 @@ AWS_ENDPOINT = os.getenv("AWS_ENDPOINT", None) or None
 S3_TEMP_BUCKET = os.getenv("S3_TEMP_BUCKET", os.getenv("TEMP_BUCKET_NAME", "audiomelodyspringboottemp"))
 S3_PRODUCTION_BUCKET = os.getenv("S3_PRODUCTION_BUCKET", os.getenv("PRODUCTION_BUCKET_NAME", "audiomelodyspringboot"))
 
+CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "")
+CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "")
+CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "")
+
+import cloudinary
+if CLOUDINARY_CLOUD_NAME and CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET:
+    cloudinary.config(
+        cloud_name=CLOUDINARY_CLOUD_NAME,
+        api_key=CLOUDINARY_API_KEY,
+        api_secret=CLOUDINARY_API_SECRET,
+        secure=True,
+    )
+
 IMAGEKIT_PUBLIC_KEY = os.getenv("IMAGEKIT_PUBLIC_KEY", "")
 IMAGEKIT_PRIVATE_KEY = os.getenv("IMAGEKIT_PRIVATE_KEY", "")
 IMAGEKIT_URL_ENDPOINT = os.getenv("IMAGEKIT_URL_ENDPOINT", "")

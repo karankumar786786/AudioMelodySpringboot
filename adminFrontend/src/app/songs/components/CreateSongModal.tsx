@@ -8,6 +8,7 @@ import {
   getFriendlyUploadErrorMessage,
   isDeviceOnline,
   UploadError,
+  uploadToCloudinaryWithProgress,
   uploadToImageKitWithProgress,
   uploadWithProgress,
 } from "@/lib/upload-utils";
@@ -130,13 +131,16 @@ export function CreateSongModal({
     };
 
     try {
+      let songKey: string | null = null;
+      let fullVideoKey: string | null = null;
       let tempSongKey: string | null = null;
       let tempVideoKey: string | null = null;
+      let mediaDuration: number | null = null;
 
       // 1. Audio Upload
       if (formData.songFile) {
         setUploadStep(1);
-        setUploadProgressText("Uploading audio file to S3 storage...");
+        setUploadProgressText("Authorizing audio upload...");
         setUploadPercent(0);
         setUploadStats({ fileName: formData.songFile.name });
 
@@ -144,30 +148,52 @@ export function CreateSongModal({
         if (!songUrlRes.ok) throw new Error("Failed to get audio upload authorization");
         const songUrlData = await songUrlRes.json();
 
-        await uploadWithProgress(
-          songUrlData.preSignedUrl,
-          formData.songFile,
-          "PUT",
-          { "Content-Type": formData.songFile.type || "audio/mpeg" },
-          (p) => {
-            setUploadPercent(p.percent);
-            setUploadStats({
-              loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
-              speedText: p.speedText,
-              fileName: formData.songFile?.name,
-            });
-          },
-          { onRetry: uploadRetryHandler },
-        );
+        if (songUrlData.provider === "cloudinary") {
+          setUploadProgressText("Uploading audio master to Cloudinary...");
+          const res = await uploadToCloudinaryWithProgress(
+            formData.songFile,
+            songUrlData,
+            (p) => {
+              setUploadPercent(p.percent);
+              setUploadStats({
+                loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+                speedText: p.speedText,
+                fileName: formData.songFile?.name,
+              });
+            },
+            { onRetry: uploadRetryHandler },
+          );
+          songKey = res.public_id;
+          if (res.duration) {
+            mediaDuration = Math.round(Number(res.duration));
+          }
+        } else {
+          setUploadProgressText("Uploading audio file to S3 storage...");
+          await uploadWithProgress(
+            songUrlData.preSignedUrl,
+            formData.songFile,
+            "PUT",
+            { "Content-Type": formData.songFile.type || "audio/mpeg" },
+            (p) => {
+              setUploadPercent(p.percent);
+              setUploadStats({
+                loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+                speedText: p.speedText,
+                fileName: formData.songFile?.name,
+              });
+            },
+            { onRetry: uploadRetryHandler },
+          );
+          tempSongKey = songUrlData.key;
+        }
         setIsRetrying(false);
         setRetryStatusText("");
-        tempSongKey = songUrlData.key;
       }
 
       // 2. Full Video Upload
       if (formData.fullVideoFile) {
         setUploadStep(1);
-        setUploadProgressText("Uploading full music video to S3 storage...");
+        setUploadProgressText("Authorizing video upload...");
         setUploadPercent(0);
         setUploadStats({ fileName: formData.fullVideoFile.name });
 
@@ -175,24 +201,46 @@ export function CreateSongModal({
         if (!videoUrlRes.ok) throw new Error("Failed to get full video upload authorization");
         const videoUrlData = await videoUrlRes.json();
 
-        await uploadWithProgress(
-          videoUrlData.preSignedUrl,
-          formData.fullVideoFile,
-          "PUT",
-          { "Content-Type": formData.fullVideoFile.type || "video/mp4" },
-          (p) => {
-            setUploadPercent(p.percent);
-            setUploadStats({
-              loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
-              speedText: p.speedText,
-              fileName: formData.fullVideoFile?.name,
-            });
-          },
-          { onRetry: uploadRetryHandler },
-        );
+        if (videoUrlData.provider === "cloudinary") {
+          setUploadProgressText("Uploading full music video to Cloudinary...");
+          const res = await uploadToCloudinaryWithProgress(
+            formData.fullVideoFile,
+            videoUrlData,
+            (p) => {
+              setUploadPercent(p.percent);
+              setUploadStats({
+                loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+                speedText: p.speedText,
+                fileName: formData.fullVideoFile?.name,
+              });
+            },
+            { onRetry: uploadRetryHandler },
+          );
+          fullVideoKey = res.public_id;
+          if (!mediaDuration && res.duration) {
+            mediaDuration = Math.round(Number(res.duration));
+          }
+        } else {
+          setUploadProgressText("Uploading full music video to S3 storage...");
+          await uploadWithProgress(
+            videoUrlData.preSignedUrl,
+            formData.fullVideoFile,
+            "PUT",
+            { "Content-Type": formData.fullVideoFile.type || "video/mp4" },
+            (p) => {
+              setUploadPercent(p.percent);
+              setUploadStats({
+                loadedText: `${p.loadedFormatted} / ${p.totalFormatted}`,
+                speedText: p.speedText,
+                fileName: formData.fullVideoFile?.name,
+              });
+            },
+            { onRetry: uploadRetryHandler },
+          );
+          tempVideoKey = videoUrlData.key;
+        }
         setIsRetrying(false);
         setRetryStatusText("");
-        tempVideoKey = videoUrlData.key;
       }
 
       // 3. Cover Image Upload (ImageKit)
@@ -259,7 +307,11 @@ export function CreateSongModal({
       // 5. Finalize Song Creation in Django backend
       setUploadStep(3);
       setUploadPercent(100);
-      setUploadProgressText("Registering song & scheduling background processing...");
+      setUploadProgressText(
+        songKey
+          ? "Registering & activating song across search and recommendation indexes..."
+          : "Registering song & scheduling background processing...",
+      );
       setUploadStats({});
 
       const finalizeRes = await adminFetch("/admin/song", {
@@ -268,8 +320,11 @@ export function CreateSongModal({
         body: JSON.stringify({
           title: formData.title,
           artistName: formData.artistName,
+          songKey: songKey || undefined,
+          fullVideoKey: fullVideoKey || undefined,
           tempSongKey: tempSongKey || undefined,
           tempVideoKey: tempVideoKey || undefined,
+          duration: mediaDuration || undefined,
           imageKey: uploadedImageKey,
           videoKey: uploadedVideoKey,
           clipStartMin: uploadMode === "videoOnly" ? Number(formData.clipStartMin) : undefined,
@@ -290,7 +345,12 @@ export function CreateSongModal({
         throw new Error(errData.message || "Failed to create track record in system");
       }
 
-      showToast("Track created successfully and queued for processing!", "success");
+      showToast(
+        songKey
+          ? "Track created and activated successfully!"
+          : "Track created successfully and queued for processing!",
+        "success",
+      );
       resetState();
       onSuccess();
       onClose();

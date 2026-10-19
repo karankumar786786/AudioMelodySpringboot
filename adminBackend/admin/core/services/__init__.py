@@ -1,5 +1,6 @@
 from .redis_service import RedisService
 from .s3_service import S3Service
+from .cloudinary_service import CloudinaryService
 from .imagekit_service import ImageKitService
 from .algolia_service import AlgoliaService
 from .recombee_service import RecombeeService
@@ -10,6 +11,7 @@ from .admin_auth_service import AdminAuthService
 __all__ = [
     "RedisService",
     "S3Service",
+    "CloudinaryService",
     "ImageKitService",
     "AlgoliaService",
     "RecombeeService",

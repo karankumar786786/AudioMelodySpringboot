@@ -1,15 +1,8 @@
-# audioprocessing
+# AudioProcessing Service (DECOMMISSIONED)
 
-To install dependencies:
+> [!NOTE]
+> **Status**: Decommissioned on branch `alive`.
+> **Successor**: Cloudinary Managed Media Infrastructure (`sp_auto` dynamic ABR delivery, direct HMAC-signed upload, and URL-based vertical canvas loops).
+> **Removal**: FFmpeg transcoding pipelines, Shaka Packager DASH/HLS fragmentation, S3 raw ingestion buffers, and Inngest background workers have been retired.
 
-```bash
-bun install
-```
-
-To run:
-
-```bash
-bun run index.ts
-```
-
-This project was created using `bun init` in bun v1.3.14. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
+This service is retained for historical archive and reference only. It is not started or used in production on the `alive` branch.
