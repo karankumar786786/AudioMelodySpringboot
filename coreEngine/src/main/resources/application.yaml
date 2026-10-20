@@ -40,11 +40,14 @@ spring:
       minimum-idle: 2                    # maintain 2 warm connections to avoid cold-start SSL handshakes
       maximum-pool-size: 20              # allow up to 20 concurrent queries without queuing
       idle-timeout: 60000                # close idle connections after 1 min
-      max-lifetime: 240000
-      keepalive-time: 0                  # no keepalive pings
-      connection-timeout: 10000          # 10s connection timeout
+      max-lifetime: 180000               # 3 min (safely under PgBouncer server timeout)
+      keepalive-time: 30000              # 30s keepalive pings keep Neon PgBouncer TCP socket active
+      connection-timeout: 20000          # 20s connection timeout for Neon cold-starts
       initialization-fail-timeout: -1    # app can boot even if DB is asleep
-      leak-detection-threshold: 30000    # warn if a connection is held > 30s
+      leak-detection-threshold: 60000    # 60s threshold prevents false-positive warnings during cross-region latency
+      data-source-properties:
+        socketTimeout: 30
+        tcpKeepAlive: true
       # do NOT set connection-test-query
 
   data:

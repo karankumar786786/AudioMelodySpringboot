@@ -38,7 +38,6 @@ import me.one_org.melody.Repository.UsersRepository;
 
 @Service
 @Slf4j
-@Transactional(readOnly = true)
 public class ArtistApiService {
 
     private final ArtistsRepository artistsRepository;

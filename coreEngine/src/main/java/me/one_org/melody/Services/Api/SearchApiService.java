@@ -25,7 +25,6 @@ import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserPlaylistsRepository;
 
 @Service
-@Transactional(readOnly = true)
 public class SearchApiService {
 
     private final AlgoliaSearch algoliaSearch;
