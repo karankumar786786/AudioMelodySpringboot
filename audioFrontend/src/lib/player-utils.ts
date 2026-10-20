@@ -23,34 +23,128 @@ export interface PlayerSong extends Song {
 }
 
 /**
- * Resolves an Adaptive Bitrate Streaming HLS URL for audio or video.
- * Automatically leverages Cloudinary out-of-the-box ABR:
- * - Videos (videos/...) stream via multi-bitrate HLS `sp_auto/*.m3u8`.
- * - Audio (audios/... or songs/...) stream via Cloudinary audio HLS `f_m3u8/*.m3u8`.
- * - S3 keys fall back to `${S3_BASE_URL}/${key}/master.m3u8`.
+ * Resolves direct normal MP3 audio URL (NO HLS).
+ * Follows unified asset rules:
+ * - Base asset: asset/${assetId} (or raw assetId)
+ * - If video is true:
+ *   Extracts normal MP3 audio directly from the video asset:
+ *   `${CLOUDINARY_VIDEO_BASE}/f_mp3/videos/${assetId}.mp3`
+ * - If video is false:
+ *   Direct normal MP3 audio from the audio asset:
+ *   `${CLOUDINARY_VIDEO_BASE}/f_mp3/audios/${assetId}.mp3`
+ * - S3 / external URLs are handled seamlessly.
  */
-export function resolveHlsUrl(key?: string | null): string {
-  if (!key) return "";
-  if (key.startsWith("http://") || key.startsWith("https://")) {
-    return key;
+export function resolveAudioUrl(assetOrSong?: any, isVideoParam?: boolean): string {
+  if (!assetOrSong) return "";
+
+  // 1. If an object (Song / PlayerSong) was passed
+  if (typeof assetOrSong === "object") {
+    const song = assetOrSong;
+    const isVideo = Boolean(
+      song.video ??
+      song.hasVideo ??
+      song.has_video ??
+      (song.fullVideoKey && String(song.fullVideoKey).trim()) ??
+      (song.full_video_key && String(song.full_video_key).trim()) ??
+      (song.songKey && String(song.songKey).includes("videos/")) ??
+      (song.song_key && String(song.song_key).includes("videos/")) ??
+      false
+    );
+
+    const rawId = song.assetId || song.asset_id || song.id || song.songKey || song.song_key || "";
+    const cleanId = String(rawId).replace(/^(videos|audios|assets|songs)\//, "").replace(/\.[^/.]+$/, "");
+
+    const key = song.songKey || song.song_key;
+    if (key && (key.startsWith("http://") || key.startsWith("https://"))) {
+      return key;
+    }
+    if (key && (key.startsWith("s3/") || key.includes("amazonaws.com") || key.includes("cloudfront.net"))) {
+      return `${S3_BASE_URL}/${key.replace(/\.(mp3|m3u8)$/, "")}.mp3`;
+    }
+
+    if (isVideo && cleanId) {
+      return `${CLOUDINARY_VIDEO_BASE}/f_mp3/videos/${cleanId}.mp3`;
+    }
+    if (cleanId) {
+      return `${CLOUDINARY_VIDEO_BASE}/f_mp3/audios/${cleanId}.mp3`;
+    }
+    return "";
   }
-  if (
-    key.startsWith("s3/") ||
-    key.includes("amazonaws.com") ||
-    key.includes("cloudfront.net")
-  ) {
-    return `${S3_BASE_URL}/${key}/master.m3u8`;
+
+  // 2. If a string (assetId, key or URL) was passed
+  const str = String(assetOrSong).trim();
+  if (str.startsWith("http://") || str.startsWith("https://")) {
+    return str;
   }
-  // Videos support sp_auto multi-bitrate HLS
-  if (key.startsWith("videos/")) {
-    return `${CLOUDINARY_VIDEO_BASE}/sp_auto/${key}.m3u8`;
+  if (str.startsWith("s3/") || str.includes("amazonaws.com") || str.includes("cloudfront.net")) {
+    return `${S3_BASE_URL}/${str.replace(/\.(mp3|m3u8)$/, "")}.mp3`;
   }
-  // Audio assets (audios/... or songs/...) require f_m3u8 on Cloudinary
-  return `${CLOUDINARY_VIDEO_BASE}/f_m3u8/${key}.m3u8`;
+
+  const isVideo = Boolean(isVideoParam || str.startsWith("videos/"));
+  const cleanId = str.replace(/^(videos|audios|assets|songs)\//, "").replace(/\.[^/.]+$/, "");
+
+  if (isVideo) {
+    return `${CLOUDINARY_VIDEO_BASE}/f_mp3/videos/${cleanId}.mp3`;
+  }
+  return `${CLOUDINARY_VIDEO_BASE}/f_mp3/audios/${cleanId}.mp3`;
 }
 
 /**
- * Resolves an Adaptive Bitrate Streaming MPEG-DASH URL.
+ * Resolves Adaptive Bitrate Streaming HLS URL for full video:
+ * `${CLOUDINARY_VIDEO_BASE}/sp_auto/videos/${assetId}.m3u8`
+ */
+export function resolveVideoHlsUrl(assetOrSong?: any, isVideoParam?: boolean): string {
+  if (!assetOrSong) return "";
+
+  if (typeof assetOrSong === "object") {
+    const song = assetOrSong;
+    const isVideo = Boolean(
+      song.video ??
+      song.hasVideo ??
+      song.has_video ??
+      (song.fullVideoKey && String(song.fullVideoKey).trim()) ??
+      (song.full_video_key && String(song.full_video_key).trim()) ??
+      false
+    );
+    if (!isVideo) return "";
+
+    const rawId = song.assetId || song.asset_id || song.id || song.fullVideoKey || song.full_video_key || "";
+    const cleanId = String(rawId).replace(/^(videos|audios|assets|songs)\//, "").replace(/\.[^/.]+$/, "");
+
+    const fv = song.fullVideoKey || song.full_video_key;
+    if (fv && (fv.startsWith("http://") || fv.startsWith("https://"))) {
+      return fv;
+    }
+    if (fv && (fv.startsWith("s3/") || fv.includes("amazonaws.com") || fv.includes("cloudfront.net"))) {
+      return `${S3_BASE_URL}/${fv}/master.m3u8`;
+    }
+
+    return `${CLOUDINARY_VIDEO_BASE}/sp_auto/videos/${cleanId}.m3u8`;
+  }
+
+  const str = String(assetOrSong).trim();
+  if (str.startsWith("http://") || str.startsWith("https://")) {
+    return str;
+  }
+  if (str.startsWith("s3/") || str.includes("amazonaws.com") || str.includes("cloudfront.net")) {
+    return `${S3_BASE_URL}/${str}/master.m3u8`;
+  }
+
+  const cleanId = str.replace(/^(videos|audios|assets|songs)\//, "").replace(/\.[^/.]+$/, "");
+  return `${CLOUDINARY_VIDEO_BASE}/sp_auto/videos/${cleanId}.m3u8`;
+}
+
+/**
+ * Resolves HLS URL for videos.
+ * Kept for backward compatibility. Audio playback does NOT use HLS.
+ */
+export function resolveHlsUrl(key?: string | null): string {
+  if (!key) return "";
+  return resolveVideoHlsUrl(key, true);
+}
+
+/**
+ * Resolves an Adaptive Bitrate Streaming MPEG-DASH URL for video.
  */
 export function resolveDashUrl(key?: string | null): string {
   if (!key) return "";
@@ -64,31 +158,28 @@ export function resolveDashUrl(key?: string | null): string {
   ) {
     return `${S3_BASE_URL}/${key}/master.mpd`;
   }
-  if (key.startsWith("videos/")) {
-    return `${CLOUDINARY_VIDEO_BASE}/sp_auto/${key}.mpd`;
-  }
-  return `${CLOUDINARY_VIDEO_BASE}/f_mpd/${key}.mpd`;
+  const cleanId = key.replace(/^(videos|audios|assets|songs)\//, "").replace(/\.[^/.]+$/, "");
+  return `${CLOUDINARY_VIDEO_BASE}/sp_auto/videos/${cleanId}.mpd`;
 }
 
 /**
  * Returns dynamic vertical 9:16 muted canvas looping video.
  * Follows unified asset model:
  * 1. Dedicated ImageKit canvas video (/songs/videos/...) if available.
- * 2. If hasVideo is true and no dedicated ImageKit canvas exists, derive the 9:16 vertical
+ * 2. If video is true and no dedicated ImageKit canvas exists, derive the 9:16 vertical
  *    looping clip dynamically from videos/${assetId} with previewStartTime and previewEndTime.
  */
 export function getCanvasVideoUrl(song: any): string | undefined {
-  const hasVideo = Boolean(
-    song?.hasVideo ||
-    song?.has_video ||
-    (song?.fullVideoKey && String(song.fullVideoKey).trim()) ||
-    (song?.full_video_key && String(song.full_video_key).trim())
+  const isVideo = Boolean(
+    song?.video ??
+    song?.hasVideo ??
+    song?.has_video ??
+    (song?.fullVideoKey && String(song.fullVideoKey).trim()) ??
+    (song?.full_video_key && String(song.full_video_key).trim()) ??
+    false
   );
-  const assetId = song?.assetId || song?.asset_id || song?.id;
-  const fullVideoKey =
-    song?.fullVideoKey ||
-    song?.full_video_key ||
-    (hasVideo && assetId ? `videos/${assetId}` : undefined);
+  const rawId = song?.assetId || song?.asset_id || song?.id || "";
+  const cleanId = String(rawId).replace(/^(videos|audios|assets|songs)\//, "").replace(/\.[^/.]+$/, "");
   const videoKey = song?.videoKey || song?.video_key;
   const start = song?.canvasStartTime ?? song?.canvas_start_time ?? song?.previewStartTime ?? 0;
   const end = song?.canvasEndTime ?? song?.canvas_end_time ?? song?.previewEndTime ?? (start + 30);
@@ -111,11 +202,8 @@ export function getCanvasVideoUrl(song: any): string | undefined {
   }
 
   // 2. Fallback to Cloudinary dynamic 9:16 crop from full music video if video is available
-  if (hasVideo && fullVideoKey) {
-    if (fullVideoKey.startsWith("http://") || fullVideoKey.startsWith("https://")) {
-      return fullVideoKey;
-    }
-    return `${CLOUDINARY_VIDEO_BASE}/so_${start},eo_${end},vc_h264,ac_none/ar_9:16,c_fill/${fullVideoKey}.mp4`;
+  if (isVideo && cleanId) {
+    return `${CLOUDINARY_VIDEO_BASE}/so_${start},eo_${end},vc_h264,ac_none/ar_9:16,c_fill/videos/${cleanId}.mp4`;
   }
 
   return undefined;
@@ -142,15 +230,34 @@ export function formatDuration(val?: number | string | null): string {
 }
 
 export function mapToPlayerSong(song: any): PlayerSong {
-  const songKey = song.songKey || song.song_key;
-  const streamUrl = resolveHlsUrl(songKey);
-  const fullVideoKey = song.fullVideoKey || song.full_video_key || undefined;
+  const isVideo = Boolean(
+    song.video ??
+    song.hasVideo ??
+    song.has_video ??
+    (song.fullVideoKey && String(song.fullVideoKey).trim()) ??
+    (song.full_video_key && String(song.full_video_key).trim()) ??
+    (song.songKey && String(song.songKey).includes("videos/")) ??
+    (song.song_key && String(song.song_key).includes("videos/")) ??
+    false
+  );
+  const rawId = song.assetId || song.asset_id || song.id || "";
+  const assetId = String(rawId).replace(/^(videos|audios|assets|songs)\//, "").replace(/\.[^/.]+$/, "");
+
+  const fullVideoKey = song.fullVideoKey || song.full_video_key || (isVideo && assetId ? `videos/${assetId}` : undefined);
+  const songKey = song.songKey || song.song_key || (assetId ? (isVideo ? `videos/${assetId}` : `audios/${assetId}`) : "");
   const videoKey = song.videoKey || song.video_key || undefined;
   const imageKey = song.imageKey || song.image_key || "";
 
+  const streamUrl = resolveAudioUrl(song);
+  const fullVideoUrl = isVideo ? resolveVideoHlsUrl(song) : undefined;
+
   return {
     ...song,
+    assetId,
+    hasVideo: isVideo,
+    video: isVideo,
     fullVideoKey,
+    songKey,
     videoKey,
     imageKey,
     queueId:
@@ -158,6 +265,7 @@ export function mapToPlayerSong(song: any): PlayerSong {
         ? crypto.randomUUID()
         : Math.random().toString(36).substring(7),
     streamUrl,
+    fullVideoUrl,
     captionUrl: songKey ? `${S3_BASE_URL}/${songKey}/caption.vtt` : undefined,
     coverUrl:
       getImageUrl(imageKey, {
@@ -178,15 +286,34 @@ export function mapToPlayerSong(song: any): PlayerSong {
 }
 
 export function normalizePlayerSong(song: any): PlayerSong {
-  const songKey = song.songKey || song.song_key;
-  const streamUrl = resolveHlsUrl(songKey);
-  const fullVideoKey = song.fullVideoKey || song.full_video_key || undefined;
+  const isVideo = Boolean(
+    song.video ??
+    song.hasVideo ??
+    song.has_video ??
+    (song.fullVideoKey && String(song.fullVideoKey).trim()) ??
+    (song.full_video_key && String(song.full_video_key).trim()) ??
+    (song.songKey && String(song.songKey).includes("videos/")) ??
+    (song.song_key && String(song.song_key).includes("videos/")) ??
+    false
+  );
+  const rawId = song.assetId || song.asset_id || song.id || "";
+  const assetId = String(rawId).replace(/^(videos|audios|assets|songs)\//, "").replace(/\.[^/.]+$/, "");
+
+  const fullVideoKey = song.fullVideoKey || song.full_video_key || (isVideo && assetId ? `videos/${assetId}` : undefined);
+  const songKey = song.songKey || song.song_key || (assetId ? (isVideo ? `videos/${assetId}` : `audios/${assetId}`) : "");
   const videoKey = song.videoKey || song.video_key || undefined;
   const imageKey = song.imageKey || song.image_key || "";
 
+  const streamUrl = resolveAudioUrl(song);
+  const fullVideoUrl = isVideo ? resolveVideoHlsUrl(song) : undefined;
+
   return {
     ...song,
+    assetId,
+    hasVideo: isVideo,
+    video: isVideo,
     fullVideoKey,
+    songKey,
     videoKey,
     imageKey,
     queueId:
@@ -195,6 +322,7 @@ export function normalizePlayerSong(song: any): PlayerSong {
         ? crypto.randomUUID()
         : Math.random().toString(36).substring(7)),
     streamUrl,
+    fullVideoUrl,
     captionUrl: songKey ? `${S3_BASE_URL}/${songKey}/caption.vtt` : undefined,
     coverUrl:
       getImageUrl(imageKey, {
@@ -211,7 +339,6 @@ export function normalizePlayerSong(song: any): PlayerSong {
         aspectRatio: "1-1",
         quality: 90,
       }) || "",
-    fullVideoUrl: fullVideoKey ? resolveHlsUrl(fullVideoKey) : undefined,
   };
 }
 
@@ -221,36 +348,32 @@ export function mapListToPlayerSongs(songs: Song[]): PlayerSong[] {
 
 /** Returns the HLS streaming URL for a song's full video */
 export function getFullVideoHlsUrl(song: any): string | undefined {
-  const hasVideo = Boolean(
-    song?.hasVideo ||
-    song?.has_video ||
-    (song?.fullVideoKey && String(song.fullVideoKey).trim()) ||
-    (song?.full_video_key && String(song.full_video_key).trim())
+  const isVideo = Boolean(
+    song?.video ??
+    song?.hasVideo ??
+    song?.has_video ??
+    (song?.fullVideoKey && String(song.fullVideoKey).trim()) ??
+    (song?.full_video_key && String(song.full_video_key).trim()) ??
+    false
   );
-  const assetId = song?.assetId || song?.asset_id || song?.id;
-  const fullVideoKey =
-    song?.fullVideoKey ||
-    song?.full_video_key ||
-    (hasVideo && assetId ? `videos/${assetId}` : undefined);
-  if (!fullVideoKey) return undefined;
-  return resolveHlsUrl(fullVideoKey);
+  if (!isVideo) return undefined;
+  return resolveVideoHlsUrl(song);
 }
 
 /** Returns the DASH streaming URL for a song's full video */
 export function getFullVideoDashUrl(song: any): string | undefined {
-  const hasVideo = Boolean(
-    song?.hasVideo ||
-    song?.has_video ||
-    (song?.fullVideoKey && String(song.fullVideoKey).trim()) ||
-    (song?.full_video_key && String(song.full_video_key).trim())
+  const isVideo = Boolean(
+    song?.video ??
+    song?.hasVideo ??
+    song?.has_video ??
+    (song?.fullVideoKey && String(song.fullVideoKey).trim()) ??
+    (song?.full_video_key && String(song.full_video_key).trim()) ??
+    false
   );
-  const assetId = song?.assetId || song?.asset_id || song?.id;
-  const fullVideoKey =
-    song?.fullVideoKey ||
-    song?.full_video_key ||
-    (hasVideo && assetId ? `videos/${assetId}` : undefined);
-  if (!fullVideoKey) return undefined;
-  return resolveDashUrl(fullVideoKey);
+  if (!isVideo) return undefined;
+  const rawId = song?.assetId || song?.asset_id || song?.id || "";
+  const cleanId = String(rawId).replace(/^(videos|audios|assets|songs)\//, "").replace(/\.[^/.]+$/, "");
+  return resolveDashUrl(`videos/${cleanId}`);
 }
 
 /**

@@ -81,6 +81,19 @@ export const PlayerQualitySelector: React.FC<PlayerQualitySelectorProps> = ({
     };
   };
 
+  if (qualityTracks.length === 0) {
+    return (
+      <div className="relative group">
+        <PlayerTooltip content="Audio Stream: Direct High Fidelity MP3">
+          <div className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold text-zinc-400 select-none">
+            <span className="text-[11px]">🎧</span>
+            <span>MP3</span>
+          </div>
+        </PlayerTooltip>
+      </div>
+    );
+  }
+
   const currentDetails = getQualityDetails(selectedQuality);
 
   return (

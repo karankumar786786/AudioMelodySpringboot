@@ -18,6 +18,7 @@ class SongSerializer(serializers.ModelSerializer):
     jobId = serializers.CharField(source="job_id")
     totalStreams = serializers.SerializerMethodField()
     hasVideo = serializers.SerializerMethodField()
+    video = serializers.SerializerMethodField()
     createdAt = serializers.DateTimeField(source="created_at", format="%Y-%m-%dT%H:%M:%S")
 
     class Meta:
@@ -33,6 +34,7 @@ class SongSerializer(serializers.ModelSerializer):
             "videoKey",
             "fullVideoKey",
             "hasVideo",
+            "video",
             "previewStartTime",
             "previewEndTime",
             "canvasStartTime",
@@ -52,6 +54,9 @@ class SongSerializer(serializers.ModelSerializer):
         if getattr(obj, "has_video", None) is not None:
             return bool(obj.has_video)
         return bool(obj.full_video_key and str(obj.full_video_key).strip())
+
+    def get_video(self, obj) -> bool:
+        return self.get_hasVideo(obj)
 
     def get_totalStreams(self, obj) -> int:
         try:

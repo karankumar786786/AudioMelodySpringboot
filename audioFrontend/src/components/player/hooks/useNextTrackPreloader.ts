@@ -93,6 +93,14 @@ export function useNextTrackPreloader(standbyAudioElement: HTMLAudioElement | nu
         preloadedSongIdRef.current = nextSong.id;
         setIsPreloaded(false);
 
+        if (!nextSong.streamUrl.includes(".m3u8")) {
+          standbyAudioElement.src = nextSong.streamUrl;
+          standbyAudioElement.preload = "auto";
+          setIsPreloaded(true);
+          console.log(`[Gapless Preloader] ✅ Preloaded standard audio for: "${nextSong.title}"`);
+          return;
+        }
+
         const HlsModule = await import("hls.js");
         const Hls = HlsModule.default;
 

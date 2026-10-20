@@ -8,6 +8,7 @@ export interface Song {
   videoKey?: string;
   fullVideoKey?: string;
   hasVideo?: boolean;
+  video?: boolean;
   assetId?: string;
   canvasStartTime?: number | null;
   canvasEndTime?: number | null;

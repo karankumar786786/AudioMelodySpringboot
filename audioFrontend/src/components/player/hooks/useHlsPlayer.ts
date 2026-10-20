@@ -62,6 +62,36 @@ export function useHlsPlayer(
           console.log("[Player] Loading stream URL:", streamUrl);
           isInternalChange.current = true;
 
+          const isHls = streamUrl.includes(".m3u8");
+
+          // Standard normal audio (Direct MP3 - NO HLS)
+          if (!isHls) {
+            audioElement.src = streamUrl;
+            playerActions.setQualityTracks([]);
+            playerActions.setIsLoading(false);
+
+            const savedTime = playerStore.state.currentTime;
+            if (
+              savedTime > 0 &&
+              Math.abs(audioElement.currentTime - savedTime) > 0.5
+            ) {
+              audioElement.currentTime = savedTime;
+            }
+
+            if (isPlayingRef.current && !playerStore.state.isVideoActive) {
+              audioElement.play().catch((err) => {
+                if (err.name !== "AbortError") {
+                  console.warn("[Player] Direct audio play failed:", err);
+                }
+              });
+            }
+
+            setTimeout(() => {
+              if (isMounted) isInternalChange.current = false;
+            }, 500);
+            return;
+          }
+
           // Dynamic import of hls.js only on client side to prevent Next.js SSR errors
           const HlsModule = await import("hls.js");
           const Hls = HlsModule.default;

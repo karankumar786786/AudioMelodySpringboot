@@ -53,6 +53,10 @@ public record SongDto(
         return fullVideoKey != null && !fullVideoKey.isBlank();
     }
 
+    public Boolean getVideo() {
+        return getHasVideo();
+    }
+
     public String getAssetId() {
         return id;
     }

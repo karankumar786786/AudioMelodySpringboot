@@ -1,6 +1,6 @@
 import { Store } from "@tanstack/react-store";
 import { type Song } from "./api";
-import { resolveHlsUrl } from "./player-utils";
+import { resolveAudioUrl } from "./player-utils";
 
 const S3_BASE_URL =
   process.env.NEXT_PUBLIC_S3_BASE_URL ||
@@ -134,7 +134,7 @@ class PreviewManager {
         return;
       }
 
-      const streamUrl = resolveHlsUrl(resolvedSongKey);
+      const streamUrl = resolveAudioUrl(song);
 
       const startPlayback = () => {
         if (this.audio !== audio || this.currentTargetSongId !== song.id) return;
@@ -189,8 +189,15 @@ class PreviewManager {
           });
       };
 
-      // Native HLS (e.g. Safari)
-      if (audio.canPlayType("application/vnd.apple.mpegurl")) {
+      // Direct Standard Audio (MP3 - NO HLS)
+      if (!streamUrl.includes(".m3u8")) {
+        audio.src = streamUrl;
+        audio.addEventListener("loadedmetadata", () => {
+          startPlayback();
+        }, { once: true });
+        audio.load();
+      } else if (audio.canPlayType("application/vnd.apple.mpegurl")) {
+        // Native HLS (e.g. Safari)
         audio.src = streamUrl;
         audio.addEventListener("loadedmetadata", () => {
           startPlayback();
