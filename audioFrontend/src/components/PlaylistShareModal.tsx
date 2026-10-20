@@ -413,7 +413,7 @@ export function PlaylistShareModal({
                     rel="noopener noreferrer"
                     className="flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-xl bg-[#1c1c1c] border border-[#2b2b2b] text-zinc-300 hover:text-sky-400 hover:border-sky-500/40 hover:bg-[#222222] transition-all cursor-pointer"
                   >
-                    <svg className="w-[18px] h-[18px] fill-current text-sky-400" viewBox="0 0 24 24">
+                    <svg className="w-4.5 h-4.5 fill-current text-sky-400" viewBox="0 0 24 24">
                       <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                     </svg>
                     <span className="text-[11px] font-semibold">Twitter (X)</span>

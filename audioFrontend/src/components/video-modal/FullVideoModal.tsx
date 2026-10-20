@@ -12,7 +12,7 @@ import { playerActions, playerStore } from "@/store/player.store";
 import { getVideoABRUrl, getVideoUrl } from "@/lib/image-utils";
 import { resolveHlsUrl } from "@/lib/player-utils";
 import type { FullVideoModalProps } from "./types";
-import { Maximize2, Minimize2, PictureInPicture2, Sparkles, X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import { PlayerTooltip } from "@/components/player/PlayerTooltip";
 import "@imagekit/video-player/styles.css";
 
@@ -57,10 +57,8 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
   const [areControlsVisible, setAreControlsVisible] = useState(true);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const toggleFullscreenRef = useRef<() => void>(() => {});
 
   const resetControlsTimeout = useCallback(() => {
     setAreControlsVisible(true);
@@ -203,15 +201,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
           setIsLoading(false);
         });
 
-        // Route Video.js internal fullscreen button to container fullscreen
-        player.requestFullscreen = () => {
-          toggleFullscreenRef.current();
-          return Promise.resolve();
-        };
-        player.exitFullscreen = () => {
-          toggleFullscreenRef.current();
-          return Promise.resolve();
-        };
+
 
         player.on("timeupdate", () => {
           const t = player.currentTime();
@@ -321,19 +311,6 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     } catch {}
   }, [storeVolume, storeIsMuted]);
 
-  // Fullscreen state listener
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement || (document as any).webkitFullscreenElement));
-    };
-    document.addEventListener("fullscreenchange", handleFullscreenChange);
-    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
-    return () => {
-      document.removeEventListener("fullscreenchange", handleFullscreenChange);
-      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
-    };
-  }, []);
-
   // Close handler with audio position handoff
   const handleClose = useCallback(() => {
     const p = playerRef.current;
@@ -360,74 +337,48 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     onClose(finalTime);
   }, [isCurrentSong, onClose]);
 
-  // Fullscreen toggle for entire modal container
-  const toggleFullscreen = useCallback(() => {
-    const doc = document as any;
-    const isDocFs = Boolean(
-      doc.fullscreenElement ||
-      doc.webkitFullscreenElement ||
-      doc.mozFullScreenElement ||
-      doc.msFullscreenElement
-    );
-
-    if (isDocFs) {
-      if (doc.exitFullscreen) {
-        doc.exitFullscreen().catch(() => {});
-      } else if (doc.webkitExitFullscreen) {
-        doc.webkitExitFullscreen();
-      }
-    } else {
-      const container = containerRef.current;
-      if (container?.requestFullscreen) {
-        container.requestFullscreen().catch(() => {
-          const p = playerRef.current;
-          if (p?.requestFullscreen) p.requestFullscreen();
-        });
-      } else if ((container as any)?.webkitRequestFullscreen) {
-        (container as any).webkitRequestFullscreen();
-      }
-    }
-  }, []);
-
-  toggleFullscreenRef.current = toggleFullscreen;
-
-  // PiP toggle
-  const togglePip = useCallback(() => {
+  // Toggle Play/Pause on Video.js instance
+  const togglePlayPause = useCallback(() => {
     const p = playerRef.current;
-    if (p && p.tech_?.el_) {
-      const videoEl = p.tech_.el_ as HTMLVideoElement;
-      if (document.pictureInPictureEnabled && videoEl) {
-        if (document.pictureInPictureElement) {
-          document.exitPictureInPicture().catch(() => {});
-        } else {
-          videoEl.requestPictureInPicture().catch(() => {});
-        }
+    if (!p) return;
+    try {
+      if (typeof p.paused === "function" && p.paused()) {
+        p.play()?.catch(() => {});
+        playerActions.setIsPlaying(true);
+        resetControlsTimeout();
+      } else if (typeof p.pause === "function") {
+        p.pause();
+        playerActions.setIsPlaying(false);
+        setAreControlsVisible(true);
       }
-    }
-  }, []);
+    } catch {}
+  }, [resetControlsTimeout]);
 
-  // Keyboard shortcut listener (ESC, F, P)
+  // Keyboard shortcut listener (Space to play/pause, ESC to close)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable ||
+        target.getAttribute("role") === "textbox"
+      ) {
         return;
       }
-      if (e.key === "Escape") {
+      if (e.code === "Space" || e.key === " " || e.key === "Spacebar") {
+        e.preventDefault();
+        e.stopPropagation();
+        togglePlayPause();
+      } else if (e.key === "Escape") {
         e.preventDefault();
         handleClose();
-      } else if (e.key.toLowerCase() === "f") {
-        e.preventDefault();
-        toggleFullscreen();
-      } else if (e.key.toLowerCase() === "p") {
-        e.preventDefault();
-        togglePip();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleClose, toggleFullscreen, togglePip]);
+  }, [handleClose, togglePlayPause]);
 
   return (
     <div
@@ -462,33 +413,11 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* PiP Button */}
-          <PlayerTooltip content="Picture in Picture (P)" side="bottom">
-            <button
-              onClick={togglePip}
-              className="p-2.5 rounded-full text-zinc-300 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all active:scale-95 focus:outline-none"
-              aria-label="Picture in Picture"
-            >
-              <PictureInPicture2 className="w-4 h-4" />
-            </button>
-          </PlayerTooltip>
-
-          {/* Fullscreen Button */}
-          <PlayerTooltip content={isFullscreen ? "Exit Fullscreen (F)" : "Fullscreen (F)"} side="bottom">
-            <button
-              onClick={toggleFullscreen}
-              className="p-2.5 rounded-full text-zinc-300 hover:text-white bg-white/10 hover:bg-white/20 backdrop-blur-md transition-all active:scale-95 focus:outline-none"
-              aria-label="Toggle Fullscreen"
-            >
-              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-            </button>
-          </PlayerTooltip>
-
           {/* Close Button */}
-          <PlayerTooltip content="Close Video (Esc)" side="bottom">
+          <PlayerTooltip content="Close" side="bottom">
             <button
               onClick={handleClose}
-              className="p-2.5 rounded-full text-zinc-300  bg-white/10 hover:bg-rose-500/30 hover:text-rose-300 backdrop-blur-md transition-all active:scale-95 focus:outline-none"
+              className="p-2.5 rounded-full text-zinc-300 hover:text-white bg-white/10 hover:bg-rose-500/30 backdrop-blur-md transition-all active:scale-95 focus:outline-none"
               aria-label="Close Full Video"
             >
               <X className="w-4 h-4" />
@@ -500,7 +429,6 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
       {/* Edge-to-Edge Full-Screen Video Canvas */}
       <div
         ref={videoWrapperRef}
-        onDoubleClick={toggleFullscreen}
         className="absolute inset-0 w-full h-full bg-black flex items-center justify-center overflow-hidden [&_.video-js]:w-full! [&_.video-js]:h-full! [&_.video-js]:max-w-full! [&_.video-js]:max-h-full! [&_.vjs-tech]:w-full! [&_.vjs-tech]:h-full! [&_.vjs-tech]:object-contain! [&_.vjs-poster]:bg-contain!"
       />
 
