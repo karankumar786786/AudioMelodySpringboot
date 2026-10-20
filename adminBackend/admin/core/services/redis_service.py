@@ -154,6 +154,11 @@ class RedisService:
 
     @classmethod
     def queue_delete_event(cls, data: Dict[str, Any]) -> str:
+        # pyrefly: ignore[missing-import]
+        from jobs.models import DeleteJob
+        # pyrefly: ignore[missing-import]
+        from core.services.pagination_metadata_service import PaginationMetadataService
+
         job_id = data.get("deleteJobId") or str(uuid.uuid4())
         is_new = not DeleteJob.objects.filter(id=job_id).exists()
         old_status = None

@@ -1,6 +1,6 @@
 import logging
 import uuid
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
 # pyrefly: ignore[missing-import]
 from core.shortcuts import get_object_or_404
@@ -21,7 +21,7 @@ from core.services import (
 # pyrefly: ignore[missing-import]
 from core.views import BaseAdminView
 # pyrefly: ignore[missing-import]
-from jobs.models import Job
+from jobs.models import DeleteJob, Job
 # pyrefly: ignore[missing-import]
 from jobs.serializers import JobSerializer
 from .models import Artist, Playlist, PlaylistSong, Song
@@ -603,8 +603,9 @@ class SongDetailView(BaseAdminView):
                             PaginationMetadataService.transition_status(f"ArtistSongs_{art.id}", old_st, new_st)
                     except Exception as e:
                         logger.warning("Failed to transition artist song metadata: %s", e)
-                for ps in PlaylistSong.objects.filter(song_id=song.id):
-                    PaginationMetadataService.transition_status(f"PlaylistSongs_{ps.playlist_id}", old_st, new_st)
+                playlist_ids = list(PlaylistSong.objects.filter(song_id=song.id).values_list("playlist_id", flat=True))
+                for pl_id in playlist_ids:
+                    PaginationMetadataService.transition_status(f"PlaylistSongs_{pl_id}", old_st, new_st)
         if "language" in data and str(data["language"]).strip():
             song.language = str(data["language"]).strip()
         if "genre" in data:
@@ -701,30 +702,36 @@ class SongDetailView(BaseAdminView):
     def delete(self, request, pk):
         song = get_object_or_404(Song, pk=pk)
         if song.status != "DELETED":
-            old_status = song.status
-            song.status = "DELETED"
-            song.save()
-            PaginationMetadataService.transition_status("SongsEntity", old_status, "DELETED")
-            if song.artist_name:
-                try:
-                    art = Artist.objects.filter(name__iexact=song.artist_name.strip()).first()
-                    if art:
-                        PaginationMetadataService.transition_status(f"ArtistSongs_{art.id}", old_status, "DELETED")
-                except Exception as e:
-                    logger.warning("Failed to update artist song metadata for '%s': %s", song.artist_name, e)
-            for ps in PlaylistSong.objects.filter(song_id=song.id):
-                PaginationMetadataService.transition_status(f"PlaylistSongs_{ps.playlist_id}", old_status, "DELETED")
+            with transaction.atomic():
+                old_status = song.status
+                song.status = "DELETED"
+                song.save()
+                PaginationMetadataService.transition_status("SongsEntity", old_status, "DELETED")
+                if song.artist_name:
+                    try:
+                        art = Artist.objects.filter(name__iexact=song.artist_name.strip()).first()
+                        if art:
+                            PaginationMetadataService.transition_status(f"ArtistSongs_{art.id}", old_status, "DELETED")
+                    except Exception as e:
+                        logger.warning("Failed to update artist song metadata for '%s': %s", song.artist_name, e)
+                playlist_ids = list(PlaylistSong.objects.filter(song_id=song.id).values_list("playlist_id", flat=True))
+                for pl_id in playlist_ids:
+                    PaginationMetadataService.transition_status(f"PlaylistSongs_{pl_id}", old_status, "DELETED")
 
-            try:
-                AlgoliaService.delete_record(song.id)
-            except Exception as e:
-                logger.warning("Failed to delete song [%s] from Algolia: %s", song.id, e)
+        try:
+            AlgoliaService.delete_record(song.id)
+        except Exception as e:
+            logger.warning("Failed to delete song [%s] from Algolia: %s", song.id, e)
 
-            try:
-                RecombeeService.delete_song(song.id)
-            except Exception as e:
-                logger.warning("Failed to delete song [%s] from Recombee: %s", song.id, e)
+        try:
+            RecombeeService.delete_song(song.id)
+        except Exception as e:
+            logger.warning("Failed to delete song [%s] from Recombee: %s", song.id, e)
 
+        existing_del_job = DeleteJob.objects.filter(
+            entity_type="SONG", entity_id=song.id, status__in=["PENDING", "IN_PROGRESS", "COMPLETED"]
+        ).first()
+        if not existing_del_job:
             RedisService.queue_delete_event({
                 "entityType": "SONG",
                 "entityId": song.id,

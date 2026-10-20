@@ -2,17 +2,22 @@ import logging
 from django.conf import settings
 from django.db import models
 from django.db.models import Avg, Q
+# pyrefly: ignore[missing-import]
 from core.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
 
+# pyrefly: ignore[missing-import]
 from catalog.models import Artist, Playlist, PlaylistSong, Song
+# pyrefly: ignore[missing-import]
 from core.authentication import IsSuperAdminUserPermission
+# pyrefly: ignore[missing-import]
 from core.helpers import (
     format_paginated_response,
     to_delete_job_progress_dto,
     to_job_progress_dto,
 )
+# pyrefly: ignore[missing-import]
 from core.services import (
     AlgoliaService,
     ExternalJobDispatcher,
@@ -22,6 +27,7 @@ from core.services import (
     RedisService,
     S3Service,
 )
+# pyrefly: ignore[missing-import]
 from core.views import BaseAdminView
 from .models import DeleteJob, Job
 from .serializers import DeleteJobSerializer, JobSerializer
@@ -195,15 +201,16 @@ class JobDetailView(BaseAdminView):
                             PaginationMetadataService.decrement_status(f"ArtistSongs_{art.id}", s_status)
                     except Exception as e:
                         logger.warning("Failed to update artist song metadata: %s", e)
-                for ps in PlaylistSong.objects.filter(song_id=song_id):
-                    Playlist.objects.filter(pk=ps.playlist_id).update(
+                playlist_ids = list(PlaylistSong.objects.filter(song_id=song_id).values_list("playlist_id", flat=True))
+                for pl_id in playlist_ids:
+                    Playlist.objects.filter(pk=pl_id).update(
                         total_songs=models.Case(
                             models.When(total_songs__gt=0, then=models.F("total_songs") - 1),
                             default=models.Value(0),
                             output_field=models.IntegerField(),
                         )
                     )
-                    PaginationMetadataService.decrement_status(f"PlaylistSongs_{ps.playlist_id}", s_status)
+                    PaginationMetadataService.decrement_status(f"PlaylistSongs_{pl_id}", s_status)
 
         PaginationMetadataService.decrement_job(job.status)
         job.delete()
@@ -327,8 +334,9 @@ class JobDeleteAllFailedView(BaseAdminView):
                                     PaginationMetadataService.decrement_status(f"ArtistSongs_{art.id}", s_status)
                             except Exception as e:
                                 logger.warning("Failed to update artist song metadata: %s", e)
-                        for ps in PlaylistSong.objects.filter(song_id=j.song_id):
-                            PaginationMetadataService.decrement_status(f"PlaylistSongs_{ps.playlist_id}", s_status)
+                        playlist_ids = list(PlaylistSong.objects.filter(song_id=j.song_id).values_list("playlist_id", flat=True))
+                        for pl_id in playlist_ids:
+                            PaginationMetadataService.decrement_status(f"PlaylistSongs_{pl_id}", s_status)
                 PaginationMetadataService.decrement_job(j.status)
                 j.delete()
                 count += 1

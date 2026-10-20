@@ -548,15 +548,16 @@ class WebhookDeleteHardDeleteView(BaseAdminView):
                 job_id = song.job_id
                 status_val = song.status or "ACTIVE"
                 artist_name = song.artist_name
-                for ps in PlaylistSong.objects.filter(song_id=entity_id):
-                    Playlist.objects.filter(pk=ps.playlist_id).update(
+                playlist_ids = list(PlaylistSong.objects.filter(song_id=entity_id).values_list("playlist_id", flat=True))
+                for pl_id in playlist_ids:
+                    Playlist.objects.filter(pk=pl_id).update(
                         total_songs=models.Case(
                             models.When(total_songs__gt=0, then=models.F("total_songs") - 1),
                             default=models.Value(0),
                             output_field=models.IntegerField(),
                         )
                     )
-                    PaginationMetadataService.decrement_status(f"PlaylistSongs_{ps.playlist_id}", status_val)
+                    PaginationMetadataService.decrement_status(f"PlaylistSongs_{pl_id}", status_val)
                 PlaylistSong.objects.filter(song_id=entity_id).delete()
                 song.delete()
                 PaginationMetadataService.decrement_status("SongsEntity", status_val)
