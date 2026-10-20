@@ -342,6 +342,11 @@ class WebhookJobFinalizeView(BaseAdminView):
                 except Exception as e:
                     logger.warning("Failed to update Algolia search for song %s: %s", song.id, e)
 
+                try:
+                    RecombeeService.save_song(song=song)
+                except Exception as e:
+                    logger.warning("Failed to update Recombee recommendations for song %s: %s", song.id, e)
+
             job.status = "COMPLETED"
             job.current_stage = "COMPLETED"
             job.save()
@@ -375,6 +380,11 @@ class WebhookJobFinalizeView(BaseAdminView):
             AlgoliaService.save_song(song=song, job_id=job.id)
         except Exception as e:
             logger.warning("Failed to sync finalized song %s to Algolia: %s", song.id, e)
+
+        try:
+            RecombeeService.save_song(song=song)
+        except Exception as e:
+            logger.warning("Failed to sync finalized song %s to Recombee: %s", song.id, e)
 
         try:
             SongMetadata.objects.get_or_create(

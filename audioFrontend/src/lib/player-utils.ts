@@ -46,6 +46,8 @@ export function resolveAudioUrl(assetOrSong?: any, isVideoParam?: boolean): stri
       song.has_video ??
       (song.fullVideoKey && String(song.fullVideoKey).trim()) ??
       (song.full_video_key && String(song.full_video_key).trim()) ??
+      (song.videoKey && String(song.videoKey).trim()) ??
+      (song.video_key && String(song.video_key).trim()) ??
       (song.songKey && String(song.songKey).includes("videos/")) ??
       (song.song_key && String(song.song_key).includes("videos/")) ??
       false
@@ -244,6 +246,8 @@ export function mapToPlayerSong(song: any): PlayerSong {
     song.has_video ??
     (song.fullVideoKey && String(song.fullVideoKey).trim()) ??
     (song.full_video_key && String(song.full_video_key).trim()) ??
+    (song.videoKey && String(song.videoKey).trim()) ??
+    (song.video_key && String(song.video_key).trim()) ??
     (song.songKey && String(song.songKey).includes("videos/")) ??
     (song.song_key && String(song.song_key).includes("videos/")) ??
     false
@@ -256,10 +260,7 @@ export function mapToPlayerSong(song: any): PlayerSong {
   const videoKey = song.videoKey || song.video_key || undefined;
   const imageKey = song.imageKey || song.image_key || "";
 
-  const streamUrl = resolveAudioUrl(song);
-  const fullVideoUrl = isVideo ? resolveVideoHlsUrl(song) : undefined;
-
-  return {
+  const enrichedSong = {
     ...song,
     assetId,
     hasVideo: isVideo,
@@ -268,6 +269,13 @@ export function mapToPlayerSong(song: any): PlayerSong {
     songKey,
     videoKey,
     imageKey,
+  };
+
+  const streamUrl = resolveAudioUrl(enrichedSong);
+  const fullVideoUrl = isVideo ? resolveVideoHlsUrl(enrichedSong) : undefined;
+
+  return {
+    ...enrichedSong,
     queueId:
       typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
         ? crypto.randomUUID()
@@ -300,6 +308,8 @@ export function normalizePlayerSong(song: any): PlayerSong {
     song.has_video ??
     (song.fullVideoKey && String(song.fullVideoKey).trim()) ??
     (song.full_video_key && String(song.full_video_key).trim()) ??
+    (song.videoKey && String(song.videoKey).trim()) ??
+    (song.video_key && String(song.video_key).trim()) ??
     (song.songKey && String(song.songKey).includes("videos/")) ??
     (song.song_key && String(song.song_key).includes("videos/")) ??
     false
@@ -312,8 +322,19 @@ export function normalizePlayerSong(song: any): PlayerSong {
   const videoKey = song.videoKey || song.video_key || undefined;
   const imageKey = song.imageKey || song.image_key || "";
 
-  const streamUrl = resolveAudioUrl(song);
-  const fullVideoUrl = isVideo ? resolveVideoHlsUrl(song) : undefined;
+  const enrichedSong = {
+    ...song,
+    assetId,
+    hasVideo: isVideo,
+    video: isVideo,
+    fullVideoKey,
+    songKey,
+    videoKey,
+    imageKey,
+  };
+
+  const streamUrl = resolveAudioUrl(enrichedSong);
+  const fullVideoUrl = isVideo ? resolveVideoHlsUrl(enrichedSong) : undefined;
 
   return {
     ...song,

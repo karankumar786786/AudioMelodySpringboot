@@ -4,7 +4,7 @@ import { useStore } from "@tanstack/react-store";
 import { motion } from "framer-motion";
 import { Loader2, Pause, Play } from "lucide-react";
 import type React from "react";
-import type { Song } from "../lib/api";
+import { musicApi, type Song } from "../lib/api";
 import { getImageUrl } from "../lib/image-utils";
 import { mapToPlayerSong, formatStreamCount } from "../lib/player-utils";
 import { previewPlayer, previewStore } from "../lib/preview-player";
@@ -81,22 +81,44 @@ export function QuickPicksGrid({
             })
           : (song as any).posterUrl || "";
 
-        const handlePlayClick = (e: React.MouseEvent) => {
+        const handlePlayClick = async (e: React.MouseEvent) => {
           e.stopPropagation();
           previewPlayer.stopPreview(true);
           if (isCurrent) {
             playerActions.setIsPlaying(!isPlaying);
           } else {
-            playerActions.playWithRadio(mapToPlayerSong(song));
+            let songToPlay = song;
+            if ((!song.songKey || (!song.fullVideoKey && !song.hasVideo && !song.video)) && song.id) {
+              try {
+                const res = await musicApi.songs.getById(song.id);
+                if (res?.data) {
+                  songToPlay = { ...song, ...res.data };
+                }
+              } catch (err) {
+                console.warn("Failed to load song details from backend:", err);
+              }
+            }
+            playerActions.playWithRadio(mapToPlayerSong(songToPlay));
           }
         };
 
-        const handleCardClick = () => {
+        const handleCardClick = async () => {
           previewPlayer.stopPreview(true);
           if (isCurrent) {
             playerActions.setIsPlaying(!isPlaying);
           } else {
-            playerActions.playWithRadio(mapToPlayerSong(song));
+            let songToPlay = song;
+            if ((!song.songKey || (!song.fullVideoKey && !song.hasVideo && !song.video)) && song.id) {
+              try {
+                const res = await musicApi.songs.getById(song.id);
+                if (res?.data) {
+                  songToPlay = { ...song, ...res.data };
+                }
+              } catch (err) {
+                console.warn("Failed to load song details from backend:", err);
+              }
+            }
+            playerActions.playWithRadio(mapToPlayerSong(songToPlay));
           }
         };
 

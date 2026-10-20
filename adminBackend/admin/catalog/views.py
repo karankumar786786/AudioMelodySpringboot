@@ -686,18 +686,15 @@ class SongDetailView(BaseAdminView):
         if old_vid:
             ImageKitService.delete_by_key(old_vid)
 
-        RecombeeService.save_song(
-            song_id=song.id,
-            title=song.title,
-            artist_name=song.artist_name,
-            language=song.language,
-            genre=song.genre,
-            duration=song.duration,
-            album=song.album,
-            image_key=song.image_key,
-            total_streams=song.total_streams,
-        )
-        AlgoliaService.save_song(song)
+        try:
+            RecombeeService.save_song(song=song)
+        except Exception as e:
+            logger.warning("Failed to update Recombee on song edit [%s]: %s", song.id, e)
+
+        try:
+            AlgoliaService.save_song(song)
+        except Exception as e:
+            logger.warning("Failed to update Algolia on song edit [%s]: %s", song.id, e)
 
         return Response(SongSerializer(song).data, status=status.HTTP_200_OK)
 
@@ -717,6 +714,17 @@ class SongDetailView(BaseAdminView):
                     logger.warning("Failed to update artist song metadata for '%s': %s", song.artist_name, e)
             for ps in PlaylistSong.objects.filter(song_id=song.id):
                 PaginationMetadataService.transition_status(f"PlaylistSongs_{ps.playlist_id}", old_status, "DELETED")
+
+            try:
+                AlgoliaService.delete_record(song.id)
+            except Exception as e:
+                logger.warning("Failed to delete song [%s] from Algolia: %s", song.id, e)
+
+            try:
+                RecombeeService.delete_song(song.id)
+            except Exception as e:
+                logger.warning("Failed to delete song [%s] from Recombee: %s", song.id, e)
+
             RedisService.queue_delete_event({
                 "entityType": "SONG",
                 "entityId": song.id,
@@ -735,7 +743,14 @@ class SongToggleFeaturedView(BaseAdminView):
         featured = bool(request.data.get("featured", not song.is_featured))
         song.is_featured = featured
         song.save()
-        AlgoliaService.save_song(song)
+        try:
+            AlgoliaService.save_song(song)
+        except Exception as e:
+            logger.warning("Failed to sync featured song [%s] to Algolia: %s", song.id, e)
+        try:
+            RecombeeService.save_song(song=song)
+        except Exception as e:
+            logger.warning("Failed to sync featured song [%s] to Recombee: %s", song.id, e)
         return Response(SongSerializer(song).data, status=status.HTTP_200_OK)
 
 

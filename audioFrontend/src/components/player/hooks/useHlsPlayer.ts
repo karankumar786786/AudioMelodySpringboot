@@ -23,6 +23,7 @@ export function useHlsPlayer(
   const networkRetryCountRef = useRef(0);
   const mediaRetryCountRef = useRef(0);
   const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const directCleanupRef = useRef<(() => void) | null>(null);
 
   const syncTracks = useCallback((hls: any) => {
     if (!hls) return;
@@ -42,6 +43,11 @@ export function useHlsPlayer(
 
     let isMounted = true;
     let hlsInstance: any = null;
+
+    if (directCleanupRef.current) {
+      directCleanupRef.current();
+      directCleanupRef.current = null;
+    }
 
     // Reset error counters on track change
     networkRetryCountRef.current = 0;
@@ -66,6 +72,80 @@ export function useHlsPlayer(
 
           // Standard normal audio (Direct MP3 - NO HLS)
           if (!isHls) {
+            let activeUrl = streamUrl;
+            let directFallbackAttempted = false;
+
+            const onDirectAudioError = async () => {
+              if (!isMounted) return;
+              console.warn("[Player] Direct audio failed to load:", activeUrl);
+
+              // 1. Try folder flip (audios/ <-> videos/)
+              if (!directFallbackAttempted) {
+                directFallbackAttempted = true;
+                let alternateUrl = "";
+                if (activeUrl.includes("/f_mp3/audios/")) {
+                  alternateUrl = activeUrl.replace("/f_mp3/audios/", "/f_mp3/videos/");
+                } else if (activeUrl.includes("/f_mp3/videos/")) {
+                  alternateUrl = activeUrl.replace("/f_mp3/videos/", "/f_mp3/audios/");
+                }
+
+                if (alternateUrl && alternateUrl !== activeUrl) {
+                  console.log("[Player] Retrying direct audio with alternate folder:", alternateUrl);
+                  activeUrl = alternateUrl;
+                  audioElement.src = alternateUrl;
+                  audioElement.load();
+                  if (isPlayingRef.current && !playerStore.state.isVideoActive) {
+                    audioElement.play().catch((err) => {
+                      if (err.name !== "AbortError") console.warn("[Player] Alternate direct play failed:", err);
+                    });
+                  }
+                  playerStore.setState((s) => ({
+                    ...s,
+                    currentSong: s.currentSong ? { ...s.currentSong, streamUrl: alternateUrl } : null,
+                  }));
+                  return;
+                }
+              }
+
+              // 2. Try fetching fresh authoritative metadata from backend
+              if (_songId) {
+                try {
+                  const res = await musicApi.songs.getById(_songId);
+                  if (res?.data && isMounted) {
+                    const freshMapped = mapToPlayerSong(res.data);
+                    if (freshMapped.streamUrl && freshMapped.streamUrl !== activeUrl) {
+                      console.log("[Player] Recovered streamUrl from backend:", freshMapped.streamUrl);
+                      activeUrl = freshMapped.streamUrl;
+                      audioElement.src = freshMapped.streamUrl;
+                      audioElement.load();
+                      if (isPlayingRef.current && !playerStore.state.isVideoActive) {
+                        audioElement.play().catch((err) => {
+                          if (err.name !== "AbortError") console.warn("[Player] Fresh backend play failed:", err);
+                        });
+                      }
+                      playerStore.setState((s) => ({
+                        ...s,
+                        currentSong: s.currentSong ? { ...s.currentSong, ...freshMapped } : null,
+                      }));
+                      return;
+                    }
+                  }
+                } catch (e) {
+                  console.warn("[Player] Backend song details fetch failed on error:", e);
+                }
+              }
+
+              playerActions.setIsLoading(false);
+              toast.error("Track playback error", {
+                description: "Audio source is unavailable for this track.",
+              });
+            };
+
+            audioElement.addEventListener("error", onDirectAudioError);
+            directCleanupRef.current = () => {
+              audioElement.removeEventListener("error", onDirectAudioError);
+            };
+
             audioElement.src = streamUrl;
             audioElement.load();
             playerActions.setQualityTracks([]);
@@ -373,6 +453,10 @@ export function useHlsPlayer(
 
     return () => {
       isMounted = false;
+      if (directCleanupRef.current) {
+        directCleanupRef.current();
+        directCleanupRef.current = null;
+      }
       if (retryTimeoutRef.current) {
         clearTimeout(retryTimeoutRef.current);
         retryTimeoutRef.current = null;

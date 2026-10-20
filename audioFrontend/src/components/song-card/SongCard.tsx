@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { getImageUrl } from "@/lib/image-utils";
 import { mapToPlayerSong } from "@/lib/player-utils";
 import { previewPlayer, previewStore } from "@/lib/preview-player";
+import { musicApi } from "@/lib/api";
 import { playerActions, playerStore } from "@/store/player.store";
 import { PlaylistPickerModal } from "@/components/PlaylistPickerModal";
 import { ShareSongModal } from "@/components/ShareSongModal";
@@ -76,13 +77,24 @@ export function SongCard({
     }
   };
 
-  const handlePlayToggle = (e: React.MouseEvent) => {
+  const handlePlayToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
     previewPlayer.stopPreview(true);
     if (isActiveSong) {
       playerActions.setIsPlaying(!isPlaying);
     } else {
-      playerActions.playWithRadio(mapToPlayerSong(song));
+      let songToPlay = song;
+      if ((!song.songKey || (!song.fullVideoKey && !song.hasVideo && !song.video)) && song.id) {
+        try {
+          const res = await musicApi.songs.getById(song.id);
+          if (res?.data) {
+            songToPlay = { ...song, ...res.data };
+          }
+        } catch (err) {
+          console.warn("Failed to load song details from backend:", err);
+        }
+      }
+      playerActions.playWithRadio(mapToPlayerSong(songToPlay));
     }
   };
 
@@ -104,12 +116,23 @@ export function SongCard({
     });
   };
 
-  const handleStartRadio = (e: React.MouseEvent) => {
+  const handleStartRadio = async (e: React.MouseEvent) => {
     e.stopPropagation();
     previewPlayer.stopPreview(true);
-    playerActions.playWithRadio(mapToPlayerSong(song));
+    let songToPlay = song;
+    if ((!song.songKey || (!song.fullVideoKey && !song.hasVideo && !song.video)) && song.id) {
+      try {
+        const res = await musicApi.songs.getById(song.id);
+        if (res?.data) {
+          songToPlay = { ...song, ...res.data };
+        }
+      } catch (err) {
+        console.warn("Failed to load song details from backend:", err);
+      }
+    }
+    playerActions.playWithRadio(mapToPlayerSong(songToPlay));
     toast.success("Playing Song Radio", {
-      description: `Starting infinite radio for "${song.title}"...`,
+      description: `Starting infinite radio for "${songToPlay.title}"...`,
     });
   };
 

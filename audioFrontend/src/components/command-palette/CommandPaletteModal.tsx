@@ -246,7 +246,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     previewPlayer.stopPreview(true);
     if (item.type === "song") {
       let songToPlay: Song = item.data;
-      if (!songToPlay.songKey && songToPlay.id) {
+      if ((!songToPlay.songKey || (!songToPlay.fullVideoKey && !songToPlay.hasVideo && !songToPlay.video)) && songToPlay.id) {
         try {
           const res = await musicApi.songs.getById(songToPlay.id);
           if (res?.data) {

@@ -21,41 +21,87 @@ class RecombeeService:
     @classmethod
     def save_song(
         cls,
-        song_id: str,
-        title: str,
-        artist_name: str,
-        language: str,
+        song_id: Optional[str] = None,
+        title: Optional[str] = None,
+        artist_name: Optional[str] = None,
+        language: Optional[str] = None,
         genre: Optional[str] = None,
         duration: Optional[int] = None,
         album: Optional[str] = None,
         image_key: Optional[str] = None,
         total_streams: Optional[int] = 0,
+        song: Any = None,
     ) -> None:
         client = cls.get_client()
         if not client:
             return
+
+        if song is not None:
+            if isinstance(song, dict):
+                s_id = str(song.get("id") or song_id or "")
+                s_title = song.get("title") or title or ""
+                s_artist = song.get("artist_name") or song.get("artistName") or song.get("artist") or artist_name or ""
+                s_lang = song.get("language") or language or ""
+                s_genre = song.get("genre") or genre
+                s_dur = song.get("duration") if song.get("duration") is not None else duration
+                s_album = song.get("album") or album
+                s_img = song.get("image_key") or song.get("imageKey") or image_key
+                s_streams = song.get("total_streams") if song.get("total_streams") is not None else (song.get("totalStreams") or total_streams or 0)
+                s_status = song.get("status") or "ACTIVE"
+            else:
+                s_id = str(getattr(song, "id", None) or song_id or "")
+                s_title = getattr(song, "title", None) or title or ""
+                s_artist = getattr(song, "artist_name", None) or artist_name or ""
+                s_lang = getattr(song, "language", None) or language or ""
+                s_genre = getattr(song, "genre", None) or genre
+                s_dur = getattr(song, "duration", None) if getattr(song, "duration", None) is not None else duration
+                s_album = getattr(song, "album", None) or album
+                s_img = getattr(song, "image_key", None) or image_key
+                s_streams = getattr(song, "total_streams", None) if getattr(song, "total_streams", None) is not None else (total_streams or 0)
+                s_status = getattr(song, "status", "ACTIVE") or "ACTIVE"
+        else:
+            s_id = str(song_id or "")
+            s_title = title or ""
+            s_artist = artist_name or ""
+            s_lang = language or ""
+            s_genre = genre
+            s_dur = duration
+            s_album = album
+            s_img = image_key
+            s_streams = total_streams or 0
+            s_status = "ACTIVE"
+
+        if not s_id:
+            logger.warning("Recombee save_song skipped: missing song id")
+            return
+
+        # If deleted or blocked, clean up from Recombee catalogue
+        if str(s_status).upper() in ("DELETED", "BLOCKED"):
+            cls.delete_song(s_id)
+            return
+
         from recombee_api_client.api_requests import SetItemValues
         values = {
-            "title": title,
-            "artistName": artist_name,
-            "language": language or "",
+            "title": str(s_title or ""),
+            "artistName": str(s_artist or ""),
+            "language": str(s_lang or ""),
         }
-        if genre and genre.strip():
-            values["genre"] = genre.strip()
-        if album and album.strip():
-            values["album"] = album.strip()
-        if image_key and image_key.strip():
-            values["imageKey"] = image_key.strip()
-        if duration and duration > 0:
-            values["duration"] = int(duration)
-        if total_streams is not None:
-            values["totalStreams"] = int(total_streams)
-            values["listenCount"] = int(total_streams)
+        if s_genre and str(s_genre).strip():
+            values["genre"] = str(s_genre).strip()
+        if s_album and str(s_album).strip():
+            values["album"] = str(s_album).strip()
+        if s_img and str(s_img).strip():
+            values["imageKey"] = str(s_img).strip()
+        if s_dur and int(s_dur) > 0:
+            values["duration"] = int(s_dur)
+        if s_streams is not None:
+            values["totalStreams"] = int(s_streams or 0)
+            values["listenCount"] = int(s_streams or 0)
         try:
-            client.send(SetItemValues(song_id, values, cascade_create=True))
-            logger.info("Saved song [%s] to Recombee catalogue with full metadata", song_id)
+            client.send(SetItemValues(s_id, values, cascade_create=True))
+            logger.info("Saved song [%s] to Recombee catalogue with full metadata", s_id)
         except Exception as e:
-            logger.warning("Recombee save song [%s] failed: %s", song_id, e)
+            logger.warning("Recombee save song [%s] failed: %s", s_id, e)
 
     @classmethod
     def delete_song(cls, song_id: str) -> None:

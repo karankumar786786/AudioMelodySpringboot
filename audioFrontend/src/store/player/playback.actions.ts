@@ -15,23 +15,27 @@ export const playbackActions = {
       return;
     }
 
-    // Fallback: If song is missing songKey (e.g. from an old or incomplete search hit), hydrate from backend
-    if (!song.songKey && song.id) {
+    // Fallback: If song is missing songKey or missing video keys, hydrate from backend
+    if ((!song.songKey || (!song.fullVideoKey && !song.hasVideo && !song.video)) && song.id) {
       musicApi.songs
         .getById(song.id)
         .then((res) => {
-          if (res?.data?.songKey) {
+          if (res?.data) {
             const mapped = mapToPlayerSong(res.data);
-            playerStore.setState((s) => ({
-              ...s,
-              currentSong:
-                s.currentSong?.id === song.id
-                  ? { ...s.currentSong, ...mapped }
-                  : s.currentSong,
-              queue: s.queue.map((item) =>
-                item.id === song.id ? { ...item, ...mapped } : item,
-              ),
-            }));
+            playerStore.setState((s) => {
+              const isCurrent = s.currentSong?.id === song.id;
+              return {
+                ...s,
+                currentSong:
+                  isCurrent
+                    ? { ...s.currentSong, ...mapped }
+                    : s.currentSong,
+                isPlaying: isCurrent ? true : s.isPlaying,
+                queue: s.queue.map((item) =>
+                  item.id === song.id ? { ...item, ...mapped } : item,
+                ),
+              };
+            });
           }
         })
         .catch(() => {});

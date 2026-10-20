@@ -79,7 +79,7 @@ export function AppNavbar() {
     let songToPlay: Song = song;
 
     // Load full song details on-demand from the backend when clicked from Algolia search results
-    if (!song.songKey && song.id) {
+    if ((!song.songKey || (!song.fullVideoKey && !song.hasVideo && !song.video)) && song.id) {
       try {
         const res = await musicApi.songs.getById(song.id);
         if (res?.data) {

@@ -108,6 +108,34 @@ class AlgoliaService:
                 logger.warning("Algolia save_song skipped: missing song id")
                 return
 
+            s_asset_id = (
+                (song.get("asset_id") or song.get("assetId")) if isinstance(song, dict)
+                else getattr(song, "asset_id", None)
+            ) or str(s_id)
+            s_has_vid = (
+                (song.get("has_video") or song.get("hasVideo") or song.get("video")) if isinstance(song, dict)
+                else (getattr(song, "has_video", None) or getattr(song, "video", None))
+            )
+            if s_has_vid is None:
+                s_has_vid = bool(s_full_vid or s_vid)
+            s_canvas_start = (
+                (song.get("canvas_start_time") or song.get("canvasStartTime")) if isinstance(song, dict)
+                else getattr(song, "canvas_start_time", None)
+            )
+            s_canvas_end = (
+                (song.get("canvas_end_time") or song.get("canvasEndTime")) if isinstance(song, dict)
+                else getattr(song, "canvas_end_time", None)
+            )
+
+            s_status = (
+                (song.get("status") if isinstance(song, dict) else getattr(song, "status", "ACTIVE"))
+                or "ACTIVE"
+            )
+
+            if str(s_status).upper() in ("DELETED", "BLOCKED"):
+                cls.delete_object(str(s_id))
+                return
+
             streams_val = int(s_streams or 0)
             record = {
                 "objectID": str(s_id),
@@ -122,6 +150,11 @@ class AlgoliaService:
                 "imageKey": str(s_img or ""),
                 "videoKey": str(s_vid) if s_vid else None,
                 "fullVideoKey": str(s_full_vid) if s_full_vid else None,
+                "hasVideo": bool(s_has_vid),
+                "video": bool(s_has_vid),
+                "assetId": str(s_asset_id),
+                "canvasStartTime": int(s_canvas_start) if s_canvas_start is not None and int(s_canvas_start) >= 0 else None,
+                "canvasEndTime": int(s_canvas_end) if s_canvas_end is not None and int(s_canvas_end) > 0 else None,
                 "previewStartTime": int(s_prev_start) if s_prev_start is not None and int(s_prev_start) >= 0 else None,
                 "previewEndTime": int(s_prev_end) if s_prev_end is not None and int(s_prev_end) > 0 else None,
                 "language": str(s_lang or ""),
@@ -130,6 +163,7 @@ class AlgoliaService:
                 "totalStreams": streams_val,
                 "listenCount": streams_val,
                 "searchCount": 0,
+                "status": str(s_status).upper(),
             }
 
             index_name = getattr(settings, "ALGOLIA_INDEX_NAME", "one_melody_springboot")
@@ -137,6 +171,18 @@ class AlgoliaService:
             logger.info("Successfully saved song [%s] to Algolia index [%s]", s_id, index_name)
         except Exception as e:
             logger.warning("Algolia save song [%s] failed: %s", s_id if "s_id" in locals() else "unknown", e)
+
+    @classmethod
+    def sync_all_songs(cls) -> int:
+        # pyrefly: ignore[missing-import]
+        from catalog.models import Song
+        songs = Song.objects.all()
+        count = 0
+        for s in songs:
+            cls.save_song(song=s)
+            count += 1
+        logger.info("Successfully synced %d songs to Algolia", count)
+        return count
 
     @classmethod
     def save_artist(cls, artist: Any) -> None:

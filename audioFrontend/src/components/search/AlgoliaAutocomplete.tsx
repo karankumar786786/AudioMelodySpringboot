@@ -238,6 +238,11 @@ export function AlgoliaAutocomplete({
                   genre: item.song.genre,
                   imageKey: item.song.imageKey,
                   songKey: item.song.songKey,
+                  videoKey: item.song.videoKey,
+                  fullVideoKey: item.song.fullVideoKey,
+                  hasVideo: item.song.hasVideo,
+                  video: item.song.video,
+                  assetId: item.song.assetId,
                   duration: item.song.duration,
                 },
               });
@@ -472,13 +477,22 @@ export function AlgoliaAutocomplete({
       lrclibId: songItem.lrclibId || "",
       imageKey: songItem.imageKey || "",
       songKey: songItem.songKey || "",
+      videoKey: songItem.videoKey || null,
+      fullVideoKey: songItem.fullVideoKey || songItem.videoKey || null,
+      hasVideo: Boolean(songItem.hasVideo ?? songItem.video ?? songItem.fullVideoKey ?? songItem.videoKey),
+      video: Boolean(songItem.video ?? songItem.hasVideo ?? songItem.fullVideoKey ?? songItem.videoKey),
+      assetId: songItem.assetId || songItem.objectID || songItem.id,
+      canvasStartTime: songItem.canvasStartTime,
+      canvasEndTime: songItem.canvasEndTime,
+      previewStartTime: songItem.previewStartTime,
+      previewEndTime: songItem.previewEndTime,
       duration: Number(songItem.duration || 0),
       status: "ACTIVE",
       totalStreams: Number(songItem.totalStreams || 0),
       createdAt: "",
     };
 
-    if (!songToPlay.songKey && songToPlay.id) {
+    if ((!songToPlay.songKey || (!songToPlay.fullVideoKey && !songToPlay.hasVideo && !songToPlay.video)) && songToPlay.id) {
       try {
         const res = await musicApi.songs.getById(songToPlay.id);
         if (res?.data) {
