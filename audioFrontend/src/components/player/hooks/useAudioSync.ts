@@ -229,7 +229,6 @@ export function useAudioSync(
 
     const onPlaying = () => {
       if (
-        isInternalChange.current ||
         isVideoActive ||
         playerStore.state.isVideoActive
       )

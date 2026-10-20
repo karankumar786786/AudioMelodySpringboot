@@ -8,6 +8,19 @@ import {
 
 let globalAudioCtx: AudioContext | null = null;
 
+// Auto-unlock AudioContext on ANY first user gesture (click, tap, keypress)
+if (typeof window !== "undefined") {
+  const unlockAudioContext = () => {
+    if (globalAudioCtx && globalAudioCtx.state === "suspended") {
+      globalAudioCtx.resume().catch(() => {});
+    }
+  };
+  window.addEventListener("click", unlockAudioContext, { capture: true, passive: true });
+  window.addEventListener("keydown", unlockAudioContext, { capture: true, passive: true });
+  window.addEventListener("touchstart", unlockAudioContext, { capture: true, passive: true });
+  window.addEventListener("pointerdown", unlockAudioContext, { capture: true, passive: true });
+}
+
 export function useWebAudio(
   audioElement: HTMLAudioElement | null,
   isPlaying: boolean
@@ -93,8 +106,8 @@ export function useWebAudio(
 
         // Create Fade/Crossfade Gain Node
         const fadeGain = ctx.createGain();
-        // If not playing at mount, initialize at 0 to allow smooth fade-in on first play
-        fadeGain.gain.setValueAtTime(isPlaying ? 1 : 0, ctx.currentTime);
+        // Always default to 1 (full volume) to guarantee audible playback
+        fadeGain.gain.setValueAtTime(1, ctx.currentTime);
         fadeGainRef.current = fadeGain;
 
         // Create Sub-Bass Boost Filter (lowshelf @ 80Hz, +7dB when active)
@@ -273,7 +286,7 @@ export function useWebAudio(
 
   const fadeIn = useCallback(
     (durationSec = 0.35) => {
-      if (!fadeGainRef.current || !globalAudioCtx || durationSec <= 0) {
+      if (!fadeGainRef.current || !globalAudioCtx) {
         if (fadeGainRef.current && globalAudioCtx) {
           fadeGainRef.current.gain.setValueAtTime(1, globalAudioCtx.currentTime);
         }
@@ -284,11 +297,12 @@ export function useWebAudio(
           globalAudioCtx.resume().catch(() => {});
         }
         const now = globalAudioCtx.currentTime;
-        const currentGain = Math.max(0, Math.min(1, fadeGainRef.current.gain.value));
         fadeGainRef.current.gain.cancelScheduledValues(now);
-        fadeGainRef.current.gain.setValueAtTime(currentGain, now);
-        fadeGainRef.current.gain.linearRampToValueAtTime(1, now + durationSec);
+        fadeGainRef.current.gain.setValueAtTime(1, now);
       } catch (err) {
+        if (fadeGainRef.current && globalAudioCtx) {
+          fadeGainRef.current.gain.setValueAtTime(1, globalAudioCtx.currentTime);
+        }
         console.warn("[WebAudio] fadeIn error:", err);
       }
     },

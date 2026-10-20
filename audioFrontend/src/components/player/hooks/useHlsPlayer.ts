@@ -67,8 +67,15 @@ export function useHlsPlayer(
           // Standard normal audio (Direct MP3 - NO HLS)
           if (!isHls) {
             audioElement.src = streamUrl;
+            audioElement.load();
             playerActions.setQualityTracks([]);
             playerActions.setIsLoading(false);
+
+            // Ensure audio element is completely unmuted and volume is asserted
+            audioElement.muted = false;
+            if (audioElement.volume === 0 && playerStore.state.volume > 0) {
+              audioElement.volume = playerStore.state.volume;
+            }
 
             const savedTime = playerStore.state.currentTime;
             if (
@@ -88,7 +95,7 @@ export function useHlsPlayer(
 
             setTimeout(() => {
               if (isMounted) isInternalChange.current = false;
-            }, 500);
+            }, 300);
             return;
           }
 

@@ -14,6 +14,7 @@ import { resolveHlsUrl } from "@/lib/player-utils";
 import type { FullVideoModalProps } from "./types";
 import { Maximize2, Minimize2, PictureInPicture2, Sparkles, X } from "lucide-react";
 import { PlayerTooltip } from "@/components/player/PlayerTooltip";
+import "@imagekit/video-player/styles.css";
 
 const IMAGEKIT_ID = process.env.NEXT_PUBLIC_IMAGEKIT_ID || "hc29ms4ul";
 
@@ -57,6 +58,30 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [areControlsVisible, setAreControlsVisible] = useState(true);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const toggleFullscreenRef = useRef<() => void>(() => {});
+
+  const resetControlsTimeout = useCallback(() => {
+    setAreControlsVisible(true);
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+    }
+    controlsTimeoutRef.current = setTimeout(() => {
+      const p = playerRef.current;
+      if (p && typeof p.paused === "function" && !p.paused()) {
+        setAreControlsVisible(false);
+      }
+    }, 2800);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Resolve best video source (Cloudinary HLS, DASH, or ImageKit ABR)
   const resolveEffectiveSource = useCallback(() => {
@@ -140,7 +165,8 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
           {
             autoplay: true,
             controls: true,
-            fluid: true,
+            fill: true,
+            fluid: false,
             responsive: true,
             preload: "auto",
             playbackRates: [0.5, 0.75, 1, 1.25, 1.5, 2],
@@ -177,6 +203,16 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
           setIsLoading(false);
         });
 
+        // Route Video.js internal fullscreen button to container fullscreen
+        player.requestFullscreen = () => {
+          toggleFullscreenRef.current();
+          return Promise.resolve();
+        };
+        player.exitFullscreen = () => {
+          toggleFullscreenRef.current();
+          return Promise.resolve();
+        };
+
         player.on("timeupdate", () => {
           const t = player.currentTime();
           if (typeof t === "number" && isFinite(t)) {
@@ -186,10 +222,12 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
 
         player.on("play", () => {
           playerActions.setIsPlaying(true);
+          resetControlsTimeout();
         });
 
         player.on("pause", () => {
           playerActions.setIsPlaying(false);
+          setAreControlsVisible(true);
         });
 
         player.on("waiting", () => {
@@ -322,17 +360,36 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     onClose(finalTime);
   }, [isCurrentSong, onClose]);
 
-  // Fullscreen toggle
+  // Fullscreen toggle for entire modal container
   const toggleFullscreen = useCallback(() => {
-    const p = playerRef.current;
-    if (p) {
-      if (p.isFullscreen && p.isFullscreen()) {
-        p.exitFullscreen();
-      } else if (p.requestFullscreen) {
-        p.requestFullscreen();
+    const doc = document as any;
+    const isDocFs = Boolean(
+      doc.fullscreenElement ||
+      doc.webkitFullscreenElement ||
+      doc.mozFullScreenElement ||
+      doc.msFullscreenElement
+    );
+
+    if (isDocFs) {
+      if (doc.exitFullscreen) {
+        doc.exitFullscreen().catch(() => {});
+      } else if (doc.webkitExitFullscreen) {
+        doc.webkitExitFullscreen();
+      }
+    } else {
+      const container = containerRef.current;
+      if (container?.requestFullscreen) {
+        container.requestFullscreen().catch(() => {
+          const p = playerRef.current;
+          if (p?.requestFullscreen) p.requestFullscreen();
+        });
+      } else if ((container as any)?.webkitRequestFullscreen) {
+        (container as any).webkitRequestFullscreen();
       }
     }
   }, []);
+
+  toggleFullscreenRef.current = toggleFullscreen;
 
   // PiP toggle
   const togglePip = useCallback(() => {
@@ -375,18 +432,26 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-150 flex items-center justify-center bg-black/95 backdrop-blur-2xl transition-all duration-300"
+      onMouseMove={resetControlsTimeout}
+      onPointerMove={resetControlsTimeout}
+      className={`fixed inset-0 z-150 w-screen h-screen bg-black overflow-hidden select-none flex items-center justify-center ${
+        areControlsVisible ? "cursor-default" : "cursor-none"
+      }`}
     >
       {/* Top Header Controls Overlay */}
-      <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between p-4 sm:p-6 bg-gradient-to-b from-black/90 via-black/40 to-transparent pointer-events-auto">
+      <div
+        className={`absolute top-0 left-0 right-0 z-30 flex items-center justify-between p-4 sm:p-6 bg-gradient-to-b from-black/90 via-black/40 to-transparent transition-opacity duration-300 pointer-events-auto ${
+          areControlsVisible ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        }`}
+      >
         <div className="flex items-center gap-3 min-w-0">
           <div className="flex flex-col min-w-0">
             <div className="flex items-center gap-2">
               <h2 className="text-white text-base sm:text-lg font-bold tracking-tight truncate max-w-xs sm:max-w-md md:max-w-xl">
                 {title}
               </h2>
-              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                <Sparkles className="w-3 h-3" />
+              <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-white/10 text-zinc-200 border border-white/20">
+                <Sparkles className="w-3 h-3 text-white/80" />
                 Thumbnail Seeker Active
               </span>
             </div>
@@ -432,38 +497,37 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
         </div>
       </div>
 
-      {/* Main Video Frame with ImageKit Video Player */}
-      <div className="relative w-full h-full max-w-7xl max-h-[90vh] flex items-center justify-center p-2 sm:p-6">
-        <div
-          ref={videoWrapperRef}
-          className="w-full h-full max-h-[82vh] aspect-video rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10 bg-black flex items-center justify-center relative"
-        />
+      {/* Edge-to-Edge Full-Screen Video Canvas */}
+      <div
+        ref={videoWrapperRef}
+        onDoubleClick={toggleFullscreen}
+        className="absolute inset-0 w-full h-full bg-black flex items-center justify-center overflow-hidden [&_.video-js]:!w-full [&_.video-js]:!h-full [&_.video-js]:!max-w-full [&_.video-js]:!max-h-full [&_.vjs-tech]:!w-full [&_.vjs-tech]:!h-full [&_.vjs-tech]:!object-contain [&_.vjs-poster]:!bg-contain"
+      />
 
-        {/* Loading Spinner */}
-        {isLoading && !error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-xs z-20 pointer-events-none gap-3">
-            <div className="w-12 h-12 rounded-full border-[3px] border-white/20 border-t-emerald-400 animate-spin" />
-            <p className="text-zinc-300 text-xs font-medium tracking-wide">Loading ImageKit Video Stream...</p>
-          </div>
-        )}
+      {/* Loading Spinner */}
+      {isLoading && !error && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-xs z-20 pointer-events-none gap-3">
+          <div className="w-12 h-12 rounded-full border-[3px] border-white/20 border-t-white animate-spin" />
+          <p className="text-zinc-300 text-xs font-medium tracking-wide">Loading Video Stream...</p>
+        </div>
+      )}
 
-        {/* Error State */}
-        {error && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-25 p-6">
-            <div className="max-w-md text-center p-6 rounded-2xl bg-zinc-900/90 border border-white/10 shadow-2xl flex flex-col items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold">!</div>
-              <p className="text-white font-semibold text-base">Video Playback Error</p>
-              <p className="text-zinc-400 text-xs leading-relaxed">{error}</p>
-              <button
-                onClick={handleClose}
-                className="mt-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition"
-              >
-                Return to Audio
-              </button>
-            </div>
+      {/* Error State */}
+      {error && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/90 z-25 p-6">
+          <div className="max-w-md text-center p-6 rounded-2xl bg-zinc-900/90 border border-white/10 shadow-2xl flex flex-col items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center font-bold">!</div>
+            <p className="text-white font-semibold text-base">Video Playback Error</p>
+            <p className="text-zinc-400 text-xs leading-relaxed">{error}</p>
+            <button
+              onClick={handleClose}
+              className="mt-2 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition"
+            >
+              Return to Audio
+            </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };

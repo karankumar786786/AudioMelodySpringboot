@@ -6,7 +6,7 @@
   --foreground: #ffffff;
   --primary: #fff;
   --primary-foreground: #000000;
-  --accent: rgba(29, 185, 84, 0.12);
+  --accent: rgba(255, 255, 255, 0.12);
   --border: rgba(255, 255, 255, 0.1);
   --sidebar: #000000;
   --radius: 0.5rem;
@@ -85,7 +85,7 @@ body {
 }
 
 @utility text-glow-green {
-  color: #1DB954;
+  color: #ffffff;
 }
 
 @utility no-scrollbar {
@@ -397,7 +397,38 @@ body {
 @layer components {
   /* ─── ImageKit Video Player & Video.js Dark Glassmorphism (Tailwind CSS) ─── */
   .video-js {
-    @apply font-sans rounded-2xl overflow-hidden bg-black text-white;
+    @apply font-sans overflow-hidden bg-black text-white;
+    width: 100% !important;
+    height: 100% !important;
+    position: relative !important;
+  }
+
+  .video-js .vjs-tech {
+    width: 100% !important;
+    height: 100% !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    object-fit: contain !important;
+  }
+
+  .video-js.vjs-fullscreen {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 99999 !important;
+  }
+
+  .video-js.vjs-fullscreen .vjs-tech {
+    width: 100vw !important;
+    height: 100vh !important;
+    object-fit: contain !important;
   }
 
   .video-js .vjs-control-bar {
@@ -418,7 +449,7 @@ body {
   }
 
   .video-js .vjs-play-progress {
-    @apply bg-gradient-to-r from-emerald-500 to-green-500 rounded-full;
+    @apply bg-white rounded-full;
   }
 
   .video-js .vjs-progress-holder {
