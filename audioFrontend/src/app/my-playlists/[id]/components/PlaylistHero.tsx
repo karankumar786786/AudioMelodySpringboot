@@ -143,7 +143,7 @@ export function PlaylistHero({
                     onClick={onOpenShareModal}
                     className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide border transition-all cursor-pointer hover:scale-105 ${
                       privacy === "PUBLIC"
-                        ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30"
+                        ? "bg-white/10 text-white border-white/30 hover:bg-white/20"
                         : privacy === "SHARE_BY_LINK"
                         ? "bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30"
                         : "bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30"
@@ -162,7 +162,7 @@ export function PlaylistHero({
                     </span>
                   </button>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide border bg-emerald-500/20 text-emerald-300 border-emerald-500/40">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide border bg-white/10 text-white border-white/20">
                     <Sparkles size={11} />
                     <span>Dynamic Live Sync</span>
                   </span>
@@ -236,14 +236,14 @@ export function PlaylistHero({
                 disabled={toggleSavePending}
                 className={`ml-1 flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
                   isSaved
-                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/40"
+                    ? "bg-white/15 text-white border border-white/30 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/40"
                     : "bg-white/10 hover:bg-white/20 border border-white/20 text-white"
                 }`}
                 title={isSaved ? "Click to remove from your library" : "Save to library (Live updates by creator)"}
               >
                 {isSaved ? (
                   <>
-                    <BookmarkCheck size={13} className="text-emerald-400" />
+                    <BookmarkCheck size={13} className="text-white" />
                     <span>{toggleSavePending ? "Updating..." : "Saved in Library"}</span>
                   </>
                 ) : (

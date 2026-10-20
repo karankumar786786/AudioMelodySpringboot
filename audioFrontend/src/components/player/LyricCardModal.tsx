@@ -380,7 +380,7 @@ export const LyricCardModal: React.FC<LyricCardModalProps> = ({
               disabled={isExporting}
               className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/20 text-xs font-semibold text-white transition-all cursor-pointer active:scale-95 disabled:opacity-50"
             >
-              {copied ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+              {copied ? <Check size={14} className="text-white" /> : <Copy size={14} />}
               <span>{copied ? "Copied!" : "Copy Image"}</span>
             </button>
             <button

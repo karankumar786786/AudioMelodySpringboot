@@ -133,7 +133,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
 
     // Create video element dynamically for Video.js lifecycle
     const videoEl = document.createElement("video");
-    videoEl.className = "video-js vjs-default-skin vjs-big-play-centered w-full h-full object-contain";
+    videoEl.className = "video-js vjs-default-skin vjs-big-play-centered vjs-waiting w-full h-full object-contain";
     videoEl.setAttribute("playsinline", "true");
     videoEl.setAttribute("crossorigin", "anonymous");
     wrapper.appendChild(videoEl);
@@ -440,7 +440,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
     >
       {/* Top Header Controls Overlay */}
       <div
-        className={`absolute top-0 left-0 right-0 z-30 flex items-center justify-between p-4 sm:p-6 bg-gradient-to-b from-black/90 via-black/40 to-transparent transition-opacity duration-300 pointer-events-auto ${
+        className={`absolute top-0 left-0 right-0 z-30 flex items-center justify-between p-4 sm:p-6 bg-linear-to-b from-black/90 via-black/40 to-transparent transition-opacity duration-300 pointer-events-auto ${
           areControlsVisible ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
       >
@@ -488,7 +488,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
           <PlayerTooltip content="Close Video (Esc)" side="bottom">
             <button
               onClick={handleClose}
-              className="p-2.5 rounded-full text-zinc-300 hover:text-white bg-white/10 hover:bg-rose-500/30 hover:text-rose-300 backdrop-blur-md transition-all active:scale-95 focus:outline-none"
+              className="p-2.5 rounded-full text-zinc-300  bg-white/10 hover:bg-rose-500/30 hover:text-rose-300 backdrop-blur-md transition-all active:scale-95 focus:outline-none"
               aria-label="Close Full Video"
             >
               <X className="w-4 h-4" />
@@ -501,16 +501,10 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
       <div
         ref={videoWrapperRef}
         onDoubleClick={toggleFullscreen}
-        className="absolute inset-0 w-full h-full bg-black flex items-center justify-center overflow-hidden [&_.video-js]:!w-full [&_.video-js]:!h-full [&_.video-js]:!max-w-full [&_.video-js]:!max-h-full [&_.vjs-tech]:!w-full [&_.vjs-tech]:!h-full [&_.vjs-tech]:!object-contain [&_.vjs-poster]:!bg-contain"
+        className="absolute inset-0 w-full h-full bg-black flex items-center justify-center overflow-hidden [&_.video-js]:w-full! [&_.video-js]:h-full! [&_.video-js]:max-w-full! [&_.video-js]:max-h-full! [&_.vjs-tech]:w-full! [&_.vjs-tech]:h-full! [&_.vjs-tech]:object-contain! [&_.vjs-poster]:bg-contain!"
       />
 
-      {/* Loading Spinner */}
-      {isLoading && !error && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 backdrop-blur-xs z-20 pointer-events-none gap-3">
-          <div className="w-12 h-12 rounded-full border-[3px] border-white/20 border-t-white animate-spin" />
-          <p className="text-zinc-300 text-xs font-medium tracking-wide">Loading Video Stream...</p>
-        </div>
-      )}
+
 
       {/* Error State */}
       {error && (

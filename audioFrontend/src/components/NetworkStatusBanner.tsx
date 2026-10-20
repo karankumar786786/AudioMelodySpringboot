@@ -124,8 +124,8 @@ export function NetworkStatusBanner() {
   // If back online notification
   if (showRestoredBadge) {
     return (
-      <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none animate-[fadeSlideIn_0.3s_ease-out]">
-        <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-[#1db954] text-black text-xs font-bold shadow-2xl shadow-black/80">
+      <div className="fixed top-5 left-1/2 -translate-x-1/2 z-9999 pointer-events-none animate-[fadeSlideIn_0.3s_ease-out]">
+        <div className="flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white text-black text-xs font-bold shadow-2xl shadow-black/80">
           <Wifi size={15} className="stroke-[2.5]" />
           <span>Connection restored</span>
         </div>
@@ -136,7 +136,7 @@ export function NetworkStatusBanner() {
   // If offline
   if (!isOnline) {
     return (
-      <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[9999] animate-[fadeSlideIn_0.3s_ease-out]">
+      <div className="fixed top-5 left-1/2 -translate-x-1/2 z-9999 animate-[fadeSlideIn_0.3s_ease-out]">
         <div className="flex items-center gap-3.5 px-5 py-2.5 rounded-full bg-[#181818]/95 backdrop-blur-md border border-[#282828] text-white text-xs font-medium shadow-2xl shadow-black/90">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />

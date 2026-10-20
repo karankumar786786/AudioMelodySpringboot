@@ -140,7 +140,7 @@ export function ConnectedDevicesModal({ isOpen, onClose }: ConnectedDevicesModal
           {/* Subheader / Global action */}
           <div className="flex items-center justify-between px-6 py-3 bg-zinc-950/60 border-b border-[#222222]">
             <div className="flex items-center gap-2 text-xs text-zinc-400">
-              <Radio size={14} className="text-emerald-400 animate-pulse" />
+              <Radio size={14} className="text-white animate-pulse" />
               <span>
                 {sessions.length} {sessions.length === 1 ? "active device" : "active devices"}
               </span>
@@ -223,8 +223,8 @@ export function ConnectedDevicesModal({ isOpen, onClose }: ConnectedDevicesModal
                           </span>
 
                           {isThisDevice && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-white border border-white/20">
+                              <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
                               This device
                             </span>
                           )}
@@ -252,7 +252,7 @@ export function ConnectedDevicesModal({ isOpen, onClose }: ConnectedDevicesModal
                         <Trash2 size={16} />
                       </button>
                     ) : (
-                      <div className="shrink-0 text-emerald-400/80 p-1" title="Currently authenticated">
+                      <div className="shrink-0 text-white/80 p-1" title="Currently authenticated">
                         <CheckCircle2 size={18} />
                       </div>
                     )}

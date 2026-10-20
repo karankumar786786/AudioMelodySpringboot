@@ -69,7 +69,7 @@ export const PlayerQualitySelector: React.FC<PlayerQualitySelectorProps> = ({
         fullName: `${Math.round(num / 1000)} kbps Standard`,
         badge: "🎧 128k HQ",
         icon: "🎧",
-        color: "text-emerald-400",
+        color: "text-zinc-200",
       };
     }
     return {
@@ -132,7 +132,7 @@ export const PlayerQualitySelector: React.FC<PlayerQualitySelectorProps> = ({
                 Audio Stream Quality
               </span>
             </div>
-            <div className="max-h-[240px] overflow-y-auto no-scrollbar space-y-0.5">
+            <div className="max-h-60 overflow-y-auto no-scrollbar space-y-0.5">
               <button
                 type="button"
                 onClick={() => {

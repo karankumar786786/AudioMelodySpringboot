@@ -213,7 +213,7 @@ export const PlayerMoreMenu: React.FC<PlayerMoreMenuProps> = ({
                       size={12}
                       className={
                         bufferedAhead >= 5
-                          ? "text-emerald-400"
+                          ? "text-white"
                           : bufferedAhead >= 1.5
                             ? "text-amber-400"
                             : "text-rose-400"

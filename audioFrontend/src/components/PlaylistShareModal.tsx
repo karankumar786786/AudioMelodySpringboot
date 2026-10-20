@@ -144,9 +144,9 @@ export function PlaylistShareModal({
       label: "Public",
       description: "Anyone can discover, search, and listen to this playlist.",
       icon: Globe,
-      color: "text-emerald-400",
-      activeBg: "bg-emerald-500/10 border-emerald-500/30 text-emerald-300",
-      badgeBg: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+      color: "text-white",
+      activeBg: "bg-white/10 border-white/30 text-white",
+      badgeBg: "bg-white/20 text-white border-white/30",
     },
     {
       key: "SHARE_BY_LINK",
@@ -331,7 +331,7 @@ export function PlaylistShareModal({
                       <Link2 size={11} /> Unlisted Link Active
                     </span>
                   ) : (
-                    <span className="text-[11px] font-medium text-emerald-400 flex items-center gap-1">
+                    <span className="text-[11px] font-medium text-white flex items-center gap-1">
                       <Globe size={11} /> Public Link Active
                     </span>
                   )}
@@ -361,7 +361,7 @@ export function PlaylistShareModal({
                       isCurrentlyPrivate
                         ? "bg-zinc-800 text-zinc-500 cursor-not-allowed opacity-60"
                         : copied
-                        ? "bg-emerald-500 text-black scale-105 cursor-pointer shadow-sm"
+                        ? "bg-white text-black scale-105 cursor-pointer shadow-sm"
                         : "bg-primary text-black hover:bg-primary/90 hover:scale-[1.02] cursor-pointer shadow-sm"
                     }`}
                   >
@@ -399,9 +399,9 @@ export function PlaylistShareModal({
                     )}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-xl bg-[#1c1c1c] border border-[#2b2b2b] text-zinc-300 hover:text-emerald-400 hover:border-emerald-500/40 hover:bg-[#222222] transition-all cursor-pointer"
+                    className="flex flex-col items-center justify-center gap-1.5 p-2.5 rounded-xl bg-[#1c1c1c] border border-[#2b2b2b] text-zinc-300 hover:text-white hover:border-white/40 hover:bg-[#222222] transition-all cursor-pointer"
                   >
-                    <MessageCircle size={18} className="text-emerald-400" />
+                    <MessageCircle size={18} className="text-white" />
                     <span className="text-[11px] font-semibold">WhatsApp</span>
                   </a>
 

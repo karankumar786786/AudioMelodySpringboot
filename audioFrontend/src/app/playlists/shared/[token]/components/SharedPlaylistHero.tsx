@@ -122,7 +122,7 @@ export const SharedPlaylistHero: React.FC<SharedPlaylistHeroProps> = ({
             <span
               className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide border ${
                 privacy === "PUBLIC"
-                  ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+                  ? "bg-white/10 text-white border-white/30"
                   : "bg-blue-500/20 text-blue-300 border-blue-500/40"
               }`}
             >
@@ -188,14 +188,14 @@ export const SharedPlaylistHero: React.FC<SharedPlaylistHeroProps> = ({
                 disabled={isSavingPending}
                 className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
                   isSaved
-                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/40"
+                    ? "bg-white/15 text-white border border-white/30 hover:bg-red-500/20 hover:text-red-300 hover:border-red-500/40"
                     : "bg-white/10 hover:bg-white/20 border border-white/20 text-white"
                 }`}
                 title={isSaved ? "Click to remove from your library" : "Save to library (Live updates by creator)"}
               >
                 {isSaved ? (
                   <>
-                    <BookmarkCheck size={13} className="text-emerald-400" />
+                    <BookmarkCheck size={13} className="text-white" />
                     <span>{isSavingPending ? "Updating..." : "Saved in Library"}</span>
                   </>
                 ) : (

@@ -76,7 +76,7 @@ export function SongCardCover({
         </div>
       )}
 
-      {/* Spotify Green Play/Pause Button Overlay on Cover Art */}
+      {/* Play/Pause Button Overlay on Cover Art */}
       <div
         className={`absolute bottom-2 right-2 translate-y-2 group-hover:translate-y-0 transition-all duration-300 z-10 ${
           (isActiveSong && isPlaying) ||
@@ -135,7 +135,7 @@ export function SongCardCover({
                 }}
               />
               <svg
-                className="absolute -inset-1 w-13 h-13 -rotate-90 pointer-events-none drop-shadow-[0_0_8px_rgba(30,215,96,0.6)]"
+                className="absolute -inset-1 w-13 h-13 -rotate-90 pointer-events-none drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]"
                 viewBox="0 0 52 52"
                 aria-hidden="true"
               >

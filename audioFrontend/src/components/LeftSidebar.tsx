@@ -150,14 +150,14 @@ export function LeftSidebar() {
                       <div className="hidden xl:flex flex-col min-w-0 flex-1">
                         <span className="truncate">{playlist.name}</span>
                         {isDynamicSaved && (
-                          <span className="text-[10px] font-medium text-emerald-400/80 truncate">
+                          <span className="text-[10px] font-medium text-zinc-400 truncate">
                             {playlist.ownerName || "Dynamic"}
                           </span>
                         )}
                       </div>
                       {isDynamicSaved ? (
                         <span
-                          className="hidden xl:inline-flex shrink-0 text-emerald-400/70"
+                          className="hidden xl:inline-flex shrink-0 text-zinc-400"
                           title="Dynamic Saved Playlist"
                         >
                           <Sparkles size={11} />

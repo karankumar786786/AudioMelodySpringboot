@@ -18,16 +18,16 @@ export interface ExtractedColorPalette {
 }
 
 const DEFAULT_PALETTE: ExtractedColorPalette = {
-  primary: "rgb(29, 185, 84)",
-  hex: "#1db954",
-  glow: "rgba(29, 185, 84, 0.35)",
-  dark: "rgb(12, 45, 22)",
-  accent: "rgb(40, 210, 100)",
+  primary: "rgb(255, 255, 255)",
+  hex: "#ffffff",
+  glow: "rgba(255, 255, 255, 0.2)",
+  dark: "rgb(20, 20, 20)",
+  accent: "rgb(240, 240, 240)",
   gradient:
-    "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(29, 185, 84, 0.25), rgba(0, 0, 0, 0))",
-  r: 29,
-  g: 185,
-  b: 84,
+    "radial-gradient(ellipse 80% 50% at 50% -20%, rgba(255, 255, 255, 0.08), rgba(0, 0, 0, 0))",
+  r: 255,
+  g: 255,
+  b: 255,
 };
 
 // In-memory cache for fast reuse without re-rendering or re-downloading

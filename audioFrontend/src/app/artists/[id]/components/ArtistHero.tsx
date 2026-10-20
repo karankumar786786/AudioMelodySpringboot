@@ -175,7 +175,7 @@ export const ArtistHero: React.FC<ArtistHeroProps> = ({
                 </>
               ) : isFollowing ? (
                 <>
-                  <Check size={16} className="stroke-3 shrink-0 text-emerald-400" />
+                  <Check size={16} className="stroke-3 shrink-0 text-white" />
                   <span>Following</span>
                 </>
               ) : (
