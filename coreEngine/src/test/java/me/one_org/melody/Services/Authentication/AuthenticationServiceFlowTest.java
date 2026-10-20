@@ -22,17 +22,18 @@ import me.one_org.melody.Enums.PurposeEnum;
 import me.one_org.melody.Exceptions.BadRequestException;
 import me.one_org.melody.Exceptions.ConflictException;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
-import me.one_org.melody.Queue.MailQueue;
 import me.one_org.melody.Repository.SessionRepository;
 import me.one_org.melody.Repository.UsersRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 import me.one_org.melody.Utils.HmacUtil;
 import me.one_org.melody.Utils.JwtUtil;
+import me.one_org.melody.Utils.MailUtil;
 import me.one_org.melody.Utils.OtpUtil;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -54,7 +55,7 @@ class AuthenticationServiceFlowTest {
     @Mock
     private PaginationMetaDataService paginationMetaDataService;
     @Mock
-    private MailQueue mailQueue;
+    private MailUtil mailUtil;
     @Mock
     private ApplicationEventPublisher eventPublisher;
 
@@ -65,7 +66,7 @@ class AuthenticationServiceFlowTest {
         when(cache.of(anyString(), eq(OtpDataDto.class))).thenReturn(cache);
         authenticationService = new AuthenticationService(
                 usersRepository, sessionRepository, jwtUtil, hmacUtil, otpUtil,
-                cache, paginationMetaDataService, mailQueue, eventPublisher
+                cache, paginationMetaDataService, mailUtil, eventPublisher
         );
     }
 
@@ -81,7 +82,7 @@ class AuthenticationServiceFlowTest {
 
         assertThat(tempToken).isEqualTo("hash-token-1");
         verify(cache).set(eq("alice@melody.com"), any(OtpDataDto.class), eq(Duration.ofMinutes(10)));
-        verify(mailQueue).queueMail(any());
+        verify(mailUtil).sendOtp(eq("alice@melody.com"), eq("REGISTER"), eq("123456"));
     }
 
     @Test
@@ -108,7 +109,7 @@ class AuthenticationServiceFlowTest {
 
         assertThat(tempToken).isEqualTo("hash-token-bob");
         verify(cache).set(eq("bob@melody.com"), any(OtpDataDto.class), eq(Duration.ofMinutes(10)));
-        verify(mailQueue).queueMail(any());
+        verify(mailUtil).sendOtp(eq("bob@melody.com"), eq("LOGIN"), eq("654321"));
     }
 
     @Test

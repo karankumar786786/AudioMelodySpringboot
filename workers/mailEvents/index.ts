@@ -15,7 +15,15 @@ const MAX_RETRIES = 3;
 const EMPTY_QUEUE_DELAY_MS = Number(process.env.QUEUE_EMPTY_DELAY_MS) || 2000;
 const POLL_TIMEOUT_SECONDS = Number(process.env.QUEUE_POLL_TIMEOUT_SECS) || 2;
 
-;(async (mailQueue: string) => {
+/**
+ * [DECOMMISSIONED on branch alive]
+ * The mailEvents worker is retired. Transactional emails (OTPs, notifications)
+ * are dispatched directly in-process by adminBackend (Django EmailService)
+ * and coreEngine (Spring Boot MailUtil).
+ *
+ * Retained for reference and legacy drain only.
+ */
+export async function runLegacyMailWorker(mailQueue: string = process.env.MAIL_QUEUE || "mail_queue") {
     const dlqQueue = `${mailQueue}_dlq`;
     console.log(`Mail worker started. Listening on queue: "${mailQueue}", DLQ: "${dlqQueue}" (idle wait: ${EMPTY_QUEUE_DELAY_MS}ms)`);
 
@@ -72,4 +80,13 @@ const POLL_TIMEOUT_SECONDS = Number(process.env.QUEUE_POLL_TIMEOUT_SECS) || 2;
             await sleep(EMPTY_QUEUE_DELAY_MS);
         }
     }
-})(process.env.MAIL_QUEUE || "mail_queue");
+}
+
+if (process.env.ENABLE_DEPRECATED_MAIL_WORKER === "true") {
+    runLegacyMailWorker();
+} else {
+    console.warn(
+        "[mailEvents] Worker is DECOMMISSIONED on branch alive. Transactional emails are dispatched directly in-process by adminBackend and coreEngine."
+    );
+    process.exit(0);
+}

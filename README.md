@@ -78,8 +78,8 @@ flowchart LR
         CAT_MGR["Catalog & Session Manager<br/>Spring Boot 4.1 / Java 21<br/><code>getUserProfile()</code> • <code>getFeed()</code><br/><i>O(1) Pagination • Multi-Device JWT</i>"]
         ADM_MGR["Admin Ingestion Manager<br/>Django 6.1 Microservice<br/><code>createIngestJob()</code><br/><i>5-Stage Cascade Teardown Engine</i>"]
         TRANS_SVC["Transcoding & Packaging Service<br/>Bun 1.3 / Express 5<br/><i>EBU R128 Normalization • Shaka Packager</i><br/>Multi-Bitrate HLS/DASH (128k, 240k, 320k)"]
-        ASSET_SVC["Asset & Upload Service<br/><i>SigV4 S3 PUT URLs & ImageKit Tokens</i><br/>Bypasses backend server bandwidth"]
-        MAIL_SVC["Mail Events Worker<br/>NodeMailer • Port 5020<br/><i>mail_queue OTP Emails</i>"]
+        ASSET_SVC["Asset & Upload Service<br/><i>Cloudinary Managed ABR & ImageKit Tokens</i><br/>Direct signed uploads & delivery"]
+        MAIL_SVC["Direct Transactional Email<br/>Django SMTP & Spring JavaMailSender<br/><i>In-Process Async Delivery</i>"]
 
         SSE_SVC --- CAT_MGR
         CAT_MGR --- ADM_MGR
@@ -578,7 +578,7 @@ AudioMelodySpringboot/
 ├── audioProcessing/              # Bun 1.3 / Express 5 / Inngest Media Packaging Worker
 │   ├── lib/transcode/            # hwaccel.ts (Hardware Encoder Probe), Shaka Packager
 │   └── inngest/                  # Durable Step Workflows & Stage Recovery
-├── workers/mailEvents/           # Bun 1.3 / Nodemailer Transactional Mail Worker
+├── workers/mailEvents/           # Bun 1.3 / Nodemailer Mail Worker (DECOMMISSIONED - direct SMTP active)
 └── migration/                    # Spring Boot 4.1 / Flyway Database Migration Service
 ```
 

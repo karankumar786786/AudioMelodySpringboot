@@ -25,6 +25,31 @@ function isTokenValid(token: string | undefined): boolean {
   }
 }
 
+function updateCookieHeader(
+  existingHeader: string | null,
+  cookiesToUpdate: Record<string, string>
+): string {
+  const map = new Map<string, string>();
+  if (existingHeader) {
+    existingHeader.split(";").forEach((pair) => {
+      const idx = pair.indexOf("=");
+      if (idx > -1) {
+        map.set(pair.substring(0, idx).trim(), pair.substring(idx + 1).trim());
+      }
+    });
+  }
+  for (const [key, val] of Object.entries(cookiesToUpdate)) {
+    if (val) {
+      map.set(key, val);
+    } else {
+      map.delete(key);
+    }
+  }
+  return Array.from(map.entries())
+    .map(([k, v]) => `${k}=${v}`)
+    .join("; ");
+}
+
 async function refreshCookies(
   refreshToken: string
 ): Promise<{ accessToken: string; refreshToken?: string } | null> {
@@ -40,6 +65,7 @@ async function refreshCookies(
         Accept: "application/json",
         "Accept-Cookies": "true",
         "X-Accept-Cookies": "true",
+        "X-Refresh-Token": refreshToken,
         Cookie: `system_refresh_token=${refreshToken}`,
       },
       body: JSON.stringify({ refreshToken }),
@@ -106,6 +132,14 @@ export async function proxy(request: NextRequest) {
 
   // If already authenticated and navigating to login/signup/landing, redirect to /home
   if (isAccessTokenValid && isAuthPage) {
+    const requestHeaders = new Headers(request.headers);
+    if (refreshedTokens) {
+      const updatedCookieStr = updateCookieHeader(request.headers.get("cookie"), {
+        system_token: refreshedTokens.accessToken,
+        system_refresh_token: refreshedTokens.refreshToken || "",
+      });
+      requestHeaders.set("cookie", updatedCookieStr);
+    }
     const response = NextResponse.redirect(new URL("/home", request.url));
     if (refreshedTokens) {
       response.cookies.set("system_token", refreshedTokens.accessToken, {
@@ -150,9 +184,19 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  // If on protected page and token was refreshed, attach the new cookies to the response
+  // If on protected page and token was refreshed, forward updated cookie to downstream request headers
+  // so Server Components (e.g. RootLayout) receive the fresh token and never duplicate refresh calls.
   if (refreshedTokens) {
-    const response = NextResponse.next();
+    const requestHeaders = new Headers(request.headers);
+    const updatedCookieStr = updateCookieHeader(request.headers.get("cookie"), {
+      system_token: refreshedTokens.accessToken,
+      system_refresh_token: refreshedTokens.refreshToken || "",
+    });
+    requestHeaders.set("cookie", updatedCookieStr);
+
+    const response = NextResponse.next({
+      request: { headers: requestHeaders },
+    });
     response.cookies.set("system_token", refreshedTokens.accessToken, {
       path: "/",
       maxAge: 7 * 24 * 60 * 60,
@@ -179,14 +223,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - api routes
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico, manifest.webmanifest, sw.js
-     */
     "/((?!api|_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js).*)",
   ],
 };
-

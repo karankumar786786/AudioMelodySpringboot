@@ -131,6 +131,11 @@ export function CreateSongModal({
     };
 
     try {
+      const targetSongId =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : Math.random().toString(36).substring(2) + Date.now().toString(36);
+
       let songKey: string | null = null;
       let fullVideoKey: string | null = null;
       let tempSongKey: string | null = null;
@@ -144,7 +149,9 @@ export function CreateSongModal({
         setUploadPercent(0);
         setUploadStats({ fileName: formData.songFile.name });
 
-        const songUrlRes = await adminFetch("/webhook/internal/song-upload-url");
+        const songUrlRes = await adminFetch(
+          `/webhook/internal/song-upload-url?songId=${targetSongId}&folder=audios`,
+        );
         if (!songUrlRes.ok) throw new Error("Failed to get audio upload authorization");
         const songUrlData = await songUrlRes.json();
 
@@ -197,7 +204,9 @@ export function CreateSongModal({
         setUploadPercent(0);
         setUploadStats({ fileName: formData.fullVideoFile.name });
 
-        const videoUrlRes = await adminFetch("/webhook/internal/video-upload-url");
+        const videoUrlRes = await adminFetch(
+          `/webhook/internal/video-upload-url?songId=${targetSongId}&folder=videos`,
+        );
         if (!videoUrlRes.ok) throw new Error("Failed to get full video upload authorization");
         const videoUrlData = await videoUrlRes.json();
 
@@ -318,6 +327,9 @@ export function CreateSongModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          id: targetSongId,
+          assetId: targetSongId,
+          hasVideo: Boolean(fullVideoKey || tempVideoKey),
           title: formData.title,
           artistName: formData.artistName,
           songKey: songKey || undefined,
@@ -333,6 +345,8 @@ export function CreateSongModal({
           clipEndSec: uploadMode === "videoOnly" ? Number(formData.clipEndSec) : undefined,
           previewStartTime,
           previewEndTime,
+          canvasStartTime: previewStartTime,
+          canvasEndTime: previewEndTime,
           language: formData.language,
           genre: formData.genre || undefined,
           album: formData.album || undefined,

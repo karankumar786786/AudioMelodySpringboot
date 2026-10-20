@@ -42,6 +42,18 @@ public class Song{
 
     private Integer previewEndTime;
 
+    @Column(name = "asset_id")
+    private String assetId;
+
+    @Column(name = "has_video")
+    private Boolean hasVideo;
+
+    @Column(name = "canvas_start_time")
+    private Integer canvasStartTime;
+
+    @Column(name = "canvas_end_time")
+    private Integer canvasEndTime;
+
     @Column(nullable = false)
     private Boolean isFeatured;
 
@@ -72,9 +84,27 @@ public class Song{
         super();
     }
 
+    public String getAssetId() {
+        return assetId != null && !assetId.isBlank() ? assetId : id;
+    }
+
+    public Boolean getHasVideo() {
+        if (hasVideo != null) return hasVideo;
+        return fullVideoKey != null && !fullVideoKey.isBlank();
+    }
+
+    public Integer getCanvasStartTime() {
+        return canvasStartTime != null ? canvasStartTime : previewStartTime;
+    }
+
+    public Integer getCanvasEndTime() {
+        return canvasEndTime != null ? canvasEndTime : previewEndTime;
+    }
+
     @Builder
     public Song(String id, String title, String artistName, Integer duration, String songKey, String imageKey,
                 String videoKey, String fullVideoKey, Integer previewStartTime, Integer previewEndTime,
+                String assetId, Boolean hasVideo, Integer canvasStartTime, Integer canvasEndTime,
                 Boolean isFeatured, String language, String genre, String album, String lrclibId,
                 StatusEnum status, SongMetadata songMetadata, LocalDateTime createdAt) {
         super();
@@ -88,6 +118,10 @@ public class Song{
         this.fullVideoKey = fullVideoKey;
         this.previewStartTime = previewStartTime;
         this.previewEndTime = previewEndTime;
+        this.assetId = assetId != null ? assetId : id;
+        this.hasVideo = hasVideo != null ? hasVideo : (fullVideoKey != null && !fullVideoKey.isBlank());
+        this.canvasStartTime = canvasStartTime != null ? canvasStartTime : previewStartTime;
+        this.canvasEndTime = canvasEndTime != null ? canvasEndTime : previewEndTime;
         this.isFeatured = isFeatured;
         this.language = language;
         this.genre = genre;

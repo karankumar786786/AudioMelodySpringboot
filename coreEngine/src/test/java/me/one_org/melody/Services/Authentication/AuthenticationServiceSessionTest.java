@@ -23,12 +23,12 @@ import me.one_org.melody.Enums.PurposeEnum;
 import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Enums.StatusEnum;
 import me.one_org.melody.Exceptions.UnauthorizedException;
-import me.one_org.melody.Queue.MailQueue;
 import me.one_org.melody.Repository.SessionRepository;
 import me.one_org.melody.Repository.UsersRepository;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 import me.one_org.melody.Utils.HmacUtil;
 import me.one_org.melody.Utils.JwtUtil;
+import me.one_org.melody.Utils.MailUtil;
 import me.one_org.melody.Utils.OtpUtil;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -61,7 +61,7 @@ class AuthenticationServiceSessionTest {
     private PaginationMetaDataService paginationMetaDataService;
 
     @Mock
-    private MailQueue mailQueue;
+    private MailUtil mailUtil;
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
@@ -73,7 +73,7 @@ class AuthenticationServiceSessionTest {
         when(cache.of(anyString(), eq(OtpDataDto.class))).thenReturn(cache);
         authenticationService = new AuthenticationService(
                 usersRepository, sessionRepository, jwtUtil, hmacUtil, otpUtil,
-                cache, paginationMetaDataService, mailQueue, eventPublisher
+                cache, paginationMetaDataService, mailUtil, eventPublisher
         );
     }
 

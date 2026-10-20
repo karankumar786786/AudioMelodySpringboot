@@ -553,7 +553,8 @@ export async function uploadToCloudinaryWithProgress(
   formData.append("timestamp", String(signatureData.timestamp));
   formData.append("signature", signatureData.signature);
   formData.append("public_id", signatureData.publicId);
-  if (signatureData.folder) {
+  // Only append folder if public_id doesn't already contain the folder path
+  if (signatureData.folder && !signatureData.publicId.includes("/")) {
     formData.append("folder", signatureData.folder);
   }
 

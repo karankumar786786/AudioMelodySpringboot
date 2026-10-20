@@ -24,7 +24,10 @@ export interface PlayerSong extends Song {
 
 /**
  * Resolves an Adaptive Bitrate Streaming HLS URL for audio or video.
- * Automatically leverages Cloudinary out-of-the-box ABR (sp_auto) with fallback for legacy S3 keys.
+ * Automatically leverages Cloudinary out-of-the-box ABR:
+ * - Videos (videos/...) stream via multi-bitrate HLS `sp_auto/*.m3u8`.
+ * - Audio (audios/... or songs/...) stream via Cloudinary audio HLS `f_m3u8/*.m3u8`.
+ * - S3 keys fall back to `${S3_BASE_URL}/${key}/master.m3u8`.
  */
 export function resolveHlsUrl(key?: string | null): string {
   if (!key) return "";
@@ -38,8 +41,12 @@ export function resolveHlsUrl(key?: string | null): string {
   ) {
     return `${S3_BASE_URL}/${key}/master.m3u8`;
   }
-  // Cloudinary out-of-the-box adaptive HLS streaming
-  return `${CLOUDINARY_VIDEO_BASE}/sp_auto/${key}.m3u8`;
+  // Videos support sp_auto multi-bitrate HLS
+  if (key.startsWith("videos/")) {
+    return `${CLOUDINARY_VIDEO_BASE}/sp_auto/${key}.m3u8`;
+  }
+  // Audio assets (audios/... or songs/...) require f_m3u8 on Cloudinary
+  return `${CLOUDINARY_VIDEO_BASE}/f_m3u8/${key}.m3u8`;
 }
 
 /**
@@ -57,27 +64,61 @@ export function resolveDashUrl(key?: string | null): string {
   ) {
     return `${S3_BASE_URL}/${key}/master.mpd`;
   }
-  // Cloudinary out-of-the-box adaptive MPEG-DASH streaming
-  return `${CLOUDINARY_VIDEO_BASE}/sp_auto/${key}.mpd`;
+  if (key.startsWith("videos/")) {
+    return `${CLOUDINARY_VIDEO_BASE}/sp_auto/${key}.mpd`;
+  }
+  return `${CLOUDINARY_VIDEO_BASE}/f_mpd/${key}.mpd`;
 }
 
 /**
  * Returns dynamic vertical 9:16 muted canvas looping video.
- * Uses Cloudinary URL transformations to crop, mute, and trim on-the-fly without offline FFmpeg.
+ * Follows unified asset model:
+ * 1. Dedicated ImageKit canvas video (/songs/videos/...) if available.
+ * 2. If hasVideo is true and no dedicated ImageKit canvas exists, derive the 9:16 vertical
+ *    looping clip dynamically from videos/${assetId} with previewStartTime and previewEndTime.
  */
 export function getCanvasVideoUrl(song: any): string | undefined {
-  const fullVideoKey = song?.fullVideoKey || song?.full_video_key;
+  const hasVideo = Boolean(
+    song?.hasVideo ||
+    song?.has_video ||
+    (song?.fullVideoKey && String(song.fullVideoKey).trim()) ||
+    (song?.full_video_key && String(song.full_video_key).trim())
+  );
+  const assetId = song?.assetId || song?.asset_id || song?.id;
+  const fullVideoKey =
+    song?.fullVideoKey ||
+    song?.full_video_key ||
+    (hasVideo && assetId ? `videos/${assetId}` : undefined);
   const videoKey = song?.videoKey || song?.video_key;
-  const key = fullVideoKey || videoKey;
-  if (!key) return undefined;
+  const start = song?.canvasStartTime ?? song?.canvas_start_time ?? song?.previewStartTime ?? 0;
+  const end = song?.canvasEndTime ?? song?.canvas_end_time ?? song?.previewEndTime ?? (start + 30);
 
-  if (key.startsWith("http://") || key.startsWith("https://")) {
-    return key;
+  // 1. Explicit short vertical canvas video exists
+  if (videoKey && String(videoKey).trim()) {
+    const cleanVid = String(videoKey).trim();
+    if (cleanVid.startsWith("http://") || cleanVid.startsWith("https://")) {
+      return cleanVid;
+    }
+    // ImageKit stored canvas video
+    if (cleanVid.startsWith("/songs/") || cleanVid.startsWith("songs/")) {
+      const cleanKey = cleanVid.startsWith("/") ? cleanVid.slice(1) : cleanVid;
+      return `https://ik.imagekit.io/hc29ms4ul/${cleanKey}?tr=orig`;
+    }
+    // Cloudinary video
+    if (cleanVid.startsWith("videos/")) {
+      return `${CLOUDINARY_VIDEO_BASE}/so_${start},eo_${end},vc_h264,ac_none/ar_9:16,c_fill/${cleanVid}.mp4`;
+    }
   }
 
-  const start = song.previewStartTime ?? 0;
-  const end = song.previewEndTime ?? (start + 30);
-  return `${CLOUDINARY_VIDEO_BASE}/so_${start},eo_${end},ar_9:16,c_fill,g_auto,vc_h264,ac_none/${key}.mp4`;
+  // 2. Fallback to Cloudinary dynamic 9:16 crop from full music video if video is available
+  if (hasVideo && fullVideoKey) {
+    if (fullVideoKey.startsWith("http://") || fullVideoKey.startsWith("https://")) {
+      return fullVideoKey;
+    }
+    return `${CLOUDINARY_VIDEO_BASE}/so_${start},eo_${end},vc_h264,ac_none/ar_9:16,c_fill/${fullVideoKey}.mp4`;
+  }
+
+  return undefined;
 }
 
 /**
@@ -180,14 +221,34 @@ export function mapListToPlayerSongs(songs: Song[]): PlayerSong[] {
 
 /** Returns the HLS streaming URL for a song's full video */
 export function getFullVideoHlsUrl(song: any): string | undefined {
-  const fullVideoKey = song?.fullVideoKey || song?.full_video_key;
+  const hasVideo = Boolean(
+    song?.hasVideo ||
+    song?.has_video ||
+    (song?.fullVideoKey && String(song.fullVideoKey).trim()) ||
+    (song?.full_video_key && String(song.full_video_key).trim())
+  );
+  const assetId = song?.assetId || song?.asset_id || song?.id;
+  const fullVideoKey =
+    song?.fullVideoKey ||
+    song?.full_video_key ||
+    (hasVideo && assetId ? `videos/${assetId}` : undefined);
   if (!fullVideoKey) return undefined;
   return resolveHlsUrl(fullVideoKey);
 }
 
 /** Returns the DASH streaming URL for a song's full video */
 export function getFullVideoDashUrl(song: any): string | undefined {
-  const fullVideoKey = song?.fullVideoKey || song?.full_video_key;
+  const hasVideo = Boolean(
+    song?.hasVideo ||
+    song?.has_video ||
+    (song?.fullVideoKey && String(song.fullVideoKey).trim()) ||
+    (song?.full_video_key && String(song.full_video_key).trim())
+  );
+  const assetId = song?.assetId || song?.asset_id || song?.id;
+  const fullVideoKey =
+    song?.fullVideoKey ||
+    song?.full_video_key ||
+    (hasVideo && assetId ? `videos/${assetId}` : undefined);
   if (!fullVideoKey) return undefined;
   return resolveDashUrl(fullVideoKey);
 }

@@ -74,7 +74,7 @@ class RedisService:
                 "size": mail_size,
                 "backpressureStatus": eval_status(mail_size),
                 "type": "STANDARD",
-                "description": "Pending verification codes, password resets & OTP emails",
+                "description": "Direct SMTP dispatch active (mailEvents worker decommissioned)",
                 "safeThreshold": 10,
                 "highThreshold": 50,
             },

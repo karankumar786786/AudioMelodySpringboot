@@ -5,6 +5,7 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from django.conf import settings
+# pyrefly: ignore[missing-import]
 from accounts.models import Admin
 from .redis_service import RedisService
 
@@ -105,18 +106,18 @@ class AdminAuthService:
         print("=" * 60 + "\n")
         logger.info("[ADMIN AUTH] Generated OTP for %s (%s): %s", email, purpose, otp)
 
-        # 2. Push to Redis mail queue if running
+        # 2. Directly dispatch transactional email (in-process SMTP)
         try:
-            r = RedisService.get_client()
-            payload = {
-                "to": email,
-                "subject": purpose,
-                "otp": otp,
-            }
-            r.rpush(settings.REDIS_MAIL_QUEUE, json.dumps(payload))
+            from .email_service import EmailService
+            EmailService.send_otp_email(
+                to_email=email,
+                purpose=purpose,
+                otp=otp,
+                async_delivery=True,
+            )
         except Exception as e:
-            logger.warning("Failed to push OTP to mail queue: %s", e)
-            print(f" [WARN] Could not push OTP to Redis mail queue: {e}")
+            logger.warning("[ADMIN AUTH] Failed to trigger direct OTP email: %s", e)
+
 
     @classmethod
     def issue_tokens_for_admin(cls, admin: Admin, request=None) -> Dict[str, Any]:

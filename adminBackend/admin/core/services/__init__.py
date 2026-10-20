@@ -7,6 +7,7 @@ from .recombee_service import RecombeeService
 from .dispatcher_service import ExternalJobDispatcher
 from .pagination_metadata_service import PaginationMetadataService
 from .admin_auth_service import AdminAuthService
+from .email_service import EmailService
 
 __all__ = [
     "RedisService",
@@ -18,4 +19,6 @@ __all__ = [
     "ExternalJobDispatcher",
     "PaginationMetadataService",
     "AdminAuthService",
+    "EmailService",
 ]
+

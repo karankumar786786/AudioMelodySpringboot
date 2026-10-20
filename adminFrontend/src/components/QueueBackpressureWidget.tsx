@@ -216,7 +216,7 @@ export function QueueBackpressureWidget({
             </h4>
             <p className="text-xs text-rose-300/80 mt-1 leading-relaxed">
               Email deliveries failed after maximum retry attempts or encountered SMTP provider lockouts (e.g. Gmail 454 rate-limits).
-              Inspect worker logs in <code>workers/mailEvents</code> to investigate recipient addresses or authenticate SMTP credentials.
+              Inspect application logs in <code>adminBackend</code> or <code>coreEngine</code> to investigate recipient addresses or authenticate SMTP credentials.
             </p>
           </div>
         </div>

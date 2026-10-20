@@ -19,7 +19,7 @@ import dj_database_url
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load environment variables with fallback
-load_dotenv(BASE_DIR.parent / ".env")
+load_dotenv(BASE_DIR.parent / ".env", override=True)
 load_dotenv(BASE_DIR.parent.parent / "coreEngine" / ".env")
 load_dotenv(BASE_DIR.parent.parent / ".env")
 
@@ -228,6 +228,26 @@ REDIS_AUDIO_PROCESSING_QUEUE = os.getenv("REDIS_AUDIO_PROCESSING_QUEUE", "audio_
 REDIS_DELETE_QUEUE = os.getenv("REDIS_DELETE_QUEUE", "delete_event_queue")
 REDIS_CANCEL_QUEUE = os.getenv("REDIS_CANCEL_QUEUE", "audio_cancel_queue")
 REDIS_MAIL_QUEUE = os.getenv("REDIS_MAIL_QUEUE", "mail_queue")
+
+# Direct SMTP Email Dispatch (Decommissioned mail_queue worker)
+EMAIL_BACKEND = os.getenv("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+EMAIL_HOST = os.getenv("SMTP_HOST", os.getenv("MAIL_HOST", "smtp.gmail.com"))
+EMAIL_PORT = int(os.getenv("SMTP_PORT", os.getenv("MAIL_PORT", "465")))
+if EMAIL_PORT == 465 or os.getenv("SMTP_USE_SSL", os.getenv("MAIL_USE_SSL", "false")).lower() in ("true", "1", "yes"):
+    EMAIL_USE_SSL = True
+    EMAIL_USE_TLS = False
+else:
+    EMAIL_USE_SSL = False
+    EMAIL_USE_TLS = os.getenv("SMTP_USE_TLS", os.getenv("MAIL_USE_TLS", "true")).lower() in ("true", "1", "yes")
+EMAIL_HOST_USER = os.getenv("SMTP_USER", os.getenv("MAIL_USERNAME", ""))
+EMAIL_HOST_PASSWORD = os.getenv("SMTP_PASS", os.getenv("MAIL_PASSWORD", "")).replace(" ", "")
+EMAIL_TIMEOUT = int(os.getenv("MAIL_TIMEOUT", "10"))
+_mail_from_raw = (os.getenv("SMTP_FROM") or os.getenv("MAIL_FROM") or "One Melody Springboot").strip()
+if EMAIL_HOST_USER and "<" not in _mail_from_raw:
+    DEFAULT_FROM_EMAIL = f'"{_mail_from_raw.replace(chr(34), "")}" <{EMAIL_HOST_USER}>'
+else:
+    DEFAULT_FROM_EMAIL = _mail_from_raw or EMAIL_HOST_USER or "no-reply@onemelody.com"
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", os.getenv("ACCESS_KEY_ID", "default_access_key"))
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", os.getenv("SECRET_KEY", "default_secret_key"))

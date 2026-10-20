@@ -56,7 +56,10 @@ export const PlayerRightControls: React.FC<PlayerRightControlsProps> = ({
 }) => {
   const hasLyrics = useStore(playerStore, (s) => s.hasLyrics);
   const hasFullVideo = Boolean(
-    currentSong.fullVideoKey || (currentSong as any).full_video_key,
+    currentSong.hasVideo ||
+    (currentSong as any).has_video ||
+    currentSong.fullVideoKey ||
+    (currentSong as any).full_video_key,
   );
 
   return (

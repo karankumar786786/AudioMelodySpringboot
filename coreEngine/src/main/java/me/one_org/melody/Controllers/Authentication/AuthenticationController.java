@@ -97,6 +97,7 @@ public class AuthenticationController {
     @PostMapping("/refresh-token")
     public ResponseEntity<RefreshTokenResponseDto> refreshToken(
             @RequestHeader(value = "X-Device-Id", required = false) String deviceIdHeader,
+            @RequestHeader(value = "X-Refresh-Token", required = false) String xRefreshTokenHeader,
             @RequestHeader(value = "Accept-Cookies", required = false) String acceptCookies,
             @RequestHeader(value = "X-Accept-Cookies", required = false) String xAcceptCookies,
             @RequestBody(required = false) RefreshTokenRequestDto request,
@@ -105,7 +106,7 @@ public class AuthenticationController {
     ) {
         String effectiveRefreshToken = (request != null && request.refreshToken() != null && !request.refreshToken().isBlank())
                 ? request.refreshToken()
-                : null;
+                : ((xRefreshTokenHeader != null && !xRefreshTokenHeader.isBlank()) ? xRefreshTokenHeader.trim() : null);
         if (effectiveRefreshToken == null && httpRequest.getCookies() != null) {
             for (jakarta.servlet.http.Cookie c : httpRequest.getCookies()) {
                 if ("system_refresh_token".equals(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) {

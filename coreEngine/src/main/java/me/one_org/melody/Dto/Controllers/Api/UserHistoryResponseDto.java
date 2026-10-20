@@ -22,5 +22,21 @@ public record UserHistoryResponseDto(
     Integer part,
     LocalDateTime listenedAt,
     Long totalStreams
-) {}
+) {
+    public Boolean getHasVideo() {
+        return fullVideoKey != null && !fullVideoKey.isBlank();
+    }
+
+    public String getAssetId() {
+        return id;
+    }
+
+    public Integer getCanvasStartTime() {
+        return previewStartTime;
+    }
+
+    public Integer getCanvasEndTime() {
+        return previewEndTime;
+    }
+}
 

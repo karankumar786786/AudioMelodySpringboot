@@ -48,4 +48,20 @@ public record SongDto(
             song.getCreatedAt()
         );
     }
+
+    public Boolean getHasVideo() {
+        return fullVideoKey != null && !fullVideoKey.isBlank();
+    }
+
+    public String getAssetId() {
+        return id;
+    }
+
+    public Integer getCanvasStartTime() {
+        return previewStartTime;
+    }
+
+    public Integer getCanvasEndTime() {
+        return previewEndTime;
+    }
 }

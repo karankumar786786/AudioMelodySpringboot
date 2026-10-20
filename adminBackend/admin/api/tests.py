@@ -135,13 +135,35 @@ class AdminEndpointRoutingTests(SimpleTestCase):
         self.assertIn(resp.status_code, [401, 403])
 
     def test_internal_webhook_upload_url(self):
-        with patch.object(S3Service, "generate_presigned_upload_url", return_value="https://s3.example.com/upload"):
+        with patch.object(S3Service, "generate_presigned_upload_url", return_value="https://s3.example.com/upload"), \
+             patch("core.services.cloudinary_service.CloudinaryService.is_configured", return_value=False):
             client = APIClient()
             resp = client.get("/webhook/internal/song-upload-url")
             self.assertEqual(resp.status_code, 200)
             data = resp.json()
             self.assertIn("key", data)
             self.assertIn("preSignedUrl", data)
+            self.assertEqual(data["provider"], "s3")
+
+    def test_internal_webhook_upload_url_cloudinary(self):
+        with patch("core.services.cloudinary_service.CloudinaryService.is_configured", return_value=True), \
+             patch("core.services.cloudinary_service.CloudinaryService.generate_upload_signature", return_value={
+                 "publicId": "songs/123",
+                 "signature": "sig123",
+                 "timestamp": 123456,
+                 "apiKey": "key123",
+                 "cloudName": "testcloud",
+                 "uploadUrl": "https://api.cloudinary.com/v1_1/testcloud/video/upload",
+                 "resourceType": "video",
+             }):
+            client = APIClient()
+            resp = client.get("/webhook/internal/song-upload-url")
+            self.assertEqual(resp.status_code, 200)
+            data = resp.json()
+            self.assertEqual(data["provider"], "cloudinary")
+            self.assertEqual(data["key"], "songs/123")
+            self.assertIn("uploadUrl", data)
+
 
     def test_webhook_job_lifecycle(self):
         fake_job = MagicMock()

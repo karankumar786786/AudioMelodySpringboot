@@ -8,18 +8,23 @@ class SongSerializer(serializers.ModelSerializer):
     imageKey = serializers.CharField(source="image_key")
     videoKey = serializers.CharField(source="video_key", required=False, allow_null=True)
     fullVideoKey = serializers.CharField(source="full_video_key", required=False, allow_null=True)
+    assetId = serializers.CharField(source="asset_id", required=False, allow_null=True)
     previewStartTime = serializers.IntegerField(source="preview_start_time", required=False, allow_null=True)
     previewEndTime = serializers.IntegerField(source="preview_end_time", required=False, allow_null=True)
+    canvasStartTime = serializers.IntegerField(source="canvas_start_time", required=False, allow_null=True)
+    canvasEndTime = serializers.IntegerField(source="canvas_end_time", required=False, allow_null=True)
     isFeatured = serializers.BooleanField(source="is_featured")
     lrclibId = serializers.CharField(source="lrclib_id")
     jobId = serializers.CharField(source="job_id")
     totalStreams = serializers.SerializerMethodField()
+    hasVideo = serializers.SerializerMethodField()
     createdAt = serializers.DateTimeField(source="created_at", format="%Y-%m-%dT%H:%M:%S")
 
     class Meta:
         model = Song
         fields = [
             "id",
+            "assetId",
             "title",
             "artistName",
             "duration",
@@ -27,8 +32,11 @@ class SongSerializer(serializers.ModelSerializer):
             "imageKey",
             "videoKey",
             "fullVideoKey",
+            "hasVideo",
             "previewStartTime",
             "previewEndTime",
+            "canvasStartTime",
+            "canvasEndTime",
             "isFeatured",
             "language",
             "genre",
@@ -39,6 +47,11 @@ class SongSerializer(serializers.ModelSerializer):
             "jobId",
             "createdAt",
         ]
+
+    def get_hasVideo(self, obj) -> bool:
+        if getattr(obj, "has_video", None) is not None:
+            return bool(obj.has_video)
+        return bool(obj.full_video_key and str(obj.full_video_key).strip())
 
     def get_totalStreams(self, obj) -> int:
         try:

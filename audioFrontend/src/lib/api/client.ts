@@ -22,6 +22,47 @@ export function getDeviceId(): string {
   return deviceId;
 }
 
+export function getStoredRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  // 1. Check document.cookie
+  try {
+    const match = document.cookie.match(/(?:^|;\s*)system_refresh_token=([^;]+)/);
+    if (match && match[1]) {
+      return decodeURIComponent(match[1]);
+    }
+  } catch {}
+  // 2. Check localStorage fallback
+  return localStorage.getItem("system_refresh_token");
+}
+
+export function getStoredAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+  // 1. Check document.cookie
+  try {
+    const match = document.cookie.match(/(?:^|;\s*)system_token=([^;]+)/);
+    if (match && match[1]) {
+      return decodeURIComponent(match[1]);
+    }
+  } catch {}
+  // 2. Check localStorage fallback
+  return localStorage.getItem("system_token");
+}
+
+export function syncTokens(accessToken: string, refreshToken?: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem("system_token", accessToken);
+    document.cookie = `system_token=${encodeURIComponent(accessToken)}; path=/; max-age=604800; SameSite=Lax`;
+
+    if (refreshToken) {
+      localStorage.setItem("system_refresh_token", refreshToken);
+      document.cookie = `system_refresh_token=${encodeURIComponent(refreshToken)}; path=/; max-age=2592000; SameSite=Lax`;
+    }
+  } catch (err) {
+    console.error("[AUTH] Failed to sync tokens to storage/cookies:", err);
+  }
+}
+
 export function notifySessionCleared(): void {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event("session:cleared"));
@@ -31,6 +72,12 @@ export function notifySessionCleared(): void {
 export function clearSessionStorage(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem("system_user");
+  localStorage.removeItem("system_token");
+  localStorage.removeItem("system_refresh_token");
+  try {
+    document.cookie = "system_token=; path=/; max-age=0; SameSite=Lax";
+    document.cookie = "system_refresh_token=; path=/; max-age=0; SameSite=Lax";
+  } catch {}
   notifySessionCleared();
 }
 
@@ -38,12 +85,17 @@ let isRefreshing = false;
 let refreshTokenPromise: Promise<boolean> | null = null;
 
 /**
- * Refreshes session cookies globally with the backend.
- * Cookies are managed automatically by the browser via HTTP Set-Cookie headers.
+ * Refreshes session tokens globally with the backend.
+ * Uses stored refresh token in body, header, and cookie for multi-environment reliability.
  */
 export async function refreshAccessToken(): Promise<boolean> {
   if (isRefreshing && refreshTokenPromise) {
     return refreshTokenPromise;
+  }
+
+  const refreshToken = getStoredRefreshToken();
+  if (!refreshToken) {
+    return false;
   }
 
   isRefreshing = true;
@@ -58,10 +110,12 @@ export async function refreshAccessToken(): Promise<boolean> {
         headers: {
           "Content-Type": "application/json",
           "X-Device-Id": deviceId,
+          "X-Refresh-Token": refreshToken,
           "Accept-Cookies": "true",
           "X-Accept-Cookies": "true",
+          Cookie: `system_refresh_token=${refreshToken}`,
         },
-        body: JSON.stringify({ deviceId }),
+        body: JSON.stringify({ refreshToken, deviceId }),
       });
 
       if (!response.ok) {
@@ -75,7 +129,12 @@ export async function refreshAccessToken(): Promise<boolean> {
         return false;
       }
 
-      return true;
+      const data = await response.json().catch(() => null);
+      if (data?.accessToken) {
+        syncTokens(data.accessToken, data.refreshToken || refreshToken);
+        return true;
+      }
+      return false;
     } catch {
       return false;
     } finally {
@@ -97,9 +156,12 @@ export async function request<T = any>(endpoint: string, options: RequestInit = 
   }
 
   const deviceId = getDeviceId();
+  const accessToken = getStoredAccessToken();
+  const isAuthEndpoint = endpoint.includes("/auth/");
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     "X-Device-Id": deviceId,
+    ...(!isAuthEndpoint && accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
     ...(options.headers as Record<string, string>),
   };
 
@@ -127,8 +189,14 @@ export async function request<T = any>(endpoint: string, options: RequestInit = 
       try {
         const refreshed = await refreshAccessToken();
         if (refreshed) {
-          // Retry request with updated cookies
-          return await request<T>(endpoint, options, false);
+          // Retry request with updated tokens and authorization header
+          const newAccessToken = getStoredAccessToken();
+          const retryHeaders = {
+            ...headers,
+            ...(options.headers as Record<string, string>),
+            ...(newAccessToken ? { Authorization: `Bearer ${newAccessToken}` } : {}),
+          };
+          return await request<T>(endpoint, { ...options, headers: retryHeaders }, false);
         }
       } catch {}
     }

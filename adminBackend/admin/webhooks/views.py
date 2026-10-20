@@ -61,8 +61,16 @@ class SongUploadUrlWebhookView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        song_id = request.query_params.get("songId") or request.query_params.get("id")
+        folder = request.query_params.get("folder", "audios")
+        custom_public_id = f"{folder}/{song_id.strip()}" if (song_id and str(song_id).strip()) else None
+
         if CloudinaryService.is_configured():
-            sig = CloudinaryService.generate_upload_signature(folder="songs", resource_type="video")
+            sig = CloudinaryService.generate_upload_signature(
+                folder=folder,
+                resource_type="video",
+                public_id=custom_public_id,
+            )
             return Response({
                 "provider": "cloudinary",
                 "key": sig["publicId"],
@@ -75,7 +83,7 @@ class SongUploadUrlWebhookView(APIView):
                 "resourceType": sig["resourceType"],
             }, status=status.HTTP_200_OK)
 
-        key = str(uuid.uuid4())
+        key = f"{folder}/{song_id.strip()}" if (song_id and str(song_id).strip()) else str(uuid.uuid4())
         pre_signed_url = S3Service.generate_presigned_upload_url(key)
         return Response({"key": key, "preSignedUrl": pre_signed_url, "provider": "s3"}, status=status.HTTP_200_OK)
 
@@ -85,8 +93,16 @@ class VideoUploadUrlWebhookView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        song_id = request.query_params.get("songId") or request.query_params.get("id")
+        folder = request.query_params.get("folder", "videos")
+        custom_public_id = f"{folder}/{song_id.strip()}" if (song_id and str(song_id).strip()) else None
+
         if CloudinaryService.is_configured():
-            sig = CloudinaryService.generate_upload_signature(folder="videos", resource_type="video")
+            sig = CloudinaryService.generate_upload_signature(
+                folder=folder,
+                resource_type="video",
+                public_id=custom_public_id,
+            )
             return Response({
                 "provider": "cloudinary",
                 "key": sig["publicId"],
@@ -99,7 +115,7 @@ class VideoUploadUrlWebhookView(APIView):
                 "resourceType": sig["resourceType"],
             }, status=status.HTTP_200_OK)
 
-        key = str(uuid.uuid4())
+        key = f"{folder}/{song_id.strip()}" if (song_id and str(song_id).strip()) else str(uuid.uuid4())
         pre_signed_url = S3Service.generate_presigned_upload_url(key)
         return Response({"key": key, "preSignedUrl": pre_signed_url, "provider": "s3"}, status=status.HTTP_200_OK)
 
@@ -309,6 +325,13 @@ class WebhookJobFinalizeView(BaseAdminView):
                         S3Service.delete_prefix(old_fv, settings.S3_PRODUCTION_BUCKET)
                     song.video_key = job.video_key
                     song.full_video_key = job.full_video_key
+                    song.has_video = bool(job.has_video or (job.full_video_key and str(job.full_video_key).strip()))
+                    if job.asset_id:
+                        song.asset_id = job.asset_id
+                    if job.canvas_start_time is not None:
+                        song.canvas_start_time = job.canvas_start_time
+                    if job.canvas_end_time is not None:
+                        song.canvas_end_time = job.canvas_end_time
 
                 song.save()
                 try:
@@ -328,6 +351,7 @@ class WebhookJobFinalizeView(BaseAdminView):
         # Standard new song creation
         song = Song.objects.create(
             id=job.song_id,
+            asset_id=job.asset_id or job.song_id,
             title=job.title,
             artist_name=job.artist_name,
             duration=job.duration or 0,
@@ -335,8 +359,11 @@ class WebhookJobFinalizeView(BaseAdminView):
             image_key=job.image_key or "",
             video_key=job.video_key,
             full_video_key=job.full_video_key,
+            has_video=bool(job.has_video or (job.full_video_key and str(job.full_video_key).strip())),
             preview_start_time=job.preview_start_time,
             preview_end_time=job.preview_end_time,
+            canvas_start_time=job.canvas_start_time or job.preview_start_time,
+            canvas_end_time=job.canvas_end_time or job.preview_end_time,
             language=job.language or "unknown",
             lrclib_id=job.lrclib_id,
             genre=job.genre,

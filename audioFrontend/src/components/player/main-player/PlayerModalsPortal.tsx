@@ -137,9 +137,10 @@ export const PlayerModalsPortal: React.FC<PlayerModalsPortalProps> = ({
       )}
 
       {/* Full Video Modal */}
-      {isFullVideoOpen && (currentSong.fullVideoKey || (currentSong as any).full_video_key) && (
+      {isFullVideoOpen && Boolean(currentSong.hasVideo || currentSong.fullVideoKey || (currentSong as any).full_video_key) && (
         <FullVideoModal
           songId={currentSong.id}
+          fullVideoKey={currentSong.fullVideoKey || (currentSong as any).full_video_key || `videos/${currentSong.id}`}
           hlsUrl={getFullVideoHlsUrl(currentSong)!}
           dashUrl={getFullVideoDashUrl(currentSong)}
           title={currentSong.title}

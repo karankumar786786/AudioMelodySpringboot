@@ -1,7 +1,9 @@
 import {
   clearSessionStorage,
   getDeviceId,
+  getStoredRefreshToken,
   request,
+  syncTokens,
 } from "./client";
 
 export const authApi = {
@@ -39,7 +41,10 @@ export const authApi = {
       body: JSON.stringify({ otp: code, deviceId }),
     });
 
-    // Cookies are automatically set in the browser via backend Set-Cookie headers.
+    if (verifyRes?.accessToken) {
+      syncTokens(verifyRes.accessToken, verifyRes.refreshToken);
+    }
+
     // Fetch profile and store user identity for client-side state
     const profile = await request("/api/user/profile");
     const userPayload = {
@@ -69,13 +74,15 @@ export const authApi = {
   logout: async () => {
     try {
       const deviceId = getDeviceId();
+      const refreshToken = getStoredRefreshToken();
       await request("/auth/logout", {
         method: "POST",
         headers: {
           "Accept-Cookies": "true",
           "X-Accept-Cookies": "true",
+          ...(refreshToken ? { "X-Refresh-Token": refreshToken } : {}),
         },
-        body: JSON.stringify({ deviceId }),
+        body: JSON.stringify({ deviceId, refreshToken }),
       });
     } catch {
       // Silently handle logout failure on network error

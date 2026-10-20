@@ -22,19 +22,20 @@ class CloudinaryService:
     @classmethod
     def generate_upload_signature(
         cls,
-        folder: str = "songs",
+        folder: str = "audios",
         resource_type: str = "video",
         eager: Optional[str] = None,
+        public_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Generates signed parameters and an HMAC-SHA signature for direct client-to-Cloudinary uploads.
+        Follows the asset/songId path rule when public_id is provided, otherwise generates {folder}/{uuid}.
         """
         timestamp = int(time.time())
-        public_id = f"{folder}/{uuid.uuid4()}"
+        target_public_id = public_id if (public_id and str(public_id).strip()) else f"{folder}/{uuid.uuid4()}"
 
         params_to_sign: Dict[str, Any] = {
-            "folder": folder,
-            "public_id": public_id,
+            "public_id": target_public_id,
             "timestamp": timestamp,
         }
         if eager:
@@ -54,7 +55,7 @@ class CloudinaryService:
             "apiKey": settings.CLOUDINARY_API_KEY,
             "timestamp": timestamp,
             "folder": folder,
-            "publicId": public_id,
+            "publicId": target_public_id,
             "signature": signature,
             "uploadUrl": upload_url,
             "resourceType": resource_type,
@@ -65,8 +66,8 @@ class CloudinaryService:
         """
         Permanently purges a media file and all derived streaming representations from Cloudinary.
         """
-        if not public_id or not cls.is_configured():
-            logger.warning("Cloudinary not configured or empty public_id: '%s'", public_id)
+        if not public_id or not isinstance(public_id, str) or not cls.is_configured():
+            logger.warning("Cloudinary not configured or invalid public_id: '%s'", public_id)
             return {"result": "skipped"}
 
         try:
@@ -96,13 +97,15 @@ class CloudinaryService:
             return None
 
     @classmethod
-    def get_streaming_urls(cls, public_id: str, streaming_profile: str = "sp_auto") -> Dict[str, str]:
+    def get_streaming_urls(cls, public_id: str, streaming_profile: Optional[str] = None) -> Dict[str, str]:
         """
         Constructs adaptive bitrate streaming URLs (HLS and MPEG-DASH) for a given public ID.
+        Uses sp_auto for video assets and f_m3u8 for audio assets (since sp_auto is video-only on Cloudinary).
         """
         cloud_name = settings.CLOUDINARY_CLOUD_NAME
         base = f"https://res.cloudinary.com/{cloud_name}/video/upload"
+        profile = streaming_profile or ("sp_auto" if public_id.startswith("videos/") else "f_m3u8")
         return {
-            "hlsUrl": f"{base}/{streaming_profile}/{public_id}.m3u8",
-            "dashUrl": f"{base}/{streaming_profile}/{public_id}.mpd",
+            "hlsUrl": f"{base}/{profile}/{public_id}.m3u8",
+            "dashUrl": f"{base}/{profile}/{public_id}.mpd",
         }

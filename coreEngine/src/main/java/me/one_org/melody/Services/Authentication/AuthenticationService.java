@@ -16,7 +16,6 @@ import me.one_org.melody.Dto.Controllers.Authentication.RegisterRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpResponse;
 import me.one_org.melody.Dto.Internal.JwtPayloadDto;
 import me.one_org.melody.Dto.Internal.OtpDataDto;
-import me.one_org.melody.Dto.Queue.MailQueueDto;
 import me.one_org.melody.Entity.Session;
 import me.one_org.melody.Entity.User;
 import me.one_org.melody.Enums.PurposeEnum;
@@ -24,13 +23,13 @@ import me.one_org.melody.Exceptions.BadRequestException;
 import me.one_org.melody.Exceptions.ConflictException;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Exceptions.UnauthorizedException;
-import me.one_org.melody.Queue.MailQueue;
 import me.one_org.melody.Repository.SessionRepository;
 import me.one_org.melody.Repository.UsersRepository;
 import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.General.PaginationMetaDataService;
 import me.one_org.melody.Utils.HmacUtil;
 import me.one_org.melody.Utils.JwtUtil;
+import me.one_org.melody.Utils.MailUtil;
 import me.one_org.melody.Utils.OtpUtil;
 
 @Service
@@ -44,12 +43,12 @@ public class AuthenticationService {
     private final OtpUtil otpUtil;
     private final Redis<OtpDataDto> cache;
     private final PaginationMetaDataService paginationMetaDataService;
-    private final MailQueue mailQueue;
+    private final MailUtil mailUtil;
     private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     public AuthenticationService(UsersRepository usersRepository, SessionRepository sessionRepository,
             JwtUtil jwtUtil, HmacUtil hmacUtil, OtpUtil otpUtil,
-            Redis<OtpDataDto> cache, PaginationMetaDataService paginationMetaDataService, MailQueue mailQueue,
+            Redis<OtpDataDto> cache, PaginationMetaDataService paginationMetaDataService, MailUtil mailUtil,
             org.springframework.context.ApplicationEventPublisher eventPublisher) {
         this.usersRepository = usersRepository;
         this.sessionRepository = sessionRepository;
@@ -58,7 +57,7 @@ public class AuthenticationService {
         this.otpUtil = otpUtil;
         this.cache = cache.of("otp", OtpDataDto.class);
         this.paginationMetaDataService = paginationMetaDataService;
-        this.mailQueue = mailQueue;
+        this.mailUtil = mailUtil;
         this.eventPublisher = eventPublisher;
     }
 
@@ -69,8 +68,7 @@ public class AuthenticationService {
         String tempToken = hmacUtil.hash(request.email());
         String otp = otpUtil.generateOtp();
         OtpDataDto data = new OtpDataDto(otp, tempToken, request.email(), request.userName(), PurposeEnum.REGISTER);
-        MailQueueDto mqd = new MailQueueDto(request.email(), PurposeEnum.REGISTER.name(), otp);
-        mailQueue.queueMail(mqd);
+        mailUtil.sendOtp(request.email(), PurposeEnum.REGISTER.name(), otp);
         cache.set(data.email(), data, Duration.ofMinutes(10));
         return tempToken;
     }
@@ -81,8 +79,7 @@ public class AuthenticationService {
         String tempToken = hmacUtil.hash(user.getEmail());
         String otp = otpUtil.generateOtp();
         OtpDataDto data = new OtpDataDto(otp, tempToken, user.getEmail(), user.getUserName(), PurposeEnum.LOGIN);
-        MailQueueDto mqd = new MailQueueDto(user.getEmail(), PurposeEnum.LOGIN.name(), otp);
-        mailQueue.queueMail(mqd);
+        mailUtil.sendOtp(user.getEmail(), PurposeEnum.LOGIN.name(), otp);
         cache.set(data.email(), data, Duration.ofMinutes(10));
         return tempToken;
     }
@@ -187,8 +184,7 @@ public class AuthenticationService {
         String newOtp = otpUtil.generateOtp();
         PurposeEnum purpose = data.Purpose() != null ? data.Purpose() : PurposeEnum.LOGIN;
         OtpDataDto updatedData = new OtpDataDto(newOtp, tempToken, data.email(), data.userName(), purpose);
-        MailQueueDto mqd = new MailQueueDto(data.email(), purpose.name(), newOtp);
-        mailQueue.queueMail(mqd);
+        mailUtil.sendOtp(data.email(), purpose.name(), newOtp);
         cache.set(data.email(), updatedData, Duration.ofMinutes(10));
         return tempToken;
     }
@@ -219,6 +215,20 @@ public class AuthenticationService {
 
             // Verify refresh token match to prevent reuse of old/rotated tokens
             if (!session.getRefreshToken().equals(refreshToken)) {
+                // Grace period: If session was refreshed within the last 30 seconds (e.g. concurrent requests from SSR and client),
+                // do not delete session or fail; re-issue current valid credentials.
+                if (session.getUpdatedAt() != null && session.getUpdatedAt().isAfter(LocalDateTime.now().minusSeconds(30))) {
+                    CustomUserDetails userDetails = new CustomUserDetails(user);
+                    org.springframework.security.core.Authentication authentication =
+                            new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
+                    String newAccessToken = jwtUtil.generateAccessToken(authentication);
+                    return new RefreshTokenResponseDto(newAccessToken, session.getRefreshToken());
+                }
+
                 sessionRepository.delete(session);
                 throw new UnauthorizedException("Invalid or reused refresh token");
             }

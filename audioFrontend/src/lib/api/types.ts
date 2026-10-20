@@ -7,6 +7,10 @@ export interface Song {
   imageKey: string;
   videoKey?: string;
   fullVideoKey?: string;
+  hasVideo?: boolean;
+  assetId?: string;
+  canvasStartTime?: number | null;
+  canvasEndTime?: number | null;
   album?: string | null;
   genre?: string | null;
   language: string;

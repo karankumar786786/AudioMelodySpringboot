@@ -58,3 +58,44 @@ class CoreAppTests(SimpleTestCase):
         self.assertEqual(data["entityName"], "SONG")
         self.assertEqual(data["totalCount"], 50)
         self.assertEqual(data["activeCount"], 45)
+
+    def test_email_service_send_otp_email_sync(self):
+        from unittest.mock import patch
+        from core.services.email_service import EmailService
+
+        with patch("django.core.mail.EmailMultiAlternatives.send", return_value=1) as mock_send:
+            success = EmailService.send_otp_email(
+                to_email="test@example.com",
+                purpose="LOGIN",
+                otp="123456",
+                async_delivery=False,
+            )
+            self.assertTrue(success)
+            self.assertEqual(mock_send.call_count, 1)
+
+    def test_email_service_send_otp_email_async(self):
+        from unittest.mock import patch
+        from core.services.email_service import EmailService
+
+        with patch("threading.Thread.start") as mock_thread_start:
+            success = EmailService.send_otp_email(
+                to_email="test@example.com",
+                purpose="REGISTER",
+                otp="654321",
+                async_delivery=True,
+            )
+            self.assertTrue(success)
+            self.assertEqual(mock_thread_start.call_count, 1)
+
+    def test_email_service_handles_exception_gracefully(self):
+        from unittest.mock import patch
+        from core.services.email_service import EmailService
+
+        with patch("django.core.mail.EmailMultiAlternatives.send", side_effect=Exception("SMTP Connection Error")):
+            success = EmailService.send_mail_direct(
+                to_email="test@example.com",
+                subject="Test",
+                text_content="Body",
+            )
+            self.assertFalse(success)
+

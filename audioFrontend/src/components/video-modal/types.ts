@@ -1,7 +1,8 @@
 export interface FullVideoModalProps {
-  /** Shaka-packaged HLS URL e.g. https://…/videos/<songId>/master.m3u8 */
+  /** Video HLS / ABR URL e.g. https://…/videos/<songId>/master.m3u8 */
   hlsUrl: string;
   dashUrl?: string;
+  fullVideoKey?: string;
   title: string;
   artistName: string;
   posterUrl?: string;

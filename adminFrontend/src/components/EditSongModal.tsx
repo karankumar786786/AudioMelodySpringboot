@@ -30,14 +30,19 @@ export interface SongData {
   title: string;
   artistName: string;
   duration?: number;
+  songKey?: string;
   language?: string;
   album?: string;
   genre?: string;
   imageKey?: string;
   videoKey?: string | null;
   fullVideoKey?: string | null;
+  assetId?: string;
+  hasVideo?: boolean;
   previewStartTime?: number | null;
   previewEndTime?: number | null;
+  canvasStartTime?: number | null;
+  canvasEndTime?: number | null;
   isFeatured?: boolean;
   lrclibId?: string;
   createdAt?: string;
@@ -236,7 +241,9 @@ export function EditSongModal({
         setProgressText("Authorizing audio upload...");
         setUploadPercent(0);
         setUploadStats({ fileName: formData.audioFile.name });
-        const songUrlRes = await adminFetch("/webhook/internal/song-upload-url");
+        const songUrlRes = await adminFetch(
+          `/webhook/internal/song-upload-url?songId=${song.id}&folder=audios`,
+        );
         if (!songUrlRes.ok) throw new Error("Failed to get audio upload authorization");
         const songUrlData = await songUrlRes.json();
 
@@ -291,7 +298,7 @@ export function EditSongModal({
         setUploadPercent(0);
         setUploadStats({ fileName: formData.fullVideoFile.name });
         const videoUrlRes = await adminFetch(
-          "/webhook/internal/video-upload-url",
+          `/webhook/internal/video-upload-url?songId=${song.id}&folder=videos`,
         );
         if (!videoUrlRes.ok)
           throw new Error("Failed to get video upload authorization");
@@ -414,6 +421,10 @@ export function EditSongModal({
           lrclibId: formData.lrclibId.trim() || "0",
           previewStartTime: previewStartTime !== null ? previewStartTime : -1,
           previewEndTime: previewEndTime !== null ? previewEndTime : -1,
+          canvasStartTime: previewStartTime !== null ? previewStartTime : undefined,
+          canvasEndTime: previewEndTime !== null ? previewEndTime : undefined,
+          assetId: song.assetId || song.id,
+          hasVideo: Boolean(fullVideoKey && fullVideoKey.trim() && fullVideoKey !== "null"),
           imageKey,
           videoKey,
           fullVideoKey,
@@ -427,19 +438,31 @@ export function EditSongModal({
         throw new Error(errData.message || "Failed to update song");
       }
 
-      const updatedSong: SongData = {
-        ...song,
-        title: formData.title,
-        artistName: formData.artistName,
-        language: formData.language,
-        album: formData.album,
-        lrclibId: formData.lrclibId,
-        imageKey,
-        videoKey: videoKey === "" ? null : (videoKey ?? null),
-        fullVideoKey: fullVideoKey === "" ? null : (fullVideoKey ?? null),
-        previewStartTime,
-        previewEndTime,
-      };
+      const updatedData = await res.json().catch(() => null);
+
+      const updatedSong: SongData = updatedData
+        ? {
+            ...song,
+            ...updatedData,
+            imageKey: updatedData.imageKey || imageKey,
+            videoKey: updatedData.videoKey ?? (videoKey === "" ? null : (videoKey ?? null)),
+            fullVideoKey: updatedData.fullVideoKey ?? (fullVideoKey === "" ? null : (fullVideoKey ?? null)),
+          }
+        : {
+            ...song,
+            title: formData.title,
+            artistName: formData.artistName,
+            language: formData.language,
+            album: formData.album,
+            lrclibId: formData.lrclibId,
+            imageKey,
+            videoKey: videoKey === "" ? null : (videoKey ?? null),
+            fullVideoKey: fullVideoKey === "" ? null : (fullVideoKey ?? null),
+            previewStartTime,
+            previewEndTime,
+            duration: newDuration || song.duration,
+            songKey: newSongKey || song.songKey,
+          };
 
       if (onSuccess) {
         onSuccess(updatedSong);

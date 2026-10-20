@@ -11,6 +11,7 @@
   "dependencies": {
     "@algolia/autocomplete-js": "^1.19.12",
     "@algolia/autocomplete-theme-classic": "^1.19.12",
+    "@imagekit/video-player": "^1.0.0-beta.4",
     "@next/swc-wasm-nodejs": "latest",
     "@tanstack/react-query": "^5.99.0",
     "@tanstack/react-store": "^0.10.0",

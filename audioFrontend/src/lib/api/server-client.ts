@@ -26,6 +26,7 @@ async function refreshServerTokens(
         Accept: "application/json",
         "Accept-Cookies": "true",
         "X-Accept-Cookies": "true",
+        "X-Refresh-Token": refreshToken,
         Cookie: `system_refresh_token=${refreshToken}`,
       },
       body: JSON.stringify({ refreshToken }),

@@ -7,18 +7,22 @@ spring:
     import:
       - optional:file:.env[.properties]
       - optional:file:coreEngine/.env[.properties]
+      - optional:file:../coreEngine/.env[.properties]
 
   mail:
-    host: ${MAIL_HOST:localhost}
-    port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:user}
-    password: ${MAIL_PASSWORD:pass}
+    host: ${MAIL_HOST:${SMTP_HOST:smtp.gmail.com}}
+    port: ${MAIL_PORT:${SMTP_PORT:465}}
+    username: ${MAIL_USERNAME:${SMTP_USER:ks1802276@gmail.com}}
+    password: ${MAIL_PASSWORD:${SMTP_PASS:}}
     properties:
       mail:
         smtp:
           auth: true
-          starttls:
+          ssl:
             enable: true
+            trust: "*"
+          starttls:
+            enable: false
 
   application:
     name: ${APPLICATION_NAME:melody}

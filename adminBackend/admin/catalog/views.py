@@ -474,7 +474,7 @@ class SongListView(BaseAdminView):
         if preview_end is not None and preview_end < 0:
             preview_end = None
 
-        song_id = str(uuid.uuid4())
+        song_id = str(data.get("id")).strip() if (data.get("id") and str(data.get("id")).strip()) else str(uuid.uuid4())
 
         # Direct activation flow (Cloudinary direct uploads or pre-processed media)
         if song_key or (full_video_key and not temp_video_key):
@@ -483,6 +483,7 @@ class SongListView(BaseAdminView):
 
             song = Song.objects.create(
                 id=song_id,
+                asset_id=data.get("assetId") or song_id,
                 title=str(data.get("title", "")).strip(),
                 artist_name=str(data.get("artistName", "")).strip(),
                 duration=int(round(float(duration_val))) if duration_val is not None else 0,
@@ -490,8 +491,11 @@ class SongListView(BaseAdminView):
                 image_key=data.get("imageKey", ""),
                 video_key=data.get("videoKey") or None,
                 full_video_key=actual_video_key,
+                has_video=bool(actual_video_key or data.get("hasVideo")),
                 preview_start_time=preview_start,
                 preview_end_time=preview_end,
+                canvas_start_time=data.get("canvasStartTime", preview_start),
+                canvas_end_time=data.get("canvasEndTime", preview_end),
                 is_featured=bool(data.get("isFeatured", False)),
                 language=data.get("language", "English"),
                 genre=data.get("genre", "Pop"),
@@ -652,6 +656,26 @@ class SongDetailView(BaseAdminView):
         if "fullVideoKey" in data:
             new_fv = (data["fullVideoKey"] or "").strip()
             song.full_video_key = None if (not new_fv or new_fv.lower() == "null") else new_fv
+
+        if "hasVideo" in data:
+            song.has_video = bool(data["hasVideo"])
+        else:
+            song.has_video = bool(song.full_video_key and str(song.full_video_key).strip())
+
+        if "canvasStartTime" in data:
+            song.canvas_start_time = data["canvasStartTime"]
+        elif song.preview_start_time is not None:
+            song.canvas_start_time = song.preview_start_time
+
+        if "canvasEndTime" in data:
+            song.canvas_end_time = data["canvasEndTime"]
+        elif song.preview_end_time is not None:
+            song.canvas_end_time = song.preview_end_time
+
+        if "assetId" in data and str(data["assetId"]).strip():
+            song.asset_id = str(data["assetId"]).strip()
+        elif not song.asset_id:
+            song.asset_id = song.id
 
         song.save()
 
