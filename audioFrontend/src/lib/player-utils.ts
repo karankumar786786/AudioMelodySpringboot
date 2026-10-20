@@ -1,5 +1,5 @@
 import { type Song } from "./api/types";
-import { getImageUrl } from "./image-utils";
+import { getImageUrl, getVideoABRUrl, getVideoUrl } from "./image-utils";
 
 const CLOUD_NAME =
   process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "one-melody";
@@ -104,16 +104,24 @@ export function resolveVideoHlsUrl(assetOrSong?: any, isVideoParam?: boolean): s
       song.has_video ??
       (song.fullVideoKey && String(song.fullVideoKey).trim()) ??
       (song.full_video_key && String(song.full_video_key).trim()) ??
+      (song.videoKey && String(song.videoKey).trim()) ??
+      (song.video_key && String(song.video_key).trim()) ??
       false
     );
     if (!isVideo) return "";
 
-    const rawId = song.assetId || song.asset_id || song.id || song.fullVideoKey || song.full_video_key || "";
+    const rawId = song.assetId || song.asset_id || song.id || song.fullVideoKey || song.full_video_key || song.videoKey || song.video_key || "";
     const cleanId = String(rawId).replace(/^(videos|audios|assets|songs)\//, "").replace(/\.[^/.]+$/, "");
 
-    const fv = song.fullVideoKey || song.full_video_key;
+    const fv = song.fullVideoKey || song.full_video_key || song.videoKey || song.video_key;
     if (fv && (fv.startsWith("http://") || fv.startsWith("https://"))) {
       return fv;
+    }
+    if (fv && (fv.startsWith("/songs/") || fv.startsWith("songs/"))) {
+      const ikAbr = getVideoABRUrl(fv);
+      if (ikAbr) return ikAbr;
+      const ikDirect = getVideoUrl(fv);
+      if (ikDirect) return ikDirect;
     }
     if (fv && (fv.startsWith("s3/") || fv.includes("amazonaws.com") || fv.includes("cloudfront.net"))) {
       return `${S3_BASE_URL}/${fv}/master.m3u8`;

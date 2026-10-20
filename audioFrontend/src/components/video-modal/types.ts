@@ -3,6 +3,7 @@ export interface FullVideoModalProps {
   hlsUrl: string;
   dashUrl?: string;
   fullVideoKey?: string;
+  videoKey?: string;
   title: string;
   artistName: string;
   posterUrl?: string;
