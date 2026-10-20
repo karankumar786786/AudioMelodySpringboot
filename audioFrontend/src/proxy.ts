@@ -51,7 +51,8 @@ function updateCookieHeader(
 }
 
 async function refreshCookies(
-  refreshToken: string
+  refreshToken: string,
+  deviceId?: string
 ): Promise<{ accessToken: string; refreshToken?: string } | null> {
   try {
     const backendUrl =
@@ -66,9 +67,10 @@ async function refreshCookies(
         "Accept-Cookies": "true",
         "X-Accept-Cookies": "true",
         "X-Refresh-Token": refreshToken,
+        ...(deviceId ? { "X-Device-Id": deviceId } : {}),
         Cookie: `system_refresh_token=${refreshToken}`,
       },
-      body: JSON.stringify({ refreshToken }),
+      body: JSON.stringify({ refreshToken, deviceId }),
     });
 
     if (!res.ok) return null;
@@ -122,9 +124,14 @@ export async function proxy(request: NextRequest) {
   let refreshedTokens: { accessToken: string; refreshToken?: string } | null =
     null;
 
+  const rawDeviceId =
+    request.cookies.get("melody_device_id")?.value ||
+    request.headers.get("x-device-id") ||
+    undefined;
+
   // 🔄 AUTO-REFRESH ACCESS COOKIE: If access token is missing/expired, refresh it using refresh token
   if (!isAccessTokenValid && rawRefreshToken && isTokenValid(rawRefreshToken)) {
-    refreshedTokens = await refreshCookies(rawRefreshToken);
+    refreshedTokens = await refreshCookies(rawRefreshToken, rawDeviceId);
     if (refreshedTokens?.accessToken) {
       isAccessTokenValid = true;
     }

@@ -48,6 +48,9 @@ public class Session {
     @Column(name = "refresh_token", nullable = false, length = 1000)
     private String refreshToken;
 
+    @Column(name = "previous_refresh_token", length = 1000)
+    private String previousRefreshToken;
+
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
@@ -65,12 +68,14 @@ public class Session {
 
     @Builder
     public Session(String id, User user, String deviceId, String refreshToken,
-                   LocalDateTime expiresAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
+                   String previousRefreshToken, LocalDateTime expiresAt,
+                   LocalDateTime createdAt, LocalDateTime updatedAt) {
         super();
         this.id = id;
         this.user = user;
         this.deviceId = deviceId;
         this.refreshToken = refreshToken;
+        this.previousRefreshToken = previousRefreshToken;
         this.expiresAt = expiresAt;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;

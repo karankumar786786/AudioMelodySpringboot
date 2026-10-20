@@ -823,7 +823,7 @@ export const FullVideoModal: FC<FullVideoModalProps> = ({
               style={{ left: `${hoverPreviewX}px` }}
               className="absolute bottom-9 transform -translate-x-1/2 pointer-events-none z-50 flex flex-col items-center animate-in fade-in zoom-in-95 duration-150"
             >
-              <div className="w-40 h-[90px] rounded-lg border border-white/40 shadow-2xl overflow-hidden bg-black relative flex flex-col justify-end">
+              <div className="w-40 h-22.5 rounded-lg border border-white/40 shadow-2xl overflow-hidden bg-black relative flex flex-col justify-end">
                 {hoverThumbUrl ? (
                   <div
                     style={{ backgroundImage: `url("${hoverThumbUrl}")` }}

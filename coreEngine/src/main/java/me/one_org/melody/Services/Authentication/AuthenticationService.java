@@ -2,6 +2,7 @@ package me.one_org.melody.Services.Authentication;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -134,7 +135,7 @@ public class AuthenticationService {
 
         // Persist session for user & deviceId
         String safeDeviceId = (deviceId != null && !deviceId.isBlank()) ? deviceId : "default-device";
-        LocalDateTime expiresAt = LocalDateTime.now().plusDays(7);
+        LocalDateTime expiresAt = LocalDateTime.now().plusDays(30);
 
         Session session = sessionRepository.findByUserIdAndDeviceId(user.getId(), safeDeviceId)
                 .orElseGet(() -> Session.builder()
@@ -144,6 +145,7 @@ public class AuthenticationService {
                         .build());
 
         session.setRefreshToken(refreshToken);
+        session.setPreviousRefreshToken(null);
         session.setExpiresAt(expiresAt);
         sessionRepository.save(session);
 
@@ -203,21 +205,56 @@ public class AuthenticationService {
                 throw new UnauthorizedException("User account is inactive or blocked");
             }
 
-            // Look up session by user + device, or by refresh token
-            Session session;
+            // Look up session by user + device, or by current/previous refresh token
+            Session session = null;
             if (deviceId != null && !deviceId.isBlank()) {
-                session = sessionRepository.findByUserIdAndDeviceId(user.getId(), deviceId)
-                        .orElseThrow(() -> new UnauthorizedException("Session not found for device"));
-            } else {
-                session = sessionRepository.findByRefreshToken(refreshToken)
-                        .orElseThrow(() -> new UnauthorizedException("Session not found or expired"));
+                session = sessionRepository.findByUserIdAndDeviceId(user.getId(), deviceId).orElse(null);
+            }
+            if (session == null) {
+                session = sessionRepository.findByUserIdAndCurrentOrPreviousRefreshToken(user.getId(), refreshToken).orElse(null);
+            }
+            if (session == null) {
+                session = sessionRepository.findByCurrentOrPreviousRefreshToken(refreshToken).orElse(null);
+            }
+            if (session == null) {
+                // Grace fallback: check user's most recent session updated in last 60 seconds
+                List<Session> recentSessions = sessionRepository.findByUserIdOrderByUpdatedAtDesc(user.getId());
+                if (!recentSessions.isEmpty()) {
+                    Session candidate = recentSessions.get(0);
+                    if (candidate.getUpdatedAt() != null && candidate.getUpdatedAt().isAfter(LocalDateTime.now().minusSeconds(60))) {
+                        session = candidate;
+                    }
+                }
             }
 
-            // Verify refresh token match to prevent reuse of old/rotated tokens
-            if (!session.getRefreshToken().equals(refreshToken)) {
-                // Grace period: If session was refreshed within the last 30 seconds (e.g. concurrent requests from SSR and client),
-                // do not delete session or fail; re-issue current valid credentials.
-                if (session.getUpdatedAt() != null && session.getUpdatedAt().isAfter(LocalDateTime.now().minusSeconds(30))) {
+            if (session == null) {
+                throw new UnauthorizedException("Session not found or expired");
+            }
+
+            // Check if this is the previous refresh token within grace period (e.g. concurrent requests during rotation)
+            boolean isPreviousToken = refreshToken.equals(session.getPreviousRefreshToken());
+            boolean isCurrentToken = refreshToken.equals(session.getRefreshToken());
+
+            if (isPreviousToken) {
+                // Grace period: within 60 seconds of last refresh, return current valid tokens without re-rotating or failing
+                if (session.getUpdatedAt() != null && session.getUpdatedAt().isAfter(LocalDateTime.now().minusSeconds(60))) {
+                    CustomUserDetails userDetails = new CustomUserDetails(user);
+                    org.springframework.security.core.Authentication authentication =
+                            new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
+                    String newAccessToken = jwtUtil.generateAccessToken(authentication);
+                    return new RefreshTokenResponseDto(newAccessToken, session.getRefreshToken());
+                }
+                sessionRepository.delete(session);
+                throw new UnauthorizedException("Refresh token has expired due to rotation");
+            }
+
+            if (!isCurrentToken) {
+                // Neither current nor previous token matches. If session was refreshed in last 60 seconds, tolerate concurrent race
+                if (session.getUpdatedAt() != null && session.getUpdatedAt().isAfter(LocalDateTime.now().minusSeconds(60))) {
                     CustomUserDetails userDetails = new CustomUserDetails(user);
                     org.springframework.security.core.Authentication authentication =
                             new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
@@ -248,12 +285,13 @@ public class AuthenticationService {
                     );
             org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            // Reissue: 5-minute access token and rotated 7-day refresh token
+            // Reissue: 2-hour access token and rotated 30-day refresh token
             String newAccessToken = jwtUtil.generateAccessToken(authentication);
             String newRefreshToken = jwtUtil.generateRefreshToken(authentication);
 
+            session.setPreviousRefreshToken(session.getRefreshToken());
             session.setRefreshToken(newRefreshToken);
-            session.setExpiresAt(LocalDateTime.now().plusDays(7));
+            session.setExpiresAt(LocalDateTime.now().plusDays(30));
             sessionRepository.save(session);
 
             return new RefreshTokenResponseDto(newAccessToken, newRefreshToken);

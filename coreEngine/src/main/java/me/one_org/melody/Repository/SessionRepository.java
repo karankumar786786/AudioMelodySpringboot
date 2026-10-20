@@ -19,6 +19,12 @@ public interface SessionRepository extends JpaRepository<Session, String> {
 
     Optional<Session> findByUserIdAndRefreshToken(String userId, String refreshToken);
 
+    @Query("SELECT s FROM Session s WHERE s.refreshToken = :token OR s.previousRefreshToken = :token")
+    Optional<Session> findByCurrentOrPreviousRefreshToken(@Param("token") String token);
+
+    @Query("SELECT s FROM Session s WHERE s.user.id = :userId AND (s.refreshToken = :token OR s.previousRefreshToken = :token)")
+    Optional<Session> findByUserIdAndCurrentOrPreviousRefreshToken(@Param("userId") String userId, @Param("token") String token);
+
     List<Session> findByUserIdOrderByUpdatedAtDesc(String userId);
 
     @Modifying

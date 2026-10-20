@@ -48,6 +48,28 @@ export function getStoredAccessToken(): string | null {
   return localStorage.getItem("system_token");
 }
 
+export function isTokenValid(token: string | undefined | null): boolean {
+  if (!token || typeof token !== "string") return false;
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return false;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonStr =
+      typeof atob === "function"
+        ? atob(base64)
+        : Buffer.from(base64, "base64").toString("utf-8");
+    const payload = JSON.parse(jsonStr);
+    if (payload.exp && typeof payload.exp === "number") {
+      const now = Math.floor(Date.now() / 1000);
+      return now < payload.exp;
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function syncTokens(accessToken: string, refreshToken?: string): void {
   if (typeof window === "undefined") return;
   try {
@@ -119,6 +141,12 @@ export async function refreshAccessToken(): Promise<boolean> {
       });
 
       if (!response.ok) {
+        // If another request or tab updated tokens concurrently, don't wipe session
+        const currentAccessToken = getStoredAccessToken();
+        if (currentAccessToken && isTokenValid(currentAccessToken)) {
+          return true;
+        }
+
         if (
           response.status === 401 ||
           response.status === 403 ||

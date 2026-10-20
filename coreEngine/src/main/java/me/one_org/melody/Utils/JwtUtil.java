@@ -34,11 +34,11 @@ public class JwtUtil {
     }
 
     public String generateAccessToken(Authentication authentication) {
-        return generateToken(authentication, Duration.ofMinutes(5));
+        return generateToken(authentication, Duration.ofHours(2));
     }
 
     public String generateRefreshToken(Authentication authentication) {
-        return generateToken(authentication, Duration.ofDays(7));
+        return generateToken(authentication, Duration.ofDays(30));
     }
 
     public String generateToken(Authentication authentication, Duration duration) {
