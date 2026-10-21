@@ -1,0 +1,3 @@
+api.one-org.me {
+    reverse_proxy core:9090
+}

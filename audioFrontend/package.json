@@ -40,6 +40,11 @@
     "tailwindcss": "^4",
     "typescript": "^5"
   },
+  "overrides": {
+    "imagekitio-next": {
+      "next": "$next"
+    }
+  },
   "ignoreScripts": [
     "sharp",
     "unrs-resolver"

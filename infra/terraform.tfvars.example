@@ -1,0 +1,32 @@
+# Example Terraform variables configuration
+aws_region                  = "ap-south-1"
+project_name                = "audiomelody"
+environment                 = "prod"
+
+# Networking
+vpc_cidr                    = "10.0.0.0/16"
+public_subnet_1_cidr        = "10.0.1.0/24"
+public_subnet_2_cidr        = "10.0.2.0/24"
+
+# Compute (2 EC2 instances: core and processing)
+instance_count              = 2
+instance_type               = "t3.micro,t3.small" # Comma-separated in order: core, processing
+ami_id                      = "" # Leave blank to auto-detect latest Ubuntu 24.04 LTS
+root_volume_size            = 20
+root_volume_type            = "gp3"
+
+# Key Pair (1 key used for both instances)
+key_name                    = "audiomelody-ec2-key"
+public_key                  = "" # Or paste your existing "ssh-rsa AAAA..." key string here
+
+# Security Group Rules
+allowed_ssh_cidr_blocks     = ["0.0.0.0/0"]
+allowed_http_cidr_blocks    = ["0.0.0.0/0"]
+app_port                    = 8080
+allowed_app_cidr_blocks     = ["0.0.0.0/0"]
+
+# S3 Buckets (Temp and Prod)
+# Note: S3 bucket names must be globally unique across all AWS accounts
+temp_bucket_name            = "audiomelody-temp-storage-oneorg"
+prod_bucket_name            = "audiomelody-prod-storage-oneorg"
+temp_bucket_expiration_days = 7
