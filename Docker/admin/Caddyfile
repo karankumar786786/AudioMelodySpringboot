@@ -1,7 +1,8 @@
 
-admin.one-org.me {
+admin-api.one-org.me {
     reverse_proxy admin:8000
 }
-process.one-org.me {
+
+process-api.one-org.me {
     reverse_proxy process:5010
 }

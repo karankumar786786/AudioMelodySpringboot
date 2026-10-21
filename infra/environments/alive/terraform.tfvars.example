@@ -1,0 +1,10 @@
+# Example configuration for alive environment
+aws_region                  = "ap-south-1"
+project_name                = "audiomelody"
+environment                 = "alive"
+
+# S3 Buckets (Must be globally unique)
+temp_bucket_name            = "audiomelody-temp-storage-alive-oneorg"
+prod_bucket_name            = "audiomelody-prod-storage-alive-oneorg"
+temp_bucket_expiration_days = 7
+is_public                   = true # Both buckets are completely public in alive environment

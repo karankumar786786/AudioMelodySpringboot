@@ -12,8 +12,8 @@ variable "project_name" {
 
 variable "environment" {
   type        = string
-  description = "Deployment environment (e.g., dev, prod)"
-  default     = "prod"
+  description = "Deployment environment"
+  default     = "production"
 }
 
 variable "vpc_cidr" {
@@ -46,12 +46,6 @@ variable "instance_type" {
   default     = "t3.micro,t3.small"
 }
 
-variable "instance_types" {
-  type        = string
-  description = "Alternative comma-separated instance types"
-  default     = ""
-}
-
 variable "ami_id" {
   type        = string
   description = "Custom AMI ID. If left empty, latest Ubuntu 24.04 LTS AMI will be used."
@@ -78,13 +72,13 @@ variable "key_name" {
 
 variable "public_key" {
   type        = string
-  description = "Optional SSH public key string. If left blank, a TLS private key and local .pem file will be generated automatically."
+  description = "Optional SSH public key string. If left blank, a TLS private key and local .pem/.pub files will be generated automatically."
   default     = ""
 }
 
 variable "allowed_ssh_cidr_blocks" {
   type        = list(string)
-  description = "List of CIDR blocks allowed for SSH access"
+  description = "List of CIDR blocks allowed for SSH access (port 22)"
   default     = ["0.0.0.0/0"]
 }
 
@@ -96,7 +90,7 @@ variable "allowed_http_cidr_blocks" {
 
 variable "app_port" {
   type        = number
-  description = "Application port (e.g., Spring Boot 8080)"
+  description = "Application port (e.g. Spring Boot 8080)"
   default     = 8080
 }
 
@@ -104,22 +98,4 @@ variable "allowed_app_cidr_blocks" {
   type        = list(string)
   description = "List of CIDR blocks allowed for application port access"
   default     = ["0.0.0.0/0"]
-}
-
-variable "temp_bucket_name" {
-  type        = string
-  description = "Name of the temporary S3 bucket"
-  default     = "audiomelody-temp-storage-oneorg"
-}
-
-variable "prod_bucket_name" {
-  type        = string
-  description = "Name of the production S3 bucket"
-  default     = "audiomelody-prod-storage-oneorg"
-}
-
-variable "temp_bucket_expiration_days" {
-  type        = number
-  description = "Number of days before temporary S3 objects expire"
-  default     = 7
 }

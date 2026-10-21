@@ -6,14 +6,14 @@ variable "aws_region" {
 
 variable "project_name" {
   type        = string
-  description = "Project name used for naming and tagging"
+  description = "Project identifier used in naming and tags"
   default     = "audiomelody"
 }
 
 variable "environment" {
   type        = string
-  description = "Deployment environment (e.g., dev, prod)"
-  default     = "prod"
+  description = "Deployment environment name"
+  default     = "production"
 }
 
 variable "vpc_cidr" {
@@ -46,15 +46,9 @@ variable "instance_type" {
   default     = "t3.micro,t3.small"
 }
 
-variable "instance_types" {
-  type        = string
-  description = "Alternative comma-separated instance types"
-  default     = ""
-}
-
 variable "ami_id" {
   type        = string
-  description = "Custom AMI ID. If left empty, latest Ubuntu 24.04 LTS AMI in the region will be used."
+  description = "Custom AMI ID. If left empty, latest Ubuntu 24.04 LTS AMI will be used."
   default     = ""
 }
 
@@ -78,7 +72,7 @@ variable "key_name" {
 
 variable "public_key" {
   type        = string
-  description = "Optional SSH public key string. If left blank, a TLS private key and local .pem file will be generated automatically."
+  description = "Optional SSH public key string. If left blank, a TLS private key and local .pem/.pub files will be generated automatically."
   default     = ""
 }
 
@@ -90,13 +84,13 @@ variable "allowed_ssh_cidr_blocks" {
 
 variable "allowed_http_cidr_blocks" {
   type        = list(string)
-  description = "List of CIDR blocks allowed for HTTP (port 80) and HTTPS (port 443) access"
+  description = "List of CIDR blocks allowed for HTTP/HTTPS access"
   default     = ["0.0.0.0/0"]
 }
 
 variable "app_port" {
   type        = number
-  description = "Application port (e.g., Spring Boot 8080)"
+  description = "Application port (e.g. Spring Boot 8080)"
   default     = 8080
 }
 

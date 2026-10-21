@@ -16,8 +16,7 @@ data "aws_ami" "ubuntu" {
 
 locals {
   selected_ami_id       = var.ami_id != "" ? var.ami_id : data.aws_ami.ubuntu.id
-  raw_instance_types    = var.instance_type != "" ? var.instance_type : (var.instance_types != "" ? var.instance_types : "t3.micro,t3.small")
-  parsed_instance_types = [for it in split(",", local.raw_instance_types) : trimspace(it)]
+  parsed_instance_types = [for it in split(",", var.instance_type) : trimspace(it)]
   ec2_roles             = ["core", "processing"]
 }
 

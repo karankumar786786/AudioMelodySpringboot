@@ -1,0 +1,43 @@
+services:
+  core:
+    image: karankumar9955/core:latest
+    container_name: core
+    pull_policy: always
+    restart: unless-stopped
+    replicas: 3
+    env_file:
+      - core.env
+    expose:
+      - "9090"
+    networks:
+      - app 
+  
+  mail:
+    image: karankumar9955/mail
+    container_name: mail
+    pull_policy: always
+    restart: unless-stopped
+    replicas: 1
+    env_file:
+      - mail.env
+
+  caddy:
+    image: caddy:2
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - app
+    
+networks:
+  app:
+
+volumes:
+  caddy_data:
+  caddy_config:

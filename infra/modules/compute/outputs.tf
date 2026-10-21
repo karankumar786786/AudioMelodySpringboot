@@ -57,23 +57,3 @@ output "ec2_processing_elastic_ip" {
   description = "Elastic IP attached to the processing EC2 instance"
   value       = aws_eip.ec2_eip[1].public_ip
 }
-
-output "temp_bucket_name" {
-  description = "Name of the temp S3 bucket"
-  value       = aws_s3_bucket.temp.id
-}
-
-output "temp_bucket_arn" {
-  description = "ARN of the temp S3 bucket"
-  value       = aws_s3_bucket.temp.arn
-}
-
-output "prod_bucket_name" {
-  description = "Name of the prod S3 bucket"
-  value       = aws_s3_bucket.prod.id
-}
-
-output "prod_bucket_arn" {
-  description = "ARN of the prod S3 bucket"
-  value       = aws_s3_bucket.prod.arn
-}
