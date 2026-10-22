@@ -15,7 +15,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.algolia.api.SearchClient;
 import com.algolia.model.search.IndexSettings;
 
-import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaClientConfigDto;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Entity.SongMetadata;
 
@@ -35,14 +34,12 @@ class AlgoliaSearchTest {
     private static final String INDEX_NAME = "test_melody_songs";
     private static final String APP_ID = "test_app_id";
     private static final String API_KEY = "test_admin_key";
-    private static final String SEARCH_API_KEY = "test_search_only_key";
 
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(algoliaSearch, "indexName", INDEX_NAME);
         ReflectionTestUtils.setField(algoliaSearch, "appId", APP_ID);
         ReflectionTestUtils.setField(algoliaSearch, "apiKey", API_KEY);
-        ReflectionTestUtils.setField(algoliaSearch, "searchApiKey", SEARCH_API_KEY);
     }
 
     @Test
@@ -124,13 +121,4 @@ class AlgoliaSearchTest {
         assertThat(record.get("searchCount")).isEqualTo(0L);
     }
 
-    @Test
-    @DisplayName("Should return configured searchApiKey in getClientSearchConfig")
-    void shouldReturnFrontendConfig() {
-        AlgoliaClientConfigDto config = algoliaSearch.getClientSearchConfig();
-
-        assertThat(config.appId()).isEqualTo(APP_ID);
-        assertThat(config.indexName()).isEqualTo(INDEX_NAME);
-        assertThat(config.apiKey()).isEqualTo(SEARCH_API_KEY);
-    }
 }

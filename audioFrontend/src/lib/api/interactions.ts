@@ -1,5 +1,4 @@
 import { request } from "./client";
-import { recombeeApi } from "./recombee";
 import type { Song } from "./types";
 
 export const interactionsApi = {
@@ -91,11 +90,8 @@ export const interactionsApi = {
       const userId = playerStore.state.systemUser?.id;
       if (!userId) return;
 
-      // Direct background telemetry to Recombee via public token
-      recombeeApi.sendDetailView(userId, songId);
-      if (percentage >= 0.75) {
-        recombeeApi.sendRating(userId, songId, 0.8);
-      }
+      // Recombee telemetry is handled server-side by TelemetryEventListener (AFTER_COMMIT)
+      // with accurate percentage-based rating scale — no frontend duplicate needed.
 
       const safePercentage = Math.min(1.0, Math.max(0.0, isNaN(percentage) ? 0.05 : percentage));
       await request("/api/interaction/play", {
@@ -113,7 +109,7 @@ export const interactionsApi = {
       const userId = playerStore.state.systemUser?.id;
       if (!userId) return;
 
-      recombeeApi.sendRating(userId, songId, -0.4);
+      // Recombee skip telemetry is handled server-side by InteractionApiService.trackSkip
 
       await request("/api/interaction/skip", {
         method: "POST",

@@ -94,7 +94,4 @@ public class SearchApiService {
         return new SearchResult(songs, artists, playlists, userPlaylists);
     }
 
-    public me.one_org.melody.Dto.AlgoliaSearch.AlgoliaClientConfigDto getFrontendSearchConfig() {
-        return algoliaSearch.getClientSearchConfig();
-    }
 }

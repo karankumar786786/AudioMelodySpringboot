@@ -1,7 +1,6 @@
 import { algoliasearch, type SearchClient } from "algoliasearch";
 import { request } from "./client";
 import type {
-  AlgoliaConfig,
   Artist,
   Playlist,
   Song,
@@ -15,19 +14,6 @@ const ALGOLIA_INDEX_NAME = process.env.NEXT_PUBLIC_ALGOLIA_INDEX_NAME || "";
 
 let algoliaClientInstance: SearchClient | null = null;
 
-/**
- * Returns static Algolia credentials directly from environment variables.
- */
-export function getAlgoliaConfig(): AlgoliaConfig | null {
-  if (!ALGOLIA_APP_ID || !ALGOLIA_SEARCH_KEY || !ALGOLIA_INDEX_NAME) {
-    return null;
-  }
-  return {
-    appId: ALGOLIA_APP_ID,
-    apiKey: ALGOLIA_SEARCH_KEY,
-    indexName: ALGOLIA_INDEX_NAME,
-  };
-}
 
 /**
  * Returns the cached algoliasearch SearchClient instance and indexName synchronously.
@@ -231,7 +217,6 @@ export async function searchDirectAlgolia(
 }
 
 export const searchApi = {
-  getConfig: getAlgoliaConfig,
   getClient: getAlgoliaClient,
   unified: async (query: string): Promise<{ data: UnifiedSearchResult }> => {
     const trimmed = query?.trim();

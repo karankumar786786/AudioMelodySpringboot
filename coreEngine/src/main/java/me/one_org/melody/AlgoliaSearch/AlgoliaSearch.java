@@ -22,7 +22,6 @@ import me.one_org.melody.Entity.UserPlaylist;
 import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaSearchArtistDto;
 import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaSearchPlaylistDto;
 
-import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaClientConfigDto;
 
 @Component
 @Slf4j
@@ -39,8 +38,6 @@ public class AlgoliaSearch {
     @Value("${algolia.api-key}")
     private String apiKey;
 
-    @Value("${algolia.search-api-key:}")
-    private String searchApiKey;
 
     public AlgoliaSearch(SearchClient searchClient){
         this.searchClient = searchClient;
@@ -70,21 +67,6 @@ public class AlgoliaSearch {
         }
     }
 
-    public AlgoliaClientConfigDto getClientSearchConfig() {
-        if (searchApiKey != null && !searchApiKey.isBlank()) {
-            return new AlgoliaClientConfigDto(appId, indexName, searchApiKey);
-        }
-        try {
-            SecuredApiKeyRestrictions restrictions = new SecuredApiKeyRestrictions()
-                    .setRestrictIndices(List.of(indexName))
-                    .setValidUntil((System.currentTimeMillis() / 1000L) + 86400L); // 24 hours validity
-            String generatedKey = searchClient.generateSecuredApiKey(apiKey, restrictions);
-            return new AlgoliaClientConfigDto(appId, indexName, generatedKey);
-        } catch (Exception e) {
-            log.warn("Failed to generate secured Algolia API key, falling back to searchApiKey: {}", e.getMessage());
-            return new AlgoliaClientConfigDto(appId, indexName, searchApiKey != null ? searchApiKey : "");
-        }
-    }
 
     public void incrementSearchCount(String objectId) {
         if (objectId == null || objectId.isBlank()) return;
@@ -248,34 +230,6 @@ public class AlgoliaSearch {
         return new AlgoliaSearchResult(songs, artists, playlists);
     }
 
-    public List<String> searchSongsByArtist(String query) {
-        List<String> songIds = new ArrayList<>();
-        if (query == null || query.isBlank()) {
-            return songIds;
-        }
-        try {
-            var response = searchClient.searchSingleIndex(
-                    indexName,
-                    new SearchParamsObject().setQuery(query).setHitsPerPage(50),
-                    Map.class);
-
-            for (var hit : response.getHits()) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> h = (Map<String, Object>) hit;
-                String type = (String) h.get("type");
-                if ("song".equals(type)) {
-                    String objectId = (String) h.get("objectID");
-                    if (objectId != null) {
-                        songIds.add(objectId);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            log.error("Algolia search for artist songs failed: {}", e.getMessage(), e);
-            throw new RuntimeException("Algolia search failed: " + e.getMessage(), e);
-        }
-        return songIds;
-    }
 
     // ── Bulk resync ──
 

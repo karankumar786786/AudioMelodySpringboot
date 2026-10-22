@@ -127,9 +127,3 @@ export interface UserSession {
   updatedAt: string;
   isCurrent?: boolean;
 }
-
-export interface AlgoliaConfig {
-  appId: string;
-  indexName: string;
-  apiKey: string;
-}

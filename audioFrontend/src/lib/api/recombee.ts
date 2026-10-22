@@ -1,5 +1,5 @@
 import recombee from "recombee-js-api-client";
-import { getAlgoliaClient } from "./search";
+import { getAlgoliaClient, mapSongHit } from "./search";
 import { getDeviceId } from "./client";
 import type { Song } from "./types";
 
@@ -60,33 +60,7 @@ export async function hydrateRecommendedSongs(
     for (const id of songIds) {
       const hit = hitMap.get(id);
       if (hit) {
-        songs.push({
-          id: hit.objectID || hit.id,
-          title: hit.title || "",
-          artistName: hit.artistName || hit.artist || "",
-          duration: hit.duration || 0,
-          songKey: hit.songKey || "",
-          imageKey: hit.imageKey || hit.coverImageKey || "",
-          videoKey: hit.videoKey || null,
-          previewStartTime:
-            typeof hit.previewStartTime === "number"
-              ? hit.previewStartTime
-              : undefined,
-          previewEndTime:
-            typeof hit.previewEndTime === "number"
-              ? hit.previewEndTime
-              : undefined,
-          album: hit.album || null,
-          genre: hit.genre || null,
-          language: hit.language || "",
-          lrclibId: hit.lrclibId || "",
-          totalStreams:
-            typeof hit.totalStreams === "number"
-              ? hit.totalStreams
-              : typeof hit.listenCount === "number"
-                ? hit.listenCount
-                : 0,
-        });
+        songs.push(mapSongHit(hit));
       }
     }
     return songs;

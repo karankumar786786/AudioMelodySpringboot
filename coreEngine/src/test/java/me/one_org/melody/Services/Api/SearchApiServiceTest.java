@@ -10,7 +10,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
-import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaClientConfigDto;
 import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaSearchResult;
 import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaSearchSongDto;
 import me.one_org.melody.Dto.AlgoliaSearch.SearchResult;
@@ -86,16 +85,4 @@ class SearchApiServiceTest {
         assertThat(result.songs().get(1).totalStreams()).isEqualTo(100L);
     }
 
-    @Test
-    @DisplayName("Should return frontend search configuration")
-    void shouldReturnFrontendConfig() {
-        AlgoliaClientConfigDto config = new AlgoliaClientConfigDto("app-1", "idx-1", "key-1");
-        when(algoliaSearch.getClientSearchConfig()).thenReturn(config);
-
-        AlgoliaClientConfigDto res = searchApiService.getFrontendSearchConfig();
-
-        assertThat(res.appId()).isEqualTo("app-1");
-        assertThat(res.indexName()).isEqualTo("idx-1");
-        assertThat(res.apiKey()).isEqualTo("key-1");
-    }
 }

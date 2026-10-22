@@ -1,5 +1,5 @@
 import { formatPaginated, request } from "./client";
-import { getAlgoliaClient } from "./search";
+import { getAlgoliaClient, mapSongHit } from "./search";
 import type { Artist, ArtistFollowStatus, Song } from "./types";
 
 export const artistsApi = {
@@ -31,33 +31,7 @@ export const artistsApi = {
 
       const hits: any[] = response.hits || [];
 
-      const songs: Song[] = hits.map((hit: any) => ({
-        id: hit.objectID || hit.id,
-        title: hit.title || "",
-        artistName: hit.artistName || hit.artist || artistName,
-        duration: hit.duration || 0,
-        songKey: hit.songKey || "",
-        imageKey: hit.imageKey || hit.coverImageKey || "",
-        videoKey: hit.videoKey || null,
-        previewStartTime:
-          typeof hit.previewStartTime === "number"
-            ? hit.previewStartTime
-            : undefined,
-        previewEndTime:
-          typeof hit.previewEndTime === "number"
-            ? hit.previewEndTime
-            : undefined,
-        album: hit.album || null,
-        genre: hit.genre || null,
-        language: hit.language || "",
-        lrclibId: hit.lrclibId || "",
-        totalStreams:
-          typeof hit.totalStreams === "number"
-            ? hit.totalStreams
-            : typeof hit.listenCount === "number"
-              ? hit.listenCount
-              : 0,
-      }));
+      const songs: Song[] = hits.map(mapSongHit);
 
       return {
         data: {
@@ -96,9 +70,6 @@ export const artistsApi = {
         },
       };
     }
-  },
-  getBackupSongs: async (idOrName: string, page = 1, size = 15) => {
-    return artistsApi.getSongsFromDbFallback(idOrName, page, size);
   },
   getSongs: async (
     idOrName: string,
