@@ -178,7 +178,8 @@ class AdminEndpointRoutingTests(SimpleTestCase):
         fake_job.recommendation_saved_at = None
         fake_job.search_saved_at = None
 
-        with patch("api.views.get_object_or_404", return_value=fake_job), \
+        with patch("webhooks.views.get_object_or_404", return_value=fake_job), \
+             patch("api.views.get_object_or_404", return_value=fake_job), \
              patch.object(PaginationMetadataService, "transition_job"), \
              patch.object(PaginationMetadataService, "increment_status"), \
              patch.object(RecombeeService, "save_song"), \
@@ -229,7 +230,8 @@ class AdminEndpointRoutingTests(SimpleTestCase):
         fake_delete_job.s3_deleted_at = None
         fake_delete_job.created_at = None
 
-        with patch("api.views.find_delete_job", return_value=fake_delete_job), \
+        with patch("webhooks.views.find_delete_job", return_value=fake_delete_job), \
+             patch("api.views.find_delete_job", return_value=fake_delete_job), \
              patch.object(PaginationMetadataService, "transition_delete_job"), \
              patch.object(PaginationMetadataService, "decrement_status"), \
              patch.object(AlgoliaService, "delete_record"), \
@@ -268,7 +270,8 @@ class AdminEndpointRoutingTests(SimpleTestCase):
         # 1. Normal ADMIN cannot promote users (requires SUPER_ADMIN)
         fake_target = MagicMock()
         fake_target.role = "USER"
-        with patch("api.views.get_object_or_404", return_value=fake_target):
+        with patch("accounts.views.get_object_or_404", return_value=fake_target), \
+             patch("api.views.get_object_or_404", return_value=fake_target):
             # self.client is configured with role="ADMIN"
             res_upgrade_denied = self.client.post("/admin/account/target@example.com")
             self.assertEqual(res_upgrade_denied.status_code, 403)
@@ -278,7 +281,8 @@ class AdminEndpointRoutingTests(SimpleTestCase):
         super_client = APIClient()
         super_client.credentials(HTTP_X_SESSION_ID=super_sid)
 
-        with patch("api.views.get_object_or_404", return_value=fake_target), \
+        with patch("accounts.views.get_object_or_404", return_value=fake_target), \
+             patch("api.views.get_object_or_404", return_value=fake_target), \
              patch.object(Admin.objects, "filter") as mock_admin_filter, \
              patch.object(Admin.objects, "get_or_create", return_value=(MagicMock(), True)):
             mock_admin_filter.return_value.first.return_value = None
@@ -286,7 +290,8 @@ class AdminEndpointRoutingTests(SimpleTestCase):
             self.assertEqual(res_upgrade_ok.status_code, 202)
 
         # 3. Super Admin deleting user via DELETE /admin/account/<email> and /admin/account/<email>/delete
-        with patch("api.views.get_object_or_404", return_value=fake_target), \
+        with patch("accounts.views.get_object_or_404", return_value=fake_target), \
+             patch("api.views.get_object_or_404", return_value=fake_target), \
              patch.object(RecombeeService, "delete_user"), \
              patch.object(RedisService, "block_user_in_redis"), \
              patch.object(PaginationMetadataService, "decrement_status"), \
@@ -312,7 +317,8 @@ class AdminEndpointRoutingTests(SimpleTestCase):
         fake_session.created_at = datetime.now()
         fake_session.updated_at = datetime.now()
 
-        with patch("api.views.get_object_or_404", return_value=fake_user), \
+        with patch("accounts.views.get_object_or_404", return_value=fake_user), \
+             patch("api.views.get_object_or_404", return_value=fake_user), \
              patch.object(Session.objects, "filter") as mock_sess_filter:
             mock_sess_filter.return_value.order_by.return_value = [fake_session]
             mock_sess_filter.return_value.delete.return_value = (1, {})
@@ -529,15 +535,17 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
         fake_artist.id = "art-1"
         fake_artist.name = "Test Artist"
 
-        with patch("api.views.get_object_or_404", return_value=fake_artist), \
+        with patch("catalog.views.get_object_or_404", return_value=fake_artist), \
+             patch("api.views.get_object_or_404", return_value=fake_artist), \
              patch.object(Song.objects, "filter") as mock_songs, \
              patch.object(PaginationMetadataService, "get_metadata", return_value=None):
 
+            mock_slice = MagicMock()
+            mock_slice.__iter__.return_value = iter([])
             mock_qs = MagicMock()
-            mock_qs.__getitem__.return_value = []
             mock_qs.count.return_value = 0
-            mock_songs.return_value.select_related.return_value.order_by.return_value = mock_qs
-            mock_songs.return_value.order_by.return_value = mock_qs
+            mock_qs.order_by.return_value.__getitem__.return_value = mock_slice
+            mock_songs.return_value.select_related.return_value = mock_qs
 
             res = authed_client.get("/api/artists/art-1/songs?page=0&size=200")
             self.assertEqual(res.status_code, 200)
@@ -583,7 +591,8 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
         fake_playlist.created_at = None
         fake_playlist.updated_at = None
 
-        with patch("api.views.get_object_or_404", return_value=fake_playlist):
+        with patch("catalog.views.get_object_or_404", return_value=fake_playlist), \
+             patch("api.views.get_object_or_404", return_value=fake_playlist):
             res = authed_client.get("/admin/playlist/pl-123")
             self.assertEqual(res.status_code, 200)
             data = res.json()
