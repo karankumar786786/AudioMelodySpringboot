@@ -398,7 +398,7 @@ class DeleteJobSummaryView(BaseAdminView):
             "avgS3Ms": avg_dict.get("avg_s3") or 0.0,
             "avgFinalizeMs": avg_dict.get("avg_fin") or 0.0,
             "avgTotalMs": avg_dict.get("avg_total") or 0.0,
-            "deleteQueueDepth": RedisService.get_queue_size(settings.REDIS_DELETE_QUEUE),
+            "deleteQueueDepth": 0,
         }
         return Response(data, status=status.HTTP_200_OK)
 

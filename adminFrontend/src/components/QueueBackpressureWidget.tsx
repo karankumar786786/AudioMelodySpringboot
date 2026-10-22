@@ -31,10 +31,10 @@ export function QueueBackpressureWidget({
 }: QueueBackpressureWidgetProps) {
   if (!queueData) {
     return (
-      <div className="rounded-2xl border border-[#282828] bg-[#121212] p-5 animate-pulse">
+      <div id="mail-queue" className="rounded-2xl border border-[#282828] bg-[#121212] p-5 animate-pulse">
         <div className="h-6 w-48 bg-zinc-800 rounded mb-4" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {[1, 2].map((i) => (
             <div key={i} className="h-28 bg-zinc-800/60 rounded-xl" />
           ))}
         </div>
@@ -45,19 +45,20 @@ export function QueueBackpressureWidget({
   const {
     totalQueued = 0,
     overallStatus = "HEALTHY",
-    audioProcessingQueueSize = 0,
     mailQueueSize = 0,
-    deleteQueueSize = 0,
     mailDlqSize = 0,
     queues = [],
     timestamp,
   } = queueData;
 
+  // Filter strictly for Mail Dispatch and Dead-Letter queues
+  const displayQueues = queues.filter((q) => q.queueKey.includes("mail") || q.type === "DLQ");
+
   const getOverallStatusBadge = () => {
     switch (overallStatus) {
       case "DLQ_ALERT":
         return {
-          label: "DLQ Alert: Failed Jobs",
+          label: "DLQ Alert: Failed Emails",
           bg: "bg-rose-500/15 text-rose-400 border-rose-500/30",
           dot: "bg-rose-500 animate-ping",
           icon: <AlertOctagon className="w-3.5 h-3.5 text-rose-400" />,
@@ -91,16 +92,7 @@ export function QueueBackpressureWidget({
     if (type === "DLQ") {
       return <AlertOctagon className="w-4 h-4 text-rose-400" />;
     }
-    if (queueKey.includes("audio")) {
-      return <Gauge className="w-4 h-4 text-white" />;
-    }
-    if (queueKey.includes("mail")) {
-      return <Mail className="w-4 h-4 text-zinc-300" />;
-    }
-    if (queueKey.includes("delete")) {
-      return <Trash2 className="w-4 h-4 text-zinc-300" />;
-    }
-    return <Inbox className="w-4 h-4 text-zinc-300" />;
+    return <Mail className="w-4 h-4 text-emerald-400" />;
   };
 
   const getStatusVisuals = (status: string, size: number, isDlq: boolean) => {
@@ -150,27 +142,27 @@ export function QueueBackpressureWidget({
   const statusBadge = getOverallStatusBadge();
 
   return (
-    <div className="rounded-2xl border border-[#282828] bg-[#121212] p-5 sm:p-6 shadow-xl relative overflow-hidden transition-all duration-300 hover:border-zinc-700">
+    <div id="mail-queue" className="rounded-2xl border border-[#282828] bg-[#121212] p-5 sm:p-6 shadow-xl relative overflow-hidden transition-all duration-300 hover:border-zinc-700">
       {/* Background ambient subtle glow */}
-      <div className="absolute -top-24 -right-24 w-96 h-96 bg-white/[0.02] rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/[0.03] rounded-full blur-3xl pointer-events-none" />
 
       {/* Header bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-5 border-b border-[#282828] relative z-10">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-zinc-900 border border-[#282828] text-white">
-            <Server className="w-5 h-5" />
+          <div className="p-2.5 rounded-xl bg-zinc-900 border border-[#282828] text-emerald-400">
+            <Mail className="w-5 h-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                Redis Queue Depths & Backpressure
+                Redis Mail Queue (Transactional Emails)
               </h2>
               <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-white/5 text-zinc-400 border border-[#282828]">
-                Live Ingestion Lag
+                Mail Dispatch &amp; DLQ
               </span>
             </div>
             <p className="text-xs text-zinc-400 mt-0.5">
-              Real-time worker buffer capacity, lag detection, and dead-letter monitoring
+              Real-time dispatch buffer for OTPs, invitations, password resets, and dead-letter monitoring
             </p>
           </div>
         </div>
@@ -189,7 +181,7 @@ export function QueueBackpressureWidget({
 
           {/* Total Queued counter */}
           <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-black/60 border border-[#282828] text-zinc-300">
-            <span className="text-zinc-400">Queued:</span>
+            <span className="text-zinc-400">Mail Queued:</span>
             <span className="font-bold text-white tabular-nums">{totalQueued}</span>
           </div>
 
@@ -198,7 +190,7 @@ export function QueueBackpressureWidget({
               onClick={onRefresh}
               disabled={isRefreshing}
               className="p-1.5 rounded-xl bg-black/60 hover:bg-zinc-800 border border-[#282828] text-zinc-400 hover:text-white transition-all disabled:opacity-50"
-              title="Refresh queue metrics"
+              title="Refresh mail queue metrics"
             >
               <Activity className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
             </button>
@@ -212,7 +204,7 @@ export function QueueBackpressureWidget({
           <AlertOctagon className="w-5 h-5 text-rose-400 shrink-0 mt-0.5 animate-bounce" />
           <div className="flex-1 min-w-0">
             <h4 className="text-sm font-semibold text-rose-300">
-              {mailDlqSize} Failed Job{mailDlqSize > 1 ? "s" : ""} in Dead-Letter Queue
+              {mailDlqSize} Failed Email{mailDlqSize > 1 ? "s" : ""} in Dead-Letter Queue
             </h4>
             <p className="text-xs text-rose-300/80 mt-1 leading-relaxed">
               Email deliveries failed after maximum retry attempts or encountered SMTP provider lockouts (e.g. Gmail 454 rate-limits).
@@ -223,8 +215,8 @@ export function QueueBackpressureWidget({
       )}
 
       {/* Queue Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
-        {queues.map((q) => {
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 relative z-10">
+        {displayQueues.map((q) => {
           const isDlq = q.type === "DLQ";
           const visual = getStatusVisuals(q.backpressureStatus, q.size, isDlq);
           const icon = getQueueIcon(q.queueKey, q.type);

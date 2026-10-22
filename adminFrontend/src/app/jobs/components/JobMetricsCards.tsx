@@ -19,7 +19,6 @@ import {
   Workflow,
 } from "lucide-react";
 import { formatMs } from "./jobHelpers";
-import { QueueBackpressureWidget } from "@/components/QueueBackpressureWidget";
 
 interface IngestionMetricsCardsProps {
   type: "INGESTION";
@@ -143,14 +142,6 @@ export function JobMetricsCards(props: JobMetricsCardsProps) {
           </div>
         </div>
 
-        {/* Queue Backpressure Widget */}
-        {ingMetrics?.queueBackpressure && (
-          <QueueBackpressureWidget
-            queueData={ingMetrics.queueBackpressure}
-            onRefresh={props.onRefresh}
-            isRefreshing={props.isRefreshing}
-          />
-        )}
 
         {/* Pipeline Flowchart Visualizer */}
         <div className="p-6 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm space-y-4">
@@ -259,7 +250,7 @@ export function JobMetricsCards(props: JobMetricsCardsProps) {
           <div className="text-3xl font-black text-white">
             {delMetrics?.pendingQueued ?? 0}
           </div>
-          <p className="text-[11px] text-zinc-500 mt-1">Redis queue: {delMetrics?.deleteQueueDepth ?? 0}</p>
+          <p className="text-[11px] text-zinc-500 mt-1">Awaiting deletion dispatch</p>
         </div>
 
         <div className="p-5 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden group hover:border-zinc-700 transition-all">

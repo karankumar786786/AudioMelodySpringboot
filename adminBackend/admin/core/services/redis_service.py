@@ -40,14 +40,10 @@ class RedisService:
 
     @classmethod
     def get_queue_backpressure_summary(cls) -> Dict[str, Any]:
-        audio_key = settings.REDIS_AUDIO_PROCESSING_QUEUE
         mail_key = settings.REDIS_MAIL_QUEUE
-        delete_key = settings.REDIS_DELETE_QUEUE
         mail_dlq_key = f"{mail_key}_dlq"
 
-        audio_size = cls.get_queue_size(audio_key)
         mail_size = cls.get_queue_size(mail_key)
-        delete_size = cls.get_queue_size(delete_key)
         mail_dlq_size = cls.get_queue_size(mail_dlq_key)
 
         def eval_status(sz: int) -> str:
@@ -59,32 +55,12 @@ class RedisService:
 
         queues = [
             {
-                "queueName": "Audio Processing Queue",
-                "queueKey": audio_key,
-                "size": audio_size,
-                "backpressureStatus": eval_status(audio_size),
-                "type": "STANDARD",
-                "description": "Ingestion & transcoding jobs pending worker pickup",
-                "safeThreshold": 10,
-                "highThreshold": 50,
-            },
-            {
                 "queueName": "Mail Dispatch Queue",
                 "queueKey": mail_key,
                 "size": mail_size,
                 "backpressureStatus": eval_status(mail_size),
                 "type": "STANDARD",
                 "description": "Pending verification codes, password resets & OTP emails",
-                "safeThreshold": 10,
-                "highThreshold": 50,
-            },
-            {
-                "queueName": "Delete Cascade Queue",
-                "queueKey": delete_key,
-                "size": delete_size,
-                "backpressureStatus": eval_status(delete_size),
-                "type": "STANDARD",
-                "description": "Cloud resource cleanup events (Algolia, Recombee, ImageKit, S3)",
                 "safeThreshold": 10,
                 "highThreshold": 50,
             },
@@ -100,12 +76,12 @@ class RedisService:
             },
         ]
 
-        total_queued = audio_size + mail_size + delete_size + mail_dlq_size
+        total_queued = mail_size + mail_dlq_size
         if mail_dlq_size > 0:
             overall_status = "DLQ_ALERT"
-        elif audio_size >= 50 or mail_size >= 50 or delete_size >= 50:
+        elif mail_size >= 50:
             overall_status = "HIGH"
-        elif audio_size >= 10 or mail_size >= 10 or delete_size >= 10:
+        elif mail_size >= 10:
             overall_status = "MODERATE"
         else:
             overall_status = "HEALTHY"
@@ -113,9 +89,9 @@ class RedisService:
         return {
             "totalQueued": total_queued,
             "overallStatus": overall_status,
-            "audioProcessingQueueSize": audio_size,
+            "audioProcessingQueueSize": 0,
             "mailQueueSize": mail_size,
-            "deleteQueueSize": delete_size,
+            "deleteQueueSize": 0,
             "mailDlqSize": mail_dlq_size,
             "queues": queues,
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -124,46 +100,26 @@ class RedisService:
     @classmethod
     def queue_audio_processing(cls, job_id: str) -> None:
         from .inngest_service import InngestService
-        # 1. Direct durable dispatch to Inngest Cloud/Dev
+        # Direct durable dispatch to Inngest Cloud/Dev
         try:
             InngestService.trigger_audio_job(job_id)
+            logger.info("Dispatched audio processing job [%s] directly to Inngest", job_id)
         except Exception as e:
             logger.error("Failed to directly trigger Inngest for job [%s]: %s", job_id, e)
 
-        # 2. Redis queue record for tracking/backpressure metrics
-        try:
-            r = cls.get_client()
-            payload = json.dumps({"jobId": job_id})
-            r.rpush(settings.REDIS_AUDIO_PROCESSING_QUEUE, payload)
-            logger.info("Queued audio processing job [%s] in Redis list '%s'", job_id, settings.REDIS_AUDIO_PROCESSING_QUEUE)
-        except Exception as e:
-            logger.warning("Failed to push audio processing job [%s] to Redis queue: %s", job_id, e)
-
     @classmethod
     def remove_job_from_audio_queue(cls, job_id: str) -> None:
-        try:
-            r = cls.get_client()
-            payload = json.dumps({"jobId": job_id})
-            removed = r.lrem(settings.REDIS_AUDIO_PROCESSING_QUEUE, 0, payload)
-            logger.info("Removed %s occurrences of job [%s] from Redis queue", removed, job_id)
-        except Exception as e:
-            logger.warning("Failed to remove job [%s] from Redis queue: %s", job_id, e)
+        """No-op: Redis audio processing queue removed in favor of direct Inngest execution."""
+        pass
 
     @classmethod
     def cancel_job(cls, job_id: str) -> None:
         from .inngest_service import InngestService
         try:
             InngestService.trigger_cancel_job(job_id)
+            logger.info("Dispatched Inngest cancellation event for [%s]", job_id)
         except Exception as e:
             logger.warning("Failed to dispatch Inngest cancellation event for [%s]: %s", job_id, e)
-
-        try:
-            r = cls.get_client()
-            payload = json.dumps({"jobId": job_id})
-            r.rpush(settings.REDIS_CANCEL_QUEUE, payload)
-            logger.info("Pushed cancel event for job [%s] to Redis queue '%s'", job_id, settings.REDIS_CANCEL_QUEUE)
-        except Exception as e:
-            logger.warning("Failed to push cancellation event for job [%s]: %s", job_id, e)
 
     @classmethod
     def queue_delete_event(cls, data: Dict[str, Any]) -> str:
@@ -214,20 +170,13 @@ class RedisService:
             "fullVideoKey": data.get("fullVideoKey"),
         }
 
-        # 1. Direct durable dispatch to Inngest Cloud/Dev
+        # Direct durable dispatch to Inngest Cloud/Dev
         from .inngest_service import InngestService
         try:
             InngestService.trigger_delete_event(payload)
+            logger.info("Dispatched delete event for %s:%s (job [%s]) to Inngest", data.get("entityType"), data.get("entityId"), job_id)
         except Exception as e:
             logger.error("Failed to directly trigger Inngest delete event for job [%s]: %s", job_id, e)
-
-        # 2. Redis queue record for tracking/backpressure metrics
-        try:
-            r = cls.get_client()
-            r.rpush(settings.REDIS_DELETE_QUEUE, json.dumps(payload))
-            logger.info("Queued delete event for %s:%s (job [%s]) to Redis", data.get("entityType"), data.get("entityId"), job_id)
-        except Exception as e:
-            logger.warning("Failed to push delete event to Redis queue: %s", e)
 
         return job_id
 

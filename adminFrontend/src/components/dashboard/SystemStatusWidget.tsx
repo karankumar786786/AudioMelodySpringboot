@@ -223,15 +223,15 @@ export function SystemStatusWidget({
             </div>
           </div>
 
-          {/* Queue Buffer & Ingestion */}
+          {/* Mail Queue Buffer */}
           <Link
-            href="/jobs"
+            href="#mail-queue"
             className="flex items-center justify-between p-3.5 rounded-xl bg-black/50 border border-[#282828] hover:border-zinc-700 hover:bg-[#181818] transition-all group"
           >
             <div className="flex items-center gap-2.5">
               <span className={`w-2 h-2 rounded-full ${getQueuePulseColor()}`} />
               <span className="text-xs font-semibold text-zinc-200 group-hover:text-white transition-colors">
-                Queue Buffer ({queueStats?.totalQueued ?? 0})
+                Mail Queue ({queueStats?.mailQueueSize ?? 0})
               </span>
             </div>
             <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${getQueueBadgeStyle()}`}>
