@@ -9,6 +9,7 @@ import {
   isDeviceOnline,
   UploadError,
   uploadToImageKitWithProgress,
+  uploadToS3WithProgress,
   uploadWithProgress,
 } from "@/lib/upload-utils";
 import type { CreateSongFormData, UploadMode, UploadProgressStats, UploadErrorState } from "../types";
@@ -140,15 +141,10 @@ export function CreateSongModal({
         setUploadPercent(0);
         setUploadStats({ fileName: formData.songFile.name });
 
-        const songUrlRes = await adminFetch("/webhook/internal/song-upload-url");
-        if (!songUrlRes.ok) throw new Error("Failed to get audio upload authorization");
-        const songUrlData = await songUrlRes.json();
-
-        await uploadWithProgress(
-          songUrlData.preSignedUrl,
+        const s3AudioRes = await uploadToS3WithProgress(
           formData.songFile,
-          "PUT",
-          { "Content-Type": formData.songFile.type || "audio/mpeg" },
+          "/webhook/internal/song-upload-url",
+          formData.songFile.type || "audio/mpeg",
           (p) => {
             setUploadPercent(p.percent);
             setUploadStats({
@@ -157,11 +153,11 @@ export function CreateSongModal({
               fileName: formData.songFile?.name,
             });
           },
-          { onRetry: uploadRetryHandler },
+          { onRetry: uploadRetryHandler, maxRetries: 4 },
         );
         setIsRetrying(false);
         setRetryStatusText("");
-        tempSongKey = songUrlData.key;
+        tempSongKey = s3AudioRes.key;
       }
 
       // 2. Full Video Upload
@@ -171,15 +167,10 @@ export function CreateSongModal({
         setUploadPercent(0);
         setUploadStats({ fileName: formData.fullVideoFile.name });
 
-        const videoUrlRes = await adminFetch("/webhook/internal/video-upload-url");
-        if (!videoUrlRes.ok) throw new Error("Failed to get full video upload authorization");
-        const videoUrlData = await videoUrlRes.json();
-
-        await uploadWithProgress(
-          videoUrlData.preSignedUrl,
+        const s3VideoRes = await uploadToS3WithProgress(
           formData.fullVideoFile,
-          "PUT",
-          { "Content-Type": formData.fullVideoFile.type || "video/mp4" },
+          "/webhook/internal/video-upload-url",
+          formData.fullVideoFile.type || "video/mp4",
           (p) => {
             setUploadPercent(p.percent);
             setUploadStats({
@@ -188,11 +179,11 @@ export function CreateSongModal({
               fileName: formData.fullVideoFile?.name,
             });
           },
-          { onRetry: uploadRetryHandler },
+          { onRetry: uploadRetryHandler, maxRetries: 4 },
         );
         setIsRetrying(false);
         setRetryStatusText("");
-        tempVideoKey = videoUrlData.key;
+        tempVideoKey = s3VideoRes.key;
       }
 
       // 3. Cover Image Upload (ImageKit)

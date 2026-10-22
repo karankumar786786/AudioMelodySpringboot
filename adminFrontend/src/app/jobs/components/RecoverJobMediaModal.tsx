@@ -14,6 +14,7 @@ import { adminFetch } from "@/lib/adminFetch";
 import { JobProgress } from "@/lib/api";
 import { UploadProgressBar } from "@/components/UploadProgressBar";
 import {
+  uploadToS3WithProgress,
   uploadWithProgress,
   getFriendlyUploadErrorMessage,
   isDeviceOnline,
@@ -106,15 +107,10 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
         setRecoverPercent(0);
         setRecoverStats({ fileName: recoverAudioFile.name });
 
-        const urlRes = await adminFetch("/webhook/internal/song-upload-url");
-        if (!urlRes.ok) throw new Error("Failed to authorize audio upload");
-        const urlData = await urlRes.json();
-
-        await uploadWithProgress(
-          urlData.preSignedUrl,
+        const s3AudioRes = await uploadToS3WithProgress(
           recoverAudioFile,
-          "PUT",
-          { "Content-Type": recoverAudioFile.type || "audio/mpeg" },
+          "/webhook/internal/song-upload-url",
+          recoverAudioFile.type || "audio/mpeg",
           (p) => {
             setRecoverPercent(p.percent);
             setRecoverStats({
@@ -123,11 +119,11 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
               fileName: recoverAudioFile.name,
             });
           },
-          { onRetry: retryHandler }
+          { onRetry: retryHandler, maxRetries: 4 }
         );
         setIsRecoverRetrying(false);
         setRecoverRetryStatusText("");
-        tempSongKey = urlData.key;
+        tempSongKey = s3AudioRes.key;
       }
 
       // 2. Upload replacement video if selected
@@ -136,15 +132,10 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
         setRecoverPercent(0);
         setRecoverStats({ fileName: recoverVideoFile.name });
 
-        const urlRes = await adminFetch("/webhook/internal/video-upload-url");
-        if (!urlRes.ok) throw new Error("Failed to authorize video upload");
-        const urlData = await urlRes.json();
-
-        await uploadWithProgress(
-          urlData.preSignedUrl,
+        const s3VideoRes = await uploadToS3WithProgress(
           recoverVideoFile,
-          "PUT",
-          { "Content-Type": recoverVideoFile.type || "video/mp4" },
+          "/webhook/internal/video-upload-url",
+          recoverVideoFile.type || "video/mp4",
           (p) => {
             setRecoverPercent(p.percent);
             setRecoverStats({
@@ -153,11 +144,11 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
               fileName: recoverVideoFile.name,
             });
           },
-          { onRetry: retryHandler }
+          { onRetry: retryHandler, maxRetries: 4 }
         );
         setIsRecoverRetrying(false);
         setRecoverRetryStatusText("");
-        tempVideoKey = urlData.key;
+        tempVideoKey = s3VideoRes.key;
       }
 
       // 3. Parse optional canvas clip timestamps

@@ -40,7 +40,7 @@ export class UploadError extends Error {
 }
 
 export function formatBytes(bytes: number, decimals = 1): string {
-  if (bytes === 0) return "0 B";
+  if (bytes <= 0 || isNaN(bytes)) return "0 B";
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
   const sizes = ["B", "KB", "MB", "GB", "TB"];
@@ -50,8 +50,9 @@ export function formatBytes(bytes: number, decimals = 1): string {
 
 export interface UploadOptions {
   signal?: AbortSignal;
-  timeoutMs?: number; // default: 300,000ms (5 minutes)
-  maxRetries?: number; // default: 2
+  timeoutMs?: number; // Total max timeout (default: dynamically computed based on file size, min 15 minutes)
+  stallTimeoutMs?: number; // Inactivity timeout: if 0 bytes transferred for X ms (default: 45,000ms)
+  maxRetries?: number; // default: 4 (increased from 2)
   retryDelayMs?: number; // default: 1500ms
   onRetry?: (
     attempt: number,
@@ -91,7 +92,7 @@ export function getFriendlyUploadErrorMessage(err: unknown): {
       return {
         title: "Upload Timed Out",
         message:
-          "The network connection is too slow or unresponsive. Please check your signal and retry.",
+          "The upload stalled or connection was too slow. Your form entries and files are preserved.",
         isNetworkError: true,
         canRetry: true,
       };
@@ -123,7 +124,7 @@ export function getFriendlyUploadErrorMessage(err: unknown): {
     }
     if (err.isNetworkError) {
       return {
-        title: "Network Connection Lost",
+        title: "Network Connection Interrupted",
         message:
           "Network connection was interrupted during file transfer. Your form entries and files are preserved.",
         isNetworkError: true,
@@ -159,9 +160,9 @@ export function getFriendlyUploadErrorMessage(err: unknown): {
     lowerMsg.includes("econnrefused")
   ) {
     return {
-      title: "Network Connection Lost",
+      title: "Network Connection Interrupted",
       message:
-        "Unable to reach the server. Please check your internet connection or server availability.",
+        "Unable to complete transfer. Please check your internet connection.",
       isNetworkError: true,
       canRetry: true,
     };
@@ -195,7 +196,7 @@ export function getFriendlyUploadErrorMessage(err: unknown): {
 }
 
 /**
- * Low-level single attempt of XMLHttpRequest upload with progress and timeout.
+ * Low-level single attempt of XMLHttpRequest upload with progress, stall detection, and dynamic timeout.
  */
 function singleUploadAttempt(
   url: string,
@@ -224,19 +225,39 @@ function singleUploadAttempt(
       );
     }
 
+    const fileSize = body instanceof Blob ? body.size : 0;
+    // Dynamic timeout: At least 15 minutes, or enough time even at 20 KB/s for large video files
+    const defaultTotalTimeout = Math.max(
+      900000,
+      Math.ceil(fileSize / (20 * 1024)) * 1000,
+    );
+    const totalTimeoutMs = options?.timeoutMs ?? defaultTotalTimeout;
+    const stallTimeoutMs = options?.stallTimeoutMs ?? 45000; // 45s without any progress
+
     const xhr = new XMLHttpRequest();
     const startTime = Date.now();
     let lastLoaded = 0;
     let lastTime = startTime;
+    let lastProgressTime = startTime;
+    let isSettled = false;
 
     xhr.open(method, url, true);
-    xhr.timeout = options?.timeoutMs ?? 300000; // 5 minutes default
+    xhr.timeout = totalTimeoutMs;
 
     for (const [key, value] of Object.entries(headers)) {
       xhr.setRequestHeader(key, value);
     }
 
+    const cleanup = () => {
+      isSettled = true;
+      clearInterval(stallInterval);
+      if (options?.signal) {
+        options.signal.removeEventListener("abort", abortHandler);
+      }
+    };
+
     const abortHandler = () => {
+      cleanup();
       xhr.abort();
       reject(
         new UploadError("Upload cancelled by user", {
@@ -250,14 +271,42 @@ function singleUploadAttempt(
       options.signal.addEventListener("abort", abortHandler, { once: true });
     }
 
+    // Stall checker: fires if 0 bytes transferred for stallTimeoutMs
+    const stallInterval = setInterval(() => {
+      if (isSettled) return;
+      const now = Date.now();
+      if (now - lastProgressTime > stallTimeoutMs && lastLoaded < fileSize) {
+        cleanup();
+        console.warn(
+          `[UPLOAD] Connection stalled (${stallTimeoutMs / 1000}s without progress). Aborting attempt.`,
+        );
+        xhr.abort();
+        reject(
+          new UploadError(
+            "Upload connection stalled. Network stopped transmitting data.",
+            {
+              isNetworkError: true,
+              isTimeout: true,
+              canRetry: true,
+            },
+          ),
+        );
+      }
+    }, 5000);
+
     if (xhr.upload && onProgress) {
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable && event.total > 0) {
           const now = Date.now();
-          const percent = Math.min(
-            100,
-            Math.round((event.loaded / event.total) * 100),
-          );
+          if (event.loaded > lastLoaded) {
+            lastProgressTime = now;
+          }
+
+          // If all bytes left browser, cap at 99% until server 200 OK headers return
+          const isFinishedSending = event.loaded >= event.total;
+          const percent = isFinishedSending
+            ? 99
+            : Math.min(98, Math.round((event.loaded / event.total) * 100));
 
           // Calculate transfer speed smoothed over intervals
           const timeDiff = (now - lastTime) / 1000;
@@ -286,9 +335,7 @@ function singleUploadAttempt(
     }
 
     xhr.onload = () => {
-      if (options?.signal) {
-        options.signal.removeEventListener("abort", abortHandler);
-      }
+      cleanup();
 
       if (xhr.status >= 200 && xhr.status < 300) {
         if (onProgress) {
@@ -307,8 +354,13 @@ function singleUploadAttempt(
         const isTransientServerErr =
           xhr.status === 408 ||
           xhr.status === 429 ||
-          (xhr.status >= 502 && xhr.status <= 504);
+          (xhr.status >= 500 && xhr.status <= 504);
         const isAuthExpired = xhr.status === 403;
+
+        console.error(
+          `[UPLOAD] Server returned HTTP ${xhr.status}:`,
+          xhr.responseText || xhr.statusText,
+        );
 
         reject(
           new UploadError(
@@ -326,10 +378,12 @@ function singleUploadAttempt(
     };
 
     xhr.onerror = () => {
-      if (options?.signal) {
-        options.signal.removeEventListener("abort", abortHandler);
-      }
+      cleanup();
       const offline = !isDeviceOnline();
+      console.error(
+        "[UPLOAD] Network error occurred during upload. Offline:",
+        offline,
+      );
       reject(
         new UploadError(
           offline
@@ -345,9 +399,10 @@ function singleUploadAttempt(
     };
 
     xhr.ontimeout = () => {
-      if (options?.signal) {
-        options.signal.removeEventListener("abort", abortHandler);
-      }
+      cleanup();
+      console.warn(
+        `[UPLOAD] File upload timed out after ${totalTimeoutMs / 1000}s.`,
+      );
       reject(
         new UploadError(
           "File upload timed out. Network connection was too slow.",
@@ -366,7 +421,7 @@ function singleUploadAttempt(
 
 /**
  * Upload any File, Blob, or FormData with real-time XMLHttpRequest progress reporting,
- * offline awareness, abort signal support, and automatic retries with exponential backoff.
+ * offline awareness, stall detection, abort signal support, and automatic retries with exponential backoff.
  */
 export async function uploadWithProgress(
   url: string,
@@ -376,7 +431,7 @@ export async function uploadWithProgress(
   onProgress?: (progress: UploadProgressEvent) => void,
   options?: UploadOptions,
 ): Promise<{ status: number; responseText: string }> {
-  const maxRetries = options?.maxRetries ?? 2;
+  const maxRetries = options?.maxRetries ?? 4;
   const initialDelay = options?.retryDelayMs ?? 1500;
 
   let attempt = 0;
@@ -410,7 +465,107 @@ export async function uploadWithProgress(
         throw err;
       }
 
-      const delayMs = initialDelay * 2 ** (attempt - 1);
+      const delayMs = Math.min(30000, initialDelay * 2 ** (attempt - 1));
+      if (options?.onRetry) {
+        options.onRetry(attempt, maxRetries, delayMs, err);
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
+/**
+ * Authorize and upload a file to AWS S3 with full byte-level progress reporting,
+ * automatic fresh presigned URL refresh on each retry attempt, stall detection,
+ * and resilient network recovery.
+ */
+export async function uploadToS3WithProgress(
+  file: File | Blob,
+  getUrlEndpoint: string, // e.g. "/webhook/internal/song-upload-url" or "/webhook/internal/video-upload-url"
+  contentType?: string,
+  onProgress?: (progress: UploadProgressEvent) => void,
+  options?: UploadOptions,
+): Promise<{ key: string; status: number }> {
+  if (!isDeviceOnline()) {
+    throw new UploadError(
+      "You appear to be offline. Please reconnect and retry.",
+      { isOffline: true, isNetworkError: true, canRetry: true },
+    );
+  }
+
+  const maxRetries = options?.maxRetries ?? 4;
+  const initialDelay = options?.retryDelayMs ?? 1500;
+  let attempt = 0;
+
+  while (true) {
+    try {
+      // 1. Get fresh pre-signed upload URL from backend
+      let urlRes: Response;
+      try {
+        urlRes = await adminFetch(getUrlEndpoint, {
+          signal: options?.signal,
+        });
+      } catch (fetchErr: any) {
+        throw new UploadError(
+          `Failed to reach authorization endpoint: ${fetchErr?.message || "Network error"}`,
+          { isNetworkError: true, canRetry: true },
+        );
+      }
+
+      if (!urlRes.ok) {
+        throw new UploadError("Failed to get S3 upload authorization", {
+          statusCode: urlRes.status,
+          canRetry: urlRes.status >= 500,
+        });
+      }
+
+      const urlData = await urlRes.json();
+      if (!urlData?.preSignedUrl) {
+        throw new UploadError("Invalid presigned URL received from server", {
+          canRetry: false,
+        });
+      }
+
+      // 2. Upload file to S3 with progress and stall detection (single attempt per outer loop)
+      const mimeType =
+        contentType ||
+        (file instanceof File ? file.type : "") ||
+        "application/octet-stream";
+
+      const result = await uploadWithProgress(
+        urlData.preSignedUrl,
+        file,
+        "PUT",
+        { "Content-Type": mimeType },
+        onProgress,
+        {
+          ...options,
+          maxRetries: 0, // Handled here at the outer loop to ensure a fresh pre-signed URL on each retry!
+        },
+      );
+
+      return { key: urlData.key, status: result.status };
+    } catch (err: any) {
+      attempt++;
+
+      const isAborted =
+        options?.signal?.aborted ||
+        (err instanceof UploadError && err.isAborted);
+      const isRetryable =
+        !isAborted &&
+        attempt <= maxRetries &&
+        (err instanceof UploadError
+          ? err.canRetry
+          : String(err?.message || "")
+              .toLowerCase()
+              .includes("network"));
+
+      if (!isRetryable) {
+        throw err;
+      }
+
+      const delayMs = Math.min(30000, initialDelay * 2 ** (attempt - 1));
       if (options?.onRetry) {
         options.onRetry(attempt, maxRetries, delayMs, err);
       }
@@ -437,7 +592,7 @@ export async function uploadToImageKitWithProgress(
     );
   }
 
-  const maxRetries = options?.maxRetries ?? 2;
+  const maxRetries = options?.maxRetries ?? 4;
   const initialDelay = options?.retryDelayMs ?? 1500;
   let attempt = 0;
 
@@ -514,7 +669,7 @@ export async function uploadToImageKitWithProgress(
         throw err;
       }
 
-      const delayMs = initialDelay * 2 ** (attempt - 1);
+      const delayMs = Math.min(30000, initialDelay * 2 ** (attempt - 1));
       if (options?.onRetry) {
         options.onRetry(attempt, maxRetries, delayMs, err);
       }

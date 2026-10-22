@@ -55,15 +55,14 @@ resource "aws_s3_bucket_policy" "temp_public" {
 }
 
 resource "aws_s3_bucket_cors_configuration" "temp" {
-  count  = var.is_public ? 1 : 0
   bucket = aws_s3_bucket.temp.id
 
   cors_rule {
     allowed_headers = ["*"]
-    allowed_methods = ["GET", "HEAD"]
+    allowed_methods = ["GET", "HEAD", "PUT", "POST", "DELETE"]
     allowed_origins = ["*"]
-    expose_headers  = ["ETag"]
-    max_age_seconds = 3000
+    expose_headers  = ["ETag", "x-amz-server-side-encryption", "x-amz-request-id", "x-amz-id-2"]
+    max_age_seconds = 3600
   }
 }
 
@@ -149,15 +148,14 @@ resource "aws_s3_bucket_policy" "prod_public" {
 }
 
 resource "aws_s3_bucket_cors_configuration" "prod" {
-  count  = var.is_public ? 1 : 0
   bucket = aws_s3_bucket.prod.id
 
   cors_rule {
     allowed_headers = ["*"]
-    allowed_methods = ["GET", "HEAD"]
+    allowed_methods = ["GET", "HEAD", "PUT", "POST", "DELETE"]
     allowed_origins = ["*"]
-    expose_headers  = ["ETag"]
-    max_age_seconds = 3000
+    expose_headers  = ["ETag", "x-amz-server-side-encryption", "x-amz-request-id", "x-amz-id-2"]
+    max_age_seconds = 3600
   }
 }
 

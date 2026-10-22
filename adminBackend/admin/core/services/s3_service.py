@@ -1,6 +1,7 @@
 import logging
 from typing import Optional, Dict, Any, List
 import boto3
+from botocore.client import Config
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -11,13 +12,18 @@ class S3Service:
     @classmethod
     def get_client(cls):
         if cls._client is None:
+            region = getattr(settings, "AWS_REGION", "ap-south-1") or "ap-south-1"
+            endpoint_url = getattr(settings, "AWS_ENDPOINT", None) or f"https://s3.{region}.amazonaws.com"
             kwargs = {
                 "aws_access_key_id": settings.AWS_ACCESS_KEY_ID,
                 "aws_secret_access_key": settings.AWS_SECRET_ACCESS_KEY,
-                "region_name": settings.AWS_REGION,
+                "region_name": region,
+                "endpoint_url": endpoint_url,
+                "config": Config(
+                    signature_version="s3v4",
+                    s3={"addressing_style": "virtual"},
+                ),
             }
-            if getattr(settings, "AWS_ENDPOINT", None):
-                kwargs["endpoint_url"] = settings.AWS_ENDPOINT
             cls._client = boto3.client("s3", **kwargs)
         return cls._client
 

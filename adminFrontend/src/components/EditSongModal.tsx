@@ -20,6 +20,7 @@ import {
   isDeviceOnline,
   UploadError,
   uploadToImageKitWithProgress,
+  uploadToS3WithProgress,
   uploadWithProgress,
 } from "@/lib/upload-utils";
 import { UploadProgressBar } from "./UploadProgressBar";
@@ -233,15 +234,11 @@ export function EditSongModal({
         setProgressText("Uploading replacement audio to S3...");
         setUploadPercent(0);
         setUploadStats({ fileName: formData.audioFile.name });
-        const songUrlRes = await adminFetch("/webhook/internal/song-upload-url");
-        if (!songUrlRes.ok) throw new Error("Failed to get audio upload authorization");
-        const songUrlData = await songUrlRes.json();
 
-        await uploadWithProgress(
-          songUrlData.preSignedUrl,
+        const s3AudioRes = await uploadToS3WithProgress(
           formData.audioFile,
-          "PUT",
-          { "Content-Type": formData.audioFile.type || "audio/mpeg" },
+          "/webhook/internal/song-upload-url",
+          formData.audioFile.type || "audio/mpeg",
           (p) => {
             setUploadPercent(p.percent);
             setUploadStats({
@@ -250,11 +247,11 @@ export function EditSongModal({
               fileName: formData.audioFile?.name,
             });
           },
-          { onRetry: retryHandler },
+          { onRetry: retryHandler, maxRetries: 4 },
         );
         setIsRetrying(false);
         setRetryStatusText("");
-        tempSongKey = songUrlData.key;
+        tempSongKey = s3AudioRes.key;
       }
 
       let fullVideoKey: string | null | undefined = song.fullVideoKey;
@@ -265,18 +262,11 @@ export function EditSongModal({
         setProgressText("Uploading full video to S3...");
         setUploadPercent(0);
         setUploadStats({ fileName: formData.fullVideoFile.name });
-        const videoUrlRes = await adminFetch(
-          "/webhook/internal/video-upload-url",
-        );
-        if (!videoUrlRes.ok)
-          throw new Error("Failed to get video upload authorization");
-        const videoUrlData = await videoUrlRes.json();
 
-        await uploadWithProgress(
-          videoUrlData.preSignedUrl,
+        const s3VideoRes = await uploadToS3WithProgress(
           formData.fullVideoFile,
-          "PUT",
-          { "Content-Type": formData.fullVideoFile.type || "video/mp4" },
+          "/webhook/internal/video-upload-url",
+          formData.fullVideoFile.type || "video/mp4",
           (p) => {
             setUploadPercent(p.percent);
             setUploadStats({
@@ -285,11 +275,11 @@ export function EditSongModal({
               fileName: formData.fullVideoFile?.name,
             });
           },
-          { onRetry: retryHandler },
+          { onRetry: retryHandler, maxRetries: 4 },
         );
         setIsRetrying(false);
         setRetryStatusText("");
-        tempVideoKey = videoUrlData.key;
+        tempVideoKey = s3VideoRes.key;
         fullVideoKey = song.fullVideoKey;
       }
 
