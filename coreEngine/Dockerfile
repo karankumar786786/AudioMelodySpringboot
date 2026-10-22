@@ -3,6 +3,9 @@ FROM maven:3.9-eclipse-temurin-21 AS builder
 
 WORKDIR /app
 
+# Download official OpenTelemetry Java instrumentation agent in builder
+ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar /app/opentelemetry-javaagent.jar
+
 COPY pom.xml .
 
 RUN mvn dependency:go-offline
@@ -14,24 +17,23 @@ COPY src ./src
 RUN mvn clean package -DskipTests
 
 
-# ---------- Runner ----------
-FROM eclipse-temurin:21-jre AS runner
+# ---------- Runner (Ubuntu 24.04 LTS Noble - Rock-Solid Mirror Stability) ----------
+FROM eclipse-temurin:21-jre-noble AS runner
 
 WORKDIR /app
 
-# Install curl for container health checks (tiny footprint)
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
+# Install curl for container health checks with retry resilience
+RUN apt-get update -o Acquire::Retries=3 --fix-missing \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Run as non-root for security
 RUN addgroup --system app && adduser --system --ingroup app app
 
-# Copy ONLY the generated JAR from builder — NO source code
+# Copy ONLY the generated JAR and OpenTelemetry Java agent from builder
 COPY --from=builder /app/target/*.jar app.jar
-
-# Download official OpenTelemetry Java instrumentation agent
-RUN curl -fsSL -o /app/opentelemetry-javaagent.jar https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar \
-    && chmod 644 /app/opentelemetry-javaagent.jar
+COPY --from=builder /app/opentelemetry-javaagent.jar /app/opentelemetry-javaagent.jar
+RUN chmod 644 /app/opentelemetry-javaagent.jar
 
 USER app
 
