@@ -35,7 +35,7 @@ public class PlaylistApiController {
         return ResponseEntity.ok(playlistAppService.getPlaylistById(id));
     }
 
-    @GetMapping(value = {"/{id}/songs", "/{id}/backup-songs", "/{id}/fallback-songs"})
+    @GetMapping("/{id}/songs")
     public ResponseEntity<PaginatedResponseDto<SongDto>> getPlaylistSongs(
             @PathVariable String id,
             @RequestParam(defaultValue = "0") int page,

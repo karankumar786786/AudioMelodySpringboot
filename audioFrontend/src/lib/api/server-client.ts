@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import type { Artist, Song, Playlist, User } from "./types";
+import type { Artist, Playlist, Song, User } from "./types";
 
 export const SERVER_API_BASE_URL =
   process.env.INTERNAL_API_URL ||
@@ -66,7 +66,7 @@ export async function getServerSession(): Promise<ServerSession> {
  */
 export async function serverRequest<T = any>(
   endpoint: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<T | null> {
   const cookieStore = await cookies();
   const cookieHeader = cookieStore.toString();
@@ -117,28 +117,25 @@ export async function serverRequest<T = any>(
 export const serverMusicApi = {
   artists: {
     getById: async (id: string) => {
-      const res = await serverRequest<{ data: Artist }>(`/api/artists/${id}`, {
+      const res = await serverRequest<Artist>(`/api/artists/${id}`, {
         next: { revalidate: 30 },
       });
-      return res;
+      return res ? { data: res } : null;
     },
-    getSongs: async (
-      id: string,
-      page = 1,
-      size = 15,
-      artistName?: string
-    ) => {
-      const queryParam = artistName ? `&artistName=${encodeURIComponent(artistName)}` : "";
+    getSongs: async (id: string, page = 1, size = 15, artistName?: string) => {
+      const queryParam = artistName
+        ? `&artistName=${encodeURIComponent(artistName)}`
+        : "";
       const res = await serverRequest<any>(
         `/api/artists/${id}/songs?page=${page - 1}&size=${size}${queryParam}`,
-        { next: { revalidate: 30 } }
+        { next: { revalidate: 30 } },
       );
       return res;
     },
     list: async (page = 1, size = 100) => {
       const res = await serverRequest<any>(
         `/api/artists?page=${page - 1}&size=${size}`,
-        { next: { revalidate: 60 } }
+        { next: { revalidate: 60 } },
       );
       return res;
     },
@@ -146,25 +143,25 @@ export const serverMusicApi = {
   albums: {
     getByName: async (name: string) => {
       const res = await serverRequest<Song[]>(
-        `/api/albums/${encodeURIComponent(name)}`,
-        { next: { revalidate: 60 } }
+        `/api/songs/album/${encodeURIComponent(name)}`,
+        { next: { revalidate: 60 } },
       );
-      return res || [];
+      return Array.isArray(res) ? res : [];
     },
   },
   playlists: {
     list: async (page = 1, size = 30) => {
       const res = await serverRequest<any>(
         `/api/playlists?page=${page - 1}&size=${size}`,
-        { next: { revalidate: 60 } }
+        { next: { revalidate: 60 } },
       );
       return res;
     },
     getById: async (id: string) => {
-      const res = await serverRequest<{ data: Playlist }>(`/api/playlists/${id}`, {
+      const res = await serverRequest<Playlist>(`/api/playlists/${id}`, {
         next: { revalidate: 30 },
       });
-      return res;
+      return res ? { data: res } : null;
     },
     getSongs: async (id: string) => {
       const res = await serverRequest<any>(`/api/playlists/${id}/songs`, {
@@ -175,14 +172,14 @@ export const serverMusicApi = {
   },
   songs: {
     getById: async (id: string) => {
-      const res = await serverRequest<{ data: Song }>(`/api/songs/${id}`, {
+      const res = await serverRequest<Song>(`/api/songs/${id}`, {
         next: { revalidate: 60 },
       });
-      return res;
+      return res ? { data: res } : null;
     },
     getFeed: async (page = 1, size = 15) => {
       const res = await serverRequest<any>(
-        `/api/songs/feed?page=${page - 1}&size=${size}`
+        `/api/songs?page=${page - 1}&size=${size}`,
       );
       return res;
     },
@@ -198,26 +195,28 @@ export const serverMusicApi = {
       return { data: { data: list as Song[] } };
     },
     getSharedPlaylist: async (tokenOrId: string) => {
-      const res = await serverRequest<any>(`/api/user/playlists/shared/${tokenOrId}`);
+      const res = await serverRequest<any>(
+        `/api/user/playlists/shared/${tokenOrId}`,
+      );
       return res ? { data: res } : null;
     },
     getSharedPlaylistSongs: async (tokenOrId: string, page = 1, size = 50) => {
       const res = await serverRequest<any>(
-        `/api/user/playlists/shared/${tokenOrId}/songs?page=${page - 1}&size=${size}`
+        `/api/user/playlists/shared/${tokenOrId}/songs?page=${page - 1}&size=${size}`,
       );
       const list = res?.content || (Array.isArray(res) ? res : []);
       return { data: { data: list as Song[] } };
     },
     getFavourites: async (page = 1, size = 100) => {
       const res = await serverRequest<any>(
-        `/api/interaction/favourites?page=${page - 1}&size=${size}`
+        `/api/interaction/favourites?page=${page - 1}&size=${size}`,
       );
       const list = res?.content || (Array.isArray(res) ? res : []);
       return { data: { data: list as Song[] } };
     },
     getListeningHistory: async (page = 1, size = 20) => {
       const res = await serverRequest<any>(
-        `/api/user/history?page=${page - 1}&size=${size}`
+        `/api/user/history?page=${page - 1}&size=${size}`,
       );
       return res;
     },

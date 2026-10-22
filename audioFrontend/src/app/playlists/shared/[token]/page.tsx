@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { getServerSession, serverMusicApi } from "@/lib/api/server-client";
 import { redirect } from "next/navigation";
+import { getServerSession, serverMusicApi } from "@/lib/api/server-client";
+import { getImageUrl } from "@/lib/image-utils";
 import { SharedPlaylistClientView } from "./SharedPlaylistClientView";
 
 interface SharedPlaylistPageProps {
@@ -23,7 +24,8 @@ export async function generateMetadata({
 
   const title = playlist.title || playlist.name || "Shared Playlist";
   const coverUrl = playlist.coverImageKey
-    ? `https://ik.imagekit.io/yash1122/${playlist.coverImageKey}?tr=w-800,h-800`
+    ? getImageUrl(playlist.coverImageKey, { width: 800, height: 800 }) ||
+      "/image.png"
     : "/image.png";
 
   return {

@@ -25,12 +25,26 @@ public class RecommendationApiService {
         this.songsRepository = songsRepository;
     }
 
+    private List<SongDto> hydrateAndOrderSongs(List<String> songIds) {
+        if (songIds == null || songIds.isEmpty()) return List.of();
+        java.util.Map<String, Song> songMap = songsRepository.findAllByIds(songIds).stream()
+                .filter(s -> s.getStatus() == null || s.getStatus() == me.one_org.melody.Enums.StatusEnum.ACTIVE)
+                .collect(java.util.stream.Collectors.toMap(Song::getId, java.util.function.Function.identity(), (a, b) -> a));
+
+        List<SongDto> ordered = new java.util.ArrayList<>();
+        for (String id : songIds) {
+            Song song = songMap.get(id);
+            if (song != null) {
+                ordered.add(SongDto.fromEntity(song));
+            }
+        }
+        return ordered;
+    }
+
     public List<SongDto> recommendForUser(String userId, int count) {
         try {
             List<String> songIds = recombee.recommendForUser(userId, count);
-            return songsRepository.findAllByIds(songIds).stream()
-                    .map(SongDto::fromEntity)
-                    .toList();
+            return hydrateAndOrderSongs(songIds);
         } catch (Exception e) {
             log.error("Recombee recommendation failed for user {}: {}", userId, e.getMessage());
             return List.of();
@@ -40,9 +54,7 @@ public class RecommendationApiService {
     public List<SongDto> recommendSimilar(String songId, int count) {
         try {
             List<String> songIds = recombee.recommendSimilar(songId, count);
-            return songsRepository.findAllByIds(songIds).stream()
-                    .map(SongDto::fromEntity)
-                    .toList();
+            return hydrateAndOrderSongs(songIds);
         } catch (Exception e) {
             log.error("Recombee similar recommendation failed for song {}: {}", songId, e.getMessage());
             return List.of();

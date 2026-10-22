@@ -178,39 +178,4 @@ export const recombeeApi = {
       return null;
     }
   },
-
-  /**
-   * Direct client-side interaction logging to Recombee using the public token.
-   */
-  sendDetailView: (userId: string, songId: string): void => {
-    const client = getRecombeeClient();
-    if (!client || !userId || !songId) return;
-    client
-      .send(new recombee.AddDetailView(userId, songId, { cascadeCreate: true }))
-      .catch((err: any) =>
-        console.debug("[Recombee] DetailView telemetry dropped:", err?.message),
-      );
-  },
-
-  sendRating: (userId: string, songId: string, rating: number): void => {
-    const client = getRecombeeClient();
-    if (!client || !userId || !songId) return;
-    client
-      .send(
-        new recombee.AddRating(userId, songId, rating, { cascadeCreate: true }),
-      )
-      .catch((err: any) =>
-        console.debug("[Recombee] Rating telemetry dropped:", err?.message),
-      );
-  },
-
-  sendBookmark: (userId: string, songId: string): void => {
-    const client = getRecombeeClient();
-    if (!client || !userId || !songId) return;
-    client
-      .send(new recombee.AddBookmark(userId, songId, { cascadeCreate: true }))
-      .catch((err: any) =>
-        console.debug("[Recombee] Bookmark telemetry dropped:", err?.message),
-      );
-  },
 };

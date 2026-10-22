@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { getServerSession, serverMusicApi } from "@/lib/api/server-client";
 import { redirect } from "next/navigation";
+import { getServerSession, serverMusicApi } from "@/lib/api/server-client";
+import { getImageUrl } from "@/lib/image-utils";
 import { AlbumClientView } from "./AlbumClientView";
 
 interface AlbumPageProps {
@@ -17,7 +18,8 @@ export async function generateMetadata({
   const artistName = songs[0]?.artistName || "Various Artists";
   const songWithImage = songs.find((s) => s.imageKey);
   const coverUrl = songWithImage?.imageKey
-    ? `https://ik.imagekit.io/yash1122/${songWithImage.imageKey}?tr=w-500,h-500`
+    ? getImageUrl(songWithImage.imageKey, { width: 500, height: 500 }) ||
+      "/image.png"
     : "/image.png";
 
   return {

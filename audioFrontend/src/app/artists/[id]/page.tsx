@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { getServerSession, serverMusicApi } from "@/lib/api/server-client";
 import { redirect } from "next/navigation";
+import { getServerSession, serverMusicApi } from "@/lib/api/server-client";
+import { getImageUrl } from "@/lib/image-utils";
 import { ArtistClientView } from "./ArtistClientView";
 
 interface ArtistPageProps {
@@ -22,7 +23,8 @@ export async function generateMetadata({
   }
 
   const coverUrl = artist.coverImageKey
-    ? `https://ik.imagekit.io/yash1122/${artist.coverImageKey}?tr=w-600,h-600`
+    ? getImageUrl(artist.coverImageKey, { width: 600, height: 600 }) ||
+      "/image.png"
     : "/image.png";
 
   return {
