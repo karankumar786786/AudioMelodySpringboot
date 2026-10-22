@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.*;
 
 import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaClientConfigDto;
 import me.one_org.melody.Dto.AlgoliaSearch.SearchResult;
+import me.one_org.melody.Security.CurrentUser;
+import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.Api.SearchApiService;
 
 @RestController
@@ -30,7 +32,8 @@ public class AlgoliaApiController {
     @GetMapping
     public ResponseEntity<SearchResult> search(
             @RequestParam String q,
-            @RequestAttribute(value = "userId", required = false) String userId) {
+            @CurrentUser CustomUserDetails currentUser) {
+        String userId = currentUser != null ? currentUser.getId() : null;
         return ResponseEntity.ok(searchApiService.search(q, userId));
     }
 }

@@ -144,7 +144,7 @@ export function QueueBackpressureWidget({
   return (
     <div id="mail-queue" className="rounded-2xl border border-[#282828] bg-[#121212] p-5 sm:p-6 shadow-xl relative overflow-hidden transition-all duration-300 hover:border-zinc-700">
       {/* Background ambient subtle glow */}
-      <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/[0.03] rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/3 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-5 border-b border-[#282828] relative z-10">

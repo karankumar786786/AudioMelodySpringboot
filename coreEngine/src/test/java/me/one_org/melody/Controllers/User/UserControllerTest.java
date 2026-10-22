@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import me.one_org.melody.Dto.Controllers.Api.UserDto;
 import me.one_org.melody.Dto.Controllers.User.UpdateProfileRequestDto;
 import me.one_org.melody.Entity.User;
+import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.General.UserService;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,9 +34,10 @@ class UserControllerTest {
                 .userName("karan")
                 .email("karan@example.com")
                 .build();
+        CustomUserDetails currentUser = new CustomUserDetails(user);
         when(userService.getUserProfile("user-1")).thenReturn(user);
 
-        ResponseEntity<UserDto> response = userController.getProfile("user-1");
+        ResponseEntity<UserDto> response = userController.getProfile(currentUser);
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getBody()).isNotNull();
@@ -50,10 +52,11 @@ class UserControllerTest {
                 .userName("Karan Kumar")
                 .email("karan@example.com")
                 .build();
+        CustomUserDetails currentUser = new CustomUserDetails(updated);
         when(userService.updateProfile("user-1", "Karan Kumar")).thenReturn(updated);
 
         UpdateProfileRequestDto body = new UpdateProfileRequestDto("Karan Kumar");
-        ResponseEntity<UserDto> response = userController.updateProfile("user-1", null, body);
+        ResponseEntity<UserDto> response = userController.updateProfile(currentUser, null, body);
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getBody()).isNotNull();
@@ -68,9 +71,10 @@ class UserControllerTest {
                 .userName("Karan Param")
                 .email("karan@example.com")
                 .build();
+        CustomUserDetails currentUser = new CustomUserDetails(updated);
         when(userService.updateProfile("user-1", "Karan Param")).thenReturn(updated);
 
-        ResponseEntity<UserDto> response = userController.updateProfile("user-1", "Karan Param", null);
+        ResponseEntity<UserDto> response = userController.updateProfile(currentUser, "Karan Param", null);
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getBody()).isNotNull();

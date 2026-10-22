@@ -13,6 +13,8 @@ import me.one_org.melody.Dto.Controllers.Api.ArtistDto;
 import me.one_org.melody.Dto.Controllers.Api.ArtistFollowStatusDto;
 import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
+import me.one_org.melody.Security.CurrentUser;
+import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.Api.ArtistApiService;
 
 @RestController
@@ -53,29 +55,30 @@ public class ArtistApiController {
 
     @PostMapping("/{id}/follow")
     public ResponseEntity<ArtistFollowStatusDto> followArtist(
-            @RequestAttribute("userId") String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @PathVariable String id) {
-        return ResponseEntity.ok(artistAppService.followArtist(userId, id));
+        return ResponseEntity.ok(artistAppService.followArtist(currentUser.getId(), id));
     }
 
     @PostMapping("/{id}/unfollow")
     public ResponseEntity<ArtistFollowStatusDto> unfollowArtist(
-            @RequestAttribute("userId") String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @PathVariable String id) {
-        return ResponseEntity.ok(artistAppService.unfollowArtist(userId, id));
+        return ResponseEntity.ok(artistAppService.unfollowArtist(currentUser.getId(), id));
     }
 
     @DeleteMapping("/{id}/follow")
     public ResponseEntity<ArtistFollowStatusDto> deleteFollowArtist(
-            @RequestAttribute("userId") String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @PathVariable String id) {
-        return ResponseEntity.ok(artistAppService.unfollowArtist(userId, id));
+        return ResponseEntity.ok(artistAppService.unfollowArtist(currentUser.getId(), id));
     }
 
     @GetMapping("/{id}/follow-status")
     public ResponseEntity<ArtistFollowStatusDto> getFollowStatus(
-            @RequestAttribute(value = "userId", required = false) String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @PathVariable String id) {
+        String userId = currentUser != null ? currentUser.getId() : null;
         return ResponseEntity.ok(artistAppService.getFollowStatus(userId, id));
     }
 
@@ -94,8 +97,8 @@ public class ArtistApiController {
 
     @PostMapping("/onboarding")
     public ResponseEntity<java.util.Map<String, Object>> completeOnboarding(
-            @RequestAttribute("userId") String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @jakarta.validation.Valid @RequestBody me.one_org.melody.Dto.Controllers.Api.ArtistOnboardingRequestDto request) {
-        return ResponseEntity.ok(artistAppService.completeOnboarding(userId, request.artistIds()));
+        return ResponseEntity.ok(artistAppService.completeOnboarding(currentUser.getId(), request.artistIds()));
     }
 }

@@ -8,14 +8,14 @@ export const authApi = {
   login: async (email: string) => {
     const data = await request("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ email, password: "password" }),
+      body: JSON.stringify({ email }),
     });
     return { data: { token: data.tempToken } };
   },
   register: async (name: string, email: string) => {
     const data = await request("/auth/register", {
       method: "POST",
-      body: JSON.stringify({ userName: name, email, password: "password" }),
+      body: JSON.stringify({ userName: name, email }),
     });
     return { data: { token: data.tempToken } };
   },

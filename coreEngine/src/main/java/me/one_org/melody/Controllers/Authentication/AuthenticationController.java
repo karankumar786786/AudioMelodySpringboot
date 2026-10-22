@@ -1,10 +1,7 @@
 package me.one_org.melody.Controllers.Authentication;
 
 
-import java.time.Duration;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -23,15 +20,18 @@ import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpRequest;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpResponse;
 import me.one_org.melody.Exceptions.UnauthorizedException;
 import me.one_org.melody.Services.Authentication.AuthenticationService;
+import me.one_org.melody.Utils.CookieUtil;
 
 @RestController
 @RequestMapping("/auth")
 public class AuthenticationController {
 
     private final AuthenticationService authenticationService;
+    private final CookieUtil cookieUtil;
 
-    public AuthenticationController(AuthenticationService authenticationService){
+    public AuthenticationController(AuthenticationService authenticationService, CookieUtil cookieUtil) {
         this.authenticationService = authenticationService;
+        this.cookieUtil = cookieUtil;
     }
 
     @PostMapping("/register")
@@ -54,27 +54,8 @@ public class AuthenticationController {
                 : (deviceIdHeader != null && !deviceIdHeader.isBlank() ? deviceIdHeader : "default-device");
         VerifyOtpResponse response = authenticationService.verifyOtp(tempToken, verifyRequest.otp(), effectiveDeviceId);
 
-        boolean wantsCookies = "true".equalsIgnoreCase(acceptCookies) || "true".equalsIgnoreCase(xAcceptCookies);
-        if (wantsCookies && response.accessToken() != null) {
-            ResponseCookie tokenCookie = ResponseCookie.from("system_token", response.accessToken())
-                    .httpOnly(false)
-                    .secure(false)
-                    .path("/")
-                    .maxAge(Duration.ofDays(7))
-                    .sameSite("Lax")
-                    .build();
-            httpServletResponse.addHeader(HttpHeaders.SET_COOKIE, tokenCookie.toString());
-
-            if (response.refreshToken() != null) {
-                ResponseCookie refreshCookie = ResponseCookie.from("system_refresh_token", response.refreshToken())
-                        .httpOnly(false)
-                        .secure(false)
-                        .path("/")
-                        .maxAge(Duration.ofDays(30))
-                        .sameSite("Lax")
-                        .build();
-                httpServletResponse.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
-            }
+        if (wantsCookies(acceptCookies, xAcceptCookies) && response.accessToken() != null) {
+            cookieUtil.setAuthCookies(httpServletResponse, response.accessToken(), response.refreshToken());
         }
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
@@ -123,27 +104,8 @@ public class AuthenticationController {
                 : (deviceIdHeader != null && !deviceIdHeader.isBlank() ? deviceIdHeader : null);
         RefreshTokenResponseDto response = authenticationService.refreshToken(effectiveRefreshToken, effectiveDeviceId);
 
-        boolean wantsCookies = "true".equalsIgnoreCase(acceptCookies) || "true".equalsIgnoreCase(xAcceptCookies);
-        if (wantsCookies && response.accessToken() != null) {
-            ResponseCookie tokenCookie = ResponseCookie.from("system_token", response.accessToken())
-                    .httpOnly(false)
-                    .secure(false)
-                    .path("/")
-                    .maxAge(Duration.ofDays(7))
-                    .sameSite("Lax")
-                    .build();
-            httpServletResponse.addHeader(HttpHeaders.SET_COOKIE, tokenCookie.toString());
-
-            if (response.refreshToken() != null) {
-                ResponseCookie refreshCookie = ResponseCookie.from("system_refresh_token", response.refreshToken())
-                        .httpOnly(false)
-                        .secure(false)
-                        .path("/")
-                        .maxAge(Duration.ofDays(30))
-                        .sameSite("Lax")
-                        .build();
-                httpServletResponse.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
-            }
+        if (wantsCookies(acceptCookies, xAcceptCookies) && response.accessToken() != null) {
+            cookieUtil.setAuthCookies(httpServletResponse, response.accessToken(), response.refreshToken());
         }
 
         return ResponseEntity.status(HttpStatus.OK).body(response);
@@ -181,22 +143,14 @@ public class AuthenticationController {
                 : deviceIdHeader;
         authenticationService.logout(token, refreshToken, effectiveDeviceId);
 
-        boolean wantsCookies = "true".equalsIgnoreCase(acceptCookies) || "true".equalsIgnoreCase(xAcceptCookies);
-        if (wantsCookies) {
-            ResponseCookie tokenCookie = ResponseCookie.from("system_token", "")
-                    .path("/")
-                    .maxAge(0)
-                    .sameSite("Lax")
-                    .build();
-            ResponseCookie refreshCookie = ResponseCookie.from("system_refresh_token", "")
-                    .path("/")
-                    .maxAge(0)
-                    .sameSite("Lax")
-                    .build();
-            httpServletResponse.addHeader(HttpHeaders.SET_COOKIE, tokenCookie.toString());
-            httpServletResponse.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+        if (wantsCookies(acceptCookies, xAcceptCookies)) {
+            cookieUtil.clearAuthCookies(httpServletResponse);
         }
 
         return ResponseEntity.ok(java.util.Map.of("message", "Logged out successfully"));
+    }
+
+    private boolean wantsCookies(String acceptCookies, String xAcceptCookies) {
+        return "true".equalsIgnoreCase(acceptCookies) || "true".equalsIgnoreCase(xAcceptCookies);
     }
 }

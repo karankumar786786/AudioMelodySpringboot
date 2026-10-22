@@ -35,7 +35,9 @@ class ArtistApiControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new ArtistApiController(artistApiService)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new ArtistApiController(artistApiService))
+                .setCustomArgumentResolvers(new me.one_org.melody.Utils.CurrentUserTestArgumentResolver())
+                .build();
     }
 
     @Test

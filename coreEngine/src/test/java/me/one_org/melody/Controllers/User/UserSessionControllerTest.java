@@ -13,6 +13,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.ResponseEntity;
 
 import me.one_org.melody.Dto.Controllers.User.UserSessionDto;
+import me.one_org.melody.Enums.RoleEnum;
+import me.one_org.melody.Enums.StatusEnum;
+import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.Authentication.UserSessionService;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -26,6 +29,14 @@ class UserSessionControllerTest {
 
     @InjectMocks
     private UserSessionController userSessionController;
+
+    private final CustomUserDetails currentUser = new CustomUserDetails(
+            "user-1",
+            "user@melody.com",
+            "karan",
+            RoleEnum.USER,
+            StatusEnum.ACTIVE
+    );
 
     @Test
     @DisplayName("Should return user sessions and identify current device")
@@ -41,7 +52,7 @@ class UserSessionControllerTest {
         when(userSessionService.getUserSessions("user-1", "device-mac-1"))
                 .thenReturn(List.of(session));
 
-        ResponseEntity<List<UserSessionDto>> response = userSessionController.getSessions("user-1", "device-mac-1");
+        ResponseEntity<List<UserSessionDto>> response = userSessionController.getSessions(currentUser, "device-mac-1");
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getBody()).hasSize(1);
@@ -52,7 +63,7 @@ class UserSessionControllerTest {
     @Test
     @DisplayName("Should revoke specific session")
     void shouldRevokeSpecificSession() {
-        ResponseEntity<Void> response = userSessionController.revokeSession("user-1", "sess-1");
+        ResponseEntity<Void> response = userSessionController.revokeSession(currentUser, "sess-1");
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         verify(userSessionService).revokeSession("user-1", "sess-1");
@@ -61,7 +72,7 @@ class UserSessionControllerTest {
     @Test
     @DisplayName("Should revoke other sessions keeping current device")
     void shouldRevokeOtherSessions() {
-        ResponseEntity<Map<String, String>> response = userSessionController.revokeOtherSessions("user-1", "device-mac-1");
+        ResponseEntity<Map<String, String>> response = userSessionController.revokeOtherSessions(currentUser, "device-mac-1");
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getBody()).containsKey("message");

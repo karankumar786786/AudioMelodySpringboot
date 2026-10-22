@@ -32,9 +32,12 @@ class AuthenticationControllerIntegrationTest {
     @Mock
     private AuthenticationService authenticationService;
 
+    @Mock
+    private me.one_org.melody.Utils.CookieUtil cookieUtil;
+
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new AuthenticationController(authenticationService)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new AuthenticationController(authenticationService, cookieUtil)).build();
     }
 
     @Test

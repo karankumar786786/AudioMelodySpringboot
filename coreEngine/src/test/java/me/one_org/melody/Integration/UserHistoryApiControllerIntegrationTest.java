@@ -34,7 +34,9 @@ class UserHistoryApiControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new UserHistoryApiController(userHistoryApiService)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new UserHistoryApiController(userHistoryApiService))
+                .setCustomArgumentResolvers(new me.one_org.melody.Utils.CurrentUserTestArgumentResolver())
+                .build();
     }
 
     @Test

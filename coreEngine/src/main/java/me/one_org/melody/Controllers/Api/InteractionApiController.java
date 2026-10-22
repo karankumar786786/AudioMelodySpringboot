@@ -10,6 +10,8 @@ import me.one_org.melody.Dto.Controllers.Api.TrackPlayRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.TrackSearchPlayRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.TrackSkipRequestDto;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
+import me.one_org.melody.Security.CurrentUser;
+import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.Api.InteractionApiService;
 
 import java.util.List;
@@ -26,32 +28,34 @@ public class InteractionApiController {
 
     @PostMapping("/play")
     public ResponseEntity<Void> trackPlay(
-            @RequestAttribute("userId") String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @Valid @RequestBody TrackPlayRequestDto data) {
-        interactionAppService.trackPlay(userId, data.songId(), data.percentage());
+        interactionAppService.trackPlay(currentUser.getId(), data.songId(), data.percentage());
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/skip")
     public ResponseEntity<Void> trackSkip(
-            @RequestAttribute("userId") String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @Valid @RequestBody TrackSkipRequestDto data) {
-        interactionAppService.trackSkip(userId, data.songId());
+        interactionAppService.trackSkip(currentUser.getId(), data.songId());
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/search-play")
     public ResponseEntity<Void> trackSearchPlay(
-            @RequestAttribute(value = "userId", required = false) String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @Valid @RequestBody TrackSearchPlayRequestDto data) {
+        String userId = currentUser != null ? currentUser.getId() : null;
         interactionAppService.trackSearchPlay(userId, data.songId());
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/search-click")
     public ResponseEntity<Void> trackSearchClick(
-            @RequestAttribute(value = "userId", required = false) String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @RequestBody java.util.Map<String, String> data) {
+        String userId = currentUser != null ? currentUser.getId() : null;
         String type = data.get("type");
         String id = data.get("id");
         if (id != null && type != null) {
@@ -62,67 +66,67 @@ public class InteractionApiController {
 
     @PostMapping("/queue-add")
     public ResponseEntity<Void> trackQueueAdd(
-            @RequestAttribute(value = "userId", required = false) String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @Valid @RequestBody TrackSearchPlayRequestDto data) {
-        if (userId != null) {
-            interactionAppService.trackQueueAdd(userId, data.songId());
+        if (currentUser != null) {
+            interactionAppService.trackQueueAdd(currentUser.getId(), data.songId());
         }
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/queue-remove")
     public ResponseEntity<Void> trackQueueRemove(
-            @RequestAttribute(value = "userId", required = false) String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @Valid @RequestBody TrackSearchPlayRequestDto data) {
-        if (userId != null) {
-            interactionAppService.trackQueueRemove(userId, data.songId());
+        if (currentUser != null) {
+            interactionAppService.trackQueueRemove(currentUser.getId(), data.songId());
         }
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/dislike")
     public ResponseEntity<Void> trackDislike(
-            @RequestAttribute(value = "userId", required = false) String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @Valid @RequestBody TrackSkipRequestDto data) {
-        if (userId != null) {
-            interactionAppService.trackDislike(userId, data.songId());
+        if (currentUser != null) {
+            interactionAppService.trackDislike(currentUser.getId(), data.songId());
         }
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/share")
     public ResponseEntity<Void> trackShare(
-            @RequestAttribute(value = "userId", required = false) String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @Valid @RequestBody TrackSkipRequestDto data) {
-        if (userId != null) {
-            interactionAppService.trackShare(userId, data.songId());
+        if (currentUser != null) {
+            interactionAppService.trackShare(currentUser.getId(), data.songId());
         }
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/favourite/{songId}")
     public ResponseEntity<Void> addFavourite(
-            @RequestAttribute("userId") String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @PathVariable String songId) {
-        interactionAppService.addFavourite(userId, songId);
+        interactionAppService.addFavourite(currentUser.getId(), songId);
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/favourite/{songId}")
     public ResponseEntity<Void> removeFavourite(
-            @RequestAttribute("userId") String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @PathVariable String songId) {
-        interactionAppService.removeFavourite(userId, songId);
+        interactionAppService.removeFavourite(currentUser.getId(), songId);
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/favourites")
     public ResponseEntity<PaginatedResponseDto<SongDto>> getFavourites(
-            @RequestAttribute("userId") String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<SongDto> favourites = interactionAppService.getFavouritesPaginated(userId, page, size);
-        PaginationMetaDataDto metaData = interactionAppService.getFavouritesPaginationMetaData(userId);
+        List<SongDto> favourites = interactionAppService.getFavouritesPaginated(currentUser.getId(), page, size);
+        PaginationMetaDataDto metaData = interactionAppService.getFavouritesPaginationMetaData(currentUser.getId());
         return ResponseEntity.ok(new PaginatedResponseDto<>(favourites, page, size, metaData));
     }
 }

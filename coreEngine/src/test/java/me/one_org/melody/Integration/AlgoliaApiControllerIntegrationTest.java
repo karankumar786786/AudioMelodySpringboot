@@ -32,7 +32,9 @@ class AlgoliaApiControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new AlgoliaApiController(searchApiService)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new AlgoliaApiController(searchApiService))
+                .setCustomArgumentResolvers(new me.one_org.melody.Utils.CurrentUserTestArgumentResolver())
+                .build();
     }
 
     @Test

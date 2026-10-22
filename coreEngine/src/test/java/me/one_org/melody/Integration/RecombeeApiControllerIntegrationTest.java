@@ -30,7 +30,9 @@ class RecombeeApiControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new RecombeeApiController(recommendationApiService)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new RecombeeApiController(recommendationApiService))
+                .setCustomArgumentResolvers(new me.one_org.melody.Utils.CurrentUserTestArgumentResolver())
+                .build();
     }
 
     @Test

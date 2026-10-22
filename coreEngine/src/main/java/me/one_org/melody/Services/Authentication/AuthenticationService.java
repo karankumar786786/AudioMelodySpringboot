@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -123,17 +125,11 @@ public class AuthenticationService {
         cache.delete(email);
 
         CustomUserDetails userDetails = new CustomUserDetails(user);
-        org.springframework.security.core.Authentication authentication =
-                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
-                        userDetails,
-                        null,
-                        userDetails.getAuthorities()
-                );
-        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(authentication);
+        Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 
         // 5-minute access token and 7-day refresh token
-        String accessToken = jwtUtil.generateAccessToken(authentication);
-        String refreshToken = jwtUtil.generateRefreshToken(authentication);
+        String accessToken = jwtUtil.generateAccessToken(auth);
+        String refreshToken = jwtUtil.generateRefreshToken(auth);
 
         // Persist session for user & deviceId
         String safeDeviceId = (deviceId != null && !deviceId.isBlank()) ? deviceId : "default-device";
@@ -230,17 +226,11 @@ public class AuthenticationService {
             }
 
             CustomUserDetails userDetails = new CustomUserDetails(user);
-            org.springframework.security.core.Authentication authentication =
-                    new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
-                            userDetails,
-                            null,
-                            userDetails.getAuthorities()
-                    );
-            org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(authentication);
+            Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 
             // Reissue: 5-minute access token and rotated 7-day refresh token
-            String newAccessToken = jwtUtil.generateAccessToken(authentication);
-            String newRefreshToken = jwtUtil.generateRefreshToken(authentication);
+            String newAccessToken = jwtUtil.generateAccessToken(auth);
+            String newRefreshToken = jwtUtil.generateRefreshToken(auth);
 
             session.setRefreshToken(newRefreshToken);
             session.setExpiresAt(LocalDateTime.now().plusDays(7));

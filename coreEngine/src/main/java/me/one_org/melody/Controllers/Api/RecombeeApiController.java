@@ -5,6 +5,8 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
+import me.one_org.melody.Security.CurrentUser;
+import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.Api.RecommendationApiService;
 
 @RestController
@@ -19,9 +21,9 @@ public class RecombeeApiController {
 
     @GetMapping("/user")
     public ResponseEntity<List<SongDto>> recommendForUser(
-            @RequestAttribute("userId") String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @RequestParam(defaultValue = "10") int count) {
-        return ResponseEntity.ok(recommendationApiService.recommendForUser(userId, count));
+        return ResponseEntity.ok(recommendationApiService.recommendForUser(currentUser.getId(), count));
     }
 
     @GetMapping("/similar/{songId}")

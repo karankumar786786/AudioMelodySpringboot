@@ -7,8 +7,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.springframework.http.MediaType;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,6 +21,7 @@ import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
 import me.one_org.melody.Dto.Controllers.Api.PlaylistDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
+import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.Api.ArtistApiService;
 import me.one_org.melody.Services.Api.PlaylistApiService;
 import me.one_org.melody.Services.Api.RecommendationApiService;
@@ -64,11 +66,20 @@ public class HomeApiController {
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamHomeFeed(
-            @RequestAttribute(value = "userId", required = false) String userId,
             @RequestParam(value = "userId", required = false) String userIdParam) {
 
-        final String effectiveUserId = (userId != null && !userId.isBlank()) ? userId : userIdParam;
-        log.info("[HomeStream] Opening SSE stream for user [{}]", effectiveUserId != null ? effectiveUserId : "anonymous");
+        // Resolve userId from SecurityContext (populated by bearerTokenResolver) or query param fallback
+        String effectiveUserId = null;
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof CustomUserDetails userDetails) {
+            effectiveUserId = userDetails.getId();
+        }
+        if ((effectiveUserId == null || effectiveUserId.isBlank()) && userIdParam != null && !userIdParam.isBlank()) {
+            effectiveUserId = userIdParam;
+        }
+
+        final String userId = effectiveUserId;
+        log.info("[HomeStream] Opening SSE stream for user [{}]", userId != null ? userId : "anonymous");
 
         // 45 seconds timeout
         SseEmitter emitter = new SseEmitter(45_000L);
@@ -76,16 +87,16 @@ public class HomeApiController {
 
         emitter.onCompletion(() -> {
             isClosed.set(true);
-            log.debug("[HomeStream] SSE connection completed for user [{}]", effectiveUserId);
+            log.debug("[HomeStream] SSE connection completed for user [{}]", userId);
         });
         emitter.onTimeout(() -> {
             isClosed.set(true);
-            log.debug("[HomeStream] SSE connection timed out for user [{}]", effectiveUserId);
+            log.debug("[HomeStream] SSE connection timed out for user [{}]", userId);
             emitter.complete();
         });
         emitter.onError(ex -> {
             isClosed.set(true);
-            log.debug("[HomeStream] SSE connection error for user [{}]: {}", effectiveUserId, ex.getMessage());
+            log.debug("[HomeStream] SSE connection error for user [{}]: {}", userId, ex.getMessage());
         });
 
         // Run sequentially on a single virtual thread:
@@ -147,14 +158,14 @@ public class HomeApiController {
                 }
 
                 // 6. User-Specific Personalized Content (if authenticated)
-                if (effectiveUserId != null && !effectiveUserId.isBlank()) {
+                if (userId != null && !userId.isBlank()) {
                     // Personalized Recommendations
                     if (!isClosed.get()) {
                         try {
-                            List<SongDto> recs = recommendationApiService.recommendForUser(effectiveUserId, 10);
+                            List<SongDto> recs = recommendationApiService.recommendForUser(userId, 10);
                             sendEvent(emitter, isClosed, "recommendations", Map.of("data", Map.of("data", recs)));
                         } catch (Exception e) {
-                            log.warn("[HomeStream] Failed to fetch recommendations for user [{}]: {}", effectiveUserId, e.getMessage());
+                            log.warn("[HomeStream] Failed to fetch recommendations for user [{}]: {}", userId, e.getMessage());
                         }
                     }
                 }

@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,6 +19,8 @@ import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
 import me.one_org.melody.Dto.Controllers.Api.SaveSearchHistoryRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.UserHistoryResponseDto;
 import me.one_org.melody.Dto.Controllers.Api.UserSearchHistoryGroupedResponseDto;
+import me.one_org.melody.Security.CurrentUser;
+import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.Api.UserHistoryApiService;
 
 @RestController
@@ -34,46 +35,46 @@ public class UserHistoryApiController {
 
     @GetMapping
     public ResponseEntity<PaginatedResponseDto<UserHistoryResponseDto>> getHistory(
-            @RequestAttribute("userId") String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        List<UserHistoryResponseDto> history = userHistoryAppService.getHistory(userId, page, size);
-        PaginationMetaDataDto meta = userHistoryAppService.getPaginationMetaData(userId);
+        List<UserHistoryResponseDto> history = userHistoryAppService.getHistory(currentUser.getId(), page, size);
+        PaginationMetaDataDto meta = userHistoryAppService.getPaginationMetaData(currentUser.getId());
         return ResponseEntity.ok(new PaginatedResponseDto<>(history, page, size, meta));
     }
 
     @GetMapping("/recent")
     public ResponseEntity<List<UserHistoryResponseDto>> getRecentlyPlayed(
-            @RequestAttribute("userId") String userId) {
-        return ResponseEntity.ok(userHistoryAppService.getRecentlyPlayed(userId));
+            @CurrentUser CustomUserDetails currentUser) {
+        return ResponseEntity.ok(userHistoryAppService.getRecentlyPlayed(currentUser.getId()));
     }
 
     @GetMapping("/search")
     public ResponseEntity<UserSearchHistoryGroupedResponseDto> getSearchHistory(
-            @RequestAttribute("userId") String userId) {
-        return ResponseEntity.ok(userHistoryAppService.getSearchHistory(userId));
+            @CurrentUser CustomUserDetails currentUser) {
+        return ResponseEntity.ok(userHistoryAppService.getSearchHistory(currentUser.getId()));
     }
 
     @PostMapping("/search")
     public ResponseEntity<Void> saveSearchHistory(
-            @RequestAttribute("userId") String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @Valid @RequestBody SaveSearchHistoryRequestDto data) {
-        userHistoryAppService.saveSearchHistory(userId, data);
+        userHistoryAppService.saveSearchHistory(currentUser.getId(), data);
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/search/{id}")
     public ResponseEntity<Void> deleteSearchHistoryItem(
-            @RequestAttribute("userId") String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @PathVariable("id") String id) {
-        userHistoryAppService.deleteSearchHistoryItem(userId, id);
+        userHistoryAppService.deleteSearchHistoryItem(currentUser.getId(), id);
         return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/search")
     public ResponseEntity<Void> clearSearchHistory(
-            @RequestAttribute("userId") String userId) {
-        userHistoryAppService.clearSearchHistory(userId);
+            @CurrentUser CustomUserDetails currentUser) {
+        userHistoryAppService.clearSearchHistory(currentUser.getId());
         return ResponseEntity.ok().build();
     }
 }

@@ -8,12 +8,13 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import me.one_org.melody.Dto.Controllers.User.UserSessionDto;
+import me.one_org.melody.Security.CurrentUser;
+import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.Authentication.UserSessionService;
 
 @RestController
@@ -28,25 +29,25 @@ public class UserSessionController {
 
     @GetMapping
     public ResponseEntity<List<UserSessionDto>> getSessions(
-            @RequestAttribute("userId") String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @RequestHeader(value = "X-Device-Id", required = false) String currentDeviceId) {
-        List<UserSessionDto> sessions = userSessionService.getUserSessions(userId, currentDeviceId);
+        List<UserSessionDto> sessions = userSessionService.getUserSessions(currentUser.getId(), currentDeviceId);
         return ResponseEntity.ok(sessions);
     }
 
     @DeleteMapping("/{sessionId}")
     public ResponseEntity<Void> revokeSession(
-            @RequestAttribute("userId") String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @PathVariable String sessionId) {
-        userSessionService.revokeSession(userId, sessionId);
+        userSessionService.revokeSession(currentUser.getId(), sessionId);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/revoke-others")
     public ResponseEntity<Map<String, String>> revokeOtherSessions(
-            @RequestAttribute("userId") String userId,
+            @CurrentUser CustomUserDetails currentUser,
             @RequestHeader(value = "X-Device-Id", required = false) String currentDeviceId) {
-        userSessionService.revokeOtherSessions(userId, currentDeviceId);
+        userSessionService.revokeOtherSessions(currentUser.getId(), currentDeviceId);
         return ResponseEntity.ok(Map.of("message", "Other device sessions revoked successfully"));
     }
 }

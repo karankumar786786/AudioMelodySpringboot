@@ -33,7 +33,9 @@ class UserPlaylistApiControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new UserPlaylistApiController(userPlaylistApiService)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new UserPlaylistApiController(userPlaylistApiService))
+                .setCustomArgumentResolvers(new me.one_org.melody.Utils.CurrentUserTestArgumentResolver())
+                .build();
     }
 
     @Test

@@ -27,7 +27,9 @@ class InteractionApiControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new InteractionApiController(interactionApiService)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new InteractionApiController(interactionApiService))
+                .setCustomArgumentResolvers(new me.one_org.melody.Utils.CurrentUserTestArgumentResolver())
+                .build();
     }
 
     @Test

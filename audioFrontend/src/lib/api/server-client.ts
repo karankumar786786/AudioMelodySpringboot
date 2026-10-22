@@ -11,53 +11,17 @@ export interface ServerSession {
   isAuthenticated: boolean;
 }
 
-async function refreshServerTokens(
-  refreshToken: string
-): Promise<{ token: string; refreshToken?: string } | null> {
-  try {
-    const backendUrl =
-      process.env.INTERNAL_API_URL ||
-      process.env.NEXT_PUBLIC_API_URL ||
-      "http://localhost:9090";
-    const res = await fetch(`${backendUrl}/auth/refresh-token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "Accept-Cookies": "true",
-        "X-Accept-Cookies": "true",
-        Cookie: `system_refresh_token=${refreshToken}`,
-      },
-      body: JSON.stringify({ refreshToken }),
-    });
-
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (data?.accessToken) {
-      return {
-        token: data.accessToken,
-        refreshToken: data.refreshToken || refreshToken,
-      };
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Retrieve session credentials and user profile on the Next.js server via request cookies.
+ * If the access token is expired, returns unauthenticated — the client-side
+ * refreshAccessToken() will handle cookie rotation via Set-Cookie headers.
  */
 export async function getServerSession(): Promise<ServerSession> {
   try {
     const cookieStore = await cookies();
     const rawToken = cookieStore.get("system_token")?.value || null;
-    const rawRefreshToken =
-      cookieStore.get("system_refresh_token")?.value || null;
 
     let user: User | null = null;
-    let token: string | null = null;
-    let effectiveRefreshToken = rawRefreshToken;
 
     if (rawToken) {
       try {
@@ -70,7 +34,6 @@ export async function getServerSession(): Promise<ServerSession> {
             claims.exp && typeof claims.exp === "number" && now >= claims.exp;
 
           if (!isExpired) {
-            token = rawToken;
             user = {
               id: claims.id || claims.sub || "",
               email: claims.email || "",
@@ -82,43 +45,12 @@ export async function getServerSession(): Promise<ServerSession> {
         }
       } catch {
         user = null;
-        token = null;
-      }
-    }
-
-    // 🔄 Auto-refresh access token on server if expired but refresh token exists
-    if (!token && rawRefreshToken) {
-      const refreshed = await refreshServerTokens(rawRefreshToken);
-      if (refreshed?.token) {
-        token = refreshed.token;
-        if (refreshed.refreshToken) {
-          effectiveRefreshToken = refreshed.refreshToken;
-        }
-        try {
-          const parts = token.split(".");
-          if (parts.length === 3) {
-            const payloadJson = Buffer.from(parts[1], "base64").toString(
-              "utf-8"
-            );
-            const claims = JSON.parse(payloadJson);
-            user = {
-              id: claims.id || claims.sub || "",
-              email: claims.email || "",
-              userName: claims.userName || claims.sub || "User",
-              role: claims.role || "USER",
-              name: claims.userName || "User",
-            } as any;
-          }
-        } catch {
-          user = null;
-          token = null;
-        }
       }
     }
 
     return {
       user,
-      isAuthenticated: Boolean(token && user),
+      isAuthenticated: Boolean(rawToken && user),
     };
   } catch {
     return {
