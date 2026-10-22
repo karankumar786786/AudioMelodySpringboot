@@ -102,7 +102,7 @@ public class AlgoliaSearch {
         }
     }
 
-    public void save(Song song) throws Exception {
+    public Map<String, Object> buildSongRecord(Song song) {
         Map<String, Object> record = new HashMap<>();
         record.put("objectID", song.getId());
         record.put("type", "song");
@@ -136,11 +136,10 @@ public class AlgoliaSearch {
                 : 0L;
         record.put("totalStreams", totalStreams);
         record.put("listenCount", totalStreams);
-        record.put("searchCount", 0L);
-        searchClient.saveObject(indexName, record);
+        return record;
     }
 
-    public void save(Artist artist) throws Exception {
+    public Map<String, Object> buildArtistRecord(Artist artist) {
         Map<String, Object> record = new HashMap<>();
         record.put("objectID", artist.getId());
         record.put("type", "artist");
@@ -152,11 +151,10 @@ public class AlgoliaSearch {
                 ? artist.getArtistMetadata().getFollowersCount()
                 : 0L;
         record.put("followersCount", followersCount);
-        record.put("searchCount", 0L);
-        searchClient.saveObject(indexName, record);
+        return record;
     }
 
-    public void save(Playlist playlist) throws Exception {
+    public Map<String, Object> buildPlaylistRecord(Playlist playlist) {
         Map<String, Object> record = new HashMap<>();
         record.put("objectID", playlist.getId());
         record.put("type", "playlist");
@@ -165,6 +163,23 @@ public class AlgoliaSearch {
             record.put("coverImageKey", playlist.getCoverImageKey());
         }
         record.put("totalSongs", playlist.getTotalSongs());
+        return record;
+    }
+
+    public void save(Song song) throws Exception {
+        Map<String, Object> record = buildSongRecord(song);
+        record.put("searchCount", 0L);
+        searchClient.saveObject(indexName, record);
+    }
+
+    public void save(Artist artist) throws Exception {
+        Map<String, Object> record = buildArtistRecord(artist);
+        record.put("searchCount", 0L);
+        searchClient.saveObject(indexName, record);
+    }
+
+    public void save(Playlist playlist) throws Exception {
+        Map<String, Object> record = buildPlaylistRecord(playlist);
         record.put("searchCount", 0L);
         searchClient.saveObject(indexName, record);
     }
@@ -234,43 +249,9 @@ public class AlgoliaSearch {
     // ── Bulk resync ──
 
     public void reindexAllSongs(List<Song> songs) throws Exception {
-        List<Map<String, Object>> records = new ArrayList<>();
-        for (Song song : songs) {
-            Map<String, Object> record = new HashMap<>();
-            record.put("objectID", song.getId());
-            record.put("type", "song");
-            record.put("title", song.getTitle());
-            record.put("artistName", song.getArtistName());
-            record.put("album", song.getAlbum());
-            record.put("language", song.getLanguage());
-            if (song.getGenre() != null && !song.getGenre().isBlank()) {
-                record.put("genre", song.getGenre());
-            }
-            if (song.getDuration() != null && song.getDuration() > 0) {
-                record.put("duration", song.getDuration());
-            }
-            if (song.getImageKey() != null && !song.getImageKey().isBlank()) {
-                record.put("imageKey", song.getImageKey());
-            }
-            if (song.getSongKey() != null && !song.getSongKey().isBlank()) {
-                record.put("songKey", song.getSongKey());
-            }
-            if (song.getVideoKey() != null && !song.getVideoKey().isBlank()) {
-                record.put("videoKey", song.getVideoKey());
-            }
-            if (song.getPreviewStartTime() != null) {
-                record.put("previewStartTime", song.getPreviewStartTime());
-            }
-            if (song.getPreviewEndTime() != null) {
-                record.put("previewEndTime", song.getPreviewEndTime());
-            }
-            Long totalStreams = (song.getSongMetadata() != null && song.getSongMetadata().getTotalStreams() != null)
-                    ? song.getSongMetadata().getTotalStreams()
-                    : 0L;
-            record.put("totalStreams", totalStreams);
-            record.put("listenCount", totalStreams);
-            records.add(record);
-        }
+        List<Map<String, Object>> records = songs.stream()
+                .map(this::buildSongRecord)
+                .toList();
         if (!records.isEmpty()) {
             searchClient.saveObjects(indexName, records);
         }
@@ -278,21 +259,9 @@ public class AlgoliaSearch {
     }
 
     public void reindexAllArtists(List<Artist> artists) throws Exception {
-        List<Map<String, Object>> records = new ArrayList<>();
-        for (Artist artist : artists) {
-            Map<String, Object> record = new HashMap<>();
-            record.put("objectID", artist.getId());
-            record.put("type", "artist");
-            record.put("name", artist.getName());
-            if (artist.getCoverImageKey() != null && !artist.getCoverImageKey().isBlank()) {
-                record.put("coverImageKey", artist.getCoverImageKey());
-            }
-            Long followersCount = (artist.getArtistMetadata() != null && artist.getArtistMetadata().getFollowersCount() != null)
-                    ? artist.getArtistMetadata().getFollowersCount()
-                    : 0L;
-            record.put("followersCount", followersCount);
-            records.add(record);
-        }
+        List<Map<String, Object>> records = artists.stream()
+                .map(this::buildArtistRecord)
+                .toList();
         if (!records.isEmpty()) {
             searchClient.saveObjects(indexName, records);
         }
@@ -300,18 +269,9 @@ public class AlgoliaSearch {
     }
 
     public void reindexAllPlaylists(List<Playlist> playlists) throws Exception {
-        List<Map<String, Object>> records = new ArrayList<>();
-        for (Playlist playlist : playlists) {
-            Map<String, Object> record = new HashMap<>();
-            record.put("objectID", playlist.getId());
-            record.put("type", "playlist");
-            record.put("name", playlist.getName());
-            if (playlist.getCoverImageKey() != null && !playlist.getCoverImageKey().isBlank()) {
-                record.put("coverImageKey", playlist.getCoverImageKey());
-            }
-            record.put("totalSongs", playlist.getTotalSongs());
-            records.add(record);
-        }
+        List<Map<String, Object>> records = playlists.stream()
+                .map(this::buildPlaylistRecord)
+                .toList();
         if (!records.isEmpty()) {
             searchClient.saveObjects(indexName, records);
         }
