@@ -9,7 +9,7 @@ public record PaginationMetaDataDto(
     long totalCount,
     long activeCount,
     long blockedCount,
-    long softDeletedCount,
+    long deletedCount,
     LocalDateTime updatedAt
 ) {
     public static PaginationMetaDataDto fromEntity(PaginationMetaData meta) {
@@ -20,8 +20,12 @@ public record PaginationMetaDataDto(
             meta.getTotalCount(),
             meta.getActiveCount(),
             meta.getBlockedCount(),
-            meta.getSoftDeletedCount(),
+            meta.getDeletedCount(),
             meta.getUpdatedAt()
         );
+    }
+
+    public long softDeletedCount() {
+        return this.deletedCount;
     }
 }

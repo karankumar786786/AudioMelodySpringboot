@@ -28,9 +28,6 @@ public class PaginationMetaData {
     @Column(name = "deleted_count", nullable = false)
     private long deletedCount;
 
-    @Column(name = "soft_deleted_count", nullable = false)
-    private long softDeletedCount;
-
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
@@ -41,15 +38,14 @@ public class PaginationMetaData {
 
     @Builder
     public PaginationMetaData(String id, String tableName, long totalCount, long activeCount,
-                              long blockedCount, long deletedCount, long softDeletedCount, LocalDateTime updatedAt) {
+                              long blockedCount, long deletedCount, LocalDateTime updatedAt) {
         super();
         this.id = id;
         this.tableName = tableName;
         this.totalCount = totalCount;
         this.activeCount = activeCount;
         this.blockedCount = blockedCount;
-        this.deletedCount = deletedCount != 0 ? deletedCount : softDeletedCount;
-        this.softDeletedCount = softDeletedCount != 0 ? softDeletedCount : deletedCount;
+        this.deletedCount = deletedCount;
         this.updatedAt = updatedAt != null ? updatedAt : LocalDateTime.now();
     }
 

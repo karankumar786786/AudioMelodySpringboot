@@ -58,6 +58,9 @@ public class Song{
     @Column(nullable = false)
     private String lrclibId;
 
+    @Column(name = "job_id")
+    private String jobId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatusEnum status;
@@ -75,7 +78,7 @@ public class Song{
     @Builder
     public Song(String id, String title, String artistName, Integer duration, String songKey, String imageKey,
                 String videoKey, String fullVideoKey, Integer previewStartTime, Integer previewEndTime,
-                Boolean isFeatured, String language, String genre, String album, String lrclibId,
+                Boolean isFeatured, String language, String genre, String album, String lrclibId, String jobId,
                 StatusEnum status, SongMetadata songMetadata, LocalDateTime createdAt) {
         super();
         this.id = id;
@@ -93,6 +96,7 @@ public class Song{
         this.genre = genre;
         this.album = album;
         this.lrclibId = lrclibId;
+        this.jobId = jobId;
         this.status = status;
         this.songMetadata = songMetadata;
         this.createdAt = createdAt;

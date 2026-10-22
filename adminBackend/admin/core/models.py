@@ -13,6 +13,7 @@ class PaginationMetadata(models.Model):
     active_count = models.BigIntegerField(default=0, db_column="active_count")
     blocked_count = models.BigIntegerField(default=0, db_column="blocked_count")
     deleted_count = models.BigIntegerField(default=0, db_column="deleted_count")
+    updated_at = models.DateTimeField(auto_now=True, db_column="updated_at")
 
     class Meta:
         managed = False

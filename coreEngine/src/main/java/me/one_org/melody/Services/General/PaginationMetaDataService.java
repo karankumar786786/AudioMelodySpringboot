@@ -43,7 +43,7 @@ public class PaginationMetaDataService {
                     .totalCount(0L)
                     .activeCount(0L)
                     .blockedCount(0L)
-                    .softDeletedCount(0L)
+                    .deletedCount(0L)
                     .build();
             repository.save(meta);
             return meta;
@@ -69,7 +69,7 @@ public class PaginationMetaDataService {
                     .totalCount(totalCount)
                     .activeCount(activeCount)
                     .blockedCount(blockedCount)
-                    .softDeletedCount(deletedCount)
+                    .deletedCount(deletedCount)
                     .build();
         }
         repository.save(meta);
