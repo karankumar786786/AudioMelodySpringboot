@@ -172,8 +172,10 @@ export class AudioTranscoder {
             "--allow_approximate_segment_timeline",
         ];
 
+        const packagerBin = process.env.SHAKA_PACKAGER_PATH || "packager";
+
         try {
-            await execFileAsync("packager", args);
+            await execFileAsync(packagerBin, args, { maxBuffer: 10 * 1024 * 1024 });
             await this.patchMpdForVod(path.join(outputDir, "master.mpd"));
             console.log(`Packaging complete`);
         } catch (err: any) {
@@ -183,6 +185,7 @@ export class AudioTranscoder {
     }
 
     private async patchMpdForVod(mpdPath: string): Promise<void> {
+        if (!fs.existsSync(mpdPath)) return;
         let content = fs.readFileSync(mpdPath, "utf-8");
 
         content = content.replace(/\btype="dynamic"/, 'type="static"');

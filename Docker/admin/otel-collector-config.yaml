@@ -1,0 +1,47 @@
+extensions:
+  health_check:
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+    spike_limit_mib: 128
+  resourcedetection:
+    detectors: [env, system]
+  cumulativetodelta:
+  batch:
+    send_batch_size: 10000
+    timeout: 10s
+
+exporters:
+  debug:
+  otlp/uptrace:
+    endpoint: https://otlp.uptrace.dev:4317
+    tls:
+      insecure: false
+    headers:
+      uptrace-dsn: 'https://Y6J6cdYJEUeEtfpP7KtU6k@api.uptrace.dev?grpc=4317'
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/uptrace, debug]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, resourcedetection, cumulativetodelta, batch]
+      exporters: [otlp/uptrace, debug]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/uptrace, debug]

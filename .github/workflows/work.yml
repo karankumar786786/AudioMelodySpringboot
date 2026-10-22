@@ -89,10 +89,21 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install FFmpeg & Media Dependencies
+      - name: Install FFmpeg & Media Dependencies (FFmpeg & Shaka Packager)
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ffmpeg
+          sudo apt-get install -y --no-install-recommends ffmpeg curl ca-certificates
+          ARCH=$(dpkg --print-architecture)
+          if [ "$ARCH" = "arm64" ]; then
+            PACKAGER_ARCH="arm64"
+          else
+            PACKAGER_ARCH="x64"
+          fi
+          sudo curl -fsSL "https://github.com/shaka-project/shaka-packager/releases/download/v3.9.3/packager-linux-${PACKAGER_ARCH}" -o /usr/local/bin/packager
+          sudo chmod +x /usr/local/bin/packager
+          ffmpeg -version
+          packager --version
+
 
       - name: Set up Bun Runtime
         uses: oven-sh/setup-bun@v2
@@ -105,7 +116,7 @@ jobs:
 
       - name: Run Bun Unit Tests
         working-directory: ./audioProcessing
-        run: bun test
+        run: bun run test
 
   # =========================================================================
   # 4. Multi-Service Parallel Docker Build & Push (Runs ONLY after all tests pass)

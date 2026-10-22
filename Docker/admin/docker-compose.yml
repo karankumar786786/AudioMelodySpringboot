@@ -56,6 +56,21 @@ services:
     networks:
       - app
 
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-collector
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    expose:
+      - "4317"
+      - "4318"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    networks:
+      - app
+
 networks:
   app:
 

@@ -29,6 +29,10 @@ RUN addgroup --system app && adduser --system --ingroup app app
 # Copy ONLY the generated JAR from builder — NO source code
 COPY --from=builder /app/target/*.jar app.jar
 
+# Download official OpenTelemetry Java instrumentation agent
+RUN curl -fsSL -o /app/opentelemetry-javaagent.jar https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar \
+    && chmod 644 /app/opentelemetry-javaagent.jar
+
 USER app
 
 EXPOSE 9090
@@ -38,4 +42,4 @@ EXPOSE 9090
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=40s \
   CMD curl -f http://localhost:9090/actuator/health || exit 1
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-javaagent:/app/opentelemetry-javaagent.jar", "-jar", "app.jar"]

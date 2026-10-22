@@ -1,3 +1,6 @@
+import "./lib/otel";
+import { setupConsoleLogger } from "./lib/logger";
+setupConsoleLogger();
 import express from "express";
 import { timingSafeEqual } from "crypto";
 import { serve } from "inngest/express";
@@ -30,7 +33,7 @@ import {
   getLastAdminAck,
 } from "./lib/telemetry";
 
-config();
+config({ quiet: true });
 
 // Install process-level exit hooks for graceful temp directory cleanup
 setupGracefulShutdownCleanup();

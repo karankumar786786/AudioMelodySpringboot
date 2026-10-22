@@ -262,6 +262,77 @@ INNGEST_DEV_URL = os.getenv("INNGEST_DEV_URL", "http://localhost:8288")
 
 SILENCED_SYSTEM_CHECKS = ["fields.W342"]
 
+# Logging Configuration with OpenTelemetry Trace Correlation
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "otel_context": {
+            "()": "core.otel.OpenTelemetryContextFilter",
+        },
+    },
+    "formatters": {
+        "standard": {
+            "format": "%(asctime)s [%(levelname)s] [%(otelServiceName)s,%(otelTraceID)s,%(otelSpanID)s] %(name)s: %(message)s",
+            "datefmt": "%Y-%m-%dT%H:%M:%S%z",
+        },
+    },
+    "handlers": {
+        "console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "filters": ["otel_context"],
+            "formatter": "standard",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django.server": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "core": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "catalog": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "accounts": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "jobs": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "api": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
+
 
 
 
