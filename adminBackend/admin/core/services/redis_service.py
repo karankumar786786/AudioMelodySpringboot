@@ -123,14 +123,21 @@ class RedisService:
 
     @classmethod
     def queue_audio_processing(cls, job_id: str) -> None:
+        from .inngest_service import InngestService
+        # 1. Direct durable dispatch to Inngest Cloud/Dev
+        try:
+            InngestService.trigger_audio_job(job_id)
+        except Exception as e:
+            logger.error("Failed to directly trigger Inngest for job [%s]: %s", job_id, e)
+
+        # 2. Redis queue record for tracking/backpressure metrics
         try:
             r = cls.get_client()
             payload = json.dumps({"jobId": job_id})
             r.rpush(settings.REDIS_AUDIO_PROCESSING_QUEUE, payload)
             logger.info("Queued audio processing job [%s] in Redis list '%s'", job_id, settings.REDIS_AUDIO_PROCESSING_QUEUE)
         except Exception as e:
-            logger.error("Failed to push audio processing job [%s] to Redis: %s", job_id, e)
-            raise
+            logger.warning("Failed to push audio processing job [%s] to Redis queue: %s", job_id, e)
 
     @classmethod
     def remove_job_from_audio_queue(cls, job_id: str) -> None:
@@ -144,6 +151,12 @@ class RedisService:
 
     @classmethod
     def cancel_job(cls, job_id: str) -> None:
+        from .inngest_service import InngestService
+        try:
+            InngestService.trigger_cancel_job(job_id)
+        except Exception as e:
+            logger.warning("Failed to dispatch Inngest cancellation event for [%s]: %s", job_id, e)
+
         try:
             r = cls.get_client()
             payload = json.dumps({"jobId": job_id})
@@ -201,13 +214,20 @@ class RedisService:
             "fullVideoKey": data.get("fullVideoKey"),
         }
 
+        # 1. Direct durable dispatch to Inngest Cloud/Dev
+        from .inngest_service import InngestService
+        try:
+            InngestService.trigger_delete_event(payload)
+        except Exception as e:
+            logger.error("Failed to directly trigger Inngest delete event for job [%s]: %s", job_id, e)
+
+        # 2. Redis queue record for tracking/backpressure metrics
         try:
             r = cls.get_client()
             r.rpush(settings.REDIS_DELETE_QUEUE, json.dumps(payload))
             logger.info("Queued delete event for %s:%s (job [%s]) to Redis", data.get("entityType"), data.get("entityId"), job_id)
         except Exception as e:
-            logger.error("Failed to push delete event to Redis: %s", e)
-            raise
+            logger.warning("Failed to push delete event to Redis queue: %s", e)
 
         return job_id
 
@@ -419,7 +439,7 @@ class RedisService:
             r = cls.get_client()
             session_ids = r.smembers(f"admin:user_sessions:{norm_email}")
             for sid in session_ids:
-                sid_str = sid.decode() if isinstance(sid, bytes) else str(sid)
+                sid_str = sid.decode() if isinstance(sid, bytes) else sid
                 if except_session_id and sid_str == except_session_id:
                     continue
                 r.delete(f"admin:session:{sid_str}")
@@ -524,7 +544,7 @@ class RedisService:
             r = cls.get_client()
             session_ids = r.smembers(f"admin:user_sessions:{norm_email}")
             for sid in session_ids:
-                sid_str = sid.decode() if isinstance(sid, bytes) else str(sid)
+                sid_str = sid.decode() if isinstance(sid, bytes) else sid
                 raw = r.get(f"admin:session:{sid_str}")
                 if raw:
                     sess = json.loads(raw)

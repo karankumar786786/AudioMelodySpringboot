@@ -41,16 +41,12 @@ class ExternalJobDispatcher:
             except Exception as e:
                 logger.warning("Failed to notify audioProcessing worker of job [%s] cleanup: %s", job_id, e)
 
-        # D. Direct event to Inngest dev server
-        if getattr(settings, "INNGEST_DEV_URL", None):
-            try:
-                payload = [{"name": "audio/job.cancel", "data": {"jobId": job_id}}]
-                requests.post(
-                    f"{settings.INNGEST_DEV_URL.rstrip('/')}/e/dev",
-                    json=payload,
-                    timeout=2,
-                )
-            except Exception as e:
-                logger.warning("Failed to send cancellation event to Inngest dev server: %s", e)
+        # D. Direct event to Inngest Cloud/Dev
+        try:
+            from .inngest_service import InngestService
+            InngestService.trigger_cancel_job(job_id)
+        except Exception as e:
+            logger.warning("Failed to send cancellation event to Inngest: %s", e)
+
 
 

@@ -149,11 +149,15 @@ _valid_params = {"sslmode", "connect_timeout", "options", "keepalives", "sslcert
 _filtered_qs = {k: v for k, v in _qs.items() if k.lower() in _valid_params}
 _cleaned_db_url = urlunparse(_parsed._replace(query=urlencode(_filtered_qs, doseq=True)))
 
-_db_config = dj_database_url.parse(_cleaned_db_url)
-if not _db_config.get("USER") and os.getenv("DB_USER"):
-    _db_config["USER"] = os.getenv("DB_USER")
-if not _db_config.get("PASSWORD") and os.getenv("DB_PASSWORD"):
-    _db_config["PASSWORD"] = os.getenv("DB_PASSWORD")
+from typing import Any, Dict
+
+_db_config: Dict[str, Any] = dict(dj_database_url.parse(_cleaned_db_url))
+_db_user = os.getenv("DB_USER")
+if not _db_config.get("USER") and _db_user:
+    _db_config["USER"] = _db_user
+_db_password = os.getenv("DB_PASSWORD")
+if not _db_config.get("PASSWORD") and _db_password:
+    _db_config["PASSWORD"] = _db_password
 
 _db_config["CONN_MAX_AGE"] = 600
 _db_config["CONN_HEALTH_CHECKS"] = True
@@ -251,6 +255,13 @@ RECOMBEE_DATABASE_REGION = os.getenv("RECOMBEE_DATABASE_REGION", "EU_WEST")
 AUDIO_PROCESSING_URL = os.getenv("AUDIO_PROCESSING_URL", "http://localhost:5010")
 AUDIO_PROCESSING_API_KEY = os.getenv("AUDIO_PROCESSING_API_KEY", "")
 APPLICATION_API_KEY = os.getenv("APPLICATION_API_KEY", os.getenv("SPRING_APPLICATION_API_KEY", AUDIO_PROCESSING_API_KEY))
+INNGEST_EVENT_KEY = os.getenv("INNGEST_EVENT_KEY", "gihqdXZwOpMNcHq3a1hZ9NjMFaM_WEydDXpVPI3q1h8jQRw37s-ZX9Y_MW4XoskIJ1tyvcDST8iPi0dpGdKzZw")
+INNGEST_SIGNING_KEY = os.getenv("INNGEST_SIGNING_KEY", "signkey-prod-e66ce5256a47a6fd9e45a1917c06f80f06a8dfb27cfa9432b5fef2283162fec9")
+INNGEST_DEV = os.getenv("INNGEST_DEV", "0") in ("1", "true", "True")
 INNGEST_DEV_URL = os.getenv("INNGEST_DEV_URL", "http://localhost:8288")
+
+SILENCED_SYSTEM_CHECKS = ["fields.W342"]
+
+
 
 

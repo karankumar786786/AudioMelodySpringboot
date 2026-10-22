@@ -7,8 +7,10 @@ COPY pom.xml .
 
 RUN mvn dependency:go-offline
 
+# Copy source code into builder stage for compiling and testing
 COPY src ./src
 
+# Package standalone executable JAR (unit tests run in CI workflow)
 RUN mvn clean package -DskipTests
 
 
@@ -24,7 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
 # Run as non-root for security
 RUN addgroup --system app && adduser --system --ingroup app app
 
-# Copy only the generated JAR from builder
+# Copy ONLY the generated JAR from builder — NO source code
 COPY --from=builder /app/target/*.jar app.jar
 
 USER app

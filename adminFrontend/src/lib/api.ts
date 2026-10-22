@@ -239,6 +239,35 @@ export interface Job {
   createdAt?: string;
 }
 
+export interface AudioProcessingTelemetry {
+  service: string;
+  status: "UP" | "DOWN" | "DEGRADED" | string;
+  cpuUtilization: number;
+  memoryUsedMb?: number;
+  memoryTotalMb?: number;
+  memoryUsagePercent?: number;
+  activeJobs?: number;
+  concurrencyLimit?: number;
+  uptimeSeconds?: number;
+  timestamp?: string;
+  receivedAt?: string;
+  lastHeartbeat?: string;
+  latencyMs?: number;
+  error?: string;
+}
+
+export interface AdminBackendHealth {
+  status: "UP" | "DOWN" | "DEGRADED" | string;
+  dbConnected: boolean;
+  redisConnected: boolean;
+}
+
+export interface SystemHealthTelemetry {
+  timestamp: string;
+  adminBackend: AdminBackendHealth;
+  audioProcessing?: AudioProcessingTelemetry;
+}
+
 export interface DashboardStats {
   totalSongs: number;
   activeSongs: number;
@@ -259,6 +288,7 @@ export interface DashboardStats {
   recentSongs: Song[];
   recentJobs: Job[];
   queueStats?: QueueBackpressureSummary;
+  systemHealth?: SystemHealthTelemetry;
 }
 
 export interface PaginatedResponse<T> {
@@ -372,6 +402,17 @@ export const adminClient = {
         throw new Error(msg);
       }
       return { data: { token } };
+    },
+  },
+  system: {
+    getHealth: async (): Promise<SystemHealthTelemetry> => {
+      const res = await fetch(`${API_BASE_URL}/admin/system/health`, {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        throw new Error("Failed to fetch system telemetry and health");
+      }
+      return res.json();
     },
   },
 };

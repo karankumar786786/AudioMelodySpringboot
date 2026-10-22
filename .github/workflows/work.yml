@@ -1,4 +1,4 @@
-name: CI / CD Pipeline
+name: CI Pipeline
 
 on:
   push:
@@ -8,15 +8,17 @@ on:
     branches:
       - main
 
-# Cancel redundant in-progress runs when new commits are pushed
+# Cancel redundant in-progress workflow runs when new commits are pushed
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # 1. Automated Unit & Integration Testing for Core Engine
+  # =========================================================================
+  # 1. Core Engine Tests (Spring Boot / Java 21)
+  # =========================================================================
   test-core:
-    name: Run Core Engine Tests
+    name: Test Core Engine
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -32,11 +34,11 @@ jobs:
       - name: Make Maven Wrapper Executable
         run: chmod +x coreEngine/mvnw
 
-      - name: Run Core Engine Tests
+      - name: Run Spring Boot Unit & Integration Tests
         working-directory: ./coreEngine
         run: ./mvnw test --batch-mode --no-transfer-progress
 
-      - name: Upload Test Results
+      - name: Upload Core Engine Test Reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -44,10 +46,73 @@ jobs:
           path: coreEngine/target/surefire-reports/
           retention-days: 7
 
-  # 2. Parallel Multi-Service Matrix Build with Caching
+  # =========================================================================
+  # 2. Admin Backend Tests (Django / Python 3.12 / uv)
+  # =========================================================================
+  test-admin:
+    name: Test Admin Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv Package Manager
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Install Dependencies
+        working-directory: ./adminBackend
+        run: uv sync --frozen
+
+      - name: Validate Django Configuration
+        working-directory: ./adminBackend/admin
+        run: uv run python manage.py check
+
+      - name: Run Django Test Suite
+        working-directory: ./adminBackend/admin
+        run: uv run python manage.py test
+
+  # =========================================================================
+  # 3. Audio Processing Tests (Bun / FFmpeg)
+  # =========================================================================
+  test-audio:
+    name: Test Audio Processing
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install FFmpeg & Media Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: Set up Bun Runtime
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        working-directory: ./audioProcessing
+        run: bun install --frozen-lockfile
+
+      - name: Run Bun Unit Tests
+        working-directory: ./audioProcessing
+        run: bun test
+
+  # =========================================================================
+  # 4. Multi-Service Parallel Docker Build & Push (Runs ONLY after all tests pass)
+  # =========================================================================
   build-and-push:
-    name: Build & Push (${{ matrix.service }})
-    needs: [test-core]
+    name: Docker Build & Push (${{ matrix.service }})
+    needs: [test-core, test-admin, test-audio]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -100,35 +165,3 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-  # 2. Automated Continuous Deployment to EC2
-  # deploy:
-  #   name: Deploy to EC2
-  #   needs: build-and-push
-  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-  #   runs-on: ubuntu-latest
-
-  #   steps:
-  #     - name: SSH into EC2 & Deploy
-  #       uses: appleboy/ssh-action@v1.2.2
-  #       with:
-  #         host: ${{ secrets.EC2_HOST }}
-  #         username: ${{ secrets.EC2_USER }}
-  #         key: ${{ secrets.EC2_SSH_KEY }}
-  #         script: |
-  #           cd /home/ubuntu/audioMelody
-
-  #           # Authenticate with Docker Hub (in case images are private)
-  #           echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-
-  #           # Pull latest service images defined in docker-compose.yml
-  #           docker compose pull || sudo docker compose pull
-
-  #           # Recreate containers with zero downtime
-  #           docker compose up -d --remove-orphans || sudo docker compose up -d --remove-orphans
-
-  #           # Apply Django database migrations inside admin container
-  #           docker compose exec -T admin python manage.py migrate --noinput || sudo docker compose exec -T admin python manage.py migrate --noinput || true
-
-  #           # Clean up old unused image layers to save EC2 disk space
-  #           docker image prune -f || sudo docker image prune -f

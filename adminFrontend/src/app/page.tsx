@@ -116,7 +116,7 @@ export default function DashboardPage() {
       {/* Quick Actions & System Health */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <DashboardQuickActions />
-        <SystemStatusWidget queueStats={stats?.queueStats} />
+        <SystemStatusWidget queueStats={stats?.queueStats} systemHealth={stats?.systemHealth} />
       </div>
     </div>
   );

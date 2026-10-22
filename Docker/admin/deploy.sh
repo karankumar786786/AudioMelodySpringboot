@@ -78,6 +78,7 @@ scp -i "$KEY_PATH" -o StrictHostKeyChecking=no \
   "${SCRIPT_DIR}/Caddyfile" \
   "${SCRIPT_DIR}/admin.env" \
   "${SCRIPT_DIR}/process.env" \
+  "${SCRIPT_DIR}/watchtower.env" \
   "ubuntu@${TARGET_IP}:~/app/"
 
 # Deploy via Docker Compose

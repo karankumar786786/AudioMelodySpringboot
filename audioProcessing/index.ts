@@ -2,7 +2,6 @@ import express from "express";
 import { timingSafeEqual } from "crypto";
 import { serve } from "inngest/express";
 import { inngest } from "./inngest";
-import { fetchJobsFromList } from "./jobseeker/worker";
 import { config } from "dotenv";
 import { fetchJob } from "./functions/fetchJob";
 import { transcodeSong } from "./functions/transcode";
@@ -18,7 +17,6 @@ import { deleteFromRecombee } from "./functions/deleteFromRecombee";
 import { deleteFromImageKit } from "./functions/deleteFromImageKit";
 import { deleteFromS3 } from "./functions/deleteFromS3";
 import { finalizeDelete } from "./functions/finalizeDelete";
-import { fetchDeleteEventsFromList } from "./jobseeker/deleteWorker";
 import { fetchCancelEventsFromList } from "./jobseeker/cancelWorker";
 import {
   setupGracefulShutdownCleanup,
@@ -26,6 +24,12 @@ import {
   purgeLocalJobArtifacts,
 } from "./lib/transcode/cleanup";
 import { purgeJobCloudArtifacts } from "./lib/s3";
+import {
+  getSystemTelemetry,
+  startHeartbeatWorker,
+  getLastAdminAck,
+} from "./lib/telemetry";
+
 config();
 
 // Install process-level exit hooks for graceful temp directory cleanup
@@ -36,9 +40,14 @@ const app = express();
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ limit: "1mb", extended: true }));
 
-// Lightweight health check endpoints for container orchestrators and load balancers
+// Bidirectional health check & CPU telemetry endpoint
 app.get("/health", (_req, res) => {
-  res.json({ status: "UP", timestamp: new Date().toISOString() });
+  const telemetry = getSystemTelemetry();
+  const adminBackendAck = getLastAdminAck();
+  res.json({
+    ...telemetry,
+    adminBackendAck,
+  });
 });
 
 app.get("/", (_req, res) => {
@@ -187,8 +196,10 @@ app.listen(5010, () => {
     30 * 60 * 1000,
   );
 
-  fetchJobsFromList();
-  fetchDeleteEventsFromList();
+  // Start bidirectional telemetry heartbeat worker to adminBackend
+  startHeartbeatWorker(10000);
+
+  // Still observe cancel events if any in queue
   fetchCancelEventsFromList();
 });
 

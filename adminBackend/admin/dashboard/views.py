@@ -11,13 +11,14 @@ from catalog.models import Artist, Playlist, Song, SongMetadata
 # pyrefly: ignore[missing-import]
 from catalog.serializers import SongSerializer
 # pyrefly: ignore[missing-import]
-from core.services import PaginationMetadataService, RedisService
+from core.services import PaginationMetadataService, RedisService, SystemHealthService
 # pyrefly: ignore[missing-import]
 from core.views import BaseAdminView
 # pyrefly: ignore[missing-import]
 from jobs.models import Job
 # pyrefly: ignore[missing-import]
 from jobs.serializers import JobSerializer
+from django.conf import settings
 
 
 class HealthCheckView(APIView):
@@ -29,6 +30,35 @@ class HealthCheckView(APIView):
 
     def get(self, request):
         return Response({"status": "UP", "service": "admin"}, status=status.HTTP_200_OK)
+
+
+class TelemetryHeartbeatView(APIView):
+    """
+    POST /api/telemetry/heartbeat/ and /webhook/telemetry/heartbeat/
+    Receives periodic health pings and CPU utilization telemetry from audioProcessing worker.
+    """
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        api_key = request.headers.get("X-API-KEY") or request.headers.get("X-Api-Key")
+        expected_key = getattr(settings, "APPLICATION_API_KEY", None)
+        if expected_key and (not api_key or api_key != expected_key):
+            return Response({"error": "Unauthorized"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        ack = SystemHealthService.record_audio_processing_heartbeat(request.data)
+        return Response(ack, status=status.HTTP_200_OK)
+
+
+class SystemHealthView(BaseAdminView):
+    """
+    GET /admin/system/health and /api/system/health
+    Aggregated health and live CPU telemetry for admin frontend dashboards.
+    """
+    def get(self, request):
+        health_data = SystemHealthService.get_system_health()
+        return Response(health_data, status=status.HTTP_200_OK)
+
 
 
 class GlobalSearchView(BaseAdminView):
@@ -140,5 +170,6 @@ class DashboardStatsView(BaseAdminView):
             "recentSongs": SongSerializer(recent_songs, many=True).data,
             "recentJobs": JobSerializer(recent_jobs, many=True).data,
             "queueStats": queue_summary,
+            "systemHealth": SystemHealthService.get_system_health(),
         }
         return Response(data, status=status.HTTP_200_OK)

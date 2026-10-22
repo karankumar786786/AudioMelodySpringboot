@@ -1,8 +1,0 @@
-node_modules
-.next
-.env
-.env.local
-.env.example
-.git
-*.md
-.DS_Store
