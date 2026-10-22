@@ -1,0 +1,23 @@
+# Pyrefly configuration for adminBackend
+project-includes = ["admin"]
+
+search-path = [
+    "admin",
+    "admin/core",
+    "admin/catalog",
+    "admin/accounts",
+    "admin/jobs",
+    "admin/dashboard",
+    "admin/webhooks",
+    "admin/api",
+    ".venv/lib/python3.12/site-packages",
+]
+
+site-package-path = [
+    ".venv/lib/python3.12/site-packages",
+]
+
+[errors]
+bad-override = false
+bad-override-mutable-attribute = false
+bad-override-param-name = false

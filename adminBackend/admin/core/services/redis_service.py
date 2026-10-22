@@ -154,6 +154,9 @@ class RedisService:
 
     @classmethod
     def queue_delete_event(cls, data: Dict[str, Any]) -> str:
+        from jobs.models import DeleteJob
+        from .pagination_metadata_service import PaginationMetadataService
+
         job_id = data.get("deleteJobId") or str(uuid.uuid4())
         is_new = not DeleteJob.objects.filter(id=job_id).exists()
         old_status = None
@@ -333,6 +336,15 @@ class RedisService:
         """
         if not session_id:
             return None
+
+        # Check in-memory sessions first (fast path for test suites and memory cache)
+        cached = cls._MEMORY_SESSIONS.get(session_id)
+        if cached:
+            if cached.get("expiresAt", 0) > time.time():
+                return cached
+            cls.revoke_admin_session(session_id)
+            return None
+
         try:
             r = cls.get_client()
             raw = r.get(f"admin:session:{session_id}")
@@ -341,12 +353,6 @@ class RedisService:
         except Exception as e:
             logger.debug("Redis error retrieving session: %s", e)
 
-        # Fallback to memory
-        cached = cls._MEMORY_SESSIONS.get(session_id)
-        if cached:
-            if cached.get("expiresAt", 0) > time.time():
-                return cached
-            cls.revoke_admin_session(session_id)
         return None
 
     @classmethod

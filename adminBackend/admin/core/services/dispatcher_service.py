@@ -2,7 +2,6 @@ import logging
 from typing import Optional
 import requests
 from django.conf import settings
-# pyrefly: ignore[missing-import]
 from jobs.models import Job
 from .redis_service import RedisService
 

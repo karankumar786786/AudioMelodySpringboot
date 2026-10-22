@@ -51,9 +51,10 @@ class AlgoliaService:
             logger.warning("Algolia client not configured, skipping save_song")
             return
 
+        s_id: str = song_id or ""
         try:
             if isinstance(song, dict):
-                s_id = song.get("id") or song_id
+                s_id = song.get("id") or s_id
                 s_title = song.get("title") or title
                 s_artist = song.get("artist_name") or song.get("artistName") or song.get("artist") or artist_name
                 s_lang = song.get("language") or language
@@ -70,7 +71,7 @@ class AlgoliaService:
                 s_prev_end = song.get("preview_end_time") if song.get("preview_end_time") is not None else (song.get("previewEndTime") if song.get("previewEndTime") is not None else preview_end_time)
                 s_streams = song.get("total_streams") if song.get("total_streams") is not None else (song.get("totalStreams") if song.get("totalStreams") is not None else (song.get("listenCount") if song.get("listenCount") is not None else total_streams))
             elif song is not None:
-                s_id = getattr(song, "id", None) or song_id
+                s_id = str(getattr(song, "id", None) or song_id or "")
                 s_title = getattr(song, "title", None) or title
                 s_artist = getattr(song, "artist_name", None) or artist_name
                 s_lang = getattr(song, "language", None) or language
@@ -87,7 +88,7 @@ class AlgoliaService:
                 s_prev_end = getattr(song, "preview_end_time", None) if getattr(song, "preview_end_time", None) is not None else preview_end_time
                 s_streams = getattr(song, "total_streams", None) if getattr(song, "total_streams", None) is not None else total_streams
             else:
-                s_id = song_id
+                s_id = str(song_id or "")
                 s_title = title
                 s_artist = artist_name
                 s_lang = language
@@ -136,7 +137,7 @@ class AlgoliaService:
             client.save_object(index_name=index_name, body=record)
             logger.info("Successfully saved song [%s] to Algolia index [%s]", s_id, index_name)
         except Exception as e:
-            logger.warning("Algolia save song [%s] failed: %s", s_id if "s_id" in locals() else "unknown", e)
+            logger.warning("Algolia save song [%s] failed: %s", s_id or "unknown", e)
 
     @classmethod
     def save_artist(cls, artist: Any) -> None:

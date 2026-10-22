@@ -215,6 +215,12 @@ class AdminVerifyOtpView(APIView):
             )
 
         email = decoded.get("email")
+        if not email:
+            return Response(
+                {"message": "Invalid verification session payload."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         otp_data = AdminAuthService.get_otp(email)
         if not otp_data:
             return Response(
@@ -299,6 +305,9 @@ class AdminResendOtpView(APIView):
             return Response({"message": "Verification session has expired."}, status=status.HTTP_400_BAD_REQUEST)
 
         email = decoded.get("email")
+        if not email:
+            return Response({"message": "Invalid verification session payload."}, status=status.HTTP_400_BAD_REQUEST)
+
         purpose = decoded.get("purpose", "LOGIN")
         cached = AdminAuthService.get_otp(email) or {"email": email, "purpose": purpose}
 

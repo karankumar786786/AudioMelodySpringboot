@@ -74,7 +74,7 @@ class RecombeeService:
             return
         cls.ensure_audio_properties(client)
         from recombee_api_client.api_requests import SetItemValues
-        values = {
+        values: Dict[str, Any] = {
             "title": title,
             "artistName": artist_name,
             "language": language or "",
@@ -86,10 +86,10 @@ class RecombeeService:
         if image_key and image_key.strip():
             values["imageKey"] = image_key.strip()
         if duration and duration > 0:
-            values["duration"] = int(duration)
+            values["duration"] = duration
         if total_streams is not None:
-            values["totalStreams"] = int(total_streams)
-            values["listenCount"] = int(total_streams)
+            values["totalStreams"] = total_streams
+            values["listenCount"] = total_streams
 
         # Audio features for smart recommendations
         if tempo is not None:
@@ -111,9 +111,9 @@ class RecombeeService:
         if loudness is not None:
             values["loudness"] = float(loudness)
         if key is not None:
-            values["key"] = int(key)
+            values["key"] = key
         if mode is not None:
-            values["mode"] = int(mode)
+            values["mode"] = mode
 
         try:
             client.send(SetItemValues(song_id, values, cascade_create=True))
@@ -150,10 +150,10 @@ class RecombeeService:
         client = cls.get_client()
         if not client or not songs:
             return 0
-        from recombee_api_client.api_requests import Batch, SetItemValues
-        requests_list = []
+        from recombee_api_client.api_requests import Batch, Request, SetItemValues
+        requests_list: List[Request] = []
         for s in songs:
-            vals = {
+            vals: Dict[str, Any] = {
                 "title": s.title,
                 "artistName": s.artist_name,
                 "language": s.language or "",
@@ -165,7 +165,7 @@ class RecombeeService:
             if s.image_key and s.image_key.strip():
                 vals["imageKey"] = s.image_key.strip()
             if s.duration and s.duration > 0:
-                vals["duration"] = int(s.duration)
+                vals["duration"] = s.duration
             streams = int(getattr(s, "total_streams", 0) or 0)
             vals["totalStreams"] = streams
             vals["listenCount"] = streams

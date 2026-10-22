@@ -162,10 +162,10 @@ class IsAdminUserPermission(permissions.BasePermission):
     """
     Allows access only to authenticated users with ADMIN or SUPER_ADMIN role.
     """
-    def has_permission(self, request, view):
+    def has_permission(self, request, view) -> bool:
         if not request.user or not getattr(request.user, "is_authenticated", False):
             return False
-        return getattr(request.user, "is_admin", False)
+        return bool(getattr(request.user, "is_admin", False))
 
 
 class IsSuperAdminUserPermission(permissions.BasePermission):
@@ -173,7 +173,7 @@ class IsSuperAdminUserPermission(permissions.BasePermission):
     Allows access strictly to authenticated users with SUPER_ADMIN role.
     Used for destructive cluster operations and managing other administrators.
     """
-    def has_permission(self, request, view):
+    def has_permission(self, request, view) -> bool:
         if not request.user or not getattr(request.user, "is_authenticated", False):
             return False
-        return getattr(request.user, "is_super_admin", False)
+        return bool(getattr(request.user, "is_super_admin", False))

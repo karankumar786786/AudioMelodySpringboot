@@ -4,7 +4,7 @@ import uuid
 from django.db import connection, transaction
 from django.db.models import Q
 from accounts.models import User
-from catalog.models import Artist, Playlist, Song
+from catalog.models import Artist, Playlist, PlaylistSong, Song
 from core.models import PaginationMetadata
 from jobs.models import DeleteJob, Job
 from .redis_service import RedisService

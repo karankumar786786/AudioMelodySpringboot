@@ -165,7 +165,7 @@ def to_job_progress_dto(job: Any) -> Dict[str, Any]:
         "label": "Algolia Search Sync",
         "status": s_status,
         "startedAt": recommendation_saved_at.isoformat() if recommendation_saved_at else None,
-        "completedAt": getattr(job, "search_saved_at", None).isoformat() if getattr(job, "search_saved_at", None) else None,
+        "completedAt": search_saved_at.isoformat() if search_saved_at else None,
         "durationMs": s_duration,
         "formattedDuration": format_ms(s_duration),
     })
@@ -183,11 +183,12 @@ def to_job_progress_dto(job: Any) -> Dict[str, Any]:
             f_duration = safe_diff_ms(end, prev)
     else:
         f_status = "FAILED" if status == "FAILED" else "PENDING"
+    f_started = search_saved_at or transcoded_at
     stages.append({
         "stageName": "FINALIZING",
         "label": "Update Song Record" if is_reprocess else "Finalize & Publish",
         "status": f_status,
-        "startedAt": (search_saved_at or transcoded_at).isoformat() if (search_saved_at or transcoded_at) else None,
+        "startedAt": f_started.isoformat() if f_started else None,
         "completedAt": completed_at.isoformat() if completed_at else None,
         "durationMs": f_duration,
         "formattedDuration": format_ms(f_duration),
@@ -360,11 +361,12 @@ def to_delete_job_progress_dto(job: Any) -> Dict[str, Any]:
         i_status = "PENDING"
     else:
         i_status = "COMPLETED" if status == "COMPLETED" else "PENDING"
+    i_started = recommendation_deleted_at or search_deleted_at
     stages.append({
         "stageName": "IMAGEKIT_DELETED",
         "label": "ImageKit CDN Media",
         "status": i_status,
-        "startedAt": (recommendation_deleted_at or search_deleted_at).isoformat() if (recommendation_deleted_at or search_deleted_at) else None,
+        "startedAt": i_started.isoformat() if i_started else None,
         "completedAt": imagekit_deleted_at.isoformat() if imagekit_deleted_at else None,
         "durationMs": i_duration,
         "formattedDuration": format_ms(i_duration),
@@ -406,11 +408,12 @@ def to_delete_job_progress_dto(job: Any) -> Dict[str, Any]:
             c_duration = safe_diff_ms(end, s3_deleted_at)
     else:
         c_status = "FAILED" if status == "FAILED" else "PENDING"
+    c_started = s3_deleted_at or imagekit_deleted_at
     stages.append({
         "stageName": "COMPLETED",
         "label": "Database Hard Delete",
         "status": c_status,
-        "startedAt": (s3_deleted_at or imagekit_deleted_at).isoformat() if (s3_deleted_at or imagekit_deleted_at) else None,
+        "startedAt": c_started.isoformat() if c_started else None,
         "completedAt": completed_at.isoformat() if completed_at else None,
         "durationMs": c_duration,
         "formattedDuration": format_ms(c_duration),
@@ -451,7 +454,7 @@ def to_delete_job_progress_dto(job: Any) -> Dict[str, Any]:
     }
 
 
-def format_paginated_response(content: List[Any], page: int, size: int, metadata: Any) -> Dict[str, Any]:
+def format_paginated_response(content: Any, page: int, size: int, metadata: Any) -> Dict[str, Any]:
     meta_dict = None
     if metadata:
         if isinstance(metadata, dict):

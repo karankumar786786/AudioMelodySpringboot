@@ -177,6 +177,18 @@ class AdminEndpointRoutingTests(SimpleTestCase):
         fake_job.transcoded_at = None
         fake_job.recommendation_saved_at = None
         fake_job.search_saved_at = None
+        fake_job.tempo = 120.0
+        fake_job.danceability = 0.75
+        fake_job.energy = 0.8
+        fake_job.valence = 0.6
+        fake_job.acousticness = 0.1
+        fake_job.instrumentalness = 0.0
+        fake_job.liveness = 0.15
+        fake_job.speechiness = 0.05
+        fake_job.loudness = -8.0
+        fake_job.key = 5
+        fake_job.mode = 1
+        fake_job.audio_features = None
 
         with patch("webhooks.views.get_object_or_404", return_value=fake_job), \
              patch("api.views.get_object_or_404", return_value=fake_job), \

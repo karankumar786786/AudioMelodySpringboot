@@ -1,0 +1,39 @@
+{
+  "include": [
+    "admin"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    ".venv"
+  ],
+  "venvPath": ".",
+  "venv": ".venv",
+  "extraPaths": [
+    "admin",
+    "admin/core",
+    "admin/catalog",
+    "admin/accounts",
+    "admin/jobs",
+    "admin/dashboard",
+    "admin/webhooks",
+    "admin/api"
+  ],
+  "executionEnvironments": [
+    {
+      "root": "admin",
+      "extraPaths": [
+        "admin",
+        "admin/core",
+        "admin/catalog",
+        "admin/accounts",
+        "admin/jobs",
+        "admin/dashboard",
+        "admin/webhooks",
+        "admin/api"
+      ]
+    }
+  ],
+  "reportMissingImports": "none",
+  "reportMissingTypeStubs": false
+}
