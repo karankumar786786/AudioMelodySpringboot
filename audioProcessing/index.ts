@@ -167,27 +167,31 @@ app.use(
   }),
 );
 
-app.listen(5010, () => {
-  console.log("Server running on http://localhost:5010");
+if (process.env.VERCEL !== "1") {
+  app.listen(5010, () => {
+    console.log("Server running on http://localhost:5010");
 
-  // Clean any orphaned artifacts left behind by previous crashes or interrupted runs
-  cleanupStaleTmpFiles().then((cleaned) => {
-    if (cleaned > 0) {
-      console.log(
-        `[STARTUP] Purged ${cleaned} stale temporary files/directories.`,
-      );
-    }
+    // Clean any orphaned artifacts left behind by previous crashes or interrupted runs
+    cleanupStaleTmpFiles().then((cleaned) => {
+      if (cleaned > 0) {
+        console.log(
+          `[STARTUP] Purged ${cleaned} stale temporary files/directories.`,
+        );
+      }
+    });
+
+    // Periodically clean stale temp files every 30 minutes
+    setInterval(
+      () => {
+        cleanupStaleTmpFiles().catch(() => {});
+      },
+      30 * 60 * 1000,
+    );
+
+    fetchJobsFromList();
+    fetchDeleteEventsFromList();
+    fetchCancelEventsFromList();
   });
+}
 
-  // Periodically clean stale temp files every 30 minutes
-  setInterval(
-    () => {
-      cleanupStaleTmpFiles().catch(() => {});
-    },
-    30 * 60 * 1000,
-  );
-
-  fetchJobsFromList();
-  fetchDeleteEventsFromList();
-  fetchCancelEventsFromList();
-});
+export default app;
