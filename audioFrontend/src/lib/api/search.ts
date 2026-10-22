@@ -1,3 +1,4 @@
+import { algoliasearch, type SearchClient } from "algoliasearch";
 import { request } from "./client";
 import type {
   AlgoliaConfig,
@@ -8,228 +9,216 @@ import type {
   UserPlaylist,
 } from "./types";
 
-let algoliaConfigCache: {
-  appId: string;
+const ALGOLIA_APP_ID = process.env.NEXT_PUBLIC_ALGOLIA_APP_ID || "";
+const ALGOLIA_SEARCH_KEY = process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_KEY || "";
+const ALGOLIA_INDEX_NAME = process.env.NEXT_PUBLIC_ALGOLIA_INDEX_NAME || "";
+
+let algoliaClientInstance: SearchClient | null = null;
+
+/**
+ * Returns static Algolia credentials directly from environment variables.
+ */
+export function getAlgoliaConfig(): AlgoliaConfig | null {
+  if (!ALGOLIA_APP_ID || !ALGOLIA_SEARCH_KEY || !ALGOLIA_INDEX_NAME) {
+    return null;
+  }
+  return {
+    appId: ALGOLIA_APP_ID,
+    apiKey: ALGOLIA_SEARCH_KEY,
+    indexName: ALGOLIA_INDEX_NAME,
+  };
+}
+
+/**
+ * Returns the cached algoliasearch SearchClient instance and indexName synchronously.
+ */
+export function getAlgoliaClient(): {
+  client: SearchClient;
   indexName: string;
-  apiKey: string;
-  fetchedAt: number;
-} | null = null;
+} | null {
+  if (!ALGOLIA_APP_ID || !ALGOLIA_SEARCH_KEY || !ALGOLIA_INDEX_NAME) {
+    return null;
+  }
 
-export async function getAlgoliaConfig(): Promise<AlgoliaConfig | null> {
-  const envAppId = process.env.NEXT_PUBLIC_ALGOLIA_APP_ID;
-  const envIndexName = process.env.NEXT_PUBLIC_ALGOLIA_INDEX_NAME;
-  const envApiKey = process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_KEY;
+  if (!algoliaClientInstance) {
+    algoliaClientInstance = algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_KEY);
+  }
 
-  if (envAppId && envIndexName && envApiKey) {
+  return { client: algoliaClientInstance, indexName: ALGOLIA_INDEX_NAME };
+}
+
+function mapSongHit(hit: any): Song {
+  return {
+    id: hit.objectID || hit.id,
+    title: hit.title || "",
+    artistName: hit.artistName || hit.artist || "",
+    duration: hit.duration || 0,
+    songKey: hit.songKey || "",
+    imageKey: hit.imageKey || hit.coverImageKey || "",
+    videoKey: hit.videoKey || null,
+    previewStartTime:
+      typeof hit.previewStartTime === "number"
+        ? hit.previewStartTime
+        : undefined,
+    previewEndTime:
+      typeof hit.previewEndTime === "number" ? hit.previewEndTime : undefined,
+    album: hit.album || null,
+    genre: hit.genre || null,
+    language: hit.language || "",
+    lrclibId: hit.lrclibId || "",
+    totalStreams:
+      typeof hit.totalStreams === "number"
+        ? hit.totalStreams
+        : typeof hit.listenCount === "number"
+          ? hit.listenCount
+          : 0,
+  };
+}
+
+function mapArtistHit(hit: any): Artist {
+  return {
+    id: hit.objectID || hit.id,
+    name: hit.name || "",
+    coverImageKey: hit.coverImageKey || "",
+    followersCount:
+      typeof hit.followersCount === "number" ? hit.followersCount : undefined,
+  };
+}
+
+function mapPlaylistHit(hit: any): {
+  isUserPlaylist: boolean;
+  playlist?: Playlist;
+  userPlaylist?: UserPlaylist;
+} {
+  const id = hit.objectID || hit.id;
+  const isUserPlaylist =
+    hit.isUserPlaylist || Boolean(hit.ownerId) || hit.type === "userPlaylist";
+
+  if (isUserPlaylist) {
     return {
-      appId: envAppId,
-      indexName: envIndexName,
-      apiKey: envApiKey,
+      isUserPlaylist: true,
+      userPlaylist: {
+        id,
+        name: hit.name || "",
+        totalSongs: hit.totalSongs || 0,
+        coverImageKey: hit.coverImageKey || "",
+        privacy: hit.privacy || "PUBLIC",
+        ownerName: hit.ownerName,
+      },
     };
   }
 
-  const now = Date.now();
-  // Cache credentials in-memory for 1 hour
-  if (algoliaConfigCache && now - algoliaConfigCache.fetchedAt < 3600 * 1000) {
-    return algoliaConfigCache;
-  }
-  try {
-    const config = await request<AlgoliaConfig>("/api/search/config");
-    if (config?.appId && config?.indexName && config?.apiKey) {
-      algoliaConfigCache = { ...config, fetchedAt: now };
-      return algoliaConfigCache;
-    }
-    return null;
-  } catch {
-    return null;
-  }
+  return {
+    isUserPlaylist: false,
+    playlist: {
+      id,
+      name: hit.name || "",
+      totalSongs: hit.totalSongs || 0,
+      coverImageKey: hit.coverImageKey || "",
+    },
+  };
 }
 
-export async function searchDirectAlgolia(query: string): Promise<UnifiedSearchResult | null> {
-  const config = await getAlgoliaConfig();
-  if (!config || !config.apiKey) return null;
-
+export async function searchDirectAlgolia(
+  query: string,
+): Promise<UnifiedSearchResult | null> {
   const trimmed = query.trim();
   if (!trimmed) return null;
 
-  // 1. Try Algolia multi-search so artists, songs, and playlists each get their dedicated quota
+  const algolia = getAlgoliaClient();
+  if (!algolia) return null;
+
+  const { client, indexName } = algolia;
+
+  // 1. Primary: Multi-search category queries with typo tolerance
   try {
-    const multiUrl = `https://${config.appId}-dsn.algolia.net/1/indexes/*/queries`;
-    const response = await fetch(multiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-algolia-application-id": config.appId,
-        "x-algolia-api-key": config.apiKey,
-      },
-      body: JSON.stringify({
-        requests: [
-          {
-            indexName: config.indexName,
-            query: trimmed,
-            filters: "type:artist",
-            hitsPerPage: 8,
-          },
-          {
-            indexName: config.indexName,
-            query: trimmed,
-            filters: "type:song",
-            hitsPerPage: 15,
-          },
-          {
-            indexName: config.indexName,
-            query: trimmed,
-            filters: "type:playlist OR type:userPlaylist",
-            hitsPerPage: 6,
-          },
-        ],
-      }),
+    const response = await client.search({
+      requests: [
+        {
+          indexName,
+          query: trimmed,
+          filters: "type:artist",
+          hitsPerPage: 8,
+          typoTolerance: true,
+        },
+        {
+          indexName,
+          query: trimmed,
+          filters: "type:song",
+          hitsPerPage: 15,
+          typoTolerance: true,
+        },
+        {
+          indexName,
+          query: trimmed,
+          filters: "type:playlist OR type:userPlaylist",
+          hitsPerPage: 6,
+          typoTolerance: true,
+        },
+      ],
     });
 
-    if (response.ok) {
-      const data = await response.json();
-      const results = data.results || [];
-      const artistHits: any[] = results[0]?.hits || [];
-      const songHits: any[] = results[1]?.hits || [];
-      const playlistHits: any[] = results[2]?.hits || [];
+    const results = response.results || [];
+    const artistHits: any[] = (results[0] as any)?.hits || [];
+    const songHits: any[] = (results[1] as any)?.hits || [];
+    const playlistHits: any[] = (results[2] as any)?.hits || [];
 
-      const songs: Song[] = songHits.map((hit: any) => ({
-        id: hit.objectID || hit.id,
-        title: hit.title || "",
-        artistName: hit.artistName || hit.artist || "",
-        duration: hit.duration || 0,
-        songKey: hit.songKey || "",
-        imageKey: hit.imageKey || hit.coverImageKey || "",
-        videoKey: hit.videoKey || null,
-        previewStartTime: typeof hit.previewStartTime === "number" ? hit.previewStartTime : undefined,
-        previewEndTime: typeof hit.previewEndTime === "number" ? hit.previewEndTime : undefined,
-        album: hit.album || null,
-        genre: hit.genre || null,
-        language: hit.language || "",
-        lrclibId: hit.lrclibId || "",
-        totalStreams: typeof hit.totalStreams === "number" ? hit.totalStreams : (typeof hit.listenCount === "number" ? hit.listenCount : 0),
-      }));
+    const songs: Song[] = songHits.map(mapSongHit);
+    const artists: Artist[] = artistHits.map(mapArtistHit);
+    const playlists: Playlist[] = [];
+    const userPlaylists: UserPlaylist[] = [];
 
-      const artists: Artist[] = artistHits.map((hit: any) => ({
-        id: hit.objectID || hit.id,
-        name: hit.name || "",
-        coverImageKey: hit.coverImageKey || "",
-        followersCount: typeof hit.followersCount === "number" ? hit.followersCount : undefined,
-      }));
-
-      const playlists: Playlist[] = [];
-      const userPlaylists: UserPlaylist[] = [];
-
-      for (const hit of playlistHits) {
-        const id = hit.objectID || hit.id;
-        const isUserPlaylist = hit.isUserPlaylist || Boolean(hit.ownerId) || hit.type === "userPlaylist";
-        if (isUserPlaylist) {
-          userPlaylists.push({
-            id,
-            name: hit.name || "",
-            totalSongs: hit.totalSongs || 0,
-            coverImageKey: hit.coverImageKey || "",
-            privacy: hit.privacy || "PUBLIC",
-            ownerName: hit.ownerName,
-          });
-        } else {
-          playlists.push({
-            id,
-            name: hit.name || "",
-            totalSongs: hit.totalSongs || 0,
-            coverImageKey: hit.coverImageKey || "",
-          });
-        }
+    for (const hit of playlistHits) {
+      const mapped = mapPlaylistHit(hit);
+      if (mapped.isUserPlaylist && mapped.userPlaylist) {
+        userPlaylists.push(mapped.userPlaylist);
+      } else if (mapped.playlist) {
+        playlists.push(mapped.playlist);
       }
-
-      return { songs, artists, playlists, userPlaylists };
     }
+
+    return { songs, artists, playlists, userPlaylists };
   } catch {
     // Continue to single query fallback
   }
 
-  // 2. Fallback to single index query with larger hitsPerPage (100) so artists are not pushed off
+  // 2. Fallback to single index query with larger hitsPerPage (100)
   try {
-    const url = `https://${config.appId}-dsn.algolia.net/1/indexes/${encodeURIComponent(config.indexName)}/query`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-algolia-application-id": config.appId,
-        "x-algolia-api-key": config.apiKey,
-      },
-      body: JSON.stringify({
+    const singleRes = await client.searchSingleIndex({
+      indexName,
+      searchParams: {
         query: trimmed,
         hitsPerPage: 100,
-      }),
+        typoTolerance: true,
+      },
     });
 
-    if (!response.ok) {
-      return null;
-    }
-
-    const data = await response.json();
-    const hits: any[] = data.hits || [];
-
+    const hits: any[] = singleRes.hits || [];
     const songs: Song[] = [];
     const artists: Artist[] = [];
     const playlists: Playlist[] = [];
     const userPlaylists: UserPlaylist[] = [];
 
     for (const hit of hits) {
-      const id = hit.objectID || hit.id;
       const type = hit.type;
 
       if (type === "song") {
         if (songs.length < 20) {
-          const streams = typeof hit.totalStreams === "number" ? hit.totalStreams : (typeof hit.listenCount === "number" ? hit.listenCount : 0);
-          songs.push({
-            id,
-            title: hit.title || "",
-            artistName: hit.artistName || hit.artist || "",
-            duration: hit.duration || 0,
-            songKey: hit.songKey || "",
-            imageKey: hit.imageKey || hit.coverImageKey || "",
-            videoKey: hit.videoKey || null,
-            previewStartTime: typeof hit.previewStartTime === "number" ? hit.previewStartTime : undefined,
-            previewEndTime: typeof hit.previewEndTime === "number" ? hit.previewEndTime : undefined,
-            album: hit.album || null,
-            genre: hit.genre || null,
-            language: hit.language || "",
-            lrclibId: hit.lrclibId || "",
-            totalStreams: streams,
-          });
+          songs.push(mapSongHit(hit));
         }
       } else if (type === "artist") {
         if (artists.length < 8) {
-          artists.push({
-            id,
-            name: hit.name || "",
-            coverImageKey: hit.coverImageKey || "",
-            followersCount: typeof hit.followersCount === "number" ? hit.followersCount : undefined,
-          });
+          artists.push(mapArtistHit(hit));
         }
       } else if (type === "playlist" || type === "userPlaylist") {
-        const isUserPlaylist = hit.isUserPlaylist || Boolean(hit.ownerId) || hit.type === "userPlaylist";
-        if (isUserPlaylist) {
+        const mapped = mapPlaylistHit(hit);
+        if (mapped.isUserPlaylist && mapped.userPlaylist) {
           if (userPlaylists.length < 6) {
-            userPlaylists.push({
-              id,
-              name: hit.name || "",
-              totalSongs: hit.totalSongs || 0,
-              coverImageKey: hit.coverImageKey || "",
-              privacy: hit.privacy || "PUBLIC",
-              ownerName: hit.ownerName,
-            });
+            userPlaylists.push(mapped.userPlaylist);
           }
-        } else {
+        } else if (mapped.playlist) {
           if (playlists.length < 6) {
-            playlists.push({
-              id,
-              name: hit.name || "",
-              totalSongs: hit.totalSongs || 0,
-              coverImageKey: hit.coverImageKey || "",
-            });
+            playlists.push(mapped.playlist);
           }
         }
       }
@@ -243,13 +232,16 @@ export async function searchDirectAlgolia(query: string): Promise<UnifiedSearchR
 
 export const searchApi = {
   getConfig: getAlgoliaConfig,
+  getClient: getAlgoliaClient,
   unified: async (query: string): Promise<{ data: UnifiedSearchResult }> => {
     const trimmed = query?.trim();
     if (!trimmed) {
-      return { data: { songs: [], artists: [], playlists: [], userPlaylists: [] } };
+      return {
+        data: { songs: [], artists: [], playlists: [], userPlaylists: [] },
+      };
     }
 
-    // 1. PRIMARY: Direct Algolia search using Algolia Search API
+    // 1. PRIMARY: Direct Algolia search using Algolia Search Client
     // Instant client-side search with typo tolerance; avoids unnecessary database load while typing.
     try {
       const direct = await searchDirectAlgolia(trimmed);
@@ -257,12 +249,17 @@ export const searchApi = {
         return { data: direct };
       }
     } catch (err) {
-      console.warn("[Search] Direct Algolia search failed, falling back to backend:", err);
+      console.warn(
+        "[Search] Direct Algolia search failed, falling back to backend:",
+        err,
+      );
     }
 
     // 2. BACKEND FALLBACK: Only if direct Algolia is unreachable or credentials are missing
     try {
-      const data = await request<UnifiedSearchResult>(`/api/search?q=${encodeURIComponent(trimmed)}`);
+      const data = await request<UnifiedSearchResult>(
+        `/api/search?q=${encodeURIComponent(trimmed)}`,
+      );
       if (data) {
         return {
           data: {
@@ -277,6 +274,8 @@ export const searchApi = {
       console.warn("[Search] Backend search fallback failed:", err);
     }
 
-    return { data: { songs: [], artists: [], playlists: [], userPlaylists: [] } };
+    return {
+      data: { songs: [], artists: [], playlists: [], userPlaylists: [] },
+    };
   },
 };

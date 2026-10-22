@@ -1,9 +1,10 @@
 import recombee from "recombee-js-api-client";
-import { getAlgoliaConfig } from "./search";
+import { getAlgoliaClient } from "./search";
 import { getDeviceId } from "./client";
 import type { Song } from "./types";
 
-const RECOMBEE_DB = process.env.NEXT_PUBLIC_RECOMBEE_DATABASE_ID || "oneorg-prod";
+const RECOMBEE_DB =
+  process.env.NEXT_PUBLIC_RECOMBEE_DATABASE_ID || "oneorg-prod";
 const RECOMBEE_PUBLIC_TOKEN =
   process.env.NEXT_PUBLIC_RECOMBEE_PUBLIC_TOKEN ||
   "rZcQmUMV0K2CdU23RzTyzOrdQZCXxfJcbIEE9vO7nOSe2GJpVxdJl9dMf5kBWoPa";
@@ -17,7 +18,7 @@ export function getRecombeeClient(): any {
       recombeeClientInstance = new recombee.ApiClient(
         RECOMBEE_DB,
         RECOMBEE_PUBLIC_TOKEN,
-        { region: RECOMBEE_REGION }
+        { region: RECOMBEE_REGION },
       );
     } catch (err) {
       console.warn("[Recombee] Failed to initialize client:", err);
@@ -30,31 +31,25 @@ export function getRecombeeClient(): any {
  * Hydrates recommended item IDs with rich song metadata from Algolia in ~1ms
  * preserving the exact order recommended by Recombee.
  */
-export async function hydrateRecommendedSongs(songIds: string[]): Promise<Song[]> {
+export async function hydrateRecommendedSongs(
+  songIds: string[],
+): Promise<Song[]> {
   if (!songIds || songIds.length === 0) return [];
-  const config = await getAlgoliaConfig();
-  if (!config || !config.apiKey) return [];
+  const algolia = await getAlgoliaClient();
+  if (!algolia) return [];
 
   try {
     const filter = songIds.map((id) => `objectID:${id}`).join(" OR ");
-    const url = `https://${config.appId}-dsn.algolia.net/1/indexes/${encodeURIComponent(config.indexName)}/query`;
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-algolia-application-id": config.appId,
-        "x-algolia-api-key": config.apiKey,
-      },
-      body: JSON.stringify({
+    const response = await algolia.client.searchSingleIndex({
+      indexName: algolia.indexName,
+      searchParams: {
         query: "",
         filters: filter,
         hitsPerPage: Math.max(songIds.length, 20),
-      }),
+      },
     });
 
-    if (!response.ok) return [];
-    const data = await response.json();
-    const hits: any[] = data.hits || [];
+    const hits: any[] = response.hits || [];
 
     const hitMap = new Map<string, any>();
     hits.forEach((h: any) => {
@@ -73,13 +68,24 @@ export async function hydrateRecommendedSongs(songIds: string[]): Promise<Song[]
           songKey: hit.songKey || "",
           imageKey: hit.imageKey || hit.coverImageKey || "",
           videoKey: hit.videoKey || null,
-          previewStartTime: typeof hit.previewStartTime === "number" ? hit.previewStartTime : undefined,
-          previewEndTime: typeof hit.previewEndTime === "number" ? hit.previewEndTime : undefined,
+          previewStartTime:
+            typeof hit.previewStartTime === "number"
+              ? hit.previewStartTime
+              : undefined,
+          previewEndTime:
+            typeof hit.previewEndTime === "number"
+              ? hit.previewEndTime
+              : undefined,
           album: hit.album || null,
           genre: hit.genre || null,
           language: hit.language || "",
           lrclibId: hit.lrclibId || "",
-          totalStreams: typeof hit.totalStreams === "number" ? hit.totalStreams : (typeof hit.listenCount === "number" ? hit.listenCount : 0),
+          totalStreams:
+            typeof hit.totalStreams === "number"
+              ? hit.totalStreams
+              : typeof hit.listenCount === "number"
+                ? hit.listenCount
+                : 0,
         });
       }
     }
@@ -94,17 +100,22 @@ export const recombeeApi = {
   /**
    * Recommend items directly to a user from Recombee, hydrated via Algolia.
    */
-  recommendItemsToUser: async (targetUserId?: string, count = 10): Promise<Song[] | null> => {
+  recommendItemsToUser: async (
+    targetUserId?: string,
+    count = 10,
+  ): Promise<Song[] | null> => {
     const client = getRecombeeClient();
     if (!client) return null;
 
-    const user = targetUserId || (typeof window !== "undefined" ? getDeviceId() : "anonymous");
+    const user =
+      targetUserId ||
+      (typeof window !== "undefined" ? getDeviceId() : "anonymous");
     try {
       const response = await client.send(
         new recombee.RecommendItemsToUser(user, count, {
           cascadeCreate: true,
           returnProperties: true,
-        })
+        }),
       );
 
       const recomms = response?.recomms || [];
@@ -125,18 +136,20 @@ export const recombeeApi = {
   recommendSimilarSongs: async (
     songId: string,
     count = 10,
-    targetUserId?: string
+    targetUserId?: string,
   ): Promise<Song[] | null> => {
     const client = getRecombeeClient();
     if (!client || !songId) return null;
 
-    const user = targetUserId || (typeof window !== "undefined" ? getDeviceId() : "anonymous");
+    const user =
+      targetUserId ||
+      (typeof window !== "undefined" ? getDeviceId() : "anonymous");
     try {
       const response = await client.send(
         new recombee.RecommendItemsToItem(songId, user, count, {
           cascadeCreate: true,
           returnProperties: true,
-        })
+        }),
       );
 
       const recomms = response?.recomms || [];
@@ -158,12 +171,14 @@ export const recombeeApi = {
     seedSongId: string,
     excludeIds: string[] = [],
     count = 10,
-    targetUserId?: string
+    targetUserId?: string,
   ): Promise<Song[] | null> => {
     const client = getRecombeeClient();
     if (!client || !seedSongId) return null;
 
-    const user = targetUserId || (typeof window !== "undefined" ? getDeviceId() : "anonymous");
+    const user =
+      targetUserId ||
+      (typeof window !== "undefined" ? getDeviceId() : "anonymous");
     try {
       const excludeSet = new Set([...excludeIds, seedSongId]);
       const fetchCount = Math.max(count * 2, 20);
@@ -171,7 +186,7 @@ export const recombeeApi = {
         new recombee.RecommendItemsToItem(seedSongId, user, fetchCount, {
           cascadeCreate: true,
           returnProperties: true,
-        })
+        }),
       );
 
       const recomms = response?.recomms || [];
@@ -198,15 +213,21 @@ export const recombeeApi = {
     if (!client || !userId || !songId) return;
     client
       .send(new recombee.AddDetailView(userId, songId, { cascadeCreate: true }))
-      .catch((err: any) => console.debug("[Recombee] DetailView telemetry dropped:", err?.message));
+      .catch((err: any) =>
+        console.debug("[Recombee] DetailView telemetry dropped:", err?.message),
+      );
   },
 
   sendRating: (userId: string, songId: string, rating: number): void => {
     const client = getRecombeeClient();
     if (!client || !userId || !songId) return;
     client
-      .send(new recombee.AddRating(userId, songId, rating, { cascadeCreate: true }))
-      .catch((err: any) => console.debug("[Recombee] Rating telemetry dropped:", err?.message));
+      .send(
+        new recombee.AddRating(userId, songId, rating, { cascadeCreate: true }),
+      )
+      .catch((err: any) =>
+        console.debug("[Recombee] Rating telemetry dropped:", err?.message),
+      );
   },
 
   sendBookmark: (userId: string, songId: string): void => {
@@ -214,6 +235,8 @@ export const recombeeApi = {
     if (!client || !userId || !songId) return;
     client
       .send(new recombee.AddBookmark(userId, songId, { cascadeCreate: true }))
-      .catch((err: any) => console.debug("[Recombee] Bookmark telemetry dropped:", err?.message));
+      .catch((err: any) =>
+        console.debug("[Recombee] Bookmark telemetry dropped:", err?.message),
+      );
   },
 };

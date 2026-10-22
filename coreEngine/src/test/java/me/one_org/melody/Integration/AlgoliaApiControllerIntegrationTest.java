@@ -13,7 +13,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import me.one_org.melody.Controllers.Api.AlgoliaApiController;
-import me.one_org.melody.Dto.AlgoliaSearch.AlgoliaClientConfigDto;
 import me.one_org.melody.Dto.AlgoliaSearch.SearchResult;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Services.Api.SearchApiService;
@@ -35,20 +34,6 @@ class AlgoliaApiControllerIntegrationTest {
         mockMvc = MockMvcBuilders.standaloneSetup(new AlgoliaApiController(searchApiService))
                 .setCustomArgumentResolvers(new me.one_org.melody.Utils.CurrentUserTestArgumentResolver())
                 .build();
-    }
-
-    @Test
-    @DisplayName("GET /api/search/config should return 200 OK and Algolia credentials")
-    void shouldReturnAlgoliaSearchConfig() throws Exception {
-        when(searchApiService.getFrontendSearchConfig())
-                .thenReturn(new AlgoliaClientConfigDto("test-app", "melody-songs", "sec-key-123"));
-
-        mockMvc.perform(get("/api/search/config")
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.appId").value("test-app"))
-                .andExpect(jsonPath("$.indexName").value("melody-songs"))
-                .andExpect(jsonPath("$.apiKey").value("sec-key-123"));
     }
 
     @Test
