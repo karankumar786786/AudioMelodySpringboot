@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.Map;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -19,6 +20,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 class UserContextInterceptorTest {
 
     private final UserContextInterceptor interceptor = new UserContextInterceptor();
+
+    @BeforeEach
+    void setUp() {
+        SecurityContextHolder.clearContext();
+    }
 
     @AfterEach
     void tearDown() {
@@ -67,6 +73,7 @@ class UserContextInterceptorTest {
     @Test
     @DisplayName("Should do nothing for anonymous unauthenticated request")
     void shouldHandleUnauthenticated() {
+        SecurityContextHolder.clearContext();
         MockHttpServletRequest request = new MockHttpServletRequest();
         MockHttpServletResponse response = new MockHttpServletResponse();
 
