@@ -143,5 +143,35 @@
     "name": "spring.jpa.properties.hibernate.boot.allow_jdbc_metadata_access",
     "type": "java.lang.Boolean",
     "description": "Skip metadata connection at startup to allow Neon serverless database to remain paused"
+  },
+  {
+    "name": "cookie.domain",
+    "type": "java.lang.String",
+    "description": "Domain scope for auth session cookies (e.g. .one-org.me)"
+  },
+  {
+    "name": "cookie.secure",
+    "type": "java.lang.Boolean",
+    "description": "Whether auth cookies require HTTPS"
+  },
+  {
+    "name": "cookie.same-site",
+    "type": "java.lang.String",
+    "description": "SameSite policy for auth cookies (Lax, Strict, None)"
+  },
+  {
+    "name": "cookie.access-max-age-seconds",
+    "type": "java.lang.Long",
+    "description": "Max age in seconds for access token cookie"
+  },
+  {
+    "name": "cookie.refresh-max-age-seconds",
+    "type": "java.lang.Long",
+    "description": "Max age in seconds for refresh token cookie"
+  },
+  {
+    "name": "cors.allowed-origins",
+    "type": "java.lang.String",
+    "description": "Comma-separated list of allowed CORS origins or wildcards"
   }
 ]}
