@@ -42,17 +42,17 @@ const metricReader = new PeriodicExportingMetricReader({
   exportIntervalMillis: 15000,
 });
 
-const logRecordProcessor = new BatchLogRecordProcessor(
-  new OTLPLogExporter({
+const logRecordProcessor = new BatchLogRecordProcessor({
+  exporter: new OTLPLogExporter({
     url: logsUrl,
     headers,
-  })
-);
+  }),
+});
 
 export const otelSdk = new NodeSDK({
   serviceName,
   traceExporter,
-  metricReader,
+  metricReaders: [metricReader],
   logRecordProcessors: [logRecordProcessor],
 });
 
