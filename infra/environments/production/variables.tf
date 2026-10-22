@@ -117,3 +117,9 @@ variable "temp_bucket_expiration_days" {
   description = "Number of days before temporary S3 objects expire"
   default     = 7
 }
+
+variable "is_public" {
+  type        = bool
+  description = "Whether to configure both buckets for complete public access"
+  default     = true
+}

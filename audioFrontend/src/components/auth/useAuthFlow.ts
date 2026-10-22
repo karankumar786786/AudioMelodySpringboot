@@ -23,6 +23,7 @@ export function useAuthFlow({ onSuccess, onNavigateHome }: UseAuthFlowOptions = 
   const [resendCooldown, setResendCooldown] = useState(30);
   const [timerActive, setTimerActive] = useState(false);
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const isVerifyingRef = useRef(false);
 
   useEffect(() => {
     if (!timerActive) return;
@@ -34,6 +35,7 @@ export function useAuthFlow({ onSuccess, onNavigateHome }: UseAuthFlowOptions = 
   }, [timerActive]);
 
   const resetFlow = (defaultView: AuthView = "register") => {
+    isVerifyingRef.current = false;
     setView(defaultView);
     setAuthOrigin(defaultView === "login" ? "login" : "register");
     setEmail("");
@@ -123,6 +125,8 @@ export function useAuthFlow({ onSuccess, onNavigateHome }: UseAuthFlowOptions = 
   };
 
   const handleVerifyOtp = async (codeToVerify?: string) => {
+    if (isVerifyingRef.current || loading) return;
+
     const code = codeToVerify || otpValues.join("");
     if (code.length !== 6) {
       toast.error("Incomplete Code", {
@@ -130,6 +134,7 @@ export function useAuthFlow({ onSuccess, onNavigateHome }: UseAuthFlowOptions = 
       });
       return;
     }
+    isVerifyingRef.current = true;
     setLoading(true);
     try {
       const res = await musicApi.auth.verifyOtp(sessionToken, code);
@@ -149,6 +154,7 @@ export function useAuthFlow({ onSuccess, onNavigateHome }: UseAuthFlowOptions = 
         description: err.response?.data?.message || "Invalid or expired code",
       });
     } finally {
+      isVerifyingRef.current = false;
       setLoading(false);
     }
   };
