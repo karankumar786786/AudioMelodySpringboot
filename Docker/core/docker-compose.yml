@@ -4,22 +4,22 @@ services:
     container_name: core
     pull_policy: always
     restart: unless-stopped
-    replicas: 3
     env_file:
       - core.env
     expose:
       - "9090"
     networks:
-      - app 
-  
+      - app
+
   mail:
-    image: karankumar9955/mail
+    image: karankumar9955/mail:latest
     container_name: mail
     pull_policy: always
     restart: unless-stopped
-    replicas: 1
     env_file:
       - mail.env
+    networks:
+      - app
 
   caddy:
     image: caddy:2
