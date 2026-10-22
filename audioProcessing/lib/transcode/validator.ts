@@ -60,7 +60,7 @@ export async function validateMediaIntegrity(
             "-show_streams",
             "-print_format", "json",
             filePath,
-        ], { timeout: 10000 });
+        ], { timeout: 30000 });
         ffprobeOutput = JSON.parse(stdout);
     } catch (probeErr: any) {
         const msg = probeErr.message || String(probeErr);
