@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useStore } from "@tanstack/react-store";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { musicApi } from "@/lib/api";
 import { getImageUrl } from "@/lib/image-utils";
 import { mapToPlayerSong } from "@/lib/player-utils";
 import { previewPlayer, previewStore } from "@/lib/preview-player";
@@ -76,13 +77,24 @@ export function SongCard({
     }
   };
 
-  const handlePlayToggle = (e: React.MouseEvent) => {
+  const handlePlayToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
     previewPlayer.stopPreview(true);
     if (isActiveSong) {
       playerActions.setIsPlaying(!isPlaying);
     } else {
-      playerActions.playWithRadio(mapToPlayerSong(song));
+      let songToPlay = song;
+      if (song.id) {
+        try {
+          const res = await musicApi.songs.getById(song.id);
+          if (res?.data) {
+            songToPlay = { ...song, ...res.data };
+          }
+        } catch (err) {
+          console.warn("Failed to load song details from DB for card:", err);
+        }
+      }
+      playerActions.playWithRadio(mapToPlayerSong(songToPlay));
     }
   };
 

@@ -1,5 +1,4 @@
 import { request } from "./client";
-import { recombeeApi } from "./recombee";
 import type { Song } from "./types";
 
 export const interactionsApi = {
@@ -9,55 +8,51 @@ export const interactionsApi = {
     return { data: { data: list } };
   },
   getRecommendations: async (count = 10) => {
-    // 1. Primary: Direct Recombee query with Algolia edge hydration (~20-30ms, zero DB load)
+    // 1. Direct query to backend Spring Boot recommendation engine (hydrated directly from DB)
     try {
-      const { playerStore } = await import("@/store/player.store");
-      const userId = playerStore.state.systemUser?.id;
-      const direct = await recombeeApi.recommendItemsToUser(userId, count);
-      if (direct && direct.length > 0) {
-        return { data: { data: direct } };
+      const res = await request<Song[]>(`/api/recommendations/user?count=${count}`);
+      const list = Array.isArray(res) ? res : [];
+      if (list.length > 0) {
+        return { data: { data: list } };
       }
     } catch (err) {
-      console.warn(
-        "[InteractionsApi] Direct Recombee recommendItemsToUser failed, using DB backup fallback:",
-        err,
-      );
+      console.warn("[InteractionsApi] Backend /api/recommendations/user failed:", err);
     }
 
-    // 2. Dedicated fallback: Backend Spring Boot database endpoint
+    // 2. Direct fallback: Backend trending / catalog songs
     try {
-      const res = await request(`/api/recommendations/user?count=${count}`);
+      const res = await request<Song[]>(`/api/songs/trending?limit=${count}`);
       const list = Array.isArray(res) ? res : [];
+      if (list.length > 0) {
+        return { data: { data: list } };
+      }
+    } catch {}
+
+    try {
+      const res = await request(`/api/songs?page=0&size=${count}`);
+      const list = res.content || (Array.isArray(res) ? res : []);
       return { data: { data: list as Song[] } };
     } catch {
-      try {
-        const res = await request(`/api/songs?page=0&size=${count}`);
-        const list = res.content || (Array.isArray(res) ? res : []);
-        return { data: { data: list as Song[] } };
-      } catch {
-        return { data: { data: [] } };
-      }
+      return { data: { data: [] } };
     }
   },
   getSimilarSongs: async (songId: string, count = 10) => {
-    // 1. Primary: Direct Recombee similarity query with Algolia edge hydration
-    try {
-      const direct = await recombeeApi.recommendSimilarSongs(songId, count);
-      if (direct && direct.length > 0) {
-        return { data: { data: direct } };
-      }
-    } catch (err) {
-      console.warn(
-        "[InteractionsApi] Direct Recombee recommendSimilarSongs failed, using DB backup fallback:",
-        err,
-      );
-    }
-
-    // 2. Dedicated fallback: Backend Spring Boot database endpoint
+    // 1. Direct query to backend Spring Boot item similarity endpoint (hydrated directly from DB)
     try {
       const res = await request<Song[]>(
         `/api/recommendations/similar/${songId}?count=${count}`,
       );
+      const list = Array.isArray(res) ? res : [];
+      if (list.length > 0) {
+        return { data: { data: list } };
+      }
+    } catch (err) {
+      console.warn(`[InteractionsApi] Backend /api/recommendations/similar/${songId} failed:`, err);
+    }
+
+    // 2. Direct fallback: Trending / catalog songs from backend
+    try {
+      const res = await request<Song[]>(`/api/songs/trending?limit=${count}`);
       const list = Array.isArray(res) ? res : [];
       return { data: { data: list } };
     } catch {
@@ -69,24 +64,7 @@ export const interactionsApi = {
     excludeIds: string[] = [],
     count = 10,
   ) => {
-    // 1. Primary: Direct Recombee radio query with Algolia edge hydration
-    try {
-      const direct = await recombeeApi.recommendRadioSongs(
-        seedSongId,
-        excludeIds,
-        count,
-      );
-      if (direct && direct.length > 0) {
-        return { data: { data: direct } };
-      }
-    } catch (err) {
-      console.warn(
-        "[InteractionsApi] Direct Recombee recommendRadioSongs failed, using DB backup fallback:",
-        err,
-      );
-    }
-
-    // 2. Dedicated fallback: Backend Spring Boot database endpoint
+    // 1. Direct query to backend Spring Boot radio endpoint (hydrated directly from DB with exclusions)
     try {
       const excludeParam =
         excludeIds.length > 0
@@ -96,14 +74,15 @@ export const interactionsApi = {
         `/api/recommendations/radio?seedSongId=${encodeURIComponent(seedSongId)}&count=${count}${excludeParam}`,
       );
       const list = Array.isArray(res) ? res : [];
-      return { data: { data: list } };
+      if (list.length > 0) {
+        return { data: { data: list } };
+      }
     } catch (err) {
-      console.warn(
-        "[API] getRadioSongs failed, falling back to getSimilarSongs",
-        err,
-      );
-      return interactionsApi.getSimilarSongs(seedSongId, count);
+      console.warn(`[InteractionsApi] Backend /api/recommendations/radio failed for ${seedSongId}:`, err);
     }
+
+    // 2. Direct fallback: Backend similar songs
+    return interactionsApi.getSimilarSongs(seedSongId, count);
   },
   recordListen: async (songId: string, percentage = 0.05) => {
     if (!songId) return;

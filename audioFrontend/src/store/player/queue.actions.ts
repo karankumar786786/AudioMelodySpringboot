@@ -1,6 +1,6 @@
 import { playerStore } from "./index";
 import { musicApi } from "@/lib/api";
-import { mapListToPlayerSongs, type PlayerSong } from "@/lib/player-utils";
+import { mapListToPlayerSongs, mapToPlayerSong, type PlayerSong } from "@/lib/player-utils";
 import { toast } from "sonner";
 
 const persistQueue = (_queue: PlayerSong[], _currentIndex: number) => {
@@ -168,9 +168,9 @@ export const queueActions = {
     }
   },
 
-  playWithRadio: (seedSong: PlayerSong) => {
+  playWithRadio: async (seedSong: PlayerSong) => {
     console.log(`[Queue] Starting Infinite Radio for song: "${seedSong.title}" (${seedSong.id})`);
-    const preparedSong: PlayerSong = {
+    const initialSong: PlayerSong = {
       ...seedSong,
       queueId:
         typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -178,13 +178,14 @@ export const queueActions = {
           : `${seedSong.id}-${Date.now()}-${Math.random().toString(36).substring(7)}`,
     };
 
+    // Instant UI feedback: set loading state and display initial song metadata
     playerStore.setState((s) => {
-      persistQueue([preparedSong], 0);
+      persistQueue([initialSong], 0);
       return {
         ...s,
-        queue: [preparedSong],
+        queue: [initialSong],
         originalQueue: [],
-        currentSong: preparedSong,
+        currentSong: initialSong,
         lastQueueIndex: 0,
         isPlaying: true,
         isLoading: true,
@@ -198,14 +199,38 @@ export const queueActions = {
       };
     });
 
-    if (typeof window !== "undefined") {
-      localStorage.setItem("last_current_time", "0");
-      localStorage.setItem("last_current_song", JSON.stringify(preparedSong));
+    // Authoritative hydration: fetch complete, up-to-date song detail from DB (PostgreSQL)
+    let effectiveSong = initialSong;
+    if (seedSong.id) {
+      try {
+        const res = await musicApi.songs.getById(seedSong.id);
+        if (res?.data) {
+          const mapped = mapToPlayerSong({ ...seedSong, ...res.data, id: seedSong.id });
+          effectiveSong = {
+            ...mapped,
+            queueId: initialSong.queueId,
+          };
+          playerStore.setState((s) => ({
+            ...s,
+            currentSong:
+              s.currentSong?.queueId === initialSong.queueId ? effectiveSong : s.currentSong,
+            queue: s.queue.map((item) =>
+              item.queueId === initialSong.queueId ? effectiveSong : item,
+            ),
+          }));
+        }
+      } catch (err) {
+        console.warn(`[Queue] Could not load song details from DB for "${seedSong.title}" (${seedSong.id}):`, err);
+      }
     }
 
-    import("@/store/player/playback.actions").then(({ playbackActions }) => {
-      playbackActions.play(preparedSong);
-    });
+    if (typeof window !== "undefined") {
+      localStorage.setItem("last_current_time", "0");
+      localStorage.setItem("last_current_song", JSON.stringify(effectiveSong));
+    }
+
+    const { playbackActions } = await import("@/store/player/playback.actions");
+    playbackActions.play(effectiveSong);
 
     // Proactively fetch first radio batch for upcoming queue buffer
     setTimeout(() => {

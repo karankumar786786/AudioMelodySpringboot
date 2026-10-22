@@ -78,8 +78,8 @@ export function AppNavbar() {
     previewPlayer.stopPreview(true);
     let songToPlay: Song = song;
 
-    // Load full song details on-demand from the backend when clicked from Algolia search results
-    if (!song.songKey && song.id) {
+    // Always fetch fresh authoritative song details from the backend DB when clicked from search
+    if (song.id) {
       try {
         const res = await musicApi.songs.getById(song.id);
         if (res?.data) {

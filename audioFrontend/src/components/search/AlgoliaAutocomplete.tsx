@@ -478,7 +478,7 @@ export function AlgoliaAutocomplete({
       createdAt: "",
     };
 
-    if (!songToPlay.songKey && songToPlay.id) {
+    if (songToPlay.id) {
       try {
         const res = await musicApi.songs.getById(songToPlay.id);
         if (res?.data) {
