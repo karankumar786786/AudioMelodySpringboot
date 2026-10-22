@@ -138,5 +138,10 @@
     "name": "algolia.search-api-key",
     "type": "java.lang.String",
     "description": "A description for 'algolia.search-api-key'"
+  },
+  {
+    "name": "spring.jpa.properties.hibernate.boot.allow_jdbc_metadata_access",
+    "type": "java.lang.Boolean",
+    "description": "Skip metadata connection at startup to allow Neon serverless database to remain paused"
   }
 ]}
