@@ -90,7 +90,7 @@ export const transcodeSong = inngest.createFunction(
         );
 
         const shouldProcessVideo = Boolean(tempVideoKey) && !isAudioReprocess;
-        const shouldProcessAudio = Boolean(isAudioReprocess) || (!isVideoReprocess && Boolean(tempSongKey || tempVideoKey));
+        const shouldProcessAudio = Boolean(isAudioReprocess) || Boolean(tempSongKey) || Boolean(tempVideoKey);
 
         console.log(`[ORCHESTRATOR] Job ${jobId} dispatching modular tasks:`);
         console.log(`  - Canvas task: ${shouldProcessCanvas}`);
