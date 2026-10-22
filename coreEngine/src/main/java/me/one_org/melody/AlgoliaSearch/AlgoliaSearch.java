@@ -32,12 +32,6 @@ public class AlgoliaSearch {
     @Value("${algolia.index-name}")
     private String indexName;
 
-    @Value("${algolia.app-id}")
-    private String appId;
-
-    @Value("${algolia.api-key}")
-    private String apiKey;
-
 
     public AlgoliaSearch(SearchClient searchClient){
         this.searchClient = searchClient;

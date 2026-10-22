@@ -32,14 +32,10 @@ class AlgoliaSearchTest {
     private AlgoliaSearch algoliaSearch;
 
     private static final String INDEX_NAME = "test_melody_songs";
-    private static final String APP_ID = "test_app_id";
-    private static final String API_KEY = "test_admin_key";
 
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(algoliaSearch, "indexName", INDEX_NAME);
-        ReflectionTestUtils.setField(algoliaSearch, "appId", APP_ID);
-        ReflectionTestUtils.setField(algoliaSearch, "apiKey", API_KEY);
     }
 
     @Test
