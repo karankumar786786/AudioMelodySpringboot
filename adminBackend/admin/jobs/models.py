@@ -1,4 +1,5 @@
 from django.db import models
+# pyrefly: ignore[missing-import]
 from core.models import generate_uuid
 
 
@@ -43,6 +44,18 @@ class Job(models.Model):
     search_duration_ms = models.BigIntegerField(blank=True, null=True, db_column="search_duration_ms")
     finalize_duration_ms = models.BigIntegerField(blank=True, null=True, db_column="finalize_duration_ms")
     total_duration_ms = models.BigIntegerField(blank=True, null=True, db_column="total_duration_ms")
+    tempo = models.FloatField(blank=True, null=True, db_column="tempo")
+    danceability = models.FloatField(blank=True, null=True, db_column="danceability")
+    energy = models.FloatField(blank=True, null=True, db_column="energy")
+    valence = models.FloatField(blank=True, null=True, db_column="valence")
+    acousticness = models.FloatField(blank=True, null=True, db_column="acousticness")
+    instrumentalness = models.FloatField(blank=True, null=True, db_column="instrumentalness")
+    liveness = models.FloatField(blank=True, null=True, db_column="liveness")
+    speechiness = models.FloatField(blank=True, null=True, db_column="speechiness")
+    loudness = models.FloatField(blank=True, null=True, db_column="loudness")
+    key = models.IntegerField(blank=True, null=True, db_column="key")
+    mode = models.IntegerField(blank=True, null=True, db_column="mode")
+    audio_features = models.JSONField(blank=True, null=True, db_column="audio_features")
     created_at = models.DateTimeField(auto_now_add=True, db_column="created_at")
 
     class Meta:

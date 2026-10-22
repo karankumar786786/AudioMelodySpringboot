@@ -10,6 +10,7 @@ from .views import (
     WebhookDeleteRecommendationView,
     WebhookDeleteS3View,
     WebhookDeleteSearchView,
+    WebhookJobAudioFeaturesView,
     WebhookJobDetailView,
     WebhookJobFailedView,
     WebhookJobFinalizeView,
@@ -31,6 +32,7 @@ urlpatterns = [
     # Background Job Webhooks (/webhook/job/*)
     path("webhook/job/<str:job_id>/transcoding-started", WebhookJobTranscodingStartedView.as_view(), name="webhook-job-transcoding-started"),
     path("webhook/job/<str:job_id>/transcoded", WebhookJobTranscodedView.as_view(), name="webhook-job-transcoded"),
+    path("webhook/job/<str:job_id>/audio-features", WebhookJobAudioFeaturesView.as_view(), name="webhook-job-audio-features"),
     path("webhook/job/<str:job_id>/save-recommendation", WebhookJobSaveRecommendationView.as_view(), name="webhook-job-save-recommendation"),
     path("webhook/job/<str:job_id>/save-search", WebhookJobSaveSearchView.as_view(), name="webhook-job-save-search"),
     path("webhook/job/<str:job_id>/finalize", WebhookJobFinalizeView.as_view(), name="webhook-job-finalize"),

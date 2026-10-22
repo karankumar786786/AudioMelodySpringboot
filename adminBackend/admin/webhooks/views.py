@@ -128,6 +128,18 @@ class WebhookJobDetailView(BaseAdminView):
             "isAudioReprocess": bool(job.is_audio_reprocess),
             "status": job.status,
             "currentStage": job.current_stage,
+            "tempo": job.tempo,
+            "danceability": job.danceability,
+            "energy": job.energy,
+            "valence": job.valence,
+            "acousticness": job.acousticness,
+            "instrumentalness": job.instrumentalness,
+            "liveness": job.liveness,
+            "speechiness": job.speechiness,
+            "loudness": job.loudness,
+            "key": job.key,
+            "mode": job.mode,
+            "audioFeatures": job.audio_features,
             "createdAt": job.created_at.isoformat() if job.created_at else None,
         }
         return Response(data, status=status.HTTP_200_OK)
@@ -161,6 +173,48 @@ class WebhookJobTranscodedView(BaseAdminView):
         job.duration = data.get("duration", job.duration)
         job.full_video_key = data.get("fullVideoKey", job.full_video_key)
         job.video_key = data.get("videoKey", job.video_key)
+
+        # Extract & persist Spotify-like audio features in the Job table
+        features = data.get("audioFeatures")
+        if isinstance(features, dict) and features:
+            job.tempo = features.get("tempo", job.tempo)
+            job.danceability = features.get("danceability", job.danceability)
+            job.energy = features.get("energy", job.energy)
+            job.valence = features.get("valence", job.valence)
+            job.acousticness = features.get("acousticness", job.acousticness)
+            job.instrumentalness = features.get("instrumentalness", job.instrumentalness)
+            job.liveness = features.get("liveness", job.liveness)
+            job.speechiness = features.get("speechiness", job.speechiness)
+            job.loudness = features.get("loudness", job.loudness)
+            job.key = features.get("key", job.key)
+            job.mode = features.get("mode", job.mode)
+            job.audio_features = features
+        elif "tempo" in data:
+            job.tempo = data.get("tempo", job.tempo)
+            job.danceability = data.get("danceability", job.danceability)
+            job.energy = data.get("energy", job.energy)
+            job.valence = data.get("valence", job.valence)
+            job.acousticness = data.get("acousticness", job.acousticness)
+            job.instrumentalness = data.get("instrumentalness", job.instrumentalness)
+            job.liveness = data.get("liveness", job.liveness)
+            job.speechiness = data.get("speechiness", job.speechiness)
+            job.loudness = data.get("loudness", job.loudness)
+            job.key = data.get("key", job.key)
+            job.mode = data.get("mode", job.mode)
+            job.audio_features = {
+                "tempo": job.tempo,
+                "danceability": job.danceability,
+                "energy": job.energy,
+                "valence": job.valence,
+                "acousticness": job.acousticness,
+                "instrumentalness": job.instrumentalness,
+                "liveness": job.liveness,
+                "speechiness": job.speechiness,
+                "loudness": job.loudness,
+                "key": job.key,
+                "mode": job.mode,
+            }
+
         job.transcoded = True
         job.transcoded_at = now
         if job.transcoding_started_at:
@@ -168,6 +222,29 @@ class WebhookJobTranscodedView(BaseAdminView):
         job.current_stage = "RECOMMENDATION_INDEXING" if not (job.is_video_reprocess or job.is_audio_reprocess) else "FINALIZING"
         job.save()
         return Response(status=status.HTTP_200_OK)
+
+
+class WebhookJobAudioFeaturesView(BaseAdminView):
+    def post(self, request, job_id):
+        job = get_object_or_404(Job, id=job_id)
+        data = request.data or {}
+        features = data.get("audioFeatures", data)
+        if isinstance(features, dict) and features:
+            job.tempo = features.get("tempo", job.tempo)
+            job.danceability = features.get("danceability", job.danceability)
+            job.energy = features.get("energy", job.energy)
+            job.valence = features.get("valence", job.valence)
+            job.acousticness = features.get("acousticness", job.acousticness)
+            job.instrumentalness = features.get("instrumentalness", job.instrumentalness)
+            job.liveness = features.get("liveness", job.liveness)
+            job.speechiness = features.get("speechiness", job.speechiness)
+            job.loudness = features.get("loudness", job.loudness)
+            job.key = features.get("key", job.key)
+            job.mode = features.get("mode", job.mode)
+            job.audio_features = features
+            job.save()
+            logger.info("Persisted audio features directly for job [%s]", job.id)
+        return Response({"status": "saved", "jobId": job.id}, status=status.HTTP_200_OK)
 
 
 class WebhookJobSaveRecommendationView(BaseAdminView):
@@ -193,6 +270,17 @@ class WebhookJobSaveRecommendationView(BaseAdminView):
                 album=job.album,
                 image_key=job.image_key,
                 total_streams=0,
+                tempo=job.tempo,
+                danceability=job.danceability,
+                energy=job.energy,
+                valence=job.valence,
+                acousticness=job.acousticness,
+                instrumentalness=job.instrumentalness,
+                liveness=job.liveness,
+                speechiness=job.speechiness,
+                loudness=job.loudness,
+                key=job.key,
+                mode=job.mode,
             )
         except Exception as e:
             logger.warning("Failed to save song to Recombee in webhook: %s", e)

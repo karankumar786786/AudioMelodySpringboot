@@ -21,6 +21,7 @@
     "express": "^5.2.1",
     "inngest": "^4.14.0",
     "ioredis": "^6.0.0",
+    "music-tempo": "^1.0.3",
     "p-limit": "^7.3.1"
   }
 }

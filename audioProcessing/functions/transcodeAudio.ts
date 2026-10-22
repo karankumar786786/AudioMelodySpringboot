@@ -8,6 +8,7 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 import * as crypto from "node:crypto";
 import { config } from "dotenv";
+import { CONCURRENT_TRANSCODING_LIMIT, globalTranscodeLimiter } from "../lib/transcode/limiter";
 config();
 
 export interface TranscodeAudioData {
@@ -20,6 +21,9 @@ export interface TranscodeAudioData {
 export const transcodeAudioTask = inngest.createFunction(
     {
         id: "transcode-audio-task",
+        concurrency: {
+            limit: CONCURRENT_TRANSCODING_LIMIT,
+        },
         cancelOn: [
             {
                 event: "audio/job.cancel",
@@ -47,9 +51,10 @@ export const transcodeAudioTask = inngest.createFunction(
         const baseTmpDir = path.join(process.cwd(), "tmp");
 
         return await step.run("process-audio-transcode", async () => {
-            if (!fs.existsSync(baseTmpDir)) {
-                fs.mkdirSync(baseTmpDir, { recursive: true });
-            }
+            return await globalTranscodeLimiter(async () => {
+                if (!fs.existsSync(baseTmpDir)) {
+                    fs.mkdirSync(baseTmpDir, { recursive: true });
+                }
 
             const localUuid = crypto.randomUUID();
             const localAudioDownloadPath = path.join(baseTmpDir, `raw_audio_main_${localUuid}`);
@@ -97,6 +102,7 @@ export const transcodeAudioTask = inngest.createFunction(
                     audioOutputDir,
                 ]);
             }
+            });
         });
     }
 );

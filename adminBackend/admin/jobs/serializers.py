@@ -16,6 +16,18 @@ class JobSerializer(serializers.ModelSerializer):
     transcodingAttempt = serializers.IntegerField(source="transcoding_attempt", required=False)
     isVideoReprocess = serializers.BooleanField(source="is_video_reprocess", required=False)
     isAudioReprocess = serializers.BooleanField(source="is_audio_reprocess", required=False)
+    tempo = serializers.FloatField(required=False, allow_null=True)
+    danceability = serializers.FloatField(required=False, allow_null=True)
+    energy = serializers.FloatField(required=False, allow_null=True)
+    valence = serializers.FloatField(required=False, allow_null=True)
+    acousticness = serializers.FloatField(required=False, allow_null=True)
+    instrumentalness = serializers.FloatField(required=False, allow_null=True)
+    liveness = serializers.FloatField(required=False, allow_null=True)
+    speechiness = serializers.FloatField(required=False, allow_null=True)
+    loudness = serializers.FloatField(required=False, allow_null=True)
+    key = serializers.IntegerField(required=False, allow_null=True)
+    mode = serializers.IntegerField(required=False, allow_null=True)
+    audioFeatures = serializers.JSONField(source="audio_features", required=False, allow_null=True)
     createdAt = serializers.DateTimeField(source="created_at", format="%Y-%m-%dT%H:%M:%S", required=False)
 
     class Meta:
@@ -40,6 +52,18 @@ class JobSerializer(serializers.ModelSerializer):
             "transcodingAttempt",
             "isVideoReprocess",
             "isAudioReprocess",
+            "tempo",
+            "danceability",
+            "energy",
+            "valence",
+            "acousticness",
+            "instrumentalness",
+            "liveness",
+            "speechiness",
+            "loudness",
+            "key",
+            "mode",
+            "audioFeatures",
             "createdAt",
         ]
 

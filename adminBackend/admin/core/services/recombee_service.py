@@ -18,6 +18,33 @@ class RecombeeService:
             cls._client = RecombeeClient(settings.RECOMBEE_DATABASE_ID, settings.RECOMBEE_DATABASE_SECRET, region=region)
         return cls._client
 
+    _properties_ensured = False
+
+    @classmethod
+    def ensure_audio_properties(cls, client) -> None:
+        if cls._properties_ensured or not client:
+            return
+        from recombee_api_client.api_requests import AddItemProperty
+        feature_props = [
+            ("tempo", "double"),
+            ("danceability", "double"),
+            ("energy", "double"),
+            ("valence", "double"),
+            ("acousticness", "double"),
+            ("instrumentalness", "double"),
+            ("liveness", "double"),
+            ("speechiness", "double"),
+            ("loudness", "double"),
+            ("key", "int"),
+            ("mode", "int"),
+        ]
+        for prop_name, prop_type in feature_props:
+            try:
+                client.send(AddItemProperty(prop_name, prop_type))
+            except Exception:
+                pass
+        cls._properties_ensured = True
+
     @classmethod
     def save_song(
         cls,
@@ -30,10 +57,22 @@ class RecombeeService:
         album: Optional[str] = None,
         image_key: Optional[str] = None,
         total_streams: Optional[int] = 0,
+        tempo: Optional[float] = None,
+        danceability: Optional[float] = None,
+        energy: Optional[float] = None,
+        valence: Optional[float] = None,
+        acousticness: Optional[float] = None,
+        instrumentalness: Optional[float] = None,
+        liveness: Optional[float] = None,
+        speechiness: Optional[float] = None,
+        loudness: Optional[float] = None,
+        key: Optional[int] = None,
+        mode: Optional[int] = None,
     ) -> None:
         client = cls.get_client()
         if not client:
             return
+        cls.ensure_audio_properties(client)
         from recombee_api_client.api_requests import SetItemValues
         values = {
             "title": title,
@@ -51,9 +90,34 @@ class RecombeeService:
         if total_streams is not None:
             values["totalStreams"] = int(total_streams)
             values["listenCount"] = int(total_streams)
+
+        # Audio features for smart recommendations
+        if tempo is not None:
+            values["tempo"] = float(tempo)
+        if danceability is not None:
+            values["danceability"] = float(danceability)
+        if energy is not None:
+            values["energy"] = float(energy)
+        if valence is not None:
+            values["valence"] = float(valence)
+        if acousticness is not None:
+            values["acousticness"] = float(acousticness)
+        if instrumentalness is not None:
+            values["instrumentalness"] = float(instrumentalness)
+        if liveness is not None:
+            values["liveness"] = float(liveness)
+        if speechiness is not None:
+            values["speechiness"] = float(speechiness)
+        if loudness is not None:
+            values["loudness"] = float(loudness)
+        if key is not None:
+            values["key"] = int(key)
+        if mode is not None:
+            values["mode"] = int(mode)
+
         try:
             client.send(SetItemValues(song_id, values, cascade_create=True))
-            logger.info("Saved song [%s] to Recombee catalogue with full metadata", song_id)
+            logger.info("Saved song [%s] to Recombee catalogue with audio features", song_id)
         except Exception as e:
             logger.warning("Recombee save song [%s] failed: %s", song_id, e)
 

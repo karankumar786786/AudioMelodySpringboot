@@ -9,6 +9,7 @@ import { transcodeSong } from "./functions/transcode";
 import { transcodeAudioTask } from "./functions/transcodeAudio";
 import { transcodeVideoTask } from "./functions/transcodeVideo";
 import { transcodeCanvasTask } from "./functions/transcodeCanvas";
+import { extractAudioFeaturesTask } from "./functions/extractAudioFeatures";
 import { indexRecombee } from "./functions/saveInRecombee";
 import { indexAlgolia } from "./functions/saveInAlgolia";
 import { finalizeSong } from "./functions/createSongInTable";
@@ -54,6 +55,7 @@ const functions = [
   transcodeAudioTask,
   transcodeVideoTask,
   transcodeCanvasTask,
+  extractAudioFeaturesTask,
   indexRecombee,
   indexAlgolia,
   finalizeSong,

@@ -3,6 +3,8 @@ import { api } from "../axios";
 import { transcodeAudioTask } from "./transcodeAudio";
 import { transcodeVideoTask } from "./transcodeVideo";
 import { transcodeCanvasTask } from "./transcodeCanvas";
+import { extractAudioFeaturesTask } from "./extractAudioFeatures";
+import { CONCURRENT_TRANSCODING_LIMIT } from "../lib/transcode/limiter";
 import { extractMeaningfulError } from "../lib/errorUtils";
 import { config } from "dotenv";
 config();
@@ -10,6 +12,9 @@ config();
 export const transcodeSong = inngest.createFunction(
     {
         id: "transcode-song",
+        concurrency: {
+            limit: CONCURRENT_TRANSCODING_LIMIT,
+        },
         cancelOn: [
             {
                 event: "audio/job.cancel",
@@ -129,19 +134,34 @@ export const transcodeSong = inngest.createFunction(
               })
             : Promise.resolve(null);
 
-        const [canvasResult, videoResult, audioResult] = await Promise.all([
+        // Feature extraction task: extracts Spotify-like features (tempo, danceability, energy, etc.)
+        const featuresPromise = shouldProcessAudio
+            ? step.invoke("extract-audio-features-subtask", {
+                  function: extractAudioFeaturesTask,
+                  data: {
+                      jobId,
+                      songId,
+                      tempSongKey,
+                      tempVideoKey,
+                  },
+              })
+            : Promise.resolve(null);
+
+        const [canvasResult, videoResult, audioResult, featuresResult] = await Promise.all([
             canvasPromise,
             videoPromise,
             audioPromise,
+            featuresPromise,
         ]);
 
         const duration = audioResult?.duration ?? videoResult?.duration ?? 0;
         const videoKey = canvasResult?.canvasVideoKey ?? initialVideoKey ?? null;
         const fullVideoKey = videoResult ? `${videoBasePath}/${songId}` : null;
+        const audioFeatures = featuresResult?.audioFeatures || null;
 
-        console.log(`[ORCHESTRATOR] All modular tasks completed for job ${jobId}. Duration: ${duration}s, Canvas: ${videoKey}, FullVideo: ${fullVideoKey}`);
+        console.log(`[ORCHESTRATOR] All modular tasks completed for job ${jobId}. Duration: ${duration}s, Canvas: ${videoKey}, FullVideo: ${fullVideoKey}, Features: ${Boolean(audioFeatures)}`);
 
-        // 4. Notify Spring Boot transcoded
+        // 4. Notify Spring Boot transcoded with audio features
         await step.run("notify-transcoded", async () => {
             console.log(`[ORCHESTRATOR] Notifying coreEngine transcoded for job ${jobId}...`);
             await api.post(`/${jobId}/transcoded`, {
@@ -149,6 +169,7 @@ export const transcodeSong = inngest.createFunction(
                 duration: duration,
                 fullVideoKey: fullVideoKey || null,
                 videoKey: videoKey || null,
+                audioFeatures: audioFeatures,
             });
             console.log(`[ORCHESTRATOR] Successfully notified coreEngine transcoded for job ${jobId}`);
         });
