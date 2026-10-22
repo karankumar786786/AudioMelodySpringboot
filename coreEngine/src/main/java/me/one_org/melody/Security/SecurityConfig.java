@@ -1,6 +1,7 @@
 package me.one_org.melody.Security;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -168,9 +169,17 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource(
-            @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:5173}") String allowedOriginsStr) {
+            @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:5173,https://one-melody.one-org.me,https://*.one-org.me}") String allowedOriginsStr) {
         CorsConfiguration configuration = new CorsConfiguration();
-        List<String> origins = List.of(allowedOriginsStr.split(","));
+        List<String> origins = new ArrayList<>();
+        if (allowedOriginsStr != null) {
+            for (String origin : allowedOriginsStr.split(",")) {
+                String trimmed = origin.trim();
+                if (!trimmed.isEmpty()) {
+                    origins.add(trimmed);
+                }
+            }
+        }
         configuration.setAllowedOriginPatterns(origins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));
