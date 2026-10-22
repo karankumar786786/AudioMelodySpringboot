@@ -14,7 +14,6 @@ const ALGOLIA_INDEX_NAME = process.env.NEXT_PUBLIC_ALGOLIA_INDEX_NAME || "";
 
 let algoliaClientInstance: SearchClient | null = null;
 
-
 /**
  * Returns the cached algoliasearch SearchClient instance and indexName synchronously.
  */
@@ -33,7 +32,7 @@ export function getAlgoliaClient(): {
   return { client: algoliaClientInstance, indexName: ALGOLIA_INDEX_NAME };
 }
 
-function mapSongHit(hit: any): Song {
+export function mapSongHit(hit: any): Song {
   return {
     id: hit.objectID || hit.id,
     title: hit.title || "",

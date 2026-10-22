@@ -1,6 +1,6 @@
 import recombee from "recombee-js-api-client";
-import { getAlgoliaClient, mapSongHit } from "./search";
 import { getDeviceId } from "./client";
+import { getAlgoliaClient, mapSongHit } from "./search";
 import type { Song } from "./types";
 
 const RECOMBEE_DB =

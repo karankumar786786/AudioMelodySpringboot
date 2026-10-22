@@ -1,4 +1,5 @@
 import { request } from "./client";
+import { recombeeApi } from "./recombee";
 import type { Song } from "./types";
 
 export const interactionsApi = {
@@ -17,7 +18,10 @@ export const interactionsApi = {
         return { data: { data: direct } };
       }
     } catch (err) {
-      console.warn("[InteractionsApi] Direct Recombee recommendItemsToUser failed, using DB backup fallback:", err);
+      console.warn(
+        "[InteractionsApi] Direct Recombee recommendItemsToUser failed, using DB backup fallback:",
+        err,
+      );
     }
 
     // 2. Dedicated fallback: Backend Spring Boot database endpoint
@@ -43,27 +47,43 @@ export const interactionsApi = {
         return { data: { data: direct } };
       }
     } catch (err) {
-      console.warn("[InteractionsApi] Direct Recombee recommendSimilarSongs failed, using DB backup fallback:", err);
+      console.warn(
+        "[InteractionsApi] Direct Recombee recommendSimilarSongs failed, using DB backup fallback:",
+        err,
+      );
     }
 
     // 2. Dedicated fallback: Backend Spring Boot database endpoint
     try {
-      const res = await request<Song[]>(`/api/recommendations/similar/${songId}?count=${count}`);
+      const res = await request<Song[]>(
+        `/api/recommendations/similar/${songId}?count=${count}`,
+      );
       const list = Array.isArray(res) ? res : [];
       return { data: { data: list } };
     } catch {
       return { data: { data: [] } };
     }
   },
-  getRadioSongs: async (seedSongId: string, excludeIds: string[] = [], count = 10) => {
+  getRadioSongs: async (
+    seedSongId: string,
+    excludeIds: string[] = [],
+    count = 10,
+  ) => {
     // 1. Primary: Direct Recombee radio query with Algolia edge hydration
     try {
-      const direct = await recombeeApi.recommendRadioSongs(seedSongId, excludeIds, count);
+      const direct = await recombeeApi.recommendRadioSongs(
+        seedSongId,
+        excludeIds,
+        count,
+      );
       if (direct && direct.length > 0) {
         return { data: { data: direct } };
       }
     } catch (err) {
-      console.warn("[InteractionsApi] Direct Recombee recommendRadioSongs failed, using DB backup fallback:", err);
+      console.warn(
+        "[InteractionsApi] Direct Recombee recommendRadioSongs failed, using DB backup fallback:",
+        err,
+      );
     }
 
     // 2. Dedicated fallback: Backend Spring Boot database endpoint
@@ -73,12 +93,15 @@ export const interactionsApi = {
           ? `&excludeIds=${encodeURIComponent(excludeIds.join(","))}`
           : "";
       const res = await request<Song[]>(
-        `/api/recommendations/radio?seedSongId=${encodeURIComponent(seedSongId)}&count=${count}${excludeParam}`
+        `/api/recommendations/radio?seedSongId=${encodeURIComponent(seedSongId)}&count=${count}${excludeParam}`,
       );
       const list = Array.isArray(res) ? res : [];
       return { data: { data: list } };
     } catch (err) {
-      console.warn("[API] getRadioSongs failed, falling back to getSimilarSongs", err);
+      console.warn(
+        "[API] getRadioSongs failed, falling back to getSimilarSongs",
+        err,
+      );
       return interactionsApi.getSimilarSongs(seedSongId, count);
     }
   },
@@ -93,7 +116,10 @@ export const interactionsApi = {
       // Recombee telemetry is handled server-side by TelemetryEventListener (AFTER_COMMIT)
       // with accurate percentage-based rating scale — no frontend duplicate needed.
 
-      const safePercentage = Math.min(1.0, Math.max(0.0, isNaN(percentage) ? 0.05 : percentage));
+      const safePercentage = Math.min(
+        1.0,
+        Math.max(0.0, isNaN(percentage) ? 0.05 : percentage),
+      );
       await request("/api/interaction/play", {
         method: "POST",
         body: JSON.stringify({ songId, percentage: safePercentage }),
