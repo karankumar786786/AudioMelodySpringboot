@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 # Cancel redundant in-progress workflow runs when new commits are pushed
 concurrency:
@@ -15,10 +16,45 @@ concurrency:
 
 jobs:
   # =========================================================================
+  # 0. Path Filtering & Change Detection
+  # =========================================================================
+  changes:
+    name: Detect Changed Services
+    runs-on: ubuntu-latest
+    outputs:
+      core: ${{ steps.filter.outputs.core }}
+      admin: ${{ steps.filter.outputs.admin }}
+      audioprocessing: ${{ steps.filter.outputs.audioprocessing }}
+      mail: ${{ steps.filter.outputs.mail }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Detect File Changes
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            core:
+              - 'coreEngine/**'
+              - '.github/workflows/work.yml'
+            admin:
+              - 'adminBackend/**'
+              - '.github/workflows/work.yml'
+            audioprocessing:
+              - 'audioProcessing/**'
+              - '.github/workflows/work.yml'
+            mail:
+              - 'workers/mailEvents/**'
+              - '.github/workflows/work.yml'
+
+  # =========================================================================
   # 1. Core Engine Tests (Spring Boot / Java 21)
   # =========================================================================
   test-core:
     name: Test Core Engine
+    needs: changes
+    if: needs.changes.outputs.core == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -51,6 +87,8 @@ jobs:
   # =========================================================================
   test-admin:
     name: Test Admin Backend
+    needs: changes
+    if: needs.changes.outputs.admin == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -80,10 +118,12 @@ jobs:
         run: uv run python manage.py test
 
   # =========================================================================
-  # 3. Audio Processing Tests (Bun / FFmpeg)
+  # 3. Audio Processing Tests (Bun / FFmpeg & Shaka Packager)
   # =========================================================================
   test-audio:
     name: Test Audio Processing
+    needs: changes
+    if: needs.changes.outputs.audioprocessing == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -104,7 +144,6 @@ jobs:
           ffmpeg -version
           packager --version
 
-
       - name: Set up Bun Runtime
         uses: oven-sh/setup-bun@v2
         with:
@@ -119,29 +158,36 @@ jobs:
         run: bun run test
 
   # =========================================================================
-  # 4. Multi-Service Parallel Docker Build & Push (Runs ONLY after all tests pass)
+  # 4. Mail Worker Validation (Bun)
   # =========================================================================
-  build-and-push:
-    name: Docker Build & Push (${{ matrix.service }})
-    needs: [test-core, test-admin, test-audio]
+  test-mail:
+    name: Validate Mail Worker
+    needs: changes
+    if: needs.changes.outputs.mail == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - service: core
-            context: ./coreEngine
-            image_name: core
-          - service: mail
-            context: ./workers/mailEvents
-            image_name: mail
-          - service: audioprocessing
-            context: ./audioProcessing
-            image_name: audioprocessing
-          - service: admin
-            context: ./adminBackend
-            image_name: admin
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
+      - name: Set up Bun Runtime
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies & Verify Build
+        working-directory: ./workers/mailEvents
+        run: |
+          bun install --frozen-lockfile
+          bun run build
+
+  # =========================================================================
+  # 5. Selective Docker Build & Push (Only rebuilt when service files change)
+  # =========================================================================
+  build-core:
+    name: Docker Build & Push (core)
+    needs: [changes, test-core]
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && (needs.changes.outputs.core == 'true' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -150,7 +196,6 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
@@ -160,19 +205,136 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKER_USERNAME }}/${{ matrix.image_name }}
+          images: ${{ secrets.DOCKER_USERNAME }}/core
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
             type=sha,prefix=sha-,format=short
             type=ref,event=branch
 
-      - name: Build and Push Docker Image
+      - name: Build and Push Core Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: ${{ matrix.context }}
+          context: ./coreEngine
           platforms: linux/amd64
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=core
+          cache-to: type=gha,mode=max,scope=core
+
+  build-admin:
+    name: Docker Build & Push (admin)
+    needs: [changes, test-admin]
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && (needs.changes.outputs.admin == 'true' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Extract Docker Metadata & Tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKER_USERNAME }}/admin
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+            type=ref,event=branch
+
+      - name: Build and Push Admin Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./adminBackend
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=admin
+          cache-to: type=gha,mode=max,scope=admin
+
+  build-audioprocessing:
+    name: Docker Build & Push (audioprocessing)
+    needs: [changes, test-audio]
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && (needs.changes.outputs.audioprocessing == 'true' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Extract Docker Metadata & Tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKER_USERNAME }}/audioprocessing
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+            type=ref,event=branch
+
+      - name: Build and Push Audio Processing Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./audioProcessing
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=audioprocessing
+          cache-to: type=gha,mode=max,scope=audioprocessing
+
+  build-mail:
+    name: Docker Build & Push (mail)
+    needs: [changes, test-mail]
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && (needs.changes.outputs.mail == 'true' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Extract Docker Metadata & Tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKER_USERNAME }}/mail
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+            type=ref,event=branch
+
+      - name: Build and Push Mail Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./workers/mailEvents
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=mail
+          cache-to: type=gha,mode=max,scope=mail
