@@ -12,6 +12,7 @@ class S3Service:
     @classmethod
     def get_client(cls):
         if cls._client is None:
+            # Enforce regional S3 endpoint (ap-south-1) and SigV4 to avoid 307 temporary redirects and socket drops
             region = getattr(settings, "AWS_REGION", "ap-south-1") or "ap-south-1"
             endpoint_url = getattr(settings, "AWS_ENDPOINT", None) or f"https://s3.{region}.amazonaws.com"
             kwargs = {
