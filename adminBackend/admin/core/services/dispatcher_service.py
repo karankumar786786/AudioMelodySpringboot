@@ -2,6 +2,7 @@ import logging
 from typing import Optional
 import requests
 from django.conf import settings
+# pyrefly: ignore[missing-import]
 from jobs.models import Job
 from .redis_service import RedisService
 
@@ -29,8 +30,11 @@ class ExternalJobDispatcher:
                     "songKey": job_obj.song_key if job_obj else None,
                     "fullVideoKey": job_obj.full_video_key if job_obj else None,
                 }
+                base_url = settings.AUDIO_PROCESSING_URL.strip().rstrip('/')
+                if not base_url.startswith(("http://", "https://")):
+                    base_url = f"https://{base_url}" if "one-org.me" in base_url else f"http://{base_url}"
                 requests.post(
-                    f"{settings.AUDIO_PROCESSING_URL.rstrip('/')}/jobs/{job_id}/cleanup",
+                    f"{base_url}/jobs/{job_id}/cleanup",
                     json=body,
                     headers=headers,
                     timeout=2,
