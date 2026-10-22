@@ -41,8 +41,9 @@ export function formatDuration(val?: number | string | null): string {
 
 export function mapToPlayerSong(song: any): PlayerSong {
   const songKey = song.songKey || song.song_key;
-  const streamBase = songKey ? `${S3_BASE_URL}/${songKey}` : "";
   const fullVideoKey = song.fullVideoKey || song.full_video_key || undefined;
+  const effectiveKey = songKey || fullVideoKey;
+  const streamBase = effectiveKey ? `${S3_BASE_URL}/${effectiveKey}` : "";
   const videoKey = song.videoKey || song.video_key || undefined;
   const imageKey = song.imageKey || song.image_key || "";
 
@@ -77,8 +78,9 @@ export function mapToPlayerSong(song: any): PlayerSong {
 
 export function normalizePlayerSong(song: any): PlayerSong {
   const songKey = song.songKey || song.song_key;
-  const streamBase = songKey ? `${S3_BASE_URL}/${songKey}` : "";
   const fullVideoKey = song.fullVideoKey || song.full_video_key || undefined;
+  const effectiveKey = songKey || fullVideoKey;
+  const streamBase = effectiveKey ? `${S3_BASE_URL}/${effectiveKey}` : "";
   const videoKey = song.videoKey || song.video_key || undefined;
   const imageKey = song.imageKey || song.image_key || "";
 
