@@ -46,7 +46,7 @@ def find_delete_job(entity_type: str, entity_id: str, delete_job_id: Optional[st
         if patched is not find_delete_job:
             return patched(entity_type, entity_id, delete_job_id)
 
-    if delete_job_id and str(delete_job_id).strip():
+    if delete_job_id and delete_job_id.strip():
         return DeleteJob.objects.filter(id=delete_job_id.strip()).first()
     return DeleteJob.objects.filter(entity_type=entity_type.upper(), entity_id=entity_id).order_by("-created_at").first()
 
@@ -306,20 +306,14 @@ class WebhookJobSaveSearchView(BaseAdminView):
                     "id": job.song_id,
                     "title": job.title,
                     "artist_name": job.artist_name,
-                    "language": job.language,
                     "genre": job.genre,
                     "album": job.album,
                     "image_key": job.image_key,
                     "duration": job.duration,
-                    "song_key": job.song_key,
-                    "video_key": job.video_key,
-                    "full_video_key": job.full_video_key,
                     "preview_start_time": job.preview_start_time,
                     "preview_end_time": job.preview_end_time,
-                    "lrclib_id": job.lrclib_id,
-                    "job_id": job.id,
                     "total_streams": 0,
-                    "status": "ACTIVE",
+                    "search_count": 0,
                 },
                 job_id=job.id,
             )
@@ -377,6 +371,32 @@ class WebhookJobFinalizeView(BaseAdminView):
                     )
                 except Exception as e:
                     logger.warning("Failed to update Algolia search for song %s: %s", song.id, e)
+
+                try:
+                    RecombeeService.save_song(
+                        song_id=song.id,
+                        title=song.title,
+                        artist_name=song.artist_name,
+                        language=song.language,
+                        genre=song.genre,
+                        duration=song.duration,
+                        album=song.album,
+                        image_key=song.image_key,
+                        total_streams=song.total_streams,
+                        tempo=job.tempo,
+                        danceability=job.danceability,
+                        energy=job.energy,
+                        valence=job.valence,
+                        acousticness=job.acousticness,
+                        instrumentalness=job.instrumentalness,
+                        liveness=job.liveness,
+                        speechiness=job.speechiness,
+                        loudness=job.loudness,
+                        key=job.key,
+                        mode=job.mode,
+                    )
+                except Exception as e:
+                    logger.warning("Failed to update Recombee recommendations for song %s: %s", song.id, e)
 
             job.status = "COMPLETED"
             job.current_stage = "COMPLETED"

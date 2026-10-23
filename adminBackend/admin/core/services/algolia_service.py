@@ -70,6 +70,7 @@ class AlgoliaService:
                 s_prev_start = song.get("preview_start_time") if song.get("preview_start_time") is not None else (song.get("previewStartTime") if song.get("previewStartTime") is not None else preview_start_time)
                 s_prev_end = song.get("preview_end_time") if song.get("preview_end_time") is not None else (song.get("previewEndTime") if song.get("previewEndTime") is not None else preview_end_time)
                 s_streams = song.get("total_streams") if song.get("total_streams") is not None else (song.get("totalStreams") if song.get("totalStreams") is not None else (song.get("listenCount") if song.get("listenCount") is not None else total_streams))
+                s_search_count = song.get("search_count") if song.get("search_count") is not None else (song.get("searchCount") if song.get("searchCount") is not None else 0)
             elif song is not None:
                 s_id = str(getattr(song, "id", None) or song_id or "")
                 s_title = getattr(song, "title", None) or title
@@ -87,8 +88,9 @@ class AlgoliaService:
                 s_prev_start = getattr(song, "preview_start_time", None) if getattr(song, "preview_start_time", None) is not None else preview_start_time
                 s_prev_end = getattr(song, "preview_end_time", None) if getattr(song, "preview_end_time", None) is not None else preview_end_time
                 s_streams = getattr(song, "total_streams", None) if getattr(song, "total_streams", None) is not None else total_streams
+                s_search_count = getattr(song, "search_count", None) if getattr(song, "search_count", None) is not None else (getattr(song, "searchCount", None) or 0)
             else:
-                s_id = str(song_id or "")
+                s_id = song_id or ""
                 s_title = title
                 s_artist = artist_name
                 s_lang = language
@@ -104,12 +106,14 @@ class AlgoliaService:
                 s_prev_start = preview_start_time
                 s_prev_end = preview_end_time
                 s_streams = total_streams
+                s_search_count = 0
 
             if not s_id:
                 logger.warning("Algolia save_song skipped: missing song id")
                 return
 
             streams_val = int(s_streams or 0)
+            search_count_val = int(s_search_count or 0)
             record = {
                 "objectID": str(s_id),
                 "type": "song",
@@ -118,19 +122,12 @@ class AlgoliaService:
                 "artist": str(s_artist or ""),
                 "album": str(s_album).strip() if s_album else None,
                 "genre": str(s_genre).strip() if s_genre else None,
-                "duration": int(s_dur or 0),
-                "songKey": str(s_skey or ""),
                 "imageKey": str(s_img or ""),
-                "videoKey": str(s_vid) if s_vid else None,
-                "fullVideoKey": str(s_full_vid) if s_full_vid else None,
+                "duration": int(s_dur or 0),
                 "previewStartTime": int(s_prev_start) if s_prev_start is not None and int(s_prev_start) >= 0 else None,
                 "previewEndTime": int(s_prev_end) if s_prev_end is not None and int(s_prev_end) > 0 else None,
-                "language": str(s_lang or ""),
-                "lrclibId": str(s_lrclib or ""),
-                "jobId": str(s_jid or ""),
                 "totalStreams": streams_val,
-                "listenCount": streams_val,
-                "searchCount": 0,
+                "searchCount": search_count_val,
             }
 
             index_name = getattr(settings, "ALGOLIA_INDEX_NAME", "one_melody_springboot")
@@ -228,7 +225,7 @@ class AlgoliaService:
             return
         try:
             index_name = getattr(settings, "ALGOLIA_INDEX_NAME", "one_melody_springboot")
-            client.delete_object(index_name=index_name, object_id=str(object_id))
+            client.delete_object(index_name=index_name, object_id=object_id)
             logger.info("Deleted object [%s] from Algolia index [%s]", object_id, index_name)
         except Exception as e:
             logger.warning("Algolia delete object [%s] failed: %s", object_id, e)

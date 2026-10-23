@@ -56,19 +56,12 @@ export const indexAlgolia = inngest.createFunction(
                             artist: String(job.artistName || job.artist_name || ""),
                             album: job.album || null,
                             genre: job.genre || null,
-                            duration: Number(job.duration || 0),
-                            songKey: String(job.songKey || job.song_key || ""),
                             imageKey: String(job.imageKey || job.image_key || ""),
-                            videoKey: job.videoKey || job.video_key || null,
-                            fullVideoKey: job.fullVideoKey || job.full_video_key || null,
+                            duration: Number(job.duration || 0),
                             previewStartTime: typeof job.previewStartTime === "number" ? job.previewStartTime : (typeof job.preview_start_time === "number" ? job.preview_start_time : null),
                             previewEndTime: typeof job.previewEndTime === "number" ? job.previewEndTime : (typeof job.preview_end_time === "number" ? job.preview_end_time : null),
-                            language: String(job.language || ""),
-                            lrclibId: String(job.lrclibId || job.lrclib_id || ""),
-                            jobId: String(job.id || jobId),
-                            totalStreams: 0,
-                            listenCount: 0,
-                            searchCount: 0,
+                            totalStreams: Number(job.totalStreams || job.total_streams || 0),
+                            searchCount: Number(job.searchCount || job.search_count || 0),
                         };
 
                         const directUrl = `https://${appId}.algolia.net/1/indexes/${encodeURIComponent(indexName)}/${encodeURIComponent(songId)}`;

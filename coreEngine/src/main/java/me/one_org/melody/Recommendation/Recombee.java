@@ -303,6 +303,12 @@ public class Recombee {
             if (song.getGenre() != null && !song.getGenre().isBlank()) {
                 values.put("genre", song.getGenre());
             }
+            if (song.getAlbum() != null && !song.getAlbum().isBlank()) {
+                values.put("album", song.getAlbum());
+            }
+            if (song.getImageKey() != null && !song.getImageKey().isBlank()) {
+                values.put("imageKey", song.getImageKey());
+            }
             if (song.getDuration() != null && song.getDuration() > 0) {
                 values.put("duration", song.getDuration());
             }

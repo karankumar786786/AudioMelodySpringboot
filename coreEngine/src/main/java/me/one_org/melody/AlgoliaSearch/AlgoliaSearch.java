@@ -113,12 +113,6 @@ public class AlgoliaSearch {
         if (song.getImageKey() != null && !song.getImageKey().isBlank()) {
             record.put("imageKey", song.getImageKey());
         }
-        if (song.getSongKey() != null && !song.getSongKey().isBlank()) {
-            record.put("songKey", song.getSongKey());
-        }
-        if (song.getVideoKey() != null && !song.getVideoKey().isBlank()) {
-            record.put("videoKey", song.getVideoKey());
-        }
         if (song.getPreviewStartTime() != null) {
             record.put("previewStartTime", song.getPreviewStartTime());
         }
