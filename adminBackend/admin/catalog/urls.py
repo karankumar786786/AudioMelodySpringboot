@@ -14,6 +14,10 @@ from .views import (
     SongListView,
     SongRecoverMediaView,
     SongReindexRecombeeView,
+    SongReindexAlgoliaView,
+    ArtistReindexAlgoliaView,
+    PlaylistReindexAlgoliaView,
+    CatalogReindexAllView,
     SongReprocessAudioView,
     SongReprocessVideoView,
     SongToggleFeaturedView,
@@ -22,6 +26,13 @@ from .views import (
 app_name = "catalog"
 
 urlpatterns = [
+    # Reindex & Sync
+    path("admin/catalog/reindex-all", CatalogReindexAllView.as_view(), name="admin-catalog-reindex-all"),
+    path("admin/song/reindex-algolia", SongReindexAlgoliaView.as_view(), name="admin-song-reindex-algolia"),
+    path("admin/song/reindex-recombee", SongReindexRecombeeView.as_view(), name="admin-song-reindex-recombee"),
+    path("admin/artist/reindex-algolia", ArtistReindexAlgoliaView.as_view(), name="admin-artist-reindex-algolia"),
+    path("admin/playlist/reindex-algolia", PlaylistReindexAlgoliaView.as_view(), name="admin-playlist-reindex-algolia"),
+
     # Artists
     path("admin/artist", ArtistListView.as_view(), name="admin-artist-list"),
     path("api/artists/<str:pk>/songs", ArtistSongsView.as_view(), name="api-artist-songs"),
@@ -38,7 +49,6 @@ urlpatterns = [
     # Songs (static routes first)
     path("admin/song/jobs", SongJobsListView.as_view(), name="admin-song-jobs"),
     path("admin/song/job/<str:pk>", SongJobDetailView.as_view(), name="admin-song-job-detail"),
-    path("admin/song/reindex-recombee", SongReindexRecombeeView.as_view(), name="admin-song-reindex-recombee"),
     path("admin/song", SongListView.as_view(), name="admin-song-list"),
     path("admin/song/<str:pk>/featured", SongToggleFeaturedView.as_view(), name="admin-song-featured"),
     path("admin/song/<str:pk>/reprocess-audio", SongReprocessAudioView.as_view(), name="admin-song-reprocess-audio"),

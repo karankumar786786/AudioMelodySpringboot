@@ -39,7 +39,7 @@ class AlgoliaSearchTest {
     }
 
     @Test
-    @DisplayName("Should configure Algolia index with customRanking desc(totalStreams) and desc(searchCount)")
+    @DisplayName("Should configure Algolia index with customRanking desc(searchCount) and desc(totalStreams)")
     void shouldConfigureIndexCorrectly() throws Exception {
         algoliaSearch.configureIndex();
 
@@ -47,7 +47,7 @@ class AlgoliaSearchTest {
         verify(searchClient).setSettings(eq(INDEX_NAME), settingsCaptor.capture());
 
         IndexSettings settings = settingsCaptor.getValue();
-        assertThat(settings.getCustomRanking()).containsExactly("desc(totalStreams)", "desc(searchCount)");
+        assertThat(settings.getCustomRanking()).containsExactly("desc(searchCount)", "desc(totalStreams)");
         assertThat(settings.getSearchableAttributes()).contains("title", "artistName", "album");
     }
 

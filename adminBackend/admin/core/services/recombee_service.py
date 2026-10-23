@@ -145,10 +145,37 @@ class RecombeeService:
             logger.warning("Recombee delete user [%s] failed: %s", user_id, e)
 
     @classmethod
-    def reindex_all_active_songs(cls, songs: List[Song]) -> int:
+    def reindex_all_active_songs(
+        cls,
+        songs: List[Song],
+        jobs_by_song_id: Optional[Dict[str, Any]] = None,
+    ) -> int:
         client = cls.get_client()
         if not client or not songs:
             return 0
+        cls.ensure_audio_properties(client)
+
+        if jobs_by_song_id is None:
+            try:
+                from jobs.models import Job
+                from django.db.models import Q
+                song_ids = [s.id for s in songs if s.id]
+                job_ids = [s.job_id for s in songs if getattr(s, "job_id", None)]
+                jobs = list(Job.objects.filter(Q(song_id__in=song_ids) | Q(id__in=job_ids)))
+                jobs_by_song_id = {}
+                for j in jobs:
+                    song_key = j.song_id if j.song_id else None
+                    job_key = j.id if j.id else None
+                    if song_key:
+                        existing = jobs_by_song_id.get(song_key)
+                        if existing is None or (getattr(existing, "danceability", None) is None and j.danceability is not None):
+                            jobs_by_song_id[song_key] = j
+                    if job_key:
+                        jobs_by_song_id[job_key] = j
+            except Exception as err:
+                logger.warning("Could not prefetch jobs for audio features: %s", err)
+                jobs_by_song_id = {}
+
         from recombee_api_client.api_requests import Batch, Request, SetItemValues
         requests_list: List[Request] = []
         for s in songs:
@@ -167,6 +194,38 @@ class RecombeeService:
                 vals["duration"] = s.duration
             streams = int(getattr(s, "total_streams", 0) or 0)
             vals["totalStreams"] = streams
+
+            # Audio features from matching Job (prioritize job with audio features)
+            job = None
+            if jobs_by_song_id:
+                cand1 = jobs_by_song_id.get(s.id)
+                cand2 = jobs_by_song_id.get(s.job_id) if getattr(s, "job_id", None) else None
+                if cand1 and getattr(cand1, "danceability", None) is not None:
+                    job = cand1
+                elif cand2 and getattr(cand2, "danceability", None) is not None:
+                    job = cand2
+                else:
+                    job = cand1 or cand2
+            if job:
+                for f_name in [
+                    "tempo",
+                    "danceability",
+                    "energy",
+                    "valence",
+                    "acousticness",
+                    "instrumentalness",
+                    "liveness",
+                    "speechiness",
+                    "loudness",
+                ]:
+                    val = getattr(job, f_name, None)
+                    if val is not None:
+                        vals[f_name] = float(val)
+                for i_name in ["key", "mode"]:
+                    val = getattr(job, i_name, None)
+                    if val is not None:
+                        vals[i_name] = int(val)
+
             requests_list.append(SetItemValues(s.id, vals, cascade_create=True))
 
         try:
@@ -174,10 +233,11 @@ class RecombeeService:
             for i in range(0, len(requests_list), chunk_size):
                 chunk = requests_list[i : i + chunk_size]
                 client.send(Batch(chunk))
-            logger.info("Re-indexed %d songs in Recombee with full metadata", len(requests_list))
+            logger.info("Re-indexed %d songs in Recombee with full metadata and audio features", len(requests_list))
             return len(requests_list)
         except Exception as e:
             logger.error("Failed batch reindex in Recombee: %s", e)
             raise
+
 
 

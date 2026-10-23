@@ -15,6 +15,20 @@ class Artist(models.Model):
         managed = False
         db_table = "artists"
 
+    @property
+    def followers_count(self) -> int:
+        if hasattr(self, "_followers_count") and self._followers_count is not None:
+            return self._followers_count
+        try:
+            meta = ArtistMetadata.objects.filter(artist_id=self.id).first()
+            return meta.followers_count if meta and meta.followers_count is not None else 0
+        except Exception:
+            return 0
+
+    @followers_count.setter
+    def followers_count(self, value: int):
+        self._followers_count = value or 0
+
     def __str__(self):
         return self.name
 

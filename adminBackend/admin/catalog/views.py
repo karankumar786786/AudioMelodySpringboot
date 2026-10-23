@@ -823,9 +823,87 @@ class SongRecoverMediaView(BaseAdminView):
 
 class SongReindexRecombeeView(BaseAdminView):
     def post(self, request):
-        active_songs = list(Song.objects.filter(status="ACTIVE"))
+        active_songs = list(Song.objects.filter(status="ACTIVE").select_related("metadata"))
         try:
             count = RecombeeService.reindex_all_active_songs(active_songs)
             return Response({"status": "success", "reindexed": count}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class SongReindexAlgoliaView(BaseAdminView):
+    def post(self, request):
+        active_songs = list(Song.objects.filter(status="ACTIVE").select_related("metadata"))
+        try:
+            count = AlgoliaService.reindex_all_active_songs(active_songs)
+            return Response({"status": "success", "reindexed": count}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ArtistReindexAlgoliaView(BaseAdminView):
+    def post(self, request):
+        active_artists = list(Artist.objects.filter(status="ACTIVE"))
+        try:
+            try:
+                from catalog.models import ArtistMetadata
+                meta_map = {m.artist_id: m.followers_count for m in ArtistMetadata.objects.all()}
+                for a in active_artists:
+                    a.followers_count = meta_map.get(a.id, 0)
+            except Exception:
+                pass
+            count = AlgoliaService.reindex_all_artists(active_artists)
+            return Response({"status": "success", "reindexed": count}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PlaylistReindexAlgoliaView(BaseAdminView):
+    def post(self, request):
+        active_playlists = list(Playlist.objects.filter(status="ACTIVE"))
+        try:
+            count = AlgoliaService.reindex_all_playlists(active_playlists)
+            return Response({"status": "success", "reindexed": count}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class CatalogReindexAllView(BaseAdminView):
+    def post(self, request):
+        try:
+            active_songs = list(Song.objects.filter(status="ACTIVE").select_related("metadata"))
+            active_artists = list(Artist.objects.filter(status="ACTIVE"))
+            active_playlists = list(Playlist.objects.filter(status="ACTIVE"))
+
+            try:
+                from catalog.models import ArtistMetadata
+                meta_map = {m.artist_id: m.followers_count for m in ArtistMetadata.objects.all()}
+                for a in active_artists:
+                    a.followers_count = meta_map.get(a.id, 0)
+            except Exception:
+                pass
+
+            AlgoliaService.configure_index()
+            algolia_songs = AlgoliaService.reindex_all_active_songs(active_songs)
+            algolia_artists = AlgoliaService.reindex_all_artists(active_artists)
+            algolia_playlists = AlgoliaService.reindex_all_playlists(active_playlists)
+
+            recombee_songs = RecombeeService.reindex_all_active_songs(active_songs)
+
+            return Response(
+                {
+                    "status": "success",
+                    "algolia": {
+                        "songs": algolia_songs,
+                        "artists": algolia_artists,
+                        "playlists": algolia_playlists,
+                    },
+                    "recombee": {
+                        "songs": recombee_songs,
+                    },
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+

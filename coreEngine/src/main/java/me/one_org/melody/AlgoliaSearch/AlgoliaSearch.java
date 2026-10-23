@@ -53,9 +53,9 @@ public class AlgoliaSearch {
                             "searchable(language)",
                             "searchable(genre)"))
                     .setCustomRanking(List.of(
-                            "desc(totalStreams)",
-                            "desc(searchCount)")));
-            log.info("Algolia index configured with searchable attributes, facets, and customRanking desc(totalStreams), desc(searchCount)");
+                            "desc(searchCount)",
+                            "desc(totalStreams)")));
+            log.info("Algolia index configured with searchable attributes, facets, and customRanking desc(searchCount), desc(totalStreams)");
         } catch (Exception e) {
             log.warn("Could not configure Algolia index on startup: {}", e.getMessage());
         }
@@ -139,6 +139,7 @@ public class AlgoliaSearch {
                 ? artist.getArtistMetadata().getFollowersCount()
                 : 0L;
         record.put("followersCount", followersCount);
+        record.put("searchCount", 0L);
         return record;
     }
 
@@ -151,6 +152,7 @@ public class AlgoliaSearch {
             record.put("coverImageKey", playlist.getCoverImageKey());
         }
         record.put("totalSongs", playlist.getTotalSongs());
+        record.put("searchCount", 0L);
         return record;
     }
 
