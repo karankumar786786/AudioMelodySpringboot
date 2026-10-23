@@ -67,8 +67,20 @@ public class Recombee {
         registerPropertySafely("album", "string");
         registerPropertySafely("duration", "int");
         registerPropertySafely("totalStreams", "int");
-        registerPropertySafely("listenCount", "int");
         registerPropertySafely("imageKey", "string");
+
+        // Audio feature properties for content-based recommendations
+        registerPropertySafely("tempo", "double");
+        registerPropertySafely("danceability", "double");
+        registerPropertySafely("energy", "double");
+        registerPropertySafely("valence", "double");
+        registerPropertySafely("acousticness", "double");
+        registerPropertySafely("instrumentalness", "double");
+        registerPropertySafely("liveness", "double");
+        registerPropertySafely("speechiness", "double");
+        registerPropertySafely("loudness", "double");
+        registerPropertySafely("key", "int");
+        registerPropertySafely("mode", "int");
     }
 
     private void registerPropertySafely(String name, String type) {
@@ -105,7 +117,6 @@ public class Recombee {
                 : 0L;
         int streams = (int) Math.min(totalStreams, Integer.MAX_VALUE);
         values.put("totalStreams", streams);
-        values.put("listenCount", streams);
         recombeeClient.send(withTimeout(new SetItemValues(song.getId(), values).setCascadeCreate(true)));
     }
 
@@ -113,25 +124,30 @@ public class Recombee {
         Map<String, Object> values = new HashMap<>();
         int streams = (int) Math.min(totalStreams, Integer.MAX_VALUE);
         values.put("totalStreams", streams);
-        values.put("listenCount", streams);
         recombeeClient.send(withTimeout(new SetItemValues(songId, values).setCascadeCreate(true)));
     }
 
     public void saveSong(String songId, String title, String artistName, String language, String genre) throws Exception {
-        saveSong(songId, title, artistName, language, genre, null, 0L);
+        saveSong(songId, title, artistName, language, genre, null, null, null, 0L);
     }
 
     public void saveSong(String songId, String title, String artistName, String language, String genre, Integer duration) throws Exception {
-        saveSong(songId, title, artistName, language, genre, duration, 0L);
+        saveSong(songId, title, artistName, language, genre, null, null, duration, 0L);
     }
 
-    public void saveSong(String songId, String title, String artistName, String language, String genre, Integer duration, Long totalStreams) throws Exception {
+    public void saveSong(String songId, String title, String artistName, String language, String genre, String album, String imageKey, Integer duration, Long totalStreams) throws Exception {
         Map<String, Object> values = new HashMap<>();
         values.put("title", title);
         values.put("artistName", artistName);
         values.put("language", language);
         if (genre != null && !genre.isBlank()) {
             values.put("genre", genre);
+        }
+        if (album != null && !album.isBlank()) {
+            values.put("album", album);
+        }
+        if (imageKey != null && !imageKey.isBlank()) {
+            values.put("imageKey", imageKey);
         }
         if (duration != null && duration > 0) {
             values.put("duration", duration);

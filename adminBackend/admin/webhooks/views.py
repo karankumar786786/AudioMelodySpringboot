@@ -315,7 +315,6 @@ class WebhookJobSaveSearchView(BaseAdminView):
                     "total_streams": 0,
                     "search_count": 0,
                 },
-                job_id=job.id,
             )
         except Exception as e:
             logger.warning("Failed to save song to Algolia in webhook: %s", e)
@@ -367,7 +366,6 @@ class WebhookJobFinalizeView(BaseAdminView):
                 try:
                     AlgoliaService.save_song(
                         song=song,
-                        job_id=job.id,
                     )
                 except Exception as e:
                     logger.warning("Failed to update Algolia search for song %s: %s", song.id, e)
@@ -424,7 +422,7 @@ class WebhookJobFinalizeView(BaseAdminView):
             status="ACTIVE",
         )
         try:
-            AlgoliaService.save_song(song=song, job_id=job.id)
+            AlgoliaService.save_song(song=song)
         except Exception as e:
             logger.warning("Failed to sync finalized song %s to Algolia: %s", song.id, e)
 

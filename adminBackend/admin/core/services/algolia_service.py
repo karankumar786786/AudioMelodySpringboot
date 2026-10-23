@@ -35,16 +35,12 @@ class AlgoliaService:
         language: Optional[str] = None,
         duration: Optional[int] = None,
         image_key: Optional[str] = None,
-        video_key: Optional[str] = None,
-        full_video_key: Optional[str] = None,
-        song_key: Optional[str] = None,
-        job_id: Optional[str] = None,
         preview_start_time: Optional[int] = None,
         preview_end_time: Optional[int] = None,
         album: Optional[str] = None,
-        lrclib_id: Optional[str] = None,
         genre: Optional[str] = None,
         total_streams: Optional[int] = None,
+        **kwargs,
     ) -> None:
         client = cls.get_client()
         if not client:
@@ -60,16 +56,11 @@ class AlgoliaService:
                 s_lang = song.get("language") or language
                 s_dur = song.get("duration") if song.get("duration") is not None else duration
                 s_img = song.get("image_key") or song.get("imageKey") or image_key
-                s_vid = song.get("video_key") or song.get("videoKey") or video_key
-                s_full_vid = song.get("full_video_key") or song.get("fullVideoKey") or full_video_key
-                s_skey = song.get("song_key") or song.get("songKey") or song_key
-                s_jid = song.get("job_id") or song.get("jobId") or job_id
                 s_album = song.get("album") or album
                 s_genre = song.get("genre") or genre
-                s_lrclib = song.get("lrclib_id") or song.get("lrclibId") or lrclib_id
                 s_prev_start = song.get("preview_start_time") if song.get("preview_start_time") is not None else (song.get("previewStartTime") if song.get("previewStartTime") is not None else preview_start_time)
                 s_prev_end = song.get("preview_end_time") if song.get("preview_end_time") is not None else (song.get("previewEndTime") if song.get("previewEndTime") is not None else preview_end_time)
-                s_streams = song.get("total_streams") if song.get("total_streams") is not None else (song.get("totalStreams") if song.get("totalStreams") is not None else (song.get("listenCount") if song.get("listenCount") is not None else total_streams))
+                s_streams = song.get("total_streams") if song.get("total_streams") is not None else (song.get("totalStreams") if song.get("totalStreams") is not None else total_streams)
                 s_search_count = song.get("search_count") if song.get("search_count") is not None else (song.get("searchCount") if song.get("searchCount") is not None else 0)
             elif song is not None:
                 s_id = str(getattr(song, "id", None) or song_id or "")
@@ -78,13 +69,8 @@ class AlgoliaService:
                 s_lang = getattr(song, "language", None) or language
                 s_dur = getattr(song, "duration", None) if getattr(song, "duration", None) is not None else duration
                 s_img = getattr(song, "image_key", None) or image_key
-                s_vid = getattr(song, "video_key", None) or video_key
-                s_full_vid = getattr(song, "full_video_key", None) or full_video_key
-                s_skey = getattr(song, "song_key", None) or song_key
-                s_jid = getattr(song, "job_id", None) or job_id
                 s_album = getattr(song, "album", None) or album
                 s_genre = getattr(song, "genre", None) or genre
-                s_lrclib = getattr(song, "lrclib_id", None) or lrclib_id
                 s_prev_start = getattr(song, "preview_start_time", None) if getattr(song, "preview_start_time", None) is not None else preview_start_time
                 s_prev_end = getattr(song, "preview_end_time", None) if getattr(song, "preview_end_time", None) is not None else preview_end_time
                 s_streams = getattr(song, "total_streams", None) if getattr(song, "total_streams", None) is not None else total_streams
@@ -96,13 +82,8 @@ class AlgoliaService:
                 s_lang = language
                 s_dur = duration
                 s_img = image_key
-                s_vid = video_key
-                s_full_vid = full_video_key
-                s_skey = song_key
-                s_jid = job_id
                 s_album = album
                 s_genre = genre
-                s_lrclib = lrclib_id
                 s_prev_start = preview_start_time
                 s_prev_end = preview_end_time
                 s_streams = total_streams
@@ -135,6 +116,7 @@ class AlgoliaService:
             logger.info("Successfully saved song [%s] to Algolia index [%s]", s_id, index_name)
         except Exception as e:
             logger.warning("Algolia save song [%s] failed: %s", s_id or "unknown", e)
+
 
     @classmethod
     def save_artist(cls, artist: Any) -> None:

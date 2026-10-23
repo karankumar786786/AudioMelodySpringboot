@@ -89,7 +89,6 @@ class RecombeeService:
             values["duration"] = duration
         if total_streams is not None:
             values["totalStreams"] = total_streams
-            values["listenCount"] = total_streams
 
         # Audio features for smart recommendations
         if tempo is not None:
@@ -168,7 +167,6 @@ class RecombeeService:
                 vals["duration"] = s.duration
             streams = int(getattr(s, "total_streams", 0) or 0)
             vals["totalStreams"] = streams
-            vals["listenCount"] = streams
             requests_list.append(SetItemValues(s.id, vals, cascade_create=True))
 
         try:

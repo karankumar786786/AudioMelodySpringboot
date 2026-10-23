@@ -123,7 +123,7 @@ public class AlgoliaSearch {
                 ? song.getSongMetadata().getTotalStreams()
                 : 0L;
         record.put("totalStreams", totalStreams);
-        record.put("listenCount", totalStreams);
+        record.put("searchCount", 0L);
         return record;
     }
 
