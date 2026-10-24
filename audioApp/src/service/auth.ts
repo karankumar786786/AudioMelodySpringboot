@@ -9,25 +9,21 @@ import {
     ResendOtpRequest,
     ResendOtpResponse,
     VerifyOtpRequest,
-    VerifyOtpResponse
+    VerifyOtpResponse,
+    LogoutRequest,
+    LogoutResponse
 } from "@/types";
 import { api } from "./api";
+import type { Auth } from "@/types/Auth";
 
 const getAuthBaseUrl = () => {
     const base = api.defaults.baseURL || "http://localhost:8080";
     return base.replace(/\/api\/?$/, "");
 };
 
-interface Auth {
-    register(request: RegisterRequest): Promise<RegisterResponse>;
-    login(request: LoginRequest): Promise<LoginResponse>;
-    verifyOtp(request: VerifyOtpRequest): Promise<VerifyOtpResponse>;
-    resendOtp(request: ResendOtpRequest): Promise<ResendOtpResponse>;
-    refreshToken(request: RefreshTokenRequest): Promise<RefreshTokenResponse>;
-    logout(deviceId?: string): Promise<{ message: string }>;
-}
 
-export const Auth: Auth = {
+
+export const authService: Auth = {
     async register(request: RegisterRequest): Promise<RegisterResponse> {
         const res = await axios.post<RegisterResponse>(`${getAuthBaseUrl()}/auth/register`, request);
         return res.data;
@@ -48,8 +44,8 @@ export const Auth: Auth = {
         const res = await axios.post<RefreshTokenResponse>(`${getAuthBaseUrl()}/auth/refresh-token`, request);
         return res.data;
     },
-    async logout(deviceId?: string): Promise<{ message: string }> {
-        const res = await axios.post<{ message: string }>(`${getAuthBaseUrl()}/auth/logout`, { deviceId });
+    async logout(request:LogoutRequest): Promise<LogoutResponse> {
+        const res = await axios.post<LogoutResponse>(`${getAuthBaseUrl()}/auth/logout`, request);
         return res.data;
     }
 };

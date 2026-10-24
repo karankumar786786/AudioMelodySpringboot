@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { playerActions } from "@/store/player.store";
+import { musicApi } from "@/lib/api";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,13 +46,14 @@ export function NavbarProfileMenu({
     return "Good Evening";
   };
 
-  const initials = (systemUser?.name || "User")
-    .split(" ")
-    .map((w: string) => w[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase() || "U";
+  const initials =
+    (systemUser?.name || "User")
+      .split(" ")
+      .map((w: string) => w[0])
+      .filter(Boolean)
+      .slice(0, 2)
+      .join("")
+      .toUpperCase() || "U";
 
   return (
     <div className="flex items-center gap-4 sm:gap-5 shrink-0 pointer-events-auto ml-4">
@@ -148,8 +150,12 @@ export function NavbarProfileMenu({
               <DropdownMenuSeparator className="bg-white/10" />
 
               <DropdownMenuItem
-                onClick={() => {
-                  playerActions.clearSystemSession();
+                onClick={async () => {
+                  try {
+                    await musicApi.auth.logout();
+                  } catch {
+                    playerActions.clearSystemSession();
+                  }
                   toast.success("Logged Out", {
                     description: "You have been successfully logged out.",
                   });

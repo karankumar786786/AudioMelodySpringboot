@@ -4,11 +4,14 @@ import {
   request,
   tokenStorage,
 } from "./client";
-import type { User } from "./types";
+import type { SessionStatus, User } from "./types";
 
 export const authApi = {
   getProfile: async () => {
     return await request<User>("/api/user/profile");
+  },
+  getSessionStatus: async () => {
+    return await request<SessionStatus>("/api/user/sessions/status");
   },
   login: async (email: string) => {
     const data = await request("/auth/login", {
@@ -69,13 +72,13 @@ export const authApi = {
       },
     };
   },
-  logout: async () => {
+  logout: async (allDevices = false) => {
     try {
       const deviceId = getDeviceId();
-      const refreshToken = tokenStorage.getRefreshToken() || "";
-      await request("/auth/logout", {
+      const refreshToken = tokenStorage.getRefreshToken() || undefined;
+      await request("/api/user/sessions/logout", {
         method: "POST",
-        body: JSON.stringify({ refreshToken, deviceId }),
+        body: JSON.stringify({ deviceId, refreshToken, allDevices }),
       });
     } catch {
       // Silently handle logout failure on network error

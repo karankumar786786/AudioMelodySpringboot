@@ -6,6 +6,7 @@ import type {
   SaveSearchHistoryPayload,
   SearchHistoryGroupedResponse,
   SearchHistoryItem,
+  SessionStatus,
   Song,
   User,
   UserPlaylist,
@@ -18,7 +19,10 @@ export const usersApi = {
     const list = res.content || (Array.isArray(res) ? res : []);
     return { data: { data: list as UserPlaylist[] } };
   },
-  createPlaylist: async (name: string, privacy: PlaylistPrivacy = "PRIVATE") => {
+  createPlaylist: async (
+    name: string,
+    privacy: PlaylistPrivacy = "PRIVATE",
+  ) => {
     const data = await request<UserPlaylist>("/api/user/playlists", {
       method: "POST",
       body: JSON.stringify({ name, privacy }),
@@ -33,10 +37,13 @@ export const usersApi = {
     return { data };
   },
   updatePrivacy: async (id: string, privacy: PlaylistPrivacy) => {
-    const data = await request<UserPlaylist>(`/api/user/playlists/${id}/privacy`, {
-      method: "PATCH",
-      body: JSON.stringify({ privacy }),
-    });
+    const data = await request<UserPlaylist>(
+      `/api/user/playlists/${id}/privacy`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ privacy }),
+      },
+    );
     return { data };
   },
   getPlaylistById: async (id: string) => {
@@ -44,11 +51,15 @@ export const usersApi = {
     return { data };
   },
   getSharedPlaylist: async (tokenOrId: string) => {
-    const data = await request<UserPlaylist>(`/api/user/playlists/shared/${tokenOrId}`);
+    const data = await request<UserPlaylist>(
+      `/api/user/playlists/shared/${tokenOrId}`,
+    );
     return { data };
   },
   getSharedPlaylistSongs: async (tokenOrId: string, page = 1, size = 50) => {
-    const res = await request(`/api/user/playlists/shared/${tokenOrId}/songs?page=${page - 1}&size=${size}`);
+    const res = await request(
+      `/api/user/playlists/shared/${tokenOrId}/songs?page=${page - 1}&size=${size}`,
+    );
     const list = res.content || (Array.isArray(res) ? res : []);
     return { data: { data: list as Song[] } };
   },
@@ -71,16 +82,21 @@ export const usersApi = {
   },
   isPlaylistSaved: async (id: string) => {
     try {
-      const data = await request<{ isSaved: boolean }>(`/api/user/playlists/${id}/saved`);
+      const data = await request<{ isSaved: boolean }>(
+        `/api/user/playlists/${id}/saved`,
+      );
       return Boolean(data?.isSaved);
     } catch {
       return false;
     }
   },
   duplicatePlaylist: async (id: string) => {
-    const data = await request<UserPlaylist>(`/api/user/playlists/${id}/duplicate`, {
-      method: "POST",
-    });
+    const data = await request<UserPlaylist>(
+      `/api/user/playlists/${id}/duplicate`,
+      {
+        method: "POST",
+      },
+    );
     return { data };
   },
   addSongToPlaylist: async (playlistId: string, songId: string) => {
@@ -91,9 +107,12 @@ export const usersApi = {
     return { data };
   },
   removeSongFromPlaylist: async (playlistId: string, songId: string) => {
-    const data = await request(`/api/user/playlists/${playlistId}/songs/${songId}`, {
-      method: "DELETE",
-    });
+    const data = await request(
+      `/api/user/playlists/${playlistId}/songs/${songId}`,
+      {
+        method: "DELETE",
+      },
+    );
     return { data };
   },
   deletePlaylist: async (id: string) => {
@@ -101,7 +120,9 @@ export const usersApi = {
     return { success: true };
   },
   getFavourites: async (page = 1, size = 100) => {
-    const res = await request(`/api/interaction/favourites?page=${page - 1}&size=${size}`);
+    const res = await request(
+      `/api/interaction/favourites?page=${page - 1}&size=${size}`,
+    );
     const list = res.content || (Array.isArray(res) ? res : []);
     return { data: { data: list as Song[] } };
   },
@@ -118,10 +139,21 @@ export const usersApi = {
     const list = Array.isArray(res) ? res : [];
     return { data: { data: list } };
   },
-  getSearchHistory: async (): Promise<{ data: SearchHistoryGroupedResponse }> => {
+  getSearchHistory: async (): Promise<{
+    data: SearchHistoryGroupedResponse;
+  }> => {
     try {
-      const res = await request<SearchHistoryGroupedResponse>("/api/user/history/search");
-      if (res && (res.recent || res.songs || res.artists || res.playlists || res.userPlaylists)) {
+      const res = await request<SearchHistoryGroupedResponse>(
+        "/api/user/history/search",
+      );
+      if (
+        res &&
+        (res.recent ||
+          res.songs ||
+          res.artists ||
+          res.playlists ||
+          res.userPlaylists)
+      ) {
         return {
           data: {
             recent: res.recent || [],
@@ -139,8 +171,12 @@ export const usersApi = {
             recent: list,
             songs: list.map((r) => r.song).filter(Boolean) as Song[],
             artists: list.map((r) => r.artist).filter(Boolean) as Artist[],
-            playlists: list.map((r) => r.playlist).filter(Boolean) as Playlist[],
-            userPlaylists: list.map((r) => r.userPlaylist).filter(Boolean) as UserPlaylist[],
+            playlists: list
+              .map((r) => r.playlist)
+              .filter(Boolean) as Playlist[],
+            userPlaylists: list
+              .map((r) => r.userPlaylist)
+              .filter(Boolean) as UserPlaylist[],
           },
         };
       }
@@ -204,13 +240,18 @@ export const usersApi = {
     return { data };
   },
   getListeningHistory: async (page = 1, size = 20) => {
-    const res = await request(`/api/user/history?page=${page - 1}&size=${size}`);
+    const res = await request(
+      `/api/user/history?page=${page - 1}&size=${size}`,
+    );
     return formatPaginated<any>(res);
+  },
+  getSessionStatus: async () => {
+    return await request<SessionStatus>("/api/user/sessions/status");
   },
   getSessions: async () => {
     const deviceId = getDeviceId();
     const res = await request<UserSession[]>(
-      `/api/user/sessions?deviceId=${encodeURIComponent(deviceId)}`
+      `/api/user/sessions?deviceId=${encodeURIComponent(deviceId)}`,
     );
     return Array.isArray(res) ? res : [];
   },
@@ -220,13 +261,18 @@ export const usersApi = {
   },
   revokeOtherSessions: async () => {
     const deviceId = getDeviceId();
-    const data = await request<{ message: string }>(
-      "/api/user/sessions/revoke-others",
-      {
-        method: "POST",
-        body: JSON.stringify({ deviceId }),
-      }
-    );
-    return data;
+    await request("/api/user/sessions/revoke-others", {
+      method: "POST",
+      body: JSON.stringify({ deviceId }),
+    });
+    return { success: true, message: "Other sessions revoked successfully" };
+  },
+  logoutSession: async (allDevices = false) => {
+    const deviceId = getDeviceId();
+    await request("/api/user/sessions/logout", {
+      method: "POST",
+      body: JSON.stringify({ deviceId, allDevices }),
+    });
+    return { success: true };
   },
 };

@@ -132,3 +132,16 @@ export interface UserSession {
   updatedAt: string;
   isCurrent?: boolean;
 }
+
+export interface SessionStatus {
+  userId: string | null;
+  email: string | null;
+  userName: string | null;
+  isAuthenticated: boolean;
+}
+
+export interface LogoutRequestPayload {
+  deviceId: string;
+  refreshToken?: string;
+  allDevices?: boolean;
+}

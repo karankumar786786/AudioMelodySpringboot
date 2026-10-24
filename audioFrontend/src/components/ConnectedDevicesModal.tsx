@@ -19,13 +19,17 @@ import {
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { musicApi, type UserSession } from "@/lib/api";
+import { queryKeys } from "@/hooks/queries/queryKeys";
 
 interface ConnectedDevicesModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-export function ConnectedDevicesModal({ isOpen, onClose }: ConnectedDevicesModalProps) {
+export function ConnectedDevicesModal({
+  isOpen,
+  onClose,
+}: ConnectedDevicesModalProps) {
   const [mounted, setMounted] = useState(false);
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -43,7 +47,7 @@ export function ConnectedDevicesModal({ isOpen, onClose }: ConnectedDevicesModal
     isRefetching,
     refetch,
   } = useQuery({
-    queryKey: ["user-sessions"],
+    queryKey: queryKeys.user.sessions(),
     queryFn: () => musicApi.users.getSessions(),
     enabled: isOpen,
     staleTime: 1000 * 30,
@@ -53,6 +57,7 @@ export function ConnectedDevicesModal({ isOpen, onClose }: ConnectedDevicesModal
     mutationFn: (sessionId: string) => musicApi.users.revokeSession(sessionId),
     onSuccess: () => {
       toast.success("Device session revoked");
+      queryClient.invalidateQueries({ queryKey: queryKeys.user.sessions() });
       queryClient.invalidateQueries({ queryKey: ["user-sessions"] });
     },
     onError: () => {
@@ -64,6 +69,7 @@ export function ConnectedDevicesModal({ isOpen, onClose }: ConnectedDevicesModal
     mutationFn: () => musicApi.users.revokeOtherSessions(),
     onSuccess: (data) => {
       toast.success(data?.message || "All other sessions revoked successfully");
+      queryClient.invalidateQueries({ queryKey: queryKeys.user.sessions() });
       queryClient.invalidateQueries({ queryKey: ["user-sessions"] });
     },
     onError: () => {
@@ -90,7 +96,7 @@ export function ConnectedDevicesModal({ isOpen, onClose }: ConnectedDevicesModal
   };
 
   const hasOtherSessions = sessions.some(
-    (s) => !s.isCurrent && s.deviceId !== currentDeviceId
+    (s) => !s.isCurrent && s.deviceId !== currentDeviceId,
   );
 
   return createPortal(
@@ -143,7 +149,8 @@ export function ConnectedDevicesModal({ isOpen, onClose }: ConnectedDevicesModal
             <div className="flex items-center gap-2 text-xs text-zinc-400">
               <Radio size={14} className="text-emerald-400 animate-pulse" />
               <span>
-                {sessions.length} {sessions.length === 1 ? "active device" : "active devices"}
+                {sessions.length}{" "}
+                {sessions.length === 1 ? "active device" : "active devices"}
               </span>
             </div>
 
@@ -184,14 +191,17 @@ export function ConnectedDevicesModal({ isOpen, onClose }: ConnectedDevicesModal
             ) : sessions.length === 0 ? (
               <div className="p-8 text-center bg-zinc-900/30 rounded-xl border border-dashed border-[#282828]">
                 <Shield size={28} className="mx-auto text-zinc-500 mb-2" />
-                <p className="text-sm font-medium text-white">No active sessions found</p>
+                <p className="text-sm font-medium text-white">
+                  No active sessions found
+                </p>
                 <p className="text-xs text-zinc-500 mt-1">
                   Log in from a device to track active sessions here.
                 </p>
               </div>
             ) : (
               sessions.map((session) => {
-                const isThisDevice = session.isCurrent || session.deviceId === currentDeviceId;
+                const isThisDevice =
+                  session.isCurrent || session.deviceId === currentDeviceId;
 
                 return (
                   <div
@@ -210,17 +220,22 @@ export function ConnectedDevicesModal({ isOpen, onClose }: ConnectedDevicesModal
                             : "bg-zinc-800 text-zinc-400 border border-zinc-700/50"
                         }`}
                       >
-                        {isThisDevice ? <Laptop size={18} /> : <Smartphone size={18} />}
+                        {isThisDevice ? (
+                          <Laptop size={18} />
+                        ) : (
+                          <Smartphone size={18} />
+                        )}
                       </div>
 
                       <div className="min-w-0 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-semibold text-zinc-100">
-                            {session.deviceName || (session.deviceId
-                              ? session.deviceId.length > 24
-                                ? `${session.deviceId.slice(0, 10)}...${session.deviceId.slice(-6)}`
-                                : session.deviceId
-                              : "Device session")}
+                            {session.deviceName ||
+                              (session.deviceId
+                                ? session.deviceId.length > 24
+                                  ? `${session.deviceId.slice(0, 10)}...${session.deviceId.slice(-6)}`
+                                  : session.deviceId
+                                : "Device session")}
                           </span>
 
                           {isThisDevice && (
@@ -234,7 +249,10 @@ export function ConnectedDevicesModal({ isOpen, onClose }: ConnectedDevicesModal
                         <div className="flex items-center gap-2.5 text-[11px] text-zinc-400 flex-wrap">
                           {session.location && (
                             <span className="flex items-center gap-1 text-purple-300/90">
-                              <MapPin size={11} className="text-purple-400 shrink-0" />
+                              <MapPin
+                                size={11}
+                                className="text-purple-400 shrink-0"
+                              />
                               <span>{session.location}</span>
                             </span>
                           )}
@@ -245,8 +263,18 @@ export function ConnectedDevicesModal({ isOpen, onClose }: ConnectedDevicesModal
                           )}
                           <span className="text-zinc-600">•</span>
                           <span className="flex items-center gap-1">
-                            <Clock size={11} className="text-zinc-500 shrink-0" />
-                            <span>Active: {formatDate(session.lastActiveAt || session.updatedAt || session.createdAt)}</span>
+                            <Clock
+                              size={11}
+                              className="text-zinc-500 shrink-0"
+                            />
+                            <span>
+                              Active:{" "}
+                              {formatDate(
+                                session.lastActiveAt ||
+                                  session.updatedAt ||
+                                  session.createdAt,
+                              )}
+                            </span>
                           </span>
                         </div>
                       </div>
@@ -263,7 +291,10 @@ export function ConnectedDevicesModal({ isOpen, onClose }: ConnectedDevicesModal
                         <Trash2 size={16} />
                       </button>
                     ) : (
-                      <div className="shrink-0 text-emerald-400/80 p-1" title="Currently authenticated">
+                      <div
+                        className="shrink-0 text-emerald-400/80 p-1"
+                        title="Currently authenticated"
+                      >
                         <CheckCircle2 size={18} />
                       </div>
                     )}
@@ -287,6 +318,6 @@ export function ConnectedDevicesModal({ isOpen, onClose }: ConnectedDevicesModal
         </motion.div>
       </div>
     </AnimatePresence>,
-    document.body
+    document.body,
   );
 }

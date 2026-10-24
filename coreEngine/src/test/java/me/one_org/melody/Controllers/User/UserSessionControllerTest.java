@@ -2,7 +2,6 @@ package me.one_org.melody.Controllers.User;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -72,10 +71,49 @@ class UserSessionControllerTest {
     @Test
     @DisplayName("Should revoke other sessions keeping current device")
     void shouldRevokeOtherSessions() {
-        ResponseEntity<Map<String, String>> response = userSessionController.revokeOtherSessions(currentUser, new me.one_org.melody.Dto.Controllers.User.RevokeOthersRequestDto("device-mac-1"));
+        ResponseEntity<Void> response = userSessionController.revokeOtherSessions(currentUser, new me.one_org.melody.Dto.Controllers.User.RevokeOthersRequestDto("device-mac-1"));
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
-        assertThat(response.getBody()).containsKey("message");
+        assertThat(response.getStatusCode().value()).isEqualTo(204);
         verify(userSessionService).revokeOtherSessions("user-1", "device-mac-1");
+    }
+
+    @Test
+    @DisplayName("Should return session status for current user")
+    void shouldReturnSessionStatusForCurrentUser() {
+        ResponseEntity<me.one_org.melody.Dto.Controllers.Authentication.SessionStatusDto> response =
+                userSessionController.getSession(currentUser);
+
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getBody().authenticated()).isTrue();
+        assertThat(response.getBody().userId()).isEqualTo("user-1");
+        assertThat(response.getBody().email()).isEqualTo("user@melody.com");
+        assertThat(response.getBody().userName()).isEqualTo("karan");
+    }
+
+    @Test
+    @DisplayName("Should logout current device")
+    void shouldLogout() {
+        me.one_org.melody.Dto.Controllers.Authentication.LogoutRequestDto request =
+                new me.one_org.melody.Dto.Controllers.Authentication.LogoutRequestDto("device-mac-1");
+
+        ResponseEntity<Void> response = userSessionController.logout(currentUser, request);
+
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getStatusCode().value()).isEqualTo(204);
+        verify(userSessionService).logout("user-1", "device-mac-1", false);
+    }
+
+    @Test
+    @DisplayName("Should logout all devices")
+    void shouldLogoutAllDevices() {
+        me.one_org.melody.Dto.Controllers.Authentication.LogoutRequestDto request =
+                new me.one_org.melody.Dto.Controllers.Authentication.LogoutRequestDto("refresh-xyz", "device-mac-1", true);
+
+        ResponseEntity<Void> response = userSessionController.logout(currentUser, request);
+
+        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
+        assertThat(response.getStatusCode().value()).isEqualTo(204);
+        verify(userSessionService).logout("user-1", "device-mac-1", true);
     }
 }

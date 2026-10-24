@@ -1,10 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { musicApi } from "@/lib/api";
-import type {
-  SaveSearchHistoryPayload,
-  UserSession,
-} from "@/lib/api/types";
+import type { SaveSearchHistoryPayload, UserSession } from "@/lib/api/types";
 import { useAppDispatch } from "@/store/hooks";
 import { updateSystemUser } from "@/store/slices/authSlice";
 import { queryKeys } from "./queryKeys";
@@ -28,6 +25,16 @@ export function useUserSessions() {
       return (res as UserSession[]) || [];
     },
     staleTime: 1000 * 60 * 2,
+  });
+}
+
+export function useSessionStatus() {
+  return useQuery({
+    queryKey: queryKeys.user.sessionStatus(),
+    queryFn: async () => {
+      return await musicApi.users.getSessionStatus();
+    },
+    staleTime: 1000 * 60 * 5,
   });
 }
 

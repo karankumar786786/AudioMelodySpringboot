@@ -129,7 +129,9 @@ apiClient.interceptors.response.use(
     };
     const status = error.response?.status;
     const isAuthFailure = status === 401 || status === 403;
-    const isAuthEndpoint = originalRequest?.url?.includes("/auth/");
+    const isAuthEndpoint =
+      originalRequest?.url?.includes("/auth/") ||
+      originalRequest?.url?.includes("/api/user/sessions/logout");
 
     if (
       isAuthFailure &&

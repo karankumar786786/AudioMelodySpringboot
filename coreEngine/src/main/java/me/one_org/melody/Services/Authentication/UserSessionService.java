@@ -67,4 +67,26 @@ public class UserSessionService {
         int deleted = sessionRepository.deleteByUserIdAndDeviceIdNot(userId, currentDeviceId);
         log.info("Revoked {} other session(s) for user [{}] keeping device [{}]", deleted, userId, currentDeviceId);
     }
+
+    @Transactional
+    public void logout(String userId, String deviceId, boolean allDevices) {
+        if (userId == null || userId.isBlank()) {
+            throw new BadRequestException("User ID is required");
+        }
+        if (allDevices) {
+            sessionRepository.deleteByUserId(userId);
+            log.info("Logged out all devices for user [{}]", userId);
+        } else {
+            if (deviceId == null || deviceId.isBlank()) {
+                throw new BadRequestException("Device ID is required");
+            }
+            sessionRepository.deleteByUserIdAndDeviceId(userId, deviceId);
+            log.info("Logged out device [{}] for user [{}]", deviceId, userId);
+        }
+    }
+
+    @Transactional
+    public void logout(String userId, String deviceId) {
+        logout(userId, deviceId, false);
+    }
 }

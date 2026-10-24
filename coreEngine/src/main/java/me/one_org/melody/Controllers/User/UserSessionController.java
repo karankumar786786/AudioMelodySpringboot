@@ -1,7 +1,6 @@
 package me.one_org.melody.Controllers.User;
 
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -16,6 +15,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import me.one_org.melody.Dto.Controllers.Authentication.LogoutRequestDto;
+import me.one_org.melody.Dto.Controllers.Authentication.SessionStatusDto;
 import me.one_org.melody.Dto.Controllers.User.RevokeOthersRequestDto;
 import me.one_org.melody.Dto.Controllers.User.UserSessionDto;
 import me.one_org.melody.Security.CurrentUser;
@@ -33,10 +34,19 @@ public class UserSessionController {
         this.userSessionService = userSessionService;
     }
 
+    @GetMapping({"/session", "/status"})
+    public ResponseEntity<SessionStatusDto> getSession(@CurrentUser CustomUserDetails currentUser) {
+        return ResponseEntity.ok(SessionStatusDto.authenticated(
+                currentUser.getId(),
+                currentUser.getEmail(),
+                currentUser.getUserName()
+        ));
+    }
+
     @GetMapping
     public ResponseEntity<List<UserSessionDto>> getSessions(
             @CurrentUser CustomUserDetails currentUser,
-            @RequestParam(value = "deviceId") @NotBlank(message = "Device ID is required") String deviceId) {
+            @RequestParam @NotBlank(message = "Device ID is required") String deviceId) {
         List<UserSessionDto> sessions = userSessionService.getUserSessions(currentUser.getId(), deviceId);
         return ResponseEntity.ok(sessions);
     }
@@ -50,10 +60,18 @@ public class UserSessionController {
     }
 
     @PostMapping("/revoke-others")
-    public ResponseEntity<Map<String, String>> revokeOtherSessions(
+    public ResponseEntity<Void> revokeOtherSessions(
             @CurrentUser CustomUserDetails currentUser,
             @Valid @RequestBody RevokeOthersRequestDto request) {
         userSessionService.revokeOtherSessions(currentUser.getId(), request.deviceId());
-        return ResponseEntity.ok(Map.of("message", "Other device sessions revoked successfully"));
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            @CurrentUser CustomUserDetails currentUser,
+            @Valid @RequestBody LogoutRequestDto request) {
+        userSessionService.logout(currentUser.getId(), request.deviceId(), request.isAllDevices());
+        return ResponseEntity.noContent().build();
     }
 }

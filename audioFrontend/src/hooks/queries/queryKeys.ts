@@ -32,6 +32,7 @@ export const queryKeys = {
   user: {
     profile: () => ["user", "profile"] as const,
     sessions: () => ["user", "sessions"] as const,
+    sessionStatus: () => ["user", "session-status"] as const,
     history: (page = 0, size = 20) => ["user", "history", page, size] as const,
     recentHistory: () => ["user", "history", "recent"] as const,
     searchHistory: () => ["user", "history", "search"] as const,

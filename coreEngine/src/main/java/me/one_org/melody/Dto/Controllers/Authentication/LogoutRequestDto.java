@@ -18,6 +18,10 @@ public record LogoutRequestDto(
         this(refreshToken, deviceId, false);
     }
 
+    public LogoutRequestDto(String deviceId) {
+        this(null, deviceId, false);
+    }
+
     public boolean isAllDevices() {
         return Boolean.TRUE.equals(allDevices);
     }

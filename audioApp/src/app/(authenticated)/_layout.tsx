@@ -1,12 +1,48 @@
-import { View, Text } from 'react-native'
-import React from 'react'
+import { Stack } from "expo-router";
 
-const AppLayout = () => {
+export default function AuthenticatedLayout() {
   return (
-    <View>
-      <Text>AppLayout</Text>
-    </View>
-  )
-}
+    <Stack screenOptions={{ headerShown: false }}>
+      {/* Bottom Tabs */}
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
-export default AppLayout
+      {/* Dynamic Detail Screens (pushed on top of tabs) */}
+      <Stack.Screen
+        name="artist/[id]"
+        options={{
+          headerShown: true,
+          title: "Artist",
+          headerStyle: { backgroundColor: "#121212" },
+          headerTintColor: "#FFFFFF",
+        }}
+      />
+      <Stack.Screen
+        name="playlist/[id]"
+        options={{
+          headerShown: true,
+          title: "Playlist",
+          headerStyle: { backgroundColor: "#121212" },
+          headerTintColor: "#FFFFFF",
+        }}
+      />
+      <Stack.Screen
+        name="userplaylist/[id]"
+        options={{
+          headerShown: true,
+          title: "My Playlist",
+          headerStyle: { backgroundColor: "#121212" },
+          headerTintColor: "#FFFFFF",
+        }}
+      />
+      <Stack.Screen
+        name="song/[id]"
+        options={{
+          headerShown: true,
+          title: "Now Playing",
+          headerStyle: { backgroundColor: "#121212" },
+          headerTintColor: "#FFFFFF",
+        }}
+      />
+    </Stack>
+  );
+}

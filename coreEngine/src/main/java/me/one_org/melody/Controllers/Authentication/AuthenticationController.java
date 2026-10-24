@@ -2,23 +2,18 @@ package me.one_org.melody.Controllers.Authentication;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import jakarta.validation.Valid;
 import me.one_org.melody.Dto.Controllers.Authentication.AuthTempTokenResponse;
 import me.one_org.melody.Dto.Controllers.Authentication.LoginRequestDto;
-import me.one_org.melody.Dto.Controllers.Authentication.LogoutRequestDto;
-import me.one_org.melody.Dto.Controllers.Authentication.LogoutResponseDto;
 import me.one_org.melody.Dto.Controllers.Authentication.RefreshTokenRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.RefreshTokenResponseDto;
 import me.one_org.melody.Dto.Controllers.Authentication.RegisterRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.ResendOtpRequestDto;
-import me.one_org.melody.Dto.Controllers.Authentication.SessionStatusDto;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpRequest;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpResponse;
 import me.one_org.melody.Dto.Internal.ClientInfo;
@@ -91,27 +86,5 @@ public class AuthenticationController {
                 clientIp
         );
         return ResponseEntity.status(HttpStatus.OK).body(response);
-    }
-
-    @PostMapping("/logout")
-    public ResponseEntity<LogoutResponseDto> logout(
-            @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @Valid @RequestBody LogoutRequestDto request) {
-        String token = (authHeader != null && authHeader.startsWith("Bearer "))
-                ? authHeader.substring(7).trim()
-                : null;
-
-        authenticationService.logout(token, request.refreshToken(), request.deviceId(), request.allDevices());
-
-        return ResponseEntity.ok(new LogoutResponseDto("Logged out successfully"));
-    }
-
-    @GetMapping("/session")
-    public ResponseEntity<SessionStatusDto> getSession(
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
-        String token = (authHeader != null && authHeader.startsWith("Bearer "))
-                ? authHeader.substring(7).trim()
-                : null;
-        return ResponseEntity.ok(authenticationService.getSessionStatus(token));
     }
 }

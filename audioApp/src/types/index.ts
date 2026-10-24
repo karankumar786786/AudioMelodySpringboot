@@ -4,3 +4,5 @@ export * from "./Register";
 export * from "./RefreshToken";
 export * from "./VerifyOtp";
 export * from "./ResendOtp";
+export * from "./Logout";
+export * from "./Device";
