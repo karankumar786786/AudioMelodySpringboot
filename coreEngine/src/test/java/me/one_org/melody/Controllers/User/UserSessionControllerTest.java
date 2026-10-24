@@ -72,7 +72,7 @@ class UserSessionControllerTest {
     @Test
     @DisplayName("Should revoke other sessions keeping current device")
     void shouldRevokeOtherSessions() {
-        ResponseEntity<Map<String, String>> response = userSessionController.revokeOtherSessions(currentUser, "device-mac-1");
+        ResponseEntity<Map<String, String>> response = userSessionController.revokeOtherSessions(currentUser, new me.one_org.melody.Dto.Controllers.User.RevokeOthersRequestDto("device-mac-1"));
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getBody()).containsKey("message");

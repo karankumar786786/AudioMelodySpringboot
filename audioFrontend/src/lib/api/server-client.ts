@@ -73,7 +73,6 @@ export async function serverRequest<T = any>(
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "X-Device-Id": "server-rsc",
     ...(options.headers as Record<string, string>),
   };
 

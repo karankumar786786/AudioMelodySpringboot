@@ -35,7 +35,6 @@ export function subscribeHomeStream({
       const deviceId = getDeviceId();
       const headers: Record<string, string> = {
         Accept: "text/event-stream",
-        "X-Device-Id": deviceId,
       };
 
       const params = new URLSearchParams();

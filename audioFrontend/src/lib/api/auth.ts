@@ -20,23 +20,17 @@ export const authApi = {
     return { data: { token: data.tempToken } };
   },
   resendOtp: async (token: string) => {
-    await request("/auth/resend-otp", {
+    const data = await request<{ tempToken?: string }>("/auth/resend-otp", {
       method: "POST",
-      headers: { "X-TEMP-TOKEN": token },
+      body: JSON.stringify({ tempToken: token }),
     });
-    return { data: { token } };
+    return { data: { token: data?.tempToken || token } };
   },
   verifyOtp: async (token: string, code: string) => {
     const deviceId = getDeviceId();
     const verifyRes = await request("/auth/verify-otp", {
       method: "POST",
-      headers: {
-        "X-TEMP-TOKEN": token,
-        "X-Device-Id": deviceId,
-        "Accept-Cookies": "true",
-        "X-Accept-Cookies": "true",
-      },
-      body: JSON.stringify({ otp: code, deviceId }),
+      body: JSON.stringify({ tempToken: token, otp: code, deviceId }),
     });
 
     // Cookies are automatically set in the browser via backend Set-Cookie headers.
@@ -71,10 +65,6 @@ export const authApi = {
       const deviceId = getDeviceId();
       await request("/auth/logout", {
         method: "POST",
-        headers: {
-          "Accept-Cookies": "true",
-          "X-Accept-Cookies": "true",
-        },
         body: JSON.stringify({ deviceId }),
       });
     } catch {

@@ -60,13 +60,13 @@ api.interceptors.response.use(
       if (!refreshTokenPromise) {
         refreshTokenPromise = (async () => {
           try {
+            const authBaseUrl = (api.defaults.baseURL || "http://localhost:8080").replace(/\/api\/?$/, "");
             const res = await axios.post<{
-              success: boolean;
               accessToken: string;
               refreshToken?: string;
-            }>(`${api.defaults.baseURL}/auth/refresh`, { refreshToken });
+            }>(`${authBaseUrl}/auth/refresh-token`, { refreshToken });
 
-            if (res.data?.success && res.data.accessToken) {
+            if (res.data?.accessToken) {
               const newAccessToken = res.data.accessToken;
               const newRefreshToken = res.data.refreshToken || refreshToken;
 

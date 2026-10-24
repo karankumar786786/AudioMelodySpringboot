@@ -1,4 +1,4 @@
-import { formatPaginated, request } from "./client";
+import { formatPaginated, getDeviceId, request } from "./client";
 import type {
   Artist,
   Playlist,
@@ -208,7 +208,10 @@ export const usersApi = {
     return formatPaginated<any>(res);
   },
   getSessions: async () => {
-    const res = await request<UserSession[]>("/api/user/sessions");
+    const deviceId = getDeviceId();
+    const res = await request<UserSession[]>(
+      `/api/user/sessions?deviceId=${encodeURIComponent(deviceId)}`
+    );
     return Array.isArray(res) ? res : [];
   },
   revokeSession: async (sessionId: string) => {
@@ -216,9 +219,14 @@ export const usersApi = {
     return { success: true };
   },
   revokeOtherSessions: async () => {
-    const data = await request<{ message: string }>("/api/user/sessions/revoke-others", {
-      method: "POST",
-    });
+    const deviceId = getDeviceId();
+    const data = await request<{ message: string }>(
+      "/api/user/sessions/revoke-others",
+      {
+        method: "POST",
+        body: JSON.stringify({ deviceId }),
+      }
+    );
     return data;
   },
 };

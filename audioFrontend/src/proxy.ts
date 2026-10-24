@@ -38,8 +38,6 @@ async function refreshCookies(
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
-        "Accept-Cookies": "true",
-        "X-Accept-Cookies": "true",
         Cookie: `system_refresh_token=${refreshToken}`,
       },
       body: JSON.stringify({ refreshToken }),

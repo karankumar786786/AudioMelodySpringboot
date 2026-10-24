@@ -16,6 +16,8 @@ import me.one_org.melody.Dto.Controllers.Authentication.RefreshTokenResponseDto;
 import me.one_org.melody.Dto.Controllers.Authentication.RegisterRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpResponse;
 import me.one_org.melody.Services.Authentication.AuthenticationService;
+import me.one_org.melody.Utils.ClientDetector;
+import me.one_org.melody.Utils.CookieUtil;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -33,11 +35,14 @@ class AuthenticationControllerIntegrationTest {
     private AuthenticationService authenticationService;
 
     @Mock
-    private me.one_org.melody.Utils.CookieUtil cookieUtil;
+    private CookieUtil cookieUtil;
+
+    @Mock
+    private ClientDetector clientDetector;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new AuthenticationController(authenticationService, cookieUtil)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new AuthenticationController(authenticationService, cookieUtil, clientDetector)).build();
     }
 
     @Test
@@ -65,17 +70,15 @@ class AuthenticationControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("POST /auth/verify-otp should return 200 OK and tokens")
+    @DisplayName("POST /auth/verify-otp should return 200 OK and tokens with body parameters")
     void shouldVerifyOtp() throws Exception {
         VerifyOtpResponse response = new VerifyOtpResponse("access-token-123", "refresh-token-456", false);
         when(authenticationService.verifyOtp(eq("temp-token-valid"), eq("123456"), eq("device-ios-1")))
                 .thenReturn(response);
 
         mockMvc.perform(post("/auth/verify-otp")
-                        .header("X-TEMP-TOKEN", "temp-token-valid")
-                        .header("X-Device-Id", "device-ios-1")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"otp\":\"123456\",\"deviceId\":\"device-ios-1\"}"))
+                        .content("{\"tempToken\":\"temp-token-valid\",\"otp\":\"123456\",\"deviceId\":\"device-ios-1\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").value("access-token-123"))
                 .andExpect(jsonPath("$.refreshToken").value("refresh-token-456"))
@@ -83,13 +86,13 @@ class AuthenticationControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("POST /auth/resend-otp should return 200 OK and refreshed tempToken")
+    @DisplayName("POST /auth/resend-otp should return 200 OK with body tempToken")
     void shouldResendOtp() throws Exception {
         when(authenticationService.resendOtp(eq("temp-token-old"))).thenReturn("temp-token-new");
 
         mockMvc.perform(post("/auth/resend-otp")
-                        .header("X-TEMP-TOKEN", "temp-token-old")
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"tempToken\":\"temp-token-old\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tempToken").value("temp-token-new"));
     }
@@ -102,7 +105,6 @@ class AuthenticationControllerIntegrationTest {
                 .thenReturn(response);
 
         mockMvc.perform(post("/auth/refresh-token")
-                        .header("X-Device-Id", "device-mac-2")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"refreshToken\":\"existing-refresh-token\",\"deviceId\":\"device-mac-2\"}"))
                 .andExpect(status().isOk())
@@ -115,7 +117,6 @@ class AuthenticationControllerIntegrationTest {
     void shouldLogout() throws Exception {
         mockMvc.perform(post("/auth/logout")
                         .header("Authorization", "Bearer access-token-xyz")
-                        .header("X-Device-Id", "device-mac-2")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"refreshToken\":\"refresh-token-xyz\",\"deviceId\":\"device-mac-2\"}"))
                 .andExpect(status().isOk())

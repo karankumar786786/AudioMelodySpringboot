@@ -1,7 +1,8 @@
-import { AuthToken } from "./AuthToken";
-
-export interface RegisterRequest{
-    name: string;
+export interface RegisterRequest {
+    userName: string;
     email: string;
-};
-export interface RegisterResponse extends AuthToken{}
+}
+
+export interface RegisterResponse {
+    tempToken: string;
+}

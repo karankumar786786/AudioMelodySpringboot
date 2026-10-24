@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.Dto.Controllers.User.UserSessionDto;
+import me.one_org.melody.Exceptions.BadRequestException;
 import me.one_org.melody.Repository.SessionRepository;
 
 @Service
@@ -22,7 +23,10 @@ public class UserSessionService {
     @Transactional(readOnly = true)
     public List<UserSessionDto> getUserSessions(String userId, String currentDeviceId) {
         if (userId == null || userId.isBlank()) {
-            return List.of();
+            throw new BadRequestException("User ID is required");
+        }
+        if (currentDeviceId == null || currentDeviceId.isBlank()) {
+            throw new BadRequestException("Device ID is required");
         }
         return sessionRepository.findByUserIdOrderByUpdatedAtDesc(userId).stream()
                 .map(s -> new UserSessionDto(
@@ -31,21 +35,31 @@ public class UserSessionService {
                         s.getExpiresAt(),
                         s.getCreatedAt(),
                         s.getUpdatedAt(),
-                        currentDeviceId != null && currentDeviceId.equals(s.getDeviceId())
+                        currentDeviceId.equals(s.getDeviceId())
                 ))
                 .toList();
     }
 
     @Transactional
     public void revokeSession(String userId, String sessionId) {
-        if (userId == null || sessionId == null) return;
+        if (userId == null || userId.isBlank()) {
+            throw new BadRequestException("User ID is required");
+        }
+        if (sessionId == null || sessionId.isBlank()) {
+            throw new BadRequestException("Session ID is required");
+        }
         int deleted = sessionRepository.deleteByUserIdAndSessionId(userId, sessionId);
         log.info("Revoked user session [{}] for user [{}], deleted count: {}", sessionId, userId, deleted);
     }
 
     @Transactional
     public void revokeOtherSessions(String userId, String currentDeviceId) {
-        if (userId == null || currentDeviceId == null || currentDeviceId.isBlank()) return;
+        if (userId == null || userId.isBlank()) {
+            throw new BadRequestException("User ID is required");
+        }
+        if (currentDeviceId == null || currentDeviceId.isBlank()) {
+            throw new BadRequestException("Device ID is required");
+        }
         int deleted = sessionRepository.deleteByUserIdAndDeviceIdNot(userId, currentDeviceId);
         log.info("Revoked {} other session(s) for user [{}] keeping device [{}]", deleted, userId, currentDeviceId);
     }

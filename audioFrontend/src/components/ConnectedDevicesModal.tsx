@@ -32,7 +32,7 @@ export function ConnectedDevicesModal({ isOpen, onClose }: ConnectedDevicesModal
   useEffect(() => {
     setMounted(true);
     if (typeof window !== "undefined") {
-      setCurrentDeviceId(localStorage.getItem("system_device_id"));
+      setCurrentDeviceId(localStorage.getItem("melody_device_id"));
     }
   }, []);
 

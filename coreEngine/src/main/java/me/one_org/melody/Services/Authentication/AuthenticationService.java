@@ -131,15 +131,16 @@ public class AuthenticationService {
         String accessToken = jwtUtil.generateAccessToken(auth);
         String refreshToken = jwtUtil.generateRefreshToken(auth);
 
-        // Persist session for user & deviceId
-        String safeDeviceId = (deviceId != null && !deviceId.isBlank()) ? deviceId : "default-device";
+        if (deviceId == null || deviceId.isBlank()) {
+            throw new BadRequestException("Device ID is required");
+        }
         LocalDateTime expiresAt = LocalDateTime.now().plusDays(7);
 
-        Session session = sessionRepository.findByUserIdAndDeviceId(user.getId(), safeDeviceId)
+        Session session = sessionRepository.findByUserIdAndDeviceId(user.getId(), deviceId)
                 .orElseGet(() -> Session.builder()
                         .id(UUID.randomUUID().toString())
                         .user(user)
-                        .deviceId(safeDeviceId)
+                        .deviceId(deviceId)
                         .build());
 
         session.setRefreshToken(refreshToken);
@@ -147,10 +148,6 @@ public class AuthenticationService {
         sessionRepository.save(session);
 
         return new VerifyOtpResponse(accessToken, refreshToken, isNewUser);
-    }
-
-    public VerifyOtpResponse verifyOtp(String tempToken, String otp) {
-        return verifyOtp(tempToken, otp, "default-device");
     }
 
     public String resendOtp(String tempToken) {
@@ -194,6 +191,9 @@ public class AuthenticationService {
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new UnauthorizedException("Refresh token is required");
         }
+        if (deviceId == null || deviceId.isBlank()) {
+            throw new UnauthorizedException("Device ID is required");
+        }
         try {
             JwtPayloadDto payload = jwtUtil.validateAndGetPayload(refreshToken);
             User user = usersRepository.findById(payload.id())
@@ -203,15 +203,8 @@ public class AuthenticationService {
                 throw new UnauthorizedException("User account is inactive or blocked");
             }
 
-            // Look up session by user + device, or by refresh token
-            Session session;
-            if (deviceId != null && !deviceId.isBlank()) {
-                session = sessionRepository.findByUserIdAndDeviceId(user.getId(), deviceId)
-                        .orElseThrow(() -> new UnauthorizedException("Session not found for device"));
-            } else {
-                session = sessionRepository.findByRefreshToken(refreshToken)
-                        .orElseThrow(() -> new UnauthorizedException("Session not found or expired"));
-            }
+            Session session = sessionRepository.findByUserIdAndDeviceId(user.getId(), deviceId)
+                    .orElseThrow(() -> new UnauthorizedException("Session not found for device"));
 
             // Verify refresh token match to prevent reuse of old/rotated tokens
             if (!session.getRefreshToken().equals(refreshToken)) {
@@ -244,29 +237,20 @@ public class AuthenticationService {
         }
     }
 
-    public RefreshTokenResponseDto refreshToken(String refreshToken) {
-        return refreshToken(refreshToken, null);
-    }
-
     @Transactional
     public void logout(String accessToken, String refreshToken, String deviceId) {
+        if (deviceId == null || deviceId.isBlank()) {
+            throw new BadRequestException("Device ID is required");
+        }
         if (refreshToken != null && !refreshToken.isBlank()) {
             sessionRepository.deleteByRefreshToken(refreshToken);
         }
         if (accessToken != null && !accessToken.isBlank()) {
             try {
                 JwtPayloadDto payload = jwtUtil.validateAndGetPayload(accessToken);
-                if (deviceId != null && !deviceId.isBlank()) {
-                    sessionRepository.deleteByUserIdAndDeviceId(payload.id(), deviceId);
-                } else if (refreshToken == null || refreshToken.isBlank()) {
-                    sessionRepository.deleteByUserId(payload.id());
-                }
+                sessionRepository.deleteByUserIdAndDeviceId(payload.id(), deviceId);
             } catch (Exception ignored) {
             }
         }
-    }
-
-    public void logout(String token) {
-        logout(token, null, null);
     }
 }

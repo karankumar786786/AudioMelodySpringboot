@@ -57,9 +57,6 @@ export async function refreshAccessToken(): Promise<boolean> {
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          "X-Device-Id": deviceId,
-          "Accept-Cookies": "true",
-          "X-Accept-Cookies": "true",
         },
         body: JSON.stringify({ deviceId }),
       });
@@ -96,10 +93,8 @@ export async function request<T = any>(endpoint: string, options: RequestInit = 
     throw offlineErr;
   }
 
-  const deviceId = getDeviceId();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "X-Device-Id": deviceId,
     ...(options.headers as Record<string, string>),
   };
 
