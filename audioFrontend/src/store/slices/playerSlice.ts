@@ -18,18 +18,6 @@ export interface PlayerState {
   isRefilling: boolean;
 }
 
-const getInitialVolume = (): number => {
-  if (typeof window === "undefined") return 1;
-  const saved = localStorage.getItem("audiomelody_volume");
-  return saved ? parseFloat(saved) : 1;
-};
-
-const getInitialPlaybackRate = (): number => {
-  if (typeof window === "undefined") return 1;
-  const saved = localStorage.getItem("audiomelody_playback_rate");
-  return saved ? parseFloat(saved) : 1;
-};
-
 const initialState: PlayerState = {
   currentSong: null,
   isPlaying: false,
@@ -37,9 +25,9 @@ const initialState: PlayerState = {
   currentTime: 0,
   seekTarget: null,
   duration: 0,
-  volume: getInitialVolume(),
+  volume: 1,
   isMuted: false,
-  playbackRate: getInitialPlaybackRate(),
+  playbackRate: 1,
   qualityTracks: [],
   selectedQuality: "auto",
   hasLyrics: false,
@@ -73,8 +61,7 @@ export const playerSlice = createSlice({
       state.duration = action.payload;
     },
     setVolume: (state, action: PayloadAction<number>) => {
-      state.volume = Math.max(0, Math.min(1, action.payload));
-      state.isMuted = state.volume === 0;
+      state.volume = action.payload;
     },
     setIsMuted: (state, action: PayloadAction<boolean>) => {
       state.isMuted = action.payload;
@@ -97,12 +84,14 @@ export const playerSlice = createSlice({
     setIsRefilling: (state, action: PayloadAction<boolean>) => {
       state.isRefilling = action.payload;
     },
-    resetPlayback: (state) => {
+    resetPlayer: (state) => {
+      state.currentSong = null;
       state.isPlaying = false;
       state.isLoading = false;
       state.currentTime = 0;
       state.seekTarget = null;
       state.duration = 0;
+      state.hasLyrics = false;
     },
   },
 });
@@ -123,7 +112,7 @@ export const {
   setHasLyrics,
   setDominantColor,
   setIsRefilling,
-  resetPlayback,
+  resetPlayer,
 } = playerSlice.actions;
 
 export default playerSlice.reducer;

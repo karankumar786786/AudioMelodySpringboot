@@ -3,7 +3,17 @@
 import React, { useState, useEffect } from "react";
 import { useStore } from "@tanstack/react-store";
 import { playerStore, playerActions } from "@/store/player.store";
-import { Moon, Check, X, Clock, Disc } from "lucide-react";
+import { Moon, Check, Clock, Disc } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { BorderBeam } from "@/components/ui/border-beam";
 
 interface SleepTimerModalProps {
   isOpen: boolean;
@@ -45,8 +55,6 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
     return () => clearInterval(interval);
   }, [isOpen, sleepTimer.targetTimestamp]);
 
-  if (!isOpen) return null;
-
   const isTimerActive =
     sleepTimer.mode === "end_of_track" ||
     (sleepTimer.mode === "minutes" &&
@@ -78,43 +86,30 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[210] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="w-full max-w-sm bg-[#161616]/95 border border-white/10 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.15)] backdrop-blur-2xl p-5 overflow-hidden select-none"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-sm bg-[#161616]/95 border-white/10 backdrop-blur-2xl p-5 shadow-2xl">
+        <BorderBeam size={160} duration={8} colorFrom="#1ed760" colorTo="#38bdf8" />
+
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-white/10">
+        <DialogHeader className="text-left pb-3 border-b border-white/10">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary">
               <Moon size={16} />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white tracking-tight">
+              <DialogTitle className="text-base font-bold text-white tracking-tight">
                 Sleep Timer
-              </h3>
-              <p className="text-[11px] text-zinc-400">
+              </DialogTitle>
+              <DialogDescription className="text-[11px] text-zinc-400">
                 Automatically stop playback
-              </p>
+              </DialogDescription>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-            aria-label="Close sleep timer"
-          >
-            <X size={18} />
-          </button>
-        </div>
+        </DialogHeader>
 
         {/* Active Timer Banner */}
         {isTimerActive && (
-          <div className="my-4 p-3 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-between">
+          <div className="my-1 p-3 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <Clock size={16} className="text-primary animate-pulse" />
               <div>
@@ -131,6 +126,7 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
               </div>
             </div>
             <button
+              type="button"
               onClick={handleTurnOff}
               className="text-xs font-bold text-red-400 hover:text-red-300 hover:underline cursor-pointer px-2 py-1"
             >
@@ -140,7 +136,7 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
         )}
 
         {/* Preset Options List */}
-        <div className="mt-3 space-y-1">
+        <div className="mt-1 space-y-1">
           {PRESETS.map((mins) => {
             const isCurrentPreset =
               sleepTimer.mode === "minutes" &&
@@ -150,8 +146,9 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
             return (
               <button
                 key={mins}
+                type="button"
                 onClick={() => handleSelectPreset(mins)}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   isCurrentPreset
                     ? "bg-primary/20 text-primary border border-primary/30 font-bold"
                     : "text-zinc-300 hover:text-white hover:bg-white/5"
@@ -165,8 +162,9 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
 
           {/* End of Track Option */}
           <button
+            type="button"
             onClick={handleSelectEndOfTrack}
-            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+            className={`w-full flex items-center justify-between px-3.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
               sleepTimer.mode === "end_of_track"
                 ? "bg-primary/20 text-primary border border-primary/30 font-bold"
                 : "text-zinc-300 hover:text-white hover:bg-white/5"
@@ -185,26 +183,26 @@ export const SleepTimerModal: React.FC<SleepTimerModalProps> = ({
         {/* Custom duration form */}
         <form
           onSubmit={handleCustomSubmit}
-          className="mt-4 pt-3 border-t border-white/10 flex items-center gap-2"
+          className="mt-3 pt-3 border-t border-white/10 flex items-center gap-2"
         >
-          <input
+          <Input
             type="number"
             min="1"
             max="720"
             placeholder="Custom (minutes)"
             value={customMinutes}
             onChange={(e) => setCustomMinutes(e.target.value)}
-            className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder:text-zinc-500 focus:outline-none focus:border-primary transition-colors"
+            className="flex-1 bg-white/5 border-white/10 text-xs text-white placeholder:text-zinc-500 focus-visible:ring-primary/40"
           />
-          <button
+          <Button
             type="submit"
             disabled={!customMinutes || parseInt(customMinutes, 10) <= 0}
-            className="px-3.5 py-2 rounded-xl bg-white text-black font-bold text-xs hover:bg-white/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+            className="h-9 px-4 rounded-xl text-xs font-bold"
           >
             Set
-          </button>
+          </Button>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

@@ -4,6 +4,7 @@ import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import type { Song } from "@/lib/api/types";
+import { Particles } from "@/components/ui/particles";
 
 interface ZenBackgroundProps {
   currentSong: Song;
@@ -82,19 +83,26 @@ export const ZenBackground: React.FC<ZenBackgroundProps> = ({
         ) : null}
       </AnimatePresence>
 
+      {/* Floating Magic UI Particles for Dreamy Zen Mood */}
+      <Particles
+        quantity={30}
+        color={solidBgColor || "#1ed760"}
+        className="absolute inset-0 z-1 opacity-30 pointer-events-none"
+      />
+
       {/* Dynamic Audio Pulsing Aura */}
       <div
         aria-hidden="true"
         style={{
           background: `radial-gradient(ellipse 75% 65% at 50% 40%, ${solidBgColor}45 0%, ${solidBgColor}18 50%, transparent 80%)`,
         }}
-        className={`absolute inset-0 transition-all duration-1000 ease-out blur-3xl ${
+        className={`absolute inset-0 transition-all duration-1000 ease-out blur-3xl z-2 ${
           isPlaying ? "scale-105 opacity-100" : "scale-100 opacity-40"
         }`}
       />
 
       {/* Cinematic Dark Vignette Overlay for Ultra-Crisp Lyric Legibility */}
-      <div className="absolute inset-0 bg-linear-to-b from-black/70 via-black/35 to-black/80 pointer-events-none" />
+      <div className="absolute inset-0 bg-linear-to-b from-black/70 via-black/35 to-black/80 pointer-events-none z-3" />
     </div>
   );
 };

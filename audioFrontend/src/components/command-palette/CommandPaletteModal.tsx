@@ -23,6 +23,8 @@ import {
   useDeleteSearchHistoryMutation,
   useClearSearchHistoryMutation,
 } from "@/hooks/queries";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { BorderBeam } from "@/components/ui/border-beam";
 import { CommandPaletteFooter } from "./CommandPaletteFooter";
 import { CommandPaletteInput } from "./CommandPaletteInput";
 import { CommandPaletteListItem } from "./CommandPaletteListItem";
@@ -295,17 +297,12 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-300 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-150"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="relative w-full max-w-2xl rounded-2xl bg-[#121212]/95 border border-white/15 shadow-2xl backdrop-blur-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-150"
-        onClick={(e) => e.stopPropagation()}
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent
+        className="max-w-2xl p-0 gap-0 overflow-hidden border-white/15 bg-[#121212]/95 backdrop-blur-2xl shadow-2xl [&>button]:hidden"
         onKeyDown={handleKeyDown}
       >
+        <BorderBeam size={80} duration={8} colorFrom="#1ed760" colorTo="#3b82f6" />
         <CommandPaletteInput
           query={query}
           setQuery={setQuery}
@@ -375,7 +372,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         </div>
 
         <CommandPaletteFooter />
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

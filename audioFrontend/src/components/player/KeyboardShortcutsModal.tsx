@@ -1,7 +1,16 @@
 "use client";
 
 import React from "react";
-import { X, Keyboard } from "lucide-react";
+import { Keyboard } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { BorderBeam } from "@/components/ui/border-beam";
 
 interface KeyboardShortcutsModalProps {
   isOpen: boolean;
@@ -65,78 +74,63 @@ export const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-[250] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="relative w-full max-w-lg rounded-2xl bg-[#181818] border border-white/10 shadow-2xl p-6 select-none animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-lg bg-[#161616]/95 border-white/10 backdrop-blur-2xl p-6 shadow-2xl">
+        <BorderBeam size={160} duration={8} colorFrom="#1ed760" colorTo="#38bdf8" />
+
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-white/10">
+        <DialogHeader className="text-left pb-4 border-b border-white/10">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
+            <div className="w-8 h-8 rounded-lg bg-primary/15 border border-primary/20 flex items-center justify-center text-primary">
               <Keyboard size={18} />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white tracking-tight">
+              <DialogTitle className="text-base font-bold text-white tracking-tight">
                 Keyboard Shortcuts
-              </h3>
-              <p className="text-xs text-zinc-400">
+              </DialogTitle>
+              <DialogDescription className="text-xs text-zinc-400">
                 Control your music playback effortlessly
-              </p>
+              </DialogDescription>
             </div>
           </div>
+        </DialogHeader>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
-            aria-label="Close shortcuts"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Shortcuts List */}
-        <div className="mt-4 space-y-5 max-h-[65vh] overflow-y-auto no-scrollbar pr-1">
-          {SHORTCUT_GROUPS.map((group) => (
-            <div key={group.category} className="space-y-2">
-              <h4 className="text-xs font-bold text-primary uppercase tracking-wider">
-                {group.category}
-              </h4>
-              <div className="space-y-1.5">
-                {group.items.map((item) => (
-                  <div
-                    key={item.label}
-                    className="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-white/5 transition-colors"
-                  >
-                    <span className="text-xs font-medium text-zinc-300">
-                      {item.label}
-                    </span>
-                    <div className="flex items-center gap-1">
-                      {item.keys.map((k) => (
-                        <kbd
-                          key={k}
-                          className="px-2 py-0.5 rounded-md bg-[#282828] border border-white/15 text-[11px] font-mono font-semibold text-zinc-200 shadow-sm"
-                        >
-                          {k}
-                        </kbd>
-                      ))}
+        {/* Shortcuts List in ScrollArea */}
+        <ScrollArea className="max-h-[60vh] pr-2">
+          <div className="space-y-5 py-2">
+            {SHORTCUT_GROUPS.map((group) => (
+              <div key={group.category} className="space-y-2">
+                <h4 className="text-xs font-bold text-primary uppercase tracking-wider">
+                  {group.category}
+                </h4>
+                <div className="space-y-1">
+                  {group.items.map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex items-center justify-between py-1.5 px-2 rounded-lg hover:bg-white/5 transition-colors"
+                    >
+                      <span className="text-xs font-medium text-zinc-300">
+                        {item.label}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {item.keys.map((k) => (
+                          <kbd
+                            key={k}
+                            className="px-2 py-0.5 rounded-md bg-white/10 border border-white/15 text-[11px] font-mono font-semibold text-zinc-200 shadow-sm"
+                          >
+                            {k}
+                          </kbd>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
+            ))}
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
   );
 };

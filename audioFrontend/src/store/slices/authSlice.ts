@@ -1,5 +1,4 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import { getDeviceId } from "@/lib/api/client";
 import type { User } from "@/lib/api/types";
 
 export interface AuthState {
@@ -9,25 +8,9 @@ export interface AuthState {
   favourites: string[];
 }
 
-const getInitialUser = (): User | null => {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = localStorage.getItem("system_user");
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === "object" && parsed.id) {
-        return parsed as User;
-      }
-    }
-  } catch {
-    // Ignore invalid JSON
-  }
-  return null;
-};
-
 const initialState: AuthState = {
-  systemUser: getInitialUser(),
-  deviceId: typeof window !== "undefined" ? getDeviceId() : "server-device",
+  systemUser: null,
+  deviceId: "server-device",
   isAuthModalOpen: false,
   favourites: [],
 };

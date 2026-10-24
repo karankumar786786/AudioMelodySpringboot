@@ -1,9 +1,17 @@
-import React, { useState, useRef, useEffect } from "react";
+"use client";
+
+import React from "react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface PlayerTooltipProps {
   content: React.ReactNode;
   shortcut?: string | string[];
-  side?: "top" | "bottom";
+  side?: "top" | "bottom" | "left" | "right";
   align?: "center" | "start" | "end";
   children: React.ReactNode;
   className?: string;
@@ -19,38 +27,7 @@ export const PlayerTooltip: React.FC<PlayerTooltipProps> = ({
   children,
   className = "",
   disabled = false,
-  autoHideMs = 1000,
 }) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  const clearTimer = () => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-  };
-
-  const handleMouseEnter = () => {
-    if (disabled) return;
-    clearTimer();
-    setIsVisible(true);
-    timeoutRef.current = setTimeout(() => {
-      setIsVisible(false);
-    }, autoHideMs);
-  };
-
-  const handleMouseLeave = () => {
-    clearTimer();
-    setIsVisible(false);
-  };
-
-  useEffect(() => {
-    return () => {
-      clearTimer();
-    };
-  }, []);
-
   if (disabled) {
     return <>{children}</>;
   }
@@ -61,47 +38,32 @@ export const PlayerTooltip: React.FC<PlayerTooltipProps> = ({
       ? [shortcut]
       : [];
 
-  const sideClasses =
-    side === "top"
-      ? "bottom-full mb-2.5"
-      : "top-full mt-2.5";
-
-  const alignClasses =
-    align === "center"
-      ? "left-1/2 -translate-x-1/2"
-      : align === "start"
-        ? "left-0"
-        : "right-0";
-
   return (
-    <div
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      className={`relative inline-flex items-center justify-center ${className}`}
-    >
-      {children}
-      <div
-        role="tooltip"
-        className={`pointer-events-none absolute z-[100] ${sideClasses} ${alignClasses} flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-white bg-[#282828]/95 backdrop-blur-sm border border-white/15 rounded-md shadow-2xl shadow-black/80 whitespace-nowrap select-none transition-all duration-200 ease-out ${
-          isVisible
-            ? "visible opacity-100 scale-100"
-            : "invisible opacity-0 scale-95"
-        }`}
-      >
-        <span>{content}</span>
-        {shortcuts.length > 0 && (
-          <div className="flex items-center gap-1 ml-0.5">
-            {shortcuts.map((sc, i) => (
-              <kbd
-                key={i}
-                className="px-1.5 py-0.5 text-[10px] font-semibold text-zinc-300 bg-white/10 rounded border border-white/10 shadow-sm"
-              >
-                {sc}
-              </kbd>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild className={className}>
+          {children}
+        </TooltipTrigger>
+        <TooltipContent
+          side={side}
+          align={align}
+          className="flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-medium bg-[#1e1e1e]/95 backdrop-blur-md border border-white/10 shadow-xl text-white rounded-lg select-none"
+        >
+          <span>{content}</span>
+          {shortcuts.length > 0 && (
+            <div className="flex items-center gap-0.5 ml-1">
+              {shortcuts.map((k, i) => (
+                <kbd
+                  key={i}
+                  className="px-1 py-0.2 rounded bg-white/10 text-[9px] font-mono text-zinc-300 border border-white/10"
+                >
+                  {k}
+                </kbd>
+              ))}
+            </div>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };

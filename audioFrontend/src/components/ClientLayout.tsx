@@ -24,10 +24,17 @@ export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
   const isLyricsOpen = useStore(playerStore, (s) => s.isLyricsOpen);
   const pathname = usePathname();
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
 
-  // Unified user resolution matching both server SSR and client hydration
-  const currentUser =
-    systemUser || (initialSession?.isAuthenticated ? initialSession.user : null);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // During SSR and initial client hydration, strictly use the SSR-resolved initialSession.
+  // After mount, merge with client-hydrated systemUser.
+  const currentUser = mounted
+    ? (systemUser || (initialSession?.isAuthenticated ? initialSession.user : null))
+    : (initialSession?.isAuthenticated ? initialSession.user : null);
 
   // Sync server session to client store on mount
   useEffect(() => {
@@ -53,7 +60,7 @@ export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
   const isAuthFormRoute =
     pathname === "/" || pathname === "/login" || pathname === "/signup";
   const [isReady, setIsReady] = useState(
-    () => (hasSession && !isAuthFormRoute) || isPublicRoute
+    () => (Boolean(initialSession?.isAuthenticated) && !isAuthFormRoute) || isPublicRoute
   );
 
   useEffect(() => {

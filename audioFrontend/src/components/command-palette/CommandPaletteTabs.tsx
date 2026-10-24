@@ -2,6 +2,7 @@
 
 import React from "react";
 import type { TabType } from "./types";
+import { Badge } from "@/components/ui/badge";
 
 interface CommandPaletteTabsProps {
   activeTab: TabType;
@@ -22,9 +23,10 @@ export function CommandPaletteTabs({
   counts,
 }: CommandPaletteTabsProps) {
   return (
-    <div className="flex items-center gap-1.5 px-4 py-2 border-b border-white/5 bg-zinc-900/40 text-xs">
+    <div className="flex items-center gap-1.5 px-4 py-2 border-b border-white/5 bg-zinc-900/40 text-xs select-none">
       {(["all", "songs", "artists", "playlists"] as TabType[]).map((tab) => {
         const count = counts[tab];
+        const isActive = activeTab === tab;
 
         return (
           <button
@@ -34,13 +36,25 @@ export function CommandPaletteTabs({
               setActiveTab(tab);
               setSelectedIndex(0);
             }}
-            className={`px-3 py-1 rounded-full font-medium capitalize transition-all cursor-pointer ${
-              activeTab === tab
+            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium capitalize transition-all cursor-pointer ${
+              isActive
                 ? "bg-primary text-black font-semibold shadow-sm"
                 : "text-zinc-400 hover:text-white hover:bg-white/5"
             }`}
           >
-            {tab} {count > 0 ? `(${count})` : ""}
+            <span>{tab}</span>
+            {count > 0 && (
+              <Badge
+                variant="outline"
+                className={`h-4 px-1 text-[10px] font-mono leading-none border-transparent ${
+                  isActive
+                    ? "bg-black/25 text-black"
+                    : "bg-white/10 text-zinc-300"
+                }`}
+              >
+                {count}
+              </Badge>
+            )}
           </button>
         );
       })}

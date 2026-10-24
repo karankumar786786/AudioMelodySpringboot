@@ -8,6 +8,8 @@ import { mapToPlayerSong } from "@/lib/player-utils";
 import { musicApi, type Song } from "@/lib/api";
 import { previewPlayer } from "@/lib/preview-player";
 import { toast } from "sonner";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { BorderBeam } from "@/components/ui/border-beam";
 import type { PlayerQueuePanelProps } from "./types";
 import { QueuePanelHeader } from "./QueuePanelHeader";
 import { NowPlayingCard } from "./NowPlayingCard";
@@ -111,8 +113,10 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
   return (
     <div
       ref={panelRef}
-      className="fixed right-4 md:right-80 bottom-24 z-50 w-85 sm:w-96 h-125 max-h-[80vh] bg-[#181818] border border-[#282828] rounded-xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-200"
+      className="fixed right-4 md:right-80 bottom-24 z-50 w-85 sm:w-96 h-125 max-h-[80vh] bg-[#141414]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-200"
     >
+      <BorderBeam size={160} duration={8} colorFrom="#1ed760" colorTo="#38bdf8" />
+
       {/* Header with Segmented Tabs */}
       <QueuePanelHeader
         activeTab={activeTab}
@@ -123,28 +127,30 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
         onClose={onClose}
       />
 
-      <div className="px-3 py-3 space-y-4 overflow-y-auto no-scrollbar flex-1">
-        {activeTab === "queue" ? (
-          <>
-            {currentSong && <NowPlayingCard currentSong={currentSong} />}
+      <ScrollArea className="flex-1">
+        <div className="px-3 py-3 space-y-4">
+          {activeTab === "queue" ? (
+            <>
+              {currentSong && <NowPlayingCard currentSong={currentSong} />}
 
-            <UpcomingQueueList
-              upcoming={upcoming}
-              currentIndex={currentIndex}
-              queueLength={queue.length}
-              isRefilling={isRefilling}
+              <UpcomingQueueList
+                upcoming={upcoming}
+                currentIndex={currentIndex}
+                queueLength={queue.length}
+                isRefilling={isRefilling}
+              />
+            </>
+          ) : (
+            <PlaybackHistoryList
+              isHistoryLoading={isHistoryLoading}
+              historySongs={historySongs}
+              onPlayHistoryItem={handlePlayHistoryItem}
+              onAddToQueue={handleAddToQueue}
+              onRefresh={handleRefresh}
             />
-          </>
-        ) : (
-          <PlaybackHistoryList
-            isHistoryLoading={isHistoryLoading}
-            historySongs={historySongs}
-            onPlayHistoryItem={handlePlayHistoryItem}
-            onAddToQueue={handleAddToQueue}
-            onRefresh={handleRefresh}
-          />
-        )}
-      </div>
+          )}
+        </div>
+      </ScrollArea>
     </div>
   );
 }

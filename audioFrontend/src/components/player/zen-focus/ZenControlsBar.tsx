@@ -11,6 +11,7 @@ import {
   Maximize,
 } from "lucide-react";
 import { playerActions } from "@/store/player.store";
+import { Slider } from "@/components/ui/slider";
 
 interface ZenControlsBarProps {
   currentTime: number;
@@ -101,27 +102,20 @@ export const ZenControlsBar: React.FC<ZenControlsBarProps> = ({
           >
             {isMuted || volume === 0 ? <VolumeX size={17} /> : <Volume2 size={17} />}
           </button>
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.01}
-            value={isMuted ? 0 : volume}
-            onChange={(e) => {
-              const val = parseFloat(e.target.value);
-              playerActions.setVolume(val);
-              if (isMuted) playerActions.setIsMuted(false);
-            }}
-            style={{
-              background: `linear-gradient(to right, #ffffff ${
-                isMuted ? 0 : Math.round(volume * 100)
-              }%, rgba(255, 255, 255, 0.22) ${
-                isMuted ? 0 : Math.round(volume * 100)
-              }%)`,
-            }}
-            className="w-16 sm:w-20 h-1.5 rounded-full appearance-none cursor-pointer accent-white hidden sm:block transition-all focus:outline-none"
-            title="Volume slider"
-          />
+          <div className="w-16 sm:w-20 hidden sm:block">
+            <Slider
+              min={0}
+              max={1}
+              step={0.01}
+              value={[isMuted ? 0 : volume]}
+              onValueChange={(val) => {
+                playerActions.setVolume(val[0]);
+                if (isMuted) playerActions.setIsMuted(false);
+              }}
+              className="cursor-pointer"
+              aria-label="Volume slider"
+            />
+          </div>
         </div>
 
         {/* Transport Buttons */}

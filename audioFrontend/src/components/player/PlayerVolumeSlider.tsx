@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { VolumeX, Volume1, Volume2 } from "lucide-react";
 import { playerActions } from "@/store/player.store";
+import { Slider } from "@/components/ui/slider";
 import { PlayerTooltip } from "./PlayerTooltip";
 
 interface PlayerVolumeSliderProps {
@@ -22,9 +23,9 @@ export const PlayerVolumeSlider: React.FC<PlayerVolumeSliderProps> = ({
   const rawPct = isMuted ? 0 : volume * 100;
   const roundedPct = Math.round(rawPct);
 
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleValueChange = (val: number[]) => {
     if (isMuted) playerActions.setIsMuted(false);
-    playerActions.setVolume(parseFloat(e.currentTarget.value));
+    playerActions.setVolume(val[0]);
   };
 
   const handleWheel = (e: React.WheelEvent) => {
@@ -41,7 +42,7 @@ export const PlayerVolumeSlider: React.FC<PlayerVolumeSliderProps> = ({
   return (
     <div
       onWheel={handleWheel}
-      className="flex items-center gap-1.5 sm:gap-2.5 min-w-[70px] sm:min-w-[90px] md:min-w-[110px]"
+      className="flex items-center gap-1.5 sm:gap-2.5 min-w-17.5 sm:min-w-22.5 md:min-w-27.5"
     >
       <PlayerTooltip content={isMuted ? "Unmute" : "Mute"} shortcut="M">
         <button
@@ -79,20 +80,16 @@ export const PlayerVolumeSlider: React.FC<PlayerVolumeSliderProps> = ({
             </div>
           )}
 
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={isMuted ? 0 : volume}
-            onChange={handleVolumeChange}
-            onMouseDown={() => setIsDragging(true)}
-            onMouseUp={() => setIsDragging(false)}
-            onTouchStart={() => setIsDragging(true)}
-            onTouchEnd={() => setIsDragging(false)}
+          <Slider
+            value={[isMuted ? 0 : volume]}
+            min={0}
+            max={1}
+            step={0.01}
+            onValueChange={handleValueChange}
+            onPointerDown={() => setIsDragging(true)}
+            onPointerUp={() => setIsDragging(false)}
             aria-label="Volume"
-            style={{ backgroundSize: `${rawPct}% 100%` }}
-            className="modern-slider w-full cursor-pointer focus:outline-none"
+            className="w-full"
           />
         </div>
       </PlayerTooltip>

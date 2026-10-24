@@ -10,6 +10,19 @@
   --sidebar: #000000;
   --radius: 0.5rem;
 
+  --card: #121212;
+  --card-foreground: #ffffff;
+  --popover: #18181b;
+  --popover-foreground: #ffffff;
+  --muted: #18181b;
+  --muted-foreground: #a1a1aa;
+  --secondary: #27272a;
+  --secondary-foreground: #ffffff;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --input: rgba(255, 255, 255, 0.12);
+  --ring: #1ed760;
+
   /* Default spacing for standard web browser */
   --app-navbar-pt: 0rem;
   --app-content-pt: 1.5rem;
@@ -40,6 +53,18 @@
   --color-accent: var(--accent);
   --color-border: var(--border);
   --color-sidebar: var(--sidebar);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
 }
 
 body {

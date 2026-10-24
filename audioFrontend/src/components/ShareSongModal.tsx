@@ -1,12 +1,21 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { X, Copy, Check, Download, Share2, Sparkles, Music } from "lucide-react";
+import { Copy, Check, Download, Share2, Sparkles, Music } from "lucide-react";
 import { type Song } from "@/lib/api";
 import { type PlayerSong } from "@/lib/player-utils";
 import { getImageUrl } from "@/lib/image-utils";
 import { toast } from "sonner";
 import { playerActions } from "@/store/player.store";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { BorderBeam } from "@/components/ui/border-beam";
 
 interface ShareSongModalProps {
   isOpen: boolean;
@@ -23,7 +32,7 @@ export const ShareSongModal: React.FC<ShareSongModalProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
-  if (!isOpen || !song) return null;
+  if (!song) return null;
 
   const shareUrl = typeof window !== "undefined"
     ? `${window.location.origin}/home?song=${song.id}`
@@ -149,35 +158,25 @@ export const ShareSongModal: React.FC<ShareSongModalProps> = ({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-300 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        className="relative w-full max-w-sm rounded-3xl bg-[#141414] border border-white/15 shadow-2xl p-5 flex flex-col items-center select-none animate-in zoom-in-95 duration-200"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-sm bg-[#141414]/95 border-white/10 backdrop-blur-2xl p-5 shadow-2xl">
+        <BorderBeam size={160} duration={8} colorFrom="#1ed760" colorTo="#38bdf8" />
+
         {/* Header */}
-        <div className="w-full flex items-center justify-between pb-3 border-b border-white/10 mb-4">
+        <DialogHeader className="text-left pb-2 border-b border-white/10">
           <div className="flex items-center gap-2">
             <Share2 size={16} className="text-primary" />
-            <h3 className="text-sm font-bold text-white">Share Track</h3>
+            <DialogTitle className="text-sm font-bold text-white">Share Track</DialogTitle>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            <X size={16} />
-          </button>
-        </div>
+          <DialogDescription className="sr-only">
+            Share {song.title} by {song.artistName}
+          </DialogDescription>
+        </DialogHeader>
 
         {/* 9:16 Visual Story Card Preview */}
         <div
           ref={cardRef}
-          className="w-full aspect-9/14 rounded-2xl bg-linear-to-b from-zinc-800 via-zinc-900 to-black p-5 flex flex-col items-center justify-between shadow-xl border border-white/10 relative overflow-hidden"
+          className="w-full aspect-9/14 rounded-2xl bg-linear-to-b from-zinc-800 via-zinc-900 to-black p-5 flex flex-col items-center justify-between shadow-xl border border-white/10 relative overflow-hidden mt-2"
         >
           {/* Ambient Glow */}
           <div className="absolute inset-0 bg-primary/10 blur-2xl pointer-events-none" />
@@ -189,7 +188,7 @@ export const ShareSongModal: React.FC<ShareSongModalProps> = ({
           </div>
 
           {/* Center Cover Art */}
-          <div className="w-44 h-44 rounded-2xl overflow-hidden bg-zinc-950 shadow-2xl border border-white/10 my-auto">
+          <div className="w-40 h-40 rounded-2xl overflow-hidden bg-zinc-950 shadow-2xl border border-white/10 my-auto">
             {songCover ? (
               <img
                 src={songCover}
@@ -205,7 +204,7 @@ export const ShareSongModal: React.FC<ShareSongModalProps> = ({
 
           {/* Bottom Title & Metadata */}
           <div className="w-full text-center space-y-1 z-10">
-            <h4 className="text-base font-bold text-white truncate px-2">
+            <h4 className="text-sm font-bold text-white truncate px-2">
               {song.title}
             </h4>
             <p className="text-xs font-semibold text-primary truncate px-2">
@@ -217,40 +216,42 @@ export const ShareSongModal: React.FC<ShareSongModalProps> = ({
         </div>
 
         {/* Action Buttons */}
-        <div className="w-full space-y-2 mt-4">
+        <div className="w-full space-y-2 mt-2">
           {/* Copy Link Button */}
-          <button
+          <Button
             type="button"
             onClick={handleCopyLink}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-black text-xs font-bold transition-transform active:scale-95 cursor-pointer shadow-lg hover:opacity-95"
+            className="w-full gap-2 rounded-xl text-xs font-bold"
           >
             {copied ? <Check size={16} /> : <Copy size={16} />}
             <span>{copied ? "Copied Link!" : "Copy Song Link"}</span>
-          </button>
+          </Button>
 
           {/* Secondary Actions */}
           <div className="grid grid-cols-2 gap-2">
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={handleShareTwitter}
-              className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold transition-colors cursor-pointer"
+              className="gap-1.5 rounded-xl text-xs font-semibold"
             >
               <Share2 size={14} />
               <span>Share on X</span>
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={handleDownloadImage}
               disabled={isExporting}
-              className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50"
+              className="gap-1.5 rounded-xl text-xs font-semibold disabled:opacity-50"
             >
               <Download size={14} />
               <span>{isExporting ? "Saving..." : "Save Image"}</span>
-            </button>
+            </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 };

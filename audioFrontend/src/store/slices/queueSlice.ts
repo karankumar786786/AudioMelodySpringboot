@@ -20,34 +20,13 @@ export interface QueueState {
   pendingSearchConfirmation: { songId: string } | null;
 }
 
-const getInitialRepeatMode = (): "none" | "one" | "all" => {
-  if (typeof window === "undefined") return "none";
-  const saved = localStorage.getItem("audiomelody_repeat_mode");
-  return saved === "all" || saved === "one" ? saved : "none";
-};
-
-const getInitialShuffle = (): boolean => {
-  if (typeof window === "undefined") return false;
-  return localStorage.getItem("audiomelody_shuffle") === "true";
-};
-
-const getInitialDisliked = (): string[] => {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem("audiomelody_disliked_songs");
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-};
-
 const initialState: QueueState = {
   queue: [],
   originalQueue: [],
   lastQueueIndex: -1,
-  repeatMode: getInitialRepeatMode(),
-  isShuffle: getInitialShuffle(),
-  dislikedSongIds: getInitialDisliked(),
+  repeatMode: "none",
+  isShuffle: false,
+  dislikedSongIds: [],
   radioSession: {
     seedSongId: null,
     isActive: false,

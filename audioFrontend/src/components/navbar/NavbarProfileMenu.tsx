@@ -1,7 +1,6 @@
 "use client";
 
 import { useAppSelector } from "@/store/hooks";
-import { AnimatePresence, motion } from "framer-motion";
 import {
   Heart,
   History,
@@ -13,9 +12,18 @@ import {
   UserPen,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { playerActions } from "@/store/player.store";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { NavbarProfileMenuProps } from "./types";
 
 export function NavbarProfileMenu({
@@ -24,22 +32,10 @@ export function NavbarProfileMenu({
 }: NavbarProfileMenuProps) {
   const systemUser = useAppSelector((s) => s.auth.systemUser);
   const [mounted, setMounted] = useState(false);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   useEffect(() => {
     setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setShowProfileMenu(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   const getGreeting = () => {
@@ -48,6 +44,14 @@ export function NavbarProfileMenu({
     if (hrs < 18) return "Good Afternoon";
     return "Good Evening";
   };
+
+  const initials = (systemUser?.name || "User")
+    .split(" ")
+    .map((w: string) => w[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "U";
 
   return (
     <div className="flex items-center gap-4 sm:gap-5 shrink-0 pointer-events-auto ml-4">
@@ -64,116 +68,99 @@ export function NavbarProfileMenu({
             </span>
           </div>
 
-          {/* Profile Icon button with dropdown */}
-          <div className="relative" ref={menuRef}>
-            <button
-              type="button"
-              onClick={() => setShowProfileMenu((prev) => !prev)}
-              className="w-9 h-9 rounded-full bg-white/[0.07] hover:bg-white/[0.14] backdrop-blur-md border border-white/10 hover:border-white/25 flex items-center justify-center text-zinc-300 hover:text-white transition-all shadow-md cursor-pointer focus:outline-none"
-              title={systemUser?.name || "Profile"}
-              aria-label="User profile"
+          {/* Profile Dropdown using shadcn DropdownMenu & Avatar */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 cursor-pointer"
+                title={systemUser?.name || "Profile"}
+                aria-label="User profile"
+              >
+                <Avatar className="w-9 h-9 border border-white/15 hover:border-white/30 transition-colors shadow-md">
+                  <AvatarImage
+                    src={(systemUser as any)?.avatarUrl || ""}
+                    alt={systemUser?.name || "User"}
+                  />
+                  <AvatarFallback className="bg-white/10 text-white text-xs font-bold">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent
+              align="end"
+              sideOffset={8}
+              className="w-56 p-2 bg-[#161616]/95 border-white/10 backdrop-blur-2xl shadow-2xl"
             >
-              <User size={18} />
-            </button>
+              <DropdownMenuLabel className="px-2 py-1.5 flex flex-col gap-0.5">
+                <p className="text-xs font-bold text-white truncate">
+                  {systemUser?.name || "User"}
+                </p>
+                <p className="text-[11px] text-zinc-400 font-normal truncate">
+                  {systemUser?.email || "Music Explorer"}
+                </p>
+              </DropdownMenuLabel>
 
-            <AnimatePresence>
-              {showProfileMenu && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.96 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute right-0 top-full mt-2 w-56 bg-[#161616] border border-[#282828] rounded-2xl shadow-2xl p-2 z-50 pointer-events-auto backdrop-blur-xl"
-                >
-                  <div className="px-3 py-2.5 border-b border-[#282828] mb-1">
-                    <p className="text-xs font-bold text-white truncate">
-                      {systemUser?.name || "User"}
-                    </p>
-                    <p className="text-[11px] text-zinc-400 truncate mt-0.5">
-                      {systemUser?.email || "Music Explorer"}
-                    </p>
-                  </div>
+              <DropdownMenuSeparator className="bg-white/10" />
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowProfileMenu(false);
-                      onOpenProfileModal();
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-pointer"
-                  >
-                    <UserPen size={14} className="text-zinc-400" />
-                    <span>Edit Profile</span>
-                  </button>
+              <DropdownMenuItem
+                onClick={onOpenProfileModal}
+                className="gap-2.5 text-xs text-zinc-300 hover:text-white cursor-pointer"
+              >
+                <UserPen size={14} className="text-zinc-400" />
+                <span>Edit Profile</span>
+              </DropdownMenuItem>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowProfileMenu(false);
-                      onOpenDevicesModal();
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-pointer"
-                  >
-                    <Laptop size={14} className="text-zinc-400" />
-                    <span>Connected Devices</span>
-                  </button>
+              <DropdownMenuItem
+                onClick={onOpenDevicesModal}
+                className="gap-2.5 text-xs text-zinc-300 hover:text-white cursor-pointer"
+              >
+                <Laptop size={14} className="text-zinc-400" />
+                <span>Connected Devices</span>
+              </DropdownMenuItem>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowProfileMenu(false);
-                      router.push("/history");
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-pointer"
-                  >
-                    <History size={14} className="text-zinc-400" />
-                    <span>Listening History</span>
-                  </button>
+              <DropdownMenuItem
+                onClick={() => router.push("/history")}
+                className="gap-2.5 text-xs text-zinc-300 hover:text-white cursor-pointer"
+              >
+                <History size={14} className="text-zinc-400" />
+                <span>Listening History</span>
+              </DropdownMenuItem>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowProfileMenu(false);
-                      router.push("/my-playlists/favourites");
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-pointer"
-                  >
-                    <Heart size={14} className="text-zinc-400" />
-                    <span>Favourites</span>
-                  </button>
+              <DropdownMenuItem
+                onClick={() => router.push("/my-playlists/favourites")}
+                className="gap-2.5 text-xs text-zinc-300 hover:text-white cursor-pointer"
+              >
+                <Heart size={14} className="text-zinc-400" />
+                <span>Favourites</span>
+              </DropdownMenuItem>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowProfileMenu(false);
-                      router.push("/playlists");
-                    }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-zinc-300 hover:text-white hover:bg-white/10 rounded-xl transition-colors text-left cursor-pointer"
-                  >
-                    <ListMusic size={14} className="text-zinc-400" />
-                    <span>Playlists</span>
-                  </button>
+              <DropdownMenuItem
+                onClick={() => router.push("/playlists")}
+                className="gap-2.5 text-xs text-zinc-300 hover:text-white cursor-pointer"
+              >
+                <ListMusic size={14} className="text-zinc-400" />
+                <span>Playlists</span>
+              </DropdownMenuItem>
 
-                  <div className="border-t border-[#282828] mt-1 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowProfileMenu(false);
-                        playerActions.clearSystemSession();
-                        toast.success("Logged Out", {
-                          description: "You have been successfully logged out.",
-                        });
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition-colors text-left cursor-pointer"
-                    >
-                      <LogOut size={14} />
-                      <span>Log Out</span>
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+              <DropdownMenuSeparator className="bg-white/10" />
+
+              <DropdownMenuItem
+                onClick={() => {
+                  playerActions.clearSystemSession();
+                  toast.success("Logged Out", {
+                    description: "You have been successfully logged out.",
+                  });
+                }}
+                className="gap-2.5 text-xs font-semibold text-red-400 focus:text-red-300 focus:bg-red-500/10 cursor-pointer"
+              >
+                <LogOut size={14} />
+                <span>Log Out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       ) : (
         <button

@@ -1,12 +1,16 @@
 import React from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Disc } from "lucide-react";
+import { Disc, Play } from "lucide-react";
 import { type Song } from "../lib/api";
 import { playerActions, playerStore } from "../store/player.store";
 import { mapToPlayerSong, formatDuration } from "../lib/player-utils";
 import { getImageUrl, getVideoUrl } from "../lib/image-utils";
 import { PlayerTooltip } from "./player/PlayerTooltip";
+import { BorderBeam } from "@/components/ui/border-beam";
+import { Particles } from "@/components/ui/particles";
+import { Badge } from "@/components/ui/badge";
+import { ShimmerButton } from "@/components/ui/shimmer-button";
 
 interface HeroSectionProps {
   songs: Song[];
@@ -25,7 +29,7 @@ export function HeroSection({
 
   if (isLoading || !currentSong) {
     return (
-      <div className="w-full h-[335px] md:h-[375px] rounded-2xl bg-zinc-900/60 border border-[#282828] overflow-hidden relative flex flex-col justify-end p-7 md:p-9 animate-pulse select-none">
+      <div className="w-full h-83.75 md:h-93.75 rounded-2xl bg-zinc-900/60 border border-[#282828] overflow-hidden relative flex flex-col justify-end p-7 md:p-9 animate-pulse select-none">
         <div className="space-y-3 max-w-lg mb-2">
           <div className="h-4 w-28 bg-zinc-800/80 rounded-full" />
           <div className="h-10 w-3/4 bg-zinc-800/80 rounded-xl" />
@@ -57,11 +61,12 @@ export function HeroSection({
     : undefined;
 
   return (
-    <>
     <section
       onClick={() => playerActions.playWithRadio(mapToPlayerSong(currentSong))}
-      className="relative w-full h-[335px] md:h-[375px] rounded-2xl overflow-hidden group bg-zinc-900 border border-white/10 shadow-2xl cursor-pointer hover:border-white/20 transition-all select-none"
+      className="relative w-full h-83.75 md:h-93.75 rounded-2xl overflow-hidden group bg-zinc-900 border border-white/10 shadow-2xl cursor-pointer hover:border-white/20 transition-all select-none"
     >
+      <BorderBeam size={120} duration={10} colorFrom="#1ed760" colorTo="#38bdf8" />
+
       {/* ─── Video or High-Res Background Image ─── */}
       <div className="absolute inset-0 z-0">
         <AnimatePresence mode="wait">
@@ -95,13 +100,21 @@ export function HeroSection({
           ) : null}
         </AnimatePresence>
 
+        {/* Ambient floating particles for music depth */}
+        {!isVideoSong && (
+          <Particles
+            quantity={35}
+            color="#1ed760"
+            className="absolute inset-0 z-2 opacity-40 pointer-events-none"
+          />
+        )}
+
         {/* Bottom scrim */}
-        <div className="absolute bottom-0 left-0 right-0 h-[65%] bg-gradient-to-t from-black/95 via-black/55 to-transparent z-[1]" />
+        <div className="absolute bottom-0 left-0 right-0 h-[65%] bg-linear-to-t from-black/95 via-black/55 to-transparent z-1" />
       </div>
 
       {/* ─── Content Layer ─── */}
       <div className="relative z-10 h-full w-full flex flex-col justify-end gap-3 p-7 md:p-9">
-
         {/* Title, Artist & Meta */}
         <div className="max-w-xl md:max-w-2xl space-y-1.5 mb-2">
           <motion.h1
@@ -134,9 +147,9 @@ export function HeroSection({
             {currentSong.genre && (
               <>
                 <span className="w-1 h-1 rounded-full bg-zinc-400" />
-                <span className="px-2 py-0.5 rounded-full bg-white/10 text-white text-[11px] font-medium border border-white/10">
+                <Badge variant="secondary" className="border-white/10 text-white font-medium">
                   {currentSong.genre}
-                </span>
+                </Badge>
               </>
             )}
             {currentSong.album && (
@@ -144,7 +157,7 @@ export function HeroSection({
                 <span className="w-1 h-1 rounded-full bg-zinc-400" />
                 <Link
                   href={`/albums/${encodeURIComponent(currentSong.album)}`}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white text-[11px] font-medium border border-white/10 max-w-[180px] transition-colors cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/10 hover:bg-white/20 text-zinc-200 hover:text-white text-[11px] font-medium border border-white/10 max-w-45 transition-colors cursor-pointer"
                   title={`View Album: ${currentSong.album}`}
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -154,34 +167,49 @@ export function HeroSection({
               </>
             )}
             <span className="w-1 h-1 rounded-full bg-zinc-400" />
-            <span className="text-primary font-bold">
-              {isVideoSong ? "Music Video" : "High Quality Audio"}
-            </span>
+            <Badge variant="primary" className="font-bold">
+              {isVideoSong ? "Music Video" : "Lossless Audio"}
+            </Badge>
           </div>
 
-          {/* Watch Full Video button */}
-          {currentSong.fullVideoKey && (
+          {/* Action Buttons: Watch Full Video / Play */}
+          {currentSong.fullVideoKey ? (
             <PlayerTooltip content="Watch Full Video" shortcut="V">
-              <motion.button
-                key={`watch-btn-${currentSong.id}`}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2, delay: 0.1 }}
+              <div className="pt-2">
+                <ShimmerButton
+                  shimmerColor="#ffffff"
+                  background="rgba(30, 215, 96, 0.25)"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (playerStore.state.currentSong?.id !== currentSong.id) {
+                      playerActions.playWithRadio(mapToPlayerSong(currentSong));
+                    }
+                    playerActions.openFullVideo();
+                  }}
+                  className="px-4 py-2 text-xs font-bold gap-2 text-white border-primary/40 shadow-primary/20"
+                >
+                  <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                  </svg>
+                  <span>Watch Full Video</span>
+                </ShimmerButton>
+              </div>
+            </PlayerTooltip>
+          ) : (
+            <div className="pt-2">
+              <ShimmerButton
+                shimmerColor="#ffffff"
+                background="rgba(30, 215, 96, 0.25)"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (playerStore.state.currentSong?.id !== currentSong.id) {
-                    playerActions.playWithRadio(mapToPlayerSong(currentSong));
-                  }
-                  playerActions.openFullVideo();
+                  playerActions.playWithRadio(mapToPlayerSong(currentSong));
                 }}
-                className="mt-1 flex items-center gap-2 px-4 py-2 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm border border-white/20 text-white text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer w-fit"
+                className="px-4 py-2 text-xs font-bold gap-2 text-white border-primary/40 shadow-primary/20"
               >
-                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                </svg>
-                Watch Full Video
-              </motion.button>
-            </PlayerTooltip>
+                <Play size={13} fill="currentColor" />
+                <span>Play Now</span>
+              </ShimmerButton>
+            </div>
           )}
         </div>
 
@@ -218,6 +246,5 @@ export function HeroSection({
         )}
       </div>
     </section>
-    </>
   );
 }
