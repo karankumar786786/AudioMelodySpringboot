@@ -51,6 +51,15 @@ public class Session {
     @Column(name = "expires_at", nullable = false)
     private LocalDateTime expiresAt;
 
+    @Column(name = "device_name")
+    private String deviceName;
+
+    @Column(name = "ip_address")
+    private String ipAddress;
+
+    @Column(name = "last_active_at")
+    private LocalDateTime lastActiveAt;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -65,13 +74,17 @@ public class Session {
 
     @Builder
     public Session(String id, User user, String deviceId, String refreshToken,
-                   LocalDateTime expiresAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
+                   LocalDateTime expiresAt, String deviceName, String ipAddress,
+                   LocalDateTime lastActiveAt, LocalDateTime createdAt, LocalDateTime updatedAt) {
         super();
         this.id = id;
         this.user = user;
         this.deviceId = deviceId;
         this.refreshToken = refreshToken;
         this.expiresAt = expiresAt;
+        this.deviceName = deviceName;
+        this.ipAddress = ipAddress;
+        this.lastActiveAt = lastActiveAt;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }

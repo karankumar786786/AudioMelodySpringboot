@@ -40,7 +40,7 @@ class AuthenticationControllerIntegrationTest {
     @Test
     @DisplayName("POST /auth/register should return 201 Created and tempToken")
     void shouldRegisterUser() throws Exception {
-        when(authenticationService.register(any(RegisterRequestDto.class))).thenReturn("temp-token-reg");
+        when(authenticationService.register(any(RegisterRequestDto.class), any())).thenReturn("temp-token-reg");
 
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -52,7 +52,7 @@ class AuthenticationControllerIntegrationTest {
     @Test
     @DisplayName("POST /auth/login should return 200 OK and tempToken")
     void shouldLoginUser() throws Exception {
-        when(authenticationService.login(any(LoginRequestDto.class))).thenReturn("temp-token-login");
+        when(authenticationService.login(any(LoginRequestDto.class), any())).thenReturn("temp-token-login");
 
         mockMvc.perform(post("/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -65,7 +65,7 @@ class AuthenticationControllerIntegrationTest {
     @DisplayName("POST /auth/verify-otp should return 200 OK and tokens with body parameters")
     void shouldVerifyOtp() throws Exception {
         VerifyOtpResponse response = new VerifyOtpResponse("access-token-123", "refresh-token-456", false);
-        when(authenticationService.verifyOtp(eq("temp-token-valid"), eq("123456"), eq("device-ios-1")))
+        when(authenticationService.verifyOtp(eq("temp-token-valid"), eq("123456"), eq("device-ios-1"), any(), any()))
                 .thenReturn(response);
 
         mockMvc.perform(post("/auth/verify-otp")
@@ -80,7 +80,7 @@ class AuthenticationControllerIntegrationTest {
     @Test
     @DisplayName("POST /auth/resend-otp should return 200 OK with body tempToken")
     void shouldResendOtp() throws Exception {
-        when(authenticationService.resendOtp(eq("temp-token-old"))).thenReturn("temp-token-new");
+        when(authenticationService.resendOtp(eq("temp-token-old"), any())).thenReturn("temp-token-new");
 
         mockMvc.perform(post("/auth/resend-otp")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -93,7 +93,7 @@ class AuthenticationControllerIntegrationTest {
     @DisplayName("POST /auth/refresh-token should return 200 OK and reissued tokens")
     void shouldRefreshToken() throws Exception {
         RefreshTokenResponseDto response = new RefreshTokenResponseDto("new-access-token", "new-refresh-token");
-        when(authenticationService.refreshToken(eq("existing-refresh-token"), eq("device-mac-2")))
+        when(authenticationService.refreshToken(eq("existing-refresh-token"), eq("device-mac-2"), any()))
                 .thenReturn(response);
 
         mockMvc.perform(post("/auth/refresh-token")

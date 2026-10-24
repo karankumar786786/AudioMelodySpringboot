@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -47,12 +49,17 @@ public class AuthenticationService {
     private final Redis<OtpDataDto> cache;
     private final PaginationMetaDataService paginationMetaDataService;
     private final MailQueue mailQueue;
-    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
+    private final ApplicationEventPublisher eventPublisher;
+    private final RateLimiterService rateLimiterService;
+    private final TokenBlacklistService tokenBlacklistService;
 
+    @Autowired
     public AuthenticationService(UsersRepository usersRepository, SessionRepository sessionRepository,
             JwtUtil jwtUtil, HmacUtil hmacUtil, OtpUtil otpUtil,
             Redis<OtpDataDto> cache, PaginationMetaDataService paginationMetaDataService, MailQueue mailQueue,
-            org.springframework.context.ApplicationEventPublisher eventPublisher) {
+            ApplicationEventPublisher eventPublisher,
+            RateLimiterService rateLimiterService,
+            TokenBlacklistService tokenBlacklistService) {
         this.usersRepository = usersRepository;
         this.sessionRepository = sessionRepository;
         this.jwtUtil = jwtUtil;
@@ -62,15 +69,36 @@ public class AuthenticationService {
         this.paginationMetaDataService = paginationMetaDataService;
         this.mailQueue = mailQueue;
         this.eventPublisher = eventPublisher;
+        this.rateLimiterService = rateLimiterService;
+        this.tokenBlacklistService = tokenBlacklistService;
+    }
+
+    public AuthenticationService(UsersRepository usersRepository, SessionRepository sessionRepository,
+            JwtUtil jwtUtil, HmacUtil hmacUtil, OtpUtil otpUtil,
+            Redis<OtpDataDto> cache, PaginationMetaDataService paginationMetaDataService, MailQueue mailQueue,
+            ApplicationEventPublisher eventPublisher) {
+        this(usersRepository, sessionRepository, jwtUtil, hmacUtil, otpUtil,
+             cache, paginationMetaDataService, mailQueue, eventPublisher, null, null);
     }
 
     public String register(RegisterRequestDto request) {
+        return register(request, null);
+    }
+
+    public String register(RegisterRequestDto request, String clientIp) {
+        if (rateLimiterService != null && clientIp != null && !clientIp.isBlank()) {
+            rateLimiterService.checkRateLimit("ratelimit:auth:register:" + clientIp, 10, Duration.ofMinutes(1));
+        }
+
         if (usersRepository.existsByEmail(request.email())) {
             throw new ConflictException("Email already in use");
         }
-        String tempToken = hmacUtil.hash(request.email());
+        String tempToken = hmacUtil.hashTempToken(request.email());
+        if (tempToken == null || tempToken.isBlank()) {
+            tempToken = hmacUtil.hash(request.email());
+        }
         String otp = otpUtil.generateOtp();
-        OtpDataDto data = new OtpDataDto(otp, tempToken, request.email(), request.userName(), PurposeEnum.REGISTER);
+        OtpDataDto data = new OtpDataDto(otp, tempToken, request.email(), request.userName(), PurposeEnum.REGISTER, 0);
         MailQueueDto mqd = new MailQueueDto(request.email(), PurposeEnum.REGISTER.name(), otp);
         mailQueue.queueMail(mqd);
         cache.set(data.email(), data, Duration.ofMinutes(10));
@@ -78,11 +106,22 @@ public class AuthenticationService {
     }
 
     public String login(LoginRequestDto request) {
+        return login(request, null);
+    }
+
+    public String login(LoginRequestDto request, String clientIp) {
+        if (rateLimiterService != null && clientIp != null && !clientIp.isBlank()) {
+            rateLimiterService.checkRateLimit("ratelimit:auth:login:" + clientIp, 15, Duration.ofMinutes(1));
+        }
+
         User user = usersRepository.findByEmail(request.email())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + request.email()));
-        String tempToken = hmacUtil.hash(user.getEmail());
+        String tempToken = hmacUtil.hashTempToken(user.getEmail());
+        if (tempToken == null || tempToken.isBlank()) {
+            tempToken = hmacUtil.hash(user.getEmail());
+        }
         String otp = otpUtil.generateOtp();
-        OtpDataDto data = new OtpDataDto(otp, tempToken, user.getEmail(), user.getUserName(), PurposeEnum.LOGIN);
+        OtpDataDto data = new OtpDataDto(otp, tempToken, user.getEmail(), user.getUserName(), PurposeEnum.LOGIN, 0);
         MailQueueDto mqd = new MailQueueDto(user.getEmail(), PurposeEnum.LOGIN.name(), otp);
         mailQueue.queueMail(mqd);
         cache.set(data.email(), data, Duration.ofMinutes(10));
@@ -91,10 +130,23 @@ public class AuthenticationService {
 
     @Transactional
     public VerifyOtpResponse verifyOtp(String tempToken, String otp, String deviceId) {
-        String email = hmacUtil.getMessageIfValid(tempToken);
+        return verifyOtp(tempToken, otp, deviceId, null, null);
+    }
+
+    @Transactional
+    public VerifyOtpResponse verifyOtp(String tempToken, String otp, String deviceId, String deviceName, String clientIp) {
+        if (rateLimiterService != null && clientIp != null && !clientIp.isBlank()) {
+            rateLimiterService.checkRateLimit("ratelimit:auth:verify-otp:" + clientIp, 20, Duration.ofMinutes(1));
+        }
+
+        String email = hmacUtil.getTempTokenEmail(tempToken);
+        if (email == null) {
+            email = hmacUtil.getMessageIfValid(tempToken);
+        }
         if (email == null) {
             throw new BadRequestException("Token validation failed");
         }
+
         Optional<OtpDataDto> otpDto = cache.get(email);
         if (otpDto.isEmpty()) {
             throw new BadRequestException("OTP has expired. Please request a new verification code");
@@ -103,8 +155,15 @@ public class AuthenticationService {
         if (!data.email().equals(email)) {
             throw new BadRequestException("Token validation failed");
         }
+
         if (!data.otp().equals(otp)) {
-            throw new BadRequestException("Invalid OTP");
+            int attempts = data.attempts() + 1;
+            if (attempts >= 5) {
+                cache.delete(email);
+                throw new BadRequestException("Maximum verification attempts exceeded. Please request a new verification code.");
+            }
+            cache.set(data.email(), new OtpDataDto(data.otp(), data.tempToken(), data.email(), data.userName(), data.Purpose(), attempts), Duration.ofMinutes(10));
+            throw new BadRequestException("Invalid OTP. " + (5 - attempts) + " attempt(s) remaining.");
         }
 
         Optional<User> existingUser = usersRepository.findByEmail(data.email());
@@ -145,23 +204,43 @@ public class AuthenticationService {
 
         session.setRefreshToken(refreshToken);
         session.setExpiresAt(expiresAt);
+        if (deviceName != null && !deviceName.isBlank()) {
+            session.setDeviceName(deviceName);
+        }
+        if (clientIp != null && !clientIp.isBlank()) {
+            session.setIpAddress(clientIp);
+        }
+        session.setLastActiveAt(LocalDateTime.now());
         sessionRepository.save(session);
 
         return new VerifyOtpResponse(accessToken, refreshToken, isNewUser);
     }
 
     public String resendOtp(String tempToken) {
-        String email = hmacUtil.getMessageIfValid(tempToken);
+        return resendOtp(tempToken, null);
+    }
+
+    public String resendOtp(String tempToken, String clientIp) {
+        if (rateLimiterService != null && clientIp != null && !clientIp.isBlank()) {
+            rateLimiterService.checkRateLimit("ratelimit:auth:resend-otp:" + clientIp, 5, Duration.ofMinutes(1));
+        }
+
+        String email = hmacUtil.getTempTokenEmail(tempToken);
+        if (email == null) {
+            email = hmacUtil.getMessageIfValid(tempToken);
+        }
         if (email == null) {
             throw new BadRequestException("Invalid or expired verification token");
         }
+
+        if (rateLimiterService != null) {
+            rateLimiterService.checkCooldown("cooldown:resend_otp:" + email);
+        }
+
         Optional<OtpDataDto> otpDto = cache.get(email);
         OtpDataDto data;
         if (otpDto.isPresent()) {
             data = otpDto.get();
-            if (!hmacUtil.validate(data.email(), tempToken)) {
-                throw new BadRequestException("Token validation failed");
-            }
         } else {
             Optional<User> existingUser = usersRepository.findByEmail(email);
             if (existingUser.isPresent()) {
@@ -171,7 +250,8 @@ public class AuthenticationService {
                         tempToken,
                         user.getEmail(),
                         user.getUserName() != null ? user.getUserName() : "User",
-                        PurposeEnum.LOGIN);
+                        PurposeEnum.LOGIN,
+                        0);
             } else {
                 throw new BadRequestException("Verification session has expired. Please sign up or log in again");
             }
@@ -179,15 +259,30 @@ public class AuthenticationService {
 
         String newOtp = otpUtil.generateOtp();
         PurposeEnum purpose = data.Purpose() != null ? data.Purpose() : PurposeEnum.LOGIN;
-        OtpDataDto updatedData = new OtpDataDto(newOtp, tempToken, data.email(), data.userName(), purpose);
+        String newTempToken = hmacUtil.hashTempToken(data.email());
+        if (newTempToken == null || newTempToken.isBlank()) {
+            newTempToken = tempToken;
+        }
+
+        OtpDataDto updatedData = new OtpDataDto(newOtp, newTempToken, data.email(), data.userName(), purpose, 0);
         MailQueueDto mqd = new MailQueueDto(data.email(), purpose.name(), newOtp);
         mailQueue.queueMail(mqd);
         cache.set(data.email(), updatedData, Duration.ofMinutes(10));
-        return tempToken;
+
+        if (rateLimiterService != null) {
+            rateLimiterService.setCooldown("cooldown:resend_otp:" + email, Duration.ofSeconds(60));
+        }
+
+        return newTempToken;
     }
 
     @Transactional
     public RefreshTokenResponseDto refreshToken(String refreshToken, String deviceId) {
+        return refreshToken(refreshToken, deviceId, null);
+    }
+
+    @Transactional
+    public RefreshTokenResponseDto refreshToken(String refreshToken, String deviceId, String clientIp) {
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new UnauthorizedException("Refresh token is required");
         }
@@ -227,6 +322,10 @@ public class AuthenticationService {
 
             session.setRefreshToken(newRefreshToken);
             session.setExpiresAt(LocalDateTime.now().plusDays(7));
+            if (clientIp != null && !clientIp.isBlank()) {
+                session.setIpAddress(clientIp);
+            }
+            session.setLastActiveAt(LocalDateTime.now());
             sessionRepository.save(session);
 
             return new RefreshTokenResponseDto(newAccessToken, newRefreshToken);
@@ -242,6 +341,18 @@ public class AuthenticationService {
         if (deviceId == null || deviceId.isBlank()) {
             throw new BadRequestException("Device ID is required");
         }
+
+        // Instant access token revocation via Redis blacklist
+        if (accessToken != null && !accessToken.isBlank() && tokenBlacklistService != null) {
+            String jti = jwtUtil.extractJti(accessToken);
+            if (jti != null && !jti.isBlank()) {
+                long remainingSeconds = jwtUtil.getRemainingSeconds(accessToken);
+                if (remainingSeconds > 0) {
+                    tokenBlacklistService.blacklistToken(jti, Duration.ofSeconds(remainingSeconds));
+                }
+            }
+        }
+
         if (refreshToken != null && !refreshToken.isBlank()) {
             sessionRepository.deleteByRefreshToken(refreshToken);
         }

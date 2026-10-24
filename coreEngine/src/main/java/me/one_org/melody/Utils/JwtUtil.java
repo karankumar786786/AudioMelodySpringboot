@@ -64,8 +64,9 @@ public class JwtUtil {
         Instant expiresAt = now.plus(duration);
 
         String roleStr = payload.role() != null ? payload.role().name() : RoleEnum.USER.name();
-
+        String jti = java.util.UUID.randomUUID().toString();
         JwtClaimsSet claims = JwtClaimsSet.builder()
+                .id(jti)
                 .issuer("melody")
                 .issuedAt(now)
                 .expiresAt(expiresAt)
@@ -74,10 +75,21 @@ public class JwtUtil {
                 .claim("userName", payload.userName() != null ? payload.userName() : "")
                 .claim("email", payload.email() != null ? payload.email() : "")
                 .claim("role", roleStr)
+                .claim("jti", jti)
                 .build();
 
         JwsHeader jwsHeader = JwsHeader.with(MacAlgorithm.HS256).build();
         return jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, claims)).getTokenValue();
+    }
+
+    public String extractJti(String token) {
+        try {
+            Jwt jwt = jwtDecoder.decode(token);
+            String jti = jwt.getId();
+            return (jti != null && !jti.isBlank()) ? jti : jwt.getClaimAsString("jti");
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public String generateToken(Authentication authentication, int expiryInHr) {

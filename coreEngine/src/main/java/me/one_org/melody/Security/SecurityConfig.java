@@ -80,8 +80,14 @@ public class SecurityConfig {
     }
 
     @Bean
-    public Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter() {
+    public Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter(
+            me.one_org.melody.Services.Authentication.TokenBlacklistService tokenBlacklistService) {
         return jwt -> {
+            String jti = jwt.getId();
+            if (jti != null && tokenBlacklistService.isBlacklisted(jti)) {
+                throw new org.springframework.security.authentication.BadCredentialsException("Token has been revoked");
+            }
+
             String userId = jwt.getClaimAsString("id");
             if (userId == null || userId.isBlank()) {
                 userId = jwt.getSubject();

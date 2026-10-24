@@ -5,11 +5,15 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import me.one_org.melody.Enums.PurposeEnum;
 
-
 public record OtpDataDto(
         @NotBlank String otp,
         @NotNull String tempToken,
         @NotNull @Email String email,
         @NotNull String userName,
-        @NotNull PurposeEnum Purpose
-) {}
+        @NotNull PurposeEnum Purpose,
+        int attempts
+) {
+    public OtpDataDto(String otp, String tempToken, String email, String userName, PurposeEnum Purpose) {
+        this(otp, tempToken, email, userName, Purpose, 0);
+    }
+}
