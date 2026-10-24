@@ -10,9 +10,6 @@ import me.one_org.melody.Configuration.RedisConfig;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Enums.StatusEnum;
 
-import tools.jackson.databind.DeserializationFeature;
-import tools.jackson.databind.cfg.DateTimeFeature;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 class RedisSerializerTest {
@@ -31,26 +28,14 @@ class RedisSerializerTest {
         );
         List<SongDto> list = List.of(song);
 
-        byte[] bytes = serializer.serialize(list);
-        assertNotNull(bytes);
-        System.out.println("SERIALIZED JSON: " + new String(bytes, java.nio.charset.StandardCharsets.UTF_8));
-
-        GenericJacksonJsonRedisSerializer cleanSerializer = GenericJacksonJsonRedisSerializer.builder()
-                .enableSpringCacheNullValueSupport()
-                .customize(builder -> builder
-                        .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
-                        .disable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
-                        .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES))
-                .build();
-
         // 1. Test single object
-        byte[] songBytes = cleanSerializer.serialize(song);
-        Object desSong = cleanSerializer.deserialize(songBytes);
+        byte[] songBytes = serializer.serialize(song);
+        Object desSong = serializer.deserialize(songBytes);
         assertNotNull(desSong);
 
         // 2. Test list
-        byte[] listBytes = cleanSerializer.serialize(list);
-        Object desList = cleanSerializer.deserialize(listBytes);
+        byte[] listBytes = serializer.serialize(list);
+        Object desList = serializer.deserialize(listBytes);
         assertNotNull(desList);
         assertTrue(desList instanceof List);
         assertEquals(1, ((List<?>) desList).size());

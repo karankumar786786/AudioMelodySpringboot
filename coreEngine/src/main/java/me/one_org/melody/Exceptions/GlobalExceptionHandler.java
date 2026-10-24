@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
@@ -258,9 +259,20 @@ public class GlobalExceptionHandler {
                 return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
 
+        @ExceptionHandler(AsyncRequestNotUsableException.class)
+        public void handleAsyncRequestNotUsable(AsyncRequestNotUsableException ex, WebRequest request) {
+                // Client closed/refreshed browser tab during SSE or async processing.
+                // The underlying socket was already closed by the client/Tomcat, so avoid writing error response bodies.
+                log.debug("Async/SSE client disconnected at path {}: {}", getPath(request), ex.getMessage());
+        }
+
         @ExceptionHandler(Exception.class)
         public ResponseEntity<ErrorResponseDto> handleUncaughtException(Exception ex, WebRequest request) {
                 String path = getPath(request);
+                if (isClientDisconnect(ex)) {
+                        log.debug("Client connection terminated at path {}: {}", path, ex.getMessage());
+                        return null;
+                }
                 log.error("Unhandled Exception at path {}: {}", path, ex.getMessage(), ex);
                 ErrorResponseDto response = new ErrorResponseDto(
                                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
@@ -268,6 +280,18 @@ public class GlobalExceptionHandler {
                                 "An unexpected internal server error occurred",
                                 path);
                 return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        private boolean isClientDisconnect(Throwable ex) {
+                while (ex != null) {
+                        String msg = ex.getMessage();
+                        if (ex instanceof AsyncRequestNotUsableException ||
+                            (msg != null && (msg.contains("Broken pipe") || msg.contains("Connection reset by peer")))) {
+                                return true;
+                        }
+                        ex = ex.getCause();
+                }
+                return false;
         }
 
         private String getPath(WebRequest request) {

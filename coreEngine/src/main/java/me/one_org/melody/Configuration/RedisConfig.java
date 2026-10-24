@@ -20,8 +20,6 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import tools.jackson.databind.DeserializationFeature;
 import tools.jackson.databind.cfg.DateTimeFeature;
-import tools.jackson.databind.jsontype.BasicPolymorphicTypeValidator;
-import tools.jackson.databind.jsontype.PolymorphicTypeValidator;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -32,14 +30,7 @@ public class RedisConfig implements CachingConfigurer {
     private static final Logger log = LoggerFactory.getLogger(RedisConfig.class);
 
     private GenericJacksonJsonRedisSerializer createJsonRedisSerializer() {
-        PolymorphicTypeValidator ptv = BasicPolymorphicTypeValidator.builder()
-                .allowIfBaseType(Object.class)
-                .allowIfSubType(Object.class)
-                .build();
-
         return GenericJacksonJsonRedisSerializer.builder()
-                .enableDefaultTyping(ptv)
-                .typePropertyName("@class")
                 .enableSpringCacheNullValueSupport()
                 .customize(builder -> builder
                         .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
@@ -59,7 +50,7 @@ public class RedisConfig implements CachingConfigurer {
         // Use String serializer for keys and hash keys
         template.setKeySerializer(stringSerializer);
         template.setHashKeySerializer(stringSerializer);
-        // Use Jackson 3 JSON serializer with polymorphic typing and null value support
+        // Use Jackson 3 JSON serializer with null value support
         template.setValueSerializer(jacksonSerializer);
         template.setHashValueSerializer(jacksonSerializer);
         template.afterPropertiesSet();
@@ -72,7 +63,7 @@ public class RedisConfig implements CachingConfigurer {
 
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration
                 .defaultCacheConfig()
-                .computePrefixWith(cacheName -> "v2:" + cacheName + "::")
+                .computePrefixWith(cacheName -> "v3:" + cacheName + "::")
                 .entryTtl(Duration.ofMinutes(10))
                 .serializeKeysWith(
                         RedisSerializationContext.SerializationPair.fromSerializer(
