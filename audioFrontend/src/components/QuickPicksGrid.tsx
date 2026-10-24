@@ -1,14 +1,14 @@
 "use client";
 
-import { useStore } from "@tanstack/react-store";
+import { useAppSelector } from "@/store/hooks";
 import { motion } from "framer-motion";
 import { Loader2, Pause, Play } from "lucide-react";
 import type React from "react";
 import { musicApi, type Song } from "../lib/api";
 import { getImageUrl } from "../lib/image-utils";
 import { mapToPlayerSong, formatStreamCount } from "../lib/player-utils";
-import { previewPlayer, previewStore } from "../lib/preview-player";
-import { playerActions, playerStore } from "../store/player.store";
+import { previewPlayer } from "../lib/preview-player";
+import { playerActions } from "../store/player.store";
 
 interface QuickPicksGridProps {
   songs: Song[];
@@ -19,10 +19,10 @@ export function QuickPicksGrid({
   songs,
   isLoading = false,
 }: QuickPicksGridProps) {
-  const currentSong = useStore(playerStore, (s) => s.currentSong);
-  const isPlaying = useStore(playerStore, (s) => s.isPlaying);
-  const isAudioLoading = useStore(playerStore, (s) => s.isLoading);
-  const previewState = useStore(previewStore, (s) => s);
+  const currentSong = useAppSelector((s) => s.player.currentSong);
+  const isPlaying = useAppSelector((s) => s.player.isPlaying);
+  const isAudioLoading = useAppSelector((s) => s.player.isLoading);
+  const previewState = useAppSelector((s) => s.preview);
 
   if (isLoading) {
     return (

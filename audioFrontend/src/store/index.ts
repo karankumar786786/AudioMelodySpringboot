@@ -2,6 +2,7 @@ import { configureStore } from "@reduxjs/toolkit";
 import { listenerMiddleware } from "./listenerMiddleware";
 import authReducer from "./slices/authSlice";
 import playerReducer from "./slices/playerSlice";
+import previewReducer from "./slices/previewSlice";
 import queueReducer from "./slices/queueSlice";
 import uiReducer from "./slices/uiSlice";
 
@@ -11,6 +12,7 @@ export const store = configureStore({
     queue: queueReducer,
     auth: authReducer,
     ui: uiReducer,
+    preview: previewReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware().prepend(listenerMiddleware.middleware),

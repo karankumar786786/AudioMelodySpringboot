@@ -1,11 +1,14 @@
 package me.one_org.melody.Utils;
 
 import java.time.Duration;
+import java.util.Optional;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Component;
 
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import me.one_org.melody.Configuration.CookieProperties;
 
@@ -47,6 +50,21 @@ public class CookieUtil {
         ResponseCookie refreshCookie = buildCookie("system_refresh_token", "", Duration.ZERO);
         response.addHeader(HttpHeaders.SET_COOKIE, tokenCookie.toString());
         response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
+    }
+
+    /**
+     * Extracts a non-blank cookie value by name from the HTTP request.
+     */
+    public Optional<String> getCookieValue(HttpServletRequest request, String cookieName) {
+        if (request == null || request.getCookies() == null || cookieName == null) {
+            return Optional.empty();
+        }
+        for (Cookie c : request.getCookies()) {
+            if (cookieName.equals(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) {
+                return Optional.of(c.getValue());
+            }
+        }
+        return Optional.empty();
     }
 
     private ResponseCookie buildCookie(String name, String value, Duration maxAge) {

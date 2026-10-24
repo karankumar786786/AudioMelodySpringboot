@@ -1,31 +1,52 @@
 import { Store } from "@tanstack/react-store";
 import { type Song } from "./api";
+import { store } from "@/store";
+import {
+  type PreviewState,
+  type PreviewStatus,
+  setPreviewState,
+  updatePreviewProgress,
+  resetPreview,
+} from "@/store/slices/previewSlice";
+
+export type { PreviewState, PreviewStatus };
 
 const S3_BASE_URL =
   process.env.NEXT_PUBLIC_S3_BASE_URL ||
   "https://audiomelodyspringboot.s3.ap-south-1.amazonaws.com";
 
-export type PreviewStatus = "idle" | "countdown" | "loading" | "playing";
+export const previewStore = new Store<PreviewState>(store.getState().preview);
 
-export interface PreviewState {
-  status: PreviewStatus;
-  songId: string | null;
-  songTitle: string | null;
-  startTime: number;
-  endTime: number;
-  currentTime: number;
-  progress: number;
-}
-
-export const previewStore = new Store<PreviewState>({
-  status: "idle",
-  songId: null,
-  songTitle: null,
-  startTime: 0,
-  endTime: 0,
-  currentTime: 0,
-  progress: 0,
+let isSyncing = false;
+store.subscribe(() => {
+  if (isSyncing) return;
+  isSyncing = true;
+  try {
+    previewStore.setState(() => store.getState().preview);
+  } finally {
+    isSyncing = false;
+  }
 });
+
+const originalSetState = previewStore.setState.bind(previewStore);
+previewStore.setState = (
+  updater:
+    | Partial<PreviewState>
+    | ((state: PreviewState) => Partial<PreviewState> | void)
+) => {
+  const current = store.getState().preview;
+  const next =
+    typeof updater === "function" ? (updater(current) as any) : updater;
+  if (!next) return;
+
+  isSyncing = true;
+  try {
+    originalSetState(() => ({ ...current, ...next }));
+    store.dispatch(setPreviewState(next));
+  } finally {
+    isSyncing = false;
+  }
+};
 
 class PreviewManager {
   private timer: NodeJS.Timeout | null = null;

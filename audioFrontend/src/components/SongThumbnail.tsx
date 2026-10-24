@@ -4,9 +4,8 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import { Play, Pause, Music, Loader2 } from "lucide-react";
 import { type Song } from "@/lib/api";
-import { previewPlayer, previewStore } from "@/lib/preview-player";
+import { previewPlayer } from "@/lib/preview-player";
 import { useAppSelector } from "@/store/hooks";
-import { useStore } from "@tanstack/react-store";
 import { getImageUrl } from "@/lib/image-utils";
 
 export interface SongThumbnailProps {
@@ -31,7 +30,7 @@ export function SongThumbnail({
   const currentSong = useAppSelector((s) => s.player.currentSong);
   const isPlaying = useAppSelector((s) => s.player.isPlaying);
   const isAudioLoading = useAppSelector((s) => s.player.isLoading);
-  const previewState = useStore(previewStore, (s) => s);
+  const previewState = useAppSelector((s) => s.preview);
 
   if (!song) return null;
 

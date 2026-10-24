@@ -10,7 +10,6 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
@@ -91,16 +90,7 @@ public class AuthenticationController {
     ) {
         String effectiveRefreshToken = (request.refreshToken() != null && !request.refreshToken().isBlank())
                 ? request.refreshToken()
-                : null;
-
-        if (effectiveRefreshToken == null && httpRequest.getCookies() != null) {
-            for (Cookie c : httpRequest.getCookies()) {
-                if ("system_refresh_token".equals(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) {
-                    effectiveRefreshToken = c.getValue();
-                    break;
-                }
-            }
-        }
+                : cookieUtil.getCookieValue(httpRequest, "system_refresh_token").orElse(null);
 
         if (effectiveRefreshToken == null || effectiveRefreshToken.isBlank()) {
             throw new UnauthorizedException("No refresh token provided");
@@ -121,25 +111,13 @@ public class AuthenticationController {
             @Valid @RequestBody RefreshTokenRequestDto request,
             HttpServletRequest httpRequest,
             HttpServletResponse httpServletResponse) {
-        String token = (authHeader != null && authHeader.startsWith("Bearer ")) ? authHeader.substring(7) : null;
-        if (token == null && httpRequest.getCookies() != null) {
-            for (Cookie c : httpRequest.getCookies()) {
-                if ("system_token".equals(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) {
-                    token = c.getValue();
-                    break;
-                }
-            }
-        }
+        String token = (authHeader != null && authHeader.startsWith("Bearer "))
+                ? authHeader.substring(7)
+                : cookieUtil.getCookieValue(httpRequest, "system_token").orElse(null);
 
-        String refreshToken = request.refreshToken();
-        if (refreshToken == null && httpRequest.getCookies() != null) {
-            for (Cookie c : httpRequest.getCookies()) {
-                if ("system_refresh_token".equals(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) {
-                    refreshToken = c.getValue();
-                    break;
-                }
-            }
-        }
+        String refreshToken = (request.refreshToken() != null && !request.refreshToken().isBlank())
+                ? request.refreshToken()
+                : cookieUtil.getCookieValue(httpRequest, "system_refresh_token").orElse(null);
 
         authenticationService.logout(token, refreshToken, request.deviceId());
 

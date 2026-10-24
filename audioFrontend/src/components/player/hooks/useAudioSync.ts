@@ -1,7 +1,6 @@
 import { useEffect, useRef, useCallback, MutableRefObject } from "react";
 import { playerActions, playerStore } from "../../../store/player.store";
-import { previewStore } from "@/lib/preview-player";
-import { useStore } from "@tanstack/react-store";
+import { useAppSelector } from "@/store/hooks";
 import { toast } from "sonner";
 
 export function useAudioSync(
@@ -21,8 +20,8 @@ export function useAudioSync(
   fadeTo?: (targetGain: number, dur?: number) => void,
   setGainImmediate?: (val: number) => void,
 ) {
-  const isPreviewPlaying = useStore(previewStore, (s) => s.status === "playing");
-  const playbackRate = useStore(playerStore, (s) => s.playbackRate || 1);
+  const isPreviewPlaying = useAppSelector((s) => s.preview.status === "playing");
+  const playbackRate = useAppSelector((s) => s.player.playbackRate || 1);
   const animFrameRef = useRef<number>(0);
   const volumeAnimRef = useRef<number | null>(null);
   const hasFadedOutRef = useRef<boolean>(false);

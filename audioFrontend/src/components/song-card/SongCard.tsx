@@ -1,14 +1,13 @@
 "use client";
 
 import React, { useState } from "react";
-import { useStore } from "@tanstack/react-store";
 import { useAppSelector } from "@/store/hooks";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { musicApi } from "@/lib/api";
 import { getImageUrl } from "@/lib/image-utils";
 import { mapToPlayerSong } from "@/lib/player-utils";
-import { previewPlayer, previewStore } from "@/lib/preview-player";
+import { previewPlayer } from "@/lib/preview-player";
 import { playerActions } from "@/store/player.store";
 import { PlaylistPickerModal } from "@/components/PlaylistPickerModal";
 import { ShareSongModal } from "@/components/ShareSongModal";
@@ -31,7 +30,7 @@ export function SongCard({
   const isInQueue = useAppSelector((s) =>
     s.queue.queue.some((item, idx) => idx > s.queue.lastQueueIndex && item.id === song.id),
   );
-  const previewState = useStore(previewStore, (s) => s);
+  const previewState = useAppSelector((s) => s.preview);
 
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);

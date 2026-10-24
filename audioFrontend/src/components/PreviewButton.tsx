@@ -3,8 +3,8 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { Volume2, Loader2, Square, Pause } from "lucide-react";
-import { useStore } from "@tanstack/react-store";
-import { previewPlayer, previewStore } from "@/lib/preview-player";
+import { useAppSelector } from "@/store/hooks";
+import { previewPlayer } from "@/lib/preview-player";
 import { Song } from "@/lib/api";
 
 const formatTime = (seconds: number) => {
@@ -29,7 +29,7 @@ export function PreviewButton({
   variant = "icon",
   showLabel = false,
 }: PreviewButtonProps) {
-  const previewState = useStore(previewStore, (s) => s);
+  const previewState = useAppSelector((s) => s.preview);
   const [isHovered, setIsHovered] = useState(false);
 
   if (!song?.id) return null;
@@ -74,9 +74,9 @@ export function PreviewButton({
         onMouseLeave={() => setIsHovered(false)}
         className={`relative overflow-hidden inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer select-none ${
           isPlaying
-            ? "!opacity-100 bg-[#121212] text-white border border-primary/50 shadow-lg shadow-primary/20 scale-105 z-10"
+            ? "opacity-100! bg-[#121212] text-white border border-primary/50 shadow-lg shadow-primary/20 scale-105 z-10"
             : isLoading
-            ? "!opacity-100 bg-primary/20 text-primary border border-primary/40 animate-pulse z-10"
+            ? "opacity-100! bg-primary/20 text-primary border border-primary/40 animate-pulse z-10"
             : "bg-white/10 text-zinc-300 hover:text-white hover:bg-white/20 border border-white/10"
         } ${className}`}
         title={titleText}
@@ -162,7 +162,7 @@ export function PreviewButton({
     <div
       className={`relative inline-flex items-center justify-center shrink-0 ${currentRing.box} text-zinc-400 hover:text-white ${className} ${
         isPlaying || isLoading
-          ? "!opacity-100 !pointer-events-auto !visible z-20"
+          ? "opacity-100! pointer-events-auto! visible! z-20"
           : ""
       }`}
     >
@@ -210,9 +210,9 @@ export function PreviewButton({
         onMouseLeave={() => setIsHovered(false)}
         className={`relative flex items-center justify-center rounded-full transition-all cursor-pointer ${
           isPlaying
-            ? "!opacity-100 w-[calc(100%-8px)] h-[calc(100%-8px)] bg-black text-primary hover:bg-zinc-900 shadow-md"
+            ? "opacity-100! w-[calc(100%-8px)] h-[calc(100%-8px)] bg-black text-primary hover:bg-zinc-900 shadow-md"
             : isLoading
-            ? "!opacity-100 w-[calc(100%-8px)] h-[calc(100%-8px)] bg-primary/20 text-primary"
+            ? "opacity-100! w-[calc(100%-8px)] h-[calc(100%-8px)] bg-primary/20 text-primary"
             : "w-full h-full text-zinc-400 hover:text-white hover:bg-white/10"
         }`}
         title={titleText}
