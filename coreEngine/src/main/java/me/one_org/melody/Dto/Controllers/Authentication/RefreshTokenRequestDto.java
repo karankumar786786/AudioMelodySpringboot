@@ -7,7 +7,4 @@ public record RefreshTokenRequestDto(
     @NotBlank(message = "Device ID is required")
     String deviceId
 ) {
-    public RefreshTokenRequestDto(String refreshToken) {
-        this(refreshToken, null);
-    }
 }

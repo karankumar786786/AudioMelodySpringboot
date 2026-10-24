@@ -6,7 +6,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.validation.annotation.Validated;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Dto.Controllers.Api.AddSongToUserPlaylistRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.CreateUserPlaylistRequestDto;
@@ -21,6 +23,7 @@ import me.one_org.melody.Services.Api.UserPlaylistApiService;
 
 @RestController
 @RequestMapping("/api/user/playlists")
+@Validated
 public class UserPlaylistApiController {
 
     private final UserPlaylistApiService userPlaylistAppService;
@@ -49,7 +52,7 @@ public class UserPlaylistApiController {
     @PutMapping("/{id}")
     public ResponseEntity<UserPlaylistDto> renamePlaylist(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String id,
+            @PathVariable @NotBlank(message = "Playlist ID is required") String id,
             @Valid @RequestBody RenameUserPlaylistRequestDto data) {
         return ResponseEntity.ok(userPlaylistAppService.renamePlaylist(currentUser.getId(), id, data.name()));
     }
@@ -57,7 +60,7 @@ public class UserPlaylistApiController {
     @PatchMapping("/{id}/privacy")
     public ResponseEntity<UserPlaylistDto> updatePlaylistPrivacy(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String id,
+            @PathVariable @NotBlank(message = "Playlist ID is required") String id,
             @Valid @RequestBody UpdatePlaylistPrivacyRequestDto data) {
         return ResponseEntity.ok(userPlaylistAppService.updatePlaylistPrivacy(currentUser.getId(), id, data.privacy()));
     }
@@ -65,7 +68,7 @@ public class UserPlaylistApiController {
     @GetMapping("/{id}")
     public ResponseEntity<UserPlaylistDto> getPlaylistById(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String id) {
+            @PathVariable @NotBlank(message = "Playlist ID is required") String id) {
         String userId = currentUser != null ? currentUser.getId() : null;
         return ResponseEntity.ok(userPlaylistAppService.getPlaylistById(userId, id));
     }
@@ -73,7 +76,7 @@ public class UserPlaylistApiController {
     @GetMapping("/{id}/songs")
     public ResponseEntity<PaginatedResponseDto<SongDto>> getPlaylistSongs(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String id,
+            @PathVariable @NotBlank(message = "Playlist ID is required") String id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         String userId = currentUser != null ? currentUser.getId() : null;
@@ -85,14 +88,14 @@ public class UserPlaylistApiController {
     @PostMapping("/{id}/save")
     public ResponseEntity<UserPlaylistDto> savePlaylistToLibrary(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String id) {
+            @PathVariable @NotBlank(message = "Playlist ID is required") String id) {
         return ResponseEntity.status(HttpStatus.CREATED).body(userPlaylistAppService.savePlaylistToLibrary(currentUser.getId(), id));
     }
 
     @DeleteMapping("/{id}/save")
     public ResponseEntity<Void> unsavePlaylistFromLibrary(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String id) {
+            @PathVariable @NotBlank(message = "Playlist ID is required") String id) {
         userPlaylistAppService.unsavePlaylistFromLibrary(currentUser.getId(), id);
         return ResponseEntity.noContent().build();
     }
@@ -100,7 +103,7 @@ public class UserPlaylistApiController {
     @GetMapping("/{id}/saved")
     public ResponseEntity<java.util.Map<String, Boolean>> isPlaylistSaved(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String id) {
+            @PathVariable @NotBlank(message = "Playlist ID is required") String id) {
         String userId = currentUser != null ? currentUser.getId() : null;
         boolean saved = userPlaylistAppService.isPlaylistSaved(userId, id);
         return ResponseEntity.ok(java.util.Map.of("isSaved", saved));
@@ -109,14 +112,14 @@ public class UserPlaylistApiController {
     @PostMapping("/{id}/duplicate")
     public ResponseEntity<UserPlaylistDto> duplicatePlaylist(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String id) {
+            @PathVariable @NotBlank(message = "Playlist ID is required") String id) {
         return ResponseEntity.status(HttpStatus.CREATED).body(userPlaylistAppService.duplicatePlaylist(currentUser.getId(), id));
     }
 
     @GetMapping("/shared/{tokenOrId}")
     public ResponseEntity<UserPlaylistDto> getSharedPlaylist(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String tokenOrId) {
+            @PathVariable @NotBlank(message = "Share token or ID is required") String tokenOrId) {
         String userId = currentUser != null ? currentUser.getId() : null;
         return ResponseEntity.ok(userPlaylistAppService.getSharedPlaylist(tokenOrId, userId));
     }
@@ -124,7 +127,7 @@ public class UserPlaylistApiController {
     @GetMapping("/shared/{tokenOrId}/songs")
     public ResponseEntity<PaginatedResponseDto<SongDto>> getSharedPlaylistSongs(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String tokenOrId,
+            @PathVariable @NotBlank(message = "Share token or ID is required") String tokenOrId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         String userId = currentUser != null ? currentUser.getId() : null;
@@ -137,7 +140,7 @@ public class UserPlaylistApiController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePlaylist(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String id) {
+            @PathVariable @NotBlank(message = "Playlist ID is required") String id) {
         userPlaylistAppService.deletePlaylist(currentUser.getId(), id);
         return ResponseEntity.noContent().build();
     }
@@ -145,7 +148,7 @@ public class UserPlaylistApiController {
     @PostMapping("/{id}/songs")
     public ResponseEntity<UserPlaylistDto> addSong(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String id,
+            @PathVariable @NotBlank(message = "Playlist ID is required") String id,
             @Valid @RequestBody AddSongToUserPlaylistRequestDto data) {
         return ResponseEntity.ok(userPlaylistAppService.addSong(currentUser.getId(), id, data.songId()));
     }
@@ -153,8 +156,8 @@ public class UserPlaylistApiController {
     @DeleteMapping("/{id}/songs/{songId}")
     public ResponseEntity<UserPlaylistDto> removeSong(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String id,
-            @PathVariable String songId) {
+            @PathVariable @NotBlank(message = "Playlist ID is required") String id,
+            @PathVariable @NotBlank(message = "Song ID is required") String songId) {
         return ResponseEntity.ok(userPlaylistAppService.removeSong(currentUser.getId(), id, songId));
     }
 }

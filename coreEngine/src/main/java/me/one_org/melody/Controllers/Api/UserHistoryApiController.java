@@ -13,7 +13,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import org.springframework.web.bind.annotation.RequestParam;
 
+import org.springframework.validation.annotation.Validated;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
 import me.one_org.melody.Dto.Controllers.Api.SaveSearchHistoryRequestDto;
@@ -25,6 +27,7 @@ import me.one_org.melody.Services.Api.UserHistoryApiService;
 
 @RestController
 @RequestMapping("/api/user/history")
+@Validated
 public class UserHistoryApiController {
 
     private final UserHistoryApiService userHistoryAppService;
@@ -66,7 +69,7 @@ public class UserHistoryApiController {
     @DeleteMapping("/search/{id}")
     public ResponseEntity<Void> deleteSearchHistoryItem(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable("id") String id) {
+            @PathVariable("id") @NotBlank(message = "Search item ID is required") String id) {
         userHistoryAppService.deleteSearchHistoryItem(currentUser.getId(), id);
         return ResponseEntity.ok().build();
     }

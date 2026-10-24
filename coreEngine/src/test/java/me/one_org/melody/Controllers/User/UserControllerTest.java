@@ -56,28 +56,10 @@ class UserControllerTest {
         when(userService.updateProfile("user-1", "Karan Kumar")).thenReturn(updated);
 
         UpdateProfileRequestDto body = new UpdateProfileRequestDto("Karan Kumar");
-        ResponseEntity<UserDto> response = userController.updateProfile(currentUser, null, body);
+        ResponseEntity<UserDto> response = userController.updateProfile(currentUser, body);
 
         assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
         assertThat(response.getBody()).isNotNull();
         assertThat(response.getBody().userName()).isEqualTo("Karan Kumar");
-    }
-
-    @Test
-    @DisplayName("Should update user profile via request param")
-    void shouldUpdateProfileViaRequestParam() {
-        User updated = User.builder()
-                .id("user-1")
-                .userName("Karan Param")
-                .email("karan@example.com")
-                .build();
-        CustomUserDetails currentUser = new CustomUserDetails(updated);
-        when(userService.updateProfile("user-1", "Karan Param")).thenReturn(updated);
-
-        ResponseEntity<UserDto> response = userController.updateProfile(currentUser, "Karan Param", null);
-
-        assertThat(response.getStatusCode().is2xxSuccessful()).isTrue();
-        assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().userName()).isEqualTo("Karan Param");
     }
 }

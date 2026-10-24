@@ -5,6 +5,8 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.validation.annotation.Validated;
+import jakarta.validation.constraints.NotBlank;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
 import me.one_org.melody.Dto.Controllers.Api.PlaylistDto;
@@ -13,6 +15,7 @@ import me.one_org.melody.Services.Api.PlaylistApiService;
 
 @RestController
 @RequestMapping("/api/playlists")
+@Validated
 public class PlaylistApiController {
 
     private final PlaylistApiService playlistAppService;
@@ -31,13 +34,13 @@ public class PlaylistApiController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<PlaylistDto> getPlaylistById(@PathVariable String id) {
+    public ResponseEntity<PlaylistDto> getPlaylistById(@PathVariable @NotBlank(message = "Playlist ID is required") String id) {
         return ResponseEntity.ok(playlistAppService.getPlaylistById(id));
     }
 
     @GetMapping("/{id}/songs")
     public ResponseEntity<PaginatedResponseDto<SongDto>> getPlaylistSongs(
-            @PathVariable String id,
+            @PathVariable @NotBlank(message = "Playlist ID is required") String id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         List<SongDto> songs = playlistAppService.getPlaylistSongsPaginated(id, page, size);

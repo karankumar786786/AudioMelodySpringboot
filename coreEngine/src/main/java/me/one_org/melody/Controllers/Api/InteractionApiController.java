@@ -1,12 +1,15 @@
 package me.one_org.melody.Controllers.Api;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Dto.Controllers.Api.TrackPlayRequestDto;
+import me.one_org.melody.Dto.Controllers.Api.TrackSearchClickRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.TrackSearchPlayRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.TrackSkipRequestDto;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
@@ -18,6 +21,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/interaction")
+@Validated
 public class InteractionApiController {
 
     private final InteractionApiService interactionAppService;
@@ -54,13 +58,9 @@ public class InteractionApiController {
     @PostMapping("/search-click")
     public ResponseEntity<Void> trackSearchClick(
             @CurrentUser CustomUserDetails currentUser,
-            @RequestBody java.util.Map<String, String> data) {
+            @Valid @RequestBody TrackSearchClickRequestDto data) {
         String userId = currentUser != null ? currentUser.getId() : null;
-        String type = data.get("type");
-        String id = data.get("id");
-        if (id != null && type != null) {
-            interactionAppService.trackSearchClick(userId, type, id);
-        }
+        interactionAppService.trackSearchClick(userId, data.type(), data.id());
         return ResponseEntity.ok().build();
     }
 
@@ -107,7 +107,7 @@ public class InteractionApiController {
     @PostMapping("/favourite/{songId}")
     public ResponseEntity<Void> addFavourite(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String songId) {
+            @PathVariable @NotBlank(message = "Song ID is required") String songId) {
         interactionAppService.addFavourite(currentUser.getId(), songId);
         return ResponseEntity.ok().build();
     }
@@ -115,7 +115,7 @@ public class InteractionApiController {
     @DeleteMapping("/favourite/{songId}")
     public ResponseEntity<Void> removeFavourite(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String songId) {
+            @PathVariable @NotBlank(message = "Song ID is required") String songId) {
         interactionAppService.removeFavourite(currentUser.getId(), songId);
         return ResponseEntity.noContent().build();
     }

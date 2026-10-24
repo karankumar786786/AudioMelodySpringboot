@@ -8,6 +8,8 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.validation.annotation.Validated;
+import jakarta.validation.constraints.NotBlank;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
@@ -15,6 +17,7 @@ import me.one_org.melody.Services.Api.SongsApiService;
 
 @RestController
 @RequestMapping("/api/songs")
+@Validated
 public class SongsApiController {
 
     private final SongsApiService songsAppService;
@@ -44,14 +47,14 @@ public class SongsApiController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<SongDto> getSongById(@PathVariable String id) {
+    public ResponseEntity<SongDto> getSongById(@PathVariable @NotBlank(message = "Song ID is required") String id) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(30, TimeUnit.MINUTES).cachePublic())
                 .body(songsAppService.getSongById(id));
     }
 
     @GetMapping(value = {"/album/{albumName}", "/album/{albumName}/songs"})
-    public ResponseEntity<List<SongDto>> getSongsByAlbum(@PathVariable String albumName) {
+    public ResponseEntity<List<SongDto>> getSongsByAlbum(@PathVariable @NotBlank(message = "Album name is required") String albumName) {
         return ResponseEntity.ok(songsAppService.getSongsByAlbum(albumName));
     }
 

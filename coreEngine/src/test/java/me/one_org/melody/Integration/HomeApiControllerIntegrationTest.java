@@ -56,7 +56,9 @@ class HomeApiControllerIntegrationTest {
                 artistApiService,
                 playlistApiService,
                 recommendationApiService
-        )).build();
+        ))
+        .setCustomArgumentResolvers(new me.one_org.melody.Utils.CurrentUserTestArgumentResolver())
+        .build();
     }
 
     @Test

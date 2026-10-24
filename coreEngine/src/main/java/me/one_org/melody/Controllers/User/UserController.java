@@ -1,8 +1,14 @@
 package me.one_org.melody.Controllers.User;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.validation.Valid;
 import me.one_org.melody.Dto.Controllers.Api.UserDto;
 import me.one_org.melody.Dto.Controllers.User.UpdateProfileRequestDto;
 import me.one_org.melody.Entity.User;
@@ -12,6 +18,7 @@ import me.one_org.melody.Services.General.UserService;
 
 @RestController
 @RequestMapping("/api/user/profile")
+@Validated
 public class UserController {
 
     private final UserService userService;
@@ -29,12 +36,8 @@ public class UserController {
     @PutMapping
     public ResponseEntity<UserDto> updateProfile(
             @CurrentUser CustomUserDetails currentUser,
-            @RequestParam(required = false) String userName,
-            @RequestBody(required = false) UpdateProfileRequestDto body) {
-        String effectiveName = (body != null && body.userName() != null && !body.userName().isBlank())
-                ? body.userName()
-                : userName;
-        User user = userService.updateProfile(currentUser.getId(), effectiveName);
+            @Valid @RequestBody UpdateProfileRequestDto body) {
+        User user = userService.updateProfile(currentUser.getId(), body.userName().trim());
         return ResponseEntity.ok(UserDto.fromEntity(user));
     }
 }

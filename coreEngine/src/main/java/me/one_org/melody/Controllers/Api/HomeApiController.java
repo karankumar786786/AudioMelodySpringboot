@@ -21,6 +21,7 @@ import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
 import me.one_org.melody.Dto.Controllers.Api.PlaylistDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
+import me.one_org.melody.Security.CurrentUser;
 import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.Api.ArtistApiService;
 import me.one_org.melody.Services.Api.PlaylistApiService;
@@ -65,20 +66,8 @@ public class HomeApiController {
     }
 
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter streamHomeFeed(
-            @RequestParam(value = "userId", required = false) String userIdParam) {
-
-        // Resolve userId from SecurityContext (populated by bearerTokenResolver) or query param fallback
-        String effectiveUserId = null;
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof CustomUserDetails userDetails) {
-            effectiveUserId = userDetails.getId();
-        }
-        if ((effectiveUserId == null || effectiveUserId.isBlank()) && userIdParam != null && !userIdParam.isBlank()) {
-            effectiveUserId = userIdParam;
-        }
-
-        final String userId = effectiveUserId;
+    public SseEmitter streamHomeFeed(@CurrentUser CustomUserDetails currentUser) {
+        final String userId = (currentUser != null) ? currentUser.getId() : null;
         log.info("[HomeStream] Opening SSE stream for user [{}]", userId != null ? userId : "anonymous");
 
         // 45 seconds timeout

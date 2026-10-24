@@ -32,15 +32,11 @@ export function subscribeHomeStream({
 
   (async () => {
     try {
-      const deviceId = getDeviceId();
       const headers: Record<string, string> = {
         Accept: "text/event-stream",
       };
 
-      const params = new URLSearchParams();
-      if (userId) params.set("userId", userId);
-      const queryStr = params.toString() ? `?${params.toString()}` : "";
-      const url = `${API_BASE_URL}/api/home/stream${queryStr}`;
+      const url = `${API_BASE_URL}/api/home/stream`;
 
       let response = await fetch(url, {
         method: "GET",

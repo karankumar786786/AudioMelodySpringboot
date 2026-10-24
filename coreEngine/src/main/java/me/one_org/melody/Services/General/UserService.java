@@ -8,6 +8,8 @@ import org.springframework.web.server.ResponseStatusException;
 import me.one_org.melody.Entity.User;
 import me.one_org.melody.Repository.UsersRepository;
 
+import me.one_org.melody.Exceptions.BadRequestException;
+
 @Service
 public class UserService {
 
@@ -19,17 +21,24 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public User getUserProfile(String userId) {
+        if (userId == null || userId.isBlank()) {
+            throw new BadRequestException("User ID is required");
+        }
         return usersRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
     }
 
     @Transactional
     public User updateProfile(String userId, String userName) {
-        User user = getUserProfile(userId);
-        if (userName != null && !userName.isBlank()) {
-            user.setUserName(userName);
-            usersRepository.save(user);
+        if (userId == null || userId.isBlank()) {
+            throw new BadRequestException("User ID is required");
         }
-        return user;
+        if (userName == null || userName.isBlank()) {
+            throw new BadRequestException("Username cannot be blank");
+        }
+        User user = getUserProfile(userId);
+        user.setUserName(userName.trim());
+        User saved = usersRepository.save(user);
+        return saved != null ? saved : user;
     }
 }

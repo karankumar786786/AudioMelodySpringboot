@@ -8,6 +8,8 @@ import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.validation.annotation.Validated;
+import jakarta.validation.constraints.NotBlank;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Dto.Controllers.Api.ArtistDto;
 import me.one_org.melody.Dto.Controllers.Api.ArtistFollowStatusDto;
@@ -19,6 +21,7 @@ import me.one_org.melody.Services.Api.ArtistApiService;
 
 @RestController
 @RequestMapping("/api/artists")
+@Validated
 public class ArtistApiController {
 
     private final ArtistApiService artistAppService;
@@ -37,7 +40,7 @@ public class ArtistApiController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ArtistDto> getArtistById(@PathVariable String id) {
+    public ResponseEntity<ArtistDto> getArtistById(@PathVariable @NotBlank(message = "Artist ID is required") String id) {
         return ResponseEntity.ok()
                 .cacheControl(CacheControl.maxAge(30, TimeUnit.MINUTES).cachePublic())
                 .body(artistAppService.getArtistById(id));
@@ -45,7 +48,7 @@ public class ArtistApiController {
 
     @GetMapping("/{id}/songs")
     public ResponseEntity<PaginatedResponseDto<SongDto>> getArtistSongs(
-            @PathVariable String id,
+            @PathVariable @NotBlank(message = "Artist ID is required") String id,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         List<SongDto> songs = artistAppService.getArtistSongsPaginated(id, page, size);
@@ -56,28 +59,28 @@ public class ArtistApiController {
     @PostMapping("/{id}/follow")
     public ResponseEntity<ArtistFollowStatusDto> followArtist(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String id) {
+            @PathVariable @NotBlank(message = "Artist ID is required") String id) {
         return ResponseEntity.ok(artistAppService.followArtist(currentUser.getId(), id));
     }
 
     @PostMapping("/{id}/unfollow")
     public ResponseEntity<ArtistFollowStatusDto> unfollowArtist(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String id) {
+            @PathVariable @NotBlank(message = "Artist ID is required") String id) {
         return ResponseEntity.ok(artistAppService.unfollowArtist(currentUser.getId(), id));
     }
 
     @DeleteMapping("/{id}/follow")
     public ResponseEntity<ArtistFollowStatusDto> deleteFollowArtist(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String id) {
+            @PathVariable @NotBlank(message = "Artist ID is required") String id) {
         return ResponseEntity.ok(artistAppService.unfollowArtist(currentUser.getId(), id));
     }
 
     @GetMapping("/{id}/follow-status")
     public ResponseEntity<ArtistFollowStatusDto> getFollowStatus(
             @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String id) {
+            @PathVariable @NotBlank(message = "Artist ID is required") String id) {
         String userId = currentUser != null ? currentUser.getId() : null;
         return ResponseEntity.ok(artistAppService.getFollowStatus(userId, id));
     }

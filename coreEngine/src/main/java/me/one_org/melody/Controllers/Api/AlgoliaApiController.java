@@ -6,6 +6,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.validation.annotation.Validated;
+import jakarta.validation.constraints.NotBlank;
 import me.one_org.melody.Dto.AlgoliaSearch.SearchResult;
 import me.one_org.melody.Security.CurrentUser;
 import me.one_org.melody.Security.CustomUserDetails;
@@ -13,6 +15,7 @@ import me.one_org.melody.Services.Api.SearchApiService;
 
 @RestController
 @RequestMapping("/api/search")
+@Validated
 public class AlgoliaApiController {
 
     private final SearchApiService searchApiService;
@@ -23,7 +26,7 @@ public class AlgoliaApiController {
 
     @GetMapping
     public ResponseEntity<SearchResult> search(
-            @RequestParam String q,
+            @RequestParam @NotBlank(message = "Search query is required") String q,
             @CurrentUser CustomUserDetails currentUser) {
         String userId = currentUser != null ? currentUser.getId() : null;
         return ResponseEntity.ok(searchApiService.search(q, userId));

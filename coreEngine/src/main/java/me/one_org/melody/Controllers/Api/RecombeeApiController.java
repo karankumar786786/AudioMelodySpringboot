@@ -4,6 +4,8 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.validation.annotation.Validated;
+import jakarta.validation.constraints.NotBlank;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Security.CurrentUser;
 import me.one_org.melody.Security.CustomUserDetails;
@@ -11,6 +13,7 @@ import me.one_org.melody.Services.Api.RecommendationApiService;
 
 @RestController
 @RequestMapping("/api/recommendations")
+@Validated
 public class RecombeeApiController {
 
     private final RecommendationApiService recommendationApiService;
@@ -28,14 +31,14 @@ public class RecombeeApiController {
 
     @GetMapping("/similar/{songId}")
     public ResponseEntity<List<SongDto>> recommendSimilar(
-            @PathVariable String songId,
+            @PathVariable @NotBlank(message = "Song ID is required") String songId,
             @RequestParam(defaultValue = "10") int count) {
         return ResponseEntity.ok(recommendationApiService.recommendSimilar(songId, count));
     }
 
     @GetMapping("/radio")
     public ResponseEntity<List<SongDto>> recommendRadio(
-            @RequestParam String seedSongId,
+            @RequestParam @NotBlank(message = "Seed song ID is required") String seedSongId,
             @RequestParam(required = false) String excludeIds,
             @RequestParam(defaultValue = "10") int count) {
         List<String> excludedList = (excludeIds != null && !excludeIds.isBlank())

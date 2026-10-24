@@ -44,10 +44,23 @@ class UserServiceTest {
     void updateProfile() {
         User user = User.builder().id("u-1").userName("old_name").email("k@melody.com").build();
         when(usersRepository.findById("u-1")).thenReturn(Optional.of(user));
+        when(usersRepository.save(any(User.class))).thenAnswer(i -> i.getArgument(0));
 
         User updated = userService.updateProfile("u-1", "new_name");
 
         assertThat(updated.getUserName()).isEqualTo("new_name");
         verify(usersRepository).save(user);
+    }
+
+    @Test
+    @DisplayName("updateProfile should throw BadRequestException when userId or userName is blank")
+    void updateProfileValidation() {
+        assertThatThrownBy(() -> userService.updateProfile("", "valid_name"))
+                .isInstanceOf(me.one_org.melody.Exceptions.BadRequestException.class)
+                .hasMessageContaining("User ID is required");
+
+        assertThatThrownBy(() -> userService.updateProfile("u-1", "  "))
+                .isInstanceOf(me.one_org.melody.Exceptions.BadRequestException.class)
+                .hasMessageContaining("Username cannot be blank");
     }
 }

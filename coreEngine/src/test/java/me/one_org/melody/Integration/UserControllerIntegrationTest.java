@@ -24,7 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class UserControllerIntegrationTest {
 
     private MockMvc mockMvc;
-
+    
     @Mock
     private UserService userService;
 
@@ -58,8 +58,8 @@ class UserControllerIntegrationTest {
 
         mockMvc.perform(put("/api/user/profile")
                         .requestAttr("userId", "u-1")
-                        .param("userName", "karan_pro")
-                        .contentType(MediaType.APPLICATION_JSON))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"userName\":\"karan_pro\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.userName").value("karan_pro"));
 
