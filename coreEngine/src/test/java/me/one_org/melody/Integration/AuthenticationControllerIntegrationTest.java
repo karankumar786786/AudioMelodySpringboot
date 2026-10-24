@@ -14,13 +14,16 @@ import me.one_org.melody.Controllers.Authentication.AuthenticationController;
 import me.one_org.melody.Dto.Controllers.Authentication.LoginRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.RefreshTokenResponseDto;
 import me.one_org.melody.Dto.Controllers.Authentication.RegisterRequestDto;
+import me.one_org.melody.Dto.Controllers.Authentication.SessionStatusDto;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpResponse;
+import me.one_org.melody.Security.ClientInfoArgumentResolver;
 import me.one_org.melody.Services.Authentication.AuthenticationService;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -34,11 +37,13 @@ class AuthenticationControllerIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new AuthenticationController(authenticationService)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new AuthenticationController(authenticationService))
+                .setCustomArgumentResolvers(new ClientInfoArgumentResolver())
+                .build();
     }
 
     @Test
-    @DisplayName("POST /auth/register should return 201 Created and tempToken")
+    @DisplayName("POST /auth/register should return 201 Created and tempToken with cooldown/expiry")
     void shouldRegisterUser() throws Exception {
         when(authenticationService.register(any(RegisterRequestDto.class), any())).thenReturn("temp-token-reg");
 
@@ -46,11 +51,13 @@ class AuthenticationControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"userName\":\"john_doe\",\"email\":\"john@example.com\"}"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.tempToken").value("temp-token-reg"));
+                .andExpect(jsonPath("$.tempToken").value("temp-token-reg"))
+                .andExpect(jsonPath("$.expiresInSeconds").value(600))
+                .andExpect(jsonPath("$.cooldownSeconds").value(60));
     }
 
     @Test
-    @DisplayName("POST /auth/login should return 200 OK and tempToken")
+    @DisplayName("POST /auth/login should return 200 OK and tempToken with cooldown/expiry")
     void shouldLoginUser() throws Exception {
         when(authenticationService.login(any(LoginRequestDto.class), any())).thenReturn("temp-token-login");
 
@@ -58,7 +65,9 @@ class AuthenticationControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"email\":\"john@example.com\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.tempToken").value("temp-token-login"));
+                .andExpect(jsonPath("$.tempToken").value("temp-token-login"))
+                .andExpect(jsonPath("$.expiresInSeconds").value(600))
+                .andExpect(jsonPath("$.cooldownSeconds").value(60));
     }
 
     @Test
@@ -105,7 +114,7 @@ class AuthenticationControllerIntegrationTest {
     }
 
     @Test
-    @DisplayName("POST /auth/logout should return 200 OK and success message")
+    @DisplayName("POST /auth/logout should return 200 OK and success message for current device")
     void shouldLogout() throws Exception {
         mockMvc.perform(post("/auth/logout")
                         .header("Authorization", "Bearer access-token-xyz")
@@ -114,6 +123,46 @@ class AuthenticationControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Logged out successfully"));
 
-        verify(authenticationService).logout("access-token-xyz", "refresh-token-xyz", "device-mac-2");
+        verify(authenticationService).logout("access-token-xyz", "refresh-token-xyz", "device-mac-2", false);
+    }
+
+    @Test
+    @DisplayName("POST /auth/logout should support allDevices parameter")
+    void shouldLogoutAllDevices() throws Exception {
+        mockMvc.perform(post("/auth/logout")
+                        .header("Authorization", "Bearer access-token-xyz")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"refresh-token-xyz\",\"deviceId\":\"device-mac-2\",\"allDevices\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("Logged out successfully"));
+
+        verify(authenticationService).logout("access-token-xyz", "refresh-token-xyz", "device-mac-2", true);
+    }
+
+    @Test
+    @DisplayName("GET /auth/session should return authenticated status when token is valid")
+    void shouldReturnAuthenticatedSession() throws Exception {
+        when(authenticationService.getSessionStatus("valid-access-token"))
+                .thenReturn(SessionStatusDto.authenticated("user-1", "user@test.com", "user1"));
+
+        mockMvc.perform(get("/auth/session")
+                        .header("Authorization", "Bearer valid-access-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authenticated").value(true))
+                .andExpect(jsonPath("$.userId").value("user-1"))
+                .andExpect(jsonPath("$.email").value("user@test.com"))
+                .andExpect(jsonPath("$.userName").value("user1"));
+    }
+
+    @Test
+    @DisplayName("GET /auth/session should return unauthenticated status when token is missing or invalid")
+    void shouldReturnUnauthenticatedSessionWhenNoToken() throws Exception {
+        when(authenticationService.getSessionStatus(null))
+                .thenReturn(SessionStatusDto.unauthenticated());
+
+        mockMvc.perform(get("/auth/session"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.authenticated").value(false))
+                .andExpect(jsonPath("$.userId").doesNotExist());
     }
 }

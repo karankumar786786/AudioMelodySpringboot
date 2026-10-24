@@ -12,4 +12,9 @@ public record VerifyOtpRequest(
     @NotBlank(message = "Device ID is required")
     String deviceId
 ) {
+    public VerifyOtpRequest {
+        tempToken = tempToken != null ? tempToken.trim() : null;
+        otp = otp != null ? otp.trim() : null;
+        deviceId = deviceId != null ? deviceId.trim() : null;
+    }
 }

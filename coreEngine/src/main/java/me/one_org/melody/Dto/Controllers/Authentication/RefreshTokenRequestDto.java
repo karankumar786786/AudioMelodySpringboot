@@ -8,4 +8,8 @@ public record RefreshTokenRequestDto(
     @NotBlank(message = "Device ID is required")
     String deviceId
 ) {
+    public RefreshTokenRequestDto {
+        refreshToken = refreshToken != null ? refreshToken.trim() : null;
+        deviceId = deviceId != null ? deviceId.trim() : null;
+    }
 }

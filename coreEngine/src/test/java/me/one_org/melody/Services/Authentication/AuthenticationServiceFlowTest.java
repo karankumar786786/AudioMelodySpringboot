@@ -173,7 +173,41 @@ class AuthenticationServiceFlowTest {
         assertThat(response.refreshToken()).isEqualTo("refresh-jwt");
         verify(usersRepository).save(any(User.class));
         verify(sessionRepository).save(any(Session.class));
-        verify(eventPublisher).publishEvent(any(Object.class));
+        verify(eventPublisher).publishEvent(any(me.one_org.melody.Events.TelemetryEvents.UserRegisteredEvent.class));
+        verify(eventPublisher).publishEvent(any(me.one_org.melody.Events.TelemetryEvents.UserLoginEvent.class));
         verify(cache).delete("newbie@melody.com");
+    }
+
+    @Test
+    @DisplayName("Should logout from all devices when allDevices is true")
+    void shouldLogoutFromAllDevices() {
+        when(jwtUtil.validateAndGetPayload("mock-access-token"))
+                .thenReturn(new me.one_org.melody.Dto.Internal.JwtPayloadDto("user-123", "test@melody.com", "test", me.one_org.melody.Enums.RoleEnum.USER));
+
+        authenticationService.logout("mock-access-token", "mock-refresh-token", "dev-1", true);
+
+        verify(sessionRepository).deleteByUserId("user-123");
+    }
+
+    @Test
+    @DisplayName("Should return valid SessionStatusDto when token is valid")
+    void shouldReturnSessionStatus() {
+        when(jwtUtil.validateAndGetPayload("valid-token"))
+                .thenReturn(new me.one_org.melody.Dto.Internal.JwtPayloadDto("user-123", "test", "test@melody.com", me.one_org.melody.Enums.RoleEnum.USER));
+
+        me.one_org.melody.Dto.Controllers.Authentication.SessionStatusDto status = authenticationService.getSessionStatus("valid-token");
+
+        assertThat(status.isAuthenticated()).isTrue();
+        assertThat(status.userId()).isEqualTo("user-123");
+        assertThat(status.email()).isEqualTo("test@melody.com");
+    }
+
+    @Test
+    @DisplayName("Should return unauthenticated SessionStatusDto when token is null or empty")
+    void shouldReturnUnauthenticatedSessionStatus() {
+        me.one_org.melody.Dto.Controllers.Authentication.SessionStatusDto status = authenticationService.getSessionStatus(null);
+
+        assertThat(status.isAuthenticated()).isFalse();
+        assertThat(status.userId()).isNull();
     }
 }

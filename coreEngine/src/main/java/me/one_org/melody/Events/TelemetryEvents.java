@@ -19,4 +19,6 @@ public final class TelemetryEvents {
     public record OnboardingSeededEvent(String userId, List<String> followedArtistIds) {}
 
     public record UserRegisteredEvent(String userId) {}
+
+    public record UserLoginEvent(String userId, String email, String deviceId, String deviceName, String ipAddress) {}
 }

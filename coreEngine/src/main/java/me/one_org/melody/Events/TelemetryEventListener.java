@@ -167,4 +167,11 @@ public class TelemetryEventListener {
             log.warn("Failed to register new user in Recombee: {}", e.getMessage());
         }
     }
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void onUserLogin(TelemetryEvents.UserLoginEvent event) {
+        log.info("User login telemetry: userId [{}], email [{}], device [{} ({})], ip [{}]",
+                event.userId(), event.email(), event.deviceId(), event.deviceName(), event.ipAddress());
+    }
 }

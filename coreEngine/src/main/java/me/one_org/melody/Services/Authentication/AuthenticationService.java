@@ -17,6 +17,7 @@ import me.one_org.melody.Cache.Redis;
 import me.one_org.melody.Dto.Controllers.Authentication.LoginRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.RefreshTokenResponseDto;
 import me.one_org.melody.Dto.Controllers.Authentication.RegisterRequestDto;
+import me.one_org.melody.Dto.Controllers.Authentication.SessionStatusDto;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpResponse;
 import me.one_org.melody.Dto.Internal.JwtPayloadDto;
 import me.one_org.melody.Dto.Internal.OtpDataDto;
@@ -213,6 +214,14 @@ public class AuthenticationService {
         session.setLastActiveAt(LocalDateTime.now());
         sessionRepository.save(session);
 
+        eventPublisher.publishEvent(new me.one_org.melody.Events.TelemetryEvents.UserLoginEvent(
+                user.getId(),
+                user.getEmail(),
+                deviceId,
+                deviceName != null ? deviceName : "Unknown Device",
+                clientIp != null ? clientIp : "Unknown IP"
+        ));
+
         return new VerifyOtpResponse(accessToken, refreshToken, isNewUser);
     }
 
@@ -338,6 +347,11 @@ public class AuthenticationService {
 
     @Transactional
     public void logout(String accessToken, String refreshToken, String deviceId) {
+        logout(accessToken, refreshToken, deviceId, false);
+    }
+
+    @Transactional
+    public void logout(String accessToken, String refreshToken, String deviceId, boolean allDevices) {
         if (deviceId == null || deviceId.isBlank()) {
             throw new BadRequestException("Device ID is required");
         }
@@ -353,15 +367,55 @@ public class AuthenticationService {
             }
         }
 
-        if (refreshToken != null && !refreshToken.isBlank()) {
-            sessionRepository.deleteByRefreshToken(refreshToken);
-        }
+        String userId = null;
         if (accessToken != null && !accessToken.isBlank()) {
             try {
                 JwtPayloadDto payload = jwtUtil.validateAndGetPayload(accessToken);
-                sessionRepository.deleteByUserIdAndDeviceId(payload.id(), deviceId);
+                userId = payload.id();
             } catch (Exception ignored) {
             }
+        }
+        if (userId == null && refreshToken != null && !refreshToken.isBlank()) {
+            try {
+                JwtPayloadDto payload = jwtUtil.validateAndGetPayload(refreshToken);
+                userId = payload.id();
+            } catch (Exception ignored) {
+            }
+        }
+
+        if (allDevices) {
+            if (userId != null && !userId.isBlank()) {
+                sessionRepository.deleteByUserId(userId);
+            } else if (refreshToken != null && !refreshToken.isBlank()) {
+                sessionRepository.findByRefreshToken(refreshToken)
+                        .ifPresent(s -> sessionRepository.deleteByUserId(s.getUser().getId()));
+            }
+        } else {
+            if (refreshToken != null && !refreshToken.isBlank()) {
+                sessionRepository.deleteByRefreshToken(refreshToken);
+            }
+            if (userId != null && !userId.isBlank()) {
+                sessionRepository.deleteByUserIdAndDeviceId(userId, deviceId);
+            }
+        }
+    }
+
+    public SessionStatusDto getSessionStatus(String accessToken) {
+        if (accessToken == null || accessToken.isBlank()) {
+            return SessionStatusDto.unauthenticated();
+        }
+        try {
+            String jti = jwtUtil.extractJti(accessToken);
+            if (jti != null && tokenBlacklistService != null && tokenBlacklistService.isBlacklisted(jti)) {
+                return SessionStatusDto.unauthenticated();
+            }
+            JwtPayloadDto payload = jwtUtil.validateAndGetPayload(accessToken);
+            if (payload == null || payload.id() == null) {
+                return SessionStatusDto.unauthenticated();
+            }
+            return SessionStatusDto.authenticated(payload.id(), payload.email(), payload.userName());
+        } catch (Exception e) {
+            return SessionStatusDto.unauthenticated();
         }
     }
 }
