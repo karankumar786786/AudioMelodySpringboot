@@ -8,13 +8,13 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.web.server.ResponseStatusException;
 
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Entity.User;
 import me.one_org.melody.Entity.UserHistory;
 import me.one_org.melody.Events.TelemetryEvents;
+import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserHistoryRepository;
@@ -81,7 +81,7 @@ class InteractionApiServiceTest {
         when(songsRepository.existsById("non-existent")).thenReturn(false);
 
         assertThatThrownBy(() -> interactionApiService.trackPlay("user-1", "non-existent", 0.5))
-                .isInstanceOf(ResponseStatusException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Song not found");
 
         verifyNoInteractions(userHistoryRepository);

@@ -37,6 +37,10 @@ export const queryKeys = {
     searchHistory: () => ["user", "history", "search"] as const,
     favourites: () => ["user", "favourites"] as const,
   },
+  search: {
+    all: ["search"] as const,
+    unified: (query: string) => ["search", "unified", query] as const,
+  },
   recommendations: {
     user: (count = 10) => ["recommendations", "user", count] as const,
     similar: (songId: string, count = 10) =>

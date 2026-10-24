@@ -2,10 +2,11 @@
 
 import React from "react";
 import dynamic from "next/dynamic";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { closeModal } from "@/store/slices/uiSlice";
 import { playerActions } from "@/store/player.store";
 import { getImageUrl } from "@/lib/image-utils";
 import { getFullVideoHlsUrl, getFullVideoDashUrl, type PlayerSong } from "@/lib/player-utils";
-import type { Song } from "@/lib/api/types";
 import { PlayerHudOverlay } from "../PlayerHudOverlay";
 
 const PlaylistPickerModal = dynamic(
@@ -41,24 +42,24 @@ const PlayerQueuePanel = dynamic(
   { ssr: false },
 );
 
-interface PlayerModalsPortalProps {
+export interface PlayerModalsPortalProps {
   currentSong: PlayerSong;
   isPlaying: boolean;
-  isFullVideoOpen: boolean;
-  showEqualizerModal: boolean;
-  setShowEqualizerModal: (show: boolean) => void;
-  showSleepTimerModal: boolean;
-  setShowSleepTimerModal: (show: boolean) => void;
-  showShortcutsModal: boolean;
-  setShowShortcutsModal: (show: boolean) => void;
-  isPlaylistModalOpen: boolean;
-  setIsPlaylistModalOpen: (show: boolean) => void;
-  showQueuePanel: boolean;
-  setShowQueuePanel: (show: boolean) => void;
-  showCommandPalette: boolean;
-  setShowCommandPalette: (show: boolean) => void;
-  showShareModal: boolean;
-  setShowShareModal: (show: boolean) => void;
+  isFullVideoOpen?: boolean;
+  showEqualizerModal?: boolean;
+  setShowEqualizerModal?: (show: boolean) => void;
+  showSleepTimerModal?: boolean;
+  setShowSleepTimerModal?: (show: boolean) => void;
+  showShortcutsModal?: boolean;
+  setShowShortcutsModal?: (show: boolean) => void;
+  isPlaylistModalOpen?: boolean;
+  setIsPlaylistModalOpen?: (show: boolean) => void;
+  showQueuePanel?: boolean;
+  setShowQueuePanel?: (show: boolean) => void;
+  showCommandPalette?: boolean;
+  setShowCommandPalette?: (show: boolean) => void;
+  showShareModal?: boolean;
+  setShowShareModal?: (show: boolean) => void;
   webAudio: {
     analyser: AnalyserNode | null;
     gains: number[];
@@ -74,30 +75,19 @@ interface PlayerModalsPortalProps {
 export const PlayerModalsPortal: React.FC<PlayerModalsPortalProps> = ({
   currentSong,
   isPlaying,
-  isFullVideoOpen,
-  showEqualizerModal,
-  setShowEqualizerModal,
-  showSleepTimerModal,
-  setShowSleepTimerModal,
-  showShortcutsModal,
-  setShowShortcutsModal,
-  isPlaylistModalOpen,
-  setIsPlaylistModalOpen,
-  showQueuePanel,
-  setShowQueuePanel,
-  showCommandPalette,
-  setShowCommandPalette,
-  showShareModal,
-  setShowShareModal,
+  isFullVideoOpen = false,
   webAudio,
 }) => {
+  const dispatch = useAppDispatch();
+  const { activeModal, modalPayload } = useAppSelector((s) => s.ui);
+
   return (
     <>
       {/* Equalizer & Visualizer Modal */}
-      {showEqualizerModal && (
+      {activeModal === "equalizer" && (
         <EqualizerModal
-          isOpen={showEqualizerModal}
-          onClose={() => setShowEqualizerModal(false)}
+          isOpen={true}
+          onClose={() => dispatch(closeModal())}
           analyser={webAudio.analyser}
           isPlaying={isPlaying}
           gains={webAudio.gains}
@@ -111,28 +101,28 @@ export const PlayerModalsPortal: React.FC<PlayerModalsPortalProps> = ({
       )}
 
       {/* Sleep Timer Modal */}
-      {showSleepTimerModal && (
+      {activeModal === "sleepTimer" && (
         <SleepTimerModal
-          isOpen={showSleepTimerModal}
-          onClose={() => setShowSleepTimerModal(false)}
+          isOpen={true}
+          onClose={() => dispatch(closeModal())}
         />
       )}
 
       {/* Keyboard Shortcuts Cheat-Sheet Modal */}
-      {showShortcutsModal && (
+      {activeModal === "shortcuts" && (
         <KeyboardShortcutsModal
-          isOpen={showShortcutsModal}
-          onClose={() => setShowShortcutsModal(false)}
+          isOpen={true}
+          onClose={() => dispatch(closeModal())}
         />
       )}
 
       {/* Playlist Picker Modal */}
-      {isPlaylistModalOpen && (
+      {activeModal === "playlistPicker" && (
         <PlaylistPickerModal
-          isOpen={isPlaylistModalOpen}
-          onClose={() => setIsPlaylistModalOpen(false)}
-          songId={currentSong.id}
-          songTitle={currentSong.title}
+          isOpen={true}
+          onClose={() => dispatch(closeModal())}
+          songId={modalPayload?.songId ?? currentSong.id}
+          songTitle={modalPayload?.songTitle ?? currentSong.title}
         />
       )}
 
@@ -150,18 +140,18 @@ export const PlayerModalsPortal: React.FC<PlayerModalsPortalProps> = ({
       )}
 
       {/* Queue Drawer */}
-      {showQueuePanel && (
+      {activeModal === "queue" && (
         <PlayerQueuePanel
-          open={showQueuePanel}
-          onClose={() => setShowQueuePanel(false)}
+          open={true}
+          onClose={() => dispatch(closeModal())}
         />
       )}
 
       {/* Quick Search Spotlight Command Palette */}
-      {showCommandPalette && (
+      {activeModal === "commandPalette" && (
         <CommandPaletteModal
-          isOpen={showCommandPalette}
-          onClose={() => setShowCommandPalette(false)}
+          isOpen={true}
+          onClose={() => dispatch(closeModal())}
         />
       )}
 
@@ -169,11 +159,11 @@ export const PlayerModalsPortal: React.FC<PlayerModalsPortalProps> = ({
       <PlayerHudOverlay />
 
       {/* Share Song Story Card Modal */}
-      {showShareModal && (
+      {activeModal === "shareSong" && (
         <ShareSongModal
-          isOpen={showShareModal}
-          onClose={() => setShowShareModal(false)}
-          song={currentSong}
+          isOpen={true}
+          onClose={() => dispatch(closeModal())}
+          song={modalPayload?.song ?? currentSong}
         />
       )}
     </>

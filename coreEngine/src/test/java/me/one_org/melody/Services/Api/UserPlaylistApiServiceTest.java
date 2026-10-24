@@ -10,12 +10,12 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.web.server.ResponseStatusException;
 
 import me.one_org.melody.Dto.Controllers.Api.UserPlaylistDto;
 import me.one_org.melody.Entity.User;
 import me.one_org.melody.Entity.UserPlaylist;
 import me.one_org.melody.Enums.PlaylistPrivacyEnum;
+import me.one_org.melody.Exceptions.ForbiddenException;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserPlaylistsRepository;
 import me.one_org.melody.Repository.UserSavedPlaylistsRepository;
@@ -75,7 +75,7 @@ class UserPlaylistApiServiceTest {
         when(userPlaylistsRepository.findById("pl-1")).thenReturn(Optional.of(playlist));
 
         assertThatThrownBy(() -> userPlaylistApiService.renamePlaylist("stranger-2", "pl-1", "Hacked"))
-                .isInstanceOf(ResponseStatusException.class)
+                .isInstanceOf(ForbiddenException.class)
                 .hasMessageContaining("Not your playlist");
     }
 

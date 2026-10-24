@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStore } from "@tanstack/react-store";
 import { useRouter } from "next/navigation";
 import { Search, Sparkles, Trash2 } from "lucide-react";
@@ -10,7 +9,6 @@ import {
   musicApi,
   type Artist,
   type Playlist,
-  type SaveSearchHistoryPayload,
   type SearchHistoryItem,
   type Song,
   type UserPlaylist,
@@ -18,6 +16,13 @@ import {
 import { formatFollowerCount, formatStreamCount, mapToPlayerSong } from "@/lib/player-utils";
 import { previewPlayer } from "@/lib/preview-player";
 import { playerActions, playerStore } from "@/store/player.store";
+import {
+  useUnifiedSearch,
+  useUserSearchHistory,
+  useSaveSearchHistoryMutation,
+  useDeleteSearchHistoryMutation,
+  useClearSearchHistoryMutation,
+} from "@/hooks/queries";
 import { CommandPaletteFooter } from "./CommandPaletteFooter";
 import { CommandPaletteInput } from "./CommandPaletteInput";
 import { CommandPaletteListItem } from "./CommandPaletteListItem";
@@ -29,7 +34,6 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   onClose,
 }) => {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const systemUser = useStore(playerStore, (s) => s.systemUser);
 
   const [query, setQuery] = useState("");
@@ -59,51 +63,24 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
     }
   }, [isOpen]);
 
-  // Fetch unified search results
-  const { data: searchResults, isLoading: isSearching } = useQuery({
-    queryKey: ["command-palette-search", debouncedQuery],
-    queryFn: () => musicApi.search.unified(debouncedQuery),
-    enabled: isOpen && debouncedQuery.length > 0,
-  });
+  // Fetch unified search results via dedicated TanStack query hook
+  const { data: searchResults, isLoading: isSearching } = useUnifiedSearch(
+    debouncedQuery,
+    { enabled: isOpen }
+  );
 
-  // Fetch structured search history
-  const { data: searchHistoryData } = useQuery({
-    queryKey: ["command-palette-history", systemUser?.id],
-    queryFn: () => musicApi.users.getSearchHistory(),
-    enabled: isOpen && !!systemUser?.id && !debouncedQuery,
-  });
-
-  const saveHistory = useMutation({
-    mutationFn: (payload: SaveSearchHistoryPayload) =>
-      musicApi.users.saveSearchHistory(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["command-palette-history"] });
-      queryClient.invalidateQueries({ queryKey: ["search-history"] });
-    },
-  });
-
-  const deleteHistoryItem = useMutation({
-    mutationFn: (id: string) => musicApi.users.deleteSearchHistoryItem(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["command-palette-history"] });
-      queryClient.invalidateQueries({ queryKey: ["search-history"] });
-    },
-  });
-
-  const clearHistory = useMutation({
-    mutationFn: () => musicApi.users.clearSearchHistory(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["command-palette-history"] });
-      queryClient.invalidateQueries({ queryKey: ["search-history"] });
-      toast.success("Search history cleared");
-    },
-  });
+  // User search history queries and mutations
+  const { data: searchHistoryData } = useUserSearchHistory();
+  const saveHistory = useSaveSearchHistoryMutation();
+  const deleteHistoryItem = useDeleteSearchHistoryMutation();
+  const clearHistory = useClearSearchHistoryMutation();
 
   const rawSongs: Song[] = searchResults?.data?.songs || [];
   const rawArtists: Artist[] = searchResults?.data?.artists || [];
   const rawPlaylists: Playlist[] = searchResults?.data?.playlists || [];
   const rawUserPlaylists: UserPlaylist[] = searchResults?.data?.userPlaylists || [];
-  const recentHistory: SearchHistoryItem[] = searchHistoryData?.data?.recent || [];
+  const recentHistory: SearchHistoryItem[] =
+    (searchHistoryData as any)?.recent || (searchHistoryData as any)?.data?.recent || [];
 
   // Build flattened list for keyboard navigation
   const items: NavigableItem[] = useMemo(() => {

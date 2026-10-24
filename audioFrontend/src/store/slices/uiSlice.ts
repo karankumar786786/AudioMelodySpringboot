@@ -6,12 +6,24 @@ export interface SleepTimerState {
   durationMinutes?: number;
 }
 
+export type ActiveModal =
+  | "commandPalette"
+  | "equalizer"
+  | "sleepTimer"
+  | "shortcuts"
+  | "playlistPicker"
+  | "shareSong"
+  | "queue"
+  | null;
+
 export interface UIState {
   isLyricsOpen: boolean;
   isVideoActive: boolean;
   isFullVideoOpen: boolean;
   isZenMode: boolean;
   sleepTimer: SleepTimerState;
+  activeModal: ActiveModal;
+  modalPayload: any | null;
 }
 
 const initialState: UIState = {
@@ -23,6 +35,8 @@ const initialState: UIState = {
     targetTimestamp: null,
     mode: null,
   },
+  activeModal: null,
+  modalPayload: null,
 };
 
 export const uiSlice = createSlice({
@@ -53,6 +67,31 @@ export const uiSlice = createSlice({
     clearSleepTimer: (state) => {
       state.sleepTimer = { targetTimestamp: null, mode: null };
     },
+    openModal: (
+      state,
+      action: PayloadAction<{ type: ActiveModal; payload?: any } | ActiveModal>
+    ) => {
+      if (typeof action.payload === "string" || action.payload === null) {
+        state.activeModal = action.payload;
+        state.modalPayload = null;
+      } else {
+        state.activeModal = action.payload.type;
+        state.modalPayload = action.payload.payload ?? null;
+      }
+    },
+    closeModal: (state) => {
+      state.activeModal = null;
+      state.modalPayload = null;
+    },
+    toggleModal: (state, action: PayloadAction<ActiveModal>) => {
+      if (state.activeModal === action.payload) {
+        state.activeModal = null;
+        state.modalPayload = null;
+      } else {
+        state.activeModal = action.payload;
+        state.modalPayload = null;
+      }
+    },
   },
 });
 
@@ -65,6 +104,9 @@ export const {
   toggleZenMode,
   setSleepTimer,
   clearSleepTimer,
+  openModal,
+  closeModal,
+  toggleModal,
 } = uiSlice.actions;
 
 export default uiSlice.reducer;

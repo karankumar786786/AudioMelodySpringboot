@@ -20,11 +20,11 @@ interface PlayerFooterDockProps {
   buffered: number;
   onSeekChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   isLyricsOpen: boolean;
-  showQueuePanel: boolean;
-  setShowQueuePanel: React.Dispatch<React.SetStateAction<boolean>>;
-  showEqualizerModal: boolean;
-  setShowEqualizerModal: React.Dispatch<React.SetStateAction<boolean>>;
-  setShowSleepTimerModal: React.Dispatch<React.SetStateAction<boolean>>;
+  showQueuePanel?: boolean;
+  setShowQueuePanel?: React.Dispatch<React.SetStateAction<boolean>>;
+  showEqualizerModal?: boolean;
+  setShowEqualizerModal?: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowSleepTimerModal?: React.Dispatch<React.SetStateAction<boolean>>;
   sleepTimerMode?: "minutes" | "end_of_track" | null;
   selectedQuality: "auto" | number;
   qualityTracks: any[];
@@ -36,7 +36,7 @@ interface PlayerFooterDockProps {
     isSpatialAudioEnabled: boolean;
     toggleSpatialAudio: () => void;
   };
-  onOpenShare: () => void;
+  onOpenShare?: () => void;
 }
 
 export const PlayerFooterDock: React.FC<PlayerFooterDockProps> = ({

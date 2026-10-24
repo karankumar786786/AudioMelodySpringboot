@@ -8,9 +8,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.server.ResponseStatusException;
-
 import me.one_org.melody.Entity.User;
+import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Repository.UsersRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -35,7 +34,7 @@ class UserServiceTest {
 
         assertThat(userService.getUserProfile("u-1").getUserName()).isEqualTo("karan");
         assertThatThrownBy(() -> userService.getUserProfile("u-none"))
-                .isInstanceOf(ResponseStatusException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("User not found");
     }
 

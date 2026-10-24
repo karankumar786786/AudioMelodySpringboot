@@ -6,10 +6,11 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
+
+import me.one_org.melody.Exceptions.BadRequestException;
+import me.one_org.melody.Exceptions.ResourceNotFoundException;
 
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
@@ -54,13 +55,13 @@ public class InteractionApiService {
     @Transactional
     public void trackPlay(String userId, String songId, double percentage) {
         if (songId == null || songId.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Song ID cannot be empty");
+            throw new BadRequestException("Song ID cannot be empty");
         }
         if (!songsRepository.existsById(songId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Song not found");
+            throw new ResourceNotFoundException("Song not found");
         }
         if (!usersRepository.existsById(userId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+            throw new ResourceNotFoundException("User not found");
         }
 
         // Use JPA entity reference proxies to assign foreign keys without loading entire column rows
@@ -170,15 +171,15 @@ public class InteractionApiService {
     @Transactional
     public void addFavourite(String userId, String songId) {
         if (songId == null || songId.isBlank()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Song ID cannot be empty");
+            throw new BadRequestException("Song ID cannot be empty");
         }
 
         // Fast existence checks without hydrating full entity models into memory
         if (!songsRepository.existsById(songId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Song not found");
+            throw new ResourceNotFoundException("Song not found");
         }
         if (!usersRepository.existsById(userId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+            throw new ResourceNotFoundException("User not found");
         }
 
         int inserted = usersRepository.addFavouriteSong(userId, songId);
@@ -197,7 +198,7 @@ public class InteractionApiService {
             paginationMetaDataService.decrementStatus("UserFavourites_" + userId, null);
             eventPublisher.publishEvent(new TelemetryEvents.SongFavouriteEvent(userId, songId, false));
         } else if (!usersRepository.existsById(userId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+            throw new ResourceNotFoundException("User not found");
         }
     }
 

@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { playerActions, playerStore } from "@/store/player.store";
+import { useAppDispatch } from "@/store/hooks";
+import { openModal, toggleModal } from "@/store/slices/uiSlice";
 import { type PlayerSong } from "@/lib/player-utils";
 import { showPlayerHud } from "../PlayerHudOverlay";
 
@@ -16,8 +18,8 @@ interface UsePlayerShortcutsProps {
   duration: number;
   volume: number;
   setLocalTime: (t: number) => void;
-  setShowQueuePanel: React.Dispatch<React.SetStateAction<boolean>>;
-  setShowEqualizerModal: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowQueuePanel?: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowEqualizerModal?: React.Dispatch<React.SetStateAction<boolean>>;
   setShowShortcutsModal?: React.Dispatch<React.SetStateAction<boolean>>;
   setShowCommandPalette?: React.Dispatch<React.SetStateAction<boolean>>;
 }
@@ -37,6 +39,8 @@ export function usePlayerShortcuts({
   setShowShortcutsModal,
   setShowCommandPalette,
 }: UsePlayerShortcutsProps) {
+  const dispatch = useAppDispatch();
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeEl = document.activeElement;
@@ -48,9 +52,8 @@ export function usePlayerShortcuts({
       // Cmd+K or Ctrl+K or Cmd+/ or Ctrl+/: Spotlight Command Palette
       if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K" || e.key === "/")) {
         e.preventDefault();
-        if (setShowCommandPalette) {
-          setShowCommandPalette((v) => !v);
-        }
+        dispatch(toggleModal("commandPalette"));
+        setShowCommandPalette?.((v) => !v);
         return;
       }
 
@@ -59,18 +62,16 @@ export function usePlayerShortcuts({
       // /: Quick search command palette (when not typing in an input)
       if (e.key === "/" && !e.shiftKey) {
         e.preventDefault();
-        if (setShowCommandPalette) {
-          setShowCommandPalette(true);
-        }
+        dispatch(openModal("commandPalette"));
+        setShowCommandPalette?.(true);
         return;
       }
 
       // ? or Shift + /: Toggle Keyboard Shortcuts Modal
       if (e.key === "?" || (e.key === "/" && e.shiftKey)) {
         e.preventDefault();
-        if (setShowShortcutsModal) {
-          setShowShortcutsModal((v) => !v);
-        }
+        dispatch(toggleModal("shortcuts"));
+        setShowShortcutsModal?.((v) => !v);
       }
 
       // Space or K (without Cmd/Ctrl): Toggle Play/Pause
@@ -101,13 +102,15 @@ export function usePlayerShortcuts({
       // Q: Toggle Queue
       if (e.key === "q" || e.key === "Q") {
         e.preventDefault();
-        setShowQueuePanel((v) => !v);
+        dispatch(toggleModal("queue"));
+        setShowQueuePanel?.((v) => !v);
       }
 
       // E: Toggle Equalizer
       if (e.key === "e" || e.key === "E") {
         e.preventDefault();
-        setShowEqualizerModal((v) => !v);
+        dispatch(toggleModal("equalizer"));
+        setShowEqualizerModal?.((v) => !v);
       }
 
       // R: Resync Lyrics

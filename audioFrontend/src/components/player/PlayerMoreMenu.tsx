@@ -8,18 +8,19 @@ import {
   Moon,
   Share2,
   Gauge,
-  Check,
   Activity,
 } from "lucide-react";
 import { playerActions, playerStore } from "@/store/player.store";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { openModal } from "@/store/slices/uiSlice";
 import { useStore } from "@tanstack/react-store";
 import { toast } from "sonner";
 import { PlayerTooltip } from "./PlayerTooltip";
 
 interface PlayerMoreMenuProps {
-  showEqualizerModal: boolean;
-  setShowEqualizerModal: React.Dispatch<React.SetStateAction<boolean>>;
-  setShowSleepTimerModal: React.Dispatch<React.SetStateAction<boolean>>;
+  showEqualizerModal?: boolean;
+  setShowEqualizerModal?: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowSleepTimerModal?: React.Dispatch<React.SetStateAction<boolean>>;
   sleepTimerMode?: "minutes" | "end_of_track" | null;
   isBassBoostEnabled: boolean;
   toggleBassBoost: () => void;
@@ -45,8 +46,12 @@ export const PlayerMoreMenu: React.FC<PlayerMoreMenuProps> = ({
   currentTime,
   onOpenShare,
 }) => {
+  const dispatch = useAppDispatch();
+  const activeModal = useAppSelector((s) => s.ui.activeModal);
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  const isEqualizerOpen = showEqualizerModal ?? (activeModal === "equalizer");
 
   const playbackRate = useStore(playerStore, (s) => s.playbackRate || 1);
 
@@ -131,10 +136,11 @@ export const PlayerMoreMenu: React.FC<PlayerMoreMenuProps> = ({
                   type="button"
                   onClick={() => {
                     setIsOpen(false);
-                    setShowEqualizerModal(true);
+                    dispatch(openModal("equalizer"));
+                    setShowEqualizerModal?.(true);
                   }}
                   className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                    showEqualizerModal
+                    isEqualizerOpen
                       ? "bg-white/10 text-primary font-semibold"
                       : "hover:bg-white/10 hover:text-white text-zinc-200"
                   }`}
@@ -152,7 +158,8 @@ export const PlayerMoreMenu: React.FC<PlayerMoreMenuProps> = ({
                   type="button"
                   onClick={() => {
                     setIsOpen(false);
-                    setShowSleepTimerModal(true);
+                    dispatch(openModal("sleepTimer"));
+                    setShowSleepTimerModal?.(true);
                   }}
                   className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-medium hover:bg-white/10 hover:text-white text-zinc-200 transition-colors cursor-pointer"
                 >
@@ -229,23 +236,22 @@ export const PlayerMoreMenu: React.FC<PlayerMoreMenuProps> = ({
             </div>
 
             {/* Section 4: Sharing & Community */}
-            {onOpenShare && (
-              <div className="py-1 space-y-0.5 pt-1.5">
-                <PlayerTooltip content="Generate 9:16 Instagram Story PNG card" className="w-full">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsOpen(false);
-                      onOpenShare();
-                    }}
-                    className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium hover:bg-white/10 hover:text-white text-zinc-200 transition-colors cursor-pointer"
-                  >
-                    <Share2 size={14} className="text-primary" />
-                    <span>Share Song Story Card</span>
-                  </button>
-                </PlayerTooltip>
-              </div>
-            )}
+            <div className="py-1 space-y-0.5 pt-1.5">
+              <PlayerTooltip content="Generate 9:16 Instagram Story PNG card" className="w-full">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    dispatch(openModal("shareSong"));
+                    onOpenShare?.();
+                  }}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-xs font-medium hover:bg-white/10 hover:text-white text-zinc-200 transition-colors cursor-pointer"
+                >
+                  <Share2 size={14} className="text-primary" />
+                  <span>Share Song Story Card</span>
+                </button>
+              </PlayerTooltip>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

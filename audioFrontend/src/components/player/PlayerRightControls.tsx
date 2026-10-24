@@ -6,6 +6,8 @@ import { useStore } from "@tanstack/react-store";
 import { playerStore, playerActions } from "@/store/player.store";
 import { type PlayerSong } from "@/lib/player-utils";
 import { toast } from "sonner";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { toggleModal } from "@/store/slices/uiSlice";
 import { PlayerTooltip } from "./PlayerTooltip";
 import { PlayerVolumeSlider } from "./PlayerVolumeSlider";
 import { PlayerMoreMenu } from "./PlayerMoreMenu";
@@ -14,11 +16,11 @@ import { PlayerQualitySelector, type QualityTrack } from "./PlayerQualitySelecto
 interface PlayerRightControlsProps {
   currentSong: PlayerSong;
   isLyricsOpen: boolean;
-  showQueuePanel: boolean;
-  setShowQueuePanel: React.Dispatch<React.SetStateAction<boolean>>;
-  showEqualizerModal: boolean;
-  setShowEqualizerModal: React.Dispatch<React.SetStateAction<boolean>>;
-  setShowSleepTimerModal: React.Dispatch<React.SetStateAction<boolean>>;
+  showQueuePanel?: boolean;
+  setShowQueuePanel?: React.Dispatch<React.SetStateAction<boolean>>;
+  showEqualizerModal?: boolean;
+  setShowEqualizerModal?: React.Dispatch<React.SetStateAction<boolean>>;
+  setShowSleepTimerModal?: React.Dispatch<React.SetStateAction<boolean>>;
   sleepTimerMode?: "minutes" | "end_of_track" | null;
   selectedQuality: "auto" | number;
   qualityTracks: QualityTrack[];
@@ -54,13 +56,16 @@ export const PlayerRightControls: React.FC<PlayerRightControlsProps> = ({
   bufferedTime = 0,
   onOpenShare,
 }) => {
+  const dispatch = useAppDispatch();
+  const activeModal = useAppSelector((s) => s.ui.activeModal);
+  const isQueueOpen = showQueuePanel ?? (activeModal === "queue");
   const hasLyrics = useStore(playerStore, (s) => s.hasLyrics);
   const hasFullVideo = Boolean(
     currentSong.fullVideoKey || (currentSong as any).full_video_key,
   );
 
   return (
-    <div className="flex items-center justify-end gap-1.5 sm:gap-2 md:gap-2.5 w-[34%] md:w-[38%] max-w-[400px]">
+    <div className="flex items-center justify-end gap-1.5 sm:gap-2 md:gap-2.5 w-[34%] md:w-[38%] max-w-100">
       {/* Watch Full Video Button */}
       <PlayerTooltip
         content={hasFullVideo ? "Watch Full Video" : "Watch Full Video (Not available)"}
@@ -133,9 +138,12 @@ export const PlayerRightControls: React.FC<PlayerRightControlsProps> = ({
         <button
           type="button"
           data-queue-toggle="true"
-          onClick={() => setShowQueuePanel((v) => !v)}
+          onClick={() => {
+            setShowQueuePanel?.((v) => !v);
+            dispatch(toggleModal("queue"));
+          }}
           className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-            showQueuePanel
+            isQueueOpen
               ? "text-primary bg-[#282828]"
               : "text-zinc-400 hover:text-white"
           }`}

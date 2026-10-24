@@ -1,14 +1,12 @@
 package me.one_org.melody.Services.General;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import me.one_org.melody.Entity.User;
-import me.one_org.melody.Repository.UsersRepository;
-
 import me.one_org.melody.Exceptions.BadRequestException;
+import me.one_org.melody.Exceptions.ResourceNotFoundException;
+import me.one_org.melody.Repository.UsersRepository;
 
 @Service
 public class UserService {
@@ -25,7 +23,7 @@ public class UserService {
             throw new BadRequestException("User ID is required");
         }
         return usersRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
     @Transactional

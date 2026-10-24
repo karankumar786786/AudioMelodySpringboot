@@ -45,14 +45,7 @@ export function HlsMusicPlayer() {
 
   const [localTime, setLocalTime] = useState(() => state.currentTime || 0);
   const [buffered, setBuffered] = useState(0);
-  const [showQueuePanel, setShowQueuePanel] = useState(false);
-  const [showEqualizerModal, setShowEqualizerModal] = useState(false);
-  const [showSleepTimerModal, setShowSleepTimerModal] = useState(false);
-  const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [solidBgColor, setSolidBgColor] = useState("#1e3a8a");
-  const [showShortcutsModal, setShowShortcutsModal] = useState(false);
-  const [showCommandPalette, setShowCommandPalette] = useState(false);
-  const [showShareModal, setShowShareModal] = useState(false);
 
   // Compute solid color matching current song image
   useEffect(() => {
@@ -273,10 +266,6 @@ export function HlsMusicPlayer() {
     duration,
     volume,
     setLocalTime,
-    setShowQueuePanel,
-    setShowEqualizerModal,
-    setShowShortcutsModal,
-    setShowCommandPalette,
   });
 
   const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -364,18 +353,12 @@ export function HlsMusicPlayer() {
         buffered={buffered}
         onSeekChange={handleSeekChange}
         isLyricsOpen={isLyricsOpen}
-        showQueuePanel={showQueuePanel}
-        setShowQueuePanel={setShowQueuePanel}
-        showEqualizerModal={showEqualizerModal}
-        setShowEqualizerModal={setShowEqualizerModal}
-        setShowSleepTimerModal={setShowSleepTimerModal}
         sleepTimerMode={state.sleepTimer?.mode}
         selectedQuality={selectedQuality}
         qualityTracks={qualityTracks}
         volume={volume}
         isMuted={isMuted}
         webAudio={webAudio}
-        onOpenShare={() => setShowShareModal(true)}
       />
 
       {/* All Secondary Modals & Drawers */}
@@ -383,20 +366,6 @@ export function HlsMusicPlayer() {
         currentSong={currentSong}
         isPlaying={isPlaying}
         isFullVideoOpen={state.isFullVideoOpen}
-        showEqualizerModal={showEqualizerModal}
-        setShowEqualizerModal={setShowEqualizerModal}
-        showSleepTimerModal={showSleepTimerModal}
-        setShowSleepTimerModal={setShowSleepTimerModal}
-        showShortcutsModal={showShortcutsModal}
-        setShowShortcutsModal={setShowShortcutsModal}
-        isPlaylistModalOpen={isPlaylistModalOpen}
-        setIsPlaylistModalOpen={setIsPlaylistModalOpen}
-        showQueuePanel={showQueuePanel}
-        setShowQueuePanel={setShowQueuePanel}
-        showCommandPalette={showCommandPalette}
-        setShowCommandPalette={setShowCommandPalette}
-        showShareModal={showShareModal}
-        setShowShareModal={setShowShareModal}
         webAudio={webAudio}
       />
     </>

@@ -5,10 +5,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
+
+import me.one_org.melody.Exceptions.ForbiddenException;
+import me.one_org.melody.Exceptions.ResourceNotFoundException;
 
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
@@ -208,7 +209,7 @@ public class UserPlaylistApiService {
     public UserPlaylistDto addSong(String userId, String playlistId, String songId) {
         UserPlaylist playlist = getPlaylistOwnedBy(userId, playlistId);
         if (!songsRepository.existsById(songId)) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Song not found");
+            throw new ResourceNotFoundException("Song not found");
         }
 
         boolean added = userPlaylistsRepository.addSongToPlaylist(playlistId, songId);
@@ -226,10 +227,10 @@ public class UserPlaylistApiService {
     @Transactional(readOnly = true)
     public UserPlaylistDto getPlaylistById(String userId, String playlistId) {
         UserPlaylist playlist = userPlaylistsRepository.findById(playlistId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found"));
         if (playlist.getPrivacy() != PlaylistPrivacyEnum.PUBLIC) {
             if (userId == null || !playlist.getUser().getId().equals(userId)) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not your playlist");
+                throw new ForbiddenException("Not your playlist");
             }
         }
         return UserPlaylistDto.fromEntity(playlist);
@@ -252,7 +253,7 @@ public class UserPlaylistApiService {
 
     public PaginationMetaDataDto getPlaylistSongsPaginationMetaData(String playlistId) {
         UserPlaylist playlist = userPlaylistsRepository.findById(playlistId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found"));
         long count = playlist.getTotalSongs();
         return new PaginationMetaDataDto(
                 "meta_user_playlist_songs_" + playlistId,
@@ -268,11 +269,11 @@ public class UserPlaylistApiService {
     @Transactional(readOnly = true)
     public UserPlaylistDto getSharedPlaylist(String tokenOrId, String callerUserId) {
         UserPlaylist playlist = userPlaylistsRepository.findByIdOrShareToken(tokenOrId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found"));
 
         if (playlist.getPrivacy() == PlaylistPrivacyEnum.PRIVATE) {
             if (callerUserId == null || !playlist.getUser().getId().equals(callerUserId)) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "This playlist is private");
+                throw new ForbiddenException("This playlist is private");
             }
         }
         return UserPlaylistDto.fromEntity(playlist);
@@ -297,7 +298,7 @@ public class UserPlaylistApiService {
     public UserPlaylistDto savePlaylistToLibrary(String userId, String playlistId) {
         User user = usersRepository.getReferenceById(userId);
         UserPlaylist targetPlaylist = userPlaylistsRepository.findByIdOrShareToken(playlistId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found"));
 
         // If user already owns this playlist, it is already in their library
         if (targetPlaylist.getUser().getId().equals(userId)) {
@@ -306,7 +307,7 @@ public class UserPlaylistApiService {
 
         // Only PUBLIC playlists can be saved to user's library as dynamic playlists
         if (targetPlaylist.getPrivacy() != PlaylistPrivacyEnum.PUBLIC) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Only public playlists can be saved to your library");
+            throw new ForbiddenException("Only public playlists can be saved to your library");
         }
 
         if (!userSavedPlaylistsRepository.existsByUserAndPlaylist(user, targetPlaylist)) {
@@ -338,11 +339,11 @@ public class UserPlaylistApiService {
     public UserPlaylistDto duplicatePlaylist(String userId, String playlistId) {
         User user = usersRepository.getReferenceById(userId);
         UserPlaylist sourcePlaylist = userPlaylistsRepository.findByIdOrShareToken(playlistId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found"));
 
         if (sourcePlaylist.getPrivacy() == PlaylistPrivacyEnum.PRIVATE) {
             if (!sourcePlaylist.getUser().getId().equals(userId)) {
-                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Cannot copy a private playlist");
+                throw new ForbiddenException("Cannot copy a private playlist");
             }
         }
 
@@ -385,9 +386,9 @@ public class UserPlaylistApiService {
 
     private UserPlaylist getPlaylistOwnedBy(String userId, String playlistId) {
         UserPlaylist playlist = userPlaylistsRepository.findById(playlistId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Playlist not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Playlist not found"));
         if (!playlist.getUser().getId().equals(userId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not your playlist");
+            throw new ForbiddenException("Not your playlist");
         }
         return playlist;
     }

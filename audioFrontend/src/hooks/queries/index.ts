@@ -3,3 +3,4 @@ export * from "./useArtists";
 export * from "./usePlaylists";
 export * from "./useSongs";
 export * from "./useUser";
+export * from "./useSearch";
