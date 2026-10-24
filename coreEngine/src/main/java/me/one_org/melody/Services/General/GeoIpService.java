@@ -1,23 +1,34 @@
 package me.one_org.melody.Services.General;
 
+import java.io.File;
+import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.maxmind.db.CHMCache;
+import com.maxmind.geoip2.DatabaseReader;
+import com.maxmind.geoip2.exception.AddressNotFoundException;
+import com.maxmind.geoip2.model.CityResponse;
 
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
-public class GeoIpService {
+public class GeoIpService implements AutoCloseable {
 
     private static final String GEOIP_CACHE_PREFIX = "geoip:cache:";
     private static final Duration CACHE_TTL = Duration.ofDays(7);
@@ -25,10 +36,19 @@ public class GeoIpService {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+    private DatabaseReader databaseReader;
 
     @Autowired
-    public GeoIpService(@Autowired(required = false) StringRedisTemplate redisTemplate) {
-        this(redisTemplate, new ObjectMapper());
+    public GeoIpService(
+            @Autowired(required = false) StringRedisTemplate redisTemplate,
+            @Value("${geoip.database-path:}") String configuredDbPath) {
+        this.redisTemplate = redisTemplate;
+        this.objectMapper = new ObjectMapper();
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(1200))
+                .followRedirects(HttpClient.Redirect.NORMAL)
+                .build();
+        initDatabaseReader(configuredDbPath);
     }
 
     public GeoIpService(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
@@ -38,10 +58,59 @@ public class GeoIpService {
                 .connectTimeout(Duration.ofMillis(1200))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
+        initDatabaseReader(null);
     }
 
     public GeoIpService() {
         this(null, new ObjectMapper());
+    }
+
+    private void initDatabaseReader(String customPath) {
+        try {
+            // 1. Try custom configured path if provided
+            if (customPath != null && !customPath.isBlank()) {
+                File customFile = new File(customPath);
+                if (customFile.exists() && customFile.canRead()) {
+                    this.databaseReader = new DatabaseReader.Builder(customFile)
+                            .withCache(new CHMCache())
+                            .build();
+                    log.info("Initialized MaxMind GeoIP2 database from custom path: {}", customPath);
+                    return;
+                }
+            }
+
+            // 2. Try filesystem development/production paths
+            Path[] candidatePaths = new Path[] {
+                Path.of("src/main/resources/geoip/GeoLite2-City.mmdb"),
+                Path.of("target/classes/geoip/GeoLite2-City.mmdb"),
+                Path.of("coreEngine/src/main/resources/geoip/GeoLite2-City.mmdb"),
+                Path.of("geoip/GeoLite2-City.mmdb")
+            };
+
+            for (Path candidate : candidatePaths) {
+                if (Files.exists(candidate) && Files.isReadable(candidate)) {
+                    this.databaseReader = new DatabaseReader.Builder(candidate.toFile())
+                            .withCache(new CHMCache())
+                            .build();
+                    log.info("Initialized MaxMind GeoIP2 database from candidate path: {}", candidate);
+                    return;
+                }
+            }
+
+            // 3. Try classpath resource stream
+            InputStream is = getClass().getClassLoader().getResourceAsStream("geoip/GeoLite2-City.mmdb");
+            if (is != null) {
+                this.databaseReader = new DatabaseReader.Builder(is)
+                        .withCache(new CHMCache())
+                        .build();
+                log.info("Initialized MaxMind GeoIP2 database from classpath resource.");
+                return;
+            }
+
+            log.info("No local MaxMind GeoLite2-City.mmdb found. Operating in Redis-cached HTTP fallback mode.");
+        } catch (Exception e) {
+            log.warn("Failed to initialize MaxMind DatabaseReader: {}. Falling back to Redis/HTTP.", e.getMessage());
+        }
     }
 
     public String resolveLocation(String ipAddress, String cityHeader, String countryHeader) {
@@ -64,7 +133,30 @@ public class GeoIpService {
             return "Local Network";
         }
 
-        // 3. Check Redis cache first (0ms latency hit)
+        // 3. Offline MaxMind GeoIP2 resolution (0 network calls, sub-millisecond in-memory speed)
+        if (databaseReader != null) {
+            try {
+                InetAddress inetAddress = InetAddress.getByName(ip);
+                CityResponse cityResponse = databaseReader.city(inetAddress);
+                if (cityResponse != null) {
+                    String city = cityResponse.getCity() != null ? cityResponse.getCity().getName() : null;
+                    String country = cityResponse.getCountry() != null ? cityResponse.getCountry().getName() : null;
+                    if (city != null && !city.isBlank() && country != null && !country.isBlank()) {
+                        return city + ", " + country;
+                    } else if (country != null && !country.isBlank()) {
+                        return country;
+                    } else if (city != null && !city.isBlank()) {
+                        return city;
+                    }
+                }
+            } catch (AddressNotFoundException ignored) {
+                // Address not present in local MaxMind database, proceed to online/cache fallback
+            } catch (Exception e) {
+                log.debug("MaxMind lookup error for IP [{}]: {}", ip, e.getMessage());
+            }
+        }
+
+        // 4. Check Redis cache (0ms latency hit)
         String cacheKey = GEOIP_CACHE_PREFIX + ip;
         if (redisTemplate != null) {
             try {
@@ -77,7 +169,7 @@ public class GeoIpService {
             }
         }
 
-        // 4. Remote Lookup via public GeoIP service (ip-api.com) with strict 1.5s timeout
+        // 5. Remote Lookup via public GeoIP service (ip-api.com) with strict 1.5s timeout
         String location = "Unknown Location";
         try {
             HttpRequest request = HttpRequest.newBuilder()
@@ -103,10 +195,10 @@ public class GeoIpService {
                 }
             }
         } catch (Exception e) {
-            log.debug("GeoIP lookup failed for IP [{}]: {}", ip, e.getMessage());
+            log.debug("GeoIP remote lookup failed for IP [{}]: {}", ip, e.getMessage());
         }
 
-        // 5. Cache resolved location in Redis
+        // 6. Cache resolved location in Redis
         if (redisTemplate != null && !location.equals("Unknown Location")) {
             try {
                 redisTemplate.opsForValue().set(cacheKey, location, CACHE_TTL);
@@ -139,5 +231,20 @@ public class GeoIpService {
             }
         }
         return false;
+    }
+
+    public boolean isMaxMindAvailable() {
+        return databaseReader != null;
+    }
+
+    @Override
+    @PreDestroy
+    public void close() {
+        if (databaseReader != null) {
+            try {
+                databaseReader.close();
+            } catch (Exception ignored) {
+            }
+        }
     }
 }
