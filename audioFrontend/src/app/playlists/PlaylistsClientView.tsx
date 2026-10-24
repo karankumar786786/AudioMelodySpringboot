@@ -1,7 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { musicApi, type Playlist } from "@/lib/api";
+import { useCuratedPlaylists } from "@/hooks/queries";
+import { type Playlist } from "@/lib/api";
 import { PlaylistCard } from "../../components/PlaylistCard";
 import { motion } from "framer-motion";
 import { ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
@@ -14,30 +14,14 @@ export function PlaylistsClientView({
   initialPlaylists = [],
 }: PlaylistsClientViewProps) {
   const {
-    data: systemPlaylistsResponse,
+    data: curatedData,
     isLoading: isSystemLoading,
     error: playlistsError,
     refetch,
-  } = useQuery({
-    queryKey: ["system-playlists"],
-    queryFn: () => musicApi.playlists.list(1, 30),
-    initialData:
-      initialPlaylists.length > 0
-        ? {
-            data: {
-              data: initialPlaylists,
-              pagination: {
-                page: 1,
-                limit: 30,
-                total: initialPlaylists.length,
-                hasNext: false,
-              },
-            },
-          }
-        : undefined,
-  });
+  } = useCuratedPlaylists(1, 30);
 
-  const systemPlaylists = systemPlaylistsResponse?.data?.data || initialPlaylists;
+  const systemPlaylists =
+    curatedData && curatedData.length > 0 ? curatedData : initialPlaylists;
 
   return (
     <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-(--app-content-pt,5rem) space-y-8">

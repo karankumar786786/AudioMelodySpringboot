@@ -14,10 +14,9 @@ import { PlaylistThumbnail } from "@/components/PlaylistThumbnail";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { musicApi } from "@/lib/api";
-import { useStore } from "@tanstack/react-store";
-import { playerStore, playerActions } from "@/store/player.store";
+import { useUserPlaylists } from "@/hooks/queries";
+import { useAppSelector } from "@/store/hooks";
+import { playerActions } from "@/store/player.store";
 
 const menuItems = [
   { icon: Home, label: "Home", href: "/home" },
@@ -28,7 +27,7 @@ const menuItems = [
 
 export function LeftSidebar() {
   const pathname = usePathname();
-  const systemUser = useStore(playerStore, (s) => s.systemUser);
+  const systemUser = useAppSelector((s) => s.auth.systemUser);
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
@@ -43,13 +42,7 @@ export function LeftSidebar() {
     playerActions.closeLyrics();
   };
 
-  const { data: playlistsResponse, isLoading } = useQuery({
-    queryKey: ["user-playlists", systemUser?.id],
-    queryFn: () => musicApi.users.getPlaylists(),
-    enabled: !!systemUser?.id && hasMounted,
-  });
-
-  const userPlaylists = playlistsResponse?.data?.data || [];
+  const { data: userPlaylists = [], isLoading } = useUserPlaylists();
 
   return (
     <aside className="w-16 xl:w-48 bg-black flex flex-col h-[calc(100vh-64px)] fixed left-0 top-16 z-40 overflow-hidden transition-[width] duration-200">

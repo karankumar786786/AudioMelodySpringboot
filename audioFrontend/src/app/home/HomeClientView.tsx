@@ -1,7 +1,7 @@
 "use client";
 
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useStore } from "@tanstack/react-store";
+import { useAppSelector } from "@/store/hooks";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ServerErrorPage,
@@ -15,7 +15,7 @@ import {
   type Song,
 } from "../../lib/api";
 import { mapListToPlayerSongs } from "../../lib/player-utils";
-import { playerActions, playerStore } from "../../store/player.store";
+import { playerActions } from "../../store/player.store";
 import {
   HomeSkeleton,
   HomeHeader,
@@ -29,8 +29,8 @@ import {
 
 export function HomeClientView() {
   const queryClient = useQueryClient();
-  const systemUser = useStore(playerStore, (s) => s.systemUser);
-  const dominantColor = useStore(playerStore, (s) => s.dominantColor);
+  const systemUser = useAppSelector((s) => s.auth.systemUser);
+  const dominantColor = useAppSelector((s) => s.player.dominantColor);
   const [activeFilter, setActiveFilter] = useState("All");
   const [streamActive, setStreamActive] = useState(true);
   const [useFallback, setUseFallback] = useState(false);

@@ -115,6 +115,7 @@ export interface User {
   id: string;
   name?: string;
   username?: string;
+  userName?: string;
   email: string;
   role?: string;
 }

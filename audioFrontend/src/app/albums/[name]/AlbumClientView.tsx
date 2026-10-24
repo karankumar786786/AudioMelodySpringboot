@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useStore } from "@tanstack/react-store";
 import { motion } from "framer-motion";
 import { Play, Pause, Clock, Disc, Share2, Sparkles, Headphones } from "lucide-react";
-import { musicApi, type Song } from "@/lib/api";
+import { type Song } from "@/lib/api";
 import { getImageUrl } from "@/lib/image-utils";
 import { formatDuration, formatStreamCount, mapListToPlayerSongs } from "@/lib/player-utils";
-import { playerActions, playerStore } from "@/store/player.store";
+import { playerActions } from "@/store/player.store";
+import { useAppSelector } from "@/store/hooks";
+import { useAlbumSongs } from "@/hooks/queries";
 import { previewPlayer } from "@/lib/preview-player";
 import { SongThumbnail } from "@/components/SongThumbnail";
 import { getSolidBgFromImage } from "@/lib/color-utils";
@@ -21,15 +21,11 @@ interface AlbumClientViewProps {
 }
 
 export function AlbumClientView({ albumName, initialSongs = [] }: AlbumClientViewProps) {
-  const currentSong = useStore(playerStore, (s) => s.currentSong);
-  const isPlaying = useStore(playerStore, (s) => s.isPlaying);
+  const currentSong = useAppSelector((s) => s.player.currentSong);
+  const isPlaying = useAppSelector((s) => s.player.isPlaying);
 
-  const { data: songs = initialSongs, isLoading, error } = useQuery({
-    queryKey: ["album-songs", albumName],
-    queryFn: () => musicApi.albums.getByName(albumName),
-    initialData: initialSongs.length > 0 ? initialSongs : undefined,
-    enabled: !!albumName,
-  });
+  const { data: songsData, isLoading, error } = useAlbumSongs(albumName);
+  const songs = (songsData && songsData.length > 0) ? songsData : initialSongs;
 
   const totalDuration = useMemo(() => {
     return songs.reduce((acc, song) => acc + (Number(song.duration) || 0), 0);

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { useStore } from "@tanstack/react-store";
+import { useAppSelector } from "@/store/hooks";
 import { Lock } from "lucide-react";
 import { toast } from "sonner";
 import { musicApi, type PlaylistPrivacy, type UserPlaylist } from "@/lib/api";
@@ -11,7 +11,7 @@ import { getSolidBgFromImage } from "@/lib/color-utils";
 import { getImageUrl } from "@/lib/image-utils";
 import { mapListToPlayerSongs } from "@/lib/player-utils";
 import { previewPlayer } from "@/lib/preview-player";
-import { playerActions, playerStore } from "@/store/player.store";
+import { playerActions } from "@/store/player.store";
 import { NotFoundPage, ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
 import { PlaylistShareModal } from "@/components/PlaylistShareModal";
 import { PlaylistHero, PlaylistRenameModal, PlaylistTrackList } from "./components";
@@ -31,9 +31,9 @@ export function MyPlaylistClientView({
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const systemUser = useStore(playerStore, (s) => s.systemUser);
-  const currentSong = useStore(playerStore, (s) => s.currentSong);
-  const isPlaying = useStore(playerStore, (s) => s.isPlaying);
+  const systemUser = useAppSelector((s) => s.auth.systemUser);
+  const currentSong = useAppSelector((s) => s.player.currentSong);
+  const isPlaying = useAppSelector((s) => s.player.isPlaying);
 
   const [backgroundColor, setBackgroundColor] = useState("#181818");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);

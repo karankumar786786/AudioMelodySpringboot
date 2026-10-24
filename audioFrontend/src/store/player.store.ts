@@ -1,8 +1,8 @@
-import { playerStore } from "./player/index";
-import { queueActions } from "./player/queue.actions";
-import { playbackActions } from "./player/playback.actions";
-import { sessionActions } from "./player/session.actions";
 import { normalizePlayerSong } from "@/lib/player-utils";
+import { playerStore } from "./player/index";
+import { playbackActions } from "./player/playback.actions";
+import { queueActions } from "./player/queue.actions";
+import { sessionActions } from "./player/session.actions";
 
 export { playerStore };
 
@@ -37,7 +37,12 @@ export const playerActions = {
         const savedSong = localStorage.getItem("last_current_song");
         if (savedSong) {
           const parsed = JSON.parse(savedSong);
-          if (parsed && typeof parsed === "object" && typeof parsed.id === "string" && parsed.id) {
+          if (
+            parsed &&
+            typeof parsed === "object" &&
+            typeof parsed.id === "string" &&
+            parsed.id
+          ) {
             restoredSong = parsed;
           }
         }
@@ -66,7 +71,9 @@ export const playerActions = {
         const nextState: typeof s = {
           ...s,
           systemUser: s.systemUser || restoredUser,
-          dislikedSongIds: Array.isArray(savedDisliked) ? savedDisliked : s.dislikedSongIds,
+          dislikedSongIds: Array.isArray(savedDisliked)
+            ? savedDisliked
+            : s.dislikedSongIds,
           currentTime:
             !isNaN(parsedTime) && parsedTime > 0 ? parsedTime : s.currentTime,
           repeatMode:
@@ -99,8 +106,10 @@ export const playerActions = {
   },
 
   // Alias for backward compatibility
-  playSong: (song: any) => queueActions.playWithRadio(normalizePlayerSong(song)),
-  playWithRadio: (song: any) => queueActions.playWithRadio(normalizePlayerSong(song)),
+  playSong: (song: any) =>
+    queueActions.playWithRadio(normalizePlayerSong(song)),
+  playWithRadio: (song: any) =>
+    queueActions.playWithRadio(normalizePlayerSong(song)),
   playFromQueue: (index: number) => {
     const { queue } = playerStore.state;
     if (index >= 0 && index < queue.length) {

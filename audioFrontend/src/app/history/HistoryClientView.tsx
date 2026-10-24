@@ -1,14 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { History, Play, Pause, Clock, Loader2, Music2, ChevronLeft, ChevronRight } from "lucide-react";
-import { musicApi } from "@/lib/api";
 import { SongThumbnail } from "@/components/SongThumbnail";
 import { HeartButton } from "@/components/HeartButton";
-import { playerActions, playerStore } from "@/store/player.store";
-import { useStore } from "@tanstack/react-store";
+import { playerActions } from "@/store/player.store";
+import { useAppSelector } from "@/store/hooks";
+import { useUserListeningHistory } from "@/hooks/queries";
 import { mapToPlayerSong } from "@/lib/player-utils";
 
 function formatDuration(seconds?: number): string {
@@ -52,10 +51,10 @@ export function HistoryClientView({ initialHistory = null }: HistoryClientViewPr
   const [page, setPage] = useState(1);
   const pageSize = 20;
 
-  const systemUser = useStore(playerStore, (s) => s.systemUser);
-  const currentSong = useStore(playerStore, (s) => s.currentSong);
-  const isPlaying = useStore(playerStore, (s) => s.isPlaying);
-  const favourites = useStore(playerStore, (s) => s.favourites);
+  const systemUser = useAppSelector((s) => s.auth.systemUser);
+  const currentSong = useAppSelector((s) => s.player.currentSong);
+  const isPlaying = useAppSelector((s) => s.player.isPlaying);
+  const favourites = useAppSelector((s) => s.auth.favourites);
 
   useEffect(() => {
     setMounted(true);
@@ -64,17 +63,10 @@ export function HistoryClientView({ initialHistory = null }: HistoryClientViewPr
   const {
     data: historyResponse,
     isLoading,
-    isPlaceholderData,
-  } = useQuery({
-    queryKey: ["user-listening-history", systemUser?.id, page],
-    queryFn: () => musicApi.users.getListeningHistory(page, pageSize),
-    initialData: page === 1 && initialHistory ? { data: initialHistory } : undefined,
-    enabled: !!systemUser?.id,
-    placeholderData: (prev) => prev,
-  });
+  } = useUserListeningHistory(page, pageSize);
 
-  const items = historyResponse?.data?.data || (page === 1 ? initialHistory?.data : []) || [];
-  const pagination = historyResponse?.data?.pagination;
+  const items = historyResponse?.data || (page === 1 ? initialHistory?.data : []) || [];
+  const pagination = historyResponse?.pagination;
   const totalItems = pagination?.total || 0;
   const totalPages = pagination ? Math.ceil(totalItems / pageSize) || 1 : 1;
 
@@ -235,7 +227,7 @@ export function HistoryClientView({ initialHistory = null }: HistoryClientViewPr
                     {/* Duration & Like */}
                     <div className="flex items-center justify-end gap-3 text-right text-xs font-mono text-zinc-400">
                       <HeartButton
-                        isFavourite={favourites.has(String(item.id))}
+                        isFavourite={favourites.includes(String(item.id))}
                         onToggle={async () => {
                           await playerActions.toggleFavourite(String(item.id));
                         }}
@@ -269,7 +261,7 @@ export function HistoryClientView({ initialHistory = null }: HistoryClientViewPr
 
                 <button
                   type="button"
-                  disabled={page >= totalPages || isPlaceholderData}
+                  disabled={page >= totalPages || isLoading}
                   onClick={() => setPage((p) => p + 1)}
                   className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#282828] bg-zinc-900/60 text-xs font-semibold text-zinc-300 hover:text-white hover:bg-zinc-800 disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer"
                 >

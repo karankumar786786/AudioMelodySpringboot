@@ -3,9 +3,9 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { musicApi, type Artist, type Song } from "@/lib/api";
-import { useStore } from "@tanstack/react-store";
+import { useAppSelector } from "@/store/hooks";
 import { getImageUrl } from "@/lib/image-utils";
-import { playerStore, playerActions } from "@/store/player.store";
+import { playerActions } from "@/store/player.store";
 import { mapListToPlayerSongs } from "@/lib/player-utils";
 import { getSolidBgFromImage } from "@/lib/color-utils";
 import { toast } from "sonner";
@@ -24,9 +24,9 @@ export function ArtistClientView({
   initialArtist,
   initialSongs = [],
 }: ArtistClientViewProps) {
-  const currentSong = useStore(playerStore, (s) => s.currentSong);
-  const isPlaying = useStore(playerStore, (s) => s.isPlaying);
-  const systemUser = useStore(playerStore, (s) => s.systemUser);
+  const currentSong = useAppSelector((s) => s.player.currentSong);
+  const isPlaying = useAppSelector((s) => s.player.isPlaying);
+  const systemUser = useAppSelector((s) => s.auth.systemUser);
   const queryClient = useQueryClient();
 
   const [backgroundColor, setBackgroundColor] = useState("#181818");

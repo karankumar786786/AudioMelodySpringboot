@@ -5,7 +5,7 @@ import Image from "next/image";
 import { Play, Pause, Music, Loader2 } from "lucide-react";
 import { type Song } from "@/lib/api";
 import { previewPlayer, previewStore } from "@/lib/preview-player";
-import { playerStore } from "@/store/player.store";
+import { useAppSelector } from "@/store/hooks";
 import { useStore } from "@tanstack/react-store";
 import { getImageUrl } from "@/lib/image-utils";
 
@@ -28,9 +28,9 @@ export function SongThumbnail({
   onPlayClick,
   priority = false,
 }: SongThumbnailProps) {
-  const currentSong = useStore(playerStore, (s) => s.currentSong);
-  const isPlaying = useStore(playerStore, (s) => s.isPlaying);
-  const isAudioLoading = useStore(playerStore, (s) => s.isLoading);
+  const currentSong = useAppSelector((s) => s.player.currentSong);
+  const isPlaying = useAppSelector((s) => s.player.isPlaying);
+  const isAudioLoading = useAppSelector((s) => s.player.isLoading);
   const previewState = useStore(previewStore, (s) => s);
 
   if (!song) return null;
@@ -186,7 +186,7 @@ export function SongThumbnail({
           </svg>
 
           {/* Dancing Spotify-style Equalizer Bars */}
-          <div className="flex items-end justify-center gap-[2px] h-3.5 w-3.5 relative z-10">
+          <div className="flex items-end justify-center gap-0.5 h-3.5 w-3.5 relative z-10">
             <motion.span
               animate={{ height: ["20%", "100%", "30%"] }}
               transition={{
@@ -195,7 +195,7 @@ export function SongThumbnail({
                 repeatType: "reverse",
                 ease: "easeInOut",
               }}
-              className="w-[2px] bg-primary rounded-full"
+              className="w-0.5 bg-primary rounded-full"
             />
             <motion.span
               animate={{ height: ["80%", "20%", "90%"] }}
@@ -206,7 +206,7 @@ export function SongThumbnail({
                 ease: "easeInOut",
                 delay: 0.1,
               }}
-              className="w-[2px] bg-primary rounded-full"
+              className="w-0.5 bg-primary rounded-full"
             />
             <motion.span
               animate={{ height: ["30%", "90%", "20%"] }}
@@ -217,7 +217,7 @@ export function SongThumbnail({
                 ease: "easeInOut",
                 delay: 0.2,
               }}
-              className="w-[2px] bg-primary rounded-full"
+              className="w-0.5 bg-primary rounded-full"
             />
           </div>
         </div>

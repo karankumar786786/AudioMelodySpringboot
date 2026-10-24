@@ -1,8 +1,8 @@
-import { playerStore } from "./index";
-import { mapToPlayerSong, type PlayerSong } from "@/lib/player-utils";
-import { musicApi } from "@/lib/api";
 import { toast } from "sonner";
+import { musicApi } from "@/lib/api";
+import { mapToPlayerSong, type PlayerSong } from "@/lib/player-utils";
 import { previewPlayer } from "@/lib/preview-player";
+import { playerStore } from "./index";
 
 export const playbackActions = {
   play: (song: PlayerSong) => {
@@ -38,7 +38,7 @@ export const playbackActions = {
     }
 
     playerStore.setState((s) => {
-      let updatedQueue = [...s.queue];
+      const updatedQueue = [...s.queue];
       // Match by queueId first (the exact instance), then fallback to song id
       let idx = updatedQueue.findIndex((item) => item.queueId === song.queueId);
       if (idx === -1) {
@@ -69,7 +69,10 @@ export const playbackActions = {
       );
 
       // If consecutive duplicate tracks matching the played song exist immediately next in queue, remove them
-      while (idx + 1 < updatedQueue.length && updatedQueue[idx + 1].id === song.id) {
+      while (
+        idx + 1 < updatedQueue.length &&
+        updatedQueue[idx + 1].id === song.id
+      ) {
         console.log(
           `[Playback] Removed consecutive duplicate song "${song.title}" (${song.id}) at index ${idx + 1}`,
         );
@@ -105,9 +108,19 @@ export const playbackActions = {
           localStorage.setItem("last_current_song", JSON.stringify(song));
           const existingRaw = localStorage.getItem("recently_played_songs");
           const existing: any[] = existingRaw ? JSON.parse(existingRaw) : [];
-          const updated = [song, ...existing.filter((s: any) => s.id !== song.id)].slice(0, 20);
-          localStorage.setItem("recently_played_songs", JSON.stringify(updated));
-          window.dispatchEvent(new CustomEvent("audiomelody:recently_played_updated", { detail: updated }));
+          const updated = [
+            song,
+            ...existing.filter((s: any) => s.id !== song.id),
+          ].slice(0, 20);
+          localStorage.setItem(
+            "recently_played_songs",
+            JSON.stringify(updated),
+          );
+          window.dispatchEvent(
+            new CustomEvent("audiomelody:recently_played_updated", {
+              detail: updated,
+            }),
+          );
         } catch {
           // Ignore quota errors
         }
@@ -143,23 +156,35 @@ export const playbackActions = {
 
   openFullVideo: () => {
     const song = playerStore.state.currentSong;
-    const hasVideo = Boolean(song?.fullVideoKey || (song as any)?.full_video_key);
+    const hasVideo = Boolean(
+      song?.fullVideoKey || (song as any)?.full_video_key,
+    );
     if (!hasVideo) {
       toast.info("Video unavailable", {
         description: "Music video is not available for this track.",
       });
       return;
     }
-    playerStore.setState((s) => ({ ...s, isFullVideoOpen: true, isVideoActive: true }));
+    playerStore.setState((s) => ({
+      ...s,
+      isFullVideoOpen: true,
+      isVideoActive: true,
+    }));
   },
 
   closeFullVideo: () => {
-    playerStore.setState((s) => ({ ...s, isFullVideoOpen: false, isVideoActive: false }));
+    playerStore.setState((s) => ({
+      ...s,
+      isFullVideoOpen: false,
+      isVideoActive: false,
+    }));
   },
 
   toggleFullVideo: () => {
     const song = playerStore.state.currentSong;
-    const hasVideo = Boolean(song?.fullVideoKey || (song as any)?.full_video_key);
+    const hasVideo = Boolean(
+      song?.fullVideoKey || (song as any)?.full_video_key,
+    );
     if (!playerStore.state.isFullVideoOpen && !hasVideo) {
       toast.info("Video unavailable", {
         description: "Music video is not available for this track.",
@@ -275,10 +300,14 @@ export const playbackActions = {
         if (currentSong) {
           newIdx = originalQueue.findIndex(
             (item) =>
-              item.queueId === currentSong.queueId || item.id === currentSong.id,
+              item.queueId === currentSong.queueId ||
+              item.id === currentSong.id,
           );
           if (newIdx === -1) {
-            newIdx = Math.min(Math.max(0, s.lastQueueIndex), originalQueue.length - 1);
+            newIdx = Math.min(
+              Math.max(0, s.lastQueueIndex),
+              originalQueue.length - 1,
+            );
           }
         }
 
@@ -340,7 +369,10 @@ export const playbackActions = {
 
   confirmSearchPlay: async (songId: string) => {
     const { pendingSearchConfirmation } = playerStore.state;
-    if (pendingSearchConfirmation && pendingSearchConfirmation.songId === songId) {
+    if (
+      pendingSearchConfirmation &&
+      pendingSearchConfirmation.songId === songId
+    ) {
       playerStore.setState((s) => ({
         ...s,
         pendingSearchConfirmation: null,
@@ -407,7 +439,9 @@ export const playbackActions = {
   },
 
   closeLyrics: () => {
-    playerStore.setState((s) => (s.isLyricsOpen ? { ...s, isLyricsOpen: false } : s));
+    playerStore.setState((s) =>
+      s.isLyricsOpen ? { ...s, isLyricsOpen: false } : s,
+    );
   },
 
   setSleepTimer: (

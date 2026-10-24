@@ -4,9 +4,9 @@ import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { musicApi, type Song, type Playlist } from "@/lib/api";
 import { useRouter, useSearchParams } from "next/navigation";
-import { playerActions, playerStore } from "@/store/player.store";
+import { playerActions } from "@/store/player.store";
 import { mapListToPlayerSongs } from "@/lib/player-utils";
-import { useStore } from "@tanstack/react-store";
+import { useAppSelector } from "@/store/hooks";
 import { toast } from "sonner";
 import { getImageUrl, getVideoUrl } from "@/lib/image-utils";
 import { previewPlayer } from "@/lib/preview-player";
@@ -28,9 +28,9 @@ export function PlaylistClientView({
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const systemUser = useStore(playerStore, (s) => s.systemUser);
-  const currentSong = useStore(playerStore, (s) => s.currentSong);
-  const isPlaying = useStore(playerStore, (s) => s.isPlaying);
+  const systemUser = useAppSelector((s) => s.auth.systemUser);
+  const currentSong = useAppSelector((s) => s.player.currentSong);
+  const isPlaying = useAppSelector((s) => s.player.isPlaying);
 
   const playlistType = searchParams.get("type");
 

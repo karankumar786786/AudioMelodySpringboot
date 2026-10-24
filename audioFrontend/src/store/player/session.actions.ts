@@ -1,6 +1,6 @@
-import { playerStore } from "./index";
-import { musicApi } from "@/lib/api";
 import { toast } from "sonner";
+import { musicApi } from "@/lib/api";
+import { playerStore } from "./index";
 
 export const sessionActions = {
   setSystemSession: (user: any) => {
@@ -28,7 +28,9 @@ export const sessionActions = {
   },
 
   clearSystemSession: () => {
-    console.log("[PlayerStore] clearSystemSession called - purging storage & state");
+    console.log(
+      "[PlayerStore] clearSystemSession called - purging storage & state",
+    );
     if (typeof window !== "undefined") {
       localStorage.removeItem("system_user");
       localStorage.removeItem("recently_played_songs");
@@ -87,7 +89,10 @@ export const sessionActions = {
       // 409 = already in favourites (add called but already exists)
       // 404 = not in favourites (remove called but already gone)
       if ((status === 409 && !isFav) || (status === 404 && isFav)) {
-        console.warn("[PlayerStore] Favourite already in desired state, ignoring:", status);
+        console.warn(
+          "[PlayerStore] Favourite already in desired state, ignoring:",
+          status,
+        );
       } else {
         if (status === 401 || status === 403) {
           toast.error("Session expired. Please log in again.");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useStore } from "@tanstack/react-store";
+import { useAppSelector } from "@/store/hooks";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   Heart,
@@ -15,14 +15,14 @@ import {
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { playerActions, playerStore } from "@/store/player.store";
+import { playerActions } from "@/store/player.store";
 import type { NavbarProfileMenuProps } from "./types";
 
 export function NavbarProfileMenu({
   onOpenProfileModal,
   onOpenDevicesModal,
 }: NavbarProfileMenuProps) {
-  const systemUser = useStore(playerStore, (s) => s.systemUser);
+  const systemUser = useAppSelector((s) => s.auth.systemUser);
   const [mounted, setMounted] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);

@@ -2,13 +2,14 @@
 
 import React, { useState } from "react";
 import { useStore } from "@tanstack/react-store";
+import { useAppSelector } from "@/store/hooks";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { musicApi } from "@/lib/api";
 import { getImageUrl } from "@/lib/image-utils";
 import { mapToPlayerSong } from "@/lib/player-utils";
 import { previewPlayer, previewStore } from "@/lib/preview-player";
-import { playerActions, playerStore } from "@/store/player.store";
+import { playerActions } from "@/store/player.store";
 import { PlaylistPickerModal } from "@/components/PlaylistPickerModal";
 import { ShareSongModal } from "@/components/ShareSongModal";
 import { SongCardCover } from "./SongCardCover";
@@ -22,13 +23,13 @@ export function SongCard({
   onRemove,
   className,
 }: SongCardProps) {
-  const systemUser = useStore(playerStore, (s) => s.systemUser);
-  const currentSong = useStore(playerStore, (s) => s.currentSong);
-  const isPlaying = useStore(playerStore, (s) => s.isPlaying);
-  const isAudioLoading = useStore(playerStore, (s) => s.isLoading);
-  const favourites = useStore(playerStore, (s) => s.favourites);
-  const isInQueue = useStore(playerStore, (s) =>
-    s.queue.some((item, idx) => idx > s.lastQueueIndex && item.id === song.id),
+  const systemUser = useAppSelector((s) => s.auth.systemUser);
+  const currentSong = useAppSelector((s) => s.player.currentSong);
+  const isPlaying = useAppSelector((s) => s.player.isPlaying);
+  const isAudioLoading = useAppSelector((s) => s.player.isLoading);
+  const favourites = useAppSelector((s) => s.auth.favourites);
+  const isInQueue = useAppSelector((s) =>
+    s.queue.queue.some((item, idx) => idx > s.queue.lastQueueIndex && item.id === song.id),
   );
   const previewState = useStore(previewStore, (s) => s);
 

@@ -1,7 +1,7 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { musicApi, type Artist } from "@/lib/api";
+import { useArtists } from "@/hooks/queries";
+import { type Artist } from "@/lib/api";
 import { ArtistCard } from "../../components/ArtistCard";
 import { motion } from "framer-motion";
 import { ServerErrorPage, SomethingWentWrongPage } from "@/components/ErrorPages";
@@ -11,26 +11,9 @@ interface ArtistsClientViewProps {
 }
 
 export function ArtistsClientView({ initialArtists = [] }: ArtistsClientViewProps) {
-  const { data: artistsResponse, isLoading, error: artistsError, refetch } = useQuery({
-    queryKey: ["artists"],
-    queryFn: () => musicApi.artists.list(1, 100),
-    initialData:
-      initialArtists.length > 0
-        ? {
-            data: {
-              data: initialArtists,
-              pagination: {
-                page: 1,
-                limit: 100,
-                total: initialArtists.length,
-                hasNext: false,
-              },
-            },
-          }
-        : undefined,
-  });
+  const { data: artistsData, isLoading, error: artistsError, refetch } = useArtists(1, 100);
 
-  const artists = artistsResponse?.data?.data || initialArtists;
+  const artists = (artistsData && artistsData.length > 0) ? artistsData : initialArtists;
 
   return (
     <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-(--app-content-pt,5rem) space-y-8">

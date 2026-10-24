@@ -3,8 +3,12 @@ import {
   getDeviceId,
   request,
 } from "./client";
+import type { User } from "./types";
 
 export const authApi = {
+  getProfile: async () => {
+    return await request<User>("/api/user/profile");
+  },
   login: async (email: string) => {
     const data = await request("/auth/login", {
       method: "POST",
