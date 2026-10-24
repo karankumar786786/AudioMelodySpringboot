@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Clock,
   Radio,
+  MapPin,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -214,12 +215,12 @@ export function ConnectedDevicesModal({ isOpen, onClose }: ConnectedDevicesModal
 
                       <div className="min-w-0 space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono text-xs font-semibold text-zinc-200">
-                            {session.deviceId
+                          <span className="text-xs font-semibold text-zinc-100">
+                            {session.deviceName || (session.deviceId
                               ? session.deviceId.length > 24
                                 ? `${session.deviceId.slice(0, 10)}...${session.deviceId.slice(-6)}`
                                 : session.deviceId
-                              : "Device session"}
+                              : "Device session")}
                           </span>
 
                           {isThisDevice && (
@@ -230,13 +231,23 @@ export function ConnectedDevicesModal({ isOpen, onClose }: ConnectedDevicesModal
                           )}
                         </div>
 
-                        <div className="flex items-center gap-3 text-[11px] text-zinc-400">
-                          <span className="flex items-center gap-1">
-                            <Clock size={11} className="text-zinc-500" />
-                            Active: {formatDate(session.updatedAt || session.createdAt)}
-                          </span>
+                        <div className="flex items-center gap-2.5 text-[11px] text-zinc-400 flex-wrap">
+                          {session.location && (
+                            <span className="flex items-center gap-1 text-purple-300/90">
+                              <MapPin size={11} className="text-purple-400 shrink-0" />
+                              <span>{session.location}</span>
+                            </span>
+                          )}
+                          {session.ipAddress && (
+                            <span className="text-zinc-500 font-mono text-[10px]">
+                              {session.ipAddress}
+                            </span>
+                          )}
                           <span className="text-zinc-600">•</span>
-                          <span>Expires: {formatDate(session.expiresAt)}</span>
+                          <span className="flex items-center gap-1">
+                            <Clock size={11} className="text-zinc-500 shrink-0" />
+                            <span>Active: {formatDate(session.lastActiveAt || session.updatedAt || session.createdAt)}</span>
+                          </span>
                         </div>
                       </div>
                     </div>

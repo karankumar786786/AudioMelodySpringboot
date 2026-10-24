@@ -20,5 +20,9 @@ public final class TelemetryEvents {
 
     public record UserRegisteredEvent(String userId) {}
 
-    public record UserLoginEvent(String userId, String email, String deviceId, String deviceName, String ipAddress) {}
+    public record UserLoginEvent(String userId, String email, String deviceId, String deviceName, String ipAddress, String location) {
+        public UserLoginEvent(String userId, String email, String deviceId, String deviceName, String ipAddress) {
+            this(userId, email, deviceId, deviceName, ipAddress, "Unknown Location");
+        }
+    }
 }

@@ -11,6 +11,12 @@ public final class ClientInfoExtractor {
         if (request == null) {
             return "127.0.0.1";
         }
+        // Cloudflare real IP header
+        String cfConnectingIp = request.getHeader("CF-Connecting-IP");
+        if (cfConnectingIp != null && !cfConnectingIp.isBlank() && !"unknown".equalsIgnoreCase(cfConnectingIp)) {
+            return cfConnectingIp.trim();
+        }
+        // Standard reverse proxy forwarded header
         String xForwardedFor = request.getHeader("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isBlank() && !"unknown".equalsIgnoreCase(xForwardedFor)) {
             // First IP in comma-separated chain
@@ -23,6 +29,19 @@ public final class ClientInfoExtractor {
         }
         String remoteAddr = request.getRemoteAddr();
         return (remoteAddr != null && !remoteAddr.isBlank()) ? remoteAddr : "127.0.0.1";
+    }
+
+    public static String getHeaderOrNull(HttpServletRequest request, String... headerNames) {
+        if (request == null || headerNames == null) {
+            return null;
+        }
+        for (String name : headerNames) {
+            String val = request.getHeader(name);
+            if (val != null && !val.isBlank() && !"unknown".equalsIgnoreCase(val)) {
+                return val.trim();
+            }
+        }
+        return null;
     }
 
     public static String parseDeviceName(String userAgent) {

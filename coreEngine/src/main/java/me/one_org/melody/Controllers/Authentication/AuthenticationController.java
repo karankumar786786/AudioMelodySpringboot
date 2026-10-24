@@ -49,13 +49,15 @@ public class AuthenticationController {
             ClientInfo clientInfo) {
         String clientIp = clientInfo != null ? clientInfo.ipAddress() : null;
         String deviceName = clientInfo != null ? clientInfo.deviceName() : "Web Browser";
+        String location = clientInfo != null ? clientInfo.location() : "Unknown Location";
 
         VerifyOtpResponse response = authenticationService.verifyOtp(
                 verifyRequest.tempToken(),
                 verifyRequest.otp(),
                 verifyRequest.deviceId(),
                 deviceName,
-                clientIp
+                clientIp,
+                location
         );
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }

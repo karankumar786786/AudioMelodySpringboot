@@ -131,11 +131,16 @@ public class AuthenticationService {
 
     @Transactional
     public VerifyOtpResponse verifyOtp(String tempToken, String otp, String deviceId) {
-        return verifyOtp(tempToken, otp, deviceId, null, null);
+        return verifyOtp(tempToken, otp, deviceId, null, null, null);
     }
 
     @Transactional
     public VerifyOtpResponse verifyOtp(String tempToken, String otp, String deviceId, String deviceName, String clientIp) {
+        return verifyOtp(tempToken, otp, deviceId, deviceName, clientIp, null);
+    }
+
+    @Transactional
+    public VerifyOtpResponse verifyOtp(String tempToken, String otp, String deviceId, String deviceName, String clientIp, String location) {
         if (rateLimiterService != null && clientIp != null && !clientIp.isBlank()) {
             rateLimiterService.checkRateLimit("ratelimit:auth:verify-otp:" + clientIp, 20, Duration.ofMinutes(1));
         }
@@ -211,6 +216,9 @@ public class AuthenticationService {
         if (clientIp != null && !clientIp.isBlank()) {
             session.setIpAddress(clientIp);
         }
+        if (location != null && !location.isBlank()) {
+            session.setLocation(location);
+        }
         session.setLastActiveAt(LocalDateTime.now());
         sessionRepository.save(session);
 
@@ -219,7 +227,8 @@ public class AuthenticationService {
                 user.getEmail(),
                 deviceId,
                 deviceName != null ? deviceName : "Unknown Device",
-                clientIp != null ? clientIp : "Unknown IP"
+                clientIp != null ? clientIp : "Unknown IP",
+                location != null ? location : "Unknown Location"
         ));
 
         return new VerifyOtpResponse(accessToken, refreshToken, isNewUser);

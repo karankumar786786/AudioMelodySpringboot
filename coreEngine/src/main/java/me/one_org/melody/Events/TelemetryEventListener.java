@@ -171,7 +171,7 @@ public class TelemetryEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onUserLogin(TelemetryEvents.UserLoginEvent event) {
-        log.info("User login telemetry: userId [{}], email [{}], device [{} ({})], ip [{}]",
-                event.userId(), event.email(), event.deviceId(), event.deviceName(), event.ipAddress());
+        log.info("User login telemetry: userId [{}], email [{}], device [{} ({})], ip [{}], location [{}]",
+                event.userId(), event.email(), event.deviceId(), event.deviceName(), event.ipAddress(), event.location());
     }
 }

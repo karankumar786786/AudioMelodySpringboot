@@ -74,7 +74,7 @@ class AuthenticationControllerIntegrationTest {
     @DisplayName("POST /auth/verify-otp should return 200 OK and tokens with body parameters")
     void shouldVerifyOtp() throws Exception {
         VerifyOtpResponse response = new VerifyOtpResponse("access-token-123", "refresh-token-456", false);
-        when(authenticationService.verifyOtp(eq("temp-token-valid"), eq("123456"), eq("device-ios-1"), any(), any()))
+        when(authenticationService.verifyOtp(eq("temp-token-valid"), eq("123456"), eq("device-ios-1"), any(), any(), any()))
                 .thenReturn(response);
 
         mockMvc.perform(post("/auth/verify-otp")

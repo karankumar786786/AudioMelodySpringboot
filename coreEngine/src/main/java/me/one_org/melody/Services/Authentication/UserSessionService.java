@@ -34,6 +34,7 @@ public class UserSessionService {
                         s.getDeviceId(),
                         s.getDeviceName() != null ? s.getDeviceName() : "Unknown Device",
                         s.getIpAddress() != null ? s.getIpAddress() : "Unknown IP",
+                        s.getLocation() != null ? s.getLocation() : "Unknown Location",
                         s.getLastActiveAt() != null ? s.getLastActiveAt() : s.getUpdatedAt(),
                         s.getExpiresAt(),
                         s.getCreatedAt(),
