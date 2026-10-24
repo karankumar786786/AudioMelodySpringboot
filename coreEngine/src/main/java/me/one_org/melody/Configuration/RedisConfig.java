@@ -32,6 +32,21 @@ public class RedisConfig implements CachingConfigurer {
     private GenericJacksonJsonRedisSerializer createJsonRedisSerializer() {
         return GenericJacksonJsonRedisSerializer.builder()
                 .enableSpringCacheNullValueSupport()
+                .enableUnsafeDefaultTyping()
+                .typePropertyName("@class")
+                .writer((mapper, source) -> {
+                    Object target = source;
+                    if (source instanceof java.util.List<?> list && !(source instanceof java.util.ArrayList<?>)) {
+                        target = new java.util.ArrayList<>(list);
+                    } else if (source instanceof java.util.Set<?> set && !(source instanceof java.util.LinkedHashSet<?>)) {
+                        target = new java.util.LinkedHashSet<>(set);
+                    }
+                    try {
+                        return mapper.writeValueAsBytes(target);
+                    } catch (Exception e) {
+                        throw new org.springframework.data.redis.serializer.SerializationException("Could not write JSON: " + e.getMessage(), e);
+                    }
+                })
                 .customize(builder -> builder
                         .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
                         .disable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
@@ -61,9 +76,8 @@ public class RedisConfig implements CachingConfigurer {
     public CacheManager cacheManager(RedisConnectionFactory factory) {
         GenericJacksonJsonRedisSerializer serializer = createJsonRedisSerializer();
 
-        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration
-                .defaultCacheConfig()
-                .computePrefixWith(cacheName -> "v3:" + cacheName + "::")
+        RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
+                .computePrefixWith(cacheName -> "v4:" + cacheName + "::")
                 .entryTtl(Duration.ofMinutes(10))
                 .serializeKeysWith(
                         RedisSerializationContext.SerializationPair.fromSerializer(
