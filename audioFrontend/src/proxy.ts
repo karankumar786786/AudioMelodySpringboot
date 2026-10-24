@@ -26,8 +26,10 @@ function isTokenValid(token: string | undefined): boolean {
 }
 
 async function refreshCookies(
-  refreshToken: string
+  refreshToken: string,
+  deviceId?: string
 ): Promise<{ accessToken: string; refreshToken?: string } | null> {
+  if (!deviceId) return null;
   try {
     const backendUrl =
       process.env.INTERNAL_API_URL ||
@@ -40,7 +42,7 @@ async function refreshCookies(
         Accept: "application/json",
         Cookie: `system_refresh_token=${refreshToken}`,
       },
-      body: JSON.stringify({ refreshToken }),
+      body: JSON.stringify({ refreshToken, deviceId }),
     });
 
     if (!res.ok) return null;
@@ -61,6 +63,7 @@ export async function proxy(request: NextRequest) {
   const { pathname, searchParams } = request.nextUrl;
   const rawToken = request.cookies.get("system_token")?.value;
   const rawRefreshToken = request.cookies.get("system_refresh_token")?.value;
+  const rawDeviceId = request.cookies.get("melody_device_id")?.value;
 
   const isForcedSignout =
     searchParams.has("session_expired") ||
@@ -95,8 +98,8 @@ export async function proxy(request: NextRequest) {
     null;
 
   // 🔄 AUTO-REFRESH ACCESS COOKIE: If access token is missing/expired, refresh it using refresh token
-  if (!isAccessTokenValid && rawRefreshToken && isTokenValid(rawRefreshToken)) {
-    refreshedTokens = await refreshCookies(rawRefreshToken);
+  if (!isAccessTokenValid && rawRefreshToken && isTokenValid(rawRefreshToken) && rawDeviceId) {
+    refreshedTokens = await refreshCookies(rawRefreshToken, rawDeviceId);
     if (refreshedTokens?.accessToken) {
       isAccessTokenValid = true;
     }
@@ -130,6 +133,11 @@ export async function proxy(request: NextRequest) {
 
   // If unauthenticated (no valid access token and refresh failed/missing) and accessing protected routes
   if (!isAccessTokenValid && !isAuthPage) {
+    // If the refresh token is valid but deviceId was not in cookie yet, don't destroy session;
+    // allow the client-side app to mount and refresh with its localStorage deviceId
+    if (rawRefreshToken && isTokenValid(rawRefreshToken)) {
+      return NextResponse.next();
+    }
     const redirectUrl = new URL("/signup", request.url);
     if (rawToken || rawRefreshToken) {
       redirectUrl.searchParams.set("session_expired", "1");

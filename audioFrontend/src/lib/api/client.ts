@@ -24,6 +24,11 @@ export function getDeviceId(): string {
     }
     localStorage.setItem("melody_device_id", deviceId);
   }
+  try {
+    if (!document.cookie.includes("melody_device_id=")) {
+      document.cookie = `melody_device_id=${encodeURIComponent(deviceId)}; path=/; max-age=31536000; SameSite=Lax`;
+    }
+  } catch {}
   return deviceId;
 }
 
