@@ -24,13 +24,35 @@ export function getDeviceId(): string {
     }
     localStorage.setItem("melody_device_id", deviceId);
   }
-  try {
-    if (!document.cookie.includes("melody_device_id=")) {
-      document.cookie = `melody_device_id=${encodeURIComponent(deviceId)}; path=/; max-age=31536000; SameSite=Lax`;
-    }
-  } catch {}
   return deviceId;
 }
+
+export const tokenStorage = {
+  getAccessToken: (): string | null => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("system_token");
+  },
+  getRefreshToken: (): string | null => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("system_refresh_token");
+  },
+  setTokens: (accessToken: string, refreshToken?: string): void => {
+    if (typeof window === "undefined") return;
+    if (accessToken) {
+      localStorage.setItem("system_token", accessToken);
+    }
+    if (refreshToken) {
+      localStorage.setItem("system_refresh_token", refreshToken);
+    }
+  },
+  clearTokens: (): void => {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem("system_token");
+    localStorage.removeItem("system_refresh_token");
+    localStorage.removeItem("system_user");
+    notifySessionCleared();
+  },
+};
 
 export function notifySessionCleared(): void {
   if (typeof window !== "undefined") {
@@ -39,26 +61,23 @@ export function notifySessionCleared(): void {
 }
 
 export function clearSessionStorage(): void {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem("system_user");
-  notifySessionCleared();
+  tokenStorage.clearTokens();
 }
 
 /**
  * Centralized Axios client instance.
- * Automatically configured with credentials (for cookie session management),
+ * Automatically configured with JWT Bearer token authentication,
  * base URL, and request/response interceptors.
  */
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true,
   timeout: 15000,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// Offline guard request interceptor
+// Request interceptor: Offline guard + Bearer Token injection
 apiClient.interceptors.request.use((config) => {
   if (typeof navigator !== "undefined" && !navigator.onLine) {
     const offlineErr = new Error("Device is offline");
@@ -66,6 +85,12 @@ apiClient.interceptors.request.use((config) => {
     (offlineErr as any).status = 0;
     return Promise.reject(offlineErr);
   }
+
+  const token = tokenStorage.getAccessToken();
+  if (token && config.headers) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
   return config;
 });
 
@@ -116,7 +141,15 @@ apiClient.interceptors.response.use(
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
-          .then(() => apiClient(originalRequest))
+          .then(() => {
+            if (originalRequest.headers) {
+              const freshToken = tokenStorage.getAccessToken();
+              if (freshToken) {
+                originalRequest.headers.Authorization = `Bearer ${freshToken}`;
+              }
+            }
+            return apiClient(originalRequest);
+          })
           .catch((err) => Promise.reject(err));
       }
 
@@ -127,15 +160,21 @@ apiClient.interceptors.response.use(
         const refreshed = await refreshAccessToken();
         if (refreshed) {
           processQueue(null, true);
+          if (originalRequest.headers) {
+            const freshToken = tokenStorage.getAccessToken();
+            if (freshToken) {
+              originalRequest.headers.Authorization = `Bearer ${freshToken}`;
+            }
+          }
           return apiClient(originalRequest);
         }
         processQueue(error, false);
-        clearSessionStorage();
+        tokenStorage.clearTokens();
         redirectToLogin();
         return Promise.reject(error);
       } catch (refreshErr) {
         processQueue(refreshErr, false);
-        clearSessionStorage();
+        tokenStorage.clearTokens();
         redirectToLogin();
         return Promise.reject(refreshErr);
       } finally {
@@ -148,25 +187,37 @@ apiClient.interceptors.response.use(
 );
 
 /**
- * Refreshes session cookies globally with the backend via Axios.
- * Browser automatically carries the `system_refresh_token` cookie and receives new cookies.
+ * Refreshes JWT tokens globally with the backend via Axios.
+ * Uses refresh token and device ID from localStorage and persists renewed tokens.
  */
 export async function refreshAccessToken(): Promise<boolean> {
   try {
+    const refreshToken = tokenStorage.getRefreshToken();
     const deviceId = getDeviceId();
-    await axios.post(
+    if (!refreshToken || !deviceId) {
+      tokenStorage.clearTokens();
+      return false;
+    }
+
+    const res = await axios.post(
       `${API_BASE_URL}/auth/refresh-token`,
-      { deviceId },
-      { withCredentials: true, timeout: 10000 },
+      { refreshToken, deviceId },
+      { timeout: 10000 },
     );
-    return true;
+
+    if (res.data?.accessToken) {
+      tokenStorage.setTokens(res.data.accessToken, res.data.refreshToken);
+      return true;
+    }
+    tokenStorage.clearTokens();
+    return false;
   } catch (err: any) {
     if (
       err.response?.status === 401 ||
       err.response?.status === 403 ||
       err.response?.status === 400
     ) {
-      clearSessionStorage();
+      tokenStorage.clearTokens();
     }
     return false;
   }

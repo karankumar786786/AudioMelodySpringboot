@@ -10,8 +10,6 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import me.one_org.melody.Dto.Controllers.Authentication.LoginRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.RefreshTokenRequestDto;
@@ -21,26 +19,16 @@ import me.one_org.melody.Dto.Controllers.Authentication.RegisterRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.ResendOtpRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpRequest;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpResponse;
-import me.one_org.melody.Exceptions.UnauthorizedException;
 import me.one_org.melody.Services.Authentication.AuthenticationService;
-import me.one_org.melody.Utils.ClientDetector;
-import me.one_org.melody.Utils.CookieUtil;
 
 @RestController
 @RequestMapping("/auth")
 public class AuthenticationController {
 
     private final AuthenticationService authenticationService;
-    private final CookieUtil cookieUtil;
-    private final ClientDetector clientDetector;
 
-    public AuthenticationController(
-            AuthenticationService authenticationService,
-            CookieUtil cookieUtil,
-            ClientDetector clientDetector) {
+    public AuthenticationController(AuthenticationService authenticationService) {
         this.authenticationService = authenticationService;
-        this.cookieUtil = cookieUtil;
-        this.clientDetector = clientDetector;
     }
 
     @PostMapping("/register")
@@ -50,28 +38,17 @@ public class AuthenticationController {
     }
 
     @PostMapping("/verify-otp")
-    public ResponseEntity<VerifyOtpResponse> verifyOtp(
-            @Valid @RequestBody VerifyOtpRequest verifyRequest,
-            HttpServletRequest httpRequest,
-            HttpServletResponse httpServletResponse
-    ) {
+    public ResponseEntity<VerifyOtpResponse> verifyOtp(@Valid @RequestBody VerifyOtpRequest verifyRequest) {
         VerifyOtpResponse response = authenticationService.verifyOtp(
                 verifyRequest.tempToken(),
                 verifyRequest.otp(),
                 verifyRequest.deviceId()
         );
-
-        if (clientDetector.isBrowser(httpRequest) && response.accessToken() != null) {
-            cookieUtil.setAuthCookies(httpServletResponse, response.accessToken(), response.refreshToken());
-        }
-
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @PostMapping("/resend-otp")
-    public ResponseEntity<RegisterAndLoginResponse> resendOtp(
-            @Valid @RequestBody ResendOtpRequestDto request
-    ) {
+    public ResponseEntity<RegisterAndLoginResponse> resendOtp(@Valid @RequestBody ResendOtpRequestDto request) {
         String token = authenticationService.resendOtp(request.tempToken());
         return ResponseEntity.status(HttpStatus.OK).body(new RegisterAndLoginResponse(token));
     }
@@ -83,47 +60,20 @@ public class AuthenticationController {
     }
 
     @PostMapping("/refresh-token")
-    public ResponseEntity<RefreshTokenResponseDto> refreshToken(
-            @Valid @RequestBody RefreshTokenRequestDto request,
-            HttpServletRequest httpRequest,
-            HttpServletResponse httpServletResponse
-    ) {
-        String effectiveRefreshToken = (request.refreshToken() != null && !request.refreshToken().isBlank())
-                ? request.refreshToken()
-                : cookieUtil.getCookieValue(httpRequest, "system_refresh_token").orElse(null);
-
-        if (effectiveRefreshToken == null || effectiveRefreshToken.isBlank()) {
-            throw new UnauthorizedException("No refresh token provided");
-        }
-
-        RefreshTokenResponseDto response = authenticationService.refreshToken(effectiveRefreshToken, request.deviceId());
-
-        if (clientDetector.isBrowser(httpRequest) && response.accessToken() != null) {
-            cookieUtil.setAuthCookies(httpServletResponse, response.accessToken(), response.refreshToken());
-        }
-
+    public ResponseEntity<RefreshTokenResponseDto> refreshToken(@Valid @RequestBody RefreshTokenRequestDto request) {
+        RefreshTokenResponseDto response = authenticationService.refreshToken(request.refreshToken(), request.deviceId());
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
     @PostMapping("/logout")
     public ResponseEntity<Map<String, String>> logout(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @Valid @RequestBody RefreshTokenRequestDto request,
-            HttpServletRequest httpRequest,
-            HttpServletResponse httpServletResponse) {
+            @Valid @RequestBody RefreshTokenRequestDto request) {
         String token = (authHeader != null && authHeader.startsWith("Bearer "))
                 ? authHeader.substring(7)
-                : cookieUtil.getCookieValue(httpRequest, "system_token").orElse(null);
+                : null;
 
-        String refreshToken = (request.refreshToken() != null && !request.refreshToken().isBlank())
-                ? request.refreshToken()
-                : cookieUtil.getCookieValue(httpRequest, "system_refresh_token").orElse(null);
-
-        authenticationService.logout(token, refreshToken, request.deviceId());
-
-        if (clientDetector.isBrowser(httpRequest)) {
-            cookieUtil.clearAuthCookies(httpServletResponse);
-        }
+        authenticationService.logout(token, request.refreshToken(), request.deviceId());
 
         return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
     }

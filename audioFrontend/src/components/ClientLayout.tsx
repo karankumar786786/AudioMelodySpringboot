@@ -10,45 +10,19 @@ import { LeftSidebar } from "@/components/LeftSidebar";
 import { playerStore } from "@/store/player.store";
 import { RightInfoPanel } from "@/components/RightInfoPanel";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
+import { tokenStorage } from "@/lib/api/client";
 
 interface ClientLayoutProps {
   children: React.ReactNode;
-  initialSession?: {
-    user: any | null;
-    isAuthenticated: boolean;
-  };
 }
 
-export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
+export function ClientLayout({ children }: ClientLayoutProps) {
   const systemUser = useStore(playerStore, (s) => s.systemUser);
   const isLyricsOpen = useStore(playerStore, (s) => s.isLyricsOpen);
   const pathname = usePathname();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // During SSR and initial client hydration, strictly use the SSR-resolved initialSession.
-  // After mount, merge with client-hydrated systemUser.
-  const currentUser = mounted
-    ? (systemUser || (initialSession?.isAuthenticated ? initialSession.user : null))
-    : (initialSession?.isAuthenticated ? initialSession.user : null);
-
-  // Sync server session to client store on mount
-  useEffect(() => {
-    if (
-      initialSession?.isAuthenticated &&
-      initialSession?.user &&
-      !playerStore.state.systemUser
-    ) {
-      playerStore.setState((s) => ({
-        ...s,
-        systemUser: initialSession.user,
-      }));
-    }
-  }, [initialSession]);
+  const [isReady, setIsReady] = useState(false);
 
   const isPublicRoute =
     pathname === "/" ||
@@ -56,12 +30,68 @@ export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
     pathname === "/signup" ||
     pathname === "/callback";
 
-  const hasSession = Boolean(currentUser);
   const isAuthFormRoute =
     pathname === "/" || pathname === "/login" || pathname === "/signup";
-  const [isReady, setIsReady] = useState(
-    () => (Boolean(initialSession?.isAuthenticated) && !isAuthFormRoute) || isPublicRoute
-  );
+
+  // Hydrate user from localStorage on mount
+  useEffect(() => {
+    setMounted(true);
+    const token = tokenStorage.getAccessToken();
+    if (token) {
+      if (!playerStore.state.systemUser) {
+        const stored = localStorage.getItem("system_user");
+        if (stored) {
+          try {
+            const user = JSON.parse(stored);
+            playerStore.setState((s) => ({
+              ...s,
+              systemUser: user,
+            }));
+          } catch {}
+        }
+      }
+    } else {
+      playerStore.setState((s) => ({
+        ...s,
+        systemUser: null,
+      }));
+    }
+  }, []);
+
+  // Listen for session cleared event (logout, 401 refresh failure)
+  useEffect(() => {
+    const handleSessionCleared = () => {
+      playerStore.setState((s) => ({ ...s, systemUser: null }));
+      if (!isPublicRoute) {
+        router.replace("/signup?session_expired=1");
+      }
+    };
+    window.addEventListener("session:cleared", handleSessionCleared);
+    return () => window.removeEventListener("session:cleared", handleSessionCleared);
+  }, [isPublicRoute, router]);
+
+  // Handle client-side routing & auth guard
+  useEffect(() => {
+    if (!mounted) return;
+    const token = tokenStorage.getAccessToken();
+    const hasSession = Boolean(
+      token && (systemUser || (typeof window !== "undefined" && localStorage.getItem("system_user")))
+    );
+
+    if (hasSession) {
+      if (isAuthFormRoute) {
+        router.replace("/home");
+      } else {
+        setIsReady(true);
+      }
+    } else {
+      if (!isPublicRoute) {
+        router.replace("/signup");
+      } else {
+        setIsReady(true);
+      }
+    }
+  }, [mounted, systemUser, pathname, isPublicRoute, isAuthFormRoute, router]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -83,29 +113,13 @@ export function ClientLayout({ children, initialSession }: ClientLayoutProps) {
   }, []);
 
   useEffect(() => {
-    const hasActiveSession = Boolean(currentUser);
-
-    if (hasActiveSession) {
-      if (pathname === "/" || pathname === "/login" || pathname === "/signup") {
-        router.replace("/home");
-      } else {
-        setIsReady(true);
-      }
-    } else {
-      if (!isPublicRoute) {
-        router.replace("/signup");
-      } else {
-        setIsReady(true);
-      }
-    }
-  }, [currentUser, pathname, isPublicRoute, router, initialSession?.isAuthenticated]);
-
-  useEffect(() => {
     const mainEl = document.querySelector("main");
     if (mainEl) {
       mainEl.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
     }
   }, [pathname]);
+
+  const currentUser = mounted ? systemUser : null;
 
   // Loading Screen while resolving session or redirecting
   if (

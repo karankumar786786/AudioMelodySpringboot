@@ -16,8 +16,6 @@ import me.one_org.melody.Dto.Controllers.Authentication.RefreshTokenResponseDto;
 import me.one_org.melody.Dto.Controllers.Authentication.RegisterRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpResponse;
 import me.one_org.melody.Services.Authentication.AuthenticationService;
-import me.one_org.melody.Utils.ClientDetector;
-import me.one_org.melody.Utils.CookieUtil;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -34,15 +32,9 @@ class AuthenticationControllerIntegrationTest {
     @Mock
     private AuthenticationService authenticationService;
 
-    @Mock
-    private CookieUtil cookieUtil;
-
-    @Mock
-    private ClientDetector clientDetector;
-
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new AuthenticationController(authenticationService, cookieUtil, clientDetector)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new AuthenticationController(authenticationService)).build();
     }
 
     @Test

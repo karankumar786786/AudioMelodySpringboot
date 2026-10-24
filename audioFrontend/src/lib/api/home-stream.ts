@@ -1,4 +1,4 @@
-import { API_BASE_URL, getDeviceId, refreshAccessToken } from "./client";
+import { API_BASE_URL, getDeviceId, refreshAccessToken, tokenStorage } from "./client";
 
 export interface HomeStreamOptions {
   userId?: string;
@@ -36,24 +36,31 @@ export function subscribeHomeStream({
         Accept: "text/event-stream",
       };
 
+      const token = tokenStorage.getAccessToken();
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
       const url = `${API_BASE_URL}/api/home/stream`;
 
       let response = await fetch(url, {
         method: "GET",
         headers,
-        credentials: "include",
         signal: activeSignal,
       });
 
-      // If cookies need refreshing, try refreshing once
+      // If token needs refreshing, try refreshing once
       if (response.status === 401) {
         try {
           const refreshed = await refreshAccessToken();
           if (refreshed) {
+            const newToken = tokenStorage.getAccessToken();
+            if (newToken) {
+              headers["Authorization"] = `Bearer ${newToken}`;
+            }
             response = await fetch(url, {
               method: "GET",
               headers,
-              credentials: "include",
               signal: activeSignal,
             });
           }

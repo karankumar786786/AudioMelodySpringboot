@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import { getServerSession, serverMusicApi } from "@/lib/api/server-client";
-import { redirect } from "next/navigation";
 import { PlaylistsClientView } from "./PlaylistsClientView";
 
 export const metadata: Metadata = {
@@ -12,14 +10,6 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function PlaylistsPage() {
-  const session = await getServerSession();
-  if (!session.isAuthenticated) {
-    redirect("/signup");
-  }
-
-  const playlistsRes = await serverMusicApi.playlists.list(1, 30);
-  const initialPlaylists = playlistsRes?.data?.data || [];
-
-  return <PlaylistsClientView initialPlaylists={initialPlaylists} />;
+export default function PlaylistsPage() {
+  return <PlaylistsClientView />;
 }

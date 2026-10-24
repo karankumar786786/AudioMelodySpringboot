@@ -1,72 +1,29 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { getServerSession, serverMusicApi } from "@/lib/api/server-client";
-import { getImageUrl } from "@/lib/image-utils";
 import { PlaylistClientView } from "./PlaylistClientView";
 
 interface PlaylistPageProps {
   params: Promise<{ id: string }>;
 }
 
-export async function generateMetadata({
-  params,
-}: PlaylistPageProps): Promise<Metadata> {
-  const { id } = await params;
-  const playlistRes = await serverMusicApi.playlists.getById(id);
-  const playlist = playlistRes?.data;
-
-  if (!playlist) {
-    return {
-      title: "Playlist - One Melody",
-      description:
-        "Listen to featured playlists and collections on One Melody.",
-    };
-  }
-
-  const playlistTitle = playlist.title || playlist.name || "Playlist";
-  const coverUrl = playlist.coverImageKey
-    ? getImageUrl(playlist.coverImageKey, { width: 800, height: 800 }) ||
-      "/image.png"
-    : "/image.png";
-
+export async function generateMetadata(): Promise<Metadata> {
   return {
-    title: `${playlistTitle} - Playlist`,
-    description:
-      playlist.description ||
-      `Stream "${playlistTitle}" with ${playlist.totalSongs || 0} tracks on One Melody. Lossless audio quality.`,
+    title: "Playlist - One Melody",
+    description: "Listen to featured playlists and collections on One Melody.",
     openGraph: {
-      title: `${playlistTitle} on One Melody`,
-      description: `Listen to ${playlistTitle} curated playlist on One Melody.`,
-      images: [{ url: coverUrl }],
+      title: "Playlist on One Melody",
+      description: "Listen to curated playlists on One Melody.",
+      images: [{ url: "/image.png" }],
     },
     twitter: {
       card: "summary_large_image",
-      title: `${playlistTitle} on One Melody`,
-      description: `Stream playlist ${playlistTitle} on One Melody.`,
-      images: [coverUrl],
+      title: "Playlist on One Melody",
+      description: "Stream playlists on One Melody.",
+      images: ["/image.png"],
     },
   };
 }
 
 export default async function PlaylistPage({ params }: PlaylistPageProps) {
-  const session = await getServerSession();
-  if (!session.isAuthenticated) {
-    redirect("/signup");
-  }
-
   const { id } = await params;
-
-  // Concurrently fetch playlist metadata and songs on the server using cookie auth
-  const [playlistRes, songsRes] = await Promise.all([
-    serverMusicApi.playlists.getById(id),
-    serverMusicApi.playlists.getSongs(id),
-  ]);
-
-  return (
-    <PlaylistClientView
-      id={id}
-      initialPlaylist={playlistRes?.data || null}
-      initialSongs={songsRes?.data?.data || []}
-    />
-  );
+  return <PlaylistClientView id={id} />;
 }

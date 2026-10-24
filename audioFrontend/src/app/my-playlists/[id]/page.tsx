@@ -1,6 +1,4 @@
 import type { Metadata } from "next";
-import { getServerSession, serverMusicApi } from "@/lib/api/server-client";
-import { redirect } from "next/navigation";
 import { MyPlaylistClientView } from "./MyPlaylistClientView";
 
 interface MyPlaylistPageProps {
@@ -19,65 +17,13 @@ export async function generateMetadata({
     };
   }
 
-  const playlistRes = await serverMusicApi.users.getPlaylistById(id);
-  const playlist = playlistRes?.data;
-
-  if (!playlist) {
-    return {
-      title: "Playlist - One Melody",
-      description: "Listen to this playlist on One Melody.",
-    };
-  }
-
-  const title = playlist.name || "Playlist";
   return {
-    title: `${title} - My Playlist`,
-    description:
-      playlist.description ||
-      `Stream "${title}" on One Melody in high definition lossless audio.`,
+    title: "Playlist - One Melody",
+    description: "Listen to this playlist on One Melody in high definition lossless audio.",
   };
 }
 
 export default async function MyPlaylistPage({ params }: MyPlaylistPageProps) {
-  const session = await getServerSession();
-  if (!session.isAuthenticated) {
-    redirect("/signup");
-  }
-
   const { id } = await params;
-
-  if (id === "favourites") {
-    const favouritesRes = await serverMusicApi.users.getFavourites(1, 100);
-    const favouritesSongs = favouritesRes?.data?.data || [];
-
-    return (
-      <MyPlaylistClientView
-        id="favourites"
-        initialPlaylist={{
-          id: "favourites",
-          name: "Favourites",
-          description: "Your saved collection of favourite tracks and songs.",
-          privacy: "PRIVATE",
-          ownerName: "You",
-          ownerId: "",
-          totalSongs: favouritesSongs.length,
-          coverImageKey: undefined,
-        }}
-        initialSongs={favouritesSongs}
-      />
-    );
-  }
-
-  const [playlistRes, songsRes] = await Promise.all([
-    serverMusicApi.users.getPlaylistById(id),
-    serverMusicApi.users.getPlaylistSongs(id),
-  ]);
-
-  return (
-    <MyPlaylistClientView
-      id={id}
-      initialPlaylist={playlistRes?.data || null}
-      initialSongs={songsRes?.data?.data || []}
-    />
-  );
+  return <MyPlaylistClientView id={id} />;
 }

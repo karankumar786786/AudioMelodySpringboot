@@ -2,6 +2,7 @@ import {
   clearSessionStorage,
   getDeviceId,
   request,
+  tokenStorage,
 } from "./client";
 import type { User } from "./types";
 
@@ -37,7 +38,11 @@ export const authApi = {
       body: JSON.stringify({ tempToken: token, otp: code, deviceId }),
     });
 
-    // Cookies are automatically set in the browser via backend Set-Cookie headers.
+    // Store JWT tokens securely in localStorage
+    if (verifyRes?.accessToken) {
+      tokenStorage.setTokens(verifyRes.accessToken, verifyRes.refreshToken);
+    }
+
     // Fetch profile and store user identity for client-side state
     const profile = await request("/api/user/profile");
     const userPayload = {
@@ -67,9 +72,10 @@ export const authApi = {
   logout: async () => {
     try {
       const deviceId = getDeviceId();
+      const refreshToken = tokenStorage.getRefreshToken() || "";
       await request("/auth/logout", {
         method: "POST",
-        body: JSON.stringify({ deviceId }),
+        body: JSON.stringify({ refreshToken, deviceId }),
       });
     } catch {
       // Silently handle logout failure on network error

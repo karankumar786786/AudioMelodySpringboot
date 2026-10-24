@@ -136,13 +136,6 @@ public class SecurityConfig {
                     if (authHeader != null && authHeader.startsWith("Bearer ")) {
                         return authHeader.substring(7).trim();
                     }
-                    if (request.getCookies() != null) {
-                        for (jakarta.servlet.http.Cookie c : request.getCookies()) {
-                            if ("system_token".equals(c.getName()) && c.getValue() != null && !c.getValue().isBlank()) {
-                                return c.getValue();
-                            }
-                        }
-                    }
                     String tokenParam = request.getParameter("token");
                     if (tokenParam != null && !tokenParam.isBlank()) {
                         return tokenParam.trim();

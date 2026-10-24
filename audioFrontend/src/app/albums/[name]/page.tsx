@@ -1,7 +1,4 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { getServerSession, serverMusicApi } from "@/lib/api/server-client";
-import { getImageUrl } from "@/lib/image-utils";
 import { AlbumClientView } from "./AlbumClientView";
 
 interface AlbumPageProps {
@@ -13,43 +10,26 @@ export async function generateMetadata({
 }: AlbumPageProps): Promise<Metadata> {
   const resolvedParams = await params;
   const albumName = decodeURIComponent(resolvedParams.name);
-  const songs = await serverMusicApi.albums.getByName(albumName);
-
-  const artistName = songs[0]?.artistName || "Various Artists";
-  const songWithImage = songs.find((s) => s.imageKey);
-  const coverUrl = songWithImage?.imageKey
-    ? getImageUrl(songWithImage.imageKey, { width: 500, height: 500 }) ||
-      "/image.png"
-    : "/image.png";
 
   return {
-    title: `${albumName} - Album by ${artistName}`,
-    description: `Listen to "${albumName}" by ${artistName} on One Melody. Lossless audio streaming with ${songs.length} tracks.`,
+    title: `${albumName} - Album`,
+    description: `Listen to "${albumName}" on One Melody in high definition lossless audio.`,
     openGraph: {
-      title: `${albumName} - ${artistName} on One Melody`,
+      title: `${albumName} on One Melody`,
       description: `Stream ${albumName} in high definition audio.`,
-      images: [{ url: coverUrl }],
+      images: [{ url: "/image.png" }],
     },
     twitter: {
       card: "summary_large_image",
-      title: `${albumName} - ${artistName}`,
+      title: `${albumName} on One Melody`,
       description: `Stream album ${albumName} on One Melody.`,
-      images: [coverUrl],
+      images: ["/image.png"],
     },
   };
 }
 
 export default async function AlbumPage({ params }: AlbumPageProps) {
-  const session = await getServerSession();
-  if (!session.isAuthenticated) {
-    redirect("/signup");
-  }
-
   const resolvedParams = await params;
   const albumName = decodeURIComponent(resolvedParams.name);
-
-  // Fetch album tracks on the server using incoming cookie auth
-  const songs = await serverMusicApi.albums.getByName(albumName);
-
-  return <AlbumClientView albumName={albumName} initialSongs={songs} />;
+  return <AlbumClientView albumName={albumName} />;
 }
