@@ -56,6 +56,10 @@ class Session(models.Model):
     device_id = models.CharField(max_length=255, db_column="device_id")
     refresh_token = models.CharField(max_length=1000, db_column="refresh_token")
     expires_at = models.DateTimeField(db_column="expires_at")
+    device_name = models.CharField(max_length=255, null=True, blank=True, db_column="device_name")
+    ip_address = models.CharField(max_length=255, null=True, blank=True, db_column="ip_address")
+    location = models.CharField(max_length=255, null=True, blank=True, db_column="location")
+    last_active_at = models.DateTimeField(null=True, blank=True, db_column="last_active_at")
     created_at = models.DateTimeField(auto_now_add=True, db_column="created_at")
     updated_at = models.DateTimeField(auto_now=True, db_column="updated_at")
 

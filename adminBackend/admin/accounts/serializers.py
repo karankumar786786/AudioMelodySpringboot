@@ -41,6 +41,10 @@ class UserSerializer(serializers.ModelSerializer):
 
 class UserSessionSerializer(serializers.ModelSerializer):
     deviceId = serializers.CharField(source="device_id")
+    deviceName = serializers.CharField(source="device_name", required=False, allow_null=True)
+    ipAddress = serializers.CharField(source="ip_address", required=False, allow_null=True)
+    location = serializers.CharField(required=False, allow_null=True)
+    lastActiveAt = serializers.DateTimeField(source="last_active_at", format="%Y-%m-%dT%H:%M:%S", required=False, allow_null=True)
     expiresAt = serializers.DateTimeField(source="expires_at", format="%Y-%m-%dT%H:%M:%S")
     createdAt = serializers.DateTimeField(source="created_at", format="%Y-%m-%dT%H:%M:%S")
     updatedAt = serializers.DateTimeField(source="updated_at", format="%Y-%m-%dT%H:%M:%S")
@@ -50,6 +54,10 @@ class UserSessionSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "deviceId",
+            "deviceName",
+            "ipAddress",
+            "location",
+            "lastActiveAt",
             "expiresAt",
             "createdAt",
             "updatedAt",
