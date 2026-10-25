@@ -1,11 +1,9 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   View,
   StyleSheet,
   FlatList,
   Dimensions,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
 } from "react-native";
 import { Song } from "@/types";
 import { HeroFeaturedCard } from "./HeroFeaturedCard";
@@ -23,8 +21,6 @@ export function FeaturedSongsCarousel({
   songs,
   onSongPress,
 }: FeaturedSongsCarouselProps) {
-  const [activeIndex, setActiveIndex] = useState(0);
-
   if (!songs || songs.length === 0) return null;
 
   if (songs.length === 1) {
@@ -39,14 +35,6 @@ export function FeaturedSongsCarousel({
     );
   }
 
-  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const offsetX = event.nativeEvent.contentOffset.x;
-    const index = Math.round(offsetX / (CARD_WIDTH + CARD_GAP));
-    if (index >= 0 && index < songs.length && index !== activeIndex) {
-      setActiveIndex(index);
-    }
-  };
-
   return (
     <View style={styles.carouselContainer}>
       <FlatList
@@ -58,8 +46,6 @@ export function FeaturedSongsCarousel({
         snapToAlignment="start"
         decelerationRate="fast"
         contentContainerStyle={styles.listContent}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
         renderItem={({ item }) => (
           <HeroFeaturedCard
             song={item}
@@ -68,16 +54,6 @@ export function FeaturedSongsCarousel({
           />
         )}
       />
-
-      {/* Pagination Indicator Dots */}
-      <View style={styles.dotsContainer}>
-        {songs.map((_, i) => (
-          <View
-            key={i}
-            style={[styles.dot, i === activeIndex && styles.activeDot]}
-          />
-        ))}
-      </View>
     </View>
   );
 }
@@ -93,21 +69,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     gap: CARD_GAP,
   },
-  dotsContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 10,
-    gap: 6,
-  },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
-  },
-  activeDot: {
-    width: 18,
-    backgroundColor: "#208AEF",
-  },
 });
+
