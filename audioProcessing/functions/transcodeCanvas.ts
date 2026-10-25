@@ -7,6 +7,7 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 import * as crypto from "node:crypto";
 import { config } from "dotenv";
+import { CONCURRENT_TRANSCODING_LIMIT, globalTranscodeLimiter } from "../lib/transcode/limiter";
 config();
 
 export interface TranscodeCanvasData {
@@ -21,7 +22,7 @@ export const transcodeCanvasTask = inngest.createFunction(
     {
         id: "transcode-canvas-task",
         concurrency: {
-            limit: 1,
+            limit: CONCURRENT_TRANSCODING_LIMIT,
         },
         cancelOn: [
             {
@@ -59,9 +60,10 @@ export const transcodeCanvasTask = inngest.createFunction(
         const baseTmpDir = path.join(process.cwd(), "tmp");
 
         return await step.run("process-canvas-snippet", async () => {
-            if (!fs.existsSync(baseTmpDir)) {
-                fs.mkdirSync(baseTmpDir, { recursive: true });
-            }
+            return await globalTranscodeLimiter(async () => {
+                if (!fs.existsSync(baseTmpDir)) {
+                    fs.mkdirSync(baseTmpDir, { recursive: true });
+                }
 
             const localUuid = crypto.randomUUID();
             const localVideoDownloadPath = path.join(baseTmpDir, `raw_video_canvas_${localUuid}.mp4`);
@@ -96,6 +98,7 @@ export const transcodeCanvasTask = inngest.createFunction(
             } finally {
                 await safeCleanPaths([localVideoDownloadPath, localCanvasClipPath]);
             }
+            });
         });
     }
 );

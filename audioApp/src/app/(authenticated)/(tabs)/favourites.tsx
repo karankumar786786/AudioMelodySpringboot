@@ -7,13 +7,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
-  Dimensions,
 } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 
 import { AppDispatch, AppState } from "@/store";
@@ -21,23 +19,25 @@ import { playAll, playWithSimilarSongs } from "@/store/queueActions";
 import { audioPlayerService } from "@/service/audioPlayerService";
 import { favouriteService } from "@/service";
 import { Song } from "@/types";
-import { getImageUrl } from "@/utils/imageUtils";
-import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
 import { FavouriteSongItem } from "@/components/favourites/FavouriteSongItem";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const HERO_HEIGHT = Math.min(SCREEN_WIDTH * 0.95, 360);
+// Space reserved for the tab bar + mini player so the last song is reachable.
+const TAB_BAR_HEIGHT = 64;
+const MINI_PLAYER_HEIGHT = 72;
+const EXTRA_BREATHING_ROOM = 32;
 
 export default function FavouritesScreen() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
 
-  const profile = useSelector((state: AppState) => state.user.profile);
+  const bottomSpace =
+    TAB_BAR_HEIGHT + MINI_PLAYER_HEIGHT + EXTRA_BREATHING_ROOM + insets.bottom;
+
   const currentSong = useSelector((state: AppState) => state.player.currentSong);
   const isPlaying = useSelector((state: AppState) => state.player.isPlaying);
 
-  // Infinite query for favourites
   const {
     data,
     isLoading,
@@ -48,8 +48,7 @@ export default function FavouritesScreen() {
     isRefetching,
   } = useInfiniteQuery({
     queryKey: ["favourites"],
-    queryFn: ({ pageParam = 0 }) =>
-      favouriteService.getFavourites(pageParam, 20),
+    queryFn: ({ pageParam = 0 }) => favouriteService.getFavourites(pageParam, 20),
     getNextPageParam: (lastPage) => {
       const total =
         lastPage.paginationMetaData?.totalCount ??
@@ -61,7 +60,6 @@ export default function FavouritesScreen() {
     initialPageParam: 0,
   });
 
-  // Flatten songs
   const allSongs: Song[] = useMemo(() => {
     if (!data?.pages) return [];
     return data.pages.flatMap((page) => page.content || []);
@@ -72,7 +70,6 @@ export default function FavouritesScreen() {
     data?.pages[0]?.paginationMetaData?.activeCount ??
     allSongs.length;
 
-  // Handlers
   const handleSongPress = (song: Song) => {
     dispatch(playWithSimilarSongs(song));
     router.push({
@@ -122,195 +119,47 @@ export default function FavouritesScreen() {
     try {
       await favouriteService.removeFavourite(songId);
     } catch {
-      // Re-fetch to synchronize state if API call failed
       queryClient.invalidateQueries({ queryKey: ["favourites"] });
     }
   };
 
-  // Hero visuals
-  const heroSong = allSongs[0];
-  const heroVideoKey = heroSong?.videoKey;
-  const heroImageKey = heroSong?.imageKey;
-
-  const firstSongImg = heroSong
-    ? getImageUrl(heroSong.imageKey, {
-        width: 600,
-        height: 600,
-        focus: "auto",
-        aspectRatio: "1-1",
-      })
-    : undefined;
-
-  const mosaicImages = allSongs.slice(0, 4).map((s) =>
-    getImageUrl(s.imageKey, {
-      width: 300,
-      height: 300,
-      focus: "auto",
-      aspectRatio: "1-1",
-    }),
-  );
-
-  const showMosaic = !heroVideoKey && allSongs.length >= 4;
-
-  // Render Header Component
   const renderHeader = () => (
-    <View style={styles.headerContainer}>
-      {/* Hero Banner with video/mosaic/image */}
-      <View style={styles.heroBanner}>
-        {heroVideoKey ? (
-          <CanvasVideoPlayer
-            videoKey={heroVideoKey}
-            fallbackImageKey={heroImageKey}
-            style={StyleSheet.absoluteFill}
-            isPlaying={true}
-            showLoaderWhenVideoAvailable={true}
-          />
-        ) : showMosaic ? (
-          <View style={styles.mosaicGrid}>
-            <View style={styles.mosaicRow}>
-              <View style={styles.mosaicCell}>
-                {mosaicImages[0] ? (
-                  <Image
-                    source={{ uri: mosaicImages[0] }}
-                    style={styles.imageFull}
-                    contentFit="cover"
-                    contentPosition="top center"
-                    cachePolicy="memory"
-                  />
-                ) : (
-                  <View style={styles.cellFallback} />
-                )}
-              </View>
-              <View style={styles.mosaicCell}>
-                {mosaicImages[1] ? (
-                  <Image
-                    source={{ uri: mosaicImages[1] }}
-                    style={styles.imageFull}
-                    contentFit="cover"
-                    contentPosition="top center"
-                    cachePolicy="memory"
-                  />
-                ) : (
-                  <View style={styles.cellFallback} />
-                )}
-              </View>
-            </View>
-            <View style={styles.mosaicRow}>
-              <View style={styles.mosaicCell}>
-                {mosaicImages[2] ? (
-                  <Image
-                    source={{ uri: mosaicImages[2] }}
-                    style={styles.imageFull}
-                    contentFit="cover"
-                    contentPosition="top center"
-                    cachePolicy="memory"
-                  />
-                ) : (
-                  <View style={styles.cellFallback} />
-                )}
-              </View>
-              <View style={styles.mosaicCell}>
-                {mosaicImages[3] ? (
-                  <Image
-                    source={{ uri: mosaicImages[3] }}
-                    style={styles.imageFull}
-                    contentFit="cover"
-                    contentPosition="top center"
-                    cachePolicy="memory"
-                  />
-                ) : (
-                  <View style={styles.cellFallback} />
-                )}
-              </View>
-            </View>
-          </View>
-        ) : firstSongImg ? (
-          <Image
-            source={{ uri: firstSongImg }}
-            style={styles.heroBannerImage}
-            contentFit="cover"
-            contentPosition="top center"
-            transition={200}
-            cachePolicy="memory"
-          />
-        ) : (
-          <View style={styles.emptyHero}>
-            <LinearGradient
-              colors={["#3b0f5e", "#1e1038", "#121212"]}
-              style={StyleSheet.absoluteFill}
-            />
-            <View style={styles.emptyHeroHeartCircle}>
-              <Ionicons name="heart" size={54} color="#E91E63" />
-            </View>
-          </View>
-        )}
-
-        {/* Global subtle dark wash */}
-        <View style={styles.heroWash} pointerEvents="none" />
-
-        {/* Linear Gradient scrim blending into #121212 */}
-        <LinearGradient
-          colors={["transparent", "rgba(18, 18, 18, 0.45)", "#121212"]}
-          locations={[0, 0.62, 1]}
-          style={styles.heroGradient}
-          pointerEvents="none"
-        />
-
-        {/* Hero Content pinned to bottom */}
-        <View style={styles.heroContent} pointerEvents="box-none">
-          {/* Title & Action Buttons Row */}
-          <View style={styles.titleRow}>
-            <Text style={styles.heroTitle} numberOfLines={1}>
-              Liked Songs
-            </Text>
-
-            <View style={styles.titleActions}>
-              {allSongs.length > 0 ? (
-                <TouchableOpacity
-                  style={styles.playButton}
-                  onPress={handlePlayAll}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons
-                    name={isCurrentPlaylistPlaying ? "pause" : "play"}
-                    size={22}
-                    color="#000000"
-                    style={!isCurrentPlaylistPlaying ? { marginLeft: 2 } : undefined}
-                  />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          </View>
-
-          {/* Stats Row */}
-          <View style={styles.statsRow}>
-            <Text style={styles.curatorText}>
-              By {profile?.userName || "You"}
-            </Text>
-            <Text style={styles.statDot}>•</Text>
-            <Text style={styles.statText}>
-              {totalCount} {totalCount === 1 ? "track" : "tracks"}
-            </Text>
-            <Text style={styles.statDot}>•</Text>
-            <View style={styles.privacyBadge}>
-              <Text style={styles.privacyBadgeText}>Auto-saved</Text>
-            </View>
-          </View>
-        </View>
+    <View style={styles.header}>
+      <View style={styles.headerText}>
+        <Text style={styles.title} numberOfLines={1}>
+          Liked songs
+        </Text>
+        <Text style={styles.subtitle}>
+          {totalCount} {totalCount === 1 ? "song" : "songs"}
+        </Text>
       </View>
+
+      {allSongs.length > 0 ? (
+        <TouchableOpacity
+          style={styles.playButton}
+          onPress={handlePlayAll}
+          activeOpacity={0.85}
+          accessibilityLabel={isCurrentPlaylistPlaying ? "Pause" : "Play all"}
+        >
+          <Ionicons
+            name={isCurrentPlaylistPlaying ? "pause" : "play"}
+            size={26}
+            color="#000000"
+            style={!isCurrentPlaylistPlaying ? { marginLeft: 3 } : undefined}
+          />
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top"]}>
       {isLoading ? (
-        <View style={styles.centerContainer}>
+        <View style={styles.center}>
           <ActivityIndicator size="large" color="#FFFFFF" />
-          <Text style={styles.loadingText}>Loading your favourites...</Text>
         </View>
       ) : (
         <FlatList
-          contentInsetAdjustmentBehavior="never"
           data={allSongs}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={renderHeader}
@@ -325,25 +174,20 @@ export default function FavouritesScreen() {
             />
           )}
           ListEmptyComponent={
-            allSongs.length === 0 ? (
-              <View style={styles.emptyContainer}>
-                <View style={styles.emptyHeartBox}>
-                  <Ionicons name="heart-outline" size={48} color="#E91E63" />
-                </View>
-                <Text style={styles.emptyTitle}>No liked songs yet</Text>
-                <Text style={styles.emptySubtitle}>
-                  Songs you like by tapping the heart icon will appear here
-                  automatically for quick access.
-                </Text>
-                <TouchableOpacity
-                  style={styles.exploreButton}
-                  onPress={() => router.push("/(authenticated)/(tabs)/home")}
-                  activeOpacity={0.82}
-                >
-                  <Text style={styles.exploreButtonText}>Explore Music</Text>
-                </TouchableOpacity>
-              </View>
-            ) : undefined
+            <View style={styles.empty}>
+              <Ionicons name="heart-outline" size={44} color="#FFFFFF" />
+              <Text style={styles.emptyTitle}>No liked songs yet</Text>
+              <Text style={styles.emptyText}>
+                Tap the heart on any song and it will show up here.
+              </Text>
+              <TouchableOpacity
+                style={styles.exploreButton}
+                onPress={() => router.push("/(authenticated)/(tabs)/home")}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.exploreButtonText}>Find music</Text>
+              </TouchableOpacity>
+            </View>
           }
           onEndReached={() => {
             if (hasNextPage && !isFetchingNextPage) {
@@ -366,243 +210,93 @@ export default function FavouritesScreen() {
               }}
               tintColor="#FFFFFF"
               colors={["#FFFFFF"]}
+              progressBackgroundColor="#1A1A1A"
             />
           }
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={{ paddingBottom: bottomSpace }}
           showsVerticalScrollIndicator={false}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#121212",
+    backgroundColor: "#000000",
   },
-  listContent: {
-    paddingBottom: 120,
-  },
-  headerContainer: {
-    backgroundColor: "#121212",
-    marginBottom: 8,
-  },
-  heroBanner: {
-    width: "100%",
-    height: HERO_HEIGHT,
-    position: "relative",
-    backgroundColor: "#161616",
-    overflow: "hidden",
-  },
-  heroBannerImage: {
-    width: "100%",
-    height: "100%",
-  },
-  mosaicGrid: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#141416",
-  },
-  mosaicRow: {
+  center: {
     flex: 1,
-    flexDirection: "row",
-  },
-  mosaicCell: {
-    flex: 1,
-    overflow: "hidden",
-    backgroundColor: "#18181A",
-  },
-  imageFull: {
-    width: "100%",
-    height: "100%",
-  },
-  cellFallback: {
-    flex: 1,
-    backgroundColor: "#202024",
-  },
-  emptyHero: {
-    width: "100%",
-    height: "100%",
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#1C1428",
   },
-  emptyHeroHeartCircle: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: "rgba(233, 30, 99, 0.15)",
-    borderWidth: 1.5,
-    borderColor: "rgba(233, 30, 99, 0.35)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  heroWash: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(0, 0, 0, 0.15)",
-  },
-  heroGradient: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: HERO_HEIGHT * 0.78,
-  },
-  heroContent: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 18,
-    paddingBottom: 16,
-  },
-  badgeRow: {
-    marginBottom: 6,
-  },
-  typeBadge: {
-    alignSelf: "flex-start",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.14)",
-  },
-  typeBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    letterSpacing: 0.8,
-  },
-  titleRow: {
+
+  header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
-    marginBottom: 6,
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 20,
+    gap: 16,
   },
-  heroTitle: {
+  headerText: {
     flex: 1,
-    fontSize: 26,
-    fontWeight: "bold",
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: "800",
     color: "#FFFFFF",
-    letterSpacing: -0.5,
-    textShadowColor: "rgba(0, 0, 0, 0.85)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
+    letterSpacing: -0.8,
+    marginBottom: 4,
   },
-  titleActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    flexShrink: 0,
-  },
-  actionIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(30, 30, 30, 0.85)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.18)",
-    justifyContent: "center",
-    alignItems: "center",
+  subtitle: {
+    fontSize: 14,
+    color: "#8A8A8A",
   },
   playButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: "#FFFFFF",
+    alignItems: "center",
     justifyContent: "center",
+  },
+
+  empty: {
     alignItems: "center",
-  },
-  statsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  curatorText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  statDot: {
-    fontSize: 12,
-    color: "#888888",
-  },
-  statText: {
-    fontSize: 13,
-    color: "#BBBBBB",
-  },
-  privacyBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 5,
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  privacyBadgeText: {
-    fontSize: 11,
-    color: "#FFFFFF",
-    fontWeight: "700",
-  },
-  centerContainer: {
-    flex: 1,
-    backgroundColor: "#121212",
-    justifyContent: "center",
-    alignItems: "center",
+    paddingTop: 72,
     paddingHorizontal: 32,
-  },
-  loadingText: {
-    color: "#888888",
-    fontSize: 14,
-    marginTop: 12,
-  },
-  emptyContainer: {
-    paddingVertical: 40,
-    alignItems: "center",
-    paddingHorizontal: 32,
-  },
-  emptyHeartBox: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: "#1C1C1C",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: "rgba(233, 30, 99, 0.3)",
   },
   emptyTitle: {
-    fontSize: 19,
-    fontWeight: "bold",
+    fontSize: 20,
+    fontWeight: "800",
     color: "#FFFFFF",
+    marginTop: 16,
     marginBottom: 6,
-    textAlign: "center",
   },
-  emptySubtitle: {
-    fontSize: 13,
-    color: "#777777",
+  emptyText: {
+    fontSize: 14,
+    color: "#8A8A8A",
     textAlign: "center",
-    lineHeight: 19,
-    marginBottom: 22,
+    lineHeight: 20,
+    marginBottom: 24,
   },
   exploreButton: {
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
+    paddingHorizontal: 28,
+    paddingVertical: 13,
+    borderRadius: 999,
   },
   exploreButtonText: {
     color: "#000000",
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "700",
   },
+
   footerLoader: {
-    paddingVertical: 16,
+    paddingVertical: 20,
     alignItems: "center",
   },
 });

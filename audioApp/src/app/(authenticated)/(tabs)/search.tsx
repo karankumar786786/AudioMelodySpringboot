@@ -318,7 +318,7 @@ export default function SearchScreen() {
       ) : !hasAnyResults && (isInitialLoading || isActivelySearching) ? (
         // Initial First Search Loading State (only shown when no results exist yet)
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="small" color="#1DB954" />
+          <ActivityIndicator size="small" color="#ffffff" />
           <Text style={styles.loadingText}>Searching Melody...</Text>
         </View>
       ) : !hasAnyResults ? (

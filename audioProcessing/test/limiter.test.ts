@@ -1,8 +1,9 @@
 import { describe, it, expect } from "bun:test";
-import { globalTranscodeLimiter, CONCURRENT_TRANSCODING_LIMIT } from "../lib/transcode/limiter";
+import { globalTranscodeLimiter, CONCURRENT_TRANSCODING_LIMIT, SYSTEM_CPU_CORES } from "../lib/transcode/limiter";
 
 describe("Global Concurrency Limiter", () => {
-    it("should default to CONCURRENT_TRANSCODING_LIMIT >= 2", () => {
+    it("should detect host CPU cores and set CONCURRENT_TRANSCODING_LIMIT >= 1", () => {
+        expect(SYSTEM_CPU_CORES).toBeGreaterThanOrEqual(1);
         expect(CONCURRENT_TRANSCODING_LIMIT).toBeGreaterThanOrEqual(1);
     });
 

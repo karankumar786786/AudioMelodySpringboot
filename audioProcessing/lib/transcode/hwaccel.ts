@@ -270,21 +270,13 @@ export async function detectHardwareCapabilities(): Promise<HardwareCapabilities
     }
 
     // --- 3. CONCURRENCY TUNING BASED ON ARCHITECTURE & ACCELERATION ---
-    // Video:
-    // When hardware acceleration (GPU) is active, CPU usage is minimal, so 2-4 concurrent encodings are safe.
-    // When software CPU (libx264) is active:
-    // - On 1-2 cores (common cloud CPU VMs): strictly 1 concurrent video encoding to prevent CPU starvation.
-    // - On 4 cores: 2 concurrent video encodings.
-    // - On 8+ cores: 3 concurrent video encodings.
+    // Video: On 1-2 cores = 1; on 4 cores = 2; on 8+ cores = up to 4.
     const maxVideoConcurrency = isHardwareAccelerated
-        ? Math.max(2, Math.min(4, Math.floor(cpuCount / 2)))
+        ? Math.max(1, Math.min(4, Math.floor(cpuCount / 2)))
         : Math.max(1, Math.min(3, Math.floor(cpuCount / 2)));
 
-    // Audio:
-    // AAC encoding is fast and lightweight (few % of single core).
-    // On 1-2 cores: 2 concurrent audio encodings.
-    // On 4 cores: 4. On 6+ cores: 6.
-    const maxAudioConcurrency = Math.max(2, Math.min(6, cpuCount));
+    // Audio: Fast AAC encoding scales with available CPU cores
+    const maxAudioConcurrency = Math.max(1, Math.min(6, cpuCount));
 
     cachedCapabilities = {
         platform,

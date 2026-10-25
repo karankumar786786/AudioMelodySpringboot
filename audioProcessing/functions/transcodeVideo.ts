@@ -7,6 +7,7 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 import * as crypto from "node:crypto";
 import { config } from "dotenv";
+import { CONCURRENT_TRANSCODING_LIMIT, globalTranscodeLimiter } from "../lib/transcode/limiter";
 config();
 
 export interface TranscodeVideoData {
@@ -19,7 +20,7 @@ export const transcodeVideoTask = inngest.createFunction(
     {
         id: "transcode-video-task",
         concurrency: {
-            limit: 1,
+            limit: CONCURRENT_TRANSCODING_LIMIT,
         },
         cancelOn: [
             {
@@ -47,9 +48,10 @@ export const transcodeVideoTask = inngest.createFunction(
         const baseTmpDir = path.join(process.cwd(), "tmp");
 
         return await step.run("process-video-transcode", async () => {
-            if (!fs.existsSync(baseTmpDir)) {
-                fs.mkdirSync(baseTmpDir, { recursive: true });
-            }
+            return await globalTranscodeLimiter(async () => {
+                if (!fs.existsSync(baseTmpDir)) {
+                    fs.mkdirSync(baseTmpDir, { recursive: true });
+                }
 
             const localUuid = crypto.randomUUID();
             const localVideoDownloadPath = path.join(baseTmpDir, `raw_video_main_${localUuid}.mp4`);
@@ -78,6 +80,7 @@ export const transcodeVideoTask = inngest.createFunction(
             } finally {
                 await safeCleanPaths([localVideoDownloadPath, videoOutputDir]);
             }
+            });
         });
     }
 );

@@ -20,6 +20,7 @@ import {
     unregisterActiveTmpPath,
 } from "./cleanup";
 import { validateMediaIntegrity } from "./validator";
+import { CONCURRENT_TRANSCODING_LIMIT } from "./limiter";
 
 export interface AudioQualityProfile {
     label: string;
@@ -118,9 +119,10 @@ export class AudioTranscoder {
 
     private async transcodeAudio(inputAudio: string, audioDir: string): Promise<string[]> {
         const hwCaps = await detectHardwareCapabilities();
-        const audioConcurrency = pLimit(hwCaps.maxAudioConcurrency);
+        const concurrency = Math.max(1, Math.min(hwCaps.maxAudioConcurrency, CONCURRENT_TRANSCODING_LIMIT));
+        const audioConcurrency = pLimit(concurrency);
 
-        console.log(`[AUDIO] Transcoding ${AUDIO_QUALITY_PROFILES.length} profiles concurrently (concurrency=${hwCaps.maxAudioConcurrency}, encoder=${hwCaps.audioEncoder})...`);
+        console.log(`[AUDIO] Transcoding ${AUDIO_QUALITY_PROFILES.length} profiles (concurrency=${concurrency}, encoder=${hwCaps.audioEncoder})...`);
 
         const transcodeTasks = AUDIO_QUALITY_PROFILES.map((profile) =>
             audioConcurrency(async () => {

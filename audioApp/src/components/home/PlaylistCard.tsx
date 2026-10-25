@@ -19,71 +19,40 @@ export function PlaylistCard({ playlist, onPress }: PlaylistCardProps) {
   });
 
   return (
-    <TouchableOpacity
-      style={styles.card}
-      onPress={onPress}
-      activeOpacity={0.78}
-    >
-      <View style={styles.imageContainer}>
-        {imageUrl ? (
-          <Image
-            source={{ uri: imageUrl }}
-            style={styles.image}
-            contentFit="cover"
-            transition={200}
-            cachePolicy="memory"
-          />
-        ) : (
-          <View style={styles.fallbackImage}>
-            <Ionicons name="musical-notes-outline" size={36} color="#555555" />
-          </View>
-        )}
-      </View>
-
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.78}>
+      {imageUrl ? (
+        <Image
+          source={{ uri: imageUrl }}
+          style={styles.image}
+          contentFit="cover"
+          transition={200}
+          cachePolicy="memory"
+        />
+      ) : (
+        <View style={[styles.image, styles.fallback]}>
+          <Ionicons name="musical-notes-outline" size={34} color="#5A5A5A" />
+        </View>
+      )}
       <Text style={styles.title} numberOfLines={1}>
         {playlist.name}
       </Text>
       <Text style={styles.subtitle} numberOfLines={1}>
-        {playlist.totalSongs} {playlist.totalSongs === 1 ? "track" : "tracks"}
+        {playlist.totalSongs} {playlist.totalSongs === 1 ? "song" : "songs"}
       </Text>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    width: 140,
-    marginRight: 14,
-  },
-  imageContainer: {
+  card: { width: 140, marginRight: 14 },
+  image: {
     width: 140,
     height: 140,
-    borderRadius: 12,
-    overflow: "hidden",
-    backgroundColor: "#1E1E1E",
-    borderWidth: 1,
-    borderColor: "#2A2A2A",
-    marginBottom: 8,
+    borderRadius: 14,
+    backgroundColor: "#1A1A1A",
+    marginBottom: 10,
   },
-  image: {
-    width: "100%",
-    height: "100%",
-  },
-  fallbackImage: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#222222",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  title: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "600",
-    marginBottom: 2,
-  },
-  subtitle: {
-    color: "#777777",
-    fontSize: 12,
-  },
+  fallback: { alignItems: "center", justifyContent: "center" },
+  title: { color: "#FFFFFF", fontSize: 14, fontWeight: "700", marginBottom: 2 },
+  subtitle: { color: "#8A8A8A", fontSize: 12 },
 });

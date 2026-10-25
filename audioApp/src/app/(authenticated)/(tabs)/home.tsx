@@ -8,36 +8,56 @@ import {
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
+  useWindowDimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
-import { Ionicons } from "@expo/vector-icons";
 import { AppDispatch, AppState, loadUserProfile } from "@/store";
 import { playWithSimilarSongs } from "@/store/queueActions";
 import { homeService } from "@/service";
-import { SectionHeader } from "@/components/home/SectionHeader";
-import { FeaturedSongsCarousel } from "@/components/home/FeaturedSongsCarousel";
 import { TrendingSongCard } from "@/components/home/TrendingSongCard";
 import { ArtistCircleCard } from "@/components/home/ArtistCircleCard";
 import { PlaylistCard } from "@/components/home/PlaylistCard";
 import { SongRowItem } from "@/components/home/SongRowItem";
 import { HomeSkeleton } from "@/components/home/HomeSkeleton";
+import { QuickPickCard } from "@/components/home/QuickPickCard";
+
+// Space reserved for the tab bar + mini player so the end of the feed is reachable.
+const TAB_BAR_HEIGHT = 64;
+const MINI_PLAYER_HEIGHT = 72;
+const EXTRA_BREATHING_ROOM = 32;
+
+const SIDE = 18;
+const GRID_GAP = 8;
+
+const CATEGORIES = ["All", "Trending", "Artists", "Playlists", "Explore"] as const;
+type Category = (typeof CATEGORIES)[number];
+
+function SectionTitle({ title }: { title: string }) {
+  return <Text style={styles.sectionTitle}>{title}</Text>;
+}
 
 export default function HomeScreen() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<Category>("All");
 
-  // User profile and player state from Redux store
+  const bottomSpace =
+    TAB_BAR_HEIGHT + MINI_PLAYER_HEIGHT + EXTRA_BREATHING_ROOM + insets.bottom;
+  const tileWidth = (width - SIDE * 2 - GRID_GAP) / 2;
+
   const profile = useSelector((state: AppState) => state.user.profile);
   const currentSong = useSelector((state: AppState) => state.player.currentSong);
   const isPlaying = useSelector((state: AppState) => state.player.isPlaying);
 
-  // 1. Featured Songs
+  // Featured songs now feed the quick-pick grid (the video carousel is gone)
   const {
     data: featuredSongs = [],
     isLoading: isFeaturedLoading,
@@ -47,7 +67,7 @@ export default function HomeScreen() {
     queryFn: () => homeService.getFeaturedSongs(),
     staleTime: 5 * 60 * 1000,
   });
-  // 2. Trending Songs
+
   const {
     data: trendingSongs = [],
     isLoading: isTrendingLoading,
@@ -58,7 +78,6 @@ export default function HomeScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // 3. Top Artists
   const {
     data: artistsData,
     isLoading: isArtistsLoading,
@@ -69,7 +88,6 @@ export default function HomeScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // 4. Featured Playlists
   const {
     data: playlistsData,
     isLoading: isPlaylistsLoading,
@@ -80,10 +98,8 @@ export default function HomeScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // 5. Discover Feed with Infinite Pagination (Explore All Songs)
   const {
     data: feedData,
-    isLoading: isFeedLoading,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -106,11 +122,15 @@ export default function HomeScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // Flatten paginated pages into a single continuous list of songs
   const allSongs = useMemo(() => {
     if (!feedData?.pages) return [];
     return feedData.pages.flatMap((page) => page.content || []);
   }, [feedData?.pages]);
+
+  const quickPicks = useMemo(() => {
+    const source = featuredSongs.length > 0 ? featuredSongs : trendingSongs;
+    return source.slice(0, 6);
+  }, [featuredSongs, trendingSongs]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -125,15 +145,18 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  // Infinite scroll trigger when user scrolls near the bottom
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
     const isCloseToBottom =
       layoutMeasurement.height + contentOffset.y >= contentSize.height - 250;
-
     if (isCloseToBottom && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
+  };
+
+  const playSong = (song: any) => {
+    dispatch(playWithSimilarSongs(song));
+    router.push(`/song/${song.id}`);
   };
 
   const greeting = useMemo(() => {
@@ -147,19 +170,15 @@ export default function HomeScreen() {
   const playlistsList = playlistsData?.content || [];
 
   const isInitialLoading =
-    isFeaturedLoading &&
-    isTrendingLoading &&
-    isArtistsLoading &&
-    isPlaylistsLoading;
+    isFeaturedLoading && isTrendingLoading && isArtistsLoading && isPlaylistsLoading;
 
-  const [selectedCategory, setSelectedCategory] = useState<
-    "All" | "Music" | "Trending" | "Artists"
-  >("All");
+  const show = (...cats: Category[]) =>
+    selectedCategory === "All" || cats.includes(selectedCategory);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <ScrollView
-        contentContainerStyle={styles.scrollContainer}
+        contentContainerStyle={{ paddingBottom: bottomSpace }}
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={16}
@@ -169,84 +188,80 @@ export default function HomeScreen() {
             onRefresh={onRefresh}
             tintColor="#FFFFFF"
             colors={["#FFFFFF"]}
+            progressBackgroundColor="#1A1A1A"
           />
         }
       >
-        {/* Top Header Bar */}
+        {/* Header */}
         <View style={styles.header}>
-          <View style={styles.headerTitleContainer}>
-            <Text style={styles.greetingTitle} numberOfLines={1}>
-              {greeting}
-              {profile?.userName ? `, ${profile.userName}` : ""}
-            </Text>
-          </View>
-
+          <Text style={styles.greeting} numberOfLines={1}>
+            {greeting}
+            {profile?.userName ? `, ${profile.userName}` : ""}
+          </Text>
           <TouchableOpacity
-            style={styles.avatarButton}
+            style={styles.avatar}
             onPress={() => router.push("/(authenticated)/(tabs)/profile")}
             activeOpacity={0.8}
           >
             <Text style={styles.avatarText}>
-              {(profile?.userName || profile?.email || "U")
-                .charAt(0)
-                .toUpperCase()}
+              {(profile?.userName || profile?.email || "U").charAt(0).toUpperCase()}
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Category Filter Pills */}
-        <View style={styles.categoryPillsRow}>
-          {(["All", "Music", "Trending", "Artists"] as const).map((cat) => {
+        {/* Filter pills */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.pillsRow}
+        >
+          {CATEGORIES.map((cat) => {
             const isActive = selectedCategory === cat;
             return (
               <TouchableOpacity
                 key={cat}
-                style={[
-                  styles.categoryPill,
-                  isActive && styles.categoryPillActive,
-                ]}
+                style={[styles.pill, isActive && styles.pillActive]}
                 onPress={() => setSelectedCategory(cat)}
                 activeOpacity={0.75}
               >
-                <Text
-                  style={[
-                    styles.categoryPillText,
-                    isActive && styles.categoryPillTextActive,
-                  ]}
-                >
+                <Text style={[styles.pillText, isActive && styles.pillTextActive]}>
                   {cat}
                 </Text>
               </TouchableOpacity>
             );
           })}
-        </View>
+        </ScrollView>
 
         {isInitialLoading ? (
           <HomeSkeleton />
         ) : (
           <>
-            {/* Spotlight / Slidable Featured Releases */}
-            {(selectedCategory === "All" || selectedCategory === "Music") &&
-            featuredSongs.length > 0 ? (
-              <View style={styles.heroSection}>
-                <FeaturedSongsCarousel
-                  songs={featuredSongs}
-                  onSongPress={(song) => {
-                    dispatch(playWithSimilarSongs(song));
-                    router.push(`/song/${song.id}`);
-                  }}
-                />
+            {/* Quick picks: 2-column grid */}
+            {selectedCategory === "All" && quickPicks.length > 0 ? (
+              <View style={styles.grid}>
+                {quickPicks.map((song: any,index:number) => {
+                  const active = currentSong?.id === song.id;
+                  if (index > 3) {
+                    return;
+                  }
+                  return (
+                    <QuickPickCard
+                      key={song.id}
+                      song={song}
+                      width={tileWidth}
+                      isActive={active}
+                      isPlaying={active && isPlaying}
+                      onPress={() => playSong(song)}
+                    />
+                  );
+                })}
               </View>
             ) : null}
 
-            {/* Trending Songs Section */}
-            {(selectedCategory === "All" || selectedCategory === "Trending") &&
-            trendingSongs.length > 0 ? (
-              <View>
-                <SectionHeader
-                  title="Trending Now"
-                  subtitle="Most streamed tracks this week"
-                />
+            {/* Trending */}
+            {show("Trending") && trendingSongs.length > 0 ? (
+              <View style={styles.section}>
+                <SectionTitle title="Trending hits" />
                 <FlatList
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -254,26 +269,16 @@ export default function HomeScreen() {
                   data={trendingSongs}
                   keyExtractor={(item) => item.id}
                   renderItem={({ item }) => (
-                    <TrendingSongCard
-                      song={item}
-                      onPress={() => {
-                        dispatch(playWithSimilarSongs(item));
-                        router.push(`/song/${item.id}`);
-                      }}
-                    />
+                    <TrendingSongCard song={item} onPress={() => playSong(item)} />
                   )}
                 />
               </View>
             ) : null}
 
-            {/* Top Artists Section */}
-            {(selectedCategory === "All" || selectedCategory === "Artists") &&
-            artistsList.length > 0 ? (
-              <View>
-                <SectionHeader
-                  title="Popular Artists"
-                  subtitle="Top creators you might love"
-                />
+            {/* Artists */}
+            {show("Artists") && artistsList.length > 0 ? (
+              <View style={styles.section}>
+                <SectionTitle title="Top artists" />
                 <FlatList
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -290,14 +295,10 @@ export default function HomeScreen() {
               </View>
             ) : null}
 
-            {/* Featured Playlists Section */}
-            {(selectedCategory === "All" || selectedCategory === "Trending") &&
-            playlistsList.length > 0 ? (
-              <View>
-                <SectionHeader
-                  title="Featured Playlists"
-                  subtitle="Handcrafted playlists for your mood"
-                />
+            {/* Playlists */}
+            {show("Playlists") && playlistsList.length > 0 ? (
+              <View style={styles.section}>
+                <SectionTitle title="Featured playlists" />
                 <FlatList
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -314,65 +315,33 @@ export default function HomeScreen() {
               </View>
             ) : null}
 
-            {/* Explore All Songs / Infinite Discover Feed */}
-            {(selectedCategory === "All" || selectedCategory === "Music") &&
-            allSongs.length > 0 ? (
-              <View style={styles.feedSection}>
-                <SectionHeader
-                  title="Explore All Songs"
-                  subtitle={`${allSongs.length} track${allSongs.length === 1 ? "" : "s"} loaded • scroll for more`}
-                />
-
-                {allSongs.map((song, index) => {
-                  const isActive = currentSong?.id === song.id;
+            {/* Explore feed */}
+            {show("Explore") && allSongs.length > 0 ? (
+              <View style={styles.section}>
+                <SectionTitle title="Explore" />
+                {allSongs.map((song: any, index: number) => {
+                  const active = currentSong?.id === song.id;
                   return (
                     <SongRowItem
                       key={`${song.id}-${index}`}
                       song={song}
                       index={index}
-                      isActive={isActive}
-                      isPlaying={isActive && isPlaying}
-                      onPress={() => {
-                        dispatch(playWithSimilarSongs(song));
-                        router.push(`/song/${song.id}`);
-                      }}
+                      isActive={active}
+                      isPlaying={active && isPlaying}
+                      onPress={() => playSong(song)}
                     />
                   );
                 })}
 
-                {/* Loading indicator when fetching next page */}
                 {isFetchingNextPage ? (
-                  <View style={styles.paginationLoading}>
+                  <View style={styles.footer}>
                     <ActivityIndicator size="small" color="#FFFFFF" />
-                    <Text style={styles.paginationLoadingText}>
-                      Loading more songs...
-                    </Text>
                   </View>
                 ) : null}
 
-                {/* Manual tap button to load more as fallback */}
-                {hasNextPage && !isFetchingNextPage ? (
-                  <TouchableOpacity
-                    style={styles.loadMoreButton}
-                    onPress={() => fetchNextPage()}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="arrow-down"
-                      size={16}
-                      color="#FFFFFF"
-                      style={{ marginRight: 6 }}
-                    />
-                    <Text style={styles.loadMoreText}>Load More Songs</Text>
-                  </TouchableOpacity>
-                ) : null}
-
-                {/* End of feed indicator */}
-                {!hasNextPage && allSongs.length > 0 ? (
-                  <View style={styles.endContainer}>
-                    <Text style={styles.endText}>
-                      ✓ You've explored all songs
-                    </Text>
+                {!hasNextPage ? (
+                  <View style={styles.footer}>
+                    <Text style={styles.endText}>You’ve reached the end</Text>
                   </View>
                 ) : null}
               </View>
@@ -385,126 +354,70 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#121212",
-  },
-  scrollContainer: {
-    paddingBottom: 110,
-  },
+  safeArea: { flex: 1, backgroundColor: "#000000" },
+
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 18,
-    paddingTop: 8,
-    paddingBottom: 10,
+    justifyContent: "space-between",
+    paddingHorizontal: SIDE,
+    paddingTop: 10,
+    paddingBottom: 14,
   },
-  headerTitleContainer: {
+  greeting: {
     flex: 1,
     marginRight: 12,
-  },
-  greetingTitle: {
-    fontSize: 22,
-    fontWeight: "700",
+    fontSize: 26,
+    fontWeight: "800",
     color: "#FFFFFF",
-    letterSpacing: -0.3,
+    letterSpacing: -0.6,
   },
-  avatarButton: {
+  avatar: {
     width: 38,
     height: 38,
     borderRadius: 19,
     backgroundColor: "#FFFFFF",
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.65,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  avatarText: {
-    color: "#000000",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  categoryPillsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 18,
-    paddingBottom: 14,
+  avatarText: { color: "#000000", fontSize: 16, fontWeight: "700" },
+
+  pillsRow: {
+    paddingHorizontal: SIDE,
+    paddingBottom: 18,
     gap: 8,
   },
-  categoryPill: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: "#1E1E1E",
+  pill: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "#151515",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderColor: "#262626",
   },
-  categoryPillActive: {
-    backgroundColor: "#FFFFFF",
-    borderColor: "#FFFFFF",
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
-    elevation: 4,
+  pillActive: { backgroundColor: "#FFFFFF", borderColor: "#FFFFFF" },
+  pillText: { color: "#FFFFFF", fontSize: 13, fontWeight: "600" },
+  pillTextActive: { color: "#000000", fontWeight: "700" },
+
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: GRID_GAP,
+    paddingHorizontal: SIDE,
+    marginBottom: 8,
   },
-  categoryPillText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  categoryPillTextActive: {
-    color: "#000000",
+
+  section: { marginTop: 22 },
+  sectionTitle: {
+    fontSize: 21,
     fontWeight: "800",
-  },
-  heroSection: {
-    marginTop: 4,
-  },
-  horizontalList: {
-    paddingHorizontal: 18,
-  },
-  feedSection: {
-    marginBottom: 20,
-  },
-  paginationLoading: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingVertical: 18,
-    gap: 8,
-  },
-  paginationLoadingText: {
-    color: "#888888",
-    fontSize: 13,
-  },
-  loadMoreButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginHorizontal: 18,
-    marginTop: 14,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: "#1E1E1E",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.25)",
-  },
-  loadMoreText: {
     color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
+    letterSpacing: -0.3,
+    paddingHorizontal: SIDE,
+    marginBottom: 12,
   },
-  endContainer: {
-    alignItems: "center",
-    paddingVertical: 24,
-  },
-  endText: {
-    color: "#666666",
-    fontSize: 13,
-    fontWeight: "500",
-  },
+  horizontalList: { paddingHorizontal: SIDE },
+
+  footer: { alignItems: "center", paddingVertical: 24 },
+  endText: { color: "#5A5A5A", fontSize: 13 },
 });

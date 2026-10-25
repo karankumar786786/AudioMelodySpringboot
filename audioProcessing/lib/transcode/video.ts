@@ -22,6 +22,7 @@ import {
     unregisterActiveTmpPath,
 } from "./cleanup";
 import { validateMediaIntegrity } from "./validator";
+import { CONCURRENT_TRANSCODING_LIMIT } from "./limiter";
 
 export interface VideoQualityProfile {
     label: string;
@@ -139,11 +140,50 @@ export class VideoTranscoder {
         profiles: VideoQualityProfile[]
     ): Promise<{ videoPaths: string[]; audioPath: string }> {
         const hwCaps = await detectHardwareCapabilities();
-        const videoConcurrency = pLimit(hwCaps.maxVideoConcurrency);
 
-        console.log(`[VIDEO] Transcoding ${profiles.length} video renditions in parallel (concurrency=${hwCaps.maxVideoConcurrency}, accelerator=${hwCaps.hardwareName})...`);
+        // 1. First encode companion audio stream (1 FFmpeg process)
+        const audioPath = path.join(renditionsDir, "raw_video_audio.m4a");
+        console.log(`[VIDEO] Transcoding companion audio track for video package...`);
+        const audioProfile = { bitrate: "128k", sampleRate: 44100, channels: 2 };
+        const primaryArgs = buildAudioEncoderArgs(inputVideo, audioPath, audioProfile, hwCaps);
+        const fallbackArgs = buildSoftwareAudioArgs(inputVideo, audioPath, audioProfile);
 
-        // Transcode video renditions concurrently
+        try {
+            await executeFFmpegWithFallback(
+                primaryArgs,
+                fallbackArgs,
+                "video companion audio track"
+            );
+            console.log(`[VIDEO] Video audio track encoded -> ${audioPath}`);
+        } catch (audioErr: any) {
+            console.warn(`[VIDEO] Companion audio extraction failed (${audioErr.message || audioErr}). Generating resilient companion audio fallback...`);
+            try {
+                // Generate a silent companion AAC audio track so Shaka Packager packaging can still succeed
+                await execFileAsync("ffmpeg", [
+                    "-nostdin",
+                    "-y",
+                    "-loglevel", "warning",
+                    "-f", "lavfi",
+                    "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
+                    "-c:a", "aac",
+                    "-b:a", "128k",
+                    "-ar", "44100",
+                    "-ac", "2",
+                    "-movflags", "+faststart",
+                    audioPath,
+                ]);
+                console.log(`[VIDEO] Successfully generated silent companion audio fallback track -> ${audioPath}`);
+            } catch (fallbackErr: any) {
+                console.error(`[VIDEO] Failed to generate silent companion audio fallback:`, fallbackErr);
+                throw audioErr;
+            }
+        }
+
+        // 2. Transcode video renditions (concurrency scaled to CPU core limit)
+        const renditionLimit = Math.max(1, Math.min(hwCaps.maxVideoConcurrency, CONCURRENT_TRANSCODING_LIMIT));
+        const videoConcurrency = pLimit(renditionLimit);
+        console.log(`[VIDEO] Transcoding ${profiles.length} video renditions (concurrency=${renditionLimit}, accelerator=${hwCaps.hardwareName})...`);
+
         const videoPromises = profiles.map((profile) =>
             videoConcurrency(async () => {
                 const outPath = path.join(renditionsDir, `raw_video_${profile.label}.mp4`);
@@ -163,53 +203,7 @@ export class VideoTranscoder {
             })
         );
 
-        // Encode common audio stream for the video in parallel
-        const audioPath = path.join(renditionsDir, "raw_video_audio.m4a");
-        const audioPromise = (async () => {
-            console.log(`[VIDEO] Transcoding audio track for video package...`);
-            const audioProfile = { bitrate: "128k", sampleRate: 44100, channels: 2 };
-            const primaryArgs = buildAudioEncoderArgs(inputVideo, audioPath, audioProfile, hwCaps);
-            const fallbackArgs = buildSoftwareAudioArgs(inputVideo, audioPath, audioProfile);
-
-            try {
-                await executeFFmpegWithFallback(
-                    primaryArgs,
-                    fallbackArgs,
-                    "video companion audio track"
-                );
-                console.log(`[VIDEO] Video audio track encoded -> ${audioPath}`);
-                return audioPath;
-            } catch (audioErr: any) {
-                console.warn(`[VIDEO] Companion audio extraction failed (${audioErr.message || audioErr}). Generating resilient companion audio fallback...`);
-                try {
-                    // Generate a silent companion AAC audio track so Shaka Packager packaging can still succeed
-                    await execFileAsync("ffmpeg", [
-                        "-nostdin",
-                        "-y",
-                        "-loglevel", "warning",
-                        "-f", "lavfi",
-                        "-i", "anullsrc=channel_layout=stereo:sample_rate=44100",
-                        "-c:a", "aac",
-                        "-b:a", "128k",
-                        "-ar", "44100",
-                        "-ac", "2",
-                        "-movflags", "+faststart",
-                        audioPath,
-                    ]);
-                    console.log(`[VIDEO] Successfully generated silent companion audio fallback track -> ${audioPath}`);
-                    return audioPath;
-                } catch (fallbackErr: any) {
-                    console.error(`[VIDEO] Failed to generate silent companion audio fallback:`, fallbackErr);
-                    throw audioErr;
-                }
-            }
-        })();
-
-        const [videoPaths] = await Promise.all([
-            Promise.all(videoPromises),
-            audioPromise,
-        ]);
-
+        const videoPaths = await Promise.all(videoPromises);
         return { videoPaths, audioPath };
     }
 

@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { Song } from "@/types";
 import { getImageUrl } from "@/utils/imageUtils";
-import { formatDuration, formatStreams, formatSongSubtitle } from "@/utils/formatUtils";
+import { formatDuration, formatSongSubtitle } from "@/utils/formatUtils";
 
 interface FavouriteSongItemProps {
   song: Song;
@@ -17,7 +17,6 @@ interface FavouriteSongItemProps {
 
 export function FavouriteSongItem({
   song,
-  index,
   isActive = false,
   isPlaying = false,
   onPress,
@@ -46,44 +45,29 @@ export function FavouriteSongItem({
             cachePolicy="memory"
           />
         ) : (
-          <View style={styles.fallbackThumbnail}>
-            <Ionicons name="musical-note" size={20} color="#666666" />
+          <View style={styles.fallback}>
+            <Ionicons name="musical-note" size={20} color="#5A5A5A" />
           </View>
         )}
         {isActive ? (
           <View style={styles.activeOverlay}>
-            <Ionicons
-              name={isPlaying ? "volume-high" : "pause"}
-              size={18}
-              color="#FFFFFF"
-            />
+            <Ionicons name={isPlaying ? "volume-high" : "pause"} size={18} color="#FFFFFF" />
           </View>
         ) : null}
       </View>
 
       <View style={styles.info}>
-        <Text
-          style={[styles.title, isActive && styles.titleActive]}
-          numberOfLines={1}
-        >
+        <Text style={styles.title} numberOfLines={1}>
           {song.title}
         </Text>
         <Text style={styles.subtitle} numberOfLines={1}>
           {formatSongSubtitle(song.artistName, song.album, song.genre)}
         </Text>
-        {song.totalStreams !== undefined && song.totalStreams !== null ? (
-          <View style={styles.streamsRow}>
-            <Ionicons name="play" size={10} color="#777777" style={{ marginRight: 3 }} />
-            <Text style={styles.streamsText}>{formatStreams(song.totalStreams)}</Text>
-          </View>
-        ) : null}
       </View>
 
-      <Text style={[styles.duration, isActive && styles.durationActive]}>
-        {formatDuration(song.duration)}
-      </Text>
+      <Text style={styles.duration}>{formatDuration(song.duration)}</Text>
 
-      {/* Unlike / Remove Heart Button */}
+      {/* Unlike */}
       <TouchableOpacity
         style={styles.heartButton}
         onPress={(e) => {
@@ -91,8 +75,9 @@ export function FavouriteSongItem({
           onRemove();
         }}
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        accessibilityLabel="Remove from liked songs"
       >
-        <Ionicons name="heart" size={20} color="#E91E63" />
+        <Ionicons name="heart" size={22} color="#FFFFFF" />
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -103,74 +88,33 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 18,
-    paddingVertical: 9,
+    paddingVertical: 8,
   },
+  containerActive: { backgroundColor: "#121212" },
   thumbnailContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
+    width: 52,
+    height: 52,
+    borderRadius: 10,
     overflow: "hidden",
-    backgroundColor: "#1E1E1E",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "#1A1A1A",
     marginRight: 12,
   },
-  thumbnail: {
+  thumbnail: { width: "100%", height: "100%" },
+  fallback: {
     width: "100%",
     height: "100%",
-  },
-  fallbackThumbnail: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#222222",
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
-  },
-  info: {
-    flex: 1,
-    paddingRight: 10,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#FFFFFF",
-    marginBottom: 2,
-  },
-  subtitle: {
-    fontSize: 12.5,
-    color: "#888888",
-  },
-  streamsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 2,
-  },
-  streamsText: {
-    fontSize: 11,
-    color: "#777777",
-    fontWeight: "500",
-  },
-  duration: {
-    fontSize: 12,
-    color: "#777777",
-    marginRight: 12,
-  },
-  heartButton: {
-    padding: 6,
-  },
-  containerActive: {
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
   },
   activeOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(0, 0, 0, 0.45)",
-    justifyContent: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
     alignItems: "center",
+    justifyContent: "center",
   },
-  titleActive: {
-    color: "#ffffff",
-  },
-  durationActive: {
-    color: "#ffffff",
-  },
+  info: { flex: 1, paddingRight: 10 },
+  title: { fontSize: 15, fontWeight: "600", color: "#FFFFFF", marginBottom: 3 },
+  subtitle: { fontSize: 12.5, color: "#8A8A8A" },
+  duration: { fontSize: 12, color: "#8A8A8A", marginRight: 10 },
+  heartButton: { padding: 6 },
 });
