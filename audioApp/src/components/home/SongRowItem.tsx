@@ -58,7 +58,13 @@ export function SongRowItem({ song, index, onPress }: SongRowItemProps) {
 
       <Text style={styles.duration}>{formatDuration(song.duration)}</Text>
 
-      <TouchableOpacity style={styles.moreButton} hitSlop={12}>
+      <TouchableOpacity
+        style={styles.moreButton}
+        hitSlop={12}
+        onPress={(e) => {
+          e.stopPropagation?.();
+        }}
+      >
         <Ionicons name="ellipsis-vertical" size={16} color="#777777" />
       </TouchableOpacity>
     </TouchableOpacity>

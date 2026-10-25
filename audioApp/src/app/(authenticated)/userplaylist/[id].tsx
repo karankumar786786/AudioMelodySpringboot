@@ -15,12 +15,17 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { useSelector } from "react-redux";
-import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  useQuery,
+  useInfiniteQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { playlistService } from "@/service";
 import { Song } from "@/types";
-import { AppState } from "@/store";
+import { AppDispatch, AppState } from "@/store";
+import { playAll, playAllFrom } from "@/store/queueActions";
 import { PlaylistTrackItem } from "@/components/playlist/PlaylistTrackItem";
 import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
 import { getImageUrl } from "@/utils/imageUtils";
@@ -31,11 +36,12 @@ const HERO_HEIGHT = 440;
 export default function UserPlaylistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const dispatch = useDispatch<AppDispatch>();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
 
   const currentUserId = useSelector(
-    (state: AppState) => state.user.profile?.id
+    (state: AppState) => state.user.profile?.id,
   );
 
   // 1. Fetch User Playlist Details
@@ -92,6 +98,8 @@ export default function UserPlaylistDetailScreen() {
 
   // Handlers
   const handleSongPress = (song: Song) => {
+    const idx = songs.findIndex((s) => s.id === song.id);
+    dispatch(playAllFrom(songs, idx !== -1 ? idx : 0));
     router.push({
       pathname: "/(authenticated)/song/[id]",
       params: { id: song.id },
@@ -100,25 +108,31 @@ export default function UserPlaylistDetailScreen() {
 
   const handlePlayAll = () => {
     if (songs.length > 0) {
-      handleSongPress(songs[0]);
+      dispatch(playAll(songs));
+      router.push({
+        pathname: "/(authenticated)/song/[id]",
+        params: { id: songs[0].id },
+      });
     }
   };
-
 
   const handleRemoveTrack = async (songId: string) => {
     if (!id) return;
 
     // Optimistic UI update
-    queryClient.setQueryData<any>(["user-playlist-songs", id], (oldData: any) => {
-      if (!oldData) return oldData;
-      return {
-        ...oldData,
-        pages: oldData.pages.map((page: any) => ({
-          ...page,
-          content: (page.content || []).filter((s: Song) => s.id !== songId),
-        })),
-      };
-    });
+    queryClient.setQueryData<any>(
+      ["user-playlist-songs", id],
+      (oldData: any) => {
+        if (!oldData) return oldData;
+        return {
+          ...oldData,
+          pages: oldData.pages.map((page: any) => ({
+            ...page,
+            content: (page.content || []).filter((s: Song) => s.id !== songId),
+          })),
+        };
+      },
+    );
 
     try {
       await playlistService.removeSongFromUserPlaylist(id, songId);
@@ -149,7 +163,7 @@ export default function UserPlaylistDetailScreen() {
             }
           },
         },
-      ]
+      ],
     );
   };
 
@@ -195,7 +209,7 @@ export default function UserPlaylistDetailScreen() {
       height: 300,
       focus: "auto",
       aspectRatio: "1-1",
-    })
+    }),
   );
 
   const showMosaic = !coverUrl && !heroVideoKey && songs.length >= 4;
@@ -395,7 +409,11 @@ export default function UserPlaylistDetailScreen() {
         ListEmptyComponent={
           !isSongsLoading ? (
             <View style={styles.emptyContainer}>
-              <Ionicons name="musical-notes-outline" size={44} color="#444444" />
+              <Ionicons
+                name="musical-notes-outline"
+                size={44}
+                color="#444444"
+              />
               <Text style={styles.emptyTitle}>This playlist is empty</Text>
               <Text style={styles.emptySubtitle}>
                 Add tracks from Home or Search to build this playlist.

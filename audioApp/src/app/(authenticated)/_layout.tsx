@@ -51,8 +51,8 @@ export default function AuthenticatedLayout() {
       <Stack.Screen
         name="song/[id]"
         options={{
-          headerShown: true,
-          title: "Now Playing",
+          headerShown: false,
+          presentation: "card",
         }}
       />
     </Stack>

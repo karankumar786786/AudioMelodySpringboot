@@ -10,9 +10,12 @@ import {
   Share,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useDispatch } from "react-redux";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AppDispatch } from "@/store";
+import { playAll, playAllFrom } from "@/store/queueActions";
 import { playlistService } from "@/service";
 import { Song } from "@/types";
 import { PlaylistTrackItem } from "@/components/playlist/PlaylistTrackItem";
@@ -25,6 +28,7 @@ const HERO_HEIGHT = 440;
 export default function PlaylistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const dispatch = useDispatch<AppDispatch>();
   const insets = useSafeAreaInsets();
 
   // 1. Fetch Playlist Details
@@ -109,6 +113,8 @@ export default function PlaylistDetailScreen() {
 
   // Handlers
   const handleSongPress = (song: Song) => {
+    const idx = songs.findIndex((s) => s.id === song.id);
+    dispatch(playAllFrom(songs, idx !== -1 ? idx : 0));
     router.push({
       pathname: "/(authenticated)/song/[id]",
       params: { id: song.id },
@@ -117,7 +123,11 @@ export default function PlaylistDetailScreen() {
 
   const handlePlayAll = () => {
     if (songs.length > 0) {
-      handleSongPress(songs[0]);
+      dispatch(playAll(songs));
+      router.push({
+        pathname: "/(authenticated)/song/[id]",
+        params: { id: songs[0].id },
+      });
     }
   };
 

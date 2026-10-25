@@ -17,6 +17,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { AppDispatch, AppState, loadUserProfile } from "@/store";
+import { playAllFrom } from "@/store/queueActions";
 import { homeService } from "@/service";
 import { SectionHeader } from "@/components/home/SectionHeader";
 import { FeaturedSongsCarousel } from "@/components/home/FeaturedSongsCarousel";
@@ -228,7 +229,11 @@ export default function HomeScreen() {
               <View style={styles.heroSection}>
                 <FeaturedSongsCarousel
                   songs={featuredSongs}
-                  onSongPress={(song) => router.push(`/song/${song.id}`)}
+                  onSongPress={(song) => {
+                    const idx = featuredSongs.findIndex((s) => s.id === song.id);
+                    dispatch(playAllFrom(featuredSongs, idx !== -1 ? idx : 0));
+                    router.push(`/song/${song.id}`);
+                  }}
                 />
               </View>
             ) : null}
@@ -250,7 +255,11 @@ export default function HomeScreen() {
                   renderItem={({ item }) => (
                     <TrendingSongCard
                       song={item}
-                      onPress={() => router.push(`/song/${item.id}`)}
+                      onPress={() => {
+                        const idx = trendingSongs.findIndex((s) => s.id === item.id);
+                        dispatch(playAllFrom(trendingSongs, idx !== -1 ? idx : 0));
+                        router.push(`/song/${item.id}`);
+                      }}
                     />
                   )}
                 />
@@ -318,7 +327,10 @@ export default function HomeScreen() {
                   <SongRowItem
                     key={`${song.id}-${index}`}
                     song={song}
-                    onPress={() => router.push(`/song/${song.id}`)}
+                    onPress={() => {
+                      dispatch(playAllFrom(allSongs, index));
+                      router.push(`/song/${song.id}`);
+                    }}
                   />
                 ))}
 
@@ -372,7 +384,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#121212",
   },
   scrollContainer: {
-    paddingBottom: 50,
+    paddingBottom: 110,
   },
   header: {
     flexDirection: "row",

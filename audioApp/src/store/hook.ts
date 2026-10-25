@@ -3,6 +3,8 @@ import authReducer from "./authSlice";
 import deviceReducer from "./deviceSlice";
 import tempTokenReducer from "./tempTokenSlice";
 import userReducer from "./userSlice";
+import playerReducer from "./playerSlice";
+import queueReducer from "./queueSlice";
 
 export const store = configureStore({
     reducer: {
@@ -10,6 +12,8 @@ export const store = configureStore({
         device: deviceReducer,
         tempToken: tempTokenReducer,
         user: userReducer,
+        player: playerReducer,
+        queue: queueReducer,
     }
 });
 

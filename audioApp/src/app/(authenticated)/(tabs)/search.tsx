@@ -11,9 +11,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useDispatch } from "react-redux";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { AppDispatch } from "@/store";
+import { playAllFrom, playSong } from "@/store/queueActions";
 import { searchService } from "@/service";
 import {
   Song,
@@ -36,6 +39,7 @@ import { UserPlaylistThumbnail } from "@/components/playlist/UserPlaylistThumbna
 
 export default function SearchScreen() {
   const router = useRouter();
+  const dispatch = useDispatch<AppDispatch>();
   const queryClient = useQueryClient();
 
   const [inputText, setInputText] = useState("");
@@ -118,6 +122,12 @@ export default function SearchScreen() {
     searchService.saveSearchHistory({ type: "SONG", songId: song.id });
     searchService.trackSearchPlay(song.id);
     queryClient.invalidateQueries({ queryKey: ["search-history"] });
+    const idx = songs.findIndex((s) => s.id === song.id);
+    if (idx !== -1 && songs.length > 0) {
+      dispatch(playAllFrom(songs, idx));
+    } else {
+      dispatch(playSong(song));
+    }
     router.push({
       pathname: "/(authenticated)/song/[id]",
       params: { id: song.id },
@@ -489,11 +499,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollInner: {
-    paddingBottom: 40,
+    paddingBottom: 110,
   },
   resultsInner: {
     paddingTop: 12,
-    paddingBottom: 40,
+    paddingBottom: 110,
   },
   recentSection: {
     marginBottom: 26,

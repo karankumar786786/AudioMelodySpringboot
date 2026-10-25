@@ -1,5 +1,6 @@
 import axios, { InternalAxiosRequestConfig } from "axios";
-import { saveAuthToken,clearAuthToken,store } from "@/store";
+import { store } from "@/store/hook";
+import { saveAuthToken, clearAuthToken } from "@/store/authSlice";
 
 interface CustomRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;

@@ -10,13 +10,14 @@ import {
   Dimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 
-import { AppState } from "@/store";
+import { AppDispatch, AppState } from "@/store";
+import { playAll, playAllFrom } from "@/store/queueActions";
 import { favouriteService } from "@/service";
 import { Song } from "@/types";
 import { getImageUrl } from "@/utils/imageUtils";
@@ -122,7 +123,7 @@ export default function FavouritesScreen() {
       height: 300,
       focus: "auto",
       aspectRatio: "1-1",
-    })
+    }),
   );
 
   const showMosaic = !heroVideoKey && allSongs.length >= 4;
@@ -227,8 +228,6 @@ export default function FavouritesScreen() {
 
         {/* Hero Content pinned to bottom */}
         <View style={styles.heroContent}>
-          
-
           {/* Title & Action Buttons Row */}
           <View style={styles.titleRow}>
             <Text style={styles.heroTitle} numberOfLines={1}>
@@ -236,8 +235,6 @@ export default function FavouritesScreen() {
             </Text>
 
             <View style={styles.titleActions}>
-              
-
               {allSongs.length > 0 ? (
                 <TouchableOpacity
                   style={styles.playButton}
@@ -353,7 +350,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#121212",
   },
   listContent: {
-    paddingBottom: 90,
+    paddingBottom: 120,
   },
   headerContainer: {
     backgroundColor: "#121212",

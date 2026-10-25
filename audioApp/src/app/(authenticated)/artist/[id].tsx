@@ -11,12 +11,15 @@ import {
   Share,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useDispatch } from "react-redux";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AppDispatch } from "@/store";
+import { playAll, playAllFrom } from "@/store/queueActions";
 import { artistService } from "@/service";
 import { Song } from "@/types";
 import { SongRowItem } from "@/components/home/SongRowItem";
@@ -28,6 +31,7 @@ const HERO_HEIGHT = 480;
 export default function ArtistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const dispatch = useDispatch<AppDispatch>();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const [isFollowMutating, setIsFollowMutating] = useState(false);
@@ -103,6 +107,8 @@ export default function ArtistDetailScreen() {
 
   // Handlers
   const handleSongPress = (song: Song) => {
+    const idx = songs.findIndex((s) => s.id === song.id);
+    dispatch(playAllFrom(songs, idx !== -1 ? idx : 0));
     router.push({
       pathname: "/(authenticated)/song/[id]",
       params: { id: song.id },
@@ -111,7 +117,11 @@ export default function ArtistDetailScreen() {
 
   const handlePlayAll = () => {
     if (songs.length > 0) {
-      handleSongPress(songs[0]);
+      dispatch(playAll(songs));
+      router.push({
+        pathname: "/(authenticated)/song/[id]",
+        params: { id: songs[0].id },
+      });
     }
   };
 

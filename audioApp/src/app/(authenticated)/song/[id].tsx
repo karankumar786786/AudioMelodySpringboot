@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,36 +6,75 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Dimensions,
+  GestureResponderEvent,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
+import { useSelector, useDispatch } from "react-redux";
+import { AppState } from "@/store/hook";
 import { homeService } from "@/service";
+import { audioPlayerService } from "@/service/audioPlayerService";
+import {
+  playSong,
+  nextTrack,
+  prevTrack,
+} from "@/store/queueActions";
+import { toggleShuffle, toggleRepeat } from "@/store/queueSlice";
 import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
-
-import { formatStreams } from "@/utils/formatUtils";
+import { QueueModal } from "@/components/player/QueueModal";
+import { FullVideoPlayerModal } from "@/components/player/FullVideoPlayerModal";
+import { formatDuration, formatStreams } from "@/utils/formatUtils";
+import { getImageUrl } from "@/utils/imageUtils";
+import { S3_BASE_URL } from "@/utils/playerUtils";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export default function SongDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const dispatch = useDispatch();
 
-  const { data: song, isLoading, isError, error } = useQuery({
+  const [mediaMode, setMediaMode] = useState<"canvas" | "artwork">("canvas");
+  const [isQueueOpen, setIsQueueOpen] = useState(false);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+
+  // Redux Player & Queue State
+  const currentSong = useSelector((state: AppState) => state.player.currentSong);
+  const isPlaying = useSelector((state: AppState) => state.player.isPlaying);
+  const isLoading = useSelector((state: AppState) => state.player.isLoading);
+  const currentTime = useSelector((state: AppState) => state.player.currentTime);
+  const duration = useSelector((state: AppState) => state.player.duration);
+  const repeatMode = useSelector((state: AppState) => state.queue.repeatMode);
+  const isShuffle = useSelector((state: AppState) => state.queue.isShuffle);
+
+  // Load song metadata from backend if needed
+  const { data: fetchedSong, isLoading: isFetching, isError, error } = useQuery({
     queryKey: ["song", id],
     queryFn: () => homeService.getSongById(id!),
     enabled: Boolean(id),
   });
 
-  const formatDuration = (sec?: number) => {
-    if (!sec || sec <= 0) return "--:--";
-    const mins = Math.floor(sec / 60);
-    const secs = Math.floor(sec % 60);
-    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
-  };
+  // Effective song to display: prefer currentSong from player state, fallback to fetchedSong
+  const activeSong = currentSong || fetchedSong;
 
-  if (isLoading) {
+  // Synchronize route param id with currentSong when track advances
+  useEffect(() => {
+    if (currentSong?.id && currentSong.id !== id) {
+      router.setParams({ id: currentSong.id });
+    }
+  }, [currentSong?.id, id]);
+
+  // If page is loaded for a song that isn't currently playing, initiate playback
+  useEffect(() => {
+    if (fetchedSong && (!currentSong || currentSong.id !== fetchedSong.id)) {
+      (dispatch as any)(playSong(fetchedSong));
+    }
+  }, [fetchedSong?.id]);
+
+  if (isFetching && !activeSong) {
     return (
       <SafeAreaView style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#FFFFFF" />
@@ -44,7 +83,7 @@ export default function SongDetailScreen() {
     );
   }
 
-  if (isError || !song) {
+  if (isError || !activeSong) {
     return (
       <SafeAreaView style={styles.centerContainer}>
         <Ionicons name="alert-circle-outline" size={48} color="#FF5252" />
@@ -59,7 +98,56 @@ export default function SongDetailScreen() {
     );
   }
 
+  const effectiveDuration = duration > 0 ? duration : (activeSong.duration || 0);
+  const progressPercent =
+    effectiveDuration > 0
+      ? Math.min(100, Math.max(0, (currentTime / effectiveDuration) * 100))
+      : 0;
+
+  const handleProgressBarPress = (e: GestureResponderEvent) => {
+    const { locationX } = e.nativeEvent;
+    const barWidth = SCREEN_WIDTH - 56;
+    const ratio = Math.max(0, Math.min(1, locationX / barWidth));
+    const targetSeconds = ratio * effectiveDuration;
+    audioPlayerService.seek(targetSeconds);
+  };
+
+  const handleTogglePlay = () => {
+    audioPlayerService.togglePlay();
+  };
+
+  const handleNextTrack = () => {
+    (dispatch as any)(nextTrack(true));
+  };
+
+  const handlePrevTrack = () => {
+    (dispatch as any)(prevTrack());
+  };
+
+  const handleToggleShuffle = () => {
+    dispatch(toggleShuffle());
+  };
+
+  const handleToggleRepeat = () => {
+    dispatch(toggleRepeat());
+  };
+
+  const handleVideoModalClose = (finalTimestamp: number) => {
+    setIsVideoModalOpen(false);
+    if (typeof finalTimestamp === "number" && finalTimestamp >= 0) {
+      audioPlayerService.seek(finalTimestamp);
+      audioPlayerService.resume();
+    }
+  };
+
   const canvasHeight = Math.min(SCREEN_HEIGHT * 0.44, 380);
+  const posterUrl = getImageUrl(activeSong.imageKey, {
+    width: 720,
+    height: 720,
+    focus: "auto",
+    aspectRatio: "1-1",
+    quality: 90,
+  });
 
   return (
     <SafeAreaView style={styles.container}>
@@ -68,7 +156,7 @@ export default function SongDetailScreen() {
         <TouchableOpacity
           style={styles.iconButton}
           onPress={() => router.back()}
-          hitSlop={12}
+          hitSlop={14}
         >
           <Ionicons name="chevron-down" size={28} color="#FFFFFF" />
         </TouchableOpacity>
@@ -76,44 +164,86 @@ export default function SongDetailScreen() {
         <View style={styles.topBarTitleContainer}>
           <Text style={styles.topBarSubtitle}>PLAYING FROM MELODY</Text>
           <Text style={styles.topBarTitle} numberOfLines={1}>
-            {song.album || song.genre || "Featured"}
+            {activeSong.album || activeSong.genre || "Featured"}
           </Text>
         </View>
 
-        <TouchableOpacity style={styles.iconButton} hitSlop={12}>
-          <Ionicons name="ellipsis-horizontal" size={22} color="#FFFFFF" />
+        <TouchableOpacity
+          style={styles.iconButton}
+          hitSlop={14}
+          onPress={() => setIsQueueOpen(true)}
+        >
+          <Ionicons name="list" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
-      {/* Canvas Video / Artwork Stage */}
+      {/* Media Stage: Canvas Video or Cover Artwork */}
       <View style={styles.canvasWrapper}>
-        <CanvasVideoPlayer
-          videoKey={song.videoKey}
-          fallbackImageKey={song.imageKey}
-          style={[styles.canvas, { height: canvasHeight }]}
-        />
+        {activeSong.videoKey && mediaMode === "canvas" ? (
+          <CanvasVideoPlayer
+            videoKey={activeSong.videoKey}
+            fallbackImageKey={activeSong.imageKey}
+            isPlaying={isPlaying}
+            style={[styles.canvas, { height: canvasHeight }]}
+          />
+        ) : (
+          <Image
+            source={{ uri: posterUrl }}
+            style={[styles.canvas, { height: canvasHeight }]}
+            contentFit="cover"
+            transition={200}
+          />
+        )}
 
-        {song.videoKey ? (
-          <View style={styles.canvasIndicator}>
-            <Ionicons name="videocam" size={12} color="#FFFFFF" style={{ marginRight: 4 }} />
-            <Text style={styles.canvasIndicatorText}>CANVAS VIDEO</Text>
-          </View>
-        ) : null}
+        {/* Media Mode Switches */}
+        <View style={styles.stageOverlayRow}>
+          {activeSong.videoKey ? (
+            <TouchableOpacity
+              style={styles.modeTogglePill}
+              activeOpacity={0.8}
+              onPress={() =>
+                setMediaMode((prev) => (prev === "canvas" ? "artwork" : "canvas"))
+              }
+            >
+              <Ionicons
+                name={mediaMode === "canvas" ? "videocam" : "image"}
+                size={12}
+                color="#FFFFFF"
+                style={{ marginRight: 4 }}
+              />
+              <Text style={styles.modeToggleText}>
+                {mediaMode === "canvas" ? "CANVAS" : "ARTWORK"}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {/* Full Video Stream Switcher if fullVideoKey exists */}
+          {activeSong.fullVideoKey ? (
+            <TouchableOpacity
+              style={styles.fullVideoPill}
+              activeOpacity={0.85}
+              onPress={() => setIsVideoModalOpen(true)}
+            >
+              <Ionicons name="play-circle" size={14} color="#1DB954" style={{ marginRight: 4 }} />
+              <Text style={styles.fullVideoText}>WATCH VIDEO</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
       </View>
 
       {/* Song Metadata */}
       <View style={styles.metaSection}>
         <View style={styles.titleContainer}>
           <Text style={styles.songTitle} numberOfLines={1}>
-            {song.title}
+            {activeSong.title}
           </Text>
           <Text style={styles.artistName} numberOfLines={1}>
-            {song.artistName}
+            {activeSong.artistName}
           </Text>
 
-          {/* Album, Genre, and Total Streams */}
+          {/* Tags */}
           <View style={styles.tagsRow}>
-            {song.album ? (
+            {activeSong.album ? (
               <View style={styles.tagBadge}>
                 <Ionicons
                   name="disc-outline"
@@ -122,12 +252,12 @@ export default function SongDetailScreen() {
                   style={{ marginRight: 4 }}
                 />
                 <Text style={styles.tagText} numberOfLines={1}>
-                  {song.album}
+                  {activeSong.album}
                 </Text>
               </View>
             ) : null}
 
-            {song.genre ? (
+            {activeSong.genre ? (
               <View style={styles.tagBadge}>
                 <Ionicons
                   name="musical-notes-outline"
@@ -136,12 +266,12 @@ export default function SongDetailScreen() {
                   style={{ marginRight: 4 }}
                 />
                 <Text style={styles.tagText} numberOfLines={1}>
-                  {song.genre}
+                  {activeSong.genre}
                 </Text>
               </View>
             ) : null}
 
-            {song.totalStreams !== undefined && song.totalStreams !== null ? (
+            {activeSong.totalStreams !== undefined && activeSong.totalStreams !== null ? (
               <View style={styles.tagBadge}>
                 <Ionicons
                   name="trending-up"
@@ -150,7 +280,7 @@ export default function SongDetailScreen() {
                   style={{ marginRight: 4 }}
                 />
                 <Text style={styles.tagText}>
-                  {formatStreams(song.totalStreams)}
+                  {formatStreams(activeSong.totalStreams)}
                 </Text>
               </View>
             ) : null}
@@ -162,39 +292,108 @@ export default function SongDetailScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Progress Bar (Visual Mock) */}
+      {/* Interactive Progress Bar */}
       <View style={styles.progressContainer}>
-        <View style={styles.progressBarBackground}>
-          <View style={[styles.progressBarFill, { width: "35%" }]} />
-        </View>
+        <TouchableOpacity
+          activeOpacity={1}
+          style={styles.progressBarTouchArea}
+          onPress={handleProgressBarPress}
+        >
+          <View style={styles.progressBarBackground}>
+            <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+          </View>
+        </TouchableOpacity>
+
         <View style={styles.timeRow}>
-          <Text style={styles.timeText}>0:45</Text>
-          <Text style={styles.timeText}>{formatDuration(song.duration)}</Text>
+          <Text style={styles.timeText}>{formatDuration(currentTime)}</Text>
+          <Text style={styles.timeText}>{formatDuration(effectiveDuration)}</Text>
         </View>
       </View>
 
       {/* Playback Controls */}
       <View style={styles.controlsRow}>
-        <TouchableOpacity hitSlop={12}>
-          <Ionicons name="shuffle" size={22} color="#888888" />
+        {/* Shuffle */}
+        <TouchableOpacity
+          hitSlop={14}
+          onPress={handleToggleShuffle}
+          style={styles.controlIconBtn}
+        >
+          <Ionicons
+            name="shuffle"
+            size={24}
+            color={isShuffle ? "#1DB954" : "#777777"}
+          />
         </TouchableOpacity>
 
-        <TouchableOpacity hitSlop={12}>
+        {/* Skip Back / Prev */}
+        <TouchableOpacity
+          hitSlop={14}
+          onPress={handlePrevTrack}
+          style={styles.controlIconBtn}
+        >
           <Ionicons name="play-skip-back" size={28} color="#FFFFFF" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.mainPlayButton} activeOpacity={0.85}>
-          <Ionicons name="pause" size={30} color="#000000" />
+        {/* Play / Pause Primary Button */}
+        <TouchableOpacity
+          style={styles.mainPlayButton}
+          activeOpacity={0.85}
+          onPress={handleTogglePlay}
+        >
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#000000" />
+          ) : (
+            <Ionicons
+              name={isPlaying ? "pause" : "play"}
+              size={30}
+              color="#000000"
+            />
+          )}
         </TouchableOpacity>
 
-        <TouchableOpacity hitSlop={12}>
+        {/* Skip Forward / Next */}
+        <TouchableOpacity
+          hitSlop={14}
+          onPress={handleNextTrack}
+          style={styles.controlIconBtn}
+        >
           <Ionicons name="play-skip-forward" size={28} color="#FFFFFF" />
         </TouchableOpacity>
 
-        <TouchableOpacity hitSlop={12}>
-          <Ionicons name="repeat" size={22} color="#888888" />
+        {/* Repeat */}
+        <TouchableOpacity
+          hitSlop={14}
+          onPress={handleToggleRepeat}
+          style={styles.controlIconBtn}
+        >
+          <Ionicons
+            name={repeatMode === "one" ? "repeat" : "repeat"}
+            size={24}
+            color={repeatMode !== "none" ? "#1DB954" : "#777777"}
+          />
+          {repeatMode === "one" ? (
+            <Text style={styles.repeatBadge}>1</Text>
+          ) : null}
         </TouchableOpacity>
       </View>
+
+      {/* Up Next Queue BottomSheet */}
+      <QueueModal
+        visible={isQueueOpen}
+        onClose={() => setIsQueueOpen(false)}
+      />
+
+      {/* Full Video Modal */}
+      {activeSong.fullVideoKey ? (
+        <FullVideoPlayerModal
+          visible={isVideoModalOpen}
+          videoStreamUrl={`${S3_BASE_URL}/${activeSong.fullVideoKey}/master.m3u8`}
+          initialTime={currentTime}
+          title={activeSong.title}
+          artistName={activeSong.artistName}
+          onClose={handleVideoModalClose}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -204,7 +403,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#121212",
     justifyContent: "space-between",
-    paddingBottom: 30,
+    paddingBottom: 28,
   },
   centerContainer: {
     flex: 1,
@@ -236,11 +435,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 22,
     borderRadius: 20,
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.7,
-    shadowRadius: 10,
-    elevation: 6,
   },
   backButtonText: {
     color: "#000000",
@@ -270,7 +464,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   iconButton: {
-    padding: 4,
+    padding: 6,
   },
   canvasWrapper: {
     paddingHorizontal: 24,
@@ -284,20 +478,41 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#2A2A2A",
   },
-  canvasIndicator: {
+  stageOverlayRow: {
     position: "absolute",
-    top: 14,
+    top: 12,
     right: 36,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    gap: 8,
+  },
+  modeTogglePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
+    paddingHorizontal: 9,
+    paddingVertical: 5,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
   },
-  canvasIndicatorText: {
+  modeToggleText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  fullVideoPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(29, 185, 84, 0.5)",
+  },
+  fullVideoText: {
     color: "#FFFFFF",
     fontSize: 10,
     fontWeight: "700",
@@ -349,25 +564,24 @@ const styles = StyleSheet.create({
   progressContainer: {
     paddingHorizontal: 28,
   },
+  progressBarTouchArea: {
+    paddingVertical: 8,
+  },
   progressBarBackground: {
     height: 4,
     backgroundColor: "rgba(255, 255, 255, 0.15)",
     borderRadius: 2,
     overflow: "hidden",
-    marginBottom: 8,
   },
   progressBarFill: {
     height: "100%",
     backgroundColor: "#FFFFFF",
     borderRadius: 2,
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 6,
   },
   timeRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    marginTop: 4,
   },
   timeText: {
     fontSize: 12,
@@ -377,7 +591,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 30,
+    paddingHorizontal: 28,
+  },
+  controlIconBtn: {
+    padding: 8,
+    position: "relative",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  repeatBadge: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    color: "#1DB954",
+    fontSize: 9,
+    fontWeight: "900",
   },
   mainPlayButton: {
     width: 64,
@@ -386,5 +614,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 8,
   },
 });

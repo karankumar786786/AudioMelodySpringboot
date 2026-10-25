@@ -4,5 +4,11 @@ api-admin-one-melody.one-org.me {
 }
 
 audio-processing.one-org.me {
-    reverse_proxy process:5010
+    reverse_proxy process:5010 {
+        transport http {
+            response_header_timeout 300m
+            read_timeout 300m
+            write_timeout 300m
+        }
+    }
 }

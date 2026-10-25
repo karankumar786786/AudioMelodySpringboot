@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   listContent: {
-    paddingBottom: 40,
+    paddingBottom: 110,
   },
   listHeader: {
     paddingHorizontal: 16,
