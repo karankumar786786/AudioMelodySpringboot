@@ -291,6 +291,11 @@ export function PlayerSettingsModal({
                   onPress={() => handleSelectQuality(opt.id)}
                 />
               ))}
+              {mode === "audio" ? (
+                <Text style={styles.subHintText}>
+                  Applies to streaming and upcoming tracks
+                </Text>
+              ) : null}
             </View>
           ) : null}
 
@@ -427,4 +432,12 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   defaultBadgeText: { color: "#8A8A8A", fontSize: 11, fontWeight: "600" },
+  subHintText: {
+    color: "#5A5A5A",
+    fontSize: 12,
+    textAlign: "center",
+    marginTop: 10,
+    marginBottom: 4,
+    paddingHorizontal: 12,
+  },
 });

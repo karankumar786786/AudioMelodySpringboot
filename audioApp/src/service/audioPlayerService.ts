@@ -257,47 +257,9 @@ class AudioPlayerService {
     }
   }
 
-  async setAudioQuality(quality: AudioQuality): Promise<void> {
+  setAudioQuality(quality: AudioQuality): void {
     store.dispatch(setAudioQuality(quality));
-    if (!this.currentPlayingSong || !this.player) return;
-
-    const baseMasterUrl =
-      this.currentPlayingSong.audioStreamUrl || this.currentPlayingSong.videoStreamUrl;
-    if (!baseMasterUrl) return;
-
-    let targetUri = baseMasterUrl;
-    if (quality !== "auto" && baseMasterUrl.includes("master.m3u8")) {
-      const cleanBase = baseMasterUrl.replace(/master\.m3u8.*$/, "");
-      const qualityMap: Record<AudioQuality, string> = {
-        standard: "audio/128kbps/playlist.m3u8",
-        high: "audio/240kbps/playlist.m3u8",
-        lossless: "audio/320kbps/playlist.m3u8",
-        auto: "master.m3u8",
-      };
-      const subPath = qualityMap[quality];
-      if (subPath) {
-        targetUri = `${cleanBase}${subPath}`;
-      }
-    }
-
-    try {
-      const currentTime = this.player.currentTime || 0;
-      const wasPlaying = this.player.playing;
-      console.log(`[AudioPlayerService] Switching audio quality to "${quality}": ${targetUri}`);
-      if (typeof (this.player as any)?.replaceAsync === "function") {
-        await (this.player as any).replaceAsync({ uri: targetUri });
-      } else {
-        this.player.replace({ uri: targetUri });
-      }
-      if (currentTime > 0) {
-        await this.seek(currentTime);
-      }
-      if (wasPlaying) {
-        this.player.play();
-      }
-    } catch (err) {
-      console.warn("[AudioPlayerService] Error switching audio quality:", err);
-    }
+    console.log(`[AudioPlayerService] Audio quality preference set to "${quality}". Applies to streaming tracks.`);
   }
 
   getCurrentTime(): number {
