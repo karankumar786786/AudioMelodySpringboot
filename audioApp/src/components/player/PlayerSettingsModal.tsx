@@ -20,11 +20,22 @@ import {
 import { audioPlayerService } from "@/service/audioPlayerService";
 import { VideoQuality, AudioQuality } from "@/types";
 
+export interface QualityChoice<T extends string> {
+  id: T;
+  label: string;
+}
+
 export interface PlayerSettingsModalProps {
   visible: boolean;
   onClose: () => void;
   mode?: "audio" | "video";
   useNativeModal?: boolean;
+  /**
+   * Qualities that actually exist for the current media. "Auto" is always added.
+   * If a mode has no real choices, its Quality row is hidden.
+   */
+  videoQualities?: QualityChoice<VideoQuality>[];
+  audioQualities?: QualityChoice<AudioQuality>[];
   onSpeedChange?: (speed: number) => void;
   onQualityChange?: (quality: VideoQuality) => void;
   onAudioQualityChange?: (quality: AudioQuality) => void;
@@ -43,21 +54,6 @@ const SPEED_OPTIONS = [
   { rate: 2.0, label: "2.0x" },
 ];
 
-const VIDEO_QUALITY_OPTIONS: Array<{ id: VideoQuality; label: string; isDefault?: boolean }> = [
-  { id: "auto", label: "Auto", isDefault: true },
-  { id: "1080p", label: "1080p (Full HD)" },
-  { id: "720p", label: "720p (HD)" },
-  { id: "480p", label: "480p" },
-  { id: "360p", label: "360p" },
-];
-
-const AUDIO_QUALITY_OPTIONS: Array<{ id: AudioQuality; label: string; isDefault?: boolean }> = [
-  { id: "auto", label: "Auto", isDefault: true },
-  { id: "lossless", label: "Lossless (Hi-Fi 24-bit)" },
-  { id: "high", label: "High (320 kbps)" },
-  { id: "standard", label: "Standard (160 kbps)" },
-];
-
 const SLEEP_TIMER_OPTIONS: Array<{ value: number | null; label: string; isDefault?: boolean }> = [
   { value: null, label: "Off", isDefault: true },
   { value: 10, label: "10 minutes" },
@@ -68,11 +64,45 @@ const SLEEP_TIMER_OPTIONS: Array<{ value: number | null; label: string; isDefaul
   { value: -1, label: "End of track" },
 ];
 
+function OptionRow({
+  label,
+  selected,
+  isDefault,
+  onPress,
+}: {
+  label: string;
+  selected: boolean;
+  isDefault?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={[styles.optionRow, selected && styles.optionRowActive]}
+      onPress={onPress}
+      activeOpacity={0.75}
+    >
+      <View style={styles.checkSlot}>
+        {selected ? <Ionicons name="checkmark" size={18} color="#FFFFFF" /> : null}
+      </View>
+      <Text style={[styles.optionText, selected && styles.optionTextActive]}>
+        {label}
+      </Text>
+      {isDefault ? (
+        <View style={styles.defaultBadge}>
+          <Text style={styles.defaultBadgeText}>Default</Text>
+        </View>
+      ) : null}
+    </TouchableOpacity>
+  );
+}
+
 export function PlayerSettingsModal({
   visible,
   onClose,
   mode = "audio",
   useNativeModal = true,
+  videoQualities,
+  audioQualities,
   onSpeedChange,
   onQualityChange,
   onAudioQualityChange,
@@ -83,11 +113,8 @@ export function PlayerSettingsModal({
 
   const [activeView, setActiveView] = useState<SettingsSubView>("main");
 
-  // Reset to root view whenever modal opens
   useEffect(() => {
-    if (visible) {
-      setActiveView("main");
-    }
+    if (visible) setActiveView("main");
   }, [visible]);
 
   const currentRate = useSelector((state: AppState) => state.player.playbackRate ?? 1.0);
@@ -95,26 +122,27 @@ export function PlayerSettingsModal({
   const audioQuality = useSelector((state: AppState) => state.player.audioQuality ?? "auto");
   const sleepTimer = useSelector((state: AppState) => state.player.sleepTimer);
 
-  const speedLabel = currentRate === 1.0 ? "Normal" : `${currentRate}x`;
-  const videoQualityLabel = selectedQuality === "auto" ? "Auto" : selectedQuality;
-  const audioQualityLabel =
-    audioQuality === "auto"
-      ? "Auto"
-      : audioQuality === "lossless"
-      ? "Lossless"
-      : audioQuality === "high"
-      ? "High"
-      : "Standard";
+  // Only offer what the current media really has, plus Auto
+  const qualityOptions: QualityChoice<string>[] = [
+    { id: "auto", label: "Auto" },
+    ...((mode === "audio" ? audioQualities : videoQualities) ?? []).filter(
+      (q) => q.id !== "auto"
+    ),
+  ];
+  const hasQualityChoices = qualityOptions.length > 1;
 
-  const sleepLabel =
-    sleepTimer === null
-      ? "Off"
-      : sleepTimer === -1
-      ? "End of track"
-      : `${sleepTimer}m`;
-
+  const storedQuality = mode === "audio" ? audioQuality : selectedQuality;
+  // If the stored choice isn't available for this media, we're effectively on Auto
+  const effectiveQuality = qualityOptions.some((o) => o.id === storedQuality)
+    ? storedQuality
+    : "auto";
+  const qualityDisplayValue =
+    qualityOptions.find((o) => o.id === effectiveQuality)?.label ?? "Auto";
   const qualityTitle = mode === "audio" ? "Audio quality" : "Quality";
-  const qualityDisplayValue = mode === "audio" ? audioQualityLabel : videoQualityLabel;
+
+  const speedLabel = currentRate === 1.0 ? "Normal" : `${currentRate}x`;
+  const sleepLabel =
+    sleepTimer === null ? "Off" : sleepTimer === -1 ? "End of track" : `${sleepTimer}m`;
 
   const handleSelectSpeed = (rate: number) => {
     dispatch(setPlaybackRate(rate));
@@ -123,15 +151,14 @@ export function PlayerSettingsModal({
     onClose();
   };
 
-  const handleSelectVideoQuality = (q: VideoQuality) => {
-    dispatch(setSelectedQuality(q));
-    onQualityChange?.(q);
-    onClose();
-  };
-
-  const handleSelectAudioQuality = (q: AudioQuality) => {
-    dispatch(setAudioQuality(q));
-    onAudioQualityChange?.(q);
+  const handleSelectQuality = (id: string) => {
+    if (mode === "audio") {
+      dispatch(setAudioQuality(id as AudioQuality));
+      onAudioQualityChange?.(id as AudioQuality);
+    } else {
+      dispatch(setSelectedQuality(id as VideoQuality));
+      onQualityChange?.(id as VideoQuality);
+    }
     onClose();
   };
 
@@ -143,31 +170,45 @@ export function PlayerSettingsModal({
 
   if (!visible) return null;
 
+  const menuRows: Array<{
+    key: SettingsSubView;
+    icon: keyof typeof Ionicons.glyphMap;
+    title: string;
+    value: string;
+    show: boolean;
+  }> = [
+    {
+      key: "quality",
+      icon: mode === "audio" ? "musical-notes-outline" : "options-outline",
+      title: qualityTitle,
+      value: qualityDisplayValue,
+      show: hasQualityChoices,
+    },
+    { key: "speed", icon: "speedometer-outline", title: "Playback speed", value: speedLabel, show: true },
+    { key: "timer", icon: "moon-outline", title: "Sleep timer", value: sleepLabel, show: true },
+  ];
+
   const content = (
-    <View style={[styles.backdrop, isLandscape && styles.backdropLandscape]}>
-      {/* Tap backdrop to dismiss */}
+    <View style={styles.backdrop}>
       <TouchableOpacity
         style={styles.backdropDismiss}
         activeOpacity={1}
         onPress={onClose}
       />
 
-      {/* Floating Small Popup Card */}
       <View
         style={[
           styles.popupCard,
-          isLandscape ? styles.popupCardLandscape : styles.popupCardPortrait,
           {
             width: isLandscape
               ? Math.min(windowWidth - 96, 360)
-              : Math.min(windowWidth - 40, 350),
+              : Math.min(windowWidth - 36, 350),
             maxHeight: isLandscape
               ? Math.min(windowHeight - 32, 300)
-              : Math.min(windowHeight * 0.72, 400),
+              : Math.min(windowHeight * 0.72, 440),
           },
         ]}
       >
-        {/* Header */}
         <View style={styles.header}>
           {activeView === "main" ? (
             <Text style={styles.headerTitle}>Settings</Text>
@@ -178,8 +219,8 @@ export function PlayerSettingsModal({
               activeOpacity={0.7}
               hitSlop={12}
             >
-              <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
-              <Text style={styles.subHeaderTitle}>
+              <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+              <Text style={styles.headerTitle}>
                 {activeView === "quality"
                   ? qualityTitle
                   : activeView === "speed"
@@ -195,235 +236,78 @@ export function PlayerSettingsModal({
             hitSlop={12}
             activeOpacity={0.7}
           >
-            <Ionicons name="close" size={18} color="rgba(255, 255, 255, 0.75)" />
+            <Ionicons name="close" size={18} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
 
-        {/* Scrollable Content */}
         <ScrollView
           showsVerticalScrollIndicator={false}
           bounces={false}
           contentContainerStyle={styles.scrollContent}
         >
-          {/* MAIN MENU */}
           {activeView === "main" ? (
             <View style={styles.menuList}>
-              {/* 1. Quality (Audio quality in canvas/artwork mode, Video quality in video mode) */}
-              <TouchableOpacity
-                style={styles.menuRow}
-                onPress={() => setActiveView("quality")}
-                activeOpacity={0.75}
-              >
-                <View style={styles.menuRowLeft}>
-                  <Ionicons
-                    name={mode === "audio" ? "musical-notes-outline" : "options-outline"}
-                    size={20}
-                    color="#FFFFFF"
-                    style={styles.menuIcon}
-                  />
-                  <Text style={styles.menuRowTitle}>{qualityTitle}</Text>
-                </View>
-
-                <View style={styles.menuRowRight}>
-                  <Text style={styles.menuRowValue}>{qualityDisplayValue}</Text>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={15}
-                    color="rgba(255, 255, 255, 0.35)"
-                  />
-                </View>
-              </TouchableOpacity>
-
-              {/* 2. Playback speed */}
-              <TouchableOpacity
-                style={styles.menuRow}
-                onPress={() => setActiveView("speed")}
-                activeOpacity={0.75}
-              >
-                <View style={styles.menuRowLeft}>
-                  <Ionicons
-                    name="speedometer-outline"
-                    size={20}
-                    color="#FFFFFF"
-                    style={styles.menuIcon}
-                  />
-                  <Text style={styles.menuRowTitle}>Playback speed</Text>
-                </View>
-
-                <View style={styles.menuRowRight}>
-                  <Text style={styles.menuRowValue}>{speedLabel}</Text>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={15}
-                    color="rgba(255, 255, 255, 0.35)"
-                  />
-                </View>
-              </TouchableOpacity>
-
-              {/* 3. Sleep timer */}
-              <TouchableOpacity
-                style={styles.menuRow}
-                onPress={() => setActiveView("timer")}
-                activeOpacity={0.75}
-              >
-                <View style={styles.menuRowLeft}>
-                  <Ionicons
-                    name="moon-outline"
-                    size={20}
-                    color="#FFFFFF"
-                    style={styles.menuIcon}
-                  />
-                  <Text style={styles.menuRowTitle}>Sleep timer</Text>
-                </View>
-
-                <View style={styles.menuRowRight}>
-                  <Text style={styles.menuRowValue}>{sleepLabel}</Text>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={15}
-                    color="rgba(255, 255, 255, 0.35)"
-                  />
-                </View>
-              </TouchableOpacity>
+              {menuRows
+                .filter((r) => r.show)
+                .map((row) => (
+                  <TouchableOpacity
+                    key={row.key}
+                    style={styles.menuRow}
+                    onPress={() => setActiveView(row.key)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={styles.menuRowLeft}>
+                      <Ionicons name={row.icon} size={20} color="#FFFFFF" style={styles.menuIcon} />
+                      <Text style={styles.menuRowTitle}>{row.title}</Text>
+                    </View>
+                    <View style={styles.menuRowRight}>
+                      <Text style={styles.menuRowValue}>{row.value}</Text>
+                      <Ionicons name="chevron-forward" size={15} color="#5A5A5A" />
+                    </View>
+                  </TouchableOpacity>
+                ))}
             </View>
           ) : null}
 
-          {/* SUBVIEW: QUALITY (AUDIO OR VIDEO) */}
           {activeView === "quality" ? (
             <View style={styles.optionsList}>
-              {mode === "audio"
-                ? AUDIO_QUALITY_OPTIONS.map((opt) => {
-                    const isSelected = audioQuality === opt.id;
-                    return (
-                      <TouchableOpacity
-                        key={opt.id}
-                        style={styles.optionRow}
-                        onPress={() => handleSelectAudioQuality(opt.id)}
-                        activeOpacity={0.75}
-                      >
-                        <View style={styles.checkSlot}>
-                          {isSelected ? (
-                            <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-                          ) : null}
-                        </View>
-                        <Text
-                          style={[
-                            styles.optionText,
-                            isSelected && styles.optionTextActive,
-                          ]}
-                        >
-                          {opt.label}
-                        </Text>
-                        {opt.isDefault ? (
-                          <View style={styles.defaultBadge}>
-                            <Text style={styles.defaultBadgeText}>Default</Text>
-                          </View>
-                        ) : null}
-                      </TouchableOpacity>
-                    );
-                  })
-                : VIDEO_QUALITY_OPTIONS.map((opt) => {
-                    const isSelected = selectedQuality === opt.id;
-                    return (
-                      <TouchableOpacity
-                        key={opt.id}
-                        style={styles.optionRow}
-                        onPress={() => handleSelectVideoQuality(opt.id)}
-                        activeOpacity={0.75}
-                      >
-                        <View style={styles.checkSlot}>
-                          {isSelected ? (
-                            <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-                          ) : null}
-                        </View>
-                        <Text
-                          style={[
-                            styles.optionText,
-                            isSelected && styles.optionTextActive,
-                          ]}
-                        >
-                          {opt.label}
-                        </Text>
-                        {opt.isDefault ? (
-                          <View style={styles.defaultBadge}>
-                            <Text style={styles.defaultBadgeText}>Default</Text>
-                          </View>
-                        ) : null}
-                      </TouchableOpacity>
-                    );
-                  })}
+              {qualityOptions.map((opt) => (
+                <OptionRow
+                  key={opt.id}
+                  label={opt.label}
+                  selected={effectiveQuality === opt.id}
+                  isDefault={opt.id === "auto"}
+                  onPress={() => handleSelectQuality(opt.id)}
+                />
+              ))}
             </View>
           ) : null}
 
-          {/* SUBVIEW: PLAYBACK SPEED */}
           {activeView === "speed" ? (
             <View style={styles.optionsList}>
-              {SPEED_OPTIONS.map((opt) => {
-                const isSelected = currentRate === opt.rate;
-                return (
-                  <TouchableOpacity
-                    key={opt.rate}
-                    style={styles.optionRow}
-                    onPress={() => handleSelectSpeed(opt.rate)}
-                    activeOpacity={0.75}
-                  >
-                    <View style={styles.checkSlot}>
-                      {isSelected ? (
-                        <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-                      ) : null}
-                    </View>
-                    <Text
-                      style={[
-                        styles.optionText,
-                        isSelected && styles.optionTextActive,
-                      ]}
-                    >
-                      {opt.label}
-                    </Text>
-                    {opt.isDefault ? (
-                      <View style={styles.defaultBadge}>
-                        <Text style={styles.defaultBadgeText}>Default</Text>
-                      </View>
-                    ) : null}
-                  </TouchableOpacity>
-                );
-              })}
+              {SPEED_OPTIONS.map((opt) => (
+                <OptionRow
+                  key={opt.rate}
+                  label={opt.label}
+                  selected={currentRate === opt.rate}
+                  isDefault={opt.isDefault}
+                  onPress={() => handleSelectSpeed(opt.rate)}
+                />
+              ))}
             </View>
           ) : null}
 
-          {/* SUBVIEW: SLEEP TIMER */}
           {activeView === "timer" ? (
             <View style={styles.optionsList}>
-              {SLEEP_TIMER_OPTIONS.map((opt) => {
-                const isSelected = sleepTimer === opt.value;
-                return (
-                  <TouchableOpacity
-                    key={String(opt.value)}
-                    style={styles.optionRow}
-                    onPress={() => handleSelectSleepTimer(opt.value)}
-                    activeOpacity={0.75}
-                  >
-                    <View style={styles.checkSlot}>
-                      {isSelected ? (
-                        <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-                      ) : null}
-                    </View>
-                    <Text
-                      style={[
-                        styles.optionText,
-                        isSelected && styles.optionTextActive,
-                      ]}
-                    >
-                      {opt.label}
-                    </Text>
-                    {opt.isDefault ? (
-                      <View style={styles.defaultBadge}>
-                        <Text style={styles.defaultBadgeText}>Default</Text>
-                      </View>
-                    ) : null}
-                  </TouchableOpacity>
-                );
-              })}
+              {SLEEP_TIMER_OPTIONS.map((opt) => (
+                <OptionRow
+                  key={String(opt.value)}
+                  label={opt.label}
+                  selected={sleepTimer === opt.value}
+                  isDefault={opt.isDefault}
+                  onPress={() => handleSelectSleepTimer(opt.value)}
+                />
+              ))}
             </View>
           ) : null}
         </ScrollView>
@@ -457,135 +341,79 @@ const styles = StyleSheet.create({
     zIndex: 999999,
     elevation: 999999,
   },
-  backdropLandscape: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  backdropDismiss: {
-    ...StyleSheet.absoluteFill,
-  },
+  backdropDismiss: { ...StyleSheet.absoluteFill },
   popupCard: {
-    backgroundColor: "#1E1E1E",
-    borderRadius: 18,
+    alignSelf: "center",
+    backgroundColor: "#000000",
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.14)",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 18,
-    elevation: 18,
+    borderColor: "#262626",
     overflow: "hidden",
-    paddingTop: 12,
+    paddingTop: 16,
     paddingBottom: 10,
-    paddingHorizontal: 16,
-  },
-  popupCardPortrait: {
-    alignSelf: "center",
-  },
-  popupCardLandscape: {
-    alignSelf: "center",
+    paddingHorizontal: 18,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.08)",
+    paddingBottom: 12,
   },
   headerTitle: {
     color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "700",
-    letterSpacing: 0.2,
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: -0.4,
   },
-  backButtonRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  subHeaderTitle: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "600",
-  },
+  backButtonRow: { flexDirection: "row", alignItems: "center", gap: 2, marginLeft: -4 },
   closeBtn: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#151515",
+    borderWidth: 1,
+    borderColor: "#262626",
     justifyContent: "center",
     alignItems: "center",
   },
-  scrollContent: {
-    paddingVertical: 2,
-  },
-  menuList: {
-    paddingVertical: 2,
-  },
+  scrollContent: { paddingVertical: 2 },
+  menuList: { paddingVertical: 2 },
   menuRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingVertical: 13,
+    paddingVertical: 14,
     paddingHorizontal: 2,
   },
-  menuRowLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
-  menuIcon: {
-    width: 22,
-    textAlign: "center",
-  },
+  menuRowLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+  menuIcon: { width: 22, textAlign: "center" },
   menuRowTitle: {
     color: "#FFFFFF",
-    fontSize: 14.5,
-    fontWeight: "500",
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: -0.2,
   },
-  menuRowRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  menuRowValue: {
-    color: "rgba(255, 255, 255, 0.45)",
-    fontSize: 13.5,
-    fontWeight: "400",
-  },
-  optionsList: {
-    paddingVertical: 4,
-  },
+  menuRowRight: { flexDirection: "row", alignItems: "center", gap: 6 },
+  menuRowValue: { color: "#8A8A8A", fontSize: 13.5 },
+  optionsList: { paddingVertical: 2 },
   optionRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingVertical: 11,
-    paddingHorizontal: 2,
+    paddingHorizontal: 8,
+    borderRadius: 12,
   },
-  checkSlot: {
-    width: 26,
-    alignItems: "flex-start",
-  },
-  optionText: {
-    color: "rgba(255, 255, 255, 0.7)",
-    fontSize: 14.5,
-    fontWeight: "400",
-    flex: 1,
-  },
-  optionTextActive: {
-    color: "#FFFFFF",
-    fontWeight: "700",
-  },
+  optionRowActive: { backgroundColor: "#151515" },
+  checkSlot: { width: 26, alignItems: "flex-start" },
+  optionText: { color: "#8A8A8A", fontSize: 15, fontWeight: "500", flex: 1 },
+  optionTextActive: { color: "#FFFFFF", fontWeight: "800", letterSpacing: -0.2 },
   defaultBadge: {
-    backgroundColor: "rgba(255, 255, 255, 0.09)",
-    paddingHorizontal: 7,
-    paddingVertical: 2.5,
-    borderRadius: 5,
+    backgroundColor: "#151515",
+    borderWidth: 1,
+    borderColor: "#262626",
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: 999,
   },
-  defaultBadgeText: {
-    color: "rgba(255, 255, 255, 0.55)",
-    fontSize: 10.5,
-    fontWeight: "500",
-  },
+  defaultBadgeText: { color: "#8A8A8A", fontSize: 11, fontWeight: "600" },
 });

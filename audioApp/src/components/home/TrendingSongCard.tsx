@@ -31,7 +31,7 @@ export function TrendingSongCard({ song, onPress }: TrendingSongCardProps) {
         />
       ) : (
         <View style={[styles.image, styles.fallback]}>
-          <Ionicons name="musical-notes" size={32} color="#555555" />
+          <Ionicons name="musical-notes" size={32} color="#5A5A5A" />
         </View>
       )}
 
@@ -44,7 +44,7 @@ export function TrendingSongCard({ song, onPress }: TrendingSongCardProps) {
 
       {song.totalStreams !== undefined && song.totalStreams !== null ? (
         <View style={styles.streamsRow}>
-          <Ionicons name="play" size={9} color="#8A8A8A" />
+          <Ionicons name="play" size={9} color="#5A5A5A" />
           <Text style={styles.streams}>{formatStreams(song.totalStreams)}</Text>
         </View>
       ) : null}
@@ -58,12 +58,20 @@ const styles = StyleSheet.create({
     width: 146,
     height: 146,
     borderRadius: 14,
-    backgroundColor: "#181818",
+    backgroundColor: "#151515",
+    borderWidth: 1,
+    borderColor: "#262626",
     marginBottom: 10,
   },
   fallback: { alignItems: "center", justifyContent: "center" },
-  title: { color: "#FFFFFF", fontSize: 14, fontWeight: "700", marginBottom: 2 },
+  title: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+    marginBottom: 2,
+  },
   artist: { color: "#8A8A8A", fontSize: 12 },
   streamsRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
-  streams: { color: "#8A8A8A", fontSize: 11, fontWeight: "500" },
+  streams: { color: "#5A5A5A", fontSize: 11, fontWeight: "500" },
 });

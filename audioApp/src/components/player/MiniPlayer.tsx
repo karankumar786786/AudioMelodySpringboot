@@ -46,13 +46,11 @@ export function MiniPlayer() {
   return (
     <View style={styles.container}>
       <View style={styles.contentRow}>
-        {/* Left Track Info Area: Tappable to open full player screen */}
         <TouchableOpacity
           style={styles.trackInfoTouchArea}
           activeOpacity={0.8}
           onPress={handlePressCard}
         >
-          {/* Cover Art */}
           <Image
             source={{ uri: currentSong.coverUrl }}
             style={styles.artwork}
@@ -61,7 +59,6 @@ export function MiniPlayer() {
             cachePolicy="memory"
           />
 
-          {/* Track Title and Artist */}
           <View style={styles.textContainer}>
             <Text style={styles.title} numberOfLines={1}>
               {currentSong.title}
@@ -72,37 +69,37 @@ export function MiniPlayer() {
           </View>
         </TouchableOpacity>
 
-        {/* Play/Pause & Next Controls: Completely independent touch targets */}
         <View style={styles.actionsRow}>
           <TouchableOpacity
-            style={styles.actionButton}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}
-            onPress={handleTogglePlay}
-            activeOpacity={0.7}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <Ionicons
-                name={isPlaying ? "pause" : "play"}
-                size={24}
-                color="#FFFFFF"
-              />
-            )}
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionButton}
-            hitSlop={{ top: 10, bottom: 10, left: 4, right: 10 }}
+            style={styles.nextButton}
+            hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
             onPress={handleNext}
             activeOpacity={0.7}
           >
-            <Ionicons name="play-skip-forward" size={20} color="#CCCCCC" />
+            <Ionicons name="play-skip-forward" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+
+          {/* Inverted play button: white fill, black glyph (same as the active filter pill) */}
+          <TouchableOpacity
+            style={styles.playButton}
+            hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
+            onPress={handleTogglePlay}
+            activeOpacity={0.85}
+          >
+            {isLoading ? (
+              <ActivityIndicator size="small" color="#000000" />
+            ) : (
+              <Ionicons
+                name={isPlaying ? "pause" : "play"}
+                size={20}
+                color="#000000"
+                style={isPlaying ? undefined : { marginLeft: 2 }}
+              />
+            )}
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Progress Track at Bottom Edge */}
       <View style={styles.progressBarBackground}>
         <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
       </View>
@@ -112,18 +109,13 @@ export function MiniPlayer() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#1F1F1F",
-    marginHorizontal: 8,
+    backgroundColor: "#151515",
+    marginHorizontal: 10,
     marginBottom: 4,
-    borderRadius: 10,
+    borderRadius: 14,
     overflow: "hidden",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 8,
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
+    borderColor: "#262626",
   },
   contentRow: {
     flexDirection: "row",
@@ -139,8 +131,8 @@ const styles = StyleSheet.create({
   artwork: {
     width: 44,
     height: 44,
-    borderRadius: 6,
-    backgroundColor: "#2A2A2A",
+    borderRadius: 8,
+    backgroundColor: "#000000",
   },
   textContainer: {
     flex: 1,
@@ -151,28 +143,37 @@ const styles = StyleSheet.create({
   title: {
     color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "800",
+    letterSpacing: -0.2,
     marginBottom: 2,
   },
   artist: {
-    color: "#A0A0A0",
+    color: "#8A8A8A",
     fontSize: 12,
     fontWeight: "500",
   },
   actionsRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingRight: 4,
+    gap: 10,
   },
-  actionButton: {
-    padding: 6,
-    marginLeft: 8,
+  nextButton: {
+    width: 32,
+    height: 32,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  playButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
   },
   progressBarBackground: {
-    height: 2.5,
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
+    height: 2,
+    backgroundColor: "#262626",
     width: "100%",
   },
   progressBarFill: {

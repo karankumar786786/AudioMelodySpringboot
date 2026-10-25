@@ -134,7 +134,11 @@ class AudioPlayerService {
       }
 
       console.log(`[AudioPlayerService] Loading stream for "${song.title}": ${uri}`);
-      this.player.replace({ uri });
+      if (typeof (this.player as any)?.replaceAsync === "function") {
+        await (this.player as any).replaceAsync({ uri });
+      } else {
+        this.player.replace({ uri });
+      }
 
       // Update native lock screen & notification controls
       try {

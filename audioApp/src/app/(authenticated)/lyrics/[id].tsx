@@ -6,9 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  useWindowDimensions,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSelector, useDispatch } from "react-redux";
@@ -26,6 +23,9 @@ import { getImageUrl } from "@/utils/imageUtils";
 import { useDominantColor } from "@/utils/colorUtils";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+// Shared with the home screen
+const SIDE = 18;
+
 export default function LyricsScreen() {
   const router = useRouter();
   const dispatch = useDispatch();
@@ -37,7 +37,6 @@ export default function LyricsScreen() {
   const isPlaying = useSelector((state: AppState) => state.player.isPlaying);
   const isLoading = useSelector((state: AppState) => state.player.isLoading);
 
-  // Fetch song details if not already loaded in player
   const { data: fetchedSong } = useQuery({
     queryKey: ["song", id],
     queryFn: () => homeService.getSongById(id!),
@@ -46,7 +45,6 @@ export default function LyricsScreen() {
 
   const activeSong = currentSong?.id === id ? currentSong : fetchedSong || currentSong;
 
-  // Synced lyrics hook
   const {
     transcriptions,
     plainLyrics,
@@ -67,30 +65,23 @@ export default function LyricsScreen() {
   const lineLayoutsRef = useRef<{ [index: number]: number }>({});
   const [showSyncButton, setShowSyncButton] = useState(false);
 
-  // Center the active lyric line
-  const scrollToActiveLine = useCallback(
-    (index: number, animated = true) => {
-      if (index < 0 || !scrollViewRef.current) return;
-      const y = lineLayoutsRef.current[index];
-      if (typeof y === "number") {
-        // Offset so active line sits near vertical center
-        scrollViewRef.current.scrollTo({
-          y: Math.max(0, y - 240),
-          animated,
-        });
-      }
-    },
-    []
-  );
+  const scrollToActiveLine = useCallback((index: number, animated = true) => {
+    if (index < 0 || !scrollViewRef.current) return;
+    const y = lineLayoutsRef.current[index];
+    if (typeof y === "number") {
+      scrollViewRef.current.scrollTo({
+        y: Math.max(0, y - 240),
+        animated,
+      });
+    }
+  }, []);
 
-  // Auto-scroll on activeIndex update unless user is manually inspecting
   useEffect(() => {
     if (activeIndex >= 0 && !isUserScrolledRef.current) {
       scrollToActiveLine(activeIndex, true);
     }
   }, [activeIndex, scrollToActiveLine]);
 
-  // Handle manual user scroll
   const handleScrollBeginDrag = () => {
     isUserScrolledRef.current = true;
     setShowSyncButton(true);
@@ -99,7 +90,6 @@ export default function LyricsScreen() {
       clearTimeout(userScrollTimeoutRef.current);
     }
 
-    // Auto-resume sync after 5 seconds of inactivity
     userScrollTimeoutRef.current = setTimeout(() => {
       isUserScrolledRef.current = false;
       setShowSyncButton(false);
@@ -155,7 +145,6 @@ export default function LyricsScreen() {
 
   return (
     <View style={styles.root}>
-      {/* Ambient background glow */}
       {posterUrl ? (
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
           <Image
@@ -174,7 +163,7 @@ export default function LyricsScreen() {
       ) : null}
 
       <SafeAreaView style={styles.container}>
-        {/* Top Header */}
+        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.headerBtn}
@@ -182,35 +171,34 @@ export default function LyricsScreen() {
             hitSlop={14}
             activeOpacity={0.75}
           >
-            <Ionicons name="chevron-down" size={26} color="#FFFFFF" />
+            <Ionicons name="chevron-down" size={24} color="#FFFFFF" />
           </TouchableOpacity>
 
           <View style={styles.headerTitleGroup}>
-            <Text style={styles.headerSubtitle}>LYRICS</Text>
             <Text style={styles.headerTrackTitle} numberOfLines={1}>
-              {activeSong?.title || "Now Playing"}
+              {activeSong?.title || "Now playing"}
             </Text>
             <Text style={styles.headerArtist} numberOfLines={1}>
               {activeSong?.artistName || ""}
             </Text>
           </View>
 
-          <View style={{ width: 40 }} />
+          <View style={{ width: 38 }} />
         </View>
 
-        {/* Lyrics Body */}
+        {/* Lyrics body */}
         <View style={styles.lyricsBody}>
           {isLyricsLoading ? (
             <View style={styles.centerState}>
               <ActivityIndicator size="large" color="#FFFFFF" />
-              <Text style={styles.loadingText}>Loading synced lyrics...</Text>
+              <Text style={styles.loadingText}>Loading lyrics…</Text>
             </View>
           ) : !hasLyrics ? (
             <View style={styles.centerState}>
-              <Ionicons name="musical-notes-outline" size={48} color="#555555" />
-              <Text style={styles.emptyTitle}>No lyrics available</Text>
+              <Ionicons name="musical-notes-outline" size={44} color="#5A5A5A" />
+              <Text style={styles.emptyTitle}>No lyrics yet</Text>
               <Text style={styles.emptySubtitle}>
-                Synced lyrics could not be found for this track.
+                We couldn’t find synced lyrics for this track.
               </Text>
             </View>
           ) : transcriptions.length > 0 ? (
@@ -238,8 +226,8 @@ export default function LyricsScreen() {
                     <Text
                       style={[
                         styles.lyricLineText,
-                        isActive && styles.lyricLineTextActive,
                         isPast && styles.lyricLineTextPast,
+                        isActive && styles.lyricLineTextActive,
                       ]}
                     >
                       {entry.text}
@@ -260,22 +248,20 @@ export default function LyricsScreen() {
             </ScrollView>
           ) : null}
 
-          {/* Floating Re-sync Button (like Spotify) */}
           {showSyncButton && transcriptions.length > 0 ? (
             <TouchableOpacity
               style={styles.floatingSyncBtn}
               activeOpacity={0.85}
               onPress={handleResyncPress}
             >
-              <Ionicons name="refresh" size={16} color="#000000" />
+              <Ionicons name="refresh" size={15} color="#000000" />
               <Text style={styles.floatingSyncText}>Sync with audio</Text>
             </TouchableOpacity>
           ) : null}
         </View>
 
-        {/* Bottom Playback Dock */}
+        {/* Playback dock */}
         <View style={styles.playbackDock}>
-          {/* Progress row */}
           <View style={styles.progressRow}>
             <Text style={styles.dockTimeText}>{formatDuration(currentTime)}</Text>
             <View style={styles.dockTrack}>
@@ -284,7 +270,6 @@ export default function LyricsScreen() {
             <Text style={styles.dockTimeText}>{formatDuration(duration)}</Text>
           </View>
 
-          {/* Controls row */}
           <View style={styles.controlsRow}>
             <TouchableOpacity
               hitSlop={14}
@@ -328,118 +313,85 @@ export default function LyricsScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: "#121212",
-  },
+  root: { flex: 1, backgroundColor: "#000000" },
   ambientImage: {
     ...StyleSheet.absoluteFill,
     opacity: 0.6,
     transform: [{ scale: 1.15 }],
   },
-  container: {
-    flex: 1,
-    justifyContent: "space-between",
-  },
+  container: { flex: 1, justifyContent: "space-between" },
+
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
+    paddingHorizontal: SIDE,
     paddingTop: 12,
     paddingBottom: 8,
   },
   headerBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.14)",
     justifyContent: "center",
     alignItems: "center",
   },
-  headerTitleGroup: {
-    flex: 1,
-    alignItems: "center",
-    paddingHorizontal: 12,
-  },
-  headerSubtitle: {
-    color: "rgba(255, 255, 255, 0.5)",
-    fontSize: 10.5,
-    fontWeight: "800",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-  },
+  headerTitleGroup: { flex: 1, alignItems: "center", paddingHorizontal: 12 },
   headerTrackTitle: {
     color: "#FFFFFF",
-    fontSize: 14.5,
-    fontWeight: "700",
-    marginTop: 2,
+    fontSize: 16,
+    fontWeight: "800",
+    letterSpacing: -0.3,
   },
-  headerArtist: {
-    color: "rgba(255, 255, 255, 0.6)",
-    fontSize: 12,
-    marginTop: 1,
-  },
-  lyricsBody: {
-    flex: 1,
-    position: "relative",
-  },
-  scrollList: {
-    paddingHorizontal: 28,
-  },
-  lyricLineContainer: {
-    paddingVertical: 14,
-  },
+  headerArtist: { color: "rgba(255, 255, 255, 0.6)", fontSize: 12, marginTop: 2 },
+
+  lyricsBody: { flex: 1, position: "relative" },
+  scrollList: { paddingHorizontal: SIDE + 4 },
+  lyricLineContainer: { paddingVertical: 12 },
+  // Inactive lines recede; the active line is solid white. No glow.
   lyricLineText: {
     color: "rgba(255, 255, 255, 0.38)",
-    fontSize: 24,
-    fontWeight: "700",
-    letterSpacing: 0.2,
-    lineHeight: 34,
+    fontSize: 26,
+    fontWeight: "800",
+    letterSpacing: -0.6,
+    lineHeight: 33,
   },
-  lyricLineTextActive: {
-    color: "#FFFFFF",
-    fontWeight: "900",
-    fontSize: 28,
-    lineHeight: 38,
-    textShadowColor: "rgba(255, 255, 255, 0.4)",
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 10,
-  },
-  lyricLineTextPast: {
-    color: "rgba(255, 255, 255, 0.48)",
-  },
+  lyricLineTextPast: { color: "rgba(255, 255, 255, 0.5)" },
+  lyricLineTextActive: { color: "#FFFFFF" },
   plainLyricsText: {
-    color: "rgba(255, 255, 255, 0.8)",
+    color: "rgba(255, 255, 255, 0.82)",
     fontSize: 20,
     lineHeight: 32,
-    fontWeight: "500",
+    fontWeight: "600",
+    letterSpacing: -0.2,
     textAlign: "left",
   },
+
   centerState: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 32,
   },
-  loadingText: {
-    color: "rgba(255, 255, 255, 0.6)",
-    fontSize: 15,
-    marginTop: 16,
-    fontWeight: "500",
-  },
+  loadingText: { color: "#8A8A8A", fontSize: 15, marginTop: 16, fontWeight: "500" },
   emptyTitle: {
     color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: -0.4,
     marginTop: 16,
   },
   emptySubtitle: {
-    color: "rgba(255, 255, 255, 0.5)",
+    color: "#8A8A8A",
     fontSize: 14,
     marginTop: 6,
     textAlign: "center",
   },
+
+  // White pill, same as the active filter pill on Home
   floatingSyncBtn: {
     position: "absolute",
     bottom: 16,
@@ -450,25 +402,17 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 16,
     paddingVertical: 9,
-    borderRadius: 20,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
+    borderRadius: 999,
   },
-  floatingSyncText: {
-    color: "#000000",
-    fontSize: 13,
-    fontWeight: "700",
-  },
+  floatingSyncText: { color: "#000000", fontSize: 13, fontWeight: "700" },
+
   playbackDock: {
-    backgroundColor: "rgba(28, 28, 30, 0.95)",
+    backgroundColor: "#000000",
     borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
+    borderTopColor: "#262626",
     paddingTop: 12,
     paddingBottom: 16,
-    paddingHorizontal: 24,
+    paddingHorizontal: SIDE,
   },
   progressRow: {
     flexDirection: "row",
@@ -477,7 +421,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   dockTimeText: {
-    color: "rgba(255, 255, 255, 0.5)",
+    color: "#8A8A8A",
     fontSize: 11,
     fontVariant: ["tabular-nums"],
     width: 38,
@@ -485,24 +429,19 @@ const styles = StyleSheet.create({
   },
   dockTrack: {
     flex: 1,
-    height: 3.5,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    height: 4,
+    backgroundColor: "#262626",
     borderRadius: 2,
     overflow: "hidden",
   },
-  dockFill: {
-    height: "100%",
-    backgroundColor: "#FFFFFF",
-  },
+  dockFill: { height: "100%", backgroundColor: "#FFFFFF" },
   controlsRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 36,
   },
-  dockIconBtn: {
-    padding: 8,
-  },
+  dockIconBtn: { padding: 8 },
   dockPlayBtn: {
     width: 52,
     height: 52,
@@ -510,10 +449,5 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
   },
 });

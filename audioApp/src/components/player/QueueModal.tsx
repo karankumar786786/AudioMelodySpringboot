@@ -24,6 +24,9 @@ interface QueueModalProps {
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
+// Shared with the home screen
+const SIDE = 18;
+
 export function QueueModal({ visible, onClose }: QueueModalProps) {
   const dispatch = useDispatch();
 
@@ -67,10 +70,11 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
 
           {/* Header */}
           <View style={styles.header}>
-            <View>
+            <View style={styles.headerText}>
               <Text style={styles.headerTitle}>Queue</Text>
               <Text style={styles.headerSubtitle}>
-                {upcomingQueue.length} {upcomingQueue.length === 1 ? "track" : "tracks"} upcoming
+                {upcomingQueue.length}{" "}
+                {upcomingQueue.length === 1 ? "track" : "tracks"} up next
               </Text>
             </View>
 
@@ -78,16 +82,17 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
               <TouchableOpacity
                 style={styles.clearButton}
                 onPress={handleClearUpcoming}
+                activeOpacity={0.75}
               >
-                <Text style={styles.clearButtonText}>Clear Upcoming</Text>
+                <Text style={styles.clearButtonText}>Clear</Text>
               </TouchableOpacity>
             ) : null}
           </View>
 
-          {/* Now Playing Section */}
+          {/* Now playing */}
           {currentSong ? (
             <View style={styles.nowPlayingSection}>
-              <Text style={styles.sectionHeading}>NOW PLAYING</Text>
+              <Text style={styles.sectionHeading}>Now playing</Text>
               <View style={styles.songRowActive}>
                 <Image
                   source={{ uri: currentSong.coverUrl }}
@@ -99,27 +104,25 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
                   <Text style={styles.songTitleActive} numberOfLines={1}>
                     {currentSong.title}
                   </Text>
-                  <Text style={styles.songArtist} numberOfLines={1}>
+                  <Text style={styles.songArtistActive} numberOfLines={1}>
                     {currentSong.artistName}
                   </Text>
                 </View>
-                <View style={styles.playingBadge}>
-                  <Ionicons name="volume-high" size={16} color="#FFFFFF" />
-                </View>
+                <Ionicons name="volume-high" size={18} color="#000000" />
               </View>
             </View>
           ) : null}
 
-          {/* Upcoming Tracks List */}
+          {/* Up next */}
           <View style={styles.upcomingSection}>
-            <Text style={styles.sectionHeading}>UP NEXT</Text>
+            <Text style={styles.sectionHeading}>Up next</Text>
 
             {upcomingQueue.length === 0 ? (
               <View style={styles.emptyContainer}>
-                <Ionicons name="musical-notes-outline" size={36} color="#555555" />
-                <Text style={styles.emptyText}>No tracks up next</Text>
+                <Ionicons name="musical-notes-outline" size={36} color="#5A5A5A" />
+                <Text style={styles.emptyText}>Nothing up next</Text>
                 <Text style={styles.emptySubtext}>
-                  Add songs or keep listening for automated recommendations
+                  Add songs, or keep listening and we’ll queue recommendations.
                 </Text>
               </View>
             ) : (
@@ -127,6 +130,7 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
                 data={upcomingQueue}
                 keyExtractor={(item, idx) => item.queueId || `${item.id}-${idx}`}
                 contentContainerStyle={styles.listContent}
+                showsVerticalScrollIndicator={false}
                 renderItem={({ item, index }) => (
                   <TouchableOpacity
                     style={styles.songRow}
@@ -155,8 +159,9 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
                       hitSlop={12}
                       onPress={() => handleRemove(item.id)}
                       style={styles.removeBtn}
+                      activeOpacity={0.7}
                     >
-                      <Ionicons name="close" size={18} color="#777777" />
+                      <Ionicons name="close" size={18} color="#8A8A8A" />
                     </TouchableOpacity>
                   </TouchableOpacity>
                 )}
@@ -172,89 +177,93 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.65)",
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
     justifyContent: "flex-end",
   },
   backdropDismiss: {
     flex: 1,
   },
   sheetContainer: {
-    backgroundColor: "#1C1C1E",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: "#000000",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     maxHeight: SCREEN_HEIGHT * 0.78,
     minHeight: SCREEN_HEIGHT * 0.45,
-    paddingTop: 12,
+    paddingTop: 10,
     paddingBottom: 30,
     borderTopWidth: 1,
-    borderTopColor: "rgba(255, 255, 255, 0.1)",
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: "#262626",
   },
   dragHandleBar: {
     width: 36,
     height: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    backgroundColor: "#262626",
     borderRadius: 2,
     alignSelf: "center",
-    marginBottom: 12,
+    marginBottom: 14,
   },
+
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.08)",
+    paddingHorizontal: SIDE,
+    paddingBottom: 14,
   },
+  headerText: { flex: 1, marginRight: 12 },
   headerTitle: {
     color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 26,
+    fontWeight: "800",
+    letterSpacing: -0.6,
   },
   headerSubtitle: {
-    color: "#888888",
-    fontSize: 12,
+    color: "#8A8A8A",
+    fontSize: 13,
     marginTop: 2,
   },
   clearButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "#151515",
+    borderWidth: 1,
+    borderColor: "#262626",
   },
   clearButtonText: {
-    color: "#E0E0E0",
-    fontSize: 12,
+    color: "#FFFFFF",
+    fontSize: 13,
     fontWeight: "600",
   },
+
   nowPlayingSection: {
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.06)",
+    paddingHorizontal: SIDE,
+    paddingBottom: 6,
   },
   sectionHeading: {
-    color: "#8E8E93",
-    fontSize: 11,
-    fontWeight: "700",
-    letterSpacing: 0.8,
-    marginBottom: 8,
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+    marginBottom: 10,
   },
+
+  // The one inverted moment: white card, black text (like the active pill)
   songRowActive: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "#FFFFFF",
     padding: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    paddingRight: 14,
+    borderRadius: 14,
   },
   songThumb: {
-    width: 42,
-    height: 42,
-    borderRadius: 6,
-    backgroundColor: "#2C2C2E",
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: "#151515",
   },
   songInfo: {
     flex: 1,
@@ -262,27 +271,32 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   songTitleActive: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "700",
+    color: "#000000",
+    fontSize: 15,
+    fontWeight: "800",
+    letterSpacing: -0.2,
   },
-  songTitle: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  songArtist: {
-    color: "#8E8E93",
+  songArtistActive: {
+    color: "#444444",
     fontSize: 12,
     marginTop: 2,
   },
-  playingBadge: {
-    paddingRight: 6,
+  songTitle: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "700",
+    letterSpacing: -0.2,
   },
+  songArtist: {
+    color: "#8A8A8A",
+    fontSize: 12,
+    marginTop: 2,
+  },
+
   upcomingSection: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingHorizontal: SIDE,
+    paddingTop: 18,
   },
   listContent: {
     paddingBottom: 20,
@@ -293,19 +307,20 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   queueIndex: {
-    width: 22,
-    color: "#666666",
+    width: 24,
+    color: "#5A5A5A",
     fontSize: 12,
     fontWeight: "600",
   },
   songDuration: {
-    color: "#777777",
+    color: "#5A5A5A",
     fontSize: 12,
     marginRight: 8,
   },
   removeBtn: {
     padding: 6,
   },
+
   emptyContainer: {
     alignItems: "center",
     justifyContent: "center",
@@ -313,13 +328,14 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "600",
-    marginTop: 10,
+    fontSize: 16,
+    fontWeight: "800",
+    letterSpacing: -0.3,
+    marginTop: 12,
   },
   emptySubtext: {
-    color: "#777777",
-    fontSize: 12,
+    color: "#5A5A5A",
+    fontSize: 13,
     textAlign: "center",
     marginTop: 4,
     paddingHorizontal: 30,
