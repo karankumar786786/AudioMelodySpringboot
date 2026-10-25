@@ -12,6 +12,7 @@ import {
   setIsLoading,
   setIsPlaying,
   setCurrentSong,
+  setSleepTimer,
 } from "@/store/playerSlice";
 
 class AudioPlayerService {
@@ -75,6 +76,14 @@ class AudioPlayerService {
     if (status.didJustFinish) {
       console.log("[AudioPlayerService] Track finished playback. Determining next action...");
       const state = store.getState();
+      const sleepTimer = state.player.sleepTimer;
+      if (sleepTimer === -1) {
+        console.log("[AudioPlayerService] Sleep timer reached (End of track). Pausing playback.");
+        this.pause();
+        store.dispatch(setSleepTimer(null));
+        return;
+      }
+
       const repeatMode: RepeatMode = state.queue.repeatMode;
 
       if (repeatMode === "one" && this.player) {
@@ -122,6 +131,13 @@ class AudioPlayerService {
         await this.player.seekTo(startTime);
       }
 
+      const savedRate = store.getState().player.playbackRate;
+      if (typeof savedRate === "number" && savedRate > 0) {
+        if (typeof (this.player as any).setPlaybackRate === "function") {
+          (this.player as any).setPlaybackRate(savedRate);
+        }
+      }
+
       this.player.play();
       store.dispatch(setIsPlaying(true));
       store.dispatch(setIsLoading(false));
@@ -166,9 +182,27 @@ class AudioPlayerService {
     this.player.volume = safeVol;
   }
 
+  private sleepTimerTimeout: any = null;
+
   setPlaybackRate(rate: number): void {
     if (!this.player) return;
-    this.player.playbackRate = rate;
+    if (typeof (this.player as any).setPlaybackRate === "function") {
+      (this.player as any).setPlaybackRate(rate);
+    }
+  }
+
+  setSleepTimer(minutes: number | null): void {
+    if (this.sleepTimerTimeout) {
+      clearTimeout(this.sleepTimerTimeout);
+      this.sleepTimerTimeout = null;
+    }
+    if (typeof minutes === "number" && minutes > 0) {
+      this.sleepTimerTimeout = setTimeout(() => {
+        console.log(`[AudioPlayerService] Sleep timer finished (${minutes}m). Pausing.`);
+        this.pause();
+        store.dispatch(setSleepTimer(null));
+      }, minutes * 60 * 1000);
+    }
   }
 
   getCurrentTime(): number {

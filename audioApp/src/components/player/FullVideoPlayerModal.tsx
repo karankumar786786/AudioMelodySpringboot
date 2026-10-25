@@ -13,8 +13,10 @@ import {
 import { useVideoPlayer, VideoView } from "expo-video";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { Ionicons } from "@expo/vector-icons";
+import { store } from "@/store/hook";
 import { audioPlayerService } from "@/service/audioPlayerService";
 import { formatDuration } from "@/utils/formatUtils";
+import { PlayerSettingsModal } from "./PlayerSettingsModal";
 
 interface FullVideoPlayerModalProps {
   visible: boolean;
@@ -24,6 +26,16 @@ interface FullVideoPlayerModalProps {
   artistName: string;
   onClose: (finalTimestamp: number) => void;
 }
+
+const applyRate = (targetPlayer: any, rate: number) => {
+  try {
+    if (typeof targetPlayer?.setPlaybackRate === "function") {
+      targetPlayer.setPlaybackRate(rate);
+    } else if (targetPlayer) {
+      targetPlayer.playbackRate = rate;
+    }
+  } catch {}
+};
 
 export function FullVideoPlayerModal({
   visible,
@@ -42,6 +54,7 @@ export function FullVideoPlayerModal({
   const [isBuffering, setIsBuffering] = useState(true);
   const [progressBarWidth, setProgressBarWidth] = useState(1);
   const [showControls, setShowControls] = useState(true);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const currentTimeRef = useRef(initialTime);
 
   // Enable auto-rotation when video modal opens, restore portrait lock when closed
@@ -60,6 +73,8 @@ export function FullVideoPlayerModal({
   const player = useVideoPlayer(visible && videoStreamUrl ? videoStreamUrl : "", (p) => {
     p.loop = false;
     p.muted = false;
+    const savedRate = store.getState().player.playbackRate || 1;
+    applyRate(p, savedRate);
     if (visible) {
       if (initialTime > 0) {
         p.currentTime = initialTime;
@@ -84,6 +99,8 @@ export function FullVideoPlayerModal({
     if (player) {
       player.loop = false;
       player.muted = false;
+      const savedRate = store.getState().player.playbackRate || 1;
+      applyRate(player, savedRate);
       if (initialTime > 0) {
         player.currentTime = initialTime;
       }
@@ -198,18 +215,29 @@ export function FullVideoPlayerModal({
               </Text>
             </View>
 
-            <TouchableOpacity
-              style={styles.iconCircleBtn}
-              hitSlop={14}
-              onPress={handleToggleOrientation}
-              activeOpacity={0.75}
-            >
-              <Ionicons
-                name={isLandscape ? "phone-portrait-outline" : "phone-landscape-outline"}
-                size={20}
-                color="#FFFFFF"
-              />
-            </TouchableOpacity>
+            <View style={styles.headerRightActions}>
+              <TouchableOpacity
+                style={styles.iconCircleBtn}
+                hitSlop={14}
+                onPress={() => setIsSettingsOpen(true)}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.iconCircleBtn}
+                hitSlop={14}
+                onPress={handleToggleOrientation}
+                activeOpacity={0.75}
+              >
+                <Ionicons
+                  name={isLandscape ? "phone-portrait-outline" : "phone-landscape-outline"}
+                  size={20}
+                  color="#FFFFFF"
+                />
+              </TouchableOpacity>
+            </View>
           </View>
         ) : null}
 
@@ -299,6 +327,17 @@ export function FullVideoPlayerModal({
             </View>
           </View>
         ) : null}
+
+        {/* Playback Settings Modal */}
+        <PlayerSettingsModal
+          visible={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          mode="video"
+          useNativeModal={false}
+          onSpeedChange={(rate) => {
+            applyRate(player, rate);
+          }}
+        />
       </View>
     </Modal>
   );
@@ -331,6 +370,11 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === "ios" ? 20 : 12,
     paddingHorizontal: 32,
     backgroundColor: "rgba(0, 0, 0, 0.65)",
+  },
+  headerRightActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   iconCircleBtn: {
     width: 38,

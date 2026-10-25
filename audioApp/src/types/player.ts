@@ -32,6 +32,9 @@ export interface QueueState {
   radioSession: RadioSession;
 }
 
+export type VideoQuality = "auto" | "1080p" | "720p" | "480p" | "360p";
+export type AudioQuality = "auto" | "lossless" | "high" | "standard";
+
 export interface PlayerState {
   currentSong: PlayerSong | null;
   isPlaying: boolean;
@@ -42,7 +45,11 @@ export interface PlayerState {
   seekTarget: number | null;
   volume: number; // 0.0 to 1.0
   isMuted: boolean;
-  playbackRate: number;
+  playbackRate: number; // default: 1 (1x)
+  selectedQuality: VideoQuality; // default: "auto"
+  audioQuality: AudioQuality; // default: "auto"
+  sleepTimer: number | null; // in minutes, null = off
   dominantColor: string;
   playbackMode: PlaybackMode;
 }
+

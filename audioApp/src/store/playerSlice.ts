@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { PlayerSong, PlayerState, PlaybackMode } from "@/types";
+import { PlayerSong, PlayerState, PlaybackMode, VideoQuality, AudioQuality } from "@/types";
 
 const initialState: PlayerState = {
   currentSong: null,
@@ -12,6 +12,9 @@ const initialState: PlayerState = {
   volume: 1,
   isMuted: false,
   playbackRate: 1,
+  selectedQuality: "auto",
+  audioQuality: "auto",
+  sleepTimer: null,
   dominantColor: "#1A1A1A",
   playbackMode: "audio",
 };
@@ -58,6 +61,15 @@ export const playerSlice = createSlice({
     setPlaybackRate: (state, action: PayloadAction<number>) => {
       state.playbackRate = action.payload;
     },
+    setSelectedQuality: (state, action: PayloadAction<VideoQuality>) => {
+      state.selectedQuality = action.payload;
+    },
+    setAudioQuality: (state, action: PayloadAction<AudioQuality>) => {
+      state.audioQuality = action.payload;
+    },
+    setSleepTimer: (state, action: PayloadAction<number | null>) => {
+      state.sleepTimer = action.payload;
+    },
     setDominantColor: (state, action: PayloadAction<string>) => {
       state.dominantColor = action.payload;
     },
@@ -89,9 +101,13 @@ export const {
   setVolume,
   setIsMuted,
   setPlaybackRate,
+  setSelectedQuality,
+  setAudioQuality,
+  setSleepTimer,
   setDominantColor,
   setPlaybackMode,
   resetPlayer,
 } = playerSlice.actions;
 
 export default playerSlice.reducer;
+

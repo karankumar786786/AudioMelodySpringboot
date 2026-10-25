@@ -27,6 +27,7 @@ import { toggleShuffle, toggleRepeat } from "@/store/queueSlice";
 import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
 import { QueueModal } from "@/components/player/QueueModal";
 import { FullVideoPlayerModal } from "@/components/player/FullVideoPlayerModal";
+import { PlayerSettingsModal } from "@/components/player/PlayerSettingsModal";
 import { formatDuration, formatStreams } from "@/utils/formatUtils";
 import { getImageUrl } from "@/utils/imageUtils";
 import { S3_BASE_URL } from "@/utils/playerUtils";
@@ -43,6 +44,7 @@ export default function SongDetailScreen() {
 
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("canvas");
   const [isLiked, setIsLiked] = useState(false);
 
@@ -293,21 +295,32 @@ export default function SongDetailScreen() {
             </Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.topBarCircleBtn}
-            hitSlop={14}
-            onPress={() => setIsQueueOpen(true)}
-            activeOpacity={0.75}
-          >
-            <Ionicons name="list" size={22} color="#FFFFFF" />
-            {upcomingCount > 0 ? (
-              <View style={styles.queueCounterBadge}>
-                <Text style={styles.queueCounterText}>
-                  {upcomingCount > 9 ? "9+" : upcomingCount}
-                </Text>
-              </View>
-            ) : null}
-          </TouchableOpacity>
+          <View style={styles.topBarRightActions}>
+            <TouchableOpacity
+              style={styles.topBarCircleBtn}
+              hitSlop={14}
+              onPress={() => setIsSettingsOpen(true)}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.topBarCircleBtn}
+              hitSlop={14}
+              onPress={() => setIsQueueOpen(true)}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="list" size={22} color="#FFFFFF" />
+              {upcomingCount > 0 ? (
+                <View style={styles.queueCounterBadge}>
+                  <Text style={styles.queueCounterText}>
+                    {upcomingCount > 9 ? "9+" : upcomingCount}
+                  </Text>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* 3. Center Stage: Canvas / Artwork */}
@@ -540,6 +553,14 @@ export default function SongDetailScreen() {
           onClose={() => setIsQueueOpen(false)}
         />
 
+        {/* Playback Settings Modal */}
+        <PlayerSettingsModal
+          visible={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          mode="audio"
+          onSpeedChange={(rate) => audioPlayerService.setPlaybackRate(rate)}
+        />
+
         {/* Full Video Modal: only mounted when explicitly opened by user */}
         {isVideoModalOpen && activeSong.fullVideoKey ? (
           <FullVideoPlayerModal
@@ -646,6 +667,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     position: "relative",
+  },
+  topBarRightActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
   },
   queueCounterBadge: {
     position: "absolute",
