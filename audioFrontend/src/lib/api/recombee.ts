@@ -70,9 +70,39 @@ export async function hydrateRecommendedSongs(
   }
 }
 
+export function mapRecombeeHit(hit: any): Song {
+  const vals = hit.values || {};
+  return {
+    id: String(hit.id || vals.id || ""),
+    title: vals.title || "",
+    artistName: vals.artistName || "",
+    duration: typeof vals.duration === "number" ? vals.duration : 0,
+    songKey: vals.songKey || "",
+    imageKey: vals.imageKey || "",
+    videoKey: vals.videoKey || null,
+    fullVideoKey: vals.fullVideoKey || null,
+    previewStartTime:
+      typeof vals.previewStartTime === "number"
+        ? vals.previewStartTime
+        : undefined,
+    previewEndTime:
+      typeof vals.previewEndTime === "number" ? vals.previewEndTime : undefined,
+    album: vals.album || null,
+    genre: vals.genre || null,
+    language: vals.language || "",
+    lrclibId: vals.lrclibId || "",
+    isFeatured: Boolean(vals.isFeatured),
+    status: vals.status || "ACTIVE",
+    jobId: vals.jobId || null,
+    createdAt: vals.createdAt || "",
+    totalStreams:
+      typeof vals.totalStreams === "number" ? vals.totalStreams : 0,
+  };
+}
+
 export const recombeeApi = {
   /**
-   * Recommend items directly to a user from Recombee, hydrated via Algolia.
+   * Recommend items directly to a user from Recombee with rich metadata.
    */
   recommendItemsToUser: async (
     targetUserId?: string,
@@ -93,9 +123,16 @@ export const recombeeApi = {
       );
 
       const recomms = response?.recomms || [];
-      const songIds = recomms.map((r: any) => r.id);
-      if (songIds.length === 0) return null;
+      if (recomms.length === 0) return null;
 
+      // Direct hydration if Recombee returned metadata properties
+      const direct = recomms
+        .filter((r: any) => r.values && r.values.title && r.values.songKey)
+        .map(mapRecombeeHit);
+      if (direct.length > 0) return direct;
+
+      // Fallback: Hydrate via Algolia only if values are absent
+      const songIds = recomms.map((r: any) => r.id);
       const hydrated = await hydrateRecommendedSongs(songIds);
       return hydrated.length > 0 ? hydrated : null;
     } catch (err) {
@@ -105,7 +142,7 @@ export const recombeeApi = {
   },
 
   /**
-   * Recommend similar items directly from Recombee, hydrated via Algolia.
+   * Recommend similar items directly from Recombee with rich metadata.
    */
   recommendSimilarSongs: async (
     songId: string,
@@ -127,9 +164,15 @@ export const recombeeApi = {
       );
 
       const recomms = response?.recomms || [];
-      const songIds = recomms.map((r: any) => r.id);
-      if (songIds.length === 0) return null;
+      if (recomms.length === 0) return null;
 
+      // Direct hydration if Recombee returned metadata properties
+      const direct = recomms
+        .filter((r: any) => r.values && r.values.title && r.values.songKey)
+        .map(mapRecombeeHit);
+      if (direct.length > 0) return direct;
+
+      const songIds = recomms.map((r: any) => r.id);
       const hydrated = await hydrateRecommendedSongs(songIds);
       return hydrated.length > 0 ? hydrated : null;
     } catch (err) {
@@ -139,7 +182,7 @@ export const recombeeApi = {
   },
 
   /**
-   * Recommend radio songs based on a seed song, excluding history.
+   * Recommend radio songs based on a seed song, excluding history, with rich metadata.
    */
   recommendRadioSongs: async (
     seedSongId: string,
@@ -164,13 +207,19 @@ export const recombeeApi = {
       );
 
       const recomms = response?.recomms || [];
-      const songIds = recomms
-        .map((r: any) => r.id)
-        .filter((id: string) => !excludeSet.has(id))
+      const filtered = recomms
+        .filter((r: any) => !excludeSet.has(r.id))
         .slice(0, count);
 
-      if (songIds.length === 0) return null;
+      if (filtered.length === 0) return null;
 
+      // Direct hydration if Recombee returned metadata properties
+      const direct = filtered
+        .filter((r: any) => r.values && r.values.title && r.values.songKey)
+        .map(mapRecombeeHit);
+      if (direct.length > 0) return direct;
+
+      const songIds = filtered.map((r: any) => r.id);
       const hydrated = await hydrateRecommendedSongs(songIds);
       return hydrated.length > 0 ? hydrated : null;
     } catch (err) {

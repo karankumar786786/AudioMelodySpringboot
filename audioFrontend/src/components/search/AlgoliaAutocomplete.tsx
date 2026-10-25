@@ -470,15 +470,26 @@ export function AlgoliaAutocomplete({
       genre: songItem.genre || null,
       language: songItem.language || "",
       lrclibId: songItem.lrclibId || "",
-      imageKey: songItem.imageKey || "",
+      imageKey: songItem.imageKey || songItem.coverImageKey || "",
       songKey: songItem.songKey || "",
+      videoKey: songItem.videoKey || null,
+      fullVideoKey: songItem.fullVideoKey || null,
+      previewStartTime:
+        typeof songItem.previewStartTime === "number"
+          ? songItem.previewStartTime
+          : undefined,
+      previewEndTime:
+        typeof songItem.previewEndTime === "number"
+          ? songItem.previewEndTime
+          : undefined,
       duration: Number(songItem.duration || 0),
-      status: "ACTIVE",
-      totalStreams: Number(songItem.totalStreams || 0),
-      createdAt: "",
+      isFeatured: Boolean(songItem.isFeatured),
+      status: songItem.status || "ACTIVE",
+      totalStreams: Number(songItem.totalStreams || songItem.listenCount || 0),
+      createdAt: songItem.createdAt || "",
     };
 
-    if (songToPlay.id) {
+    if (!songToPlay.songKey && songToPlay.id) {
       try {
         const res = await musicApi.songs.getById(songToPlay.id);
         if (res?.data) {

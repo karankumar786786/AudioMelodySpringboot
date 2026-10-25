@@ -41,6 +41,7 @@ export function mapSongHit(hit: any): Song {
     songKey: hit.songKey || "",
     imageKey: hit.imageKey || hit.coverImageKey || "",
     videoKey: hit.videoKey || null,
+    fullVideoKey: hit.fullVideoKey || null,
     previewStartTime:
       typeof hit.previewStartTime === "number"
         ? hit.previewStartTime
@@ -51,6 +52,10 @@ export function mapSongHit(hit: any): Song {
     genre: hit.genre || null,
     language: hit.language || "",
     lrclibId: hit.lrclibId || "",
+    isFeatured: Boolean(hit.isFeatured),
+    status: hit.status || "ACTIVE",
+    jobId: hit.jobId || null,
+    createdAt: hit.createdAt || "",
     totalStreams:
       typeof hit.totalStreams === "number"
         ? hit.totalStreams

@@ -211,9 +211,9 @@ export const queueActions = {
       };
     });
 
-    // Authoritative hydration: fetch complete, up-to-date song detail from DB (PostgreSQL)
+    // Fallback hydration: only fetch from DB if missing songKey
     let effectiveSong = initialSong;
-    if (seedSong.id) {
+    if (!seedSong.songKey && seedSong.id) {
       try {
         const res = await musicApi.songs.getById(seedSong.id);
         if (res?.data) {

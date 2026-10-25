@@ -78,8 +78,7 @@ export function AppNavbar() {
     previewPlayer.stopPreview(true);
     let songToPlay: Song = song;
 
-    // Always fetch fresh authoritative song details from the backend DB when clicked from search
-    if (song.id) {
+    if (!song.songKey && song.id) {
       try {
         const res = await musicApi.songs.getById(song.id);
         if (res?.data) {

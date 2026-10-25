@@ -104,7 +104,7 @@ export function QuickPicksGrid({
             playerActions.setIsPlaying(!isPlaying);
           } else {
             let songToPlay = song;
-            if (song.id) {
+            if (!song.songKey && song.id) {
               try {
                 const res = await musicApi.songs.getById(song.id);
                 if (res?.data) {
@@ -124,7 +124,7 @@ export function QuickPicksGrid({
             playerActions.setIsPlaying(!isPlaying);
           } else {
             let songToPlay = song;
-            if (song.id) {
+            if (!song.songKey && song.id) {
               try {
                 const res = await musicApi.songs.getById(song.id);
                 if (res?.data) {
