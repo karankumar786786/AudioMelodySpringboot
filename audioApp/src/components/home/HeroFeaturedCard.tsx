@@ -43,26 +43,7 @@ export function HeroFeaturedCard({
         locations={[0, 0.4, 1]}
         style={StyleSheet.absoluteFill}
       />
-
-      {/* Badges pinned to top */}
-      <View style={styles.topBadgesRow}>
-        <View style={styles.featuredBadge}>
-          <Text style={styles.featuredBadgeText}>FEATURED</Text>
-        </View>
-        {song.videoKey ? (
-          <View style={styles.canvasBadge}>
-            <Ionicons
-              name="videocam"
-              size={11}
-              color="#FFFFFF"
-              style={{ marginRight: 3 }}
-            />
-            <Text style={styles.canvasBadgeText}>CANVAS</Text>
-          </View>
-        ) : null}
-      </View>
-
-      {/* Bottom Content: Title, Artist and Spotify Green Play Button */}
+      {/* Bottom Content: Title and Artist */}
       <View style={styles.content}>
         <View style={styles.metaInfo}>
           <Text style={styles.title} numberOfLines={1}>
@@ -71,17 +52,6 @@ export function HeroFeaturedCard({
           <Text style={styles.artist} numberOfLines={1}>
             {song.artistName}
           </Text>
-        </View>
-
-        <View style={styles.playButtonContainer}>
-          <View style={styles.playButton}>
-            <Ionicons
-              name="play"
-              size={20}
-              color="#000000"
-              style={{ marginLeft: 2 }}
-            />
-          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -157,7 +127,6 @@ const styles = StyleSheet.create({
   },
   metaInfo: {
     flex: 1,
-    paddingRight: 14,
   },
   title: {
     color: "#FFFFFF",
@@ -173,23 +142,6 @@ const styles = StyleSheet.create({
     color: "rgba(255, 255, 255, 0.82)",
     fontSize: 13.5,
     fontWeight: "600",
-  },
-  playButtonContainer: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  playButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#FFFFFF",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.75,
-    shadowRadius: 10,
-    elevation: 6,
   },
 });
 

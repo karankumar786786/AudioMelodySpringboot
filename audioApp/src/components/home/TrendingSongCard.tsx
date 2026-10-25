@@ -37,9 +37,6 @@ export function TrendingSongCard({ song, onPress }: TrendingSongCardProps) {
           </View>
         )}
 
-        <View style={styles.playOverlay}>
-          <Ionicons name="play" size={15} color="#000000" style={{ marginLeft: 2 }} />
-        </View>
       </View>
 
       <Text style={styles.title} numberOfLines={1}>
@@ -90,22 +87,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#202020",
   },
-  playOverlay: {
-    position: "absolute",
-    right: 8,
-    bottom: 8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#FFFFFF",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.75,
-    shadowRadius: 8,
-    elevation: 5,
-  },
+
   title: {
     color: "#FFFFFF",
     fontSize: 14,
