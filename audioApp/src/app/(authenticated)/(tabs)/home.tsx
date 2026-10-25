@@ -17,7 +17,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { AppDispatch, AppState, loadUserProfile } from "@/store";
-import { playAllFrom } from "@/store/queueActions";
+import { playWithSimilarSongs } from "@/store/queueActions";
 import { homeService } from "@/service";
 import { SectionHeader } from "@/components/home/SectionHeader";
 import { FeaturedSongsCarousel } from "@/components/home/FeaturedSongsCarousel";
@@ -232,8 +232,7 @@ export default function HomeScreen() {
                 <FeaturedSongsCarousel
                   songs={featuredSongs}
                   onSongPress={(song) => {
-                    const idx = featuredSongs.findIndex((s) => s.id === song.id);
-                    dispatch(playAllFrom(featuredSongs, idx !== -1 ? idx : 0));
+                    dispatch(playWithSimilarSongs(song));
                     router.push(`/song/${song.id}`);
                   }}
                 />
@@ -258,8 +257,7 @@ export default function HomeScreen() {
                     <TrendingSongCard
                       song={item}
                       onPress={() => {
-                        const idx = trendingSongs.findIndex((s) => s.id === item.id);
-                        dispatch(playAllFrom(trendingSongs, idx !== -1 ? idx : 0));
+                        dispatch(playWithSimilarSongs(item));
                         router.push(`/song/${item.id}`);
                       }}
                     />
@@ -335,8 +333,7 @@ export default function HomeScreen() {
                       isActive={isActive}
                       isPlaying={isActive && isPlaying}
                       onPress={() => {
-                        const songIdx = allSongs.findIndex((s) => s.id === song.id);
-                        dispatch(playAllFrom(allSongs, songIdx !== -1 ? songIdx : index));
+                        dispatch(playWithSimilarSongs(song));
                         router.push(`/song/${song.id}`);
                       }}
                     />

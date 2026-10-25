@@ -17,7 +17,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 
 import { AppDispatch, AppState } from "@/store";
-import { playAll, playAllFrom } from "@/store/queueActions";
+import { playAll, playWithSimilarSongs } from "@/store/queueActions";
 import { audioPlayerService } from "@/service/audioPlayerService";
 import { favouriteService } from "@/service";
 import { Song } from "@/types";
@@ -74,8 +74,7 @@ export default function FavouritesScreen() {
 
   // Handlers
   const handleSongPress = (song: Song) => {
-    const idx = allSongs.findIndex((s) => s.id === song.id);
-    dispatch(playAllFrom(allSongs, idx !== -1 ? idx : 0));
+    dispatch(playWithSimilarSongs(song));
     router.push({
       pathname: "/(authenticated)/song/[id]",
       params: { id: song.id },

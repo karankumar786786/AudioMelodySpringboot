@@ -20,7 +20,7 @@ import {
 } from "@tanstack/react-query";
 
 import { AppDispatch } from "@/store";
-import { playAllFrom, playSong } from "@/store/queueActions";
+import { playWithSimilarSongs } from "@/store/queueActions";
 import { searchService } from "@/service";
 import {
   Song,
@@ -134,12 +134,7 @@ export default function SearchScreen() {
     searchService.saveSearchHistory({ type: "SONG", songId: song.id });
     searchService.trackSearchPlay(song.id);
     queryClient.invalidateQueries({ queryKey: ["search-history"] });
-    const idx = songs.findIndex((s) => s.id === song.id);
-    if (idx !== -1 && songs.length > 0) {
-      dispatch(playAllFrom(songs, idx));
-    } else {
-      dispatch(playSong(song));
-    }
+    dispatch(playWithSimilarSongs(song));
     router.push({
       pathname: "/(authenticated)/song/[id]",
       params: { id: song.id },

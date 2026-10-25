@@ -12,9 +12,12 @@ import {
   advanceToNextTrack,
   retreatToPrevTrack,
   setIsRefilling,
+  startRadioSession,
+  endRadioSession,
 } from "./queueSlice";
 import { audioPlayerService } from "@/service/audioPlayerService";
 import { homeService } from "@/service/homeService";
+import { recombeeService } from "@/service/recombeeService";
 
 let inFlightRefillPromise: Promise<void> | null = null;
 
@@ -51,6 +54,7 @@ export const playAll =
       queueToPlay = first ? [first, ...shuffleArray(rest)] : mapped;
     }
 
+    dispatch(endRadioSession());
     dispatch(setQueue({ queue: queueToPlay, index: 0 }));
 
     if (startPlaying && queueToPlay[0]) {
@@ -118,11 +122,14 @@ export const playAllFrom =
   };
 
 /**
- * Play an individual song immediately.
+ * Play a clicked song immediately and populate the queue with similar songs
+ * directly from Recombee (replacing the previous queue, NOT loading subsequent list songs).
  */
-export const playSong =
+export const playWithSimilarSongs =
   (song: Song | PlayerSong) =>
   async (dispatch: AppDispatch, getState: () => AppState) => {
+    if (!song) return;
+
     const { currentSong, isPlaying } = getState().player;
     if (currentSong?.id === song.id) {
       if (isPlaying) {
@@ -133,27 +140,51 @@ export const playSong =
       return;
     }
 
-    const state = getState().queue;
     const mapped = mapToPlayerSong(song);
 
-    // Check if song already exists in upcoming or queue
-    let idx = state.queue.findIndex(
-      (item) => item.queueId === mapped.queueId || item.id === mapped.id,
+    // 1. Immediately initialize queue with ONLY the clicked song at index 0
+    dispatch(setQueue({ queue: [mapped], index: 0 }));
+    dispatch(
+      startRadioSession({ seedSongId: song.id, seedTitle: song.title })
     );
 
-    if (idx !== -1 && state.queue[idx]) {
-      dispatch(setQueue({ queue: state.queue, index: idx }));
-      await audioPlayerService.play(state.queue[idx]);
-    } else {
-      // Insert right after current song
-      dispatch(playNextReducer(mapped));
-      const nextIndex = Math.max(0, state.lastQueueIndex + 1);
-      const updatedQueue = getState().queue.queue;
-      const targetSong = updatedQueue[nextIndex] || mapped;
-      dispatch(setQueue({ queue: updatedQueue, index: nextIndex }));
-      await audioPlayerService.play(targetSong);
+    // 2. Start audio playback instantly without waiting for network recommendations
+    await audioPlayerService.play(mapped);
+
+    // 3. Asynchronously fetch similar songs directly from Recombee based on clicked song ID
+    try {
+      const state = getState();
+      const user =
+        state.user.profile?.id || state.device.deviceId || "anonymous";
+      const similarSongs = await recombeeService.getSimilarSongs(
+        song.id,
+        15,
+        user
+      );
+
+      const dislikedSet = new Set(getState().queue.dislikedSongIds);
+      const filteredSimilar = similarSongs
+        .filter((s) => s.id !== song.id && !dislikedSet.has(s.id))
+        .map((s) => mapToPlayerSong(s));
+
+      if (filteredSimilar.length > 0) {
+        dispatch(addToQueue(filteredSimilar));
+        console.log(
+          `[Queue] Added ${filteredSimilar.length} similar songs from Recombee for "${song.title}"`
+        );
+      }
+    } catch (err) {
+      console.warn(
+        "[Queue] Failed to load Recombee recommendations for clicked song:",
+        err
+      );
     }
   };
+
+/**
+ * Play an individual song immediately with Recombee recommendations.
+ */
+export const playSong = playWithSimilarSongs;
 
 /**
  * Enqueue a song to play immediately after the currently playing song.
@@ -253,14 +284,15 @@ export const prevTrack =
   };
 
 /**
- * Autoplay recommendation engine: refills upcoming queue when low.
+ * Autoplay recommendation engine: refills upcoming queue with similar songs from Recombee when low.
  */
 export const refillQueue =
   (isInit = false) =>
   async (dispatch: AppDispatch, getState: () => AppState): Promise<void> => {
     if (inFlightRefillPromise) return inFlightRefillPromise;
 
-    const { queue, lastQueueIndex, isRefilling, dislikedSongIds } = getState().queue;
+    const { queue, lastQueueIndex, dislikedSongIds, radioSession } =
+      getState().queue;
     const remaining = queue.length - (lastQueueIndex + 1);
 
     if (!isInit && remaining > 3) {
@@ -270,23 +302,44 @@ export const refillQueue =
     inFlightRefillPromise = (async () => {
       try {
         dispatch(setIsRefilling(true));
-        console.log(`[Queue Refill] Fetching recommendations / trending tracks for upcoming queue...`);
+        const currentSong = getState().player.currentSong;
+        const seedId = radioSession?.seedSongId || currentSong?.id;
+        const user =
+          getState().user.profile?.id || getState().device.deviceId || "anonymous";
 
-        const trending = await homeService.getTrendingSongs(15);
-        if (!trending || trending.length === 0) return;
+        console.log(
+          `[Queue Refill] Fetching recommendations directly from Recombee (Seed: ${seedId})...`
+        );
+
+        let freshSongs: Song[] = [];
+        if (seedId) {
+          const excludeIds = queue.map((s) => s.id);
+          freshSongs = await recombeeService.getRadioSongs(
+            seedId,
+            excludeIds,
+            12,
+            user
+          );
+        }
+
+        if (!freshSongs || freshSongs.length === 0) {
+          const trending = await homeService.getTrendingSongs(15);
+          freshSongs = trending || [];
+        }
 
         const dislikedSet = new Set(dislikedSongIds);
         const existingIds = new Set(queue.map((s) => s.id));
 
         // Filter out already enqueued and disliked songs
-        const freshSongs = trending.filter(
-          (s) => !existingIds.has(s.id) && !dislikedSet.has(s.id),
-        );
+        const freshMapped = freshSongs
+          .filter((s) => !existingIds.has(s.id) && !dislikedSet.has(s.id))
+          .map((s) => mapToPlayerSong(s));
 
-        if (freshSongs.length > 0) {
-          const mapped = freshSongs.map((s) => mapToPlayerSong(s));
-          dispatch(addToQueue(mapped));
-          console.log(`[Queue Refill] Successfully appended ${mapped.length} new tracks to queue.`);
+        if (freshMapped.length > 0) {
+          dispatch(addToQueue(freshMapped));
+          console.log(
+            `[Queue Refill] Successfully appended ${freshMapped.length} new Recombee tracks to queue.`
+          );
         }
       } catch (err) {
         console.warn("[Queue Refill] Failed to fetch autoplay tracks:", err);

@@ -8,3 +8,4 @@ export * from "./artistService";
 export * from "./playlistService";
 export * from "./audioPlayerService";
 export * from "./songInfoService";
+export * from "./recombeeService";

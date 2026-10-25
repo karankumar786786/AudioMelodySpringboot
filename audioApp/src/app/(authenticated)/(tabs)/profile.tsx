@@ -33,6 +33,15 @@ import {
 } from "@/service";
 import { UserSession } from "@/types";
 
+const C = {
+  black: "#000000",
+  white: "#FFFFFF",
+  line: "#1F1F1F",
+  muted: "#8A8A8A",
+  dim: "#5A5A5A",
+  field: "#141414",
+};
+
 export default function ProfileScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
@@ -46,12 +55,12 @@ export default function ProfileScreen() {
   const [newUsername, setNewUsername] = useState("");
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const data = userState.profile;
   const isLoading = userState.isLoading && !data;
   const error = userState.error;
 
-  // Sync profile on mount if not loaded
   React.useEffect(() => {
     if (!data) {
       dispatch(loadUserProfile());
@@ -60,7 +69,6 @@ export default function ProfileScreen() {
     }
   }, [data, dispatch]);
 
-  // 1. Fetch User Sessions (Active Devices)
   const {
     data: sessions = [],
     isLoading: isSessionsLoading,
@@ -72,21 +80,13 @@ export default function ProfileScreen() {
     staleTime: 60 * 1000,
   });
 
-  // 2. Fetch Liked Songs count
-  const {
-    data: favouritesData,
-    refetch: refetchFavourites,
-  } = useQuery({
+  const { data: favouritesData, refetch: refetchFavourites } = useQuery({
     queryKey: ["profile-favourites-count"],
     queryFn: () => favouriteService.getFavourites(0, 1),
     staleTime: 2 * 60 * 1000,
   });
 
-  // 3. Fetch User Playlists count
-  const {
-    data: playlistsData,
-    refetch: refetchPlaylists,
-  } = useQuery({
+  const { data: playlistsData, refetch: refetchPlaylists } = useQuery({
     queryKey: ["profile-playlists-count"],
     queryFn: () => playlistService.getUserPlaylists(0, 1),
     staleTime: 2 * 60 * 1000,
@@ -103,17 +103,23 @@ export default function ProfileScreen() {
     0;
 
   const handleRefresh = async () => {
-    await Promise.all([
-      dispatch(loadUserProfile()).unwrap(),
-      refetchSessions(),
-      refetchFavourites(),
-      refetchPlaylists(),
-    ]);
+    setIsRefreshing(true);
+    try {
+      await Promise.all([
+        dispatch(loadUserProfile()).unwrap(),
+        refetchSessions(),
+        refetchFavourites(),
+        refetchPlaylists(),
+      ]);
+    } catch (e) {
+      console.warn("Refresh error:", e);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleUpdateUsername = async () => {
     if (!newUsername.trim() || isUpdatingProfile) return;
-
     try {
       setIsUpdatingProfile(true);
       await userService.updateProfile({ userName: newUsername.trim() });
@@ -205,41 +211,40 @@ export default function ProfileScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#FFFFFF" />
-        <Text style={styles.loadingText}>Loading profile...</Text>
+      <SafeAreaView style={styles.center}>
+        <ActivityIndicator size="large" color={C.white} />
       </SafeAreaView>
     );
   }
 
   if (error || !data) {
     return (
-      <SafeAreaView style={styles.centerContainer}>
-        <Ionicons name="alert-circle-outline" size={56} color="#FF5252" />
-        <Text style={styles.errorTitle}>Failed to load profile</Text>
-        <Text style={styles.errorText}>{error || "Something went wrong"}</Text>
+      <SafeAreaView style={styles.center}>
+        <Ionicons name="alert-circle-outline" size={48} color={C.white} />
+        <Text style={styles.errorTitle}>Couldn’t load your profile</Text>
+        <Text style={styles.errorText}>{error || "Check your connection and try again."}</Text>
         <TouchableOpacity
-          style={styles.retryButton}
+          style={styles.solidButton}
           onPress={() => dispatch(loadUserProfile())}
-          activeOpacity={0.8}
+          activeOpacity={0.85}
         >
-          <Ionicons name="refresh" size={18} color="#000000" style={{ marginRight: 6 }} />
-          <Text style={styles.retryButtonText}>Retry</Text>
+          <Text style={styles.solidButtonText}>Try again</Text>
         </TouchableOpacity>
       </SafeAreaView>
     );
   }
 
   const initial = (data.userName || data.email || "U").charAt(0).toUpperCase();
-  const formattedDate = data.createdAt
+  const joined = data.createdAt
     ? new Date(data.createdAt).toLocaleDateString(undefined, {
         year: "numeric",
         month: "short",
         day: "numeric",
       })
-    : "N/A";
-
+    : "—";
   const otherSessions = sessions.filter((s) => !s.isCurrent);
+  const saveDisabled =
+    !newUsername.trim() || newUsername.trim() === data.userName || isUpdatingProfile;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -248,278 +253,170 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={userState.isLoading}
+            refreshing={isRefreshing}
             onRefresh={handleRefresh}
-            tintColor="#FFFFFF"
-            colors={["#FFFFFF"]}
+            tintColor={C.white}
+            colors={[C.white]}
+            progressBackgroundColor="#1A1A1A"
           />
         }
       >
-        {/* Top Header */}
-        <View style={styles.topBar}>
-          <Text style={styles.screenTitle}>My Profile</Text>
-          <TouchableOpacity
-            onPress={handleRefresh}
-            style={styles.iconButton}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="refresh-outline" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Profile Card / Avatar */}
-        <View style={styles.avatarCard}>
+        {/* Header */}
+        <View style={styles.header}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{initial}</Text>
           </View>
-          <Text style={styles.nameText}>{data.userName || "No Username"}</Text>
-          <Text style={styles.emailText}>{data.email}</Text>
-
-          <View style={styles.badgeRow}>
-            <View style={styles.activeBadge}>
-              <View style={styles.activeDot} />
-              <Text style={styles.activeBadgeText}>
-                {data.status === "ACTIVE" ? "Active Account" : data.status || "Authenticated"}
-              </Text>
-            </View>
-          </View>
+          <Text style={styles.name}>{data.userName || "No username"}</Text>
+          <Text style={styles.email}>{data.email}</Text>
 
           <TouchableOpacity
-            style={styles.editProfileButton}
+            style={styles.outlineButton}
             onPress={() => {
               setNewUsername(data.userName || "");
               setIsEditModalOpen(true);
             }}
             activeOpacity={0.8}
           >
-            <Ionicons name="pencil" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
-            <Text style={styles.editProfileButtonText}>Edit Username</Text>
+            <Text style={styles.outlineButtonText}>Edit profile</Text>
           </TouchableOpacity>
         </View>
 
-        {/* Quick Stats Grid */}
-        <View style={styles.statsRow}>
+        {/* Stats */}
+        <View style={styles.stats}>
           <TouchableOpacity
-            style={styles.statBox}
+            style={styles.stat}
             onPress={() => router.push("/(authenticated)/(tabs)/favourites")}
-            activeOpacity={0.75}
+            activeOpacity={0.7}
           >
-            <Ionicons name="heart" size={22} color="#E91E63" style={{ marginBottom: 4 }} />
             <Text style={styles.statNumber}>{totalLikedSongs}</Text>
-            <Text style={styles.statLabel}>Liked Songs</Text>
+            <Text style={styles.statLabel}>Liked songs</Text>
           </TouchableOpacity>
 
+          <View style={styles.statDivider} />
+
           <TouchableOpacity
-            style={styles.statBox}
+            style={styles.stat}
             onPress={() => router.push("/(authenticated)/(tabs)/userplaylists")}
-            activeOpacity={0.75}
+            activeOpacity={0.7}
           >
-            <Ionicons name="musical-notes" size={22} color="#FFFFFF" style={{ marginBottom: 4 }} />
             <Text style={styles.statNumber}>{totalPlaylists}</Text>
             <Text style={styles.statLabel}>Playlists</Text>
           </TouchableOpacity>
-
-          <View style={styles.statBox}>
-            <Ionicons name="calendar-outline" size={22} color="#10B981" style={{ marginBottom: 4 }} />
-            <Text style={styles.statNumberDate}>{formattedDate}</Text>
-            <Text style={styles.statLabel}>Joined</Text>
-          </View>
         </View>
 
-        {/* Account Information Card */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionHeader}>Account Information</Text>
+        {/* Account */}
+        <Text style={styles.sectionTitle}>Account</Text>
+        <Row label="Username" value={data.userName || "—"} />
+        <Row label="Email" value={data.email} />
+        <Row label="Member since" value={joined} />
+        <Row label="Role" value={data.role || "USER"} last />
 
-          <View style={styles.infoRow}>
-            <View style={styles.infoLabelGroup}>
-              <Ionicons name="person-outline" size={18} color="#888888" />
-              <Text style={styles.infoLabel}>Username</Text>
-            </View>
-            <Text style={styles.infoValue}>{data.userName || "N/A"}</Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.infoRow}>
-            <View style={styles.infoLabelGroup}>
-              <Ionicons name="mail-outline" size={18} color="#888888" />
-              <Text style={styles.infoLabel}>Email</Text>
-            </View>
-            <Text style={styles.infoValue}>{data.email}</Text>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.infoRow}>
-            <View style={styles.infoLabelGroup}>
-              <Ionicons name="shield-checkmark-outline" size={18} color="#888888" />
-              <Text style={styles.infoLabel}>Role</Text>
-            </View>
-            <View style={styles.roleBadge}>
-              <Text style={styles.roleBadgeText}>{data.role || "USER"}</Text>
-            </View>
-          </View>
-
-          <View style={styles.divider} />
-
-          <View style={styles.infoRow}>
-            <View style={styles.infoLabelGroup}>
-              <Ionicons name="finger-print-outline" size={18} color="#888888" />
-              <Text style={styles.infoLabel}>User ID</Text>
-            </View>
-            <Text style={styles.infoValueMuted} numberOfLines={1}>
-              {data.id}
-            </Text>
-          </View>
+        {/* Devices */}
+        <View style={styles.sectionHeaderRow}>
+          <Text style={styles.sectionTitle}>Devices</Text>
+          {otherSessions.length > 0 ? (
+            <TouchableOpacity onPress={handleRevokeOtherSessions} activeOpacity={0.7}>
+              <Text style={styles.link}>Log out others</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
 
-        {/* Active Sessions & Security */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionHeader}>Active Sessions & Security</Text>
-            {otherSessions.length > 0 ? (
-              <TouchableOpacity onPress={handleRevokeOtherSessions}>
-                <Text style={styles.revokeAllText}>Revoke Others</Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
-
-          {isSessionsLoading ? (
-            <ActivityIndicator size="small" color="#FFFFFF" style={{ marginVertical: 10 }} />
-          ) : sessions.length === 0 ? (
-            <Text style={styles.emptySessionText}>No session information available</Text>
-          ) : (
-            sessions.map((s, idx) => (
-              <React.Fragment key={s.id || idx}>
-                {idx > 0 ? <View style={styles.divider} /> : null}
-                <View style={styles.sessionRow}>
-                  <View style={styles.sessionIconBox}>
-                    <Ionicons
-                      name={s.isCurrent ? "phone-portrait" : "desktop-outline"}
-                      size={20}
-                      color={s.isCurrent ? "#FFFFFF" : "#888888"}
-                    />
-                  </View>
-                  <View style={styles.sessionDetails}>
-                    <View style={styles.sessionTitleRow}>
-                      <Text style={styles.deviceName} numberOfLines={1}>
-                        {s.deviceName || "Melody Client"}
-                      </Text>
-                      {s.isCurrent ? (
-                        <View style={styles.currentDevicePill}>
-                          <Text style={styles.currentDevicePillText}>This Device</Text>
-                        </View>
-                      ) : null}
-                    </View>
-                    <Text style={styles.sessionMeta}>
-                      {s.ipAddress || "Active"} •{" "}
-                      {s.lastActiveAt
-                        ? new Date(s.lastActiveAt).toLocaleDateString()
-                        : "Current Session"}
-                    </Text>
-                  </View>
-
-                  {!s.isCurrent ? (
-                    <TouchableOpacity
-                      style={styles.revokeSingleButton}
-                      onPress={() => handleRevokeSession(s)}
-                    >
-                      <Ionicons name="close" size={18} color="#FF5252" />
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
-              </React.Fragment>
-            ))
-          )}
-
-          <View style={styles.divider} />
-
-          {/* Secure Storage Info */}
-          <View style={styles.infoRow}>
-            <View style={styles.infoLabelGroup}>
-              <Ionicons name="lock-closed-outline" size={18} color="#888888" />
-              <Text style={styles.infoLabel}>Token Storage</Text>
+        {isSessionsLoading ? (
+          <ActivityIndicator size="small" color={C.white} style={{ marginVertical: 16 }} />
+        ) : sessions.length === 0 ? (
+          <Text style={styles.empty}>No devices to show</Text>
+        ) : (
+          sessions.map((s, idx) => (
+            <View
+              key={s.id || idx}
+              style={[styles.deviceRow, idx === sessions.length - 1 && styles.noBorder]}
+            >
+              <Ionicons
+                name={s.isCurrent ? "phone-portrait-outline" : "desktop-outline"}
+                size={22}
+                color={C.white}
+              />
+              <View style={styles.deviceInfo}>
+                <Text style={styles.deviceName} numberOfLines={1}>
+                  {s.deviceName || "Melody Client"}
+                  {s.isCurrent ? "  (this device)" : ""}
+                </Text>
+                <Text style={styles.deviceMeta} numberOfLines={1}>
+                  {s.lastActiveAt
+                    ? `Last active ${new Date(s.lastActiveAt).toLocaleDateString()}`
+                    : "Active now"}
+                </Text>
+              </View>
+              {!s.isCurrent ? (
+                <TouchableOpacity
+                  onPress={() => handleRevokeSession(s)}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  accessibilityLabel="Log out this device"
+                >
+                  <Ionicons name="close" size={20} color={C.muted} />
+                </TouchableOpacity>
+              ) : null}
             </View>
-            <Text style={styles.secureStorageText}>Expo SecureStore</Text>
-          </View>
-        </View>
+          ))
+        )}
 
-        {/* Log Out Action */}
+        {/* Log out */}
         <TouchableOpacity
-          style={[styles.logoutButton, isLoggingOut && styles.buttonDisabled]}
+          style={[styles.solidButton, styles.logout, isLoggingOut && styles.disabled]}
           onPress={handleLogout}
           disabled={isLoggingOut}
-          activeOpacity={0.82}
+          activeOpacity={0.85}
         >
           {isLoggingOut ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
+            <ActivityIndicator size="small" color={C.black} />
           ) : (
-            <>
-              <Ionicons
-                name="log-out-outline"
-                size={20}
-                color="#FFFFFF"
-                style={{ marginRight: 8 }}
-              />
-              <Text style={styles.logoutText}>Log Out</Text>
-            </>
+            <Text style={styles.solidButtonText}>Log out</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Edit Username Modal */}
+      {/* Edit username */}
       <Modal
         visible={isEditModalOpen}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setIsEditModalOpen(false)}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.modalBackdrop}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.backdrop}
         >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Update Username</Text>
-
+          <TouchableOpacity
+            style={styles.backdropTouch}
+            activeOpacity={1}
+            onPress={() => setIsEditModalOpen(false)}
+          />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Edit username</Text>
             <TextInput
-              style={styles.modalInput}
-              placeholder="Enter new username"
-              placeholderTextColor="#666666"
+              style={styles.input}
+              placeholder="Username"
+              placeholderTextColor={C.dim}
               value={newUsername}
               onChangeText={setNewUsername}
               autoFocus
               autoCapitalize="none"
               maxLength={30}
+              selectionColor={C.white}
             />
-
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.modalCancelButton}
-                onPress={() => setIsEditModalOpen(false)}
-              >
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.modalSubmitButton,
-                  (!newUsername.trim() || newUsername.trim() === data.userName) &&
-                    styles.buttonDisabled,
-                ]}
-                onPress={handleUpdateUsername}
-                disabled={
-                  !newUsername.trim() ||
-                  newUsername.trim() === data.userName ||
-                  isUpdatingProfile
-                }
-              >
-                {isUpdatingProfile ? (
-                  <ActivityIndicator size="small" color="#000000" />
-                ) : (
-                  <Text style={styles.modalSubmitText}>Save</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={[styles.solidButton, saveDisabled && styles.disabled]}
+              onPress={handleUpdateUsername}
+              disabled={saveDisabled}
+              activeOpacity={0.85}
+            >
+              {isUpdatingProfile ? (
+                <ActivityIndicator size="small" color={C.black} />
+              ) : (
+                <Text style={styles.solidButtonText}>Save</Text>
+              )}
+            </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -527,401 +424,157 @@ export default function ProfileScreen() {
   );
 }
 
+function Row({ label, value, last }: { label: string; value: string; last?: boolean }) {
+  return (
+    <View style={[styles.row, last && styles.noBorder]}>
+      <Text style={styles.rowLabel}>{label}</Text>
+      <Text style={styles.rowValue} numberOfLines={1}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  safeArea: {
+  safeArea: { flex: 1, backgroundColor: C.black },
+  container: { paddingHorizontal: 20, paddingBottom: 48, backgroundColor: C.black },
+  center: {
     flex: 1,
-    backgroundColor: "#121212",
-  },
-  container: {
-    padding: 16,
-    paddingBottom: 40,
-    backgroundColor: "#121212",
-  },
-  centerContainer: {
-    flex: 1,
-    backgroundColor: "#121212",
+    backgroundColor: C.black,
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
+    padding: 32,
   },
-  topBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  screenTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    letterSpacing: -0.5,
-  },
-  iconButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: "#1F1F1F",
-    borderWidth: 1,
-    borderColor: "#2A2A2A",
-  },
-  avatarCard: {
-    backgroundColor: "#1A1A1A",
-    borderRadius: 16,
-    padding: 22,
-    alignItems: "center",
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#282828",
-  },
+
+  /* Header */
+  header: { alignItems: "center", paddingTop: 28, paddingBottom: 24 },
   avatar: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    backgroundColor: "#FFFFFF",
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: C.white,
+    alignItems: "center",
     justifyContent: "center",
+    marginBottom: 16,
+  },
+  avatarText: { fontSize: 40, fontWeight: "700", color: C.black },
+  name: { fontSize: 24, fontWeight: "700", color: C.white, marginBottom: 4 },
+  email: { fontSize: 14, color: C.muted, marginBottom: 18 },
+
+  /* Buttons */
+  outlineButton: {
+    paddingHorizontal: 22,
+    paddingVertical: 9,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: C.white,
+  },
+  outlineButtonText: { color: C.white, fontSize: 14, fontWeight: "600" },
+  solidButton: {
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: C.white,
     alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 32,
+  },
+  solidButtonText: { color: C.black, fontSize: 16, fontWeight: "700" },
+  disabled: { opacity: 0.4 },
+
+  /* Stats */
+  stats: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 18,
     marginBottom: 12,
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 10,
-    elevation: 6,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: C.line,
   },
-  avatarText: {
-    color: "#000000",
-    fontSize: 34,
-    fontWeight: "bold",
-  },
-  nameText: {
-    fontSize: 22,
+  stat: { flex: 1, alignItems: "center" },
+  statNumber: { fontSize: 22, fontWeight: "700", color: C.white, marginBottom: 2 },
+  statLabel: { fontSize: 13, color: C.muted },
+  statDivider: { width: 1, height: 32, backgroundColor: C.line },
+
+  /* Sections */
+  sectionTitle: {
+    fontSize: 20,
     fontWeight: "700",
-    color: "#FFFFFF",
-    marginBottom: 3,
-  },
-  emailText: {
-    fontSize: 14,
-    color: "#888888",
-    marginBottom: 10,
-  },
-  badgeRow: {
-    flexDirection: "row",
-    marginBottom: 12,
-  },
-  activeBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(16, 185, 129, 0.15)",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 16,
-    gap: 6,
-    borderWidth: 1,
-    borderColor: "rgba(16, 185, 129, 0.3)",
-  },
-  activeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#10B981",
-  },
-  activeBadgeText: {
-    color: "#10B981",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  editProfileButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.25)",
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 20,
-  },
-  editProfileButtonText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  statsRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 16,
-  },
-  statBox: {
-    flex: 1,
-    backgroundColor: "#1A1A1A",
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#262626",
-  },
-  statNumber: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    marginBottom: 2,
-  },
-  statNumberDate: {
-    fontSize: 13,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: "#777777",
-    fontWeight: "500",
-  },
-  sectionCard: {
-    backgroundColor: "#1A1A1A",
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#262626",
+    color: C.white,
+    marginTop: 24,
+    marginBottom: 6,
   },
   sectionHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
+    alignItems: "flex-end",
   },
-  sectionHeader: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#888888",
-    textTransform: "uppercase",
-    letterSpacing: 0.6,
-  },
-  revokeAllText: {
-    color: "#FF5252",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  infoRow: {
+  link: { color: C.white, fontSize: 13, fontWeight: "600", marginBottom: 6 },
+
+  /* Rows */
+  row: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 10,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: C.line,
+    gap: 16,
   },
-  infoLabelGroup: {
+  noBorder: { borderBottomWidth: 0 },
+  rowLabel: { fontSize: 15, color: C.muted },
+  rowValue: { flex: 1, textAlign: "right", fontSize: 15, color: C.white, fontWeight: "500" },
+
+  /* Devices */
+  deviceRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: "#AAAAAA",
-  },
-  infoValue: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  infoValueMuted: {
-    fontSize: 13,
-    color: "#666666",
-    maxWidth: "50%",
-  },
-  roleBadge: {
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.25)",
-  },
-  roleBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  secureStorageText: {
-    color: "#10B981",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  divider: {
-    height: 1,
-    backgroundColor: "#252525",
-  },
-  sessionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-  },
-  sessionIconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "#222222",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  sessionDetails: {
-    flex: 1,
-  },
-  sessionTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 2,
-  },
-  deviceName: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  currentDevicePill: {
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
-  },
-  currentDevicePillText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "700",
-  },
-  sessionMeta: {
-    color: "#777777",
-    fontSize: 11,
-  },
-  revokeSingleButton: {
-    padding: 6,
-  },
-  emptySessionText: {
-    color: "#666666",
-    fontSize: 13,
-    paddingVertical: 8,
-  },
-  logoutButton: {
-    flexDirection: "row",
-    backgroundColor: "#E91E63",
     paddingVertical: 14,
-    borderRadius: 12,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 6,
-    shadowColor: "#E91E63",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: C.line,
+    gap: 14,
   },
-  logoutText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  loadingText: {
-    marginTop: 12,
-    color: "#888888",
-    fontSize: 15,
-  },
-  errorTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#FFFFFF",
-    marginTop: 12,
-    marginBottom: 6,
-  },
-  errorText: {
-    fontSize: 14,
-    color: "#888888",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  retryButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    paddingVertical: 10,
+  deviceInfo: { flex: 1 },
+  deviceName: { fontSize: 15, color: C.white, fontWeight: "600", marginBottom: 2 },
+  deviceMeta: { fontSize: 12, color: C.muted },
+  empty: { color: C.dim, fontSize: 14, paddingVertical: 16 },
+
+  logout: { marginTop: 36 },
+
+  /* Error */
+  errorTitle: { fontSize: 18, fontWeight: "700", color: C.white, marginTop: 14, marginBottom: 6 },
+  errorText: { fontSize: 14, color: C.muted, textAlign: "center", marginBottom: 24 },
+
+  /* Bottom sheet */
+  backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.7)" },
+  backdropTouch: { flex: 1 },
+  sheet: {
+    backgroundColor: "#0D0D0D",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: "#262626",
     paddingHorizontal: 20,
-    borderRadius: 20,
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
-    elevation: 4,
+    paddingTop: 10,
+    paddingBottom: 32,
   },
-  retryButtonText: {
-    color: "#000000",
-    fontSize: 14,
-    fontWeight: "700",
+  sheetHandle: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#333333",
+    marginBottom: 18,
   },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.75)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 24,
-  },
-  modalContent: {
-    width: "100%",
-    backgroundColor: "#1E1E1E",
-    borderRadius: 18,
-    padding: 22,
-    borderWidth: 1,
-    borderColor: "#2E2E2E",
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#FFFFFF",
+  sheetTitle: { fontSize: 20, fontWeight: "700", color: C.white, marginBottom: 16 },
+  input: {
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: C.field,
+    paddingHorizontal: 16,
+    color: C.white,
+    fontSize: 16,
     marginBottom: 16,
-    textAlign: "center",
-  },
-  modalInput: {
-    backgroundColor: "#141414",
-    borderWidth: 1,
-    borderColor: "#2E2E2E",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 48,
-    color: "#FFFFFF",
-    fontSize: 15,
-    marginBottom: 20,
-  },
-  modalActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 12,
-  },
-  modalCancelButton: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  modalCancelText: {
-    color: "#888888",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  modalSubmitButton: {
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 22,
-    paddingVertical: 10,
-    borderRadius: 10,
-    minWidth: 80,
-    alignItems: "center",
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  modalSubmitText: {
-    color: "#000000",
-    fontSize: 14,
-    fontWeight: "700",
   },
 });

@@ -15,7 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppDispatch } from "@/store";
-import { playAll, playAllFrom } from "@/store/queueActions";
+import { playAll, playWithSimilarSongs } from "@/store/queueActions";
 import { playlistService } from "@/service";
 import { Song } from "@/types";
 import { PlaylistTrackItem } from "@/components/playlist/PlaylistTrackItem";
@@ -113,8 +113,7 @@ export default function PlaylistDetailScreen() {
 
   // Handlers
   const handleSongPress = (song: Song) => {
-    const idx = songs.findIndex((s) => s.id === song.id);
-    dispatch(playAllFrom(songs, idx !== -1 ? idx : 0));
+    dispatch(playWithSimilarSongs(song));
     router.push({
       pathname: "/(authenticated)/song/[id]",
       params: { id: song.id },

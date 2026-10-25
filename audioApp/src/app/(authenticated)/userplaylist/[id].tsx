@@ -25,7 +25,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { playlistService } from "@/service";
 import { Song } from "@/types";
 import { AppDispatch, AppState } from "@/store";
-import { playAll, playAllFrom } from "@/store/queueActions";
+import { playAll, playWithSimilarSongs } from "@/store/queueActions";
 import { PlaylistTrackItem } from "@/components/playlist/PlaylistTrackItem";
 import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
 import { getImageUrl } from "@/utils/imageUtils";
@@ -98,8 +98,7 @@ export default function UserPlaylistDetailScreen() {
 
   // Handlers
   const handleSongPress = (song: Song) => {
-    const idx = songs.findIndex((s) => s.id === song.id);
-    dispatch(playAllFrom(songs, idx !== -1 ? idx : 0));
+    dispatch(playWithSimilarSongs(song));
     router.push({
       pathname: "/(authenticated)/song/[id]",
       params: { id: song.id },
