@@ -72,22 +72,6 @@ export default function UserPlaylistsScreen() {
 
   const renderHeader = () => (
     <View style={styles.listHeader}>
-      {/* Pinned Liked Songs Card */}
-      <TouchableOpacity
-        style={styles.likedSongsCard}
-        onPress={() => router.push("/(authenticated)/(tabs)/favourites")}
-        activeOpacity={0.8}
-      >
-        <View style={styles.likedSongsIconBox}>
-          <Ionicons name="heart" size={26} color="#FFFFFF" />
-        </View>
-        <View style={styles.likedSongsInfo}>
-          <Text style={styles.likedSongsTitle}>Liked Songs</Text>
-          <Text style={styles.likedSongsSubtitle}>Auto-saved tracks</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={18} color="#777777" />
-      </TouchableOpacity>
-
       <View style={styles.sectionHeadingRow}>
         <Text style={styles.sectionHeading}>Your Library</Text>
         <Text style={styles.playlistCount}>
@@ -333,43 +317,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 4,
     marginBottom: 8,
-  },
-  likedSongsCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#1C1428",
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#2E1C44",
-    marginBottom: 20,
-  },
-  likedSongsIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: "#E91E63",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 14,
-    shadowColor: "#E91E63",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  likedSongsInfo: {
-    flex: 1,
-  },
-  likedSongsTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    marginBottom: 2,
-  },
-  likedSongsSubtitle: {
-    fontSize: 12,
-    color: "#9A9A9A",
   },
   sectionHeadingRow: {
     flexDirection: "row",

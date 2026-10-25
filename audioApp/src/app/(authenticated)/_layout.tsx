@@ -30,21 +30,21 @@ export default function AuthenticatedLayout() {
       <Stack.Screen
         name="artist/[id]"
         options={{
-          headerShown: true,
+          headerShown: false,
           title: "Artist",
         }}
       />
       <Stack.Screen
         name="playlist/[id]"
         options={{
-          headerShown: true,
+          headerShown: false,
           title: "Playlist",
         }}
       />
       <Stack.Screen
         name="userplaylist/[id]"
         options={{
-          headerShown: true,
+          headerShown: false,
           title: "My Playlist",
         }}
       />

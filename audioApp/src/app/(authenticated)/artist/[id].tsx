@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { artistService } from "@/service";
 import { Song } from "@/types";
@@ -22,12 +23,13 @@ import { SongRowItem } from "@/components/home/SongRowItem";
 import { getImageUrl } from "@/utils/imageUtils";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const HERO_HEIGHT = 280;
+const HERO_HEIGHT = 480;
 
 export default function ArtistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
 
   const [isAboutExpanded, setIsAboutExpanded] = useState(false);
   const [isFollowMutating, setIsFollowMutating] = useState(false);
@@ -115,13 +117,6 @@ export default function ArtistDetailScreen() {
     }
   };
 
-  const handleShuffle = () => {
-    if (songs.length > 0) {
-      const randomIndex = Math.floor(Math.random() * songs.length);
-      handleSongPress(songs[randomIndex]);
-    }
-  };
-
   const handleToggleFollow = async () => {
     if (!id || isFollowMutating) return;
     setIsFollowMutating(true);
@@ -172,8 +167,8 @@ export default function ArtistDetailScreen() {
   };
 
   const coverUrl = getImageUrl(artist?.coverImageKey, {
-    width: 600,
-    height: 600,
+    width: 800,
+    height: 800,
     quality: 90,
   });
 
@@ -187,6 +182,7 @@ export default function ArtistDetailScreen() {
             source={{ uri: coverUrl }}
             style={styles.heroImage}
             contentFit="cover"
+            contentPosition="top center"
             transition={200}
           />
         ) : (
@@ -196,8 +192,8 @@ export default function ArtistDetailScreen() {
         )}
         {/* Multi-stop Linear Gradient scrim for smooth contrast blending into #121212 */}
         <LinearGradient
-          colors={["transparent", "rgba(18, 18, 18, 0.6)", "#121212"]}
-          locations={[0, 0.5, 1]}
+          colors={["transparent", "rgba(18, 18, 18, 0.4)", "#121212"]}
+          locations={[0, 0.65, 1]}
           style={StyleSheet.absoluteFill}
         />
 
@@ -238,13 +234,6 @@ export default function ArtistDetailScreen() {
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.shuffleButton}
-            onPress={handleShuffle}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="shuffle" size={22} color="#AAAAAA" />
-          </TouchableOpacity>
         </View>
 
         {songs.length > 0 ? (
@@ -318,19 +307,12 @@ export default function ArtistDetailScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: artist?.name || "Artist",
-          headerRight: () => (
-            <TouchableOpacity
-              onPress={handleShare}
-              activeOpacity={0.7}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Ionicons name="share-outline" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
-          ),
+          headerShown: false,
         }}
       />
+
       <FlatList
+        contentInsetAdjustmentBehavior="never"
         data={songs}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderHeader}
@@ -378,6 +360,27 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#121212",
+    marginTop: 0,
+    paddingTop: 0,
+  },
+  floatingNav: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    zIndex: 20,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  floatingButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   loadingContainer: {
     flex: 1,
@@ -391,9 +394,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   listContent: {
+    paddingTop: 0,
     paddingBottom: 40,
   },
   headerContainer: {
+    marginTop: 0,
+    paddingTop: 0,
     marginBottom: 8,
   },
   heroImageWrapper: {
@@ -401,6 +407,8 @@ const styles = StyleSheet.create({
     height: HERO_HEIGHT,
     position: "relative",
     backgroundColor: "#1A1A1A",
+    marginTop: 0,
+    paddingTop: 0,
   },
   heroImage: {
     width: "100%",
@@ -487,16 +495,6 @@ const styles = StyleSheet.create({
   },
   followingButtonText: {
     color: "#DDDDDD",
-  },
-  shuffleButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#1F1F1F",
-    borderWidth: 1,
-    borderColor: "#2E2E2E",
-    justifyContent: "center",
-    alignItems: "center",
   },
   playButton: {
     width: 52,

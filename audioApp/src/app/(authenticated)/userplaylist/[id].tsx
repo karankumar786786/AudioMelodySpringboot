@@ -9,23 +9,30 @@ import {
   RefreshControl,
   Share,
   Alert,
+  Dimensions,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSelector } from "react-redux";
 import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
-
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { playlistService } from "@/service";
 import { Song } from "@/types";
 import { AppState } from "@/store";
 import { PlaylistTrackItem } from "@/components/playlist/PlaylistTrackItem";
-import { UserPlaylistThumbnail } from "@/components/playlist/UserPlaylistThumbnail";
+import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
+import { getImageUrl } from "@/utils/imageUtils";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const HERO_HEIGHT = 440;
 
 export default function UserPlaylistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
 
   const currentUserId = useSelector(
     (state: AppState) => state.user.profile?.id
@@ -97,12 +104,6 @@ export default function UserPlaylistDetailScreen() {
     }
   };
 
-  const handleShuffle = () => {
-    if (songs.length > 0) {
-      const randomIndex = Math.floor(Math.random() * songs.length);
-      handleSongPress(songs[randomIndex]);
-    }
-  };
 
   const handleRemoveTrack = async (songId: string) => {
     if (!id) return;
@@ -168,51 +169,179 @@ export default function UserPlaylistDetailScreen() {
     refetchSongs();
   };
 
+  const heroSong = songs[0];
+  const heroVideoKey = heroSong?.videoKey;
+  const heroImageKey = playlist?.coverImageKey || heroSong?.imageKey;
+
+  const coverUrl = getImageUrl(playlist?.coverImageKey, {
+    width: 800,
+    height: 800,
+    quality: 90,
+  });
+
+  const firstSongImg = heroSong
+    ? getImageUrl(heroSong.imageKey, {
+        width: 800,
+        height: 800,
+        quality: 90,
+      })
+    : undefined;
+
+  const mosaicImages = songs.slice(0, 4).map((s) =>
+    getImageUrl(s.imageKey, {
+      width: 400,
+      height: 400,
+      quality: 85,
+    })
+  );
+
+  const showMosaic = !coverUrl && !heroVideoKey && songs.length >= 4;
+
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-      {/* Hero Artwork (Cover / 2x2 Song Mosaic / Single Song / Fallback) */}
-      <View style={styles.artworkContainer}>
-        <UserPlaylistThumbnail
-          playlist={playlist || { id: id as string, name: "Playlist" }}
-          songs={songs}
-          size={180}
-          borderRadius={20}
-          style={styles.heroArtwork}
+      {/* Hero Banner */}
+      <View style={styles.heroBanner}>
+        {heroVideoKey ? (
+          <CanvasVideoPlayer
+            videoKey={heroVideoKey}
+            fallbackImageKey={heroImageKey}
+            style={StyleSheet.absoluteFill}
+            isPlaying={true}
+          />
+        ) : coverUrl ? (
+          <Image
+            source={{ uri: coverUrl }}
+            style={styles.heroBannerImage}
+            contentFit="cover"
+            contentPosition="top center"
+            transition={200}
+          />
+        ) : showMosaic ? (
+          <View style={styles.mosaicGrid}>
+            <View style={styles.mosaicRow}>
+              <View style={styles.mosaicCell}>
+                {mosaicImages[0] ? (
+                  <Image
+                    source={{ uri: mosaicImages[0] }}
+                    style={styles.imageFull}
+                    contentFit="cover"
+                    contentPosition="top center"
+                  />
+                ) : (
+                  <View style={styles.cellFallback} />
+                )}
+              </View>
+              <View style={styles.mosaicCell}>
+                {mosaicImages[1] ? (
+                  <Image
+                    source={{ uri: mosaicImages[1] }}
+                    style={styles.imageFull}
+                    contentFit="cover"
+                    contentPosition="top center"
+                  />
+                ) : (
+                  <View style={styles.cellFallback} />
+                )}
+              </View>
+            </View>
+            <View style={styles.mosaicRow}>
+              <View style={styles.mosaicCell}>
+                {mosaicImages[2] ? (
+                  <Image
+                    source={{ uri: mosaicImages[2] }}
+                    style={styles.imageFull}
+                    contentFit="cover"
+                    contentPosition="top center"
+                  />
+                ) : (
+                  <View style={styles.cellFallback} />
+                )}
+              </View>
+              <View style={styles.mosaicCell}>
+                {mosaicImages[3] ? (
+                  <Image
+                    source={{ uri: mosaicImages[3] }}
+                    style={styles.imageFull}
+                    contentFit="cover"
+                    contentPosition="top center"
+                  />
+                ) : (
+                  <View style={styles.cellFallback} />
+                )}
+              </View>
+            </View>
+          </View>
+        ) : firstSongImg ? (
+          <Image
+            source={{ uri: firstSongImg }}
+            style={styles.heroBannerImage}
+            contentFit="cover"
+            contentPosition="top center"
+            transition={200}
+          />
+        ) : (
+          <View style={styles.emptyHero}>
+            <Ionicons name="musical-notes" size={80} color="#444444" />
+          </View>
+        )}
+
+        {/* Global subtle dark wash */}
+        <View style={styles.heroWash} />
+
+        {/* Linear Gradient scrim covering bottom blending into page background */}
+        <LinearGradient
+          colors={["transparent", "rgba(18, 18, 18, 0.45)", "#121212"]}
+          locations={[0, 0.62, 1]}
+          style={styles.heroGradient}
         />
-      </View>
 
-      {/* Title & Metadata */}
-      <View style={styles.metaContainer}>
-        <Text style={styles.playlistTitle} numberOfLines={2}>
-          {playlist?.name || "Playlist"}
-        </Text>
+        {/* Content pinned to bottom */}
+        <View style={styles.heroContent}>
+          <Text style={styles.heroTitle} numberOfLines={2}>
+            {playlist?.name || "Playlist"}
+          </Text>
 
-        <View style={styles.subtitleRow}>
-          <Text style={styles.playlistOwner}>
-            By {playlist?.ownerName || (isOwner ? "You" : "Community")}
-          </Text>
-          <View style={styles.dotSeparator} />
-          <Text style={styles.playlistStats}>
-            {totalSongs} {totalSongs === 1 ? "track" : "tracks"}
-          </Text>
-          <View style={styles.dotSeparator} />
-          <View style={styles.privacyBadge}>
-            <Text style={styles.privacyBadgeText}>
-              {playlist?.privacy === "PRIVATE" ? "Private" : "Public"}
+          <View style={styles.statsRow}>
+            <Text style={styles.curatorText}>
+              By {playlist?.ownerName || (isOwner ? "You" : "Community")}
             </Text>
+            <Text style={styles.statDot}>•</Text>
+            <Text style={styles.statText}>
+              {totalSongs} {totalSongs === 1 ? "track" : "tracks"}
+            </Text>
+            <Text style={styles.statDot}>•</Text>
+            <View style={styles.privacyBadge}>
+              <Text style={styles.privacyBadgeText}>
+                {playlist?.privacy === "PRIVATE" ? "Private" : "Public"}
+              </Text>
+            </View>
           </View>
         </View>
       </View>
 
       {/* Action Controls */}
       <View style={styles.actionRow}>
-        <TouchableOpacity
-          style={styles.shuffleButton}
-          onPress={handleShuffle}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="shuffle" size={22} color="#AAAAAA" />
-        </TouchableOpacity>
+        <View style={styles.leftActions}>
+          <TouchableOpacity
+            style={styles.actionIconButton}
+            onPress={handleShare}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="share-outline" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+
+          {isOwner ? (
+            <TouchableOpacity
+              style={[styles.actionIconButton, styles.deleteButton]}
+              onPress={handleDeletePlaylist}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="trash-outline" size={19} color="#FF5252" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
 
         {songs.length > 0 ? (
           <TouchableOpacity
@@ -245,30 +374,12 @@ export default function UserPlaylistDetailScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: playlist?.name || "My Playlist",
-          headerRight: () => (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
-              <TouchableOpacity
-                onPress={handleShare}
-                activeOpacity={0.7}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="share-outline" size={22} color="#FFFFFF" />
-              </TouchableOpacity>
-              {isOwner ? (
-                <TouchableOpacity
-                  onPress={handleDeletePlaylist}
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons name="trash-outline" size={20} color="#FF5252" />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          ),
+          headerShown: false,
         }}
       />
+
       <FlatList
+        contentInsetAdjustmentBehavior="never"
         data={songs}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderHeader}
@@ -326,70 +437,133 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#121212",
+    marginTop: 0,
+    paddingTop: 0,
   },
   listContent: {
+    paddingTop: 0,
     paddingBottom: 40,
   },
   headerContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    marginBottom: 10,
+    marginTop: 0,
+    paddingTop: 0,
+    marginBottom: 6,
   },
-  artworkContainer: {
-    alignSelf: "center",
-    marginBottom: 20,
+  heroBanner: {
+    width: "100%",
+    height: HERO_HEIGHT,
+    position: "relative",
+    backgroundColor: "#181818",
+    overflow: "hidden",
+    marginTop: 0,
+    paddingTop: 0,
   },
-  heroArtwork: {
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+  heroBannerImage: {
+    width: "100%",
+    height: "100%",
   },
-  metaContainer: {
+  imageFull: {
+    width: "100%",
+    height: "100%",
+  },
+  mosaicGrid: {
+    width: "100%",
+    height: "100%",
+    flexDirection: "column",
+  },
+  mosaicRow: {
+    flex: 1,
+    flexDirection: "row",
+    width: "100%",
+  },
+  mosaicCell: {
+    flex: 1,
+    height: "100%",
+    overflow: "hidden",
+    backgroundColor: "#18181A",
+  },
+  cellFallback: {
+    flex: 1,
+    backgroundColor: "#202024",
+  },
+  emptyHero: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#1A1A1A",
+    justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 12,
-    marginBottom: 16,
   },
-  playlistTitle: {
-    fontSize: 24,
+  heroWash: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "rgba(0, 0, 0, 0.15)",
+  },
+  heroGradient: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: HERO_HEIGHT * 0.78,
+  },
+  heroContent: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 18,
+    paddingBottom: 16,
+  },
+  badgeRow: {
+    marginBottom: 6,
+  },
+  typeBadge: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+  },
+  typeBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    letterSpacing: 0.8,
+  },
+  heroTitle: {
+    fontSize: 28,
     fontWeight: "bold",
     color: "#FFFFFF",
-    textAlign: "center",
+    letterSpacing: -0.5,
     marginBottom: 6,
-    letterSpacing: -0.3,
+    textShadowColor: "rgba(0, 0, 0, 0.8)",
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
-  subtitleRow: {
+  statsRow: {
     flexDirection: "row",
     alignItems: "center",
     flexWrap: "wrap",
-    justifyContent: "center",
     gap: 6,
   },
-  playlistOwner: {
+  curatorText: {
     fontSize: 13,
-    color: "#AAAAAA",
-    fontWeight: "500",
+    fontWeight: "600",
+    color: "#FFFFFF",
   },
-  dotSeparator: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: "#666666",
+  statDot: {
+    fontSize: 12,
+    color: "#888888",
   },
-  playlistStats: {
+  statText: {
     fontSize: 13,
-    color: "#AAAAAA",
+    color: "#BBBBBB",
   },
   privacyBadge: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 6,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderRadius: 5,
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   privacyBadgeText: {
     fontSize: 11,
@@ -400,10 +574,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 6,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  shuffleButton: {
+  leftActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  actionIconButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
@@ -412,6 +591,10 @@ const styles = StyleSheet.create({
     borderColor: "#2E2E2E",
     justifyContent: "center",
     alignItems: "center",
+  },
+  deleteButton: {
+    backgroundColor: "rgba(255, 82, 82, 0.12)",
+    borderColor: "rgba(255, 82, 82, 0.25)",
   },
   playButton: {
     width: 52,

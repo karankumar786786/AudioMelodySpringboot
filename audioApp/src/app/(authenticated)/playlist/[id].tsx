@@ -13,19 +13,21 @@ import {
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { playlistService } from "@/service";
 import { Song } from "@/types";
 import { PlaylistTrackItem } from "@/components/playlist/PlaylistTrackItem";
 import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const HERO_HEIGHT = 280;
+// const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const HERO_HEIGHT = 440;
 
 export default function PlaylistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   // 1. Fetch Playlist Details
   const {
@@ -121,13 +123,6 @@ export default function PlaylistDetailScreen() {
     }
   };
 
-  const handleShuffle = () => {
-    if (songs.length > 0) {
-      const randomIndex = Math.floor(Math.random() * songs.length);
-      handleSongPress(songs[randomIndex]);
-    }
-  };
-
   const handleShare = async () => {
     if (!playlist) return;
     try {
@@ -158,20 +153,16 @@ export default function PlaylistDetailScreen() {
         {/* Global subtle dark wash */}
         <View style={styles.heroWash} />
 
-        {/* Linear Gradient scrim covering bottom 75% blending into page background */}
+        {/* Linear Gradient scrim covering bottom blending into page background */}
         <LinearGradient
-          colors={["transparent", "rgba(18, 18, 18, 0.72)", "#121212"]}
-          locations={[0, 0.48, 1]}
+          colors={["transparent", "rgba(18, 18, 18, 0.45)", "#121212"]}
+          locations={[0, 0.62, 1]}
           style={styles.heroGradient}
         />
 
         {/* Content pinned to bottom */}
         <View style={styles.heroContent}>
-          <View style={styles.badgeRow}>
-            <View style={styles.typeBadge}>
-              <Text style={styles.typeBadgeText}>PUBLIC PLAYLIST</Text>
-            </View>
-          </View>
+
 
           <Text style={styles.heroTitle} numberOfLines={2}>
             {playlist?.name || "Playlist"}
@@ -222,14 +213,6 @@ export default function PlaylistDetailScreen() {
         <View style={styles.actionLeft}>
           <TouchableOpacity
             style={styles.iconCircleButton}
-            onPress={handleShuffle}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="shuffle" size={20} color="#CCCCCC" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.iconCircleButton}
             onPress={handleShare}
             activeOpacity={0.7}
           >
@@ -268,19 +251,12 @@ export default function PlaylistDetailScreen() {
     <View style={styles.container}>
       <Stack.Screen
         options={{
-          title: playlist?.name || "Playlist",
-          headerRight: () => (
-            <TouchableOpacity
-              onPress={handleShare}
-              activeOpacity={0.7}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Ionicons name="share-outline" size={22} color="#FFFFFF" />
-            </TouchableOpacity>
-          ),
+          headerShown: false,
         }}
       />
+
       <FlatList
+        contentInsetAdjustmentBehavior="never"
         data={songs}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderHeader}
@@ -334,11 +310,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#121212",
+    marginTop: 0,
+    paddingTop: 0,
+  },
+  floatingNav: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    zIndex: 20,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+  },
+  floatingButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   listContent: {
+    paddingTop: 0,
     paddingBottom: 40,
   },
   headerContainer: {
+    marginTop: 0,
+    paddingTop: 0,
     marginBottom: 6,
   },
   heroBanner: {
@@ -347,6 +347,8 @@ const styles = StyleSheet.create({
     position: "relative",
     backgroundColor: "#181818",
     overflow: "hidden",
+    marginTop: 0,
+    paddingTop: 0,
   },
   heroWash: {
     ...StyleSheet.absoluteFill,
