@@ -267,10 +267,9 @@ export default function UserPlaylistDetailScreen() {
         data={songs}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderHeader}
-        renderItem={({ item, index }) => (
+        renderItem={({ item }) => (
           <PlaylistTrackItem
             song={item}
-            index={index}
             onPress={() => handleSongPress(item)}
             onRemove={isOwner ? () => handleRemoveTrack(item.id) : undefined}
           />

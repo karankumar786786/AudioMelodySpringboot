@@ -7,14 +7,13 @@ import { getImageUrl } from "@/utils/imageUtils";
 
 interface FavouriteSongItemProps {
   song: Song;
-  index: number;
+  index?: number;
   onPress: () => void;
   onRemove: () => void;
 }
 
 export function FavouriteSongItem({
   song,
-  index,
   onPress,
   onRemove,
 }: FavouriteSongItemProps) {
@@ -37,7 +36,6 @@ export function FavouriteSongItem({
       onPress={onPress}
       activeOpacity={0.72}
     >
-      <Text style={styles.indexText}>{index + 1}</Text>
 
       <View style={styles.thumbnailContainer}>
         {imageUrl ? (
@@ -86,14 +84,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 10,
-  },
-  indexText: {
-    width: 24,
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#666666",
-    textAlign: "center",
-    marginRight: 8,
   },
   thumbnailContainer: {
     width: 48,

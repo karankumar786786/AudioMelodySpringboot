@@ -216,10 +216,9 @@ export default function FavouritesScreen() {
           data={filteredSongs}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={renderListHeader}
-          renderItem={({ item, index }) => (
+          renderItem={({ item }) => (
             <FavouriteSongItem
               song={item}
-              index={index}
               onPress={() => handleSongPress(item)}
               onRemove={() => handleRemoveFavourite(item.id)}
             />

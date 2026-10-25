@@ -330,10 +330,9 @@ export default function ArtistDetailScreen() {
         data={songs}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderHeader}
-        renderItem={({ item, index }) => (
+        renderItem={({ item }) => (
           <SongRowItem
             song={item}
-            index={index}
             onPress={() => handleSongPress(item)}
           />
         )}

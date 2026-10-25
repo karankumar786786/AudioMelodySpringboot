@@ -13,7 +13,7 @@ interface CanvasVideoPlayerProps {
 
 function VideoSurface({
   videoUrl,
-  isPlaying,
+  isPlaying = true,
 }: {
   videoUrl: string;
   isPlaying?: boolean;
@@ -21,17 +21,33 @@ function VideoSurface({
   const player = useVideoPlayer(videoUrl, (p) => {
     p.loop = true;
     p.muted = true;
-    if (isPlaying !== false) {
+    if (isPlaying) {
       p.play();
+    } else {
+      p.pause();
     }
   });
 
   useEffect(() => {
-    if (isPlaying === false) {
-      player.pause();
-    } else {
+    player.loop = true;
+    player.muted = true;
+
+    if (isPlaying) {
       player.play();
+    } else {
+      player.pause();
     }
+
+    // Explicitly replay when reaching the end to guarantee continuous loop across all platforms
+    const subscription = player.addListener("playToEnd", () => {
+      if (isPlaying) {
+        player.replay();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, [isPlaying, player]);
 
   return (

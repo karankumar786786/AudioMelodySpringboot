@@ -31,9 +31,6 @@ export function SongRowItem({ song, index, onPress }: SongRowItemProps) {
       onPress={onPress}
       activeOpacity={0.72}
     >
-      {index !== undefined ? (
-        <Text style={styles.indexText}>{index + 1}</Text>
-      ) : null}
 
       <View style={styles.thumbnailContainer}>
         {imageUrl ? (
@@ -74,14 +71,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 18,
     paddingVertical: 9,
-  },
-  indexText: {
-    width: 22,
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#666666",
-    textAlign: "center",
-    marginRight: 10,
   },
   thumbnailContainer: {
     width: 50,

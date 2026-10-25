@@ -8,6 +8,8 @@ export default function AuthenticatedLayout() {
         headerStyle: { backgroundColor: "#121212" },
         headerTintColor: "#FFFFFF",
         headerShadowVisible: false,
+        headerBackButtonDisplayMode: "minimal",
+        headerBackTitle: "",
         headerTitleStyle: {
           fontWeight: "700",
           color: "#FFFFFF",
@@ -15,7 +17,14 @@ export default function AuthenticatedLayout() {
       }}
     >
       {/* Bottom Tabs */}
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="(tabs)"
+        options={{
+          headerShown: false,
+          title: "",
+          headerBackTitle: "",
+        }}
+      />
 
       {/* Dynamic Detail Screens (pushed on top of tabs) */}
       <Stack.Screen

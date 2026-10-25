@@ -167,10 +167,10 @@ export default function HomeScreen() {
       >
         {/* Top Header Bar */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>{greeting}</Text>
-            <Text style={styles.userName}>
-              {profile?.userName ? profile.userName : "Welcome to Melody"}
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.greetingTitle} numberOfLines={1}>
+              {greeting}
+              {profile?.userName ? `, ${profile.userName}` : ""}
             </Text>
           </View>
 
@@ -282,7 +282,6 @@ export default function HomeScreen() {
                   <SongRowItem
                     key={`${song.id}-${index}`}
                     song={song}
-                    index={index}
                     onPress={() => router.push(`/song/${song.id}`)}
                   />
                 ))}
@@ -347,18 +346,15 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 14,
   },
-  greeting: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: "#888888",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
+  headerTitleContainer: {
+    flex: 1,
+    marginRight: 12,
   },
-  userName: {
-    fontSize: 24,
-    fontWeight: "bold",
+  greetingTitle: {
+    fontSize: 22,
+    fontWeight: "700",
     color: "#FFFFFF",
-    marginTop: 2,
+    letterSpacing: -0.3,
   },
   avatarButton: {
     width: 40,

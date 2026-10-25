@@ -7,12 +7,14 @@ interface HeroFeaturedCardProps {
   song: Song;
   onPress: () => void;
   cardWidth?: number;
+  isPlaying?: boolean;
 }
 
 export function HeroFeaturedCard({
   song,
   onPress,
   cardWidth,
+  isPlaying = false,
 }: HeroFeaturedCardProps) {
   return (
     <TouchableOpacity
@@ -27,6 +29,7 @@ export function HeroFeaturedCard({
         videoKey={song.videoKey}
         fallbackImageKey={song.imageKey}
         style={StyleSheet.absoluteFill}
+        isPlaying={isPlaying}
       />
 
       {/* Dark overlay for text readability */}
