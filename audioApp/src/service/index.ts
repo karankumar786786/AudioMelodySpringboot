@@ -2,3 +2,5 @@ export * from "./authService";
 export * from "./sessionService";
 export * from "./userService";
 export * from "./homeService";
+export * from "./searchService";
+export * from "./favouriteService";
