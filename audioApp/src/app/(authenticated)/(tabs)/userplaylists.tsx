@@ -107,14 +107,14 @@ export default function UserPlaylistsScreen() {
           activeOpacity={0.75}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
-          <Ionicons name="add" size={26} color="#FFFFFF" />
+          <Ionicons name="add" size={26} color="#000000" />
         </TouchableOpacity>
       </View>
 
       {/* Main Content */}
       {isLoading ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#208AEF" />
+          <ActivityIndicator size="large" color="#FFFFFF" />
           <Text style={styles.loadingText}>Loading playlists...</Text>
         </View>
       ) : playlists.length === 0 ? (
@@ -154,7 +154,7 @@ export default function UserPlaylistsScreen() {
               activeOpacity={0.72}
             >
               <View style={styles.playlistIconBox}>
-                <Ionicons name="musical-notes" size={22} color="#208AEF" />
+                <Ionicons name="musical-notes" size={22} color="#FFFFFF" />
               </View>
 
               <View style={styles.playlistInfo}>
@@ -176,8 +176,8 @@ export default function UserPlaylistsScreen() {
               onRefresh={() => {
                 refetch();
               }}
-              tintColor="#208AEF"
-              colors={["#208AEF"]}
+              tintColor="#FFFFFF"
+              colors={["#FFFFFF"]}
             />
           }
           contentContainerStyle={styles.listContent}
@@ -276,7 +276,7 @@ export default function UserPlaylistsScreen() {
                 disabled={!newPlaylistName.trim() || isSubmitting}
               >
                 {isSubmitting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color="#000000" />
                 ) : (
                   <Text style={styles.submitText}>Create</Text>
                 )}
@@ -313,9 +313,14 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: "#208AEF",
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 4,
   },
   listContent: {
     paddingBottom: 40,
@@ -456,15 +461,20 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   createFirstButton: {
-    backgroundColor: "#208AEF",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 26,
     paddingVertical: 12,
     borderRadius: 24,
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.7,
+    shadowRadius: 10,
+    elevation: 6,
   },
   createFirstButtonText: {
-    color: "#FFFFFF",
+    color: "#000000",
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   modalBackdrop: {
     flex: 1,
@@ -516,8 +526,8 @@ const styles = StyleSheet.create({
     borderColor: "#2E2E2E",
   },
   activePrivacyPill: {
-    backgroundColor: "rgba(32, 138, 239, 0.2)",
-    borderColor: "#208AEF",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderColor: "#FFFFFF",
   },
   privacyText: {
     color: "#888888",
@@ -543,18 +553,23 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   submitButton: {
-    backgroundColor: "#208AEF",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 22,
     paddingVertical: 10,
     borderRadius: 10,
     minWidth: 84,
     alignItems: "center",
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 4,
   },
   disabledSubmitButton: {
     opacity: 0.5,
   },
   submitText: {
-    color: "#FFFFFF",
+    color: "#000000",
     fontSize: 14,
     fontWeight: "700",
   },

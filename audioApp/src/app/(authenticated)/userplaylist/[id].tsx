@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSelector } from "react-redux";
 import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -168,12 +169,14 @@ export default function UserPlaylistDetailScreen() {
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-
       {/* Hero Icon Artwork */}
       <View style={styles.artworkContainer}>
-        <View style={styles.iconBox}>
-          <Ionicons name="musical-notes" size={72} color="#208AEF" />
-        </View>
+        <LinearGradient
+          colors={["#262626", "#161616", "#121212"]}
+          style={styles.iconBox}
+        >
+          <Ionicons name="musical-notes" size={68} color="#FFFFFF" />
+        </LinearGradient>
       </View>
 
       {/* Title & Metadata */}
@@ -213,12 +216,12 @@ export default function UserPlaylistDetailScreen() {
           <TouchableOpacity
             style={styles.playButton}
             onPress={handlePlayAll}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
             <Ionicons
               name="play"
               size={24}
-              color="#FFFFFF"
+              color="#000000"
               style={{ marginLeft: 3 }}
             />
           </TouchableOpacity>
@@ -230,7 +233,7 @@ export default function UserPlaylistDetailScreen() {
   if (isPlaylistLoading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#208AEF" />
+        <ActivityIndicator size="large" color="#FFFFFF" />
         <Text style={styles.loadingText}>Loading playlist...</Text>
       </View>
     );
@@ -285,7 +288,7 @@ export default function UserPlaylistDetailScreen() {
             </View>
           ) : (
             <View style={styles.songsLoadingContainer}>
-              <ActivityIndicator size="small" color="#208AEF" />
+              <ActivityIndicator size="small" color="#FFFFFF" />
             </View>
           )
         }
@@ -298,7 +301,7 @@ export default function UserPlaylistDetailScreen() {
         ListFooterComponent={
           isFetchingNextPage ? (
             <View style={styles.footerLoader}>
-              <ActivityIndicator size="small" color="#208AEF" />
+              <ActivityIndicator size="small" color="#FFFFFF" />
             </View>
           ) : undefined
         }
@@ -306,8 +309,8 @@ export default function UserPlaylistDetailScreen() {
           <RefreshControl
             refreshing={isRefetching}
             onRefresh={handleRefresh}
-            tintColor="#208AEF"
-            colors={["#208AEF"]}
+            tintColor="#FFFFFF"
+            colors={["#FFFFFF"]}
           />
         }
         contentContainerStyle={styles.listContent}
@@ -327,7 +330,7 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     paddingHorizontal: 16,
-    paddingTop: 12,
+    paddingTop: 16,
     marginBottom: 10,
   },
   artworkContainer: {
@@ -338,14 +341,13 @@ const styles = StyleSheet.create({
     width: 170,
     height: 170,
     borderRadius: 20,
-    backgroundColor: "rgba(32, 138, 239, 0.12)",
-    borderWidth: 1.5,
-    borderColor: "rgba(32, 138, 239, 0.3)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.25)",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#208AEF",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 6,
   },
@@ -388,12 +390,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
   },
   privacyBadgeText: {
     fontSize: 11,
     color: "#FFFFFF",
-    fontWeight: "600",
+    fontWeight: "700",
   },
   actionRow: {
     flexDirection: "row",
@@ -416,14 +420,14 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: "#208AEF",
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#208AEF",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 5,
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.75,
+    shadowRadius: 12,
+    elevation: 8,
   },
   centerContainer: {
     flex: 1,

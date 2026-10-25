@@ -149,6 +149,10 @@ export default function HomeScreen() {
     isArtistsLoading &&
     isPlaylistsLoading;
 
+  const [selectedCategory, setSelectedCategory] = useState<
+    "All" | "Music" | "Trending" | "Artists"
+  >("All");
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <ScrollView
@@ -160,8 +164,8 @@ export default function HomeScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor="#208AEF"
-            colors={["#208AEF"]}
+            tintColor="#FFFFFF"
+            colors={["#FFFFFF"]}
           />
         }
       >
@@ -187,12 +191,40 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Category Filter Pills */}
+        <View style={styles.categoryPillsRow}>
+          {(["All", "Music", "Trending", "Artists"] as const).map((cat) => {
+            const isActive = selectedCategory === cat;
+            return (
+              <TouchableOpacity
+                key={cat}
+                style={[
+                  styles.categoryPill,
+                  isActive && styles.categoryPillActive,
+                ]}
+                onPress={() => setSelectedCategory(cat)}
+                activeOpacity={0.75}
+              >
+                <Text
+                  style={[
+                    styles.categoryPillText,
+                    isActive && styles.categoryPillTextActive,
+                  ]}
+                >
+                  {cat}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
         {isInitialLoading ? (
           <HomeSkeleton />
         ) : (
           <>
             {/* Spotlight / Slidable Featured Releases */}
-            {featuredSongs.length > 0 ? (
+            {(selectedCategory === "All" || selectedCategory === "Music") &&
+            featuredSongs.length > 0 ? (
               <View style={styles.heroSection}>
                 <FeaturedSongsCarousel
                   songs={featuredSongs}
@@ -202,7 +234,8 @@ export default function HomeScreen() {
             ) : null}
 
             {/* Trending Songs Section */}
-            {trendingSongs.length > 0 ? (
+            {(selectedCategory === "All" || selectedCategory === "Trending") &&
+            trendingSongs.length > 0 ? (
               <View>
                 <SectionHeader
                   title="Trending Now"
@@ -225,7 +258,8 @@ export default function HomeScreen() {
             ) : null}
 
             {/* Top Artists Section */}
-            {artistsList.length > 0 ? (
+            {(selectedCategory === "All" || selectedCategory === "Artists") &&
+            artistsList.length > 0 ? (
               <View>
                 <SectionHeader
                   title="Popular Artists"
@@ -248,7 +282,8 @@ export default function HomeScreen() {
             ) : null}
 
             {/* Featured Playlists Section */}
-            {playlistsList.length > 0 ? (
+            {(selectedCategory === "All" || selectedCategory === "Trending") &&
+            playlistsList.length > 0 ? (
               <View>
                 <SectionHeader
                   title="Featured Playlists"
@@ -271,7 +306,8 @@ export default function HomeScreen() {
             ) : null}
 
             {/* Explore All Songs / Infinite Discover Feed */}
-            {allSongs.length > 0 ? (
+            {(selectedCategory === "All" || selectedCategory === "Music") &&
+            allSongs.length > 0 ? (
               <View style={styles.feedSection}>
                 <SectionHeader
                   title="Explore All Songs"
@@ -289,7 +325,7 @@ export default function HomeScreen() {
                 {/* Loading indicator when fetching next page */}
                 {isFetchingNextPage ? (
                   <View style={styles.paginationLoading}>
-                    <ActivityIndicator size="small" color="#208AEF" />
+                    <ActivityIndicator size="small" color="#FFFFFF" />
                     <Text style={styles.paginationLoadingText}>
                       Loading more songs...
                     </Text>
@@ -306,7 +342,7 @@ export default function HomeScreen() {
                     <Ionicons
                       name="arrow-down"
                       size={16}
-                      color="#208AEF"
+                      color="#FFFFFF"
                       style={{ marginRight: 6 }}
                     />
                     <Text style={styles.loadMoreText}>Load More Songs</Text>
@@ -344,7 +380,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 18,
     paddingTop: 8,
-    paddingBottom: 14,
+    paddingBottom: 10,
   },
   headerTitleContainer: {
     flex: 1,
@@ -357,17 +393,55 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   avatarButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#208AEF",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.65,
+    shadowRadius: 8,
+    elevation: 4,
   },
   avatarText: {
-    color: "#FFFFFF",
-    fontSize: 17,
+    color: "#000000",
+    fontSize: 16,
     fontWeight: "bold",
+  },
+  categoryPillsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 18,
+    paddingBottom: 14,
+    gap: 8,
+  },
+  categoryPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: "#1E1E1E",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
+  categoryPillActive: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#FFFFFF",
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  categoryPillText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  categoryPillTextActive: {
+    color: "#000000",
+    fontWeight: "800",
   },
   heroSection: {
     marginTop: 4,
@@ -399,10 +473,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: "#1E1E1E",
     borderWidth: 1,
-    borderColor: "#2A2A2A",
+    borderColor: "rgba(255, 255, 255, 0.25)",
   },
   loadMoreText: {
-    color: "#208AEF",
+    color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "600",
   },

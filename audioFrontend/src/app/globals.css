@@ -5,7 +5,7 @@
   --foreground: #ffffff;
   --primary: #fff;
   --primary-foreground: #000000;
-  --accent: rgba(29, 185, 84, 0.12);
+  --accent: rgba(255, 255, 255, 0.12);
   --border: rgba(255, 255, 255, 0.1);
   --sidebar: #000000;
   --radius: 0.5rem;
@@ -21,7 +21,7 @@
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
   --input: rgba(255, 255, 255, 0.12);
-  --ring: #1ed760;
+  --ring: #ffffff;
 
   /* Default spacing for standard web browser */
   --app-navbar-pt: 0rem;
@@ -109,7 +109,13 @@ body {
 }
 
 @utility text-glow-green {
-  color: #1DB954;
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.85);
+}
+
+@utility text-glow-white {
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.85);
 }
 
 @utility no-scrollbar {

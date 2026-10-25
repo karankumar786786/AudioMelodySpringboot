@@ -88,7 +88,7 @@ export const PlayerMoreMenu: React.FC<PlayerMoreMenuProps> = ({
         sideOffset={10}
         className="w-72 divide-y divide-white/10 p-2 shadow-2xl relative overflow-hidden"
       >
-        <BorderBeam size={140} duration={8} colorFrom="#1ed760" colorTo="#38bdf8" />
+        <BorderBeam size={140} duration={8} colorFrom="#ffffff" colorTo="#a1a1aa" />
 
         {/* Section 1: Audio Tools (Equalizer & Sleep Timer) */}
         <div className="py-1.5 space-y-0.5">

@@ -36,7 +36,7 @@ export default function SongDetailScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#208AEF" />
+        <ActivityIndicator size="large" color="#FFFFFF" />
         <Text style={styles.loadingText}>Loading track...</Text>
       </SafeAreaView>
     );
@@ -137,7 +137,7 @@ export default function SongDetailScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.mainPlayButton} activeOpacity={0.85}>
-          <Ionicons name="pause" size={30} color="#FFFFFF" />
+          <Ionicons name="pause" size={30} color="#000000" />
         </TouchableOpacity>
 
         <TouchableOpacity hitSlop={12}>
@@ -185,15 +185,20 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   backButton: {
-    backgroundColor: "#208AEF",
+    backgroundColor: "#FFFFFF",
     paddingVertical: 10,
     paddingHorizontal: 22,
     borderRadius: 20,
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.7,
+    shadowRadius: 10,
+    elevation: 6,
   },
   backButtonText: {
-    color: "#FFFFFF",
+    color: "#000000",
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   topBar: {
     flexDirection: "row",
@@ -284,8 +289,12 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: "100%",
-    backgroundColor: "#208AEF",
+    backgroundColor: "#FFFFFF",
     borderRadius: 2,
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 6,
   },
   timeRow: {
     flexDirection: "row",
@@ -305,13 +314,13 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: "#208AEF",
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#208AEF",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 16,
     elevation: 8,
   },
 });

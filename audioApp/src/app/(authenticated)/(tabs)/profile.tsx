@@ -206,7 +206,7 @@ export default function ProfileScreen() {
   if (isLoading) {
     return (
       <SafeAreaView style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#208AEF" />
+        <ActivityIndicator size="large" color="#FFFFFF" />
         <Text style={styles.loadingText}>Loading profile...</Text>
       </SafeAreaView>
     );
@@ -223,7 +223,7 @@ export default function ProfileScreen() {
           onPress={() => dispatch(loadUserProfile())}
           activeOpacity={0.8}
         >
-          <Ionicons name="refresh" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Ionicons name="refresh" size={18} color="#000000" style={{ marginRight: 6 }} />
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </SafeAreaView>
@@ -250,8 +250,8 @@ export default function ProfileScreen() {
           <RefreshControl
             refreshing={userState.isLoading}
             onRefresh={handleRefresh}
-            tintColor="#208AEF"
-            colors={["#208AEF"]}
+            tintColor="#FFFFFF"
+            colors={["#FFFFFF"]}
           />
         }
       >
@@ -292,7 +292,7 @@ export default function ProfileScreen() {
             }}
             activeOpacity={0.8}
           >
-            <Ionicons name="pencil" size={15} color="#208AEF" style={{ marginRight: 6 }} />
+            <Ionicons name="pencil" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
             <Text style={styles.editProfileButtonText}>Edit Username</Text>
           </TouchableOpacity>
         </View>
@@ -314,7 +314,7 @@ export default function ProfileScreen() {
             onPress={() => router.push("/(authenticated)/(tabs)/userplaylists")}
             activeOpacity={0.75}
           >
-            <Ionicons name="musical-notes" size={22} color="#208AEF" style={{ marginBottom: 4 }} />
+            <Ionicons name="musical-notes" size={22} color="#FFFFFF" style={{ marginBottom: 4 }} />
             <Text style={styles.statNumber}>{totalPlaylists}</Text>
             <Text style={styles.statLabel}>Playlists</Text>
           </TouchableOpacity>
@@ -385,7 +385,7 @@ export default function ProfileScreen() {
           </View>
 
           {isSessionsLoading ? (
-            <ActivityIndicator size="small" color="#208AEF" style={{ marginVertical: 10 }} />
+            <ActivityIndicator size="small" color="#FFFFFF" style={{ marginVertical: 10 }} />
           ) : sessions.length === 0 ? (
             <Text style={styles.emptySessionText}>No session information available</Text>
           ) : (
@@ -397,7 +397,7 @@ export default function ProfileScreen() {
                     <Ionicons
                       name={s.isCurrent ? "phone-portrait" : "desktop-outline"}
                       size={20}
-                      color={s.isCurrent ? "#208AEF" : "#888888"}
+                      color={s.isCurrent ? "#FFFFFF" : "#888888"}
                     />
                   </View>
                   <View style={styles.sessionDetails}>
@@ -514,7 +514,7 @@ export default function ProfileScreen() {
                 }
               >
                 {isUpdatingProfile ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <ActivityIndicator size="small" color="#000000" />
                 ) : (
                   <Text style={styles.modalSubmitText}>Save</Text>
                 )}
@@ -576,18 +576,18 @@ const styles = StyleSheet.create({
     width: 84,
     height: 84,
     borderRadius: 42,
-    backgroundColor: "#208AEF",
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 12,
-    shadowColor: "#208AEF",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 10,
     elevation: 6,
   },
   avatarText: {
-    color: "#FFFFFF",
+    color: "#000000",
     fontSize: 34,
     fontWeight: "bold",
   },
@@ -631,15 +631,15 @@ const styles = StyleSheet.create({
   editProfileButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(32, 138, 239, 0.12)",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
     borderWidth: 1,
-    borderColor: "rgba(32, 138, 239, 0.3)",
+    borderColor: "rgba(255, 255, 255, 0.25)",
     paddingHorizontal: 16,
     paddingVertical: 7,
     borderRadius: 20,
   },
   editProfileButtonText: {
-    color: "#208AEF",
+    color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "600",
   },
@@ -726,13 +726,15 @@ const styles = StyleSheet.create({
     maxWidth: "50%",
   },
   roleBadge: {
-    backgroundColor: "rgba(32, 138, 239, 0.18)",
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.25)",
   },
   roleBadgeText: {
-    color: "#208AEF",
+    color: "#FFFFFF",
     fontSize: 11,
     fontWeight: "700",
   },
@@ -774,13 +776,15 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   currentDevicePill: {
-    backgroundColor: "rgba(32, 138, 239, 0.2)",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.3)",
   },
   currentDevicePillText: {
-    color: "#208AEF",
+    color: "#FFFFFF",
     fontSize: 10,
     fontWeight: "700",
   },
@@ -839,15 +843,20 @@ const styles = StyleSheet.create({
   retryButton: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#208AEF",
+    backgroundColor: "#FFFFFF",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 20,
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 4,
   },
   retryButtonText: {
-    color: "#FFFFFF",
+    color: "#000000",
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   modalBackdrop: {
     flex: 1,
@@ -898,15 +907,20 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   modalSubmitButton: {
-    backgroundColor: "#208AEF",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 22,
     paddingVertical: 10,
     borderRadius: 10,
     minWidth: 80,
     alignItems: "center",
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+    elevation: 4,
   },
   modalSubmitText: {
-    color: "#FFFFFF",
+    color: "#000000",
     fontSize: 14,
     fontWeight: "700",
   },

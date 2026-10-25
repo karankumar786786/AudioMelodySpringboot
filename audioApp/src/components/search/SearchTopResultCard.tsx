@@ -105,7 +105,7 @@ export function SearchTopResultCard({
           <Ionicons
             name={topResult.kind === "ARTIST" ? "chevron-forward" : "play"}
             size={topResult.kind === "ARTIST" ? 20 : 18}
-            color="#FFFFFF"
+            color="#000000"
             style={topResult.kind === "ARTIST" ? {} : { marginLeft: 2 }}
           />
         </View>
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     padding: 14,
     borderWidth: 1,
-    borderColor: "#252525",
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
   imageContainer: {
     width: 74,
@@ -175,15 +175,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
   },
   badge: {
-    backgroundColor: "rgba(32, 138, 239, 0.18)",
+    backgroundColor: "rgba(255, 255, 255, 0.15)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "rgba(32, 138, 239, 0.35)",
+    borderColor: "rgba(255, 255, 255, 0.3)",
   },
   badgeText: {
-    color: "#208AEF",
+    color: "#FFFFFF",
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.6,
@@ -192,13 +192,13 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: "#208AEF",
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 4,
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.75,
+    shadowRadius: 8,
+    elevation: 5,
   },
 });

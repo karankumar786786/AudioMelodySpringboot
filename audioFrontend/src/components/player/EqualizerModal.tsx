@@ -74,7 +74,7 @@ export function EqualizerModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-xl bg-[#121212]/95 border-white/10 backdrop-blur-2xl p-6 shadow-2xl overflow-hidden">
-        <BorderBeam size={180} duration={8} colorFrom="#1ed760" colorTo="#38bdf8" />
+        <BorderBeam size={180} duration={8} colorFrom="#ffffff" colorTo="#a1a1aa" />
 
         {/* Header */}
         <DialogHeader className="text-left pb-4 border-b border-white/10">

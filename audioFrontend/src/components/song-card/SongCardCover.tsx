@@ -135,7 +135,7 @@ export function SongCardCover({
                 }}
               />
               <svg
-                className="absolute -inset-1 w-13 h-13 -rotate-90 pointer-events-none drop-shadow-[0_0_8px_rgba(30,215,96,0.6)]"
+                className="absolute -inset-1 w-13 h-13 -rotate-90 pointer-events-none drop-shadow-[0_0_10px_rgba(255,255,255,0.7)]"
                 viewBox="0 0 52 52"
                 aria-hidden="true"
               >

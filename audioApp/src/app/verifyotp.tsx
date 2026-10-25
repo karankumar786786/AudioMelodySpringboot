@@ -96,7 +96,7 @@ export default function VerifyOtpScreen() {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.iconCircle}>
-              <Ionicons name="key-outline" size={36} color="#208AEF" />
+              <Ionicons name="key-outline" size={36} color="#FFFFFF" />
             </View>
             <Text style={styles.title}>Enter OTP Code</Text>
             <Text style={styles.subtitle}>
@@ -137,7 +137,7 @@ export default function VerifyOtpScreen() {
               disabled={verifyOtpMutation.isPending}
             >
               {verifyOtpMutation.isPending ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color="#000000" />
               ) : (
                 <Text style={styles.primaryButtonText}>Verify & Sign In</Text>
               )}
@@ -149,7 +149,7 @@ export default function VerifyOtpScreen() {
               disabled={resendOtpMutation.isPending}
             >
               {resendOtpMutation.isPending ? (
-                <ActivityIndicator size="small" color="#208AEF" />
+                <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <Text style={styles.resendText}>
                   Didn't receive code? Resend OTP
@@ -191,10 +191,12 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: "rgba(32, 138, 239, 0.12)",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
   },
   title: {
     fontSize: 26,
@@ -245,20 +247,25 @@ const styles = StyleSheet.create({
     letterSpacing: 8,
   },
   primaryButton: {
-    backgroundColor: "#208AEF",
+    backgroundColor: "#FFFFFF",
     height: 52,
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 8,
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.65,
+    shadowRadius: 10,
+    elevation: 6,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   primaryButtonText: {
-    color: "#FFFFFF",
+    color: "#000000",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   resendButton: {
     alignItems: "center",
@@ -266,9 +273,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   resendText: {
-    color: "#208AEF",
+    color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   footer: {
     flexDirection: "row",

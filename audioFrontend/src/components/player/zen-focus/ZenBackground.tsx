@@ -86,7 +86,7 @@ export const ZenBackground: React.FC<ZenBackgroundProps> = ({
       {/* Floating Magic UI Particles for Dreamy Zen Mood */}
       <Particles
         quantity={30}
-        color={solidBgColor || "#1ed760"}
+        color={solidBgColor || "#ffffff"}
         className="absolute inset-0 z-1 opacity-30 pointer-events-none"
       />
 

@@ -302,7 +302,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         className="max-w-2xl p-0 gap-0 overflow-hidden border-white/15 bg-[#121212]/95 backdrop-blur-2xl shadow-2xl [&>button]:hidden"
         onKeyDown={handleKeyDown}
       >
-        <BorderBeam size={80} duration={8} colorFrom="#1ed760" colorTo="#3b82f6" />
+        <BorderBeam size={80} duration={8} colorFrom="#ffffff" colorTo="#a1a1aa" />
         <CommandPaletteInput
           query={query}
           setQuery={setQuery}

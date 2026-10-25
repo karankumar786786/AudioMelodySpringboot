@@ -187,7 +187,7 @@ export function PreviewButton({
             cy={currentRing.center}
             r={currentRing.r}
             fill="none"
-            stroke="#1ed760"
+            stroke="#ffffff"
             strokeWidth={currentRing.stroke}
             strokeDasharray={circumference}
             strokeDashoffset={strokeDashoffset}

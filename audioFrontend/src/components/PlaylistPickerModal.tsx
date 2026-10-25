@@ -123,7 +123,7 @@ export function PlaylistPickerModal({
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="max-w-sm bg-[#161616]/95 border-white/10 backdrop-blur-2xl p-0 overflow-hidden shadow-2xl">
-        <BorderBeam size={160} duration={8} colorFrom="#1ed760" colorTo="#38bdf8" />
+        <BorderBeam size={160} duration={8} colorFrom="#ffffff" colorTo="#a1a1aa" />
 
         {/* Header */}
         <DialogHeader className="p-5 pb-3 border-b border-white/10 text-left">

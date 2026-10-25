@@ -1,4 +1,3 @@
-import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -26,7 +25,7 @@ export function SectionHeader({
           activeOpacity={0.7}
         >
           <Text style={styles.seeAllText}>See all</Text>
-          <Ionicons name="chevron-forward" size={14} color="#208AEF" />
+          <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
         </TouchableOpacity>
       ) : null}
     </View>
@@ -66,6 +65,6 @@ const styles = StyleSheet.create({
   seeAllText: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#208AEF",
+    color: "#FFFFFF",
   },
 });

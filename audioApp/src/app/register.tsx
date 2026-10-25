@@ -65,7 +65,7 @@ export default function RegisterScreen() {
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.iconCircle}>
-              <Ionicons name="person-add-outline" size={36} color="#208AEF" />
+              <Ionicons name="person-add-outline" size={36} color="#FFFFFF" />
             </View>
             <Text style={styles.title}>Create Account</Text>
             <Text style={styles.subtitle}>
@@ -127,7 +127,7 @@ export default function RegisterScreen() {
               disabled={registerMutation.isPending}
             >
               {registerMutation.isPending ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color="#000000" />
               ) : (
                 <Text style={styles.primaryButtonText}>Create Account</Text>
               )}
@@ -168,10 +168,12 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: "rgba(32, 138, 239, 0.12)",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
   },
   title: {
     fontSize: 26,
@@ -217,20 +219,25 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   primaryButton: {
-    backgroundColor: "#208AEF",
+    backgroundColor: "#FFFFFF",
     height: 52,
     borderRadius: 12,
     justifyContent: "center",
     alignItems: "center",
     marginTop: 8,
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.65,
+    shadowRadius: 10,
+    elevation: 6,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   primaryButtonText: {
-    color: "#FFFFFF",
+    color: "#000000",
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   footer: {
     flexDirection: "row",
@@ -243,8 +250,8 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   linkText: {
-    color: "#208AEF",
+    color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
   },
 });

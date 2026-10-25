@@ -13,6 +13,7 @@ import {
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 
 import { artistService } from "@/service";
@@ -193,14 +194,17 @@ export default function ArtistDetailScreen() {
             <Ionicons name="person" size={80} color="#444444" />
           </View>
         )}
-        {/* Dark Gradient Overlay for title contrast */}
-        <View style={styles.heroOverlay} />
-
+        {/* Multi-stop Linear Gradient scrim for smooth contrast blending into #121212 */}
+        <LinearGradient
+          colors={["transparent", "rgba(18, 18, 18, 0.6)", "#121212"]}
+          locations={[0, 0.5, 1]}
+          style={StyleSheet.absoluteFill}
+        />
 
         {/* Artist Title on Cover */}
         <View style={styles.heroTextContainer}>
           <View style={styles.verifiedRow}>
-            <Ionicons name="checkmark-circle" size={16} color="#208AEF" />
+            <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
             <Text style={styles.verifiedText}>Verified Artist</Text>
           </View>
           <Text style={styles.artistName} numberOfLines={2}>
@@ -247,12 +251,12 @@ export default function ArtistDetailScreen() {
           <TouchableOpacity
             style={styles.playButton}
             onPress={handlePlayAll}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
             <Ionicons
               name="play"
               size={24}
-              color="#FFFFFF"
+              color="#000000"
               style={{ marginLeft: 3 }}
             />
           </TouchableOpacity>
@@ -295,7 +299,7 @@ export default function ArtistDetailScreen() {
       {/* Pagination loader */}
       {isFetchingNextPage ? (
         <View style={styles.footerLoader}>
-          <ActivityIndicator size="small" color="#208AEF" />
+          <ActivityIndicator size="small" color="#FFFFFF" />
         </View>
       ) : null}
     </View>
@@ -304,7 +308,7 @@ export default function ArtistDetailScreen() {
   if (isArtistLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#208AEF" />
+        <ActivityIndicator size="large" color="#FFFFFF" />
         <Text style={styles.loadingText}>Loading artist...</Text>
       </View>
     );
@@ -345,7 +349,7 @@ export default function ArtistDetailScreen() {
             </View>
           ) : (
             <View style={styles.songsLoadingContainer}>
-              <ActivityIndicator size="small" color="#208AEF" />
+              <ActivityIndicator size="small" color="#FFFFFF" />
             </View>
           )
         }
@@ -359,8 +363,8 @@ export default function ArtistDetailScreen() {
           <RefreshControl
             refreshing={isRefetching}
             onRefresh={handleRefresh}
-            tintColor="#208AEF"
-            colors={["#208AEF"]}
+            tintColor="#FFFFFF"
+            colors={["#FFFFFF"]}
           />
         }
         contentContainerStyle={styles.listContent}
@@ -498,14 +502,14 @@ const styles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: "#208AEF",
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#208AEF",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 5,
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.75,
+    shadowRadius: 12,
+    elevation: 8,
   },
   sectionHeadingRow: {
     paddingHorizontal: 18,
@@ -545,7 +549,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   expandButtonText: {
-    color: "#208AEF",
+    color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "600",
   },

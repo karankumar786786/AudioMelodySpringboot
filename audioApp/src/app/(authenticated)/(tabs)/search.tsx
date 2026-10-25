@@ -293,7 +293,7 @@ export default function SearchScreen() {
       ) : isSearching && !searchResults ? (
         // Loading State
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#208AEF" />
+          <ActivityIndicator size="large" color="#FFFFFF" />
           <Text style={styles.loadingText}>Searching Melody...</Text>
         </View>
       ) : !hasAnyResults ? (
@@ -413,7 +413,7 @@ export default function SearchScreen() {
                     <Ionicons
                       name="musical-notes"
                       size={22}
-                      color="#208AEF"
+                      color="#FFFFFF"
                     />
                   </View>
                   <View style={styles.userPlaylistInfo}>

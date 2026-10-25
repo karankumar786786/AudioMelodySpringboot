@@ -33,9 +33,9 @@ export function PlaylistCard({ playlist }: PlaylistCardProps) {
         className="h-full"
       >
         <MagicCard
-          gradientColor="rgba(30, 215, 96, 0.12)"
-          gradientFrom="#1ed760"
-          gradientTo="#38bdf8"
+          gradientColor="rgba(255, 255, 255, 0.12)"
+          gradientFrom="#ffffff"
+          gradientTo="#a1a1aa"
           gradientSize={200}
           className="bg-black/90 p-2.5 rounded-xl hover:bg-[#222222] border border-white/5 hover:border-white/15 transition-all duration-300 space-y-2.5"
         >

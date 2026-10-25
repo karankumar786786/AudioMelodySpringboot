@@ -38,7 +38,7 @@ export function TrendingSongCard({ song, onPress }: TrendingSongCardProps) {
         )}
 
         <View style={styles.playOverlay}>
-          <Ionicons name="play" size={16} color="#FFFFFF" style={{ marginLeft: 2 }} />
+          <Ionicons name="play" size={15} color="#000000" style={{ marginLeft: 2 }} />
         </View>
       </View>
 
@@ -51,7 +51,7 @@ export function TrendingSongCard({ song, onPress }: TrendingSongCardProps) {
 
       {song.totalStreams ? (
         <View style={styles.streamsRow}>
-          <Ionicons name="trending-up" size={12} color="#1DB954" />
+          <Ionicons name="trending-up" size={12} color="#FFFFFF" />
           <Text style={styles.streamsText}>
             {song.totalStreams > 1000
               ? `${(song.totalStreams / 1000).toFixed(1)}k plays`
@@ -73,9 +73,9 @@ const styles = StyleSheet.create({
     height: 146,
     borderRadius: 12,
     overflow: "hidden",
-    backgroundColor: "#1E1E1E",
+    backgroundColor: "#181818",
     borderWidth: 1,
-    borderColor: "#2A2A2A",
+    borderColor: "rgba(255, 255, 255, 0.08)",
     marginBottom: 8,
     position: "relative",
   },
@@ -88,33 +88,35 @@ const styles = StyleSheet.create({
     height: "100%",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#222222",
+    backgroundColor: "#202020",
   },
   playOverlay: {
     position: "absolute",
     right: 8,
     bottom: 8,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "#208AEF",
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.75,
+    shadowRadius: 8,
+    elevation: 5,
   },
   title: {
     color: "#FFFFFF",
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
+    letterSpacing: -0.2,
     marginBottom: 2,
   },
   artist: {
-    color: "#888888",
-    fontSize: 12,
+    color: "#A7A7A7",
+    fontSize: 12.5,
+    fontWeight: "500",
   },
   streamsRow: {
     flexDirection: "row",
@@ -123,7 +125,7 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   streamsText: {
-    color: "#1DB954",
+    color: "#888888",
     fontSize: 11,
     fontWeight: "500",
   },

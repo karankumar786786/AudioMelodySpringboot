@@ -65,7 +65,7 @@ export function HeroSection({
       onClick={() => playerActions.playWithRadio(mapToPlayerSong(currentSong))}
       className="relative w-full h-83.75 md:h-93.75 rounded-2xl overflow-hidden group bg-zinc-900 border border-white/10 shadow-2xl cursor-pointer hover:border-white/20 transition-all select-none"
     >
-      <BorderBeam size={120} duration={10} colorFrom="#1ed760" colorTo="#38bdf8" />
+      <BorderBeam size={120} duration={10} colorFrom="#ffffff" colorTo="#a1a1aa" />
 
       {/* ─── Video or High-Res Background Image ─── */}
       <div className="absolute inset-0 z-0">
@@ -104,7 +104,7 @@ export function HeroSection({
         {!isVideoSong && (
           <Particles
             quantity={35}
-            color="#1ed760"
+            color="#ffffff"
             className="absolute inset-0 z-2 opacity-40 pointer-events-none"
           />
         )}

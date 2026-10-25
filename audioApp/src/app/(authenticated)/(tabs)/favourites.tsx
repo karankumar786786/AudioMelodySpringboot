@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 
 import { favouriteService } from "@/service";
@@ -117,9 +118,14 @@ export default function FavouritesScreen() {
     <View style={styles.headerContainer}>
       {/* Hero Liked Songs Card */}
       <View style={styles.heroCard}>
-        <View style={styles.heartGradientBox}>
-          <Ionicons name="heart" size={44} color="#FFFFFF" />
-        </View>
+        <LinearGradient
+          colors={["#450af5", "#8e8ee5"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.heartGradientBox}
+        >
+          <Ionicons name="heart" size={38} color="#FFFFFF" />
+        </LinearGradient>
 
         <View style={styles.heroDetails}>
           <Text style={styles.heroTitle}>Liked Songs</Text>
@@ -170,12 +176,12 @@ export default function FavouritesScreen() {
             <TouchableOpacity
               style={styles.playAllButton}
               onPress={handlePlayAll}
-              activeOpacity={0.8}
+              activeOpacity={0.85}
             >
               <Ionicons
                 name="play"
                 size={22}
-                color="#FFFFFF"
+                color="#000000"
                 style={{ marginLeft: 2 }}
               />
             </TouchableOpacity>
@@ -189,7 +195,7 @@ export default function FavouritesScreen() {
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       {isLoading ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#208AEF" />
+          <ActivityIndicator size="large" color="#FFFFFF" />
           <Text style={styles.loadingText}>Loading your favourites...</Text>
         </View>
       ) : allSongs.length === 0 ? (
@@ -232,7 +238,7 @@ export default function FavouritesScreen() {
           ListFooterComponent={
             isFetchingNextPage ? (
               <View style={styles.footerLoader}>
-                <ActivityIndicator size="small" color="#208AEF" />
+                <ActivityIndicator size="small" color="#FFFFFF" />
               </View>
             ) : undefined
           }
@@ -251,8 +257,8 @@ export default function FavouritesScreen() {
               onRefresh={() => {
                 refetch();
               }}
-              tintColor="#208AEF"
-              colors={["#208AEF"]}
+              tintColor="#FFFFFF"
+              colors={["#FFFFFF"]}
             />
           }
           contentContainerStyle={styles.listContent}
@@ -283,20 +289,19 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 18,
     borderWidth: 1,
-    borderColor: "#2E1C44",
+    borderColor: "rgba(142, 142, 229, 0.2)",
     marginBottom: 16,
   },
   heartGradientBox: {
     width: 68,
     height: 68,
     borderRadius: 14,
-    backgroundColor: "#E91E63",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 16,
-    shadowColor: "#E91E63",
+    shadowColor: "#450af5",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.45,
     shadowRadius: 8,
     elevation: 6,
   },
@@ -360,14 +365,14 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: 23,
-    backgroundColor: "#208AEF",
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#208AEF",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 5,
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.75,
+    shadowRadius: 10,
+    elevation: 6,
   },
   centerContainer: {
     flex: 1,
@@ -412,20 +417,20 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   exploreButton: {
-    backgroundColor: "#208AEF",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 24,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 3,
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.65,
+    shadowRadius: 8,
+    elevation: 4,
   },
   exploreButtonText: {
-    color: "#FFFFFF",
+    color: "#000000",
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   footerLoader: {
     paddingVertical: 16,

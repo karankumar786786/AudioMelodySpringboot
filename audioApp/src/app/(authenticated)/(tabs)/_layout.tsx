@@ -5,10 +5,10 @@ export default function TabLayout() {
   return (
     <NativeTabs
       blurEffect="systemChromeMaterialDark"
-      tintColor="#208AEF"
+      tintColor="#FFFFFF"
       iconColor={{
         default: "#8E8E93",
-        selected: "#208AEF",
+        selected: "#FFFFFF",
       }}
       labelStyle={{
         default: {
@@ -17,7 +17,7 @@ export default function TabLayout() {
           fontWeight: "600",
         },
         selected: {
-          color: "#208AEF",
+          color: "#FFFFFF",
           fontSize: 11,
           fontWeight: "600",
         },
