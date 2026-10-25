@@ -5,10 +5,13 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
-  Dimensions,
   ActivityIndicator,
+  useWindowDimensions,
+  GestureResponderEvent,
+  Platform,
 } from "react-native";
 import { useVideoPlayer, VideoView } from "expo-video";
+import * as ScreenOrientation from "expo-screen-orientation";
 import { Ionicons } from "@expo/vector-icons";
 import { audioPlayerService } from "@/service/audioPlayerService";
 import { formatDuration } from "@/utils/formatUtils";
@@ -22,8 +25,6 @@ interface FullVideoPlayerModalProps {
   onClose: (finalTimestamp: number) => void;
 }
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
-
 export function FullVideoPlayerModal({
   visible,
   videoStreamUrl,
@@ -32,11 +33,29 @@ export function FullVideoPlayerModal({
   artistName,
   onClose,
 }: FullVideoPlayerModalProps) {
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const isLandscape = windowWidth > windowHeight;
+
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentTime, setCurrentTime] = useState(initialTime);
   const [duration, setDuration] = useState(0);
   const [isBuffering, setIsBuffering] = useState(true);
+  const [progressBarWidth, setProgressBarWidth] = useState(1);
+  const [showControls, setShowControls] = useState(true);
   const currentTimeRef = useRef(initialTime);
+
+  // Enable auto-rotation when video modal opens, restore portrait lock when closed
+  useEffect(() => {
+    if (visible) {
+      ScreenOrientation.unlockAsync().catch(() => {});
+    } else {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+    }
+
+    return () => {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+    };
+  }, [visible]);
 
   const player = useVideoPlayer(visible && videoStreamUrl ? videoStreamUrl : "", (p) => {
     p.loop = false;
@@ -59,7 +78,7 @@ export function FullVideoPlayerModal({
 
     if (!videoStreamUrl) return;
 
-    // Pause audio service when video modal opens
+    // Pause background audio service when video modal opens
     audioPlayerService.pause();
 
     if (player) {
@@ -101,7 +120,8 @@ export function FullVideoPlayerModal({
     if (player) {
       player.pause();
     }
-    // Return timestamp to parent so audio can resume at the exact position
+    // Return to portrait before closing
+    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
     onClose(finalTime);
   };
 
@@ -123,6 +143,29 @@ export function FullVideoPlayerModal({
     setCurrentTime(target);
   };
 
+  const handleProgressBarPress = (e: GestureResponderEvent) => {
+    if (!player || progressBarWidth <= 0 || duration <= 0) return;
+    const { locationX } = e.nativeEvent;
+    const ratio = Math.max(0, Math.min(1, locationX / progressBarWidth));
+    const target = ratio * duration;
+    player.currentTime = target;
+    setCurrentTime(target);
+  };
+
+  const handleToggleOrientation = async () => {
+    try {
+      if (isLandscape) {
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+      } else {
+        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
+      }
+      // Re-enable rotation listening after manual change
+      setTimeout(() => {
+        ScreenOrientation.unlockAsync().catch(() => {});
+      }, 1000);
+    } catch {}
+  };
+
   if (!visible || !videoStreamUrl) return null;
 
   return (
@@ -131,35 +174,58 @@ export function FullVideoPlayerModal({
       animationType="fade"
       transparent={false}
       onRequestClose={handleClose}
+      supportedOrientations={["portrait", "landscape-left", "landscape-right"]}
     >
-      <View style={styles.container}>
+      <View style={[styles.container, isLandscape && styles.containerLandscape]}>
         {/* Top Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.closeBtn}
-            hitSlop={14}
-            onPress={handleClose}
-          >
-            <Ionicons name="close" size={28} color="#FFFFFF" />
-          </TouchableOpacity>
+        {showControls ? (
+          <View style={[styles.header, isLandscape && styles.headerLandscape]}>
+            <TouchableOpacity
+              style={styles.iconCircleBtn}
+              hitSlop={14}
+              onPress={handleClose}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="close" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
 
-          <View style={styles.titleInfo}>
-            <Text style={styles.title} numberOfLines={1}>
-              {title}
-            </Text>
-            <Text style={styles.artist} numberOfLines={1}>
-              {artistName}
-            </Text>
+            <View style={styles.titleInfo}>
+              <Text style={styles.title} numberOfLines={1}>
+                {title}
+              </Text>
+              <Text style={styles.artist} numberOfLines={1}>
+                {artistName}
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.iconCircleBtn}
+              hitSlop={14}
+              onPress={handleToggleOrientation}
+              activeOpacity={0.75}
+            >
+              <Ionicons
+                name={isLandscape ? "phone-portrait-outline" : "phone-landscape-outline"}
+                size={20}
+                color="#FFFFFF"
+              />
+            </TouchableOpacity>
           </View>
-
-          <View style={styles.placeholder} />
-        </View>
+        ) : null}
 
         {/* Video Surface */}
-        <View style={styles.videoWrapper}>
+        <TouchableOpacity
+          activeOpacity={1}
+          style={[styles.videoWrapper, isLandscape && styles.videoWrapperLandscape]}
+          onPress={() => setShowControls((prev) => !prev)}
+        >
           <VideoView
             player={player}
-            style={styles.videoView}
+            style={[
+              isLandscape
+                ? styles.videoViewLandscape
+                : [styles.videoViewPortrait, { width: windowWidth, height: windowWidth * (9 / 16) }],
+            ]}
             contentFit="contain"
             nativeControls={false}
             allowsPictureInPicture
@@ -170,56 +236,69 @@ export function FullVideoPlayerModal({
               <ActivityIndicator size="large" color="#FFFFFF" />
             </View>
           ) : null}
-        </View>
+        </TouchableOpacity>
 
         {/* Bottom Controls */}
-        <View style={styles.controlsSection}>
-          {/* Progress row */}
-          <View style={styles.progressRow}>
-            <Text style={styles.timeLabel}>{formatDuration(currentTime)}</Text>
-            <View style={styles.progressTrack}>
-              <View
-                style={[
-                  styles.progressFill,
-                  {
-                    width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`,
-                  },
-                ]}
-              />
+        {showControls ? (
+          <View style={[styles.controlsSection, isLandscape && styles.controlsSectionLandscape]}>
+            {/* Progress row */}
+            <View style={styles.progressRow}>
+              <Text style={styles.timeLabel}>{formatDuration(currentTime)}</Text>
+              <TouchableOpacity
+                activeOpacity={1}
+                style={styles.progressTouchArea}
+                onPress={handleProgressBarPress}
+                onLayout={(e) => setProgressBarWidth(e.nativeEvent.layout.width)}
+              >
+                <View style={styles.progressTrack}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%`,
+                      },
+                    ]}
+                  />
+                </View>
+              </TouchableOpacity>
+              <Text style={styles.timeLabel}>{formatDuration(duration)}</Text>
             </View>
-            <Text style={styles.timeLabel}>{formatDuration(duration)}</Text>
+
+            {/* Action buttons */}
+            <View style={styles.buttonsRow}>
+              <TouchableOpacity
+                style={styles.controlBtn}
+                hitSlop={14}
+                onPress={() => handleSeek(-10)}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="play-back-outline" size={26} color="#FFFFFF" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.playPauseBtn}
+                onPress={handleTogglePlay}
+                activeOpacity={0.88}
+              >
+                <Ionicons
+                  name={isPlaying ? "pause" : "play"}
+                  size={32}
+                  color="#000000"
+                  style={isPlaying ? undefined : { marginLeft: 3 }}
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.controlBtn}
+                hitSlop={14}
+                onPress={() => handleSeek(10)}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="play-forward-outline" size={26} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
           </View>
-
-          {/* Action buttons */}
-          <View style={styles.buttonsRow}>
-            <TouchableOpacity
-              style={styles.controlBtn}
-              hitSlop={12}
-              onPress={() => handleSeek(-10)}
-            >
-              <Ionicons name="play-back-outline" size={26} color="#FFFFFF" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.playPauseBtn}
-              onPress={handleTogglePlay}
-            >
-              <Ionicons
-                name={isPlaying ? "pause" : "play"}
-                size={34}
-                color="#000000"
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.controlBtn}
-              hitSlop={12}
-              onPress={() => handleSeek(10)}
-            >
-              <Ionicons name="play-forward-outline" size={26} color="#FFFFFF" />
-            </TouchableOpacity>
-          </View>
-        </View>
+        ) : null}
       </View>
     </Modal>
   );
@@ -231,22 +310,40 @@ const styles = StyleSheet.create({
     backgroundColor: "#000000",
     justifyContent: "space-between",
   },
+  containerLandscape: {
+    position: "relative",
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 54,
-    paddingHorizontal: 16,
+    paddingTop: Platform.OS === "ios" ? 54 : 28,
+    paddingHorizontal: 20,
     paddingBottom: 12,
-    zIndex: 10,
+    zIndex: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
   },
-  closeBtn: {
-    padding: 6,
+  headerLandscape: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingTop: Platform.OS === "ios" ? 20 : 12,
+    paddingHorizontal: 32,
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
+  },
+  iconCircleBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   titleInfo: {
     flex: 1,
     alignItems: "center",
-    paddingHorizontal: 10,
+    paddingHorizontal: 16,
   },
   title: {
     color: "#FFFFFF",
@@ -258,17 +355,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
-  placeholder: {
-    width: 40,
-  },
   videoWrapper: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#000000",
   },
-  videoView: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_WIDTH * (9 / 16),
+  videoWrapperLandscape: {
+    ...StyleSheet.absoluteFill,
+  },
+  videoViewPortrait: {
+    backgroundColor: "#000000",
+  },
+  videoViewLandscape: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#000000",
   },
   loaderOverlay: {
     ...StyleSheet.absoluteFill,
@@ -278,25 +380,40 @@ const styles = StyleSheet.create({
   },
   controlsSection: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: Platform.OS === "ios" ? 36 : 20,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    zIndex: 20,
+  },
+  controlsSectionLandscape: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 40,
+    paddingBottom: Platform.OS === "ios" ? 24 : 14,
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
   },
   progressRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 16,
+  },
+  progressTouchArea: {
+    flex: 1,
+    paddingVertical: 10,
+    marginHorizontal: 8,
   },
   timeLabel: {
     color: "#AAAAAA",
     fontSize: 12,
-    width: 40,
+    width: 44,
     textAlign: "center",
+    fontVariant: ["tabular-nums"],
   },
   progressTrack: {
-    flex: 1,
-    height: 4,
+    height: 4.5,
     backgroundColor: "rgba(255, 255, 255, 0.2)",
-    borderRadius: 2,
-    marginHorizontal: 10,
+    borderRadius: 3,
     overflow: "hidden",
   },
   progressFill: {
@@ -319,5 +436,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 8,
   },
 });
