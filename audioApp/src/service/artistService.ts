@@ -83,7 +83,7 @@ export const artistService: ArtistService = {
           searchParams: {
             query: artistName.trim(),
             filters: "type:song",
-            restrictSearchableAttributes: ["artistName", "artist"],
+            restrictSearchableAttributes: ["artistName"],
             hitsPerPage: size,
             page: page,
             typoTolerance: true,
