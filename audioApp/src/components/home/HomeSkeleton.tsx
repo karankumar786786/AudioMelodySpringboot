@@ -59,9 +59,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#1C1C1E",
   },
   circleSkeleton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     backgroundColor: "#1C1C1E",
   },
 });
