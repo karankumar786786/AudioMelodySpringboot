@@ -297,9 +297,48 @@ export default function UserPlaylistDetailScreen() {
 
         {/* Content pinned to bottom */}
         <View style={styles.heroContent}>
-          <Text style={styles.heroTitle} numberOfLines={2}>
-            {playlist?.name || "Playlist"}
-          </Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.heroTitle} numberOfLines={2}>
+              {playlist?.name || "Playlist"}
+            </Text>
+
+            <View style={styles.titleActions}>
+              <TouchableOpacity
+                style={styles.actionIconButton}
+                onPress={handleShare}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="share-outline" size={19} color="#FFFFFF" />
+              </TouchableOpacity>
+
+              {isOwner ? (
+                <TouchableOpacity
+                  style={[styles.actionIconButton, styles.deleteButton]}
+                  onPress={handleDeletePlaylist}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Ionicons name="trash-outline" size={18} color="#FF5252" />
+                </TouchableOpacity>
+              ) : null}
+
+              {songs.length > 0 ? (
+                <TouchableOpacity
+                  style={styles.playButton}
+                  onPress={handlePlayAll}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons
+                    name="play"
+                    size={22}
+                    color="#000000"
+                    style={{ marginLeft: 2 }}
+                  />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </View>
 
           <View style={styles.statsRow}>
             <Text style={styles.curatorText}>
@@ -317,46 +356,6 @@ export default function UserPlaylistDetailScreen() {
             </View>
           </View>
         </View>
-      </View>
-
-      {/* Action Controls */}
-      <View style={styles.actionRow}>
-        <View style={styles.leftActions}>
-          <TouchableOpacity
-            style={styles.actionIconButton}
-            onPress={handleShare}
-            activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            <Ionicons name="share-outline" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-
-          {isOwner ? (
-            <TouchableOpacity
-              style={[styles.actionIconButton, styles.deleteButton]}
-              onPress={handleDeletePlaylist}
-              activeOpacity={0.7}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Ionicons name="trash-outline" size={19} color="#FF5252" />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-
-        {songs.length > 0 ? (
-          <TouchableOpacity
-            style={styles.playButton}
-            onPress={handlePlayAll}
-            activeOpacity={0.85}
-          >
-            <Ionicons
-              name="play"
-              size={24}
-              color="#000000"
-              style={{ marginLeft: 3 }}
-            />
-          </TouchableOpacity>
-        ) : null}
       </View>
     </View>
   );
@@ -528,13 +527,26 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     letterSpacing: 0.8,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 4,
+  },
+  titleActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flexShrink: 0,
+  },
   heroTitle: {
-    fontSize: 28,
+    flex: 1,
+    fontSize: 26,
     fontWeight: "bold",
     color: "#FFFFFF",
     letterSpacing: -0.5,
-    marginBottom: 6,
-    textShadowColor: "rgba(0, 0, 0, 0.8)",
+    textShadowColor: "rgba(0, 0, 0, 0.85)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
   },
@@ -570,43 +582,31 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontWeight: "700",
   },
-  actionRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  leftActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
   actionIconButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#1F1F1F",
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(30, 30, 30, 0.85)",
     borderWidth: 1,
-    borderColor: "#2E2E2E",
+    borderColor: "rgba(255, 255, 255, 0.18)",
     justifyContent: "center",
     alignItems: "center",
   },
   deleteButton: {
-    backgroundColor: "rgba(255, 82, 82, 0.12)",
-    borderColor: "rgba(255, 82, 82, 0.25)",
+    backgroundColor: "rgba(255, 82, 82, 0.15)",
+    borderColor: "rgba(255, 82, 82, 0.35)",
   },
   playButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#FFFFFF",
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.75,
-    shadowRadius: 12,
+    shadowOpacity: 0.6,
+    shadowRadius: 10,
     elevation: 8,
   },
   centerContainer: {
