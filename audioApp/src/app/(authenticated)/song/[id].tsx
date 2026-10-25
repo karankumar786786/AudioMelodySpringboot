@@ -109,32 +109,13 @@ export default function SongDetailScreen() {
     queryFn: () => favouriteService.getFavourites(0, 50),
   });
 
-  const [isFollowLoading, setIsFollowLoading] = useState(false);
-
-  // Artist follow status and metadata (follower count, artistId)
-  const { data: artistFollowData, refetch: refetchArtistFollow } = useQuery({
+  // Artist metadata (artistId for profile navigation)
+  const { data: artistFollowData } = useQuery({
     queryKey: ["artist-follow-status", activeSong?.artistName],
     queryFn: () => artistService.getFollowStatus(activeSong!.artistName),
     enabled: Boolean(activeSong?.artistName),
     staleTime: 1000 * 60 * 5,
   });
-
-  const handleToggleFollow = async () => {
-    if (!artistFollowData?.artistId || isFollowLoading) return;
-    setIsFollowLoading(true);
-    try {
-      if (artistFollowData.isFollowing) {
-        await artistService.unfollowArtist(artistFollowData.artistId);
-      } else {
-        await artistService.followArtist(artistFollowData.artistId);
-      }
-      refetchArtistFollow();
-    } catch (err) {
-      console.warn("[SongDetailScreen] Error toggling artist follow:", err);
-    } finally {
-      setIsFollowLoading(false);
-    }
-  };
 
   const handleOpenArtist = () => {
     if (artistFollowData?.artistId) {
@@ -775,51 +756,14 @@ export default function SongDetailScreen() {
 
               {/* Bottom Info on Hero */}
               <View style={styles.artistHeroBottomBar}>
-                <View style={{ flex: 1, marginRight: 12 }}>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.artistHeroName} numberOfLines={1}>
                     {songInfo?.artist?.name || activeSong.artistName}
                   </Text>
                   <View style={styles.artistHeroMetaRow}>
                     <Text style={styles.artistHeroRole}>Artist</Text>
-                    {artistFollowData?.followersCount !== undefined ? (
-                      <>
-                        <Text style={styles.artistHeroDot}>•</Text>
-                        <Ionicons name="people" size={11} color="rgba(255, 255, 255, 0.7)" />
-                        <Text style={styles.artistHeroFollowers}>
-                          {Number(artistFollowData.followersCount).toLocaleString()} followers
-                        </Text>
-                      </>
-                    ) : null}
                   </View>
                 </View>
-
-                {artistFollowData?.artistId ? (
-                  <TouchableOpacity
-                    style={[
-                      styles.artistFollowBtn,
-                      artistFollowData.isFollowing && styles.artistFollowBtnActive,
-                    ]}
-                    onPress={handleToggleFollow}
-                    activeOpacity={0.8}
-                    disabled={isFollowLoading}
-                  >
-                    {isFollowLoading ? (
-                      <ActivityIndicator
-                        size="small"
-                        color={artistFollowData.isFollowing ? "#FFFFFF" : "#000000"}
-                      />
-                    ) : (
-                      <Text
-                        style={[
-                          styles.artistFollowBtnText,
-                          artistFollowData.isFollowing && styles.artistFollowBtnTextActive,
-                        ]}
-                      >
-                        {artistFollowData.isFollowing ? "Following" : "Follow"}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                ) : null}
               </View>
             </TouchableOpacity>
 
@@ -1506,38 +1450,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "rgba(255, 255, 255, 0.7)",
   },
-  artistHeroDot: {
-    fontSize: 11,
-    color: "rgba(255, 255, 255, 0.4)",
-  },
-  artistHeroFollowers: {
-    fontSize: 11,
-    fontWeight: "600",
-    color: "rgba(255, 255, 255, 0.8)",
-    fontVariant: ["tabular-nums"],
-  },
-  artistFollowBtn: {
-    backgroundColor: "#FFFFFF",
-    paddingVertical: 7,
-    paddingHorizontal: 16,
-    borderRadius: 18,
-    minWidth: 78,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  artistFollowBtnActive: {
-    backgroundColor: "transparent",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.45)",
-  },
-  artistFollowBtnText: {
-    fontSize: 11.5,
-    fontWeight: "800",
-    color: "#000000",
-  },
-  artistFollowBtnTextActive: {
-    color: "#FFFFFF",
-  },
+
   artistBioContainer: {
     marginTop: 14,
   },
