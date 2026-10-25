@@ -11,6 +11,7 @@ setVideoCacheSizeAsync(512 * 1024 * 1024).catch(() => {});
 const canvasMemoryCache = new Set<string>();
 
 interface CanvasVideoPlayerProps {
+  videoUrl?: string | null;
   videoKey?: string | null;
   fallbackImageKey?: string | null;
   style?: StyleProp<ViewStyle>;
@@ -117,14 +118,15 @@ function VideoSurface({
 }
 
 export function CanvasVideoPlayer({
+  videoUrl: directVideoUrl,
   videoKey,
   fallbackImageKey,
   style,
   isPlaying = true,
   showLoaderWhenVideoAvailable = false,
 }: CanvasVideoPlayerProps) {
-  // Request progressive MP4 from ImageKit for canvas video so it can be cached in memory/disk
-  const videoUrl = getVideoUrl(videoKey, { format: "mp4" });
+  // Use direct video URL without dynamic transformation (matches audioFrontend RightInfoPanel: ?tr=orig)
+  const videoUrl = directVideoUrl || (videoKey ? getVideoUrl(videoKey) : undefined);
   const imageUrl = getImageUrl(fallbackImageKey, {
     width: 1280,
     height: 720,

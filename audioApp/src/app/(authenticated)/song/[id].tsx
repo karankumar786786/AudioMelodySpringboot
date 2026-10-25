@@ -296,6 +296,7 @@ export default function SongDetailScreen() {
       {showCanvasBackground && activeSong.videoKey ? (
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
           <CanvasVideoPlayer
+            videoUrl={(activeSong as any)?.canvasVideoUrl}
             videoKey={activeSong.videoKey}
             fallbackImageKey={activeSong.imageKey}
             isPlaying={isPlaying}
