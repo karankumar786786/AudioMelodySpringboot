@@ -17,7 +17,7 @@ import { store } from "@/store/hook";
 import { audioPlayerService, configureAudioPriority } from "@/service/audioPlayerService";
 import { formatDuration } from "@/utils/formatUtils";
 import { PlayerSettingsModal } from "./PlayerSettingsModal";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { usePanGesture, GestureDetector } from "react-native-gesture-handler";
 
 interface FullVideoPlayerModalProps {
   visible: boolean;
@@ -171,11 +171,11 @@ export function FullVideoPlayerModal({
     setCurrentTime(target);
   };
 
-  const videoDismissGesture = Gesture.Pan()
-    .runOnJS(true)
-    .activeOffsetX([-20, 20])
-    .activeOffsetY([0, 20])
-    .onEnd((e) => {
+  const videoDismissGesture = usePanGesture({
+    runOnJS: true,
+    activeOffsetX: [-20, 20],
+    activeOffsetY: [0, 20],
+    onDeactivate: (e) => {
       const { translationX, translationY, velocityX, velocityY } = e;
 
       // 1. Left-to-Right Swipe: dismiss video and send to artwork mode (both portrait & landscape)
@@ -207,7 +207,8 @@ export function FullVideoPlayerModal({
         handleClose();
         return;
       }
-    });
+    },
+  });
 
   if (!visible || !videoStreamUrl) return null;
 

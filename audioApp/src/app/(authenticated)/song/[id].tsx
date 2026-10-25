@@ -42,7 +42,7 @@ import { formatDuration, formatStreams } from "@/utils/formatUtils";
 import { getImageUrl } from "@/utils/imageUtils";
 import { S3_BASE_URL } from "@/utils/playerUtils";
 import { useDominantColor } from "@/utils/colorUtils";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { usePanGesture, GestureDetector } from "react-native-gesture-handler";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -341,25 +341,14 @@ export default function SongDetailScreen() {
     }
   };
 
-  // Gesture handler to slide between Canvas, Artwork, Video & down-swipe dismiss
-  const stagePanGesture = Gesture.Pan()
-    .runOnJS(true)
-    .activeOffsetX([-20, 20])
-    .activeOffsetY([0, 20])
-    .onEnd((e) => {
-      const { translationX, translationY, velocityX, velocityY } = e;
+  // Gesture handler to slide horizontally between Canvas, Artwork, Video
+  const stagePanGesture = usePanGesture({
+    runOnJS: true,
+    activeOffsetX: [-20, 20],
+    onDeactivate: (e) => {
+      const { translationX, translationY, velocityX } = e;
 
-      // 1. Vertical Downward Swipe: dismiss full-screen player to go back / home
-      if (
-        translationY > 45 &&
-        (velocityY > 200 || translationY > 75) &&
-        Math.abs(translationY) > Math.abs(translationX) * 1.05
-      ) {
-        handleDismissPlayer();
-        return;
-      }
-
-      // 2. Horizontal Slide: switch between Canvas, Artwork, and Video
+      // Horizontal Slide: switch between Canvas, Artwork, and Video
       if (
         Math.abs(translationX) > 35 &&
         Math.abs(translationX) > Math.abs(translationY) * 1.05
@@ -371,7 +360,7 @@ export default function SongDetailScreen() {
           // Swiped Left-to-Right (user dragged right)
           const currentIndex = availableModes.findIndex((m) => m.key === viewMode);
           if (viewMode === "canvas" || currentIndex <= 0) {
-            // In canvas mode (or leftmost mode): back/home like down gesture
+            // In canvas mode (or leftmost mode): back/home
             handleDismissPlayer();
           } else {
             // Return to previous mode (e.g. from artwork back to canvas)
@@ -379,19 +368,21 @@ export default function SongDetailScreen() {
           }
         }
       }
-    });
+    },
+  });
 
-  const topBarGesture = Gesture.Pan()
-    .runOnJS(true)
-    .activeOffsetX([-20, 20])
-    .activeOffsetY([0, 15])
-    .onEnd((e) => {
+  const topBarGesture = usePanGesture({
+    runOnJS: true,
+    activeOffsetX: [-20, 20],
+    activeOffsetY: [0, 15],
+    onDeactivate: (e) => {
       if (e.translationY > 35) {
         handleDismissPlayer();
       } else if (e.translationX > 40 && (viewMode === "canvas" || !hasCanvas)) {
         handleDismissPlayer();
       }
-    });
+    },
+  });
 
   return (
     <View style={styles.root}>
