@@ -35,12 +35,53 @@ export function parseLrcToEntries(lrcText: string): LyricEntry[] {
   });
 }
 
+const LRCLIB_USER_AGENT = "OneMelody/1.0.0 (https://onemelody.com; support@onemelody.com)";
+
 async function fetchLyrics(
-  lrclibId: string | number
+  input: string | number
 ): Promise<{ transcriptions: LyricEntry[]; plainLyrics: string | null }> {
+  const query = String(input).trim();
+  if (!query) return { transcriptions: [], plainLyrics: null };
+
+  // If input is a direct caption URL (WEBVTT or LRC file)
+  if (query.startsWith("http://") || query.startsWith("https://")) {
+    try {
+      const res = await fetch(query, {
+        headers: { "User-Agent": LRCLIB_USER_AGENT },
+      });
+      if (!res.ok) return { transcriptions: [], plainLyrics: null };
+      const text = await res.text();
+      return { transcriptions: parseLrcToEntries(text), plainLyrics: null };
+    } catch {
+      return { transcriptions: [], plainLyrics: null };
+    }
+  }
+
+  // Fetch from LRCLIB API with custom User-Agent to satisfy Cloudflare rate limiting rules
+  const url = `https://lrclib.net/api/get/${encodeURIComponent(query)}`;
+  const headers = {
+    "User-Agent": LRCLIB_USER_AGENT,
+    Accept: "application/json",
+  };
+
   try {
-    const res = await fetch(`https://lrclib.net/api/get/${encodeURIComponent(String(lrclibId))}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    let res = await fetch(url, { headers });
+
+    // Handle temporary 503 Server Overloaded with a single backoff retry
+    if (res.status === 503) {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      res = await fetch(url, { headers });
+    }
+
+    if (res.status === 404) {
+      // Lyrics not found on LRCLIB
+      return { transcriptions: [], plainLyrics: null };
+    }
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
     const data = await res.json();
 
     if (data.syncedLyrics && typeof data.syncedLyrics === "string") {
@@ -50,8 +91,11 @@ async function fetchLyrics(
       return { transcriptions: [], plainLyrics: data.plainLyrics };
     }
     return { transcriptions: [], plainLyrics: null };
-  } catch (error) {
-    console.warn(`[useLyrics] Error fetching lyrics for LRCLIB ID "${lrclibId}":`, error);
+  } catch (error: any) {
+    // Only log unexpected non-404 errors to prevent console spam
+    if (!error?.message?.includes("404")) {
+      console.warn(`[useLyrics] Could not fetch lyrics for LRCLIB ID "${query}":`, error?.message || error);
+    }
     return { transcriptions: [], plainLyrics: null };
   }
 }
@@ -68,6 +112,7 @@ export function useLyrics(
     enabled: Boolean(idStr),
     staleTime: 1000 * 60 * 60 * 24, // 24 hours
     gcTime: 1000 * 60 * 60 * 48,
+    retry: 1,
   });
 
   const transcriptions = data?.transcriptions || [];

@@ -53,6 +53,7 @@ export default function AuthenticatedLayout() {
         options={{
           headerShown: false,
           presentation: "card",
+          animation: "fade_from_bottom"
         }}
       />
       <Stack.Screen
