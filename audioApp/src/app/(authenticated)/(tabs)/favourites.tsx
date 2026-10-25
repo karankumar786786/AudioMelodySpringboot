@@ -18,6 +18,7 @@ import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 
 import { AppDispatch, AppState } from "@/store";
 import { playAll, playAllFrom } from "@/store/queueActions";
+import { audioPlayerService } from "@/service/audioPlayerService";
 import { favouriteService } from "@/service";
 import { Song } from "@/types";
 import { getImageUrl } from "@/utils/imageUtils";
@@ -29,9 +30,12 @@ const HERO_HEIGHT = Math.min(SCREEN_WIDTH * 0.95, 360);
 
 export default function FavouritesScreen() {
   const router = useRouter();
+  const dispatch = useDispatch<AppDispatch>();
   const queryClient = useQueryClient();
 
   const profile = useSelector((state: AppState) => state.user.profile);
+  const currentSong = useSelector((state: AppState) => state.player.currentSong);
+  const isPlaying = useSelector((state: AppState) => state.player.isPlaying);
 
   // Infinite query for favourites
   const {
@@ -70,16 +74,37 @@ export default function FavouritesScreen() {
 
   // Handlers
   const handleSongPress = (song: Song) => {
+    const idx = allSongs.findIndex((s) => s.id === song.id);
+    dispatch(playAllFrom(allSongs, idx !== -1 ? idx : 0));
     router.push({
       pathname: "/(authenticated)/song/[id]",
       params: { id: song.id },
     });
   };
 
+  const isCurrentPlaylistPlaying = useMemo(() => {
+    if (!currentSong || !isPlaying || allSongs.length === 0) return false;
+    return allSongs.some((s) => s.id === currentSong.id);
+  }, [currentSong, isPlaying, allSongs]);
+
   const handlePlayAll = () => {
-    if (allSongs.length > 0) {
-      handleSongPress(allSongs[0]);
+    if (allSongs.length === 0) return;
+
+    if (isCurrentPlaylistPlaying) {
+      audioPlayerService.pause();
+      return;
     }
+
+    if (currentSong && allSongs.some((s) => s.id === currentSong.id)) {
+      audioPlayerService.resume();
+      return;
+    }
+
+    dispatch(playAll(allSongs));
+    router.push({
+      pathname: "/(authenticated)/song/[id]",
+      params: { id: allSongs[0].id },
+    });
   };
 
   const handleRemoveFavourite = async (songId: string) => {
@@ -222,17 +247,18 @@ export default function FavouritesScreen() {
         )}
 
         {/* Global subtle dark wash */}
-        <View style={styles.heroWash} />
+        <View style={styles.heroWash} pointerEvents="none" />
 
         {/* Linear Gradient scrim blending into #121212 */}
         <LinearGradient
           colors={["transparent", "rgba(18, 18, 18, 0.45)", "#121212"]}
           locations={[0, 0.62, 1]}
           style={styles.heroGradient}
+          pointerEvents="none"
         />
 
         {/* Hero Content pinned to bottom */}
-        <View style={styles.heroContent}>
+        <View style={styles.heroContent} pointerEvents="box-none">
           {/* Title & Action Buttons Row */}
           <View style={styles.titleRow}>
             <Text style={styles.heroTitle} numberOfLines={1}>
@@ -247,10 +273,10 @@ export default function FavouritesScreen() {
                   activeOpacity={0.85}
                 >
                   <Ionicons
-                    name="play"
+                    name={isCurrentPlaylistPlaying ? "pause" : "play"}
                     size={22}
                     color="#000000"
-                    style={{ marginLeft: 2 }}
+                    style={!isCurrentPlaylistPlaying ? { marginLeft: 2 } : undefined}
                   />
                 </TouchableOpacity>
               ) : null}
@@ -293,6 +319,8 @@ export default function FavouritesScreen() {
             <FavouriteSongItem
               song={item}
               index={index}
+              isActive={currentSong?.id === item.id}
+              isPlaying={currentSong?.id === item.id && isPlaying}
               onPress={() => handleSongPress(item)}
               onRemove={() => handleRemoveFavourite(item.id)}
             />

@@ -113,6 +113,7 @@ function VideoSurface({
       contentFit="cover"
       nativeControls={false}
       allowsPictureInPicture={false}
+      pointerEvents="none"
     />
   );
 }
@@ -147,7 +148,7 @@ export function CanvasVideoPlayer({
     !videoUrl || videoError || (!showLoaderWhenVideoAvailable && !isVideoReady);
 
   return (
-    <View style={[styles.container, style]}>
+    <View style={[styles.container, style]} pointerEvents="none">
       {/* Fallback poster image */}
       {shouldRenderImage ? (
         imageUrl ? (

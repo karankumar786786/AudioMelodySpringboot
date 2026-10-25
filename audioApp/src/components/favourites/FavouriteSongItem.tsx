@@ -9,6 +9,8 @@ import { formatDuration, formatStreams, formatSongSubtitle } from "@/utils/forma
 interface FavouriteSongItemProps {
   song: Song;
   index?: number;
+  isActive?: boolean;
+  isPlaying?: boolean;
   onPress: () => void;
   onRemove: () => void;
 }
@@ -16,6 +18,8 @@ interface FavouriteSongItemProps {
 export function FavouriteSongItem({
   song,
   index,
+  isActive = false,
+  isPlaying = false,
   onPress,
   onRemove,
 }: FavouriteSongItemProps) {
@@ -28,7 +32,7 @@ export function FavouriteSongItem({
 
   return (
     <TouchableOpacity
-      style={styles.container}
+      style={[styles.container, isActive && styles.containerActive]}
       onPress={onPress}
       activeOpacity={0.72}
     >
@@ -46,10 +50,22 @@ export function FavouriteSongItem({
             <Ionicons name="musical-note" size={20} color="#666666" />
           </View>
         )}
+        {isActive ? (
+          <View style={styles.activeOverlay}>
+            <Ionicons
+              name={isPlaying ? "volume-high" : "pause"}
+              size={18}
+              color="#FFFFFF"
+            />
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.info}>
-        <Text style={styles.title} numberOfLines={1}>
+        <Text
+          style={[styles.title, isActive && styles.titleActive]}
+          numberOfLines={1}
+        >
           {song.title}
         </Text>
         <Text style={styles.subtitle} numberOfLines={1}>
@@ -63,7 +79,9 @@ export function FavouriteSongItem({
         ) : null}
       </View>
 
-      <Text style={styles.duration}>{formatDuration(song.duration)}</Text>
+      <Text style={[styles.duration, isActive && styles.durationActive]}>
+        {formatDuration(song.duration)}
+      </Text>
 
       {/* Unlike / Remove Heart Button */}
       <TouchableOpacity
@@ -72,7 +90,7 @@ export function FavouriteSongItem({
           e.stopPropagation?.();
           onRemove();
         }}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       >
         <Ionicons name="heart" size={20} color="#E91E63" />
       </TouchableOpacity>
@@ -139,5 +157,20 @@ const styles = StyleSheet.create({
   },
   heartButton: {
     padding: 6,
+  },
+  containerActive: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+  },
+  activeOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  titleActive: {
+    color: "#ffffff",
+  },
+  durationActive: {
+    color: "#ffffff",
   },
 });
