@@ -13,7 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -33,6 +33,12 @@ import {
 } from "@/service";
 import { UserSession } from "@/types";
 
+// Space reserved at the bottom for the tab bar + mini player so the
+// last item (Log out) can scroll fully into view. Adjust if needed.
+const TAB_BAR_HEIGHT = 64;
+const MINI_PLAYER_HEIGHT = 72;
+const EXTRA_BREATHING_ROOM = 32;
+
 const C = {
   black: "#000000",
   white: "#FFFFFF",
@@ -46,6 +52,9 @@ export default function ProfileScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
+  const bottomSpace =
+    TAB_BAR_HEIGHT + MINI_PLAYER_HEIGHT + EXTRA_BREATHING_ROOM + insets.bottom;
 
   const deviceId = useSelector((state: AppState) => state.device.deviceId);
   const refreshToken = useSelector((state: AppState) => state.auth.refreshToken);
@@ -249,7 +258,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       <ScrollView
-        contentContainerStyle={styles.container}
+        contentContainerStyle={[styles.container, { paddingBottom: bottomSpace }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -437,7 +446,7 @@ function Row({ label, value, last }: { label: string; value: string; last?: bool
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: C.black },
-  container: { paddingHorizontal: 20, paddingBottom: 48, backgroundColor: C.black },
+  container: { paddingHorizontal: 20, backgroundColor: C.black },
   center: {
     flex: 1,
     backgroundColor: C.black,
