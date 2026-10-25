@@ -44,37 +44,41 @@ export function MiniPlayer() {
   };
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      activeOpacity={0.92}
-      onPress={handlePressCard}
-    >
+    <View style={styles.container}>
       <View style={styles.contentRow}>
-        {/* Cover Art */}
-        <Image
-          source={{ uri: currentSong.coverUrl }}
-          style={styles.artwork}
-          contentFit="cover"
-          transition={150}
-          cachePolicy="memory"
-        />
+        {/* Left Track Info Area: Tappable to open full player screen */}
+        <TouchableOpacity
+          style={styles.trackInfoTouchArea}
+          activeOpacity={0.8}
+          onPress={handlePressCard}
+        >
+          {/* Cover Art */}
+          <Image
+            source={{ uri: currentSong.coverUrl }}
+            style={styles.artwork}
+            contentFit="cover"
+            transition={150}
+            cachePolicy="memory"
+          />
 
-        {/* Track Title and Artist */}
-        <View style={styles.textContainer}>
-          <Text style={styles.title} numberOfLines={1}>
-            {currentSong.title}
-          </Text>
-          <Text style={styles.artist} numberOfLines={1}>
-            {currentSong.artistName}
-          </Text>
-        </View>
+          {/* Track Title and Artist */}
+          <View style={styles.textContainer}>
+            <Text style={styles.title} numberOfLines={1}>
+              {currentSong.title}
+            </Text>
+            <Text style={styles.artist} numberOfLines={1}>
+              {currentSong.artistName}
+            </Text>
+          </View>
+        </TouchableOpacity>
 
-        {/* Play/Pause & Next Controls */}
+        {/* Play/Pause & Next Controls: Completely independent touch targets */}
         <View style={styles.actionsRow}>
           <TouchableOpacity
             style={styles.actionButton}
-            hitSlop={12}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}
             onPress={handleTogglePlay}
+            activeOpacity={0.7}
           >
             {isLoading ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
@@ -89,8 +93,9 @@ export function MiniPlayer() {
 
           <TouchableOpacity
             style={styles.actionButton}
-            hitSlop={12}
+            hitSlop={{ top: 10, bottom: 10, left: 4, right: 10 }}
             onPress={handleNext}
+            activeOpacity={0.7}
           >
             <Ionicons name="play-skip-forward" size={20} color="#CCCCCC" />
           </TouchableOpacity>
@@ -101,7 +106,7 @@ export function MiniPlayer() {
       <View style={styles.progressBarBackground}>
         <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -125,6 +130,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 10,
     paddingVertical: 8,
+  },
+  trackInfoTouchArea: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
   },
   artwork: {
     width: 44,

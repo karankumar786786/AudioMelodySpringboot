@@ -22,6 +22,7 @@ class AudioPlayerService {
   private isInitialized = false;
   private currentPlayingSong: PlayerSong | null = null;
   private onTrackEndCallback: (() => void) | null = null;
+  private isAdvancingTrack = false;
 
   public setOnTrackEnd(callback: (() => void) | null) {
     this.onTrackEndCallback = callback;
@@ -70,8 +71,20 @@ class AudioPlayerService {
     dispatch(setIsPlaying(Boolean(status.playing)));
     dispatch(setIsLoading(Boolean(status.isBuffering)));
 
-    // Track finished event
-    if (status.didJustFinish) {
+    // Track finished event (strictly validate track reached end and not already advancing)
+    if (
+      status.didJustFinish &&
+      typeof status.duration === "number" &&
+      status.duration > 0 &&
+      typeof status.currentTime === "number" &&
+      status.currentTime >= status.duration - 1.5 &&
+      !this.isAdvancingTrack
+    ) {
+      this.isAdvancingTrack = true;
+      setTimeout(() => {
+        this.isAdvancingTrack = false;
+      }, 1200);
+
       console.log("[AudioPlayerService] Track finished playback. Determining next action...");
       const state = store.getState();
       const sleepTimer = state.player.sleepTimer;
@@ -99,6 +112,7 @@ class AudioPlayerService {
     if (!this.player) return;
 
     try {
+      this.isAdvancingTrack = false;
       // Re-assert exclusive audio focus when playback starts
       await configureAudioPriority();
 
@@ -158,7 +172,16 @@ class AudioPlayerService {
   resume(): void {
     if (!this.player) return;
     configureAudioPriority();
-    this.player.play();
+    const curTime = this.player.currentTime || 0;
+    const dur = this.player.duration || 0;
+    if (dur > 0 && curTime >= dur - 0.5) {
+      // Track is already at EOF: restart from 0 instead of immediately triggering didJustFinish
+      this.player.seekTo(0).then(() => {
+        this.player?.play();
+      });
+    } else {
+      this.player.play();
+    }
     store.dispatch(setIsPlaying(true));
   }
 
