@@ -14,7 +14,7 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { Ionicons } from "@expo/vector-icons";
 import { store } from "@/store/hook";
-import { audioPlayerService, configureAudioPriority } from "@/service/audioPlayerService";
+import { audioPlayerService } from "@/service/audioPlayerService";
 import { formatDuration } from "@/utils/formatUtils";
 import { PlayerSettingsModal } from "./PlayerSettingsModal";
 import { usePanGesture, GestureDetector } from "react-native-gesture-handler";
@@ -91,9 +91,6 @@ export function FullVideoPlayerModal({
       player?.pause();
       return;
     }
-
-    // Assert top exclusive audio priority for video sound
-    configureAudioPriority();
 
     // Pause background audio service when video modal opens
     audioPlayerService.pause();

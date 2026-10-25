@@ -219,80 +219,7 @@ export default function SongDetailScreen() {
     }
   }, [hasCanvas, viewMode]);
 
-  if (isFetching && !activeSong) {
-    return (
-      <SafeAreaView style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#FFFFFF" />
-        <Text style={styles.loadingText}>Loading track...</Text>
-      </SafeAreaView>
-    );
-  }
-
-  if (isError || !activeSong) {
-    return (
-      <SafeAreaView style={styles.centerContainer}>
-        <Ionicons name="alert-circle-outline" size={48} color="#FFFFFF" />
-        <Text style={styles.errorTitle}>Song Not Found</Text>
-        <Text style={styles.errorText}>
-          {error instanceof Error ? error.message : "Unable to load song details"}
-        </Text>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Go Back</Text>
-        </TouchableOpacity>
-      </SafeAreaView>
-    );
-  }
-
-  const effectiveDuration = duration > 0 ? duration : (activeSong.duration || 0);
-  const progressPercent =
-    effectiveDuration > 0
-      ? Math.min(100, Math.max(0, (currentTime / effectiveDuration) * 100))
-      : 0;
-
-  const handleProgressBarPress = (e: GestureResponderEvent) => {
-    const { locationX } = e.nativeEvent;
-    const barWidth = SCREEN_WIDTH - 52;
-    const ratio = Math.max(0, Math.min(1, locationX / barWidth));
-    const targetSeconds = ratio * effectiveDuration;
-    audioPlayerService.seek(targetSeconds);
-  };
-
-  const handleTogglePlay = () => {
-    audioPlayerService.togglePlay();
-  };
-
-  const handleNextTrack = () => {
-    (dispatch as any)(nextTrack(true));
-  };
-
-  const handlePrevTrack = () => {
-    (dispatch as any)(prevTrack());
-  };
-
-  const handleToggleShuffle = () => {
-    dispatch(toggleShuffle());
-  };
-
-  const handleToggleRepeat = () => {
-    dispatch(toggleRepeat());
-  };
-
-  const handleToggleLike = async () => {
-    const nextLiked = !isLiked;
-    setIsLiked(nextLiked);
-    try {
-      if (nextLiked) {
-        await favouriteService.addFavourite(activeSong.id);
-      } else {
-        await favouriteService.removeFavourite(activeSong.id);
-      }
-      queryClient.invalidateQueries({ queryKey: ["favourites"] });
-      queryClient.invalidateQueries({ queryKey: ["favourites-check"] });
-    } catch {
-      setIsLiked(!nextLiked);
-    }
-  };
-
+  // Navigation & mode switching handlers
   const handleDismissPlayer = () => {
     if (router.canGoBack()) {
       router.back();
@@ -383,6 +310,80 @@ export default function SongDetailScreen() {
       }
     },
   });
+
+  if (isFetching && !activeSong) {
+    return (
+      <SafeAreaView style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#FFFFFF" />
+        <Text style={styles.loadingText}>Loading track...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (isError || !activeSong) {
+    return (
+      <SafeAreaView style={styles.centerContainer}>
+        <Ionicons name="alert-circle-outline" size={48} color="#FFFFFF" />
+        <Text style={styles.errorTitle}>Song Not Found</Text>
+        <Text style={styles.errorText}>
+          {error instanceof Error ? error.message : "Unable to load song details"}
+        </Text>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Text style={styles.backButtonText}>Go Back</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
+    );
+  }
+
+  const effectiveDuration = duration > 0 ? duration : (activeSong.duration || 0);
+  const progressPercent =
+    effectiveDuration > 0
+      ? Math.min(100, Math.max(0, (currentTime / effectiveDuration) * 100))
+      : 0;
+
+  const handleProgressBarPress = (e: GestureResponderEvent) => {
+    const { locationX } = e.nativeEvent;
+    const barWidth = SCREEN_WIDTH - 52;
+    const ratio = Math.max(0, Math.min(1, locationX / barWidth));
+    const targetSeconds = ratio * effectiveDuration;
+    audioPlayerService.seek(targetSeconds);
+  };
+
+  const handleTogglePlay = () => {
+    audioPlayerService.togglePlay();
+  };
+
+  const handleNextTrack = () => {
+    (dispatch as any)(nextTrack(true));
+  };
+
+  const handlePrevTrack = () => {
+    (dispatch as any)(prevTrack());
+  };
+
+  const handleToggleShuffle = () => {
+    dispatch(toggleShuffle());
+  };
+
+  const handleToggleRepeat = () => {
+    dispatch(toggleRepeat());
+  };
+
+  const handleToggleLike = async () => {
+    const nextLiked = !isLiked;
+    setIsLiked(nextLiked);
+    try {
+      if (nextLiked) {
+        await favouriteService.addFavourite(activeSong.id);
+      } else {
+        await favouriteService.removeFavourite(activeSong.id);
+      }
+      queryClient.invalidateQueries({ queryKey: ["favourites"] });
+      queryClient.invalidateQueries({ queryKey: ["favourites-check"] });
+    } catch {
+      setIsLiked(!nextLiked);
+    }
+  };
 
   return (
     <View style={styles.root}>

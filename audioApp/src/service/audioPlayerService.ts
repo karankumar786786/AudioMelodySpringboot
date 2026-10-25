@@ -113,9 +113,6 @@ class AudioPlayerService {
 
     try {
       this.isAdvancingTrack = false;
-      // Re-assert exclusive audio focus when playback starts
-      await configureAudioPriority();
-
       this.currentPlayingSong = song;
       store.dispatch(setCurrentSong(song));
       store.dispatch(setIsLoading(true));
@@ -171,7 +168,6 @@ class AudioPlayerService {
 
   resume(): void {
     if (!this.player) return;
-    configureAudioPriority();
     const curTime = this.player.currentTime || 0;
     const dur = this.player.duration || 0;
     if (dur > 0 && curTime >= dur - 0.5) {
