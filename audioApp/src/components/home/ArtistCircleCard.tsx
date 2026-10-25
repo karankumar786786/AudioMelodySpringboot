@@ -62,14 +62,14 @@ export function ArtistCircleCard({ artist, onPress }: ArtistCircleCardProps) {
 
 const styles = StyleSheet.create({
   container: {
-    width: 126,
+    width: 118,
     marginRight: 16,
     alignItems: "center",
   },
   avatarContainer: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
+    width: 110,
+    height: 110,
+    borderRadius: 55,
     overflow: "hidden",
     backgroundColor: "#1E1E1E",
     borderWidth: 1.5,
