@@ -95,11 +95,11 @@ export default function SongDetailScreen() {
     return Math.max(0, queue.length - (lastQueueIndex + 1));
   }, [queue, lastQueueIndex]);
 
-  // Load song metadata from backend if needed
+  // Load song metadata from backend if needed (fallback if not already active in player)
   const { data: fetchedSong, isLoading: isFetching, isError, error } = useQuery({
     queryKey: ["song", id],
     queryFn: () => homeService.getSongById(id!),
-    enabled: Boolean(id),
+    enabled: Boolean(id && (!currentSong || currentSong.id !== id)),
   });
 
   // Effective song to display: prefer currentSong from player state, fallback to fetchedSong

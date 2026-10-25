@@ -40,6 +40,7 @@ function mapSongHit(hit: any): Song {
     songKey: hit.songKey || "",
     imageKey: hit.imageKey || hit.coverImageKey || "",
     videoKey: hit.videoKey || null,
+    fullVideoKey: hit.fullVideoKey || null,
     previewStartTime:
       typeof hit.previewStartTime === "number"
         ? hit.previewStartTime
@@ -49,6 +50,11 @@ function mapSongHit(hit: any): Song {
     album: hit.album || undefined,
     genre: hit.genre || undefined,
     language: hit.language || "",
+    lrclibId: hit.lrclibId || "",
+    isFeatured: Boolean(hit.isFeatured),
+    status: hit.status || "ACTIVE",
+    jobId: hit.jobId || undefined,
+    createdAt: hit.createdAt || undefined,
     totalStreams:
       typeof hit.totalStreams === "number"
         ? hit.totalStreams
