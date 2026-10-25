@@ -30,8 +30,6 @@ export default function ArtistDetailScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
-
-  const [isAboutExpanded, setIsAboutExpanded] = useState(false);
   const [isFollowMutating, setIsFollowMutating] = useState(false);
 
   // 1. Fetch Artist Details
@@ -259,31 +257,9 @@ export default function ArtistDetailScreen() {
     </View>
   );
 
-  // Render Footer: About Section
+  // Render Footer
   const renderFooter = () => (
     <View style={styles.footerContainer}>
-      {/* About Section */}
-      {artist?.about ? (
-        <View style={styles.aboutCard}>
-          <Text style={styles.aboutTitle}>About</Text>
-          <Text
-            style={styles.aboutText}
-            numberOfLines={isAboutExpanded ? undefined : 4}
-          >
-            {artist.about}
-          </Text>
-          {artist.about.length > 160 ? (
-            <TouchableOpacity
-              onPress={() => setIsAboutExpanded(!isAboutExpanded)}
-              style={styles.expandButton}
-            >
-              <Text style={styles.expandButtonText}>
-                {isAboutExpanded ? "Show less" : "Read more"}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      ) : null}
 
       {/* Pagination loader */}
       {isFetchingNextPage ? (
@@ -521,35 +497,8 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   footerContainer: {
-    marginTop: 20,
+    paddingVertical: 16,
     paddingHorizontal: 18,
-  },
-  aboutCard: {
-    backgroundColor: "#1A1A1A",
-    borderRadius: 14,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: "#282828",
-    marginBottom: 20,
-  },
-  aboutTitle: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 8,
-  },
-  aboutText: {
-    color: "#AAAAAA",
-    fontSize: 14,
-    lineHeight: 22,
-  },
-  expandButton: {
-    marginTop: 8,
-  },
-  expandButtonText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "600",
   },
   footerLoader: {
     paddingVertical: 16,

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import { useMemo } from "react";
 import {
   View,
   Text,
@@ -8,13 +8,11 @@ import {
   ActivityIndicator,
   RefreshControl,
   Share,
-  Dimensions,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-
 import { playlistService } from "@/service";
 import { Song } from "@/types";
 import { PlaylistTrackItem } from "@/components/playlist/PlaylistTrackItem";
@@ -148,6 +146,7 @@ export default function PlaylistDetailScreen() {
           fallbackImageKey={heroImageKey}
           style={StyleSheet.absoluteFill}
           isPlaying={true}
+          showLoaderWhenVideoAvailable={true}
         />
 
         {/* Global subtle dark wash */}
@@ -494,4 +493,3 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 });
-
