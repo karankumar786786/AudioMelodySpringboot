@@ -1,9 +1,13 @@
 import React from "react";
-import { Text, StyleSheet, TouchableOpacity, Dimensions } from "react-native";
+import {
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  useWindowDimensions,
+  StyleProp,
+  ViewStyle,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const CARD_WIDTH = (SCREEN_WIDTH - 44) / 2;
 
 export interface GenreCategory {
   id: string;
@@ -28,16 +32,31 @@ export const POPULAR_GENRES: GenreCategory[] = [
 interface CategoryGenreCardProps {
   category: GenreCategory;
   onPress: () => void;
+  style?: StyleProp<ViewStyle>;
 }
 
-export function CategoryGenreCard({ category, onPress }: CategoryGenreCardProps) {
+export function CategoryGenreCard({
+  category,
+  onPress,
+  style,
+}: CategoryGenreCardProps) {
+  const { width } = useWindowDimensions();
+  // 2-column grid: 18px horizontal padding on left & right (36px total) + 12px gap = 48px
+  const cardWidth = Math.floor((width - 48) / 2);
+
   return (
     <TouchableOpacity
-      style={[styles.card, { backgroundColor: category.color }]}
+      style={[
+        styles.card,
+        { width: cardWidth, backgroundColor: category.color },
+        style,
+      ]}
       onPress={onPress}
       activeOpacity={0.82}
     >
-      <Text style={styles.name}>{category.name}</Text>
+      <Text style={styles.name} numberOfLines={2}>
+        {category.name}
+      </Text>
       <Ionicons
         name={category.icon}
         size={42}
@@ -50,7 +69,6 @@ export function CategoryGenreCard({ category, onPress }: CategoryGenreCardProps)
 
 const styles = StyleSheet.create({
   card: {
-    width: CARD_WIDTH,
     height: 94,
     borderRadius: 12,
     padding: 14,
@@ -76,3 +94,4 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "15deg" }],
   },
 });
+
