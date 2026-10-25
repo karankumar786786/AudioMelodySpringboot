@@ -16,3 +16,4 @@ export * from "./entity/PlaylistEntity";
 export * from "./entity/UserPlaylistEntity";
 export * from "./api/HomeApi";
 export * from "./api/SearchApi";
+export * from "./api/ArtistApi";
