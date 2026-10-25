@@ -107,9 +107,19 @@ class AudioPlayerService {
     }
   }
 
-  async play(song: PlayerSong, startTime = 0): Promise<void> {
+  async play(song: PlayerSong, startTime = 0, force = false): Promise<void> {
     await this.init();
     if (!this.player) return;
+
+    // If this song is already playing and no seek/force is requested, do nothing
+    if (!force && this.currentPlayingSong?.id === song.id && startTime === 0) {
+      const isPlaying = store.getState().player.isPlaying;
+      if (isPlaying) {
+        return;
+      }
+      this.resume();
+      return;
+    }
 
     try {
       this.isAdvancingTrack = false;

@@ -26,6 +26,18 @@ export const playAll =
   async (dispatch: AppDispatch, getState: () => AppState) => {
     if (!songs || songs.length === 0) return;
 
+    const firstSong = songs[0];
+    if (firstSong) {
+      const { currentSong, isPlaying } = getState().player;
+      if (currentSong?.id === firstSong.id) {
+        if (isPlaying) {
+          return;
+        }
+        audioPlayerService.resume();
+        return;
+      }
+    }
+
     const deduped = dedupeBySongId(songs);
     const mapped = deduped.map((s) => mapToPlayerSong(s));
     const { isShuffle } = getState().queue;
@@ -60,6 +72,19 @@ export const playAllFrom =
     if (!songs || songs.length === 0) return;
 
     const targetSong = songs[startIndex];
+    if (targetSong) {
+      const { currentSong, isPlaying } = getState().player;
+      if (currentSong?.id === targetSong.id) {
+        if (isPlaying) {
+          // Song is currently playing; don't do anything
+          return;
+        }
+        // Song is paused; resume playback
+        audioPlayerService.resume();
+        return;
+      }
+    }
+
     const deduped = dedupeBySongId(songs);
     const targetIdx = targetSong
       ? deduped.findIndex((s) => s.id === targetSong.id)
@@ -98,6 +123,16 @@ export const playAllFrom =
 export const playSong =
   (song: Song | PlayerSong) =>
   async (dispatch: AppDispatch, getState: () => AppState) => {
+    const { currentSong, isPlaying } = getState().player;
+    if (currentSong?.id === song.id) {
+      if (isPlaying) {
+        // Song is currently playing; don't do anything
+        return;
+      }
+      audioPlayerService.resume();
+      return;
+    }
+
     const state = getState().queue;
     const mapped = mapToPlayerSong(song);
 
@@ -169,12 +204,12 @@ export const nextTrack =
       const updatedState = getState().queue;
       const nextSong = updatedState.queue[updatedState.lastQueueIndex];
       if (nextSong) {
-        await audioPlayerService.play(nextSong);
+        await audioPlayerService.play(nextSong, 0, true);
       }
     } else if (repeatMode === "all") {
       dispatch(setQueue({ queue, index: 0 }));
       if (queue[0]) {
-        await audioPlayerService.play(queue[0]);
+        await audioPlayerService.play(queue[0], 0, true);
       }
     } else {
       // Reached the end with repeat none; trigger refill and continue
@@ -184,7 +219,7 @@ export const nextTrack =
         dispatch(advanceToNextTrack());
         const songToPlay = postRefillState.queue[postRefillState.lastQueueIndex];
         if (songToPlay) {
-          await audioPlayerService.play(songToPlay);
+          await audioPlayerService.play(songToPlay, 0, true);
         }
       } else {
         audioPlayerService.pause();
@@ -210,7 +245,7 @@ export const prevTrack =
       dispatch(retreatToPrevTrack());
       const prevSong = queue[lastQueueIndex - 1];
       if (prevSong) {
-        await audioPlayerService.play(prevSong);
+        await audioPlayerService.play(prevSong, 0, true);
       }
     } else {
       await audioPlayerService.seek(0);
