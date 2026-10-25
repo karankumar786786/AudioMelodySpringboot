@@ -8,6 +8,7 @@ import {
   Dimensions,
   GestureResponderEvent,
   ScrollView,
+  Linking,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -17,9 +18,10 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSelector, useDispatch } from "react-redux";
 import { AppState } from "@/store/hook";
-import { homeService, favouriteService } from "@/service";
+import { homeService, favouriteService, artistService } from "@/service";
 import { audioPlayerService } from "@/service/audioPlayerService";
 import { useLyrics } from "@/hooks/useLyrics";
+import { useSongInfo } from "@/hooks/useSongInfo";
 import {
   playSong,
   nextTrack,
@@ -95,11 +97,53 @@ export default function SongDetailScreen() {
 
   const canShowLyrics = Boolean(hasLrclib && hasLyrics);
 
+  // Song description and biography from Wikipedia (like audioFrontend)
+  const { data: songInfo, isLoading: isSongInfoLoading } = useSongInfo(
+    activeSong?.title,
+    activeSong?.artistName
+  );
+
   // Check favourites status from query cache
   const { data: favouritesData } = useQuery({
     queryKey: ["favourites"],
     queryFn: () => favouriteService.getFavourites(0, 50),
   });
+
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+
+  // Artist follow status and metadata (follower count, artistId)
+  const { data: artistFollowData, refetch: refetchArtistFollow } = useQuery({
+    queryKey: ["artist-follow-status", activeSong?.artistName],
+    queryFn: () => artistService.getFollowStatus(activeSong!.artistName),
+    enabled: Boolean(activeSong?.artistName),
+    staleTime: 1000 * 60 * 5,
+  });
+
+  const handleToggleFollow = async () => {
+    if (!artistFollowData?.artistId || isFollowLoading) return;
+    setIsFollowLoading(true);
+    try {
+      if (artistFollowData.isFollowing) {
+        await artistService.unfollowArtist(artistFollowData.artistId);
+      } else {
+        await artistService.followArtist(artistFollowData.artistId);
+      }
+      refetchArtistFollow();
+    } catch (err) {
+      console.warn("[SongDetailScreen] Error toggling artist follow:", err);
+    } finally {
+      setIsFollowLoading(false);
+    }
+  };
+
+  const handleOpenArtist = () => {
+    if (artistFollowData?.artistId) {
+      router.push({
+        pathname: "/(authenticated)/artist/[id]",
+        params: { id: artistFollowData.artistId },
+      });
+    }
+  };
 
   useEffect(() => {
     if (activeSong?.id && favouritesData?.content) {
@@ -301,8 +345,8 @@ export default function SongDetailScreen() {
       >
         <ScrollView
           showsVerticalScrollIndicator={false}
-          bounces={canShowLyrics}
-          scrollEnabled={canShowLyrics}
+          bounces={true}
+          scrollEnabled={true}
           contentContainerStyle={styles.scrollContent}
         >
           {/* Main Full-Screen Player: exactly 100% viewport height */}
@@ -421,51 +465,6 @@ export default function SongDetailScreen() {
             <Text style={styles.artistName} numberOfLines={1}>
               {activeSong.artistName}
             </Text>
-
-            {/* Monochrome Glass Metadata Badges */}
-            <View style={styles.tagsRow}>
-              {activeSong.album ? (
-                <View style={styles.tagBadge}>
-                  <Ionicons
-                    name="disc-outline"
-                    size={12}
-                    color="#FFFFFF"
-                    style={{ marginRight: 4 }}
-                  />
-                  <Text style={styles.tagText} numberOfLines={1}>
-                    {activeSong.album}
-                  </Text>
-                </View>
-              ) : null}
-
-              {activeSong.genre ? (
-                <View style={styles.tagBadge}>
-                  <Ionicons
-                    name="musical-notes-outline"
-                    size={12}
-                    color="#FFFFFF"
-                    style={{ marginRight: 4 }}
-                  />
-                  <Text style={styles.tagText} numberOfLines={1}>
-                    {activeSong.genre}
-                  </Text>
-                </View>
-              ) : null}
-
-              {activeSong.totalStreams !== undefined && activeSong.totalStreams !== null ? (
-                <View style={styles.tagBadge}>
-                  <Ionicons
-                    name="trending-up"
-                    size={12}
-                    color="#FFFFFF"
-                    style={{ marginRight: 4 }}
-                  />
-                  <Text style={styles.tagText}>
-                    {formatStreams(activeSong.totalStreams)}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
           </View>
 
           <TouchableOpacity
@@ -638,6 +637,222 @@ export default function SongDetailScreen() {
             </TouchableOpacity>
           </View>
         ) : null}
+
+        {/* 8. Song Description Section (Total Streams, Title, Artist, & About) */}
+        <View style={styles.aboutSection}>
+          <View style={styles.aboutCard}>
+            {/* Header: Title and Streams Badge */}
+            <View style={styles.aboutHeader}>
+              <View style={styles.aboutTitleRow}>
+                <Ionicons name="information-circle-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.aboutCardTitle}>About the Track</Text>
+              </View>
+
+              {activeSong.totalStreams !== undefined && activeSong.totalStreams !== null ? (
+                <View style={styles.streamsBadge}>
+                  <Ionicons name="play" size={10} color="#FFFFFF" style={{ marginRight: 4 }} />
+                  <Text style={styles.streamsBadgeText}>
+                    {Number(activeSong.totalStreams).toLocaleString()} plays
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            {/* Track Name & Artist */}
+            <View style={styles.aboutIdentityContainer}>
+              <Text style={styles.aboutSongTitle} numberOfLines={2}>
+                {activeSong.title}
+              </Text>
+              <Text style={styles.aboutArtistName} numberOfLines={1}>
+                {activeSong.artistName}
+              </Text>
+
+              {/* Optional Album / Genre / Language Pills */}
+              {(activeSong.album || activeSong.genre || activeSong.language) ? (
+                <View style={styles.aboutPillsRow}>
+                  {activeSong.album ? (
+                    <View style={styles.aboutPill}>
+                      <Ionicons name="disc-outline" size={11} color="#FFFFFF" style={{ marginRight: 4 }} />
+                      <Text style={styles.aboutPillText} numberOfLines={1}>{activeSong.album}</Text>
+                    </View>
+                  ) : null}
+
+                  {activeSong.genre ? (
+                    <View style={styles.aboutPill}>
+                      <Ionicons name="musical-notes-outline" size={11} color="#FFFFFF" style={{ marginRight: 4 }} />
+                      <Text style={styles.aboutPillText} numberOfLines={1}>{activeSong.genre}</Text>
+                    </View>
+                  ) : null}
+
+                  {activeSong.language ? (
+                    <View style={styles.aboutPill}>
+                      <Ionicons name="globe-outline" size={11} color="#FFFFFF" style={{ marginRight: 4 }} />
+                      <Text style={styles.aboutPillText}>{activeSong.language.toUpperCase()}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+            </View>
+
+            {/* Wikipedia Story / Description */}
+            <View style={styles.aboutBioContainer}>
+              {songInfo?.song?.description ? (
+                <>
+                  <Text style={styles.aboutBioText}>
+                    {songInfo.song.description}
+                  </Text>
+                  {songInfo.song.source ? (
+                    <TouchableOpacity
+                      activeOpacity={0.75}
+                      onPress={() => Linking.openURL(songInfo.song.source!)}
+                      style={styles.wikiLinkRow}
+                    >
+                      <Text style={styles.wikiLinkText}>View on Wikipedia</Text>
+                      <Ionicons name="open-outline" size={12} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  ) : null}
+                </>
+              ) : isSongInfoLoading ? (
+                <View style={styles.aboutLoadingRow}>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <Text style={styles.aboutLoadingText}>Loading track story...</Text>
+                </View>
+              ) : (
+                <Text style={styles.aboutBioText}>
+                  {activeSong.title} is a {activeSong.genre || "featured"} release by {activeSong.artistName}
+                  {activeSong.album ? ` from the album "${activeSong.album}"` : ""}.
+                </Text>
+              )}
+            </View>
+          </View>
+        </View>
+
+        {/* 9. About the Artist Section (like audioFrontend RightInfoArtistSection) */}
+        <View style={styles.artistSection}>
+          <View style={styles.artistCard}>
+            <View style={styles.artistCardHeader}>
+              <Text style={styles.artistCardHeaderTitle}>About the Artist</Text>
+              {artistFollowData?.artistId ? (
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  onPress={handleOpenArtist}
+                  style={styles.viewArtistPill}
+                >
+                  <Text style={styles.viewArtistPillText}>VIEW PROFILE</Text>
+                  <Ionicons name="chevron-forward" size={12} color="#FFFFFF" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+
+            {/* Artist Hero Banner */}
+            <TouchableOpacity
+              activeOpacity={artistFollowData?.artistId ? 0.9 : 1}
+              onPress={handleOpenArtist}
+              style={styles.artistHeroWrapper}
+            >
+              {songInfo?.artist?.image ? (
+                <Image
+                  source={{ uri: songInfo.artist.image }}
+                  style={styles.artistHeroImage}
+                  contentFit="cover"
+                  cachePolicy="memory"
+                />
+              ) : (
+                <View style={styles.artistHeroFallback}>
+                  <Text style={styles.artistHeroFallbackInitial}>
+                    {activeSong.artistName?.charAt(0)?.toUpperCase() || "A"}
+                  </Text>
+                </View>
+              )}
+
+              {/* Dark Gradient Overlay */}
+              <LinearGradient
+                colors={["transparent", "rgba(0,0,0,0.4)", "rgba(0,0,0,0.92)"]}
+                locations={[0, 0.45, 1]}
+                style={StyleSheet.absoluteFill}
+              />
+
+              {/* Bottom Info on Hero */}
+              <View style={styles.artistHeroBottomBar}>
+                <View style={{ flex: 1, marginRight: 12 }}>
+                  <Text style={styles.artistHeroName} numberOfLines={1}>
+                    {songInfo?.artist?.name || activeSong.artistName}
+                  </Text>
+                  <View style={styles.artistHeroMetaRow}>
+                    <Text style={styles.artistHeroRole}>Artist</Text>
+                    {artistFollowData?.followersCount !== undefined ? (
+                      <>
+                        <Text style={styles.artistHeroDot}>•</Text>
+                        <Ionicons name="people" size={11} color="rgba(255, 255, 255, 0.7)" />
+                        <Text style={styles.artistHeroFollowers}>
+                          {Number(artistFollowData.followersCount).toLocaleString()} followers
+                        </Text>
+                      </>
+                    ) : null}
+                  </View>
+                </View>
+
+                {artistFollowData?.artistId ? (
+                  <TouchableOpacity
+                    style={[
+                      styles.artistFollowBtn,
+                      artistFollowData.isFollowing && styles.artistFollowBtnActive,
+                    ]}
+                    onPress={handleToggleFollow}
+                    activeOpacity={0.8}
+                    disabled={isFollowLoading}
+                  >
+                    {isFollowLoading ? (
+                      <ActivityIndicator
+                        size="small"
+                        color={artistFollowData.isFollowing ? "#FFFFFF" : "#000000"}
+                      />
+                    ) : (
+                      <Text
+                        style={[
+                          styles.artistFollowBtnText,
+                          artistFollowData.isFollowing && styles.artistFollowBtnTextActive,
+                        ]}
+                      >
+                        {artistFollowData.isFollowing ? "Following" : "Follow"}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </TouchableOpacity>
+
+            {/* Artist Biography Description */}
+            <View style={styles.artistBioContainer}>
+              {songInfo?.artist?.description ? (
+                <>
+                  <Text style={styles.artistBioText} numberOfLines={4}>
+                    {songInfo.artist.description}
+                  </Text>
+                  {songInfo.artist.source ? (
+                    <TouchableOpacity
+                      activeOpacity={0.75}
+                      onPress={() => Linking.openURL(songInfo.artist.source!)}
+                      style={styles.wikiLinkRow}
+                    >
+                      <Text style={styles.wikiLinkText}>View on Wikipedia</Text>
+                      <Ionicons name="open-outline" size={12} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  ) : null}
+                </>
+              ) : isSongInfoLoading ? (
+                <View style={styles.aboutLoadingRow}>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <Text style={styles.aboutLoadingText}>Loading artist story...</Text>
+                </View>
+              ) : (
+                <Text style={styles.artistBioText}>
+                  Explore more releases and trending tracks from {activeSong.artistName} on OneMelody.
+                </Text>
+              )}
+            </View>
+          </View>
+        </View>
       </ScrollView>
         <QueueModal
           visible={isQueueOpen}
@@ -1013,7 +1228,7 @@ const styles = StyleSheet.create({
   lyricsSection: {
     paddingHorizontal: 22,
     paddingTop: 16,
-    paddingBottom: 48,
+    paddingBottom: 16,
   },
   lyricsCard: {
     backgroundColor: "rgba(255, 255, 255, 0.08)",
@@ -1073,5 +1288,262 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "rgba(255, 255, 255, 0.45)",
     lineHeight: 22,
+  },
+  aboutSection: {
+    paddingHorizontal: 22,
+    paddingTop: 10,
+    paddingBottom: 16,
+  },
+  aboutCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: 22,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  aboutHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  aboutTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  aboutCardTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.3,
+  },
+  streamsBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.14)",
+    paddingVertical: 4.5,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+  },
+  streamsBadgeText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.4,
+    fontVariant: ["tabular-nums"],
+  },
+  aboutIdentityContainer: {
+    marginBottom: 14,
+  },
+  aboutSongTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: -0.3,
+    marginBottom: 4,
+  },
+  aboutArtistName: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "rgba(255, 255, 255, 0.65)",
+    marginBottom: 12,
+  },
+  aboutPillsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  aboutPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    paddingVertical: 4.5,
+    paddingHorizontal: 9,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  aboutPillText: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "rgba(255, 255, 255, 0.9)",
+  },
+  aboutBioContainer: {
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
+  },
+  aboutBioText: {
+    fontSize: 13.5,
+    lineHeight: 21,
+    color: "rgba(255, 255, 255, 0.78)",
+    fontWeight: "400",
+  },
+  aboutLoadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 8,
+  },
+  aboutLoadingText: {
+    fontSize: 12.5,
+    color: "rgba(255, 255, 255, 0.5)",
+    fontWeight: "500",
+  },
+  wikiLinkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 12,
+    alignSelf: "flex-start",
+  },
+  wikiLinkText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#FFFFFF",
+    textDecorationLine: "underline",
+  },
+  artistSection: {
+    paddingHorizontal: 22,
+    paddingTop: 8,
+    paddingBottom: 48,
+  },
+  artistCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: 22,
+    padding: 22,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  artistCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  artistCardHeaderTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.3,
+  },
+  viewArtistPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
+    paddingVertical: 4.5,
+    paddingHorizontal: 9,
+    borderRadius: 12,
+    gap: 3,
+  },
+  viewArtistPillText: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.6,
+  },
+  artistHeroWrapper: {
+    width: "100%",
+    height: 165,
+    borderRadius: 18,
+    overflow: "hidden",
+    position: "relative",
+    backgroundColor: "#1E1E1E",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  artistHeroImage: {
+    width: "100%",
+    height: "100%",
+  },
+  artistHeroFallback: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "#242424",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  artistHeroFallbackInitial: {
+    fontSize: 54,
+    fontWeight: "900",
+    color: "rgba(255, 255, 255, 0.3)",
+  },
+  artistHeroBottomBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+  },
+  artistHeroName: {
+    fontSize: 17,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: -0.2,
+  },
+  artistHeroMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 3,
+  },
+  artistHeroRole: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "rgba(255, 255, 255, 0.7)",
+  },
+  artistHeroDot: {
+    fontSize: 11,
+    color: "rgba(255, 255, 255, 0.4)",
+  },
+  artistHeroFollowers: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "rgba(255, 255, 255, 0.8)",
+    fontVariant: ["tabular-nums"],
+  },
+  artistFollowBtn: {
+    backgroundColor: "#FFFFFF",
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    borderRadius: 18,
+    minWidth: 78,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  artistFollowBtnActive: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.45)",
+  },
+  artistFollowBtnText: {
+    fontSize: 11.5,
+    fontWeight: "800",
+    color: "#000000",
+  },
+  artistFollowBtnTextActive: {
+    color: "#FFFFFF",
+  },
+  artistBioContainer: {
+    marginTop: 14,
+  },
+  artistBioText: {
+    fontSize: 13.5,
+    lineHeight: 21,
+    color: "rgba(255, 255, 255, 0.78)",
+    fontWeight: "400",
   },
 });
