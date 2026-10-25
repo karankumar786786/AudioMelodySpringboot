@@ -73,8 +73,9 @@ export class VideoTranscoder {
 
             console.log(`Video Info: ${info.width}x${info.height}, ${info.duration.toFixed(2)}s, segment size: ${this.segmentTime}s`);
 
-            // Select profiles: only profiles with height <= source height (or at least the lowest profile)
-            const applicableProfiles = VIDEO_QUALITY_PROFILES.filter(p => p.height <= info.height);
+            // Select profiles: only profiles with height <= source height, capped at 720p max
+            const effectiveMaxHeight = Math.min(720, info.height);
+            const applicableProfiles = VIDEO_QUALITY_PROFILES.filter(p => p.height <= effectiveMaxHeight);
             const profilesToEncode = applicableProfiles.length > 0
                 ? applicableProfiles
                 : [VIDEO_QUALITY_PROFILES[VIDEO_QUALITY_PROFILES.length - 1]!];

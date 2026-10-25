@@ -18,6 +18,9 @@ export interface TranscodeVideoData {
 export const transcodeVideoTask = inngest.createFunction(
     {
         id: "transcode-video-task",
+        concurrency: {
+            limit: 1,
+        },
         cancelOn: [
             {
                 event: "audio/job.cancel",

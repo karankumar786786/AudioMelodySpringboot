@@ -20,6 +20,9 @@ export interface TranscodeCanvasData {
 export const transcodeCanvasTask = inngest.createFunction(
     {
         id: "transcode-canvas-task",
+        concurrency: {
+            limit: 1,
+        },
         cancelOn: [
             {
                 event: "audio/job.cancel",

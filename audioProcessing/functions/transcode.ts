@@ -182,9 +182,10 @@ export const transcodeSong = inngest.createFunction(
                 data: { jobId },
             });
         } else {
-            await step.sendEvent("trigger-finalize", {
-                name: "audio/song.final.create",
-                data: { jobId },
+            await step.run("finalize-reprocess", async () => {
+                console.log(`[ORCHESTRATOR] Finalizing reprocess job ${jobId} directly via coreEngine...`);
+                await api.post(`/${jobId}/finalize`);
+                console.log(`[ORCHESTRATOR] Successfully finalized reprocess job ${jobId}`);
             });
         }
 
