@@ -105,22 +105,22 @@ export default function SongDetailScreen() {
   // Effective song to display: prefer currentSong from player state, fallback to fetchedSong
   const activeSong = currentSong || fetchedSong;
 
-  // Synced lyrics hook (only queried if lrclibId is present and valid)
-  const hasLrclib = useMemo(() => {
-    if (!activeSong?.lrclibId) return false;
-    const str = String(activeSong.lrclibId).trim();
-    return str !== "" && str !== "0" && str !== "null" && str !== "undefined";
-  }, [activeSong?.lrclibId]);
-
+  // Synced lyrics hook (with LRCLIB ID or title/artist fallback)
   const {
     currentLine,
     nextLine,
     transcriptions,
     plainLyrics,
     hasLyrics,
-  } = useLyrics(hasLrclib ? activeSong?.lrclibId : undefined, currentTime);
+  } = useLyrics(
+    activeSong?.lrclibId,
+    currentTime,
+    activeSong?.title,
+    activeSong?.artistName,
+    activeSong?.duration
+  );
 
-  const canShowLyrics = Boolean(hasLrclib && hasLyrics);
+  const canShowLyrics = Boolean(hasLyrics);
 
   // Song description and biography from Wikipedia (like audioFrontend)
   const { data: songInfo, isLoading: isSongInfoLoading } = useSongInfo(

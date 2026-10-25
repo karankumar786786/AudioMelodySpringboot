@@ -38,12 +38,15 @@ export function parseLrcToEntries(lrcText: string): LyricEntry[] {
 const LRCLIB_USER_AGENT = "OneMelody/1.0.0 (https://onemelody.com; support@onemelody.com)";
 
 async function fetchLyrics(
-  input: string | number
+  input: string | number | undefined | null,
+  trackTitle?: string,
+  artistName?: string,
+  duration?: number
 ): Promise<{ transcriptions: LyricEntry[]; plainLyrics: string | null }> {
-  const query = String(input).trim();
-  if (!query) return { transcriptions: [], plainLyrics: null };
+  const query = input ? String(input).trim() : "";
+  const isValidId = query !== "" && query !== "0" && query !== "null" && query !== "undefined";
 
-  // If input is a direct caption URL (WEBVTT or LRC file)
+  // 1. If input is a direct caption URL (WEBVTT or LRC file from S3)
   if (query.startsWith("http://") || query.startsWith("https://")) {
     try {
       const res = await fetch(query, {
@@ -57,59 +60,86 @@ async function fetchLyrics(
     }
   }
 
-  // Fetch from LRCLIB API with custom User-Agent to satisfy Cloudflare rate limiting rules
-  const url = `https://lrclib.net/api/get/${encodeURIComponent(query)}`;
   const headers = {
     "User-Agent": LRCLIB_USER_AGENT,
     Accept: "application/json",
   };
 
-  try {
-    let res = await fetch(url, { headers });
+  // 2. Fetch from LRCLIB API by ID
+  if (isValidId) {
+    const url = `https://lrclib.net/api/get/${encodeURIComponent(query)}`;
+    try {
+      let res = await fetch(url, { headers });
 
-    // Handle temporary 503 Server Overloaded with a single backoff retry
-    if (res.status === 503) {
-      await new Promise((resolve) => setTimeout(resolve, 1200));
-      res = await fetch(url, { headers });
-    }
+      // Handle temporary 503 Server Overloaded with a single backoff retry
+      if (res.status === 503) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        res = await fetch(url, { headers });
+      }
 
-    if (res.status === 404) {
-      // Lyrics not found on LRCLIB
-      return { transcriptions: [], plainLyrics: null };
+      if (res.ok) {
+        const data = await res.json();
+        if (data.syncedLyrics && typeof data.syncedLyrics === "string") {
+          return { transcriptions: parseLrcToEntries(data.syncedLyrics), plainLyrics: null };
+        }
+        if (data.plainLyrics && typeof data.plainLyrics === "string") {
+          return { transcriptions: [], plainLyrics: data.plainLyrics };
+        }
+      }
+    } catch {
+      // Continue to title/artist fallback silently
     }
-
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
-    }
-
-    const data = await res.json();
-
-    if (data.syncedLyrics && typeof data.syncedLyrics === "string") {
-      return { transcriptions: parseLrcToEntries(data.syncedLyrics), plainLyrics: null };
-    }
-    if (data.plainLyrics && typeof data.plainLyrics === "string") {
-      return { transcriptions: [], plainLyrics: data.plainLyrics };
-    }
-    return { transcriptions: [], plainLyrics: null };
-  } catch (error: any) {
-    // Only log unexpected non-404 errors to prevent console spam
-    if (!error?.message?.includes("404")) {
-      console.warn(`[useLyrics] Could not fetch lyrics for LRCLIB ID "${query}":`, error?.message || error);
-    }
-    return { transcriptions: [], plainLyrics: null };
   }
+
+  // 3. Fallback: Search by trackTitle and artistName if available
+  if (trackTitle && artistName) {
+    try {
+      const cleanTitle = trackTitle.trim();
+      const cleanArtist = artistName.split(",")[0].trim();
+      let searchUrl = `https://lrclib.net/api/get?track_name=${encodeURIComponent(cleanTitle)}&artist_name=${encodeURIComponent(cleanArtist)}`;
+      if (duration && duration > 0) {
+        searchUrl += `&duration=${Math.round(duration)}`;
+      }
+
+      let res = await fetch(searchUrl, { headers });
+      if (res.status === 503) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        res = await fetch(searchUrl, { headers });
+      }
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.syncedLyrics && typeof data.syncedLyrics === "string") {
+          return { transcriptions: parseLrcToEntries(data.syncedLyrics), plainLyrics: null };
+        }
+        if (data.plainLyrics && typeof data.plainLyrics === "string") {
+          return { transcriptions: [], plainLyrics: data.plainLyrics };
+        }
+      }
+    } catch {
+      // Graceful silence on network/service failure
+    }
+  }
+
+  return { transcriptions: [], plainLyrics: null };
 }
 
 export function useLyrics(
   lrclibId: string | number | undefined | null,
-  currentTime: number
+  currentTime: number,
+  trackTitle?: string,
+  artistName?: string,
+  duration?: number
 ) {
   const idStr = lrclibId ? String(lrclibId).trim() : "";
+  const isValidId = idStr !== "" && idStr !== "0" && idStr !== "null" && idStr !== "undefined";
+  const hasFallback = Boolean(trackTitle && artistName);
+  const cacheKey = isValidId ? idStr : `${trackTitle || ""}-${artistName || ""}`;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["lyrics", idStr],
-    queryFn: () => (idStr ? fetchLyrics(idStr) : { transcriptions: [], plainLyrics: null }),
-    enabled: Boolean(idStr),
+    queryKey: ["lyrics", cacheKey],
+    queryFn: () => fetchLyrics(isValidId ? idStr : undefined, trackTitle, artistName, duration),
+    enabled: Boolean(isValidId || hasFallback),
     staleTime: 1000 * 60 * 60 * 24, // 24 hours
     gcTime: 1000 * 60 * 60 * 48,
     retry: 1,

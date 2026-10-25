@@ -53,7 +53,13 @@ export default function LyricsScreen() {
     hasLyrics,
     activeIndex,
     isLoading: isLyricsLoading,
-  } = useLyrics(activeSong?.lrclibId, currentTime);
+  } = useLyrics(
+    activeSong?.lrclibId,
+    currentTime,
+    activeSong?.title,
+    activeSong?.artistName,
+    activeSong?.duration
+  );
 
   const scrollViewRef = useRef<any>(null);
   const isUserScrolledRef = useRef(false);
