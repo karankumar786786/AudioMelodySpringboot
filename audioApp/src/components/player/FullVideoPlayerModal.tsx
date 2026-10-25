@@ -38,17 +38,26 @@ export function FullVideoPlayerModal({
   const [isBuffering, setIsBuffering] = useState(true);
   const currentTimeRef = useRef(initialTime);
 
-  const player = useVideoPlayer(videoStreamUrl || "", (p) => {
+  const player = useVideoPlayer(visible && videoStreamUrl ? videoStreamUrl : "", (p) => {
     p.loop = false;
     p.muted = false;
-    if (initialTime > 0) {
-      p.currentTime = initialTime;
+    if (visible) {
+      if (initialTime > 0) {
+        p.currentTime = initialTime;
+      }
+      p.play();
+    } else {
+      p.pause();
     }
-    p.play();
   });
 
   useEffect(() => {
-    if (!visible || !videoStreamUrl) return;
+    if (!visible) {
+      player?.pause();
+      return;
+    }
+
+    if (!videoStreamUrl) return;
 
     // Pause audio service when video modal opens
     audioPlayerService.pause();
@@ -63,6 +72,12 @@ export function FullVideoPlayerModal({
       setIsPlaying(true);
     }
   }, [visible, videoStreamUrl]);
+
+  useEffect(() => {
+    return () => {
+      player?.pause();
+    };
+  }, [player]);
 
   useEffect(() => {
     if (!player) return;

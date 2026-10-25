@@ -31,6 +31,7 @@ function VideoSurface({
   const player = useVideoPlayer(videoUrl, (p) => {
     p.loop = true;
     p.muted = true;
+    p.volume = 0;
     if (isPlaying) {
       p.play();
     } else {
@@ -41,6 +42,7 @@ function VideoSurface({
   useEffect(() => {
     player.loop = true;
     player.muted = true;
+    player.volume = 0;
 
     if (isPlaying) {
       player.play();

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import  { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSelector, useDispatch } from "react-redux";
 import { AppState } from "@/store/hook";
 import { homeService } from "@/service";
@@ -37,7 +38,6 @@ export default function SongDetailScreen() {
   const router = useRouter();
   const dispatch = useDispatch();
 
-  const [mediaMode, setMediaMode] = useState<"canvas" | "artwork">("canvas");
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
@@ -149,87 +149,93 @@ export default function SongDetailScreen() {
     quality: 90,
   });
 
+  const isCanvasActive = Boolean(activeSong.videoKey);
+
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Top Navigation Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          style={styles.iconButton}
-          onPress={() => router.back()}
-          hitSlop={14}
-        >
-          <Ionicons name="chevron-down" size={28} color="#FFFFFF" />
-        </TouchableOpacity>
-
-        <View style={styles.topBarTitleContainer}>
-          <Text style={styles.topBarSubtitle}>PLAYING FROM MELODY</Text>
-          <Text style={styles.topBarTitle} numberOfLines={1}>
-            {activeSong.album || activeSong.genre || "Featured"}
-          </Text>
-        </View>
-
-        <TouchableOpacity
-          style={styles.iconButton}
-          hitSlop={14}
-          onPress={() => setIsQueueOpen(true)}
-        >
-          <Ionicons name="list" size={24} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Media Stage: Canvas Video or Cover Artwork */}
-      <View style={styles.canvasWrapper}>
-        {activeSong.videoKey && mediaMode === "canvas" ? (
+    <View style={styles.root}>
+      {/* Full-Screen Looping Ambient Canvas Video Background */}
+      {isCanvasActive && activeSong.videoKey ? (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
           <CanvasVideoPlayer
             videoKey={activeSong.videoKey}
             fallbackImageKey={activeSong.imageKey}
             isPlaying={isPlaying}
-            style={[styles.canvas, { height: canvasHeight }]}
+            style={StyleSheet.absoluteFill}
           />
-        ) : (
-          <Image
-            source={{ uri: posterUrl }}
-            style={[styles.canvas, { height: canvasHeight }]}
-            contentFit="cover"
-            transition={200}
+          <LinearGradient
+            colors={[
+              "rgba(0, 0, 0, 0.65)",
+              "rgba(0, 0, 0, 0.2)",
+              "rgba(0, 0, 0, 0.55)",
+              "rgba(18, 18, 18, 0.96)",
+            ]}
+            locations={[0, 0.35, 0.7, 1]}
+            style={StyleSheet.absoluteFill}
           />
-        )}
+        </View>
+      ) : null}
 
-        {/* Media Mode Switches */}
-        <View style={styles.stageOverlayRow}>
-          {activeSong.videoKey ? (
-            <TouchableOpacity
-              style={styles.modeTogglePill}
-              activeOpacity={0.8}
-              onPress={() =>
-                setMediaMode((prev) => (prev === "canvas" ? "artwork" : "canvas"))
-              }
-            >
-              <Ionicons
-                name={mediaMode === "canvas" ? "videocam" : "image"}
-                size={12}
-                color="#FFFFFF"
-                style={{ marginRight: 4 }}
+      <SafeAreaView
+        style={[
+          styles.container,
+          isCanvasActive && styles.containerTransparent,
+        ]}
+      >
+        {/* Top Navigation Bar */}
+        <View style={styles.topBar}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => router.back()}
+            hitSlop={14}
+          >
+            <Ionicons name="chevron-down" size={28} color="#FFFFFF" />
+          </TouchableOpacity>
+
+          <View style={styles.topBarTitleContainer}>
+            <Text style={styles.topBarSubtitle}>PLAYING FROM MELODY</Text>
+            <Text style={styles.topBarTitle} numberOfLines={1}>
+              {activeSong.album || activeSong.genre || "Featured"}
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.iconButton}
+            hitSlop={14}
+            onPress={() => setIsQueueOpen(true)}
+          >
+            <Ionicons name="list" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Center Stage: Artwork (if artwork mode) or Open Ambient View (if canvas mode) */}
+        <View style={styles.centerStage}>
+          {!isCanvasActive ? (
+            <View style={styles.artworkWrapper}>
+              <Image
+                source={{ uri: posterUrl }}
+                style={styles.artworkImage}
+                contentFit="cover"
+                transition={200}
               />
-              <Text style={styles.modeToggleText}>
-                {mediaMode === "canvas" ? "CANVAS" : "ARTWORK"}
-              </Text>
-            </TouchableOpacity>
-          ) : null}
+            </View>
+          ) : (
+            <View style={styles.canvasSpacer} />
+          )}
 
           {/* Full Video Stream Switcher if fullVideoKey exists */}
           {activeSong.fullVideoKey ? (
-            <TouchableOpacity
-              style={styles.fullVideoPill}
-              activeOpacity={0.85}
-              onPress={() => setIsVideoModalOpen(true)}
-            >
-              <Ionicons name="play-circle" size={14} color="#1DB954" style={{ marginRight: 4 }} />
-              <Text style={styles.fullVideoText}>WATCH VIDEO</Text>
-            </TouchableOpacity>
+            <View style={styles.stageOverlayRow}>
+              <TouchableOpacity
+                style={styles.fullVideoPill}
+                activeOpacity={0.85}
+                onPress={() => setIsVideoModalOpen(true)}
+              >
+                <Ionicons name="play-circle" size={14} color="#1DB954" style={{ marginRight: 4 }} />
+                <Text style={styles.fullVideoText}>WATCH VIDEO</Text>
+              </TouchableOpacity>
+            </View>
           ) : null}
         </View>
-      </View>
 
       {/* Song Metadata */}
       <View style={styles.metaSection}>
@@ -383,8 +389,8 @@ export default function SongDetailScreen() {
         onClose={() => setIsQueueOpen(false)}
       />
 
-      {/* Full Video Modal */}
-      {activeSong.fullVideoKey ? (
+      {/* Full Video Modal: only mounted when explicitly opened by user */}
+      {isVideoModalOpen && activeSong.fullVideoKey ? (
         <FullVideoPlayerModal
           visible={isVideoModalOpen}
           videoStreamUrl={`${S3_BASE_URL}/${activeSong.fullVideoKey}/master.m3u8`}
@@ -394,16 +400,24 @@ export default function SongDetailScreen() {
           onClose={handleVideoModalClose}
         />
       ) : null}
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: "#121212",
+  },
   container: {
     flex: 1,
     backgroundColor: "#121212",
     justifyContent: "space-between",
     paddingBottom: 28,
+  },
+  containerTransparent: {
+    backgroundColor: "transparent",
   },
   centerContainer: {
     flex: 1,
@@ -466,41 +480,39 @@ const styles = StyleSheet.create({
   iconButton: {
     padding: 6,
   },
-  canvasWrapper: {
-    paddingHorizontal: 24,
+  centerStage: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    position: "relative",
+    paddingHorizontal: 24,
+    marginVertical: 4,
   },
-  canvas: {
-    width: SCREEN_WIDTH - 48,
+  artworkWrapper: {
+    width: "100%",
+    maxWidth: 360,
+    aspectRatio: 1,
     borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.6,
+    shadowRadius: 20,
+    elevation: 12,
     backgroundColor: "#1E1E1E",
-    borderWidth: 1,
-    borderColor: "#2A2A2A",
+  },
+  artworkImage: {
+    width: "100%",
+    height: "100%",
+  },
+  canvasSpacer: {
+    flex: 1,
   },
   stageOverlayRow: {
-    position: "absolute",
-    top: 12,
-    right: 36,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-  },
-  modeTogglePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.65)",
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  modeToggleText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "700",
-    letterSpacing: 0.5,
+    justifyContent: "center",
+    gap: 10,
+    marginTop: 14,
   },
   fullVideoPill: {
     flexDirection: "row",
