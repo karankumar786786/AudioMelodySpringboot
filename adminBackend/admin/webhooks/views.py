@@ -324,6 +324,8 @@ class WebhookJobSaveSearchView(BaseAdminView):
                     "full_video_key": job.full_video_key,
                     "preview_start_time": job.preview_start_time,
                     "preview_end_time": job.preview_end_time,
+                    "clip_start_sec": job.clip_start_sec,
+                    "clip_end_sec": job.clip_end_sec,
                     "language": job.language,
                     "lrclib_id": job.lrclib_id,
                     "is_featured": False,
@@ -431,13 +433,19 @@ class WebhookJobFinalizeView(BaseAdminView):
             status="ACTIVE",
         )
         try:
-            AlgoliaService.save_song(song=song)
+            AlgoliaService.save_song(
+                song=song,
+                clip_start_sec=job.clip_start_sec,
+                clip_end_sec=job.clip_end_sec,
+            )
         except Exception as e:
             logger.warning("Failed to sync finalized song %s to Algolia: %s", song.id, e)
 
         try:
             RecombeeService.save_song(
                 song=song,
+                clip_start_sec=job.clip_start_sec,
+                clip_end_sec=job.clip_end_sec,
                 tempo=job.tempo,
                 danceability=job.danceability,
                 energy=job.energy,

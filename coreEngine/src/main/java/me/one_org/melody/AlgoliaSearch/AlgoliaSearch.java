@@ -120,12 +120,14 @@ public class AlgoliaSearch {
         }
         if (song.getSongKey() != null && !song.getSongKey().isBlank()) {
             record.put("songKey", song.getSongKey());
+            record.put("audioKey", song.getSongKey());
         }
         if (song.getImageKey() != null && !song.getImageKey().isBlank()) {
             record.put("imageKey", song.getImageKey());
         }
         if (song.getVideoKey() != null && !song.getVideoKey().isBlank()) {
             record.put("videoKey", song.getVideoKey());
+            record.put("canvasKey", song.getVideoKey());
         }
         if (song.getFullVideoKey() != null && !song.getFullVideoKey().isBlank()) {
             record.put("fullVideoKey", song.getFullVideoKey());

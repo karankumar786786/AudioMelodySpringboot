@@ -29,14 +29,33 @@ export function getRecombeeClient(): any {
 
 export function mapRecombeeHit(hit: any): Song {
   const vals = hit.values || {};
+  const songKey = vals.songKey || vals.audioKey || "";
+  const audioKey = vals.audioKey || vals.songKey || "";
+  const videoKey = vals.videoKey || vals.canvasKey || null;
+  const canvasKey = vals.canvasKey || vals.videoKey || null;
+  const clipStartSec =
+    typeof vals.clipStartSec === "number"
+      ? vals.clipStartSec
+      : typeof vals.canvasStartTime === "number"
+        ? vals.canvasStartTime
+        : undefined;
+  const clipEndSec =
+    typeof vals.clipEndSec === "number"
+      ? vals.clipEndSec
+      : typeof vals.canvasEndTime === "number"
+        ? vals.canvasEndTime
+        : undefined;
+
   return {
     id: String(hit.id || vals.id || ""),
     title: vals.title || "",
     artistName: vals.artistName || "",
     duration: typeof vals.duration === "number" ? vals.duration : 0,
-    songKey: vals.songKey || "",
+    songKey,
+    audioKey,
     imageKey: vals.imageKey || "",
-    videoKey: vals.videoKey || null,
+    videoKey,
+    canvasKey,
     fullVideoKey: vals.fullVideoKey || null,
     previewStartTime:
       typeof vals.previewStartTime === "number"
@@ -44,6 +63,10 @@ export function mapRecombeeHit(hit: any): Song {
         : undefined,
     previewEndTime:
       typeof vals.previewEndTime === "number" ? vals.previewEndTime : undefined,
+    clipStartSec,
+    clipEndSec,
+    canvasStartTime: clipStartSec,
+    canvasEndTime: clipEndSec,
     album: vals.album || undefined,
     genre: vals.genre || undefined,
     language: vals.language || "",

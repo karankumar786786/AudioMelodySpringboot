@@ -72,10 +72,16 @@ public class Recombee {
         registerPropertySafely("totalStreams", "int");
         registerPropertySafely("imageKey", "string");
         registerPropertySafely("songKey", "string");
+        registerPropertySafely("audioKey", "string");
         registerPropertySafely("videoKey", "string");
+        registerPropertySafely("canvasKey", "string");
         registerPropertySafely("fullVideoKey", "string");
         registerPropertySafely("previewStartTime", "int");
         registerPropertySafely("previewEndTime", "int");
+        registerPropertySafely("clipStartSec", "int");
+        registerPropertySafely("clipEndSec", "int");
+        registerPropertySafely("canvasStartTime", "int");
+        registerPropertySafely("canvasEndTime", "int");
         registerPropertySafely("isFeatured", "boolean");
         registerPropertySafely("lrclibId", "string");
         registerPropertySafely("status", "string");
@@ -124,9 +130,11 @@ public class Recombee {
         }
         if (song.getSongKey() != null && !song.getSongKey().isBlank()) {
             values.put("songKey", song.getSongKey());
+            values.put("audioKey", song.getSongKey());
         }
         if (song.getVideoKey() != null && !song.getVideoKey().isBlank()) {
             values.put("videoKey", song.getVideoKey());
+            values.put("canvasKey", song.getVideoKey());
         }
         if (song.getFullVideoKey() != null && !song.getFullVideoKey().isBlank()) {
             values.put("fullVideoKey", song.getFullVideoKey());

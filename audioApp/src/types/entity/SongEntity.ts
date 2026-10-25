@@ -4,11 +4,17 @@ export interface Song {
   artistName: string;
   duration?: number;
   songKey?: string;
+  audioKey?: string;
   imageKey?: string;
   videoKey?: string;
+  canvasKey?: string;
   fullVideoKey?: string;
   previewStartTime?: number;
   previewEndTime?: number;
+  clipStartSec?: number;
+  clipEndSec?: number;
+  canvasStartTime?: number;
+  canvasEndTime?: number;
   isFeatured?: boolean;
   language?: string;
   genre?: string;
