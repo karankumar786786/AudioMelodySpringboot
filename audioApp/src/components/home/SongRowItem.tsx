@@ -4,6 +4,7 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { Song } from "@/types";
 import { getImageUrl } from "@/utils/imageUtils";
+import { formatDuration, formatStreams, formatSongSubtitle } from "@/utils/formatUtils";
 
 interface SongRowItemProps {
   song: Song;
@@ -18,20 +19,12 @@ export function SongRowItem({ song, index, onPress }: SongRowItemProps) {
     quality: 80,
   });
 
-  const formatDuration = (sec?: number) => {
-    if (!sec || sec <= 0) return "--:--";
-    const mins = Math.floor(sec / 60);
-    const secs = Math.floor(sec % 60);
-    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
-  };
-
   return (
     <TouchableOpacity
       style={styles.container}
       onPress={onPress}
       activeOpacity={0.72}
     >
-
       <View style={styles.thumbnailContainer}>
         {imageUrl ? (
           <Image
@@ -51,9 +44,15 @@ export function SongRowItem({ song, index, onPress }: SongRowItemProps) {
         <Text style={styles.title} numberOfLines={1}>
           {song.title}
         </Text>
-        <Text style={styles.artist} numberOfLines={1}>
-          {song.artistName}
+        <Text style={styles.subtitle} numberOfLines={1}>
+          {formatSongSubtitle(song.artistName, song.album, song.genre)}
         </Text>
+        {song.totalStreams !== undefined && song.totalStreams !== null ? (
+          <View style={styles.streamsRow}>
+            <Ionicons name="play" size={10} color="#777777" style={{ marginRight: 3 }} />
+            <Text style={styles.streamsText}>{formatStreams(song.totalStreams)}</Text>
+          </View>
+        ) : null}
       </View>
 
       <Text style={styles.duration}>{formatDuration(song.duration)}</Text>
@@ -79,7 +78,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "#1E1E1E",
     borderWidth: 1,
-    borderColor: "#2A2A2A",
+    borderColor: "rgba(255, 255, 255, 0.08)",
     marginRight: 12,
   },
   thumbnail: {
@@ -101,11 +100,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "600",
     color: "#FFFFFF",
-    marginBottom: 3,
+    marginBottom: 2,
   },
-  artist: {
-    fontSize: 13,
+  subtitle: {
+    fontSize: 12.5,
     color: "#888888",
+  },
+  streamsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 2,
+  },
+  streamsText: {
+    fontSize: 11,
+    color: "#777777",
+    fontWeight: "500",
   },
   duration: {
     fontSize: 12,

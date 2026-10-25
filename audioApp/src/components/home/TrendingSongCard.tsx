@@ -4,6 +4,7 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { Song } from "@/types";
 import { getImageUrl } from "@/utils/imageUtils";
+import { formatStreams, formatSongSubtitle } from "@/utils/formatUtils";
 
 interface TrendingSongCardProps {
   song: Song;
@@ -37,22 +38,25 @@ export function TrendingSongCard({ song, onPress }: TrendingSongCardProps) {
           </View>
         )}
 
+        {song.genre ? (
+          <View style={styles.genreOverlay}>
+            <Text style={styles.genreText} numberOfLines={1}>{song.genre}</Text>
+          </View>
+        ) : null}
       </View>
 
       <Text style={styles.title} numberOfLines={1}>
         {song.title}
       </Text>
       <Text style={styles.artist} numberOfLines={1}>
-        {song.artistName}
+        {formatSongSubtitle(song.artistName, song.album)}
       </Text>
 
-      {song.totalStreams ? (
+      {song.totalStreams !== undefined && song.totalStreams !== null ? (
         <View style={styles.streamsRow}>
           <Ionicons name="trending-up" size={12} color="#FFFFFF" />
           <Text style={styles.streamsText}>
-            {song.totalStreams > 1000
-              ? `${(song.totalStreams / 1000).toFixed(1)}k plays`
-              : `${song.totalStreams} plays`}
+            {formatStreams(song.totalStreams)}
           </Text>
         </View>
       ) : null}
@@ -87,7 +91,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#202020",
   },
-
+  genreOverlay: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
+    paddingHorizontal: 6,
+    paddingVertical: 2.5,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.15)",
+  },
+  genreText: {
+    color: "#FFFFFF",
+    fontSize: 9.5,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
   title: {
     color: "#FFFFFF",
     fontSize: 14,
@@ -97,7 +117,7 @@ const styles = StyleSheet.create({
   },
   artist: {
     color: "#A7A7A7",
-    fontSize: 12.5,
+    fontSize: 12,
     fontWeight: "500",
   },
   streamsRow: {

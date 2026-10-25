@@ -14,6 +14,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { homeService } from "@/service";
 import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
 
+import { formatStreams } from "@/utils/formatUtils";
+
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export default function SongDetailScreen() {
@@ -108,6 +110,51 @@ export default function SongDetailScreen() {
           <Text style={styles.artistName} numberOfLines={1}>
             {song.artistName}
           </Text>
+
+          {/* Album, Genre, and Total Streams */}
+          <View style={styles.tagsRow}>
+            {song.album ? (
+              <View style={styles.tagBadge}>
+                <Ionicons
+                  name="disc-outline"
+                  size={12}
+                  color="#AAAAAA"
+                  style={{ marginRight: 4 }}
+                />
+                <Text style={styles.tagText} numberOfLines={1}>
+                  {song.album}
+                </Text>
+              </View>
+            ) : null}
+
+            {song.genre ? (
+              <View style={styles.tagBadge}>
+                <Ionicons
+                  name="musical-notes-outline"
+                  size={12}
+                  color="#AAAAAA"
+                  style={{ marginRight: 4 }}
+                />
+                <Text style={styles.tagText} numberOfLines={1}>
+                  {song.genre}
+                </Text>
+              </View>
+            ) : null}
+
+            {song.totalStreams !== undefined && song.totalStreams !== null ? (
+              <View style={styles.tagBadge}>
+                <Ionicons
+                  name="trending-up"
+                  size={12}
+                  color="#AAAAAA"
+                  style={{ marginRight: 4 }}
+                />
+                <Text style={styles.tagText}>
+                  {formatStreams(song.totalStreams)}
+                </Text>
+              </View>
+            ) : null}
+          </View>
         </View>
 
         <TouchableOpacity hitSlop={12}>
@@ -276,6 +323,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#A7A7A7",
     fontWeight: "500",
+  },
+  tagsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 8,
+  },
+  tagBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 3.5,
+    borderRadius: 6,
+    backgroundColor: "#1F1F1F",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
+  },
+  tagText: {
+    color: "#CCCCCC",
+    fontSize: 11.5,
+    fontWeight: "600",
   },
   progressContainer: {
     paddingHorizontal: 28,

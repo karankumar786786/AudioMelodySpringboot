@@ -4,6 +4,7 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { Song, Artist, Playlist, UserPlaylist } from "@/types";
 import { getImageUrl } from "@/utils/imageUtils";
+import { formatStreams, formatSongSubtitle } from "@/utils/formatUtils";
 
 type TopResultItem =
   | { kind: "SONG"; item: Song }
@@ -29,8 +30,14 @@ export function SearchTopResultCard({
 
   if (topResult.kind === "SONG") {
     title = topResult.item.title;
-    subtitle = `Song • ${topResult.item.artistName || "Unknown Artist"}`;
-    badgeText = "SONG";
+    subtitle = formatSongSubtitle(
+      topResult.item.artistName,
+      topResult.item.album,
+      topResult.item.genre
+    );
+    badgeText = topResult.item.totalStreams
+      ? formatStreams(topResult.item.totalStreams).toUpperCase()
+      : "SONG";
     imageKey = topResult.item.imageKey;
     isCircle = false;
     fallbackIcon = "musical-note";

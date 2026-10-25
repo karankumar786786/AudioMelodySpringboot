@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Song } from "@/types";
 import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
+import { formatStreams, formatSongSubtitle } from "@/utils/formatUtils";
 
 interface HeroFeaturedCardProps {
   song: Song;
@@ -43,15 +44,29 @@ export function HeroFeaturedCard({
         locations={[0, 0.4, 1]}
         style={StyleSheet.absoluteFill}
       />
-      {/* Bottom Content: Title and Artist */}
+
+      {/* Bottom Content: Title, Artist, Album, Genre & Streams */}
       <View style={styles.content}>
         <View style={styles.metaInfo}>
           <Text style={styles.title} numberOfLines={1}>
             {song.title}
           </Text>
           <Text style={styles.artist} numberOfLines={1}>
-            {song.artistName}
+            {formatSongSubtitle(song.artistName, song.album, song.genre)}
           </Text>
+          {song.totalStreams !== undefined && song.totalStreams !== null ? (
+            <View style={styles.streamsRow}>
+              <Ionicons
+                name="trending-up"
+                size={11}
+                color="#FFFFFF"
+                style={{ marginRight: 4 }}
+              />
+              <Text style={styles.streamsText}>
+                {formatStreams(song.totalStreams)}
+              </Text>
+            </View>
+          ) : null}
         </View>
       </View>
     </TouchableOpacity>
@@ -72,46 +87,6 @@ const styles = StyleSheet.create({
   topWash: {
     ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(0, 0, 0, 0.12)",
-  },
-  topBadgesRow: {
-    position: "absolute",
-    top: 14,
-    left: 14,
-    right: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    zIndex: 5,
-  },
-  featuredBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3.5,
-    borderRadius: 4,
-    backgroundColor: "rgba(0, 0, 0, 0.55)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.18)",
-  },
-  featuredBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 9.5,
-    fontWeight: "800",
-    letterSpacing: 1.1,
-  },
-  canvasBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 7,
-    paddingVertical: 3.5,
-    borderRadius: 4,
-    backgroundColor: "rgba(0, 0, 0, 0.55)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.3)",
-  },
-  canvasBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 9.5,
-    fontWeight: "800",
-    letterSpacing: 1,
   },
   content: {
     position: "absolute",
@@ -139,10 +114,18 @@ const styles = StyleSheet.create({
     textShadowRadius: 4,
   },
   artist: {
-    color: "rgba(255, 255, 255, 0.82)",
-    fontSize: 13.5,
+    color: "rgba(255, 255, 255, 0.85)",
+    fontSize: 13,
     fontWeight: "600",
   },
+  streamsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+  },
+  streamsText: {
+    color: "#BBBBBB",
+    fontSize: 11,
+    fontWeight: "500",
+  },
 });
-
-
