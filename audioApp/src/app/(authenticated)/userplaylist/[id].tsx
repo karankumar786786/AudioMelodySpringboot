@@ -10,8 +10,7 @@ import {
   Share,
   Alert,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSelector } from "react-redux";
 import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
@@ -169,39 +168,6 @@ export default function UserPlaylistDetailScreen() {
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-      {/* Top Floating Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          style={styles.circleIconButton}
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
-
-        <View style={styles.topBarRight}>
-          <TouchableOpacity
-            style={styles.circleIconButton}
-            onPress={handleShare}
-            activeOpacity={0.7}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="share-outline" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-
-          {isOwner ? (
-            <TouchableOpacity
-              style={[styles.circleIconButton, styles.deleteButton]}
-              onPress={handleDeletePlaylist}
-              activeOpacity={0.7}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <Ionicons name="trash-outline" size={19} color="#FF5252" />
-            </TouchableOpacity>
-          ) : null}
-        </View>
-      </View>
 
       {/* Hero Icon Artwork */}
       <View style={styles.artworkContainer}>
@@ -271,7 +237,32 @@ export default function UserPlaylistDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          title: playlist?.name || "My Playlist",
+          headerRight: () => (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+              <TouchableOpacity
+                onPress={handleShare}
+                activeOpacity={0.7}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="share-outline" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+              {isOwner ? (
+                <TouchableOpacity
+                  onPress={handleDeletePlaylist}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons name="trash-outline" size={20} color="#FF5252" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          ),
+        }}
+      />
       <FlatList
         data={songs}
         keyExtractor={(item) => item.id}
@@ -323,12 +314,12 @@ export default function UserPlaylistDetailScreen() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
     backgroundColor: "#121212",
   },
@@ -337,29 +328,8 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     paddingHorizontal: 16,
-    paddingTop: 4,
+    paddingTop: 12,
     marginBottom: 10,
-  },
-  topBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  topBarRight: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  circleIconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  deleteButton: {
-    backgroundColor: "rgba(255, 82, 82, 0.15)",
   },
   artworkContainer: {
     alignSelf: "center",

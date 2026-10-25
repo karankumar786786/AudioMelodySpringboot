@@ -10,7 +10,10 @@ export * from "./api/UserApi";
 export * from "./entity/UserEntity";
 export * from "./service/UserService";
 export * from "./service/SessionService";
+export * from "./entity/SessionEntity";
 export * from "./entity/SongEntity";
+
+
 export * from "./entity/ArtistEntity";
 export * from "./entity/PlaylistEntity";
 export * from "./entity/UserPlaylistEntity";

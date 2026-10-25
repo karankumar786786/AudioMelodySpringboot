@@ -10,8 +10,7 @@ import {
   Dimensions,
   Share,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
@@ -197,26 +196,6 @@ export default function ArtistDetailScreen() {
         {/* Dark Gradient Overlay for title contrast */}
         <View style={styles.heroOverlay} />
 
-        {/* Floating Top Bar (Back & Share) */}
-        <SafeAreaView style={styles.floatingTopBar} edges={["top"]}>
-          <TouchableOpacity
-            style={styles.circleIconButton}
-            onPress={() => router.back()}
-            activeOpacity={0.7}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.circleIconButton}
-            onPress={handleShare}
-            activeOpacity={0.7}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          >
-            <Ionicons name="share-outline" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-        </SafeAreaView>
 
         {/* Artist Title on Cover */}
         <View style={styles.heroTextContainer}>
@@ -333,6 +312,20 @@ export default function ArtistDetailScreen() {
 
   return (
     <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          title: artist?.name || "Artist",
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={handleShare}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="share-outline" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
       <FlatList
         data={songs}
         keyExtractor={(item) => item.id}
@@ -422,26 +415,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.4)",
   },
 
-  floatingTopBar: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    zIndex: 10,
-  },
-  circleIconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(0, 0, 0, 0.55)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
   heroTextContainer: {
     position: "absolute",
     bottom: 18,

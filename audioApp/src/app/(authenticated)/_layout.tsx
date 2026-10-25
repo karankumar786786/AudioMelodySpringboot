@@ -2,7 +2,18 @@ import { Stack } from "expo-router";
 
 export default function AuthenticatedLayout() {
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        headerStyle: { backgroundColor: "#121212" },
+        headerTintColor: "#FFFFFF",
+        headerShadowVisible: false,
+        headerTitleStyle: {
+          fontWeight: "700",
+          color: "#FFFFFF",
+        },
+      }}
+    >
       {/* Bottom Tabs */}
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
@@ -12,8 +23,6 @@ export default function AuthenticatedLayout() {
         options={{
           headerShown: true,
           title: "Artist",
-          headerStyle: { backgroundColor: "#121212" },
-          headerTintColor: "#FFFFFF",
         }}
       />
       <Stack.Screen
@@ -21,8 +30,6 @@ export default function AuthenticatedLayout() {
         options={{
           headerShown: true,
           title: "Playlist",
-          headerStyle: { backgroundColor: "#121212" },
-          headerTintColor: "#FFFFFF",
         }}
       />
       <Stack.Screen
@@ -30,8 +37,6 @@ export default function AuthenticatedLayout() {
         options={{
           headerShown: true,
           title: "My Playlist",
-          headerStyle: { backgroundColor: "#121212" },
-          headerTintColor: "#FFFFFF",
         }}
       />
       <Stack.Screen
@@ -39,8 +44,6 @@ export default function AuthenticatedLayout() {
         options={{
           headerShown: true,
           title: "Now Playing",
-          headerStyle: { backgroundColor: "#121212" },
-          headerTintColor: "#FFFFFF",
         }}
       />
     </Stack>

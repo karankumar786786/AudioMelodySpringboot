@@ -9,8 +9,7 @@ import {
   RefreshControl,
   Share,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
@@ -117,26 +116,6 @@ export default function PlaylistDetailScreen() {
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-      {/* Top Floating Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity
-          style={styles.circleIconButton}
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.circleIconButton}
-          onPress={handleShare}
-          activeOpacity={0.7}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Ionicons name="share-outline" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
 
       {/* Playlist Hero Artwork */}
       <View style={styles.artworkContainer}>
@@ -209,7 +188,21 @@ export default function PlaylistDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <View style={styles.container}>
+      <Stack.Screen
+        options={{
+          title: playlist?.name || "Playlist",
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={handleShare}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="share-outline" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+          ),
+        }}
+      />
       <FlatList
         data={songs}
         keyExtractor={(item) => item.id}
@@ -257,12 +250,12 @@ export default function PlaylistDetailScreen() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  container: {
     flex: 1,
     backgroundColor: "#121212",
   },
@@ -271,22 +264,8 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     paddingHorizontal: 16,
-    paddingTop: 4,
+    paddingTop: 12,
     marginBottom: 10,
-  },
-  topBar: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  circleIconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(255, 255, 255, 0.1)",
-    justifyContent: "center",
-    alignItems: "center",
   },
   artworkContainer: {
     alignSelf: "center",
