@@ -1,7 +1,7 @@
 export interface LogoutRequest {
-    refreshToken: string;
     deviceId: string;
     allDevices: boolean;
+    refreshToken?: string;
 }
 
 export interface LogoutResponse {

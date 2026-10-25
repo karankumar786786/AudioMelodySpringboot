@@ -6,7 +6,7 @@ interface CustomRequestConfig extends InternalAxiosRequestConfig {
 }
 
 export const api = axios.create({
-  baseURL: "http://localhost:8080/api",
+  baseURL: process.env.EXPO_PUBLIC_API_URL || "http://192.168.0.105:9090/api",
   headers: {
     "Content-Type": "application/json",
   },
@@ -61,10 +61,11 @@ api.interceptors.response.use(
         refreshTokenPromise = (async () => {
           try {
             const authBaseUrl = (api.defaults.baseURL || "http://localhost:8080").replace(/\/api\/?$/, "");
+            const deviceId = store.getState().device.deviceId;
             const res = await axios.post<{
               accessToken: string;
               refreshToken?: string;
-            }>(`${authBaseUrl}/auth/refresh-token`, { refreshToken });
+            }>(`${authBaseUrl}/auth/refresh-token`, { refreshToken, deviceId });
 
             if (res.data?.accessToken) {
               const newAccessToken = res.data.accessToken;

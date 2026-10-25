@@ -1,4 +1,4 @@
-import { AuthToken } from "./AuthToken";
+import { AuthToken } from "../AuthToken";
 
 export interface VerifyOtpRequest {
     tempToken: string;

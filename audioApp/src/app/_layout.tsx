@@ -4,7 +4,7 @@ import { Stack, useRouter, useSegments, type Href } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { Provider, useDispatch, useSelector } from "react-redux";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AppDispatch, AppState, loadAuthToken, loadDevice, store } from "@/store";
+import { AppDispatch, AppState, loadAuthToken, loadDevice, loadUserProfile, store } from "@/store";
 import { AuthToken } from "@/types";
 
 // Prevent splash screen from auto-hiding until initial token/device loading is done
@@ -44,6 +44,12 @@ function RootNavigator() {
       isMounted = false;
     };
   }, [dispatch]);
+
+  useEffect(() => {
+    if (authToken.accessToken) {
+      dispatch(loadUserProfile());
+    }
+  }, [authToken.accessToken, dispatch]);
 
   useEffect(() => {
     if (!isReady) return;
