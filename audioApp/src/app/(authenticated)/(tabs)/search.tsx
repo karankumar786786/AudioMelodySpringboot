@@ -32,6 +32,7 @@ import {
   CategoryGenreCard,
   POPULAR_GENRES,
 } from "@/components/search/CategoryGenreCard";
+import { UserPlaylistThumbnail } from "@/components/playlist/UserPlaylistThumbnail";
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -409,13 +410,12 @@ export default function SearchScreen() {
                   onPress={() => handleSelectUserPlaylist(uPlaylist)}
                   activeOpacity={0.7}
                 >
-                  <View style={styles.userPlaylistIconBox}>
-                    <Ionicons
-                      name="musical-notes"
-                      size={22}
-                      color="#FFFFFF"
-                    />
-                  </View>
+                  <UserPlaylistThumbnail
+                    playlist={uPlaylist}
+                    size={48}
+                    borderRadius={8}
+                    style={{ marginRight: 14 }}
+                  />
                   <View style={styles.userPlaylistInfo}>
                     <Text style={styles.userPlaylistName} numberOfLines={1}>
                       {uPlaylist.name}

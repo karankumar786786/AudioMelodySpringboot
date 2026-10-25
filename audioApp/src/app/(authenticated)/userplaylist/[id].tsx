@@ -20,6 +20,7 @@ import { playlistService } from "@/service";
 import { Song } from "@/types";
 import { AppState } from "@/store";
 import { PlaylistTrackItem } from "@/components/playlist/PlaylistTrackItem";
+import { UserPlaylistThumbnail } from "@/components/playlist/UserPlaylistThumbnail";
 
 export default function UserPlaylistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -169,14 +170,15 @@ export default function UserPlaylistDetailScreen() {
 
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-      {/* Hero Icon Artwork */}
+      {/* Hero Artwork (Cover / 2x2 Song Mosaic / Single Song / Fallback) */}
       <View style={styles.artworkContainer}>
-        <LinearGradient
-          colors={["#262626", "#161616", "#121212"]}
-          style={styles.iconBox}
-        >
-          <Ionicons name="musical-notes" size={68} color="#FFFFFF" />
-        </LinearGradient>
+        <UserPlaylistThumbnail
+          playlist={playlist || { id: id as string, name: "Playlist" }}
+          songs={songs}
+          size={180}
+          borderRadius={20}
+          style={styles.heroArtwork}
+        />
       </View>
 
       {/* Title & Metadata */}
@@ -337,19 +339,14 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginBottom: 20,
   },
-  iconBox: {
-    width: 170,
-    height: 170,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.25)",
-    justifyContent: "center",
-    alignItems: "center",
+  heroArtwork: {
     shadowColor: "#FFFFFF",
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   metaContainer: {
     alignItems: "center",

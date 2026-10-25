@@ -19,6 +19,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { playlistService } from "@/service";
 import { UserPlaylist } from "@/types";
+import { UserPlaylistThumbnail } from "@/components/playlist/UserPlaylistThumbnail";
 
 export default function UserPlaylistsScreen() {
   const router = useRouter();
@@ -153,9 +154,12 @@ export default function UserPlaylistsScreen() {
               }
               activeOpacity={0.72}
             >
-              <View style={styles.playlistIconBox}>
-                <Ionicons name="musical-notes" size={22} color="#FFFFFF" />
-              </View>
+              <UserPlaylistThumbnail
+                playlist={item}
+                size={52}
+                borderRadius={10}
+                style={styles.playlistThumbnail}
+              />
 
               <View style={styles.playlistInfo}>
                 <Text style={styles.playlistName} numberOfLines={1}>
@@ -389,13 +393,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
+  playlistThumbnail: {
+    marginRight: 14,
+  },
   playlistIconBox: {
     width: 50,
     height: 50,
     borderRadius: 10,
-    backgroundColor: "rgba(32, 138, 239, 0.12)",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
     borderWidth: 1,
-    borderColor: "rgba(32, 138, 239, 0.25)",
+    borderColor: "rgba(255, 255, 255, 0.15)",
     justifyContent: "center",
     alignItems: "center",
     marginRight: 14,

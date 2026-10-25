@@ -7,4 +7,5 @@ export interface UserPlaylist {
   userId?: string;
   ownerId?: string;
   ownerName?: string;
+  coverImageKey?: string;
 }
