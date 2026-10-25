@@ -201,53 +201,52 @@ export default function ArtistDetailScreen() {
             <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
             <Text style={styles.verifiedText}>Verified Artist</Text>
           </View>
-          <Text style={styles.artistName} numberOfLines={2}>
-            {artist?.name || "Artist"}
-          </Text>
+          <View style={styles.nameActionsRow}>
+            <Text style={styles.artistName} numberOfLines={2}>
+              {artist?.name || "Artist"}
+            </Text>
+
+            <View style={styles.heroActions}>
+              <TouchableOpacity
+                style={[
+                  styles.followButton,
+                  isFollowing && styles.followingButton,
+                ]}
+                onPress={handleToggleFollow}
+                activeOpacity={0.8}
+                disabled={isFollowMutating}
+              >
+                <Text
+                  style={[
+                    styles.followButtonText,
+                    isFollowing && styles.followingButtonText,
+                  ]}
+                >
+                  {isFollowing ? "Following" : "Follow"}
+                </Text>
+              </TouchableOpacity>
+
+              {songs.length > 0 ? (
+                <TouchableOpacity
+                  style={styles.playButton}
+                  onPress={handlePlayAll}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons
+                    name="play"
+                    size={22}
+                    color="#000000"
+                    style={{ marginLeft: 2 }}
+                  />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </View>
+
           <Text style={styles.followersText}>
             {formatFollowers(followersCount)}
           </Text>
         </View>
-      </View>
-
-      {/* Action Row: Follow, Shuffle, Play Button */}
-      <View style={styles.actionRow}>
-        <View style={styles.leftActions}>
-          <TouchableOpacity
-            style={[
-              styles.followButton,
-              isFollowing && styles.followingButton,
-            ]}
-            onPress={handleToggleFollow}
-            activeOpacity={0.8}
-            disabled={isFollowMutating}
-          >
-            <Text
-              style={[
-                styles.followButtonText,
-                isFollowing && styles.followingButtonText,
-              ]}
-            >
-              {isFollowing ? "Following" : "Follow"}
-            </Text>
-          </TouchableOpacity>
-
-        </View>
-
-        {songs.length > 0 ? (
-          <TouchableOpacity
-            style={styles.playButton}
-            onPress={handlePlayAll}
-            activeOpacity={0.85}
-          >
-            <Ionicons
-              name="play"
-              size={24}
-              color="#000000"
-              style={{ marginLeft: 3 }}
-            />
-          </TouchableOpacity>
-        ) : null}
       </View>
 
       {/* Section Header: Popular Songs */}
@@ -422,15 +421,28 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
-  artistName: {
-    color: "#FFFFFF",
-    fontSize: 32,
-    fontWeight: "bold",
+  nameActionsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
     marginBottom: 4,
+  },
+  artistName: {
+    flex: 1,
+    color: "#FFFFFF",
+    fontSize: 28,
+    fontWeight: "bold",
     letterSpacing: -0.5,
     textShadowColor: "rgba(0, 0, 0, 0.9)",
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 5,
+  },
+  heroActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flexShrink: 0,
   },
   followersText: {
     color: "rgba(255, 255, 255, 0.85)",
@@ -440,54 +452,42 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
-  actionRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-  },
-  leftActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
   followButton: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
     borderRadius: 20,
     borderWidth: 1.5,
     borderColor: "#FFFFFF",
-    backgroundColor: "transparent",
+    backgroundColor: "#FFFFFF",
   },
   followingButton: {
-    borderColor: "rgba(255, 255, 255, 0.35)",
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
+    borderColor: "rgba(255, 255, 255, 0.5)",
+    backgroundColor: "transparent",
   },
   followButtonText: {
-    color: "#FFFFFF",
+    color: "#000000",
     fontSize: 13,
     fontWeight: "700",
   },
   followingButtonText: {
-    color: "#DDDDDD",
+    color: "#FFFFFF",
   },
   playButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#FFFFFF",
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.75,
-    shadowRadius: 12,
+    shadowOpacity: 0.6,
+    shadowRadius: 10,
     elevation: 8,
   },
   sectionHeadingRow: {
     paddingHorizontal: 18,
-    paddingTop: 8,
+    paddingTop: 16,
     paddingBottom: 6,
   },
   sectionHeading: {

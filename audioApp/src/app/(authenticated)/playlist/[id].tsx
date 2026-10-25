@@ -161,11 +161,37 @@ export default function PlaylistDetailScreen() {
 
         {/* Content pinned to bottom */}
         <View style={styles.heroContent}>
+          <View style={styles.titleRow}>
+            <Text style={styles.heroTitle} numberOfLines={2}>
+              {playlist?.name || "Playlist"}
+            </Text>
 
+            <View style={styles.titleActions}>
+              <TouchableOpacity
+                style={styles.iconCircleButton}
+                onPress={handleShare}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="share-outline" size={19} color="#FFFFFF" />
+              </TouchableOpacity>
 
-          <Text style={styles.heroTitle} numberOfLines={2}>
-            {playlist?.name || "Playlist"}
-          </Text>
+              {songs.length > 0 ? (
+                <TouchableOpacity
+                  style={styles.playButton}
+                  onPress={handlePlayAll}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons
+                    name="play"
+                    size={22}
+                    color="#000000"
+                    style={{ marginLeft: 2 }}
+                  />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          </View>
 
           {playlist?.description ? (
             <Text style={styles.heroDescription} numberOfLines={2}>
@@ -205,34 +231,6 @@ export default function PlaylistDetailScreen() {
             ) : null}
           </View>
         </View>
-      </View>
-
-      {/* Action Controls Bar */}
-      <View style={styles.actionRow}>
-        <View style={styles.actionLeft}>
-          <TouchableOpacity
-            style={styles.iconCircleButton}
-            onPress={handleShare}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="share-outline" size={18} color="#CCCCCC" />
-          </TouchableOpacity>
-        </View>
-
-        {songs.length > 0 ? (
-          <TouchableOpacity
-            style={styles.playButton}
-            onPress={handlePlayAll}
-            activeOpacity={0.85}
-          >
-            <Ionicons
-              name="play"
-              size={24}
-              color="#000000"
-              style={{ marginLeft: 3 }}
-            />
-          </TouchableOpacity>
-        ) : null}
       </View>
     </View>
   );
@@ -384,13 +382,26 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     letterSpacing: 1.1,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    marginBottom: 4,
+  },
+  titleActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flexShrink: 0,
+  },
   heroTitle: {
+    flex: 1,
     fontSize: 24,
     fontWeight: "900",
     color: "#FFFFFF",
     letterSpacing: -0.4,
-    marginBottom: 4,
-    textShadowColor: "rgba(0, 0, 0, 0.8)",
+    textShadowColor: "rgba(0, 0, 0, 0.85)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6,
   },
@@ -429,39 +440,27 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#FFFFFF",
   },
-  actionRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  actionLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-  },
   iconCircleButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "#1E1E1E",
+    backgroundColor: "rgba(30, 30, 30, 0.85)",
     borderWidth: 1,
-    borderColor: "#2A2A2A",
+    borderColor: "rgba(255, 255, 255, 0.18)",
     justifyContent: "center",
     alignItems: "center",
   },
   playButton: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#FFFFFF",
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.75,
-    shadowRadius: 12,
+    shadowOpacity: 0.6,
+    shadowRadius: 10,
     elevation: 8,
   },
   centerContainer: {
