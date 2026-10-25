@@ -1,4 +1,3 @@
-import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
@@ -39,6 +38,7 @@ export function PlaylistTrackItem({
             style={styles.thumbnail}
             contentFit="cover"
             transition={150}
+            cachePolicy="memory"
           />
         ) : (
           <View style={styles.fallbackThumbnail}>

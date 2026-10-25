@@ -86,6 +86,7 @@ export function SearchTopResultCard({
               style={styles.image}
               contentFit="cover"
               transition={200}
+              cachePolicy="memory"
             />
           ) : (
             <View style={styles.fallbackContainer}>

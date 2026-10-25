@@ -64,6 +64,7 @@ export function SearchHistoryItem({
             style={styles.avatar}
             contentFit="cover"
             transition={150}
+            cachePolicy="memory"
           />
         ) : (
           <View style={styles.fallbackAvatar}>

@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Image, StyleSheet, StyleProp, ViewStyle } from "react-native";
+import { View, StyleSheet, StyleProp, ViewStyle } from "react-native";
+import { Image } from "expo-image";
 import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { playlistService } from "@/service";
@@ -98,7 +99,8 @@ export function UserPlaylistThumbnail({
         <Image
           source={{ uri: coverUrl }}
           style={styles.imageFull}
-          resizeMode="cover"
+          contentFit="cover"
+          cachePolicy="memory"
         />
       </View>
     );
@@ -112,7 +114,8 @@ export function UserPlaylistThumbnail({
           <Image
             source={{ uri: imgUrl }}
             style={styles.imageFull}
-            resizeMode="cover"
+            contentFit="cover"
+            cachePolicy="memory"
           />
         ) : (
           <View style={styles.mosaicCellFallback}>
@@ -149,7 +152,8 @@ export function UserPlaylistThumbnail({
         <Image
           source={{ uri: singleImg }}
           style={styles.imageFull}
-          resizeMode="cover"
+          contentFit="cover"
+          cachePolicy="memory"
         />
       </View>
     );

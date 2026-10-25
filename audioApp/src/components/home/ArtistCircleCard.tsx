@@ -42,6 +42,7 @@ export function ArtistCircleCard({ artist, onPress }: ArtistCircleCardProps) {
             style={styles.avatar}
             contentFit="cover"
             transition={200}
+            cachePolicy="memory"
           />
         ) : (
           <View style={styles.fallbackAvatar}>

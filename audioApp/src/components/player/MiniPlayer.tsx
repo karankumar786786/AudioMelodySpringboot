@@ -56,6 +56,7 @@ export function MiniPlayer() {
           style={styles.artwork}
           contentFit="cover"
           transition={150}
+          cachePolicy="memory"
         />
 
         {/* Track Title and Artist */}

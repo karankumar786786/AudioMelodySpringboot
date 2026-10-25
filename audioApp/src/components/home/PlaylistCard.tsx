@@ -31,6 +31,7 @@ export function PlaylistCard({ playlist, onPress }: PlaylistCardProps) {
             style={styles.image}
             contentFit="cover"
             transition={200}
+            cachePolicy="memory"
           />
         ) : (
           <View style={styles.fallbackImage}>

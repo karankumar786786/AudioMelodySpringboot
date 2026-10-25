@@ -7,8 +7,9 @@ import {
   ActivityIndicator,
   Dimensions,
   GestureResponderEvent,
+  ScrollView,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,6 +19,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { AppState } from "@/store/hook";
 import { homeService, favouriteService } from "@/service";
 import { audioPlayerService } from "@/service/audioPlayerService";
+import { useLyrics } from "@/hooks/useLyrics";
 import {
   playSong,
   nextTrack,
@@ -32,7 +34,7 @@ import { formatDuration, formatStreams } from "@/utils/formatUtils";
 import { getImageUrl } from "@/utils/imageUtils";
 import { S3_BASE_URL } from "@/utils/playerUtils";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 type ViewMode = "canvas" | "artwork";
 
@@ -41,6 +43,8 @@ export default function SongDetailScreen() {
   const router = useRouter();
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
+  const safeAreaHeight = Math.max(560, SCREEN_HEIGHT - insets.top - insets.bottom);
 
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
@@ -73,6 +77,16 @@ export default function SongDetailScreen() {
 
   // Effective song to display: prefer currentSong from player state, fallback to fetchedSong
   const activeSong = currentSong || fetchedSong;
+
+  // Synced lyrics hook
+  const hasLrclib = Boolean(activeSong?.lrclibId);
+  const {
+    currentLine,
+    nextLine,
+    transcriptions,
+    plainLyrics,
+    isLoading: isLyricsLoading,
+  } = useLyrics(activeSong?.lrclibId, currentTime);
 
   // Check favourites status from query cache
   const { data: favouritesData } = useQuery({
@@ -257,6 +271,7 @@ export default function SongDetailScreen() {
             style={styles.ambientBlurImage}
             contentFit="cover"
             blurRadius={45}
+            cachePolicy="memory"
           />
           <LinearGradient
             colors={[
@@ -277,54 +292,61 @@ export default function SongDetailScreen() {
           showCanvasBackground && styles.containerTransparent,
         ]}
       >
-        {/* 2. Top Navigation Bar */}
-        <View style={styles.topBar}>
-          <TouchableOpacity
-            style={styles.topBarCircleBtn}
-            onPress={() => router.back()}
-            hitSlop={14}
-            activeOpacity={0.75}
-          >
-            <Ionicons name="chevron-down" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+          contentContainerStyle={styles.scrollContent}
+        >
+          {/* Main Full-Screen Player: exactly 100% viewport height */}
+          <View style={[styles.playerScreenSection, { minHeight: safeAreaHeight }]}>
+            {/* 2. Top Navigation Bar */}
+            <View style={styles.topBar}>
+              <TouchableOpacity
+                style={styles.topBarCircleBtn}
+                onPress={() => router.back()}
+                hitSlop={14}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="chevron-down" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
 
-          <View style={styles.topBarTitleContainer}>
-            <Text style={styles.topBarSubtitle}>PLAYING FROM ONE MELODY</Text>
-            <Text style={styles.topBarTitle} numberOfLines={1}>
-              {activeSong.album || activeSong.genre || "Featured Collection"}
-            </Text>
-          </View>
+              <View style={styles.topBarTitleContainer}>
+                <Text style={styles.topBarSubtitle}>PLAYING FROM ONE MELODY</Text>
+                <Text style={styles.topBarTitle} numberOfLines={1}>
+                  {activeSong.album || activeSong.genre || "Featured Collection"}
+                </Text>
+              </View>
 
-          <View style={styles.topBarRightActions}>
-            <TouchableOpacity
-              style={styles.topBarCircleBtn}
-              hitSlop={14}
-              onPress={() => setIsSettingsOpen(true)}
-              activeOpacity={0.75}
-            >
-              <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
+              <View style={styles.topBarRightActions}>
+                <TouchableOpacity
+                  style={styles.topBarCircleBtn}
+                  hitSlop={14}
+                  onPress={() => setIsSettingsOpen(true)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.topBarCircleBtn}
-              hitSlop={14}
-              onPress={() => setIsQueueOpen(true)}
-              activeOpacity={0.75}
-            >
-              <Ionicons name="list" size={22} color="#FFFFFF" />
-              {upcomingCount > 0 ? (
-                <View style={styles.queueCounterBadge}>
-                  <Text style={styles.queueCounterText}>
-                    {upcomingCount > 9 ? "9+" : upcomingCount}
-                  </Text>
-                </View>
-              ) : null}
-            </TouchableOpacity>
-          </View>
-        </View>
+                <TouchableOpacity
+                  style={styles.topBarCircleBtn}
+                  hitSlop={14}
+                  onPress={() => setIsQueueOpen(true)}
+                  activeOpacity={0.75}
+                >
+                  <Ionicons name="list" size={22} color="#FFFFFF" />
+                  {upcomingCount > 0 ? (
+                    <View style={styles.queueCounterBadge}>
+                      <Text style={styles.queueCounterText}>
+                        {upcomingCount}
+                      </Text>
+                    </View>
+                  ) : null}
+                </TouchableOpacity>
+              </View>
+            </View>
 
-        {/* 3. Center Stage: Canvas / Artwork */}
-        <View style={styles.centerStage}>
+            {/* 3. Center Stage: Canvas / Artwork */}
+            <View style={styles.centerStage}>
           {/* Unified Mode Switcher Pill (Canvas, Artwork, Video) */}
           {availableModes.length > 1 ? (
             <View style={styles.modeSwitcherContainer}>
@@ -376,6 +398,7 @@ export default function SongDetailScreen() {
                 style={styles.artworkImage}
                 contentFit="cover"
                 transition={200}
+                cachePolicy="memory"
               />
             </View>
           )}
@@ -546,8 +569,68 @@ export default function SongDetailScreen() {
             {repeatMode === "all" ? <View style={styles.activeDot} /> : <View style={styles.inactiveDot} />}
           </TouchableOpacity>
         </View>
+      </View>
 
-        {/* Up Next Queue Bottom Sheet */}
+        {/* 7. Spotify-Style Lyrics Preview Card below the player */}
+        {hasLrclib ? (
+          <View style={styles.lyricsSection}>
+            <TouchableOpacity
+              style={styles.lyricsCard}
+              activeOpacity={0.88}
+              onPress={() => {
+                if (activeSong?.id) {
+                  router.push({
+                    pathname: "/(authenticated)/lyrics/[id]",
+                    params: { id: activeSong.id },
+                  });
+                }
+              }}
+            >
+              <View style={styles.lyricsCardHeader}>
+                <Text style={styles.lyricsCardTitle}>Lyrics</Text>
+                <View style={styles.lyricsCardMorePill}>
+                  <Text style={styles.lyricsCardMoreText}>MORE</Text>
+                  <Ionicons name="expand-outline" size={13} color="#FFFFFF" />
+                </View>
+              </View>
+
+              <View style={styles.lyricsCardContent}>
+                {currentLine?.text ? (
+                  <>
+                    <Text style={styles.lyricsLinePrimary} numberOfLines={2}>
+                      {currentLine.text}
+                    </Text>
+                    {nextLine?.text ? (
+                      <Text style={styles.lyricsLineSecondary} numberOfLines={1}>
+                        {nextLine.text}
+                      </Text>
+                    ) : null}
+                  </>
+                ) : transcriptions.length > 0 ? (
+                  <>
+                    <Text style={styles.lyricsLinePrimary} numberOfLines={2}>
+                      {transcriptions[0].text}
+                    </Text>
+                    {transcriptions[1]?.text ? (
+                      <Text style={styles.lyricsLineSecondary} numberOfLines={1}>
+                        {transcriptions[1].text}
+                      </Text>
+                    ) : null}
+                  </>
+                ) : plainLyrics ? (
+                  <Text style={styles.lyricsLinePrimary} numberOfLines={3}>
+                    {plainLyrics.trim().split("\n").slice(0, 3).join("\n")}
+                  </Text>
+                ) : (
+                  <Text style={styles.lyricsLineSecondary}>
+                    {isLyricsLoading ? "Loading lyrics..." : "Tap to open lyrics"}
+                  </Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+      </ScrollView>
         <QueueModal
           visible={isQueueOpen}
           onClose={() => setIsQueueOpen(false)}
@@ -589,11 +672,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#121212",
-    justifyContent: "space-between",
-    paddingBottom: 28,
   },
   containerTransparent: {
     backgroundColor: "transparent",
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  playerScreenSection: {
+    flex: 1,
+    justifyContent: "space-between",
+    paddingBottom: 28,
   },
   centerContainer: {
     flex: 1,
@@ -675,13 +764,13 @@ const styles = StyleSheet.create({
   },
   queueCounterBadge: {
     position: "absolute",
-    top: -3,
-    right: -3,
+    top: -4,
+    right: -4,
     backgroundColor: "#FFFFFF",
     borderRadius: 8,
     minWidth: 16,
     height: 16,
-    paddingHorizontal: 3,
+    paddingHorizontal: 4,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -689,6 +778,7 @@ const styles = StyleSheet.create({
     color: "#000000",
     fontSize: 9,
     fontWeight: "900",
+    fontVariant: ["tabular-nums"],
   },
   centerStage: {
     flex: 1,
@@ -757,6 +847,7 @@ const styles = StyleSheet.create({
   },
   canvasSpacer: {
     flex: 1,
+    minHeight: Math.min(SCREEN_WIDTH - 48, 340),
   },
   metaSection: {
     flexDirection: "row",
@@ -910,5 +1001,69 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 14,
     elevation: 8,
+  },
+  lyricsSection: {
+    paddingHorizontal: 22,
+    paddingTop: 16,
+    paddingBottom: 48,
+  },
+  lyricsCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: 22,
+    padding: 22,
+    minHeight: 220,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.12)",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 14,
+    elevation: 6,
+    justifyContent: "space-between",
+  },
+  lyricsCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  lyricsCardTitle: {
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.3,
+  },
+  lyricsCardMorePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.14)",
+    paddingVertical: 5,
+    paddingHorizontal: 11,
+    borderRadius: 14,
+    gap: 4,
+  },
+  lyricsCardMoreText: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: 0.8,
+  },
+  lyricsCardContent: {
+    gap: 8,
+    flex: 1,
+    justifyContent: "center",
+  },
+  lyricsLinePrimary: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    lineHeight: 28,
+    letterSpacing: -0.3,
+  },
+  lyricsLineSecondary: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: "rgba(255, 255, 255, 0.45)",
+    lineHeight: 22,
   },
 });

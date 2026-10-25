@@ -32,6 +32,7 @@ export function TrendingSongCard({ song, onPress }: TrendingSongCardProps) {
             style={styles.image}
             contentFit="cover"
             transition={200}
+            cachePolicy="memory"
           />
         ) : (
           <View style={styles.fallbackImage}>

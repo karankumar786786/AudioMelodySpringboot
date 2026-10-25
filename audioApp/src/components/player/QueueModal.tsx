@@ -93,6 +93,7 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
                   source={{ uri: currentSong.coverUrl }}
                   style={styles.songThumb}
                   contentFit="cover"
+                  cachePolicy="memory"
                 />
                 <View style={styles.songInfo}>
                   <Text style={styles.songTitleActive} numberOfLines={1}>
@@ -137,6 +138,7 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
                       source={{ uri: item.coverUrl }}
                       style={styles.songThumb}
                       contentFit="cover"
+                      cachePolicy="memory"
                     />
                     <View style={styles.songInfo}>
                       <Text style={styles.songTitle} numberOfLines={1}>

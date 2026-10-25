@@ -1,8 +1,14 @@
 import React, { useEffect, useRef, useState } from "react";
 import { View, StyleSheet, StyleProp, ViewStyle, ActivityIndicator } from "react-native";
-import { useVideoPlayer, VideoView } from "expo-video";
+import { useVideoPlayer, VideoView, setVideoCacheSizeAsync } from "expo-video";
 import { Image } from "expo-image";
 import { getImageUrl, getVideoUrl } from "@/utils/imageUtils";
+
+// Ensure native video cache is configured (512MB) for smooth looping
+setVideoCacheSizeAsync(512 * 1024 * 1024).catch(() => {});
+
+// In-memory cache registry for active/preloaded canvas videos
+const canvasMemoryCache = new Set<string>();
 
 interface CanvasVideoPlayerProps {
   videoKey?: string | null;
@@ -28,7 +34,23 @@ function VideoSurface({
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
 
-  const player = useVideoPlayer(videoUrl, (p) => {
+  // Track canvas video in memory cache
+  useEffect(() => {
+    if (videoUrl && !canvasMemoryCache.has(videoUrl)) {
+      canvasMemoryCache.add(videoUrl);
+    }
+  }, [videoUrl]);
+
+  // Use VideoSource object with useCaching: true to cache the MP4 video locally in memory/disk
+  const videoSource = React.useMemo(
+    () => ({
+      uri: videoUrl,
+      useCaching: true,
+    }),
+    [videoUrl]
+  );
+
+  const player = useVideoPlayer(videoSource, (p) => {
     p.loop = true;
     p.muted = true;
     p.volume = 0;
@@ -101,7 +123,8 @@ export function CanvasVideoPlayer({
   isPlaying = true,
   showLoaderWhenVideoAvailable = false,
 }: CanvasVideoPlayerProps) {
-  const videoUrl = getVideoUrl(videoKey);
+  // Request progressive MP4 from ImageKit for canvas video so it can be cached in memory/disk
+  const videoUrl = getVideoUrl(videoKey, { format: "mp4" });
   const imageUrl = getImageUrl(fallbackImageKey, {
     width: 1280,
     height: 720,
@@ -130,6 +153,7 @@ export function CanvasVideoPlayer({
             source={{ uri: imageUrl }}
             style={StyleSheet.absoluteFill}
             contentFit="cover"
+            cachePolicy="memory"
           />
         ) : (
           <View style={[StyleSheet.absoluteFill, styles.fallbackContainer]} />

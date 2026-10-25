@@ -232,6 +232,7 @@ export default function UserPlaylistDetailScreen() {
             contentFit="cover"
             contentPosition="top center"
             transition={200}
+            cachePolicy="memory"
           />
         ) : showMosaic ? (
           <View style={styles.mosaicGrid}>
@@ -243,6 +244,7 @@ export default function UserPlaylistDetailScreen() {
                     style={styles.imageFull}
                     contentFit="cover"
                     contentPosition="top center"
+                    cachePolicy="memory"
                   />
                 ) : (
                   <View style={styles.cellFallback} />
@@ -255,6 +257,7 @@ export default function UserPlaylistDetailScreen() {
                     style={styles.imageFull}
                     contentFit="cover"
                     contentPosition="top center"
+                    cachePolicy="memory"
                   />
                 ) : (
                   <View style={styles.cellFallback} />
@@ -269,6 +272,7 @@ export default function UserPlaylistDetailScreen() {
                     style={styles.imageFull}
                     contentFit="cover"
                     contentPosition="top center"
+                    cachePolicy="memory"
                   />
                 ) : (
                   <View style={styles.cellFallback} />
@@ -281,6 +285,7 @@ export default function UserPlaylistDetailScreen() {
                     style={styles.imageFull}
                     contentFit="cover"
                     contentPosition="top center"
+                    cachePolicy="memory"
                   />
                 ) : (
                   <View style={styles.cellFallback} />
@@ -295,6 +300,7 @@ export default function UserPlaylistDetailScreen() {
             contentFit="cover"
             contentPosition="top center"
             transition={200}
+            cachePolicy="memory"
           />
         ) : (
           <View style={styles.emptyHero}>

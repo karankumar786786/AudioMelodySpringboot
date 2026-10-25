@@ -55,6 +55,13 @@ export default function AuthenticatedLayout() {
           presentation: "card",
         }}
       />
+      <Stack.Screen
+        name="lyrics/[id]"
+        options={{
+          headerShown: false,
+          presentation: "card",
+        }}
+      />
     </Stack>
   );
 }

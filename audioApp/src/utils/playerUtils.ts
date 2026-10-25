@@ -56,6 +56,7 @@ export function mapToPlayerSong(song: Song | any, existingQueueId?: string): Pla
     posterUrl,
     canvasVideoUrl,
     duration: typeof song.duration === "number" ? song.duration : 0,
+    lrclibId: song.lrclibId || song.lrclib_id || undefined,
   };
 }
 

@@ -6,6 +6,10 @@ import { Provider, useDispatch, useSelector } from "react-redux";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AppDispatch, AppState, loadAuthToken, loadDevice, loadUserProfile, store } from "@/store";
 import { AuthToken } from "@/types";
+import { configureAudioPriority } from "@/utils/audioConfig";
+
+// Configure global exclusive audio priority as soon as the app starts
+configureAudioPriority().catch(() => {});
 
 // Prevent splash screen from auto-hiding until initial token/device loading is done
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -27,6 +31,7 @@ function RootNavigator() {
         await Promise.all([
           dispatch(loadAuthToken()).unwrap(),
           dispatch(loadDevice()).unwrap(),
+          configureAudioPriority(),
         ]);
       } catch (error) {
         console.error("Initialization error:", error);

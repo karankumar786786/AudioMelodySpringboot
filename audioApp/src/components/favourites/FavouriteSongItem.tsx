@@ -39,6 +39,7 @@ export function FavouriteSongItem({
             style={styles.thumbnail}
             contentFit="cover"
             transition={150}
+            cachePolicy="memory"
           />
         ) : (
           <View style={styles.fallbackThumbnail}>

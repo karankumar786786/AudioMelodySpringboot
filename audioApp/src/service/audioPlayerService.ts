@@ -6,6 +6,8 @@ import {
 } from "expo-audio";
 import { PlayerSong, RepeatMode } from "@/types";
 import { store } from "@/store/hook";
+import { configureAudioPriority } from "@/utils/audioConfig";
+export { configureAudioPriority };
 import {
   setCurrentTime,
   setDuration,
@@ -29,12 +31,8 @@ class AudioPlayerService {
     if (this.isInitialized && this.player) return;
 
     try {
-      // Configure global audio mode for background playback and lockscreen controls
-      await setAudioModeAsync({
-        playsInSilentMode: true,
-        shouldPlayInBackground: true,
-        interruptionMode: "doNotMix",
-      });
+      // Configure top exclusive audio priority (doNotMix, silentMode, background)
+      await configureAudioPriority();
 
       // Create singleton player instance with 250ms update interval for smooth progress UI
       this.player = createAudioPlayer(null, {
@@ -101,6 +99,9 @@ class AudioPlayerService {
     if (!this.player) return;
 
     try {
+      // Re-assert exclusive audio focus when playback starts
+      await configureAudioPriority();
+
       this.currentPlayingSong = song;
       store.dispatch(setCurrentSong(song));
       store.dispatch(setIsLoading(true));
@@ -156,6 +157,7 @@ class AudioPlayerService {
 
   resume(): void {
     if (!this.player) return;
+    configureAudioPriority();
     this.player.play();
     store.dispatch(setIsPlaying(true));
   }

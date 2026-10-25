@@ -193,6 +193,7 @@ export default function ArtistDetailScreen() {
             contentFit="cover"
             contentPosition="top center"
             transition={200}
+            cachePolicy="memory"
           />
         ) : (
           <View style={styles.fallbackHero}>

@@ -151,6 +151,7 @@ export default function FavouritesScreen() {
                     style={styles.imageFull}
                     contentFit="cover"
                     contentPosition="top center"
+                    cachePolicy="memory"
                   />
                 ) : (
                   <View style={styles.cellFallback} />
@@ -163,6 +164,7 @@ export default function FavouritesScreen() {
                     style={styles.imageFull}
                     contentFit="cover"
                     contentPosition="top center"
+                    cachePolicy="memory"
                   />
                 ) : (
                   <View style={styles.cellFallback} />
@@ -177,6 +179,7 @@ export default function FavouritesScreen() {
                     style={styles.imageFull}
                     contentFit="cover"
                     contentPosition="top center"
+                    cachePolicy="memory"
                   />
                 ) : (
                   <View style={styles.cellFallback} />
@@ -189,6 +192,7 @@ export default function FavouritesScreen() {
                     style={styles.imageFull}
                     contentFit="cover"
                     contentPosition="top center"
+                    cachePolicy="memory"
                   />
                 ) : (
                   <View style={styles.cellFallback} />
@@ -203,6 +207,7 @@ export default function FavouritesScreen() {
             contentFit="cover"
             contentPosition="top center"
             transition={200}
+            cachePolicy="memory"
           />
         ) : (
           <View style={styles.emptyHero}>

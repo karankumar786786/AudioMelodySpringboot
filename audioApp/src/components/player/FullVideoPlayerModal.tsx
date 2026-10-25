@@ -14,7 +14,7 @@ import { useVideoPlayer, VideoView } from "expo-video";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { Ionicons } from "@expo/vector-icons";
 import { store } from "@/store/hook";
-import { audioPlayerService } from "@/service/audioPlayerService";
+import { audioPlayerService, configureAudioPriority } from "@/service/audioPlayerService";
 import { formatDuration } from "@/utils/formatUtils";
 import { PlayerSettingsModal } from "./PlayerSettingsModal";
 
@@ -91,7 +91,8 @@ export function FullVideoPlayerModal({
       return;
     }
 
-    if (!videoStreamUrl) return;
+    // Assert top exclusive audio priority for video sound
+    configureAudioPriority();
 
     // Pause background audio service when video modal opens
     audioPlayerService.pause();
@@ -169,20 +170,6 @@ export function FullVideoPlayerModal({
     setCurrentTime(target);
   };
 
-  const handleToggleOrientation = async () => {
-    try {
-      if (isLandscape) {
-        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
-      } else {
-        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
-      }
-      // Re-enable rotation listening after manual change
-      setTimeout(() => {
-        ScreenOrientation.unlockAsync().catch(() => {});
-      }, 1000);
-    } catch {}
-  };
-
   if (!visible || !videoStreamUrl) return null;
 
   return (
@@ -223,19 +210,6 @@ export function FullVideoPlayerModal({
                 activeOpacity={0.75}
               >
                 <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.iconCircleBtn}
-                hitSlop={14}
-                onPress={handleToggleOrientation}
-                activeOpacity={0.75}
-              >
-                <Ionicons
-                  name={isLandscape ? "phone-portrait-outline" : "phone-landscape-outline"}
-                  size={20}
-                  color="#FFFFFF"
-                />
               </TouchableOpacity>
             </View>
           </View>

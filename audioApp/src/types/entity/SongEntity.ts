@@ -15,4 +15,5 @@ export interface Song {
   album?: string;
   totalStreams?: number;
   createdAt?: string;
+  lrclibId?: string;
 }
