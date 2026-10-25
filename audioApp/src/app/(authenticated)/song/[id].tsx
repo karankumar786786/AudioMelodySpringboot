@@ -37,7 +37,10 @@ import { toggleShuffle, toggleRepeat } from "@/store/queueSlice";
 import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
 import { QueueModal } from "@/components/player/QueueModal";
 import { FullVideoPlayerModal } from "@/components/player/FullVideoPlayerModal";
-import { PlayerSettingsModal } from "@/components/player/PlayerSettingsModal";
+import {
+  PlayerSettingsModal,
+  DEFAULT_AUDIO_QUALITIES,
+} from "@/components/player/PlayerSettingsModal";
 import { formatDuration, formatStreams } from "@/utils/formatUtils";
 import { getImageUrl } from "@/utils/imageUtils";
 import { S3_BASE_URL } from "@/utils/playerUtils";
@@ -987,7 +990,9 @@ export default function SongDetailScreen() {
           visible={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
           mode="audio"
+          audioQualities={DEFAULT_AUDIO_QUALITIES}
           onSpeedChange={(rate) => audioPlayerService.setPlaybackRate(rate)}
+          onAudioQualityChange={(quality) => audioPlayerService.setAudioQuality(quality)}
         />
 
         {/* Full Video Modal: only mounted when explicitly opened by user */}

@@ -25,6 +25,12 @@ export interface QualityChoice<T extends string> {
   label: string;
 }
 
+export const DEFAULT_AUDIO_QUALITIES: QualityChoice<AudioQuality>[] = [
+  { id: "lossless", label: "Lossless (320 kbps)" },
+  { id: "high", label: "High (240 kbps)" },
+  { id: "standard", label: "Standard (128 kbps)" },
+];
+
 export interface PlayerSettingsModalProps {
   visible: boolean;
   onClose: () => void;
@@ -122,10 +128,15 @@ export function PlayerSettingsModal({
   const audioQuality = useSelector((state: AppState) => state.player.audioQuality ?? "auto");
   const sleepTimer = useSelector((state: AppState) => state.player.sleepTimer);
 
+  const effectiveAudioQualities =
+    audioQualities && audioQualities.length > 0
+      ? audioQualities
+      : DEFAULT_AUDIO_QUALITIES;
+
   // Only offer what the current media really has, plus Auto
   const qualityOptions: QualityChoice<string>[] = [
     { id: "auto", label: "Auto" },
-    ...((mode === "audio" ? audioQualities : videoQualities) ?? []).filter(
+    ...((mode === "audio" ? effectiveAudioQualities : videoQualities) ?? []).filter(
       (q) => q.id !== "auto"
     ),
   ];
