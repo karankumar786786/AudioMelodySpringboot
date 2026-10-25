@@ -85,7 +85,7 @@ export default function FavouritesScreen() {
   const handleRemoveFavourite = async (songId: string) => {
     // Optimistic UI update
     queryClient.setQueryData<any>(["favourites"], (oldData: any) => {
-      if (!oldData) return oldData;
+      if (!oldData || !Array.isArray(oldData.pages)) return oldData;
       return {
         ...oldData,
         pages: oldData.pages.map((page: any) => ({

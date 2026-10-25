@@ -9,10 +9,18 @@ import { formatDuration, formatStreams, formatSongSubtitle } from "@/utils/forma
 interface SongRowItemProps {
   song: Song;
   index?: number;
+  isActive?: boolean;
+  isPlaying?: boolean;
   onPress: () => void;
 }
 
-export function SongRowItem({ song, index, onPress }: SongRowItemProps) {
+export function SongRowItem({
+  song,
+  index,
+  isActive = false,
+  isPlaying = false,
+  onPress,
+}: SongRowItemProps) {
   const imageUrl = getImageUrl(song.imageKey, {
     width: 160,
     height: 160,
@@ -22,7 +30,7 @@ export function SongRowItem({ song, index, onPress }: SongRowItemProps) {
 
   return (
     <TouchableOpacity
-      style={styles.container}
+      style={[styles.container, isActive && styles.containerActive]}
       onPress={onPress}
       activeOpacity={0.72}
     >
@@ -40,10 +48,22 @@ export function SongRowItem({ song, index, onPress }: SongRowItemProps) {
             <Ionicons name="musical-note" size={20} color="#666666" />
           </View>
         )}
+        {isActive ? (
+          <View style={styles.activeOverlay}>
+            <Ionicons
+              name={isPlaying ? "volume-high" : "pause"}
+              size={18}
+              color="#FFFFFF"
+            />
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.info}>
-        <Text style={styles.title} numberOfLines={1}>
+        <Text
+          style={[styles.title, isActive && styles.titleActive]}
+          numberOfLines={1}
+        >
           {song.title}
         </Text>
         <Text style={styles.subtitle} numberOfLines={1}>
@@ -57,7 +77,9 @@ export function SongRowItem({ song, index, onPress }: SongRowItemProps) {
         ) : null}
       </View>
 
-      <Text style={styles.duration}>{formatDuration(song.duration)}</Text>
+      <Text style={[styles.duration, isActive && styles.durationActive]}>
+        {formatDuration(song.duration)}
+      </Text>
 
       <TouchableOpacity
         style={styles.moreButton}
@@ -128,6 +150,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#777777",
     marginRight: 12,
+  },
+  containerActive: {
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+  },
+  activeOverlay: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  titleActive: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  durationActive: {
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
   moreButton: {
     padding: 4,

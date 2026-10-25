@@ -7,6 +7,8 @@ export interface SongInfoResult {
     name: string;
     description: string | null;
     image: string | null;
+    imageWidth?: number | null;
+    imageHeight?: number | null;
     source: string | null;
   };
 }
@@ -104,7 +106,9 @@ export async function getSongInfo(
     artist: {
       name: cleanArtist || artistData?.title || "Artist",
       description: artistData?.extract ? truncateSentences(artistData.extract, 4) : null,
-      image: artistData?.thumbnail?.source || null,
+      image: artistData?.originalimage?.source || artistData?.thumbnail?.source || null,
+      imageWidth: artistData?.originalimage?.width || artistData?.thumbnail?.width || null,
+      imageHeight: artistData?.originalimage?.height || artistData?.thumbnail?.height || null,
       source: artistData?.content_urls?.desktop?.page || null,
     },
   };

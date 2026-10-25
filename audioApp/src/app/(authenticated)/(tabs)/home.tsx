@@ -32,8 +32,10 @@ export default function HomeScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const [refreshing, setRefreshing] = useState(false);
 
-  // User profile from Redux store
+  // User profile and player state from Redux store
   const profile = useSelector((state: AppState) => state.user.profile);
+  const currentSong = useSelector((state: AppState) => state.player.currentSong);
+  const isPlaying = useSelector((state: AppState) => state.player.isPlaying);
 
   // 1. Featured Songs
   const {
@@ -323,16 +325,23 @@ export default function HomeScreen() {
                   subtitle={`${allSongs.length} track${allSongs.length === 1 ? "" : "s"} loaded • scroll for more`}
                 />
 
-                {allSongs.map((song, index) => (
-                  <SongRowItem
-                    key={`${song.id}-${index}`}
-                    song={song}
-                    onPress={() => {
-                      dispatch(playAllFrom(allSongs, index));
-                      router.push(`/song/${song.id}`);
-                    }}
-                  />
-                ))}
+                {allSongs.map((song, index) => {
+                  const isActive = currentSong?.id === song.id;
+                  return (
+                    <SongRowItem
+                      key={`${song.id}-${index}`}
+                      song={song}
+                      index={index}
+                      isActive={isActive}
+                      isPlaying={isActive && isPlaying}
+                      onPress={() => {
+                        const songIdx = allSongs.findIndex((s) => s.id === song.id);
+                        dispatch(playAllFrom(allSongs, songIdx !== -1 ? songIdx : index));
+                        router.push(`/song/${song.id}`);
+                      }}
+                    />
+                  );
+                })}
 
                 {/* Loading indicator when fetching next page */}
                 {isFetchingNextPage ? (

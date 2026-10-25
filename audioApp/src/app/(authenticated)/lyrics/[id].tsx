@@ -23,6 +23,7 @@ import { useLyrics, LyricEntry } from "@/hooks/useLyrics";
 import { formatDuration } from "@/utils/formatUtils";
 import { nextTrack, prevTrack } from "@/store/queueActions";
 import { getImageUrl } from "@/utils/imageUtils";
+import { useDominantColor } from "@/utils/colorUtils";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function LyricsScreen() {
@@ -141,6 +142,9 @@ export default function LyricsScreen() {
       })
     : undefined;
 
+  const fallbackKey = `${activeSong?.title || ""}-${activeSong?.artistName || ""}-${activeSong?.id || ""}`;
+  const dominantTheme = useDominantColor(posterUrl, fallbackKey);
+
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
@@ -152,17 +156,12 @@ export default function LyricsScreen() {
             source={{ uri: posterUrl }}
             style={styles.ambientImage}
             contentFit="cover"
-            blurRadius={60}
+            blurRadius={65}
             cachePolicy="memory"
           />
           <LinearGradient
-            colors={[
-              "rgba(18, 18, 18, 0.85)",
-              "rgba(18, 18, 18, 0.7)",
-              "rgba(18, 18, 18, 0.95)",
-              "#121212",
-            ]}
-            locations={[0, 0.35, 0.75, 1]}
+            colors={dominantTheme.gradientColors}
+            locations={[0, 0.28, 0.58, 0.88, 1]}
             style={StyleSheet.absoluteFill}
           />
         </View>
@@ -329,7 +328,8 @@ const styles = StyleSheet.create({
   },
   ambientImage: {
     ...StyleSheet.absoluteFill,
-    opacity: 0.28,
+    opacity: 0.6,
+    transform: [{ scale: 1.15 }],
   },
   container: {
     flex: 1,

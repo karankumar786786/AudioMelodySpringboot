@@ -59,8 +59,15 @@ export const playAllFrom =
   async (dispatch: AppDispatch, getState: () => AppState) => {
     if (!songs || songs.length === 0) return;
 
+    const targetSong = songs[startIndex];
     const deduped = dedupeBySongId(songs);
-    const safeIndex = Math.min(Math.max(0, startIndex), deduped.length - 1);
+    const targetIdx = targetSong
+      ? deduped.findIndex((s) => s.id === targetSong.id)
+      : -1;
+    const safeIndex =
+      targetIdx !== -1
+        ? targetIdx
+        : Math.min(Math.max(0, startIndex), deduped.length - 1);
     const mapped = deduped.map((s) => mapToPlayerSong(s));
     const { isShuffle } = getState().queue;
 

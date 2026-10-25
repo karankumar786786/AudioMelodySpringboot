@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import  { useEffect, useState, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   GestureResponderEvent,
   ScrollView,
   Linking,
+  Modal,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -35,6 +36,7 @@ import { PlayerSettingsModal } from "@/components/player/PlayerSettingsModal";
 import { formatDuration, formatStreams } from "@/utils/formatUtils";
 import { getImageUrl } from "@/utils/imageUtils";
 import { S3_BASE_URL } from "@/utils/playerUtils";
+import { useDominantColor } from "@/utils/colorUtils";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -53,6 +55,7 @@ export default function SongDetailScreen() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("canvas");
   const [isLiked, setIsLiked] = useState(false);
+  const [isArtistImageModalOpen, setIsArtistImageModalOpen] = useState(false);
 
   // Redux Player & Queue State
   const currentSong = useSelector((state: AppState) => state.player.currentSong);
@@ -103,9 +106,31 @@ export default function SongDetailScreen() {
     activeSong?.artistName
   );
 
+  // Natural aspect ratio for the artist Wikipedia photo (clamped between 0.72 portrait and 1.33 landscape)
+  const artistImgAspectRatio = useMemo(() => {
+    if (songInfo?.artist?.imageWidth && songInfo?.artist?.imageHeight) {
+      const ratio = songInfo.artist.imageWidth / songInfo.artist.imageHeight;
+      return Math.max(0.72, Math.min(1.33, ratio));
+    }
+    return 1;
+  }, [songInfo?.artist?.imageWidth, songInfo?.artist?.imageHeight]);
+
+  const posterUrl = activeSong?.imageKey
+    ? getImageUrl(activeSong.imageKey, {
+        width: 720,
+        height: 720,
+        focus: "auto",
+        aspectRatio: "1-1",
+        quality: 90,
+      })
+    : undefined;
+
+  const fallbackKey = `${activeSong?.title || ""}-${activeSong?.artistName || ""}-${activeSong?.id || ""}`;
+  const dominantTheme = useDominantColor(posterUrl, fallbackKey);
+
   // Check favourites status from query cache
   const { data: favouritesData } = useQuery({
-    queryKey: ["favourites"],
+    queryKey: ["favourites-check"],
     queryFn: () => favouriteService.getFavourites(0, 50),
   });
 
@@ -140,12 +165,14 @@ export default function SongDetailScreen() {
     }
   }, [currentSong?.id, id]);
 
-  // If page is loaded for a song that isn't currently playing, initiate playback
+  // Only auto-play if page is loaded directly with NO song currently playing in the app (cold start deep link)
+  const hasAutoPlayedRef = useRef(false);
   useEffect(() => {
-    if (fetchedSong && (!currentSong || currentSong.id !== fetchedSong.id)) {
+    if (!currentSong && fetchedSong && !hasAutoPlayedRef.current) {
+      hasAutoPlayedRef.current = true;
       (dispatch as any)(playSong(fetchedSong));
     }
-  }, [fetchedSong?.id]);
+  }, [currentSong, fetchedSong]);
 
   const hasCanvas = Boolean(activeSong?.videoKey);
   const hasFullVideo = Boolean(activeSong?.fullVideoKey);
@@ -238,6 +265,7 @@ export default function SongDetailScreen() {
         await favouriteService.removeFavourite(activeSong.id);
       }
       queryClient.invalidateQueries({ queryKey: ["favourites"] });
+      queryClient.invalidateQueries({ queryKey: ["favourites-check"] });
     } catch {
       setIsLiked(!nextLiked);
     }
@@ -260,14 +288,6 @@ export default function SongDetailScreen() {
       audioPlayerService.resume();
     }
   };
-
-  const posterUrl = getImageUrl(activeSong.imageKey, {
-    width: 720,
-    height: 720,
-    focus: "auto",
-    aspectRatio: "1-1",
-    quality: 90,
-  });
 
   const showCanvasBackground = viewMode === "canvas" && hasCanvas;
 
@@ -299,21 +319,19 @@ export default function SongDetailScreen() {
       ) : (
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
           {/* Ambient blurred backdrop for artwork mode */}
-          <Image
-            source={{ uri: posterUrl }}
-            style={styles.ambientBlurImage}
-            contentFit="cover"
-            blurRadius={45}
-            cachePolicy="memory"
-          />
+          {posterUrl ? (
+            <Image
+              source={{ uri: posterUrl }}
+              style={styles.ambientBlurImage}
+              contentFit="cover"
+              blurRadius={65}
+              cachePolicy="memory"
+            />
+          ) : null}
+          {/* Majority color atmospheric gradient overlay matching audioFrontend */}
           <LinearGradient
-            colors={[
-              "rgba(18, 18, 18, 0.8)",
-              "rgba(18, 18, 18, 0.7)",
-              "rgba(18, 18, 18, 0.95)",
-              "#121212",
-            ]}
-            locations={[0, 0.4, 0.8, 1]}
+            colors={dominantTheme.gradientColors}
+            locations={[0, 0.28, 0.58, 0.88, 1]}
             style={StyleSheet.absoluteFill}
           />
         </View>
@@ -322,7 +340,7 @@ export default function SongDetailScreen() {
       <SafeAreaView
         style={[
           styles.container,
-          showCanvasBackground && styles.containerTransparent,
+          styles.containerTransparent,
         ]}
       >
         <ScrollView
@@ -714,29 +732,29 @@ export default function SongDetailScreen() {
           <View style={styles.artistCard}>
             <View style={styles.artistCardHeader}>
               <Text style={styles.artistCardHeaderTitle}>About the Artist</Text>
-              {artistFollowData?.artistId ? (
-                <TouchableOpacity
-                  activeOpacity={0.75}
-                  onPress={handleOpenArtist}
-                  style={styles.viewArtistPill}
-                >
-                  <Text style={styles.viewArtistPillText}>VIEW PROFILE</Text>
-                  <Ionicons name="chevron-forward" size={12} color="#FFFFFF" />
-                </TouchableOpacity>
-              ) : null}
             </View>
 
-            {/* Artist Hero Banner */}
+            {/* Artist Hero Banner - Displays full Wikipedia artist photo */}
             <TouchableOpacity
-              activeOpacity={artistFollowData?.artistId ? 0.9 : 1}
-              onPress={handleOpenArtist}
-              style={styles.artistHeroWrapper}
+              activeOpacity={0.9}
+              onPress={() => {
+                if (songInfo?.artist?.image) {
+                  setIsArtistImageModalOpen(true);
+                } else {
+                  handleOpenArtist();
+                }
+              }}
+              style={[
+                styles.artistHeroWrapper,
+                { aspectRatio: artistImgAspectRatio },
+              ]}
             >
               {songInfo?.artist?.image ? (
                 <Image
                   source={{ uri: songInfo.artist.image }}
                   style={styles.artistHeroImage}
                   contentFit="cover"
+                  contentPosition="top center"
                   cachePolicy="memory"
                 />
               ) : (
@@ -749,21 +767,39 @@ export default function SongDetailScreen() {
 
               {/* Dark Gradient Overlay */}
               <LinearGradient
-                colors={["transparent", "rgba(0,0,0,0.4)", "rgba(0,0,0,0.92)"]}
-                locations={[0, 0.45, 1]}
+                colors={["transparent", "rgba(0,0,0,0.3)", "rgba(0,0,0,0.92)"]}
+                locations={[0, 0.55, 1]}
                 style={StyleSheet.absoluteFill}
               />
 
               {/* Bottom Info on Hero */}
               <View style={styles.artistHeroBottomBar}>
-                <View style={{ flex: 1 }}>
+                <TouchableOpacity
+                  style={{ flex: 1 }}
+                  activeOpacity={0.8}
+                  onPress={handleOpenArtist}
+                >
                   <Text style={styles.artistHeroName} numberOfLines={1}>
                     {songInfo?.artist?.name || activeSong.artistName}
                   </Text>
                   <View style={styles.artistHeroMetaRow}>
                     <Text style={styles.artistHeroRole}>Artist</Text>
+                    {artistFollowData?.artistId ? (
+                      <Ionicons
+                        name="chevron-forward"
+                        size={12}
+                        color="rgba(255, 255, 255, 0.6)"
+                        style={{ marginLeft: 2 }}
+                      />
+                    ) : null}
                   </View>
-                </View>
+                </TouchableOpacity>
+
+                {songInfo?.artist?.image ? (
+                  <View style={styles.expandPill}>
+                    <Ionicons name="expand-outline" size={14} color="#FFFFFF" />
+                  </View>
+                ) : null}
               </View>
             </TouchableOpacity>
 
@@ -823,6 +859,44 @@ export default function SongDetailScreen() {
             onClose={handleVideoModalClose}
           />
         ) : null}
+
+        {/* Full Artist Image Modal: View uncropped, full-resolution Wikipedia image */}
+        <Modal
+          visible={isArtistImageModalOpen}
+          transparent={false}
+          animationType="fade"
+          onRequestClose={() => setIsArtistImageModalOpen(false)}
+        >
+          <SafeAreaView style={styles.fullImageModalRoot}>
+            <View style={styles.fullImageModalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fullImageModalTitle} numberOfLines={1}>
+                  {songInfo?.artist?.name || activeSong.artistName}
+                </Text>
+                <Text style={styles.fullImageModalSubtitle}>Wikipedia Photo</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsArtistImageModalOpen(false)}
+                style={styles.fullImageModalCloseBtn}
+                activeOpacity={0.8}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Ionicons name="close" size={24} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.fullImageModalContent}>
+              {songInfo?.artist?.image ? (
+                <Image
+                  source={{ uri: songInfo.artist.image }}
+                  style={styles.fullImageModalImage}
+                  contentFit="contain"
+                  cachePolicy="memory"
+                />
+              ) : null}
+            </View>
+          </SafeAreaView>
+        </Modal>
       </SafeAreaView>
     </View>
   );
@@ -835,11 +909,12 @@ const styles = StyleSheet.create({
   },
   ambientBlurImage: {
     ...StyleSheet.absoluteFill,
-    opacity: 0.22,
+    opacity: 0.6,
+    transform: [{ scale: 1.15 }],
   },
   container: {
     flex: 1,
-    backgroundColor: "#121212",
+    backgroundColor: "transparent",
   },
   containerTransparent: {
     backgroundColor: "transparent",
@@ -1176,17 +1251,12 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   lyricsCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "transparent",
     borderRadius: 22,
     padding: 22,
     minHeight: 220,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.12)",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 14,
-    elevation: 6,
     justifyContent: "space-between",
   },
   lyricsCardHeader: {
@@ -1204,7 +1274,7 @@ const styles = StyleSheet.create({
   lyricsCardMorePill: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.14)",
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
     paddingVertical: 5,
     paddingHorizontal: 11,
     borderRadius: 14,
@@ -1240,16 +1310,11 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   aboutCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "transparent",
     borderRadius: 22,
     padding: 22,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.12)",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 14,
-    elevation: 6,
   },
   aboutHeader: {
     flexDirection: "row",
@@ -1271,7 +1336,7 @@ const styles = StyleSheet.create({
   streamsBadge: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.14)",
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
     paddingVertical: 4.5,
     paddingHorizontal: 10,
     borderRadius: 14,
@@ -1360,16 +1425,11 @@ const styles = StyleSheet.create({
     paddingBottom: 48,
   },
   artistCard: {
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "transparent",
     borderRadius: 22,
     padding: 22,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.12)",
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 14,
-    elevation: 6,
   },
   artistCardHeader: {
     flexDirection: "row",
@@ -1383,24 +1443,9 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     letterSpacing: 0.3,
   },
-  viewArtistPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
-    paddingVertical: 4.5,
-    paddingHorizontal: 9,
-    borderRadius: 12,
-    gap: 3,
-  },
-  viewArtistPillText: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    letterSpacing: 0.6,
-  },
+
   artistHeroWrapper: {
     width: "100%",
-    height: 165,
     borderRadius: 18,
     overflow: "hidden",
     position: "relative",
@@ -1432,6 +1477,57 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-end",
     justifyContent: "space-between",
+  },
+  expandPill: {
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fullImageModalRoot: {
+    flex: 1,
+    backgroundColor: "#000000",
+  },
+  fullImageModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255, 255, 255, 0.12)",
+  },
+  fullImageModalTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFFFFF",
+  },
+  fullImageModalSubtitle: {
+    fontSize: 12,
+    color: "rgba(255, 255, 255, 0.6)",
+    marginTop: 2,
+  },
+  fullImageModalCloseBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  fullImageModalContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 12,
+  },
+  fullImageModalImage: {
+    width: "100%",
+    height: "100%",
   },
   artistHeroName: {
     fontSize: 17,
