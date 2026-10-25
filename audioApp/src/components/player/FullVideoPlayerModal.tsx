@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#1DB954",
+    backgroundColor: "#FFFFFF",
   },
   buttonsRow: {
     flexDirection: "row",

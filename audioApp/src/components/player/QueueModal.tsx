@@ -103,7 +103,7 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
                   </Text>
                 </View>
                 <View style={styles.playingBadge}>
-                  <Ionicons name="volume-high" size={16} color="#1DB954" />
+                  <Ionicons name="volume-high" size={16} color="#FFFFFF" />
                 </View>
               </View>
             </View>
@@ -242,11 +242,11 @@ const styles = StyleSheet.create({
   songRowActive: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(29, 185, 84, 0.08)",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
     padding: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "rgba(29, 185, 84, 0.25)",
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   songThumb: {
     width: 42,
@@ -260,7 +260,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   songTitleActive: {
-    color: "#1DB954",
+    color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "700",
   },
