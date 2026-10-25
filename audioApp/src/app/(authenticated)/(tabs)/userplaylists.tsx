@@ -12,7 +12,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -21,16 +21,24 @@ import { playlistService } from "@/service";
 import { UserPlaylist } from "@/types";
 import { UserPlaylistThumbnail } from "@/components/playlist/UserPlaylistThumbnail";
 
+// Space reserved for the tab bar + mini player so the last playlist is reachable.
+const TAB_BAR_HEIGHT = 64;
+const MINI_PLAYER_HEIGHT = 72;
+const EXTRA_BREATHING_ROOM = 32;
+
 export default function UserPlaylistsScreen() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
+
+  const bottomSpace =
+    TAB_BAR_HEIGHT + MINI_PLAYER_HEIGHT + EXTRA_BREATHING_ROOM + insets.bottom;
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [newPlaylistPrivacy, setNewPlaylistPrivacy] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // 1. Fetch User's Playlists
   const {
     data: playlistsData,
     isLoading,
@@ -43,6 +51,10 @@ export default function UserPlaylistsScreen() {
   });
 
   const playlists: UserPlaylist[] = playlistsData?.content || [];
+
+  const closeModal = () => {
+    setIsCreateModalOpen(false);
+  };
 
   const handleCreatePlaylist = async () => {
     if (!newPlaylistName.trim() || isSubmitting) return;
@@ -71,56 +83,31 @@ export default function UserPlaylistsScreen() {
   };
 
   const renderHeader = () => (
-    <View style={styles.listHeader}>
-      <View style={styles.sectionHeadingRow}>
-        <Text style={styles.sectionHeading}>Your Library</Text>
-        <Text style={styles.playlistCount}>
-          {playlists.length} {playlists.length === 1 ? "playlist" : "playlists"}
-        </Text>
+    <View style={styles.header}>
+      <View style={styles.headerText}>
+        <Text style={styles.title}>Playlists</Text>
+        {!isLoading ? (
+          <Text style={styles.subtitle}>
+            {playlists.length} {playlists.length === 1 ? "playlist" : "playlists"}
+          </Text>
+        ) : null}
       </View>
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => setIsCreateModalOpen(true)}
+        activeOpacity={0.85}
+        accessibilityLabel="New playlist"
+      >
+        <Ionicons name="add" size={28} color="#000000" />
+      </TouchableOpacity>
     </View>
   );
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      {/* Top Header */}
-      <View style={styles.topHeader}>
-        <Text style={styles.screenTitle}>Playlists</Text>
-        <TouchableOpacity
-          style={styles.createButton}
-          onPress={() => setIsCreateModalOpen(true)}
-          activeOpacity={0.75}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="add" size={26} color="#000000" />
-        </TouchableOpacity>
-      </View>
-
-      {/* Main Content */}
       {isLoading ? (
-        <View style={styles.centerContainer}>
+        <View style={styles.center}>
           <ActivityIndicator size="large" color="#FFFFFF" />
-          <Text style={styles.loadingText}>Loading playlists...</Text>
-        </View>
-      ) : playlists.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          {renderHeader()}
-          <View style={styles.emptyContent}>
-            <View style={styles.emptyIconBox}>
-              <Ionicons name="musical-notes-outline" size={54} color="#444444" />
-            </View>
-            <Text style={styles.emptyTitle}>Create your first playlist</Text>
-            <Text style={styles.emptySubtitle}>
-              Organize your favourite tracks into custom playlists for any vibe.
-            </Text>
-            <TouchableOpacity
-              style={styles.createFirstButton}
-              onPress={() => setIsCreateModalOpen(true)}
-              activeOpacity={0.82}
-            >
-              <Text style={styles.createFirstButtonText}>New Playlist</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       ) : (
         <FlatList
@@ -129,7 +116,7 @@ export default function UserPlaylistsScreen() {
           ListHeaderComponent={renderHeader}
           renderItem={({ item }) => (
             <TouchableOpacity
-              style={styles.playlistRow}
+              style={styles.row}
               onPress={() =>
                 router.push({
                   pathname: "/(authenticated)/userplaylist/[id]",
@@ -140,24 +127,46 @@ export default function UserPlaylistsScreen() {
             >
               <UserPlaylistThumbnail
                 playlist={item}
-                size={52}
+                size={56}
                 borderRadius={10}
-                style={styles.playlistThumbnail}
+                style={styles.thumbnail}
               />
-
-              <View style={styles.playlistInfo}>
-                <Text style={styles.playlistName} numberOfLines={1}>
+              <View style={styles.rowInfo}>
+                <Text style={styles.rowName} numberOfLines={1}>
                   {item.name}
                 </Text>
-                <Text style={styles.playlistSubtitle} numberOfLines={1}>
-                  {item.totalSongs} {item.totalSongs === 1 ? "track" : "tracks"} •{" "}
-                  {item.privacy === "PRIVATE" ? "Private" : "Public"}
-                </Text>
+                <View style={styles.rowMeta}>
+                  {item.privacy === "PRIVATE" ? (
+                    <Ionicons
+                      name="lock-closed"
+                      size={11}
+                      color="#8A8A8A"
+                      style={{ marginRight: 4 }}
+                    />
+                  ) : null}
+                  <Text style={styles.rowSubtitle} numberOfLines={1}>
+                    {item.totalSongs} {item.totalSongs === 1 ? "song" : "songs"}
+                  </Text>
+                </View>
               </View>
-
-              <Ionicons name="chevron-forward" size={18} color="#666666" />
             </TouchableOpacity>
           )}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Ionicons name="musical-notes-outline" size={44} color="#FFFFFF" />
+              <Text style={styles.emptyTitle}>No playlists yet</Text>
+              <Text style={styles.emptyText}>
+                Group your favourite songs into playlists for any mood.
+              </Text>
+              <TouchableOpacity
+                style={styles.solidButton}
+                onPress={() => setIsCreateModalOpen(true)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.solidButtonText}>New playlist</Text>
+              </TouchableOpacity>
+            </View>
+          }
           refreshControl={
             <RefreshControl
               refreshing={isRefetching}
@@ -166,110 +175,84 @@ export default function UserPlaylistsScreen() {
               }}
               tintColor="#FFFFFF"
               colors={["#FFFFFF"]}
+              progressBackgroundColor="#1A1A1A"
             />
           }
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={{ paddingBottom: bottomSpace }}
           showsVerticalScrollIndicator={false}
         />
       )}
 
-      {/* Create Playlist Modal */}
+      {/* New playlist sheet */}
       <Modal
         visible={isCreateModalOpen}
         transparent
-        animationType="fade"
-        onRequestClose={() => setIsCreateModalOpen(false)}
+        animationType="slide"
+        onRequestClose={closeModal}
       >
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.modalBackdrop}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          style={styles.backdrop}
         >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Give your playlist a name</Text>
+          <TouchableOpacity
+            style={styles.backdropTouch}
+            activeOpacity={1}
+            onPress={closeModal}
+          />
+          <View style={styles.sheet}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>New playlist</Text>
 
             <TextInput
-              style={styles.modalInput}
-              placeholder="e.g. Late Night Vibes"
-              placeholderTextColor="#666666"
+              style={styles.input}
+              placeholder="Playlist name"
+              placeholderTextColor="#5A5A5A"
               value={newPlaylistName}
               onChangeText={setNewPlaylistName}
               autoFocus
               maxLength={60}
+              selectionColor="#FFFFFF"
             />
 
-            {/* Privacy Picker */}
             <View style={styles.privacyRow}>
-              <TouchableOpacity
-                style={[
-                  styles.privacyPill,
-                  newPlaylistPrivacy === "PUBLIC" && styles.activePrivacyPill,
-                ]}
-                onPress={() => setNewPlaylistPrivacy("PUBLIC")}
-              >
-                <Ionicons
-                  name="globe-outline"
-                  size={16}
-                  color={newPlaylistPrivacy === "PUBLIC" ? "#FFFFFF" : "#888888"}
-                  style={{ marginRight: 6 }}
-                />
-                <Text
-                  style={[
-                    styles.privacyText,
-                    newPlaylistPrivacy === "PUBLIC" && styles.activePrivacyText,
-                  ]}
-                >
-                  Public
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.privacyPill,
-                  newPlaylistPrivacy === "PRIVATE" && styles.activePrivacyPill,
-                ]}
-                onPress={() => setNewPlaylistPrivacy("PRIVATE")}
-              >
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={16}
-                  color={newPlaylistPrivacy === "PRIVATE" ? "#FFFFFF" : "#888888"}
-                  style={{ marginRight: 6 }}
-                />
-                <Text
-                  style={[
-                    styles.privacyText,
-                    newPlaylistPrivacy === "PRIVATE" && styles.activePrivacyText,
-                  ]}
-                >
-                  Private
-                </Text>
-              </TouchableOpacity>
+              {(["PUBLIC", "PRIVATE"] as const).map((value) => {
+                const active = newPlaylistPrivacy === value;
+                return (
+                  <TouchableOpacity
+                    key={value}
+                    style={[styles.privacyPill, active && styles.privacyPillActive]}
+                    onPress={() => setNewPlaylistPrivacy(value)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name={value === "PUBLIC" ? "globe-outline" : "lock-closed-outline"}
+                      size={16}
+                      color={active ? "#000000" : "#FFFFFF"}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text style={[styles.privacyText, active && styles.privacyTextActive]}>
+                      {value === "PUBLIC" ? "Public" : "Private"}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
-            {/* Modal Actions */}
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setIsCreateModalOpen(false)}
-              >
-                <Text style={styles.cancelText}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.submitButton,
-                  !newPlaylistName.trim() && styles.disabledSubmitButton,
-                ]}
-                onPress={handleCreatePlaylist}
-                disabled={!newPlaylistName.trim() || isSubmitting}
-              >
-                {isSubmitting ? (
-                  <ActivityIndicator size="small" color="#000000" />
-                ) : (
-                  <Text style={styles.submitText}>Create</Text>
-                )}
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              style={[
+                styles.solidButton,
+                (!newPlaylistName.trim() || isSubmitting) && styles.disabled,
+              ]}
+              onPress={handleCreatePlaylist}
+              disabled={!newPlaylistName.trim() || isSubmitting}
+              activeOpacity={0.85}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator size="small" color="#000000" />
+              ) : (
+                <Text style={styles.solidButtonText}>Create</Text>
+              )}
+            </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -278,253 +261,118 @@ export default function UserPlaylistsScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#121212",
-  },
-  topHeader: {
+  safeArea: { flex: 1, backgroundColor: "#000000" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
+
+  header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 14,
-    backgroundColor: "#121212",
+    justifyContent: "space-between",
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 18,
+    gap: 16,
   },
-  screenTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
+  headerText: { flex: 1 },
+  title: {
+    fontSize: 32,
+    fontWeight: "800",
     color: "#FFFFFF",
-    letterSpacing: -0.5,
+    letterSpacing: -0.8,
+    marginBottom: 4,
   },
-  createButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  subtitle: { fontSize: 14, color: "#8A8A8A" },
+  addButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "#FFFFFF",
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  listContent: {
-    paddingBottom: 110,
-  },
-  listHeader: {
-    paddingHorizontal: 16,
-    paddingTop: 4,
-    marginBottom: 8,
-  },
-  sectionHeadingRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  sectionHeading: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    letterSpacing: -0.2,
-  },
-  playlistCount: {
-    fontSize: 13,
-    color: "#888888",
-  },
-  playlistRow: {
+
+  row: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
   },
-  playlistThumbnail: {
-    marginRight: 14,
-  },
-  playlistIconBox: {
-    width: 50,
-    height: 50,
-    borderRadius: 10,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 14,
-  },
-  playlistInfo: {
-    flex: 1,
-    paddingRight: 10,
-  },
-  playlistName: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#FFFFFF",
-    marginBottom: 3,
-  },
-  playlistSubtitle: {
-    fontSize: 12,
-    color: "#888888",
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 32,
-  },
-  loadingText: {
-    color: "#888888",
-    fontSize: 14,
-    marginTop: 12,
-  },
-  emptyContainer: {
-    flex: 1,
-  },
-  emptyContent: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 36,
-    paddingTop: 40,
-  },
-  emptyIconBox: {
-    width: 90,
-    height: 90,
-    borderRadius: 45,
-    backgroundColor: "#1A1A1A",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 18,
-    borderWidth: 1,
-    borderColor: "#252525",
-  },
+  thumbnail: { marginRight: 14 },
+  rowInfo: { flex: 1 },
+  rowName: { fontSize: 16, fontWeight: "600", color: "#FFFFFF", marginBottom: 3 },
+  rowMeta: { flexDirection: "row", alignItems: "center" },
+  rowSubtitle: { fontSize: 13, color: "#8A8A8A", flexShrink: 1 },
+
+  empty: { alignItems: "center", paddingTop: 72, paddingHorizontal: 32 },
   emptyTitle: {
-    fontSize: 19,
-    fontWeight: "bold",
+    fontSize: 20,
+    fontWeight: "800",
     color: "#FFFFFF",
-    marginBottom: 8,
-    textAlign: "center",
+    marginTop: 16,
+    marginBottom: 6,
   },
-  emptySubtitle: {
+  emptyText: {
     fontSize: 14,
-    color: "#777777",
+    color: "#8A8A8A",
     textAlign: "center",
     lineHeight: 20,
     marginBottom: 24,
   },
-  createFirstButton: {
+
+  solidButton: {
+    height: 52,
+    borderRadius: 26,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 26,
-    paddingVertical: 12,
-    borderRadius: 24,
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.7,
-    shadowRadius: 10,
-    elevation: 6,
-  },
-  createFirstButtonText: {
-    color: "#000000",
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.75)",
-    justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 24,
+    justifyContent: "center",
+    paddingHorizontal: 32,
   },
-  modalContent: {
-    width: "100%",
-    backgroundColor: "#1E1E1E",
-    borderRadius: 18,
-    padding: 22,
+  solidButtonText: { color: "#000000", fontSize: 16, fontWeight: "700" },
+  disabled: { opacity: 0.4 },
+
+  backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.7)" },
+  backdropTouch: { flex: 1 },
+  sheet: {
+    backgroundColor: "#0D0D0D",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     borderWidth: 1,
-    borderColor: "#2E2E2E",
+    borderBottomWidth: 0,
+    borderColor: "#262626",
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 32,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    marginBottom: 16,
-    textAlign: "center",
+  sheetHandle: {
+    alignSelf: "center",
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "#333333",
+    marginBottom: 18,
   },
-  modalInput: {
+  sheetTitle: { fontSize: 20, fontWeight: "700", color: "#FFFFFF", marginBottom: 16 },
+  input: {
+    height: 52,
+    borderRadius: 14,
     backgroundColor: "#141414",
-    borderWidth: 1,
-    borderColor: "#2E2E2E",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 48,
+    paddingHorizontal: 16,
     color: "#FFFFFF",
-    fontSize: 15,
-    marginBottom: 16,
+    fontSize: 16,
+    marginBottom: 14,
   },
-  privacyRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 20,
-  },
+  privacyRow: { flexDirection: "row", gap: 10, marginBottom: 18 },
   privacyPill: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 10,
-    borderRadius: 10,
-    backgroundColor: "#161616",
+    height: 46,
+    borderRadius: 23,
     borderWidth: 1,
-    borderColor: "#2E2E2E",
+    borderColor: "#333333",
   },
-  activePrivacyPill: {
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    borderColor: "#FFFFFF",
-  },
-  privacyText: {
-    color: "#888888",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  activePrivacyText: {
-    color: "#FFFFFF",
-  },
-  modalActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 12,
-  },
-  cancelButton: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  cancelText: {
-    color: "#888888",
-    fontSize: 14,
-    fontWeight: "600",
-  },
-  submitButton: {
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 22,
-    paddingVertical: 10,
-    borderRadius: 10,
-    minWidth: 84,
-    alignItems: "center",
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.6,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  disabledSubmitButton: {
-    opacity: 0.5,
-  },
-  submitText: {
-    color: "#000000",
-    fontSize: 14,
-    fontWeight: "700",
-  },
+  privacyPillActive: { backgroundColor: "#FFFFFF", borderColor: "#FFFFFF" },
+  privacyText: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
+  privacyTextActive: { color: "#000000", fontWeight: "700" },
 });

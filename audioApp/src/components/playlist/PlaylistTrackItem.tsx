@@ -1,9 +1,10 @@
+import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { Song } from "@/types";
 import { getImageUrl } from "@/utils/imageUtils";
-import { formatDuration, formatStreams, formatSongSubtitle } from "@/utils/formatUtils";
+import { formatDuration, formatSongSubtitle } from "@/utils/formatUtils";
 
 interface PlaylistTrackItemProps {
   song: Song;
@@ -12,12 +13,7 @@ interface PlaylistTrackItemProps {
   onRemove?: () => void;
 }
 
-export function PlaylistTrackItem({
-  song,
-  index,
-  onPress,
-  onRemove,
-}: PlaylistTrackItemProps) {
+export function PlaylistTrackItem({ song, onPress, onRemove }: PlaylistTrackItemProps) {
   const imageUrl = getImageUrl(song.imageKey, {
     width: 160,
     height: 160,
@@ -26,11 +22,7 @@ export function PlaylistTrackItem({
   });
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={onPress}
-      activeOpacity={0.72}
-    >
+    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.72}>
       <View style={styles.thumbnailContainer}>
         {imageUrl ? (
           <Image
@@ -41,8 +33,8 @@ export function PlaylistTrackItem({
             cachePolicy="memory"
           />
         ) : (
-          <View style={styles.fallbackThumbnail}>
-            <Ionicons name="musical-note" size={20} color="#666666" />
+          <View style={styles.fallback}>
+            <Ionicons name="musical-note" size={20} color="#5A5A5A" />
           </View>
         )}
       </View>
@@ -54,12 +46,6 @@ export function PlaylistTrackItem({
         <Text style={styles.subtitle} numberOfLines={1}>
           {formatSongSubtitle(song.artistName, song.album, song.genre)}
         </Text>
-        {song.totalStreams !== undefined && song.totalStreams !== null ? (
-          <View style={styles.streamsRow}>
-            <Ionicons name="play" size={10} color="#777777" style={{ marginRight: 3 }} />
-            <Text style={styles.streamsText}>{formatStreams(song.totalStreams)}</Text>
-          </View>
-        ) : null}
       </View>
 
       <Text style={styles.duration}>{formatDuration(song.duration)}</Text>
@@ -72,8 +58,9 @@ export function PlaylistTrackItem({
             onRemove();
           }}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel="Remove from playlist"
         >
-          <Ionicons name="trash-outline" size={18} color="#FF5252" />
+          <Ionicons name="close" size={20} color="#8A8A8A" />
         </TouchableOpacity>
       ) : null}
     </TouchableOpacity>
@@ -85,59 +72,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 18,
-    paddingVertical: 9,
+    paddingVertical: 8,
   },
   thumbnailContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
+    width: 52,
+    height: 52,
+    borderRadius: 10,
     overflow: "hidden",
-    backgroundColor: "#1E1E1E",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "#1A1A1A",
     marginRight: 12,
   },
-  thumbnail: {
+  thumbnail: { width: "100%", height: "100%" },
+  fallback: {
     width: "100%",
     height: "100%",
-  },
-  fallbackThumbnail: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#222222",
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
   },
-  info: {
-    flex: 1,
-    paddingRight: 10,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#FFFFFF",
-    marginBottom: 2,
-  },
-  subtitle: {
-    fontSize: 12.5,
-    color: "#888888",
-  },
-  streamsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 2,
-  },
-  streamsText: {
-    fontSize: 11,
-    color: "#777777",
-    fontWeight: "500",
-  },
-  duration: {
-    fontSize: 12,
-    color: "#777777",
-    marginRight: 12,
-  },
-  removeButton: {
-    padding: 6,
-  },
+  info: { flex: 1, paddingRight: 10 },
+  title: { fontSize: 15, fontWeight: "600", color: "#FFFFFF", marginBottom: 3 },
+  subtitle: { fontSize: 12.5, color: "#8A8A8A" },
+  duration: { fontSize: 12, color: "#8A8A8A", marginRight: 8 },
+  removeButton: { padding: 6 },
 });

@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   Keyboard,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useDispatch } from "react-redux";
 import { Ionicons } from "@expo/vector-icons";
@@ -41,10 +41,19 @@ import {
 } from "@/components/search/CategoryGenreCard";
 import { UserPlaylistThumbnail } from "@/components/playlist/UserPlaylistThumbnail";
 
+// Space reserved for the tab bar + mini player so the end of the page is reachable.
+const TAB_BAR_HEIGHT = 64;
+const MINI_PLAYER_HEIGHT = 72;
+const EXTRA_BREATHING_ROOM = 32;
+
 export default function SearchScreen() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
+
+  const bottomSpace =
+    TAB_BAR_HEIGHT + MINI_PLAYER_HEIGHT + EXTRA_BREATHING_ROOM + insets.bottom;
 
   const [inputText, setInputText] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -57,17 +66,14 @@ export default function SearchScreen() {
     return () => clearTimeout(timer);
   }, [inputText]);
 
-  // 1. Fetch Search History (when query is empty)
-  const {
-    data: historyData,
-    isLoading: isHistoryLoading,
-  } = useQuery<UserSearchHistoryGrouped>({
+  // Search history (shown when the query is empty)
+  const { data: historyData } = useQuery<UserSearchHistoryGrouped>({
     queryKey: ["search-history"],
     queryFn: () => searchService.getSearchHistory(),
     staleTime: 60 * 1000,
   });
 
-  // 2. Fetch Search Results (with keepPreviousData to preserve old results while typing)
+  // Search results (keepPreviousData preserves old results while typing)
   const {
     data: searchResults,
     isLoading: isInitialLoading,
@@ -109,27 +115,22 @@ export default function SearchScreen() {
     if (matchingArtist) {
       return { kind: "ARTIST" as const, item: matchingArtist };
     }
-
     if (songs.length > 0) {
       return { kind: "SONG" as const, item: songs[0] };
     }
-
     if (artists.length > 0) {
       return { kind: "ARTIST" as const, item: artists[0] };
     }
-
     if (playlists.length > 0) {
       return { kind: "PLAYLIST" as const, item: playlists[0] };
     }
-
     if (userPlaylists.length > 0) {
       return { kind: "USER_PLAYLIST" as const, item: userPlaylists[0] };
     }
-
     return null;
   }, [songs, artists, playlists, userPlaylists, debouncedQuery, inputText, hasAnyResults]);
 
-  // Handlers for item interactions
+  // Handlers
   const handleSelectSong = (song: Song) => {
     searchService.saveSearchHistory({ type: "SONG", songId: song.id });
     searchService.trackSearchPlay(song.id);
@@ -190,7 +191,6 @@ export default function SearchScreen() {
   };
 
   const handleDeleteHistoryItem = async (id: string) => {
-    // Optimistic UI update
     queryClient.setQueryData<UserSearchHistoryGrouped>(
       ["search-history"],
       (prev) => {
@@ -205,15 +205,11 @@ export default function SearchScreen() {
   };
 
   const handleClearHistory = async () => {
-    // Optimistic UI update
     queryClient.setQueryData<UserSearchHistoryGrouped>(
       ["search-history"],
       (prev) => {
         if (!prev) return prev;
-        return {
-          ...prev,
-          recent: [],
-        };
+        return { ...prev, recent: [] };
       }
     );
     await searchService.clearSearchHistory();
@@ -228,33 +224,25 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
-      {/* Search Header */}
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.screenTitle}>Search</Text>
 
         <View style={styles.searchBar}>
-          <Ionicons
-            name="search"
-            size={20}
-            color="#888888"
-            style={styles.searchIcon}
-          />
+          <Ionicons name="search" size={19} color="#8A8A8A" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Songs, artists, or playlists..."
-            placeholderTextColor="#777777"
+            placeholder="Songs, artists, playlists"
+            placeholderTextColor="#5A5A5A"
             value={inputText}
             onChangeText={setInputText}
             autoCorrect={false}
             autoCapitalize="none"
             returnKeyType="search"
+            selectionColor="#FFFFFF"
           />
           {isActivelySearching ? (
-            <ActivityIndicator
-              size="small"
-              color="#ffffff"
-              style={styles.searchSpinner}
-            />
+            <ActivityIndicator size="small" color="#FFFFFF" style={styles.searchSpinner} />
           ) : null}
           {inputText.length > 0 ? (
             <TouchableOpacity
@@ -264,29 +252,30 @@ export default function SearchScreen() {
               }}
               style={styles.clearButton}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Clear search"
             >
-              <Ionicons name="close-circle" size={19} color="#888888" />
+              <Ionicons name="close-circle" size={19} color="#8A8A8A" />
             </TouchableOpacity>
           ) : null}
         </View>
       </View>
 
-      {/* Main Content */}
+      {/* Content */}
       {inputText.trim().length === 0 ? (
-        // Empty Search: Recent Searches & Browse Categories
+        // Empty search: recent searches + browse genres
         <ScrollView
-          style={styles.scrollContent}
+          style={styles.scroll}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           onScrollBeginDrag={Keyboard.dismiss}
-          contentContainerStyle={styles.scrollInner}
+          contentContainerStyle={{ paddingTop: 8, paddingBottom: bottomSpace }}
         >
-          {/* Recent Searches */}
           {recentSearches.length > 0 ? (
-            <View style={styles.recentSection}>
+            <View style={styles.section}>
               <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionHeading}>Recent Searches</Text>
+                <Text style={styles.sectionTitle}>Recent searches</Text>
                 <TouchableOpacity onPress={handleClearHistory} hitSlop={10}>
-                  <Text style={styles.clearAllText}>Clear all</Text>
+                  <Text style={styles.linkText}>Clear all</Text>
                 </TouchableOpacity>
               </View>
 
@@ -301,9 +290,8 @@ export default function SearchScreen() {
             </View>
           ) : null}
 
-          {/* Browse Categories & Genres */}
-          <View style={styles.browseSection}>
-            <Text style={styles.sectionHeading}>Browse All</Text>
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, styles.padded]}>Browse all</Text>
             <View style={styles.genresGrid}>
               {POPULAR_GENRES.map((genre) => (
                 <CategoryGenreCard
@@ -316,56 +304,50 @@ export default function SearchScreen() {
           </View>
         </ScrollView>
       ) : !hasAnyResults && (isInitialLoading || isActivelySearching) ? (
-        // Initial First Search Loading State (only shown when no results exist yet)
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="small" color="#ffffff" />
-          <Text style={styles.loadingText}>Searching Melody...</Text>
+        <View style={styles.center}>
+          <ActivityIndicator size="small" color="#FFFFFF" />
         </View>
       ) : !hasAnyResults ? (
-        // Empty Results State (only shown once searching has finished with 0 hits)
-        <View style={styles.centerContainer}>
-          <Ionicons name="search-outline" size={54} color="#444444" />
+        <View style={styles.center}>
+          <Ionicons name="search-outline" size={44} color="#FFFFFF" />
           <Text style={styles.noResultsTitle}>
-            No results found for &quot;{debouncedQuery || inputText.trim()}&quot;
+            No results for “{debouncedQuery || inputText.trim()}”
           </Text>
-          <Text style={styles.noResultsSubtitle}>
-            Please check the spelling or try searching for another song, artist,
-            or genre.
+          <Text style={styles.noResultsText}>
+            Check the spelling or try a different song, artist or genre.
           </Text>
         </View>
       ) : (
-        // Active Search Results (keeps old results visible while searching in background)
         <ScrollView
-          style={styles.scrollContent}
+          style={styles.scroll}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           onScrollBeginDrag={Keyboard.dismiss}
-          contentContainerStyle={styles.resultsInner}
+          contentContainerStyle={{ paddingTop: 8, paddingBottom: bottomSpace }}
         >
-          {/* Top Result Card */}
           {topResult ? (
-            <SearchTopResultCard
-              topResult={topResult}
-              onPress={() => {
-                if (topResult.kind === "SONG") {
-                  handleSelectSong(topResult.item);
-                } else if (topResult.kind === "ARTIST") {
-                  handleSelectArtist(topResult.item);
-                } else if (topResult.kind === "PLAYLIST") {
-                  handleSelectPlaylist(topResult.item);
-                } else if (topResult.kind === "USER_PLAYLIST") {
-                  handleSelectUserPlaylist(topResult.item);
-                }
-              }}
-            />
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, styles.padded]}>Top result</Text>
+              <SearchTopResultCard
+                topResult={topResult}
+                onPress={() => {
+                  if (topResult.kind === "SONG") {
+                    handleSelectSong(topResult.item);
+                  } else if (topResult.kind === "ARTIST") {
+                    handleSelectArtist(topResult.item);
+                  } else if (topResult.kind === "PLAYLIST") {
+                    handleSelectPlaylist(topResult.item);
+                  } else if (topResult.kind === "USER_PLAYLIST") {
+                    handleSelectUserPlaylist(topResult.item);
+                  }
+                }}
+              />
+            </View>
           ) : null}
 
-          {/* Songs Section */}
           {songs.length > 0 ? (
-            <View style={styles.resultSection}>
-              <View style={styles.resultHeaderRow}>
-                <Text style={styles.sectionHeading}>Songs</Text>
-              </View>
-
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, styles.padded]}>Songs</Text>
               {songs.map((song, idx) => (
                 <SongRowItem
                   key={song.id}
@@ -377,13 +359,9 @@ export default function SearchScreen() {
             </View>
           ) : null}
 
-          {/* Artists Section */}
           {artists.length > 0 ? (
-            <View style={styles.resultSection}>
-              <View style={styles.resultHeaderRow}>
-                <Text style={styles.sectionHeading}>Artists</Text>
-              </View>
-
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, styles.padded]}>Artists</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -400,13 +378,9 @@ export default function SearchScreen() {
             </View>
           ) : null}
 
-          {/* Playlists Section */}
           {playlists.length > 0 ? (
-            <View style={styles.resultSection}>
-              <View style={styles.resultHeaderRow}>
-                <Text style={styles.sectionHeading}>Playlists</Text>
-              </View>
-
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, styles.padded]}>Playlists</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -423,40 +397,33 @@ export default function SearchScreen() {
             </View>
           ) : null}
 
-          {/* User Playlists Section */}
           {userPlaylists.length > 0 ? (
-            <View style={styles.resultSection}>
-              <Text style={styles.sectionHeading}>User Playlists</Text>
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, styles.padded]}>User playlists</Text>
               {userPlaylists.map((uPlaylist) => (
                 <TouchableOpacity
                   key={uPlaylist.id}
                   style={styles.userPlaylistRow}
                   onPress={() => handleSelectUserPlaylist(uPlaylist)}
-                  activeOpacity={0.7}
+                  activeOpacity={0.72}
                 >
                   <UserPlaylistThumbnail
                     playlist={uPlaylist}
-                    size={48}
-                    borderRadius={8}
-                    style={{ marginRight: 14 }}
+                    size={52}
+                    borderRadius={10}
+                    style={{ marginRight: 12 }}
                   />
                   <View style={styles.userPlaylistInfo}>
                     <Text style={styles.userPlaylistName} numberOfLines={1}>
                       {uPlaylist.name}
                     </Text>
-                    <Text
-                      style={styles.userPlaylistOwner}
-                      numberOfLines={1}
-                    >
-                      Playlist • By {uPlaylist.ownerName || "User"} •{" "}
-                      {uPlaylist.totalSongs} tracks
+                    <Text style={styles.userPlaylistMeta} numberOfLines={1}>
+                      By {uPlaylist.ownerName || "User"}
+                      {"  ·  "}
+                      {uPlaylist.totalSongs}{" "}
+                      {uPlaylist.totalSongs === 1 ? "song" : "songs"}
                     </Text>
                   </View>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={18}
-                    color="#666666"
-                  />
                 </TouchableOpacity>
               ))}
             </View>
@@ -468,157 +435,103 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#121212",
-  },
+  safeArea: { flex: 1, backgroundColor: "#000000" },
+  scroll: { flex: 1 },
+
   header: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingHorizontal: 18,
+    paddingTop: 14,
     paddingBottom: 10,
-    backgroundColor: "#121212",
   },
   screenTitle: {
-    fontSize: 28,
-    fontWeight: "bold",
+    fontSize: 32,
+    fontWeight: "800",
     color: "#FFFFFF",
+    letterSpacing: -0.8,
     marginBottom: 14,
-    letterSpacing: -0.5,
   },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#202020",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 48,
-    borderWidth: 1,
-    borderColor: "#2E2E2E",
+    backgroundColor: "#141414",
+    borderRadius: 26,
+    paddingHorizontal: 16,
+    height: 50,
   },
-  searchIcon: {
-    marginRight: 10,
-  },
+  searchIcon: { marginRight: 10 },
   searchInput: {
     flex: 1,
     height: "100%",
     color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "500",
+    fontSize: 16,
   },
-  searchSpinner: {
-    marginRight: 6,
-  },
-  clearButton: {
-    padding: 4,
-    marginLeft: 2,
-  },
-  scrollContent: {
-    flex: 1,
-  },
-  scrollInner: {
-    paddingBottom: 110,
-  },
-  resultsInner: {
-    paddingTop: 12,
-    paddingBottom: 110,
-  },
-  recentSection: {
-    marginBottom: 26,
-  },
+  searchSpinner: { marginRight: 6 },
+  clearButton: { padding: 4, marginLeft: 2 },
+
+  section: { marginBottom: 26 },
+  padded: { paddingHorizontal: 18 },
   sectionHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
-    marginBottom: 8,
+    paddingHorizontal: 18,
   },
-  sectionHeading: {
-    fontSize: 18,
-    fontWeight: "700",
+  sectionTitle: {
+    fontSize: 21,
+    fontWeight: "800",
     color: "#FFFFFF",
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
+    marginBottom: 12,
   },
-  clearAllText: {
+  linkText: {
+    color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "600",
-    color: "#888888",
+    textDecorationLine: "underline",
+    marginBottom: 12,
   },
-  browseSection: {
-    paddingHorizontal: 16,
-  },
+
   genresGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 12,
-    marginTop: 14,
+    paddingHorizontal: 18,
   },
-  centerContainer: {
+  horizontalRow: { paddingHorizontal: 18 },
+
+  center: {
     flex: 1,
-    justifyContent: "center",
     alignItems: "center",
+    justifyContent: "center",
     paddingHorizontal: 36,
-  },
-  loadingText: {
-    color: "#888888",
-    fontSize: 14,
-    marginTop: 12,
   },
   noResultsTitle: {
     fontSize: 18,
-    fontWeight: "700",
+    fontWeight: "800",
     color: "#FFFFFF",
     marginTop: 16,
     textAlign: "center",
   },
-  noResultsSubtitle: {
+  noResultsText: {
     fontSize: 14,
-    color: "#777777",
+    color: "#8A8A8A",
     marginTop: 8,
     textAlign: "center",
     lineHeight: 20,
   },
-  resultSection: {
-    marginBottom: 24,
-  },
-  resultHeaderRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    marginBottom: 10,
-  },
-  horizontalRow: {
-    paddingHorizontal: 16,
-  },
+
   userPlaylistRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 18,
+    paddingVertical: 8,
   },
-  userPlaylistIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    backgroundColor: "rgba(32, 138, 239, 0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(32, 138, 239, 0.25)",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 14,
-  },
-  userPlaylistInfo: {
-    flex: 1,
-    paddingRight: 10,
-  },
+  userPlaylistInfo: { flex: 1 },
   userPlaylistName: {
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "600",
     marginBottom: 3,
   },
-  userPlaylistOwner: {
-    color: "#888888",
-    fontSize: 12,
-  },
+  userPlaylistMeta: { color: "#8A8A8A", fontSize: 12.5 },
 });

@@ -24,9 +24,8 @@ export function SearchHistoryItem({
 
   if (item.type === "SONG" && item.song) {
     title = item.song.title;
-    subtitle = `Song • ${item.song.artistName || "Artist"}`;
+    subtitle = `Song  ·  ${item.song.artistName || "Artist"}`;
     imageKey = item.song.imageKey;
-    fallbackIcon = "musical-note";
   } else if (item.type === "ARTIST" && item.artist) {
     title = item.artist.name;
     subtitle = "Artist";
@@ -35,12 +34,12 @@ export function SearchHistoryItem({
     fallbackIcon = "person";
   } else if (item.type === "PLAYLIST" && item.playlist) {
     title = item.playlist.name;
-    subtitle = `Playlist • ${item.playlist.totalSongs || 0} songs`;
+    subtitle = `Playlist  ·  ${item.playlist.totalSongs || 0} songs`;
     imageKey = item.playlist.coverImageKey;
-    fallbackIcon = "disc";
+    fallbackIcon = "musical-notes";
   } else if (item.type === "USER_PLAYLIST" && item.userPlaylist) {
     title = item.userPlaylist.name;
-    subtitle = `Playlist • ${item.userPlaylist.ownerName || "Custom"}`;
+    subtitle = `Playlist  ·  ${item.userPlaylist.ownerName || "Custom"}`;
     fallbackIcon = "musical-notes";
   }
 
@@ -52,11 +51,7 @@ export function SearchHistoryItem({
   });
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
+    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.72}>
       <View style={[styles.avatarContainer, isCircle && styles.circleAvatar]}>
         {imageUrl ? (
           <Image
@@ -67,8 +62,8 @@ export function SearchHistoryItem({
             cachePolicy="memory"
           />
         ) : (
-          <View style={styles.fallbackAvatar}>
-            <Ionicons name={fallbackIcon} size={20} color="#777777" />
+          <View style={styles.fallback}>
+            <Ionicons name={fallbackIcon} size={20} color="#5A5A5A" />
           </View>
         )}
       </View>
@@ -89,8 +84,9 @@ export function SearchHistoryItem({
           onDelete();
         }}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        accessibilityLabel="Remove from recent searches"
       >
-        <Ionicons name="close" size={18} color="#777777" />
+        <Ionicons name="close" size={20} color="#8A8A8A" />
       </TouchableOpacity>
     </TouchableOpacity>
   );
@@ -100,49 +96,27 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 18,
   },
   avatarContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
+    width: 52,
+    height: 52,
+    borderRadius: 10,
     overflow: "hidden",
-    backgroundColor: "#1E1E1E",
-    borderWidth: 1,
-    borderColor: "#2A2A2A",
-    marginRight: 14,
+    backgroundColor: "#1A1A1A",
+    marginRight: 12,
   },
-  circleAvatar: {
-    borderRadius: 24,
-  },
-  avatar: {
+  circleAvatar: { borderRadius: 26 },
+  avatar: { width: "100%", height: "100%" },
+  fallback: {
     width: "100%",
     height: "100%",
-  },
-  fallbackAvatar: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#222222",
-    justifyContent: "center",
     alignItems: "center",
+    justifyContent: "center",
   },
-  textContainer: {
-    flex: 1,
-    paddingRight: 10,
-  },
-  title: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#FFFFFF",
-    marginBottom: 3,
-  },
-  subtitle: {
-    fontSize: 13,
-    color: "#888888",
-  },
-  deleteButton: {
-    padding: 6,
-    borderRadius: 14,
-  },
+  textContainer: { flex: 1, paddingRight: 10 },
+  title: { fontSize: 15, fontWeight: "600", color: "#FFFFFF", marginBottom: 3 },
+  subtitle: { fontSize: 12.5, color: "#8A8A8A" },
+  deleteButton: { padding: 6 },
 });

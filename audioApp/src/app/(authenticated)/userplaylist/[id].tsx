@@ -9,12 +9,10 @@ import {
   RefreshControl,
   Share,
   Alert,
-  Dimensions,
+  useWindowDimensions,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
 import { useDispatch, useSelector } from "react-redux";
 import {
   useQuery,
@@ -27,11 +25,12 @@ import { Song } from "@/types";
 import { AppDispatch, AppState } from "@/store";
 import { playAll, playWithSimilarSongs } from "@/store/queueActions";
 import { PlaylistTrackItem } from "@/components/playlist/PlaylistTrackItem";
-import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
-import { getImageUrl } from "@/utils/imageUtils";
+import { UserPlaylistThumbnail } from "@/components/playlist/UserPlaylistThumbnail";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const HERO_HEIGHT = 440;
+// Space reserved for the mini player so the last track is reachable.
+// (No tab bar here: this is a stack screen.)
+const MINI_PLAYER_HEIGHT = 72;
+const EXTRA_BREATHING_ROOM = 32;
 
 export default function UserPlaylistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -39,12 +38,15 @@ export default function UserPlaylistDetailScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+
+  const coverSize = Math.min(width - 96, 260);
+  const bottomSpace = MINI_PLAYER_HEIGHT + EXTRA_BREATHING_ROOM + insets.bottom;
 
   const currentUserId = useSelector(
     (state: AppState) => state.user.profile?.id,
   );
 
-  // 1. Fetch User Playlist Details
   const {
     data: playlist,
     isLoading: isPlaylistLoading,
@@ -56,7 +58,6 @@ export default function UserPlaylistDetailScreen() {
     staleTime: 60 * 1000,
   });
 
-  // 2. Fetch Playlist Songs (Infinite)
   const {
     data: songsData,
     isLoading: isSongsLoading,
@@ -96,7 +97,6 @@ export default function UserPlaylistDetailScreen() {
     songsData?.pages[0]?.paginationMetaData?.totalCount ??
     songs.length;
 
-  // Handlers
   const handleSongPress = (song: Song) => {
     dispatch(playWithSimilarSongs(song));
     router.push({
@@ -182,202 +182,92 @@ export default function UserPlaylistDetailScreen() {
     refetchSongs();
   };
 
-  const heroSong = songs[0];
-  const heroVideoKey = heroSong?.videoKey;
-  const heroImageKey = playlist?.coverImageKey || heroSong?.imageKey;
+  const topBar = (
+    <View style={[styles.topBar, { paddingTop: insets.top + 6 }]}>
+      <TouchableOpacity
+        style={styles.iconButton}
+        onPress={() => router.back()}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        activeOpacity={0.7}
+        accessibilityLabel="Go back"
+      >
+        <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+      </TouchableOpacity>
 
-  const coverUrl = getImageUrl(playlist?.coverImageKey, {
-    width: 600,
-    height: 600,
-    focus: "auto",
-    aspectRatio: "1-1",
-  });
+      <View style={styles.topBarActions}>
+        <TouchableOpacity
+          style={styles.iconButton}
+          onPress={handleShare}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          activeOpacity={0.7}
+          accessibilityLabel="Share playlist"
+        >
+          <Ionicons name="share-outline" size={22} color="#FFFFFF" />
+        </TouchableOpacity>
 
-  const firstSongImg = heroSong
-    ? getImageUrl(heroSong.imageKey, {
-        width: 600,
-        height: 600,
-        focus: "auto",
-        aspectRatio: "1-1",
-      })
-    : undefined;
-
-  const mosaicImages = songs.slice(0, 4).map((s) =>
-    getImageUrl(s.imageKey, {
-      width: 300,
-      height: 300,
-      focus: "auto",
-      aspectRatio: "1-1",
-    }),
+        {isOwner ? (
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={handleDeletePlaylist}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            activeOpacity={0.7}
+            accessibilityLabel="Delete playlist"
+          >
+            <Ionicons name="trash-outline" size={21} color="#FFFFFF" />
+          </TouchableOpacity>
+        ) : null}
+      </View>
+    </View>
   );
 
-  const showMosaic = !coverUrl && !heroVideoKey && songs.length >= 4;
-
   const renderHeader = () => (
-    <View style={styles.headerContainer}>
-      {/* Hero Banner */}
-      <View style={styles.heroBanner}>
-        {heroVideoKey ? (
-          <CanvasVideoPlayer
-            videoKey={heroVideoKey}
-            fallbackImageKey={heroImageKey}
-            style={StyleSheet.absoluteFill}
-            isPlaying={true}
-          />
-        ) : coverUrl ? (
-          <Image
-            source={{ uri: coverUrl }}
-            style={styles.heroBannerImage}
-            contentFit="cover"
-            contentPosition="top center"
-            transition={200}
-            cachePolicy="memory"
-          />
-        ) : showMosaic ? (
-          <View style={styles.mosaicGrid}>
-            <View style={styles.mosaicRow}>
-              <View style={styles.mosaicCell}>
-                {mosaicImages[0] ? (
-                  <Image
-                    source={{ uri: mosaicImages[0] }}
-                    style={styles.imageFull}
-                    contentFit="cover"
-                    contentPosition="top center"
-                    cachePolicy="memory"
-                  />
-                ) : (
-                  <View style={styles.cellFallback} />
-                )}
-              </View>
-              <View style={styles.mosaicCell}>
-                {mosaicImages[1] ? (
-                  <Image
-                    source={{ uri: mosaicImages[1] }}
-                    style={styles.imageFull}
-                    contentFit="cover"
-                    contentPosition="top center"
-                    cachePolicy="memory"
-                  />
-                ) : (
-                  <View style={styles.cellFallback} />
-                )}
-              </View>
-            </View>
-            <View style={styles.mosaicRow}>
-              <View style={styles.mosaicCell}>
-                {mosaicImages[2] ? (
-                  <Image
-                    source={{ uri: mosaicImages[2] }}
-                    style={styles.imageFull}
-                    contentFit="cover"
-                    contentPosition="top center"
-                    cachePolicy="memory"
-                  />
-                ) : (
-                  <View style={styles.cellFallback} />
-                )}
-              </View>
-              <View style={styles.mosaicCell}>
-                {mosaicImages[3] ? (
-                  <Image
-                    source={{ uri: mosaicImages[3] }}
-                    style={styles.imageFull}
-                    contentFit="cover"
-                    contentPosition="top center"
-                    cachePolicy="memory"
-                  />
-                ) : (
-                  <View style={styles.cellFallback} />
-                )}
-              </View>
-            </View>
-          </View>
-        ) : firstSongImg ? (
-          <Image
-            source={{ uri: firstSongImg }}
-            style={styles.heroBannerImage}
-            contentFit="cover"
-            contentPosition="top center"
-            transition={200}
-            cachePolicy="memory"
-          />
-        ) : (
-          <View style={styles.emptyHero}>
-            <Ionicons name="musical-notes" size={80} color="#444444" />
-          </View>
-        )}
-
-        {/* Global subtle dark wash */}
-        <View style={styles.heroWash} />
-
-        {/* Linear Gradient scrim covering bottom blending into page background */}
-        <LinearGradient
-          colors={["transparent", "rgba(18, 18, 18, 0.45)", "#121212"]}
-          locations={[0, 0.62, 1]}
-          style={styles.heroGradient}
+    <View style={styles.header}>
+      <View style={styles.coverWrap}>
+        <UserPlaylistThumbnail
+          playlist={playlist ?? { id: id! }}
+          songs={songs}
+          size={coverSize}
+          borderRadius={16}
         />
+      </View>
 
-        {/* Content pinned to bottom */}
-        <View style={styles.heroContent}>
-          <View style={styles.titleRow}>
-            <Text style={styles.heroTitle} numberOfLines={2}>
-              {playlist?.name || "Playlist"}
-            </Text>
-
-            <View style={styles.titleActions}>
-              <TouchableOpacity
-                style={styles.actionIconButton}
-                onPress={handleShare}
-                activeOpacity={0.7}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="share-outline" size={19} color="#FFFFFF" />
-              </TouchableOpacity>
-
-              {isOwner ? (
-                <TouchableOpacity
-                  style={[styles.actionIconButton, styles.deleteButton]}
-                  onPress={handleDeletePlaylist}
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                >
-                  <Ionicons name="trash-outline" size={18} color="#FF5252" />
-                </TouchableOpacity>
-              ) : null}
-
-              {songs.length > 0 ? (
-                <TouchableOpacity
-                  style={styles.playButton}
-                  onPress={handlePlayAll}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons
-                    name="play"
-                    size={22}
-                    color="#000000"
-                    style={{ marginLeft: 2 }}
-                  />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          </View>
-
-          <View style={styles.statsRow}>
-            <Text style={styles.curatorText}>
+      <View style={styles.titleRow}>
+        <View style={styles.titleText}>
+          <Text style={styles.title} numberOfLines={2}>
+            {playlist?.name || "Playlist"}
+          </Text>
+          <View style={styles.metaRow}>
+            {playlist?.privacy === "PRIVATE" ? (
+              <Ionicons
+                name="lock-closed"
+                size={12}
+                color="#8A8A8A"
+                style={{ marginRight: 5 }}
+              />
+            ) : null}
+            <Text style={styles.meta} numberOfLines={1}>
               By {playlist?.ownerName || (isOwner ? "You" : "Community")}
+              {"  ·  "}
+              {totalSongs} {totalSongs === 1 ? "song" : "songs"}
             </Text>
-            <Text style={styles.statDot}>•</Text>
-            <Text style={styles.statText}>
-              {totalSongs} {totalSongs === 1 ? "track" : "tracks"}
-            </Text>
-            <Text style={styles.statDot}>•</Text>
-            <View style={styles.privacyBadge}>
-              <Text style={styles.privacyBadgeText}>
-                {playlist?.privacy === "PRIVATE" ? "Private" : "Public"}
-              </Text>
-            </View>
           </View>
         </View>
+
+        {songs.length > 0 ? (
+          <TouchableOpacity
+            style={styles.playButton}
+            onPress={handlePlayAll}
+            activeOpacity={0.85}
+            accessibilityLabel="Play all"
+          >
+            <Ionicons
+              name="play"
+              size={26}
+              color="#000000"
+              style={{ marginLeft: 3 }}
+            />
+          </TouchableOpacity>
+        ) : null}
       </View>
     </View>
   );
@@ -385,22 +275,19 @@ export default function UserPlaylistDetailScreen() {
   if (isPlaylistLoading) {
     return (
       <View style={styles.centerContainer}>
+        <Stack.Screen options={{ headerShown: false }} />
         <ActivityIndicator size="large" color="#FFFFFF" />
-        <Text style={styles.loadingText}>Loading playlist...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
+
+      {topBar}
 
       <FlatList
-        contentInsetAdjustmentBehavior="never"
         data={songs}
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderHeader}
@@ -413,19 +300,15 @@ export default function UserPlaylistDetailScreen() {
         )}
         ListEmptyComponent={
           !isSongsLoading ? (
-            <View style={styles.emptyContainer}>
-              <Ionicons
-                name="musical-notes-outline"
-                size={44}
-                color="#444444"
-              />
+            <View style={styles.empty}>
+              <Ionicons name="musical-notes-outline" size={40} color="#FFFFFF" />
               <Text style={styles.emptyTitle}>This playlist is empty</Text>
-              <Text style={styles.emptySubtitle}>
-                Add tracks from Home or Search to build this playlist.
+              <Text style={styles.emptyText}>
+                Add songs from Home or Search to fill it up.
               </Text>
             </View>
           ) : (
-            <View style={styles.songsLoadingContainer}>
+            <View style={styles.songsLoading}>
               <ActivityIndicator size="small" color="#FFFFFF" />
             </View>
           )
@@ -449,9 +332,10 @@ export default function UserPlaylistDetailScreen() {
             onRefresh={handleRefresh}
             tintColor="#FFFFFF"
             colors={["#FFFFFF"]}
+            progressBackgroundColor="#1A1A1A"
           />
         }
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={{ paddingBottom: bottomSpace }}
         showsVerticalScrollIndicator={false}
       />
     </View>
@@ -459,212 +343,72 @@ export default function UserPlaylistDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: "#000000" },
+  centerContainer: {
     flex: 1,
-    backgroundColor: "#121212",
-    marginTop: 0,
-    paddingTop: 0,
-  },
-  listContent: {
-    paddingTop: 0,
-    paddingBottom: 40,
-  },
-  headerContainer: {
-    marginTop: 0,
-    paddingTop: 0,
-    marginBottom: 6,
-  },
-  heroBanner: {
-    width: "100%",
-    height: HERO_HEIGHT,
-    position: "relative",
-    backgroundColor: "#181818",
-    overflow: "hidden",
-    marginTop: 0,
-    paddingTop: 0,
-  },
-  heroBannerImage: {
-    width: "100%",
-    height: "100%",
-  },
-  imageFull: {
-    width: "100%",
-    height: "100%",
-  },
-  mosaicGrid: {
-    width: "100%",
-    height: "100%",
-    flexDirection: "column",
-  },
-  mosaicRow: {
-    flex: 1,
-    flexDirection: "row",
-    width: "100%",
-  },
-  mosaicCell: {
-    flex: 1,
-    height: "100%",
-    overflow: "hidden",
-    backgroundColor: "#18181A",
-  },
-  cellFallback: {
-    flex: 1,
-    backgroundColor: "#202024",
-  },
-  emptyHero: {
-    width: "100%",
-    height: "100%",
-    backgroundColor: "#1A1A1A",
-    justifyContent: "center",
+    backgroundColor: "#000000",
     alignItems: "center",
+    justifyContent: "center",
   },
-  heroWash: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(0, 0, 0, 0.15)",
-  },
-  heroGradient: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: HERO_HEIGHT * 0.78,
-  },
-  heroContent: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 18,
-    paddingBottom: 16,
-  },
-  badgeRow: {
-    marginBottom: 6,
-  },
-  typeBadge: {
-    alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-  },
-  typeBadgeText: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#FFFFFF",
-    letterSpacing: 0.8,
-  },
-  titleRow: {
+
+  topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
-    marginBottom: 4,
+    paddingHorizontal: 12,
+    paddingBottom: 6,
+    backgroundColor: "#000000",
   },
-  titleActions: {
-    flexDirection: "row",
+  topBarActions: { flexDirection: "row", alignItems: "center" },
+  iconButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     alignItems: "center",
-    gap: 10,
-    flexShrink: 0,
-  },
-  heroTitle: {
-    flex: 1,
-    fontSize: 26,
-    fontWeight: "bold",
-    color: "#FFFFFF",
-    letterSpacing: -0.5,
-    textShadowColor: "rgba(0, 0, 0, 0.85)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  statsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  curatorText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  statDot: {
-    fontSize: 12,
-    color: "#888888",
-  },
-  statText: {
-    fontSize: 13,
-    color: "#BBBBBB",
-  },
-  privacyBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: 5,
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.2)",
-  },
-  privacyBadgeText: {
-    fontSize: 11,
-    color: "#FFFFFF",
-    fontWeight: "700",
-  },
-  actionIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(30, 30, 30, 0.85)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.18)",
     justifyContent: "center",
+  },
+
+  header: { paddingTop: 8, paddingBottom: 18 },
+  coverWrap: { alignItems: "center", marginBottom: 24 },
+  titleRow: {
+    flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: 18,
+    gap: 16,
   },
-  deleteButton: {
-    backgroundColor: "rgba(255, 82, 82, 0.15)",
-    borderColor: "rgba(255, 82, 82, 0.35)",
+  titleText: { flex: 1 },
+  title: {
+    fontSize: 28,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: -0.7,
+    marginBottom: 5,
   },
+  metaRow: { flexDirection: "row", alignItems: "center" },
+  meta: { fontSize: 13, color: "#8A8A8A", flexShrink: 1 },
   playButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: "#FFFFFF",
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
   },
-  centerContainer: {
-    flex: 1,
-    backgroundColor: "#121212",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    color: "#888888",
-    fontSize: 14,
-    marginTop: 12,
-  },
-  emptyContainer: {
-    paddingVertical: 48,
-    alignItems: "center",
-    paddingHorizontal: 32,
-  },
+
+  empty: { alignItems: "center", paddingTop: 40, paddingHorizontal: 32 },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: "bold",
+    fontWeight: "800",
     color: "#FFFFFF",
-    marginTop: 12,
+    marginTop: 14,
     marginBottom: 6,
   },
-  emptySubtitle: {
-    fontSize: 13,
-    color: "#777777",
+  emptyText: {
+    fontSize: 14,
+    color: "#8A8A8A",
     textAlign: "center",
-    lineHeight: 18,
+    lineHeight: 20,
   },
-  songsLoadingContainer: {
-    paddingVertical: 32,
-    alignItems: "center",
-  },
-  footerLoader: {
-    paddingVertical: 16,
-    alignItems: "center",
-  },
+  songsLoading: { paddingVertical: 32, alignItems: "center" },
+  footerLoader: { paddingVertical: 20, alignItems: "center" },
 });

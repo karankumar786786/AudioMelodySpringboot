@@ -21,8 +21,7 @@ export interface UserPlaylistThumbnailProps {
 }
 
 /**
- * Renders a square user playlist thumbnail that mirrors the cover-art logic
- * used on audioFrontend (left sidebar and playlist page):
+ * Square user playlist thumbnail:
  *   1. Custom cover (coverImageKey)        -> full cover image
  *   2. 4 or more songs, no custom cover    -> 2x2 mosaic from first 4 song arts
  *   3. 1-3 songs, no custom cover          -> first song's art
@@ -122,7 +121,7 @@ export function UserPlaylistThumbnail({
             <Ionicons
               name="musical-notes"
               size={Math.max(size * 0.16, 10)}
-              color="#666666"
+              color="#5A5A5A"
             />
           </View>
         )}
@@ -165,7 +164,7 @@ export function UserPlaylistThumbnail({
       <Ionicons
         name="musical-notes"
         size={Math.max(size * 0.38, 16)}
-        color="#777777"
+        color="#5A5A5A"
       />
     </View>
   );
@@ -174,9 +173,7 @@ export function UserPlaylistThumbnail({
 const styles = StyleSheet.create({
   container: {
     overflow: "hidden",
-    backgroundColor: "#1C1C1E",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "#1A1A1A",
   },
   imageFull: {
     width: "100%",
@@ -196,17 +193,17 @@ const styles = StyleSheet.create({
     flex: 1,
     height: "100%",
     overflow: "hidden",
-    backgroundColor: "#18181A",
+    backgroundColor: "#141414",
   },
   mosaicCellFallback: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#202024",
+    backgroundColor: "#1A1A1A",
   },
   emptyFallback: {
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#1E1E22",
+    backgroundColor: "#1A1A1A",
   },
 });

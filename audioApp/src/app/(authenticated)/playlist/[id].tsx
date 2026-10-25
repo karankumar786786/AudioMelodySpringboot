@@ -14,22 +14,28 @@ import { useDispatch } from "react-redux";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { AppDispatch } from "@/store";
 import { playAll, playWithSimilarSongs } from "@/store/queueActions";
 import { playlistService } from "@/service";
 import { Song } from "@/types";
 import { PlaylistTrackItem } from "@/components/playlist/PlaylistTrackItem";
 import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
-// const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const HERO_HEIGHT = 440;
+
+// Space reserved for the mini player so the last track is reachable.
+// (No tab bar here: this is a stack screen.)
+const MINI_PLAYER_HEIGHT = 72;
+const EXTRA_BREATHING_ROOM = 32;
 
 export default function PlaylistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   const insets = useSafeAreaInsets();
+
+  const bottomSpace = MINI_PLAYER_HEIGHT + EXTRA_BREATHING_ROOM + insets.bottom;
 
   // 1. Fetch Playlist Details
   const {
@@ -79,21 +85,21 @@ export default function PlaylistDetailScreen() {
     songsData?.pages[0]?.paginationMetaData?.totalCount ??
     songs.length;
 
-  const totalDuration = useMemo(() => {
-    return songs.reduce((acc, song) => acc + (song.duration || 0), 0);
-  }, [songs]);
+  const totalDuration = useMemo(
+    () => songs.reduce((acc, song) => acc + (song.duration || 0), 0),
+    [songs],
+  );
 
-  const totalStreams = useMemo(() => {
-    return songs.reduce((acc, song) => acc + (song.totalStreams || 0), 0);
-  }, [songs]);
+  const totalStreams = useMemo(
+    () => songs.reduce((acc, song) => acc + (song.totalStreams || 0), 0),
+    [songs],
+  );
 
   const formatPlaylistDuration = (seconds: number) => {
     if (!seconds || seconds <= 0) return "";
     const hours = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
-    if (hours > 0) {
-      return `${hours} hr ${mins} min`;
-    }
+    if (hours > 0) return `${hours} hr ${mins} min`;
     return `${mins} min`;
   };
 
@@ -110,6 +116,12 @@ export default function PlaylistDetailScreen() {
   const heroImageKey =
     playlist?.coverImageKey ||
     (songs.length > 0 ? songs[0]?.imageKey : undefined);
+
+  const metaParts = [
+    `${totalSongs} ${totalSongs === 1 ? "song" : "songs"}`,
+    formatPlaylistDuration(totalDuration),
+    totalStreams > 0 ? `${formatStreamCount(totalStreams)} plays` : "",
+  ].filter(Boolean);
 
   // Handlers
   const handleSongPress = (song: Song) => {
@@ -147,99 +159,57 @@ export default function PlaylistDetailScreen() {
   };
 
   const renderHeader = () => (
-    <View style={styles.headerContainer}>
-      {/* Playlist Hero Banner with Canva Video Player */}
-      <View style={styles.heroBanner}>
-        <CanvasVideoPlayer
-          videoKey={heroVideoKey}
-          fallbackImageKey={heroImageKey}
-          style={StyleSheet.absoluteFill}
-          isPlaying={true}
-          showLoaderWhenVideoAvailable={true}
-        />
+    <View style={styles.hero}>
+      {/* Background video (falls back to the cover image) */}
+      <CanvasVideoPlayer
+        videoKey={heroVideoKey}
+        fallbackImageKey={heroImageKey}
+        style={StyleSheet.absoluteFill}
+        isPlaying={true}
+        showLoaderWhenVideoAvailable={true}
+      />
 
-        {/* Global subtle dark wash */}
-        <View style={styles.heroWash} />
+      {/* Fade into the black page background */}
+      <LinearGradient
+        colors={["rgba(0,0,0,0.25)", "rgba(0,0,0,0)", "rgba(0,0,0,0.65)", "#000000"]}
+        locations={[0, 0.3, 0.72, 1]}
+        style={StyleSheet.absoluteFill}
+        pointerEvents="none"
+      />
 
-        {/* Linear Gradient scrim covering bottom blending into page background */}
-        <LinearGradient
-          colors={["transparent", "rgba(18, 18, 18, 0.45)", "#121212"]}
-          locations={[0, 0.62, 1]}
-          style={styles.heroGradient}
-        />
+      {/* Title, details and play button pinned to the bottom */}
+      <View style={styles.heroContent} pointerEvents="box-none">
+        <View style={styles.titleRow}>
+          <Text style={styles.title} numberOfLines={2}>
+            {playlist?.name || "Playlist"}
+          </Text>
 
-        {/* Content pinned to bottom */}
-        <View style={styles.heroContent}>
-          <View style={styles.titleRow}>
-            <Text style={styles.heroTitle} numberOfLines={2}>
-              {playlist?.name || "Playlist"}
-            </Text>
-
-            <View style={styles.titleActions}>
-              <TouchableOpacity
-                style={styles.iconCircleButton}
-                onPress={handleShare}
-                activeOpacity={0.7}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons name="share-outline" size={19} color="#FFFFFF" />
-              </TouchableOpacity>
-
-              {songs.length > 0 ? (
-                <TouchableOpacity
-                  style={styles.playButton}
-                  onPress={handlePlayAll}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons
-                    name="play"
-                    size={22}
-                    color="#000000"
-                    style={{ marginLeft: 2 }}
-                  />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-          </View>
-
-          {playlist?.description ? (
-            <Text style={styles.heroDescription} numberOfLines={2}>
-              {playlist.description}
-            </Text>
+          {songs.length > 0 ? (
+            <TouchableOpacity
+              style={styles.playButton}
+              onPress={handlePlayAll}
+              activeOpacity={0.85}
+              accessibilityLabel="Play all"
+            >
+              <Ionicons
+                name="play"
+                size={26}
+                color="#000000"
+                style={{ marginLeft: 3 }}
+              />
+            </TouchableOpacity>
           ) : null}
-
-          <View style={styles.statsRow}>
-            <Text style={styles.curatorText}>OneMelody</Text>
-            <Text style={styles.statDot}>•</Text>
-            <Text style={styles.statText}>
-              {totalSongs} {totalSongs === 1 ? "track" : "tracks"}
-            </Text>
-            {totalStreams > 0 ? (
-              <>
-                <Text style={styles.statDot}>•</Text>
-                <View style={styles.streamStat}>
-                  <Ionicons
-                    name="headset-outline"
-                    size={12}
-                    color="#FFFFFF"
-                    style={{ marginRight: 3 }}
-                  />
-                  <Text style={styles.streamCountText}>
-                    {formatStreamCount(totalStreams)}
-                  </Text>
-                </View>
-              </>
-            ) : null}
-            {totalDuration > 0 ? (
-              <>
-                <Text style={styles.statDot}>•</Text>
-                <Text style={styles.statText}>
-                  {formatPlaylistDuration(totalDuration)}
-                </Text>
-              </>
-            ) : null}
-          </View>
         </View>
+
+        {playlist?.description ? (
+          <Text style={styles.description} numberOfLines={2}>
+            {playlist.description}
+          </Text>
+        ) : null}
+
+        <Text style={styles.meta} numberOfLines={1}>
+          {metaParts.join("  ·  ")}
+        </Text>
       </View>
     </View>
   );
@@ -247,19 +217,15 @@ export default function PlaylistDetailScreen() {
   if (isPlaylistLoading) {
     return (
       <View style={styles.centerContainer}>
+        <Stack.Screen options={{ headerShown: false }} />
         <ActivityIndicator size="large" color="#FFFFFF" />
-        <Text style={styles.loadingText}>Loading playlist...</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
 
       <FlatList
         contentInsetAdjustmentBehavior="never"
@@ -267,19 +233,16 @@ export default function PlaylistDetailScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderHeader}
         renderItem={({ item }) => (
-          <PlaylistTrackItem
-            song={item}
-            onPress={() => handleSongPress(item)}
-          />
+          <PlaylistTrackItem song={item} onPress={() => handleSongPress(item)} />
         )}
         ListEmptyComponent={
           !isSongsLoading ? (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="musical-notes-outline" size={44} color="#444444" />
-              <Text style={styles.emptyText}>No tracks in this playlist yet</Text>
+            <View style={styles.empty}>
+              <Ionicons name="musical-notes-outline" size={40} color="#FFFFFF" />
+              <Text style={styles.emptyText}>No songs in this playlist yet</Text>
             </View>
           ) : (
-            <View style={styles.songsLoadingContainer}>
+            <View style={styles.songsLoading}>
               <ActivityIndicator size="small" color="#FFFFFF" />
             </View>
           )
@@ -303,69 +266,53 @@ export default function PlaylistDetailScreen() {
             onRefresh={handleRefresh}
             tintColor="#FFFFFF"
             colors={["#FFFFFF"]}
+            progressBackgroundColor="#1A1A1A"
           />
         }
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={{ paddingBottom: bottomSpace }}
         showsVerticalScrollIndicator={false}
       />
+
+      {/* Back + share float over the video */}
+      <View style={[styles.floatingNav, { top: insets.top + 6 }]} pointerEvents="box-none">
+        <TouchableOpacity
+          style={styles.floatingButton}
+          onPress={() => router.back()}
+          activeOpacity={0.75}
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.floatingButton}
+          onPress={handleShare}
+          activeOpacity={0.75}
+          accessibilityLabel="Share playlist"
+        >
+          <Ionicons name="share-outline" size={21} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1, backgroundColor: "#000000" },
+  centerContainer: {
     flex: 1,
-    backgroundColor: "#121212",
-    marginTop: 0,
-    paddingTop: 0,
-  },
-  floatingNav: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    zIndex: 20,
-    flexDirection: "row",
-    justifyContent: "flex-end",
+    backgroundColor: "#000000",
     alignItems: "center",
-  },
-  floatingButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "rgba(0, 0, 0, 0.55)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
     justifyContent: "center",
-    alignItems: "center",
   },
-  listContent: {
-    paddingTop: 0,
-    paddingBottom: 40,
-  },
-  headerContainer: {
-    marginTop: 0,
-    paddingTop: 0,
-    marginBottom: 6,
-  },
-  heroBanner: {
+
+  /* Hero */
+  hero: {
     width: "100%",
     height: HERO_HEIGHT,
-    position: "relative",
-    backgroundColor: "#181818",
+    backgroundColor: "#000000",
     overflow: "hidden",
-    marginTop: 0,
-    paddingTop: 0,
-  },
-  heroWash: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(0, 0, 0, 0.15)",
-  },
-  heroGradient: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: HERO_HEIGHT * 0.78,
+    marginBottom: 6,
   },
   heroContent: {
     position: "absolute",
@@ -373,126 +320,66 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     paddingHorizontal: 18,
-    paddingBottom: 14,
-  },
-  badgeRow: {
-    flexDirection: "row",
-    marginBottom: 6,
-  },
-  typeBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 4,
-    backgroundColor: "rgba(255, 255, 255, 0.16)",
-  },
-  typeBadgeText: {
-    fontSize: 10,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    letterSpacing: 1.1,
+    paddingBottom: 18,
   },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
-    marginBottom: 4,
+    gap: 16,
+    marginBottom: 6,
   },
-  titleActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    flexShrink: 0,
-  },
-  heroTitle: {
+  title: {
     flex: 1,
-    fontSize: 24,
-    fontWeight: "900",
+    fontSize: 30,
+    fontWeight: "800",
     color: "#FFFFFF",
-    letterSpacing: -0.4,
-    textShadowColor: "rgba(0, 0, 0, 0.85)",
+    letterSpacing: -0.8,
+    textShadowColor: "rgba(0, 0, 0, 0.6)",
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 6,
+    textShadowRadius: 8,
   },
-  heroDescription: {
-    fontSize: 13,
+  description: {
+    fontSize: 14,
     color: "rgba(255, 255, 255, 0.78)",
-    lineHeight: 18,
+    lineHeight: 20,
     marginBottom: 8,
   },
-  statsRow: {
+  meta: {
+    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.7)",
+  },
+  playButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  /* Floating nav */
+  floatingNav: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    zIndex: 20,
     flexDirection: "row",
     alignItems: "center",
-    flexWrap: "wrap",
+    justifyContent: "space-between",
   },
-  curatorText: {
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#FFFFFF",
-  },
-  statDot: {
-    fontSize: 12,
-    color: "rgba(255, 255, 255, 0.45)",
-    marginHorizontal: 6,
-  },
-  statText: {
-    fontSize: 12,
-    color: "rgba(255, 255, 255, 0.72)",
-    fontWeight: "500",
-  },
-  streamStat: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  streamCountText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  iconCircleButton: {
+  floatingButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: "rgba(30, 30, 30, 0.85)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.18)",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    alignItems: "center",
     justifyContent: "center",
-    alignItems: "center",
   },
-  playButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#FFFFFF",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  centerContainer: {
-    flex: 1,
-    backgroundColor: "#121212",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  loadingText: {
-    color: "#888888",
-    fontSize: 14,
-    marginTop: 12,
-  },
-  emptyContainer: {
-    paddingVertical: 48,
-    alignItems: "center",
-  },
-  emptyText: {
-    color: "#777777",
-    fontSize: 14,
-    marginTop: 10,
-  },
-  songsLoadingContainer: {
-    paddingVertical: 32,
-    alignItems: "center",
-  },
-  footerLoader: {
-    paddingVertical: 16,
-    alignItems: "center",
-  },
+
+  /* States */
+  empty: { alignItems: "center", paddingTop: 40, paddingHorizontal: 32 },
+  emptyText: { color: "#8A8A8A", fontSize: 14, marginTop: 12 },
+  songsLoading: { paddingVertical: 32, alignItems: "center" },
+  footerLoader: { paddingVertical: 20, alignItems: "center" },
 });
