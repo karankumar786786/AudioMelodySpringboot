@@ -17,6 +17,7 @@ import { store } from "@/store/hook";
 import { audioPlayerService, configureAudioPriority } from "@/service/audioPlayerService";
 import { formatDuration } from "@/utils/formatUtils";
 import { PlayerSettingsModal } from "./PlayerSettingsModal";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
 interface FullVideoPlayerModalProps {
   visible: boolean;
@@ -170,6 +171,22 @@ export function FullVideoPlayerModal({
     setCurrentTime(target);
   };
 
+  const swipeDownGesture = Gesture.Pan()
+    .runOnJS(true)
+    .activeOffsetY([0, 15])
+    .onEnd((e) => {
+      // In landscape mode and down swiped: return to portrait artwork mode
+      if (isLandscape && e.translationY > 35 && Math.abs(e.translationY) > Math.abs(e.translationX) * 0.8) {
+        handleClose();
+        return;
+      }
+      // Also in portrait mode: down swipe dismisses video back to artwork mode
+      if (!isLandscape && e.translationY > 60 && (e.velocityY > 200 || e.translationY > 100)) {
+        handleClose();
+        return;
+      }
+    });
+
   if (!visible || !videoStreamUrl) return null;
 
   return (
@@ -180,10 +197,11 @@ export function FullVideoPlayerModal({
       onRequestClose={handleClose}
       supportedOrientations={["portrait", "landscape-left", "landscape-right"]}
     >
-      <View style={[styles.container, isLandscape && styles.containerLandscape]}>
-        {/* Top Header */}
-        {showControls ? (
-          <View style={[styles.header, isLandscape && styles.headerLandscape]}>
+      <GestureDetector gesture={swipeDownGesture}>
+        <View style={[styles.container, isLandscape && styles.containerLandscape]}>
+          {/* Top Header */}
+          {showControls ? (
+            <View style={[styles.header, isLandscape && styles.headerLandscape]}>
             <TouchableOpacity
               style={styles.iconCircleBtn}
               hitSlop={14}
@@ -312,7 +330,8 @@ export function FullVideoPlayerModal({
             applyRate(player, rate);
           }}
         />
-      </View>
+        </View>
+      </GestureDetector>
     </Modal>
   );
 }

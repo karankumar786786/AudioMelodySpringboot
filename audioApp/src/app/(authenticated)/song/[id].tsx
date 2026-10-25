@@ -37,6 +37,7 @@ import { formatDuration, formatStreams } from "@/utils/formatUtils";
 import { getImageUrl } from "@/utils/imageUtils";
 import { S3_BASE_URL } from "@/utils/playerUtils";
 import { useDominantColor } from "@/utils/colorUtils";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -271,6 +272,14 @@ export default function SongDetailScreen() {
     }
   };
 
+  const handleDismissPlayer = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(authenticated)/(tabs)/home");
+    }
+  };
+
   const handleSelectMode = (mode: "canvas" | "artwork" | "video") => {
     if (mode === "video") {
       // Direct full screen mode: pause audio and launch FullVideoPlayerModal
@@ -281,13 +290,74 @@ export default function SongDetailScreen() {
     setViewMode(mode);
   };
 
+  const handleNextMode = () => {
+    if (availableModes.length <= 1) return;
+    const currentIndex = availableModes.findIndex((m) => m.key === viewMode);
+    if (currentIndex >= 0 && currentIndex < availableModes.length - 1) {
+      const nextMode = availableModes[currentIndex + 1];
+      handleSelectMode(nextMode.key);
+    }
+  };
+
+  const handlePrevMode = () => {
+    if (availableModes.length <= 1) return;
+    const currentIndex = availableModes.findIndex((m) => m.key === viewMode);
+    if (currentIndex > 0) {
+      const prevMode = availableModes[currentIndex - 1];
+      handleSelectMode(prevMode.key);
+    }
+  };
+
   const handleVideoModalClose = (finalTimestamp: number) => {
     setIsVideoModalOpen(false);
+    setViewMode("artwork"); // Always return to artwork mode when video modal closes
     if (typeof finalTimestamp === "number" && finalTimestamp >= 0) {
       audioPlayerService.seek(finalTimestamp);
       audioPlayerService.resume();
     }
   };
+
+  // Gesture handler to slide between Canvas, Artwork, Video & down-swipe dismiss
+  const stagePanGesture = Gesture.Pan()
+    .runOnJS(true)
+    .activeOffsetX([-15, 15])
+    .activeOffsetY([0, 15])
+    .onEnd((e) => {
+      const { translationX, translationY, velocityX, velocityY } = e;
+
+      // 1. Vertical Downward Swipe: dismiss full-screen player to go back / home
+      if (
+        translationY > 50 &&
+        (velocityY > 200 || translationY > 80) &&
+        Math.abs(translationY) > Math.abs(translationX) * 1.1
+      ) {
+        handleDismissPlayer();
+        return;
+      }
+
+      // 2. Horizontal Slide: switch between Canvas, Artwork, and Video
+      if (
+        Math.abs(translationX) > 35 &&
+        Math.abs(translationX) > Math.abs(translationY) * 1.1
+      ) {
+        if (translationX < 0 || velocityX < -250) {
+          // Swiped Left -> Advance to next mode
+          handleNextMode();
+        } else if (translationX > 0 || velocityX > 250) {
+          // Swiped Right -> Return to previous mode
+          handlePrevMode();
+        }
+      }
+    });
+
+  const topBarGesture = Gesture.Pan()
+    .runOnJS(true)
+    .activeOffsetY([0, 15])
+    .onEnd((e) => {
+      if (e.translationY > 35) {
+        handleDismissPlayer();
+      }
+    });
 
   const showCanvasBackground = viewMode === "canvas" && hasCanvas;
 
@@ -351,110 +421,114 @@ export default function SongDetailScreen() {
         >
           {/* Main Full-Screen Player: exactly 100% viewport height */}
           <View style={[styles.playerScreenSection, { minHeight: safeAreaHeight }]}>
-            {/* 2. Top Navigation Bar */}
-            <View style={styles.topBar}>
-              <TouchableOpacity
-                style={styles.topBarCircleBtn}
-                onPress={() => router.back()}
-                hitSlop={14}
-                activeOpacity={0.75}
-              >
-                <Ionicons name="chevron-down" size={24} color="#FFFFFF" />
-              </TouchableOpacity>
-
-              <View style={styles.topBarTitleContainer}>
-                <Text style={styles.topBarSubtitle}>PLAYING FROM ONE MELODY</Text>
-                <Text style={styles.topBarTitle} numberOfLines={1}>
-                  {activeSong.album || activeSong.genre || "Featured Collection"}
-                </Text>
-              </View>
-
-              <View style={styles.topBarRightActions}>
+            {/* 2. Top Navigation Bar with Down-Swipe Dismiss */}
+            <GestureDetector gesture={topBarGesture}>
+              <View style={styles.topBar}>
                 <TouchableOpacity
                   style={styles.topBarCircleBtn}
+                  onPress={handleDismissPlayer}
                   hitSlop={14}
-                  onPress={() => setIsSettingsOpen(true)}
                   activeOpacity={0.75}
                 >
-                  <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
+                  <Ionicons name="chevron-down" size={24} color="#FFFFFF" />
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.topBarCircleBtn}
-                  hitSlop={14}
-                  onPress={() => setIsQueueOpen(true)}
-                  activeOpacity={0.75}
-                >
-                  <Ionicons name="list" size={22} color="#FFFFFF" />
-                  {upcomingCount > 0 ? (
-                    <View style={styles.queueCounterBadge}>
-                      <Text style={styles.queueCounterText}>
-                        {upcomingCount}
-                      </Text>
-                    </View>
-                  ) : null}
-                </TouchableOpacity>
-              </View>
-            </View>
+                <View style={styles.topBarTitleContainer}>
+                  <Text style={styles.topBarSubtitle}>PLAYING FROM ONE MELODY</Text>
+                  <Text style={styles.topBarTitle} numberOfLines={1}>
+                    {activeSong.album || activeSong.genre || "Featured Collection"}
+                  </Text>
+                </View>
 
-            {/* 3. Center Stage: Canvas / Artwork */}
-            <View style={styles.centerStage}>
-          {/* Unified Mode Switcher Pill (Canvas, Artwork, Video) */}
-          {availableModes.length > 1 ? (
-            <View style={styles.modeSwitcherContainer}>
-              <View style={styles.modeSwitcherPill}>
-                {availableModes.map((mode) => {
-                  const isActive = viewMode === mode.key;
-                  return (
-                    <TouchableOpacity
-                      key={mode.key}
-                      style={[
-                        styles.modeOptionBtn,
-                        isActive && styles.modeOptionBtnActive,
-                      ]}
-                      onPress={() => handleSelectMode(mode.key)}
-                      activeOpacity={0.8}
-                    >
-                      <View style={styles.modeOptionContent}>
-                        {mode.key === "video" ? (
-                          <Ionicons
-                            name="play"
-                            size={10}
-                            color={isActive ? "#000000" : "rgba(255, 255, 255, 0.75)"}
-                            style={{ marginRight: 4 }}
-                          />
-                        ) : null}
-                        <Text
-                          style={[
-                            styles.modeOptionText,
-                            isActive && styles.modeOptionTextActive,
-                          ]}
-                        >
-                          {mode.label}
+                <View style={styles.topBarRightActions}>
+                  <TouchableOpacity
+                    style={styles.topBarCircleBtn}
+                    hitSlop={14}
+                    onPress={() => setIsSettingsOpen(true)}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.topBarCircleBtn}
+                    hitSlop={14}
+                    onPress={() => setIsQueueOpen(true)}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name="list" size={22} color="#FFFFFF" />
+                    {upcomingCount > 0 ? (
+                      <View style={styles.queueCounterBadge}>
+                        <Text style={styles.queueCounterText}>
+                          {upcomingCount}
                         </Text>
                       </View>
-                    </TouchableOpacity>
-                  );
-                })}
+                    ) : null}
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          ) : null}
+            </GestureDetector>
 
-          {/* Mode Stage Display: spacious ambient view for canvas, centered 1:1 image for artwork */}
-          {viewMode === "canvas" ? (
-            <View style={styles.canvasSpacer} />
-          ) : (
-            <View style={styles.artworkWrapper}>
-              <Image
-                source={{ uri: posterUrl }}
-                style={styles.artworkImage}
-                contentFit="cover"
-                transition={200}
-                cachePolicy="memory"
-              />
-            </View>
-          )}
-        </View>
+            {/* 3. Center Stage: Canvas / Artwork with Slide Gestures between Modes & Down-Swipe Dismiss */}
+            <GestureDetector gesture={stagePanGesture}>
+              <View style={styles.centerStage}>
+                {/* Unified Mode Switcher Pill (Canvas, Artwork, Video) */}
+                {availableModes.length > 1 ? (
+                  <View style={styles.modeSwitcherContainer}>
+                    <View style={styles.modeSwitcherPill}>
+                      {availableModes.map((mode) => {
+                        const isActive = viewMode === mode.key;
+                        return (
+                          <TouchableOpacity
+                            key={mode.key}
+                            style={[
+                              styles.modeOptionBtn,
+                              isActive && styles.modeOptionBtnActive,
+                            ]}
+                            onPress={() => handleSelectMode(mode.key)}
+                            activeOpacity={0.8}
+                          >
+                            <View style={styles.modeOptionContent}>
+                              {mode.key === "video" ? (
+                                <Ionicons
+                                  name="play"
+                                  size={10}
+                                  color={isActive ? "#000000" : "rgba(255, 255, 255, 0.75)"}
+                                  style={{ marginRight: 4 }}
+                                />
+                              ) : null}
+                              <Text
+                                style={[
+                                  styles.modeOptionText,
+                                  isActive && styles.modeOptionTextActive,
+                                ]}
+                              >
+                                {mode.label}
+                              </Text>
+                            </View>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* Mode Stage Display: spacious ambient view for canvas, centered 1:1 image for artwork */}
+                {viewMode === "canvas" ? (
+                  <View style={styles.canvasSpacer} />
+                ) : (
+                  <View style={styles.artworkWrapper}>
+                    <Image
+                      source={{ uri: posterUrl }}
+                      style={styles.artworkImage}
+                      contentFit="cover"
+                      transition={200}
+                      cachePolicy="memory"
+                    />
+                  </View>
+                )}
+              </View>
+            </GestureDetector>
 
         {/* 4. Song Metadata & Like Action */}
         <View style={styles.metaSection}>
