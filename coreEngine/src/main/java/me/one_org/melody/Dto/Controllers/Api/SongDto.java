@@ -21,9 +21,21 @@ public record SongDto(
     String album,
     String lrclibId,
     StatusEnum status,
+    String jobId,
     Long totalStreams,
     LocalDateTime createdAt
 ) {
+    public SongDto(
+        String id, String title, String artistName, Integer duration, String songKey, String imageKey,
+        String videoKey, String fullVideoKey, Integer previewStartTime, Integer previewEndTime,
+        Boolean isFeatured, String language, String genre, String album, String lrclibId,
+        StatusEnum status, Long totalStreams, LocalDateTime createdAt
+    ) {
+        this(id, title, artistName, duration, songKey, imageKey, videoKey, fullVideoKey,
+             previewStartTime, previewEndTime, isFeatured, language, genre, album, lrclibId,
+             status, null, totalStreams, createdAt);
+    }
+
     public static SongDto fromEntity(Song song) {
         if (song == null) return null;
         Long streams = song.getSongMetadata() != null ? song.getSongMetadata().getTotalStreams() : 0L;
@@ -44,6 +56,7 @@ public record SongDto(
             song.getAlbum(),
             song.getLrclibId(),
             song.getStatus(),
+            song.getJobId(),
             streams,
             song.getCreatedAt()
         );

@@ -7,8 +7,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.validation.annotation.Validated;
 import jakarta.validation.constraints.NotBlank;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
-import me.one_org.melody.Security.CurrentUser;
-import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.Api.RecommendationApiService;
 
 @RestController
@@ -20,13 +18,6 @@ public class RecombeeApiController {
 
     public RecombeeApiController(RecommendationApiService recommendationApiService) {
         this.recommendationApiService = recommendationApiService;
-    }
-
-    @GetMapping("/user")
-    public ResponseEntity<List<SongDto>> recommendForUser(
-            @CurrentUser CustomUserDetails currentUser,
-            @RequestParam(defaultValue = "10") int count) {
-        return ResponseEntity.ok(recommendationApiService.recommendForUser(currentUser.getId(), count));
     }
 
     @GetMapping("/similar/{songId}")

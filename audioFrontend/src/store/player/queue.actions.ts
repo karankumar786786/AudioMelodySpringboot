@@ -628,7 +628,7 @@ export const queueActions = {
         } else if (isLoggedIn) {
           try {
             console.log(
-              "📡 Endpoint: Requesting recommendations from GET /api/recommendations/user...",
+              "📡 Endpoint: Requesting recommendations / trending tracks...",
             );
             res = await musicApi.interactions.getRecommendations();
             const data = res?.data?.data || res?.data;

@@ -10,10 +10,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
-import me.one_org.melody.Entity.Song;
-import me.one_org.melody.Entity.SongMetadata;
 import me.one_org.melody.Recommendation.Recombee;
-import me.one_org.melody.Repository.SongsRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
@@ -24,47 +21,46 @@ class RecommendationApiServiceTest {
     @Mock
     private Recombee recombee;
 
-    @Mock
-    private SongsRepository songsRepository;
-
     @InjectMocks
     private RecommendationApiService recommendationApiService;
 
     @Test
-    @DisplayName("Should return recommended songs for user")
-    void shouldRecommendForUser() throws Exception {
-        when(recombee.recommendForUser("user-1", 5)).thenReturn(List.of("song-1", "song-2"));
+    @DisplayName("Should return radio recommendations directly from Recombee")
+    void shouldRecommendRadioDetailed() throws Exception {
+        SongDto s1 = new SongDto("song-1", "Song One", "Artist A", 180, "key1", "img1", null, null, null, null, false, "English", "Pop", "Album", "lrc", null, 120L, null);
+        SongDto s2 = new SongDto("song-2", "Song Two", "Artist B", 200, "key2", "img2", null, null, null, null, false, "English", "Rock", "Album", "lrc", null, 340L, null);
 
-        Song s1 = Song.builder()
-                .id("song-1")
-                .title("Song One")
-                .artistName("Artist A")
-                .songMetadata(SongMetadata.builder().totalStreams(120L).build())
-                .build();
-        Song s2 = Song.builder()
-                .id("song-2")
-                .title("Song Two")
-                .artistName("Artist B")
-                .songMetadata(SongMetadata.builder().totalStreams(340L).build())
-                .build();
+        when(recombee.recommendRadioDetailed("seed-1", List.of("ex-1"), 5)).thenReturn(List.of(s1, s2));
 
-        when(songsRepository.findAllByIds(List.of("song-1", "song-2"))).thenReturn(List.of(s1, s2));
-
-        List<SongDto> dtos = recommendationApiService.recommendForUser("user-1", 5);
+        List<SongDto> dtos = recommendationApiService.recommendRadio("seed-1", List.of("ex-1"), 5);
 
         assertThat(dtos).hasSize(2);
         assertThat(dtos.get(0).id()).isEqualTo("song-1");
         assertThat(dtos.get(1).id()).isEqualTo("song-2");
+        verify(recombee).recommendRadioDetailed("seed-1", List.of("ex-1"), 5);
+    }
+
+    @Test
+    @DisplayName("Should return similar recommendations directly from Recombee")
+    void shouldRecommendSimilarDetailed() throws Exception {
+        SongDto s1 = new SongDto("song-1", "Song One", "Artist A", 180, "key1", "img1", null, null, null, null, false, "English", "Pop", "Album", "lrc", null, 120L, null);
+
+        when(recombee.recommendSimilarDetailed("song-seed", 5)).thenReturn(List.of(s1));
+
+        List<SongDto> dtos = recommendationApiService.recommendSimilar("song-seed", 5);
+
+        assertThat(dtos).hasSize(1);
+        assertThat(dtos.get(0).id()).isEqualTo("song-1");
+        verify(recombee).recommendSimilarDetailed("song-seed", 5);
     }
 
     @Test
     @DisplayName("Should return empty list gracefully when Recombee fails")
     void shouldHandleRecombeeFailureGracefully() throws Exception {
-        when(recombee.recommendForUser("user-1", 5)).thenThrow(new RuntimeException("Connection timeout"));
+        when(recombee.recommendRadioDetailed("seed-1", List.of(), 5)).thenThrow(new RuntimeException("Connection timeout"));
 
-        List<SongDto> dtos = recommendationApiService.recommendForUser("user-1", 5);
+        List<SongDto> dtos = recommendationApiService.recommendRadio("seed-1", List.of(), 5);
 
         assertThat(dtos).isEmpty();
-        verifyNoInteractions(songsRepository);
     }
 }

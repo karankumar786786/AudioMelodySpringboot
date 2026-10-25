@@ -62,6 +62,7 @@ export function EditSongModal({
     artistName: "",
     language: "Hindi",
     album: "",
+    genre: "",
     lrclibId: "",
     previewStartMin: "" as string | number,
     previewStartSec: "" as string | number,
@@ -113,6 +114,7 @@ export function EditSongModal({
       artistName: song.artistName || "",
       language: song.language || "Hindi",
       album: song.album || "",
+      genre: song.genre || "",
       lrclibId: song.lrclibId ? String(song.lrclibId) : "",
       previewStartMin: startTotal !== null ? Math.floor(startTotal / 60) : "",
       previewStartSec: startTotal !== null ? startTotal % 60 : "",
@@ -354,6 +356,7 @@ export function EditSongModal({
           artistName: formData.artistName,
           language: formData.language,
           album: formData.album.trim() || undefined,
+          genre: formData.genre.trim() || undefined,
           lrclibId: formData.lrclibId.trim() || "0",
           previewStartTime: previewStartTime !== null ? previewStartTime : -1,
           previewEndTime: previewEndTime !== null ? previewEndTime : -1,
@@ -374,6 +377,7 @@ export function EditSongModal({
         artistName: formData.artistName,
         language: formData.language,
         album: formData.album,
+        genre: formData.genre,
         lrclibId: formData.lrclibId,
         imageKey,
         videoKey: videoKey === "" ? null : (videoKey ?? null),
@@ -562,6 +566,19 @@ export function EditSongModal({
                 }
                 className={inputCls}
                 placeholder="Optional ID"
+              />
+            </div>
+
+            <div>
+              <label className={labelCls}>Genre</label>
+              <input
+                type="text"
+                value={formData.genre}
+                onChange={(e) =>
+                  setFormData({ ...formData, genre: e.target.value })
+                }
+                className={inputCls}
+                placeholder="e.g. Pop, Romantic"
               />
             </div>
 

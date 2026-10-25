@@ -13,7 +13,9 @@ export interface Song {
   language?: string;
   genre?: string;
   album?: string;
+  lrclibId?: string;
+  status?: string;
+  jobId?: string;
   totalStreams?: number;
   createdAt?: string;
-  lrclibId?: string;
 }

@@ -35,20 +35,7 @@ class RecombeeApiControllerIntegrationTest {
                 .build();
     }
 
-    @Test
-    @DisplayName("GET /api/recommendations/user should return recommended songs for user")
-    void shouldRecommendForUser() throws Exception {
-        SongDto song = new SongDto("s-rec-1", "Recommended Song", "Artist X", 180, "key", "img", null, null, null, null, false, "English", "Pop", "Album", "lrc", null, 1000L, null);
-        when(recommendationApiService.recommendForUser("u-1", 10)).thenReturn(List.of(song));
 
-        mockMvc.perform(get("/api/recommendations/user")
-                        .requestAttr("userId", "u-1")
-                        .param("count", "10")
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value("s-rec-1"))
-                .andExpect(jsonPath("$[0].title").value("Recommended Song"));
-    }
 
     @Test
     @DisplayName("GET /api/recommendations/similar/{songId} should return similar songs")

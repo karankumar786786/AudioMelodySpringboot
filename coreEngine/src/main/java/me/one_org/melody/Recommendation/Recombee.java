@@ -15,7 +15,10 @@ import com.recombee.api_client.bindings.RecommendationResponse;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Entity.Song;
+import me.one_org.melody.Enums.StatusEnum;
+import java.time.LocalDateTime;
 
 /*
  * ╔══════════════════════════════════════════════════════════════╗
@@ -68,6 +71,16 @@ public class Recombee {
         registerPropertySafely("duration", "int");
         registerPropertySafely("totalStreams", "int");
         registerPropertySafely("imageKey", "string");
+        registerPropertySafely("songKey", "string");
+        registerPropertySafely("videoKey", "string");
+        registerPropertySafely("fullVideoKey", "string");
+        registerPropertySafely("previewStartTime", "int");
+        registerPropertySafely("previewEndTime", "int");
+        registerPropertySafely("isFeatured", "boolean");
+        registerPropertySafely("lrclibId", "string");
+        registerPropertySafely("status", "string");
+        registerPropertySafely("jobId", "string");
+        registerPropertySafely("createdAt", "string");
 
         // Audio feature properties for content-based recommendations
         registerPropertySafely("tempo", "double");
@@ -95,7 +108,7 @@ public class Recombee {
 
     // ── Save song item with properties ──
 
-    public void saveSong(Song song) throws Exception {
+    public Map<String, Object> buildSongValues(Song song) {
         Map<String, Object> values = new HashMap<>();
         values.put("title", song.getTitle());
         values.put("artistName", song.getArtistName());
@@ -109,6 +122,34 @@ public class Recombee {
         if (song.getImageKey() != null && !song.getImageKey().isBlank()) {
             values.put("imageKey", song.getImageKey());
         }
+        if (song.getSongKey() != null && !song.getSongKey().isBlank()) {
+            values.put("songKey", song.getSongKey());
+        }
+        if (song.getVideoKey() != null && !song.getVideoKey().isBlank()) {
+            values.put("videoKey", song.getVideoKey());
+        }
+        if (song.getFullVideoKey() != null && !song.getFullVideoKey().isBlank()) {
+            values.put("fullVideoKey", song.getFullVideoKey());
+        }
+        if (song.getPreviewStartTime() != null) {
+            values.put("previewStartTime", song.getPreviewStartTime());
+        }
+        if (song.getPreviewEndTime() != null) {
+            values.put("previewEndTime", song.getPreviewEndTime());
+        }
+        values.put("isFeatured", song.getIsFeatured() != null ? song.getIsFeatured() : false);
+        if (song.getLrclibId() != null && !song.getLrclibId().isBlank()) {
+            values.put("lrclibId", song.getLrclibId());
+        }
+        if (song.getStatus() != null) {
+            values.put("status", song.getStatus().name());
+        }
+        if (song.getJobId() != null && !song.getJobId().isBlank()) {
+            values.put("jobId", song.getJobId());
+        }
+        if (song.getCreatedAt() != null) {
+            values.put("createdAt", song.getCreatedAt().toString());
+        }
         if (song.getDuration() != null && song.getDuration() > 0) {
             values.put("duration", song.getDuration());
         }
@@ -117,6 +158,11 @@ public class Recombee {
                 : 0L;
         int streams = (int) Math.min(totalStreams, Integer.MAX_VALUE);
         values.put("totalStreams", streams);
+        return values;
+    }
+
+    public void saveSong(Song song) throws Exception {
+        Map<String, Object> values = buildSongValues(song);
         recombeeClient.send(withTimeout(new SetItemValues(song.getId(), values).setCascadeCreate(true)));
     }
 
@@ -274,6 +320,114 @@ public class Recombee {
         return songIds;
     }
 
+    public SongDto mapHitToSongDto(Recommendation hit) {
+        if (hit == null || hit.getId() == null) return null;
+        String id = hit.getId();
+        Map<String, Object> values = hit.getValues();
+        if (values == null) {
+            values = Map.of();
+        }
+
+        String title = (String) values.get("title");
+        String artistName = (String) values.get("artistName");
+        Integer duration = values.get("duration") instanceof Number n ? n.intValue() : null;
+        String songKey = (String) values.get("songKey");
+        String imageKey = (String) values.get("imageKey");
+        String videoKey = (String) values.get("videoKey");
+        String fullVideoKey = (String) values.get("fullVideoKey");
+        Integer previewStartTime = values.get("previewStartTime") instanceof Number n ? n.intValue() : null;
+        Integer previewEndTime = values.get("previewEndTime") instanceof Number n ? n.intValue() : null;
+        Boolean isFeatured = values.get("isFeatured") instanceof Boolean b ? b : false;
+        String language = (String) values.get("language");
+        String genre = (String) values.get("genre");
+        String album = (String) values.get("album");
+        String lrclibId = (String) values.get("lrclibId");
+
+        StatusEnum status = null;
+        if (values.get("status") instanceof String s) {
+            try { status = StatusEnum.valueOf(s); } catch (Exception ignored) {}
+        }
+        String jobId = (String) values.get("jobId");
+        Long totalStreams = values.get("totalStreams") instanceof Number n ? n.longValue() : 0L;
+
+        LocalDateTime createdAt = null;
+        if (values.get("createdAt") instanceof String s) {
+            try { createdAt = LocalDateTime.parse(s); } catch (Exception ignored) {}
+        }
+
+        return new SongDto(
+            id, title, artistName, duration, songKey, imageKey,
+            videoKey, fullVideoKey, previewStartTime, previewEndTime,
+            isFeatured, language, genre, album, lrclibId,
+            status, jobId, totalStreams, createdAt
+        );
+    }
+
+    public List<SongDto> recommendRadioDetailed(String seedSongId, List<String> excludeIds, int count) throws Exception {
+        java.util.Set<String> excludedSet = new java.util.HashSet<>();
+        if (excludeIds != null) {
+            for (String id : excludeIds) {
+                if (id != null && !id.isBlank()) excludedSet.add(id.trim());
+            }
+        }
+        if (seedSongId != null) {
+            excludedSet.add(seedSongId.trim());
+        }
+
+        int fetchCount = Math.max(count * 2, 20);
+        RecommendationResponse response;
+        try {
+            response = recombeeClient.send(
+                    withTimeout(new RecommendItemsToItem(seedSongId, null, fetchCount)
+                            .setReturnProperties(true)
+                            .setBooster(TOTAL_STREAMS_BOOSTER)));
+        } catch (Exception e) {
+            log.warn("Recombee recommendRadioDetailed with booster failed, retrying without booster: {}", e.getMessage());
+            response = recombeeClient.send(
+                    withTimeout(new RecommendItemsToItem(seedSongId, null, fetchCount)
+                            .setReturnProperties(true)));
+        }
+
+        List<SongDto> result = new ArrayList<>();
+        for (Recommendation hit : response) {
+            if (hit != null && hit.getId() != null && !excludedSet.contains(hit.getId())) {
+                SongDto dto = mapHitToSongDto(hit);
+                if (dto != null && (dto.status() == null || dto.status() == StatusEnum.ACTIVE)) {
+                    result.add(dto);
+                    excludedSet.add(hit.getId());
+                    if (result.size() >= count) break;
+                }
+            }
+        }
+        return result;
+    }
+
+    public List<SongDto> recommendSimilarDetailed(String songId, int count) throws Exception {
+        RecommendationResponse response;
+        try {
+            response = recombeeClient.send(
+                    withTimeout(new RecommendItemsToItem(songId, null, count)
+                            .setReturnProperties(true)
+                            .setBooster(TOTAL_STREAMS_BOOSTER)));
+        } catch (Exception e) {
+            log.warn("Recombee recommendSimilarDetailed with booster failed, retrying without booster: {}", e.getMessage());
+            response = recombeeClient.send(
+                    withTimeout(new RecommendItemsToItem(songId, null, count)
+                            .setReturnProperties(true)));
+        }
+
+        List<SongDto> result = new ArrayList<>();
+        for (Recommendation hit : response) {
+            if (hit != null && hit.getId() != null) {
+                SongDto dto = mapHitToSongDto(hit);
+                if (dto != null && (dto.status() == null || dto.status() == StatusEnum.ACTIVE)) {
+                    result.add(dto);
+                }
+            }
+        }
+        return result;
+    }
+
     public List<String> recommendSimilar(String songId, int count) throws Exception {
         RecommendationResponse response;
         try {
@@ -312,26 +466,7 @@ public class Recombee {
     public void reindexAll(List<Song> songs) throws Exception {
         ArrayList<Request> requests = new ArrayList<>();
         for (Song song : songs) {
-            Map<String, Object> values = new HashMap<>();
-            values.put("title", song.getTitle());
-            values.put("artistName", song.getArtistName());
-            values.put("language", song.getLanguage());
-            if (song.getGenre() != null && !song.getGenre().isBlank()) {
-                values.put("genre", song.getGenre());
-            }
-            if (song.getAlbum() != null && !song.getAlbum().isBlank()) {
-                values.put("album", song.getAlbum());
-            }
-            if (song.getImageKey() != null && !song.getImageKey().isBlank()) {
-                values.put("imageKey", song.getImageKey());
-            }
-            if (song.getDuration() != null && song.getDuration() > 0) {
-                values.put("duration", song.getDuration());
-            }
-            Long totalStreams = (song.getSongMetadata() != null && song.getSongMetadata().getTotalStreams() != null)
-                    ? song.getSongMetadata().getTotalStreams()
-                    : 0L;
-            values.put("totalStreams", (int) Math.min(totalStreams, Integer.MAX_VALUE));
+            Map<String, Object> values = buildSongValues(song);
             requests.add(withTimeout(new SetItemValues(song.getId(), values).setCascadeCreate(true)));
         }
         if (!requests.isEmpty()) {

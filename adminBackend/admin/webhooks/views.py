@@ -269,6 +269,15 @@ class WebhookJobSaveRecommendationView(BaseAdminView):
                 duration=job.duration or 0,
                 album=job.album,
                 image_key=job.image_key,
+                song_key=job.song_key,
+                video_key=job.video_key,
+                full_video_key=job.full_video_key,
+                preview_start_time=job.preview_start_time,
+                preview_end_time=job.preview_end_time,
+                is_featured=False,
+                lrclib_id=job.lrclib_id,
+                status="ACTIVE",
+                job_id=job.id,
                 total_streams=0,
                 tempo=job.tempo,
                 danceability=job.danceability,
@@ -310,8 +319,16 @@ class WebhookJobSaveSearchView(BaseAdminView):
                     "album": job.album,
                     "image_key": job.image_key,
                     "duration": job.duration,
+                    "song_key": job.song_key,
+                    "video_key": job.video_key,
+                    "full_video_key": job.full_video_key,
                     "preview_start_time": job.preview_start_time,
                     "preview_end_time": job.preview_end_time,
+                    "language": job.language,
+                    "lrclib_id": job.lrclib_id,
+                    "is_featured": False,
+                    "status": "ACTIVE",
+                    "job_id": job.id,
                     "total_streams": 0,
                     "search_count": 0,
                 },
@@ -372,15 +389,7 @@ class WebhookJobFinalizeView(BaseAdminView):
 
                 try:
                     RecombeeService.save_song(
-                        song_id=song.id,
-                        title=song.title,
-                        artist_name=song.artist_name,
-                        language=song.language,
-                        genre=song.genre,
-                        duration=song.duration,
-                        album=song.album,
-                        image_key=song.image_key,
-                        total_streams=song.total_streams,
+                        song=song,
                         tempo=job.tempo,
                         danceability=job.danceability,
                         energy=job.energy,
@@ -425,6 +434,24 @@ class WebhookJobFinalizeView(BaseAdminView):
             AlgoliaService.save_song(song=song)
         except Exception as e:
             logger.warning("Failed to sync finalized song %s to Algolia: %s", song.id, e)
+
+        try:
+            RecombeeService.save_song(
+                song=song,
+                tempo=job.tempo,
+                danceability=job.danceability,
+                energy=job.energy,
+                valence=job.valence,
+                acousticness=job.acousticness,
+                instrumentalness=job.instrumentalness,
+                liveness=job.liveness,
+                speechiness=job.speechiness,
+                loudness=job.loudness,
+                key=job.key,
+                mode=job.mode,
+            )
+        except Exception as e:
+            logger.warning("Failed to sync finalized song %s to Recombee: %s", song.id, e)
 
         try:
             SongMetadata.objects.get_or_create(

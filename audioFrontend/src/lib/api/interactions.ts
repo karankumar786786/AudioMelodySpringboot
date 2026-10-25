@@ -8,18 +8,8 @@ export const interactionsApi = {
     return { data: { data: list } };
   },
   getRecommendations: async (count = 10) => {
-    // 1. Direct query to backend Spring Boot recommendation engine (hydrated directly from DB)
-    try {
-      const res = await request<Song[]>(`/api/recommendations/user?count=${count}`);
-      const list = Array.isArray(res) ? res : [];
-      if (list.length > 0) {
-        return { data: { data: list } };
-      }
-    } catch (err) {
-      console.warn("[InteractionsApi] Backend /api/recommendations/user failed:", err);
-    }
-
-    // 2. Direct fallback: Backend trending / catalog songs
+    // Backend recommendations are contextual item-to-item vibe based (/api/recommendations/radio).
+    // For general recommendations without an active seed, return trending catalog tracks.
     try {
       const res = await request<Song[]>(`/api/songs/trending?limit=${count}`);
       const list = Array.isArray(res) ? res : [];

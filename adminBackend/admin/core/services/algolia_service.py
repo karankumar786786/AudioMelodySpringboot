@@ -62,6 +62,14 @@ class AlgoliaService:
                 s_prev_end = song.get("preview_end_time") if song.get("preview_end_time") is not None else (song.get("previewEndTime") if song.get("previewEndTime") is not None else preview_end_time)
                 s_streams = song.get("total_streams") if song.get("total_streams") is not None else (song.get("totalStreams") if song.get("totalStreams") is not None else total_streams)
                 s_search_count = song.get("search_count") if song.get("search_count") is not None else (song.get("searchCount") if song.get("searchCount") is not None else 0)
+                s_song_key = song.get("song_key") or song.get("songKey")
+                s_video_key = song.get("video_key") or song.get("videoKey")
+                s_full_video_key = song.get("full_video_key") or song.get("fullVideoKey")
+                s_is_featured = song.get("is_featured") if song.get("is_featured") is not None else song.get("isFeatured", False)
+                s_lrclib_id = song.get("lrclib_id") or song.get("lrclibId")
+                s_status = song.get("status")
+                s_job_id = song.get("job_id") or song.get("jobId")
+                s_created_at = song.get("created_at") or song.get("createdAt")
             elif song is not None:
                 s_id = str(getattr(song, "id", None) or song_id or "")
                 s_title = getattr(song, "title", None) or title
@@ -75,6 +83,14 @@ class AlgoliaService:
                 s_prev_end = getattr(song, "preview_end_time", None) if getattr(song, "preview_end_time", None) is not None else preview_end_time
                 s_streams = getattr(song, "total_streams", None) if getattr(song, "total_streams", None) is not None else total_streams
                 s_search_count = getattr(song, "search_count", None) if getattr(song, "search_count", None) is not None else (getattr(song, "searchCount", None) or 0)
+                s_song_key = getattr(song, "song_key", None)
+                s_video_key = getattr(song, "video_key", None)
+                s_full_video_key = getattr(song, "full_video_key", None)
+                s_is_featured = getattr(song, "is_featured", False)
+                s_lrclib_id = getattr(song, "lrclib_id", None)
+                s_status = getattr(song, "status", None)
+                s_job_id = getattr(song, "job_id", None)
+                s_created_at = getattr(song, "created_at", None)
             else:
                 s_id = song_id or ""
                 s_title = title
@@ -88,6 +104,14 @@ class AlgoliaService:
                 s_prev_end = preview_end_time
                 s_streams = total_streams
                 s_search_count = 0
+                s_song_key = kwargs.get("song_key") or kwargs.get("songKey")
+                s_video_key = kwargs.get("video_key") or kwargs.get("videoKey")
+                s_full_video_key = kwargs.get("full_video_key") or kwargs.get("fullVideoKey")
+                s_is_featured = kwargs.get("is_featured", False)
+                s_lrclib_id = kwargs.get("lrclib_id") or kwargs.get("lrclibId")
+                s_status = kwargs.get("status")
+                s_job_id = kwargs.get("job_id") or kwargs.get("jobId")
+                s_created_at = kwargs.get("created_at") or kwargs.get("createdAt")
 
             if not s_id:
                 logger.warning("Algolia save_song skipped: missing song id")
@@ -103,10 +127,19 @@ class AlgoliaService:
                 "artist": str(s_artist or ""),
                 "album": str(s_album).strip() if s_album else None,
                 "genre": str(s_genre).strip() if s_genre else None,
+                "language": str(s_lang or ""),
                 "imageKey": str(s_img or ""),
+                "songKey": str(s_song_key or ""),
+                "videoKey": str(s_video_key) if s_video_key else None,
+                "fullVideoKey": str(s_full_video_key) if s_full_video_key else None,
                 "duration": int(s_dur or 0),
                 "previewStartTime": int(s_prev_start) if s_prev_start is not None and int(s_prev_start) >= 0 else None,
                 "previewEndTime": int(s_prev_end) if s_prev_end is not None and int(s_prev_end) > 0 else None,
+                "isFeatured": bool(s_is_featured),
+                "lrclibId": str(s_lrclib_id) if s_lrclib_id else None,
+                "status": str(s_status) if s_status else None,
+                "jobId": str(s_job_id) if s_job_id else None,
+                "createdAt": str(s_created_at) if s_created_at else None,
                 "totalStreams": streams_val,
                 "searchCount": search_count_val,
             }
@@ -215,6 +248,14 @@ class AlgoliaService:
             s_prev_end = song.get("preview_end_time") or song.get("previewEndTime")
             s_streams = song.get("total_streams") or song.get("totalStreams") or 0
             s_search_count = song.get("search_count") if song.get("search_count") is not None else (song.get("searchCount") or 0)
+            s_song_key = song.get("song_key") or song.get("songKey")
+            s_video_key = song.get("video_key") or song.get("videoKey")
+            s_full_video_key = song.get("full_video_key") or song.get("fullVideoKey")
+            s_is_featured = song.get("is_featured") if song.get("is_featured") is not None else song.get("isFeatured", False)
+            s_lrclib_id = song.get("lrclib_id") or song.get("lrclibId")
+            s_status = song.get("status")
+            s_job_id = song.get("job_id") or song.get("jobId")
+            s_created_at = song.get("created_at") or song.get("createdAt")
         else:
             s_id = getattr(song, "id", None)
             s_title = getattr(song, "title", None)
@@ -231,6 +272,14 @@ class AlgoliaService:
             except Exception:
                 s_streams = 0
             s_search_count = getattr(song, "search_count", None) if getattr(song, "search_count", None) is not None else (getattr(song, "searchCount", None) or 0)
+            s_song_key = getattr(song, "song_key", None)
+            s_video_key = getattr(song, "video_key", None)
+            s_full_video_key = getattr(song, "full_video_key", None)
+            s_is_featured = getattr(song, "is_featured", False)
+            s_lrclib_id = getattr(song, "lrclib_id", None)
+            s_status = getattr(song, "status", None)
+            s_job_id = getattr(song, "job_id", None)
+            s_created_at = getattr(song, "created_at", None)
 
         if not s_id:
             return None
@@ -245,9 +294,17 @@ class AlgoliaService:
             "genre": str(s_genre).strip() if s_genre else None,
             "language": str(s_lang or ""),
             "imageKey": str(s_img or ""),
+            "songKey": str(s_song_key or ""),
+            "videoKey": str(s_video_key) if s_video_key else None,
+            "fullVideoKey": str(s_full_video_key) if s_full_video_key else None,
             "duration": int(s_dur or 0),
             "previewStartTime": int(s_prev_start) if s_prev_start is not None and int(s_prev_start) >= 0 else None,
             "previewEndTime": int(s_prev_end) if s_prev_end is not None and int(s_prev_end) > 0 else None,
+            "isFeatured": bool(s_is_featured),
+            "lrclibId": str(s_lrclib_id) if s_lrclib_id else None,
+            "status": str(s_status) if s_status else None,
+            "jobId": str(s_job_id) if s_job_id else None,
+            "createdAt": str(s_created_at) if s_created_at else None,
             "totalStreams": int(s_streams or 0),
             "searchCount": int(s_search_count or 0),
         }
