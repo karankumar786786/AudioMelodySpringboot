@@ -13,7 +13,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useDispatch } from "react-redux";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 import { AppDispatch } from "@/store";
 import { playAllFrom, playSong } from "@/store/queueActions";
@@ -45,11 +49,11 @@ export default function SearchScreen() {
   const [inputText, setInputText] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
-  // Debounce input by 300ms
+  // Debounce input by 200ms for snappy, fluid search
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(inputText.trim());
-    }, 300);
+    }, 200);
     return () => clearTimeout(timer);
   }, [inputText]);
 
@@ -63,16 +67,22 @@ export default function SearchScreen() {
     staleTime: 60 * 1000,
   });
 
-  // 2. Fetch Search Results (when debounced query is present)
+  // 2. Fetch Search Results (with keepPreviousData to preserve old results while typing)
   const {
     data: searchResults,
-    isLoading: isSearching,
+    isLoading: isInitialLoading,
+    isFetching,
   } = useQuery({
     queryKey: ["search", debouncedQuery],
     queryFn: () => searchService.search(debouncedQuery),
     enabled: debouncedQuery.length > 0,
+    placeholderData: keepPreviousData,
     staleTime: 2 * 60 * 1000,
   });
+
+  const isActivelySearching =
+    (debouncedQuery.length > 0 && isFetching) ||
+    (inputText.trim().length > 0 && inputText.trim() !== debouncedQuery);
 
   const songs = searchResults?.songs || [];
   const artists = searchResults?.artists || [];
@@ -89,9 +99,11 @@ export default function SearchScreen() {
   const topResult = useMemo(() => {
     if (!hasAnyResults) return null;
 
-    const lowerQuery = debouncedQuery.toLowerCase();
+    const queryToMatch = (debouncedQuery || inputText).toLowerCase().trim();
+    if (!queryToMatch) return null;
+
     const matchingArtist = artists.find((a) =>
-      a.name.toLowerCase().includes(lowerQuery)
+      a.name.toLowerCase().includes(queryToMatch)
     );
 
     if (matchingArtist) {
@@ -115,7 +127,7 @@ export default function SearchScreen() {
     }
 
     return null;
-  }, [songs, artists, playlists, userPlaylists, debouncedQuery, hasAnyResults]);
+  }, [songs, artists, playlists, userPlaylists, debouncedQuery, inputText, hasAnyResults]);
 
   // Handlers for item interactions
   const handleSelectSong = (song: Song) => {
@@ -242,6 +254,13 @@ export default function SearchScreen() {
             autoCapitalize="none"
             returnKeyType="search"
           />
+          {isActivelySearching ? (
+            <ActivityIndicator
+              size="small"
+              color="#ffffff"
+              style={styles.searchSpinner}
+            />
+          ) : null}
           {inputText.length > 0 ? (
             <TouchableOpacity
               onPress={() => {
@@ -258,7 +277,7 @@ export default function SearchScreen() {
       </View>
 
       {/* Main Content */}
-      {debouncedQuery.length === 0 ? (
+      {inputText.trim().length === 0 ? (
         // Empty Search: Recent Searches & Browse Categories
         <ScrollView
           style={styles.scrollContent}
@@ -301,18 +320,18 @@ export default function SearchScreen() {
             </View>
           </View>
         </ScrollView>
-      ) : isSearching && !searchResults ? (
-        // Loading State
+      ) : !hasAnyResults && (isInitialLoading || isActivelySearching) ? (
+        // Initial First Search Loading State (only shown when no results exist yet)
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#FFFFFF" />
+          <ActivityIndicator size="small" color="#1DB954" />
           <Text style={styles.loadingText}>Searching Melody...</Text>
         </View>
       ) : !hasAnyResults ? (
-        // Empty Results State
+        // Empty Results State (only shown once searching has finished with 0 hits)
         <View style={styles.centerContainer}>
           <Ionicons name="search-outline" size={54} color="#444444" />
           <Text style={styles.noResultsTitle}>
-            No results found for &quot;{debouncedQuery}&quot;
+            No results found for &quot;{debouncedQuery || inputText.trim()}&quot;
           </Text>
           <Text style={styles.noResultsSubtitle}>
             Please check the spelling or try searching for another song, artist,
@@ -320,7 +339,7 @@ export default function SearchScreen() {
           </Text>
         </View>
       ) : (
-        // Active Search Results
+        // Active Search Results (keeps old results visible while searching in background)
         <ScrollView
           style={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -491,9 +510,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "500",
   },
+  searchSpinner: {
+    marginRight: 6,
+  },
   clearButton: {
     padding: 4,
-    marginLeft: 6,
+    marginLeft: 2,
   },
   scrollContent: {
     flex: 1,
