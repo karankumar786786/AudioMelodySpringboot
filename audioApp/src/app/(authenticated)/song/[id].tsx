@@ -78,15 +78,22 @@ export default function SongDetailScreen() {
   // Effective song to display: prefer currentSong from player state, fallback to fetchedSong
   const activeSong = currentSong || fetchedSong;
 
-  // Synced lyrics hook
-  const hasLrclib = Boolean(activeSong?.lrclibId);
+  // Synced lyrics hook (only queried if lrclibId is present and valid)
+  const hasLrclib = useMemo(() => {
+    if (!activeSong?.lrclibId) return false;
+    const str = String(activeSong.lrclibId).trim();
+    return str !== "" && str !== "0" && str !== "null" && str !== "undefined";
+  }, [activeSong?.lrclibId]);
+
   const {
     currentLine,
     nextLine,
     transcriptions,
     plainLyrics,
-    isLoading: isLyricsLoading,
-  } = useLyrics(activeSong?.lrclibId, currentTime);
+    hasLyrics,
+  } = useLyrics(hasLrclib ? activeSong?.lrclibId : undefined, currentTime);
+
+  const canShowLyrics = Boolean(hasLrclib && hasLyrics);
 
   // Check favourites status from query cache
   const { data: favouritesData } = useQuery({
@@ -294,7 +301,8 @@ export default function SongDetailScreen() {
       >
         <ScrollView
           showsVerticalScrollIndicator={false}
-          bounces={true}
+          bounces={canShowLyrics}
+          scrollEnabled={canShowLyrics}
           contentContainerStyle={styles.scrollContent}
         >
           {/* Main Full-Screen Player: exactly 100% viewport height */}
@@ -571,8 +579,8 @@ export default function SongDetailScreen() {
         </View>
       </View>
 
-        {/* 7. Spotify-Style Lyrics Preview Card below the player */}
-        {hasLrclib ? (
+        {/* 7. Spotify-Style Lyrics Preview Card below the player (only if lrclib is present and lyrics exist) */}
+        {canShowLyrics ? (
           <View style={styles.lyricsSection}>
             <TouchableOpacity
               style={styles.lyricsCard}
@@ -623,7 +631,7 @@ export default function SongDetailScreen() {
                   </Text>
                 ) : (
                   <Text style={styles.lyricsLineSecondary}>
-                    {isLyricsLoading ? "Loading lyrics..." : "Tap to open lyrics"}
+                    Tap to open lyrics
                   </Text>
                 )}
               </View>
