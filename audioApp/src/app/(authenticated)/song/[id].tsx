@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef, forwardRef, useImperativeHandle } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   ActivityIndicator,
   Dimensions,
   GestureResponderEvent,
-  Share,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -16,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSelector, useDispatch } from "react-redux";
+import { useVideoPlayer, VideoView } from "expo-video";
 import { AppState } from "@/store/hook";
 import { homeService, favouriteService } from "@/service";
 import { audioPlayerService } from "@/service/audioPlayerService";
@@ -32,7 +32,127 @@ import { formatDuration, formatStreams } from "@/utils/formatUtils";
 import { getImageUrl } from "@/utils/imageUtils";
 import { S3_BASE_URL } from "@/utils/playerUtils";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+type ViewMode = "canvas" | "artwork" | "video";
+
+export interface InlineVideoRef {
+  seek: (seconds: number) => void;
+  getCurrentTime: () => number;
+  togglePlay: () => void;
+}
+
+interface InlineVideoSurfaceProps {
+  streamUrl: string;
+  initialTime: number;
+  isPlaying: boolean;
+  onTimeUpdate: (currentTime: number, duration: number) => void;
+  onPlayingChange: (isPlaying: boolean) => void;
+  onExpandFullscreen: () => void;
+}
+
+const InlineVideoSurface = forwardRef<InlineVideoRef, InlineVideoSurfaceProps>(
+  (
+    {
+      streamUrl,
+      initialTime,
+      isPlaying,
+      onTimeUpdate,
+      onPlayingChange,
+      onExpandFullscreen,
+    },
+    ref
+  ) => {
+    const onTimeUpdateRef = useRef(onTimeUpdate);
+    onTimeUpdateRef.current = onTimeUpdate;
+    const onPlayingChangeRef = useRef(onPlayingChange);
+    onPlayingChangeRef.current = onPlayingChange;
+
+    const player = useVideoPlayer(streamUrl, (p) => {
+      p.loop = false;
+      p.muted = false;
+      if (initialTime > 0) {
+        p.currentTime = initialTime;
+      }
+      if (isPlaying) {
+        p.play();
+      } else {
+        p.pause();
+      }
+    });
+
+    useImperativeHandle(ref, () => ({
+      seek: (seconds: number) => {
+        if (player) {
+          player.currentTime = seconds;
+        }
+      },
+      getCurrentTime: () => player?.currentTime || 0,
+      togglePlay: () => {
+        if (!player) return;
+        if (player.playing) {
+          player.pause();
+        } else {
+          player.play();
+        }
+      },
+    }));
+
+    useEffect(() => {
+      if (player) {
+        if (isPlaying) {
+          player.play();
+        } else {
+          player.pause();
+        }
+      }
+    }, [isPlaying, player]);
+
+    useEffect(() => {
+      if (!player) return;
+
+      const playingSub = player.addListener("playingChange", ({ isPlaying: isCurrentlyPlaying }) => {
+        onPlayingChangeRef.current?.(isCurrentlyPlaying);
+      });
+
+      const interval = setInterval(() => {
+        if (player) {
+          const t = player.currentTime || 0;
+          const d = player.duration || 0;
+          onTimeUpdateRef.current?.(t, d);
+        }
+      }, 500);
+
+      return () => {
+        playingSub.remove();
+        clearInterval(interval);
+      };
+    }, [player]);
+
+    return (
+      <View style={styles.inlineVideoWrapper}>
+        <VideoView
+          player={player}
+          style={styles.inlineVideoView}
+          contentFit="contain"
+          nativeControls={false}
+          allowsPictureInPicture
+        />
+        <TouchableOpacity
+          style={styles.expandPill}
+          hitSlop={12}
+          onPress={onExpandFullscreen}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="expand" size={14} color="#FFFFFF" style={{ marginRight: 5 }} />
+          <Text style={styles.expandPillText}>FULLSCREEN</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+);
+
+InlineVideoSurface.displayName = "InlineVideoSurface";
 
 export default function SongDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -42,12 +162,18 @@ export default function SongDetailScreen() {
 
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"canvas" | "cover">("canvas");
+  const [viewMode, setViewMode] = useState<ViewMode>("canvas");
   const [isLiked, setIsLiked] = useState(false);
+
+  // Video Mode State
+  const inlineVideoRef = useRef<InlineVideoRef>(null);
+  const [videoPlayhead, setVideoPlayhead] = useState(0);
+  const [videoInitialTime, setVideoInitialTime] = useState(0);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(true);
 
   // Redux Player & Queue State
   const currentSong = useSelector((state: AppState) => state.player.currentSong);
-  const isPlaying = useSelector((state: AppState) => state.player.isPlaying);
+  const isAudioPlaying = useSelector((state: AppState) => state.player.isPlaying);
   const isLoading = useSelector((state: AppState) => state.player.isLoading);
   const currentTime = useSelector((state: AppState) => state.player.currentTime);
   const duration = useSelector((state: AppState) => state.player.duration);
@@ -98,6 +224,31 @@ export default function SongDetailScreen() {
     }
   }, [fetchedSong?.id]);
 
+  const hasCanvas = Boolean(activeSong?.videoKey);
+  const hasFullVideo = Boolean(activeSong?.fullVideoKey);
+
+  // Available switcher modes based on metadata
+  const availableModes = useMemo(() => {
+    const modes: Array<{ key: ViewMode; label: string }> = [];
+    if (hasCanvas) {
+      modes.push({ key: "canvas", label: "Canvas" });
+    }
+    modes.push({ key: "artwork", label: "Artwork" });
+    if (hasFullVideo) {
+      modes.push({ key: "video", label: "Video" });
+    }
+    return modes;
+  }, [hasCanvas, hasFullVideo]);
+
+  // Fallback viewMode if current mode is unavailable
+  useEffect(() => {
+    if (viewMode === "video" && !hasFullVideo) {
+      setViewMode(hasCanvas ? "canvas" : "artwork");
+    } else if (viewMode === "canvas" && !hasCanvas) {
+      setViewMode("artwork");
+    }
+  }, [hasCanvas, hasFullVideo, viewMode]);
+
   if (isFetching && !activeSong) {
     return (
       <SafeAreaView style={styles.centerContainer}>
@@ -123,28 +274,47 @@ export default function SongDetailScreen() {
   }
 
   const effectiveDuration = duration > 0 ? duration : (activeSong.duration || 0);
+  const displayTime = viewMode === "video" ? videoPlayhead : currentTime;
+  const isPlaying = viewMode === "video" ? isVideoPlaying : isAudioPlaying;
+
   const progressPercent =
     effectiveDuration > 0
-      ? Math.min(100, Math.max(0, (currentTime / effectiveDuration) * 100))
+      ? Math.min(100, Math.max(0, (displayTime / effectiveDuration) * 100))
       : 0;
 
   const handleProgressBarPress = (e: GestureResponderEvent) => {
     const { locationX } = e.nativeEvent;
-    const barWidth = SCREEN_WIDTH - 56;
+    const barWidth = SCREEN_WIDTH - 52;
     const ratio = Math.max(0, Math.min(1, locationX / barWidth));
     const targetSeconds = ratio * effectiveDuration;
-    audioPlayerService.seek(targetSeconds);
+
+    if (viewMode === "video") {
+      setVideoPlayhead(targetSeconds);
+      inlineVideoRef.current?.seek(targetSeconds);
+    } else {
+      audioPlayerService.seek(targetSeconds);
+    }
   };
 
   const handleTogglePlay = () => {
-    audioPlayerService.togglePlay();
+    if (viewMode === "video") {
+      inlineVideoRef.current?.togglePlay();
+    } else {
+      audioPlayerService.togglePlay();
+    }
   };
 
   const handleNextTrack = () => {
+    if (viewMode === "video") {
+      audioPlayerService.resume();
+    }
     (dispatch as any)(nextTrack(true));
   };
 
   const handlePrevTrack = () => {
+    if (viewMode === "video") {
+      audioPlayerService.resume();
+    }
     (dispatch as any)(prevTrack());
   };
 
@@ -171,22 +341,35 @@ export default function SongDetailScreen() {
     }
   };
 
-  const handleShare = async () => {
-    try {
-      await Share.share({
-        title: activeSong.title,
-        message: `Listen to "${activeSong.title}" by ${activeSong.artistName} on OneMelody`,
-      });
-    } catch {
-      // dismissed
+  const handleModeChange = (mode: ViewMode) => {
+    if (mode === viewMode) return;
+
+    if (mode === "video") {
+      // Entering video mode: pause audio engine and transfer current timestamp
+      audioPlayerService.pause();
+      setVideoInitialTime(currentTime);
+      setVideoPlayhead(currentTime);
+      setIsVideoPlaying(true);
+    } else if (viewMode === "video") {
+      // Exiting video mode: sync audio engine with video playhead and resume audio
+      const finalVideoTime = inlineVideoRef.current?.getCurrentTime() ?? videoPlayhead;
+      audioPlayerService.seek(finalVideoTime);
+      audioPlayerService.resume();
     }
+
+    setViewMode(mode);
   };
 
   const handleVideoModalClose = (finalTimestamp: number) => {
     setIsVideoModalOpen(false);
     if (typeof finalTimestamp === "number" && finalTimestamp >= 0) {
-      audioPlayerService.seek(finalTimestamp);
-      audioPlayerService.resume();
+      if (viewMode === "video") {
+        inlineVideoRef.current?.seek(finalTimestamp);
+        setVideoPlayhead(finalTimestamp);
+      } else {
+        audioPlayerService.seek(finalTimestamp);
+        audioPlayerService.resume();
+      }
     }
   };
 
@@ -198,8 +381,7 @@ export default function SongDetailScreen() {
     quality: 90,
   });
 
-  const hasCanvasVideo = Boolean(activeSong.videoKey);
-  const showCanvasBackground = hasCanvasVideo && viewMode === "canvas";
+  const showCanvasBackground = viewMode === "canvas" && hasCanvas;
 
   return (
     <View style={styles.root}>
@@ -209,10 +391,10 @@ export default function SongDetailScreen() {
           <CanvasVideoPlayer
             videoKey={activeSong.videoKey}
             fallbackImageKey={activeSong.imageKey}
-            isPlaying={isPlaying}
+            isPlaying={isAudioPlaying}
             style={StyleSheet.absoluteFill}
           />
-          {/* Multi-layered cinematic gradient wash for pristine contrast */}
+          {/* Multi-layered cinematic gradient wash for contrast */}
           <LinearGradient
             colors={[
               "rgba(0, 0, 0, 0.72)",
@@ -227,7 +409,7 @@ export default function SongDetailScreen() {
         </View>
       ) : (
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          {/* Ambient blurred backdrop for artwork mode */}
+          {/* Ambient blurred backdrop for artwork and video modes */}
           <Image
             source={{ uri: posterUrl }}
             style={styles.ambientBlurImage}
@@ -288,53 +470,43 @@ export default function SongDetailScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* 3. Center Stage: Artwork / Media Experience */}
+        {/* 3. Center Stage: Canvas / Artwork / Video */}
         <View style={styles.centerStage}>
-          {/* Mode Switcher Pill (Only if song has canvas video available) */}
-          {hasCanvasVideo ? (
+          {/* Unified Mode Switcher Pill (Canvas, Artwork, Video) */}
+          {availableModes.length > 1 ? (
             <View style={styles.modeSwitcherContainer}>
               <View style={styles.modeSwitcherPill}>
-                <TouchableOpacity
-                  style={[
-                    styles.modeOptionBtn,
-                    viewMode === "canvas" && styles.modeOptionBtnActive,
-                  ]}
-                  onPress={() => setViewMode("canvas")}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    style={[
-                      styles.modeOptionText,
-                      viewMode === "canvas" && styles.modeOptionTextActive,
-                    ]}
-                  >
-                    Video
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.modeOptionBtn,
-                    viewMode === "cover" && styles.modeOptionBtnActive,
-                  ]}
-                  onPress={() => setViewMode("cover")}
-                  activeOpacity={0.8}
-                >
-                  <Text
-                    style={[
-                      styles.modeOptionText,
-                      viewMode === "cover" && styles.modeOptionTextActive,
-                    ]}
-                  >
-                    Artwork
-                  </Text>
-                </TouchableOpacity>
+                {availableModes.map((mode) => {
+                  const isActive = viewMode === mode.key;
+                  return (
+                    <TouchableOpacity
+                      key={mode.key}
+                      style={[
+                        styles.modeOptionBtn,
+                        isActive && styles.modeOptionBtnActive,
+                      ]}
+                      onPress={() => handleModeChange(mode.key)}
+                      activeOpacity={0.8}
+                    >
+                      <Text
+                        style={[
+                          styles.modeOptionText,
+                          isActive && styles.modeOptionTextActive,
+                        ]}
+                      >
+                        {mode.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
             </View>
           ) : null}
 
-          {/* Centered Artwork Display (Visible in cover mode or when no canvas video) */}
-          {!showCanvasBackground ? (
+          {/* Mode Stage Display */}
+          {viewMode === "canvas" ? (
+            <View style={styles.canvasSpacer} />
+          ) : viewMode === "artwork" ? (
             <View style={styles.artworkWrapper}>
               <Image
                 source={{ uri: posterUrl }}
@@ -343,28 +515,26 @@ export default function SongDetailScreen() {
                 transition={200}
               />
             </View>
+          ) : viewMode === "video" && activeSong.fullVideoKey ? (
+            <InlineVideoSurface
+              ref={inlineVideoRef}
+              streamUrl={`${S3_BASE_URL}/${activeSong.fullVideoKey}/master.m3u8`}
+              initialTime={videoInitialTime}
+              isPlaying={isVideoPlaying}
+              onTimeUpdate={(t) => setVideoPlayhead(t)}
+              onPlayingChange={(playing) => setIsVideoPlaying(playing)}
+              onExpandFullscreen={() => setIsVideoModalOpen(true)}
+            />
           ) : (
-            <View style={styles.canvasSpacer} />
-          )}
-
-          {/* Watch Full Video Action Pill */}
-          {activeSong.fullVideoKey ? (
-            <View style={styles.stageOverlayRow}>
-              <TouchableOpacity
-                style={styles.fullVideoPill}
-                activeOpacity={0.85}
-                onPress={() => setIsVideoModalOpen(true)}
-              >
-                <Ionicons
-                  name="play"
-                  size={14}
-                  color="#000000"
-                  style={{ marginRight: 6 }}
-                />
-                <Text style={styles.fullVideoText}>WATCH MUSIC VIDEO</Text>
-              </TouchableOpacity>
+            <View style={styles.artworkWrapper}>
+              <Image
+                source={{ uri: posterUrl }}
+                style={styles.artworkImage}
+                contentFit="cover"
+                transition={200}
+              />
             </View>
-          ) : null}
+          )}
         </View>
 
         {/* 4. Song Metadata & Like Action */}
@@ -452,7 +622,7 @@ export default function SongDetailScreen() {
           </TouchableOpacity>
 
           <View style={styles.timeRow}>
-            <Text style={styles.timeText}>{formatDuration(currentTime)}</Text>
+            <Text style={styles.timeText}>{formatDuration(displayTime)}</Text>
             <Text style={styles.timeText}>{formatDuration(effectiveDuration)}</Text>
           </View>
         </View>
@@ -533,7 +703,6 @@ export default function SongDetailScreen() {
           </TouchableOpacity>
         </View>
 
-
         {/* Up Next Queue Bottom Sheet */}
         <QueueModal
           visible={isQueueOpen}
@@ -545,7 +714,7 @@ export default function SongDetailScreen() {
           <FullVideoPlayerModal
             visible={isVideoModalOpen}
             videoStreamUrl={`${S3_BASE_URL}/${activeSong.fullVideoKey}/master.m3u8`}
-            initialTime={currentTime}
+            initialTime={displayTime}
             title={activeSong.title}
             artistName={activeSong.artistName}
             onClose={handleVideoModalClose}
@@ -569,7 +738,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#121212",
     justifyContent: "space-between",
-    paddingBottom: 16,
+    paddingBottom: 24,
   },
   containerTransparent: {
     backgroundColor: "transparent",
@@ -668,7 +837,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 28,
+    paddingHorizontal: 24,
     marginVertical: 4,
   },
   modeSwitcherContainer: {
@@ -678,27 +847,33 @@ const styles = StyleSheet.create({
   },
   modeSwitcherPill: {
     flexDirection: "row",
-    backgroundColor: "rgba(0, 0, 0, 0.65)",
-    borderRadius: 20,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    borderRadius: 22,
     padding: 3,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.18)",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
   },
   modeOptionBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    borderRadius: 16,
+    paddingHorizontal: 15,
+    paddingVertical: 5.5,
+    borderRadius: 18,
   },
   modeOptionBtnActive: {
     backgroundColor: "#FFFFFF",
   },
   modeOptionText: {
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: "700",
-    color: "rgba(255, 255, 255, 0.6)",
+    color: "rgba(255, 255, 255, 0.65)",
   },
   modeOptionTextActive: {
     color: "#000000",
+    fontWeight: "800",
   },
   artworkWrapper: {
     width: "100%",
@@ -719,33 +894,49 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  canvasSpacer: {
-    flex: 1,
-  },
-  stageOverlayRow: {
-    flexDirection: "row",
-    alignItems: "center",
+  inlineVideoWrapper: {
+    width: "100%",
+    maxWidth: 350,
+    aspectRatio: 16 / 9,
+    borderRadius: 20,
+    overflow: "hidden",
+    backgroundColor: "#000000",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.8,
+    shadowRadius: 24,
+    elevation: 16,
+    position: "relative",
     justifyContent: "center",
-    marginTop: 14,
+    alignItems: "center",
   },
-  fullVideoPill: {
+  inlineVideoView: {
+    width: "100%",
+    height: "100%",
+  },
+  expandPill: {
+    position: "absolute",
+    bottom: 10,
+    right: 10,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 18,
-    paddingVertical: 9,
-    borderRadius: 24,
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 4,
+    backgroundColor: "rgba(0, 0, 0, 0.72)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.25)",
   },
-  fullVideoText: {
-    color: "#000000",
-    fontSize: 11.5,
+  expandPillText: {
+    color: "#FFFFFF",
+    fontSize: 9.5,
     fontWeight: "800",
     letterSpacing: 0.8,
+  },
+  canvasSpacer: {
+    flex: 1,
   },
   metaSection: {
     flexDirection: "row",
@@ -899,15 +1090,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 14,
     elevation: 8,
-  },
-  bottomUtilityBar: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    alignItems: "center",
-    paddingHorizontal: 26,
-    paddingTop: 8,
-  },
-  utilityActionBtn: {
-    padding: 6,
   },
 });
