@@ -101,9 +101,11 @@ export function CanvasVideoPlayer({
 }: CanvasVideoPlayerProps) {
   const videoUrl = getVideoUrl(videoKey);
   const imageUrl = getImageUrl(fallbackImageKey, {
-    width: 600,
-    height: 340,
-    quality: 85,
+    width: 1280,
+    height: 720,
+    aspectRatio: "16-9",
+    focus: "auto",
+    crop: "at_least",
   });
 
   const [isVideoReady, setIsVideoReady] = useState(false);

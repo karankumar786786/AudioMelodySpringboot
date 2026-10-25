@@ -174,24 +174,27 @@ export default function UserPlaylistDetailScreen() {
   const heroImageKey = playlist?.coverImageKey || heroSong?.imageKey;
 
   const coverUrl = getImageUrl(playlist?.coverImageKey, {
-    width: 800,
-    height: 800,
-    quality: 90,
+    width: 600,
+    height: 600,
+    focus: "auto",
+    aspectRatio: "1-1",
   });
 
   const firstSongImg = heroSong
     ? getImageUrl(heroSong.imageKey, {
-        width: 800,
-        height: 800,
-        quality: 90,
+        width: 600,
+        height: 600,
+        focus: "auto",
+        aspectRatio: "1-1",
       })
     : undefined;
 
   const mosaicImages = songs.slice(0, 4).map((s) =>
     getImageUrl(s.imageKey, {
-      width: 400,
-      height: 400,
-      quality: 85,
+      width: 300,
+      height: 300,
+      focus: "auto",
+      aspectRatio: "1-1",
     })
   );
 

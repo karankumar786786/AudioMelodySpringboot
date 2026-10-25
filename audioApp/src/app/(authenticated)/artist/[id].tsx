@@ -165,9 +165,10 @@ export default function ArtistDetailScreen() {
   };
 
   const coverUrl = getImageUrl(artist?.coverImageKey, {
-    width: 800,
-    height: 800,
-    quality: 90,
+    width: 600,
+    height: 600,
+    focus: "auto",
+    aspectRatio: "1-1",
   });
 
   // Render Header

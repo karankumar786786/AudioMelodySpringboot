@@ -12,9 +12,10 @@ interface PlaylistCardProps {
 
 export function PlaylistCard({ playlist, onPress }: PlaylistCardProps) {
   const imageUrl = getImageUrl(playlist.coverImageKey, {
-    width: 280,
-    height: 280,
-    quality: 80,
+    width: 400,
+    height: 400,
+    focus: "auto",
+    aspectRatio: "1-1",
   });
 
   return (

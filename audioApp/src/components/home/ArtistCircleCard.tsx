@@ -12,9 +12,10 @@ interface ArtistCircleCardProps {
 
 export function ArtistCircleCard({ artist, onPress }: ArtistCircleCardProps) {
   const imageUrl = getImageUrl(artist.coverImageKey, {
-    width: 280,
-    height: 280,
-    quality: 85,
+    width: 300,
+    height: 300,
+    focus: "auto",
+    aspectRatio: "1-1",
   });
 
   const formatFollowers = (count?: number) => {

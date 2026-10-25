@@ -65,9 +65,10 @@ export function SearchTopResultCard({
   }
 
   const imageUrl = getImageUrl(imageKey, {
-    width: 200,
-    height: 200,
-    quality: 85,
+    width: 400,
+    height: 400,
+    focus: "auto",
+    aspectRatio: "1-1",
   });
 
   return (

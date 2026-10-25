@@ -14,9 +14,10 @@ interface SongRowItemProps {
 
 export function SongRowItem({ song, index, onPress }: SongRowItemProps) {
   const imageUrl = getImageUrl(song.imageKey, {
-    width: 100,
-    height: 100,
-    quality: 80,
+    width: 160,
+    height: 160,
+    focus: "auto",
+    aspectRatio: "1-1",
   });
 
   return (
