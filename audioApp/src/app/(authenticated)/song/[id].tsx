@@ -93,6 +93,11 @@ export default function SongDetailScreen() {
   const queue = useSelector((state: AppState) => state.queue.queue);
   const lastQueueIndex = useSelector((state: AppState) => state.queue.lastQueueIndex);
 
+  // Local seekbar scrub / tap tracking to eliminate UI flicker during seeks
+  const [progressBarWidth, setProgressBarWidth] = useState(0);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubTime, setScrubTime] = useState<number | null>(null);
+
   const upcomingCount = useMemo(() => {
     if (!queue || queue.length === 0) return 0;
     return Math.max(0, queue.length - (lastQueueIndex + 1));
@@ -339,17 +344,40 @@ export default function SongDetailScreen() {
   }
 
   const effectiveDuration = duration > 0 ? duration : (activeSong.duration || 0);
+  const displayTime = isScrubbing && scrubTime !== null ? scrubTime : currentTime;
   const progressPercent =
     effectiveDuration > 0
-      ? Math.min(100, Math.max(0, (currentTime / effectiveDuration) * 100))
+      ? Math.min(100, Math.max(0, (displayTime / effectiveDuration) * 100))
       : 0;
 
-  const handleProgressBarPress = (e: GestureResponderEvent) => {
+  const calculateSecondsFromEvent = (e: GestureResponderEvent) => {
+    const barWidth = progressBarWidth > 0 ? progressBarWidth : (SCREEN_WIDTH - SIDE * 2);
     const { locationX } = e.nativeEvent;
-    const barWidth = SCREEN_WIDTH - 52;
     const ratio = Math.max(0, Math.min(1, locationX / barWidth));
-    const targetSeconds = ratio * effectiveDuration;
+    return ratio * effectiveDuration;
+  };
+
+  const handleSeekStart = (e: GestureResponderEvent) => {
+    const targetSeconds = calculateSecondsFromEvent(e);
+    setIsScrubbing(true);
+    setScrubTime(targetSeconds);
+  };
+
+  const handleSeekMove = (e: GestureResponderEvent) => {
+    const targetSeconds = calculateSecondsFromEvent(e);
+    setScrubTime(targetSeconds);
+  };
+
+  const handleSeekEnd = (e: GestureResponderEvent) => {
+    const targetSeconds = calculateSecondsFromEvent(e);
+    setIsScrubbing(false);
+    setScrubTime(null);
     audioPlayerService.seek(targetSeconds);
+  };
+
+  const handleSeekCancel = () => {
+    setIsScrubbing(false);
+    setScrubTime(null);
   };
 
   const handleTogglePlay = () => {
@@ -466,7 +494,7 @@ export default function SongDetailScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           bounces={true}
-          scrollEnabled={true}
+          scrollEnabled={!isScrubbing}
           contentContainerStyle={styles.scrollContent}
         >
           {/* Main Full-Screen Player: exactly 100% viewport height */}
@@ -628,20 +656,39 @@ export default function SongDetailScreen() {
 
         {/* 5. Interactive Timeline / Scrubber */}
         <View style={styles.progressContainer}>
-          <TouchableOpacity
-            activeOpacity={1}
+          <View
             style={styles.progressBarTouchArea}
-            onPress={handleProgressBarPress}
+            onLayout={(e) => {
+              const w = e.nativeEvent.layout.width;
+              if (w > 0) setProgressBarWidth(w);
+            }}
+            onStartShouldSetResponder={() => true}
+            onMoveShouldSetResponder={() => true}
+            onResponderGrant={handleSeekStart}
+            onResponderMove={handleSeekMove}
+            onResponderRelease={handleSeekEnd}
+            onResponderTerminate={handleSeekCancel}
+            onResponderTerminationRequest={() => false}
+            hitSlop={{ top: 14, bottom: 14, left: 0, right: 0 }}
           >
-            <View style={styles.progressBarBackground}>
-              <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]}>
-                <View style={styles.progressThumb} />
+            <View style={styles.progressBarBackground} pointerEvents="none">
+              <View
+                style={[styles.progressBarFill, { width: `${progressPercent}%` }]}
+                pointerEvents="none"
+              >
+                <View
+                  style={[
+                    styles.progressThumb,
+                    isScrubbing && styles.progressThumbActive,
+                  ]}
+                  pointerEvents="none"
+                />
               </View>
             </View>
-          </TouchableOpacity>
+          </View>
 
           <View style={styles.timeRow}>
-            <Text style={styles.timeText}>{formatDuration(currentTime)}</Text>
+            <Text style={styles.timeText}>{formatDuration(displayTime)}</Text>
             <Text style={styles.timeText}>{formatDuration(effectiveDuration)}</Text>
           </View>
         </View>
@@ -1928,6 +1975,19 @@ export const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     backgroundColor: "#FFFFFF",
+  },
+  progressThumbActive: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    right: -8,
+    top: -6,
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 6,
+    elevation: 4,
   },
   timeRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 6 },
   timeText: {

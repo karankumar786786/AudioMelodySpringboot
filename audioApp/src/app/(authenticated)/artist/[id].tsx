@@ -28,6 +28,9 @@ import { getImageUrl } from "@/utils/imageUtils";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const HERO_HEIGHT = 480;
 
+// Shared with the home screen
+const SIDE = 18;
+
 export default function ArtistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -36,7 +39,6 @@ export default function ArtistDetailScreen() {
   const insets = useSafeAreaInsets();
   const [isFollowMutating, setIsFollowMutating] = useState(false);
 
-  // 1. Fetch Artist Details
   const {
     data: artist,
     isLoading: isArtistLoading,
@@ -48,18 +50,13 @@ export default function ArtistDetailScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // 2. Fetch Follow Status
-  const {
-    data: followStatus,
-    refetch: refetchFollowStatus,
-  } = useQuery({
+  const { data: followStatus, refetch: refetchFollowStatus } = useQuery({
     queryKey: ["artist-follow-status", id],
     queryFn: () => artistService.getFollowStatus(id!),
     enabled: Boolean(id),
     staleTime: 60 * 1000,
   });
 
-  // 3. Fetch Artist's Songs (Infinite Query)
   const {
     data: songsData,
     isLoading: isSongsLoading,
@@ -85,7 +82,6 @@ export default function ArtistDetailScreen() {
     staleTime: 3 * 60 * 1000,
   });
 
-  // Flatten songs
   const songs: Song[] = useMemo(() => {
     if (!songsData?.pages) return [];
     return songsData.pages.flatMap((page) => page.content || []);
@@ -105,7 +101,6 @@ export default function ArtistDetailScreen() {
     return `${count} ${count === 1 ? "follower" : "followers"}`;
   };
 
-  // Handlers
   const handleSongPress = (song: Song) => {
     dispatch(playWithSimilarSongs(song));
     router.push({
@@ -134,7 +129,6 @@ export default function ArtistDetailScreen() {
       ? followersCount + 1
       : Math.max(0, followersCount - 1);
 
-    // Optimistic update
     queryClient.setQueryData(["artist-follow-status", id], {
       artistId: id,
       artistName: artist?.name || "",
@@ -149,7 +143,6 @@ export default function ArtistDetailScreen() {
         await artistService.unfollowArtist(id);
       }
     } catch {
-      // Revert if API failed
       queryClient.setQueryData(["artist-follow-status", id], prevStatus);
     } finally {
       setIsFollowMutating(false);
@@ -167,6 +160,14 @@ export default function ArtistDetailScreen() {
     }
   };
 
+  const handleBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(authenticated)/(tabs)/home");
+    }
+  };
+
   const handleRefresh = () => {
     refetchArtist();
     refetchFollowStatus();
@@ -180,10 +181,8 @@ export default function ArtistDetailScreen() {
     aspectRatio: "1-1",
   });
 
-  // Render Header
   const renderHeader = () => (
     <View style={styles.headerContainer}>
-      {/* Hero Banner Image */}
       <View style={styles.heroImageWrapper}>
         {coverUrl ? (
           <Image
@@ -196,82 +195,73 @@ export default function ArtistDetailScreen() {
           />
         ) : (
           <View style={styles.fallbackHero}>
-            <Ionicons name="person" size={80} color="#444444" />
+            <Ionicons name="person" size={80} color="#5A5A5A" />
           </View>
         )}
-        {/* Multi-stop Linear Gradient scrim for smooth contrast blending into #121212 */}
+
+        {/* Bottom scrim fades the photo into pure black; it replaces the old text shadows */}
         <LinearGradient
-          colors={["transparent", "rgba(18, 18, 18, 0.4)", "#121212"]}
-          locations={[0, 0.65, 1]}
+          colors={["transparent", "rgba(0, 0, 0, 0.55)", "#000000"]}
+          locations={[0, 0.6, 1]}
           style={StyleSheet.absoluteFill}
         />
 
-        {/* Artist Title on Cover */}
         <View style={styles.heroTextContainer}>
           <View style={styles.verifiedRow}>
-            <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
-            <Text style={styles.verifiedText}>Verified Artist</Text>
-          </View>
-          <View style={styles.nameActionsRow}>
-            <Text style={styles.artistName} numberOfLines={2}>
-              {artist?.name || "Artist"}
-            </Text>
-
-            <View style={styles.heroActions}>
-              <TouchableOpacity
-                style={[
-                  styles.followButton,
-                  isFollowing && styles.followingButton,
-                ]}
-                onPress={handleToggleFollow}
-                activeOpacity={0.8}
-                disabled={isFollowMutating}
-              >
-                <Text
-                  style={[
-                    styles.followButtonText,
-                    isFollowing && styles.followingButtonText,
-                  ]}
-                >
-                  {isFollowing ? "Following" : "Follow"}
-                </Text>
-              </TouchableOpacity>
-
-              {songs.length > 0 ? (
-                <TouchableOpacity
-                  style={styles.playButton}
-                  onPress={handlePlayAll}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons
-                    name="play"
-                    size={22}
-                    color="#000000"
-                    style={{ marginLeft: 2 }}
-                  />
-                </TouchableOpacity>
-              ) : null}
-            </View>
+            <Ionicons name="checkmark-circle" size={15} color="#FFFFFF" />
+            <Text style={styles.verifiedText}>Verified artist</Text>
           </View>
 
-          <Text style={styles.followersText}>
-            {formatFollowers(followersCount)}
+          <Text style={styles.artistName} numberOfLines={2}>
+            {artist?.name || "Artist"}
           </Text>
+
+          <Text style={styles.followersText}>{formatFollowers(followersCount)}</Text>
+
+          <View style={styles.heroActions}>
+            {/* White = primary, dark pill = secondary, same as the filter pills */}
+            <TouchableOpacity
+              style={[styles.followButton, isFollowing && styles.followingButton]}
+              onPress={handleToggleFollow}
+              activeOpacity={0.8}
+              disabled={isFollowMutating}
+            >
+              <Text
+                style={[
+                  styles.followButtonText,
+                  isFollowing && styles.followingButtonText,
+                ]}
+              >
+                {isFollowing ? "Following" : "Follow"}
+              </Text>
+            </TouchableOpacity>
+
+            {songs.length > 0 ? (
+              <TouchableOpacity
+                style={styles.playButton}
+                onPress={handlePlayAll}
+                activeOpacity={0.85}
+              >
+                <Ionicons
+                  name="play"
+                  size={22}
+                  color="#000000"
+                  style={{ marginLeft: 2 }}
+                />
+              </TouchableOpacity>
+            ) : null}
+          </View>
         </View>
       </View>
 
-      {/* Section Header: Popular Songs */}
       <View style={styles.sectionHeadingRow}>
-        <Text style={styles.sectionHeading}>Popular Songs</Text>
+        <Text style={styles.sectionHeading}>Popular songs</Text>
       </View>
     </View>
   );
 
-  // Render Footer
   const renderFooter = () => (
     <View style={styles.footerContainer}>
-
-      {/* Pagination loader */}
       {isFetchingNextPage ? (
         <View style={styles.footerLoader}>
           <ActivityIndicator size="small" color="#FFFFFF" />
@@ -284,18 +274,14 @@ export default function ArtistDetailScreen() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#FFFFFF" />
-        <Text style={styles.loadingText}>Loading artist...</Text>
+        <Text style={styles.loadingText}>Loading artist…</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
 
       <FlatList
         contentInsetAdjustmentBehavior="never"
@@ -303,17 +289,14 @@ export default function ArtistDetailScreen() {
         keyExtractor={(item) => item.id}
         ListHeaderComponent={renderHeader}
         renderItem={({ item }) => (
-          <SongRowItem
-            song={item}
-            onPress={() => handleSongPress(item)}
-          />
+          <SongRowItem song={item} onPress={() => handleSongPress(item)} />
         )}
         ListFooterComponent={renderFooter}
         ListEmptyComponent={
           !isSongsLoading ? (
             <View style={styles.emptyContainer}>
-              <Ionicons name="musical-notes-outline" size={44} color="#555555" />
-              <Text style={styles.emptyText}>No songs available yet</Text>
+              <Ionicons name="musical-notes-outline" size={44} color="#5A5A5A" />
+              <Text style={styles.emptyText}>No songs yet</Text>
             </View>
           ) : (
             <View style={styles.songsLoadingContainer}>
@@ -333,26 +316,43 @@ export default function ArtistDetailScreen() {
             onRefresh={handleRefresh}
             tintColor="#FFFFFF"
             colors={["#FFFFFF"]}
+            progressBackgroundColor="#1A1A1A"
           />
         }
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
+
+      {/* Floating back / share (the styles and handler already existed, but nothing rendered them) */}
+      <View style={[styles.floatingNav, { top: insets.top + 8 }]} pointerEvents="box-none">
+        <TouchableOpacity
+          style={styles.floatingButton}
+          onPress={handleBack}
+          hitSlop={12}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="chevron-back" size={22} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.floatingButton}
+          onPress={handleShare}
+          hitSlop={12}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="share-outline" size={20} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#121212",
-    marginTop: 0,
-    paddingTop: 0,
-  },
+  container: { flex: 1, backgroundColor: "#000000" },
   floatingNav: {
     position: "absolute",
-    left: 16,
-    right: 16,
+    left: SIDE,
+    right: SIDE,
     zIndex: 20,
     flexDirection: "row",
     justifyContent: "space-between",
@@ -362,127 +362,82 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: "rgba(0, 0, 0, 0.55)",
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
+    borderColor: "rgba(255, 255, 255, 0.14)",
     justifyContent: "center",
     alignItems: "center",
   },
   loadingContainer: {
     flex: 1,
-    backgroundColor: "#121212",
+    backgroundColor: "#000000",
     justifyContent: "center",
     alignItems: "center",
   },
-  loadingText: {
-    color: "#888888",
-    fontSize: 14,
-    marginTop: 12,
-  },
-  listContent: {
-    paddingTop: 0,
-    paddingBottom: 40,
-  },
-  headerContainer: {
-    marginTop: 0,
-    paddingTop: 0,
-    marginBottom: 8,
-  },
+  loadingText: { color: "#8A8A8A", fontSize: 14, marginTop: 12 },
+  listContent: { paddingTop: 0, paddingBottom: 40 },
+  headerContainer: { marginBottom: 8 },
   heroImageWrapper: {
     width: SCREEN_WIDTH,
     height: HERO_HEIGHT,
     position: "relative",
-    backgroundColor: "#1A1A1A",
-    marginTop: 0,
-    paddingTop: 0,
+    backgroundColor: "#151515",
   },
-  heroImage: {
-    width: "100%",
-    height: "100%",
-  },
+  heroImage: { width: "100%", height: "100%" },
   fallbackHero: {
     width: "100%",
     height: "100%",
-    backgroundColor: "#1C1C1C",
+    backgroundColor: "#151515",
     justifyContent: "center",
     alignItems: "center",
-  },
-  heroOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
   },
 
   heroTextContainer: {
     position: "absolute",
     bottom: 18,
-    left: 18,
-    right: 18,
+    left: SIDE,
+    right: SIDE,
   },
   verifiedRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginBottom: 4,
+    marginBottom: 6,
   },
-  verifiedText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "600",
-    textShadowColor: "rgba(0,0,0,0.8)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
-  nameActionsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    marginBottom: 4,
-  },
+  verifiedText: { color: "#FFFFFF", fontSize: 12, fontWeight: "600" },
   artistName: {
-    flex: 1,
     color: "#FFFFFF",
-    fontSize: 28,
-    fontWeight: "bold",
-    letterSpacing: -0.5,
-    textShadowColor: "rgba(0, 0, 0, 0.9)",
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 5,
+    fontSize: 38,
+    fontWeight: "800",
+    letterSpacing: -1,
+    lineHeight: 42,
+  },
+  followersText: {
+    color: "rgba(255, 255, 255, 0.7)",
+    fontSize: 13,
+    fontWeight: "500",
+    marginTop: 6,
   },
   heroActions: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    flexShrink: 0,
-  },
-  followersText: {
-    color: "rgba(255, 255, 255, 0.85)",
-    fontSize: 13,
-    fontWeight: "500",
-    textShadowColor: "rgba(0, 0, 0, 0.8)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    marginTop: 16,
   },
   followButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1.5,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
     borderColor: "#FFFFFF",
     backgroundColor: "#FFFFFF",
   },
   followingButton: {
-    borderColor: "rgba(255, 255, 255, 0.5)",
-    backgroundColor: "transparent",
+    borderColor: "#262626",
+    backgroundColor: "#151515",
   },
-  followButtonText: {
-    color: "#000000",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  followingButtonText: {
-    color: "#FFFFFF",
-  },
+  followButtonText: { color: "#000000", fontSize: 13, fontWeight: "700" },
+  followingButtonText: { color: "#FFFFFF" },
   playButton: {
     width: 48,
     height: 48,
@@ -490,37 +445,23 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
+    marginLeft: "auto",
   },
+
   sectionHeadingRow: {
-    paddingHorizontal: 18,
+    paddingHorizontal: SIDE,
     paddingTop: 16,
     paddingBottom: 6,
   },
   sectionHeading: {
     color: "#FFFFFF",
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 21,
+    fontWeight: "800",
     letterSpacing: -0.3,
   },
-  footerContainer: {
-    paddingVertical: 16,
-    paddingHorizontal: 18,
-  },
-  footerLoader: {
-    paddingVertical: 16,
-    alignItems: "center",
-  },
-  emptyContainer: {
-    paddingVertical: 40,
-    alignItems: "center",
-  },
-  emptyText: {
-    color: "#777777",
-    fontSize: 14,
-    marginTop: 10,
-  },
-  songsLoadingContainer: {
-    paddingVertical: 32,
-    alignItems: "center",
-  },
+  footerContainer: { paddingVertical: 16, paddingHorizontal: SIDE },
+  footerLoader: { paddingVertical: 16, alignItems: "center" },
+  emptyContainer: { paddingVertical: 40, alignItems: "center" },
+  emptyText: { color: "#5A5A5A", fontSize: 14, marginTop: 10 },
+  songsLoadingContainer: { paddingVertical: 32, alignItems: "center" },
 });

@@ -24,6 +24,12 @@ class AudioPlayerService {
   private currentPlayingSong: PlayerSong | null = null;
   private onTrackEndCallback: (() => void) | null = null;
   private isAdvancingTrack = false;
+  private isSeeking = false;
+  private seekTargetTime: number | null = null;
+  private seekToResolved = false;
+  private seekResolvedTimestamp = 0;
+  private currentSeekId = 0;
+  private seekTimeout: any = null;
 
   public setOnTrackEnd(callback: (() => void) | null) {
     this.onTrackEndCallback = callback;
@@ -61,9 +67,30 @@ class AudioPlayerService {
 
     const dispatch = store.dispatch;
 
-    // Sync current time and duration
+    // Sync current time and duration with seek guard to prevent flicker / rubber-banding
     if (typeof status.currentTime === "number" && !isNaN(status.currentTime)) {
-      dispatch(setCurrentTime(status.currentTime));
+      if (this.isSeeking && this.seekTargetTime !== null) {
+        const diff = Math.abs(status.currentTime - this.seekTargetTime);
+        const elapsedSinceResolve = this.seekResolvedTimestamp > 0 ? Date.now() - this.seekResolvedTimestamp : 0;
+
+        // If native seekTo has resolved and either the reported position matches the target within 2.5s,
+        // or 400ms have elapsed since resolution (stale bridge events flushed),
+        // accept the position and release the seeking lock.
+        if (this.seekToResolved && (diff <= 2.5 || elapsedSinceResolve > 400)) {
+          this.isSeeking = false;
+          this.seekTargetTime = null;
+          this.seekToResolved = false;
+          if (this.seekTimeout) {
+            clearTimeout(this.seekTimeout);
+            this.seekTimeout = null;
+          }
+          dispatch(setCurrentTime(status.currentTime));
+        } else {
+          // Stale playback update from pre-seek position — IGNORE to prevent flicker!
+        }
+      } else {
+        dispatch(setCurrentTime(status.currentTime));
+      }
     }
     if (typeof status.duration === "number" && !isNaN(status.duration) && status.duration > 0) {
       dispatch(setDuration(status.duration));
@@ -72,9 +99,10 @@ class AudioPlayerService {
     dispatch(setIsPlaying(Boolean(status.playing)));
     dispatch(setIsLoading(Boolean(status.isBuffering)));
 
-    // Track finished event (strictly validate track reached end and not already advancing)
+    // Track finished event (strictly validate track reached end and not currently advancing or seeking)
     if (
       status.didJustFinish &&
+      !this.isSeeking &&
       typeof status.duration === "number" &&
       status.duration > 0 &&
       typeof status.currentTime === "number" &&
@@ -224,8 +252,47 @@ class AudioPlayerService {
   async seek(seconds: number): Promise<void> {
     if (!this.player) return;
     const safeTime = Math.max(0, seconds);
+    const seekId = ++this.currentSeekId;
+
+    this.isSeeking = true;
+    this.seekTargetTime = safeTime;
+    this.seekToResolved = false;
+    this.seekResolvedTimestamp = 0;
+
+    if (this.seekTimeout) {
+      clearTimeout(this.seekTimeout);
+    }
+    // Safety fallback: auto-unlock seeking after 1500ms in case native update never matches
+    this.seekTimeout = setTimeout(() => {
+      if (this.currentSeekId === seekId) {
+        this.isSeeking = false;
+        this.seekTargetTime = null;
+        this.seekToResolved = false;
+        this.seekTimeout = null;
+      }
+    }, 1500);
+
+    // Optimistically update store currentTime immediately so UI is completely responsive
     store.dispatch(setCurrentTime(safeTime));
-    await this.player.seekTo(safeTime);
+
+    try {
+      await this.player.seekTo(safeTime);
+      if (this.currentSeekId === seekId) {
+        this.seekToResolved = true;
+        this.seekResolvedTimestamp = Date.now();
+      }
+    } catch (err) {
+      console.warn(`[AudioPlayerService] seekTo(${safeTime}) error:`, err);
+      if (this.currentSeekId === seekId) {
+        this.isSeeking = false;
+        this.seekTargetTime = null;
+        this.seekToResolved = false;
+        if (this.seekTimeout) {
+          clearTimeout(this.seekTimeout);
+          this.seekTimeout = null;
+        }
+      }
+    }
   }
 
   setVolume(vol: number): void {

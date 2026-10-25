@@ -58,7 +58,10 @@ export function FullVideoPlayerModal({
   const [progressBarWidth, setProgressBarWidth] = useState(1);
   const [showControls, setShowControls] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubTime, setScrubTime] = useState<number | null>(null);
   const currentTimeRef = useRef(initialTime);
+  const seekTargetRef = useRef<number | null>(null);
 
   // Renditions that actually exist in this video's master playlist
   const { variants } = useHlsQualities(visible ? videoStreamUrl : undefined);
@@ -146,7 +149,16 @@ export function FullVideoPlayerModal({
       if (player) {
         const time = player.currentTime || 0;
         currentTimeRef.current = time;
-        setCurrentTime(time);
+        if (!isScrubbing) {
+          if (seekTargetRef.current !== null) {
+            if (Math.abs(time - seekTargetRef.current) <= 1.5) {
+              seekTargetRef.current = null;
+              setCurrentTime(time);
+            }
+          } else {
+            setCurrentTime(time);
+          }
+        }
         setDuration(player.duration || 0);
         setIsBuffering(player.status === "loading");
         setIsPlaying(player.playing);
@@ -178,18 +190,49 @@ export function FullVideoPlayerModal({
 
   const handleSeek = (offsetSec: number) => {
     if (!player) return;
-    const target = Math.max(0, Math.min(duration, currentTime + offsetSec));
+    const target = Math.max(0, Math.min(duration, (currentTimeRef.current || currentTime) + offsetSec));
+    seekTargetRef.current = target;
     player.currentTime = target;
+    currentTimeRef.current = target;
     setCurrentTime(target);
   };
 
-  const handleProgressBarPress = (e: GestureResponderEvent) => {
-    if (!player || progressBarWidth <= 0 || duration <= 0) return;
+  const calculateTargetFromEvent = (e: GestureResponderEvent) => {
+    if (progressBarWidth <= 0 || duration <= 0) return 0;
     const { locationX } = e.nativeEvent;
     const ratio = Math.max(0, Math.min(1, locationX / progressBarWidth));
-    const target = ratio * duration;
+    return ratio * duration;
+  };
+
+  const handleSeekStart = (e: GestureResponderEvent) => {
+    const target = calculateTargetFromEvent(e);
+    setIsScrubbing(true);
+    setScrubTime(target);
+  };
+
+  const handleSeekMove = (e: GestureResponderEvent) => {
+    const target = calculateTargetFromEvent(e);
+    setScrubTime(target);
+  };
+
+  const handleSeekEnd = (e: GestureResponderEvent) => {
+    if (!player || duration <= 0) {
+      setIsScrubbing(false);
+      setScrubTime(null);
+      return;
+    }
+    const target = calculateTargetFromEvent(e);
+    setIsScrubbing(false);
+    setScrubTime(null);
+    seekTargetRef.current = target;
     player.currentTime = target;
+    currentTimeRef.current = target;
     setCurrentTime(target);
+  };
+
+  const handleSeekCancel = () => {
+    setIsScrubbing(false);
+    setScrubTime(null);
   };
 
   const videoDismissGesture = usePanGesture({
@@ -300,22 +343,34 @@ export function FullVideoPlayerModal({
           {showControls ? (
             <View style={[styles.controlsSection, isLandscape && styles.controlsSectionLandscape]}>
               <View style={styles.progressRow}>
-                <Text style={styles.timeLabel}>{formatDuration(currentTime)}</Text>
-                <TouchableOpacity
-                  activeOpacity={1}
+                <Text style={styles.timeLabel}>{formatDuration(isScrubbing && scrubTime !== null ? scrubTime : currentTime)}</Text>
+                <View
                   style={styles.progressTouchArea}
-                  onPress={handleProgressBarPress}
                   onLayout={(e) => setProgressBarWidth(e.nativeEvent.layout.width)}
+                  onStartShouldSetResponder={() => true}
+                  onMoveShouldSetResponder={() => true}
+                  onResponderGrant={handleSeekStart}
+                  onResponderMove={handleSeekMove}
+                  onResponderRelease={handleSeekEnd}
+                  onResponderTerminate={handleSeekCancel}
+                  onResponderTerminationRequest={() => false}
                 >
-                  <View style={styles.progressTrack}>
+                  <View style={styles.progressTrack} pointerEvents="none">
                     <View
                       style={[
                         styles.progressFill,
-                        { width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` },
+                        {
+                          width: `${
+                            duration > 0
+                              ? ((isScrubbing && scrubTime !== null ? scrubTime : currentTime) / duration) * 100
+                              : 0
+                          }%`,
+                        },
                       ]}
+                      pointerEvents="none"
                     />
                   </View>
-                </TouchableOpacity>
+                </View>
                 <Text style={styles.timeLabel}>{formatDuration(duration)}</Text>
               </View>
 
