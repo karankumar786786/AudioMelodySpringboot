@@ -171,17 +171,39 @@ export function FullVideoPlayerModal({
     setCurrentTime(target);
   };
 
-  const swipeDownGesture = Gesture.Pan()
+  const videoDismissGesture = Gesture.Pan()
     .runOnJS(true)
-    .activeOffsetY([0, 15])
+    .activeOffsetX([-20, 20])
+    .activeOffsetY([0, 20])
     .onEnd((e) => {
-      // In landscape mode and down swiped: return to portrait artwork mode
-      if (isLandscape && e.translationY > 35 && Math.abs(e.translationY) > Math.abs(e.translationX) * 0.8) {
+      const { translationX, translationY, velocityX, velocityY } = e;
+
+      // 1. Left-to-Right Swipe: dismiss video and send to artwork mode (both portrait & landscape)
+      if (
+        (translationX > 40 || velocityX > 250) &&
+        Math.abs(translationX) > Math.abs(translationY) * 1.05
+      ) {
         handleClose();
         return;
       }
-      // Also in portrait mode: down swipe dismisses video back to artwork mode
-      if (!isLandscape && e.translationY > 60 && (e.velocityY > 200 || e.translationY > 100)) {
+
+      // 2. In landscape mode and down swiped: return to portrait artwork mode
+      if (
+        isLandscape &&
+        translationY > 35 &&
+        Math.abs(translationY) > Math.abs(translationX) * 0.8
+      ) {
+        handleClose();
+        return;
+      }
+
+      // 3. In portrait mode and down swiped: dismiss video back to artwork mode
+      if (
+        !isLandscape &&
+        translationY > 45 &&
+        (velocityY > 200 || translationY > 75) &&
+        Math.abs(translationY) > Math.abs(translationX) * 1.05
+      ) {
         handleClose();
         return;
       }
@@ -197,7 +219,7 @@ export function FullVideoPlayerModal({
       onRequestClose={handleClose}
       supportedOrientations={["portrait", "landscape-left", "landscape-right"]}
     >
-      <GestureDetector gesture={swipeDownGesture}>
+      <GestureDetector gesture={videoDismissGesture}>
         <View style={[styles.container, isLandscape && styles.containerLandscape]}>
           {/* Top Header */}
           {showControls ? (
