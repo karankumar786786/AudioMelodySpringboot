@@ -5,3 +5,4 @@ export * from "./homeService";
 export * from "./searchService";
 export * from "./favouriteService";
 export * from "./artistService";
+export * from "./playlistService";
