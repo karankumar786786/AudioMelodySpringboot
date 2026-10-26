@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import * as ScreenOrientation from "expo-screen-orientation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
@@ -296,6 +297,34 @@ export default function SongDetailScreen() {
     if (typeof finalTimestamp === "number" && finalTimestamp >= 0) {
       audioPlayerService.seek(finalTimestamp);
       audioPlayerService.resume();
+    }
+  };
+
+  const handleVideoTrackEnd = async () => {
+    // Look ahead to the next track in queue
+    const nextIndex = lastQueueIndex + 1;
+    let nextSong: any = undefined;
+
+    if (nextIndex < queue.length) {
+      nextSong = queue[nextIndex];
+    } else if (repeatMode === "all" && queue.length > 0) {
+      nextSong = queue[0];
+    }
+
+    const nextHasVideo = Boolean(nextSong?.fullVideoKey || nextSong?.videoStreamUrl);
+
+    if (nextSong && nextHasVideo) {
+      // Next track also has a full video: advance track while keeping video modal open
+      await (dispatch as any)(nextTrack(false));
+      // Ensure audio doesn't double-play since video player will play audio track
+      audioPlayerService.pause();
+    } else {
+      // Next track has no video (or queue reached end):
+      // Close video modal, lock back to portrait, return to artwork mode, and advance
+      setIsVideoModalOpen(false);
+      setViewMode("artwork");
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+      await (dispatch as any)(nextTrack(false));
     }
   };
 
@@ -1066,7 +1095,7 @@ export default function SongDetailScreen() {
         />
 
         {/* Full Video Modal: only mounted when explicitly opened by user */}
-        {isVideoModalOpen && activeSong.fullVideoKey ? (
+        {isVideoModalOpen && activeSong?.fullVideoKey ? (
           <FullVideoPlayerModal
             visible={isVideoModalOpen}
             videoStreamUrl={`${S3_BASE_URL}/${activeSong.fullVideoKey}/master.m3u8`}
@@ -1074,6 +1103,7 @@ export default function SongDetailScreen() {
             title={activeSong.title}
             artistName={activeSong.artistName}
             onClose={handleVideoModalClose}
+            onTrackEnd={handleVideoTrackEnd}
           />
         ) : null}
 

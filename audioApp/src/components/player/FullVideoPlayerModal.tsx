@@ -28,6 +28,7 @@ interface FullVideoPlayerModalProps {
   title: string;
   artistName: string;
   onClose: (finalTimestamp: number) => void;
+  onTrackEnd?: () => void;
 }
 
 const applyRate = (targetPlayer: any, rate: number) => {
@@ -47,6 +48,7 @@ export function FullVideoPlayerModal({
   title,
   artistName,
   onClose,
+  onTrackEnd,
 }: FullVideoPlayerModalProps) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const isLandscape = windowWidth > windowHeight;
@@ -62,12 +64,17 @@ export function FullVideoPlayerModal({
   const [scrubTime, setScrubTime] = useState<number | null>(null);
   const currentTimeRef = useRef(initialTime);
   const seekTargetRef = useRef<number | null>(null);
+  const prevUrlRef = useRef<string | undefined>(visible ? videoStreamUrl : undefined);
+  const isHandlingEndRef = useRef(false);
 
-  // Renditions that actually exist in this video's master playlist
-  const { variants } = useHlsQualities(visible ? videoStreamUrl : undefined);
+  // Redux Queue & Player State
+  const repeatMode = useSelector((state: AppState) => state.queue.repeatMode);
   const selectedQuality = useSelector(
     (state: AppState) => state.player.selectedQuality ?? "auto"
   );
+
+  // Renditions that actually exist in this video's master playlist
+  const { variants } = useHlsQualities(visible ? videoStreamUrl : undefined);
 
   const applyQualityConstraint = (quality: string | null | undefined) => {
     if (!player) return;
@@ -109,6 +116,29 @@ export function FullVideoPlayerModal({
     }
   });
 
+  const handleVideoEnd = () => {
+    if (isHandlingEndRef.current) return;
+
+    if (repeatMode === "one") {
+      if (player) {
+        player.currentTime = 0;
+        currentTimeRef.current = 0;
+        setCurrentTime(0);
+        seekTargetRef.current = null;
+        player.play();
+        setIsPlaying(true);
+      }
+      return;
+    }
+
+    if (onTrackEnd) {
+      isHandlingEndRef.current = true;
+      onTrackEnd();
+    } else {
+      setIsPlaying(false);
+    }
+  };
+
   useEffect(() => {
     if (!visible) {
       player?.pause();
@@ -122,13 +152,40 @@ export function FullVideoPlayerModal({
       player.muted = false;
       const savedRate = store.getState().player.playbackRate || 1;
       applyRate(player, savedRate);
-      if (initialTime > 0) {
+
+      const isNewUrl = prevUrlRef.current !== videoStreamUrl;
+      prevUrlRef.current = videoStreamUrl;
+      isHandlingEndRef.current = false;
+
+      if (isNewUrl) {
+        // Track transition: new song starts cleanly at 0:00
+        player.currentTime = 0;
+        currentTimeRef.current = 0;
+        setCurrentTime(0);
+        seekTargetRef.current = null;
+      } else if (initialTime > 0) {
+        // First mount opening video from existing audio timestamp
         player.currentTime = initialTime;
+        currentTimeRef.current = initialTime;
+        setCurrentTime(initialTime);
       }
       player.play();
       setIsPlaying(true);
     }
   }, [visible, videoStreamUrl]);
+
+  // Listen to native playToEnd event from expo-video
+  useEffect(() => {
+    if (!player) return;
+
+    const subscription = player.addListener("playToEnd", () => {
+      handleVideoEnd();
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  }, [player, repeatMode, onTrackEnd]);
 
   // Keep resolution constrained to selected quality without replacing master playlist,
   // which preserves the demuxed audio track and avoids synchronous replace warnings.
@@ -148,6 +205,7 @@ export function FullVideoPlayerModal({
     const interval = setInterval(() => {
       if (player) {
         const time = player.currentTime || 0;
+        const dur = player.duration || 0;
         currentTimeRef.current = time;
         if (!isScrubbing) {
           if (seekTargetRef.current !== null) {
@@ -159,14 +217,25 @@ export function FullVideoPlayerModal({
             setCurrentTime(time);
           }
         }
-        setDuration(player.duration || 0);
+        setDuration(dur);
         setIsBuffering(player.status === "loading");
         setIsPlaying(player.playing);
+
+        // Fallback EOF check if native playToEnd event is missed or not supported
+        if (
+          dur > 0 &&
+          time >= dur - 0.5 &&
+          !player.playing &&
+          !isScrubbing &&
+          !isHandlingEndRef.current
+        ) {
+          handleVideoEnd();
+        }
       }
     }, 500);
 
     return () => clearInterval(interval);
-  }, [player]);
+  }, [player, isScrubbing, repeatMode, onTrackEnd]);
 
   const handleClose = () => {
     const finalTime = currentTimeRef.current;
@@ -183,6 +252,13 @@ export function FullVideoPlayerModal({
       player.pause();
       setIsPlaying(false);
     } else {
+      const cur = currentTimeRef.current || currentTime;
+      if (duration > 0 && cur >= duration - 0.5) {
+        player.currentTime = 0;
+        currentTimeRef.current = 0;
+        setCurrentTime(0);
+        seekTargetRef.current = null;
+      }
       player.play();
       setIsPlaying(true);
     }
@@ -390,10 +466,20 @@ export function FullVideoPlayerModal({
                   activeOpacity={0.88}
                 >
                   <Ionicons
-                    name={isPlaying ? "pause" : "play"}
+                    name={
+                      isPlaying
+                        ? "pause"
+                        : duration > 0 && (currentTimeRef.current || currentTime) >= duration - 0.5
+                        ? "reload"
+                        : "play"
+                    }
                     size={32}
                     color="#000000"
-                    style={isPlaying ? undefined : { marginLeft: 3 }}
+                    style={
+                      isPlaying || (duration > 0 && (currentTimeRef.current || currentTime) >= duration - 0.5)
+                        ? undefined
+                        : { marginLeft: 3 }
+                    }
                   />
                 </TouchableOpacity>
 
