@@ -248,7 +248,10 @@ export class AudioPlayerService {
       return;
     }
 
-    // 4. Fallback: Cold start or cache miss (load in active player slot)
+    // 4. Fallback: Cold start or cache miss (load directly into active player slot)
+    // Clear stale standby slots immediately so network bandwidth is 100% focused on loading the clicked song
+    this.pool.clearStandbySlots();
+
     const activeSlot = this.pool.getActiveSlot();
     const player = activeSlot.player;
     if (!player) return;
@@ -276,7 +279,12 @@ export class AudioPlayerService {
 
       activeSlot.resolvedUri = uri;
       console.log(`[AudioPlayerService] Loading stream for "${song.title}" (${currentQuality}): ${uri}`);
-      await configureAudioPriority(true);
+      await configureAudioPriority(false);
+
+      // Ensure active player has 0 buffer constraint so playback begins immediately on first segment
+      if ("preferredForwardBufferDuration" in player) {
+        (player as any).preferredForwardBufferDuration = 0;
+      }
 
       player.volume = 1.0;
       if (typeof (player as any)?.replaceAsync === "function") {

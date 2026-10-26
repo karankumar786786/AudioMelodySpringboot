@@ -1,8 +1,4 @@
-import {
-  createAudioPlayer,
-  AudioPlayer,
-  AudioStatus,
-} from "expo-audio";
+import { createAudioPlayer, AudioPlayer, AudioStatus } from "expo-audio";
 import { PlayerSong, AudioQuality } from "@/types";
 import { configureAudioPriority } from "@/utils/audioConfig";
 
@@ -21,7 +17,10 @@ export interface PlayerSlot {
 /**
  * Resolves optimal stream URI according to user bitrate quality settings.
  */
-export function resolveStreamUrl(song: PlayerSong, quality: AudioQuality = "auto"): string {
+export function resolveStreamUrl(
+  song: PlayerSong,
+  quality: AudioQuality = "auto",
+): string {
   let uri = song.audioStreamUrl || song.videoStreamUrl || "";
   if (!uri) return "";
 
@@ -50,9 +49,13 @@ export function resolveStreamUrl(song: PlayerSong, quality: AudioQuality = "auto
 export class AudioPlayerPool {
   private slots: PlayerSlot[] = [];
   private isInitialized = false;
-  private onActiveStatusUpdate: ((status: AudioStatus, song: PlayerSong | null) => void) | null = null;
+  private onActiveStatusUpdate:
+    | ((status: AudioStatus, song: PlayerSong | null) => void)
+    | null = null;
 
-  public setStatusListener(listener: (status: AudioStatus, song: PlayerSong | null) => void) {
+  public setStatusListener(
+    listener: (status: AudioStatus, song: PlayerSong | null) => void,
+  ) {
     this.onActiveStatusUpdate = listener;
   }
 
@@ -63,10 +66,12 @@ export class AudioPlayerPool {
 
     const roles: SlotRole[] = ["active", "standby1", "standby2"];
     this.slots = roles.map((role, idx) => {
+      // All native players initialize with preferredForwardBufferDuration: 0 (system default).
+      // This ensures clicked songs from search/playlist start immediately without waiting for buffer limits.
       const player = createAudioPlayer(null, {
         keepAudioSessionActive: true,
         updateInterval: 250,
-        preferredForwardBufferDuration: 10,
+        preferredForwardBufferDuration: 0,
       });
 
       const slot: PlayerSlot = {
@@ -80,26 +85,31 @@ export class AudioPlayerPool {
       };
 
       // Attach listener that only dispatches to service if this slot is active
-      const sub = player.addListener("playbackStatusUpdate", (status: AudioStatus) => {
-        if (slot.role === "active") {
-          this.onActiveStatusUpdate?.(status, slot.song);
-        } else {
-          // Monitor standby readiness (first 10 seconds buffered)
-          if (status.isLoaded && !slot.isReady) {
-            slot.isReady = true;
-            console.log(
-              `[AudioPlayerPool] Standby slot (${slot.role}) pre-buffered 10s & ready: "${slot.song?.title}"`
-            );
+      const sub = player.addListener(
+        "playbackStatusUpdate",
+        (status: AudioStatus) => {
+          if (slot.role === "active") {
+            this.onActiveStatusUpdate?.(status, slot.song);
+          } else {
+            // Monitor standby readiness
+            if (status.isLoaded && !slot.isReady) {
+              slot.isReady = true;
+              console.log(
+                `[AudioPlayerPool] Standby slot (${slot.role}) pre-buffered & ready: "${slot.song?.title}"`,
+              );
+            }
           }
-        }
-      });
+        },
+      );
 
       slot.statusSubscription = sub;
       return slot;
     });
 
     this.isInitialized = true;
-    console.log("[AudioPlayerPool] Successfully initialized 3-player rotation pool");
+    console.log(
+      "[AudioPlayerPool] Successfully initialized 3-player rotation pool",
+    );
   }
 
   getActiveSlot(): PlayerSlot {
@@ -118,12 +128,31 @@ export class AudioPlayerPool {
   }
 
   /**
+   * Clears/pauses existing standby preloads when a new song is clicked directly from search/playlist.
+   * This immediately frees network bandwidth for the clicked song.
+   */
+  clearStandbySlots(): void {
+    for (const role of ["standby1", "standby2"] as const) {
+      const slot = this.getStandbySlot(role);
+      if (slot) {
+        slot.song = null;
+        slot.resolvedUri = null;
+        slot.isReady = false;
+        try {
+          slot.player.pause();
+          slot.player.volume = 0;
+        } catch {}
+      }
+    }
+  }
+
+  /**
    * Preloads a song into a designated standby slot.
    */
   async preloadSlot(
     role: "standby1" | "standby2",
     song: PlayerSong | null,
-    quality: AudioQuality = "auto"
+    quality: AudioQuality = "auto",
   ): Promise<void> {
     await this.init();
     const slot = this.getStandbySlot(role);
@@ -140,7 +169,11 @@ export class AudioPlayerPool {
     if (!targetUri) return;
 
     // If slot already has this exact song and URI buffered, preserve it
-    if (slot.song?.id === song.id && slot.resolvedUri === targetUri && slot.isReady) {
+    if (
+      slot.song?.id === song.id &&
+      slot.resolvedUri === targetUri &&
+      slot.isReady
+    ) {
       return;
     }
 
@@ -153,6 +186,11 @@ export class AudioPlayerPool {
       slot.player.volume = 0;
       slot.player.pause();
 
+      // On iOS, limit the forward buffer to 10s so standby does not download entire audio
+      if ("preferredForwardBufferDuration" in slot.player) {
+        (slot.player as any).preferredForwardBufferDuration = 10;
+      }
+
       if (typeof (slot.player as any)?.replaceAsync === "function") {
         await (slot.player as any).replaceAsync({ uri: targetUri });
       } else {
@@ -160,9 +198,14 @@ export class AudioPlayerPool {
       }
 
       slot.isReady = true;
-      console.log(`[AudioPlayerPool] Preloaded ${role} for "${song.title}" (${quality}): ${targetUri}`);
+      console.log(
+        `[AudioPlayerPool] Preloaded ${role} for "${song.title}" (${quality}): ${targetUri}`,
+      );
     } catch (err) {
-      console.warn(`[AudioPlayerPool] Failed to preload ${role} for "${song.title}":`, err);
+      console.warn(
+        `[AudioPlayerPool] Failed to preload ${role} for "${song.title}":`,
+        err,
+      );
       slot.isReady = false;
     }
   }
@@ -172,7 +215,7 @@ export class AudioPlayerPool {
    */
   async promoteStandby(
     targetRole: "standby1" | "standby2",
-    quality: AudioQuality = "auto"
+    quality: AudioQuality = "auto",
   ): Promise<PlayerSong | null> {
     await this.init();
 
@@ -185,7 +228,7 @@ export class AudioPlayerPool {
 
     const promotedSong = targetSlot.song;
     console.log(
-      `[AudioPlayerPool] Instant handover! Promoting ${targetRole} ("${promotedSong.title}") to active.`
+      `[AudioPlayerPool] Instant handover! Promoting ${targetRole} ("${promotedSong.title}") to active.`,
     );
 
     // 1. Rotate slot roles FIRST so targetSlot is immediately identified as "active"
@@ -216,7 +259,10 @@ export class AudioPlayerPool {
     currentActive.player.pause();
     currentActive.player.volume = 0;
 
-    // 3. Immediately activate target player with audio unmuted
+    // 3. Immediately activate target player with audio unmuted and remove buffer constraint
+    if ("preferredForwardBufferDuration" in targetSlot.player) {
+      (targetSlot.player as any).preferredForwardBufferDuration = 0;
+    }
     targetSlot.player.volume = 1.0;
     targetSlot.player.play();
 
@@ -235,7 +281,7 @@ export class AudioPlayerPool {
           showSeekBackward: true,
           seekForwardIntervalSeconds: 10,
           seekBackwardIntervalSeconds: 10,
-        }
+        },
       );
     } catch (err) {
       console.log("[AudioPlayerPool] Note on lock screen promotion:", err);
@@ -250,7 +296,7 @@ export class AudioPlayerPool {
   async syncPreloadQueue(
     queue: PlayerSong[],
     currentIndex: number,
-    quality: AudioQuality = "auto"
+    quality: AudioQuality = "auto",
   ): Promise<void> {
     if (!queue || queue.length === 0) return;
 
