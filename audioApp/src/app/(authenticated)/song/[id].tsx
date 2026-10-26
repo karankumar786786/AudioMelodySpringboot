@@ -145,15 +145,18 @@ export default function SongDetailScreen() {
     return 1;
   }, [songInfo?.artist?.imageWidth, songInfo?.artist?.imageHeight]);
 
-  const posterUrl = activeSong?.imageKey
-    ? getImageUrl(activeSong.imageKey, {
-        width: 720,
-        height: 720,
-        focus: "auto",
-        aspectRatio: "1-1",
-        quality: 90,
-      })
-    : undefined;
+  const posterUrl =
+    (activeSong as any)?.posterUrl ||
+    (activeSong as any)?.coverUrl ||
+    (activeSong?.imageKey
+      ? getImageUrl(activeSong.imageKey, {
+          width: 720,
+          height: 720,
+          focus: "auto",
+          aspectRatio: "1-1",
+          quality: 90,
+        })
+      : undefined);
 
   const fallbackKey = `${activeSong?.title || ""}-${activeSong?.artistName || ""}-${activeSong?.id || ""}`;
   const dominantTheme = useDominantColor(posterUrl, fallbackKey);
@@ -204,8 +207,23 @@ export default function SongDetailScreen() {
     }
   }, [currentSong, fetchedSong]);
 
-  const hasCanvas = Boolean(activeSong?.videoKey);
-  const hasFullVideo = Boolean(activeSong?.fullVideoKey);
+  const hasCanvas = Boolean(
+    activeSong?.videoKey &&
+    typeof activeSong.videoKey === "string" &&
+    activeSong.videoKey.trim().length > 0 &&
+    activeSong.videoKey !== "null" &&
+    activeSong.videoKey !== "undefined"
+  );
+  const hasFullVideo = Boolean(
+    activeSong?.fullVideoKey &&
+    typeof activeSong.fullVideoKey === "string" &&
+    activeSong.fullVideoKey.trim().length > 0 &&
+    activeSong.fullVideoKey !== "null" &&
+    activeSong.fullVideoKey !== "undefined"
+  );
+
+  // If track has no canvas, effective mode is ALWAYS "artwork" — never leave user stranded in canvas mode
+  const effectiveViewMode: ViewMode = hasCanvas ? viewMode : "artwork";
 
   // Available switcher modes based on media availability
   const availableModes = useMemo(() => {
@@ -220,12 +238,17 @@ export default function SongDetailScreen() {
     return modes;
   }, [hasCanvas, hasFullVideo]);
 
-  // Fallback viewMode if canvas is unavailable
+  // When activeSong changes (next track clicked or song ends):
+  // If the new track does not have canvas, immediately switch to artwork mode with full opacity!
   useEffect(() => {
-    if (viewMode === "canvas" && !hasCanvas) {
+    if (!hasCanvas) {
       setViewMode("artwork");
+      modeFadeAnim.setValue(1);
+    } else {
+      setViewMode("canvas");
+      modeFadeAnim.setValue(0);
     }
-  }, [hasCanvas, viewMode]);
+  }, [activeSong?.id, hasCanvas]);
 
   // Navigation & mode switching handlers
   const handleDismissPlayer = () => {
@@ -251,7 +274,7 @@ export default function SongDetailScreen() {
 
   const handleNextMode = () => {
     if (availableModes.length <= 1) return;
-    const currentIndex = availableModes.findIndex((m) => m.key === viewMode);
+    const currentIndex = availableModes.findIndex((m) => m.key === effectiveViewMode);
     if (currentIndex >= 0 && currentIndex < availableModes.length - 1) {
       const nextMode = availableModes[currentIndex + 1];
       handleSelectMode(nextMode.key);
@@ -260,7 +283,7 @@ export default function SongDetailScreen() {
 
   const handlePrevMode = () => {
     if (availableModes.length <= 1) return;
-    const currentIndex = availableModes.findIndex((m) => m.key === viewMode);
+    const currentIndex = availableModes.findIndex((m) => m.key === effectiveViewMode);
     if (currentIndex > 0) {
       const prevMode = availableModes[currentIndex - 1];
       handleSelectMode(prevMode.key);
@@ -293,8 +316,8 @@ export default function SongDetailScreen() {
           handleNextMode();
         } else if (translationX > 35 || velocityX > 250) {
           // Swiped Left-to-Right (user dragged right)
-          const currentIndex = availableModes.findIndex((m) => m.key === viewMode);
-          if (viewMode === "canvas" || currentIndex <= 0) {
+          const currentIndex = availableModes.findIndex((m) => m.key === effectiveViewMode);
+          if (effectiveViewMode === "canvas" || currentIndex <= 0) {
             // In canvas mode (or leftmost mode): back/home
             handleDismissPlayer();
           } else {
@@ -313,7 +336,7 @@ export default function SongDetailScreen() {
     onDeactivate: (e) => {
       if (e.translationY > 35) {
         handleDismissPlayer();
-      } else if (e.translationX > 40 && (viewMode === "canvas" || !hasCanvas)) {
+      } else if (e.translationX > 40 && (effectiveViewMode === "canvas" || !hasCanvas)) {
         handleDismissPlayer();
       }
     },
@@ -436,7 +459,7 @@ export default function SongDetailScreen() {
             videoUrl={(activeSong as any)?.canvasVideoUrl}
             videoKey={activeSong.videoKey}
             fallbackImageKey={activeSong.imageKey}
-            isPlaying={isPlaying && viewMode === "canvas" && !isVideoModalOpen}
+            isPlaying={isPlaying && effectiveViewMode === "canvas" && !isVideoModalOpen}
             style={StyleSheet.absoluteFill}
           />
           {/* Multi-layered cinematic gradient wash for contrast */}
@@ -555,7 +578,7 @@ export default function SongDetailScreen() {
                   <View style={styles.modeSwitcherContainer}>
                     <View style={styles.modeSwitcherPill}>
                       {availableModes.map((mode) => {
-                        const isActive = viewMode === mode.key;
+                        const isActive = effectiveViewMode === mode.key;
                         return (
                           <TouchableOpacity
                             key={mode.key}
@@ -615,7 +638,7 @@ export default function SongDetailScreen() {
                         ],
                       },
                     ]}
-                    pointerEvents={viewMode === "artwork" ? "auto" : "none"}
+                    pointerEvents={effectiveViewMode === "artwork" ? "auto" : "none"}
                   >
                     <Image
                       source={{ uri: posterUrl }}
