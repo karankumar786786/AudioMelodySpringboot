@@ -20,10 +20,14 @@ import { authService } from "@/service";
 import { AppDispatch, setTempToken } from "@/store";
 import { LoginResponse } from "@/types";
 
+// Shared with the home screen
+const SIDE = 18;
+
 export default function LoginScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const [email, setEmail] = useState<string>("");
+  const [isFocused, setIsFocused] = useState(false);
 
   const loginMutation = useMutation({
     mutationKey: ["login"],
@@ -59,38 +63,41 @@ export default function LoginScreen() {
         <ScrollView
           contentContainerStyle={styles.scrollContainer}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           {/* Header */}
           <View style={styles.header}>
-            <View style={styles.iconCircle}>
-              <Ionicons name="musical-notes" size={36} color="#FFFFFF" />
-            </View>
-            <Text style={styles.title}>Welcome Back</Text>
+            <Text style={styles.title}>Welcome back</Text>
             <Text style={styles.subtitle}>
-              Enter your email to receive a one-time passcode
+              Enter your email and we’ll send you a one-time passcode.
             </Text>
           </View>
 
           {/* Form */}
           <View style={styles.form}>
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email Address</Text>
-              <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Email address</Text>
+              <View
+                style={[styles.inputContainer, isFocused && styles.inputContainerFocused]}
+              >
                 <Ionicons
                   name="mail-outline"
                   size={20}
-                  color="#777777"
+                  color={isFocused ? "#FFFFFF" : "#5A5A5A"}
                   style={styles.inputIcon}
                 />
                 <TextInput
                   style={styles.input}
                   value={email}
                   onChangeText={setEmail}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
                   autoCorrect={false}
                   placeholder="name@example.com"
-                  placeholderTextColor="#666666"
+                  placeholderTextColor="#5A5A5A"
                   autoCapitalize="none"
                   keyboardType="email-address"
+                  selectionColor="#FFFFFF"
                 />
               </View>
             </View>
@@ -102,20 +109,21 @@ export default function LoginScreen() {
               ]}
               onPress={handleLogin}
               disabled={loginMutation.isPending}
+              activeOpacity={0.85}
             >
               {loginMutation.isPending ? (
                 <ActivityIndicator color="#000000" />
               ) : (
-                <Text style={styles.primaryButtonText}>Continue with Email</Text>
+                <Text style={styles.primaryButtonText}>Continue with email</Text>
               )}
             </TouchableOpacity>
           </View>
 
           {/* Footer */}
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => router.replace("/register")}>
-              <Text style={styles.linkText}>Sign Up</Text>
+            <Text style={styles.footerText}>Don’t have an account? </Text>
+            <TouchableOpacity onPress={() => router.replace("/register")} hitSlop={10}>
+              <Text style={styles.linkText}>Sign up</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -125,96 +133,74 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#121212",
-  },
-  keyboardView: {
-    flex: 1,
-  },
+  safeArea: { flex: 1, backgroundColor: "#000000" },
+  keyboardView: { flex: 1 },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: "center",
-    padding: 24,
+    paddingHorizontal: SIDE + 6,
+    paddingVertical: 24,
   },
-  header: {
-    alignItems: "center",
-    marginBottom: 32,
-  },
+  header: { alignItems: "center", marginBottom: 36 },
   iconCircle: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
+    marginBottom: 20,
   },
   title: {
-    fontSize: 26,
-    fontWeight: "bold",
+    fontSize: 32,
+    fontWeight: "800",
+    letterSpacing: -0.8,
     color: "#FFFFFF",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: "#888888",
+    color: "#8A8A8A",
     textAlign: "center",
     paddingHorizontal: 20,
     lineHeight: 20,
   },
-  form: {
-    marginBottom: 24,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
+  form: { marginBottom: 24 },
+  inputGroup: { marginBottom: 18 },
   inputLabel: {
     fontSize: 13,
-    fontWeight: "600",
-    color: "#B3B3B3",
+    fontWeight: "700",
+    color: "#FFFFFF",
     marginBottom: 8,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1E1E1E",
-    borderRadius: 12,
+    backgroundColor: "#151515",
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#2A2A2A",
+    borderColor: "#262626",
     paddingHorizontal: 14,
-    height: 52,
+    height: 54,
   },
-  inputIcon: {
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    color: "#FFFFFF",
-    fontSize: 15,
-  },
+  inputContainerFocused: { borderColor: "#FFFFFF" },
+  inputIcon: { marginRight: 10 },
+  input: { flex: 1, color: "#FFFFFF", fontSize: 15 },
+  // Solid white pill, no glow
   primaryButton: {
     backgroundColor: "#FFFFFF",
-    height: 52,
-    borderRadius: 12,
+    height: 54,
+    borderRadius: 999,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 8,
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.65,
-    shadowRadius: 10,
-    elevation: 6,
+    marginTop: 6,
   },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
+  buttonDisabled: { opacity: 0.6 },
   primaryButtonText: {
     color: "#000000",
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "800",
+    letterSpacing: -0.2,
   },
   footer: {
     flexDirection: "row",
@@ -222,13 +208,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 12,
   },
-  footerText: {
-    color: "#888888",
-    fontSize: 14,
-  },
-  linkText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "700",
-  },
+  footerText: { color: "#8A8A8A", fontSize: 14 },
+  linkText: { color: "#FFFFFF", fontSize: 14, fontWeight: "800" },
 });

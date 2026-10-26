@@ -20,10 +20,14 @@ import { authService } from "@/service";
 import { AppDispatch, AppState, saveAuthToken, setTempToken } from "@/store";
 import { ResendOtpResponse, VerifyOtpResponse } from "@/types";
 
+// Shared with the home screen
+const SIDE = 18;
+
 export default function VerifyOtpScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const [otp, setOtp] = useState<string>("");
+  const [isFocused, setIsFocused] = useState(true); // the input autofocuses
 
   const deviceId = useSelector((state: AppState) => state.device.deviceId);
   const tempToken = useSelector((state: AppState) => state.tempToken.tempToken);
@@ -92,37 +96,44 @@ export default function VerifyOtpScreen() {
         <ScrollView
           contentContainerStyle={styles.scrollContainer}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           {/* Header */}
           <View style={styles.header}>
+            {/* Inverted mark: white circle, black glyph */}
             <View style={styles.iconCircle}>
-              <Ionicons name="key-outline" size={36} color="#FFFFFF" />
+              <Ionicons name="key" size={30} color="#000000" />
             </View>
-            <Text style={styles.title}>Enter OTP Code</Text>
+            <Text style={styles.title}>Enter your code</Text>
             <Text style={styles.subtitle}>
-              We've sent a 6-digit verification code to your email
+              We’ve sent a 6-digit verification code to your email.
             </Text>
           </View>
 
           {/* Form */}
           <View style={styles.form}>
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Verification Code</Text>
-              <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Verification code</Text>
+              <View
+                style={[styles.inputContainer, isFocused && styles.inputContainerFocused]}
+              >
                 <Ionicons
                   name="shield-checkmark-outline"
                   size={20}
-                  color="#777777"
+                  color={isFocused ? "#FFFFFF" : "#5A5A5A"}
                   style={styles.inputIcon}
                 />
                 <TextInput
                   style={[styles.input, styles.otpInput]}
                   value={otp}
                   onChangeText={setOtp}
+                  onFocus={() => setIsFocused(true)}
+                  onBlur={() => setIsFocused(false)}
                   placeholder="••••••"
-                  placeholderTextColor="#666666"
+                  placeholderTextColor="#5A5A5A"
                   keyboardType="number-pad"
                   maxLength={6}
+                  selectionColor="#FFFFFF"
                   autoFocus
                 />
               </View>
@@ -135,33 +146,39 @@ export default function VerifyOtpScreen() {
               ]}
               onPress={handleVerifyOtp}
               disabled={verifyOtpMutation.isPending}
+              activeOpacity={0.85}
             >
               {verifyOtpMutation.isPending ? (
                 <ActivityIndicator color="#000000" />
               ) : (
-                <Text style={styles.primaryButtonText}>Verify & Sign In</Text>
+                <Text style={styles.primaryButtonText}>Verify & sign in</Text>
               )}
             </TouchableOpacity>
 
+            {/* Secondary pill: same anatomy as an unselected filter pill */}
             <TouchableOpacity
               style={styles.resendButton}
               onPress={handleResendOtp}
               disabled={resendOtpMutation.isPending}
+              activeOpacity={0.75}
             >
               {resendOtpMutation.isPending ? (
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text style={styles.resendText}>
-                  Didn't receive code? Resend OTP
-                </Text>
+                <Text style={styles.resendText}>Didn’t get a code? Resend</Text>
               )}
             </TouchableOpacity>
           </View>
 
           {/* Footer */}
           <View style={styles.footer}>
-            <TouchableOpacity onPress={() => router.replace("/login")}>
-              <Text style={styles.backLinkText}>← Back to Login</Text>
+            <TouchableOpacity
+              style={styles.backLink}
+              onPress={() => router.replace("/login")}
+              hitSlop={10}
+            >
+              <Ionicons name="chevron-back" size={16} color="#8A8A8A" />
+              <Text style={styles.backLinkText}>Back to login</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -171,121 +188,101 @@ export default function VerifyOtpScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#121212",
-  },
-  keyboardView: {
-    flex: 1,
-  },
+  safeArea: { flex: 1, backgroundColor: "#000000" },
+  keyboardView: { flex: 1 },
   scrollContainer: {
     flexGrow: 1,
     justifyContent: "center",
-    padding: 24,
+    paddingHorizontal: SIDE + 6,
+    paddingVertical: 24,
   },
-  header: {
-    alignItems: "center",
-    marginBottom: 32,
-  },
+  header: { alignItems: "center", marginBottom: 36 },
   iconCircle: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
+    marginBottom: 20,
   },
   title: {
-    fontSize: 26,
-    fontWeight: "bold",
+    fontSize: 32,
+    fontWeight: "800",
+    letterSpacing: -0.8,
     color: "#FFFFFF",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: "#888888",
+    color: "#8A8A8A",
     textAlign: "center",
     paddingHorizontal: 20,
     lineHeight: 20,
   },
-  form: {
-    marginBottom: 24,
-  },
-  inputGroup: {
-    marginBottom: 20,
-  },
+  form: { marginBottom: 24 },
+  inputGroup: { marginBottom: 18 },
   inputLabel: {
     fontSize: 13,
-    fontWeight: "600",
-    color: "#B3B3B3",
+    fontWeight: "700",
+    color: "#FFFFFF",
     marginBottom: 8,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1E1E1E",
-    borderRadius: 12,
+    backgroundColor: "#151515",
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#2A2A2A",
+    borderColor: "#262626",
     paddingHorizontal: 14,
-    height: 52,
+    height: 60,
   },
-  inputIcon: {
-    marginRight: 10,
-  },
-  input: {
-    flex: 1,
-    color: "#FFFFFF",
-    fontSize: 16,
-  },
+  inputContainerFocused: { borderColor: "#FFFFFF" },
+  inputIcon: { marginRight: 10 },
+  input: { flex: 1, color: "#FFFFFF", fontSize: 16 },
   otpInput: {
-    fontSize: 22,
-    fontWeight: "600",
+    fontSize: 24,
+    fontWeight: "800",
     letterSpacing: 8,
+    fontVariant: ["tabular-nums"],
   },
+  // Solid white pill, no glow
   primaryButton: {
     backgroundColor: "#FFFFFF",
-    height: 52,
-    borderRadius: 12,
+    height: 54,
+    borderRadius: 999,
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 8,
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.65,
-    shadowRadius: 10,
-    elevation: 6,
+    marginTop: 6,
   },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
+  buttonDisabled: { opacity: 0.6 },
   primaryButtonText: {
     color: "#000000",
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "800",
+    letterSpacing: -0.2,
   },
   resendButton: {
+    alignSelf: "center",
     alignItems: "center",
+    justifyContent: "center",
+    minWidth: 190,
+    height: 40,
     marginTop: 18,
-    paddingVertical: 8,
+    paddingHorizontal: 18,
+    borderRadius: 999,
+    backgroundColor: "#151515",
+    borderWidth: 1,
+    borderColor: "#262626",
   },
-  resendText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "600",
-  },
+  resendText: { color: "#FFFFFF", fontSize: 13, fontWeight: "600" },
   footer: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     marginTop: 12,
   },
-  backLinkText: {
-    color: "#888888",
-    fontSize: 14,
-    fontWeight: "500",
-  },
+  backLink: { flexDirection: "row", alignItems: "center", gap: 2 },
+  backLinkText: { color: "#8A8A8A", fontSize: 14, fontWeight: "500" },
 });
