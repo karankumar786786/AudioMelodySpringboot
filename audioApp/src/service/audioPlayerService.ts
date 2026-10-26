@@ -30,6 +30,9 @@ export class AudioPlayerService {
   private seekTimeout: any = null;
   private bufferedSeconds = 0;
   private lastPositionSaveTimestamp = 0;
+  // Tracks which song we've already triggered upcoming-preload for,
+  // so preloading starts only after the active song is really playing.
+  private preloadedForSongId: string | null = null;
 
   private get activePlayer(): AudioPlayer | null {
     return this.pool.getActiveSlot()?.player || null;
@@ -92,6 +95,18 @@ export class AudioPlayerService {
 
     dispatch(setIsPlaying(Boolean(status.playing)));
     dispatch(setIsLoading(Boolean(status.isBuffering)));
+
+    // One-time preload trigger: start buffering upcoming songs only AFTER the
+    // current song is actually playing, so it never competes for bandwidth.
+    if (
+      status.playing &&
+      !status.isBuffering &&
+      this.currentPlayingSong &&
+      this.preloadedForSongId !== this.currentPlayingSong.id
+    ) {
+      this.preloadedForSongId = this.currentPlayingSong.id;
+      this.syncUpcomingPreload();
+    }
 
     // Throttle position saving to local storage (every 5 seconds while playing)
     if (status.playing && typeof status.currentTime === "number" && status.currentTime > 0) {
@@ -202,6 +217,7 @@ export class AudioPlayerService {
       );
       this.isAdvancingTrack = false;
       this.currentPlayingSong = song;
+      this.preloadedForSongId = song.id; // preload is triggered right below
       this.bufferedSeconds = 10;
 
       store.dispatch(setCurrentSong(song));
@@ -216,7 +232,7 @@ export class AudioPlayerService {
       await this.pool.promoteStandby("standby1", currentQuality);
       PlayerStore.saveLastSong(song, 0);
 
-      // Re-prime pool for the newly upcoming songs
+      // Re-prime pool for the newly upcoming songs (song is already playing instantly)
       this.syncUpcomingPreload();
       return;
     }
@@ -229,6 +245,7 @@ export class AudioPlayerService {
       );
       this.isAdvancingTrack = false;
       this.currentPlayingSong = song;
+      this.preloadedForSongId = song.id; // preload is triggered right below
       this.bufferedSeconds = 10;
 
       store.dispatch(setCurrentSong(song));
@@ -248,10 +265,7 @@ export class AudioPlayerService {
       return;
     }
 
-    // 4. Fallback: Cold start or cache miss (load directly into active player slot)
-    // Clear stale standby slots immediately so network bandwidth is 100% focused on loading the clicked song
-    this.pool.clearStandbySlots();
-
+    // 4. Fallback: Cold start or cache miss (load in active player slot)
     const activeSlot = this.pool.getActiveSlot();
     const player = activeSlot.player;
     if (!player) return;
@@ -259,6 +273,8 @@ export class AudioPlayerService {
     try {
       this.isAdvancingTrack = false;
       this.currentPlayingSong = song;
+      // Preload of upcoming songs is deferred until this song is actually playing
+      this.preloadedForSongId = null;
       activeSlot.song = song;
       this.bufferedSeconds = startTime;
 
@@ -279,34 +295,29 @@ export class AudioPlayerService {
 
       activeSlot.resolvedUri = uri;
       console.log(`[AudioPlayerService] Loading stream for "${song.title}" (${currentQuality}): ${uri}`);
-      await configureAudioPriority(false);
 
-      // Ensure active player has 0 buffer constraint so playback begins immediately on first segment
-      if ("preferredForwardBufferDuration" in player) {
-        (player as any).preferredForwardBufferDuration = 0;
-      }
+      // Don't block loading on audio session configuration
+      configureAudioPriority(true).catch(() => {});
 
       player.volume = 1.0;
-      if (typeof (player as any)?.replaceAsync === "function") {
-        await (player as any).replaceAsync({ uri });
-      } else {
-        player.replace({ uri });
-      }
+      // Sync replace: starts loading immediately, doesn't wait for buffering
+      player.replace({ uri });
 
       if (startTime > 0) {
-        await player.seekTo(startTime);
+        player.seekTo(startTime).catch((e: unknown) => {
+          console.warn("[AudioPlayerService] initial seekTo error:", e);
+        });
       }
 
       const savedRate = store.getState().player.playbackRate;
       if (typeof savedRate === "number" && savedRate > 0) {
-        if (typeof (player as any).setPlaybackRate === "function") {
-          (player as any).setPlaybackRate(savedRate);
-        }
+        (player as any).setPlaybackRate?.(savedRate);
       }
 
+      // Starts as soon as enough data arrives; isLoading is cleared by the
+      // status listener when buffering ends.
       player.play();
       store.dispatch(setIsPlaying(true));
-      store.dispatch(setIsLoading(false));
 
       // Persist active song and initial playback position to local storage
       PlayerStore.saveLastSong(song, startTime);
@@ -332,8 +343,8 @@ export class AudioPlayerService {
         console.log("[AudioPlayerService] Lock screen metadata note:", lockErr);
       }
 
-      // Preload next 2 songs immediately
-      this.syncUpcomingPreload();
+      // NOTE: syncUpcomingPreload() is intentionally NOT called here.
+      // It is triggered from handlePlaybackStatusUpdate once playback has started.
     } catch (err) {
       console.error(`[AudioPlayerService] Error playing song "${song.title}":`, err);
       store.dispatch(setIsLoading(false));

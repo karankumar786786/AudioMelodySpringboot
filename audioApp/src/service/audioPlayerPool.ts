@@ -14,6 +14,29 @@ export interface PlayerSlot {
   statusSubscription: { remove: () => void } | null;
 }
 
+/** Forward buffer (seconds) for standby players. Active player uses system default (0). */
+const STANDBY_FORWARD_BUFFER = 10;
+
+/**
+ * Safely sets preferredForwardBufferDuration (0 = system default / no cap).
+ * Silently ignored if the installed expo-audio version doesn't support it.
+ */
+function setForwardBuffer(player: AudioPlayer, seconds: number) {
+  try {
+    (player as any).preferredForwardBufferDuration = seconds;
+  } catch {}
+}
+
+/**
+ * Applies the correct buffer policy for a slot based on its current role.
+ */
+function applyBufferPolicy(slot: PlayerSlot) {
+  setForwardBuffer(
+    slot.player,
+    slot.role === "active" ? 0 : STANDBY_FORWARD_BUFFER,
+  );
+}
+
 /**
  * Resolves optimal stream URI according to user bitrate quality settings.
  */
@@ -42,7 +65,7 @@ export function resolveStreamUrl(
 
 /**
  * Manages a persistent rotation pool of 3 native AudioPlayers:
- * - Active: Currently rendering audio and controlling lock screen
+ * - Active: Currently rendering audio and controlling lock screen (no buffer cap)
  * - Standby 1: Next track (N+1) preloaded, buffered, paused at t=0
  * - Standby 2: Next track (N+2) preloaded, buffered, paused at t=0
  */
@@ -66,12 +89,11 @@ export class AudioPlayerPool {
 
     const roles: SlotRole[] = ["active", "standby1", "standby2"];
     this.slots = roles.map((role, idx) => {
-      // All native players initialize with preferredForwardBufferDuration: 0 (system default).
-      // This ensures clicked songs from search/playlist start immediately without waiting for buffer limits.
+      // NOTE: no preferredForwardBufferDuration here. It is applied per-role below
+      // so the active player is never capped.
       const player = createAudioPlayer(null, {
         keepAudioSessionActive: true,
         updateInterval: 250,
-        preferredForwardBufferDuration: 0,
       });
 
       const slot: PlayerSlot = {
@@ -84,20 +106,15 @@ export class AudioPlayerPool {
         statusSubscription: null,
       };
 
-      // Attach listener that only dispatches to service if this slot is active
+      applyBufferPolicy(slot);
+
+      // Listener only forwards updates to the service if this slot is active.
+      // Standby readiness is tracked in preloadSlot() after replace completes.
       const sub = player.addListener(
         "playbackStatusUpdate",
         (status: AudioStatus) => {
           if (slot.role === "active") {
             this.onActiveStatusUpdate?.(status, slot.song);
-          } else {
-            // Monitor standby readiness
-            if (status.isLoaded && !slot.isReady) {
-              slot.isReady = true;
-              console.log(
-                `[AudioPlayerPool] Standby slot (${slot.role}) pre-buffered & ready: "${slot.song?.title}"`,
-              );
-            }
           }
         },
       );
@@ -125,25 +142,6 @@ export class AudioPlayerPool {
   findSlotBySongId(songId: string): PlayerSlot | null {
     if (!songId) return null;
     return this.slots.find((s) => s.song?.id === songId) || null;
-  }
-
-  /**
-   * Clears/pauses existing standby preloads when a new song is clicked directly from search/playlist.
-   * This immediately frees network bandwidth for the clicked song.
-   */
-  clearStandbySlots(): void {
-    for (const role of ["standby1", "standby2"] as const) {
-      const slot = this.getStandbySlot(role);
-      if (slot) {
-        slot.song = null;
-        slot.resolvedUri = null;
-        slot.isReady = false;
-        try {
-          slot.player.pause();
-          slot.player.volume = 0;
-        } catch {}
-      }
-    }
   }
 
   /**
@@ -182,14 +180,10 @@ export class AudioPlayerPool {
     slot.isReady = false;
 
     try {
-      // Ensure standby player is muted and paused
+      // Ensure standby player is muted, paused and buffer-limited
+      applyBufferPolicy(slot);
       slot.player.volume = 0;
       slot.player.pause();
-
-      // On iOS, limit the forward buffer to 10s so standby does not download entire audio
-      if ("preferredForwardBufferDuration" in slot.player) {
-        (slot.player as any).preferredForwardBufferDuration = 10;
-      }
 
       if (typeof (slot.player as any)?.replaceAsync === "function") {
         await (slot.player as any).replaceAsync({ uri: targetUri });
@@ -197,10 +191,13 @@ export class AudioPlayerPool {
         slot.player.replace({ uri: targetUri });
       }
 
-      slot.isReady = true;
-      console.log(
-        `[AudioPlayerPool] Preloaded ${role} for "${song.title}" (${quality}): ${targetUri}`,
-      );
+      // Guard: slot may have been re-targeted/promoted while we were awaiting
+      if (slot.song?.id === song.id && slot.role === role) {
+        slot.isReady = true;
+        console.log(
+          `[AudioPlayerPool] Preloaded ${role} for "${song.title}" (${quality}): ${targetUri}`,
+        );
+      }
     } catch (err) {
       console.warn(
         `[AudioPlayerPool] Failed to preload ${role} for "${song.title}":`,
@@ -248,6 +245,12 @@ export class AudioPlayerPool {
       currentActive.isReady = false;
     }
 
+    // 1b. Re-apply buffer policy for every slot after rotation
+    //     (new active = uncapped, demoted/standby = capped)
+    for (const slot of this.slots) {
+      applyBufferPolicy(slot);
+    }
+
     // 2. Deactivate old active player
     try {
       if (typeof currentActive.player.clearLockScreenControls === "function") {
@@ -259,10 +262,7 @@ export class AudioPlayerPool {
     currentActive.player.pause();
     currentActive.player.volume = 0;
 
-    // 3. Immediately activate target player with audio unmuted and remove buffer constraint
-    if ("preferredForwardBufferDuration" in targetSlot.player) {
-      (targetSlot.player as any).preferredForwardBufferDuration = 0;
-    }
+    // 3. Immediately activate target player with audio unmuted
     targetSlot.player.volume = 1.0;
     targetSlot.player.play();
 
