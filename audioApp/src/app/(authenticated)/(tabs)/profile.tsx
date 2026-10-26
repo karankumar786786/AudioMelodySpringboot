@@ -318,7 +318,8 @@ export default function ProfileScreen() {
         <Row label="Username" value={data.userName || "—"} />
         <Row label="Email" value={data.email} />
         <Row label="Member since" value={joined} />
-        <Row label="Role" value={data.role || "USER"} last />
+        <Row label="Role" value={data.role || "USER"} />
+        <Row label="Status" value={data.status || "ACTIVE"} last />
 
         {/* Devices */}
         <View style={styles.sectionHeaderRow}>
