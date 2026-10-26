@@ -1,12 +1,12 @@
 {
   "expo": {
     "name": "One Melody",
-    "slug": "audioApp",
-    "version": "1.0.0",
+    "slug": "one-melody",
+    "version": "2.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/image.png",
     "scheme": "audioapp",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "ios": {
       "bundleIdentifier": "com.karan.audioapp",
       "infoPlist": {
@@ -16,6 +16,10 @@
       }
     },
     "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/image.png",
+        "backgroundColor": "#000000"
+      },
       "predictiveBackGestureEnabled": false
     },
     "web": {
@@ -29,7 +33,8 @@
         {
           "backgroundColor": "#000000",
           "image": "./assets/images/image.png",
-          "imageWidth": 76
+          "imageWidth": 120,
+          "resizeMode": "contain"
         }
       ],
       [

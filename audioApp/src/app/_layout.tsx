@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, Image } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRouter, useSegments, type Href } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { Provider, useDispatch, useSelector } from "react-redux";
@@ -90,16 +91,24 @@ function RootNavigator() {
           flex: 1,
           justifyContent: "center",
           alignItems: "center",
-          backgroundColor: "#121212",
+          backgroundColor: "#000000",
         }}
       >
-        <ActivityIndicator size="large" color="#FFFFFF" />
+        <Image
+          source={require("../../assets/images/image.png")}
+          style={{ width: 120, height: 120, resizeMode: "contain" }}
+        />
+        <ActivityIndicator
+          size="small"
+          color="#FFFFFF"
+          style={{ marginTop: 24 }}
+        />
       </View>
     );
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#000000" } }}>
       <Stack.Screen name="register" />
       <Stack.Screen name="login" />
       <Stack.Screen name="verifyotp" />
@@ -108,14 +117,20 @@ function RootNavigator() {
   );
 }
 
-import { GestureHandlerRootView } from "react-native-gesture-handler";
+const appTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: "#000000",
+  },
+};
 
 export default function RootLayout() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#000000" }}>
       <Provider store={store}>
         <QueryClientProvider client={queryClient}>
-          <NavigationContainer theme={DarkTheme}>
+          <NavigationContainer theme={appTheme}>
             <RootNavigator />
           </NavigationContainer>
         </QueryClientProvider>
