@@ -22,7 +22,7 @@ import {
   setIsPlaying,
 } from "./playerSlice";
 import { PlayerStore } from "@/storage/PlayerStore";
-import { audioPlayerService } from "@/service/audioPlayerService";
+import { audioPlayerService, type AudioPlayerService } from "@/service/audioPlayerService";
 import { homeService } from "@/service/homeService";
 import { recombeeService } from "@/service/recombeeService";
 
@@ -180,6 +180,7 @@ export const playWithSimilarSongs =
       if (filteredSimilar.length > 0) {
         dispatch(addToQueue(filteredSimilar));
         PlayerStore.saveLastQueue([mapped, ...filteredSimilar], 0);
+        audioPlayerService.syncUpcomingPreload();
         console.log(
           `[Queue] Added ${filteredSimilar.length} similar songs from Recombee for "${song.title}"`
         );
@@ -247,13 +248,13 @@ export const nextTrack =
       PlayerStore.saveLastQueue(updatedState.queue, updatedState.lastQueueIndex);
       const nextSong = updatedState.queue[updatedState.lastQueueIndex];
       if (nextSong) {
-        await audioPlayerService.play(nextSong, 0, true);
+        await audioPlayerService.play(nextSong, 0, false);
       }
     } else if (repeatMode === "all") {
       dispatch(setQueue({ queue, index: 0 }));
       PlayerStore.saveLastQueue(queue, 0);
       if (queue[0]) {
-        await audioPlayerService.play(queue[0], 0, true);
+        await audioPlayerService.play(queue[0], 0, false);
       }
     } else {
       // Reached the end with repeat none; trigger refill and continue
@@ -264,7 +265,7 @@ export const nextTrack =
         PlayerStore.saveLastQueue(postRefillState.queue, postRefillState.lastQueueIndex);
         const songToPlay = postRefillState.queue[postRefillState.lastQueueIndex];
         if (songToPlay) {
-          await audioPlayerService.play(songToPlay, 0, true);
+          await audioPlayerService.play(songToPlay, 0, false);
         }
       } else {
         audioPlayerService.pause();
@@ -352,6 +353,7 @@ export const refillQueue =
 
         if (freshMapped.length > 0) {
           dispatch(addToQueue(freshMapped));
+          audioPlayerService.syncUpcomingPreload();
           console.log(
             `[Queue Refill] Successfully appended ${freshMapped.length} new Recombee tracks to queue.`
           );
@@ -397,6 +399,7 @@ export const loadLastPlaybackState =
               index: typeof saved.queueIndex === "number" ? saved.queueIndex : 0,
             })
           );
+          audioPlayerService.syncUpcomingPreload();
         } else {
           dispatch(setQueue({ queue: [saved.song], index: 0 }));
         }
