@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   useWindowDimensions,
   GestureResponderEvent,
   Platform,
+  AppState as RNAppState,
 } from "react-native";
 import { useVideoPlayer, VideoView } from "expo-video";
 import * as ScreenOrientation from "expo-screen-orientation";
@@ -27,6 +28,7 @@ interface FullVideoPlayerModalProps {
   initialTime?: number;
   title: string;
   artistName: string;
+  artworkUrl?: string;
   onClose: (finalTimestamp: number) => void;
   onTrackEnd?: () => void;
 }
@@ -47,6 +49,7 @@ export function FullVideoPlayerModal({
   initialTime = 0,
   title,
   artistName,
+  artworkUrl,
   onClose,
   onTrackEnd,
 }: FullVideoPlayerModalProps) {
@@ -101,9 +104,14 @@ export function FullVideoPlayerModal({
     };
   }, [visible]);
 
-  const player = useVideoPlayer(visible && videoStreamUrl ? videoStreamUrl : "", (p) => {
+  const videoSource = visible && videoStreamUrl ? videoStreamUrl : "";
+
+  const player = useVideoPlayer(videoSource, (p) => {
     p.loop = false;
     p.muted = false;
+    p.staysActiveInBackground = false;
+    p.showNowPlayingNotification = false;
+    p.audioMixingMode = "doNotMix";
     const savedRate = store.getState().player.playbackRate || 1;
     applyRate(p, savedRate);
     if (visible) {
@@ -150,6 +158,9 @@ export function FullVideoPlayerModal({
     if (player) {
       player.loop = false;
       player.muted = false;
+      player.staysActiveInBackground = false;
+      player.showNowPlayingNotification = false;
+      player.audioMixingMode = "doNotMix";
       const savedRate = store.getState().player.playbackRate || 1;
       applyRate(player, savedRate);
 
@@ -173,6 +184,20 @@ export function FullVideoPlayerModal({
       setIsPlaying(true);
     }
   }, [visible, videoStreamUrl]);
+
+  // Pause video immediately if phone is locked or app goes into background
+  useEffect(() => {
+    if (!player) return;
+    const sub = RNAppState.addEventListener("change", (nextState) => {
+      if (nextState !== "active") {
+        player.pause();
+        setIsPlaying(false);
+      }
+    });
+    return () => {
+      sub.remove();
+    };
+  }, [player]);
 
   // Listen to native playToEnd event from expo-video
   useEffect(() => {
@@ -406,7 +431,8 @@ export function FullVideoPlayerModal({
               ]}
               contentFit="contain"
               nativeControls={false}
-              allowsPictureInPicture
+              allowsPictureInPicture={false}
+              startsPictureInPictureAutomatically={false}
             />
 
             {isBuffering ? (

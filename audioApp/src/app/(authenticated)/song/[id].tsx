@@ -1102,6 +1102,7 @@ export default function SongDetailScreen() {
             initialTime={currentTime}
             title={activeSong.title}
             artistName={activeSong.artistName}
+            artworkUrl={posterUrl}
             onClose={handleVideoModalClose}
             onTrackEnd={handleVideoTrackEnd}
           />

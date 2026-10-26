@@ -4,9 +4,17 @@ import { Stack, useRouter, useSegments, type Href } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { Provider, useDispatch, useSelector } from "react-redux";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AppDispatch, AppState, loadAuthToken, loadDevice, loadUserProfile, store } from "@/store";
+import {
+  AppDispatch,
+  AppState,
+  loadAuthToken,
+  loadDevice,
+  loadUserProfile,
+  store,
+} from "@/store";
 import { AuthToken } from "@/types";
 import { configureAudioPriority } from "@/utils/audioConfig";
+import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 
 // Configure global exclusive audio priority as soon as the app starts
 configureAudioPriority().catch(() => {});
@@ -59,7 +67,7 @@ function RootNavigator() {
   useEffect(() => {
     if (!isReady) return;
 
-    const inAuthGroup = segments[0]  === "(authenticated)";
+    const inAuthGroup = segments[0] === "(authenticated)";
     const isAuthenticated = Boolean(authToken.accessToken);
 
     if (!isAuthenticated) {
@@ -77,7 +85,14 @@ function RootNavigator() {
 
   if (!isReady) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#121212" }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#121212",
+        }}
+      >
         <ActivityIndicator size="large" color="#FFFFFF" />
       </View>
     );
@@ -100,7 +115,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Provider store={store}>
         <QueryClientProvider client={queryClient}>
-          <RootNavigator />
+          <NavigationContainer theme={DarkTheme}>
+            <RootNavigator />
+          </NavigationContainer>
         </QueryClientProvider>
       </Provider>
     </GestureHandlerRootView>

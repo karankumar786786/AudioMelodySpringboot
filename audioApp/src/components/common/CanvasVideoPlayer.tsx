@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { View, StyleSheet, StyleProp, ViewStyle, ActivityIndicator } from "react-native";
+import { View, StyleSheet, StyleProp, ViewStyle, ActivityIndicator, AppState } from "react-native";
 import { useVideoPlayer, VideoView, setVideoCacheSizeAsync } from "expo-video";
 import { Image } from "expo-image";
 import { getImageUrl, getVideoUrl } from "@/utils/imageUtils";
@@ -55,7 +55,10 @@ function VideoSurface({
     p.loop = true;
     p.muted = true;
     p.volume = 0;
-    if (isPlaying) {
+    p.audioMixingMode = "mixWithOthers";
+    p.showNowPlayingNotification = false;
+    p.staysActiveInBackground = false;
+    if (isPlaying && AppState.currentState === "active") {
       p.play();
     } else {
       p.pause();
@@ -66,8 +69,11 @@ function VideoSurface({
     player.loop = true;
     player.muted = true;
     player.volume = 0;
+    player.audioMixingMode = "mixWithOthers";
+    player.showNowPlayingNotification = false;
+    player.staysActiveInBackground = false;
 
-    if (isPlaying) {
+    if (isPlaying && AppState.currentState === "active") {
       player.play();
     } else {
       player.pause();
@@ -94,8 +100,16 @@ function VideoSurface({
     });
 
     const playEndSub = player.addListener("playToEnd", () => {
-      if (isPlaying) {
+      if (isPlaying && AppState.currentState === "active") {
         player.replay();
+      }
+    });
+
+    const appStateSub = AppState.addEventListener("change", (nextState) => {
+      if (nextState !== "active") {
+        player.pause();
+      } else if (isPlaying) {
+        player.play();
       }
     });
 
@@ -103,6 +117,7 @@ function VideoSurface({
       statusSub.remove();
       playingSub.remove();
       playEndSub.remove();
+      appStateSub.remove();
     };
   }, [isPlaying, player]);
 

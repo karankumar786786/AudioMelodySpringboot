@@ -179,23 +179,12 @@ class AudioPlayerService {
       }
 
       console.log(`[AudioPlayerService] Loading stream for "${song.title}" (${currentQuality}): ${uri}`);
+      await configureAudioPriority(true);
+
       if (typeof (this.player as any)?.replaceAsync === "function") {
         await (this.player as any).replaceAsync({ uri });
       } else {
         this.player.replace({ uri });
-      }
-
-      // Update native lock screen & notification controls
-      try {
-        this.player.setActiveForLockScreen(true, {
-          title: song.title,
-          artist: song.artistName,
-          albumTitle: song.album || "Melody",
-          artworkUrl: song.coverUrl,
-        });
-      } catch (lockErr) {
-        // Lock screen permissions or web fallback
-        console.log("[AudioPlayerService] Lock screen metadata note:", lockErr);
       }
 
       if (startTime > 0) {
@@ -209,9 +198,31 @@ class AudioPlayerService {
         }
       }
 
+      // Start native playback first so the session and rate are actively 1.0
       this.player.play();
       store.dispatch(setIsPlaying(true));
       store.dispatch(setIsLoading(false));
+
+      // Update native lock screen & notification controls
+      try {
+        this.player.setActiveForLockScreen(
+          true,
+          {
+            title: song.title,
+            artist: song.artistName,
+            albumTitle: song.album || "Melody",
+            artworkUrl: song.coverUrl,
+          },
+          {
+            showSeekForward: true,
+            showSeekBackward: true,
+            seekForwardIntervalSeconds: 10,
+            seekBackwardIntervalSeconds: 10,
+          }
+        );
+      } catch (lockErr) {
+        console.log("[AudioPlayerService] Lock screen metadata note:", lockErr);
+      }
     } catch (err) {
       console.error(`[AudioPlayerService] Error playing song "${song.title}":`, err);
       store.dispatch(setIsLoading(false));
@@ -227,6 +238,7 @@ class AudioPlayerService {
 
   resume(): void {
     if (!this.player) return;
+    configureAudioPriority(true).catch(() => {});
     const curTime = this.player.currentTime || 0;
     const dur = this.player.duration || 0;
     if (dur > 0 && curTime >= dur - 0.5) {
