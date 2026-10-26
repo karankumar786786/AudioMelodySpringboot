@@ -23,11 +23,14 @@ export function MiniPlayer() {
   const isLoading = useSelector((state: AppState) => state.player.isLoading);
   const currentTime = useSelector((state: AppState) => state.player.currentTime);
   const duration = useSelector((state: AppState) => state.player.duration);
+  const bufferedTime = useSelector((state: AppState) => state.player.bufferedTime || 0);
 
   if (!currentSong) return null;
 
   const progressPercent =
     duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
+  const bufferPercent =
+    duration > 0 ? Math.min(100, Math.max(0, (bufferedTime / duration) * 100)) : 0;
 
   const handlePressCard = () => {
     router.push(`/song/${currentSong.id}`);
@@ -101,6 +104,7 @@ export function MiniPlayer() {
       </View>
 
       <View style={styles.progressBarBackground}>
+        <View style={[styles.progressBarBuffer, { width: `${bufferPercent}%` }]} />
         <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
       </View>
     </View>
@@ -175,6 +179,14 @@ const styles = StyleSheet.create({
     height: 2,
     backgroundColor: "#262626",
     width: "100%",
+    position: "relative",
+  },
+  progressBarBuffer: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.35)",
   },
   progressBarFill: {
     height: "100%",

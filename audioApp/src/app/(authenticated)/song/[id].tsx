@@ -89,6 +89,7 @@ export default function SongDetailScreen() {
   const isLoading = useSelector((state: AppState) => state.player.isLoading);
   const currentTime = useSelector((state: AppState) => state.player.currentTime);
   const duration = useSelector((state: AppState) => state.player.duration);
+  const bufferedTime = useSelector((state: AppState) => state.player.bufferedTime || 0);
   const repeatMode = useSelector((state: AppState) => state.queue.repeatMode);
   const isShuffle = useSelector((state: AppState) => state.queue.isShuffle);
   const queue = useSelector((state: AppState) => state.queue.queue);
@@ -400,6 +401,11 @@ export default function SongDetailScreen() {
   const progressPercent =
     effectiveDuration > 0
       ? Math.min(100, Math.max(0, (displayTime / effectiveDuration) * 100))
+      : 0;
+
+  const bufferPercent =
+    effectiveDuration > 0
+      ? Math.min(100, Math.max(0, (bufferedTime / effectiveDuration) * 100))
       : 0;
 
   const calculateSecondsFromEvent = (e: GestureResponderEvent) => {
@@ -724,6 +730,10 @@ export default function SongDetailScreen() {
             hitSlop={{ top: 14, bottom: 14, left: 0, right: 0 }}
           >
             <View style={styles.progressBarBackground} pointerEvents="none">
+              <View
+                style={[styles.progressBarBuffer, { width: `${bufferPercent}%` }]}
+                pointerEvents="none"
+              />
               <View
                 style={[styles.progressBarFill, { width: `${progressPercent}%` }]}
                 pointerEvents="none"
@@ -2014,6 +2024,14 @@ export const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     borderRadius: 2,
     position: "relative",
+  },
+  progressBarBuffer: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.45)",
+    borderRadius: 2,
   },
   progressBarFill: {
     height: "100%",

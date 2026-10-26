@@ -59,6 +59,7 @@ export function FullVideoPlayerModal({
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentTime, setCurrentTime] = useState(initialTime);
   const [duration, setDuration] = useState(0);
+  const [bufferedTime, setBufferedTime] = useState(0);
   const [isBuffering, setIsBuffering] = useState(true);
   const [progressBarWidth, setProgressBarWidth] = useState(1);
   const [showControls, setShowControls] = useState(true);
@@ -231,6 +232,10 @@ export function FullVideoPlayerModal({
       if (player) {
         const time = player.currentTime || 0;
         const dur = player.duration || 0;
+        const buf =
+          typeof player.bufferedPosition === "number" && player.bufferedPosition >= 0
+            ? player.bufferedPosition
+            : 0;
         currentTimeRef.current = time;
         if (!isScrubbing) {
           if (seekTargetRef.current !== null) {
@@ -243,6 +248,7 @@ export function FullVideoPlayerModal({
           }
         }
         setDuration(dur);
+        setBufferedTime(buf);
         setIsBuffering(player.status === "loading");
         setIsPlaying(player.playing);
 
@@ -460,6 +466,19 @@ export function FullVideoPlayerModal({
                   <View style={styles.progressTrack} pointerEvents="none">
                     <View
                       style={[
+                        styles.progressBuffer,
+                        {
+                          width: `${
+                            duration > 0
+                              ? Math.min(100, Math.max(0, (bufferedTime / duration) * 100))
+                              : 0
+                          }%`,
+                        },
+                      ]}
+                      pointerEvents="none"
+                    />
+                    <View
+                      style={[
                         styles.progressFill,
                         {
                           width: `${
@@ -628,7 +647,16 @@ const styles = StyleSheet.create({
     height: 4,
     backgroundColor: "#262626",
     borderRadius: 2,
+    position: "relative",
     overflow: "hidden",
+  },
+  progressBuffer: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255, 255, 255, 0.4)",
+    borderRadius: 2,
   },
   progressFill: { height: "100%", backgroundColor: "#FFFFFF" },
   buttonsRow: {

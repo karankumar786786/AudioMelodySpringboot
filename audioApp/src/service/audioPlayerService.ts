@@ -11,6 +11,7 @@ export { configureAudioPriority };
 import {
   setCurrentTime,
   setDuration,
+  setBufferedTime,
   setIsLoading,
   setIsPlaying,
   setCurrentSong,
@@ -30,6 +31,7 @@ class AudioPlayerService {
   private seekResolvedTimestamp = 0;
   private currentSeekId = 0;
   private seekTimeout: any = null;
+  private bufferedSeconds = 0;
 
   public setOnTrackEnd(callback: (() => void) | null) {
     this.onTrackEndCallback = callback;
@@ -99,6 +101,23 @@ class AudioPlayerService {
     dispatch(setIsPlaying(Boolean(status.playing)));
     dispatch(setIsLoading(Boolean(status.isBuffering)));
 
+    // Sync buffered time to Redux
+    const nativeBuffered = (status as any).bufferedPosition ?? (this.player as any)?.bufferedPosition;
+    const dur = typeof status.duration === "number" && status.duration > 0 ? status.duration : (this.currentPlayingSong?.duration || 0);
+    const curr = typeof status.currentTime === "number" && !isNaN(status.currentTime) ? status.currentTime : 0;
+
+    if (typeof nativeBuffered === "number" && nativeBuffered >= 0) {
+      this.bufferedSeconds = nativeBuffered;
+      dispatch(setBufferedTime(nativeBuffered));
+    } else if (dur > 0) {
+      const forwardWindow = status.isBuffering ? 8 : 25;
+      this.bufferedSeconds = Math.min(
+        dur,
+        Math.max(this.bufferedSeconds, curr + forwardWindow)
+      );
+      dispatch(setBufferedTime(this.bufferedSeconds));
+    }
+
     // Track finished event (strictly validate track reached end and not currently advancing or seeking)
     if (
       status.didJustFinish &&
@@ -153,7 +172,9 @@ class AudioPlayerService {
     try {
       this.isAdvancingTrack = false;
       this.currentPlayingSong = song;
+      this.bufferedSeconds = startTime;
       store.dispatch(setCurrentSong(song));
+      store.dispatch(setBufferedTime(startTime));
       store.dispatch(setIsLoading(true));
 
       const state = store.getState();
@@ -285,7 +306,9 @@ class AudioPlayerService {
     }, 1500);
 
     // Optimistically update store currentTime immediately so UI is completely responsive
+    this.bufferedSeconds = safeTime;
     store.dispatch(setCurrentTime(safeTime));
+    store.dispatch(setBufferedTime(safeTime));
 
     try {
       await this.player.seekTo(safeTime);
