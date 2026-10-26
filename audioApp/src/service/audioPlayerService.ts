@@ -18,6 +18,7 @@ import {
   setSleepTimer,
   setAudioQuality,
 } from "@/store/playerSlice";
+import { PlayerStore } from "@/storage/PlayerStore";
 
 class AudioPlayerService {
   private player: AudioPlayer | null = null;
@@ -32,6 +33,7 @@ class AudioPlayerService {
   private currentSeekId = 0;
   private seekTimeout: any = null;
   private bufferedSeconds = 0;
+  private lastPositionSaveTimestamp = 0;
 
   public setOnTrackEnd(callback: (() => void) | null) {
     this.onTrackEndCallback = callback;
@@ -100,6 +102,14 @@ class AudioPlayerService {
 
     dispatch(setIsPlaying(Boolean(status.playing)));
     dispatch(setIsLoading(Boolean(status.isBuffering)));
+
+    // Throttle position saving to local storage (every 5 seconds while playing)
+    if (status.playing && typeof status.currentTime === "number" && status.currentTime > 0) {
+      if (Date.now() - this.lastPositionSaveTimestamp > 5000) {
+        this.lastPositionSaveTimestamp = Date.now();
+        PlayerStore.savePlaybackPosition(status.currentTime);
+      }
+    }
 
     // Sync buffered time to Redux
     const nativeBuffered = (status as any).bufferedPosition ?? (this.player as any)?.bufferedPosition;
@@ -224,6 +234,9 @@ class AudioPlayerService {
       store.dispatch(setIsPlaying(true));
       store.dispatch(setIsLoading(false));
 
+      // Persist active song and initial playback position to local storage
+      PlayerStore.saveLastSong(song, startTime);
+
       // Update native lock screen & notification controls
       try {
         this.player.setActiveForLockScreen(
@@ -255,9 +268,23 @@ class AudioPlayerService {
     if (!this.player) return;
     this.player.pause();
     store.dispatch(setIsPlaying(false));
+    if (typeof this.player.currentTime === "number" && this.player.currentTime >= 0) {
+      PlayerStore.savePlaybackPosition(this.player.currentTime);
+    }
   }
 
   resume(): void {
+    // If resuming from cold-start with a restored song, trigger native playback
+    if (!this.currentPlayingSong) {
+      const state = store.getState();
+      const restoredSong = state.player.currentSong;
+      if (restoredSong) {
+        const savedTime = state.player.currentTime || 0;
+        this.play(restoredSong, savedTime);
+        return;
+      }
+    }
+
     if (!this.player) return;
     configureAudioPriority(true).catch(() => {});
     const curTime = this.player.currentTime || 0;
@@ -274,6 +301,17 @@ class AudioPlayerService {
   }
 
   togglePlay(): void {
+    // If cold-start restored song exists but hasn't begun native playback yet
+    if (!this.currentPlayingSong) {
+      const state = store.getState();
+      const restoredSong = state.player.currentSong;
+      if (restoredSong) {
+        const savedTime = state.player.currentTime || 0;
+        this.play(restoredSong, savedTime);
+        return;
+      }
+    }
+
     if (!this.player) return;
     if (this.player.playing) {
       this.pause();
@@ -309,6 +347,7 @@ class AudioPlayerService {
     this.bufferedSeconds = safeTime;
     store.dispatch(setCurrentTime(safeTime));
     store.dispatch(setBufferedTime(safeTime));
+    PlayerStore.savePlaybackPosition(safeTime);
 
     try {
       await this.player.seekTo(safeTime);

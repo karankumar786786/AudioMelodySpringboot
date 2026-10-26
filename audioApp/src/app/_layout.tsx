@@ -11,6 +11,7 @@ import {
   loadAuthToken,
   loadDevice,
   loadUserProfile,
+  loadLastPlaybackState,
   store,
 } from "@/store";
 import { AuthToken } from "@/types";
@@ -41,6 +42,7 @@ function RootNavigator() {
           dispatch(loadAuthToken()).unwrap(),
           dispatch(loadDevice()).unwrap(),
           configureAudioPriority(),
+          (dispatch as any)(loadLastPlaybackState()),
         ]);
       } catch (error) {
         console.error("Initialization error:", error);

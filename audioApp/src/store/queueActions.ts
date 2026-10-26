@@ -15,6 +15,13 @@ import {
   startRadioSession,
   endRadioSession,
 } from "./queueSlice";
+import {
+  setCurrentSong,
+  setCurrentTime,
+  setDuration,
+  setIsPlaying,
+} from "./playerSlice";
+import { PlayerStore } from "@/storage/PlayerStore";
 import { audioPlayerService } from "@/service/audioPlayerService";
 import { homeService } from "@/service/homeService";
 import { recombeeService } from "@/service/recombeeService";
@@ -56,6 +63,7 @@ export const playAll =
 
     dispatch(endRadioSession());
     dispatch(setQueue({ queue: queueToPlay, index: 0 }));
+    PlayerStore.saveLastQueue(queueToPlay, 0);
 
     if (startPlaying && queueToPlay[0]) {
       await audioPlayerService.play(queueToPlay[0]);
@@ -111,6 +119,7 @@ export const playAllFrom =
     }
 
     dispatch(setQueue({ queue: queueToPlay, index: playIndex }));
+    PlayerStore.saveLastQueue(queueToPlay, playIndex);
 
     if (startPlaying && queueToPlay[playIndex]) {
       await audioPlayerService.play(queueToPlay[playIndex]);
@@ -144,6 +153,7 @@ export const playWithSimilarSongs =
 
     // 1. Immediately initialize queue with ONLY the clicked song at index 0
     dispatch(setQueue({ queue: [mapped], index: 0 }));
+    PlayerStore.saveLastQueue([mapped], 0);
     dispatch(
       startRadioSession({ seedSongId: song.id, seedTitle: song.title })
     );
@@ -169,6 +179,7 @@ export const playWithSimilarSongs =
 
       if (filteredSimilar.length > 0) {
         dispatch(addToQueue(filteredSimilar));
+        PlayerStore.saveLastQueue([mapped, ...filteredSimilar], 0);
         console.log(
           `[Queue] Added ${filteredSimilar.length} similar songs from Recombee for "${song.title}"`
         );
@@ -233,12 +244,14 @@ export const nextTrack =
     if (nextIndex < queue.length) {
       dispatch(advanceToNextTrack());
       const updatedState = getState().queue;
+      PlayerStore.saveLastQueue(updatedState.queue, updatedState.lastQueueIndex);
       const nextSong = updatedState.queue[updatedState.lastQueueIndex];
       if (nextSong) {
         await audioPlayerService.play(nextSong, 0, true);
       }
     } else if (repeatMode === "all") {
       dispatch(setQueue({ queue, index: 0 }));
+      PlayerStore.saveLastQueue(queue, 0);
       if (queue[0]) {
         await audioPlayerService.play(queue[0], 0, true);
       }
@@ -248,6 +261,7 @@ export const nextTrack =
       const postRefillState = getState().queue;
       if (postRefillState.lastQueueIndex + 1 < postRefillState.queue.length) {
         dispatch(advanceToNextTrack());
+        PlayerStore.saveLastQueue(postRefillState.queue, postRefillState.lastQueueIndex);
         const songToPlay = postRefillState.queue[postRefillState.lastQueueIndex];
         if (songToPlay) {
           await audioPlayerService.play(songToPlay, 0, true);
@@ -274,6 +288,7 @@ export const prevTrack =
     const { lastQueueIndex, queue } = getState().queue;
     if (lastQueueIndex > 0) {
       dispatch(retreatToPrevTrack());
+      PlayerStore.saveLastQueue(queue, lastQueueIndex - 1);
       const prevSong = queue[lastQueueIndex - 1];
       if (prevSong) {
         await audioPlayerService.play(prevSong, 0, true);
@@ -356,3 +371,40 @@ export const refillQueue =
 audioPlayerService.setOnTrackEnd(() => {
   store.dispatch(nextTrack());
 });
+
+/**
+ * Restores the last active playback state (song, position, and queue) from local storage on app open.
+ */
+export const loadLastPlaybackState =
+  () => async (dispatch: AppDispatch) => {
+    try {
+      const saved = await PlayerStore.getLastPlaybackState();
+      if (saved?.song) {
+        dispatch(setCurrentSong(saved.song));
+        const pos =
+          typeof saved.position === "number" && !isNaN(saved.position)
+            ? saved.position
+            : 0;
+        dispatch(setCurrentTime(pos));
+        if (saved.song.duration) {
+          dispatch(setDuration(saved.song.duration));
+        }
+        dispatch(setIsPlaying(false));
+        if (saved.queue && saved.queue.length > 0) {
+          dispatch(
+            setQueue({
+              queue: saved.queue,
+              index: typeof saved.queueIndex === "number" ? saved.queueIndex : 0,
+            })
+          );
+        } else {
+          dispatch(setQueue({ queue: [saved.song], index: 0 }));
+        }
+        console.log(
+          `[PlayerStore] Restored last playing song on launch: "${saved.song.title}" (${pos}s)`
+        );
+      }
+    } catch (err) {
+      console.warn("[PlayerStore] Failed to restore playback state:", err);
+    }
+  };
