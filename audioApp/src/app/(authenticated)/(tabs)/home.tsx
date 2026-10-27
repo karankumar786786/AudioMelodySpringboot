@@ -2,7 +2,6 @@ import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
   FlatList,
   RefreshControl,
@@ -12,7 +11,10 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
@@ -25,6 +27,7 @@ import { PlaylistCard } from "@/components/home/PlaylistCard";
 import { SongRowItem } from "@/components/home/SongRowItem";
 import { HomeSkeleton } from "@/components/home/HomeSkeleton";
 import { QuickPickCard } from "@/components/home/QuickPickCard";
+import { homeStyles as styles } from "@/styles/home";
 
 // Space reserved for the tab bar + mini player so the end of the feed is reachable.
 const TAB_BAR_HEIGHT = 64;
@@ -34,7 +37,13 @@ const EXTRA_BREATHING_ROOM = 32;
 const SIDE = 18;
 const GRID_GAP = 8;
 
-const CATEGORIES = ["All", "Trending", "Artists", "Playlists", "Explore"] as const;
+const CATEGORIES = [
+  "All",
+  "Trending",
+  "Artists",
+  "Playlists",
+  "Explore",
+] as const;
 type Category = (typeof CATEGORIES)[number];
 
 function SectionTitle({ title }: { title: string }) {
@@ -54,7 +63,9 @@ export default function HomeScreen() {
   const tileWidth = (width - SIDE * 2 - GRID_GAP) / 2;
 
   const profile = useSelector((state: AppState) => state.user.profile);
-  const currentSong = useSelector((state: AppState) => state.player.currentSong);
+  const currentSong = useSelector(
+    (state: AppState) => state.player.currentSong,
+  );
   const isPlaying = useSelector((state: AppState) => state.player.isPlaying);
 
   // Featured songs now feed the quick-pick grid (the video carousel is gone)
@@ -170,7 +181,10 @@ export default function HomeScreen() {
   const playlistsList = playlistsData?.content || [];
 
   const isInitialLoading =
-    isFeaturedLoading && isTrendingLoading && isArtistsLoading && isPlaylistsLoading;
+    isFeaturedLoading &&
+    isTrendingLoading &&
+    isArtistsLoading &&
+    isPlaylistsLoading;
 
   const show = (...cats: Category[]) =>
     selectedCategory === "All" || cats.includes(selectedCategory);
@@ -204,7 +218,9 @@ export default function HomeScreen() {
             activeOpacity={0.8}
           >
             <Text style={styles.avatarText}>
-              {(profile?.userName || profile?.email || "U").charAt(0).toUpperCase()}
+              {(profile?.userName || profile?.email || "U")
+                .charAt(0)
+                .toUpperCase()}
             </Text>
           </TouchableOpacity>
         </View>
@@ -224,7 +240,9 @@ export default function HomeScreen() {
                 onPress={() => setSelectedCategory(cat)}
                 activeOpacity={0.75}
               >
-                <Text style={[styles.pillText, isActive && styles.pillTextActive]}>
+                <Text
+                  style={[styles.pillText, isActive && styles.pillTextActive]}
+                >
                   {cat}
                 </Text>
               </TouchableOpacity>
@@ -239,7 +257,7 @@ export default function HomeScreen() {
             {/* Quick picks: 2-column grid */}
             {selectedCategory === "All" && quickPicks.length > 0 ? (
               <View style={styles.grid}>
-                {quickPicks.map((song: any,index:number) => {
+                {quickPicks.map((song: any, index: number) => {
                   const active = currentSong?.id === song.id;
                   if (index > 3) {
                     return;
@@ -269,7 +287,10 @@ export default function HomeScreen() {
                   data={trendingSongs}
                   keyExtractor={(item) => item.id}
                   renderItem={({ item }) => (
-                    <TrendingSongCard song={item} onPress={() => playSong(item)} />
+                    <TrendingSongCard
+                      song={item}
+                      onPress={() => playSong(item)}
+                    />
                   )}
                 />
               </View>
@@ -352,72 +373,3 @@ export default function HomeScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#000000" },
-
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: SIDE,
-    paddingTop: 10,
-    paddingBottom: 14,
-  },
-  greeting: {
-    flex: 1,
-    marginRight: 12,
-    fontSize: 26,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    letterSpacing: -0.6,
-  },
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  avatarText: { color: "#000000", fontSize: 16, fontWeight: "700" },
-
-  pillsRow: {
-    paddingHorizontal: SIDE,
-    paddingBottom: 18,
-    gap: 8,
-  },
-  pill: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 999,
-    backgroundColor: "#151515",
-    borderWidth: 1,
-    borderColor: "#262626",
-  },
-  pillActive: { backgroundColor: "#FFFFFF", borderColor: "#FFFFFF" },
-  pillText: { color: "#FFFFFF", fontSize: 13, fontWeight: "600" },
-  pillTextActive: { color: "#000000", fontWeight: "700" },
-
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: GRID_GAP,
-    paddingHorizontal: SIDE,
-    marginBottom: 8,
-  },
-
-  section: { marginTop: 22 },
-  sectionTitle: {
-    fontSize: 21,
-    fontWeight: "800",
-    color: "#FFFFFF",
-    letterSpacing: -0.3,
-    paddingHorizontal: SIDE,
-    marginBottom: 12,
-  },
-  horizontalList: { paddingHorizontal: SIDE },
-
-  footer: { alignItems: "center", paddingVertical: 24 },
-  endText: { color: "#5A5A5A", fontSize: 13 },
-});
