@@ -1,8 +1,7 @@
-import React, { useState } from "react";
+import  { useEffect, useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
@@ -32,7 +31,7 @@ import {
   playlistService,
 } from "@/service";
 import { UserSession } from "@/types";
-import {profileStyles as styles} from "@/styles/index";
+import {profileStyles as styles} from "@/styles";
 
 // Space reserved at the bottom for the tab bar + mini player so the
 // last item (Log out) can scroll fully into view. Adjust if needed.
@@ -71,7 +70,7 @@ export default function ProfileScreen() {
   const isLoading = userState.isLoading && !data;
   const error = userState.error;
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!data) {
       dispatch(loadUserProfile());
     } else {

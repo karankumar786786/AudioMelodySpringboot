@@ -17,12 +17,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AppDispatch } from "@/store";
-import { playAll, playWithSimilarSongs } from "@/store/queueActions";
+import { AppDispatch,playAll, playWithSimilarSongs } from "@/store";
 import { artistService } from "@/service";
 import { Song } from "@/types";
-import { SongRowItem } from "@/components/home/SongRowItem";
-import { getImageUrl } from "@/utils/imageUtils";
+import { SongRowItem } from "@/components";
+import { getImageUrl } from "@/utils";
 import { artistDetailStyles as styles } from "@/styles";
 
 

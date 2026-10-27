@@ -15,7 +15,7 @@ import {
   store,
 } from "@/store";
 import { AuthToken } from "@/types";
-import { configureAudioPriority } from "@/utils/audioConfig";
+import { configureAudioPriority } from "@/utils";
 import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 
 // Configure global exclusive audio priority as soon as the app starts

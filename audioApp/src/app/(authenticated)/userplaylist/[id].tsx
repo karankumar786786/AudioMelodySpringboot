@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import  { useMemo } from "react";
 import {
   View,
   Text,
@@ -21,10 +21,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { playlistService } from "@/service";
 import { Song } from "@/types";
-import { AppDispatch, AppState } from "@/store";
-import { playAll, playWithSimilarSongs } from "@/store/queueActions";
-import { PlaylistTrackItem } from "@/components/playlist/PlaylistTrackItem";
-import { UserPlaylistThumbnail } from "@/components/playlist/UserPlaylistThumbnail";
+import { AppDispatch, AppState,playAll,playWithSimilarSongs } from "@/store";
+import { PlaylistTrackItem,UserPlaylistThumbnail } from "@/components";
 import { userPlaylistDetailStyles as styles } from "@/styles";
 
 

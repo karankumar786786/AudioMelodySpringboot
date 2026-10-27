@@ -14,13 +14,11 @@ import { useDispatch, useSelector } from "react-redux";
 import { Ionicons } from "@expo/vector-icons";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 
-import { AppDispatch, AppState } from "@/store";
-import { playAll, playWithSimilarSongs } from "@/store/queueActions";
-import { audioPlayerService } from "@/service/audioPlayerService";
-import { favouriteService } from "@/service";
+import { AppDispatch, AppState,playAll,playWithSimilarSongs } from "@/store";
+import { audioPlayerService,favouriteService } from "@/service";
 import { Song } from "@/types";
-import { FavouriteSongItem } from "@/components/favourites/FavouriteSongItem";
-import {favouriteStyles as styles} from "@/styles/index";
+import { FavouriteSongItem } from "@/components";
+import {favouriteStyles as styles} from "@/styles";
 
 // Space reserved for the tab bar + mini player so the last song is reachable.
 const TAB_BAR_HEIGHT = 64;

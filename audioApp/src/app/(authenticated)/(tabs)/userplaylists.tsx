@@ -1,8 +1,7 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   FlatList,
   TouchableOpacity,
   ActivityIndicator,
@@ -19,7 +18,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { playlistService } from "@/service";
 import { UserPlaylist } from "@/types";
-import { UserPlaylistThumbnail } from "@/components/playlist/UserPlaylistThumbnail";
+import { UserPlaylistThumbnail } from "@/components";
 import { userPlaylistStyles as styles } from "@/styles";
 
 // Space reserved for the tab bar + mini player so the last playlist is reachable.

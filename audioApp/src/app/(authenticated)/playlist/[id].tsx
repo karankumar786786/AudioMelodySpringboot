@@ -15,12 +15,10 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { AppDispatch } from "@/store";
-import { playAll, playWithSimilarSongs } from "@/store/queueActions";
+import { AppDispatch,playAll, playWithSimilarSongs } from "@/store";
 import { playlistService } from "@/service";
 import { Song } from "@/types";
-import { PlaylistTrackItem } from "@/components/playlist/PlaylistTrackItem";
-import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
+import { PlaylistTrackItem,CanvasVideoPlayer } from "@/components";
 import { playlistDetailStyles as styles } from "@/styles";
 
 

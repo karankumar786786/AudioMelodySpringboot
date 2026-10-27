@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
+import  { useState, useEffect, useMemo } from "react";
 import {
   View,
   Text,
   TextInput,
-  StyleSheet,
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
@@ -18,9 +17,7 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-
-import { AppDispatch } from "@/store";
-import { playWithSimilarSongs } from "@/store/queueActions";
+import { playWithSimilarSongs,AppDispatch } from "@/store";
 import { searchService } from "@/service";
 import {
   Song,
@@ -30,17 +27,8 @@ import {
   UserSearchHistoryItem,
   UserSearchHistoryGrouped,
 } from "@/types";
-import { SongRowItem } from "@/components/home/SongRowItem";
-import { ArtistCircleCard } from "@/components/home/ArtistCircleCard";
-import { PlaylistCard } from "@/components/home/PlaylistCard";
-import { SearchHistoryItem } from "@/components/search/SearchHistoryItem";
-import { SearchTopResultCard } from "@/components/search/SearchTopResultCard";
-import {
-  CategoryGenreCard,
-  POPULAR_GENRES,
-} from "@/components/search/CategoryGenreCard";
-import { UserPlaylistThumbnail } from "@/components/playlist/UserPlaylistThumbnail";
-import {searchStyles as styles} from "@/styles/index";
+import { SongRowItem,ArtistCircleCard,PlaylistCard,SearchHistoryItem,SearchTopResultCard,CategoryGenreCard,POPULAR_GENRES,UserPlaylistThumbnail } from "@/components";
+import {searchStyles as styles} from "@/styles";
 
 // Space reserved for the tab bar + mini player so the end of the page is reachable.
 const TAB_BAR_HEIGHT = 64;

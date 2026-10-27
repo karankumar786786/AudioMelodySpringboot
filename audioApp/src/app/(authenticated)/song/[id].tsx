@@ -33,19 +33,11 @@ import {
   playSong,
   nextTrack,
   prevTrack,
-} from "@/store/queueActions";
-import { toggleShuffle, toggleRepeat } from "@/store/queueSlice";
-import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
-import { QueueModal } from "@/components/player/QueueModal";
-import { FullVideoPlayerModal } from "@/components/player/FullVideoPlayerModal";
-import {
-  PlayerSettingsModal,
-  DEFAULT_AUDIO_QUALITIES,
-} from "@/components/player/PlayerSettingsModal";
-import { formatDuration, formatStreams } from "@/utils/formatUtils";
-import { getImageUrl } from "@/utils/imageUtils";
-import { S3_BASE_URL } from "@/utils/playerUtils";
-import { useDominantColor } from "@/utils/colorUtils";
+  toggleShuffle,
+  toggleRepeat,
+} from "@/store";
+import { CanvasVideoPlayer, QueueModal, FullVideoPlayerModal, PlayerSettingsModal, DEFAULT_AUDIO_QUALITIES } from "@/components";
+import { formatDuration,  getImageUrl, useDominantColor,S3_BASE_URL } from "@/utils";
 import { usePanGesture, GestureDetector } from "react-native-gesture-handler";
 import { songStyles as styles } from "@/styles";
 

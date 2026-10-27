@@ -21,13 +21,8 @@ import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { AppDispatch, AppState, loadUserProfile } from "@/store";
 import { playWithSimilarSongs } from "@/store/queueActions";
 import { homeService } from "@/service";
-import { TrendingSongCard } from "@/components/home/TrendingSongCard";
-import { ArtistCircleCard } from "@/components/home/ArtistCircleCard";
-import { PlaylistCard } from "@/components/home/PlaylistCard";
-import { SongRowItem } from "@/components/home/SongRowItem";
-import { HomeSkeleton } from "@/components/home/HomeSkeleton";
-import { QuickPickCard } from "@/components/home/QuickPickCard";
-import { homeStyles as styles } from "@/styles/home";
+import { TrendingSongCard,ArtistCircleCard,PlaylistCard,SongRowItem,HomeSkeleton,QuickPickCard } from "@/components";
+import { homeStyles as styles } from "@/styles";
 
 // Space reserved for the tab bar + mini player so the end of the feed is reachable.
 const TAB_BAR_HEIGHT = 64;

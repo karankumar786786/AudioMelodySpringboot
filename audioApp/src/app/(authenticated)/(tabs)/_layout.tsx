@@ -1,9 +1,9 @@
-import React from "react";
+
 import { View, StyleSheet, Platform } from "react-native";
 import { NativeTabs } from "expo-router/native-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { MiniPlayer } from "@/components/player/MiniPlayer";
+import { MiniPlayer } from "@/components";
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();

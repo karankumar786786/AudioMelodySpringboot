@@ -1,8 +1,7 @@
-import React, { useState } from "react";
+import  { useState } from "react";
 import {
   View,
   Text,
-  StyleSheet,
   TextInput,
   TouchableOpacity,
   Alert,
