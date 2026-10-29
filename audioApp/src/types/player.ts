@@ -37,7 +37,7 @@ export type AudioQuality = "auto" | "lossless" | "high" | "standard";
 
 export interface PlayerState {
   currentSong: PlayerSong | null;
-  isPlaying: boolean;
+  isPlaying: boolean;      
   isLoading: boolean;
   currentTime: number; // In seconds
   duration: number; // In seconds

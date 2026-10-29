@@ -1,7 +1,7 @@
 import { AudioPlayer, AudioStatus } from "expo-audio";
 import { PlayerSong, RepeatMode, AudioQuality } from "@/types";
-import { store } from "@/store/hook";
-import { configureAudioPriority } from "@/utils/audioConfig";
+import { store } from "@/store";
+import { configureAudioPriority } from "@/utils";
 export { configureAudioPriority };
 import {
   setCurrentTime,

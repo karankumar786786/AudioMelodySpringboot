@@ -94,10 +94,8 @@ export const recombeeService = {
     targetUserId?: string
   ): Promise<Song[]> {
     if (!songId) return [];
-
     const client = getRecombeeClient();
     const user = targetUserId || "anonymous";
-
     // 1. Primary: Direct Recombee RecommendItemsToItem request
     if (client) {
       try {
