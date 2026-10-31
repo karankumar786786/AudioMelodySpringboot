@@ -41,7 +41,6 @@ function RootNavigator() {
         await Promise.all([
           dispatch(loadAuthToken()).unwrap(),
           dispatch(loadDevice()).unwrap(),
-          configureAudioPriority(),
           dispatch(loadLastPlaybackState()),
         ]);
       } catch (error) {

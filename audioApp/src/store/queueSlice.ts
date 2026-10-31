@@ -60,8 +60,11 @@ export const queueSlice = createSlice({
         (s, i) => i > state.lastQueueIndex && s.id === songId,
       );
       if (idx !== -1) {
+        const removedQueueId = state.queue[idx].queueId;
         state.queue.splice(idx, 1);
-        state.originalQueue = state.originalQueue.filter((s) => s.id !== songId);
+        state.originalQueue = state.originalQueue.filter(
+          (s) => s.queueId !== removedQueueId,
+        );
       }
     },
     clearQueue: (state) => {

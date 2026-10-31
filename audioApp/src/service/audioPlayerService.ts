@@ -49,7 +49,7 @@ export class AudioPlayerService {
       await configureAudioPriority();
       await this.pool.init();
 
-      this.pool.setStatusListener((status: AudioStatus) => {
+      this.pool.setStatusListener((status: AudioStatus, _song: PlayerSong | null) => {
         this.handlePlaybackStatusUpdate(status);
       });
 
