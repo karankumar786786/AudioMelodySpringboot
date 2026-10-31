@@ -61,7 +61,7 @@ export default function SongDetailScreen() {
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
-  const safeAreaHeight = Math.max(560, SCREEN_HEIGHT - insets.top - insets.bottom);
+  const safeAreaHeight = Math.max(560, SCREEN_HEIGHT - insets.top);
 
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
@@ -548,10 +548,21 @@ export default function SongDetailScreen() {
           showsVerticalScrollIndicator={false}
           bounces={true}
           scrollEnabled={!isScrubbing}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: Math.max(36, insets.bottom + 24) },
+          ]}
         >
           {/* Main Full-Screen Player: exactly 100% viewport height */}
-          <View style={[styles.playerScreenSection, { minHeight: safeAreaHeight }]}>
+          <View
+            style={[
+              styles.playerScreenSection,
+              {
+                minHeight: safeAreaHeight,
+                paddingBottom: Math.max(28, insets.bottom + 12),
+              },
+            ]}
+          >
             {/* 2. Top Navigation Bar with Down-Swipe Dismiss */}
             <GestureDetector gesture={topBarGesture}>
               <View style={styles.topBar}>

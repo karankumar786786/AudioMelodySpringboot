@@ -23,6 +23,7 @@ import { clearUpcomingQueue, removeSongFromQueue } from "@/store/queueSlice";
 import { playSong } from "@/store/queueActions";
 import { formatDuration } from "@/utils/formatUtils";
 import { getImageUrl } from "@/utils/imageUtils";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface QueueModalProps {
   visible: boolean;
@@ -46,6 +47,7 @@ const clamp = (v: number, min: number, max: number) =>
 
 export function QueueModal({ visible, onClose }: QueueModalProps) {
   const dispatch = useDispatch();
+  const insets = useSafeAreaInsets();
 
   const currentSong = useSelector((state: AppState) => state.player.currentSong);
   const queue = useSelector((state: AppState) => state.queue.queue);
@@ -148,7 +150,15 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
           onPress={onClose}
         />
 
-        <Animated.View style={[styles.sheetContainer, { height: sheetHeight }]}>
+        <Animated.View
+          style={[
+            styles.sheetContainer,
+            {
+              height: sheetHeight,
+              paddingBottom: Math.max(24, insets.bottom),
+            },
+          ]}
+        >
           {/* Swipe zone: handle, header and now playing. The list below keeps its own scrolling. */}
           <GestureDetector gesture={panGesture}>
             <View collapsable={false}>
@@ -213,7 +223,7 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
             <Text style={styles.sectionHeading}>Up next</Text>
 
             {upcomingQueue.length === 0 ? (
-              <View style={styles.emptyContainer}>
+              <View style={[styles.emptyContainer, { paddingBottom: 40 + insets.bottom }]}>
                 <Ionicons name="musical-notes-outline" size={36} color="#5A5A5A" />
                 <Text style={styles.emptyText}>Nothing up next</Text>
                 <Text style={styles.emptySubtext}>
@@ -224,7 +234,10 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
               <FlatList
                 data={upcomingQueue}
                 keyExtractor={(item, idx) => (item as any).queueId || `${item.id}-${idx}`}
-                contentContainerStyle={styles.listContent}
+                contentContainerStyle={[
+                  styles.listContent,
+                  { paddingBottom: Math.max(28, insets.bottom + 20) },
+                ]}
                 showsVerticalScrollIndicator={false}
                 renderItem={({ item, index }) => (
                   <TouchableOpacity
