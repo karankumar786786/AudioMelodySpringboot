@@ -1,7 +1,7 @@
 import { AudioPlayer, AudioStatus } from "expo-audio";
 import { Song, PlayerSong, RepeatMode, AudioQuality } from "@/types";
 import { store } from "@/store";
-import { configureAudioPriority } from "@/utils";
+import { configureAudioPriority, safeSetActiveForLockScreen } from "@/utils";
 export { configureAudioPriority };
 import { mapToPlayerSong } from "@/utils/playerUtils";
 import { selectCurrentSongFromQueue } from "@/store/queueSlice";
@@ -408,25 +408,22 @@ export class AudioPlayerService {
       PlayerStore.saveLastSong(playerSong, startTime);
 
       // Update native lock screen & notification controls
-      try {
-        player.setActiveForLockScreen(
-          true,
-          {
-            title: playerSong.title,
-            artist: playerSong.artistName,
-            albumTitle: playerSong.album || "Melody",
-            artworkUrl: playerSong.coverUrl,
-          },
-          {
-            showSeekForward: true,
-            showSeekBackward: true,
-            seekForwardIntervalSeconds: 10,
-            seekBackwardIntervalSeconds: 10,
-          }
-        );
-      } catch (lockErr) {
-        console.log("[AudioPlayerService] Lock screen metadata note:", lockErr);
-      }
+      safeSetActiveForLockScreen(
+        player,
+        true,
+        {
+          title: playerSong.title,
+          artist: playerSong.artistName,
+          albumTitle: playerSong.album || "Melody",
+          artworkUrl: playerSong.coverUrl,
+        },
+        {
+          showSeekForward: true,
+          showSeekBackward: true,
+          seekForwardIntervalSeconds: 10,
+          seekBackwardIntervalSeconds: 10,
+        }
+      );
 
       // NOTE: syncUpcomingPreload() is intentionally NOT called here.
       // It is triggered from handlePlaybackStatusUpdate once playback has started.

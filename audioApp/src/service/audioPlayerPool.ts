@@ -1,6 +1,6 @@
 import { createAudioPlayer, AudioPlayer, AudioStatus } from "expo-audio";
 import { Song, PlayerSong, AudioQuality } from "@/types";
-import { configureAudioPriority } from "@/utils/audioConfig";
+import { configureAudioPriority, safeSetActiveForLockScreen } from "@/utils/audioConfig";
 import { mapToPlayerSong, S3_BASE_URL } from "@/utils/playerUtils";
 
 export type SlotRole = "active" | "standby1" | "standby2";
@@ -272,13 +272,7 @@ export class AudioPlayerPool {
     }
 
     // 2. Deactivate old active player
-    try {
-      if (typeof currentActive.player.clearLockScreenControls === "function") {
-        currentActive.player.clearLockScreenControls();
-      } else {
-        currentActive.player.setActiveForLockScreen(false);
-      }
-    } catch {}
+    safeSetActiveForLockScreen(currentActive.player, false);
     currentActive.player.pause();
     currentActive.player.volume = 0;
 
@@ -287,25 +281,22 @@ export class AudioPlayerPool {
     targetSlot.player.play();
 
     // 4. Update lock screen controls on the newly promoted player
-    try {
-      targetSlot.player.setActiveForLockScreen(
-        true,
-        {
-          title: promotedSong.title,
-          artist: promotedSong.artistName,
-          albumTitle: promotedSong.album || "Melody",
-          artworkUrl: promotedSong.coverUrl,
-        },
-        {
-          showSeekForward: true,
-          showSeekBackward: true,
-          seekForwardIntervalSeconds: 10,
-          seekBackwardIntervalSeconds: 10,
-        },
-      );
-    } catch (err) {
-      console.log("[AudioPlayerPool] Note on lock screen promotion:", err);
-    }
+    safeSetActiveForLockScreen(
+      targetSlot.player,
+      true,
+      {
+        title: promotedSong.title,
+        artist: promotedSong.artistName,
+        albumTitle: promotedSong.album || "Melody",
+        artworkUrl: promotedSong.coverUrl,
+      },
+      {
+        showSeekForward: true,
+        showSeekBackward: true,
+        seekForwardIntervalSeconds: 10,
+        seekBackwardIntervalSeconds: 10,
+      },
+    );
 
     return promotedSong;
   }
