@@ -344,13 +344,11 @@ export default function SongDetailScreen() {
           // Swiped Right-to-Left (user dragged left) -> Advance to next mode
           handleNextMode();
         } else if (translationX > 35 || velocityX > 250) {
-          // Swiped Left-to-Right (user dragged right)
+          // Swiped Left-to-Right (user dragged right):
+          // Only switch back to previous view mode if there is one (e.g. artwork -> canvas or video -> artwork).
+          // Dismissing the player on right swipe is removed because the OS already natively supports the back gesture.
           const currentIndex = availableModes.findIndex((m) => m.key === effectiveViewMode);
-          if (effectiveViewMode === "canvas" || currentIndex <= 0) {
-            // In canvas mode (or leftmost mode): back/home
-            handleDismissPlayer();
-          } else {
-            // Return to previous mode (e.g. from artwork back to canvas)
+          if (currentIndex > 0 && effectiveViewMode !== "canvas") {
             handlePrevMode();
           }
         }
@@ -360,12 +358,9 @@ export default function SongDetailScreen() {
 
   const topBarGesture = usePanGesture({
     runOnJS: true,
-    activeOffsetX: [-20, 20],
     activeOffsetY: [0, 15],
     onDeactivate: (e) => {
       if (e.translationY > 35) {
-        handleDismissPlayer();
-      } else if (e.translationX > 40 && (effectiveViewMode === "canvas" || !hasCanvas)) {
         handleDismissPlayer();
       }
     },
