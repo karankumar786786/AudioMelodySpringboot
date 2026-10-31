@@ -1,11 +1,12 @@
-# 🎵 One Melody — Lossless Multimedia Streaming Platform 
+# 🎵 One Melody — Enterprise Distributed Multimedia Streaming Platform & Native Mobile Ecosystem
 
 [![APIs](https://img.shields.io/badge/APIs-157%20Endpoints-purple.svg?style=flat)](https://github.com/karankumar786786/AudioMelodySpringboot)
 [![Java](https://img.shields.io/badge/Java-21-orange.svg?style=flat&logo=openjdk)](https://openjdk.org/projects/jdk/21/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.x-brightgreen.svg?style=flat&logo=springboot)](https://spring.io/projects/spring-boot)
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB.svg?style=flat&logo=python)](https://www.python.org/)
 [![Django](https://img.shields.io/badge/Django-6.1-092E20.svg?style=flat&logo=django)](https://www.djangoproject.com/)
-[![uv](https://img.shields.io/badge/uv-Fast%20Python%20Manager-DE5FE9.svg?style=flat)](https://github.com/astral-sh/uv)
+[![React Native](https://img.shields.io/badge/React%20Native-0.88-61DAFB.svg?style=flat&logo=react)](https://reactnative.dev/)
+[![Expo](https://img.shields.io/badge/Expo-SDK%2058-000020.svg?style=flat&logo=expo)](https://expo.dev/)
 [![Next.js](https://img.shields.io/badge/Next.js-16.2-black.svg?style=flat&logo=next.js)](https://nextjs.org/)
 [![React](https://img.shields.io/badge/React-19-blue.svg?style=flat&logo=react)](https://react.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-v4-38B2AC.svg?style=flat&logo=tailwindcss)](https://tailwindcss.com/)
@@ -22,7 +23,7 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Neon%20Serverless-4169E1.svg?style=flat&logo=postgresql)](https://www.postgresql.org/)
 [![Tests](https://img.shields.io/badge/Tests-121%20Passed%20(100%25)-success.svg?style=flat)](https://github.com/karankumar786786/AudioMelodySpringboot)
 
-**One Melody** is an enterprise-grade, distributed multimedia streaming platform engineered for lossless adaptive playback (HLS & DASH), low-latency progressive event streaming, and automated cloud operations. Built with modern microservice design principles, it couples high-performance **Java 21 / Spring Boot 4.1** streaming gateways (`api.one-org.me`) with a dedicated **Python 3.12 / Django 6.1** administrative command microservice (`admin.one-org.me`), **Node.js / Bun / Inngest** asynchronous media processing workers (`process.one-org.me`), **Google Shaka Packager** multi-bitrate HLS/DASH chunking, and dual **Next.js 16** frontends (`adm.one-org.me` and consumer apps) delivering a pitch-black OLED monochrome aesthetic.
+**One Melody** is an enterprise-grade, distributed multimedia streaming platform and native mobile ecosystem engineered for lossless adaptive playback (HLS & DASH), low-latency progressive event streaming, and automated cloud operations. Built with modern microservice design principles, it couples high-performance **Java 21 / Spring Boot 4.1** streaming gateways (`api.one-org.me`) with a dedicated **Python 3.12 / Django 6.1** administrative command microservice (`admin.one-org.me`), **Node.js / Bun / Inngest** asynchronous media processing workers (`process.one-org.me`), **Google Shaka Packager** multi-bitrate HLS/DASH chunking, dual **Next.js 16** frontends (`adm.one-org.me` and web consumer apps), and a cross-platform **React Native 0.88 / Expo SDK 58** iOS & Android mobile application (`audioApp`) featuring a 3-player 0ms gapless rotation pool and pitch-black OLED monochrome aesthetic.
 
 ---
 
@@ -573,6 +574,10 @@ AudioMelodySpringboot/
 │   ├── src/app/home/             # Progressive SSE Stream Page with TanStack Query Fallback
 │   ├── src/components/player/    # HLS.js Dual Buffer Player, Web Audio DSP, Lyrics Sync
 │   └── src/lib/api/              # SSE Stream Client, Direct Algolia Search, Music APIs
+├── audioApp/                     # React Native 0.88 / Expo SDK 58 iOS & Android Mobile Application
+│   ├── src/app/                  # Expo Router v4 (Material 3 NativeTabs, Fullscreen Player, Lyrics)
+│   ├── src/service/              # 3-Player 0ms Handover Rotation Pool, expo-audio Background Controls
+│   └── src/store/                # Redux Toolkit Slices & Offline AsyncStorage Playback Persistence
 ├── adminFrontend/                # Next.js 16 / React 19 / Tailwind 4 Admin Portal
 │   └── src/components/           # Real-Time Byte XHR Uploader, Job Gantt Monitors
 ├── audioProcessing/              # Bun 1.3 / Express 5 / Inngest Media Packaging Worker
@@ -590,6 +595,7 @@ AudioMelodySpringboot/
 - **Java 21 (JDK)** &bull; **Maven 3.9+**
 - **Python 3.12+** &bull; **uv package manager**
 - **Node.js 20+** &bull; **Bun 1.3+**
+- **Expo CLI** (`bunx expo` or `npx expo`)
 - **Docker & Docker Compose** (Optional for containerized run)
 
 ### 1. Start the Core Engine (Spring Boot)
@@ -616,12 +622,22 @@ bun run dev
 # Worker starts on http://localhost:5010
 ```
 
-### 4. Start the Consumer Frontend (Next.js)
+### 4. Start the Consumer Web App (Next.js)
 ```bash
 cd audioFrontend
 npm install
 npm run dev
 # App starts on http://localhost:3000
+```
+
+### 5. Start the Mobile Application (React Native / Expo)
+```bash
+cd audioApp
+bun install
+bun expo start
+# Scan the QR code with Expo Go, or run:
+# bunx expo run:android  (for Android native build)
+# bunx expo run:ios      (for iOS native build)
 ```
 
 ---
