@@ -4,8 +4,8 @@ import { useVideoPlayer, VideoView, setVideoCacheSizeAsync } from "expo-video";
 import { Image } from "expo-image";
 import { getImageUrl, getVideoUrl } from "@/utils/imageUtils";
 
-// Ensure native video cache is configured (512MB) for smooth looping
-setVideoCacheSizeAsync(512 * 1024 * 1024).catch(() => {});
+// Ensure native video cache is configured (100MB) for smooth looping
+setVideoCacheSizeAsync(100 * 1024 * 1024).catch(() => {});
 
 // In-memory cache registry for active/preloaded canvas videos
 const canvasMemoryCache = new Set<string>();

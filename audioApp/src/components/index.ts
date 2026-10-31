@@ -1,3 +1,4 @@
+export * from "./common/ErrorBoundary";
 export * from "./common/CanvasVideoPlayer";
 export * from "./favourites/FavouriteSongItem";
 export * from "./home/ArtistCircleCard";

@@ -1,4 +1,4 @@
-import * as SecureStore from "expo-secure-store";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PlayerSong } from "@/types";
 
 const LAST_SONG_KEY = "melody_last_playing_song";
@@ -22,59 +22,6 @@ function sanitizePlayerSong(song: PlayerSong): PlayerSong {
   };
 }
 
-/**
- * Stores large strings in SecureStore safely by chunking into <= 1800-byte segments.
- * This guarantees compatibility with Android Keystore 2048-byte limits and iOS Keychain.
- */
-async function setLargeItemAsync(key: string, value: string): Promise<void> {
-  const chunkSize = 1800;
-  if (value.length <= chunkSize) {
-    await SecureStore.setItemAsync(key, value);
-    // Remove chunk meta if previously chunked
-    await SecureStore.deleteItemAsync(`${key}_chunks`).catch(() => {});
-    return;
-  }
-
-  const chunkCount = Math.ceil(value.length / chunkSize);
-  await SecureStore.setItemAsync(`${key}_chunks`, String(chunkCount));
-  for (let i = 0; i < chunkCount; i++) {
-    const chunk = value.slice(i * chunkSize, (i + 1) * chunkSize);
-    await SecureStore.setItemAsync(`${key}_${i}`, chunk);
-  }
-  // Clear the direct key if transitioning to chunked
-  await SecureStore.deleteItemAsync(key).catch(() => {});
-}
-
-async function getLargeItemAsync(key: string): Promise<string | null> {
-  const chunkCountStr = await SecureStore.getItemAsync(`${key}_chunks`).catch(() => null);
-  if (chunkCountStr) {
-    const count = parseInt(chunkCountStr, 10);
-    if (!isNaN(count) && count > 0) {
-      let combined = "";
-      for (let i = 0; i < count; i++) {
-        const chunk = await SecureStore.getItemAsync(`${key}_${i}`);
-        if (chunk) combined += chunk;
-      }
-      return combined || null;
-    }
-  }
-  return await SecureStore.getItemAsync(key).catch(() => null);
-}
-
-async function deleteLargeItemAsync(key: string): Promise<void> {
-  const chunkCountStr = await SecureStore.getItemAsync(`${key}_chunks`).catch(() => null);
-  if (chunkCountStr) {
-    const count = parseInt(chunkCountStr, 10);
-    if (!isNaN(count)) {
-      for (let i = 0; i < count; i++) {
-        await SecureStore.deleteItemAsync(`${key}_${i}`).catch(() => {});
-      }
-    }
-    await SecureStore.deleteItemAsync(`${key}_chunks`).catch(() => {});
-  }
-  await SecureStore.deleteItemAsync(key).catch(() => {});
-}
-
 export const PlayerStore = {
   /**
    * Persists the active playing song and current position to local storage.
@@ -83,9 +30,9 @@ export const PlayerStore = {
     if (!song || !song.id) return;
     try {
       const sanitized = sanitizePlayerSong(song);
-      await setLargeItemAsync(LAST_SONG_KEY, JSON.stringify(sanitized));
+      await AsyncStorage.setItem(LAST_SONG_KEY, JSON.stringify(sanitized));
       if (typeof position === "number" && !isNaN(position) && position >= 0) {
-        await SecureStore.setItemAsync(LAST_POSITION_KEY, String(position));
+        await AsyncStorage.setItem(LAST_POSITION_KEY, String(position));
       }
     } catch (err) {
       console.warn("[PlayerStore] Failed to save last playing song:", err);
@@ -98,7 +45,7 @@ export const PlayerStore = {
   async savePlaybackPosition(position: number): Promise<void> {
     try {
       if (typeof position === "number" && !isNaN(position) && position >= 0) {
-        await SecureStore.setItemAsync(LAST_POSITION_KEY, String(position));
+        await AsyncStorage.setItem(LAST_POSITION_KEY, String(position));
       }
     } catch (err) {
       console.warn("[PlayerStore] Failed to save playback position:", err);
@@ -112,7 +59,7 @@ export const PlayerStore = {
     if (!queue || queue.length === 0) return;
     try {
       const sanitizedQueue = queue.slice(0, 50).map(sanitizePlayerSong);
-      await setLargeItemAsync(
+      await AsyncStorage.setItem(
         LAST_QUEUE_KEY,
         JSON.stringify({ queue: sanitizedQueue, queueIndex })
       );
@@ -126,16 +73,16 @@ export const PlayerStore = {
    */
   async getLastPlaybackState(): Promise<SavedPlaybackState | null> {
     try {
-      const songJson = await getLargeItemAsync(LAST_SONG_KEY);
+      const songJson = await AsyncStorage.getItem(LAST_SONG_KEY);
       if (!songJson) return null;
 
       const song: PlayerSong = JSON.parse(songJson);
       if (!song || !song.id) return null;
 
-      const posStr = await SecureStore.getItemAsync(LAST_POSITION_KEY).catch(() => null);
+      const posStr = await AsyncStorage.getItem(LAST_POSITION_KEY);
       const position = posStr ? parseFloat(posStr) : 0;
 
-      const queueJson = await getLargeItemAsync(LAST_QUEUE_KEY);
+      const queueJson = await AsyncStorage.getItem(LAST_QUEUE_KEY);
       const queueData = queueJson ? JSON.parse(queueJson) : null;
 
       return {
@@ -159,10 +106,10 @@ export const PlayerStore = {
    */
   async clear(): Promise<void> {
     try {
-      await Promise.all([
-        deleteLargeItemAsync(LAST_SONG_KEY),
-        SecureStore.deleteItemAsync(LAST_POSITION_KEY).catch(() => {}),
-        deleteLargeItemAsync(LAST_QUEUE_KEY),
+      await AsyncStorage.multiRemove([
+        LAST_SONG_KEY,
+        LAST_POSITION_KEY,
+        LAST_QUEUE_KEY,
       ]);
     } catch (err) {
       console.warn("[PlayerStore] Failed to clear playback state:", err);

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { View, ActivityIndicator, Image } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { Stack, useRouter, useSegments, type Href } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { Provider, useDispatch, useSelector } from "react-redux";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -16,6 +16,7 @@ import {
 } from "@/store";
 import { AuthToken } from "@/types";
 import { configureAudioPriority } from "@/utils";
+import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 
 
 // Configure global exclusive audio priority as soon as the app starts
@@ -123,11 +124,13 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#000000" }}>
-      <Provider store={store}>
-        <QueryClientProvider client={queryClient}>
-          <RootNavigator />
-        </QueryClientProvider>
-      </Provider>
+      <ErrorBoundary>
+        <Provider store={store}>
+          <QueryClientProvider client={queryClient}>
+            <RootNavigator />
+          </QueryClientProvider>
+        </Provider>
+      </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }

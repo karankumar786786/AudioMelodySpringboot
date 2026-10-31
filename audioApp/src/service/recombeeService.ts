@@ -3,16 +3,23 @@ import { api } from "./baseApi";
 import { Song } from "@/types";
 
 const RECOMBEE_DB =
-  process.env.EXPO_PUBLIC_RECOMBEE_DATABASE_ID || "oneorg-prod";
+  process.env.EXPO_PUBLIC_RECOMBEE_DATABASE_ID || "";
 const RECOMBEE_PUBLIC_TOKEN =
-  process.env.EXPO_PUBLIC_RECOMBEE_PUBLIC_TOKEN ||
-  "rZcQmUMV0K2CdU23RzTyzOrdQZCXxfJcbIEE9vO7nOSe2GJpVxdJl9dMf5kBWoPa";
+  process.env.EXPO_PUBLIC_RECOMBEE_PUBLIC_TOKEN || "";
 const RECOMBEE_REGION =
   process.env.EXPO_PUBLIC_RECOMBEE_REGION || "eu-west";
+
+if (!RECOMBEE_DB || !RECOMBEE_PUBLIC_TOKEN) {
+  console.warn(
+    "[Recombee] Missing env vars EXPO_PUBLIC_RECOMBEE_DATABASE_ID or EXPO_PUBLIC_RECOMBEE_PUBLIC_TOKEN. " +
+    "Recombee recommendations will be disabled; fallback to backend/trending."
+  );
+}
 
 let recombeeClientInstance: any = null;
 
 export function getRecombeeClient(): any {
+  if (!RECOMBEE_DB || !RECOMBEE_PUBLIC_TOKEN) return null;
   if (!recombeeClientInstance) {
     try {
       recombeeClientInstance = new recombee.ApiClient(

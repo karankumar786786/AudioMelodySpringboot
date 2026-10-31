@@ -1,4 +1,3 @@
-import { algoliasearch, type SearchClient } from "algoliasearch";
 import { api } from "./baseApi";
 import {
   SearchResult,
