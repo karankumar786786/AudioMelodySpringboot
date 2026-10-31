@@ -16,7 +16,7 @@ import {
 } from "@/store";
 import { AuthToken } from "@/types";
 import { configureAudioPriority } from "@/utils";
-import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+
 
 // Configure global exclusive audio priority as soon as the app starts
 configureAudioPriority().catch(() => {});
@@ -42,7 +42,7 @@ function RootNavigator() {
           dispatch(loadAuthToken()).unwrap(),
           dispatch(loadDevice()).unwrap(),
           configureAudioPriority(),
-          (dispatch as any)(loadLastPlaybackState()),
+          dispatch(loadLastPlaybackState()),
         ]);
       } catch (error) {
         console.error("Initialization error:", error);
@@ -119,22 +119,14 @@ function RootNavigator() {
   );
 }
 
-const appTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    background: "#000000",
-  },
-};
+
 
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#000000" }}>
       <Provider store={store}>
         <QueryClientProvider client={queryClient}>
-          <NavigationContainer theme={appTheme}>
-            <RootNavigator />
-          </NavigationContainer>
+          <RootNavigator />
         </QueryClientProvider>
       </Provider>
     </GestureHandlerRootView>

@@ -262,8 +262,9 @@ export const nextTrack =
       const postRefillState = getState().queue;
       if (postRefillState.lastQueueIndex + 1 < postRefillState.queue.length) {
         dispatch(advanceToNextTrack());
-        PlayerStore.saveLastQueue(postRefillState.queue, postRefillState.lastQueueIndex);
-        const songToPlay = postRefillState.queue[postRefillState.lastQueueIndex];
+        const afterAdvance = getState().queue;
+        PlayerStore.saveLastQueue(afterAdvance.queue, afterAdvance.lastQueueIndex);
+        const songToPlay = afterAdvance.queue[afterAdvance.lastQueueIndex];
         if (songToPlay) {
           await audioPlayerService.play(songToPlay, 0, false);
         }
