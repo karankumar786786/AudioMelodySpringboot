@@ -1,8 +1,11 @@
 import { AudioPlayer, AudioStatus } from "expo-audio";
-import { PlayerSong, RepeatMode, AudioQuality } from "@/types";
+import { Song, PlayerSong, RepeatMode, AudioQuality } from "@/types";
 import { store } from "@/store";
 import { configureAudioPriority } from "@/utils";
 export { configureAudioPriority };
+import { mapToPlayerSong } from "@/utils/playerUtils";
+import { selectCurrentSongFromQueue } from "@/store/queueSlice";
+import { homeService } from "./homeService";
 import {
   setCurrentTime,
   setDuration,
@@ -33,6 +36,10 @@ export class AudioPlayerService {
   // Tracks which song we've already triggered upcoming-preload for,
   // so preloading starts only after the active song is really playing.
   private preloadedForSongId: string | null = null;
+  private unsubscribeQueue: (() => void) | null = null;
+  private lastPlayedSongId: string | null = null;
+  private lastPlayedIndex: number = -1;
+  private isAutoPlaySuppressed = false;
 
   private get activePlayer(): AudioPlayer | null {
     return this.pool.getActiveSlot()?.player || null;
@@ -53,11 +60,57 @@ export class AudioPlayerService {
         this.handlePlaybackStatusUpdate(status);
       });
 
+      this.initQueueSubscription();
+
       this.isInitialized = true;
-      console.log("[AudioPlayerService] Successfully initialized multi-player rotation pool");
+      console.log("[AudioPlayerService] Successfully initialized multi-player rotation pool and queue subscription");
     } catch (error) {
       console.error("[AudioPlayerService] Failed to initialize audio player engine:", error);
     }
+  }
+
+  public suppressAutoPlayOnce(): void {
+    this.isAutoPlaySuppressed = true;
+  }
+
+  public setLastPlayed(songId: string, index: number): void {
+    this.lastPlayedSongId = songId;
+    this.lastPlayedIndex = index;
+  }
+
+  public initQueueSubscription(): void {
+    if (this.unsubscribeQueue) return;
+
+    this.unsubscribeQueue = store.subscribe(() => {
+      const state = store.getState();
+      const { queue, currentIndex } = state.queue;
+
+      if (!queue || queue.length === 0 || currentIndex < 0 || currentIndex >= queue.length) {
+        return;
+      }
+
+      const currentSong = selectCurrentSongFromQueue(state.queue);
+      if (!currentSong) return;
+
+      const hasIndexChanged = currentIndex !== this.lastPlayedIndex;
+      const hasSongChanged = currentSong.id !== this.lastPlayedSongId;
+
+      if (hasIndexChanged || hasSongChanged) {
+        this.lastPlayedIndex = currentIndex;
+        this.lastPlayedSongId = currentSong.id;
+
+        if (this.isAutoPlaySuppressed) {
+          this.isAutoPlaySuppressed = false;
+          return;
+        }
+
+        this.play(currentSong).catch((err) => {
+          console.warn("[AudioPlayerService] Auto-play from queue error:", err);
+        });
+
+        PlayerStore.saveLastQueue(queue, currentIndex);
+      }
+    });
   }
 
   private handlePlaybackStatusUpdate(status: AudioStatus): void {
@@ -93,8 +146,12 @@ export class AudioPlayerService {
       dispatch(setDuration(status.duration));
     }
 
-    dispatch(setIsPlaying(Boolean(status.playing)));
-    dispatch(setIsLoading(Boolean(status.isBuffering)));
+    const isPlaying = Boolean(status.playing);
+    const isBuffering = Boolean(status.isBuffering);
+    const isLoaded = Boolean((status as any).isLoaded ?? true);
+
+    dispatch(setIsPlaying(isPlaying));
+    dispatch(setIsLoading(!isLoaded || (isBuffering && !isPlaying)));
 
     // One-time preload trigger: start buffering upcoming songs only AFTER the
     // current song is actually playing, so it never competes for bandwidth.
@@ -183,21 +240,46 @@ export class AudioPlayerService {
    */
   public syncUpcomingPreload(): void {
     const state = store.getState();
-    const { queue, lastQueueIndex } = state.queue;
+    const { queue, currentIndex } = state.queue;
     const quality = state.player.audioQuality || "auto";
 
     if (queue && queue.length > 0) {
-      this.pool.syncPreloadQueue(queue, lastQueueIndex, quality).catch((err) => {
+      const next1 = queue[currentIndex + 1];
+      const next2 = queue[currentIndex + 2];
+      console.log(
+        `[AudioPlayerService:PRELOAD] Queue Pos: ${currentIndex}/${queue.length - 1} | Standby 1: ${next1 ? `"${next1.title}" (${next1.id})` : "None"} | Standby 2: ${next2 ? `"${next2.title}" (${next2.id})` : "None"}`
+      );
+      this.pool.syncPreloadQueue(queue, currentIndex, quality).catch((err) => {
         console.warn("[AudioPlayerService] syncPreloadQueue error:", err);
       });
     }
   }
 
-  public async play(song: PlayerSong, startTime = 0, force = false): Promise<void> {
+  public async play(song: Song | PlayerSong, startTime = 0, force = false): Promise<void> {
     await this.init();
 
+    let playerSong: PlayerSong = (song as PlayerSong).audioStreamUrl
+      ? (song as PlayerSong)
+      : mapToPlayerSong(song);
+
+    // Fallback: If song is missing songKey, hydrate from backend
+    if (!playerSong.songKey && playerSong.id) {
+      try {
+        const fullSong = await homeService.getSongById(playerSong.id);
+        if (fullSong?.songKey) {
+          playerSong = mapToPlayerSong(fullSong);
+        }
+      } catch (e) {
+        console.warn("[AudioPlayerService] Hydration fallback note:", e);
+      }
+    }
+
+    console.log(
+      `▶ [AudioPlayerService:PLAY] "${playerSong.title}" - ${playerSong.artistName} [ID: ${playerSong.id}] | Duration: ${playerSong.duration}s | AudioKey: ${playerSong.songKey || (playerSong as any).audioKey || "N/A"}`
+    );
+
     // 1. If this song is already playing and no seek/force is requested, resume
-    if (!force && this.currentPlayingSong?.id === song.id && startTime === 0) {
+    if (!force && this.currentPlayingSong?.id === playerSong.id && startTime === 0) {
       const isPlaying = store.getState().player.isPlaying;
       if (isPlaying) {
         return;
@@ -206,31 +288,33 @@ export class AudioPlayerService {
       return;
     }
 
+    this.lastPlayedSongId = playerSong.id;
+
     const state = store.getState();
     const currentQuality = state.player.audioQuality || "auto";
 
     // 2. CHECK IF SONG IS READY IN STANDBY 1 (0ms Handover!)
     const standby1 = this.pool.getStandbySlot("standby1");
-    if (startTime === 0 && standby1.song?.id === song.id) {
+    if (startTime === 0 && standby1.song?.id === playerSong.id) {
       console.log(
-        `[AudioPlayerService] Zero-delay gapless handover! Playing "${song.title}" from Standby 1.`
+        `[AudioPlayerService] Zero-delay gapless handover! Playing "${playerSong.title}" from Standby 1.`
       );
       this.isAdvancingTrack = false;
-      this.currentPlayingSong = song;
-      this.preloadedForSongId = song.id; // preload is triggered right below
+      this.currentPlayingSong = playerSong;
+      this.preloadedForSongId = playerSong.id; // preload is triggered right below
       this.bufferedSeconds = 10;
 
-      store.dispatch(setCurrentSong(song));
+      store.dispatch(setCurrentSong(playerSong));
       store.dispatch(setCurrentTime(0));
       store.dispatch(setBufferedTime(10));
-      if (song.duration) {
-        store.dispatch(setDuration(song.duration));
+      if (playerSong.duration) {
+        store.dispatch(setDuration(playerSong.duration));
       }
       store.dispatch(setIsPlaying(true));
       store.dispatch(setIsLoading(false));
 
       await this.pool.promoteStandby("standby1", currentQuality);
-      PlayerStore.saveLastSong(song, 0);
+      PlayerStore.saveLastSong(playerSong, 0);
 
       // Re-prime pool for the newly upcoming songs (song is already playing instantly)
       this.syncUpcomingPreload();
@@ -239,26 +323,26 @@ export class AudioPlayerService {
 
     // 3. CHECK IF SONG IS READY IN STANDBY 2 (0ms Handover on fast double-skip)
     const standby2 = this.pool.getStandbySlot("standby2");
-    if (startTime === 0 && standby2.song?.id === song.id) {
+    if (startTime === 0 && standby2.song?.id === playerSong.id) {
       console.log(
-        `[AudioPlayerService] Zero-delay gapless handover! Playing "${song.title}" from Standby 2.`
+        `[AudioPlayerService] Zero-delay gapless handover! Playing "${playerSong.title}" from Standby 2.`
       );
       this.isAdvancingTrack = false;
-      this.currentPlayingSong = song;
-      this.preloadedForSongId = song.id; // preload is triggered right below
+      this.currentPlayingSong = playerSong;
+      this.preloadedForSongId = playerSong.id; // preload is triggered right below
       this.bufferedSeconds = 10;
 
-      store.dispatch(setCurrentSong(song));
+      store.dispatch(setCurrentSong(playerSong));
       store.dispatch(setCurrentTime(0));
       store.dispatch(setBufferedTime(10));
-      if (song.duration) {
-        store.dispatch(setDuration(song.duration));
+      if (playerSong.duration) {
+        store.dispatch(setDuration(playerSong.duration));
       }
       store.dispatch(setIsPlaying(true));
       store.dispatch(setIsLoading(false));
 
       await this.pool.promoteStandby("standby2", currentQuality);
-      PlayerStore.saveLastSong(song, 0);
+      PlayerStore.saveLastSong(playerSong, 0);
 
       // Re-prime pool for the newly upcoming songs
       this.syncUpcomingPreload();
@@ -272,29 +356,29 @@ export class AudioPlayerService {
 
     try {
       this.isAdvancingTrack = false;
-      this.currentPlayingSong = song;
+      this.currentPlayingSong = playerSong;
       // Preload of upcoming songs is deferred until this song is actually playing
       this.preloadedForSongId = null;
-      activeSlot.song = song;
+      activeSlot.song = playerSong;
       this.bufferedSeconds = startTime;
 
-      store.dispatch(setCurrentSong(song));
+      store.dispatch(setCurrentSong(playerSong));
       store.dispatch(setCurrentTime(startTime));
       store.dispatch(setBufferedTime(startTime));
-      if (song.duration) {
-        store.dispatch(setDuration(song.duration));
+      if (playerSong.duration) {
+        store.dispatch(setDuration(playerSong.duration));
       }
       store.dispatch(setIsLoading(true));
 
-      const uri = resolveStreamUrl(song, currentQuality);
+      const uri = resolveStreamUrl(playerSong, currentQuality);
       if (!uri) {
-        console.warn(`[AudioPlayerService] No stream URL found for song ${song.title} (${song.id})`);
+        console.warn(`[AudioPlayerService] No stream URL found for song ${playerSong.title} (${playerSong.id})`);
         store.dispatch(setIsLoading(false));
         return;
       }
 
       activeSlot.resolvedUri = uri;
-      console.log(`[AudioPlayerService] Loading stream for "${song.title}" (${currentQuality}): ${uri}`);
+      console.log(`[AudioPlayerService] Loading stream for "${playerSong.title}" (${currentQuality}): ${uri}`);
 
       // Don't block loading on audio session configuration
       configureAudioPriority(true).catch(() => {});
@@ -318,19 +402,20 @@ export class AudioPlayerService {
       // status listener when buffering ends.
       player.play();
       store.dispatch(setIsPlaying(true));
+      store.dispatch(setIsLoading(false));
 
       // Persist active song and initial playback position to local storage
-      PlayerStore.saveLastSong(song, startTime);
+      PlayerStore.saveLastSong(playerSong, startTime);
 
       // Update native lock screen & notification controls
       try {
         player.setActiveForLockScreen(
           true,
           {
-            title: song.title,
-            artist: song.artistName,
-            albumTitle: song.album || "Melody",
-            artworkUrl: song.coverUrl,
+            title: playerSong.title,
+            artist: playerSong.artistName,
+            albumTitle: playerSong.album || "Melody",
+            artworkUrl: playerSong.coverUrl,
           },
           {
             showSeekForward: true,
@@ -346,7 +431,7 @@ export class AudioPlayerService {
       // NOTE: syncUpcomingPreload() is intentionally NOT called here.
       // It is triggered from handlePlaybackStatusUpdate once playback has started.
     } catch (err) {
-      console.error(`[AudioPlayerService] Error playing song "${song.title}":`, err);
+      console.error(`[AudioPlayerService] Error playing song "${playerSong.title}":`, err);
       store.dispatch(setIsLoading(false));
       store.dispatch(setIsPlaying(false));
     }
@@ -387,6 +472,7 @@ export class AudioPlayerService {
       player.play();
     }
     store.dispatch(setIsPlaying(true));
+    store.dispatch(setIsLoading(false));
   }
 
   public togglePlay(): void {

@@ -1,6 +1,7 @@
 import recombee from "recombee-js-api-client";
 import { api } from "./baseApi";
 import { Song } from "@/types";
+import { normalizeSong } from "@/utils/normalizeSong";
 
 const RECOMBEE_DB =
   process.env.EXPO_PUBLIC_RECOMBEE_DATABASE_ID || "";
@@ -34,62 +35,7 @@ export function getRecombeeClient(): any {
   return recombeeClientInstance;
 }
 
-export function mapRecombeeHit(hit: any): Song {
-  const vals = hit.values || {};
-  const songKey = vals.songKey || vals.audioKey || "";
-  const audioKey = vals.audioKey || vals.songKey || "";
-  const videoKey = vals.videoKey || vals.canvasKey || null;
-  const canvasKey = vals.canvasKey || vals.videoKey || null;
-  const clipStartSec =
-    typeof vals.clipStartSec === "number"
-      ? vals.clipStartSec
-      : typeof vals.canvasStartTime === "number"
-        ? vals.canvasStartTime
-        : undefined;
-  const clipEndSec =
-    typeof vals.clipEndSec === "number"
-      ? vals.clipEndSec
-      : typeof vals.canvasEndTime === "number"
-        ? vals.canvasEndTime
-        : undefined;
 
-  return {
-    id: String(hit.id || vals.id || ""),
-    title: vals.title || "",
-    artistName: vals.artistName || "",
-    duration: typeof vals.duration === "number" ? vals.duration : 0,
-    songKey,
-    audioKey,
-    imageKey: vals.imageKey || "",
-    videoKey,
-    canvasKey,
-    fullVideoKey: vals.fullVideoKey || null,
-    previewStartTime:
-      typeof vals.previewStartTime === "number"
-        ? vals.previewStartTime
-        : undefined,
-    previewEndTime:
-      typeof vals.previewEndTime === "number" ? vals.previewEndTime : undefined,
-    clipStartSec,
-    clipEndSec,
-    canvasStartTime: clipStartSec,
-    canvasEndTime: clipEndSec,
-    album: vals.album || undefined,
-    genre: vals.genre || undefined,
-    language: vals.language || "",
-    lrclibId: vals.lrclibId || "",
-    isFeatured: Boolean(vals.isFeatured),
-    status: vals.status || "ACTIVE",
-    jobId: vals.jobId || undefined,
-    createdAt: vals.createdAt || undefined,
-    totalStreams:
-      typeof vals.totalStreams === "number"
-        ? vals.totalStreams
-        : typeof vals.listenCount === "number"
-          ? vals.listenCount
-          : 0,
-  };
-}
 
 export const recombeeService = {
   /**
@@ -117,7 +63,7 @@ export const recombeeService = {
         if (recomms.length > 0) {
           const direct = recomms
             .filter((r: any) => r.values && r.values.title && r.values.songKey)
-            .map(mapRecombeeHit);
+            .map((r: any) => normalizeSong(r, "recombee"));
 
           if (direct.length > 0) {
             console.log(
@@ -192,7 +138,7 @@ export const recombeeService = {
               r.values.songKey
           )
           .slice(0, count)
-          .map(mapRecombeeHit);
+          .map((r: any) => normalizeSong(r, "recombee"));
 
         if (filtered.length > 0) {
           return filtered;

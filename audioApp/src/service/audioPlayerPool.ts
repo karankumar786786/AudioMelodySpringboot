@@ -1,6 +1,7 @@
 import { createAudioPlayer, AudioPlayer, AudioStatus } from "expo-audio";
-import { PlayerSong, AudioQuality } from "@/types";
+import { Song, PlayerSong, AudioQuality } from "@/types";
 import { configureAudioPriority } from "@/utils/audioConfig";
+import { mapToPlayerSong, S3_BASE_URL } from "@/utils/playerUtils";
 
 export type SlotRole = "active" | "standby1" | "standby2";
 
@@ -41,10 +42,25 @@ function applyBufferPolicy(slot: PlayerSlot) {
  * Resolves optimal stream URI according to user bitrate quality settings.
  */
 export function resolveStreamUrl(
-  song: PlayerSong,
+  song: Song | PlayerSong,
   quality: AudioQuality = "auto",
 ): string {
-  let uri = song.audioStreamUrl || song.videoStreamUrl || "";
+  let uri =
+    (song as PlayerSong).audioStreamUrl ||
+    (song as PlayerSong).videoStreamUrl ||
+    "";
+
+  if (!uri) {
+    const key =
+      song.songKey ||
+      (song as any).fullVideoKey ||
+      (song as any).audioKey ||
+      (song as any).videoKey;
+    if (key) {
+      uri = `${S3_BASE_URL}/${key}/master.m3u8`;
+    }
+  }
+
   if (!uri) return "";
 
   if (quality !== "auto" && uri.includes("master.m3u8")) {
@@ -149,7 +165,7 @@ export class AudioPlayerPool {
    */
   async preloadSlot(
     role: "standby1" | "standby2",
-    song: PlayerSong | null,
+    song: Song | PlayerSong | null,
     quality: AudioQuality = "auto",
   ): Promise<void> {
     await this.init();
@@ -163,19 +179,23 @@ export class AudioPlayerPool {
       return;
     }
 
-    const targetUri = resolveStreamUrl(song, quality);
+    const playerSong: PlayerSong = (song as PlayerSong).audioStreamUrl
+      ? (song as PlayerSong)
+      : mapToPlayerSong(song);
+
+    const targetUri = resolveStreamUrl(playerSong, quality);
     if (!targetUri) return;
 
     // If slot already has this exact song and URI buffered, preserve it
     if (
-      slot.song?.id === song.id &&
+      slot.song?.id === playerSong.id &&
       slot.resolvedUri === targetUri &&
       slot.isReady
     ) {
       return;
     }
 
-    slot.song = song;
+    slot.song = playerSong;
     slot.resolvedUri = targetUri;
     slot.isReady = false;
 
@@ -294,7 +314,7 @@ export class AudioPlayerPool {
    * Synchronizes the upcoming 2 tracks from the playback queue into Standby 1 & 2.
    */
   async syncPreloadQueue(
-    queue: PlayerSong[],
+    queue: (Song | PlayerSong)[],
     currentIndex: number,
     quality: AudioQuality = "auto",
   ): Promise<void> {

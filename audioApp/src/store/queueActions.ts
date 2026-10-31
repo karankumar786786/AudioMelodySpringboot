@@ -1,10 +1,7 @@
 import { AppDispatch, AppState, store } from "./hook";
-import { Song, PlayerSong, RepeatMode } from "@/types";
-import {
-  mapToPlayerSong,
-  dedupeBySongId,
-  shuffleArray,
-} from "@/utils/playerUtils";
+import { Song, PlayerSong } from "@/types";
+import { dedupeBySongId, mapToPlayerSong } from "@/utils/playerUtils";
+import { logQueueSnapshot } from "@/utils/queueLogger";
 import {
   setQueue,
   addToQueue,
@@ -14,6 +11,7 @@ import {
   setIsRefilling,
   startRadioSession,
   endRadioSession,
+  selectCurrentSongFromQueue,
 } from "./queueSlice";
 import {
   setCurrentSong,
@@ -22,7 +20,7 @@ import {
   setIsPlaying,
 } from "./playerSlice";
 import { PlayerStore } from "@/storage/PlayerStore";
-import { audioPlayerService, type AudioPlayerService } from "@/service/audioPlayerService";
+import { audioPlayerService } from "@/service/audioPlayerService";
 import { homeService } from "@/service/homeService";
 import { recombeeService } from "@/service/recombeeService";
 
@@ -40,37 +38,26 @@ export const playAll =
     if (firstSong) {
       const { currentSong, isPlaying } = getState().player;
       if (currentSong?.id === firstSong.id) {
-        if (isPlaying) {
-          return;
-        }
+        if (isPlaying) return;
         audioPlayerService.resume();
         return;
       }
     }
 
     const deduped = dedupeBySongId(songs);
-    const mapped = deduped.map((s) => mapToPlayerSong(s));
-    const { isShuffle } = getState().queue;
-
-    let queueToPlay = mapped;
-    let originalQueue: PlayerSong[] = [];
-
-    if (isShuffle && mapped.length > 1) {
-      originalQueue = [...mapped];
-      const [first, ...rest] = mapped;
-      queueToPlay = first ? [first, ...shuffleArray(rest)] : mapped;
+    if (!startPlaying) {
+      audioPlayerService.suppressAutoPlayOnce();
     }
 
     dispatch(endRadioSession());
-    dispatch(setQueue({ queue: queueToPlay, index: 0 }));
-    PlayerStore.saveLastQueue(queueToPlay, 0);
+    dispatch(setQueue({ queue: deduped, index: 0 }));
+    logQueueSnapshot("playAll", deduped, 0, deduped[0]);
 
-    if (startPlaying && queueToPlay[0]) {
-      await audioPlayerService.play(queueToPlay[0]);
+    if (startPlaying && deduped[0]) {
+      await audioPlayerService.play(deduped[0]);
     }
 
-    // Proactive background refill if initial playlist is small
-    if (queueToPlay.length <= 3) {
+    if (deduped.length <= 3) {
       dispatch(refillQueue(true));
     }
   };
@@ -87,11 +74,7 @@ export const playAllFrom =
     if (targetSong) {
       const { currentSong, isPlaying } = getState().player;
       if (currentSong?.id === targetSong.id) {
-        if (isPlaying) {
-          // Song is currently playing; don't do anything
-          return;
-        }
-        // Song is paused; resume playback
+        if (isPlaying) return;
         audioPlayerService.resume();
         return;
       }
@@ -105,34 +88,27 @@ export const playAllFrom =
       targetIdx !== -1
         ? targetIdx
         : Math.min(Math.max(0, startIndex), deduped.length - 1);
-    const mapped = deduped.map((s) => mapToPlayerSong(s));
-    const { isShuffle } = getState().queue;
 
-    let queueToPlay = mapped;
-    let playIndex = safeIndex;
-
-    if (isShuffle && mapped.length > 1) {
-      const selected = mapped[safeIndex];
-      const others = mapped.filter((_, i) => i !== safeIndex);
-      queueToPlay = selected ? [selected, ...shuffleArray(others)] : mapped;
-      playIndex = 0;
+    if (!startPlaying) {
+      audioPlayerService.suppressAutoPlayOnce();
     }
 
-    dispatch(setQueue({ queue: queueToPlay, index: playIndex }));
-    PlayerStore.saveLastQueue(queueToPlay, playIndex);
+    dispatch(endRadioSession());
+    dispatch(setQueue({ queue: deduped, index: safeIndex }));
+    logQueueSnapshot("playAllFrom", deduped, safeIndex, deduped[safeIndex]);
 
-    if (startPlaying && queueToPlay[playIndex]) {
-      await audioPlayerService.play(queueToPlay[playIndex]);
+    if (startPlaying && deduped[safeIndex]) {
+      await audioPlayerService.play(deduped[safeIndex]);
     }
 
-    if (queueToPlay.length - (playIndex + 1) <= 2) {
+    if (deduped.length - (safeIndex + 1) <= 2) {
       dispatch(refillQueue(false));
     }
   };
 
 /**
  * Play a clicked song immediately and populate the queue with similar songs
- * directly from Recombee (replacing the previous queue, NOT loading subsequent list songs).
+ * directly from Recombee.
  */
 export const playWithSimilarSongs =
   (song: Song | PlayerSong) =>
@@ -141,27 +117,20 @@ export const playWithSimilarSongs =
 
     const { currentSong, isPlaying } = getState().player;
     if (currentSong?.id === song.id) {
-      if (isPlaying) {
-        // Song is currently playing; don't do anything
-        return;
-      }
+      if (isPlaying) return;
       audioPlayerService.resume();
       return;
     }
 
-    const mapped = mapToPlayerSong(song);
+    // Initialize queue with the clicked song at index 0
+    dispatch(setQueue({ queue: [song], index: 0 }));
+    dispatch(startRadioSession({ seedSongId: song.id, seedTitle: song.title }));
+    logQueueSnapshot("playWithSimilarSongs (Initial 1 Track)", [song], 0, song);
 
-    // 1. Immediately initialize queue with ONLY the clicked song at index 0
-    dispatch(setQueue({ queue: [mapped], index: 0 }));
-    PlayerStore.saveLastQueue([mapped], 0);
-    dispatch(
-      startRadioSession({ seedSongId: song.id, seedTitle: song.title })
-    );
+    // Start playback immediately with lazy PlayerSong hydration
+    await audioPlayerService.play(song);
 
-    // 2. Start audio playback instantly without waiting for network recommendations
-    await audioPlayerService.play(mapped);
-
-    // 3. Asynchronously fetch similar songs directly from Recombee based on clicked song ID
+    // Asynchronously fetch similar songs from Recombee
     try {
       const state = getState();
       const user =
@@ -173,38 +142,34 @@ export const playWithSimilarSongs =
       );
 
       const dislikedSet = new Set(getState().queue.dislikedSongIds);
-      const filteredSimilar = similarSongs
-        .filter((s) => s.id !== song.id && !dislikedSet.has(s.id))
-        .map((s) => mapToPlayerSong(s));
+      const filteredSimilar = similarSongs.filter(
+        (s) => s.id !== song.id && !dislikedSet.has(s.id)
+      );
 
       if (filteredSimilar.length > 0) {
         dispatch(addToQueue(filteredSimilar));
-        PlayerStore.saveLastQueue([mapped, ...filteredSimilar], 0);
-        audioPlayerService.syncUpcomingPreload();
-        console.log(
-          `[Queue] Added ${filteredSimilar.length} similar songs from Recombee for "${song.title}"`
+        logQueueSnapshot(
+          "playWithSimilarSongs (After Recombee Recommendations)",
+          getState().queue.queue,
+          getState().queue.currentIndex,
+          song
         );
+        audioPlayerService.syncUpcomingPreload();
       }
     } catch (err) {
-      console.warn(
-        "[Queue] Failed to load Recombee recommendations for clicked song:",
-        err
-      );
+      console.warn("[Queue] Failed to load Recombee recommendations:", err);
     }
   };
 
-/**
- * Play an individual song immediately with Recombee recommendations.
- */
 export const playSong = playWithSimilarSongs;
 
 /**
  * Enqueue a song to play immediately after the currently playing song.
  */
 export const playNext =
-  (song: Song | PlayerSong) => (dispatch: AppDispatch) => {
-    const mapped = mapToPlayerSong(song);
-    dispatch(playNextReducer(mapped));
+  (song: Song | PlayerSong) => (dispatch: AppDispatch, getState: () => AppState) => {
+    dispatch(playNextReducer(song));
+    logQueueSnapshot("playNext", getState().queue.queue, getState().queue.currentIndex);
   };
 
 /**
@@ -212,10 +177,10 @@ export const playNext =
  */
 export const enqueue =
   (songs: (Song | PlayerSong)[] | (Song | PlayerSong)) =>
-  (dispatch: AppDispatch) => {
+  (dispatch: AppDispatch, getState: () => AppState) => {
     const list = Array.isArray(songs) ? songs : [songs];
-    const mapped = list.map((s) => mapToPlayerSong(s));
-    dispatch(addToQueue(mapped));
+    dispatch(addToQueue(list));
+    logQueueSnapshot("enqueue", getState().queue.queue, getState().queue.currentIndex);
   };
 
 /**
@@ -224,51 +189,50 @@ export const enqueue =
 export const nextTrack =
   (manualUserAction = false) =>
   async (dispatch: AppDispatch, getState: () => AppState) => {
-    const { queue, lastQueueIndex, repeatMode } = getState().queue;
-
+    const { queue, currentIndex, repeatMode } = getState().queue;
     if (queue.length === 0) return;
 
     // Handle repeat mode "one" on auto-finish
-    if (repeatMode === "one" && !manualUserAction && queue[lastQueueIndex]) {
+    if (repeatMode === "one" && !manualUserAction && queue[currentIndex]) {
       await audioPlayerService.seek(0);
       audioPlayerService.resume();
       return;
     }
 
-    const nextIndex = lastQueueIndex + 1;
-
-    // Proactive background refill when within 2 songs of the end
-    if (queue.length - (nextIndex + 1) <= 2) {
+    // Trigger refill proactively if nearing end
+    if (queue.length - (currentIndex + 1) <= 2) {
       dispatch(refillQueue(false));
     }
 
-    if (nextIndex < queue.length) {
+    if (currentIndex < queue.length - 1) {
       dispatch(advanceToNextTrack());
-      const updatedState = getState().queue;
-      PlayerStore.saveLastQueue(updatedState.queue, updatedState.lastQueueIndex);
-      const nextSong = updatedState.queue[updatedState.lastQueueIndex];
+      const updated = getState().queue;
+      const nextSong = selectCurrentSongFromQueue(updated);
+      logQueueSnapshot("nextTrack (Advance)", updated.queue, updated.currentIndex, nextSong);
       if (nextSong) {
         await audioPlayerService.play(nextSong, 0, false);
       }
     } else if (repeatMode === "all") {
       dispatch(setQueue({ queue, index: 0 }));
-      PlayerStore.saveLastQueue(queue, 0);
-      if (queue[0]) {
-        await audioPlayerService.play(queue[0], 0, false);
+      const firstSong = queue[0];
+      logQueueSnapshot("nextTrack (Loop All to Start)", queue, 0, firstSong);
+      if (firstSong) {
+        await audioPlayerService.play(firstSong, 0, false);
       }
     } else {
-      // Reached the end with repeat none; trigger refill and continue
+      // Reached the end with repeat none; try refill
       await dispatch(refillQueue(false));
       const postRefillState = getState().queue;
-      if (postRefillState.lastQueueIndex + 1 < postRefillState.queue.length) {
+      if (postRefillState.currentIndex < postRefillState.queue.length - 1) {
         dispatch(advanceToNextTrack());
-        const afterAdvance = getState().queue;
-        PlayerStore.saveLastQueue(afterAdvance.queue, afterAdvance.lastQueueIndex);
-        const songToPlay = afterAdvance.queue[afterAdvance.lastQueueIndex];
+        const after = getState().queue;
+        const songToPlay = selectCurrentSongFromQueue(after);
+        logQueueSnapshot("nextTrack (After Refill Advance)", after.queue, after.currentIndex, songToPlay);
         if (songToPlay) {
           await audioPlayerService.play(songToPlay, 0, false);
         }
       } else {
+        console.log("[Queue] Reached end of queue and refill empty; pausing playback.");
         audioPlayerService.pause();
       }
     }
@@ -281,21 +245,23 @@ export const prevTrack =
   () => async (dispatch: AppDispatch, getState: () => AppState) => {
     const currentTime = audioPlayerService.getCurrentTime();
 
-    // Industry standard (Spotify / Apple Music): restart song if > 3s in
     if (currentTime > 3) {
+      console.log(`[Queue:prevTrack] Current time is ${currentTime.toFixed(1)}s (> 3s), restarting current track.`);
       await audioPlayerService.seek(0);
       return;
     }
 
-    const { lastQueueIndex, queue } = getState().queue;
-    if (lastQueueIndex > 0) {
+    const { currentIndex } = getState().queue;
+    if (currentIndex > 0) {
       dispatch(retreatToPrevTrack());
-      PlayerStore.saveLastQueue(queue, lastQueueIndex - 1);
-      const prevSong = queue[lastQueueIndex - 1];
+      const updated = getState().queue;
+      const prevSong = selectCurrentSongFromQueue(updated);
+      logQueueSnapshot("prevTrack (Retreat)", updated.queue, updated.currentIndex, prevSong);
       if (prevSong) {
         await audioPlayerService.play(prevSong, 0, true);
       }
     } else {
+      console.log(`[Queue:prevTrack] Already at index 0, seeking to start.`);
       await audioPlayerService.seek(0);
     }
   };
@@ -308,9 +274,9 @@ export const refillQueue =
   async (dispatch: AppDispatch, getState: () => AppState): Promise<void> => {
     if (inFlightRefillPromise) return inFlightRefillPromise;
 
-    const { queue, lastQueueIndex, dislikedSongIds, radioSession } =
+    const { queue, currentIndex, dislikedSongIds, radioSession } =
       getState().queue;
-    const remaining = queue.length - (lastQueueIndex + 1);
+    const remaining = queue.length - (currentIndex + 1);
 
     if (!isInit && remaining > 3) {
       return;
@@ -323,10 +289,6 @@ export const refillQueue =
         const seedId = radioSession?.seedSongId || currentSong?.id;
         const user =
           getState().user.profile?.id || getState().device.deviceId || "anonymous";
-
-        console.log(
-          `[Queue Refill] Fetching recommendations directly from Recombee (Seed: ${seedId})...`
-        );
 
         let freshSongs: Song[] = [];
         if (seedId) {
@@ -347,17 +309,14 @@ export const refillQueue =
         const dislikedSet = new Set(dislikedSongIds);
         const existingIds = new Set(queue.map((s) => s.id));
 
-        // Filter out already enqueued and disliked songs
-        const freshMapped = freshSongs
-          .filter((s) => !existingIds.has(s.id) && !dislikedSet.has(s.id))
-          .map((s) => mapToPlayerSong(s));
+        const filtered = freshSongs.filter(
+          (s) => !existingIds.has(s.id) && !dislikedSet.has(s.id)
+        );
 
-        if (freshMapped.length > 0) {
-          dispatch(addToQueue(freshMapped));
+        if (filtered.length > 0) {
+          dispatch(addToQueue(filtered));
+          logQueueSnapshot("refillQueue (New Tracks Added)", getState().queue.queue, getState().queue.currentIndex);
           audioPlayerService.syncUpcomingPreload();
-          console.log(
-            `[Queue Refill] Successfully appended ${freshMapped.length} new Recombee tracks to queue.`
-          );
         }
       } catch (err) {
         console.warn("[Queue Refill] Failed to fetch autoplay tracks:", err);
@@ -381,9 +340,17 @@ audioPlayerService.setOnTrackEnd(() => {
 export const loadLastPlaybackState =
   () => async (dispatch: AppDispatch) => {
     try {
+      await audioPlayerService.init();
       const saved = await PlayerStore.getLastPlaybackState();
       if (saved?.song) {
-        dispatch(setCurrentSong(saved.song));
+        audioPlayerService.suppressAutoPlayOnce();
+        audioPlayerService.setLastPlayed(saved.song.id, saved.queueIndex);
+
+        const hydrated = (saved.song as PlayerSong).coverUrl
+          ? (saved.song as PlayerSong)
+          : mapToPlayerSong(saved.song);
+
+        dispatch(setCurrentSong(hydrated));
         const pos =
           typeof saved.position === "number" && !isNaN(saved.position)
             ? saved.position
@@ -393,6 +360,7 @@ export const loadLastPlaybackState =
           dispatch(setDuration(saved.song.duration));
         }
         dispatch(setIsPlaying(false));
+
         if (saved.queue && saved.queue.length > 0) {
           dispatch(
             setQueue({
@@ -400,13 +368,16 @@ export const loadLastPlaybackState =
               index: typeof saved.queueIndex === "number" ? saved.queueIndex : 0,
             })
           );
-          audioPlayerService.syncUpcomingPreload();
         } else {
           dispatch(setQueue({ queue: [saved.song], index: 0 }));
         }
-        console.log(
-          `[PlayerStore] Restored last playing song on launch: "${saved.song.title}" (${pos}s)`
+        logQueueSnapshot(
+          "loadLastPlaybackState (Restored)",
+          saved.queue || [saved.song],
+          typeof saved.queueIndex === "number" ? saved.queueIndex : 0,
+          hydrated
         );
+        audioPlayerService.syncUpcomingPreload();
       }
     } catch (err) {
       console.warn("[PlayerStore] Failed to restore playback state:", err);

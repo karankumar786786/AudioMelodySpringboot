@@ -1,36 +1,25 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { PlayerSong } from "@/types";
+import { Song, PlayerSong } from "@/types";
 
 const LAST_SONG_KEY = "melody_last_playing_song";
 const LAST_POSITION_KEY = "melody_last_playback_position";
 const LAST_QUEUE_KEY = "melody_last_queue";
 
 export interface SavedPlaybackState {
-  song: PlayerSong;
+  song: Song | PlayerSong;
   position: number;
-  queue: PlayerSong[];
+  queue: Song[];
   queueIndex: number;
-}
-
-function sanitizePlayerSong(song: PlayerSong): PlayerSong {
-  return {
-    ...song,
-    queueId: song.queueId || `${song.id}_restored`,
-    coverUrl: song.coverUrl || "",
-    posterUrl: song.posterUrl || song.coverUrl || "",
-    audioStreamUrl: song.audioStreamUrl || "",
-  };
 }
 
 export const PlayerStore = {
   /**
    * Persists the active playing song and current position to local storage.
    */
-  async saveLastSong(song: PlayerSong, position = 0): Promise<void> {
+  async saveLastSong(song: Song | PlayerSong, position = 0): Promise<void> {
     if (!song || !song.id) return;
     try {
-      const sanitized = sanitizePlayerSong(song);
-      await AsyncStorage.setItem(LAST_SONG_KEY, JSON.stringify(sanitized));
+      await AsyncStorage.setItem(LAST_SONG_KEY, JSON.stringify(song));
       if (typeof position === "number" && !isNaN(position) && position >= 0) {
         await AsyncStorage.setItem(LAST_POSITION_KEY, String(position));
       }
@@ -55,13 +44,13 @@ export const PlayerStore = {
   /**
    * Persists the current queue and active index.
    */
-  async saveLastQueue(queue: PlayerSong[], queueIndex = 0): Promise<void> {
+  async saveLastQueue(queue: Song[], queueIndex = 0): Promise<void> {
     if (!queue || queue.length === 0) return;
     try {
-      const sanitizedQueue = queue.slice(0, 50).map(sanitizePlayerSong);
+      const trimmedQueue = queue.slice(0, 50);
       await AsyncStorage.setItem(
         LAST_QUEUE_KEY,
-        JSON.stringify({ queue: sanitizedQueue, queueIndex })
+        JSON.stringify({ queue: trimmedQueue, queueIndex })
       );
     } catch (err) {
       console.warn("[PlayerStore] Failed to save last queue:", err);
@@ -76,7 +65,7 @@ export const PlayerStore = {
       const songJson = await AsyncStorage.getItem(LAST_SONG_KEY);
       if (!songJson) return null;
 
-      const song: PlayerSong = JSON.parse(songJson);
+      const song: Song = JSON.parse(songJson);
       if (!song || !song.id) return null;
 
       const posStr = await AsyncStorage.getItem(LAST_POSITION_KEY);

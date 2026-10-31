@@ -88,11 +88,11 @@ export function dedupeBySongId<T extends { id: string }>(items: T[]): T[] {
  * Rolling window: keep at most `maxHistory` played songs behind current index.
  * Prevents memory bloat during infinite autoplay / lengthy listening sessions.
  */
-export function applyRollingWindow(
-  queue: PlayerSong[],
+export function applyRollingWindow<T>(
+  queue: T[],
   currentIndex: number,
   maxHistory = 2,
-): { trimmedQueue: PlayerSong[]; adjustedIndex: number } {
+): { trimmedQueue: T[]; adjustedIndex: number } {
   if (currentIndex <= maxHistory) {
     return { trimmedQueue: queue, adjustedIndex: currentIndex };
   }

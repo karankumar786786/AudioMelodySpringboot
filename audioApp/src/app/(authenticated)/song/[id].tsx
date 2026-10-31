@@ -88,7 +88,7 @@ export default function SongDetailScreen() {
   const repeatMode = useSelector((state: AppState) => state.queue.repeatMode);
   const isShuffle = useSelector((state: AppState) => state.queue.isShuffle);
   const queue = useSelector((state: AppState) => state.queue.queue);
-  const lastQueueIndex = useSelector((state: AppState) => state.queue.lastQueueIndex);
+  const currentIndex = useSelector((state: AppState) => state.queue.currentIndex);
 
   // Local seekbar scrub / tap tracking to eliminate UI flicker during seeks
   const [progressBarWidth, setProgressBarWidth] = useState(0);
@@ -97,8 +97,8 @@ export default function SongDetailScreen() {
 
   const upcomingCount = useMemo(() => {
     if (!queue || queue.length === 0) return 0;
-    return Math.max(0, queue.length - (lastQueueIndex + 1));
-  }, [queue, lastQueueIndex]);
+    return Math.max(0, queue.length - (currentIndex + 1));
+  }, [queue, currentIndex]);
 
   // Load song metadata from backend if needed (fallback if not already active in player)
   const { data: fetchedSong, isLoading: isFetching, isError, error } = useQuery({
@@ -298,7 +298,7 @@ export default function SongDetailScreen() {
 
   const handleVideoTrackEnd = async () => {
     // Look ahead to the next track in queue
-    const nextIndex = lastQueueIndex + 1;
+    const nextIndex = currentIndex + 1;
     let nextSong: any = undefined;
 
     if (nextIndex < queue.length) {
@@ -539,6 +539,7 @@ export default function SongDetailScreen() {
       </Animated.View>
 
       <SafeAreaView
+      edges={["top","left","right"]}
         style={[
           styles.container,
           styles.containerTransparent,

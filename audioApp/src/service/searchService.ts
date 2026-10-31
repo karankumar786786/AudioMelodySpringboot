@@ -10,63 +10,7 @@ import {
   UserPlaylist,
 } from "@/types";
 import { getAlgoliaClient } from "./algoliaClient";
-
-
-function mapSongHit(hit: any): Song {
-  const songKey = hit.songKey || hit.audioKey || "";
-  const audioKey = hit.audioKey || hit.songKey || "";
-  const videoKey = hit.videoKey || hit.canvasKey || null;
-  const canvasKey = hit.canvasKey || hit.videoKey || null;
-  const clipStartSec =
-    typeof hit.clipStartSec === "number"
-      ? hit.clipStartSec
-      : typeof hit.canvasStartTime === "number"
-        ? hit.canvasStartTime
-        : undefined;
-  const clipEndSec =
-    typeof hit.clipEndSec === "number"
-      ? hit.clipEndSec
-      : typeof hit.canvasEndTime === "number"
-        ? hit.canvasEndTime
-        : undefined;
-
-  return {
-    id: hit.objectID || hit.id,
-    title: hit.title || "",
-    artistName: hit.artistName || hit.artist || "",
-    duration: typeof hit.duration === "number" ? hit.duration : 0,
-    songKey,
-    audioKey,
-    imageKey: hit.imageKey || hit.coverImageKey || "",
-    videoKey,
-    canvasKey,
-    fullVideoKey: hit.fullVideoKey || null,
-    previewStartTime:
-      typeof hit.previewStartTime === "number"
-        ? hit.previewStartTime
-        : undefined,
-    previewEndTime:
-      typeof hit.previewEndTime === "number" ? hit.previewEndTime : undefined,
-    clipStartSec,
-    clipEndSec,
-    canvasStartTime: clipStartSec,
-    canvasEndTime: clipEndSec,
-    album: hit.album || undefined,
-    genre: hit.genre || undefined,
-    language: hit.language || "",
-    lrclibId: hit.lrclibId || "",
-    isFeatured: Boolean(hit.isFeatured),
-    status: hit.status || "ACTIVE",
-    jobId: hit.jobId || undefined,
-    createdAt: hit.createdAt || undefined,
-    totalStreams:
-      typeof hit.totalStreams === "number"
-        ? hit.totalStreams
-        : typeof hit.listenCount === "number"
-          ? hit.listenCount
-          : 0,
-  };
-}
+import { normalizeSong } from "@/utils/normalizeSong";
 
 function mapArtistHit(hit: any): Artist {
   return {
@@ -168,7 +112,7 @@ export const searchService: SearchService = {
       const songHits: any[] = (results[1] as any)?.hits || [];
       const playlistHits: any[] = (results[2] as any)?.hits || [];
 
-      const songs: Song[] = songHits.map(mapSongHit);
+      const songs: Song[] = songHits.map((h: any) => normalizeSong(h, "algolia"));
       const artists: Artist[] = artistHits.map(mapArtistHit);
       const playlists: Playlist[] = [];
       const userPlaylists: UserPlaylist[] = [];
@@ -209,7 +153,7 @@ export const searchService: SearchService = {
 
         if (type === "song") {
           if (songs.length < 20) {
-            songs.push(mapSongHit(hit));
+            songs.push(normalizeSong(hit, "algolia"));
           }
         } else if (type === "artist") {
           if (artists.length < 8) {

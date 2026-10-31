@@ -1,63 +1,7 @@
 import { api } from "./baseApi";
 import { Artist, Song, PaginatedResponse, ArtistFollowStatus } from "@/types";
 import { getAlgoliaClient } from "./algoliaClient";
-
-
-function mapSongHit(hit: any): Song {
-  const songKey = hit.songKey || hit.audioKey || "";
-  const audioKey = hit.audioKey || hit.songKey || "";
-  const videoKey = hit.videoKey || hit.canvasKey || null;
-  const canvasKey = hit.canvasKey || hit.videoKey || null;
-  const clipStartSec =
-    typeof hit.clipStartSec === "number"
-      ? hit.clipStartSec
-      : typeof hit.canvasStartTime === "number"
-        ? hit.canvasStartTime
-        : undefined;
-  const clipEndSec =
-    typeof hit.clipEndSec === "number"
-      ? hit.clipEndSec
-      : typeof hit.canvasEndTime === "number"
-        ? hit.canvasEndTime
-        : undefined;
-
-  return {
-    id: hit.objectID || hit.id,
-    title: hit.title || "",
-    artistName: hit.artistName || hit.artist || "",
-    duration: typeof hit.duration === "number" ? hit.duration : 0,
-    songKey,
-    audioKey,
-    imageKey: hit.imageKey || hit.coverImageKey || "",
-    videoKey,
-    canvasKey,
-    fullVideoKey: hit.fullVideoKey || null,
-    previewStartTime:
-      typeof hit.previewStartTime === "number"
-        ? hit.previewStartTime
-        : undefined,
-    previewEndTime:
-      typeof hit.previewEndTime === "number" ? hit.previewEndTime : undefined,
-    clipStartSec,
-    clipEndSec,
-    canvasStartTime: clipStartSec,
-    canvasEndTime: clipEndSec,
-    album: hit.album || undefined,
-    genre: hit.genre || undefined,
-    language: hit.language || "",
-    lrclibId: hit.lrclibId || "",
-    isFeatured: Boolean(hit.isFeatured),
-    status: hit.status || "ACTIVE",
-    jobId: hit.jobId || undefined,
-    createdAt: hit.createdAt || undefined,
-    totalStreams:
-      typeof hit.totalStreams === "number"
-        ? hit.totalStreams
-        : typeof hit.listenCount === "number"
-          ? hit.listenCount
-          : 0,
-  };
-}
+import { normalizeSong } from "@/utils/normalizeSong";
 
 export interface ArtistService {
   getArtistById(id: string): Promise<Artist>;
@@ -102,7 +46,7 @@ export const artistService: ArtistService = {
 
         const hits: any[] = response.hits || [];
         if (hits.length > 0) {
-          const songs: Song[] = hits.map(mapSongHit);
+          const songs: Song[] = hits.map((h: any) => normalizeSong(h, "algolia"));
           const totalHits = response.nbHits || songs.length;
           return {
             content: songs,

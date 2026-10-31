@@ -4,6 +4,11 @@ export type RepeatMode = "none" | "one" | "all";
 
 export type PlaybackMode = "audio" | "canvas" | "fullVideo";
 
+/**
+ * PlayerSong extends Song with resolved CDN URLs for playback.
+ * Only the currently active song (+ preloaded standbys) are hydrated to PlayerSong;
+ * the queue itself stores lightweight Song objects.
+ */
 export interface PlayerSong extends Song {
   queueId: string; // Unique instance ID for this specific entry in the playback queue
   audioStreamUrl: string; // S3 HLS audio manifest: {S3_BASE_URL}/{songKey}/master.m3u8
@@ -22,9 +27,13 @@ export interface RadioSession {
 }
 
 export interface QueueState {
-  queue: PlayerSong[];
-  originalQueue: PlayerSong[]; // Preserves original un-shuffled sequence
-  lastQueueIndex: number;
+  queue: Song[];
+  currentIndex: number;
+
+  // Shuffle: store permutation as index array instead of duplicating the entire queue.
+  // null = not shuffled; number[] = shuffled index order.
+  shuffleOrder: number[] | null;
+
   repeatMode: RepeatMode;
   isShuffle: boolean;
   dislikedSongIds: string[];
@@ -52,4 +61,3 @@ export interface PlayerState {
   dominantColor: string;
   playbackMode: PlaybackMode;
 }
-

@@ -18,10 +18,11 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useSelector, useDispatch } from "react-redux";
 import { AppState } from "@/store/hook";
-import { PlayerSong } from "@/types";
+import { Song, PlayerSong } from "@/types";
 import { clearUpcomingQueue, removeSongFromQueue } from "@/store/queueSlice";
 import { playSong } from "@/store/queueActions";
 import { formatDuration } from "@/utils/formatUtils";
+import { getImageUrl } from "@/utils/imageUtils";
 
 interface QueueModalProps {
   visible: boolean;
@@ -48,10 +49,10 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
 
   const currentSong = useSelector((state: AppState) => state.player.currentSong);
   const queue = useSelector((state: AppState) => state.queue.queue);
-  const lastQueueIndex = useSelector((state: AppState) => state.queue.lastQueueIndex);
+  const currentIndex = useSelector((state: AppState) => state.queue.currentIndex);
 
   const upcomingQueue =
-    lastQueueIndex >= 0 ? queue.slice(lastQueueIndex + 1) : queue;
+    currentIndex >= 0 ? queue.slice(currentIndex + 1) : queue;
 
   // ---- Expandable sheet ----
   const sheetHeight = useRef(new Animated.Value(COLLAPSED_H)).current;
@@ -120,7 +121,7 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
     },
   });
 
-  const handlePlaySong = (song: PlayerSong) => {
+  const handlePlaySong = (song: Song | PlayerSong) => {
     (dispatch as any)(playSong(song));
   };
 
@@ -222,7 +223,7 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
             ) : (
               <FlatList
                 data={upcomingQueue}
-                keyExtractor={(item, idx) => item.queueId || `${item.id}-${idx}`}
+                keyExtractor={(item, idx) => (item as any).queueId || `${item.id}-${idx}`}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
                 renderItem={({ item, index }) => (
@@ -233,7 +234,16 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
                   >
                     <Text style={styles.queueIndex}>{index + 1}</Text>
                     <Image
-                      source={{ uri: item.coverUrl }}
+                      source={{
+                        uri:
+                          (item as any).coverUrl ||
+                          getImageUrl(item.imageKey, {
+                            width: 100,
+                            height: 100,
+                            aspectRatio: "1-1",
+                          }) ||
+                          "",
+                      }}
                       style={styles.songThumb}
                       contentFit="cover"
                       cachePolicy="memory"
