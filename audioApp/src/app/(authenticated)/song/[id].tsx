@@ -51,6 +51,10 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+const WIKI_IMAGE_HEADERS = {
+  "User-Agent": "OneMelodyAudioApp/1.0 (https://onemelody.com; support@onemelody.com)",
+};
+
 export default function SongDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -1001,11 +1005,14 @@ export default function SongDetailScreen() {
             >
               {songInfo?.artist?.image ? (
                 <Image
-                  source={{ uri: songInfo.artist.image }}
+                  source={{
+                    uri: songInfo.artist.image,
+                    headers: WIKI_IMAGE_HEADERS,
+                  }}
                   style={styles.artistHeroImage}
                   contentFit="cover"
                   contentPosition="top center"
-                  cachePolicy="memory"
+                  cachePolicy="memory-disk"
                 />
               ) : (
                 <View style={styles.artistHeroFallback}>
@@ -1142,10 +1149,13 @@ export default function SongDetailScreen() {
             <View style={styles.fullImageModalContent}>
               {songInfo?.artist?.image ? (
                 <Image
-                  source={{ uri: songInfo.artist.image }}
+                  source={{
+                    uri: songInfo.artist.image,
+                    headers: WIKI_IMAGE_HEADERS,
+                  }}
                   style={styles.fullImageModalImage}
                   contentFit="contain"
-                  cachePolicy="memory"
+                  cachePolicy="memory-disk"
                 />
               ) : null}
             </View>

@@ -13,10 +13,16 @@ export interface SongInfoResult {
   };
 }
 
+const WIKI_HEADERS = {
+  "User-Agent": "OneMelodyAudioApp/1.0 (https://onemelody.com; support@onemelody.com)",
+  Accept: "application/json",
+};
+
 async function fetchWikiSummary(title: string): Promise<any> {
   try {
     const res = await fetch(
-      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`
+      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,
+      { headers: WIKI_HEADERS }
     );
     if (!res.ok) return null;
     const data = await res.json();
@@ -32,7 +38,8 @@ async function searchWikiTitle(query: string): Promise<string | null> {
     const res = await fetch(
       `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(
         query
-      )}&format=json&origin=*`
+      )}&format=json&origin=*`,
+      { headers: WIKI_HEADERS }
     );
     if (!res.ok) return null;
     const data = await res.json();
