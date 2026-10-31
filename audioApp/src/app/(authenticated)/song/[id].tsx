@@ -539,7 +539,7 @@ export default function SongDetailScreen() {
       </Animated.View>
 
       <SafeAreaView
-      edges={["top","left","right"]}
+        edges={["top","left","right"]}
         style={[
           styles.container,
           styles.containerTransparent,

@@ -7,11 +7,16 @@ import { MiniPlayer } from "@/components";
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
-  const tabHeight = Platform.OS === "ios" ? 49 + insets.bottom : 56 + insets.bottom;
+  // iOS UITabBar is 49pt + insets.bottom. Android Material 3 NavigationBar is 80dp + insets.bottom.
+  const tabHeight = Platform.OS === "ios" ? 49 + insets.bottom : 80 + insets.bottom;
 
   return (
     <View style={styles.container}>
       <NativeTabs
+        backgroundColor="#000000"
+        indicatorColor="transparent"
+        disableIndicator={true}
+        rippleColor="rgba(255, 255, 255, 0.08)"
         blurEffect="systemChromeMaterialDark"
         tintColor="#FFFFFF"
         iconColor={{
