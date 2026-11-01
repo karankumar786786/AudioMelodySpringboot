@@ -23,6 +23,7 @@ import { PlayerStore } from "@/storage/PlayerStore";
 import { audioPlayerService } from "@/service/audioPlayerService";
 import { homeService } from "@/service/homeService";
 import { recombeeService } from "@/service/recombeeService";
+import { interactionService } from "@/service/interactionService";
 
 let inFlightRefillPromise: Promise<void> | null = null;
 
@@ -199,6 +200,11 @@ export const nextTrack =
       return;
     }
 
+    // Report skip telemetry for the song being skipped (manual user action only)
+    if (manualUserAction && queue[currentIndex]) {
+      interactionService.recordSkip(queue[currentIndex].id);
+    }
+
     // Trigger refill proactively if nearing end
     if (queue.length - (currentIndex + 1) <= 2) {
       dispatch(refillQueue(false));
@@ -251,8 +257,14 @@ export const prevTrack =
       return;
     }
 
-    const { currentIndex } = getState().queue;
+    const { currentIndex, queue } = getState().queue;
     if (currentIndex > 0) {
+      // Report skip telemetry for the song being skipped backward
+      const currentSong = queue[currentIndex];
+      if (currentSong) {
+        interactionService.recordSkip(currentSong.id);
+      }
+
       dispatch(retreatToPrevTrack());
       const updated = getState().queue;
       const prevSong = selectCurrentSongFromQueue(updated);

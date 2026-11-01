@@ -18,6 +18,7 @@ import {
 } from "@/store/playerSlice";
 import { PlayerStore } from "@/storage/PlayerStore";
 import { audioPlayerPool, resolveStreamUrl } from "./audioPlayerPool";
+import { interactionService } from "./interactionService";
 
 export class AudioPlayerService {
   private pool = audioPlayerPool;
@@ -212,6 +213,11 @@ export class AudioPlayerService {
         this.isAdvancingTrack = false;
       }, 1200);
 
+      // Report 100% listen to backend (track completed naturally)
+      if (this.currentPlayingSong?.id) {
+        interactionService.recordPlay(this.currentPlayingSong.id, 1.0);
+      }
+
       console.log("[AudioPlayerService] Track finished playback. Determining next action...");
       const state = store.getState();
       const sleepTimer = state.player.sleepTimer;
@@ -257,6 +263,9 @@ export class AudioPlayerService {
 
   public async play(song: Song | PlayerSong, startTime = 0, force = false): Promise<void> {
     await this.init();
+
+    // Report listen telemetry for the song being replaced (partial listen)
+    this.reportPartialListen();
 
     let playerSong: PlayerSong = (song as PlayerSong).audioStreamUrl
       ? (song as PlayerSong)
@@ -590,6 +599,27 @@ export class AudioPlayerService {
 
   public getCurrentSong(): PlayerSong | null {
     return this.currentPlayingSong;
+  }
+
+  /**
+   * Reports a partial listen to the backend when a song is interrupted
+   * (e.g. user switches to another song before the current one finishes).
+   * Only fires if the user listened to at least 5% of the track.
+   */
+  private reportPartialListen(): void {
+    if (!this.currentPlayingSong?.id) return;
+    const player = this.activePlayer;
+    if (!player) return;
+
+    const currentTime = player.currentTime || 0;
+    const duration = player.duration || this.currentPlayingSong.duration || 0;
+    if (duration <= 0 || currentTime <= 0) return;
+
+    const percentage = Math.min(1.0, currentTime / duration);
+    // Only report if user listened to at least 5% (avoid noise from rapid skips)
+    if (percentage >= 0.05) {
+      interactionService.recordPlay(this.currentPlayingSong.id, percentage);
+    }
   }
 }
 
