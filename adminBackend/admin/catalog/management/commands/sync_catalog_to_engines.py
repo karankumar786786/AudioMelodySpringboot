@@ -5,10 +5,10 @@ from django.core.management.base import BaseCommand
 from django.db.models import Q
 
 # pyrefly: ignore[missing-import]
-from catalog.models import Song, Artist, Playlist
+from catalog.models import Song, Artist, Playlist, UserPlaylist
 # pyrefly: ignore[missing-import]
 from jobs.models import Job
-from core.services import AlgoliaService, RecombeeService
+from core.services import AlgoliaService, RecombeeService, CatalogSyncService
 
 logger = logging.getLogger(__name__)
 
@@ -40,12 +40,24 @@ class Command(BaseCommand):
             action="store_true",
             help="Reconfigure Algolia index settings, facets, and custom ranking",
         )
+        parser.add_argument(
+            "--purge-inactive",
+            action="store_true",
+            help="Purge INACTIVE and deleted items from Algolia and Recombee",
+        )
+        parser.add_argument(
+            "--sync-streams",
+            action="store_true",
+            help="Perform incremental stream count synchronization only",
+        )
 
     def handle(self, *args, **options):
         target = options["target"]
         batch_size = options["batch_size"]
         dry_run = options["dry_run"]
         configure_algolia = options["configure_algolia"]
+        purge_inactive = options["purge_inactive"]
+        sync_streams = options["sync_streams"]
 
         self.stdout.write(self.style.MIGRATE_HEADING("=================================================="))
         self.stdout.write(self.style.MIGRATE_HEADING("  Catalog to Algolia & Recombee Synchronization   "))
@@ -53,6 +65,18 @@ class Command(BaseCommand):
         self.stdout.write(f"Target: {target} | Batch Size: {batch_size} | Dry Run: {dry_run}\n")
 
         start_time = time.time()
+
+        # Incremental streams shortcut
+        if sync_streams:
+            self.stdout.write(self.style.NOTICE("Running incremental stream count sync..."))
+            if dry_run:
+                self.stdout.write("   [Dry Run] Would synchronize stream counts to Algolia and Recombee")
+            else:
+                report = CatalogSyncService.sync_stream_counts()
+                self.stdout.write(self.style.SUCCESS(f"     ✓ Updated streams for {report.get('songsUpdated', 0)} songs"))
+            elapsed = time.time() - start_time
+            self.stdout.write(self.style.SUCCESS(f"✨ Stream sync finished in {elapsed:.2f} seconds."))
+            return
 
         # 1. Fetch data from DB
         self.stdout.write("1. Fetching active records from database...")
@@ -72,80 +96,12 @@ class Command(BaseCommand):
         playlists = list(Playlist.objects.filter(status="ACTIVE"))
         self.stdout.write(f"   - Active Playlists: {len(playlists)}")
 
+        public_user_playlists = list(UserPlaylist.objects.filter(privacy="PUBLIC").select_related("user"))
+        self.stdout.write(f"   - Public User Playlists: {len(public_user_playlists)}")
+
         # 2. Fetch Jobs to get audio features & canvas clip timestamps
-        song_ids = [s.id for s in songs if s.id]
-        job_ids = [s.job_id for s in songs if getattr(s, "job_id", None)]
-        jobs = list(Job.objects.filter(Q(song_id__in=song_ids) | Q(id__in=job_ids)).order_by("-created_at"))
-
-        # Group jobs by song id / job id
-        jobs_grouped: Dict[str, list] = {}
-        for j in jobs:
-            if j.song_id:
-                jobs_grouped.setdefault(j.song_id, []).append(j)
-            if j.id:
-                jobs_grouped.setdefault(j.id, []).append(j)
-
-        class MergedJob:
-            id: Optional[str] = None
-            song_id: Optional[str] = None
-            clip_start_sec: Optional[int] = None
-            clip_end_sec: Optional[int] = None
-            video_key: Optional[str] = None
-            full_video_key: Optional[str] = None
-            preview_start_time: Optional[int] = None
-            preview_end_time: Optional[int] = None
-            song_key: Optional[str] = None
-            tempo: Optional[float] = None
-            danceability: Optional[float] = None
-            energy: Optional[float] = None
-            valence: Optional[float] = None
-            acousticness: Optional[float] = None
-            instrumentalness: Optional[float] = None
-            liveness: Optional[float] = None
-            speechiness: Optional[float] = None
-            loudness: Optional[float] = None
-            key: Optional[int] = None
-            mode: Optional[int] = None
-
-            def __init__(self, j_list):
-                fields = [
-                    "id", "song_id", "clip_start_sec", "clip_end_sec", "video_key", "full_video_key",
-                    "preview_start_time", "preview_end_time", "song_key",
-                    "tempo", "danceability", "energy", "valence", "acousticness",
-                    "instrumentalness", "liveness", "speechiness", "loudness", "key", "mode"
-                ]
-                for f in fields:
-                    val = None
-                    for j in j_list:
-                        v = getattr(j, f, None)
-                        if v is not None:
-                            val = v
-                            break
-                    setattr(self, f, val)
-
-        jobs_map: Dict[str, Any] = {}
-        jobs_with_audio_features = 0
-        jobs_with_clips = 0
-        for s in songs:
-            j_list = []
-            if s.id and s.id in jobs_grouped:
-                j_list.extend(jobs_grouped[s.id])
-            if getattr(s, "job_id", None) and s.job_id in jobs_grouped:
-                for j in jobs_grouped[s.job_id]:
-                    if j not in j_list:
-                        j_list.append(j)
-            if j_list:
-                merged = MergedJob(j_list)
-                if s.id:
-                    jobs_map[s.id] = merged
-                if getattr(s, "job_id", None):
-                    jobs_map[s.job_id] = merged
-                if merged.danceability is not None:
-                    jobs_with_audio_features += 1
-                if merged.clip_start_sec is not None:
-                    jobs_with_clips += 1
-
-        self.stdout.write(f"   - Matching Jobs found: {len(jobs)} ({jobs_with_clips} with canvas clips, {jobs_with_audio_features} with audio features)\n")
+        jobs_map = CatalogSyncService.build_jobs_map(songs)
+        self.stdout.write(f"   - Transcoding & Audio Feature Jobs mapped: {len(jobs_map)}\n")
 
         # 3. Synchronize Algolia
         if target in ["all", "algolia"]:
@@ -160,7 +116,8 @@ class Command(BaseCommand):
             if dry_run:
                 self.stdout.write(f"   [Dry Run] Would index {len(songs)} songs into Algolia")
                 self.stdout.write(f"   [Dry Run] Would index {len(artists)} artists into Algolia")
-                self.stdout.write(f"   [Dry Run] Would index {len(playlists)} playlists into Algolia")
+                self.stdout.write(f"   [Dry Run] Would index {len(playlists)} curated playlists into Algolia")
+                self.stdout.write(f"   [Dry Run] Would index {len(public_user_playlists)} public user playlists into Algolia")
             else:
                 self.stdout.write(f"   - Indexing {len(songs)} songs into Algolia...")
                 songs_synced = AlgoliaService.reindex_all_active_songs(songs, batch_size=batch_size, jobs_by_song_id=jobs_map)
@@ -170,9 +127,13 @@ class Command(BaseCommand):
                 artists_synced = AlgoliaService.reindex_all_artists(artists, batch_size=batch_size)
                 self.stdout.write(self.style.SUCCESS(f"     ✓ Indexed {artists_synced} artists"))
 
-                self.stdout.write(f"   - Indexing {len(playlists)} playlists into Algolia...")
+                self.stdout.write(f"   - Indexing {len(playlists)} curated playlists into Algolia...")
                 playlists_synced = AlgoliaService.reindex_all_playlists(playlists, batch_size=batch_size)
-                self.stdout.write(self.style.SUCCESS(f"     ✓ Indexed {playlists_synced} playlists"))
+                self.stdout.write(self.style.SUCCESS(f"     ✓ Indexed {playlists_synced} curated playlists"))
+
+                self.stdout.write(f"   - Indexing {len(public_user_playlists)} public user playlists into Algolia...")
+                user_playlists_synced = AlgoliaService.reindex_all_user_playlists(public_user_playlists, batch_size=batch_size)
+                self.stdout.write(self.style.SUCCESS(f"     ✓ Indexed {user_playlists_synced} public user playlists"))
             self.stdout.write("")
 
         # 4. Synchronize Recombee
@@ -184,6 +145,46 @@ class Command(BaseCommand):
                 self.stdout.write(f"   - Ingesting {len(songs)} songs with 11 audio features into Recombee...")
                 recombee_synced = RecombeeService.reindex_all_active_songs(songs, jobs_by_song_id=jobs_map)
                 self.stdout.write(self.style.SUCCESS(f"     ✓ Ingested {recombee_synced} songs into Recombee"))
+            self.stdout.write("")
+
+        # 5. Purge Inactive Items
+        if purge_inactive:
+            self.stdout.write(self.style.NOTICE("4. Purging Inactive / Deleted Items from Engines..."))
+            if dry_run:
+                self.stdout.write("   [Dry Run] Would purge INACTIVE songs, artists, playlists, and non-public user playlists")
+            else:
+                inactive_songs = list(Song.objects.filter(status="INACTIVE").values_list("id", flat=True))
+                for s_id in inactive_songs:
+                    try:
+                        AlgoliaService.delete_object(s_id)
+                        RecombeeService.delete_song(s_id)
+                    except Exception:
+                        pass
+                self.stdout.write(self.style.SUCCESS(f"     ✓ Purged {len(inactive_songs)} inactive songs"))
+
+                inactive_artists = list(Artist.objects.filter(status="INACTIVE").values_list("id", flat=True))
+                for a_id in inactive_artists:
+                    try:
+                        AlgoliaService.delete_object(a_id)
+                    except Exception:
+                        pass
+                self.stdout.write(self.style.SUCCESS(f"     ✓ Purged {len(inactive_artists)} inactive artists"))
+
+                inactive_playlists = list(Playlist.objects.filter(status="INACTIVE").values_list("id", flat=True))
+                for p_id in inactive_playlists:
+                    try:
+                        AlgoliaService.delete_object(p_id)
+                    except Exception:
+                        pass
+                self.stdout.write(self.style.SUCCESS(f"     ✓ Purged {len(inactive_playlists)} inactive playlists"))
+
+                private_user_playlists = list(UserPlaylist.objects.exclude(privacy="PUBLIC").values_list("id", flat=True))
+                for up_id in private_user_playlists:
+                    try:
+                        AlgoliaService.delete_object(up_id)
+                    except Exception:
+                        pass
+                self.stdout.write(self.style.SUCCESS(f"     ✓ Purged {len(private_user_playlists)} non-public user playlists"))
             self.stdout.write("")
 
         elapsed = time.time() - start_time

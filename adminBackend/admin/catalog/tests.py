@@ -1,7 +1,8 @@
 from datetime import datetime
+from unittest.mock import patch
 from django.test import SimpleTestCase
 # pyrefly: ignore[missing-import]
-from catalog.models import Artist, Playlist, Song
+from catalog.models import Artist, Playlist, Song, UserPlaylist
 # pyrefly: ignore[missing-import]
 from catalog.serializers import ArtistSerializer, PlaylistSerializer, SongSerializer
 
@@ -62,3 +63,42 @@ class CatalogAppTests(SimpleTestCase):
         self.assertEqual(data["artistName"], "Arijit Singh")
         self.assertTrue(data["isFeatured"])
         self.assertEqual(data["previewStartTime"], 30)
+
+    def test_build_user_playlist_record_for_algolia(self):
+        from core.services import AlgoliaService
+        up_dict = {
+            "id": "upl-101",
+            "name": "My Favorites",
+            "privacy": "PUBLIC",
+            "shareToken": "token-xyz",
+            "totalSongs": 12,
+            "ownerId": "u-1",
+            "ownerName": "karan",
+        }
+        record = AlgoliaService.build_user_playlist_record(up_dict)
+        self.assertIsNotNone(record)
+        self.assertEqual(record["objectID"], "upl-101")
+        self.assertEqual(record["type"], "playlist")
+        self.assertTrue(record["isUserPlaylist"])
+        self.assertEqual(record["privacy"], "PUBLIC")
+        self.assertEqual(record["ownerName"], "karan")
+        self.assertEqual(record["totalSongs"], 12)
+
+    @patch("catalog.models.Song.objects.filter")
+    @patch("catalog.models.Artist.objects.filter")
+    @patch("catalog.models.Playlist.objects.filter")
+    @patch("catalog.models.UserPlaylist.objects.filter")
+    def test_catalog_sync_health(self, mock_up, mock_pl, mock_art, mock_song):
+        mock_song.return_value.count.return_value = 10
+        mock_art.return_value.count.return_value = 5
+        mock_pl.return_value.count.return_value = 2
+        mock_up.return_value.count.return_value = 3
+
+        from core.services import CatalogSyncService
+        health = CatalogSyncService.get_sync_health()
+        self.assertIn("status", health)
+        self.assertIn("engines", health)
+        self.assertIn("databaseCounts", health)
+        self.assertEqual(health["databaseCounts"]["activeSongs"], 10)
+        self.assertEqual(health["databaseCounts"]["publicUserPlaylists"], 3)
+

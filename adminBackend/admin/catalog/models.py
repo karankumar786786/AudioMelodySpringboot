@@ -139,3 +139,20 @@ class PlaylistSong(models.Model):
         managed = False
         db_table = "playlist_songs"
         unique_together = (("playlist", "song"),)
+
+
+class UserPlaylist(models.Model):
+    id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
+    name = models.CharField(max_length=255)
+    privacy = models.CharField(max_length=50, blank=True, null=True)
+    share_token = models.CharField(max_length=255, blank=True, null=True, db_column="share_token")
+    total_songs = models.IntegerField(default=0, db_column="total_songs")
+    user = models.ForeignKey("accounts.User", on_delete=models.CASCADE, db_column="user_id", related_name="user_playlists")
+
+    class Meta:
+        managed = False
+        db_table = "user_playlists"
+
+    def __str__(self):
+        return f"{self.name} ({self.privacy})"
+

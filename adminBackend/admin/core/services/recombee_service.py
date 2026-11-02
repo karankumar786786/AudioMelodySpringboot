@@ -552,5 +552,19 @@ class RecombeeService:
             logger.error("Failed batch reindex in Recombee: %s", e)
             raise
 
+    @classmethod
+    def update_total_streams(cls, song_id: str, total_streams: int) -> None:
+        client = cls.get_client()
+        if not client or not song_id:
+            return
+        from recombee_api_client.api_requests import SetItemValues
+        try:
+            req = SetItemValues(song_id, {"totalStreams": total_streams}, cascade_create=True)
+            req.timeout = 5000
+            client.send(req)
+        except Exception as e:
+            logger.warning("Failed to update totalStreams in Recombee for [%s]: %s", song_id, e)
+
+
 
 

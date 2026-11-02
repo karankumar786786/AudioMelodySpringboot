@@ -122,7 +122,7 @@ public class UserPlaylistApiService {
 
         // If public, sync to Algolia AFTER_COMMIT
         if (playlist.getPrivacy() == PlaylistPrivacyEnum.PUBLIC) {
-            eventPublisher.publishEvent(new AlgoliaEvents.PlaylistIndexSyncEvent(playlist.getId(), playlist.getName()));
+            publishUserPlaylistSyncEvent(playlist);
         }
 
         return UserPlaylistDto.fromEntity(playlist);
@@ -136,7 +136,7 @@ public class UserPlaylistApiService {
 
         // If public, sync to Algolia AFTER_COMMIT
         if (playlist.getPrivacy() == PlaylistPrivacyEnum.PUBLIC) {
-            eventPublisher.publishEvent(new AlgoliaEvents.PlaylistIndexSyncEvent(playlist.getId(), playlist.getName()));
+            publishUserPlaylistSyncEvent(playlist);
         }
 
         return UserPlaylistDto.fromEntity(playlist);
@@ -157,7 +157,7 @@ public class UserPlaylistApiService {
         // If private or share by link -> delete all follower library references AND delete from Algolia AFTER_COMMIT.
         final String pid = playlist.getId();
         if (newPrivacy == PlaylistPrivacyEnum.PUBLIC) {
-            eventPublisher.publishEvent(new AlgoliaEvents.PlaylistIndexSyncEvent(playlist.getId(), playlist.getName()));
+            publishUserPlaylistSyncEvent(playlist);
         } else {
             // Revoke followers: delete saved references from all other users' libraries
             try {
@@ -220,6 +220,11 @@ public class UserPlaylistApiService {
 
         // Track in Recombee AFTER_COMMIT
         eventPublisher.publishEvent(new TelemetryEvents.PlaylistSongEvent(userId, songId, true));
+
+        // If public, update totalSongs in Algolia
+        if (playlist.getPrivacy() == PlaylistPrivacyEnum.PUBLIC) {
+            publishUserPlaylistSyncEvent(playlist);
+        }
 
         return UserPlaylistDto.fromEntity(playlist);
     }
@@ -380,9 +385,28 @@ public class UserPlaylistApiService {
         // Track in Recombee AFTER_COMMIT
         eventPublisher.publishEvent(new TelemetryEvents.PlaylistSongEvent(userId, songId, false));
 
+        // If public, update totalSongs in Algolia
+        if (playlist.getPrivacy() == PlaylistPrivacyEnum.PUBLIC) {
+            publishUserPlaylistSyncEvent(playlist);
+        }
+
         return UserPlaylistDto.fromEntity(playlist);
     }
 
+    private void publishUserPlaylistSyncEvent(UserPlaylist playlist) {
+        if (playlist == null) return;
+        String ownerId = playlist.getUser() != null ? playlist.getUser().getId() : null;
+        String ownerName = playlist.getUser() != null ? playlist.getUser().getUserName() : null;
+        eventPublisher.publishEvent(new AlgoliaEvents.UserPlaylistIndexSyncEvent(
+                playlist.getId(),
+                playlist.getName(),
+                playlist.getPrivacy(),
+                playlist.getShareToken(),
+                playlist.getTotalSongs(),
+                ownerId,
+                ownerName
+        ));
+    }
 
     private UserPlaylist getPlaylistOwnedBy(String userId, String playlistId) {
         UserPlaylist playlist = userPlaylistsRepository.findById(playlistId)

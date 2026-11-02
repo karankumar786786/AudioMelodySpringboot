@@ -18,6 +18,8 @@ from .views import (
     ArtistReindexAlgoliaView,
     PlaylistReindexAlgoliaView,
     CatalogReindexAllView,
+    CatalogSyncStreamCountsView,
+    CatalogSyncHealthView,
     SongReprocessAudioView,
     SongReprocessVideoView,
     SongToggleFeaturedView,
@@ -28,6 +30,8 @@ app_name = "catalog"
 urlpatterns = [
     # Reindex & Sync
     path("admin/catalog/reindex-all", CatalogReindexAllView.as_view(), name="admin-catalog-reindex-all"),
+    path("admin/catalog/sync-streams", CatalogSyncStreamCountsView.as_view(), name="admin-catalog-sync-streams"),
+    path("admin/catalog/sync-health", CatalogSyncHealthView.as_view(), name="admin-catalog-sync-health"),
     path("admin/song/reindex-algolia", SongReindexAlgoliaView.as_view(), name="admin-song-reindex-algolia"),
     path("admin/song/reindex-recombee", SongReindexRecombeeView.as_view(), name="admin-song-reindex-recombee"),
     path("admin/artist/reindex-algolia", ArtistReindexAlgoliaView.as_view(), name="admin-artist-reindex-algolia"),

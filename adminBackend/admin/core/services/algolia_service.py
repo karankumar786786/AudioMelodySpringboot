@@ -239,24 +239,29 @@ class AlgoliaService:
                 p_name = playlist.get("name")
                 p_img = playlist.get("cover_image_key") or playlist.get("coverImageKey")
                 p_songs = playlist.get("total_songs") or playlist.get("totalSongs") or 0
-                p_type = playlist.get("type") or ("userPlaylist" if playlist.get("isUserPlaylist") else "playlist")
-                is_user = playlist.get("isUserPlaylist", False)
+                is_user = bool(playlist.get("isUserPlaylist", False))
                 owner = playlist.get("ownerName") or playlist.get("owner_name")
+                owner_id = playlist.get("ownerId") or playlist.get("owner_id")
+                privacy = playlist.get("privacy")
+                share_token = playlist.get("shareToken") or playlist.get("share_token")
             else:
                 p_id = getattr(playlist, "id", None)
                 p_name = getattr(playlist, "name", None)
                 p_img = getattr(playlist, "cover_image_key", None)
                 p_songs = getattr(playlist, "total_songs", 0)
-                p_type = "playlist"
-                is_user = False
-                owner = None
+                is_user = hasattr(playlist, "privacy") or hasattr(playlist, "share_token")
+                user = getattr(playlist, "user", None)
+                owner = getattr(user, "user_name", None) if user else None
+                owner_id = getattr(user, "id", None) if user else None
+                privacy = getattr(playlist, "privacy", None)
+                share_token = getattr(playlist, "share_token", None)
 
             if not p_id:
                 return
 
             record = {
                 "objectID": str(p_id),
-                "type": p_type,
+                "type": "playlist",
                 "name": str(p_name or ""),
                 "coverImageKey": str(p_img) if p_img else None,
                 "totalSongs": int(p_songs or 0),
@@ -265,6 +270,12 @@ class AlgoliaService:
             }
             if owner:
                 record["ownerName"] = str(owner)
+            if owner_id:
+                record["ownerId"] = str(owner_id)
+            if privacy:
+                record["privacy"] = str(privacy)
+            if share_token:
+                record["shareToken"] = str(share_token)
 
             index_name = getattr(settings, "ALGOLIA_INDEX_NAME", "one_melody_springboot")
             client.save_object(index_name=index_name, body=record)
@@ -410,32 +421,63 @@ class AlgoliaService:
             p_name = playlist.get("name")
             p_img = playlist.get("cover_image_key") or playlist.get("coverImageKey")
             p_songs = playlist.get("total_songs") or playlist.get("totalSongs") or 0
-            p_type = playlist.get("type") or ("userPlaylist" if playlist.get("isUserPlaylist") else "playlist")
-            is_user = playlist.get("isUserPlaylist", False)
-            owner = playlist.get("ownerName") or playlist.get("owner_name")
         else:
             p_id = getattr(playlist, "id", None)
             p_name = getattr(playlist, "name", None)
             p_img = getattr(playlist, "cover_image_key", None)
             p_songs = getattr(playlist, "total_songs", 0)
-            p_type = "playlist"
-            is_user = False
-            owner = None
 
         if not p_id:
             return None
 
-        record = {
+        return {
             "objectID": str(p_id),
-            "type": p_type,
+            "type": "playlist",
             "name": str(p_name or ""),
             "coverImageKey": str(p_img) if p_img else None,
             "totalSongs": int(p_songs or 0),
-            "isUserPlaylist": is_user,
+            "isUserPlaylist": False,
             "searchCount": 0,
         }
-        if owner:
-            record["ownerName"] = str(owner)
+
+    @classmethod
+    def build_user_playlist_record(cls, playlist: Any) -> Optional[Dict[str, Any]]:
+        if isinstance(playlist, dict):
+            p_id = playlist.get("id")
+            p_name = playlist.get("name")
+            p_songs = playlist.get("total_songs") or playlist.get("totalSongs") or 0
+            privacy = playlist.get("privacy", "PUBLIC")
+            share_token = playlist.get("share_token") or playlist.get("shareToken")
+            owner_id = playlist.get("owner_id") or playlist.get("ownerId")
+            owner_name = playlist.get("owner_name") or playlist.get("ownerName")
+        else:
+            p_id = getattr(playlist, "id", None)
+            p_name = getattr(playlist, "name", None)
+            p_songs = getattr(playlist, "total_songs", 0)
+            privacy = getattr(playlist, "privacy", "PUBLIC")
+            share_token = getattr(playlist, "share_token", None)
+            user = getattr(playlist, "user", None)
+            owner_id = str(user.id) if user and getattr(user, "id", None) else None
+            owner_name = str(user.user_name) if user and getattr(user, "user_name", None) else None
+
+        if not p_id:
+            return None
+
+        record: Dict[str, Any] = {
+            "objectID": str(p_id),
+            "type": "playlist",
+            "name": str(p_name or ""),
+            "totalSongs": int(p_songs or 0),
+            "isUserPlaylist": True,
+            "privacy": str(privacy or "PUBLIC"),
+            "searchCount": 0,
+        }
+        if share_token:
+            record["shareToken"] = str(share_token)
+        if owner_id:
+            record["ownerId"] = str(owner_id)
+        if owner_name:
+            record["ownerName"] = str(owner_name)
         return record
 
     @classmethod
@@ -587,6 +629,26 @@ class AlgoliaService:
             return len(records)
         except Exception as e:
             logger.error("Failed batch reindex of playlists in Algolia: %s", e)
+            raise
+
+    @classmethod
+    def reindex_all_user_playlists(cls, playlists: List[Any], batch_size: int = 100) -> int:
+        client = cls.get_client()
+        if not client or not playlists:
+            return 0
+        records = [cls.build_user_playlist_record(p) for p in playlists]
+        records = [r for r in records if r]
+        if not records:
+            return 0
+        index_name = getattr(settings, "ALGOLIA_INDEX_NAME", "one_melody_springboot")
+        try:
+            for i in range(0, len(records), batch_size):
+                chunk = records[i : i + batch_size]
+                client.save_objects(index_name=index_name, objects=chunk)
+            logger.info("Re-indexed %d user playlists in Algolia index [%s]", len(records), index_name)
+            return len(records)
+        except Exception as e:
+            logger.error("Failed batch reindex of user playlists in Algolia: %s", e)
             raise
 
     @classmethod

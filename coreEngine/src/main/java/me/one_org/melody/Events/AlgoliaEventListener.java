@@ -7,6 +7,8 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
+import me.one_org.melody.Enums.PlaylistPrivacyEnum;
+import me.one_org.melody.Utils.RetryUtil;
 
 @Component
 @Slf4j
@@ -21,20 +23,39 @@ public class AlgoliaEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onPlaylistSync(AlgoliaEvents.PlaylistIndexSyncEvent event) {
-        try {
-            algoliaSearch.savePlaylist(event.playlistId(), event.name());
-        } catch (Exception e) {
-            log.warn("Failed to sync playlist in Algolia for [{}] ({}): {}", event.playlistId(), event.name(), e.getMessage());
-        }
+        RetryUtil.executeWithRetry(
+                () -> algoliaSearch.savePlaylist(event.playlistId(), event.name()),
+                3, 500L, "Algolia savePlaylist [" + event.playlistId() + "]", log
+        );
+    }
+
+    @Async
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
+    public void onUserPlaylistSync(AlgoliaEvents.UserPlaylistIndexSyncEvent event) {
+        RetryUtil.executeWithRetry(() -> {
+            if (event.privacy() == PlaylistPrivacyEnum.PUBLIC) {
+                algoliaSearch.saveUserPlaylist(
+                        event.playlistId(),
+                        event.name(),
+                        event.privacy().name(),
+                        event.shareToken(),
+                        event.totalSongs(),
+                        event.ownerId(),
+                        event.ownerName()
+                );
+            } else {
+                algoliaSearch.delete(event.playlistId());
+            }
+        }, 3, 500L, "Algolia syncUserPlaylist [" + event.playlistId() + "]", log);
     }
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onPlaylistDelete(AlgoliaEvents.PlaylistIndexDeleteEvent event) {
-        try {
-            algoliaSearch.delete(event.playlistId());
-        } catch (Exception e) {
-            log.warn("Failed to delete playlist from Algolia for [{}]: {}", event.playlistId(), e.getMessage());
-        }
+        RetryUtil.executeWithRetry(
+                () -> algoliaSearch.delete(event.playlistId()),
+                3, 500L, "Algolia delete playlist [" + event.playlistId() + "]", log
+        );
     }
 }
+

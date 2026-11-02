@@ -8,6 +8,7 @@ from .pagination_metadata_service import PaginationMetadataService
 from .admin_auth_service import AdminAuthService
 from .inngest_service import InngestService
 from .system_health_service import SystemHealthService
+from .catalog_sync_service import CatalogSyncService
 
 __all__ = [
     "RedisService",
@@ -20,6 +21,7 @@ __all__ = [
     "AdminAuthService",
     "InngestService",
     "SystemHealthService",
+    "CatalogSyncService",
 ]
 
 

@@ -18,6 +18,7 @@ import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.SongMetadataRepository;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Services.Api.ArtistApiService;
+import me.one_org.melody.Utils.RetryUtil;
 
 @Component
 @Slf4j
@@ -44,21 +45,19 @@ public class TelemetryEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onArtistFollow(TelemetryEvents.ArtistFollowEvent event) {
-        try {
-            recombee.trackArtistFollow(event.userId(), event.artistId());
-        } catch (Exception e) {
-            log.error("Failed to track artist follow in Recombee for user [{}] artist [{}]: {}", event.userId(), event.artistId(), e.getMessage());
-        }
+        RetryUtil.executeWithRetry(
+                () -> recombee.trackArtistFollow(event.userId(), event.artistId()),
+                3, 500L, "Recombee trackArtistFollow [" + event.artistId() + "]", log
+        );
     }
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onArtistUnfollow(TelemetryEvents.ArtistUnfollowEvent event) {
-        try {
-            recombee.trackArtistUnfollow(event.userId(), event.artistId());
-        } catch (Exception e) {
-            log.error("Failed to track artist unfollow in Recombee for user [{}] artist [{}]: {}", event.userId(), event.artistId(), e.getMessage());
-        }
+        RetryUtil.executeWithRetry(
+                () -> recombee.trackArtistUnfollow(event.userId(), event.artistId()),
+                3, 500L, "Recombee trackArtistUnfollow [" + event.artistId() + "]", log
+        );
     }
 
     @Async
@@ -92,67 +91,63 @@ public class TelemetryEventListener {
             log.warn("Failed to increment stream count in database for song [{}]: {}", event.songId(), e.getMessage());
         }
 
-        try {
-            algoliaSearch.incrementTotalStreams(event.songId());
-        } catch (Exception e) {
-            log.warn("Failed to increment totalStreams in Algolia for song [{}]: {}", event.songId(), e.getMessage());
-        }
+        final long finalStreams = currentStreams;
+        RetryUtil.executeWithRetry(
+                () -> algoliaSearch.incrementTotalStreams(event.songId()),
+                3, 500L, "Algolia incrementTotalStreams [" + event.songId() + "]", log
+        );
 
-        try {
-            recombee.trackPlay(event.userId(), event.songId(), event.percentage());
-        } catch (Exception e) {
-            log.error("Failed to track play in Recombee for user [{}] song [{}]: {}", event.userId(), event.songId(), e.getMessage());
-        }
+        RetryUtil.executeWithRetry(
+                () -> recombee.trackPlay(event.userId(), event.songId(), event.percentage()),
+                3, 500L, "Recombee trackPlay user [" + event.userId() + "] song [" + event.songId() + "]", log
+        );
 
-        try {
-            recombee.updateTotalStreams(event.songId(), currentStreams);
-        } catch (Exception e) {
-            log.warn("Failed to update totalStreams in Recombee for song [{}]: {}", event.songId(), e.getMessage());
-        }
+        RetryUtil.executeWithRetry(
+                () -> recombee.updateTotalStreams(event.songId(), finalStreams),
+                3, 500L, "Recombee updateTotalStreams [" + event.songId() + "]", log
+        );
     }
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onSongFavourite(TelemetryEvents.SongFavouriteEvent event) {
-        try {
+        RetryUtil.executeWithRetry(() -> {
             if (event.isAdd()) {
                 recombee.trackFavouriteAdd(event.userId(), event.songId());
             } else {
                 recombee.trackFavouriteRemove(event.userId(), event.songId());
             }
-        } catch (Exception e) {
-            log.error("Failed to track favourite in Recombee: {}", e.getMessage());
-        }
+        }, 3, 500L, "Recombee trackFavourite [" + event.songId() + "]", log);
     }
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onPlaylistSong(TelemetryEvents.PlaylistSongEvent event) {
-        try {
+        RetryUtil.executeWithRetry(() -> {
             if (event.isAdd()) {
                 recombee.trackPlaylistAdd(event.userId(), event.songId());
             } else {
                 recombee.trackPlaylistRemove(event.userId(), event.songId());
             }
-        } catch (Exception e) {
-            log.warn("Failed to track playlist song in Recombee: {}", e.getMessage());
-        }
+        }, 3, 500L, "Recombee trackPlaylistSong [" + event.songId() + "]", log);
     }
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onOnboardingSeeded(TelemetryEvents.OnboardingSeededEvent event) {
-        try {
-            recombee.addUser(event.userId());
-        } catch (Exception ignored) {}
+        RetryUtil.executeWithRetry(
+                () -> recombee.addUser(event.userId()),
+                3, 500L, "Recombee addUser [" + event.userId() + "]", log
+        );
 
         for (String artistId : event.followedArtistIds()) {
             try {
                 List<SongDto> topSongs = artistApiService.getArtistSongsPaginated(artistId, 0, 3);
                 for (SongDto song : topSongs) {
-                    try {
-                        recombee.trackPlay(event.userId(), song.id(), 0.95);
-                    } catch (Exception ignored) {}
+                    RetryUtil.executeWithRetry(
+                            () -> recombee.trackPlay(event.userId(), song.id(), 0.95),
+                            2, 300L, "Recombee onboard seed play [" + song.id() + "]", null
+                    );
                 }
             } catch (Exception ignored) {}
         }
@@ -161,11 +156,10 @@ public class TelemetryEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onUserRegistered(TelemetryEvents.UserRegisteredEvent event) {
-        try {
-            recombee.addUser(event.userId());
-        } catch (Exception e) {
-            log.warn("Failed to register new user in Recombee: {}", e.getMessage());
-        }
+        RetryUtil.executeWithRetry(
+                () -> recombee.addUser(event.userId()),
+                3, 500L, "Recombee register user [" + event.userId() + "]", log
+        );
     }
 
     @Async

@@ -267,6 +267,29 @@ public class AlgoliaSearch {
         searchClient.saveObject(indexName, record);
     }
 
+    public void saveUserPlaylist(String id, String name, String privacy, String shareToken, int totalSongs, String ownerId, String ownerName) throws Exception {
+        Map<String, Object> record = new HashMap<>();
+        record.put("objectID", id);
+        record.put("type", "playlist");
+        record.put("isUserPlaylist", true);
+        record.put("name", name);
+        if (privacy != null) {
+            record.put("privacy", privacy);
+        }
+        if (shareToken != null) {
+            record.put("shareToken", shareToken);
+        }
+        record.put("totalSongs", totalSongs);
+        if (ownerId != null) {
+            record.put("ownerId", ownerId);
+        }
+        if (ownerName != null) {
+            record.put("ownerName", ownerName);
+        }
+        record.put("searchCount", 0L);
+        searchClient.saveObject(indexName, record);
+    }
+
     public void delete(String id) {
         searchClient.deleteObject(indexName, id);
     }
