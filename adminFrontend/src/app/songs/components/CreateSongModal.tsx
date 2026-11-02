@@ -253,6 +253,27 @@ export function CreateSongModal({
       setUploadProgressText("Registering song & scheduling background processing...");
       setUploadStats({});
 
+      let clipStartMin: number | undefined = undefined;
+      let clipStartSec: number | undefined = undefined;
+      let clipEndMin: number | undefined = undefined;
+      let clipEndSec: number | undefined = undefined;
+
+      const hasVideo = uploadMode === "videoOnly" || Boolean(formData.videoFile);
+      if (hasVideo) {
+        if (formData.clipStartMin !== "" && formData.clipStartMin !== undefined) {
+          clipStartMin = parseInt(String(formData.clipStartMin), 10) || 0;
+        }
+        if (formData.clipStartSec !== "" && formData.clipStartSec !== undefined) {
+          clipStartSec = parseInt(String(formData.clipStartSec), 10) || 0;
+        }
+        if (formData.clipEndMin !== "" && formData.clipEndMin !== undefined) {
+          clipEndMin = parseInt(String(formData.clipEndMin), 10) || 0;
+        }
+        if (formData.clipEndSec !== "" && formData.clipEndSec !== undefined) {
+          clipEndSec = parseInt(String(formData.clipEndSec), 10) || 0;
+        }
+      }
+
       const finalizeRes = await adminFetch("/admin/song", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -263,10 +284,10 @@ export function CreateSongModal({
           tempVideoKey: tempVideoKey || undefined,
           imageKey: uploadedImageKey,
           videoKey: uploadedVideoKey,
-          clipStartMin: uploadMode === "videoOnly" ? Number(formData.clipStartMin) : undefined,
-          clipStartSec: uploadMode === "videoOnly" ? Number(formData.clipStartSec) : undefined,
-          clipEndMin: uploadMode === "videoOnly" ? Number(formData.clipEndMin) : undefined,
-          clipEndSec: uploadMode === "videoOnly" ? Number(formData.clipEndSec) : undefined,
+          clipStartMin,
+          clipStartSec,
+          clipEndMin,
+          clipEndSec,
           previewStartTime,
           previewEndTime,
           language: formData.language,
@@ -576,6 +597,68 @@ export function CreateSongModal({
                     onChange={(e) => setFormData({ ...formData, videoFile: e.target.files?.[0] || null })}
                     className={fileCls}
                   />
+                </div>
+              )}
+
+              {/* Canvas Loop Timing (Start & End) */}
+              {(uploadMode === "videoOnly" || formData.videoFile) && (
+                <div className="bg-[#181818] border border-[#282828] rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider block">
+                      Canvas Loop Timestamps
+                    </span>
+                    <span className="text-[10px] text-zinc-500 font-normal">
+                      {uploadMode === "videoOnly" ? "Extract from full video" : "Loop duration / bounds"}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <span className="text-zinc-500 block mb-1">Start (min:sec)</span>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="0"
+                          value={formData.clipStartMin}
+                          onChange={(e) => setFormData({ ...formData, clipStartMin: e.target.value })}
+                          className="w-16 bg-black/50 border border-[#282828] rounded-lg p-1.5 text-center font-mono text-white"
+                        />
+                        <span className="text-zinc-600">:</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="59"
+                          placeholder="00"
+                          value={formData.clipStartSec}
+                          onChange={(e) => setFormData({ ...formData, clipStartSec: e.target.value })}
+                          className="w-16 bg-black/50 border border-[#282828] rounded-lg p-1.5 text-center font-mono text-white"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-zinc-500 block mb-1">End (min:sec)</span>
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="0"
+                          value={formData.clipEndMin}
+                          onChange={(e) => setFormData({ ...formData, clipEndMin: e.target.value })}
+                          className="w-16 bg-black/50 border border-[#282828] rounded-lg p-1.5 text-center font-mono text-white"
+                        />
+                        <span className="text-zinc-600">:</span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="59"
+                          placeholder="15"
+                          value={formData.clipEndSec}
+                          onChange={(e) => setFormData({ ...formData, clipEndSec: e.target.value })}
+                          className="w-16 bg-black/50 border border-[#282828] rounded-lg p-1.5 text-center font-mono text-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

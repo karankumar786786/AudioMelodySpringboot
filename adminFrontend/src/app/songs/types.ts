@@ -28,10 +28,10 @@ export interface CreateSongFormData {
   imageFile: File | null;
   videoFile: File | null;
   fullVideoFile: File | null;
-  clipStartMin: number;
-  clipStartSec: number;
-  clipEndMin: number;
-  clipEndSec: number;
+  clipStartMin: string | number;
+  clipStartSec: string | number;
+  clipEndMin: string | number;
+  clipEndSec: string | number;
   previewStartMin: string | number;
   previewStartSec: string | number;
   previewEndMin: string | number;
