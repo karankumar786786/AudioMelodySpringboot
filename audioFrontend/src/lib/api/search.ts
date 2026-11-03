@@ -220,8 +220,43 @@ export async function searchDirectAlgolia(
   }
 }
 
+/**
+ * Finds genuinely similar songs using Algolia based on artist, genre, and album matching.
+ * Excludes the given song ID to prevent self-recommendation.
+ */
+export async function getAlgoliaSimilarSongs(
+  song: { id?: string; title?: string; artistName?: string; genre?: string | null; album?: string | null },
+  limit = 10,
+): Promise<Song[]> {
+  const algolia = getAlgoliaClient();
+  if (!algolia || !song?.id) return [];
+
+  const { client, indexName } = algolia;
+  const queryParts: string[] = [];
+  if (song.genre) queryParts.push(song.genre);
+  if (song.artistName) queryParts.push(song.artistName);
+  if (song.album) queryParts.push(song.album);
+  const queryStr = queryParts.join(" ").trim();
+
+  try {
+    const res = await client.searchSingleIndex({
+      indexName,
+      searchParams: {
+        query: queryStr,
+        filters: `type:song AND NOT objectID:${song.id}`,
+        hitsPerPage: limit,
+      },
+    });
+    return (res.hits || []).map(mapSongHit);
+  } catch (err) {
+    console.warn("[Search] Algolia similar songs failed:", err);
+    return [];
+  }
+}
+
 export const searchApi = {
   getClient: getAlgoliaClient,
+  getSimilarSongs: getAlgoliaSimilarSongs,
   unified: async (query: string): Promise<{ data: UnifiedSearchResult }> => {
     const trimmed = query?.trim();
     if (!trimmed) {

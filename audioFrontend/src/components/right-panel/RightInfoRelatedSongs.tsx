@@ -6,25 +6,41 @@ import type { Song } from "@/lib/api";
 import { SongCard } from "@/components/SongCard";
 
 interface RightInfoRelatedSongsProps {
-  artistMoreSongs: Song[];
+  similarSongs?: Song[];
+  artistMoreSongs?: Song[];
+  genre?: string | null;
   isRelatedLoading: boolean;
   scrollRelated: (distance: number) => void;
   relatedSongsRef: RefObject<HTMLDivElement | null>;
 }
 
 export function RightInfoRelatedSongs({
+  similarSongs,
   artistMoreSongs,
+  genre,
   isRelatedLoading,
   scrollRelated,
   relatedSongsRef,
 }: RightInfoRelatedSongsProps) {
+  const songs = similarSongs || artistMoreSongs || [];
+
   return (
     <section className="bg-black rounded-2xl px-1.5 shadow-xl">
-      <div className="flex items-center justify-between pb-2 px-1">
-        <h3 className="text-sm font-bold text-white tracking-tight">
-          Related Songs
-        </h3>
-        {artistMoreSongs.length > 0 && (
+      <div className="flex items-center justify-between pb-2 px-1 gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <h3 className="text-sm font-bold text-white tracking-tight shrink-0">
+            Similar Songs
+          </h3>
+          {genre && (
+            <span
+              className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/10 text-zinc-300 border border-white/10 truncate max-w-[130px]"
+              title={`Genre: ${genre}`}
+            >
+              {genre}
+            </span>
+          )}
+        </div>
+        {songs.length > 0 && (
           <div className="flex items-center gap-1 shrink-0">
             <button
               onClick={() => scrollRelated(-160)}
@@ -56,12 +72,12 @@ export function RightInfoRelatedSongs({
             </div>
           ))}
         </div>
-      ) : artistMoreSongs.length > 0 ? (
+      ) : songs.length > 0 ? (
         <div
           ref={relatedSongsRef}
           className="flex gap-2 overflow-x-auto no-scrollbar pb-1 scroll-smooth"
         >
-          {artistMoreSongs.map((song: Song) => (
+          {songs.map((song: Song) => (
             <SongCard
               key={song.id}
               song={song}
@@ -70,7 +86,7 @@ export function RightInfoRelatedSongs({
           ))}
         </div>
       ) : (
-        <p className="text-xs text-zinc-500 py-2 px-1">No other tracks found for this artist.</p>
+        <p className="text-xs text-zinc-500 py-2 px-1">No similar songs found.</p>
       )}
     </section>
   );

@@ -60,29 +60,29 @@ export function RightInfoPanel() {
     staleTime: 1000 * 60 * 60,
   });
 
-  // 1. Similar songs from Radio recommendation engine
+  // 1. Similar songs from item similarity recommendation engine (Recombee)
   const { data: similarSongs = [], isLoading: isSimilarLoading } = useQuery({
     queryKey: ["similar-songs", currentSong?.id],
     queryFn: async () => {
       if (!currentSong?.id) return [];
-      const res = await musicApi.interactions.getRadioSongs(currentSong.id, [currentSong.id], 10);
+      const res = await musicApi.interactions.getSimilarSongs(currentSong.id, 10);
       return res?.data?.data || [];
     },
     enabled: !!currentSong?.id,
     staleTime: 1000 * 60 * 5,
   });
 
-  // 2. Feed fallback / artist tracks (only if radio recommendations return fewer than 3 songs)
-  const { data: songsFeed, isLoading: isFeedLoading } = useQuery({
-    queryKey: ["artist-more-songs", currentSong?.artistName],
+  // 2. Intelligent content similarity fallback (Algolia matching genre, artist, and album)
+  const { data: algoliaSimilar = [], isLoading: isAlgoliaLoading } = useQuery({
+    queryKey: ["algolia-similar", currentSong?.id, currentSong?.artistName, currentSong?.genre],
     queryFn: async () => {
-      const res = await musicApi.songs.getFeed(1, 50);
-      return res?.data?.data || [];
+      if (!currentSong?.id) return [];
+      return await musicApi.search.getSimilarSongs(currentSong, 10);
     },
     enabled:
-      !!currentSong?.artistName &&
+      !!currentSong?.id &&
       !isSimilarLoading &&
-      (!similarSongs || similarSongs.length < 3),
+      (!similarSongs || similarSongs.length < 4),
     staleTime: 1000 * 60 * 5,
   });
 
@@ -94,42 +94,54 @@ export function RightInfoPanel() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const isRelatedLoading = isSimilarLoading && isFeedLoading;
+  const isRelatedLoading = isSimilarLoading || (similarSongs.length < 4 && isAlgoliaLoading);
 
-  const artistMoreSongs = React.useMemo<Song[]>(() => {
+  const similarSongList = React.useMemo<Song[]>(() => {
     if (!currentSong) return [];
 
-    if (similarSongs && similarSongs.length >= 3) {
-      return similarSongs.filter((s: Song) => s.id !== currentSong.id).slice(0, 10);
-    }
-
-    if (!songsFeed) return similarSongs || [];
-
-    const normalizedArtist = currentSong.artistName.trim().toLowerCase();
-
-    const artistMatches = songsFeed.filter(
-      (s: Song) =>
-        s.id !== currentSong.id &&
-        s.artistName?.trim().toLowerCase().includes(normalizedArtist),
+    // Filter valid songs with titles and not self
+    const validSimilar = (similarSongs || []).filter(
+      (s: Song) => s && s.id && s.id !== currentSong.id && s.title && s.title.trim().length > 0,
     );
 
-    const combined = [...(similarSongs || []), ...artistMatches];
-    const seen = new Set<string>();
-    const unique = combined.filter((s: Song) => {
-      if (s.id === currentSong.id || seen.has(s.id)) return false;
-      seen.add(s.id);
-      return true;
-    });
+    const targetGenre = currentSong.genre?.trim().toLowerCase();
+    const primaryArtist = currentSong.artistName?.split(",")[0]?.trim().toLowerCase();
 
-    if (unique.length < 4) {
-      const remaining = songsFeed.filter(
-        (s: Song) => s.id !== currentSong.id && !seen.has(s.id),
-      );
-      return [...unique, ...remaining].slice(0, 10);
+    // Scoring function: strong boost for matching genre, secondary boost for primary artist
+    const scoreSong = (s: Song) => {
+      let score = 0;
+      if (targetGenre && s.genre && s.genre.trim().toLowerCase() === targetGenre) {
+        score += 15;
+      }
+      if (primaryArtist && s.artistName && s.artistName.toLowerCase().includes(primaryArtist)) {
+        score += 8;
+      }
+      return score;
+    };
+
+    const seen = new Set<string>([currentSong.id]);
+    const pool: Song[] = [];
+
+    for (const s of validSimilar) {
+      if (!seen.has(s.id)) {
+        seen.add(s.id);
+        pool.push(s);
+      }
     }
 
-    return unique.slice(0, 10);
-  }, [similarSongs, songsFeed, currentSong]);
+    for (const s of algoliaSimilar || []) {
+      if (s && s.id && !seen.has(s.id) && s.title && s.title.trim().length > 0) {
+        seen.add(s.id);
+        pool.push(s);
+      }
+    }
+
+    if (targetGenre || primaryArtist) {
+      pool.sort((a, b) => scoreSong(b) - scoreSong(a));
+    }
+
+    return pool.slice(0, 10);
+  }, [similarSongs, algoliaSimilar, currentSong]);
 
   if (!isMounted || !currentSong) {
     return (
@@ -234,9 +246,11 @@ export function RightInfoPanel() {
 
           {/* Content Below Video */}
           <div className="px-4 pl-0 space-y-4">
-            {/* 2. RELATED SONGS CAROUSEL */}
+            {/* 2. SIMILAR SONGS CAROUSEL */}
             <RightInfoRelatedSongs
-              artistMoreSongs={artistMoreSongs}
+              similarSongs={similarSongList}
+              artistMoreSongs={similarSongList}
+              genre={currentSong.genre}
               isRelatedLoading={isRelatedLoading}
               scrollRelated={scrollRelated}
               relatedSongsRef={relatedSongsRef}

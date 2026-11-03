@@ -40,14 +40,7 @@ export const interactionsApi = {
       console.warn(`[InteractionsApi] Backend /api/recommendations/similar/${songId} failed:`, err);
     }
 
-    // 2. Direct fallback: Trending / catalog songs from backend
-    try {
-      const res = await request<Song[]>(`/api/songs/trending?limit=${count}`);
-      const list = Array.isArray(res) ? res : [];
-      return { data: { data: list } };
-    } catch {
-      return { data: { data: [] } };
-    }
+    return { data: { data: [] } };
   },
   getRadioSongs: async (
     seedSongId: string,
