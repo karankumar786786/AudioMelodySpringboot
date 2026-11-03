@@ -660,12 +660,11 @@ class AlgoliaService:
         try:
             settings_dict = {
                 "searchableAttributes": [
-                    "title",
-                    "artistName",
-                    "album",
+                    "title,album",
+                    "artistName,artist",
                     "name",
-                    "language",
                     "genre",
+                    "language",
                 ],
                 "attributesForFaceting": [
                     "filterOnly(type)",

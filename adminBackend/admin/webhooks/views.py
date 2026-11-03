@@ -219,7 +219,8 @@ class WebhookJobTranscodedView(BaseAdminView):
         job.transcoded_at = now
         if job.transcoding_started_at:
             job.transcoding_duration_ms = safe_diff_ms(now, job.transcoding_started_at)
-        job.current_stage = "RECOMMENDATION_INDEXING" if not (job.is_video_reprocess or job.is_audio_reprocess) else "FINALIZING"
+        if job.status != "COMPLETED":
+            job.current_stage = "RECOMMENDATION_INDEXING" if not (job.is_video_reprocess or job.is_audio_reprocess) else "FINALIZING"
         job.save()
         return Response(status=status.HTTP_200_OK)
 
@@ -256,7 +257,8 @@ class WebhookJobSaveRecommendationView(BaseAdminView):
         prev = job.transcoded_at or job.created_at
         if prev:
             job.recommendation_duration_ms = safe_diff_ms(now, prev)
-        job.current_stage = "SEARCH_INDEXING"
+        if job.status != "COMPLETED":
+            job.current_stage = "SEARCH_INDEXING"
         job.save()
 
         try:
@@ -306,7 +308,8 @@ class WebhookJobSaveSearchView(BaseAdminView):
         prev = job.recommendation_saved_at or job.transcoded_at or job.created_at
         if prev:
             job.search_duration_ms = safe_diff_ms(now, prev)
-        job.current_stage = "FINALIZING"
+        if job.status != "COMPLETED":
+            job.current_stage = "FINALIZING"
         job.save()
 
         try:
@@ -344,6 +347,12 @@ class WebhookJobSaveSearchView(BaseAdminView):
 class WebhookJobFinalizeView(BaseAdminView):
     def post(self, request, job_id):
         job = get_object_or_404(Job, id=job_id)
+        if job.status == "COMPLETED":
+            if job.current_stage != "COMPLETED":
+                job.current_stage = "COMPLETED"
+                job.save(update_fields=["current_stage"])
+            return Response({"status": "already_completed", "jobId": str(job.id)}, status=status.HTTP_200_OK)
+
         old_status = job.status
         now = datetime.now(timezone.utc)
         job.completed_at = now
@@ -413,25 +422,45 @@ class WebhookJobFinalizeView(BaseAdminView):
             PaginationMetadataService.transition_job(old_status, "COMPLETED")
             return Response(status=status.HTTP_200_OK)
 
-        # Standard new song creation
-        song = Song.objects.create(
-            id=job.song_id,
-            title=job.title,
-            artist_name=job.artist_name,
-            duration=job.duration or 0,
-            song_key=job.song_key or "",
-            image_key=job.image_key or "",
-            video_key=job.video_key,
-            full_video_key=job.full_video_key,
-            preview_start_time=job.preview_start_time,
-            preview_end_time=job.preview_end_time,
-            language=job.language or "unknown",
-            lrclib_id=job.lrclib_id,
-            genre=job.genre,
-            album=job.album,
-            job_id=job.id,
-            status="ACTIVE",
-        )
+        # Standard new song creation (idempotent lookup or create)
+        song = Song.objects.filter(id=job.song_id).first()
+        created = False
+        if not song:
+            song = Song.objects.create(
+                id=job.song_id,
+                title=job.title,
+                artist_name=job.artist_name,
+                duration=job.duration or 0,
+                song_key=job.song_key or "",
+                image_key=job.image_key or "",
+                video_key=job.video_key,
+                full_video_key=job.full_video_key,
+                preview_start_time=job.preview_start_time,
+                preview_end_time=job.preview_end_time,
+                language=job.language or "unknown",
+                lrclib_id=job.lrclib_id,
+                genre=job.genre,
+                album=job.album,
+                job_id=job.id,
+                status="ACTIVE",
+            )
+            created = True
+        else:
+            song.title = job.title or song.title
+            song.artist_name = job.artist_name or song.artist_name
+            song.duration = job.duration or song.duration
+            song.song_key = job.song_key or song.song_key
+            song.image_key = job.image_key or song.image_key
+            song.video_key = job.video_key or song.video_key
+            song.full_video_key = job.full_video_key or song.full_video_key
+            song.preview_start_time = job.preview_start_time or song.preview_start_time
+            song.preview_end_time = job.preview_end_time or song.preview_end_time
+            song.genre = job.genre or song.genre
+            song.album = job.album or song.album
+            song.language = job.language or song.language
+            song.lrclib_id = job.lrclib_id or song.lrclib_id
+            song.status = "ACTIVE"
+            song.save()
         try:
             AlgoliaService.save_song(
                 song=song,
@@ -469,14 +498,15 @@ class WebhookJobFinalizeView(BaseAdminView):
         except Exception as e:
             logger.warning("Failed to initialize SongMetadata for song %s: %s", song.id, e)
 
-        PaginationMetadataService.increment_status("SongsEntity", "ACTIVE")
-        if job.artist_name:
-            try:
-                art = Artist.objects.filter(name__iexact=job.artist_name.strip()).first()
-                if art:
-                    PaginationMetadataService.increment_status(f"ArtistSongs_{art.id}", "ACTIVE")
-            except Exception as e:
-                logger.warning("Failed to update artist song metadata for '%s': %s", job.artist_name, e)
+        if created:
+            PaginationMetadataService.increment_status("SongsEntity", "ACTIVE")
+            if job.artist_name:
+                try:
+                    art = Artist.objects.filter(name__iexact=job.artist_name.strip()).first()
+                    if art:
+                        PaginationMetadataService.increment_status(f"ArtistSongs_{art.id}", "ACTIVE")
+                except Exception as e:
+                    logger.warning("Failed to update artist song metadata for '%s': %s", job.artist_name, e)
 
         job.status = "COMPLETED"
         job.current_stage = "COMPLETED"
