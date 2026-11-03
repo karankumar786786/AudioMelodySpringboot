@@ -221,8 +221,9 @@ export async function searchDirectAlgolia(
 }
 
 /**
- * Finds genuinely similar songs using Algolia based on artist, genre, and album matching.
+ * Finds genuinely similar songs using Algolia based on genre, artist, and album matching.
  * Excludes the given song ID to prevent self-recommendation.
+ * Resilient multi-tier strategy: matches genre + artist first, falls back gracefully.
  */
 export async function getAlgoliaSimilarSongs(
   song: { id?: string; title?: string; artistName?: string; genre?: string | null; album?: string | null },
@@ -232,26 +233,73 @@ export async function getAlgoliaSimilarSongs(
   if (!algolia || !song?.id) return [];
 
   const { client, indexName } = algolia;
-  const queryParts: string[] = [];
-  if (song.genre) queryParts.push(song.genre);
-  if (song.artistName) queryParts.push(song.artistName);
-  if (song.album) queryParts.push(song.album);
-  const queryStr = queryParts.join(" ").trim();
+  const primaryArtist = song.artistName ? song.artistName.split(",")[0].trim() : "";
+  const queries: string[] = [];
 
-  try {
-    const res = await client.searchSingleIndex({
-      indexName,
-      searchParams: {
-        query: queryStr,
-        filters: `type:song AND NOT objectID:${song.id}`,
-        hitsPerPage: limit,
-      },
-    });
-    return (res.hits || []).map(mapSongHit);
-  } catch (err) {
-    console.warn("[Search] Algolia similar songs failed:", err);
-    return [];
+  if (song.genre && primaryArtist) {
+    queries.push(`${song.genre} ${primaryArtist}`);
   }
+  if (song.genre) {
+    queries.push(song.genre);
+  }
+  if (primaryArtist) {
+    queries.push(primaryArtist);
+  }
+  if (song.album) {
+    queries.push(song.album);
+  }
+
+  const seen = new Set<string>([song.id]);
+  const results: Song[] = [];
+
+  for (const q of queries) {
+    if (results.length >= limit) break;
+    try {
+      const res = await client.searchSingleIndex({
+        indexName,
+        searchParams: {
+          query: q,
+          filters: `type:song AND NOT objectID:${song.id}`,
+          removeWordsIfNoResults: "allOptional",
+          hitsPerPage: limit,
+        },
+      });
+      for (const h of (res.hits || []) as any[]) {
+        const id = h.objectID || h.id;
+        if (id && !seen.has(id)) {
+          seen.add(id);
+          results.push(mapSongHit(h));
+          if (results.length >= limit) break;
+        }
+      }
+    } catch (err) {
+      console.warn("[Search] Algolia query failed for:", q, err);
+    }
+  }
+
+  // Broad catalog fallback if fewer than 4 songs matched
+  if (results.length < 4) {
+    try {
+      const res = await client.searchSingleIndex({
+        indexName,
+        searchParams: {
+          query: "",
+          filters: `type:song AND NOT objectID:${song.id}`,
+          hitsPerPage: limit,
+        },
+      });
+      for (const h of (res.hits || []) as any[]) {
+        const id = h.objectID || h.id;
+        if (id && !seen.has(id)) {
+          seen.add(id);
+          results.push(mapSongHit(h));
+          if (results.length >= limit) break;
+        }
+      }
+    } catch {}
+  }
+
+  return results;
 }
 
 export const searchApi = {

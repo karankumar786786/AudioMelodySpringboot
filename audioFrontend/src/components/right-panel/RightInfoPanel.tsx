@@ -60,88 +60,95 @@ export function RightInfoPanel() {
     staleTime: 1000 * 60 * 60,
   });
 
-  // 1. Similar songs from item similarity recommendation engine (Recombee)
-  const { data: similarSongs = [], isLoading: isSimilarLoading } = useQuery({
-    queryKey: ["similar-songs", currentSong?.id],
+  // 1. Unified resilient similarity query (Recombee AI + Algolia content matching with genre prioritization)
+  const { data: similarSongList = [], isLoading: isRelatedLoading } = useQuery({
+    queryKey: [
+      "similar-songs-unified",
+      currentSong?.id,
+      currentSong?.genre,
+      currentSong?.artistName,
+    ],
     queryFn: async () => {
       if (!currentSong?.id) return [];
-      const res = await musicApi.interactions.getSimilarSongs(currentSong.id, 10);
-      return res?.data?.data || [];
+
+      // Concurrently query Recombee item recommendations and Algolia content similarity
+      const [recombeeResult, algoliaResult] = await Promise.allSettled([
+        musicApi.interactions.getSimilarSongs(currentSong.id, 10),
+        musicApi.search.getSimilarSongs(currentSong, 10),
+      ]);
+
+      const recombeeTracks: Song[] =
+        recombeeResult.status === "fulfilled"
+          ? (recombeeResult.value?.data?.data || []).filter(
+              (s: Song) =>
+                s && s.id && s.id !== currentSong.id && s.title && s.title.trim().length > 0,
+            )
+          : [];
+
+      const algoliaTracks: Song[] =
+        algoliaResult.status === "fulfilled"
+          ? (algoliaResult.value || []).filter(
+              (s: Song) =>
+                s && s.id && s.id !== currentSong.id && s.title && s.title.trim().length > 0,
+            )
+          : [];
+
+      const targetGenre = currentSong.genre?.trim().toLowerCase();
+      const primaryArtist = currentSong.artistName
+        ?.split(",")[0]
+        ?.trim()
+        .toLowerCase();
+
+      // Strong boost for matching genre, secondary boost for primary artist
+      const scoreSong = (s: Song) => {
+        let score = 0;
+        if (targetGenre && s.genre && s.genre.trim().toLowerCase() === targetGenre) {
+          score += 15;
+        }
+        if (
+          primaryArtist &&
+          s.artistName &&
+          s.artistName.toLowerCase().includes(primaryArtist)
+        ) {
+          score += 8;
+        }
+        return score;
+      };
+
+      const seen = new Set<string>([currentSong.id]);
+      const pool: Song[] = [];
+
+      for (const s of recombeeTracks) {
+        if (!seen.has(s.id)) {
+          seen.add(s.id);
+          pool.push(s);
+        }
+      }
+
+      for (const s of algoliaTracks) {
+        if (!seen.has(s.id)) {
+          seen.add(s.id);
+          pool.push(s);
+        }
+      }
+
+      if (targetGenre || primaryArtist) {
+        pool.sort((a, b) => scoreSong(b) - scoreSong(a));
+      }
+
+      return pool.slice(0, 10);
     },
     enabled: !!currentSong?.id,
     staleTime: 1000 * 60 * 5,
   });
 
-  // 2. Intelligent content similarity fallback (Algolia matching genre, artist, and album)
-  const { data: algoliaSimilar = [], isLoading: isAlgoliaLoading } = useQuery({
-    queryKey: ["algolia-similar", currentSong?.id, currentSong?.artistName, currentSong?.genre],
-    queryFn: async () => {
-      if (!currentSong?.id) return [];
-      return await musicApi.search.getSimilarSongs(currentSong, 10);
-    },
-    enabled:
-      !!currentSong?.id &&
-      !isSimilarLoading &&
-      (!similarSongs || similarSongs.length < 4),
-    staleTime: 1000 * 60 * 5,
-  });
-
-  // 3. Artist follow status / metadata for follower count
+  // 2. Artist follow status / metadata for follower count
   const { data: artistFollowData } = useQuery({
     queryKey: ["artist-follow-status", currentSong?.artistName],
     queryFn: () => musicApi.artists.getFollowStatus(currentSong!.artistName),
     enabled: !!currentSong?.artistName,
     staleTime: 1000 * 60 * 5,
   });
-
-  const isRelatedLoading = isSimilarLoading || (similarSongs.length < 4 && isAlgoliaLoading);
-
-  const similarSongList = React.useMemo<Song[]>(() => {
-    if (!currentSong) return [];
-
-    // Filter valid songs with titles and not self
-    const validSimilar = (similarSongs || []).filter(
-      (s: Song) => s && s.id && s.id !== currentSong.id && s.title && s.title.trim().length > 0,
-    );
-
-    const targetGenre = currentSong.genre?.trim().toLowerCase();
-    const primaryArtist = currentSong.artistName?.split(",")[0]?.trim().toLowerCase();
-
-    // Scoring function: strong boost for matching genre, secondary boost for primary artist
-    const scoreSong = (s: Song) => {
-      let score = 0;
-      if (targetGenre && s.genre && s.genre.trim().toLowerCase() === targetGenre) {
-        score += 15;
-      }
-      if (primaryArtist && s.artistName && s.artistName.toLowerCase().includes(primaryArtist)) {
-        score += 8;
-      }
-      return score;
-    };
-
-    const seen = new Set<string>([currentSong.id]);
-    const pool: Song[] = [];
-
-    for (const s of validSimilar) {
-      if (!seen.has(s.id)) {
-        seen.add(s.id);
-        pool.push(s);
-      }
-    }
-
-    for (const s of algoliaSimilar || []) {
-      if (s && s.id && !seen.has(s.id) && s.title && s.title.trim().length > 0) {
-        seen.add(s.id);
-        pool.push(s);
-      }
-    }
-
-    if (targetGenre || primaryArtist) {
-      pool.sort((a, b) => scoreSong(b) - scoreSong(a));
-    }
-
-    return pool.slice(0, 10);
-  }, [similarSongs, algoliaSimilar, currentSong]);
 
   if (!isMounted || !currentSong) {
     return (
