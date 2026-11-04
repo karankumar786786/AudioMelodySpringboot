@@ -3,7 +3,7 @@ import { Song, Artist, Playlist, PaginatedResponse } from "@/types";
 
 export interface HomeService {
   getFeaturedSongs(): Promise<Song[]>;
-  getTrendingSongs(limit?: number): Promise<Song[]>;
+  getTrendingSongs(limit?: number, window?: string, genre?: string, language?: string): Promise<Song[]>;
   getTopArtists(page?: number, size?: number): Promise<PaginatedResponse<Artist>>;
   getFeaturedPlaylists(page?: number, size?: number): Promise<PaginatedResponse<Playlist>>;
   getDiscoverFeed(page?: number, size?: number): Promise<PaginatedResponse<Song>>;
@@ -16,8 +16,11 @@ export const homeService: HomeService = {
     return Array.isArray(response.data) ? response.data : [];
   },
 
-  async getTrendingSongs(limit = 12): Promise<Song[]> {
-    const response = await api.get<Song[]>(`/songs/trending?limit=${limit}`);
+  async getTrendingSongs(limit = 12, window = "7d", genre?: string, language?: string): Promise<Song[]> {
+    const params = new URLSearchParams({ limit: String(limit), window });
+    if (genre && genre !== "All") params.append("genre", genre);
+    if (language) params.append("language", language);
+    const response = await api.get<Song[]>(`/songs/trending?${params.toString()}`);
     return Array.isArray(response.data) ? response.data : [];
   },
 

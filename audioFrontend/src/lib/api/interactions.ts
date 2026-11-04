@@ -2,8 +2,10 @@ import { request } from "./client";
 import type { Song } from "./types";
 
 export const interactionsApi = {
-  getTrending: async (limit = 10) => {
-    const res = await request<Song[]>(`/api/songs/trending?limit=${limit}`);
+  getTrending: async (limit = 10, window = "7d", genre?: string) => {
+    let url = `/api/songs/trending?limit=${limit}&window=${window}`;
+    if (genre) url += `&genre=${encodeURIComponent(genre)}`;
+    const res = await request<Song[]>(url);
     const list = Array.isArray(res) ? res : [];
     return { data: { data: list } };
   },
