@@ -1,0 +1,45 @@
+{
+  "cli": {
+    "version": ">= 27.4.1",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api-one-melody.one-org.me/api",
+        "EXPO_PUBLIC_ALGOLIA_APP_ID": "NQKIDY69EZ",
+        "EXPO_PUBLIC_ALGOLIA_SEARCH_KEY": "d56f43f0df08191b3eea750c0f4d3cd0",
+        "EXPO_PUBLIC_ALGOLIA_INDEX_NAME": "one_melody_springboot",
+        "EXPO_PUBLIC_RECOMBEE_DATABASE_ID": "oneorg-prod",
+        "EXPO_PUBLIC_RECOMBEE_PUBLIC_TOKEN": "rZcQmUMV0K2CdU23RzTyzOrdQZCXxfJcbIEE9vO7nOSe2GJpVxdJl9dMf5kBWoPa",
+        "EXPO_PUBLIC_RECOMBEE_REGION": "eu-west"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api-one-melody.one-org.me/api",
+        "EXPO_PUBLIC_ALGOLIA_APP_ID": "NQKIDY69EZ",
+        "EXPO_PUBLIC_ALGOLIA_SEARCH_KEY": "d56f43f0df08191b3eea750c0f4d3cd0",
+        "EXPO_PUBLIC_ALGOLIA_INDEX_NAME": "one_melody_springboot",
+        "EXPO_PUBLIC_RECOMBEE_DATABASE_ID": "oneorg-prod",
+        "EXPO_PUBLIC_RECOMBEE_PUBLIC_TOKEN": "rZcQmUMV0K2CdU23RzTyzOrdQZCXxfJcbIEE9vO7nOSe2GJpVxdJl9dMf5kBWoPa",
+        "EXPO_PUBLIC_RECOMBEE_REGION": "eu-west"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
