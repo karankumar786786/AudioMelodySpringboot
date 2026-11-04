@@ -96,6 +96,7 @@ public class ArtistApiService {
     @Cacheable(value = "artists", key = "#id")
     public ArtistDto getArtistById(String id) {
         Artist artist = artistsRepository.findById(id)
+                .or(() -> artistsRepository.findByNameIgnoreCase(id))
                 .orElseThrow(() -> new ResourceNotFoundException("Artist not found with id: " + id));
         return ArtistDto.fromEntity(artist);
     }

@@ -220,7 +220,7 @@ public interface SongsRepository extends JpaRepository<Song, String> {
     }
 
     @EntityGraph(attributePaths = {"songMetadata"})
-    @Query("SELECT s FROM Song s WHERE LOWER(s.album) = LOWER(:album) AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt ASC")
+    @Query("SELECT s FROM Song s WHERE LOWER(TRIM(s.album)) = LOWER(TRIM(:album)) AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt ASC")
     List<Song> findByAlbum(@Param("album") String album);
 
     @Query("SELECT s.album, s.artistName, COUNT(s), MIN(s.imageKey), MIN(s.genre) " +

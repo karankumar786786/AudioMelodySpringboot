@@ -5,14 +5,23 @@ interface AlbumPageProps {
   params: Promise<{ name: string }>;
 }
 
+function safeDecode(val: string): string {
+  if (!val) return "";
+  try {
+    return decodeURIComponent(val);
+  } catch {
+    return val;
+  }
+}
+
 export async function generateMetadata({
   params,
 }: AlbumPageProps): Promise<Metadata> {
   const resolvedParams = await params;
-  const albumName = decodeURIComponent(resolvedParams.name);
+  const albumName = safeDecode(resolvedParams?.name || "");
 
   return {
-    title: `${albumName} - Album`,
+    title: `${albumName || "Album"} - One Melody`,
     description: `Listen to "${albumName}" on One Melody in high definition lossless audio.`,
     openGraph: {
       title: `${albumName} on One Melody`,
@@ -30,6 +39,6 @@ export async function generateMetadata({
 
 export default async function AlbumPage({ params }: AlbumPageProps) {
   const resolvedParams = await params;
-  const albumName = decodeURIComponent(resolvedParams.name);
+  const albumName = safeDecode(resolvedParams?.name || "");
   return <AlbumClientView albumName={albumName} />;
 }
