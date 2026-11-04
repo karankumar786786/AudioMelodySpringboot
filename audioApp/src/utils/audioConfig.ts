@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { setAudioModeAsync, setIsAudioActiveAsync, AudioPlayer } from "expo-audio";
 import Constants, { AppOwnership } from "expo-constants";
 
@@ -15,6 +16,7 @@ export const isExpoGo =
 let isConfigured = false;
 
 export async function configureAudioPriority(force = false): Promise<void> {
+  if (Platform.OS === "web") return;
   if (isConfigured && !force) return;
   try {
     await setAudioModeAsync({

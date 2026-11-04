@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, ActivityIndicator, Image } from "react-native";
+import { View, ActivityIndicator, Image, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -20,7 +20,9 @@ import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 
 
 // Configure global exclusive audio priority as soon as the app starts
-configureAudioPriority().catch(() => {});
+if (Platform.OS !== "web") {
+  configureAudioPriority().catch(() => {});
+}
 
 // Prevent splash screen from auto-hiding until initial token/device loading is done
 SplashScreen.preventAutoHideAsync().catch(() => {});
