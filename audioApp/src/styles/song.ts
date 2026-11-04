@@ -142,6 +142,7 @@ export const songStyles = StyleSheet.create({
     maxWidth: 340,
     aspectRatio: 1,
     borderRadius: 24,
+    backgroundColor: "#151515",
     alignItems: "center",
     justifyContent: "center",
     shadowOffset: { width: 0, height: 16 },

@@ -527,7 +527,38 @@ export default function SongDetailScreen() {
 
   return (
     <View style={styles.root}>
-      {/* 1A. Full-Screen Canvas Video Backdrop (Smooth Cross-fade) */}
+      {/* 1. Base Ambient Blurred Backdrop & Dominant Color Gradient for Artwork Mode */}
+      <Animated.View
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            opacity: hasCanvas
+              ? modeFadeAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 1],
+                })
+              : 1,
+          },
+        ]}
+        pointerEvents="none"
+      >
+        {posterUrl ? (
+          <Image
+            source={{ uri: posterUrl }}
+            style={styles.ambientBlurImage}
+            contentFit="cover"
+            blurRadius={65}
+            cachePolicy="memory"
+          />
+        ) : null}
+        <LinearGradient
+          colors={dominantTheme.gradientColors}
+          locations={[0, 0.28, 0.58, 0.88, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+      </Animated.View>
+
+      {/* 2. Full-Screen Canvas Video Backdrop (Smooth Cross-fade on top of Artwork Base) */}
       {hasCanvas && activeSong.videoKey ? (
         <Animated.View
           style={[
@@ -562,37 +593,6 @@ export default function SongDetailScreen() {
           />
         </Animated.View>
       ) : null}
-
-      {/* 1B. Ambient Blurred Backdrop & Majority Dominant Color Gradient for Artwork Mode */}
-      <Animated.View
-        style={[
-          StyleSheet.absoluteFill,
-          {
-            opacity: hasCanvas
-              ? modeFadeAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 1],
-                })
-              : 1,
-          },
-        ]}
-        pointerEvents="none"
-      >
-        {posterUrl ? (
-          <Image
-            source={{ uri: posterUrl }}
-            style={styles.ambientBlurImage}
-            contentFit="cover"
-            blurRadius={65}
-            cachePolicy="memory"
-          />
-        ) : null}
-        <LinearGradient
-          colors={dominantTheme.gradientColors}
-          locations={[0, 0.28, 0.58, 0.88, 1]}
-          style={StyleSheet.absoluteFill}
-        />
-      </Animated.View>
 
       <SafeAreaView
         edges={["top","left","right"]}
@@ -729,30 +729,26 @@ export default function SongDetailScreen() {
                 ) : null}
 
                 {/* Mode Stage Display: Centered 1:1 image for artwork with subtle fade & scale */}
-                <View style={styles.artworkStageBox}>
+                <View
+                  style={styles.artworkStageBox}
+                  pointerEvents={effectiveViewMode === "artwork" ? "auto" : "none"}
+                >
                   <Animated.View
                     style={[
                       styles.artworkShadowContainer,
                       {
                         shadowColor: dominantTheme?.dominantColor || "#FFFFFF",
+                        opacity: hasCanvas
+                          ? modeFadeAnim.interpolate({
+                              inputRange: [0, 1],
+                              outputRange: [0, 1],
+                            })
+                          : 1,
                         transform: [{ scale: artworkPlayingScaleAnim }],
                       },
                     ]}
                   >
-                    <Animated.View
-                      style={[
-                        styles.artworkWrapper,
-                        {
-                          opacity: hasCanvas
-                            ? modeFadeAnim.interpolate({
-                                inputRange: [0, 1],
-                                outputRange: [0, 1],
-                              })
-                            : 1,
-                        },
-                      ]}
-                      pointerEvents={effectiveViewMode === "artwork" ? "auto" : "none"}
-                    >
+                    <View style={styles.artworkWrapper}>
                       <Image
                         source={{ uri: posterUrl }}
                         style={styles.artworkImage}
@@ -760,7 +756,7 @@ export default function SongDetailScreen() {
                         transition={200}
                         cachePolicy="memory"
                       />
-                    </Animated.View>
+                    </View>
                   </Animated.View>
                 </View>
               </View>
