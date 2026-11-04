@@ -21,6 +21,7 @@ export interface PlayerSong extends Song {
 export interface RadioSession {
   seedSongId: string | null;
   seedTitle?: string;
+  seedSong?: Song;
   isActive: boolean;
   sessionHistoryIds: string[];
   skippedSongIds: string[];

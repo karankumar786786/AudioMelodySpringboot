@@ -100,5 +100,29 @@ export function normalizeSong(raw: any, source: SongSource = "api"): Song {
         : typeof data.listenCount === "number"
           ? data.listenCount
           : 0,
+    tempo:
+      data.tempo != null && !isNaN(Number(data.tempo))
+        ? Number(data.tempo)
+        : undefined,
+    danceability:
+      data.danceability != null && !isNaN(Number(data.danceability))
+        ? Number(data.danceability)
+        : undefined,
+    energy:
+      data.energy != null && !isNaN(Number(data.energy))
+        ? Number(data.energy)
+        : undefined,
+    valence:
+      data.valence != null && !isNaN(Number(data.valence))
+        ? Number(data.valence)
+        : undefined,
+    acousticness:
+      data.acousticness != null && !isNaN(Number(data.acousticness))
+        ? Number(data.acousticness)
+        : undefined,
+    instrumentalness:
+      data.instrumentalness != null && !isNaN(Number(data.instrumentalness))
+        ? Number(data.instrumentalness)
+        : undefined,
   };
 }

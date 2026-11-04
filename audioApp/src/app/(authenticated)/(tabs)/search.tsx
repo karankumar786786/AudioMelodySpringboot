@@ -124,7 +124,7 @@ export default function SearchScreen() {
     searchService.saveSearchHistory({ type: "SONG", songId: song.id });
     searchService.trackSearchPlay(song.id);
     queryClient.invalidateQueries({ queryKey: ["search-history"] });
-    dispatch(playWithSimilarSongs(song));
+    dispatch(playWithSimilarSongs(song, songs));
     router.push({
       pathname: "/(authenticated)/song/[id]",
       params: { id: song.id },

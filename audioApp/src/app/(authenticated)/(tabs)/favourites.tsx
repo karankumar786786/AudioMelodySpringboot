@@ -70,7 +70,7 @@ export default function FavouritesScreen() {
     allSongs.length;
 
   const handleSongPress = (song: Song) => {
-    dispatch(playWithSimilarSongs(song));
+    dispatch(playWithSimilarSongs(song, allSongs));
     router.push({
       pathname: "/(authenticated)/song/[id]",
       params: { id: song.id },

@@ -153,11 +153,12 @@ export const queueSlice = createSlice({
     },
     startRadioSession: (
       state,
-      action: PayloadAction<{ seedSongId: string; seedTitle?: string }>,
+      action: PayloadAction<{ seedSongId: string; seedTitle?: string; seedSong?: Song }>,
     ) => {
       state.radioSession = {
         seedSongId: action.payload.seedSongId,
         seedTitle: action.payload.seedTitle,
+        seedSong: action.payload.seedSong,
         isActive: true,
         sessionHistoryIds: [action.payload.seedSongId],
         skippedSongIds: [],
@@ -167,6 +168,7 @@ export const queueSlice = createSlice({
       state.radioSession = {
         seedSongId: null,
         seedTitle: undefined,
+        seedSong: undefined,
         isActive: false,
         sessionHistoryIds: [],
         skippedSongIds: [],

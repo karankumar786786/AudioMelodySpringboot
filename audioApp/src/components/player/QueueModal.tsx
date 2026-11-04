@@ -124,7 +124,7 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
   });
 
   const handlePlaySong = (song: Song | PlayerSong) => {
-    (dispatch as any)(playSong(song));
+    (dispatch as any)(playSong(song, queue));
   };
 
   const handleRemove = (songId: string) => {

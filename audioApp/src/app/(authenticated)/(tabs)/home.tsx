@@ -160,8 +160,8 @@ export default function HomeScreen() {
     }
   };
 
-  const playSong = (song: any) => {
-    dispatch(playWithSimilarSongs(song));
+  const playSong = (song: any, context?: any[]) => {
+    dispatch(playWithSimilarSongs(song, context || allSongs));
     router.push(`/song/${song.id}`);
   };
 
@@ -264,7 +264,7 @@ export default function HomeScreen() {
                       width={tileWidth}
                       isActive={active}
                       isPlaying={active && isPlaying}
-                      onPress={() => playSong(song)}
+                      onPress={() => playSong(song, quickPicks)}
                     />
                   );
                 })}
@@ -284,7 +284,7 @@ export default function HomeScreen() {
                   renderItem={({ item }) => (
                     <TrendingSongCard
                       song={item}
-                      onPress={() => playSong(item)}
+                      onPress={() => playSong(item, trendingSongs)}
                     />
                   )}
                 />
@@ -344,7 +344,7 @@ export default function HomeScreen() {
                       index={index}
                       isActive={active}
                       isPlaying={active && isPlaying}
-                      onPress={() => playSong(song)}
+                      onPress={() => playSong(song, allSongs)}
                     />
                   );
                 })}

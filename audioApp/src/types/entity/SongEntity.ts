@@ -24,4 +24,10 @@ export interface Song {
   jobId?: string;
   totalStreams?: number;
   createdAt?: string;
+  tempo?: number;
+  danceability?: number;
+  energy?: number;
+  valence?: number;
+  acousticness?: number;
+  instrumentalness?: number;
 }

@@ -24,6 +24,7 @@ import { audioPlayerService } from "@/service/audioPlayerService";
 import { homeService } from "@/service/homeService";
 import { recombeeService } from "@/service/recombeeService";
 import { interactionService } from "@/service/interactionService";
+import { similarityService } from "@/service/similarityService";
 
 let inFlightRefillPromise: Promise<void> | null = null;
 
@@ -108,11 +109,11 @@ export const playAllFrom =
   };
 
 /**
- * Play a clicked song immediately and populate the queue with similar songs
- * directly from Recombee.
+ * Play a clicked song immediately and populate the upcoming queue with genuinely
+ * similar songs evaluated on genre, artist, album, tempo/BPM, danceability, and energy.
  */
 export const playWithSimilarSongs =
-  (song: Song | PlayerSong) =>
+  (song: Song | PlayerSong, contextPool?: Song[]) =>
   async (dispatch: AppDispatch, getState: () => AppState) => {
     if (!song) return;
 
@@ -125,22 +126,31 @@ export const playWithSimilarSongs =
 
     // Initialize queue with the clicked song at index 0
     dispatch(setQueue({ queue: [song], index: 0 }));
-    dispatch(startRadioSession({ seedSongId: song.id, seedTitle: song.title }));
+    dispatch(
+      startRadioSession({
+        seedSongId: song.id,
+        seedTitle: song.title,
+        seedSong: song,
+      })
+    );
     logQueueSnapshot("playWithSimilarSongs (Initial 1 Track)", [song], 0, song);
 
     // Start playback immediately with lazy PlayerSong hydration
     await audioPlayerService.play(song);
 
-    // Asynchronously fetch similar songs from Recombee
+    // Asynchronously fetch similar songs evaluated on genre, artist, album, tempo & energy
     try {
       const state = getState();
       const user =
         state.user.profile?.id || state.device.deviceId || "anonymous";
-      const similarSongs = await recombeeService.getSimilarSongs(
-        song.id,
-        15,
-        user
-      );
+
+      const similarSongs = await similarityService.findSimilarSongs(song, {
+        count: 15,
+        excludeIds: [song.id],
+        contextPool,
+        dislikedSongIds: state.queue.dislikedSongIds,
+        targetUserId: user,
+      });
 
       const dislikedSet = new Set(getState().queue.dislikedSongIds);
       const filteredSimilar = similarSongs.filter(
@@ -150,7 +160,7 @@ export const playWithSimilarSongs =
       if (filteredSimilar.length > 0) {
         dispatch(addToQueue(filteredSimilar));
         logQueueSnapshot(
-          "playWithSimilarSongs (After Recombee Recommendations)",
+          "playWithSimilarSongs (After Similarity Recommendations)",
           getState().queue.queue,
           getState().queue.currentIndex,
           song
@@ -158,7 +168,7 @@ export const playWithSimilarSongs =
         audioPlayerService.syncUpcomingPreload();
       }
     } catch (err) {
-      console.warn("[Queue] Failed to load Recombee recommendations:", err);
+      console.warn("[Queue] Failed to load similar songs:", err);
     }
   };
 
@@ -279,7 +289,8 @@ export const prevTrack =
   };
 
 /**
- * Autoplay recommendation engine: refills upcoming queue with similar songs from Recombee when low.
+ * Autoplay recommendation engine: refills upcoming queue with similar songs evaluated
+ * on genre, artist, album, tempo/BPM, danceability, and energy when queue runs low.
  */
 export const refillQueue =
   (isInit = false) =>
@@ -298,28 +309,36 @@ export const refillQueue =
       try {
         dispatch(setIsRefilling(true));
         const currentSong = getState().player.currentSong;
-        const seedId = radioSession?.seedSongId || currentSong?.id;
+        const seedSong =
+          radioSession?.seedSong ||
+          currentSong ||
+          (currentIndex >= 0 && currentIndex < queue.length
+            ? queue[currentIndex]
+            : null);
+
         const user =
           getState().user.profile?.id || getState().device.deviceId || "anonymous";
 
         let freshSongs: Song[] = [];
-        if (seedId) {
-          const excludeIds = queue.map((s) => s.id);
-          freshSongs = await recombeeService.getRadioSongs(
-            seedId,
+        const excludeIds = queue.map((s) => s.id);
+
+        if (seedSong) {
+          freshSongs = await similarityService.findSimilarSongs(seedSong, {
+            count: 12,
             excludeIds,
-            12,
-            user
-          );
+            dislikedSongIds,
+            targetUserId: user,
+          });
         }
 
+        // Secondary fallback only if similarity returned nothing
         if (!freshSongs || freshSongs.length === 0) {
           const trending = await homeService.getTrendingSongs(15);
-          freshSongs = trending || [];
+          freshSongs = (trending || []).filter((s) => !excludeIds.includes(s.id));
         }
 
         const dislikedSet = new Set(dislikedSongIds);
-        const existingIds = new Set(queue.map((s) => s.id));
+        const existingIds = new Set(excludeIds);
 
         const filtered = freshSongs.filter(
           (s) => !existingIds.has(s.id) && !dislikedSet.has(s.id)
