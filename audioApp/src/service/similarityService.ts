@@ -40,16 +40,16 @@ export const similarityService = {
     const seedAlbum = (seed.album || "").trim().toLowerCase();
     const candAlbum = (candidate.album || "").trim().toLowerCase();
 
-    // 1. Genre alignment (up to 35 pts)
+    // 1. Genre alignment (up to 40 pts)
     if (seedGenre && candGenre) {
       if (seedGenre === candGenre) {
-        score += 35;
+        score += 40;
       } else if (seedGenre.includes(candGenre) || candGenre.includes(seedGenre)) {
-        score += 20;
+        score += 25;
       }
     }
 
-    // 2. Artist alignment (up to 30 pts)
+    // 2. Artist alignment (controlled: up to 12 pts, so artist does not dominate musical vibe)
     if (seedArtist && candArtist) {
       const seedParts = seedArtist
         .split(/[,&]/)
@@ -68,7 +68,7 @@ export const similarityService = {
         primaryCand &&
         (primarySeed === primaryCand || candArtist.includes(primarySeed))
       ) {
-        score += 30; // Primary artist match
+        score += 12; // Controlled primary artist match
       } else {
         // Collaborator match
         const hasCollaboratorOverlap = seedParts.some((sp) =>
@@ -80,14 +80,14 @@ export const similarityService = {
           )
         );
         if (hasCollaboratorOverlap) {
-          score += 18;
+          score += 6;
         }
       }
     }
 
-    // 3. Album / Movie Soundtrack (up to 25 pts)
+    // 3. Album / Movie Soundtrack (up to 8 pts)
     if (seedAlbum && candAlbum && seedAlbum === candAlbum) {
-      score += 25;
+      score += 8;
     }
 
     // 4. Tempo / BPM similarity (up to 20 pts)
@@ -101,31 +101,31 @@ export const similarityService = {
       else if (bpmDiff <= 40) score += 3;
     }
 
-    // 5. Energy vibe proximity (up to 8 pts)
+    // 5. Energy vibe proximity (up to 10 pts)
     const seedEnergy = typeof seed.energy === "number" ? seed.energy : 0;
     const candEnergy = typeof candidate.energy === "number" ? candidate.energy : 0;
     if (seedEnergy > 0 && candEnergy > 0) {
       const energyDiff = Math.abs(seedEnergy - candEnergy);
-      if (energyDiff <= 0.12) score += 8;
-      else if (energyDiff <= 0.25) score += 4;
+      if (energyDiff <= 0.12) score += 10;
+      else if (energyDiff <= 0.25) score += 5;
     }
 
-    // 6. Danceability vibe proximity (up to 7 pts)
+    // 6. Danceability vibe proximity (up to 8 pts)
     const seedDance = typeof seed.danceability === "number" ? seed.danceability : 0;
     const candDance = typeof candidate.danceability === "number" ? candidate.danceability : 0;
     if (seedDance > 0 && candDance > 0) {
       const danceDiff = Math.abs(seedDance - candDance);
-      if (danceDiff <= 0.12) score += 7;
-      else if (danceDiff <= 0.25) score += 3;
+      if (danceDiff <= 0.12) score += 8;
+      else if (danceDiff <= 0.25) score += 4;
     }
 
-    // 7. Valence (mood / emotion) proximity (up to 6 pts)
+    // 7. Valence (mood / emotion) proximity (up to 7 pts)
     const seedValence = typeof seed.valence === "number" ? seed.valence : 0;
     const candValence = typeof candidate.valence === "number" ? candidate.valence : 0;
     if (seedValence > 0 && candValence > 0) {
       const valenceDiff = Math.abs(seedValence - candValence);
-      if (valenceDiff <= 0.15) score += 6;
-      else if (valenceDiff <= 0.30) score += 3;
+      if (valenceDiff <= 0.15) score += 7;
+      else if (valenceDiff <= 0.3) score += 3;
     }
 
     // 8. Acousticness proximity (up to 5 pts)
@@ -136,13 +136,13 @@ export const similarityService = {
       if (acousticDiff <= 0.15) score += 5;
     }
 
-    // 9. Language match (up to 10 pts)
+    // 9. Language match (up to 15 pts)
     if (
       seed.language &&
       candidate.language &&
       seed.language.trim().toLowerCase() === candidate.language.trim().toLowerCase()
     ) {
-      score += 10;
+      score += 15;
     }
 
     return score;
@@ -169,26 +169,22 @@ export const similarityService = {
         .filter((a) => a.length > 2);
       const primaryArtist = artists[0] || "";
 
-      // 1. Target queries in priority order
+      // 1. Target queries prioritizing genre and musical vibe
       const queries: string[] = [];
 
-      // Query A: Genre + primary artist
-      if (seed.genre && primaryArtist) {
-        queries.push(`${seed.genre} ${primaryArtist}`);
-      }
-      // Query B: Genre alone
+      // Query A: Genre alone (discovers tracks by all artists in the same genre)
       if (seed.genre) {
         queries.push(seed.genre);
       }
-      // Query C: Primary artist
+      // Query B: Genre + primary artist
+      if (seed.genre && primaryArtist) {
+        queries.push(`${seed.genre} ${primaryArtist}`);
+      }
+      // Query C: Primary artist alone (single query, capped)
       if (primaryArtist) {
         queries.push(primaryArtist);
       }
-      // Query D: Other featured artists
-      for (let i = 1; i < artists.length; i++) {
-        queries.push(artists[i]);
-      }
-      // Query E: Album
+      // Query D: Album
       if (seed.album) {
         queries.push(seed.album);
       }
@@ -425,6 +421,43 @@ export const similarityService = {
     // Sort descending by score
     scored.sort((a, b) => b.score - a.score);
 
-    return scored.slice(0, count).map((x) => x.song);
+    // 5. Select with strict artist and album diversity caps (max 2 songs per artist, max 2 per album)
+    const MAX_PER_ARTIST = 2;
+    const MAX_PER_ALBUM = 2;
+
+    const artistCounts = new Map<string, number>();
+    const albumCounts = new Map<string, number>();
+    const diverse: Song[] = [];
+    const deferred: Song[] = [];
+
+    for (const item of scored) {
+      if (diverse.length >= count) break;
+      const song = item.song;
+      const primaryArtist =
+        song.artistName?.split(/[,/&]|ft\./i)[0]?.trim().toLowerCase() || "unknown";
+      const albumKey = song.album?.trim().toLowerCase();
+
+      const artistHits = artistCounts.get(primaryArtist) || 0;
+      const albumHits = albumKey ? albumCounts.get(albumKey) || 0 : 0;
+
+      if (artistHits >= MAX_PER_ARTIST || (albumKey && albumHits >= MAX_PER_ALBUM)) {
+        deferred.push(song);
+        continue;
+      }
+
+      diverse.push(song);
+      artistCounts.set(primaryArtist, artistHits + 1);
+      if (albumKey) albumCounts.set(albumKey, albumHits + 1);
+    }
+
+    // Relax diversity constraints if total matches were too few to fulfill count
+    if (diverse.length < count && deferred.length > 0) {
+      for (const song of deferred) {
+        if (diverse.length >= count) break;
+        diverse.push(song);
+      }
+    }
+
+    return diverse.slice(0, count);
   },
 };

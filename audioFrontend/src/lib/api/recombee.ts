@@ -1,79 +1,10 @@
-import recombee from "recombee-js-api-client";
-import { getDeviceId } from "./client";
-import { getAlgoliaClient, mapSongHit } from "./search";
+import { request } from "./client";
 import type { Song } from "./types";
 
-const RECOMBEE_DB =
-  process.env.NEXT_PUBLIC_RECOMBEE_DATABASE_ID || "oneorg-prod";
-const RECOMBEE_PUBLIC_TOKEN =
-  process.env.NEXT_PUBLIC_RECOMBEE_PUBLIC_TOKEN ||
-  "rZcQmUMV0K2CdU23RzTyzOrdQZCXxfJcbIEE9vO7nOSe2GJpVxdJl9dMf5kBWoPa";
-const RECOMBEE_REGION = process.env.NEXT_PUBLIC_RECOMBEE_REGION || "eu-west";
-
-let recombeeClientInstance: any = null;
-
-export function getRecombeeClient(): any {
-  if (!recombeeClientInstance && typeof window !== "undefined") {
-    try {
-      recombeeClientInstance = new recombee.ApiClient(
-        RECOMBEE_DB,
-        RECOMBEE_PUBLIC_TOKEN,
-        { region: RECOMBEE_REGION },
-      );
-    } catch (err) {
-      console.warn("[Recombee] Failed to initialize client:", err);
-    }
-  }
-  return recombeeClientInstance;
-}
-
-/**
- * Hydrates recommended item IDs with rich song metadata from Algolia in ~1ms
- * preserving the exact order recommended by Recombee.
- */
-export async function hydrateRecommendedSongs(
-  songIds: string[],
-): Promise<Song[]> {
-  if (!songIds || songIds.length === 0) return [];
-  const algolia = await getAlgoliaClient();
-  if (!algolia) return [];
-
-  try {
-    const filter = songIds.map((id) => `objectID:${id}`).join(" OR ");
-    const response = await algolia.client.searchSingleIndex({
-      indexName: algolia.indexName,
-      searchParams: {
-        query: "",
-        filters: filter,
-        hitsPerPage: Math.max(songIds.length, 20),
-      },
-    });
-
-    const hits: any[] = response.hits || [];
-
-    const hitMap = new Map<string, any>();
-    hits.forEach((h: any) => {
-      hitMap.set(h.objectID || h.id, h);
-    });
-
-    const songs: Song[] = [];
-    for (const id of songIds) {
-      const hit = hitMap.get(id);
-      if (hit) {
-        songs.push(mapSongHit(hit));
-      }
-    }
-    return songs;
-  } catch (err) {
-    console.warn("[Recombee] Algolia hydration failed:", err);
-    return [];
-  }
-}
-
 export function mapRecombeeHit(hit: any): Song {
-  const vals = hit.values || {};
+  const vals = hit?.values || hit || {};
   return {
-    id: String(hit.id || vals.id || ""),
+    id: String(hit?.id || vals.id || ""),
     title: vals.title || "",
     artistName: vals.artistName || "",
     duration: typeof vals.duration === "number" ? vals.duration : 0,
@@ -102,128 +33,65 @@ export function mapRecombeeHit(hit: any): Song {
 
 export const recombeeApi = {
   /**
-   * Recommend items directly to a user from Recombee with rich metadata.
+   * Recommend items directly to a user via Spring Boot coreEngine backend.
    */
   recommendItemsToUser: async (
-    targetUserId?: string,
+    _targetUserId?: string,
     count = 10,
   ): Promise<Song[] | null> => {
-    const client = getRecombeeClient();
-    if (!client) return null;
-
-    const user =
-      targetUserId ||
-      (typeof window !== "undefined" ? getDeviceId() : "anonymous");
     try {
-      const response = await client.send(
-        new recombee.RecommendItemsToUser(user, count, {
-          cascadeCreate: true,
-          returnProperties: true,
-        }),
+      const res = await request<Song[]>(
+        `/api/recommendations/user?count=${count}`,
       );
-
-      const recomms = response?.recomms || [];
-      if (recomms.length === 0) return null;
-
-      // Direct hydration if Recombee returned metadata properties
-      const direct = recomms
-        .filter((r: any) => r.values && r.values.title && r.values.songKey)
-        .map(mapRecombeeHit);
-      if (direct.length > 0) return direct;
-
-      // Fallback: Hydrate via Algolia only if values are absent
-      const songIds = recomms.map((r: any) => r.id);
-      const hydrated = await hydrateRecommendedSongs(songIds);
-      return hydrated.length > 0 ? hydrated : null;
+      const list = Array.isArray(res) ? res : [];
+      return list.length > 0 ? list : null;
     } catch (err) {
-      console.warn("[Recombee] recommendItemsToUser failed:", err);
+      console.warn("[Recombee] Backend recommendItemsToUser failed:", err);
       return null;
     }
   },
 
   /**
-   * Recommend similar items directly from Recombee with rich metadata.
+   * Recommend similar items via Spring Boot coreEngine backend with diversity and ranking.
    */
   recommendSimilarSongs: async (
     songId: string,
     count = 10,
-    targetUserId?: string,
   ): Promise<Song[] | null> => {
-    const client = getRecombeeClient();
-    if (!client || !songId) return null;
-
-    const user =
-      targetUserId ||
-      (typeof window !== "undefined" ? getDeviceId() : "anonymous");
+    if (!songId) return null;
     try {
-      const response = await client.send(
-        new recombee.RecommendItemsToItem(songId, user, count, {
-          cascadeCreate: true,
-          returnProperties: true,
-        }),
+      const res = await request<Song[]>(
+        `/api/recommendations/similar/${encodeURIComponent(songId)}?count=${count}`,
       );
-
-      const recomms = response?.recomms || [];
-      if (recomms.length === 0) return null;
-
-      // Direct hydration if Recombee returned metadata properties
-      const direct = recomms
-        .filter((r: any) => r.values && r.values.title && r.values.songKey)
-        .map(mapRecombeeHit);
-      if (direct.length > 0) return direct;
-
-      const songIds = recomms.map((r: any) => r.id);
-      const hydrated = await hydrateRecommendedSongs(songIds);
-      return hydrated.length > 0 ? hydrated : null;
+      const list = Array.isArray(res) ? res : [];
+      return list.length > 0 ? list : null;
     } catch (err) {
-      console.warn("[Recombee] recommendSimilarSongs failed:", err);
+      console.warn("[Recombee] Backend recommendSimilarSongs failed:", err);
       return null;
     }
   },
 
   /**
-   * Recommend radio songs based on a seed song, excluding history, with rich metadata.
+   * Recommend radio songs based on a seed song via Spring Boot coreEngine backend.
    */
   recommendRadioSongs: async (
     seedSongId: string,
     excludeIds: string[] = [],
     count = 10,
-    targetUserId?: string,
   ): Promise<Song[] | null> => {
-    const client = getRecombeeClient();
-    if (!client || !seedSongId) return null;
-
-    const user =
-      targetUserId ||
-      (typeof window !== "undefined" ? getDeviceId() : "anonymous");
+    if (!seedSongId) return null;
     try {
-      const excludeSet = new Set([...excludeIds, seedSongId]);
-      const fetchCount = Math.max(count * 2, 20);
-      const response = await client.send(
-        new recombee.RecommendItemsToItem(seedSongId, user, fetchCount, {
-          cascadeCreate: true,
-          returnProperties: true,
-        }),
+      const excParam =
+        excludeIds.length > 0
+          ? `&excludeIds=${encodeURIComponent(excludeIds.join(","))}`
+          : "";
+      const res = await request<Song[]>(
+        `/api/recommendations/radio?seedSongId=${encodeURIComponent(seedSongId)}&count=${count}${excParam}`,
       );
-
-      const recomms = response?.recomms || [];
-      const filtered = recomms
-        .filter((r: any) => !excludeSet.has(r.id))
-        .slice(0, count);
-
-      if (filtered.length === 0) return null;
-
-      // Direct hydration if Recombee returned metadata properties
-      const direct = filtered
-        .filter((r: any) => r.values && r.values.title && r.values.songKey)
-        .map(mapRecombeeHit);
-      if (direct.length > 0) return direct;
-
-      const songIds = filtered.map((r: any) => r.id);
-      const hydrated = await hydrateRecommendedSongs(songIds);
-      return hydrated.length > 0 ? hydrated : null;
+      const list = Array.isArray(res) ? res : [];
+      return list.length > 0 ? list : null;
     } catch (err) {
-      console.warn("[Recombee] recommendRadioSongs failed:", err);
+      console.warn("[Recombee] Backend recommendRadioSongs failed:", err);
       return null;
     }
   },

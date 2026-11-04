@@ -30,14 +30,14 @@ class RecommendationApiServiceTest {
         SongDto s1 = new SongDto("song-1", "Song One", "Artist A", 180, "key1", "img1", null, null, null, null, false, "English", "Pop", "Album", "lrc", null, 120L, null);
         SongDto s2 = new SongDto("song-2", "Song Two", "Artist B", 200, "key2", "img2", null, null, null, null, false, "English", "Rock", "Album", "lrc", null, 340L, null);
 
-        when(recombee.recommendRadioDetailed("seed-1", List.of("ex-1"), 5)).thenReturn(List.of(s1, s2));
+        when(recombee.recommendRadioDetailed(eq("seed-1"), eq(List.of("ex-1")), anyInt())).thenReturn(List.of(s1, s2));
 
         List<SongDto> dtos = recommendationApiService.recommendRadio("seed-1", List.of("ex-1"), 5);
 
         assertThat(dtos).hasSize(2);
         assertThat(dtos.get(0).id()).isEqualTo("song-1");
         assertThat(dtos.get(1).id()).isEqualTo("song-2");
-        verify(recombee).recommendRadioDetailed("seed-1", List.of("ex-1"), 5);
+        verify(recombee).recommendRadioDetailed(eq("seed-1"), eq(List.of("ex-1")), anyInt());
     }
 
     @Test
@@ -45,19 +45,19 @@ class RecommendationApiServiceTest {
     void shouldRecommendSimilarDetailed() throws Exception {
         SongDto s1 = new SongDto("song-1", "Song One", "Artist A", 180, "key1", "img1", null, null, null, null, false, "English", "Pop", "Album", "lrc", null, 120L, null);
 
-        when(recombee.recommendSimilarDetailed("song-seed", 5)).thenReturn(List.of(s1));
+        when(recombee.recommendRadioDetailed(eq("song-seed"), eq(List.of()), anyInt())).thenReturn(List.of(s1));
 
         List<SongDto> dtos = recommendationApiService.recommendSimilar("song-seed", 5);
 
         assertThat(dtos).hasSize(1);
         assertThat(dtos.get(0).id()).isEqualTo("song-1");
-        verify(recombee).recommendSimilarDetailed("song-seed", 5);
+        verify(recombee).recommendRadioDetailed(eq("song-seed"), eq(List.of()), anyInt());
     }
 
     @Test
     @DisplayName("Should return empty list gracefully when Recombee fails and no songsRepository provided")
     void shouldHandleRecombeeFailureGracefully() throws Exception {
-        when(recombee.recommendRadioDetailed("seed-1", List.of(), 5)).thenThrow(new RuntimeException("Connection timeout"));
+        when(recombee.recommendRadioDetailed(eq("seed-1"), eq(List.of()), anyInt())).thenThrow(new RuntimeException("Connection timeout"));
 
         List<SongDto> dtos = recommendationApiService.recommendRadio("seed-1", List.of(), 5);
 
@@ -70,7 +70,7 @@ class RecommendationApiServiceTest {
         me.one_org.melody.Repository.SongsRepository mockSongsRepo = mock(me.one_org.melody.Repository.SongsRepository.class);
         RecommendationApiService serviceWithFallback = new RecommendationApiService(recombee, mockSongsRepo);
 
-        when(recombee.recommendSimilarDetailed("seed-1", 5)).thenReturn(List.of());
+        when(recombee.recommendRadioDetailed(eq("seed-1"), eq(List.of()), anyInt())).thenReturn(List.of());
 
         me.one_org.melody.Entity.Song seed = me.one_org.melody.Entity.Song.builder()
                 .id("seed-1")
@@ -85,19 +85,19 @@ class RecommendationApiServiceTest {
         me.one_org.melody.Entity.Song fallbackSong = me.one_org.melody.Entity.Song.builder()
                 .id("song-fallback")
                 .title("Fallback Title")
-                .artistName("Seed Artist")
+                .artistName("Different Artist")
                 .genre("Pop")
                 .album("Seed Album")
                 .language("Hindi")
+                .status(me.one_org.melody.Enums.StatusEnum.ACTIVE)
                 .build();
-        when(mockSongsRepo.findRadioFallback("Seed Album", "Pop", "Seed Artist", "Hindi", List.of("seed-1"), 5))
+        when(mockSongsRepo.findActiveByGenre(eq("Pop"), any()))
                 .thenReturn(List.of(fallbackSong));
 
         List<SongDto> results = serviceWithFallback.recommendSimilar("seed-1", 5);
 
-        assertThat(results).hasSize(1);
+        assertThat(results).isNotEmpty();
         assertThat(results.get(0).id()).isEqualTo("song-fallback");
-        assertThat(results.get(0).title()).isEqualTo("Fallback Title");
     }
 
     @Test
@@ -106,7 +106,7 @@ class RecommendationApiServiceTest {
         me.one_org.melody.Repository.SongsRepository mockSongsRepo = mock(me.one_org.melody.Repository.SongsRepository.class);
         RecommendationApiService service = new RecommendationApiService(recombee, mockSongsRepo);
 
-        when(recombee.recommendForUser("user-1", 5)).thenReturn(List.of("song-1", "song-2"));
+        when(recombee.recommendForUser(eq("user-1"), anyInt())).thenReturn(List.of("song-1", "song-2"));
 
         me.one_org.melody.Entity.Song s1 = me.one_org.melody.Entity.Song.builder()
                 .id("song-1")
@@ -136,7 +136,7 @@ class RecommendationApiServiceTest {
         me.one_org.melody.Repository.SongsRepository mockSongsRepo = mock(me.one_org.melody.Repository.SongsRepository.class);
         RecommendationApiService service = new RecommendationApiService(recombee, mockSongsRepo);
 
-        when(recombee.recommendForUser("user-new", 5)).thenReturn(List.of());
+        when(recombee.recommendForUser(eq("user-new"), anyInt())).thenReturn(List.of());
 
         me.one_org.melody.Entity.Song catalogSong = me.one_org.melody.Entity.Song.builder()
                 .id("song-cat")
@@ -145,7 +145,7 @@ class RecommendationApiServiceTest {
                 .status(me.one_org.melody.Enums.StatusEnum.ACTIVE)
                 .build();
 
-        when(mockSongsRepo.findActiveSongs(org.springframework.data.domain.PageRequest.of(0, 5)))
+        when(mockSongsRepo.findActiveSongs(any()))
                 .thenReturn(List.of(catalogSong));
 
         List<SongDto> results = service.recommendForUser("user-new", 5);

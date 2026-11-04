@@ -136,7 +136,31 @@ export function RightInfoPanel() {
         pool.sort((a, b) => scoreSong(b) - scoreSong(a));
       }
 
-      return pool.slice(0, 10);
+      // Enforce artist diversity: maximum 2 tracks per primary artist
+      const artistCounts = new Map<string, number>();
+      const diversePool: Song[] = [];
+      const deferred: Song[] = [];
+
+      for (const s of pool) {
+        const artistKey = s.artistName?.split(/[,/&]|ft\./i)[0]?.trim().toLowerCase() || "unknown";
+        const count = artistCounts.get(artistKey) || 0;
+        if (count < 2) {
+          diversePool.push(s);
+          artistCounts.set(artistKey, count + 1);
+        } else {
+          deferred.push(s);
+        }
+        if (diversePool.length >= 10) break;
+      }
+
+      if (diversePool.length < 10) {
+        for (const s of deferred) {
+          diversePool.push(s);
+          if (diversePool.length >= 10) break;
+        }
+      }
+
+      return diversePool.slice(0, 10);
     },
     enabled: !!currentSong?.id,
     staleTime: 1000 * 60 * 5,
