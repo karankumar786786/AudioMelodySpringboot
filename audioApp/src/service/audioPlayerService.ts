@@ -5,6 +5,7 @@ import { configureAudioPriority, safeSetActiveForLockScreen } from "@/utils";
 export { configureAudioPriority };
 import { mapToPlayerSong } from "@/utils/playerUtils";
 import { selectCurrentSongFromQueue } from "@/store/queueSlice";
+import { nextTrack, prevTrack } from "@/store/queueActions";
 import { homeService } from "./homeService";
 import {
   setCurrentTime,
@@ -116,6 +117,17 @@ export class AudioPlayerService {
 
   private handlePlaybackStatusUpdate(status: AudioStatus): void {
     if (!status) return;
+
+    if ((status as any).remoteCommand === "nextTrack") {
+      console.log("[AudioPlayerService] Remote next track command from lock screen");
+      (store.dispatch as any)(nextTrack(true));
+      return;
+    }
+    if ((status as any).remoteCommand === "previousTrack") {
+      console.log("[AudioPlayerService] Remote previous track command from lock screen");
+      (store.dispatch as any)(prevTrack());
+      return;
+    }
 
     const dispatch = store.dispatch;
 
@@ -427,8 +439,10 @@ export class AudioPlayerService {
           artworkUrl: playerSong.coverUrl,
         },
         {
-          showSeekForward: true,
-          showSeekBackward: true,
+          showSeekForward: false,
+          showSeekBackward: false,
+          showNextTrack: true,
+          showPreviousTrack: true,
           seekForwardIntervalSeconds: 10,
           seekBackwardIntervalSeconds: 10,
         }
