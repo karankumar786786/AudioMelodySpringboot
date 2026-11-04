@@ -4,6 +4,8 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { Playlist } from "@/types";
 import { getImageUrl } from "@/utils/imageUtils";
+import { hapticFeedback } from "@/utils/haptics";
+import { colors, radius, shadows, spacing } from "@/theme";
 
 interface PlaylistCardProps {
   playlist: Playlist;
@@ -18,41 +20,95 @@ export function PlaylistCard({ playlist, onPress }: PlaylistCardProps) {
     aspectRatio: "1-1",
   });
 
+  const handlePress = () => {
+    hapticFeedback.light();
+    onPress();
+  };
+
   return (
-    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.78}>
-      {imageUrl ? (
-        <Image
-          source={{ uri: imageUrl }}
-          style={styles.image}
-          contentFit="cover"
-          transition={200}
-          cachePolicy="memory"
-        />
-      ) : (
-        <View style={[styles.image, styles.fallback]}>
-          <Ionicons name="musical-notes-outline" size={34} color="#5A5A5A" />
+    <TouchableOpacity
+      style={styles.card}
+      onPress={handlePress}
+      activeOpacity={0.82}
+    >
+      <View style={styles.imageContainer}>
+        {imageUrl ? (
+          <Image
+            source={{ uri: imageUrl }}
+            style={styles.image}
+            contentFit="cover"
+            transition={200}
+            cachePolicy="memory"
+          />
+        ) : (
+          <View style={[styles.image, styles.fallback]}>
+            <Ionicons name="musical-notes-outline" size={34} color={colors.textMuted} />
+          </View>
+        )}
+
+        {/* Floating White Play Button */}
+        <View style={styles.playButtonOverlay}>
+          <Ionicons name="play" size={15} color="#000000" style={{ marginLeft: 2 }} />
         </View>
-      )}
+      </View>
+
       <Text style={styles.title} numberOfLines={1}>
         {playlist.name}
       </Text>
       <Text style={styles.subtitle} numberOfLines={1}>
-        {playlist.totalSongs} {playlist.totalSongs === 1 ? "song" : "songs"}
+        {playlist.totalSongs} {playlist.totalSongs === 1 ? "track" : "tracks"}
       </Text>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { width: 140, marginRight: 14 },
-  image: {
-    width: 140,
-    height: 140,
-    borderRadius: 14,
-    backgroundColor: "#1A1A1A",
-    marginBottom: 10,
+  card: {
+    width: 148,
+    marginRight: spacing.md,
+    backgroundColor: "transparent", // strictly transparent, no white bg!
   },
-  fallback: { alignItems: "center", justifyContent: "center" },
-  title: { color: "#FFFFFF", fontSize: 14, fontWeight: "700", marginBottom: 2 },
-  subtitle: { color: "#8A8A8A", fontSize: 12 },
+  imageContainer: {
+    width: 148,
+    height: 148,
+    borderRadius: radius.md,
+    overflow: "hidden",
+    backgroundColor: colors.surfaceElevated,
+    marginBottom: spacing.sm + 2,
+    position: "relative",
+    ...shadows.sm,
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+  },
+  fallback: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+  },
+  playButtonOverlay: {
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadows.md,
+  },
+  title: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+    marginBottom: 2,
+  },
+  subtitle: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "400",
+  },
 });

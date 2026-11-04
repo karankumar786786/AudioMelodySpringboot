@@ -5,6 +5,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { Song } from "@/types";
 import { getImageUrl } from "@/utils/imageUtils";
 import { formatDuration, formatSongSubtitle } from "@/utils/formatUtils";
+import { hapticFeedback } from "@/utils/haptics";
+import { colors, radius, spacing } from "@/theme";
 
 interface SongRowItemProps {
   song: Song;
@@ -16,6 +18,7 @@ interface SongRowItemProps {
 
 export function SongRowItem({
   song,
+  index,
   isActive = false,
   isPlaying = false,
   onPress,
@@ -27,10 +30,15 @@ export function SongRowItem({
     aspectRatio: "1-1",
   });
 
+  const handlePress = () => {
+    hapticFeedback.light();
+    onPress();
+  };
+
   return (
     <TouchableOpacity
       style={[styles.container, isActive && styles.containerActive]}
-      onPress={onPress}
+      onPress={handlePress}
       activeOpacity={0.72}
     >
       <View style={styles.thumbnailContainer}>
@@ -44,18 +52,25 @@ export function SongRowItem({
           />
         ) : (
           <View style={styles.fallback}>
-            <Ionicons name="musical-note" size={20} color="#5A5A5A" />
+            <Ionicons name="musical-note" size={18} color={colors.textMuted} />
           </View>
         )}
         {isActive ? (
           <View style={styles.activeOverlay}>
-            <Ionicons name={isPlaying ? "volume-high" : "pause"} size={18} color="#FFFFFF" />
+            <Ionicons
+              name={isPlaying ? "volume-high" : "pause"}
+              size={18}
+              color="#FFFFFF"
+            />
           </View>
         ) : null}
       </View>
 
       <View style={styles.info}>
-        <Text style={styles.title} numberOfLines={1}>
+        <Text
+          style={[styles.title, isActive && styles.titleActive]}
+          numberOfLines={1}
+        >
           {song.title}
         </Text>
         <Text style={styles.subtitle} numberOfLines={1}>
@@ -72,45 +87,66 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 18,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.side,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.md,
   },
-  containerActive: { backgroundColor: "#151515" },
+  containerActive: {
+    backgroundColor: colors.surfaceElevated,
+  },
   thumbnailContainer: {
-    width: 52,
-    height: 52,
-    borderRadius: 10,
+    width: 50,
+    height: 50,
+    borderRadius: radius.sm + 2,
     overflow: "hidden",
-    backgroundColor: "#151515",
-    borderWidth: 1,
-    borderColor: "#262626",
-    marginRight: 12,
+    backgroundColor: colors.surfaceElevated,
+    marginRight: spacing.md - 2,
+    position: "relative",
   },
-  thumbnail: { width: "100%", height: "100%" },
+  thumbnail: {
+    width: "100%",
+    height: "100%",
+  },
   fallback: {
     width: "100%",
     height: "100%",
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: colors.surface,
   },
   activeOverlay: {
-    ...StyleSheet.absoluteFill,
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
     backgroundColor: "rgba(0, 0, 0, 0.6)",
     alignItems: "center",
     justifyContent: "center",
   },
-  info: { flex: 1, paddingRight: 12 },
+  info: {
+    flex: 1,
+    paddingRight: spacing.sm,
+    justifyContent: "center",
+  },
   title: {
-    fontSize: 15,
-    fontWeight: "700",
+    fontSize: 14.5,
+    fontWeight: "600",
     letterSpacing: -0.2,
-    color: "#FFFFFF",
+    color: colors.textPrimary,
     marginBottom: 3,
   },
-  subtitle: { fontSize: 12.5, color: "#8A8A8A" },
+  titleActive: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+  subtitle: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
   duration: {
     fontSize: 12,
-    color: "#5A5A5A",
+    color: colors.textMuted,
     fontVariant: ["tabular-nums"],
   },
 });

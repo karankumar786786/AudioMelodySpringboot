@@ -66,6 +66,8 @@ export const radii = {
   full: 9999,
 } as const;
 
+export const radius = radii;
+
 export const typography = {
   hero: {
     fontSize: 32,

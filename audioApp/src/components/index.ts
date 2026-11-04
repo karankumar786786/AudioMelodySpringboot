@@ -5,6 +5,8 @@ export * from "./common/Badge";
 export * from "./common/IconButton";
 export * from "./favourites/FavouriteSongItem";
 export * from "./home/ArtistCircleCard";
+export * from "./home/AlbumCard";
+export * from "./home/SectionHeader";
 export * from "./home/HeroFeaturedCard";
 export * from "./home/FeaturedSongsCarousel";
 export * from "./home/HomeSkeleton";

@@ -4,6 +4,8 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { Artist } from "@/types";
 import { getImageUrl } from "@/utils/imageUtils";
+import { hapticFeedback } from "@/utils/haptics";
+import { colors, radius, shadows, spacing } from "@/theme";
 
 interface ArtistCircleCardProps {
   artist: Artist;
@@ -18,46 +20,81 @@ export function ArtistCircleCard({ artist, onPress }: ArtistCircleCardProps) {
     aspectRatio: "1-1",
   });
 
+  const handlePress = () => {
+    hapticFeedback.light();
+    onPress();
+  };
+
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.75}>
-      {imageUrl ? (
-        <Image
-          source={{ uri: imageUrl }}
-          style={styles.avatar}
-          contentFit="cover"
-          transition={200}
-          cachePolicy="memory"
-        />
-      ) : (
-        <View style={[styles.avatar, styles.fallback]}>
-          <Ionicons name="person" size={44} color="#5A5A5A" />
-        </View>
-      )}
+    <TouchableOpacity
+      style={styles.container}
+      onPress={handlePress}
+      activeOpacity={0.78}
+    >
+      <View style={styles.avatarWrapper}>
+        {imageUrl ? (
+          <Image
+            source={{ uri: imageUrl }}
+            style={styles.avatar}
+            contentFit="cover"
+            transition={200}
+            cachePolicy="memory"
+          />
+        ) : (
+          <View style={[styles.avatar, styles.fallback]}>
+            <Ionicons name="person" size={40} color={colors.textMuted} />
+          </View>
+        )}
+      </View>
       <Text style={styles.name} numberOfLines={1}>
         {artist.name}
+      </Text>
+      <Text style={styles.badge} numberOfLines={1}>
+        Artist
       </Text>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { width: 108, marginRight: 14, alignItems: "center" },
-  avatar: {
-    width: 108,
-    height: 108,
-    borderRadius: 54,
-    backgroundColor: "#151515",
-    borderWidth: 1,
-    borderColor: "#262626",
-    marginBottom: 10,
+  container: {
+    width: 104,
+    marginRight: spacing.md,
+    alignItems: "center",
   },
-  fallback: { alignItems: "center", justifyContent: "center" },
+  avatarWrapper: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: colors.surfaceElevated,
+    overflow: "hidden",
+    marginBottom: spacing.sm,
+    // Zero harsh border, smooth clean elevation
+    borderWidth: 0,
+    ...shadows.sm,
+  },
+  avatar: {
+    width: "100%",
+    height: "100%",
+  },
+  fallback: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface,
+  },
   name: {
-    color: "#FFFFFF",
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: "700",
     letterSpacing: -0.2,
     textAlign: "center",
     width: "100%",
+    marginBottom: 2,
+  },
+  badge: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "500",
+    textAlign: "center",
   },
 });

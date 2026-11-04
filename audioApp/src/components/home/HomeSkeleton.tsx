@@ -1,58 +1,127 @@
-import React from "react";
-import { View, StyleSheet } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { View, StyleSheet, Animated } from "react-native";
+import { colors, radius, spacing } from "@/theme";
 
 export function HomeSkeleton() {
+  const opacityAnim = useRef(new Animated.Value(0.4)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacityAnim, {
+          toValue: 0.8,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 0.4,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacityAnim]);
+
   return (
-    <View style={styles.container}>
-      {/* Quick-pick grid */}
+    <Animated.View style={[styles.container, { opacity: opacityAnim }]}>
+      {/* Quick-Pick 2x3 Grid */}
       <View style={styles.grid}>
         {[0, 1, 2, 3, 4, 5].map((i) => (
           <View key={i} style={styles.tile} />
         ))}
       </View>
 
-      {/* Song cards */}
-      <View style={styles.title} />
-      <View style={styles.row}>
-        <View style={styles.card} />
-        <View style={styles.card} />
-        <View style={styles.card} />
+      {/* Trending shelf */}
+      <View style={styles.sectionHeader}>
+        <View style={styles.titleBar} />
+        <View style={styles.subtitleBar} />
+      </View>
+      <View style={styles.horizontalRow}>
+        <View style={styles.squareCard} />
+        <View style={styles.squareCard} />
+        <View style={styles.squareCard} />
+      </View>
+
+      {/* Albums shelf */}
+      <View style={styles.sectionHeader}>
+        <View style={styles.titleBar} />
+      </View>
+      <View style={styles.horizontalRow}>
+        <View style={styles.squareCard} />
+        <View style={styles.squareCard} />
+        <View style={styles.squareCard} />
       </View>
 
       {/* Artists */}
-      <View style={styles.title} />
-      <View style={styles.row}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.titleBar} />
+      </View>
+      <View style={styles.horizontalRow}>
         <View style={styles.circle} />
         <View style={styles.circle} />
         <View style={styles.circle} />
         <View style={styles.circle} />
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
-const SKELETON = "#141414";
+const SKELETON_BG = "#1A1A1A";
 
 const styles = StyleSheet.create({
-  container: { paddingTop: 4 },
+  container: {
+    paddingTop: spacing.xs,
+  },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
     rowGap: 8,
-    paddingHorizontal: 18,
-    marginBottom: 28,
+    paddingHorizontal: spacing.side,
+    marginBottom: spacing.lg,
   },
-  tile: { width: "48.5%", height: 60, borderRadius: 10, backgroundColor: SKELETON },
-  title: {
-    marginHorizontal: 18,
-    height: 20,
-    width: 130,
-    borderRadius: 6,
-    backgroundColor: SKELETON,
-    marginBottom: 14,
+  tile: {
+    width: "48.5%",
+    height: 60,
+    borderRadius: radius.md,
+    backgroundColor: SKELETON_BG,
   },
-  row: { flexDirection: "row", paddingHorizontal: 18, gap: 14, marginBottom: 28 },
-  card: { width: 146, height: 146, borderRadius: 14, backgroundColor: SKELETON },
-  circle: { width: 108, height: 108, borderRadius: 54, backgroundColor: SKELETON },
+  sectionHeader: {
+    paddingHorizontal: spacing.side,
+    marginBottom: spacing.sm + 4,
+    marginTop: spacing.md,
+  },
+  titleBar: {
+    height: 18,
+    width: 140,
+    borderRadius: radius.sm,
+    backgroundColor: SKELETON_BG,
+    marginBottom: 6,
+  },
+  subtitleBar: {
+    height: 12,
+    width: 100,
+    borderRadius: radius.sm,
+    backgroundColor: SKELETON_BG,
+  },
+  horizontalRow: {
+    flexDirection: "row",
+    paddingHorizontal: spacing.side,
+    gap: spacing.md,
+    marginBottom: spacing.md,
+  },
+  squareCard: {
+    width: 148,
+    height: 148,
+    borderRadius: radius.md,
+    backgroundColor: SKELETON_BG,
+  },
+  circle: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: SKELETON_BG,
+  },
 });
