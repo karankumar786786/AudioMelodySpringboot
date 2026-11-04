@@ -77,7 +77,7 @@ export function FavouriteSongItem({
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         accessibilityLabel="Remove from liked songs"
       >
-        <Ionicons name="heart" size={22} color="#FFFFFF" />
+        <Ionicons name="heart" size={22} color="#FF3B30" />
       </TouchableOpacity>
     </TouchableOpacity>
   );

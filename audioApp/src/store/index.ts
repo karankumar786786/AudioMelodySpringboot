@@ -6,3 +6,4 @@ export {loadUserProfile, setUserProfile, clearUserProfile} from "./userSlice";
 export * from "./playerSlice";
 export * from "./queueSlice";
 export * from "./queueActions";
+export * from "./favouriteSlice";

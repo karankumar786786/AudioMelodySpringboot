@@ -36,6 +36,8 @@ import {
   toggleShuffle,
   toggleRepeat,
   setDominantColor,
+  selectIsFavourite,
+  toggleFavourite,
 } from "@/store";
 import { CanvasVideoPlayer, QueueModal, FullVideoPlayerModal, PlayerSettingsModal, DEFAULT_AUDIO_QUALITIES } from "@/components";
 import { formatDuration,  getImageUrl, useDominantColor,S3_BASE_URL } from "@/utils";
@@ -69,7 +71,7 @@ export default function SongDetailScreen() {
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("canvas");
-  const [isLiked, setIsLiked] = useState(false);
+  const isLiked = useSelector((state: AppState) => selectIsFavourite(state, activeSong?.id));
   const [isArtistImageModalOpen, setIsArtistImageModalOpen] = useState(false);
 
   // Subtle fade and scale animation between canvas and artwork mode
@@ -211,12 +213,7 @@ export default function SongDetailScreen() {
     }
   };
 
-  useEffect(() => {
-    if (activeSong?.id && favouritesData?.content) {
-      const isFav = favouritesData.content.some((s) => s.id === activeSong.id);
-      setIsLiked(isFav);
-    }
-  }, [activeSong?.id, favouritesData?.content]);
+
 
   // Synchronize route param id with currentSong when track advances
   useEffect(() => {
@@ -487,8 +484,8 @@ export default function SongDetailScreen() {
   };
 
   const handleToggleLike = async () => {
+    if (!activeSong) return;
     const nextLiked = !isLiked;
-    setIsLiked(nextLiked);
     if (nextLiked) {
       hapticFeedback.success();
       Animated.sequence([
@@ -520,15 +517,11 @@ export default function SongDetailScreen() {
       ]).start();
     }
     try {
-      if (nextLiked) {
-        await favouriteService.addFavourite(activeSong.id);
-      } else {
-        await favouriteService.removeFavourite(activeSong.id);
-      }
+      await dispatch(toggleFavourite(activeSong) as any).unwrap();
       queryClient.invalidateQueries({ queryKey: ["favourites"] });
       queryClient.invalidateQueries({ queryKey: ["favourites-check"] });
-    } catch {
-      setIsLiked(!nextLiked);
+    } catch (e) {
+      console.warn("[SongDetail] Toggle favourite error:", e);
     }
   };
 
@@ -800,7 +793,7 @@ export default function SongDetailScreen() {
               <Ionicons
                 name={isLiked ? "heart" : "heart-outline"}
                 size={28}
-                color={isLiked ? "#FFFFFF" : "rgba(255, 255, 255, 0.75)"}
+                color={isLiked ? "#FF3B30" : "rgba(255, 255, 255, 0.75)"}
               />
             </Animated.View>
           </TouchableOpacity>

@@ -5,6 +5,7 @@ import tempTokenReducer from "./tempTokenSlice";
 import userReducer from "./userSlice";
 import playerReducer from "./playerSlice";
 import queueReducer from "./queueSlice";
+import favouritesReducer from "./favouriteSlice";
 
 export const store = configureStore({
     reducer: {
@@ -14,6 +15,7 @@ export const store = configureStore({
         user: userReducer,
         player: playerReducer,
         queue: queueReducer,
+        favourites: favouritesReducer,
     }
 });
 

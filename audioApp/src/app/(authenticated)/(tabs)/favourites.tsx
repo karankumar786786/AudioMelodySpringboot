@@ -14,7 +14,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Ionicons } from "@expo/vector-icons";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 
-import { AppDispatch, AppState,playAll,playWithSimilarSongs } from "@/store";
+import { AppDispatch, AppState, playAll, playWithSimilarSongs, toggleFavourite } from "@/store";
 import { audioPlayerService,favouriteService } from "@/service";
 import { Song } from "@/types";
 import { FavouriteSongItem } from "@/components";
@@ -36,6 +36,8 @@ export default function FavouritesScreen() {
 
   const currentSong = useSelector((state: AppState) => state.player.currentSong);
   const isPlaying = useSelector((state: AppState) => state.player.isPlaying);
+  const reduxFavouriteSongs = useSelector((state: AppState) => state.favourites.favouriteSongs);
+  const reduxFavouriteIds = useSelector((state: AppState) => state.favourites.favouriteIds);
 
   const {
     data,
@@ -60,9 +62,28 @@ export default function FavouritesScreen() {
   });
 
   const allSongs: Song[] = useMemo(() => {
-    if (!data?.pages) return [];
-    return data.pages.flatMap((page) => page.content || []);
-  }, [data]);
+    const querySongs = data?.pages ? data.pages.flatMap((page) => page.content || []) : [];
+    const seen = new Set<string>();
+    const combined: Song[] = [];
+
+    // Redux favourite songs (includes newly liked songs immediately)
+    for (const song of reduxFavouriteSongs) {
+      if (reduxFavouriteIds.includes(song.id) && !seen.has(song.id)) {
+        seen.add(song.id);
+        combined.push(song);
+      }
+    }
+
+    // Add query songs that are still in Redux favouriteIds
+    for (const song of querySongs) {
+      if (!seen.has(song.id) && (reduxFavouriteIds.length === 0 || reduxFavouriteIds.includes(song.id))) {
+        seen.add(song.id);
+        combined.push(song);
+      }
+    }
+
+    return combined;
+  }, [data, reduxFavouriteSongs, reduxFavouriteIds]);
 
   const totalCount =
     data?.pages[0]?.paginationMetaData?.totalCount ??
@@ -103,7 +124,10 @@ export default function FavouritesScreen() {
   };
 
   const handleRemoveFavourite = async (songId: string) => {
-    // Optimistic UI update
+    const targetSong = allSongs.find((s) => s.id === songId) || ({ id: songId } as Song);
+    (dispatch as any)(toggleFavourite(targetSong));
+
+    // Optimistic UI update for query cache
     queryClient.setQueryData<any>(["favourites"], (oldData: any) => {
       if (!oldData || !Array.isArray(oldData.pages)) return oldData;
       return {
@@ -114,12 +138,6 @@ export default function FavouritesScreen() {
         })),
       };
     });
-
-    try {
-      await favouriteService.removeFavourite(songId);
-    } catch {
-      queryClient.invalidateQueries({ queryKey: ["favourites"] });
-    }
   };
 
   const renderHeader = () => (

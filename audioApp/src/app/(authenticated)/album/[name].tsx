@@ -19,7 +19,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AppDispatch, AppState, enqueue, playAll, playAllFrom } from "@/store";
+import { AppDispatch, AppState, enqueue, playAll, playAllFrom, toggleFavourite } from "@/store";
 import { albumService, favouriteService } from "@/service";
 import { audioPlayerService } from "@/service/audioPlayerService";
 import { Song } from "@/types";
@@ -43,8 +43,8 @@ export default function AlbumDetailScreen() {
   const currentSong = useSelector((state: AppState) => state.player.currentSong);
   const isPlaying = useSelector((state: AppState) => state.player.isPlaying);
 
-  // Local likes tracking
-  const [favouritedIds, setFavouritedIds] = useState<Set<string>>(new Set());
+  // Redux Favourites tracking
+  const favouriteIds = useSelector((state: AppState) => state.favourites.favouriteIds);
 
   // Query songs for this album
   const {
@@ -182,22 +182,9 @@ export default function AlbumDetailScreen() {
     (dispatch as any)(playAllFrom(songs, index));
   };
 
-  const handleToggleFavourite = async (songId: string) => {
+  const handleToggleFavourite = (song: Song) => {
     hapticFeedback.success();
-    const wasLiked = favouritedIds.has(songId);
-    const next = new Set(favouritedIds);
-    if (wasLiked) {
-      next.delete(songId);
-    } else {
-      next.add(songId);
-    }
-    setFavouritedIds(next);
-
-    try {
-      await favouriteService.toggleFavourite(songId, wasLiked);
-    } catch {
-      setFavouritedIds(favouritedIds);
-    }
+    (dispatch as any)(toggleFavourite(song));
   };
 
   // Header Component for FlatList
@@ -384,7 +371,7 @@ export default function AlbumDetailScreen() {
           renderItem={({ item, index }) => {
             const isActive = currentSong?.id === item.id;
             const isSongPlaying = isActive && isPlaying;
-            const isFavourited = favouritedIds.has(item.id);
+            const isFavourited = favouriteIds.includes(item.id);
 
             const itemImage =
               (item as any).coverUrl ||
@@ -454,13 +441,13 @@ export default function AlbumDetailScreen() {
                 {/* Heart Button */}
                 <TouchableOpacity
                   style={styles.trackActionBtn}
-                  onPress={() => handleToggleFavourite(item.id)}
+                  onPress={() => handleToggleFavourite(item)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                   <Ionicons
                     name={isFavourited ? "heart" : "heart-outline"}
                     size={18}
-                    color={isFavourited ? colors.like : colors.textMuted}
+                    color={isFavourited ? "#FF3B30" : colors.textMuted}
                   />
                 </TouchableOpacity>
 

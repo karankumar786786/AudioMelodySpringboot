@@ -12,6 +12,7 @@ import {
   loadDevice,
   loadUserProfile,
   loadLastPlaybackState,
+  loadFavourites,
   store,
 } from "@/store";
 import { AuthToken } from "@/types";
@@ -66,6 +67,7 @@ function RootNavigator() {
   useEffect(() => {
     if (authToken.accessToken) {
       dispatch(loadUserProfile());
+      dispatch(loadFavourites());
     }
   }, [authToken.accessToken, dispatch]);
 

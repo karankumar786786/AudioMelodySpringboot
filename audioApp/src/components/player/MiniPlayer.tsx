@@ -24,6 +24,7 @@ import { AppState } from "@/store/hook";
 import { audioPlayerService } from "@/service/audioPlayerService";
 import { nextTrack, prevTrack } from "@/store/queueActions";
 import { setDominantColor } from "@/store/playerSlice";
+import { selectIsFavourite, toggleFavourite } from "@/store/favouriteSlice";
 import { favouriteService } from "@/service";
 import { hapticFeedback } from "@/utils/haptics";
 import { useDominantColor } from "@/utils/colorUtils";
@@ -43,8 +44,7 @@ export function MiniPlayer() {
   const duration = useSelector((state: AppState) => state.player.duration);
   const bufferedTime = useSelector((state: AppState) => state.player.bufferedTime || 0);
   const reduxDominantColor = useSelector((state: AppState) => state.player.dominantColor);
-
-  const [isLiked, setIsLiked] = useState(false);
+  const isLiked = useSelector((state: AppState) => selectIsFavourite(state, currentSong?.id));
 
   // Gesture shared values
   const translateX = useSharedValue(0);
@@ -108,19 +108,11 @@ export function MiniPlayer() {
     (dispatch as any)(prevTrack());
   };
 
-  const handleToggleLike = async (e?: any) => {
+  const handleToggleLike = (e?: any) => {
     e?.stopPropagation?.();
+    if (!currentSong) return;
     hapticFeedback.success();
-    const prevLiked = isLiked;
-    setIsLiked(!prevLiked);
-    try {
-      if (currentSong?.id) {
-        await favouriteService.toggleFavourite(currentSong.id, prevLiked);
-      }
-    } catch {
-      // Revert if failed
-      setIsLiked(prevLiked);
-    }
+    (dispatch as any)(toggleFavourite(currentSong));
   };
 
   // Pan gesture: swipe horizontally to skip tracks, swipe up to expand full player
@@ -235,7 +227,7 @@ export function MiniPlayer() {
                 <Ionicons
                   name={isLiked ? "heart" : "heart-outline"}
                   size={20}
-                  color={isLiked ? colors.like : "rgba(255, 255, 255, 0.85)"}
+                  color={isLiked ? "#FF3B30" : "rgba(255, 255, 255, 0.85)"}
                 />
               </TouchableOpacity>
 
