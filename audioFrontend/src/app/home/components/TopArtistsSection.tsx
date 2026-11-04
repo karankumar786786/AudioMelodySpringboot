@@ -52,13 +52,13 @@ export const TopArtistsSection: React.FC<TopArtistsSectionProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="flex flex-row overflow-x-auto gap-2.5 pb-1 no-scrollbar px-1 scroll-smooth"
+        className="flex flex-row overflow-x-auto gap-2.5 pb-1 no-scrollbar px-1 scroll-smooth snap-x snap-mandatory"
       >
         {isArtistsLoading
           ? [1, 2, 3, 4, 5, 6].map((i) => (
               <div
                 key={i}
-                className="flex-none w-28.75 sm:w-31 p-2 space-y-2"
+                className="flex-none w-28.75 sm:w-31 p-2 space-y-2 snap-start"
               >
                 <div className="aspect-square rounded-full bg-zinc-900 animate-pulse border border-white/5 mx-auto" />
                 <div className="h-3 w-3/4 bg-zinc-900 rounded mx-auto animate-pulse" />
@@ -66,7 +66,7 @@ export const TopArtistsSection: React.FC<TopArtistsSectionProps> = ({
               </div>
             ))
           : artists?.map((artist: Artist) => (
-              <ArtistCard key={artist.id} artist={artist} />
+              <ArtistCard key={artist.id} artist={artist} className="snap-start" />
             ))}
       </motion.div>
     </section>
