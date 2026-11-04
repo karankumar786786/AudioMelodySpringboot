@@ -381,7 +381,6 @@ export default function HomeScreen() {
                 <SectionHeader
                   title="Trending now"
                   subtitle="Top tracks taking over the charts"
-                  onSeeAllPress={() => handleSelectCategory("Trending")}
                 />
                 <FlatList
                   horizontal
@@ -408,7 +407,6 @@ export default function HomeScreen() {
                 <SectionHeader
                   title="Popular albums"
                   subtitle="Soundtracks & full artist collections"
-                  onSeeAllPress={() => handleSelectCategory("Albums")}
                 />
                 <FlatList
                   horizontal
@@ -439,7 +437,6 @@ export default function HomeScreen() {
                 <SectionHeader
                   title="Featured artists"
                   subtitle="Voices you might like"
-                  onSeeAllPress={() => handleSelectCategory("Artists")}
                 />
                 <FlatList
                   horizontal
@@ -471,7 +468,6 @@ export default function HomeScreen() {
                 <SectionHeader
                   title="Curated playlists"
                   subtitle="Handpicked mixes for your day"
-                  onSeeAllPress={() => handleSelectCategory("Playlists")}
                 />
                 <FlatList
                   horizontal
