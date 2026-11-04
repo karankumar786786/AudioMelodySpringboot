@@ -23,6 +23,7 @@ import { clearUpcomingQueue, removeSongFromQueue } from "@/store/queueSlice";
 import { playSong } from "@/store/queueActions";
 import { formatDuration } from "@/utils/formatUtils";
 import { getImageUrl } from "@/utils/imageUtils";
+import { hapticFeedback } from "@/utils/haptics";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface QueueModalProps {
@@ -71,6 +72,7 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
   }, [visible, sheetHeight]);
 
   const snapTo = (expand: boolean) => {
+    hapticFeedback.selection();
     const target = expand ? EXPANDED_H : COLLAPSED_H;
     settledHeight.current = target;
     setIsExpanded(expand);
@@ -124,14 +126,17 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
   });
 
   const handlePlaySong = (song: Song | PlayerSong) => {
+    hapticFeedback.light();
     (dispatch as any)(playSong(song, queue));
   };
 
   const handleRemove = (songId: string) => {
+    hapticFeedback.light();
     dispatch(removeSongFromQueue(songId));
   };
 
   const handleClearUpcoming = () => {
+    hapticFeedback.medium();
     dispatch(clearUpcomingQueue());
   };
 

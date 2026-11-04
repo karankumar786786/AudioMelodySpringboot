@@ -606,10 +606,10 @@ const styles = StyleSheet.create({
     width: 54,
     height: 54,
     borderRadius: 27,
-    backgroundColor: colors.primary,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    ...shadows.primaryGlow,
+    ...shadows.md,
   },
   secondaryButton: {
     width: 44,

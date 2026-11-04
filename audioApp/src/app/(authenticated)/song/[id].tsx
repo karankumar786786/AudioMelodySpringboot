@@ -38,6 +38,7 @@ import {
 } from "@/store";
 import { CanvasVideoPlayer, QueueModal, FullVideoPlayerModal, PlayerSettingsModal, DEFAULT_AUDIO_QUALITIES } from "@/components";
 import { formatDuration,  getImageUrl, useDominantColor,S3_BASE_URL } from "@/utils";
+import { hapticFeedback } from "@/utils/haptics";
 import { usePanGesture, GestureDetector } from "react-native-gesture-handler";
 import { songStyles as styles } from "@/styles";
 
@@ -264,6 +265,7 @@ export default function SongDetailScreen() {
   };
 
   const handleSelectMode = (mode: "canvas" | "artwork" | "video") => {
+    hapticFeedback.selection();
     if (mode === "video") {
       // Direct full screen mode: pause audio and launch FullVideoPlayerModal
       audioPlayerService.pause();
@@ -413,6 +415,7 @@ export default function SongDetailScreen() {
   };
 
   const handleSeekStart = (e: GestureResponderEvent) => {
+    hapticFeedback.selection();
     const targetSeconds = calculateSecondsFromEvent(e);
     setIsScrubbing(true);
     setScrubTime(targetSeconds);
@@ -424,6 +427,7 @@ export default function SongDetailScreen() {
   };
 
   const handleSeekEnd = (e: GestureResponderEvent) => {
+    hapticFeedback.medium();
     const targetSeconds = calculateSecondsFromEvent(e);
     setIsScrubbing(false);
     setScrubTime(null);
@@ -436,28 +440,38 @@ export default function SongDetailScreen() {
   };
 
   const handleTogglePlay = () => {
+    hapticFeedback.medium();
     audioPlayerService.togglePlay();
   };
 
   const handleNextTrack = () => {
+    hapticFeedback.light();
     (dispatch as any)(nextTrack(true));
   };
 
   const handlePrevTrack = () => {
+    hapticFeedback.light();
     (dispatch as any)(prevTrack());
   };
 
   const handleToggleShuffle = () => {
+    hapticFeedback.selection();
     dispatch(toggleShuffle());
   };
 
   const handleToggleRepeat = () => {
+    hapticFeedback.selection();
     dispatch(toggleRepeat());
   };
 
   const handleToggleLike = async () => {
     const nextLiked = !isLiked;
     setIsLiked(nextLiked);
+    if (nextLiked) {
+      hapticFeedback.success();
+    } else {
+      hapticFeedback.light();
+    }
     try {
       if (nextLiked) {
         await favouriteService.addFavourite(activeSong.id);
@@ -599,7 +613,10 @@ export default function SongDetailScreen() {
                   <TouchableOpacity
                     style={styles.topBarCircleBtn}
                     hitSlop={14}
-                    onPress={() => setIsSettingsOpen(true)}
+                    onPress={() => {
+                      hapticFeedback.light();
+                      setIsSettingsOpen(true);
+                    }}
                     activeOpacity={0.75}
                   >
                     <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
@@ -608,7 +625,10 @@ export default function SongDetailScreen() {
                   <TouchableOpacity
                     style={styles.topBarCircleBtn}
                     hitSlop={14}
-                    onPress={() => setIsQueueOpen(true)}
+                    onPress={() => {
+                      hapticFeedback.light();
+                      setIsQueueOpen(true);
+                    }}
                     activeOpacity={0.75}
                   >
                     <Ionicons name="list" size={22} color="#FFFFFF" />

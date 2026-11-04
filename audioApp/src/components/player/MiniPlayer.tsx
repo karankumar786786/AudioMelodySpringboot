@@ -59,7 +59,7 @@ export function MiniPlayer() {
 
   const handleTogglePlay = (e?: any) => {
     e?.stopPropagation?.();
-    hapticFeedback.light();
+    hapticFeedback.medium();
     audioPlayerService.togglePlay();
   };
 
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: colors.primary,
+    backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
     ...shadows.sm,
@@ -310,6 +310,6 @@ const styles = StyleSheet.create({
   },
   progressBarFill: {
     height: "100%",
-    backgroundColor: colors.primary,
+    backgroundColor: "#FFFFFF",
   },
 });
