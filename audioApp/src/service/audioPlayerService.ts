@@ -479,6 +479,19 @@ export class AudioPlayerService {
     }
     store.dispatch(setIsPlaying(true));
     store.dispatch(setIsLoading(false));
+
+    if (this.currentPlayingSong) {
+      safeSetActiveForLockScreen(
+        player,
+        true,
+        {
+          title: this.currentPlayingSong.title,
+          artist: this.currentPlayingSong.artistName,
+          albumTitle: this.currentPlayingSong.album || "Melody",
+          artworkUrl: this.currentPlayingSong.coverUrl,
+        }
+      );
+    }
   }
 
   public togglePlay(): void {

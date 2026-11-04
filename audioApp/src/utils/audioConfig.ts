@@ -1,10 +1,9 @@
 import { Platform } from "react-native";
 import { setAudioModeAsync, setIsAudioActiveAsync, AudioPlayer } from "expo-audio";
-import Constants, { AppOwnership } from "expo-constants";
+import Constants, { ExecutionEnvironment } from "expo-constants";
 
 export const isExpoGo =
-  Constants.appOwnership === AppOwnership.Expo ||
-  Constants.appOwnership === "expo";
+  Constants.executionEnvironment === ExecutionEnvironment.StoreClient;
 
 /**
  * Configures top exclusive audio priority for One Melody.
@@ -49,22 +48,49 @@ export function safeSetActiveForLockScreen(
 ): void {
   if (!player) return;
 
-  if (isExpoGo) {
+  // On Android only: Expo Go lacks AudioControlsService in its manifest
+  if (Platform.OS === "android" && isExpoGo) {
+    console.log("[LockScreen] Skipped on Android Expo Go to avoid missing manifest service");
     return;
   }
 
   try {
     if (active) {
-      player.setActiveForLockScreen(active, metadata, options);
+      const cleanMetadata = metadata
+        ? {
+            title: metadata.title || "One Melody",
+            artist: metadata.artist || "Unknown Artist",
+            albumTitle: metadata.albumTitle || "One Melody",
+            artworkUrl:
+              typeof metadata.artworkUrl === "string" &&
+              metadata.artworkUrl.startsWith("http")
+                ? metadata.artworkUrl
+                : undefined,
+          }
+        : undefined;
+
+      const cleanOptions = {
+        showSeekForward: true,
+        showSeekBackward: true,
+        showNextTrack: true,
+        showPreviousTrack: true,
+        seekForwardIntervalSeconds: 10,
+        seekBackwardIntervalSeconds: 10,
+        ...(options || {}),
+      };
+
+      player.setActiveForLockScreen(active, cleanMetadata, cleanOptions);
+      console.log(`[LockScreen] Active on lock screen / Control Center for: "${cleanMetadata?.title}"`);
     } else {
       if (typeof (player as any).clearLockScreenControls === "function") {
         (player as any).clearLockScreenControls();
       } else {
         player.setActiveForLockScreen(false);
       }
+      console.log("[LockScreen] Deactivated lock screen controls");
     }
   } catch (err) {
-    console.log("[LockScreen] Safe lock screen update note:", err);
+    console.warn("[LockScreen] Safe lock screen update error:", err);
   }
 }
 

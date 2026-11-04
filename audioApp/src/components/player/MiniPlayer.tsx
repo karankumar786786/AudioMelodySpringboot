@@ -80,14 +80,13 @@ export function MiniPlayer() {
 
   const dominantColor = extractedColor || reduxDominantColor || "#1A1A1A";
 
-  if (!currentSong) return null;
-
   const progressPercent =
     duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
   const bufferPercent =
     duration > 0 ? Math.min(100, Math.max(0, (bufferedTime / duration) * 100)) : 0;
 
   const handleOpenFullPlayer = () => {
+    if (!currentSong) return;
     hapticFeedback.selection();
     router.push(`/song/${currentSong.id}`);
   };
@@ -161,6 +160,8 @@ export function MiniPlayer() {
       { translateY: translateY.value },
     ],
   }));
+
+  if (!currentSong) return null;
 
   return (
     <GestureDetector gesture={panGesture}>
