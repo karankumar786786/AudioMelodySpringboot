@@ -5,6 +5,7 @@ export interface FavouriteService {
   getFavourites(page?: number, size?: number): Promise<PaginatedResponse<Song>>;
   addFavourite(songId: string): Promise<void>;
   removeFavourite(songId: string): Promise<void>;
+  toggleFavourite(songId: string, currentLiked?: boolean): Promise<void>;
 }
 
 export const favouriteService: FavouriteService = {
@@ -21,5 +22,13 @@ export const favouriteService: FavouriteService = {
 
   async removeFavourite(songId: string): Promise<void> {
     await api.delete(`/interaction/favourite/${songId}`);
+  },
+
+  async toggleFavourite(songId: string, currentLiked?: boolean): Promise<void> {
+    if (currentLiked) {
+      await api.delete(`/interaction/favourite/${songId}`);
+    } else {
+      await api.post(`/interaction/favourite/${songId}`);
+    }
   },
 };

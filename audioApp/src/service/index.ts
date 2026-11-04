@@ -10,3 +10,4 @@ export * from "./audioPlayerService";
 export * from "./songInfoService";
 export * from "./recombeeService";
 export * from "./interactionService";
+export * from "./albumService";

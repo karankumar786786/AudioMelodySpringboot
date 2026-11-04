@@ -1,18 +1,32 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSelector, useDispatch } from "react-redux";
+import { BlurView } from "expo-blur";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+} from "react-native-reanimated";
 import { AppState } from "@/store/hook";
 import { audioPlayerService } from "@/service/audioPlayerService";
-import { nextTrack } from "@/store/queueActions";
+import { nextTrack, prevTrack } from "@/store/queueActions";
+import { favouriteService } from "@/service";
+import { hapticFeedback } from "@/utils/haptics";
+import { colors, radii, shadows, spacing, typography } from "@/theme";
+
+const SWIPE_THRESHOLD = 50;
 
 export function MiniPlayer() {
   const router = useRouter();
@@ -25,6 +39,12 @@ export function MiniPlayer() {
   const duration = useSelector((state: AppState) => state.player.duration);
   const bufferedTime = useSelector((state: AppState) => state.player.bufferedTime || 0);
 
+  const [isLiked, setIsLiked] = useState(false);
+
+  // Gesture shared values
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+
   if (!currentSong) return null;
 
   const progressPercent =
@@ -32,152 +52,252 @@ export function MiniPlayer() {
   const bufferPercent =
     duration > 0 ? Math.min(100, Math.max(0, (bufferedTime / duration) * 100)) : 0;
 
-  const handlePressCard = () => {
+  const handleOpenFullPlayer = () => {
+    hapticFeedback.selection();
     router.push(`/song/${currentSong.id}`);
   };
 
-  const handleTogglePlay = (e: any) => {
-    e.stopPropagation?.();
+  const handleTogglePlay = (e?: any) => {
+    e?.stopPropagation?.();
+    hapticFeedback.light();
     audioPlayerService.togglePlay();
   };
 
-  const handleNext = (e: any) => {
-    e.stopPropagation?.();
+  const handleNext = (e?: any) => {
+    e?.stopPropagation?.();
+    hapticFeedback.light();
     (dispatch as any)(nextTrack(true));
   };
 
+  const handlePrev = () => {
+    hapticFeedback.light();
+    (dispatch as any)(prevTrack());
+  };
+
+  const handleToggleLike = async (e?: any) => {
+    e?.stopPropagation?.();
+    hapticFeedback.success();
+    const prevLiked = isLiked;
+    setIsLiked(!prevLiked);
+    try {
+      if (currentSong?.id) {
+        await favouriteService.toggleFavourite(currentSong.id, prevLiked);
+      }
+    } catch {
+      // Revert if failed
+      setIsLiked(prevLiked);
+    }
+  };
+
+  // Pan gesture: swipe horizontally to skip tracks, swipe up to expand full player
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-15, 15])
+    .activeOffsetY([-15, 15])
+    .onUpdate((event) => {
+      // Horizontal scrub preview
+      translateX.value = event.translationX * 0.4;
+      // Slight vertical pull up
+      if (event.translationY < 0) {
+        translateY.value = event.translationY * 0.3;
+      }
+    })
+    .onEnd((event) => {
+      // Swipe Up -> Open full player
+      if (event.translationY < -40) {
+        runOnJS(handleOpenFullPlayer)();
+      }
+      // Swipe Left -> Next Track
+      else if (event.translationX < -SWIPE_THRESHOLD) {
+        runOnJS(handleNext)();
+      }
+      // Swipe Right -> Previous Track
+      else if (event.translationX > SWIPE_THRESHOLD) {
+        runOnJS(handlePrev)();
+      }
+
+      // Spring back to resting position
+      translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
+      translateY.value = withSpring(0, { damping: 15, stiffness: 150 });
+    });
+
+  const animatedContentStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+    ],
+  }));
+
   return (
-    <View style={styles.container}>
-      <View style={styles.contentRow}>
-        <TouchableOpacity
-          style={styles.trackInfoTouchArea}
-          activeOpacity={0.8}
-          onPress={handlePressCard}
+    <GestureDetector gesture={panGesture}>
+      <View style={styles.outerContainer}>
+        {/* Frosted Glass Background */}
+        <BlurView
+          intensity={Platform.OS === "ios" ? 50 : 80}
+          tint="dark"
+          style={styles.blurContainer}
         >
-          <Image
-            source={{ uri: currentSong.coverUrl }}
-            style={styles.artwork}
-            contentFit="cover"
-            transition={150}
-            cachePolicy="memory"
-          />
-
-          <View style={styles.textContainer}>
-            <Text style={styles.title} numberOfLines={1}>
-              {currentSong.title}
-            </Text>
-            <Text style={styles.artist} numberOfLines={1}>
-              {currentSong.artistName}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        <View style={styles.actionsRow}>
-          <TouchableOpacity
-            style={styles.nextButton}
-            hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
-            onPress={handleNext}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="play-skip-forward" size={20} color="#FFFFFF" />
-          </TouchableOpacity>
-
-          {/* Inverted play button: white fill, black glyph (same as the active filter pill) */}
-          <TouchableOpacity
-            style={styles.playButton}
-            hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
-            onPress={handleTogglePlay}
-            activeOpacity={0.85}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#000000" />
-            ) : (
-              <Ionicons
-                name={isPlaying ? "pause" : "play"}
-                size={20}
-                color="#000000"
-                style={isPlaying ? undefined : { marginLeft: 2 }}
+          <Animated.View style={[styles.contentRow, animatedContentStyle]}>
+            {/* Track Info Touch Area */}
+            <TouchableOpacity
+              style={styles.trackInfoTouchArea}
+              activeOpacity={0.85}
+              onPress={handleOpenFullPlayer}
+            >
+              <Image
+                source={{ uri: currentSong.coverUrl }}
+                style={styles.artwork}
+                contentFit="cover"
+                transition={200}
+                cachePolicy="memory"
               />
-            )}
-          </TouchableOpacity>
-        </View>
-      </View>
 
-      <View style={styles.progressBarBackground}>
-        <View style={[styles.progressBarBuffer, { width: `${bufferPercent}%` }]} />
-        <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+              <View style={styles.textContainer}>
+                <Text style={styles.title} numberOfLines={1}>
+                  {currentSong.title}
+                </Text>
+                <Text style={styles.artist} numberOfLines={1}>
+                  {currentSong.artistName}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Quick Actions Row */}
+            <View style={styles.actionsRow}>
+              {/* Like / Heart Button */}
+              <TouchableOpacity
+                style={styles.iconButton}
+                hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+                onPress={handleToggleLike}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name={isLiked ? "heart" : "heart-outline"}
+                  size={20}
+                  color={isLiked ? colors.like : colors.textSecondary}
+                />
+              </TouchableOpacity>
+
+              {/* Next Track Button */}
+              <TouchableOpacity
+                style={styles.iconButton}
+                hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+                onPress={handleNext}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="play-skip-forward"
+                  size={19}
+                  color={colors.textPrimary}
+                />
+              </TouchableOpacity>
+
+              {/* Play / Pause Pill Button with Primary Fill */}
+              <TouchableOpacity
+                style={styles.playButton}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
+                onPress={handleTogglePlay}
+                activeOpacity={0.85}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color="#000000" />
+                ) : (
+                  <Ionicons
+                    name={isPlaying ? "pause" : "play"}
+                    size={19}
+                    color="#000000"
+                    style={isPlaying ? undefined : { marginLeft: 2 }}
+                  />
+                )}
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+
+          {/* Active Progress Bar at the bottom edge */}
+          <View style={styles.progressBarBackground}>
+            <View
+              style={[styles.progressBarBuffer, { width: `${bufferPercent}%` }]}
+            />
+            <View
+              style={[styles.progressBarFill, { width: `${progressPercent}%` }]}
+            />
+          </View>
+        </BlurView>
       </View>
-    </View>
+    </GestureDetector>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    backgroundColor: "#151515",
-    marginHorizontal: 10,
-    marginBottom: 4,
-    borderRadius: 14,
+  outerContainer: {
+    marginHorizontal: spacing.sm + 2,
+    marginBottom: 6,
+    borderRadius: radii.lg + 2,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#262626",
+    borderColor: colors.borderSubtle,
+    backgroundColor: "rgba(18, 18, 18, 0.85)",
+    ...shadows.md,
+  },
+  blurContainer: {
+    overflow: "hidden",
   },
   contentRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 1,
   },
   trackInfoTouchArea: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
+    minWidth: 0,
   },
   artwork: {
     width: 44,
     height: 44,
-    borderRadius: 8,
-    backgroundColor: "#000000",
+    borderRadius: radii.md - 2,
+    backgroundColor: colors.card,
   },
   textContainer: {
     flex: 1,
-    marginLeft: 12,
-    marginRight: 8,
+    marginLeft: spacing.md,
+    marginRight: spacing.sm,
     justifyContent: "center",
+    minWidth: 0,
   },
   title: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "800",
-    letterSpacing: -0.2,
+    ...typography.body1,
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   artist: {
-    color: "#8A8A8A",
-    fontSize: 12,
-    fontWeight: "500",
+    ...typography.body2,
+    color: colors.textSecondary,
   },
   actionsRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: spacing.sm + 2,
   },
-  nextButton: {
+  iconButton: {
     width: 32,
     height: 32,
     justifyContent: "center",
     alignItems: "center",
   },
   playButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#FFFFFF",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.primary,
     justifyContent: "center",
     alignItems: "center",
+    ...shadows.sm,
   },
   progressBarBackground: {
-    height: 2,
-    backgroundColor: "#262626",
+    height: 2.5,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
     width: "100%",
     position: "relative",
   },
@@ -186,10 +306,10 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: "rgba(255, 255, 255, 0.35)",
+    backgroundColor: "rgba(255, 255, 255, 0.25)",
   },
   progressBarFill: {
     height: "100%",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: colors.primary,
   },
 });

@@ -5,3 +5,4 @@ export * from "./imageUtils";
 export * from "./normalizeSong";
 export * from "./playerUtils";
 export * from "./queueLogger";
+export * from "./haptics";

@@ -578,12 +578,22 @@ export default function SongDetailScreen() {
                   <Ionicons name="chevron-down" size={24} color="#FFFFFF" />
                 </TouchableOpacity>
 
-                <View style={styles.topBarTitleContainer}>
-                  <Text style={styles.topBarSubtitle}>PLAYING FROM ONE MELODY</Text>
+                <TouchableOpacity
+                  style={styles.topBarTitleContainer}
+                  activeOpacity={activeSong.album ? 0.7 : 1}
+                  onPress={() => {
+                    if (activeSong.album) {
+                      router.push(`/album/${encodeURIComponent(activeSong.album)}` as any);
+                    }
+                  }}
+                >
+                  <Text style={styles.topBarSubtitle}>
+                    {activeSong.album ? "PLAYING FROM ALBUM" : "PLAYING FROM ONE MELODY"}
+                  </Text>
                   <Text style={styles.topBarTitle} numberOfLines={1}>
                     {activeSong.album || activeSong.genre || "Featured Collection"}
                   </Text>
-                </View>
+                </TouchableOpacity>
 
                 <View style={styles.topBarRightActions}>
                   <TouchableOpacity
@@ -934,10 +944,16 @@ export default function SongDetailScreen() {
               {(activeSong.album || activeSong.genre || activeSong.language) ? (
                 <View style={styles.aboutPillsRow}>
                   {activeSong.album ? (
-                    <View style={styles.aboutPill}>
+                    <TouchableOpacity
+                      style={styles.aboutPill}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        router.push(`/album/${encodeURIComponent(activeSong.album!)}` as any);
+                      }}
+                    >
                       <Ionicons name="disc-outline" size={11} color="#FFFFFF" style={{ marginRight: 4 }} />
                       <Text style={styles.aboutPillText} numberOfLines={1}>{activeSong.album}</Text>
-                    </View>
+                    </TouchableOpacity>
                   ) : null}
 
                   {activeSong.genre ? (

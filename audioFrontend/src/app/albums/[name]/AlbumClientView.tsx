@@ -606,7 +606,7 @@ export function AlbumClientView({
                   className={`group grid items-center gap-4 px-4 py-2.5 transition-colors duration-150 cursor-pointer grid-cols-[36px_1fr_auto] sm:grid-cols-[36px_minmax(0,2fr)_minmax(110px,1fr)_90px_130px] md:grid-cols-[36px_minmax(0,3fr)_minmax(120px,2fr)_minmax(90px,1fr)_100px_130px] lg:grid-cols-[36px_minmax(0,3fr)_minmax(130px,2fr)_minmax(130px,1.5fr)_minmax(90px,1fr)_110px_140px] ${
                     isActive
                       ? "bg-white/10 text-white"
-                      : "text-zinc-300 hover:bg-white/[0.06] hover:text-white"
+                      : "text-zinc-300 hover:bg-white/6 hover:text-white"
                   }`}
                 >
                   {/* Column 1: Index / Play Icon */}
