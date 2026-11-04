@@ -62,29 +62,40 @@ public interface SongsRepository extends JpaRepository<Song, String> {
     @Query("SELECT h.song.id FROM UserHistory h " +
            "WHERE h.song.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
            "AND h.listenedAt >= :since " +
-           "AND (:genre IS NULL OR LOWER(h.song.genre) = LOWER(:genre)) " +
-           "AND (:language IS NULL OR LOWER(h.song.language) = LOWER(:language)) " +
            "GROUP BY h.song.id " +
            "ORDER BY (SUM(h.part + 50) + COUNT(DISTINCT h.user.id) * 200) DESC")
     List<String> findTrendingSongIdsSince(
             @Param("since") LocalDateTime since,
-            @Param("genre") String genre,
-            @Param("language") String language,
             Pageable pageable);
 
     @Query("SELECT h.song.id FROM UserHistory h " +
            "WHERE h.song.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
-           "AND (:genre IS NULL OR LOWER(h.song.genre) = LOWER(:genre)) " +
-           "AND (:language IS NULL OR LOWER(h.song.language) = LOWER(:language)) " +
            "GROUP BY h.song.id " +
            "ORDER BY (SUM(h.part + 50) + COUNT(DISTINCT h.user.id) * 200) DESC")
-    List<String> findTrendingSongIdsAllTime(
+    List<String> findTrendingSongIdsAllTime(Pageable pageable);
+
+    @Query("SELECT h.song.id FROM UserHistory h " +
+           "WHERE h.song.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
+           "AND h.listenedAt >= :since " +
+           "AND LOWER(h.song.genre) = LOWER(:genre) " +
+           "GROUP BY h.song.id " +
+           "ORDER BY (SUM(h.part + 50) + COUNT(DISTINCT h.user.id) * 200) DESC")
+    List<String> findTrendingSongIdsSinceAndGenre(
+            @Param("since") LocalDateTime since,
             @Param("genre") String genre,
-            @Param("language") String language,
+            Pageable pageable);
+
+    @Query("SELECT h.song.id FROM UserHistory h " +
+           "WHERE h.song.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
+           "AND LOWER(h.song.genre) = LOWER(:genre) " +
+           "GROUP BY h.song.id " +
+           "ORDER BY (SUM(h.part + 50) + COUNT(DISTINCT h.user.id) * 200) DESC")
+    List<String> findTrendingSongIdsAllTimeAndGenre(
+            @Param("genre") String genre,
             Pageable pageable);
 
     default List<String> findTrendingSongIds(Pageable pageable) {
-        return findTrendingSongIdsAllTime(null, null, pageable);
+        return findTrendingSongIdsAllTime(pageable);
     }
 
     default List<Song> findTrendingSongs(Pageable pageable) {
@@ -104,12 +115,27 @@ public interface SongsRepository extends JpaRepository<Song, String> {
     @Query("SELECT s FROM Song s " +
            "LEFT JOIN s.songMetadata sm " +
            "WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
-           "AND (:genre IS NULL OR LOWER(s.genre) = LOWER(:genre)) " +
-           "AND (:language IS NULL OR LOWER(s.language) = LOWER(:language)) " +
            "ORDER BY COALESCE(sm.totalStreams, 0) DESC, s.createdAt DESC")
-    List<Song> findPopularActiveSongsFallback(
+    List<Song> findPopularActiveSongs(Pageable pageable);
+
+    @EntityGraph(attributePaths = {"songMetadata"})
+    @Query("SELECT s FROM Song s " +
+           "LEFT JOIN s.songMetadata sm " +
+           "WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
+           "AND s.id NOT IN :existingIds " +
+           "ORDER BY COALESCE(sm.totalStreams, 0) DESC, s.createdAt DESC")
+    List<Song> findPopularActiveSongsExcluding(
+            @Param("existingIds") List<String> existingIds,
+            Pageable pageable);
+
+    @EntityGraph(attributePaths = {"songMetadata"})
+    @Query("SELECT s FROM Song s " +
+           "LEFT JOIN s.songMetadata sm " +
+           "WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
+           "AND LOWER(s.genre) = LOWER(:genre) " +
+           "ORDER BY COALESCE(sm.totalStreams, 0) DESC, s.createdAt DESC")
+    List<Song> findPopularActiveSongsByGenre(
             @Param("genre") String genre,
-            @Param("language") String language,
             Pageable pageable);
 
     @EntityGraph(attributePaths = {"songMetadata"})
@@ -117,13 +143,11 @@ public interface SongsRepository extends JpaRepository<Song, String> {
            "LEFT JOIN s.songMetadata sm " +
            "WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
            "AND s.id NOT IN :existingIds " +
-           "AND (:genre IS NULL OR LOWER(s.genre) = LOWER(:genre)) " +
-           "AND (:language IS NULL OR LOWER(s.language) = LOWER(:language)) " +
+           "AND LOWER(s.genre) = LOWER(:genre) " +
            "ORDER BY COALESCE(sm.totalStreams, 0) DESC, s.createdAt DESC")
-    List<Song> findPopularActiveSongsFallbackExcluding(
+    List<Song> findPopularActiveSongsExcludingByGenre(
             @Param("existingIds") List<String> existingIds,
             @Param("genre") String genre,
-            @Param("language") String language,
             Pageable pageable);
 
     @EntityGraph(attributePaths = {"songMetadata"})
@@ -136,17 +160,30 @@ public interface SongsRepository extends JpaRepository<Song, String> {
 
     default List<Song> findTrending(int limit, String window, String genre, String language) {
         int safeLimit = Math.max(1, Math.min(50, limit));
-        String cleanGenre = (genre != null && !genre.trim().isBlank()) ? genre.trim() : null;
-        String cleanLanguage = (language != null && !language.trim().isBlank()) ? language.trim() : null;
+        String cleanGenre = (genre != null && !genre.trim().isBlank()) ? genre.trim().toLowerCase() : null;
 
         LocalDateTime since = resolveWindowCutoff(window);
 
-        List<String> trendingIds = (since != null)
-                ? findTrendingSongIdsSince(since, cleanGenre, cleanLanguage, PageRequest.of(0, safeLimit))
-                : findTrendingSongIdsAllTime(cleanGenre, cleanLanguage, PageRequest.of(0, safeLimit));
+        List<String> trendingIds;
+        if (cleanGenre != null) {
+            trendingIds = (since != null)
+                    ? findTrendingSongIdsSinceAndGenre(since, cleanGenre, PageRequest.of(0, safeLimit))
+                    : findTrendingSongIdsAllTimeAndGenre(cleanGenre, PageRequest.of(0, safeLimit));
+        } else {
+            trendingIds = (since != null)
+                    ? findTrendingSongIdsSince(since, PageRequest.of(0, safeLimit))
+                    : findTrendingSongIdsAllTime(PageRequest.of(0, safeLimit));
+        }
+
+        // If a narrow window (e.g. 24h or 7d) has 0 listens, fallback to all-time trending before falling back to catalog
+        if ((trendingIds == null || trendingIds.isEmpty()) && since != null) {
+            trendingIds = (cleanGenre != null)
+                    ? findTrendingSongIdsAllTimeAndGenre(cleanGenre, PageRequest.of(0, safeLimit))
+                    : findTrendingSongIdsAllTime(PageRequest.of(0, safeLimit));
+        }
 
         List<Song> songs = new ArrayList<>();
-        if (!trendingIds.isEmpty()) {
+        if (trendingIds != null && !trendingIds.isEmpty()) {
             java.util.Map<String, Song> songMap = findByIdIn(trendingIds).stream()
                     .collect(java.util.stream.Collectors.toMap(Song::getId, s -> s));
             for (String id : trendingIds) {
@@ -158,10 +195,31 @@ public interface SongsRepository extends JpaRepository<Song, String> {
         if (songs.size() < safeLimit) {
             int remaining = safeLimit - songs.size();
             List<String> existingIds = songs.stream().map(Song::getId).toList();
-            List<Song> fallback = existingIds.isEmpty()
-                    ? findPopularActiveSongsFallback(cleanGenre, cleanLanguage, PageRequest.of(0, remaining))
-                    : findPopularActiveSongsFallbackExcluding(existingIds, cleanGenre, cleanLanguage, PageRequest.of(0, remaining));
-            songs.addAll(fallback);
+            List<Song> fallback;
+            if (cleanGenre != null) {
+                fallback = existingIds.isEmpty()
+                        ? findPopularActiveSongsByGenre(cleanGenre, PageRequest.of(0, remaining))
+                        : findPopularActiveSongsExcludingByGenre(existingIds, cleanGenre, PageRequest.of(0, remaining));
+            } else {
+                fallback = existingIds.isEmpty()
+                        ? findPopularActiveSongs(PageRequest.of(0, remaining))
+                        : findPopularActiveSongsExcluding(existingIds, PageRequest.of(0, remaining));
+            }
+            if (fallback != null && !fallback.isEmpty()) {
+                songs.addAll(fallback);
+            }
+
+            // If still not enough (e.g. niche genre with few tracks), fill with general active songs
+            if (songs.size() < safeLimit) {
+                int stillRemaining = safeLimit - songs.size();
+                List<String> currentIds = songs.stream().map(Song::getId).toList();
+                List<Song> generalFallback = currentIds.isEmpty()
+                        ? findActiveSongs(PageRequest.of(0, stillRemaining))
+                        : findActiveSongsExcluding(currentIds, PageRequest.of(0, stillRemaining));
+                if (generalFallback != null && !generalFallback.isEmpty()) {
+                    songs.addAll(generalFallback);
+                }
+            }
         }
 
         return songs;

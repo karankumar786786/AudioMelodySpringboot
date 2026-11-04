@@ -17,11 +17,16 @@ export const homeService: HomeService = {
   },
 
   async getTrendingSongs(limit = 12, window = "7d", genre?: string, language?: string): Promise<Song[]> {
-    const params = new URLSearchParams({ limit: String(limit), window });
-    if (genre && genre !== "All") params.append("genre", genre);
-    if (language) params.append("language", language);
-    const response = await api.get<Song[]>(`/songs/trending?${params.toString()}`);
-    return Array.isArray(response.data) ? response.data : [];
+    try {
+      const queryParams: Record<string, any> = { limit, window };
+      if (genre && genre !== "All") queryParams.genre = genre;
+      if (language) queryParams.language = language;
+      const response = await api.get<Song[]>("/songs/trending", { params: queryParams });
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (e) {
+      console.warn("[homeService] getTrendingSongs error:", e);
+      return [];
+    }
   },
 
   async getTopArtists(page = 0, size = 15): Promise<PaginatedResponse<Artist>> {
