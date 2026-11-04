@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -208,7 +208,18 @@ export default function UserPlaylistsScreen() {
     </View>
   );
 
-  const renderAlbumRow = (album: any) => {
+  const uniqueAlbums = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const alb of albums) {
+      const name = (alb?.name || alb?.album || "").trim();
+      if (name && !map.has(name.toLowerCase())) {
+        map.set(name.toLowerCase(), alb);
+      }
+    }
+    return Array.from(map.values());
+  }, [albums]);
+
+  const renderAlbumRow = (album: any, index: number) => {
     const albumTitle = album.album || album.name || "Album";
     const albumArtist = album.artistName || "Various Artists";
     const albumSongsCount = album.totalSongs || album.count || 0;
@@ -222,7 +233,7 @@ export default function UserPlaylistsScreen() {
 
     return (
       <TouchableOpacity
-        key={albumTitle}
+        key={`${albumTitle}-${index}`}
         style={styles.row}
         onPress={() => {
           hapticFeedback.light();
@@ -286,7 +297,7 @@ export default function UserPlaylistsScreen() {
                     <ActivityIndicator size="small" color={colors.primary} />
                   </View>
                 ) : (
-                  albums.map(renderAlbumRow)
+                  uniqueAlbums.map(renderAlbumRow)
                 )}
               </View>
             ) : undefined

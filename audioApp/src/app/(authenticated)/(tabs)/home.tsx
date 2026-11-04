@@ -170,14 +170,28 @@ export default function HomeScreen() {
     return source.slice(0, 6);
   }, [featuredSongs, trendingSongs]);
 
-  // Curated Albums fallback: combine backend albums with any albums present in song feeds
+  // Curated Albums: deduplicate by album name and strictly cap to TOP 10
   const displayAlbums = useMemo(() => {
-    if (Array.isArray(rawAlbums) && rawAlbums.length > 0) {
-      return rawAlbums;
-    }
-    // Fallback: extract distinct albums from trending and featured songs
-    const pool = [...trendingSongs, ...featuredSongs];
     const albumMap = new Map<string, any>();
+
+    // 1. Process backend albums if available
+    if (Array.isArray(rawAlbums)) {
+      for (const item of rawAlbums) {
+        const name = item?.name?.trim();
+        if (name && !albumMap.has(name.toLowerCase())) {
+          albumMap.set(name.toLowerCase(), {
+            name,
+            artistName: item.artistName,
+            imageKey: item.imageKey,
+            genre: item.genre,
+            trackCount: item.trackCount,
+          });
+        }
+      }
+    }
+
+    // 2. Fallback / supplement: extract distinct albums from trending and featured songs
+    const pool = [...trendingSongs, ...featuredSongs];
     for (const song of pool) {
       const alb = song.album?.trim();
       if (alb && !albumMap.has(alb.toLowerCase())) {
@@ -190,8 +204,27 @@ export default function HomeScreen() {
         });
       }
     }
+
+    // Strictly top 10 albums
     return Array.from(albumMap.values()).slice(0, 10);
   }, [rawAlbums, trendingSongs, featuredSongs]);
+
+  // Strictly top 10 playlists
+  const topPlaylists = useMemo(() => {
+    const list = playlistsData?.content || [];
+    return list.slice(0, 10);
+  }, [playlistsData?.content]);
+
+  // Strictly top 10 trending hits
+  const topTrending = useMemo(() => {
+    return trendingSongs.slice(0, 10);
+  }, [trendingSongs]);
+
+  // Strictly top 10 artists
+  const topArtists = useMemo(() => {
+    const list = artistsData?.content || [];
+    return list.slice(0, 10);
+  }, [artistsData?.content]);
 
   const onRefresh = async () => {
     hapticFeedback.light();
@@ -342,8 +375,8 @@ export default function HomeScreen() {
               </View>
             ) : null}
 
-            {/* Trending Shelf */}
-            {show("Trending") && trendingSongs.length > 0 ? (
+            {/* Trending Shelf (Top 10) */}
+            {show("Trending") && topTrending.length > 0 ? (
               <View style={styles.section}>
                 <SectionHeader
                   title="Trending now"
@@ -354,20 +387,22 @@ export default function HomeScreen() {
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.horizontalList}
-                  data={trendingSongs}
-                  keyExtractor={(item) => item.id}
+                  data={topTrending}
+                  keyExtractor={(item, index) =>
+                    item?.id ? `${item.id}-${index}` : `trend-${index}`
+                  }
                   renderItem={({ item, index }) => (
                     <TrendingSongCard
                       song={item}
                       rank={index + 1}
-                      onPress={() => playSong(item, trendingSongs)}
+                      onPress={() => playSong(item, topTrending)}
                     />
                   )}
                 />
               </View>
             ) : null}
 
-            {/* Popular Albums Shelf */}
+            {/* Popular Albums Shelf (Top 10) */}
             {show("Albums") && displayAlbums.length > 0 ? (
               <View style={styles.section}>
                 <SectionHeader
@@ -380,7 +415,9 @@ export default function HomeScreen() {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.horizontalList}
                   data={displayAlbums}
-                  keyExtractor={(item) => item.name}
+                  keyExtractor={(item, index) =>
+                    item?.name ? `${item.name}-${index}` : `album-${index}`
+                  }
                   renderItem={({ item }) => (
                     <AlbumCard
                       album={item}
@@ -396,8 +433,8 @@ export default function HomeScreen() {
               </View>
             ) : null}
 
-            {/* Top Artists Shelf */}
-            {show("Artists") && artistsList.length > 0 ? (
+            {/* Top Artists Shelf (Top 10) */}
+            {show("Artists") && topArtists.length > 0 ? (
               <View style={styles.section}>
                 <SectionHeader
                   title="Featured artists"
@@ -408,8 +445,10 @@ export default function HomeScreen() {
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.horizontalList}
-                  data={artistsList}
-                  keyExtractor={(item) => item.id}
+                  data={topArtists}
+                  keyExtractor={(item, index) =>
+                    item?.id ? `${item.id}-${index}` : `artist-${index}`
+                  }
                   renderItem={({ item }) => (
                     <ArtistCircleCard
                       artist={item}
@@ -426,8 +465,8 @@ export default function HomeScreen() {
               </View>
             ) : null}
 
-            {/* Featured Playlists Shelf */}
-            {show("Playlists") && playlistsList.length > 0 ? (
+            {/* Featured Playlists Shelf (Top 10) */}
+            {show("Playlists") && topPlaylists.length > 0 ? (
               <View style={styles.section}>
                 <SectionHeader
                   title="Curated playlists"
@@ -438,8 +477,10 @@ export default function HomeScreen() {
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.horizontalList}
-                  data={playlistsList}
-                  keyExtractor={(item) => item.id}
+                  data={topPlaylists}
+                  keyExtractor={(item, index) =>
+                    item?.id ? `${item.id}-${index}` : `playlist-${index}`
+                  }
                   renderItem={({ item }) => (
                     <PlaylistCard
                       playlist={item}
