@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, ActivityIndicator, Image, Platform } from "react-native";
+import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
@@ -76,47 +76,30 @@ function RootNavigator() {
     const isAuthenticated = Boolean(authToken.accessToken);
 
     if (!isAuthenticated) {
-      // If unauthenticated and currently in protected group or at root, redirect to signin
-      if (inAuthGroup || !segments[0]) {
+      // If unauthenticated and currently in protected group, redirect to signin
+      if (inAuthGroup) {
         router.replace("/login");
       }
     } else {
-      // If authenticated and trying to access auth screens or root, redirect to home
-      if (!inAuthGroup) {
-        router.replace("/home");
+      // If authenticated and trying to access auth screens, redirect to home
+      if (!inAuthGroup && (segments[0] === "login" || segments[0] === "register")) {
+        router.replace("/(authenticated)/(tabs)/home");
       }
     }
   }, [authToken.accessToken, segments, isReady, router]);
 
   if (!isReady) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: "#000000",
-        }}
-      >
-        <Image
-          source={require("../../assets/images/image.png")}
-          style={{ width: 120, height: 120, resizeMode: "contain" }}
-        />
-        <ActivityIndicator
-          size="small"
-          color="#FFFFFF"
-          style={{ marginTop: 24 }}
-        />
-      </View>
-    );
+    return null;
   }
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#000000" } }}>
+      <Stack.Screen name="index" />
       <Stack.Screen name="register" />
       <Stack.Screen name="login" />
       <Stack.Screen name="verifyotp" />
       <Stack.Screen name="(authenticated)" />
+      <Stack.Screen name="+not-found" />
     </Stack>
   );
 }
