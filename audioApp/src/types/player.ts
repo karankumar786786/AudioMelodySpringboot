@@ -39,6 +39,7 @@ export interface QueueState {
   isShuffle: boolean;
   dislikedSongIds: string[];
   isRefilling: boolean;
+  isLoading?: boolean;
   radioSession: RadioSession;
 }
 

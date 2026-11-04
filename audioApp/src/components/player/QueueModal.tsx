@@ -8,6 +8,7 @@ import {
   FlatList,
   Dimensions,
   Animated,
+  ActivityIndicator,
 } from "react-native";
 import {
   GestureHandlerRootView,
@@ -20,7 +21,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { AppState } from "@/store/hook";
 import { Song, PlayerSong } from "@/types";
 import { clearUpcomingQueue, removeSongFromQueue } from "@/store/queueSlice";
-import { playSong } from "@/store/queueActions";
+import { playSong, refillQueue } from "@/store/queueActions";
 import { formatDuration } from "@/utils/formatUtils";
 import { getImageUrl } from "@/utils/imageUtils";
 import { hapticFeedback } from "@/utils/haptics";
@@ -46,6 +47,98 @@ const FLING_VELOCITY = 500;
 const clamp = (v: number, min: number, max: number) =>
   Math.max(min, Math.min(max, v));
 
+/**
+ * Pulsing skeleton row matching Queue track item structure
+ */
+function QueueSkeletonRow({ opacityAnim }: { opacityAnim: Animated.Value }) {
+  return (
+    <Animated.View style={[styles.skeletonRow, { opacity: opacityAnim }]}>
+      <View style={styles.skeletonIndex} />
+      <View style={styles.skeletonThumb} />
+      <View style={styles.skeletonInfo}>
+        <View style={styles.skeletonTitle} />
+        <View style={styles.skeletonArtist} />
+      </View>
+      <View style={styles.skeletonDuration} />
+    </Animated.View>
+  );
+}
+
+/**
+ * Full skeleton state shown when the upcoming queue is empty and tracks are actively being curated
+ */
+function QueueSkeletonView() {
+  const opacityAnim = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacityAnim, {
+          toValue: 0.75,
+          duration: 750,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 0.3,
+          duration: 750,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacityAnim]);
+
+  return (
+    <View style={styles.skeletonContainer}>
+      <View style={styles.skeletonBadge}>
+        <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
+        <Text style={styles.skeletonBadgeText}>Curating recommendations...</Text>
+      </View>
+      {[0, 1, 2, 3, 4].map((i) => (
+        <QueueSkeletonRow key={i} opacityAnim={opacityAnim} />
+      ))}
+    </View>
+  );
+}
+
+/**
+ * Footer loader shown when more tracks are being appended to an existing queue
+ */
+function QueueFooterLoading() {
+  const opacityAnim = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacityAnim, {
+          toValue: 0.75,
+          duration: 750,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 0.3,
+          duration: 750,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacityAnim]);
+
+  return (
+    <View style={styles.footerLoadingWrapper}>
+      <View style={styles.footerLoadingBadge}>
+        <ActivityIndicator size="small" color="#8A8A8A" style={{ marginRight: 6 }} />
+        <Text style={styles.footerLoadingText}>Finding more recommendations...</Text>
+      </View>
+      <QueueSkeletonRow opacityAnim={opacityAnim} />
+      <QueueSkeletonRow opacityAnim={opacityAnim} />
+    </View>
+  );
+}
+
 export function QueueModal({ visible, onClose }: QueueModalProps) {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
@@ -53,9 +146,14 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
   const currentSong = useSelector((state: AppState) => state.player.currentSong);
   const queue = useSelector((state: AppState) => state.queue.queue);
   const currentIndex = useSelector((state: AppState) => state.queue.currentIndex);
+  const isRefilling = useSelector((state: AppState) => state.queue.isRefilling);
+  const isQueueLoading = useSelector((state: AppState) => (state.queue as any).isLoading);
+  const isPlayerLoading = useSelector((state: AppState) => state.player.isLoading);
 
   const upcomingQueue =
     currentIndex >= 0 ? queue.slice(currentIndex + 1) : queue;
+
+  const isQueueBusy = isRefilling || Boolean(isQueueLoading);
 
   // ---- Expandable sheet ----
   const sheetHeight = useRef(new Animated.Value(COLLAPSED_H)).current;
@@ -140,6 +238,11 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
     dispatch(clearUpcomingQueue());
   };
 
+  const handleAutoQueue = () => {
+    hapticFeedback.medium();
+    (dispatch as any)(refillQueue(true));
+  };
+
   return (
     <Modal
       visible={visible}
@@ -180,10 +283,19 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
               <View style={styles.header}>
                 <View style={styles.headerText}>
                   <Text style={styles.headerTitle}>Queue</Text>
-                  <Text style={styles.headerSubtitle}>
-                    {upcomingQueue.length}{" "}
-                    {upcomingQueue.length === 1 ? "track" : "tracks"} up next
-                  </Text>
+                  <View style={styles.headerSubtitleRow}>
+                    <Text style={styles.headerSubtitle}>
+                      {upcomingQueue.length}{" "}
+                      {upcomingQueue.length === 1 ? "track" : "tracks"} up next
+                    </Text>
+                    {isQueueBusy ? (
+                      <ActivityIndicator
+                        size="small"
+                        color="#8A8A8A"
+                        style={styles.headerSpinner}
+                      />
+                    ) : null}
+                  </View>
                 </View>
 
                 {upcomingQueue.length > 0 ? (
@@ -216,7 +328,11 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
                         {currentSong.artistName}
                       </Text>
                     </View>
-                    <Ionicons name="volume-high" size={18} color="#000000" />
+                    {isPlayerLoading ? (
+                      <ActivityIndicator size="small" color="#000000" />
+                    ) : (
+                      <Ionicons name="volume-high" size={18} color="#000000" />
+                    )}
                   </View>
                 </View>
               ) : null}
@@ -228,13 +344,25 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
             <Text style={styles.sectionHeading}>Up next</Text>
 
             {upcomingQueue.length === 0 ? (
-              <View style={[styles.emptyContainer, { paddingBottom: 40 + insets.bottom }]}>
-                <Ionicons name="musical-notes-outline" size={36} color="#5A5A5A" />
-                <Text style={styles.emptyText}>Nothing up next</Text>
-                <Text style={styles.emptySubtext}>
-                  Add songs, or keep listening and we’ll queue recommendations.
-                </Text>
-              </View>
+              isQueueBusy ? (
+                <QueueSkeletonView />
+              ) : (
+                <View style={[styles.emptyContainer, { paddingBottom: 40 + insets.bottom }]}>
+                  <Ionicons name="musical-notes-outline" size={36} color="#5A5A5A" />
+                  <Text style={styles.emptyText}>Nothing up next</Text>
+                  <Text style={styles.emptySubtext}>
+                    Add songs, or keep listening and we’ll queue recommendations.
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.generateButton}
+                    onPress={handleAutoQueue}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name="sparkles" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
+                    <Text style={styles.generateButtonText}>Auto-Queue Songs</Text>
+                  </TouchableOpacity>
+                </View>
+              )
             ) : (
               <FlatList
                 data={upcomingQueue}
@@ -244,6 +372,7 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
                   { paddingBottom: Math.max(28, insets.bottom + 20) },
                 ]}
                 showsVerticalScrollIndicator={false}
+                ListFooterComponent={isRefilling ? <QueueFooterLoading /> : undefined}
                 renderItem={({ item, index }) => (
                   <TouchableOpacity
                     style={styles.songRow}
@@ -328,19 +457,25 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: SIDE,
     paddingBottom: 14,
   },
-  headerText: { flex: 1, marginRight: 12 },
+  headerText: { flex: 1 },
   headerTitle: {
     color: "#FFFFFF",
-    fontSize: 26,
+    fontSize: 24,
     fontWeight: "800",
     letterSpacing: -0.6,
   },
-  headerSubtitle: { color: "#8A8A8A", fontSize: 13, marginTop: 2 },
+  headerSubtitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 2,
+  },
+  headerSubtitle: { color: "#8A8A8A", fontSize: 13 },
+  headerSpinner: { marginLeft: 8, transform: [{ scale: 0.75 }] },
   clearButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -415,6 +550,102 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: "center",
     marginTop: 4,
+    marginBottom: 16,
     paddingHorizontal: 30,
+  },
+  generateButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#202020",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#333333",
+  },
+  generateButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+
+  // Skeleton loading states
+  skeletonContainer: {
+    paddingTop: 4,
+  },
+  skeletonBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#161616",
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#262626",
+  },
+  skeletonBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  skeletonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+  },
+  skeletonIndex: {
+    width: 24,
+    height: 12,
+    borderRadius: 4,
+    backgroundColor: "#222222",
+  },
+  skeletonThumb: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: "#222222",
+  },
+  skeletonInfo: {
+    flex: 1,
+    marginLeft: 12,
+    marginRight: 8,
+    gap: 6,
+  },
+  skeletonTitle: {
+    width: "60%",
+    height: 14,
+    borderRadius: 4,
+    backgroundColor: "#262626",
+  },
+  skeletonArtist: {
+    width: "35%",
+    height: 11,
+    borderRadius: 4,
+    backgroundColor: "#1E1E1E",
+  },
+  skeletonDuration: {
+    width: 32,
+    height: 12,
+    borderRadius: 4,
+    backgroundColor: "#1E1E1E",
+    marginRight: 8,
+  },
+
+  // Footer loading when appending tracks
+  footerLoadingWrapper: {
+    paddingTop: 12,
+  },
+  footerLoadingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 6,
+    marginBottom: 6,
+  },
+  footerLoadingText: {
+    color: "#8A8A8A",
+    fontSize: 12,
+    fontWeight: "500",
   },
 });

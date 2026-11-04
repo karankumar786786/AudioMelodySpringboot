@@ -12,6 +12,7 @@ const initialState: QueueState = {
   isShuffle: false,
   dislikedSongIds: [],
   isRefilling: false,
+  isLoading: false,
   radioSession: {
     seedSongId: null,
     seedTitle: undefined,
@@ -151,6 +152,9 @@ export const queueSlice = createSlice({
     setIsRefilling: (state, action: PayloadAction<boolean>) => {
       state.isRefilling = action.payload;
     },
+    setIsLoadingQueue: (state, action: PayloadAction<boolean>) => {
+      state.isLoading = action.payload;
+    },
     startRadioSession: (
       state,
       action: PayloadAction<{ seedSongId: string; seedTitle?: string; seedSong?: Song }>,
@@ -244,6 +248,7 @@ export const {
   toggleRepeat,
   setRepeatMode,
   setIsRefilling,
+  setIsLoadingQueue,
   startRadioSession,
   endRadioSession,
   reorderQueue,
