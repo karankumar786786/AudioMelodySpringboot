@@ -26,7 +26,7 @@ import { artistDetailStyles as styles } from "@/styles";
 
 
 export default function ArtistDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   const queryClient = useQueryClient();
@@ -51,6 +51,8 @@ export default function ArtistDetailScreen() {
     staleTime: 60 * 1000,
   });
 
+  const artistName = artist?.name || name;
+
   const {
     data: songsData,
     isLoading: isSongsLoading,
@@ -60,9 +62,9 @@ export default function ArtistDetailScreen() {
     refetch: refetchSongs,
     isRefetching,
   } = useInfiniteQuery({
-    queryKey: ["artist-songs", id, artist?.name],
+    queryKey: ["artist-songs", id, artistName],
     queryFn: ({ pageParam = 0 }) =>
-      artistService.getArtistSongs(id!, pageParam, 20, artist?.name),
+      artistService.getArtistSongs(id!, pageParam, 20, artistName),
     getNextPageParam: (lastPage) => {
       const total =
         lastPage.paginationMetaData?.totalCount ??
@@ -72,7 +74,13 @@ export default function ArtistDetailScreen() {
       return loaded < total ? lastPage.page + 1 : undefined;
     },
     initialPageParam: 0,
-    enabled: Boolean(id),
+    enabled: Boolean(
+      id &&
+        (artistName ||
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            id,
+          )),
+    ),
     staleTime: 3 * 60 * 1000,
   });
 

@@ -304,7 +304,12 @@ export default function HomeScreen() {
                   renderItem={({ item }) => (
                     <ArtistCircleCard
                       artist={item}
-                      onPress={() => router.push(`/artist/${item.id}`)}
+                      onPress={() =>
+                        router.push({
+                          pathname: "/(authenticated)/artist/[id]",
+                          params: { id: item.id, name: item.name },
+                        })
+                      }
                     />
                   )}
                 />

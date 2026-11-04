@@ -137,7 +137,7 @@ export default function SearchScreen() {
     queryClient.invalidateQueries({ queryKey: ["search-history"] });
     router.push({
       pathname: "/(authenticated)/artist/[id]",
-      params: { id: artist.id },
+      params: { id: artist.id, name: artist.name },
     });
   };
 

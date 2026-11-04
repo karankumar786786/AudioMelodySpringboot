@@ -180,7 +180,10 @@ export default function SongDetailScreen() {
     if (artistFollowData?.artistId) {
       router.push({
         pathname: "/(authenticated)/artist/[id]",
-        params: { id: artistFollowData.artistId },
+        params: {
+          id: artistFollowData.artistId,
+          name: activeSong?.artistName,
+        },
       });
     }
   };

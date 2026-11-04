@@ -28,8 +28,13 @@ export const artistService: ArtistService = {
     size = 20,
     artistName?: string
   ): Promise<PaginatedResponse<Song>> {
-    // 1. Direct Algolia attempt (identical to audioFrontend)
-    if (artistName && artistName.trim().length > 0) {
+    const targetQuery =
+      artistName?.trim() ||
+      (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+        ? id.trim()
+        : "");
+
+    if (targetQuery.length > 0) {
       try {
         const { client, indexName } = getAlgoliaClient();
         let response: any;
@@ -37,7 +42,7 @@ export const artistService: ArtistService = {
           response = await client.searchSingleIndex({
             indexName,
             searchParams: {
-              query: artistName.trim(),
+              query: targetQuery,
               filters: "type:song",
               restrictSearchableAttributes: ["artistName"],
               hitsPerPage: size,
@@ -50,7 +55,7 @@ export const artistService: ArtistService = {
           response = await client.searchSingleIndex({
             indexName,
             searchParams: {
-              query: artistName.trim(),
+              query: targetQuery,
               filters: "type:song",
               hitsPerPage: size,
               page: page,
@@ -78,11 +83,16 @@ export const artistService: ArtistService = {
       }
     }
 
-    // 2. Database backend fallback
-    const response = await api.get<PaginatedResponse<Song>>(
-      `/artists/${encodeURIComponent(id)}/songs?page=${page}&size=${size}`
-    );
-    return response.data;
+    // Zero DB queries - return empty result to avoid expensive DB fallback
+    return {
+      content: [],
+      page,
+      size,
+      paginationMetaData: {
+        totalCount: 0,
+        activeCount: 0,
+      },
+    };
   },
 
   async getFollowStatus(id: string): Promise<ArtistFollowStatus> {
