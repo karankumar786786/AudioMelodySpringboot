@@ -32,17 +32,32 @@ export const artistService: ArtistService = {
     if (artistName && artistName.trim().length > 0) {
       try {
         const { client, indexName } = getAlgoliaClient();
-        const response = await client.searchSingleIndex({
-          indexName,
-          searchParams: {
-            query: artistName.trim(),
-            filters: "type:song",
-            restrictSearchableAttributes: ["artistName"],
-            hitsPerPage: size,
-            page: page,
-            typoTolerance: true,
-          },
-        });
+        let response: any;
+        try {
+          response = await client.searchSingleIndex({
+            indexName,
+            searchParams: {
+              query: artistName.trim(),
+              filters: "type:song",
+              restrictSearchableAttributes: ["artistName"],
+              hitsPerPage: size,
+              page: page,
+              typoTolerance: true,
+            },
+          });
+        } catch (attrErr) {
+          // Retry without restrictSearchableAttributes if index settings conflict
+          response = await client.searchSingleIndex({
+            indexName,
+            searchParams: {
+              query: artistName.trim(),
+              filters: "type:song",
+              hitsPerPage: size,
+              page: page,
+              typoTolerance: true,
+            },
+          });
+        }
 
         const hits: any[] = response.hits || [];
         if (hits.length > 0) {

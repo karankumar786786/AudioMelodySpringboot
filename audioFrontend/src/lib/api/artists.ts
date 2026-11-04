@@ -17,17 +17,31 @@ export const artistsApi = {
     if (!algolia) return null;
 
     try {
-      const response = await algolia.client.searchSingleIndex({
-        indexName: algolia.indexName,
-        searchParams: {
-          query: artistName.trim(),
-          filters: "type:song",
-          restrictSearchableAttributes: ["artistName", "artist"],
-          hitsPerPage: size,
-          page: Math.max(0, page - 1),
-          typoTolerance: true,
-        },
-      });
+      let response: any;
+      try {
+        response = await algolia.client.searchSingleIndex({
+          indexName: algolia.indexName,
+          searchParams: {
+            query: artistName.trim(),
+            filters: "type:song",
+            restrictSearchableAttributes: ["artistName"],
+            hitsPerPage: size,
+            page: Math.max(0, page - 1),
+            typoTolerance: true,
+          },
+        });
+      } catch (attrErr) {
+        response = await algolia.client.searchSingleIndex({
+          indexName: algolia.indexName,
+          searchParams: {
+            query: artistName.trim(),
+            filters: "type:song",
+            hitsPerPage: size,
+            page: Math.max(0, page - 1),
+            typoTolerance: true,
+          },
+        });
+      }
 
       const hits: any[] = response.hits || [];
 
