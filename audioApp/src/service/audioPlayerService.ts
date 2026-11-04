@@ -1,6 +1,6 @@
 import { AudioPlayer, AudioStatus } from "expo-audio";
 import { Song, PlayerSong, RepeatMode, AudioQuality } from "@/types";
-import { store } from "@/store";
+import { store } from "@/store/hook";
 import { configureAudioPriority, safeSetActiveForLockScreen } from "@/utils";
 export { configureAudioPriority };
 import { mapToPlayerSong } from "@/utils/playerUtils";
