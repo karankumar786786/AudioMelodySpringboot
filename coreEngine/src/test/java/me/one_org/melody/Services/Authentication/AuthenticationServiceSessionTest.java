@@ -184,6 +184,50 @@ class AuthenticationServiceSessionTest {
     }
 
     @Test
+    @DisplayName("Should allow refresh retry within grace period when network packet drops during rotation")
+    void shouldAllowRetryWithinGracePeriodWhenNetworkDrops() {
+        String originalToken = "rt-original-1";
+        String deviceId = "laptop-mac";
+
+        JwtPayloadDto payload = new JwtPayloadDto("user-100", "JohnDoe", "john@example.com", RoleEnum.USER);
+        when(jwtUtil.validateAndGetPayload(originalToken)).thenReturn(payload);
+
+        User user = User.builder()
+                .id("user-100")
+                .userName("JohnDoe")
+                .email("john@example.com")
+                .status(StatusEnum.ACTIVE)
+                .build();
+        when(usersRepository.findById("user-100")).thenReturn(Optional.of(user));
+
+        Session session = Session.builder()
+                .id("sess-100")
+                .user(user)
+                .deviceId(deviceId)
+                .refreshToken(originalToken)
+                .expiresAt(LocalDateTime.now().plusDays(7))
+                .build();
+        when(sessionRepository.findByUserIdAndDeviceId("user-100", deviceId)).thenReturn(Optional.of(session));
+
+        when(jwtUtil.generateAccessToken(any(Authentication.class))).thenReturn("acc-1", "acc-2");
+        when(jwtUtil.generateRefreshToken(any(Authentication.class))).thenReturn("rt-rotated-2");
+
+        // 1. Initial refresh call rotates rt-original-1 -> rt-rotated-2
+        RefreshTokenResponseDto firstResponse = authenticationService.refreshToken(originalToken, deviceId);
+        assertThat(firstResponse.accessToken()).isEqualTo("acc-1");
+        assertThat(firstResponse.refreshToken()).isEqualTo("rt-rotated-2");
+        assertThat(session.getRefreshToken()).isEqualTo("rt-rotated-2");
+
+        // 2. Client retries with rt-original-1 because network dropped response before reaching client
+        RefreshTokenResponseDto retryResponse = authenticationService.refreshToken(originalToken, deviceId);
+        assertThat(retryResponse.accessToken()).isEqualTo("acc-2");
+        assertThat(retryResponse.refreshToken()).isEqualTo("rt-rotated-2");
+
+        // Session was NOT deleted because it was within the grace window
+        verify(sessionRepository, never()).delete(session);
+    }
+
+    @Test
     @DisplayName("Should reject refresh request when session has expired in DB")
     void shouldRejectExpiredSession() {
         String token = "rt-expired";

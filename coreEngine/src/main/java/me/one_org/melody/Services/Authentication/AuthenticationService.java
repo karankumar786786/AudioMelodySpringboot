@@ -1,12 +1,16 @@
 package me.one_org.melody.Services.Authentication;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -53,6 +57,13 @@ public class AuthenticationService {
     private final ApplicationEventPublisher eventPublisher;
     private final RateLimiterService rateLimiterService;
     private final TokenBlacklistService tokenBlacklistService;
+    private final StringRedisTemplate redisTemplate;
+
+    private static final String ROTATED_TOKEN_PREFIX = "auth:rotated:";
+    private static final Duration ROTATION_GRACE_DURATION = Duration.ofSeconds(60);
+    private final Map<String, RotatedTokenGraceEntry> localGraceCache = new ConcurrentHashMap<>();
+
+    private record RotatedTokenGraceEntry(String sessionId, Instant expiresAt) {}
 
     @Autowired
     public AuthenticationService(UsersRepository usersRepository, SessionRepository sessionRepository,
@@ -60,7 +71,8 @@ public class AuthenticationService {
             Redis<OtpDataDto> cache, PaginationMetaDataService paginationMetaDataService, MailQueue mailQueue,
             ApplicationEventPublisher eventPublisher,
             RateLimiterService rateLimiterService,
-            TokenBlacklistService tokenBlacklistService) {
+            TokenBlacklistService tokenBlacklistService,
+            @Autowired(required = false) StringRedisTemplate redisTemplate) {
         this.usersRepository = usersRepository;
         this.sessionRepository = sessionRepository;
         this.jwtUtil = jwtUtil;
@@ -72,6 +84,18 @@ public class AuthenticationService {
         this.eventPublisher = eventPublisher;
         this.rateLimiterService = rateLimiterService;
         this.tokenBlacklistService = tokenBlacklistService;
+        this.redisTemplate = redisTemplate;
+    }
+
+    public AuthenticationService(UsersRepository usersRepository, SessionRepository sessionRepository,
+            JwtUtil jwtUtil, HmacUtil hmacUtil, OtpUtil otpUtil,
+            Redis<OtpDataDto> cache, PaginationMetaDataService paginationMetaDataService, MailQueue mailQueue,
+            ApplicationEventPublisher eventPublisher,
+            RateLimiterService rateLimiterService,
+            TokenBlacklistService tokenBlacklistService) {
+        this(usersRepository, sessionRepository, jwtUtil, hmacUtil, otpUtil,
+             cache, paginationMetaDataService, mailQueue, eventPublisher,
+             rateLimiterService, tokenBlacklistService, null);
     }
 
     public AuthenticationService(UsersRepository usersRepository, SessionRepository sessionRepository,
@@ -79,7 +103,7 @@ public class AuthenticationService {
             Redis<OtpDataDto> cache, PaginationMetaDataService paginationMetaDataService, MailQueue mailQueue,
             ApplicationEventPublisher eventPublisher) {
         this(usersRepository, sessionRepository, jwtUtil, hmacUtil, otpUtil,
-             cache, paginationMetaDataService, mailQueue, eventPublisher, null, null);
+             cache, paginationMetaDataService, mailQueue, eventPublisher, null, null, null);
     }
 
     public String register(RegisterRequestDto request) {
@@ -321,6 +345,15 @@ public class AuthenticationService {
 
             // Verify refresh token match to prevent reuse of old/rotated tokens
             if (!session.getRefreshToken().equals(refreshToken)) {
+                // Check if this token was rotated within the 60-second grace window (packet drop / network retry)
+                if (isTokenInGracePeriod(refreshToken, session.getId())) {
+                    log.info("Refresh token grace period hit for user [{}] device [{}]", user.getId(), deviceId);
+                    CustomUserDetails userDetails = new CustomUserDetails(user);
+                    Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    String newAccessToken = jwtUtil.generateAccessToken(auth);
+                    return new RefreshTokenResponseDto(newAccessToken, session.getRefreshToken());
+                }
+
                 sessionRepository.delete(session);
                 throw new UnauthorizedException("Invalid or reused refresh token");
             }
@@ -337,6 +370,9 @@ public class AuthenticationService {
             // Reissue: 5-minute access token and rotated 7-day refresh token
             String newAccessToken = jwtUtil.generateAccessToken(auth);
             String newRefreshToken = jwtUtil.generateRefreshToken(auth);
+
+            // Record old token in grace cache for 60 seconds to absorb transient network drops/retries
+            recordRotatedToken(session.getRefreshToken(), session.getId());
 
             session.setRefreshToken(newRefreshToken);
             session.setExpiresAt(LocalDateTime.now().plusDays(7));
@@ -401,12 +437,55 @@ public class AuthenticationService {
             }
         } else {
             if (refreshToken != null && !refreshToken.isBlank()) {
+                invalidateRotatedToken(refreshToken);
                 sessionRepository.deleteByRefreshToken(refreshToken);
             }
             if (userId != null && !userId.isBlank()) {
                 sessionRepository.deleteByUserIdAndDeviceId(userId, deviceId);
             }
         }
+    }
+
+    private void recordRotatedToken(String oldToken, String sessionId) {
+        if (oldToken == null || sessionId == null) return;
+        try {
+            if (redisTemplate != null) {
+                redisTemplate.opsForValue().set(ROTATED_TOKEN_PREFIX + oldToken, sessionId, ROTATION_GRACE_DURATION);
+            }
+        } catch (Exception e) {
+            log.warn("Redis write failed for rotated token grace period, using local cache: {}", e.getMessage());
+        }
+        localGraceCache.put(oldToken, new RotatedTokenGraceEntry(sessionId, Instant.now().plus(ROTATION_GRACE_DURATION)));
+        if (localGraceCache.size() > 500) {
+            Instant now = Instant.now();
+            localGraceCache.entrySet().removeIf(entry -> entry.getValue().expiresAt().isBefore(now));
+        }
+    }
+
+    private boolean isTokenInGracePeriod(String token, String sessionId) {
+        if (token == null || sessionId == null) return false;
+        try {
+            if (redisTemplate != null) {
+                String cachedSessionId = redisTemplate.opsForValue().get(ROTATED_TOKEN_PREFIX + token);
+                if (sessionId.equals(cachedSessionId)) {
+                    return true;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Redis read failed for rotated token grace period, checking local cache: {}", e.getMessage());
+        }
+        RotatedTokenGraceEntry entry = localGraceCache.get(token);
+        return entry != null && entry.sessionId().equals(sessionId) && entry.expiresAt().isAfter(Instant.now());
+    }
+
+    private void invalidateRotatedToken(String token) {
+        if (token == null) return;
+        try {
+            if (redisTemplate != null) {
+                redisTemplate.delete(ROTATED_TOKEN_PREFIX + token);
+            }
+        } catch (Exception ignored) {}
+        localGraceCache.remove(token);
     }
 
     public SessionStatusDto getSessionStatus(String accessToken) {

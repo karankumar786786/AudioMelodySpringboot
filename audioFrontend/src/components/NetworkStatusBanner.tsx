@@ -44,8 +44,8 @@ export function NetworkStatusBanner() {
         setTimeout(() => setShowRestoredBadge(false), 2500);
       }
       setTimeout(() => {
-        queryClient.refetchQueries();
-      }, 300);
+        queryClient.refetchQueries({ type: "active" });
+      }, 1000);
     } else {
       setIsOnline(false);
       wasOfflineRef.current = true;
@@ -71,8 +71,8 @@ export function NetworkStatusBanner() {
           setTimeout(() => setShowRestoredBadge(false), 2500);
         }
         setTimeout(() => {
-          queryClient.refetchQueries();
-        }, 300);
+          queryClient.refetchQueries({ type: "active" });
+        }, 1000);
       }
     };
 

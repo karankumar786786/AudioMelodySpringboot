@@ -121,6 +121,13 @@ function redirectToLogin(): void {
   }
 }
 
+export interface RefreshResult {
+  success: boolean;
+  isAuthError: boolean;
+  isNetworkError: boolean;
+  error?: any;
+}
+
 apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -128,7 +135,8 @@ apiClient.interceptors.response.use(
       _retry?: boolean;
     };
     const status = error.response?.status;
-    const isAuthFailure = status === 401 || status === 403;
+    // Only refresh on 401 Unauthorized (never on 403 Forbidden, which is a permission error)
+    const isAuthFailure = status === 401;
     const isAuthEndpoint =
       originalRequest?.url?.includes("/auth/") ||
       originalRequest?.url?.includes("/api/user/sessions/logout");
@@ -159,8 +167,8 @@ apiClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const refreshed = await refreshAccessToken();
-        if (refreshed) {
+        const refreshResult = await refreshAccessToken();
+        if (refreshResult.success) {
           processQueue(null, true);
           if (originalRequest.headers) {
             const freshToken = tokenStorage.getAccessToken();
@@ -170,14 +178,21 @@ apiClient.interceptors.response.use(
           }
           return apiClient(originalRequest);
         }
-        processQueue(error, false);
-        tokenStorage.clearTokens();
-        redirectToLogin();
-        return Promise.reject(error);
+
+        // ONLY clear tokens and redirect to login if the auth server explicitly rejected credentials
+        if (refreshResult.isAuthError) {
+          processQueue(error, false);
+          tokenStorage.clearTokens();
+          redirectToLogin();
+          return Promise.reject(error);
+        }
+
+        // On transient network errors, socket drops, or timeouts:
+        // DO NOT log the user out! Keep tokens in storage and reject with the network error.
+        processQueue(refreshResult.error || error, false);
+        return Promise.reject(refreshResult.error || error);
       } catch (refreshErr) {
         processQueue(refreshErr, false);
-        tokenStorage.clearTokens();
-        redirectToLogin();
         return Promise.reject(refreshErr);
       } finally {
         isRefreshing = false;
@@ -191,37 +206,91 @@ apiClient.interceptors.response.use(
 /**
  * Refreshes JWT tokens globally with the backend via Axios.
  * Uses refresh token and device ID from localStorage and persists renewed tokens.
+ * Handles transient network errors gracefully without purging user tokens.
  */
-export async function refreshAccessToken(): Promise<boolean> {
+export async function refreshAccessToken(): Promise<RefreshResult> {
   try {
     const refreshToken = tokenStorage.getRefreshToken();
     const deviceId = getDeviceId();
     if (!refreshToken || !deviceId) {
       tokenStorage.clearTokens();
-      return false;
+      return { success: false, isAuthError: true, isNetworkError: false };
     }
 
-    const res = await axios.post(
-      `${API_BASE_URL}/auth/refresh-token`,
-      { refreshToken, deviceId },
-      { timeout: 10000 },
-    );
-
-    if (res.data?.accessToken) {
-      tokenStorage.setTokens(res.data.accessToken, res.data.refreshToken);
-      return true;
+    // Fast check: if device is completely offline, do not attempt or purge
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      return { success: false, isAuthError: false, isNetworkError: true };
     }
-    tokenStorage.clearTokens();
-    return false;
+
+    // Retry once for transient glitches (e.g. WiFi handshake latency)
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const res = await axios.post(
+          `${API_BASE_URL}/auth/refresh-token`,
+          { refreshToken, deviceId },
+          {
+            timeout: 15000,
+            headers: { "Content-Type": "application/json" },
+          },
+        );
+
+        if (res.data?.accessToken) {
+          tokenStorage.setTokens(res.data.accessToken, res.data.refreshToken);
+          return { success: true, isAuthError: false, isNetworkError: false };
+        }
+
+        tokenStorage.clearTokens();
+        return { success: false, isAuthError: true, isNetworkError: false };
+      } catch (err: any) {
+        const status = err.response?.status;
+        const isExplicitAuthFailure =
+          status === 401 ||
+          status === 403 ||
+          (status === 400 &&
+            err.response?.data?.message?.toLowerCase().includes("token"));
+
+        if (isExplicitAuthFailure) {
+          // Genuine invalid/expired refresh token from backend
+          tokenStorage.clearTokens();
+          return {
+            success: false,
+            isAuthError: true,
+            isNetworkError: false,
+            error: err,
+          };
+        }
+
+        // Connection reset, timeout, or DNS/network issue
+        const isNetwork =
+          !err.response ||
+          err.code === "ECONNABORTED" ||
+          err.code === "ERR_NETWORK" ||
+          err.message?.includes("Network Error") ||
+          err.message?.includes("timeout");
+
+        if (attempt === 1 && isNetwork) {
+          await new Promise((resolve) => setTimeout(resolve, 800));
+          continue;
+        }
+
+        // Return network error without wiping tokens!
+        return {
+          success: false,
+          isAuthError: false,
+          isNetworkError: true,
+          error: err,
+        };
+      }
+    }
+
+    return { success: false, isAuthError: false, isNetworkError: true };
   } catch (err: any) {
-    if (
-      err.response?.status === 401 ||
-      err.response?.status === 403 ||
-      err.response?.status === 400
-    ) {
-      tokenStorage.clearTokens();
-    }
-    return false;
+    return {
+      success: false,
+      isAuthError: false,
+      isNetworkError: true,
+      error: err,
+    };
   }
 }
 

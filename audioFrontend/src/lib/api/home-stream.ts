@@ -53,7 +53,7 @@ export function subscribeHomeStream({
       if (response.status === 401) {
         try {
           const refreshed = await refreshAccessToken();
-          if (refreshed) {
+          if (refreshed?.success) {
             const newToken = tokenStorage.getAccessToken();
             if (newToken) {
               headers["Authorization"] = `Bearer ${newToken}`;

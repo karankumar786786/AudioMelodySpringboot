@@ -62,10 +62,6 @@ export const sessionActions = {
       playerStore.setState((s) => ({ ...s, favourites: new Set(ids) }));
     } catch (err: any) {
       console.error("[PlayerStore] Failed to fetch favourites:", err);
-      if (err?.response?.status === 401 || err?.response?.status === 403) {
-        toast.error("Session expired. Please log in again.");
-        sessionActions.clearSystemSession();
-      }
     }
   },
 
@@ -94,10 +90,6 @@ export const sessionActions = {
           status,
         );
       } else {
-        if (status === 401 || status === 403) {
-          toast.error("Session expired. Please log in again.");
-          sessionActions.clearSystemSession();
-        }
         console.error("[PlayerStore] Toggle favourite failed:", err);
         throw err;
       }
