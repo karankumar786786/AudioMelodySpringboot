@@ -7,8 +7,8 @@ import { ClientLayout } from "@/components/ClientLayout";
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-spotify",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
   display: "swap",
+  fallback: ["system-ui", "-apple-system", "sans-serif"],
 });
 
 const geistMono = Geist_Mono({
