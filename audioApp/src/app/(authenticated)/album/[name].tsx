@@ -248,8 +248,9 @@ export default function AlbumDetailScreen() {
         <View style={styles.badgesRow}>
           <Badge
             label="ALBUM"
-            variant="primary"
-            icon={<Ionicons name="disc" size={11} color={colors.primary} />}
+            variant="surface"
+            icon={<Ionicons name="disc" size={11} color="#FFFFFF" />}
+            textStyle={{ color: "#FFFFFF", fontWeight: "700" }}
           />
           {releaseYear && (
             <Badge
@@ -358,7 +359,7 @@ export default function AlbumDetailScreen() {
 
       {isLoading && songs.length === 0 ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color="#FFFFFF" />
           <Text style={styles.loadingText}>Loading album...</Text>
         </View>
       ) : (
@@ -376,7 +377,8 @@ export default function AlbumDetailScreen() {
               onRefresh={() => {
                 refetch();
               }}
-              tintColor={colors.primary}
+              tintColor="#FFFFFF"
+              colors={["#FFFFFF"]}
             />
           }
           renderItem={({ item, index }) => {
@@ -406,7 +408,7 @@ export default function AlbumDetailScreen() {
                     <Ionicons
                       name={isSongPlaying ? "volume-high" : "pause"}
                       size={16}
-                      color={colors.primary}
+                      color="#FFFFFF"
                     />
                   ) : (
                     <Text style={styles.indexText}>{index + 1}</Text>
@@ -672,7 +674,8 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   trackTitleActive: {
-    color: colors.primary,
+    color: "#FFFFFF",
+    fontWeight: "700",
   },
   trackArtist: {
     ...typography.body2,

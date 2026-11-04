@@ -282,7 +282,7 @@ export default function UserPlaylistsScreen() {
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
       {isPlaylistsLoading ? (
         <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color="#FFFFFF" />
         </View>
       ) : (
         <FlatList
@@ -294,7 +294,7 @@ export default function UserPlaylistsScreen() {
               <View>
                 {isAlbumsLoading ? (
                   <View style={{ paddingVertical: 30, alignItems: "center" }}>
-                    <ActivityIndicator size="small" color={colors.primary} />
+                    <ActivityIndicator size="small" color="#FFFFFF" />
                   </View>
                 ) : (
                   uniqueAlbums.map(renderAlbumRow)
@@ -376,8 +376,8 @@ export default function UserPlaylistsScreen() {
                 refetchPlaylists();
                 refetchAlbums();
               }}
-              tintColor={colors.primary}
-              colors={[colors.primary]}
+              tintColor="#FFFFFF"
+              colors={["#FFFFFF"]}
               progressBackgroundColor="#1A1A1A"
             />
           }
