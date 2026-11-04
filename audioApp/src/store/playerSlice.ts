@@ -1,5 +1,6 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { PlayerSong, PlayerState, PlaybackMode, VideoQuality, AudioQuality } from "@/types";
+import { stringToSolidDarkColor } from "@/utils/colorUtils";
 
 const initialState: PlayerState = {
   currentSong: null,
@@ -29,6 +30,12 @@ export const playerSlice = createSlice({
       state.seekTarget = null;
       if (action.payload?.duration) {
         state.duration = action.payload.duration;
+      }
+      if (action.payload) {
+        const fallbackKey = `${action.payload.title || ""}-${action.payload.artistName || ""}-${action.payload.id || ""}`;
+        state.dominantColor = stringToSolidDarkColor(fallbackKey);
+      } else {
+        state.dominantColor = "#1A1A1A";
       }
     },
     setIsPlaying: (state, action: PayloadAction<boolean>) => {

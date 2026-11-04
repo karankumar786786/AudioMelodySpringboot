@@ -130,7 +130,7 @@ export async function getSolidBgFromImage(
     return fallbackColor;
   }
 
-  const cacheKey = imageUrl || fallbackKey || "default";
+  const cacheKey = fallbackKey || imageUrl || "default";
   if (dominantColorCache.has(cacheKey)) {
     return dominantColorCache.get(cacheKey)!;
   }
@@ -263,12 +263,23 @@ export function useDominantColor(
   imageUrl?: string | null,
   fallbackKey?: string,
 ): DominantColorTheme {
-  const initialColor = stringToSolidDarkColor(fallbackKey || "default");
-  const [dominantColor, setDominantColor] = useState<string>(initialColor);
+  const cacheKey = fallbackKey || imageUrl || "default";
+  const getImmediateColor = () =>
+    dominantColorCache.get(cacheKey) || stringToSolidDarkColor(fallbackKey || "default");
+
+  const [dominantColor, setDominantColor] = useState<string>(getImmediateColor);
+  const [prevCacheKey, setPrevCacheKey] = useState<string>(cacheKey);
+
+  // Synchronously update color on render when song or key changes to avoid 1-frame flash
+  if (prevCacheKey !== cacheKey) {
+    setPrevCacheKey(cacheKey);
+    const immediateColor = getImmediateColor();
+    setDominantColor(immediateColor);
+  }
 
   useEffect(() => {
     let isMounted = true;
-    const initial = stringToSolidDarkColor(fallbackKey || "default");
+    const initial = getImmediateColor();
     setDominantColor(initial);
 
     getSolidBgFromImage(imageUrl, fallbackKey).then((color) => {
@@ -280,7 +291,7 @@ export function useDominantColor(
     return () => {
       isMounted = false;
     };
-  }, [imageUrl, fallbackKey]);
+  }, [imageUrl, fallbackKey, cacheKey]);
 
   return {
     dominantColor,

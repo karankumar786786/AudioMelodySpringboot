@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ import Animated, {
 import { AppState } from "@/store/hook";
 import { audioPlayerService } from "@/service/audioPlayerService";
 import { nextTrack, prevTrack } from "@/store/queueActions";
+import { setDominantColor } from "@/store/playerSlice";
 import { favouriteService } from "@/service";
 import { hapticFeedback } from "@/utils/haptics";
 import { useDominantColor } from "@/utils/colorUtils";
@@ -51,10 +52,11 @@ export function MiniPlayer() {
 
   const artworkUrl = currentSong
     ? (currentSong as any).coverUrl ||
+      (currentSong as any).posterUrl ||
       (currentSong.imageKey
         ? getImageUrl(currentSong.imageKey, {
-            width: 140,
-            height: 140,
+            width: 400,
+            height: 400,
             aspectRatio: "1-1",
           })
         : null)
@@ -69,10 +71,14 @@ export function MiniPlayer() {
     fallbackKey
   );
 
-  const dominantColor =
-    reduxDominantColor && reduxDominantColor !== "#181818"
-      ? reduxDominantColor
-      : extractedColor;
+  // Sync extracted dominant color into Redux store so all screens stay consistent
+  useEffect(() => {
+    if (extractedColor && currentSong?.id) {
+      dispatch(setDominantColor(extractedColor));
+    }
+  }, [extractedColor, currentSong?.id, dispatch]);
+
+  const dominantColor = extractedColor || reduxDominantColor || "#1A1A1A";
 
   if (!currentSong) return null;
 

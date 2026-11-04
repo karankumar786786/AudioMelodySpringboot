@@ -20,12 +20,12 @@ export function SectionHeader({
       </View>
       {onSeeAllPress ? (
         <TouchableOpacity
-          style={styles.seeAllButton}
           onPress={onSeeAllPress}
+          style={styles.seeAllButton}
           activeOpacity={0.7}
         >
           <Text style={styles.seeAllText}>See all</Text>
-          <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+          <Ionicons name="chevron-forward" size={14} color="#888888" />
         </TouchableOpacity>
       ) : null}
     </View>
