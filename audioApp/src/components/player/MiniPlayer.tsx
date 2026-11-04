@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useSelector, useDispatch } from "react-redux";
 import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   useSharedValue,
@@ -24,6 +25,8 @@ import { audioPlayerService } from "@/service/audioPlayerService";
 import { nextTrack, prevTrack } from "@/store/queueActions";
 import { favouriteService } from "@/service";
 import { hapticFeedback } from "@/utils/haptics";
+import { useDominantColor } from "@/utils/colorUtils";
+import { getImageUrl } from "@/utils/imageUtils";
 import { colors, radii, shadows, spacing, typography } from "@/theme";
 
 const SWIPE_THRESHOLD = 50;
@@ -38,12 +41,38 @@ export function MiniPlayer() {
   const currentTime = useSelector((state: AppState) => state.player.currentTime);
   const duration = useSelector((state: AppState) => state.player.duration);
   const bufferedTime = useSelector((state: AppState) => state.player.bufferedTime || 0);
+  const reduxDominantColor = useSelector((state: AppState) => state.player.dominantColor);
 
   const [isLiked, setIsLiked] = useState(false);
 
   // Gesture shared values
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
+
+  const artworkUrl = currentSong
+    ? (currentSong as any).coverUrl ||
+      (currentSong.imageKey
+        ? getImageUrl(currentSong.imageKey, {
+            width: 140,
+            height: 140,
+            aspectRatio: "1-1",
+          })
+        : null)
+    : null;
+
+  const fallbackKey = currentSong
+    ? `${currentSong.title || ""}-${currentSong.artistName || ""}-${currentSong.id || ""}`
+    : "default";
+
+  const { dominantColor: extractedColor } = useDominantColor(
+    artworkUrl,
+    fallbackKey
+  );
+
+  const dominantColor =
+    reduxDominantColor && reduxDominantColor !== "#181818"
+      ? reduxDominantColor
+      : extractedColor;
 
   if (!currentSong) return null;
 
@@ -129,10 +158,30 @@ export function MiniPlayer() {
 
   return (
     <GestureDetector gesture={panGesture}>
-      <View style={styles.outerContainer}>
-        {/* Frosted Glass Background */}
+      <View
+        style={[
+          styles.outerContainer,
+          {
+            backgroundColor: dominantColor,
+            borderColor: `${dominantColor}55`,
+          },
+        ]}
+      >
+        {/* Dynamic Majority Color Ambient Linear Gradient */}
+        <LinearGradient
+          colors={[
+            `${dominantColor}FA`, // ~98% vibrant majority color at top-left
+            `${dominantColor}CC`, // ~80% mid tone
+            "rgba(14, 14, 14, 0.90)", // smooth deep contrast on bottom-right
+          ]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+
+        {/* Frosted Glass Overlay */}
         <BlurView
-          intensity={Platform.OS === "ios" ? 50 : 80}
+          intensity={Platform.OS === "ios" ? 35 : 20}
           tint="dark"
           style={styles.blurContainer}
         >
@@ -143,13 +192,19 @@ export function MiniPlayer() {
               activeOpacity={0.85}
               onPress={handleOpenFullPlayer}
             >
-              <Image
-                source={{ uri: currentSong.coverUrl }}
-                style={styles.artwork}
-                contentFit="cover"
-                transition={200}
-                cachePolicy="memory"
-              />
+              {artworkUrl ? (
+                <Image
+                  source={{ uri: artworkUrl }}
+                  style={styles.artwork}
+                  contentFit="cover"
+                  transition={200}
+                  cachePolicy="memory"
+                />
+              ) : (
+                <View style={[styles.artwork, styles.artworkFallback]}>
+                  <Ionicons name="musical-note" size={20} color="rgba(255, 255, 255, 0.7)" />
+                </View>
+              )}
 
               <View style={styles.textContainer}>
                 <Text style={styles.title} numberOfLines={1}>
@@ -173,7 +228,7 @@ export function MiniPlayer() {
                 <Ionicons
                   name={isLiked ? "heart" : "heart-outline"}
                   size={20}
-                  color={isLiked ? colors.like : colors.textSecondary}
+                  color={isLiked ? colors.like : "rgba(255, 255, 255, 0.85)"}
                 />
               </TouchableOpacity>
 
@@ -187,11 +242,11 @@ export function MiniPlayer() {
                 <Ionicons
                   name="play-skip-forward"
                   size={19}
-                  color={colors.textPrimary}
+                  color="#FFFFFF"
                 />
               </TouchableOpacity>
 
-              {/* Play / Pause Pill Button with Primary Fill */}
+              {/* Play / Pause Pill Button with High Contrast Solid White */}
               <TouchableOpacity
                 style={styles.playButton}
                 hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
@@ -234,12 +289,11 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg + 2,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: "rgba(18, 18, 18, 0.85)",
     ...shadows.md,
   },
   blurContainer: {
     overflow: "hidden",
+    backgroundColor: "transparent",
   },
   contentRow: {
     flexDirection: "row",
@@ -257,7 +311,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: radii.md - 2,
-    backgroundColor: colors.card,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+  },
+  artworkFallback: {
+    alignItems: "center",
+    justifyContent: "center",
   },
   textContainer: {
     flex: 1,
@@ -268,12 +326,13 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.body1,
-    color: colors.textPrimary,
+    color: "#FFFFFF",
+    fontWeight: "700",
     marginBottom: 2,
   },
   artist: {
     ...typography.body2,
-    color: colors.textSecondary,
+    color: "rgba(255, 255, 255, 0.8)",
   },
   actionsRow: {
     flexDirection: "row",
@@ -297,7 +356,7 @@ const styles = StyleSheet.create({
   },
   progressBarBackground: {
     height: 2.5,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "rgba(255, 255, 255, 0.18)",
     width: "100%",
     position: "relative",
   },
@@ -306,7 +365,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: "rgba(255, 255, 255, 0.25)",
+    backgroundColor: "rgba(255, 255, 255, 0.35)",
   },
   progressBarFill: {
     height: "100%",

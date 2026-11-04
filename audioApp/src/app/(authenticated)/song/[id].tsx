@@ -35,6 +35,7 @@ import {
   prevTrack,
   toggleShuffle,
   toggleRepeat,
+  setDominantColor,
 } from "@/store";
 import { CanvasVideoPlayer, QueueModal, FullVideoPlayerModal, PlayerSettingsModal, DEFAULT_AUDIO_QUALITIES } from "@/components";
 import { formatDuration,  getImageUrl, useDominantColor,S3_BASE_URL } from "@/utils";
@@ -162,6 +163,12 @@ export default function SongDetailScreen() {
 
   const fallbackKey = `${activeSong?.title || ""}-${activeSong?.artistName || ""}-${activeSong?.id || ""}`;
   const dominantTheme = useDominantColor(posterUrl, fallbackKey);
+
+  useEffect(() => {
+    if (dominantTheme?.dominantColor) {
+      dispatch(setDominantColor(dominantTheme.dominantColor));
+    }
+  }, [dominantTheme?.dominantColor, dispatch]);
 
   // Check favourites status from query cache
   const { data: favouritesData } = useQuery({
