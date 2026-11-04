@@ -37,8 +37,13 @@ public class SongsApiController {
 
     @GetMapping("/trending")
     public ResponseEntity<List<SongDto>> getTrendingSongs(
-            @RequestParam(defaultValue = "10") int limit) {
-        return ResponseEntity.ok(songsAppService.getTrendingSongs(limit));
+            @RequestParam(defaultValue = "10") int limit,
+            @RequestParam(defaultValue = "7d") String window,
+            @RequestParam(required = false) String genre,
+            @RequestParam(required = false) String language) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES).cachePublic())
+                .body(songsAppService.getTrendingSongs(limit, window, genre, language));
     }
 
     @GetMapping("/featured")

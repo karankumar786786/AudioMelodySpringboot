@@ -41,10 +41,18 @@ public class SongsApiService {
                 .toList();
     }
 
-    public List<SongDto> getTrendingSongs(int limit) {
-        return songsRepository.findTrending(limit).stream()
+    @Cacheable(
+        value = "trending_songs",
+        key = "#limit + '_' + (#window != null ? #window : '7d') + '_' + (#genre != null ? #genre : 'all') + '_' + (#language != null ? #language : 'all')"
+    )
+    public List<SongDto> getTrendingSongs(int limit, String window, String genre, String language) {
+        return songsRepository.findTrending(limit, window, genre, language).stream()
                 .map(SongDto::fromEntity)
                 .toList();
+    }
+
+    public List<SongDto> getTrendingSongs(int limit) {
+        return getTrendingSongs(limit, "7d", null, null);
     }
 
     @Cacheable(value = "songs", key = "#id")

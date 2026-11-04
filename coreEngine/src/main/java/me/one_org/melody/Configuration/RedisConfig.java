@@ -96,6 +96,7 @@ public class RedisConfig implements CachingConfigurer {
         cacheConfigurations.put("artist_lists", defaultConfig.entryTtl(Duration.ofMinutes(15)));
         cacheConfigurations.put("playlist_lists", defaultConfig.entryTtl(Duration.ofMinutes(15)));
         cacheConfigurations.put("artist_songs", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+        cacheConfigurations.put("trending_songs", defaultConfig.entryTtl(Duration.ofMinutes(10)));
         cacheConfigurations.put("paginationMetaData", defaultConfig.entryTtl(Duration.ofMinutes(5)));
 
         return RedisCacheManager.builder(factory)
