@@ -1,6 +1,7 @@
 import axios, { InternalAxiosRequestConfig } from "axios";
 import { store } from "@/store/hook";
 import { saveAuthToken, clearAuthToken } from "@/store/authSlice";
+import { AuthStore } from "@/storage";
 
 interface CustomRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -16,7 +17,18 @@ export const api = axios.create({
 
 api.interceptors.request.use(
   async (config) => {
-    const accessToken = store.getState().auth.accessToken;
+    let accessToken: string | undefined;
+    try {
+      accessToken = store?.getState?.()?.auth?.accessToken;
+    } catch {}
+
+    if (!accessToken) {
+      try {
+        const tokenObj = await AuthStore.getAuthTokenFromSecureStorage();
+        accessToken = tokenObj?.accessToken;
+      } catch {}
+    }
+
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }

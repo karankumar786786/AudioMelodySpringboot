@@ -21,8 +21,10 @@ export const loadFavourites = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await favouriteService.getFavourites(0, 100);
-      return response.content || [];
+      const list = response?.content || (Array.isArray(response) ? response : []);
+      return list as Song[];
     } catch (err: any) {
+      console.warn("[favouriteSlice] Failed to load favourites:", err?.message || err);
       return rejectWithValue(err.message || "Failed to load favourites");
     }
   }
@@ -34,22 +36,31 @@ export const toggleFavourite = createAsyncThunk<
   { state: { favourites: FavouriteState }; rejectValue: { song: Song; wasLiked: boolean; error: string } }
 >(
   "favourites/toggleFavourite",
-  async (song: Song, { getState, rejectWithValue }) => {
+  async (song: Song, { getState, dispatch, rejectWithValue }) => {
+    const sid = String(song.id);
     const state = getState();
-    const isCurrentlyLiked = state.favourites.favouriteIds.includes(song.id);
+    // 1. Accurately capture initial liked state BEFORE mutating
+    const wasLiked = state.favourites.favouriteIds.some((id) => String(id) === sid);
+
+    // 2. Synchronous optimistic UI update for instant feedback across all screens
+    dispatch(favouriteSlice.actions.optimisticToggle(song));
 
     try {
-      if (isCurrentlyLiked) {
-        await favouriteService.removeFavourite(song.id);
+      // 3. Make correct API call matching audioFrontend
+      if (wasLiked) {
+        await favouriteService.removeFavourite(sid);
       } else {
-        await favouriteService.addFavourite(song.id);
+        await favouriteService.addFavourite(sid);
       }
-      return { song, wasLiked: isCurrentlyLiked };
+      return { song, wasLiked };
     } catch (err: any) {
+      console.warn("[favouriteSlice] Toggle favourite API error, reverting:", err?.message || err);
+      // 4. Revert optimistic UI update if API fails
+      dispatch(favouriteSlice.actions.optimisticToggle(song));
       return rejectWithValue({
         song,
-        wasLiked: isCurrentlyLiked,
-        error: err.message || "Toggle favourite failed",
+        wasLiked,
+        error: err?.message || "Toggle favourite failed",
       });
     }
   }
@@ -61,19 +72,32 @@ export const favouriteSlice = createSlice({
   reducers: {
     setFavourites: (state, action: PayloadAction<Song[]>) => {
       state.favouriteSongs = action.payload;
-      state.favouriteIds = action.payload.map((s) => s.id);
+      state.favouriteIds = action.payload.map((s) => String(s.id));
+    },
+    optimisticToggle: (state, action: PayloadAction<Song>) => {
+      const song = action.payload;
+      const sid = String(song.id);
+      const index = state.favouriteIds.findIndex((id) => String(id) === sid);
+      if (index >= 0) {
+        state.favouriteIds.splice(index, 1);
+        state.favouriteSongs = state.favouriteSongs.filter((s) => String(s.id) !== sid);
+      } else {
+        state.favouriteIds.unshift(sid);
+        state.favouriteSongs.unshift(song);
+      }
     },
     optimisticAddFavourite: (state, action: PayloadAction<Song>) => {
       const song = action.payload;
-      if (!state.favouriteIds.includes(song.id)) {
-        state.favouriteIds.unshift(song.id);
+      const sid = String(song.id);
+      if (!state.favouriteIds.some((id) => String(id) === sid)) {
+        state.favouriteIds.unshift(sid);
         state.favouriteSongs.unshift(song);
       }
     },
     optimisticRemoveFavourite: (state, action: PayloadAction<string>) => {
-      const songId = action.payload;
-      state.favouriteIds = state.favouriteIds.filter((id) => id !== songId);
-      state.favouriteSongs = state.favouriteSongs.filter((s) => s.id !== songId);
+      const sid = String(action.payload);
+      state.favouriteIds = state.favouriteIds.filter((id) => String(id) !== sid);
+      state.favouriteSongs = state.favouriteSongs.filter((s) => String(s.id) !== sid);
     },
   },
   extraReducers: (builder) => {
@@ -85,52 +109,29 @@ export const favouriteSlice = createSlice({
       .addCase(loadFavourites.fulfilled, (state, action) => {
         state.isLoading = false;
         state.favouriteSongs = action.payload;
-        state.favouriteIds = action.payload.map((s) => s.id);
+        state.favouriteIds = action.payload.map((s) => String(s.id));
       })
       .addCase(loadFavourites.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
-      })
-      // Immediate optimistic update on toggle invocation
-      .addCase(toggleFavourite.pending, (state, action) => {
-        const song = action.meta.arg;
-        const index = state.favouriteIds.indexOf(song.id);
-        if (index >= 0) {
-          state.favouriteIds.splice(index, 1);
-          state.favouriteSongs = state.favouriteSongs.filter((s) => s.id !== song.id);
-        } else {
-          state.favouriteIds.unshift(song.id);
-          state.favouriteSongs.unshift(song);
-        }
-      })
-      // Rollback on rejection
-      .addCase(toggleFavourite.rejected, (state, action) => {
-        const payload = action.payload;
-        if (!payload) return;
-        const { song, wasLiked } = payload;
-        if (wasLiked) {
-          if (!state.favouriteIds.includes(song.id)) {
-            state.favouriteIds.unshift(song.id);
-            state.favouriteSongs.unshift(song);
-          }
-        } else {
-          state.favouriteIds = state.favouriteIds.filter((id) => id !== song.id);
-          state.favouriteSongs = state.favouriteSongs.filter((s) => s.id !== song.id);
-        }
       });
   },
 });
 
-export const { setFavourites, optimisticAddFavourite, optimisticRemoveFavourite } =
-  favouriteSlice.actions;
+export const {
+  setFavourites,
+  optimisticToggle,
+  optimisticAddFavourite,
+  optimisticRemoveFavourite,
+} = favouriteSlice.actions;
 
 export const selectIsFavourite = (
   state: { favourites: FavouriteState },
   songId?: string | null
 ): boolean => {
   if (!songId) return false;
-  return state.favourites.favouriteIds.includes(songId);
+  const sid = String(songId);
+  return state.favourites.favouriteIds.some((id) => String(id) === sid);
 };
 
 export default favouriteSlice.reducer;
-
