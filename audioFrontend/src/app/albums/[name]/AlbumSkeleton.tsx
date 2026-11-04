@@ -47,13 +47,14 @@ export const AlbumSkeleton: React.FC = () => {
 
       {/* Tracklist Skeleton */}
       <section className="px-2 pb-10 pt-6 md:px-6">
-        <div className="grid grid-cols-12 items-center border-b border-white/10 px-4 pb-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
+        <div className="grid grid-cols-12 items-center border-b border-white/10 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
           <div className="col-span-1 text-center">#</div>
-          <div className="col-span-7 sm:col-span-5 md:col-span-4 lg:col-span-4">Title</div>
-          <div className="col-span-3 hidden md:block">Artist</div>
-          <div className="col-span-1 hidden xl:block">Genre</div>
-          <div className="col-span-3 sm:col-span-3 md:col-span-3 lg:col-span-2 xl:col-span-2 hidden sm:block text-right">Plays</div>
-          <div className="col-span-4 sm:col-span-3 md:col-span-2 lg:col-span-2 xl:col-span-1 text-right">Duration</div>
+          <div className="col-span-8 sm:col-span-5 md:col-span-4 lg:col-span-4">Title</div>
+          <div className="col-span-3 hidden sm:block md:col-span-3 lg:col-span-2">Artist</div>
+          <div className="col-span-2 hidden lg:block">Album</div>
+          <div className="col-span-1 hidden md:block">Genre</div>
+          <div className="col-span-1 hidden sm:block md:col-span-1 lg:col-span-1 text-right pr-3">Plays</div>
+          <div className="col-span-3 sm:col-span-2 md:col-span-2 lg:col-span-1 text-right">Duration</div>
         </div>
 
         <div className="mt-2 flex flex-col gap-1">
@@ -66,7 +67,7 @@ export const AlbumSkeleton: React.FC = () => {
                 <div className="h-3 w-3 rounded bg-zinc-800" />
               </div>
 
-              <div className="col-span-7 sm:col-span-5 md:col-span-4 lg:col-span-4 flex items-center gap-3 min-w-0 pr-3">
+              <div className="col-span-8 sm:col-span-5 md:col-span-4 lg:col-span-4 flex items-center gap-3 min-w-0 pr-3">
                 <div className="h-10 w-10 shrink-0 rounded-lg bg-zinc-800" />
                 <div className="flex-1 space-y-1.5 min-w-0">
                   <div className="h-3.5 w-4/5 rounded bg-zinc-800" />
@@ -74,19 +75,23 @@ export const AlbumSkeleton: React.FC = () => {
                 </div>
               </div>
 
-              <div className="col-span-3 hidden md:block pr-3">
-                <div className="h-3 w-28 rounded bg-zinc-800/60" />
+              <div className="col-span-3 hidden sm:block md:col-span-3 lg:col-span-2 pr-3">
+                <div className="h-3 w-24 rounded bg-zinc-800/60" />
               </div>
 
-              <div className="col-span-1 hidden xl:block pr-3">
-                <div className="h-3 w-16 rounded bg-zinc-800/60" />
+              <div className="col-span-2 hidden lg:block pr-3">
+                <div className="h-3 w-20 rounded bg-zinc-800/60" />
               </div>
 
-              <div className="col-span-3 sm:col-span-3 md:col-span-3 lg:col-span-2 xl:col-span-2 hidden sm:block text-right pr-2">
-                <div className="h-3 w-16 rounded bg-zinc-800/60 ml-auto" />
+              <div className="col-span-1 hidden md:block pr-3">
+                <div className="h-3 w-14 rounded bg-zinc-800/60" />
               </div>
 
-              <div className="col-span-4 sm:col-span-3 md:col-span-2 lg:col-span-2 xl:col-span-1 text-right">
+              <div className="col-span-1 hidden sm:block md:col-span-1 lg:col-span-1 text-right pr-3">
+                <div className="h-3 w-10 rounded bg-zinc-800/60 ml-auto" />
+              </div>
+
+              <div className="col-span-3 sm:col-span-2 md:col-span-2 lg:col-span-1 text-right">
                 <div className="h-3 w-10 rounded bg-zinc-800/60 ml-auto" />
               </div>
             </div>
