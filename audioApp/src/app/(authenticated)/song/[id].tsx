@@ -75,6 +75,9 @@ export default function SongDetailScreen() {
   // Subtle fade and scale animation between canvas and artwork mode
   const modeFadeAnim = useRef(new Animated.Value(viewMode === "artwork" ? 1 : 0)).current;
 
+  // Tactile pulse animation for heart/like toggle
+  const heartScaleAnim = useRef(new Animated.Value(1)).current;
+
   useEffect(() => {
     Animated.timing(modeFadeAnim, {
       toValue: viewMode === "artwork" ? 1 : 0,
@@ -95,6 +98,18 @@ export default function SongDetailScreen() {
   const isShuffle = useSelector((state: AppState) => state.queue.isShuffle);
   const queue = useSelector((state: AppState) => state.queue.queue);
   const currentIndex = useSelector((state: AppState) => state.queue.currentIndex);
+
+  // Tactile artwork scale animation when playing (1.0) vs paused (0.90)
+  const artworkPlayingScaleAnim = useRef(new Animated.Value(isPlaying ? 1 : 0.9)).current;
+
+  useEffect(() => {
+    Animated.spring(artworkPlayingScaleAnim, {
+      toValue: isPlaying ? 1 : 0.9,
+      friction: 8,
+      tension: 40,
+      useNativeDriver: true,
+    }).start();
+  }, [isPlaying]);
 
   // Local seekbar scrub / tap tracking to eliminate UI flicker during seeks
   const [progressBarWidth, setProgressBarWidth] = useState(0);
@@ -476,8 +491,33 @@ export default function SongDetailScreen() {
     setIsLiked(nextLiked);
     if (nextLiked) {
       hapticFeedback.success();
+      Animated.sequence([
+        Animated.timing(heartScaleAnim, {
+          toValue: 1.35,
+          duration: 130,
+          easing: Easing.out(Easing.back(2)),
+          useNativeDriver: true,
+        }),
+        Animated.spring(heartScaleAnim, {
+          toValue: 1,
+          friction: 4,
+          tension: 100,
+          useNativeDriver: true,
+        }),
+      ]).start();
     } else {
       hapticFeedback.light();
+      Animated.sequence([
+        Animated.timing(heartScaleAnim, {
+          toValue: 0.8,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        Animated.spring(heartScaleAnim, {
+          toValue: 1,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
     try {
       if (nextLiked) {
@@ -699,35 +739,35 @@ export default function SongDetailScreen() {
                 <View style={styles.artworkStageBox}>
                   <Animated.View
                     style={[
-                      styles.artworkWrapper,
+                      styles.artworkShadowContainer,
                       {
-                        opacity: hasCanvas
-                          ? modeFadeAnim.interpolate({
-                              inputRange: [0, 1],
-                              outputRange: [0, 1],
-                            })
-                          : 1,
-                        transform: [
-                          {
-                            scale: hasCanvas
-                              ? modeFadeAnim.interpolate({
-                                  inputRange: [0, 1],
-                                  outputRange: [0.93, 1],
-                                })
-                              : 1,
-                          },
-                        ],
+                        shadowColor: dominantTheme?.dominantColor || "#FFFFFF",
+                        transform: [{ scale: artworkPlayingScaleAnim }],
                       },
                     ]}
-                    pointerEvents={effectiveViewMode === "artwork" ? "auto" : "none"}
                   >
-                    <Image
-                      source={{ uri: posterUrl }}
-                      style={styles.artworkImage}
-                      contentFit="cover"
-                      transition={200}
-                      cachePolicy="memory"
-                    />
+                    <Animated.View
+                      style={[
+                        styles.artworkWrapper,
+                        {
+                          opacity: hasCanvas
+                            ? modeFadeAnim.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [0, 1],
+                              })
+                            : 1,
+                        },
+                      ]}
+                      pointerEvents={effectiveViewMode === "artwork" ? "auto" : "none"}
+                    >
+                      <Image
+                        source={{ uri: posterUrl }}
+                        style={styles.artworkImage}
+                        contentFit="cover"
+                        transition={200}
+                        cachePolicy="memory"
+                      />
+                    </Animated.View>
                   </Animated.View>
                 </View>
               </View>
@@ -739,9 +779,15 @@ export default function SongDetailScreen() {
             <Text style={styles.songTitle} numberOfLines={1}>
               {activeSong.title}
             </Text>
-            <Text style={styles.artistName} numberOfLines={1}>
-              {activeSong.artistName}
-            </Text>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={handleOpenArtist}
+              hitSlop={{ top: 8, bottom: 8, left: 0, right: 14 }}
+            >
+              <Text style={styles.artistName} numberOfLines={1}>
+                {activeSong.artistName}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           <TouchableOpacity
@@ -750,11 +796,13 @@ export default function SongDetailScreen() {
             style={styles.likeButton}
             activeOpacity={0.75}
           >
-            <Ionicons
-              name={isLiked ? "heart" : "heart-outline"}
-              size={26}
-              color="#FFFFFF"
-            />
+            <Animated.View style={{ transform: [{ scale: heartScaleAnim }] }}>
+              <Ionicons
+                name={isLiked ? "heart" : "heart-outline"}
+                size={28}
+                color={isLiked ? "#FFFFFF" : "rgba(255, 255, 255, 0.75)"}
+              />
+            </Animated.View>
           </TouchableOpacity>
         </View>
 
@@ -796,7 +844,9 @@ export default function SongDetailScreen() {
           </View>
 
           <View style={styles.timeRow}>
-            <Text style={styles.timeText}>{formatDuration(displayTime)}</Text>
+            <Text style={[styles.timeText, isScrubbing && styles.timeTextScrubbing]}>
+              {formatDuration(displayTime)}
+            </Text>
             <Text style={styles.timeText}>{formatDuration(effectiveDuration)}</Text>
           </View>
         </View>
@@ -882,9 +932,15 @@ export default function SongDetailScreen() {
         {canShowLyrics ? (
           <View style={styles.lyricsSection}>
             <TouchableOpacity
-              style={styles.lyricsCard}
+              style={[
+                styles.lyricsCard,
+                dominantTheme?.dominantColor
+                  ? { backgroundColor: `${dominantTheme.dominantColor}38` }
+                  : undefined,
+              ]}
               activeOpacity={0.88}
               onPress={() => {
+                hapticFeedback.light();
                 if (activeSong?.id) {
                   router.push({
                     pathname: "/(authenticated)/lyrics/[id]",
@@ -894,9 +950,12 @@ export default function SongDetailScreen() {
               }}
             >
               <View style={styles.lyricsCardHeader}>
-                <Text style={styles.lyricsCardTitle}>Lyrics</Text>
+                <View style={styles.lyricsCardTitleRow}>
+                  <Ionicons name="musical-notes" size={17} color="#FFFFFF" />
+                  <Text style={styles.lyricsCardTitle}>Lyrics</Text>
+                </View>
                 <View style={styles.lyricsCardMorePill}>
-                  <Text style={styles.lyricsCardMoreText}>MORE</Text>
+                  <Text style={styles.lyricsCardMoreText}>FULL SCREEN</Text>
                   <Ionicons name="expand-outline" size={13} color="#FFFFFF" />
                 </View>
               </View>
@@ -904,9 +963,12 @@ export default function SongDetailScreen() {
               <View style={styles.lyricsCardContent}>
                 {currentLine?.text ? (
                   <>
-                    <Text style={styles.lyricsLinePrimary} numberOfLines={2}>
-                      {currentLine.text}
-                    </Text>
+                    <View style={styles.lyricsActiveIndicatorRow}>
+                      <View style={styles.lyricsActiveDot} />
+                      <Text style={styles.lyricsLinePrimary} numberOfLines={2}>
+                        {currentLine.text}
+                      </Text>
+                    </View>
                     {nextLine?.text ? (
                       <Text style={styles.lyricsLineSecondary} numberOfLines={1}>
                         {nextLine.text}
@@ -915,9 +977,12 @@ export default function SongDetailScreen() {
                   </>
                 ) : transcriptions.length > 0 ? (
                   <>
-                    <Text style={styles.lyricsLinePrimary} numberOfLines={2}>
-                      {transcriptions[0].text}
-                    </Text>
+                    <View style={styles.lyricsActiveIndicatorRow}>
+                      <View style={styles.lyricsActiveDot} />
+                      <Text style={styles.lyricsLinePrimary} numberOfLines={2}>
+                        {transcriptions[0].text}
+                      </Text>
+                    </View>
                     {transcriptions[1]?.text ? (
                       <Text style={styles.lyricsLineSecondary} numberOfLines={1}>
                         {transcriptions[1].text}

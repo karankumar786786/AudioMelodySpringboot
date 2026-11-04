@@ -1,13 +1,14 @@
-import { StyleSheet } from "react-native";
+import { StyleSheet, Dimensions } from "react-native";
 
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const SIDE = 18;
 
 export const lyricsStyles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#000000" },
   ambientImage: {
     ...StyleSheet.absoluteFill,
-    opacity: 0.6,
-    transform: [{ scale: 1.15 }],
+    opacity: 0.65,
+    transform: [{ scale: 1.2 }],
   },
   container: { flex: 1, justifyContent: "space-between" },
 
@@ -20,41 +21,70 @@ export const lyricsStyles = StyleSheet.create({
     paddingBottom: 8,
   },
   headerBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "rgba(0, 0, 0, 0.45)",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.14)",
+    borderColor: "rgba(255, 255, 255, 0.15)",
     justifyContent: "center",
     alignItems: "center",
   },
   headerTitleGroup: { flex: 1, alignItems: "center", paddingHorizontal: 12 },
+  headerSubtitleLabel: {
+    color: "rgba(255, 255, 255, 0.45)",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    marginBottom: 2,
+  },
   headerTrackTitle: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "800",
     letterSpacing: -0.3,
   },
-  headerArtist: { color: "rgba(255, 255, 255, 0.6)", fontSize: 12, marginTop: 2 },
+  headerArtist: { color: "rgba(255, 255, 255, 0.65)", fontSize: 13, marginTop: 2 },
 
   lyricsBody: { flex: 1, position: "relative" },
-  scrollList: { paddingHorizontal: SIDE + 4 },
-  lyricLineContainer: { paddingVertical: 12 },
-  // Inactive lines recede; the active line is solid white. No glow.
-  lyricLineText: {
-    color: "rgba(255, 255, 255, 0.38)",
-    fontSize: 26,
-    fontWeight: "800",
-    letterSpacing: -0.6,
-    lineHeight: 33,
+  scrollList: { paddingHorizontal: SIDE + 6 },
+  lyricLineContainer: {
+    paddingVertical: 14,
+    paddingHorizontal: 4,
+    borderRadius: 12,
   },
-  lyricLineTextPast: { color: "rgba(255, 255, 255, 0.5)" },
-  lyricLineTextActive: { color: "#FFFFFF" },
+  // Inactive lines recede; the active line is prominent pure white with bold presence
+  lyricLineText: {
+    color: "rgba(255, 255, 255, 0.32)",
+    fontSize: 27,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+    lineHeight: 38,
+  },
+  lyricLineTextPast: {
+    color: "rgba(255, 255, 255, 0.52)",
+  },
+  lyricLineTextActive: {
+    color: "#FFFFFF",
+    fontSize: 29,
+    lineHeight: 40,
+  },
+  activeIndicatorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  activePulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#FFFFFF",
+  },
   plainLyricsText: {
-    color: "rgba(255, 255, 255, 0.82)",
-    fontSize: 20,
-    lineHeight: 32,
+    color: "rgba(255, 255, 255, 0.88)",
+    fontSize: 21,
+    lineHeight: 34,
     fontWeight: "600",
     letterSpacing: -0.2,
     textAlign: "left",
@@ -81,63 +111,99 @@ export const lyricsStyles = StyleSheet.create({
     textAlign: "center",
   },
 
-  // White pill, same as the active filter pill on Home
+  // Floating Sync Pill Button
   floatingSyncBtn: {
     position: "absolute",
-    bottom: 16,
+    bottom: 20,
     alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 16,
-    paddingVertical: 9,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     borderRadius: 999,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  floatingSyncText: { color: "#000000", fontSize: 13, fontWeight: "700" },
+  floatingSyncText: { color: "#000000", fontSize: 13, fontWeight: "800" },
 
-  playbackDock: {
-    backgroundColor: "#000000",
-    borderTopWidth: 1,
-    borderTopColor: "#262626",
+  // Floating Frosted Playback Dock
+  dockFloatingWrapper: {
+    marginHorizontal: SIDE,
+    marginBottom: 8,
+    borderRadius: 24,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.14)",
+  },
+  playbackDockBlur: {
     paddingTop: 12,
-    paddingBottom: 16,
-    paddingHorizontal: SIDE,
+    paddingBottom: 14,
+    paddingHorizontal: 16,
+    backgroundColor: "rgba(10, 10, 14, 0.65)",
   },
   progressRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 10,
-    gap: 8,
+    gap: 10,
   },
   dockTimeText: {
-    color: "#8A8A8A",
+    color: "rgba(255, 255, 255, 0.6)",
     fontSize: 11,
     fontVariant: ["tabular-nums"],
     width: 38,
     textAlign: "center",
   },
-  dockTrack: {
+  dockTrackTouchArea: {
     flex: 1,
+    paddingVertical: 8,
+    justifyContent: "center",
+  },
+  dockTrack: {
     height: 4,
-    backgroundColor: "#262626",
+    backgroundColor: "rgba(255, 255, 255, 0.16)",
     borderRadius: 2,
     overflow: "hidden",
   },
-  dockFill: { height: "100%", backgroundColor: "#FFFFFF" },
+  dockTrackActive: {
+    height: 6,
+    borderRadius: 3,
+  },
+  dockFill: {
+    height: "100%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 2,
+  },
   controlsRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 36,
+    gap: 38,
   },
-  dockIconBtn: { padding: 8 },
+  dockIconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   dockPlayBtn: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#FFFFFF",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
 });
