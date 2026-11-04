@@ -46,56 +46,60 @@ export const AlbumSkeleton: React.FC = () => {
       </section>
 
       {/* Tracklist Skeleton */}
-      <section className="px-2 pb-10 pt-6 md:px-6">
-        <div className="grid grid-cols-12 items-center border-b border-white/10 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-500">
-          <div className="col-span-1 text-center">#</div>
-          <div className="col-span-8 sm:col-span-5 md:col-span-4 lg:col-span-4">Title</div>
-          <div className="col-span-3 hidden sm:block md:col-span-3 lg:col-span-2">Artist</div>
-          <div className="col-span-2 hidden lg:block">Album</div>
-          <div className="col-span-1 hidden md:block">Genre</div>
-          <div className="col-span-1 hidden sm:block md:col-span-1 lg:col-span-1 text-right pr-3">Plays</div>
-          <div className="col-span-3 sm:col-span-2 md:col-span-2 lg:col-span-1 text-right">Duration</div>
-        </div>
+      <section className="px-1 md:px-4 pt-6">
+        <div className="rounded-2xl border border-white/5 bg-[#121212]/60 backdrop-blur-md overflow-hidden shadow-xl">
+          <div className="grid items-center gap-4 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-500 border-b border-white/5 grid-cols-[36px_1fr_auto] sm:grid-cols-[36px_minmax(0,2fr)_minmax(110px,1fr)_90px_130px] md:grid-cols-[36px_minmax(0,3fr)_minmax(120px,2fr)_minmax(90px,1fr)_100px_130px] lg:grid-cols-[36px_minmax(0,3fr)_minmax(130px,2fr)_minmax(130px,1.5fr)_minmax(90px,1fr)_110px_140px]">
+            <div className="text-center">#</div>
+            <div>Title</div>
+            <div className="hidden sm:block">Artist</div>
+            <div className="hidden lg:block">Album</div>
+            <div className="hidden md:block">Genre</div>
+            <div className="hidden sm:block text-right pr-2">Plays</div>
+            <div className="flex items-center justify-end pr-2">Duration</div>
+          </div>
 
-        <div className="mt-2 flex flex-col gap-1">
-          {[1, 2, 3, 4, 5, 6, 7, 8].map((index) => (
-            <div
-              key={index}
-              className="grid grid-cols-12 items-center rounded-xl px-4 py-2.5 bg-zinc-900/30 border border-white/5"
-            >
-              <div className="col-span-1 text-center flex justify-center">
-                <div className="h-3 w-3 rounded bg-zinc-800" />
-              </div>
+          <div className="divide-y divide-white/5">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((index) => (
+              <div
+                key={index}
+                className="grid items-center gap-4 px-4 py-2.5 grid-cols-[36px_1fr_auto] sm:grid-cols-[36px_minmax(0,2fr)_minmax(110px,1fr)_90px_130px] md:grid-cols-[36px_minmax(0,3fr)_minmax(120px,2fr)_minmax(90px,1fr)_100px_130px] lg:grid-cols-[36px_minmax(0,3fr)_minmax(130px,2fr)_minmax(130px,1.5fr)_minmax(90px,1fr)_110px_140px]"
+              >
+                <div className="flex justify-center">
+                  <div className="h-3 w-3 rounded bg-zinc-800" />
+                </div>
 
-              <div className="col-span-8 sm:col-span-5 md:col-span-4 lg:col-span-4 flex items-center gap-3 min-w-0 pr-3">
-                <div className="h-10 w-10 shrink-0 rounded-lg bg-zinc-800" />
-                <div className="flex-1 space-y-1.5 min-w-0">
-                  <div className="h-3.5 w-4/5 rounded bg-zinc-800" />
-                  <div className="h-2.5 w-1/2 rounded bg-zinc-800/60" />
+                <div className="flex items-center gap-3 min-w-0 pr-2">
+                  <div className="h-10 w-10 shrink-0 rounded-lg bg-zinc-800" />
+                  <div className="flex-1 space-y-1.5 min-w-0">
+                    <div className="h-3.5 w-4/5 rounded bg-zinc-800" />
+                    <div className="h-2.5 w-1/2 rounded bg-zinc-800/60" />
+                  </div>
+                </div>
+
+                <div className="hidden sm:block pr-2">
+                  <div className="h-3 w-24 rounded bg-zinc-800/60" />
+                </div>
+
+                <div className="hidden lg:block pr-2">
+                  <div className="h-3 w-20 rounded bg-zinc-800/60" />
+                </div>
+
+                <div className="hidden md:block pr-2">
+                  <div className="h-3 w-14 rounded bg-zinc-800/60" />
+                </div>
+
+                <div className="hidden sm:flex justify-end pr-2">
+                  <div className="h-3 w-10 rounded bg-zinc-800/60" />
+                </div>
+
+                <div className="flex items-center justify-end gap-2.5">
+                  <div className="h-4 w-4 rounded-full bg-zinc-800/60" />
+                  <div className="h-4 w-4 rounded-full bg-zinc-800/60" />
+                  <div className="h-3 w-9 rounded bg-zinc-800/60 ml-auto" />
                 </div>
               </div>
-
-              <div className="col-span-3 hidden sm:block md:col-span-3 lg:col-span-2 pr-3">
-                <div className="h-3 w-24 rounded bg-zinc-800/60" />
-              </div>
-
-              <div className="col-span-2 hidden lg:block pr-3">
-                <div className="h-3 w-20 rounded bg-zinc-800/60" />
-              </div>
-
-              <div className="col-span-1 hidden md:block pr-3">
-                <div className="h-3 w-14 rounded bg-zinc-800/60" />
-              </div>
-
-              <div className="col-span-1 hidden sm:block md:col-span-1 lg:col-span-1 text-right pr-3">
-                <div className="h-3 w-10 rounded bg-zinc-800/60 ml-auto" />
-              </div>
-
-              <div className="col-span-3 sm:col-span-2 md:col-span-2 lg:col-span-1 text-right">
-                <div className="h-3 w-10 rounded bg-zinc-800/60 ml-auto" />
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
     </div>

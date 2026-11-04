@@ -579,21 +579,15 @@ export function AlbumClientView({
       {/* -------------------------------------------------------------------- */}
       <section className="px-1 md:px-4 pt-6">
         <div className="rounded-2xl border border-white/5 bg-[#121212]/60 backdrop-blur-md overflow-hidden shadow-xl">
-          {/* Table Header: 12-column responsive layout */}
-          <div className="grid grid-cols-12 items-center border-b border-white/5 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-400 select-none">
-            <span className="col-span-1 text-center">#</span>
-            <span className="col-span-8 sm:col-span-5 md:col-span-4 lg:col-span-4">
-              Title
-            </span>
-            <span className="col-span-3 hidden sm:block md:col-span-3 lg:col-span-2">
-              Artist
-            </span>
-            <span className="col-span-2 hidden lg:block">Album</span>
-            <span className="col-span-1 hidden md:block">Genre</span>
-            <span className="col-span-1 hidden sm:block md:col-span-1 lg:col-span-1 text-right pr-3">
-              Plays
-            </span>
-            <span className="col-span-3 sm:col-span-2 md:col-span-2 lg:col-span-1 flex items-center justify-end pr-3">
+          {/* Table Header: robust non-overlapping CSS grid layout */}
+          <div className="grid items-center gap-4 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-zinc-400 select-none border-b border-white/5 grid-cols-[36px_1fr_auto] sm:grid-cols-[36px_minmax(0,2fr)_minmax(110px,1fr)_90px_130px] md:grid-cols-[36px_minmax(0,3fr)_minmax(120px,2fr)_minmax(90px,1fr)_100px_130px] lg:grid-cols-[36px_minmax(0,3fr)_minmax(130px,2fr)_minmax(130px,1.5fr)_minmax(90px,1fr)_110px_140px]">
+            <span className="text-center">#</span>
+            <span>Title</span>
+            <span className="hidden sm:block">Artist</span>
+            <span className="hidden lg:block">Album</span>
+            <span className="hidden md:block">Genre</span>
+            <span className="hidden sm:block text-right pr-2">Plays</span>
+            <span className="flex items-center justify-end pr-2">
               <Clock size={15} />
             </span>
           </div>
@@ -609,14 +603,14 @@ export function AlbumClientView({
                 <div
                   key={song.id || index}
                   onClick={() => handlePlaySong(song, index)}
-                  className={`group grid grid-cols-12 items-center px-4 py-2.5 transition-colors duration-150 cursor-pointer ${
+                  className={`group grid items-center gap-4 px-4 py-2.5 transition-colors duration-150 cursor-pointer grid-cols-[36px_1fr_auto] sm:grid-cols-[36px_minmax(0,2fr)_minmax(110px,1fr)_90px_130px] md:grid-cols-[36px_minmax(0,3fr)_minmax(120px,2fr)_minmax(90px,1fr)_100px_130px] lg:grid-cols-[36px_minmax(0,3fr)_minmax(130px,2fr)_minmax(130px,1.5fr)_minmax(90px,1fr)_110px_140px] ${
                     isActive
                       ? "bg-white/10 text-white"
                       : "text-zinc-300 hover:bg-white/[0.06] hover:text-white"
                   }`}
                 >
-                  {/* Column 1: Index / Play Icon (col-span-1) */}
-                  <div className="col-span-1 flex items-center justify-center">
+                  {/* Column 1: Index / Play Icon */}
+                  <div className="flex items-center justify-center">
                     {isActive ? (
                       isCurrentPlaying ? (
                         <Pause
@@ -642,8 +636,8 @@ export function AlbumClientView({
                     )}
                   </div>
 
-                  {/* Column 2: Title + Thumbnail (col-span-8 sm:col-span-5 md:col-span-4 lg:col-span-4) */}
-                  <div className="col-span-8 sm:col-span-5 md:col-span-4 lg:col-span-4 flex items-center gap-3 min-w-0 pr-3">
+                  {/* Column 2: Title + Thumbnail */}
+                  <div className="flex items-center gap-3 min-w-0 pr-2">
                     <SongThumbnail
                       song={song}
                       sizeClass="w-10 h-10"
@@ -675,8 +669,8 @@ export function AlbumClientView({
                     </div>
                   </div>
 
-                  {/* Column 3: Artist (col-span-3 hidden sm:block md:col-span-3 lg:col-span-2) */}
-                  <div className="col-span-3 hidden sm:block md:col-span-3 lg:col-span-2 min-w-0 pr-3">
+                  {/* Column 3: Artist */}
+                  <div className="hidden sm:block min-w-0 pr-2">
                     <Link
                       href={`/artists/${encodeURIComponent(song.artistName || "")}`}
                       onClick={(e) => e.stopPropagation()}
@@ -687,8 +681,8 @@ export function AlbumClientView({
                     </Link>
                   </div>
 
-                  {/* Column 4: Album (col-span-2 hidden lg:block) */}
-                  <div className="col-span-2 hidden lg:block min-w-0 pr-3">
+                  {/* Column 4: Album */}
+                  <div className="hidden lg:block min-w-0 pr-2">
                     <Link
                       href={`/albums/${encodeURIComponent(song.album || albumName)}`}
                       onClick={(e) => e.stopPropagation()}
@@ -699,8 +693,8 @@ export function AlbumClientView({
                     </Link>
                   </div>
 
-                  {/* Column 5: Genre (col-span-1 hidden md:block) */}
-                  <div className="col-span-1 hidden md:block min-w-0 pr-3">
+                  {/* Column 5: Genre */}
+                  <div className="hidden md:block min-w-0 pr-2">
                     {song.genre ? (
                       <span className="inline-block max-w-full truncate rounded-full bg-white/5 border border-white/5 px-2.5 py-0.5 text-[11px] font-medium text-zinc-400">
                         {song.genre}
@@ -710,8 +704,8 @@ export function AlbumClientView({
                     )}
                   </div>
 
-                  {/* Column 6: Plays (col-span-1 hidden sm:block md:col-span-1 lg:col-span-1) */}
-                  <div className="col-span-1 hidden sm:flex items-center justify-end font-mono text-xs text-zinc-400 pr-3">
+                  {/* Column 6: Plays */}
+                  <div className="hidden sm:flex items-center justify-end font-mono text-xs text-zinc-400 pr-2">
                     <span className="text-zinc-300 font-medium">
                       {song.totalStreams
                         ? formatStreamCount(song.totalStreams)
@@ -719,13 +713,13 @@ export function AlbumClientView({
                     </span>
                   </div>
 
-                  {/* Column 7: Actions & Duration (col-span-3 sm:col-span-2 md:col-span-2 lg:col-span-1) */}
-                  <div className="col-span-3 sm:col-span-2 md:col-span-2 lg:col-span-1 flex items-center justify-end gap-2 pr-3">
+                  {/* Column 7: Actions & Duration */}
+                  <div className="flex items-center justify-end gap-2.5">
                     {/* Favorite Heart Button */}
                     <button
                       type="button"
                       onClick={(e) => handleToggleFavourite(song, e)}
-                      className={`p-1.5 rounded-full transition-transform active:scale-90 ${
+                      className={`p-1.5 rounded-full transition-all active:scale-90 ${
                         isFavourite
                           ? "text-red-500 hover:text-red-400"
                           : "text-zinc-500 opacity-0 group-hover:opacity-100 hover:text-white"
@@ -737,7 +731,7 @@ export function AlbumClientView({
                       }
                     >
                       <Heart
-                        size={15}
+                        size={16}
                         className={isFavourite ? "fill-current" : ""}
                       />
                     </button>
@@ -751,7 +745,7 @@ export function AlbumClientView({
                           className="p-1.5 rounded-full text-zinc-500 opacity-0 group-hover:opacity-100 hover:text-white transition-opacity focus:opacity-100 cursor-pointer"
                           title="More options"
                         >
-                          <MoreVertical size={15} />
+                          <MoreVertical size={16} />
                         </button>
                       </DropdownMenuTrigger>
 
@@ -806,7 +800,7 @@ export function AlbumClientView({
                     </DropdownMenu>
 
                     {/* Track Duration */}
-                    <span className="text-xs tabular-nums text-zinc-400 min-w-[36px] text-right">
+                    <span className="text-xs tabular-nums text-zinc-400 text-right w-11 shrink-0">
                       {song.duration ? formatDuration(song.duration) : "--:--"}
                     </span>
                   </div>
