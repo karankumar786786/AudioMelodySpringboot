@@ -6,7 +6,6 @@ import { Play } from "lucide-react";
 import { type Playlist } from "../lib/api";
 import { getImageUrl } from "../lib/image-utils";
 import { motion } from "framer-motion";
-import { MagicCard } from "@/components/ui/magic-card";
 
 interface PlaylistCardProps {
   playlist: Playlist;
@@ -32,13 +31,7 @@ export function PlaylistCard({ playlist }: PlaylistCardProps) {
         transition={{ duration: 0.2 }}
         className="h-full"
       >
-        <MagicCard
-          gradientColor="rgba(255, 255, 255, 0.12)"
-          gradientFrom="#ffffff"
-          gradientTo="#a1a1aa"
-          gradientSize={200}
-          className="bg-black/90 p-2.5 rounded-xl hover:bg-[#222222] border border-white/5 hover:border-white/15 transition-all duration-300 space-y-2.5"
-        >
+        <div className="bg-black/90 p-2.5 rounded-xl hover:bg-[#222222] border border-white/5 hover:border-white/15 transition-all duration-300 space-y-2.5 h-full">
           <div className="relative aspect-square overflow-hidden rounded-lg bg-zinc-900 shadow-md">
             {imageUrl ? (
               <Image
@@ -71,7 +64,7 @@ export function PlaylistCard({ playlist }: PlaylistCardProps) {
               {playlist.totalSongs} {playlist.totalSongs === 1 ? "track" : "tracks"}
             </p>
           </div>
-        </MagicCard>
+        </div>
       </motion.div>
     </Link>
   );

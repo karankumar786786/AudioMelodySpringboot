@@ -117,10 +117,10 @@ export function ArtistCard({ artist, className = "" }: ArtistCardProps) {
       <motion.div
         whileHover={{ scale: 1.03 }}
         transition={{ duration: 0.2 }}
-        className="bg-black/90 hover:bg-zinc-900/80 p-2 rounded-xl border border-white/5 hover:border-white/20 transition-all duration-300 space-y-2 relative"
+        className="bg-black/90 hover:bg-zinc-900/80 p-2 rounded-xl transition-all duration-300 space-y-2 relative"
       >
         <div className="relative mx-auto w-24 h-24 sm:w-26 sm:h-26">
-          <Avatar className="w-full h-full shadow-lg transition-colors ring-1 ring-white/10 group-hover:ring-white/25">
+          <Avatar className="w-full h-full shadow-lg transition-colors">
             <AvatarImage
               src={imageUrl}
               alt={artist.name}

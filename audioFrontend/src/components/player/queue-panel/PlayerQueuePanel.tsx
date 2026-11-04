@@ -9,7 +9,6 @@ import { musicApi, type Song } from "@/lib/api";
 import { previewPlayer } from "@/lib/preview-player";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { BorderBeam } from "@/components/ui/border-beam";
 import type { PlayerQueuePanelProps } from "./types";
 import { QueuePanelHeader } from "./QueuePanelHeader";
 import { NowPlayingCard } from "./NowPlayingCard";
@@ -115,8 +114,6 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
       ref={panelRef}
       className="fixed right-4 md:right-80 bottom-24 z-50 w-85 sm:w-96 h-125 max-h-[80vh] bg-[#141414]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-200"
     >
-      <BorderBeam size={160} duration={8} colorFrom="#ffffff" colorTo="#a1a1aa" />
-
       {/* Header with Segmented Tabs */}
       <QueuePanelHeader
         activeTab={activeTab}
