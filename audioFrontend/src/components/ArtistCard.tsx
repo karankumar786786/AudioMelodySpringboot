@@ -39,7 +39,7 @@ export function ArtistCard({ artist }: ArtistCardProps) {
         transition={{ duration: 0.2 }}
         className="bg-black/90 p-2 rounded-xl  border   transition-all duration-300 space-y-2"
       >
-        <Avatar className="w-24 h-24 sm:w-26 sm:h-26 mx-auto border border-white/10 shadow-lg  transition-colors">
+        <Avatar className="w-24 h-24 sm:w-26 sm:h-26 mx-auto shadow-lg  transition-colors">
           <AvatarImage
             src={imageUrl}
             alt={artist.name}
