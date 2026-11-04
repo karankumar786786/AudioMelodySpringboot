@@ -8,8 +8,20 @@ export const interactionsApi = {
     return { data: { data: list } };
   },
   getRecommendations: async (count = 10) => {
-    // Backend recommendations are contextual item-to-item vibe based (/api/recommendations/radio).
-    // For general recommendations without an active seed, return trending catalog tracks.
+    // 1. Personalized recommendations from backend /api/recommendations/user (Recombee + DB fallback)
+    try {
+      const res = await request<Song[]>(
+        `/api/recommendations/user?count=${count}`,
+      );
+      const list = Array.isArray(res) ? res : [];
+      if (list.length > 0) {
+        return { data: { data: list } };
+      }
+    } catch (err) {
+      console.warn("[InteractionsApi] /api/recommendations/user failed:", err);
+    }
+
+    // 2. Fallback: Trending catalog tracks
     try {
       const res = await request<Song[]>(`/api/songs/trending?limit=${count}`);
       const list = Array.isArray(res) ? res : [];
@@ -18,6 +30,7 @@ export const interactionsApi = {
       }
     } catch {}
 
+    // 3. Fallback: Paginated songs
     try {
       const res = await request(`/api/songs?page=0&size=${count}`);
       const list = res.content || (Array.isArray(res) ? res : []);

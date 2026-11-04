@@ -55,12 +55,102 @@ class RecommendationApiServiceTest {
     }
 
     @Test
-    @DisplayName("Should return empty list gracefully when Recombee fails")
+    @DisplayName("Should return empty list gracefully when Recombee fails and no songsRepository provided")
     void shouldHandleRecombeeFailureGracefully() throws Exception {
         when(recombee.recommendRadioDetailed("seed-1", List.of(), 5)).thenThrow(new RuntimeException("Connection timeout"));
 
         List<SongDto> dtos = recommendationApiService.recommendRadio("seed-1", List.of(), 5);
 
         assertThat(dtos).isEmpty();
+    }
+
+    @Test
+    @DisplayName("Should fallback to database songs by album, genre, artist, and language when Recombee returns empty")
+    void shouldFallbackToDatabaseWhenRecombeeReturnsEmpty() throws Exception {
+        me.one_org.melody.Repository.SongsRepository mockSongsRepo = mock(me.one_org.melody.Repository.SongsRepository.class);
+        RecommendationApiService serviceWithFallback = new RecommendationApiService(recombee, mockSongsRepo);
+
+        when(recombee.recommendSimilarDetailed("seed-1", 5)).thenReturn(List.of());
+
+        me.one_org.melody.Entity.Song seed = me.one_org.melody.Entity.Song.builder()
+                .id("seed-1")
+                .title("Seed Title")
+                .artistName("Seed Artist")
+                .genre("Pop")
+                .album("Seed Album")
+                .language("Hindi")
+                .build();
+        when(mockSongsRepo.findById("seed-1")).thenReturn(java.util.Optional.of(seed));
+
+        me.one_org.melody.Entity.Song fallbackSong = me.one_org.melody.Entity.Song.builder()
+                .id("song-fallback")
+                .title("Fallback Title")
+                .artistName("Seed Artist")
+                .genre("Pop")
+                .album("Seed Album")
+                .language("Hindi")
+                .build();
+        when(mockSongsRepo.findRadioFallback("Seed Album", "Pop", "Seed Artist", "Hindi", List.of("seed-1"), 5))
+                .thenReturn(List.of(fallbackSong));
+
+        List<SongDto> results = serviceWithFallback.recommendSimilar("seed-1", 5);
+
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).id()).isEqualTo("song-fallback");
+        assertThat(results.get(0).title()).isEqualTo("Fallback Title");
+    }
+
+    @Test
+    @DisplayName("Should recommend for user from Recombee and hydrate from database")
+    void shouldRecommendForUserFromRecombee() throws Exception {
+        me.one_org.melody.Repository.SongsRepository mockSongsRepo = mock(me.one_org.melody.Repository.SongsRepository.class);
+        RecommendationApiService service = new RecommendationApiService(recombee, mockSongsRepo);
+
+        when(recombee.recommendForUser("user-1", 5)).thenReturn(List.of("song-1", "song-2"));
+
+        me.one_org.melody.Entity.Song s1 = me.one_org.melody.Entity.Song.builder()
+                .id("song-1")
+                .title("Song 1")
+                .artistName("Artist 1")
+                .status(me.one_org.melody.Enums.StatusEnum.ACTIVE)
+                .build();
+        me.one_org.melody.Entity.Song s2 = me.one_org.melody.Entity.Song.builder()
+                .id("song-2")
+                .title("Song 2")
+                .artistName("Artist 2")
+                .status(me.one_org.melody.Enums.StatusEnum.ACTIVE)
+                .build();
+
+        when(mockSongsRepo.findAllByIds(List.of("song-1", "song-2"))).thenReturn(List.of(s1, s2));
+
+        List<SongDto> results = service.recommendForUser("user-1", 5);
+
+        assertThat(results).hasSize(2);
+        assertThat(results.get(0).id()).isEqualTo("song-1");
+        assertThat(results.get(1).id()).isEqualTo("song-2");
+    }
+
+    @Test
+    @DisplayName("Should fallback to catalog songs when user recommendations fail or return empty")
+    void shouldFallbackToCatalogWhenUserRecommendationsEmpty() throws Exception {
+        me.one_org.melody.Repository.SongsRepository mockSongsRepo = mock(me.one_org.melody.Repository.SongsRepository.class);
+        RecommendationApiService service = new RecommendationApiService(recombee, mockSongsRepo);
+
+        when(recombee.recommendForUser("user-new", 5)).thenReturn(List.of());
+
+        me.one_org.melody.Entity.Song catalogSong = me.one_org.melody.Entity.Song.builder()
+                .id("song-cat")
+                .title("Catalog Track")
+                .artistName("Catalog Artist")
+                .status(me.one_org.melody.Enums.StatusEnum.ACTIVE)
+                .build();
+
+        when(mockSongsRepo.findActiveSongs(org.springframework.data.domain.PageRequest.of(0, 5)))
+                .thenReturn(List.of(catalogSong));
+
+        List<SongDto> results = service.recommendForUser("user-new", 5);
+
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0).id()).isEqualTo("song-cat");
     }
 }

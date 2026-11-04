@@ -137,10 +137,47 @@ public interface SongsRepository extends JpaRepository<Song, String> {
     @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.language) = LOWER(:language) AND s.id NOT IN :excluded ORDER BY s.createdAt DESC")
     List<Song> findActiveByLanguageExcluding(@Param("language") String language, @Param("excluded") List<String> excluded, Pageable pageable);
 
-    default List<Song> findRadioFallback(String artistName, String language, List<String> excludeIds, int limit) {
+    @EntityGraph(attributePaths = {"songMetadata"})
+    @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND (LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%'))) ORDER BY s.createdAt DESC")
+    List<Song> findActiveByGenre(@Param("genre") String genre, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"songMetadata"})
+    @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND (LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%'))) AND s.id NOT IN :excluded ORDER BY s.createdAt DESC")
+    List<Song> findActiveByGenreExcluding(@Param("genre") String genre, @Param("excluded") List<String> excluded, Pageable pageable);
+
+    default List<Song> findRadioFallback(String album, String genre, String artistName, String language, List<String> excludeIds, int limit) {
         List<Song> results = new ArrayList<>();
         List<String> excluded = excludeIds != null ? new ArrayList<>(excludeIds) : new ArrayList<>();
 
+        // 1. Same Album / Movie (capped at 3 to preserve radio diversity across artists/genres)
+        if (album != null && !album.isBlank() && results.size() < limit) {
+            int albumCap = Math.min(3, limit);
+            int albumAdded = 0;
+            List<Song> albumMatches = findByAlbum(album.trim());
+            for (Song s : albumMatches) {
+                if (!excluded.contains(s.getId())) {
+                    results.add(s);
+                    excluded.add(s.getId());
+                    albumAdded++;
+                    if (results.size() >= limit || albumAdded >= albumCap) break;
+                }
+            }
+        }
+
+        // 2. Same Genre
+        if (genre != null && !genre.isBlank() && results.size() < limit) {
+            int needed = limit - results.size();
+            List<Song> genreMatches = excluded.isEmpty()
+                    ? findActiveByGenre(genre.trim(), PageRequest.of(0, needed))
+                    : findActiveByGenreExcluding(genre.trim(), excluded, PageRequest.of(0, needed));
+            for (Song s : genreMatches) {
+                results.add(s);
+                excluded.add(s.getId());
+                if (results.size() >= limit) break;
+            }
+        }
+
+        // 3. Same Artist
         if (artistName != null && !artistName.isBlank() && results.size() < limit) {
             int needed = limit - results.size();
             List<Song> artistMatches = excluded.isEmpty()
@@ -149,9 +186,11 @@ public interface SongsRepository extends JpaRepository<Song, String> {
             for (Song s : artistMatches) {
                 results.add(s);
                 excluded.add(s.getId());
+                if (results.size() >= limit) break;
             }
         }
 
+        // 4. Same Language
         if (language != null && !language.isBlank() && results.size() < limit) {
             int needed = limit - results.size();
             List<Song> langMatches = excluded.isEmpty()
@@ -160,9 +199,11 @@ public interface SongsRepository extends JpaRepository<Song, String> {
             for (Song s : langMatches) {
                 results.add(s);
                 excluded.add(s.getId());
+                if (results.size() >= limit) break;
             }
         }
 
+        // 5. Active general catalog tracks
         if (results.size() < limit) {
             int needed = limit - results.size();
             List<Song> generalMatches = excluded.isEmpty()
@@ -172,6 +213,10 @@ public interface SongsRepository extends JpaRepository<Song, String> {
         }
 
         return results;
+    }
+
+    default List<Song> findRadioFallback(String artistName, String language, List<String> excludeIds, int limit) {
+        return findRadioFallback(null, null, artistName, language, excludeIds, limit);
     }
 
     @EntityGraph(attributePaths = {"songMetadata"})

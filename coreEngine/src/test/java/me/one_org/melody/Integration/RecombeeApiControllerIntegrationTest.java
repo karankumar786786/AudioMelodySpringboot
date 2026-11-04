@@ -16,6 +16,8 @@ import me.one_org.melody.Controllers.Api.RecombeeApiController;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Services.Api.RecommendationApiService;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -63,5 +65,18 @@ class RecombeeApiControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value("s-rad-3"));
+    }
+
+    @Test
+    @DisplayName("GET /api/recommendations/user should return personalized recommendations")
+    void shouldRecommendForUser() throws Exception {
+        SongDto song = new SongDto("s-user-1", "User Recommended Song", "Artist U", 210, "key", "img", null, null, null, null, false, "English", "Pop", "Album", "lrc", null, 1500L, null);
+        when(recommendationApiService.recommendForUser(any(), eq(10))).thenReturn(List.of(song));
+
+        mockMvc.perform(get("/api/recommendations/user")
+                        .param("count", "10")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value("s-user-1"));
     }
 }
