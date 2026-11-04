@@ -65,16 +65,16 @@ export const PlaybackHistoryList: React.FC<PlaybackHistoryListProps> = ({
 
               {/* Title & Artist */}
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-semibold text-white truncate">
+                <p className="text-[12.5px] font-semibold text-zinc-100 group-hover:text-white truncate leading-snug">
                   {song.title}
                 </p>
-                <p className="text-[11px] text-zinc-400 truncate">
-                  {song.artistName}
+                <p className="text-[11.5px] text-zinc-300 truncate leading-normal">
+                  <span className="text-zinc-200 font-medium">{song.artistName}</span>
                   {song.album && (
-                    <span className="text-zinc-400"> • {song.album}</span>
+                    <span className="text-zinc-400 font-normal"> • {song.album}</span>
                   )}
                   {song.genre && (
-                    <span className="text-zinc-500"> • {song.genre}</span>
+                    <span className="text-zinc-400 font-normal"> • {song.genre}</span>
                   )}
                 </p>
               </div>

@@ -124,56 +124,56 @@ export const UpcomingQueueList: React.FC<UpcomingQueueListProps> = ({
               >
                 {/* Drag Handle */}
                 <div
-                  className="cursor-grab active:cursor-grabbing text-zinc-500 hover:text-white p-0.5"
+                  className="cursor-grab active:cursor-grabbing text-zinc-500 hover:text-zinc-300 p-0.5 shrink-0"
                   title="Drag to reorder"
                 >
                   <GripVertical size={14} />
                 </div>
 
                 {/* Song Thumbnail with Hover Preview */}
-                <SongThumbnail
-                  song={song}
-                  sizeClass="w-8 h-8"
-                  roundedClass="rounded"
-                  enablePreviewHover={true}
-                  onPlayClick={() => playerActions.playFromQueue(index)}
-                />
+                <div className="shrink-0">
+                  <SongThumbnail
+                    song={song}
+                    sizeClass="w-9 h-9"
+                    roundedClass="rounded-md"
+                    enablePreviewHover={true}
+                    onPlayClick={() => playerActions.playFromQueue(index)}
+                  />
+                </div>
 
                 {/* Title & Artist */}
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-semibold text-white truncate">
+                  <p className="text-[12.5px] font-semibold text-zinc-100 group-hover:text-white truncate leading-snug">
                     {song.title}
                   </p>
-                  <p className="text-[11px] text-zinc-400 truncate">
-                    {song.artistName}
+                  <p className="text-[11.5px] text-zinc-300 truncate leading-normal">
+                    <span className="text-zinc-200 font-medium">{song.artistName}</span>
                     {song.album && (
-                      <span className="text-zinc-400"> • {song.album}</span>
+                      <span className="text-zinc-400 font-normal"> • {song.album}</span>
                     )}
                     {song.genre && (
-                      <span className="text-zinc-500"> • {song.genre}</span>
+                      <span className="text-zinc-400 font-normal"> • {song.genre}</span>
                     )}
                   </p>
                 </div>
 
-                {/* Queue Actions */}
-                <div className="flex items-center gap-1 opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                {/* Duration & Actions */}
+                <div className="flex items-center gap-1.5 shrink-0 pl-2 ml-auto">
+                  <span className="text-[11.5px] font-mono font-medium text-zinc-400 tabular-nums">
+                    {formatDuration(song.duration)}
+                  </span>
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       playerActions.removeFromQueue(index);
                     }}
-                    className="p-1 rounded text-zinc-400 hover:text-red-400 hover:bg-red-500/10 cursor-pointer"
+                    className="p-1 rounded text-zinc-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
                     title="Remove from queue"
                   >
                     <Trash2 size={13} />
                   </button>
                 </div>
-
-                {/* Duration */}
-                <span className="text-[11px] mx-3 font-normal text-zinc-400 tabular-nums shrink-0">
-                  {formatDuration(song.duration)}
-                </span>
               </div>
             );
           })}

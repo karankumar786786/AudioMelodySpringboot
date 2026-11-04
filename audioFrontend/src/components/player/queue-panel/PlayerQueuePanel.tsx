@@ -112,7 +112,7 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
   return (
     <div
       ref={panelRef}
-      className="fixed right-4 md:right-80 bottom-24 z-50 w-85 sm:w-96 h-125 max-h-[80vh] bg-[#141414]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-200"
+      className="fixed right-4 md:right-80 bottom-24 z-50 w-[360px] sm:w-[420px] max-w-[calc(100vw-32px)] h-[520px] max-h-[82vh] bg-[#141414]/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-200"
     >
       {/* Header with Segmented Tabs */}
       <QueuePanelHeader
@@ -124,8 +124,8 @@ export function PlayerQueuePanel({ open, onClose }: PlayerQueuePanelProps) {
         onClose={onClose}
       />
 
-      <ScrollArea className="flex-1">
-        <div className="px-3 py-3 space-y-4">
+      <ScrollArea className="flex-1 w-full min-w-0">
+        <div className="px-3 py-3 space-y-4 w-full min-w-0">
           {activeTab === "queue" ? (
             <>
               {currentSong && <NowPlayingCard currentSong={currentSong} />}
