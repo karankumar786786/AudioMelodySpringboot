@@ -45,6 +45,19 @@ export const ZenBackground: React.FC<ZenBackgroundProps> = ({
               loop
               muted
               playsInline
+              onEnded={(e) => {
+                e.currentTarget.currentTime = 0;
+                e.currentTarget.play().catch(() => {});
+              }}
+              onError={(e) => {
+                const videoEl = e.currentTarget;
+                setTimeout(() => {
+                  if (videoEl) {
+                    videoEl.load();
+                    videoEl.play().catch(() => {});
+                  }
+                }, 2500);
+              }}
               className="w-full h-full object-cover scale-105 filter brightness-[0.45] contrast-[1.08] saturate-[1.25]"
             />
             {/* Color Tint Overlay over video */}

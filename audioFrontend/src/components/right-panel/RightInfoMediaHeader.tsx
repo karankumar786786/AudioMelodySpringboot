@@ -50,6 +50,19 @@ export function RightInfoMediaHeader({
           onLoadedData={() => setMediaLoaded(true)}
           onCanPlay={() => setMediaLoaded(true)}
           onPlay={() => setMediaLoaded(true)}
+          onEnded={(e) => {
+            e.currentTarget.currentTime = 0;
+            e.currentTarget.play().catch(() => {});
+          }}
+          onError={(e) => {
+            const videoEl = e.currentTarget;
+            setTimeout(() => {
+              if (videoEl) {
+                videoEl.load();
+                videoEl.play().catch(() => {});
+              }
+            }, 2500);
+          }}
           className={`absolute inset-0 w-full h-full object-cover object-center rounded-t-2xl transition-opacity duration-500 ease-in-out ${
             mediaLoaded ? "opacity-100" : "opacity-0"
           }`}
