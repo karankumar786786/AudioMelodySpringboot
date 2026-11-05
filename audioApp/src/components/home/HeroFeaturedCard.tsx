@@ -1,12 +1,10 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { Song } from "@/types";
-import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
 import { formatSongSubtitle } from "@/utils/formatUtils";
 import { getImageUrl } from "@/utils/imageUtils";
-import { useDominantColor } from "@/utils/colorUtils";
 import { hapticFeedback } from "@/utils/haptics";
 import { shadows } from "@/theme";
 
@@ -34,25 +32,20 @@ export function HeroFeaturedCard({
   isPlaying,
   isAudioPlaying = false,
   isCurrentTrack = false,
-  isFocused = true,
   cardWidth,
   totalSlides = 1,
   activeIndex = 0,
 }: HeroFeaturedCardProps) {
-  const shouldPlayCanvas = isFocused ?? isPlaying ?? true;
-  const effectiveAudioPlaying = isAudioPlaying || (isCurrentTrack && Boolean(isPlaying));
+  const effectiveAudioPlaying =
+    isAudioPlaying || (isCurrentTrack && Boolean(isPlaying));
 
-  const coverUrl = getImageUrl(song.imageKey, {
-    width: 400,
-    height: 400,
+  const imageUrl = getImageUrl(song.imageKey, {
+    width: 800,
+    height: 520,
     focus: "auto",
-    aspectRatio: "1-1",
+    aspectRatio: "16-9",
+    crop: "at_least",
   });
-
-  const { dominantColor } = useDominantColor(
-    coverUrl,
-    song.title || song.artistName || String(song.id),
-  );
 
   const handleLike = () => {
     hapticFeedback.light();
@@ -68,46 +61,32 @@ export function HeroFeaturedCard({
     <TouchableOpacity
       style={[
         styles.card,
-        {
-          backgroundColor: dominantColor,
-          borderColor: `${dominantColor}66`,
-        },
         cardWidth ? { width: cardWidth, marginHorizontal: 0 } : null,
       ]}
       onPress={onPress}
       activeOpacity={0.95}
     >
-      {/* 1. Top Video/Canvas Preview Area: 260px */}
-      <View
-        style={[
-          styles.videoContainer,
-          { backgroundColor: `${dominantColor}33` },
-        ]}
-      >
-        {/* Decorative background shapes for fallback when canvas video is loading */}
-        <View
-          style={[
-            styles.decorativeCircleOne,
-            { backgroundColor: `${dominantColor}66` },
-          ]}
-        />
-        <View
-          style={[
-            styles.decorativeCircleTwo,
-            { backgroundColor: `${dominantColor}22` },
-          ]}
-        />
+      {/* 1. Top Image Preview Area: 260px rounded container */}
+      <View style={styles.imageContainer}>
+        {imageUrl ? (
+          <Image
+            source={{ uri: imageUrl }}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            transition={200}
+            cachePolicy="memory"
+          />
+        ) : (
+          <View style={[StyleSheet.absoluteFill, styles.fallbackContainer]}>
+            <Ionicons
+              name="musical-notes"
+              size={48}
+              color="rgba(255, 255, 255, 0.4)"
+            />
+          </View>
+        )}
 
-        {/* Focused card plays the silent looping canvas video */}
-        <CanvasVideoPlayer
-          videoKey={song.videoKey || (song as any).canvasKey}
-          fallbackImageKey={song.imageKey}
-          style={StyleSheet.absoluteFill}
-          isPlaying={shouldPlayCanvas}
-          showFallbackImage={true}
-        />
-
-        {/* Pager Dots at bottom of the video container */}
+        {/* Pager Dots at bottom of the image container */}
         {totalSlides > 1 ? (
           <View style={styles.pagerContainer} pointerEvents="none">
             {Array.from({ length: totalSlides }).map((_, i) => {
@@ -126,24 +105,8 @@ export function HeroFeaturedCard({
         ) : null}
       </View>
 
-      {/* 2. Bottom Metadata & Controls Area: 140px */}
-      <View
-        style={[
-          styles.bottomBar,
-          { backgroundColor: dominantColor },
-        ]}
-      >
-        <LinearGradient
-          colors={[
-            `${dominantColor}FA`,
-            `${dominantColor}D4`,
-            "#121214",
-          ]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
-
+      {/* 2. Bottom Metadata & Controls Area: Transparent like video / song cards */}
+      <View style={styles.bottomBar}>
         <View style={styles.metaInfo}>
           <Text style={styles.title} numberOfLines={1}>
             {song.title}
@@ -164,7 +127,7 @@ export function HeroFeaturedCard({
           >
             <Ionicons
               name={isLiked ? "heart" : "heart-outline"}
-              size={22}
+              size={24}
               color={isLiked ? "#E23D3D" : "#FFFFFF"}
             />
           </TouchableOpacity>
@@ -180,7 +143,11 @@ export function HeroFeaturedCard({
               name={isCurrentTrack && effectiveAudioPlaying ? "pause" : "play"}
               size={22}
               color="#0B0B0C"
-              style={isCurrentTrack && effectiveAudioPlaying ? undefined : { marginLeft: 2 }}
+              style={
+                isCurrentTrack && effectiveAudioPlaying
+                  ? undefined
+                  : { marginLeft: 2 }
+              }
             />
           </TouchableOpacity>
         </View>
@@ -191,35 +158,24 @@ export function HeroFeaturedCard({
 
 const styles = StyleSheet.create({
   card: {
-    height: 400,
-    borderRadius: 24,
-    overflow: "hidden",
     marginHorizontal: 20,
+    backgroundColor: "transparent",
     position: "relative",
-    borderWidth: 1,
-    ...shadows.md,
   },
-  videoContainer: {
+  imageContainer: {
     width: "100%",
     height: 260,
+    borderRadius: 24,
+    backgroundColor: "#161618",
     overflow: "hidden",
     position: "relative",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
-  decorativeCircleOne: {
-    position: "absolute",
-    right: -90,
-    top: -60,
-    width: 320,
-    height: 320,
-    borderRadius: 160,
-  },
-  decorativeCircleTwo: {
-    position: "absolute",
-    left: -50,
-    bottom: -40,
-    width: 180,
-    height: 180,
-    borderRadius: 90,
+  fallbackContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#1E1E20",
   },
   pagerContainer: {
     position: "absolute",
@@ -245,47 +201,40 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.45)",
   },
   bottomBar: {
-    height: 140,
-    paddingLeft: 20,
-    paddingRight: 16,
+    paddingTop: 14,
+    paddingHorizontal: 2,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
-    position: "relative",
+    backgroundColor: "transparent",
   },
   metaInfo: {
     flex: 1,
     minWidth: 0,
-    zIndex: 2,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "800",
-    letterSpacing: -0.24,
+    letterSpacing: -0.3,
     color: "#FFFFFF",
-    marginTop: 4,
     marginBottom: 4,
   },
   subtitle: {
     fontSize: 13,
-    color: "rgba(255, 255, 255, 0.78)",
+    color: "#8E8E93",
     fontWeight: "500",
   },
   actionsRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
     flexShrink: 0,
-    zIndex: 2,
   },
   heartButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "rgba(255, 255, 255, 0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.18)",
     alignItems: "center",
     justifyContent: "center",
   },

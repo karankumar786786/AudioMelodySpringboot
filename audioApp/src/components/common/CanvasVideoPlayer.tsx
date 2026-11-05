@@ -21,6 +21,9 @@ interface CanvasVideoPlayerProps {
   isPlaying?: boolean;
   showLoaderWhenVideoAvailable?: boolean;
   showFallbackImage?: boolean;
+  showLoader?: boolean;
+  onReady?: () => void;
+  onLoadingChange?: (loading: boolean) => void;
 }
 
 function VideoSurface({
@@ -39,6 +42,11 @@ function VideoSurface({
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
   const hasTriggeredReady = useRef(false);
+
+  // Reset ready trigger when URL changes
+  useEffect(() => {
+    hasTriggeredReady.current = false;
+  }, [videoUrl]);
 
   // Standard VideoSource for smooth AVPlayer / ExoPlayer streaming
   const videoSource = React.useMemo(
@@ -113,8 +121,6 @@ function VideoSurface({
           hasTriggeredReady.current = true;
           onReadyRef.current?.();
         }
-        // Native expo-video dispatches setAppropriateAudioSessionOrWarn to a background queue
-        // when isPlaying changes. Reassert audio priority after a short delay so lock screen controls stay active!
         setTimeout(restoreSession, 60);
       }
     });
@@ -163,7 +169,11 @@ export function CanvasVideoPlayer({
   fallbackImageKey,
   style,
   isPlaying = true,
-  showFallbackImage = false,
+  showFallbackImage = true,
+  showLoader = true,
+  showLoaderWhenVideoAvailable,
+  onReady,
+  onLoadingChange,
 }: CanvasVideoPlayerProps) {
   const videoUrl =
     (directVideoUrl
@@ -188,12 +198,26 @@ export function CanvasVideoPlayer({
     setIsVideoReady(false);
   }, [videoUrl]);
 
-  // Only render fallback image if there is NO videoUrl available
-  const shouldRenderImage = !videoUrl && (showFallbackImage || Boolean(imageUrl));
+  const handleVideoReady = () => {
+    setIsVideoReady(true);
+    onReady?.();
+  };
+
+  const isVideoLoading = Boolean(videoUrl) && !isVideoReady && isPlaying;
+  const shouldShowLoader =
+    (showLoader ?? showLoaderWhenVideoAvailable ?? true) && isVideoLoading;
+
+  useEffect(() => {
+    onLoadingChange?.(isVideoLoading);
+  }, [isVideoLoading, onLoadingChange]);
+
+  // Render backdrop artwork while video is buffering or as main fallback
+  const shouldRenderImage =
+    showFallbackImage || !videoUrl || (!isVideoReady && Boolean(imageUrl));
 
   return (
     <View style={[styles.container, style]} pointerEvents="none">
-      {/* Fallback image rendered ONLY if there is NO videoUrl */}
+      {/* Backdrop artwork displayed while video buffers or when no video available */}
       {shouldRenderImage && imageUrl ? (
         <Image
           source={{ uri: imageUrl }}
@@ -210,17 +234,19 @@ export function CanvasVideoPlayer({
         <VideoSurface
           videoUrl={videoUrl}
           isPlaying={isPlaying}
-          onReady={() => setIsVideoReady(true)}
+          onReady={handleVideoReady}
           onError={(err) => {
             console.warn("[CanvasVideoPlayer] Canvas video error:", err);
           }}
         />
       ) : null}
 
-      {/* Clean loader while video is buffering instead of fallback image */}
-      {!isVideoReady && videoUrl ? (
+      {/* Prominent frosted circular loader while canvas video is loading/buffering */}
+      {shouldShowLoader ? (
         <View style={styles.loaderContainer} pointerEvents="none">
-          <ActivityIndicator size="small" color="rgba(255, 255, 255, 0.75)" />
+          <View style={styles.loaderBackdrop}>
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          </View>
         </View>
       ) : null}
     </View>
@@ -233,13 +259,23 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   fallbackContainer: {
-    backgroundColor: "transparent",
+    backgroundColor: "#000000",
   },
   loaderContainer: {
     ...StyleSheet.absoluteFill,
     backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
-    zIndex: 2,
+    zIndex: 15,
+  },
+  loaderBackdrop: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "rgba(0, 0, 0, 0.65)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
