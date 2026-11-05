@@ -7,7 +7,6 @@ import {
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
-  useWindowDimensions,
   NativeSyntheticEvent,
   NativeScrollEvent,
   LayoutAnimation,
@@ -21,23 +20,23 @@ import {
 import { useRouter } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
-import { Ionicons } from "@expo/vector-icons";
 import { AppDispatch, AppState, loadUserProfile } from "@/store";
 import { playWithSimilarSongs } from "@/store/queueActions";
-import { homeService, albumService } from "@/service";
+import { homeService, albumService, userService } from "@/service";
+import { audioPlayerService } from "@/service/audioPlayerService";
 import {
-  TrendingSongCard,
-  ArtistCircleCard,
-  PlaylistCard,
-  AlbumCard,
+  FeaturedSongsCarousel,
+  JumpBackInCard,
+  WatchVideoCard,
   SongRowItem,
-  HomeSkeleton,
-  QuickPickCard,
+  AlbumCard,
+  ArtistCircleCard,
   SectionHeader,
+  HomeSkeleton,
 } from "@/components";
 import { homeStyles as styles } from "@/styles";
 import { hapticFeedback } from "@/utils/haptics";
-import { colors, spacing } from "@/theme";
+import { Song } from "@/types";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -48,38 +47,24 @@ const TAB_BAR_HEIGHT = 64;
 const MINI_PLAYER_HEIGHT = 74;
 const EXTRA_BREATHING_ROOM = 32;
 
-const SIDE = spacing.side;
-const GRID_GAP = 8;
-
-const CATEGORIES = [
-  "All",
-  "Trending",
-  "Albums",
-  "Artists",
-  "Playlists",
-  "Explore",
-] as const;
+const CATEGORIES = ["All", "Featured", "Videos", "Albums"] as const;
 type Category = (typeof CATEGORIES)[number];
 
 export default function HomeScreen() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<Category>("All");
 
   const bottomSpace =
     TAB_BAR_HEIGHT + MINI_PLAYER_HEIGHT + EXTRA_BREATHING_ROOM + insets.bottom;
-  const tileWidth = (width - SIDE * 2 - GRID_GAP) / 2;
 
   const profile = useSelector((state: AppState) => state.user.profile);
-  const currentSong = useSelector(
-    (state: AppState) => state.player.currentSong,
-  );
+  const currentSong = useSelector((state: AppState) => state.player.currentSong);
   const isPlaying = useSelector((state: AppState) => state.player.isPlaying);
 
-  // 1. Featured Songs (Quick Picks Grid)
+  // 1. Featured Songs (Hero Carousel)
   const {
     data: featuredSongs = [],
     isLoading: isFeaturedLoading,
@@ -90,18 +75,30 @@ export default function HomeScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // 2. Trending Songs
+  // 2. Trending Songs (Trending Now vertical list)
   const {
     data: trendingSongs = [],
     isLoading: isTrendingLoading,
     refetch: refetchTrending,
   } = useQuery({
     queryKey: ["trending-songs"],
-    queryFn: () => homeService.getTrendingSongs(12),
+    queryFn: () => homeService.getTrendingSongs(15),
     staleTime: 5 * 60 * 1000,
   });
 
-  // 3. Albums Catalog
+  // 3. Recently Played Songs (Jump Back In)
+  const {
+    data: recentlyPlayed = [],
+    isLoading: isRecentLoading,
+    refetch: refetchRecent,
+  } = useQuery({
+    queryKey: ["home-recently-played"],
+    queryFn: () =>
+      userService.getRecentlyPlayed ? userService.getRecentlyPlayed() : Promise.resolve([]),
+    staleTime: 2 * 60 * 1000,
+  });
+
+  // 4. Albums Catalog (Popular Albums)
   const {
     data: rawAlbums = [],
     isLoading: isAlbumsLoading,
@@ -112,7 +109,7 @@ export default function HomeScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // 4. Artists Catalog
+  // 5. Artists Catalog (Artists)
   const {
     data: artistsData,
     isLoading: isArtistsLoading,
@@ -123,18 +120,7 @@ export default function HomeScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
-  // 5. Playlists Catalog
-  const {
-    data: playlistsData,
-    isLoading: isPlaylistsLoading,
-    refetch: refetchPlaylists,
-  } = useQuery({
-    queryKey: ["home-playlists"],
-    queryFn: () => homeService.getFeaturedPlaylists(0, 15),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  // 6. Infinite Discover Feed
+  // 6. Infinite Discover Feed (Discover More)
   const {
     data: feedData,
     fetchNextPage,
@@ -164,17 +150,46 @@ export default function HomeScreen() {
     return feedData.pages.flatMap((page) => page.content || []);
   }, [feedData?.pages]);
 
-  // Dynamic quick picks (always 6 top tracks)
-  const quickPicks = useMemo(() => {
-    const source = featuredSongs.length > 0 ? featuredSongs : trendingSongs;
-    return source.slice(0, 6);
-  }, [featuredSongs, trendingSongs]);
+  // Jump Back In pool: User history or fallback to top featured/trending tracks
+  const jumpBackInSongs = useMemo(() => {
+    if (recentlyPlayed && recentlyPlayed.length > 0) {
+      return recentlyPlayed.slice(0, 10);
+    }
+    const fallback = featuredSongs.length > 0 ? featuredSongs : trendingSongs;
+    return fallback.slice(0, 8);
+  }, [recentlyPlayed, featuredSongs, trendingSongs]);
 
-  // Curated Albums: deduplicate by album name and strictly cap to TOP 10
+  // Trending Now: top 4 tracks shown as vertical list
+  const trendingNowList = useMemo(() => {
+    return trendingSongs.slice(0, 4);
+  }, [trendingSongs]);
+
+  // Watch (Full Videos): songs with videoKey or fullVideoKey
+  const videoSongs = useMemo(() => {
+    const pool = [...featuredSongs, ...trendingSongs, ...allSongs];
+    const seen = new Set<string>();
+    const withVideo: Song[] = [];
+
+    for (const song of pool) {
+      if (!song || !song.id || seen.has(song.id)) continue;
+      if (song.fullVideoKey || song.videoKey) {
+        seen.add(song.id);
+        withVideo.push(song);
+      }
+    }
+
+    if (withVideo.length >= 2) {
+      return withVideo.slice(0, 10);
+    }
+
+    // Fallback so Watch section is always populated
+    return (trendingSongs.length > 0 ? trendingSongs : featuredSongs).slice(0, 8);
+  }, [featuredSongs, trendingSongs, allSongs]);
+
+  // Popular Albums: deduplicate and cap to 10
   const displayAlbums = useMemo(() => {
     const albumMap = new Map<string, any>();
 
-    // 1. Process backend albums if available
     if (Array.isArray(rawAlbums)) {
       for (const item of rawAlbums) {
         const name = item?.name?.trim();
@@ -190,7 +205,7 @@ export default function HomeScreen() {
       }
     }
 
-    // 2. Fallback / supplement: extract distinct albums from trending and featured songs
+    // Supplement from trending & featured songs
     const pool = [...trendingSongs, ...featuredSongs];
     for (const song of pool) {
       const alb = song.album?.trim();
@@ -205,27 +220,16 @@ export default function HomeScreen() {
       }
     }
 
-    // Strictly top 10 albums
     return Array.from(albumMap.values()).slice(0, 10);
   }, [rawAlbums, trendingSongs, featuredSongs]);
 
-  // Strictly top 10 playlists
-  const topPlaylists = useMemo(() => {
-    const list = playlistsData?.content || [];
-    return list.slice(0, 10);
-  }, [playlistsData?.content]);
-
-  // Strictly top 10 trending hits
-  const topTrending = useMemo(() => {
-    return trendingSongs.slice(0, 10);
-  }, [trendingSongs]);
-
-  // Strictly top 10 artists
+  // Artists: top 10
   const topArtists = useMemo(() => {
     const list = artistsData?.content || [];
     return list.slice(0, 10);
   }, [artistsData?.content]);
 
+  // Pull-to-refresh
   const onRefresh = async () => {
     hapticFeedback.light();
     setRefreshing(true);
@@ -233,27 +237,36 @@ export default function HomeScreen() {
       dispatch(loadUserProfile()).unwrap(),
       refetchFeatured(),
       refetchTrending(),
+      refetchRecent(),
       refetchAlbums(),
       refetchArtists(),
-      refetchPlaylists(),
       refetchFeed(),
     ]);
     setRefreshing(false);
   };
 
+  // Infinite scroll trigger for Discover More
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
     const isCloseToBottom =
-      layoutMeasurement.height + contentOffset.y >= contentSize.height - 250;
+      layoutMeasurement.height + contentOffset.y >= contentSize.height - 300;
     if (isCloseToBottom && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
   };
 
-  const playSong = (song: any, context?: any[]) => {
+  const playSong = (song: Song, context?: Song[]) => {
     hapticFeedback.medium();
     dispatch(playWithSimilarSongs(song, context || allSongs));
     router.push(`/song/${song.id}`);
+  };
+
+  const handleHeroPlayPress = (song: Song) => {
+    if (currentSong?.id === song.id) {
+      audioPlayerService.togglePlay();
+    } else {
+      playSong(song, featuredSongs);
+    }
   };
 
   const handleSelectCategory = (cat: Category) => {
@@ -269,14 +282,13 @@ export default function HomeScreen() {
     return "Good evening";
   }, []);
 
-  const artistsList = artistsData?.content || [];
-  const playlistsList = playlistsData?.content || [];
+  const userName = profile?.userName || profile?.email?.split("@")[0] || "karan";
 
   const isInitialLoading =
     isFeaturedLoading &&
     isTrendingLoading &&
     isArtistsLoading &&
-    isPlaylistsLoading;
+    isAlbumsLoading;
 
   const show = (...cats: Category[]) =>
     selectedCategory === "All" || cats.includes(selectedCategory);
@@ -301,10 +313,9 @@ export default function HomeScreen() {
         {/* Dynamic Header */}
         <View style={styles.header}>
           <View style={styles.headerGreetingCol}>
-            <Text style={styles.greetingSubtitle}>Welcome back</Text>
+            <Text style={styles.greetingSubtitle}>WELCOME BACK</Text>
             <Text style={styles.greeting} numberOfLines={1}>
-              {greeting}
-              {profile?.userName ? `, ${profile.userName}` : ""}
+              {greeting}, {userName}
             </Text>
           </View>
 
@@ -318,9 +329,7 @@ export default function HomeScreen() {
               activeOpacity={0.8}
             >
               <Text style={styles.avatarText}>
-                {(profile?.userName || profile?.email || "U")
-                  .charAt(0)
-                  .toUpperCase()}
+                {userName.charAt(0).toUpperCase()}
               </Text>
             </TouchableOpacity>
           </View>
@@ -356,57 +365,107 @@ export default function HomeScreen() {
           <HomeSkeleton />
         ) : (
           <>
-            {/* Quick picks 2x3 Grid */}
-            {selectedCategory === "All" && quickPicks.length > 0 ? (
-              <View style={styles.grid}>
-                {quickPicks.map((song: any) => {
-                  const active = currentSong?.id === song.id;
-                  return (
-                    <QuickPickCard
-                      key={song.id}
-                      song={song}
-                      width={tileWidth}
-                      isActive={active}
-                      isPlaying={active && isPlaying}
-                      onPress={() => playSong(song, quickPicks)}
-                    />
-                  );
-                })}
-              </View>
+            {/* 1. Hero Featured Canvas Video Carousel */}
+            {show("Featured") && featuredSongs.length > 0 ? (
+              <FeaturedSongsCarousel
+                songs={featuredSongs}
+                onSongPress={(song) => playSong(song, featuredSongs)}
+                onPlayPress={handleHeroPlayPress}
+              />
             ) : null}
 
-            {/* Trending Shelf (Top 10) */}
-            {show("Trending") && topTrending.length > 0 ? (
+            {/* 2. Jump Back In Shelf */}
+            {show("Featured") && jumpBackInSongs.length > 0 ? (
               <View style={styles.section}>
                 <SectionHeader
-                  title="Trending now"
-                  subtitle="Top tracks taking over the charts"
+                  title="Jump back in"
+                  onSeeAll={() => handleSelectCategory("Featured")}
                 />
                 <FlatList
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.horizontalList}
-                  data={topTrending}
+                  data={jumpBackInSongs}
                   keyExtractor={(item, index) =>
-                    item?.id ? `${item.id}-${index}` : `trend-${index}`
+                    item?.id ? `${item.id}-${index}` : `jump-${index}`
                   }
-                  renderItem={({ item, index }) => (
-                    <TrendingSongCard
+                  renderItem={({ item }) => {
+                    const active = currentSong?.id === item.id;
+                    return (
+                      <JumpBackInCard
+                        song={item}
+                        isActive={active}
+                        isPlaying={active && isPlaying}
+                        onPress={() => playSong(item, jumpBackInSongs)}
+                      />
+                    );
+                  }}
+                />
+              </View>
+            ) : null}
+
+            {/* 3. Trending Now (Vertical list of 4 tracks) */}
+            {selectedCategory === "All" && trendingNowList.length > 0 ? (
+              <View style={styles.section}>
+                <SectionHeader
+                  title="Trending now"
+                  subtitle="Top tracks taking over the charts"
+                  onSeeAll={() => {
+                    hapticFeedback.light();
+                    router.push("/(authenticated)/(tabs)/search");
+                  }}
+                />
+                <View style={styles.verticalList}>
+                  {trendingNowList.map((song: Song, index: number) => {
+                    const active = currentSong?.id === song.id;
+                    return (
+                      <SongRowItem
+                        key={`trend-${song.id}-${index}`}
+                        song={song}
+                        index={index}
+                        isActive={active}
+                        isPlaying={active && isPlaying}
+                        onPress={() => playSong(song, trendingSongs)}
+                      />
+                    );
+                  })}
+                </View>
+              </View>
+            ) : null}
+
+            {/* 4. Watch Shelf (Full Videos) */}
+            {show("Videos") && videoSongs.length > 0 ? (
+              <View style={styles.section}>
+                <SectionHeader
+                  title="Watch"
+                  subtitle="Full videos"
+                  onSeeAll={() => handleSelectCategory("Videos")}
+                />
+                <FlatList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.horizontalList}
+                  data={videoSongs}
+                  keyExtractor={(item, index) =>
+                    item?.id ? `video-${item.id}-${index}` : `video-${index}`
+                  }
+                  renderItem={({ item }) => (
+                    <WatchVideoCard
                       song={item}
-                      rank={index + 1}
-                      onPress={() => playSong(item, topTrending)}
+                      onPress={() => playSong(item, videoSongs)}
                     />
                   )}
                 />
               </View>
             ) : null}
 
-            {/* Popular Albums Shelf (Top 10) */}
+            {/* 5. Popular Albums Shelf */}
             {show("Albums") && displayAlbums.length > 0 ? (
               <View style={styles.section}>
                 <SectionHeader
                   title="Popular albums"
                   subtitle="Soundtracks & full artist collections"
+                  onSeeAll={() => handleSelectCategory("Albums")}
                 />
                 <FlatList
                   horizontal
@@ -431,12 +490,15 @@ export default function HomeScreen() {
               </View>
             ) : null}
 
-            {/* Top Artists Shelf (Top 10) */}
-            {show("Artists") && topArtists.length > 0 ? (
+            {/* 6. Artists Shelf */}
+            {selectedCategory === "All" && topArtists.length > 0 ? (
               <View style={styles.section}>
                 <SectionHeader
-                  title="Featured artists"
-                  subtitle="Voices you might like"
+                  title="Artists"
+                  onSeeAll={() => {
+                    hapticFeedback.light();
+                    router.push("/(authenticated)/(tabs)/search");
+                  }}
                 />
                 <FlatList
                   horizontal
@@ -462,47 +524,19 @@ export default function HomeScreen() {
               </View>
             ) : null}
 
-            {/* Featured Playlists Shelf (Top 10) */}
-            {show("Playlists") && topPlaylists.length > 0 ? (
-              <View style={styles.section}>
-                <SectionHeader
-                  title="Curated playlists"
-                  subtitle="Handpicked mixes for your day"
-                />
-                <FlatList
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.horizontalList}
-                  data={topPlaylists}
-                  keyExtractor={(item, index) =>
-                    item?.id ? `${item.id}-${index}` : `playlist-${index}`
-                  }
-                  renderItem={({ item }) => (
-                    <PlaylistCard
-                      playlist={item}
-                      onPress={() => {
-                        hapticFeedback.light();
-                        router.push(`/playlist/${item.id}`);
-                      }}
-                    />
-                  )}
-                />
-              </View>
-            ) : null}
-
-            {/* Explore Infinite Feed */}
-            {show("Explore") && allSongs.length > 0 ? (
+            {/* 7. Discover More Infinite Stream (At the very end) */}
+            {selectedCategory === "All" && allSongs.length > 0 ? (
               <View style={styles.section}>
                 <SectionHeader
                   title="Discover more"
                   subtitle="Infinite stream based on your taste"
                 />
                 <View style={styles.exploreList}>
-                  {allSongs.map((song: any, index: number) => {
+                  {allSongs.map((song: Song, index: number) => {
                     const active = currentSong?.id === song.id;
                     return (
                       <SongRowItem
-                        key={`${song.id}-${index}`}
+                        key={`discover-${song.id}-${index}`}
                         song={song}
                         index={index}
                         isActive={active}

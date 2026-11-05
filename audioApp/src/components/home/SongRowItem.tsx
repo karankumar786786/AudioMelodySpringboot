@@ -74,7 +74,7 @@ export function SongRowItem({
           {song.title}
         </Text>
         <Text style={styles.subtitle} numberOfLines={1}>
-          {formatSongSubtitle(song.artistName, song.album, song.genre)}
+          {formatSongSubtitle(song.artistName, song.album)}
         </Text>
       </View>
 
@@ -88,20 +88,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: spacing.side,
-    paddingVertical: spacing.sm,
+    paddingVertical: 9,
     borderRadius: radius.md,
   },
   containerActive: {
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
   },
   thumbnailContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: radius.sm + 2,
+    width: 48,
+    height: 48,
+    borderRadius: 10,
     overflow: "hidden",
-    backgroundColor: colors.surfaceElevated,
-    marginRight: spacing.md - 2,
+    backgroundColor: "#1A1A1A",
+    marginRight: 12,
     position: "relative",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.06)",
   },
   thumbnail: {
     width: "100%",
@@ -112,41 +114,38 @@ const styles = StyleSheet.create({
     height: "100%",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surface,
+    backgroundColor: "#202020",
   },
   activeOverlay: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(0, 0, 0, 0.6)",
     alignItems: "center",
     justifyContent: "center",
   },
   info: {
     flex: 1,
-    paddingRight: spacing.sm,
+    paddingRight: 12,
     justifyContent: "center",
   },
   title: {
     fontSize: 14.5,
-    fontWeight: "600",
+    fontWeight: "700",
     letterSpacing: -0.2,
-    color: colors.textPrimary,
-    marginBottom: 3,
+    color: "#FFFFFF",
+    marginBottom: 2,
   },
   titleActive: {
-    color: "#FFFFFF",
-    fontWeight: "700",
+    color: "#1DB954",
   },
   subtitle: {
-    fontSize: 12,
-    color: colors.textSecondary,
+    fontSize: 12.5,
+    color: "#8E8E93",
+    fontWeight: "500",
   },
   duration: {
-    fontSize: 12,
-    color: colors.textMuted,
+    fontSize: 12.5,
+    color: "#8E8E93",
     fontVariant: ["tabular-nums"],
+    fontWeight: "500",
   },
 });

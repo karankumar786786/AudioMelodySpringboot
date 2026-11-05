@@ -12,6 +12,8 @@ export * from "./home/FeaturedSongsCarousel";
 export * from "./home/HomeSkeleton";
 export * from "./home/PlaylistCard";
 export * from "./home/QuickPickCard";
+export * from "./home/JumpBackInCard";
+export * from "./home/WatchVideoCard";
 export * from "./home/SongRowItem";
 export * from "./home/TrendingSongCard";
 export * from "./player/FullVideoPlayerModal";

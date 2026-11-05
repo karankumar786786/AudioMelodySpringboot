@@ -1,91 +1,80 @@
 import { StyleSheet } from "react-native";
-import { colors, radius, spacing, typography } from "@/theme";
+import { colors, radius, spacing } from "@/theme";
 
 export const homeStyles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: "#0A0A0A",
   },
 
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.side,
+    paddingHorizontal: 18,
     paddingTop: spacing.xs,
-    paddingBottom: spacing.md,
+    paddingBottom: 14,
   },
   headerGreetingCol: {
     flex: 1,
     marginRight: spacing.md,
   },
   greetingSubtitle: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#8E8E93",
     textTransform: "uppercase",
-    letterSpacing: 0.8,
-    marginBottom: 2,
+    letterSpacing: 1.2,
+    marginBottom: 4,
   },
   greeting: {
     fontSize: 24,
     fontWeight: "800",
-    color: colors.textPrimary,
-    letterSpacing: -0.5,
+    color: "#FFFFFF",
+    letterSpacing: -0.4,
   },
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
-  },
-  headerIconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.surfaceElevated,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    alignItems: "center",
-    justifyContent: "center",
   },
   avatar: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: "#1E1E1E",
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderColor: "rgba(255, 255, 255, 0.12)",
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: {
-    color: colors.textPrimary,
-    fontSize: 15,
+    color: "#FFFFFF",
+    fontSize: 14,
     fontWeight: "700",
   },
 
   pillsScrollView: {
-    maxHeight: 50,
+    maxHeight: 46,
+    marginBottom: 16,
   },
   pillsRow: {
-    paddingHorizontal: spacing.side,
-    paddingBottom: spacing.md,
-    gap: spacing.sm,
+    paddingHorizontal: 18,
+    gap: 8,
   },
   pill: {
     paddingHorizontal: 16,
     paddingVertical: 7,
     borderRadius: radius.full,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: "#1A1A1A",
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderColor: "rgba(255, 255, 255, 0.08)",
   },
   pillActive: {
     backgroundColor: "#FFFFFF",
     borderColor: "#FFFFFF",
   },
   pillText: {
-    color: colors.textSecondary,
+    color: "#A0A0A0",
     fontSize: 13,
     fontWeight: "600",
   },
@@ -94,21 +83,16 @@ export const homeStyles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    paddingHorizontal: spacing.side,
-    marginBottom: spacing.sm,
-  },
-
   section: {
-    marginTop: spacing.md,
+    marginBottom: 8,
   },
   horizontalList: {
-    paddingHorizontal: spacing.side,
+    paddingHorizontal: 18,
   },
-
+  verticalList: {
+    paddingHorizontal: 0,
+    gap: 2,
+  },
   exploreList: {
     paddingHorizontal: 0,
     gap: 2,
@@ -116,10 +100,10 @@ export const homeStyles = StyleSheet.create({
 
   footer: {
     alignItems: "center",
-    paddingVertical: spacing.xl,
+    paddingVertical: 24,
   },
   endText: {
-    color: colors.textMuted,
+    color: "#666666",
     fontSize: 13,
     fontWeight: "500",
   },

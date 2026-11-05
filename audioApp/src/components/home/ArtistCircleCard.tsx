@@ -6,7 +6,7 @@ import { Artist } from "@/types";
 import { getImageUrl } from "@/utils/imageUtils";
 import { formatFollowerCount } from "@/utils/formatUtils";
 import { hapticFeedback } from "@/utils/haptics";
-import { colors, radius, shadows, spacing } from "@/theme";
+import { colors, shadows } from "@/theme";
 
 interface ArtistCircleCardProps {
   artist: Artist;
@@ -26,6 +26,11 @@ export function ArtistCircleCard({ artist, onPress }: ArtistCircleCardProps) {
     onPress();
   };
 
+  const subtitle =
+    artist.followersCount && artist.followersCount > 0
+      ? formatFollowerCount(artist.followersCount, true)
+      : "Artist";
+
   return (
     <TouchableOpacity
       style={styles.container}
@@ -38,48 +43,40 @@ export function ArtistCircleCard({ artist, onPress }: ArtistCircleCardProps) {
             source={{ uri: imageUrl }}
             style={styles.avatar}
             contentFit="cover"
-            transition={200}
+            transition={150}
             cachePolicy="memory"
           />
         ) : (
           <View style={[styles.avatar, styles.fallback]}>
-            <Ionicons name="person" size={40} color={colors.textMuted} />
+            <Ionicons name="person" size={36} color={colors.textMuted} />
           </View>
         )}
       </View>
       <Text style={styles.name} numberOfLines={1}>
         {artist.name}
       </Text>
-      <View style={styles.followersRow}>
-        <Ionicons
-          name="people-outline"
-          size={11}
-          color={colors.textMuted}
-          style={styles.followerIcon}
-        />
-        <Text style={styles.followersText} numberOfLines={1}>
-          {formatFollowerCount(artist.followersCount, true)}
-        </Text>
-      </View>
+      <Text style={styles.followersText} numberOfLines={1}>
+        {subtitle}
+      </Text>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    width: 108,
-    marginRight: spacing.md,
+    width: 96,
+    marginRight: 14,
     alignItems: "center",
   },
   avatarWrapper: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    backgroundColor: colors.surfaceElevated,
+    width: 92,
+    height: 92,
+    borderRadius: 46,
+    backgroundColor: "#1A1A1A",
     overflow: "hidden",
-    marginBottom: spacing.sm,
-    // Zero harsh border, smooth clean elevation
-    borderWidth: 0,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.08)",
     ...shadows.sm,
   },
   avatar: {
@@ -89,10 +86,10 @@ const styles = StyleSheet.create({
   fallback: {
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surface,
+    backgroundColor: "#202020",
   },
   name: {
-    color: colors.textPrimary,
+    color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "700",
     letterSpacing: -0.2,
@@ -100,18 +97,8 @@ const styles = StyleSheet.create({
     width: "100%",
     marginBottom: 2,
   },
-  followersRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 3.5,
-    maxWidth: "100%",
-  },
-  followerIcon: {
-    marginTop: 0.5,
-  },
   followersText: {
-    color: colors.textSecondary,
+    color: "#8E8E93",
     fontSize: 11,
     fontWeight: "500",
     textAlign: "center",

@@ -32,6 +32,16 @@ export function AlbumCard({ album, onPress }: AlbumCardProps) {
     onPress();
   };
 
+  const subtitle = album.artistName
+    ? `${album.artistName}${
+        album.trackCount
+          ? ` · ${album.trackCount} ${album.trackCount === 1 ? "song" : "songs"}`
+          : ""
+      }`
+    : album.trackCount
+    ? `${album.trackCount} ${album.trackCount === 1 ? "song" : "songs"}`
+    : "Various Artists";
+
   return (
     <TouchableOpacity
       style={styles.card}
@@ -44,7 +54,7 @@ export function AlbumCard({ album, onPress }: AlbumCardProps) {
             source={{ uri: imageUrl }}
             style={styles.image}
             contentFit="cover"
-            transition={200}
+            transition={150}
             cachePolicy="memory"
           />
         ) : (
@@ -52,48 +62,34 @@ export function AlbumCard({ album, onPress }: AlbumCardProps) {
             <Ionicons name="disc" size={36} color={colors.textMuted} />
           </View>
         )}
-
-        {/* Album Tag */}
-        <View style={styles.albumTag}>
-          <Text style={styles.albumTagText}>ALBUM</Text>
-        </View>
-
-        {/* Floating Play Button */}
-        <View style={styles.playButtonOverlay}>
-          <Ionicons name="play" size={15} color="#000000" style={{ marginLeft: 2 }} />
-        </View>
       </View>
 
       <Text style={styles.title} numberOfLines={1}>
         {album.name}
       </Text>
       <Text style={styles.artist} numberOfLines={1}>
-        {album.artistName || "Various Artists"}
+        {subtitle}
       </Text>
-      {album.trackCount ? (
-        <Text style={styles.meta} numberOfLines={1}>
-          {album.trackCount} {album.trackCount === 1 ? "song" : "songs"}
-          {album.genre ? ` • ${album.genre}` : ""}
-        </Text>
-      ) : null}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    width: 148,
-    marginRight: spacing.md,
+    width: 140,
+    marginRight: 14,
     backgroundColor: "transparent",
   },
   imageContainer: {
-    width: 148,
-    height: 148,
-    borderRadius: radius.md,
+    width: 140,
+    height: 140,
+    borderRadius: 18,
     overflow: "hidden",
-    backgroundColor: colors.surfaceElevated,
-    marginBottom: spacing.sm + 2,
+    backgroundColor: "#1A1A1A",
+    marginBottom: 8,
     position: "relative",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.06)",
     ...shadows.sm,
   },
   image: {
@@ -103,54 +99,18 @@ const styles = StyleSheet.create({
   fallback: {
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surface,
-  },
-  albumTag: {
-    position: "absolute",
-    top: 8,
-    left: 8,
-    backgroundColor: "rgba(0, 0, 0, 0.75)",
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
-  },
-  albumTagText: {
-    color: "#FFFFFF",
-    fontSize: 9,
-    fontWeight: "800",
-    letterSpacing: 0.5,
-  },
-  playButtonOverlay: {
-    position: "absolute",
-    bottom: 8,
-    right: 8,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadows.md,
+    backgroundColor: "#202020",
   },
   title: {
-    color: colors.textPrimary,
+    color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "700",
     letterSpacing: -0.2,
     marginBottom: 2,
   },
   artist: {
-    color: colors.textSecondary,
+    color: "#8E8E93",
     fontSize: 12,
-    fontWeight: "400",
-    marginBottom: 1,
-  },
-  meta: {
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: "400",
+    fontWeight: "500",
   },
 });
-
