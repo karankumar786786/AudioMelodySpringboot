@@ -23,7 +23,6 @@ let isConfigured = false;
 
 export async function configureAudioPriority(force = false): Promise<void> {
   if (Platform.OS === "web") return;
-  if (isConfigured && !force) return;
   try {
     if (Platform.OS === "android" && !isExpoGo) {
       try {
@@ -37,12 +36,12 @@ export async function configureAudioPriority(force = false): Promise<void> {
       playsInSilentMode: true,
       interruptionMode: "doNotMix",
       shouldPlayInBackground: true,
-      allowsRecording: true,
+      allowsRecording: false,
       shouldRouteThroughEarpiece: false,
     });
     await setIsAudioActiveAsync(true);
     if (!isConfigured) {
-      console.log("[AudioPriority] Audio session initialized (exclusive playback, background active)");
+      console.log("[AudioPriority] Audio session initialized (high-fidelity stereo, background active)");
     }
     isConfigured = true;
   } catch (error) {
