@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from "react";
+import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import {
   UIManager,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
@@ -41,7 +41,7 @@ import {
   selectIsSongInAnyPlaylist,
 } from "@/store";
 import { CanvasVideoPlayer, QueueModal, FullVideoPlayerModal, PlayerSettingsModal, AddToPlaylistModal, DEFAULT_AUDIO_QUALITIES } from "@/components";
-import { formatDuration,  getImageUrl, useDominantColor,S3_BASE_URL } from "@/utils";
+import { formatDuration, getImageUrl, useDominantColor, configureAudioPriority, S3_BASE_URL } from "@/utils";
 import { hapticFeedback } from "@/utils/haptics";
 import { usePanGesture, GestureDetector } from "react-native-gesture-handler";
 import { songStyles as styles } from "@/styles";
@@ -218,6 +218,19 @@ export default function SongDetailScreen() {
       router.setParams({ id: currentSong.id });
     }
   }, [currentSong?.id, id]);
+
+  // Screen focus hook: ensure lock screen controls and audio priority remain solid when viewing full player
+  useFocusEffect(
+    useCallback(() => {
+      const timer = setTimeout(async () => {
+        await configureAudioPriority();
+        audioPlayerService.refreshLockScreen();
+      }, 80);
+      return () => {
+        clearTimeout(timer);
+      };
+    }, [currentSong?.id])
+  );
 
   // Only auto-play if page is loaded directly with NO song currently playing in the app (cold start deep link)
   const hasAutoPlayedRef = useRef(false);

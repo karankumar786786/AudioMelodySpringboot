@@ -10,6 +10,8 @@ import {
 import { useVideoPlayer, VideoView } from "expo-video";
 import { Image } from "expo-image";
 import { getImageUrl, getVideoUrl } from "@/utils/imageUtils";
+import { configureAudioPriority } from "@/utils/audioConfig";
+import { audioPlayerService } from "@/service/audioPlayerService";
 
 interface CanvasVideoPlayerProps {
   videoUrl?: string | null;
@@ -51,7 +53,7 @@ function VideoSurface({
     p.muted = true;
     p.volume = 0;
     p.staysActiveInBackground = false;
-    p.audioMixingMode = "mixWithOthers";
+    p.audioMixingMode = "doNotMix";
     p.showNowPlayingNotification = false;
     if (isPlaying && AppState.currentState === "active") {
       p.play();
@@ -65,8 +67,17 @@ function VideoSurface({
     player.muted = true;
     player.volume = 0;
     player.staysActiveInBackground = false;
-    player.audioMixingMode = "mixWithOthers";
+    player.audioMixingMode = "doNotMix";
     player.showNowPlayingNotification = false;
+
+    // Immediately restore audio session priority and refresh lock screen
+    // so expo-video's player setup cannot hijack the audio session
+    const restoreSession = () => {
+      configureAudioPriority().then(() => {
+        audioPlayerService.refreshLockScreen();
+      });
+    };
+    restoreSession();
 
     if (isPlaying && AppState.currentState === "active") {
       player.play();
@@ -79,6 +90,7 @@ function VideoSurface({
         if (!hasTriggeredReady.current) {
           hasTriggeredReady.current = true;
           onReadyRef.current?.();
+          restoreSession();
         }
         if (isPlaying && AppState.currentState === "active" && !player.playing) {
           player.play();
@@ -96,9 +108,14 @@ function VideoSurface({
     });
 
     const playingSub = player.addListener("playingChange", ({ isPlaying: isCurrentlyPlaying }) => {
-      if (isCurrentlyPlaying && !hasTriggeredReady.current) {
-        hasTriggeredReady.current = true;
-        onReadyRef.current?.();
+      if (isCurrentlyPlaying) {
+        if (!hasTriggeredReady.current) {
+          hasTriggeredReady.current = true;
+          onReadyRef.current?.();
+        }
+        // Native expo-video dispatches setAppropriateAudioSessionOrWarn to a background queue
+        // when isPlaying changes. Reassert audio priority after a short delay so lock screen controls stay active!
+        setTimeout(restoreSession, 60);
       }
     });
 
@@ -107,6 +124,7 @@ function VideoSurface({
         player.pause();
       } else if (isPlaying) {
         player.play();
+        setTimeout(restoreSession, 60);
       }
     });
 
@@ -123,6 +141,7 @@ function VideoSurface({
       try {
         player.pause();
       } catch {}
+      restoreSession();
     };
   }, [isPlaying, player]);
 

@@ -197,22 +197,9 @@ export class AudioPlayerService {
     store.dispatch(setCurrentTime(0));
     store.dispatch(setIsPlaying(true));
 
-    safeSetActiveForLockScreen(
-      this.playlist,
-      true,
-      {
-        title: playerNextSong.title,
-        artist: playerNextSong.artistName,
-        albumTitle: playerNextSong.album || "Melody",
-        artworkUrl: playerNextSong.coverUrl || playerNextSong.posterUrl,
-      },
-      {
-        showSeekForward: false,
-        showSeekBackward: false,
-        showNextTrack: true,
-        showPreviousTrack: true,
-      }
-    );
+    configureAudioPriority().then(() => {
+      this.refreshLockScreen();
+    });
 
     interactionService.recordPlay(nextSong.id, 0);
 
@@ -279,8 +266,14 @@ export class AudioPlayerService {
     }
 
     // Handle track completion on last track / repeatMode none
+    const isNaturalTrackEnd =
+      Boolean(status.didJustFinish) &&
+      (typeof status.duration === "number" && status.duration > 0
+        ? (status.currentTime ?? 0) >= Math.max(0, status.duration - 3)
+        : true);
+
     if (
-      status.didJustFinish &&
+      isNaturalTrackEnd &&
       !this.isSeeking &&
       !this.isAdvancingTrack
     ) {
@@ -418,7 +411,6 @@ export class AudioPlayerService {
       if (this.playlist) {
         try {
           this.playlist.pause();
-          safeSetActiveForLockScreen(this.playlist, false);
           this.statusSubscription?.remove();
           this.trackChangedSubscription?.remove();
         } catch {}
@@ -541,7 +533,8 @@ export class AudioPlayerService {
     store.dispatch(setIsLoading(false));
   }
 
-  public refreshLockScreen(): void {
+  public async refreshLockScreen(): Promise<void> {
+    await configureAudioPriority();
     if (!this.playlist || !this.currentPlayingSong) return;
     safeSetActiveForLockScreen(
       this.playlist,

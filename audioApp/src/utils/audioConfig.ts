@@ -20,33 +20,44 @@ export const isExpoGo =
  * - `shouldPlayInBackground: true`: audio continues playing in background and lock screen.
  */
 let isConfigured = false;
+let configuringPromise: Promise<void> | null = null;
 
 export async function configureAudioPriority(force = false): Promise<void> {
   if (Platform.OS === "web") return;
-  try {
-    if (Platform.OS === "android" && !isExpoGo) {
-      try {
-        await requestNotificationPermissionsAsync();
-      } catch (err) {
-        console.log("[AudioPriority] Notification permission request error:", err);
-      }
-    }
+  if (!force && configuringPromise) return configuringPromise;
 
-    await setAudioModeAsync({
-      playsInSilentMode: true,
-      interruptionMode: "doNotMix",
-      shouldPlayInBackground: true,
-      allowsRecording: false,
-      shouldRouteThroughEarpiece: false,
-    });
-    await setIsAudioActiveAsync(true);
-    if (!isConfigured) {
-      console.log("[AudioPriority] Audio session initialized (high-fidelity stereo, background active)");
+  configuringPromise = (async () => {
+    try {
+      if (Platform.OS === "android" && !isExpoGo) {
+        try {
+          await requestNotificationPermissionsAsync();
+        } catch (err) {
+          console.log("[AudioPriority] Notification permission request error:", err);
+        }
+      }
+
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        interruptionMode: "doNotMix",
+        shouldPlayInBackground: true,
+        allowsRecording: false,
+        shouldRouteThroughEarpiece: false,
+      });
+      await setIsAudioActiveAsync(true);
+      if (!isConfigured) {
+        console.log("[AudioPriority] Audio session initialized (high-fidelity stereo, background active)");
+      }
+      isConfigured = true;
+    } catch (error) {
+      console.warn("[AudioPriority] Failed to configure audio priority:", error);
+    } finally {
+      setTimeout(() => {
+        configuringPromise = null;
+      }, 100);
     }
-    isConfigured = true;
-  } catch (error) {
-    console.warn("[AudioPriority] Failed to configure audio priority:", error);
-  }
+  })();
+
+  return configuringPromise;
 }
 
 /**
