@@ -31,6 +31,8 @@ export const DEFAULT_AUDIO_QUALITIES: QualityChoice<AudioQuality>[] = [
   { id: "standard", label: "Standard (128 kbps)" },
 ];
 
+export type VideoResizeMode = "16:9" | "fit" | "cover" | "fill";
+
 export interface PlayerSettingsModalProps {
   visible: boolean;
   onClose: () => void;
@@ -42,12 +44,21 @@ export interface PlayerSettingsModalProps {
    */
   videoQualities?: QualityChoice<VideoQuality>[];
   audioQualities?: QualityChoice<AudioQuality>[];
+  resizeMode?: VideoResizeMode;
+  onResizeModeChange?: (mode: VideoResizeMode) => void;
   onSpeedChange?: (speed: number) => void;
   onQualityChange?: (quality: VideoQuality) => void;
   onAudioQualityChange?: (quality: AudioQuality) => void;
 }
 
-type SettingsSubView = "main" | "quality" | "speed" | "timer";
+type SettingsSubView = "main" | "quality" | "speed" | "timer" | "aspectRatio";
+
+const RESIZE_OPTIONS: Array<{ mode: VideoResizeMode; label: string; isDefault?: boolean }> = [
+  { mode: "fit", label: "Fit to screen (Original)", isDefault: true },
+  { mode: "16:9", label: "16:9 Widescreen" },
+  { mode: "cover", label: "Fill screen (Zoom / Crop)" },
+  { mode: "fill", label: "Stretch to fit" },
+];
 
 const SPEED_OPTIONS = [
   { rate: 0.25, label: "0.25x" },
@@ -109,6 +120,8 @@ export function PlayerSettingsModal({
   useNativeModal = true,
   videoQualities,
   audioQualities,
+  resizeMode,
+  onResizeModeChange,
   onSpeedChange,
   onQualityChange,
   onAudioQualityChange,
@@ -155,6 +168,15 @@ export function PlayerSettingsModal({
   const sleepLabel =
     sleepTimer === null ? "Off" : sleepTimer === -1 ? "End of track" : `${sleepTimer}m`;
 
+  const resizeModeDisplayValue =
+    resizeMode === "16:9"
+      ? "16:9 Widescreen"
+      : resizeMode === "cover"
+      ? "Fill screen (Zoom)"
+      : resizeMode === "fill"
+      ? "Stretch to fit"
+      : "Fit to screen";
+
   const handleSelectSpeed = (rate: number) => {
     dispatch(setPlaybackRate(rate));
     audioPlayerService.setPlaybackRate(rate);
@@ -188,6 +210,13 @@ export function PlayerSettingsModal({
     value: string;
     show: boolean;
   }> = [
+    {
+      key: "aspectRatio",
+      icon: "scan-outline",
+      title: "Aspect ratio / Fit",
+      value: resizeModeDisplayValue,
+      show: mode === "video",
+    },
     {
       key: "quality",
       icon: mode === "audio" ? "musical-notes-outline" : "options-outline",
@@ -236,6 +265,8 @@ export function PlayerSettingsModal({
                   ? qualityTitle
                   : activeView === "speed"
                   ? "Playback speed"
+                  : activeView === "aspectRatio"
+                  ? "Aspect ratio / Fit"
                   : "Sleep timer"}
               </Text>
             </TouchableOpacity>
@@ -277,6 +308,23 @@ export function PlayerSettingsModal({
                     </View>
                   </TouchableOpacity>
                 ))}
+            </View>
+          ) : null}
+
+          {activeView === "aspectRatio" ? (
+            <View style={styles.optionsList}>
+              {RESIZE_OPTIONS.map((opt) => (
+                <OptionRow
+                  key={opt.mode}
+                  label={opt.label}
+                  selected={(resizeMode ?? "fit") === opt.mode}
+                  isDefault={opt.isDefault}
+                  onPress={() => {
+                    onResizeModeChange?.(opt.mode);
+                    onClose();
+                  }}
+                />
+              ))}
             </View>
           ) : null}
 

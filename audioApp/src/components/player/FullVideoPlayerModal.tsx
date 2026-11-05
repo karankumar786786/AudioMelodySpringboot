@@ -11,6 +11,7 @@ import {
   GestureResponderEvent,
   Platform,
   AppState as RNAppState,
+  Animated,
 } from "react-native";
 import { useVideoPlayer, VideoView } from "expo-video";
 import * as ScreenOrientation from "expo-screen-orientation";
@@ -20,8 +21,47 @@ import { store, AppState } from "@/store/hook";
 import { audioPlayerService } from "@/service/audioPlayerService";
 import { formatDuration } from "@/utils/formatUtils";
 import { useHlsQualities } from "@/hooks/useHlsQualities";
-import { PlayerSettingsModal } from "./PlayerSettingsModal";
+import { PlayerSettingsModal, VideoResizeMode } from "./PlayerSettingsModal";
 import { hapticFeedback } from "@/utils/haptics";
+
+interface ResizeModeConfig {
+  key: VideoResizeMode;
+  label: string;
+  badgeLabel: string;
+  iconName: keyof typeof Ionicons.glyphMap;
+  description: string;
+}
+
+const RESIZE_MODES: ResizeModeConfig[] = [
+  {
+    key: "fit",
+    label: "Fit",
+    badgeLabel: "Fit to Screen",
+    iconName: "scan-outline",
+    description: "Entire video visible without cropping",
+  },
+  {
+    key: "16:9",
+    label: "16:9",
+    badgeLabel: "16:9 Widescreen",
+    iconName: "tv-outline",
+    description: "Standard 16:9 widescreen ratio",
+  },
+  {
+    key: "cover",
+    label: "Fill",
+    badgeLabel: "Fill Screen (Zoom)",
+    iconName: "expand-outline",
+    description: "Fills display without black borders",
+  },
+  {
+    key: "fill",
+    label: "Stretch",
+    badgeLabel: "Stretch to Fit",
+    iconName: "resize-outline",
+    description: "Stretched to fill all screen edges",
+  },
+];
 
 interface FullVideoPlayerModalProps {
   visible: boolean;
@@ -71,6 +111,78 @@ export function FullVideoPlayerModal({
   const seekTargetRef = useRef<number | null>(null);
   const prevUrlRef = useRef<string | undefined>(visible ? videoStreamUrl : undefined);
   const isHandlingEndRef = useRef(false);
+
+  // Aspect ratio / resize mode state
+  const [resizeMode, setResizeMode] = useState<VideoResizeMode>("fit");
+  const [hudMessage, setHudMessage] = useState<{
+    text: string;
+    icon: keyof typeof Ionicons.glyphMap;
+  } | null>(null);
+  const hudOpacity = useRef(new Animated.Value(0)).current;
+  const hudTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showHudToast = (text: string, icon: keyof typeof Ionicons.glyphMap) => {
+    if (hudTimeoutRef.current) {
+      clearTimeout(hudTimeoutRef.current);
+    }
+    setHudMessage({ text, icon });
+    Animated.timing(hudOpacity, {
+      toValue: 1,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
+
+    hudTimeoutRef.current = setTimeout(() => {
+      Animated.timing(hudOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => {
+        setHudMessage(null);
+      });
+    }, 1200);
+  };
+
+  const handleCycleResizeMode = () => {
+    hapticFeedback.light();
+    setResizeMode((prev) => {
+      const idx = RESIZE_MODES.findIndex((m) => m.key === prev);
+      const nextIdx = (idx + 1) % RESIZE_MODES.length;
+      const nextMode = RESIZE_MODES[nextIdx];
+      showHudToast(nextMode.badgeLabel, nextMode.iconName);
+      return nextMode.key;
+    });
+  };
+
+  const currentModeConfig = useMemo(() => {
+    return RESIZE_MODES.find((m) => m.key === resizeMode) || RESIZE_MODES[0];
+  }, [resizeMode]);
+
+  const contentFitProp: "contain" | "cover" | "fill" = useMemo(() => {
+    switch (resizeMode) {
+      case "cover":
+        return "cover";
+      case "fill":
+        return "fill";
+      case "16:9":
+      case "fit":
+      default:
+        return "contain";
+    }
+  }, [resizeMode]);
+
+  const videoViewStyle = useMemo(() => {
+    if (resizeMode === "16:9") {
+      if (isLandscape) {
+        return styles.videoViewLandscape;
+      }
+      return [
+        styles.videoViewPortrait,
+        { width: windowWidth, height: windowWidth * (9 / 16) },
+      ];
+    }
+    return isLandscape ? styles.videoViewLandscape : styles.videoViewFullScreen;
+  }, [resizeMode, isLandscape, windowWidth]);
 
   // Redux Queue & Player State
   const repeatMode = useSelector((state: AppState) => state.queue.repeatMode);
@@ -378,15 +490,8 @@ export function FullVideoPlayerModal({
         >
           <VideoView
             player={player}
-            style={[
-              isLandscape
-                ? styles.videoViewLandscape
-                : [
-                    styles.videoViewPortrait,
-                    { width: windowWidth, height: windowWidth * (9 / 16) },
-                  ],
-            ]}
-            contentFit="contain"
+            style={videoViewStyle}
+            contentFit={contentFitProp}
             nativeControls={false}
             allowsPictureInPicture={false}
             startsPictureInPictureAutomatically={false}
@@ -404,6 +509,24 @@ export function FullVideoPlayerModal({
           style={StyleSheet.absoluteFill}
           onPress={() => setShowControls((prev) => !prev)}
         />
+
+        {/* Floating HUD feedback when toggling resize mode */}
+        {hudMessage ? (
+          <Animated.View
+            style={[styles.hudToastOverlay, { opacity: hudOpacity }]}
+            pointerEvents="none"
+          >
+            <View style={styles.hudToastBox}>
+              <Ionicons
+                name={hudMessage.icon}
+                size={20}
+                color="#FFFFFF"
+                style={{ marginRight: 8 }}
+              />
+              <Text style={styles.hudToastText}>{hudMessage.text}</Text>
+            </View>
+          </Animated.View>
+        ) : null}
 
         {/* 3. Top Header Overlay */}
         {showControls ? (
@@ -427,6 +550,22 @@ export function FullVideoPlayerModal({
             </View>
 
             <View style={styles.headerRightActions}>
+              {/* Aspect Ratio / Fit to Screen button */}
+              <TouchableOpacity
+                style={styles.fitModeBtn}
+                hitSlop={8}
+                onPress={handleCycleResizeMode}
+                activeOpacity={0.75}
+                accessibilityLabel={`Aspect ratio: ${currentModeConfig.badgeLabel}`}
+              >
+                <Ionicons
+                  name={currentModeConfig.iconName}
+                  size={15}
+                  color="#FFFFFF"
+                />
+                <Text style={styles.fitModeBtnText}>{currentModeConfig.label}</Text>
+              </TouchableOpacity>
+
               <TouchableOpacity
                 style={styles.iconCircleBtn}
                 hitSlop={14}
@@ -485,6 +624,19 @@ export function FullVideoPlayerModal({
                   </View>
                 </View>
                 <Text style={styles.timeLabel}>{formatDuration(duration)}</Text>
+                <TouchableOpacity
+                  style={styles.controlIconBtn}
+                  hitSlop={10}
+                  onPress={handleCycleResizeMode}
+                  activeOpacity={0.75}
+                  accessibilityLabel={`Toggle aspect ratio: ${currentModeConfig.badgeLabel}`}
+                >
+                  <Ionicons
+                    name={currentModeConfig.iconName}
+                    size={20}
+                    color="#FFFFFF"
+                  />
+                </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.orientationBtn}
                   hitSlop={12}
@@ -553,6 +705,14 @@ export function FullVideoPlayerModal({
             mode="video"
             useNativeModal={false}
             videoQualities={variants.map((v) => ({ id: v.id, label: v.label }))}
+            resizeMode={resizeMode}
+            onResizeModeChange={(newMode) => {
+              setResizeMode(newMode);
+              const target = RESIZE_MODES.find((m) => m.key === newMode);
+              if (target) {
+                showHudToast(target.badgeLabel, target.iconName);
+              }
+            }}
             onSpeedChange={(rate) => {
               applyRate(player, rate);
             }}
@@ -602,6 +762,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  fitModeBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 38,
+    paddingHorizontal: 12,
+    borderRadius: 19,
+    backgroundColor: "#151515",
+    borderWidth: 1,
+    borderColor: "#262626",
+    gap: 6,
+  },
+  fitModeBtnText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+  },
   titleInfo: { flex: 1, alignItems: "center", paddingHorizontal: 16 },
   title: {
     color: "#FFFFFF",
@@ -619,6 +796,41 @@ const styles = StyleSheet.create({
   videoWrapperLandscape: { ...StyleSheet.absoluteFill },
   videoViewPortrait: { backgroundColor: "#000000" },
   videoViewLandscape: { width: "100%", height: "100%", backgroundColor: "#000000" },
+  videoViewFullScreen: {
+    width: "100%",
+    height: "100%",
+    backgroundColor: "#000000",
+  },
+  hudToastOverlay: {
+    position: "absolute",
+    top: "46%",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 35,
+  },
+  hudToastBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(18, 18, 18, 0.88)",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.16)",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  hudToastText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+    letterSpacing: -0.2,
+  },
   loaderOverlay: {
     ...StyleSheet.absoluteFill,
     justifyContent: "center",
@@ -672,6 +884,12 @@ const styles = StyleSheet.create({
     gap: 36,
   },
   controlBtn: { padding: 8 },
+  controlIconBtn: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   orientationBtn: {
     paddingLeft: 8,
     paddingRight: 2,
