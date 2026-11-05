@@ -41,7 +41,7 @@ import {
   selectIsSongInAnyPlaylist,
 } from "@/store";
 import { CanvasVideoPlayer, QueueModal, FullVideoPlayerModal, PlayerSettingsModal, AddToPlaylistModal, DEFAULT_AUDIO_QUALITIES } from "@/components";
-import { formatDuration, getImageUrl, useDominantColor, configureAudioPriority, S3_BASE_URL } from "@/utils";
+import { formatDuration, getImageUrl, getVideoUrl, useDominantColor, configureAudioPriority, S3_BASE_URL } from "@/utils";
 import { hapticFeedback } from "@/utils/haptics";
 import { usePanGesture, GestureDetector } from "react-native-gesture-handler";
 import { songStyles as styles } from "@/styles";
@@ -61,7 +61,7 @@ const WIKI_IMAGE_HEADERS = {
 };
 
 export default function SongDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, mode } = useLocalSearchParams<{ id: string; mode?: string }>();
   const router = useRouter();
   const dispatch = useDispatch();
   const queryClient = useQueryClient();
@@ -69,10 +69,11 @@ export default function SongDetailScreen() {
   const safeAreaHeight = Math.max(560, SCREEN_HEIGHT - insets.top);
 
   const [isQueueOpen, setIsQueueOpen] = useState(false);
-  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(mode === "video");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>("canvas");
+  const [viewMode, setViewMode] = useState<ViewMode>(mode === "video" ? "artwork" : "canvas");
+  const autoOpenedVideoIdRef = useRef<string | null>(null);
   const [isArtistImageModalOpen, setIsArtistImageModalOpen] = useState(false);
 
   // Tactile pulse animation for heart/like toggle
@@ -248,13 +249,33 @@ export default function SongDetailScreen() {
     activeSong.videoKey !== "null" &&
     activeSong.videoKey !== "undefined"
   );
-  const hasFullVideo = Boolean(
-    activeSong?.fullVideoKey &&
-    typeof activeSong.fullVideoKey === "string" &&
-    activeSong.fullVideoKey.trim().length > 0 &&
-    activeSong.fullVideoKey !== "null" &&
-    activeSong.fullVideoKey !== "undefined"
-  );
+
+  const effectiveVideoUrl = useMemo(() => {
+    if (activeSong?.fullVideoKey) {
+      return `${S3_BASE_URL}/${activeSong.fullVideoKey}/master.m3u8`;
+    }
+    if (activeSong?.videoKey) {
+      return getVideoUrl(activeSong.videoKey);
+    }
+    return undefined;
+  }, [activeSong?.fullVideoKey, activeSong?.videoKey]);
+
+  const hasFullVideo = Boolean(effectiveVideoUrl);
+
+  // Automatically open video section if pushed with mode="video"
+  useEffect(() => {
+    if (mode === "video") {
+      audioPlayerService.pause();
+      if (
+        activeSong?.id &&
+        effectiveVideoUrl &&
+        autoOpenedVideoIdRef.current !== String(activeSong.id)
+      ) {
+        autoOpenedVideoIdRef.current = String(activeSong.id);
+        setIsVideoModalOpen(true);
+      }
+    }
+  }, [mode, activeSong?.id, effectiveVideoUrl]);
 
   // If track has no canvas, effective mode is ALWAYS "artwork" — never leave user stranded in canvas mode
   const effectiveViewMode: ViewMode = hasCanvas ? viewMode : "artwork";
@@ -279,7 +300,7 @@ export default function SongDetailScreen() {
   useEffect(() => {
     if (currentTrackId && currentTrackId !== lastTrackIdRef.current) {
       lastTrackIdRef.current = currentTrackId;
-      if (hasCanvas) {
+      if (hasCanvas && mode !== "video") {
         setViewMode("canvas");
       } else {
         setViewMode("artwork");
@@ -287,7 +308,7 @@ export default function SongDetailScreen() {
     } else if (!hasCanvas && viewMode === "canvas") {
       setViewMode("artwork");
     }
-  }, [currentTrackId, hasCanvas, viewMode]);
+  }, [currentTrackId, hasCanvas, viewMode, mode]);
 
   // Navigation & mode switching handlers
   const handleDismissPlayer = () => {
@@ -333,6 +354,7 @@ export default function SongDetailScreen() {
   const handleVideoModalClose = (finalTimestamp: number) => {
     setIsVideoModalOpen(false);
     setViewMode("artwork"); // Always return to artwork mode when video modal closes
+    router.setParams({ mode: "" });
     if (typeof finalTimestamp === "number" && finalTimestamp >= 0) {
       audioPlayerService.seek(finalTimestamp);
       audioPlayerService.resume();
@@ -362,6 +384,7 @@ export default function SongDetailScreen() {
       // Close video modal, lock back to portrait, return to artwork mode, and advance
       setIsVideoModalOpen(false);
       setViewMode("artwork");
+      router.setParams({ mode: "" });
       ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
       await (dispatch as any)(nextTrack(false));
     }
@@ -1220,14 +1243,14 @@ export default function SongDetailScreen() {
           onAudioQualityChange={(quality) => audioPlayerService.setAudioQuality(quality)}
         />
 
-        {/* Full Video Modal: only mounted when explicitly opened by user */}
-        {isVideoModalOpen && activeSong?.fullVideoKey ? (
+        {/* Full Video Modal: mounted when explicitly opened or navigated via Watch */}
+        {isVideoModalOpen && effectiveVideoUrl ? (
           <FullVideoPlayerModal
             visible={isVideoModalOpen}
-            videoStreamUrl={`${S3_BASE_URL}/${activeSong.fullVideoKey}/master.m3u8`}
+            videoStreamUrl={effectiveVideoUrl}
             initialTime={currentTime}
-            title={activeSong.title}
-            artistName={activeSong.artistName}
+            title={activeSong?.title || ""}
+            artistName={activeSong?.artistName || ""}
             artworkUrl={posterUrl}
             onClose={handleVideoModalClose}
             onTrackEnd={handleVideoTrackEnd}

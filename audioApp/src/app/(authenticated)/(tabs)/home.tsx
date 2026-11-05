@@ -261,6 +261,15 @@ export default function HomeScreen() {
     router.push(`/song/${song.id}`);
   };
 
+  const playVideoSong = (song: Song, context?: Song[]) => {
+    hapticFeedback.medium();
+    dispatch(playWithSimilarSongs(song, context || allSongs));
+    router.push({
+      pathname: "/song/[id]",
+      params: { id: song.id, mode: "video" },
+    });
+  };
+
   const handleHeroPlayPress = (song: Song) => {
     if (currentSong?.id === song.id) {
       audioPlayerService.togglePlay();
@@ -444,7 +453,7 @@ export default function HomeScreen() {
                   renderItem={({ item }) => (
                     <WatchVideoCard
                       song={item}
-                      onPress={() => playSong(item, videoSongs)}
+                      onPress={() => playVideoSong(item, videoSongs)}
                     />
                   )}
                 />
