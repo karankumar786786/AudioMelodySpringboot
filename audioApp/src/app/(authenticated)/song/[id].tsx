@@ -554,7 +554,7 @@ export default function SongDetailScreen() {
           <CanvasVideoPlayer
             videoUrl={(activeSong as any)?.canvasVideoUrl}
             videoKey={activeSong.videoKey}
-            fallbackImageKey={activeSong.imageKey}
+            fallbackImageKey={null}
             isPlaying={isPlaying && !isVideoModalOpen}
             style={StyleSheet.absoluteFill}
           />

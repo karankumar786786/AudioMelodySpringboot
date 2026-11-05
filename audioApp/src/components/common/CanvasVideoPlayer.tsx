@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   StyleSheet,
@@ -7,15 +7,9 @@ import {
   ActivityIndicator,
   AppState,
 } from "react-native";
-import { useVideoPlayer, VideoView, setVideoCacheSizeAsync } from "expo-video";
+import { useVideoPlayer, VideoView } from "expo-video";
 import { Image } from "expo-image";
 import { getImageUrl, getVideoUrl } from "@/utils/imageUtils";
-
-// Ensure native video cache is configured (100MB) for smooth looping
-setVideoCacheSizeAsync(100 * 1024 * 1024).catch(() => {});
-
-// In-memory cache registry for active/preloaded canvas videos
-const canvasMemoryCache = new Set<string>();
 
 interface CanvasVideoPlayerProps {
   videoUrl?: string | null;
@@ -24,6 +18,7 @@ interface CanvasVideoPlayerProps {
   style?: StyleProp<ViewStyle>;
   isPlaying?: boolean;
   showLoaderWhenVideoAvailable?: boolean;
+  showFallbackImage?: boolean;
 }
 
 function VideoSurface({
@@ -41,16 +36,7 @@ function VideoSurface({
   onReadyRef.current = onReady;
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
-  const isLoopingRef = useRef(false);
-  const lastProgressTimestamp = useRef(Date.now());
   const hasTriggeredReady = useRef(false);
-
-  // Track canvas video in memory cache
-  useEffect(() => {
-    if (videoUrl && !canvasMemoryCache.has(videoUrl)) {
-      canvasMemoryCache.add(videoUrl);
-    }
-  }, [videoUrl]);
 
   // Standard VideoSource for smooth AVPlayer / ExoPlayer streaming
   const videoSource = React.useMemo(
@@ -67,7 +53,6 @@ function VideoSurface({
     p.audioMixingMode = "mixWithOthers";
     p.showNowPlayingNotification = false;
     p.staysActiveInBackground = false;
-    p.timeUpdateEventInterval = 0.25;
     if (isPlaying && AppState.currentState === "active") {
       p.play();
     } else {
@@ -75,29 +60,15 @@ function VideoSurface({
     }
   });
 
-  const triggerLoopReplay = useCallback(() => {
-    if (!isPlaying || AppState.currentState !== "active") return;
-    try {
-      player.replay();
-      player.play();
-    } catch {
-      try {
-        player.currentTime = 0;
-        player.play();
-      } catch {
-        // Ignore fallback error
-      }
-    }
-  }, [isPlaying, player]);
-
   useEffect(() => {
+    console.log(`[CanvasVideoPlayer] 🎬 Initializing player for video: ${videoUrl}`);
+
     player.loop = true;
     player.muted = true;
     player.volume = 0;
     player.audioMixingMode = "mixWithOthers";
     player.showNowPlayingNotification = false;
     player.staysActiveInBackground = false;
-    player.timeUpdateEventInterval = 0.25;
 
     if (isPlaying && AppState.currentState === "active") {
       player.play();
@@ -106,24 +77,18 @@ function VideoSurface({
     }
 
     const checkStatus = (status: string, error?: any) => {
+      console.log(`[CanvasVideoPlayer] ℹ️ Player status: "${status}"`);
       if (status === "readyToPlay") {
         if (!hasTriggeredReady.current) {
           hasTriggeredReady.current = true;
+          console.log(`[CanvasVideoPlayer] ✅ Video ready to play (duration: ${player.duration}s)`);
           onReadyRef.current?.();
         }
         if (isPlaying && AppState.currentState === "active" && !player.playing) {
           player.play();
         }
-      } else if (status === "idle") {
-        // Android ExoPlayer maps STATE_ENDED to idle when video finishes
-        if (isPlaying && AppState.currentState === "active") {
-          const dur = player.duration;
-          const cur = player.currentTime;
-          if (dur > 0 && cur >= dur - 0.5) {
-            triggerLoopReplay();
-          }
-        }
       } else if (status === "error") {
+        console.warn("[CanvasVideoPlayer] ❌ Native player error:", error);
         onErrorRef.current?.(error);
       }
     };
@@ -135,57 +100,15 @@ function VideoSurface({
     });
 
     const playingSub = player.addListener("playingChange", ({ isPlaying: isCurrentlyPlaying }) => {
-      if (isCurrentlyPlaying) {
-        lastProgressTimestamp.current = Date.now();
-        if (!hasTriggeredReady.current) {
-          hasTriggeredReady.current = true;
-          onReadyRef.current?.();
-        }
-      } else {
-        // Player paused: check if it paused due to reaching the end of stream
-        if (isPlaying && AppState.currentState === "active") {
-          const dur = player.duration;
-          const cur = player.currentTime;
-          if (dur > 0 && cur >= dur - 0.4) {
-            triggerLoopReplay();
-          }
-        }
+      console.log(
+        `[CanvasVideoPlayer] ▶️ Playing state changed: ${isCurrentlyPlaying ? "PLAYING" : "PAUSED"}`
+      );
+      if (isCurrentlyPlaying && !hasTriggeredReady.current) {
+        hasTriggeredReady.current = true;
+        console.log(`[CanvasVideoPlayer] ✅ Video playing first frame`);
+        onReadyRef.current?.();
       }
     });
-
-    const playEndSub = player.addListener("playToEnd", () => {
-      triggerLoopReplay();
-    });
-
-    const timeUpdateSub = player.addListener("timeUpdate", ({ currentTime }) => {
-      lastProgressTimestamp.current = Date.now();
-      const dur = player.duration;
-      // Loop watchdog safety net: near end of video
-      if (dur > 0 && currentTime >= dur - 0.2) {
-        if (isPlaying && AppState.currentState === "active" && !isLoopingRef.current) {
-          isLoopingRef.current = true;
-          setTimeout(() => {
-            if (player.currentTime >= dur - 0.3 && isPlaying && AppState.currentState === "active") {
-              triggerLoopReplay();
-            }
-            isLoopingRef.current = false;
-          }, 100);
-        }
-      }
-    });
-
-    // Stall watchdog: if playing and active, but no progress for > 8s, trigger error retry
-    const stallInterval = setInterval(() => {
-      if (isPlaying && AppState.currentState === "active") {
-        const timeSinceProgress = Date.now() - lastProgressTimestamp.current;
-        if (timeSinceProgress > 8000) {
-          if (player.status === "loading" || !player.playing) {
-            console.warn("[CanvasVideoPlayer] Playback stalled for > 8s, triggering retry");
-            onErrorRef.current?.(new Error("Playback stalled"));
-          }
-        }
-      }
-    }, 3000);
 
     const appStateSub = AppState.addEventListener("change", (nextState) => {
       if (nextState !== "active") {
@@ -196,7 +119,6 @@ function VideoSurface({
     });
 
     return () => {
-      clearInterval(stallInterval);
       try {
         statusSub.remove();
       } catch {}
@@ -204,20 +126,13 @@ function VideoSurface({
         playingSub.remove();
       } catch {}
       try {
-        playEndSub.remove();
-      } catch {}
-      try {
-        timeUpdateSub.remove();
-      } catch {}
-      try {
         appStateSub.remove();
       } catch {}
     };
-  }, [isPlaying, player, triggerLoopReplay]);
+  }, [isPlaying, player]);
 
   return (
     <VideoView
-      key={`vv-${videoUrl}`}
       style={StyleSheet.absoluteFill}
       player={player}
       contentFit="cover"
@@ -234,10 +149,16 @@ export function CanvasVideoPlayer({
   fallbackImageKey,
   style,
   isPlaying = true,
-  showLoaderWhenVideoAvailable = false,
+  showFallbackImage = false,
 }: CanvasVideoPlayerProps) {
-  // Use direct video URL without dynamic transformation (matches audioFrontend RightInfoPanel: ?tr=orig)
-  const videoUrl = directVideoUrl || (videoKey ? getVideoUrl(videoKey) : undefined);
+  const videoUrl =
+    (directVideoUrl
+      ? getVideoUrl(directVideoUrl, { width: 540, quality: 70, format: "mp4" })
+      : undefined) ||
+    (videoKey
+      ? getVideoUrl(videoKey, { width: 540, quality: 70, format: "mp4" })
+      : undefined);
+
   const imageUrl = getImageUrl(fallbackImageKey, {
     width: 1280,
     height: 720,
@@ -247,74 +168,22 @@ export function CanvasVideoPlayer({
   });
 
   const [isVideoReady, setIsVideoReady] = useState(false);
-  const [retryAttempt, setRetryAttempt] = useState(0);
-  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Reset retry attempt and ready state when the track / video URL changes
+  // Reset ready state and log when the track / video URL changes
   useEffect(() => {
     setIsVideoReady(false);
-    setRetryAttempt(0);
-    if (retryTimeoutRef.current) {
-      clearTimeout(retryTimeoutRef.current);
-      retryTimeoutRef.current = null;
+    if (videoUrl) {
+      console.log(`[CanvasVideoPlayer] ⏳ Canvas video started loading: ${videoUrl}`);
     }
   }, [videoUrl]);
 
-  // Handle retry with exponential backoff on network errors
-  const handleVideoError = useCallback(
-    (err?: any) => {
-      console.warn(
-        `[CanvasVideoPlayer] Canvas video error/stall (attempt ${retryAttempt + 1}):`,
-        err?.message || err || "unknown"
-      );
-      setIsVideoReady(false);
-
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-      }
-
-      // Progressive backoff: 1.2s, 2s, 3.2s, 5s... capped at 8s
-      const delay = Math.min(1200 * Math.pow(1.5, Math.min(retryAttempt, 5)), 8000);
-      retryTimeoutRef.current = setTimeout(() => {
-        setRetryAttempt((prev) => prev + 1);
-      }, delay);
-    },
-    [retryAttempt]
-  );
-
-  // When app returns to foreground and video is not ready, retry immediately
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (nextState) => {
-      if (nextState === "active" && !isVideoReady && videoUrl) {
-        if (retryTimeoutRef.current) {
-          clearTimeout(retryTimeoutRef.current);
-          retryTimeoutRef.current = null;
-        }
-        setRetryAttempt((prev) => prev + 1);
-      }
-    });
-    return () => sub.remove();
-  }, [isVideoReady, videoUrl]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (retryTimeoutRef.current) {
-        clearTimeout(retryTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const shouldShowLoader = Boolean(
-    videoUrl && showLoaderWhenVideoAvailable && !isVideoReady
-  );
-  // Show image if video is not ready yet, or while retrying
-  const shouldRenderImage = !videoUrl || !isVideoReady;
+  // Only render fallback image if there is NO videoUrl available
+  const shouldRenderImage = !videoUrl && (showFallbackImage || Boolean(imageUrl));
 
   return (
     <View style={[styles.container, style]} pointerEvents="none">
-      {/* Fallback poster image underneath — preserved so canvas never flashes black */}
-      {imageUrl ? (
+      {/* Fallback image rendered ONLY if there is NO videoUrl */}
+      {shouldRenderImage && imageUrl ? (
         <Image
           source={{ uri: imageUrl }}
           style={StyleSheet.absoluteFill}
@@ -325,24 +194,23 @@ export function CanvasVideoPlayer({
         <View style={[StyleSheet.absoluteFill, styles.fallbackContainer]} />
       )}
 
-      {/* Looping ambient canvas video with retry key */}
+      {/* Looping ambient canvas video */}
       {videoUrl ? (
         <VideoSurface
-          key={`${videoUrl}-retry-${retryAttempt}`}
+          key={videoUrl}
           videoUrl={videoUrl}
           isPlaying={isPlaying}
-          onReady={() => {
-            setIsVideoReady(true);
-            setRetryAttempt(0);
+          onReady={() => setIsVideoReady(true)}
+          onError={(err) => {
+            console.warn("[CanvasVideoPlayer] Canvas video error:", err);
           }}
-          onError={handleVideoError}
         />
       ) : null}
 
-      {/* Loader displayed directly when canvas video is available and still buffering */}
-      {shouldShowLoader ? (
-        <View style={styles.loaderContainer}>
-          <ActivityIndicator size="small" color="#FFFFFF" />
+      {/* Clean loader while video is buffering instead of fallback image */}
+      {!isVideoReady && videoUrl ? (
+        <View style={styles.loaderContainer} pointerEvents="none">
+          <ActivityIndicator size="small" color="rgba(255, 255, 255, 0.75)" />
         </View>
       ) : null}
     </View>
@@ -355,11 +223,11 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   fallbackContainer: {
-    backgroundColor: "#121212",
+    backgroundColor: "transparent",
   },
   loaderContainer: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "#121212",
+    backgroundColor: "transparent",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 2,

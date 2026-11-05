@@ -377,13 +377,13 @@ export async function cutCanvasVideo(
     const duration = Math.max(1, endSec - startSec);
     const hwCaps = await detectHardwareCapabilities();
 
-    // High quality canvas profile
+    // Optimized mobile canvas profile (Spotify style: 720x1280 @ 1.2 Mbps, lightweight ~1.5MB)
     const canvasProfile = {
-        width: 1080,
-        height: 1920,
-        bitrate: "4000k",
-        maxrate: "5000k",
-        bufsize: "8000k",
+        width: 720,
+        height: 1280,
+        bitrate: "1200k",
+        maxrate: "1600k",
+        bufsize: "2400k",
     };
 
     const primaryArgs = buildVideoEncoderArgs(
