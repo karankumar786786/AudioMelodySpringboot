@@ -1,3 +1,4 @@
+import { AppState } from "react-native";
 import {
   createAudioPlaylist,
   AudioPlaylist,
@@ -48,6 +49,9 @@ export class AudioPlayerService {
   private currentQuality: AudioQuality = "auto";
   private statusSubscription: { remove: () => void } | null = null;
   private trackChangedSubscription: { remove: () => void } | null = null;
+  private hasSyncedActiveLockScreen = false;
+  private lastReportedPlayingState: boolean | null = null;
+  private appStateSubscription: { remove: () => void } | null = null;
 
   private get activePlayer(): AudioPlaylist | null {
     return this.playlist;
@@ -64,6 +68,7 @@ export class AudioPlayerService {
       await configureAudioPriority();
       this.initQueueSubscription();
       this.startRemoteSyncHeartbeat();
+      this.initAppStateSubscription();
 
       this.isInitialized = true;
       console.log(
@@ -92,6 +97,20 @@ export class AudioPlayerService {
         }
       }
     }, 1000);
+  }
+
+  private initAppStateSubscription(): void {
+    if (this.appStateSubscription) return;
+    this.appStateSubscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState !== "active" && this.playlist && this.currentPlayingSong) {
+        // Device locked or app sent to background: re-enforce audio session and lock screen controls
+        configureAudioPriority(true)
+          .then(() => {
+            this.refreshLockScreen();
+          })
+          .catch(() => {});
+      }
+    });
   }
 
   public suppressAutoPlayOnce(): void {
@@ -192,6 +211,8 @@ export class AudioPlayerService {
     const playerNextSong = mapToPlayerSong(nextSong);
     this.currentPlayingSong = playerNextSong;
     this.bufferedSeconds = 0;
+    this.hasSyncedActiveLockScreen = false;
+    this.lastReportedPlayingState = null;
 
     store.dispatch(setQueueIndex(currentIndex));
     store.dispatch(setCurrentSong(playerNextSong));
@@ -283,6 +304,18 @@ export class AudioPlayerService {
         Math.max(curr + initialLead, this.bufferedSeconds + streamIncrement)
       );
       dispatch(setBufferedTime(this.bufferedSeconds));
+    }
+
+    // Confirm lock screen active status once playback actually starts emitting audio & duration is known
+    if (isPlaying && dur > 0 && !this.hasSyncedActiveLockScreen) {
+      this.hasSyncedActiveLockScreen = true;
+      this.lastReportedPlayingState = true;
+      this.refreshLockScreen();
+    } else if (this.lastReportedPlayingState !== isPlaying) {
+      this.lastReportedPlayingState = isPlaying;
+      if (this.hasSyncedActiveLockScreen) {
+        this.refreshLockScreen();
+      }
     }
 
     // Save playback position periodically
@@ -410,6 +443,8 @@ export class AudioPlayerService {
     this.lastPlayedIndex = targetIndex;
     this.lastPlayedSongId = playerSong.id;
     this.bufferedSeconds = startTime;
+    this.hasSyncedActiveLockScreen = false;
+    this.lastReportedPlayingState = null;
 
     store.dispatch(setCurrentSong(playerSong));
     store.dispatch(setCurrentTime(startTime));
@@ -541,10 +576,12 @@ export class AudioPlayerService {
   public pause(): void {
     if (!this.playlist) return;
     this.playlist.pause();
+    this.lastReportedPlayingState = false;
     store.dispatch(setIsPlaying(false));
     if (typeof this.playlist.currentTime === "number" && this.playlist.currentTime >= 0) {
       PlayerStore.savePlaybackPosition(this.playlist.currentTime);
     }
+    this.refreshLockScreen();
   }
 
   public resume(): void {
@@ -560,33 +597,18 @@ export class AudioPlayerService {
 
     if (!this.playlist) return;
 
-    if (this.currentPlayingSong) {
-      safeSetActiveForLockScreen(
-        this.playlist,
-        true,
-        {
-          title: this.currentPlayingSong.title,
-          artist: this.currentPlayingSong.artistName,
-          albumTitle: this.currentPlayingSong.album || "Melody",
-          artworkUrl: this.currentPlayingSong.coverUrl || this.currentPlayingSong.posterUrl,
-        },
-        {
-          showSeekForward: false,
-          showSeekBackward: false,
-          showNextTrack: true,
-          showPreviousTrack: true,
-        }
-      );
-    }
-
     const curTime = this.playlist.currentTime || 0;
     const dur = this.playlist.duration || 0;
     if (dur > 0 && curTime >= dur - 0.5) {
       this.playlist.seekTo(0).then(() => {
         this.playlist?.play();
+        this.lastReportedPlayingState = true;
+        this.refreshLockScreen();
       });
     } else {
       this.playlist.play();
+      this.lastReportedPlayingState = true;
+      this.refreshLockScreen();
     }
     store.dispatch(setIsPlaying(true));
     store.dispatch(setIsLoading(false));
