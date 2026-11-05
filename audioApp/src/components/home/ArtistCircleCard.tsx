@@ -48,7 +48,7 @@ export function ArtistCircleCard({ artist, onPress }: ArtistCircleCardProps) {
           />
         ) : (
           <View style={[styles.avatar, styles.fallback]}>
-            <Ionicons name="person" size={36} color={colors.textMuted} />
+            <Ionicons name="person" size={40} color={colors.textMuted} />
           </View>
         )}
       </View>
@@ -64,14 +64,14 @@ export function ArtistCircleCard({ artist, onPress }: ArtistCircleCardProps) {
 
 const styles = StyleSheet.create({
   container: {
-    width: 96,
-    marginRight: 14,
+    width: 106,
+    marginRight: 15,
     alignItems: "center",
   },
   avatarWrapper: {
-    width: 92,
-    height: 92,
-    borderRadius: 46,
+    width: 102,
+    height: 102,
+    borderRadius: 51,
     backgroundColor: "#1A1A1A",
     overflow: "hidden",
     marginBottom: 8,
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   },
   name: {
     color: "#FFFFFF",
-    fontSize: 13,
+    fontSize: 13.5,
     fontWeight: "700",
     letterSpacing: -0.2,
     textAlign: "center",
@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   },
   followersText: {
     color: "#8E8E93",
-    fontSize: 11,
+    fontSize: 11.5,
     fontWeight: "500",
     textAlign: "center",
   },
