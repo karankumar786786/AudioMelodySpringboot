@@ -459,9 +459,10 @@ export default function SongDetailScreen() {
       ? Math.min(100, Math.max(0, (displayTime / effectiveDuration) * 100))
       : 0;
 
+  const effectiveBuffer = Math.max(bufferedTime, displayTime);
   const bufferPercent =
     effectiveDuration > 0
-      ? Math.min(100, Math.max(0, (bufferedTime / effectiveDuration) * 100))
+      ? Math.min(100, Math.max(progressPercent, (effectiveBuffer / effectiveDuration) * 100))
       : 0;
 
   const calculateSecondsFromEvent = (e: GestureResponderEvent) => {

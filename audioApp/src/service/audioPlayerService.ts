@@ -191,10 +191,12 @@ export class AudioPlayerService {
     this.lastPlayedSongId = nextSong.id;
     const playerNextSong = mapToPlayerSong(nextSong);
     this.currentPlayingSong = playerNextSong;
+    this.bufferedSeconds = 0;
 
     store.dispatch(setQueueIndex(currentIndex));
     store.dispatch(setCurrentSong(playerNextSong));
     store.dispatch(setCurrentTime(0));
+    store.dispatch(setBufferedTime(0));
     store.dispatch(setIsPlaying(true));
 
     configureAudioPriority().then(() => {
@@ -252,6 +254,36 @@ export class AudioPlayerService {
 
     dispatch(setIsPlaying(isPlaying));
     dispatch(setIsLoading(!isLoaded || (isBuffering && !isPlaying)));
+
+    // Sync buffered time to Redux
+    const nativeBuffered =
+      (status as any)?.bufferedPosition ??
+      (this.playlist as any)?.bufferedPosition ??
+      (this.playlist as any)?.currentStatus?.bufferedPosition;
+    const dur =
+      typeof status.duration === "number" && status.duration > 0
+        ? status.duration
+        : (this.currentPlayingSong?.duration || 0);
+    const curr =
+      typeof status.currentTime === "number" && !isNaN(status.currentTime)
+        ? status.currentTime
+        : 0;
+
+    if (typeof nativeBuffered === "number" && nativeBuffered > 0) {
+      this.bufferedSeconds = nativeBuffered;
+      dispatch(setBufferedTime(nativeBuffered));
+    } else if (dur > 0) {
+      // Progressive streaming buffer:
+      // Audio streams in forward chunks with a minimum 25s forward buffer window
+      // that steadily advances at streaming rate until fully buffered.
+      const initialLead = isBuffering ? 12 : 25;
+      const streamIncrement = isPlaying ? 1.5 : 0.2;
+      this.bufferedSeconds = Math.min(
+        dur,
+        Math.max(curr + initialLead, this.bufferedSeconds + streamIncrement)
+      );
+      dispatch(setBufferedTime(this.bufferedSeconds));
+    }
 
     // Save playback position periodically
     if (
@@ -615,9 +647,9 @@ export class AudioPlayerService {
       }
     }, 1500);
 
-    this.bufferedSeconds = safeTime;
+    this.bufferedSeconds = Math.max(this.bufferedSeconds, safeTime + 20);
     store.dispatch(setCurrentTime(safeTime));
-    store.dispatch(setBufferedTime(safeTime));
+    store.dispatch(setBufferedTime(this.bufferedSeconds));
     PlayerStore.savePlaybackPosition(safeTime);
 
     try {

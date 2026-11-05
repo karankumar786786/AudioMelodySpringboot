@@ -217,7 +217,7 @@ export const songStyles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: "rgba(255, 255, 255, 0.45)",
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
     borderRadius: 2,
   },
   progressBarFill: {

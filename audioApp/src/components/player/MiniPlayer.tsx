@@ -73,8 +73,9 @@ export function MiniPlayer() {
 
   const progressPercent =
     duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
+  const effectiveBuffer = Math.max(bufferedTime, currentTime);
   const bufferPercent =
-    duration > 0 ? Math.min(100, Math.max(0, (bufferedTime / duration) * 100)) : 0;
+    duration > 0 ? Math.min(100, Math.max(progressPercent, (effectiveBuffer / duration) * 100)) : 0;
 
   const handleOpenFullPlayer = () => {
     if (!currentSong) return;
@@ -337,7 +338,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: "rgba(255, 255, 255, 0.35)",
+    backgroundColor: "rgba(255, 255, 255, 0.45)",
   },
   progressBarFill: {
     height: "100%",
