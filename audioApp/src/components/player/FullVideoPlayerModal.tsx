@@ -112,7 +112,6 @@ export function FullVideoPlayerModal({
     p.loop = false;
     p.muted = false;
     p.staysActiveInBackground = false;
-    p.showNowPlayingNotification = false;
     p.audioMixingMode = "doNotMix";
     const savedRate = store.getState().player.playbackRate || 1;
     applyRate(p, savedRate);
@@ -161,7 +160,6 @@ export function FullVideoPlayerModal({
       player.loop = false;
       player.muted = false;
       player.staysActiveInBackground = false;
-      player.showNowPlayingNotification = false;
       player.audioMixingMode = "doNotMix";
       const savedRate = store.getState().player.playbackRate || 1;
       applyRate(player, savedRate);

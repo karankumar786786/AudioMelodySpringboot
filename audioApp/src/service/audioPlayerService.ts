@@ -436,7 +436,7 @@ export class AudioPlayerService {
           title: playerSong.title,
           artist: playerSong.artistName,
           albumTitle: playerSong.album || "Melody",
-          artworkUrl: playerSong.coverUrl,
+          artworkUrl: playerSong.coverUrl || playerSong.posterUrl,
         },
         {
           showSeekForward: false,
@@ -502,7 +502,7 @@ export class AudioPlayerService {
           title: this.currentPlayingSong.title,
           artist: this.currentPlayingSong.artistName,
           albumTitle: this.currentPlayingSong.album || "Melody",
-          artworkUrl: this.currentPlayingSong.coverUrl,
+          artworkUrl: this.currentPlayingSong.coverUrl || this.currentPlayingSong.posterUrl,
         }
       );
     }

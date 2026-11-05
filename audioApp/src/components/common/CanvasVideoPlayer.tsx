@@ -50,8 +50,6 @@ function VideoSurface({
     p.loop = true;
     p.muted = true;
     p.volume = 0;
-    p.audioMixingMode = "mixWithOthers";
-    p.showNowPlayingNotification = false;
     p.staysActiveInBackground = false;
     if (isPlaying && AppState.currentState === "active") {
       p.play();
@@ -66,8 +64,6 @@ function VideoSurface({
     player.loop = true;
     player.muted = true;
     player.volume = 0;
-    player.audioMixingMode = "mixWithOthers";
-    player.showNowPlayingNotification = false;
     player.staysActiveInBackground = false;
 
     if (isPlaying && AppState.currentState === "active") {

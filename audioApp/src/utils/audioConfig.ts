@@ -1,5 +1,10 @@
 import { Platform } from "react-native";
-import { setAudioModeAsync, setIsAudioActiveAsync, AudioPlayer } from "expo-audio";
+import {
+  setAudioModeAsync,
+  setIsAudioActiveAsync,
+  AudioPlayer,
+  requestNotificationPermissionsAsync,
+} from "expo-audio";
 import Constants, { ExecutionEnvironment } from "expo-constants";
 
 export const isExpoGo =
@@ -19,9 +24,17 @@ export async function configureAudioPriority(force = false): Promise<void> {
   if (Platform.OS === "web") return;
   if (isConfigured && !force) return;
   try {
+    if (Platform.OS === "android" && !isExpoGo) {
+      try {
+        await requestNotificationPermissionsAsync();
+      } catch (err) {
+        console.log("[AudioPriority] Notification permission request error:", err);
+      }
+    }
+
     await setAudioModeAsync({
       playsInSilentMode: true,
-      interruptionMode: "doNotMix",
+      interruptionMode: "doNotMixPersistent",
       shouldPlayInBackground: true,
       allowsRecording: false,
       shouldRouteThroughEarpiece: false,

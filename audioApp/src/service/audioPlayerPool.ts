@@ -290,7 +290,7 @@ export class AudioPlayerPool {
         title: promotedSong.title,
         artist: promotedSong.artistName,
         albumTitle: promotedSong.album || "Melody",
-        artworkUrl: promotedSong.coverUrl,
+        artworkUrl: promotedSong.coverUrl || promotedSong.posterUrl,
       },
       {
         showSeekForward: false,
