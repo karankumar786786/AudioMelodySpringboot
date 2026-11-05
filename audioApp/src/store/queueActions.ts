@@ -279,7 +279,7 @@ export const prevTrack =
       const prevSong = selectCurrentSongFromQueue(updated);
       logQueueSnapshot("prevTrack (Retreat)", updated.queue, updated.currentIndex, prevSong);
       if (prevSong) {
-        await audioPlayerService.play(prevSong, 0, true);
+        await audioPlayerService.play(prevSong, 0, false);
       }
     } else {
       console.log(`[Queue:prevTrack] Already at index 0, seeking to start.`);

@@ -2,7 +2,7 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { Song, QueueState, RepeatMode } from "@/types";
 import { shuffleArray } from "@/utils/playerUtils";
 
-const MAX_HISTORY = 2;
+const MAX_HISTORY = 50;
 
 const initialState: QueueState = {
   queue: [],

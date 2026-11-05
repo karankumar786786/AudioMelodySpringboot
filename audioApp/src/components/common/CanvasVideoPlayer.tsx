@@ -73,7 +73,7 @@ function VideoSurface({
     // Immediately restore audio session priority and refresh lock screen
     // so expo-video's player setup cannot hijack the audio session
     const restoreSession = () => {
-      configureAudioPriority().then(() => {
+      configureAudioPriority(true).then(() => {
         audioPlayerService.refreshLockScreen();
       });
     };
@@ -208,7 +208,6 @@ export function CanvasVideoPlayer({
       {/* Looping ambient canvas video */}
       {videoUrl ? (
         <VideoSurface
-          key={videoUrl}
           videoUrl={videoUrl}
           isPlaying={isPlaying}
           onReady={() => setIsVideoReady(true)}

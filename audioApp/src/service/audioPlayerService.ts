@@ -387,17 +387,37 @@ export class AudioPlayerService {
     }
     store.dispatch(setIsLoading(true));
 
-    const isSameQueue =
-      this.playlist &&
-      this.loadedQueueSongIds.length === currentSongIds.length &&
-      this.loadedQueueSongIds.every((id, idx) => id === currentSongIds[idx]);
+    // Check if the target song is already present in active this.playlist
+    const existingIndexInPlaylist = this.playlist
+      ? this.loadedQueueSongIds.indexOf(playerSong.id)
+      : -1;
 
-    if (isSameQueue && this.playlist && !force) {
+    const canReusePlaylist =
+      !force &&
+      this.playlist !== null &&
+      existingIndexInPlaylist !== -1;
+
+    if (canReusePlaylist && this.playlist) {
       console.log(
-        `[AudioPlayerService] Reusing active playlist for track index ${targetIndex}: "${playerSong.title}"`
+        `[AudioPlayerService] Reusing active playlist for track index ${existingIndexInPlaylist}: "${playerSong.title}"`
       );
-      if (this.playlist.currentIndex !== targetIndex) {
-        this.playlist.skipTo(targetIndex);
+
+      // Append any new upcoming songs added to queue (e.g. from refill recommendations)
+      if (queueSongs.length > this.loadedQueueSongIds.length) {
+        for (let i = this.loadedQueueSongIds.length; i < queueSongs.length; i++) {
+          const s = queueSongs[i];
+          const uri = resolveStreamUrl(s, currentQuality);
+          if (uri) {
+            try {
+              this.playlist.add({ uri });
+              this.loadedQueueSongIds.push(s.id);
+            } catch {}
+          }
+        }
+      }
+
+      if (this.playlist.currentIndex !== existingIndexInPlaylist) {
+        this.playlist.skipTo(existingIndexInPlaylist);
       }
       if (startTime > 0) {
         this.playlist.seekTo(startTime).catch(() => {});
@@ -408,33 +428,32 @@ export class AudioPlayerService {
       console.log(
         `[AudioPlayerService] Creating new AudioPlaylist with ${queueSongs.length} track(s) starting at index ${targetIndex} for "${playerSong.title}"`
       );
-      if (this.playlist) {
-        try {
-          this.playlist.pause();
-          this.statusSubscription?.remove();
-          this.trackChangedSubscription?.remove();
-        } catch {}
-      }
+
+      const oldPlaylist = this.playlist;
+      const oldStatusSub = this.statusSubscription;
+      const oldTrackSub = this.trackChangedSubscription;
 
       const sources = queueSongs.map((s) => ({
         uri: resolveStreamUrl(s, currentQuality),
       }));
       this.loadedQueueSongIds = [...currentSongIds];
 
-      this.playlist = createAudioPlaylist({
+      const newPlaylist = createAudioPlaylist({
         sources,
         updateInterval: 250,
         loop: loopMode,
       });
 
-      this.statusSubscription = this.playlist.addListener(
+      this.playlist = newPlaylist;
+
+      this.statusSubscription = newPlaylist.addListener(
         "playlistStatusUpdate",
         (status: AudioPlaylistStatus) => {
           this.handlePlaylistStatusUpdate(status);
         }
       );
 
-      this.trackChangedSubscription = this.playlist.addListener(
+      this.trackChangedSubscription = newPlaylist.addListener(
         "trackChanged",
         (data: { previousIndex: number; currentIndex: number }) => {
           this.handleTrackChanged(data.previousIndex, data.currentIndex);
@@ -442,19 +461,27 @@ export class AudioPlayerService {
       );
 
       if (targetIndex > 0 && targetIndex < sources.length) {
-        this.playlist.skipTo(targetIndex);
+        newPlaylist.skipTo(targetIndex);
       }
 
       if (startTime > 0) {
-        this.playlist.seekTo(startTime).catch(() => {});
+        newPlaylist.seekTo(startTime).catch(() => {});
       }
 
       const savedRate = store.getState().player.playbackRate;
       if (typeof savedRate === "number" && savedRate > 0) {
-        (this.playlist as any).playbackRate = savedRate;
+        (newPlaylist as any).playbackRate = savedRate;
       }
 
-      this.playlist.play();
+      newPlaylist.play();
+
+      if (oldPlaylist) {
+        try {
+          oldPlaylist.pause();
+          oldStatusSub?.remove();
+          oldTrackSub?.remove();
+        } catch {}
+      }
     }
 
     safeSetActiveForLockScreen(
@@ -534,7 +561,7 @@ export class AudioPlayerService {
   }
 
   public async refreshLockScreen(): Promise<void> {
-    await configureAudioPriority();
+    await configureAudioPriority(true);
     if (!this.playlist || !this.currentPlayingSong) return;
     safeSetActiveForLockScreen(
       this.playlist,

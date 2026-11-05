@@ -51,9 +51,7 @@ export async function configureAudioPriority(force = false): Promise<void> {
     } catch (error) {
       console.warn("[AudioPriority] Failed to configure audio priority:", error);
     } finally {
-      setTimeout(() => {
-        configuringPromise = null;
-      }, 100);
+      configuringPromise = null;
     }
   })();
 
