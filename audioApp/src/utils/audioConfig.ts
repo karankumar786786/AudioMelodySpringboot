@@ -3,6 +3,7 @@ import {
   setAudioModeAsync,
   setIsAudioActiveAsync,
   AudioPlayer,
+  AudioPlaylist,
   requestNotificationPermissionsAsync,
 } from "expo-audio";
 import Constants, { ExecutionEnvironment } from "expo-constants";
@@ -57,7 +58,7 @@ export async function configureAudioPriority(force = false): Promise<void> {
  * full background playback in development builds and production releases.
  */
 export function safeSetActiveForLockScreen(
-  player: AudioPlayer | null | undefined,
+  player: AudioPlayer | AudioPlaylist | null | undefined,
   active: boolean,
   metadata?: any,
   options?: any
@@ -95,8 +96,8 @@ export function safeSetActiveForLockScreen(
         : undefined;
 
       const cleanOptions = {
-        showSeekForward: true,
-        showSeekBackward: true,
+        showSeekForward: false,
+        showSeekBackward: false,
         showNextTrack: true,
         showPreviousTrack: true,
         seekForwardIntervalSeconds: 10,

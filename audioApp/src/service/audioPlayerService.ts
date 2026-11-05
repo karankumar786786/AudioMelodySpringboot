@@ -1,11 +1,15 @@
-import { AudioPlayer, AudioStatus } from "expo-audio";
+import {
+  createAudioPlaylist,
+  AudioPlaylist,
+  AudioPlaylistStatus,
+} from "expo-audio";
 import { Song, PlayerSong, RepeatMode, AudioQuality } from "@/types";
 import { store } from "@/store/hook";
 import { configureAudioPriority, safeSetActiveForLockScreen } from "@/utils";
 export { configureAudioPriority };
 import { mapToPlayerSong } from "@/utils/playerUtils";
-import { selectCurrentSongFromQueue } from "@/store/queueSlice";
-import { nextTrack, prevTrack } from "@/store/queueActions";
+import { selectCurrentSongFromQueue, setQueueIndex } from "@/store/queueSlice";
+import { refillQueue, nextTrack, prevTrack } from "@/store/queueActions";
 import { homeService } from "./homeService";
 import {
   setCurrentTime,
@@ -18,11 +22,11 @@ import {
   setAudioQuality,
 } from "@/store/playerSlice";
 import { PlayerStore } from "@/storage/PlayerStore";
-import { audioPlayerPool, resolveStreamUrl } from "./audioPlayerPool";
+import { resolveStreamUrl } from "./audioPlayerPool";
 import { interactionService } from "./interactionService";
 
 export class AudioPlayerService {
-  private pool = audioPlayerPool;
+  private playlist: AudioPlaylist | null = null;
   private isInitialized = false;
   private currentPlayingSong: PlayerSong | null = null;
   private onTrackEndCallback: (() => void) | null = null;
@@ -35,18 +39,18 @@ export class AudioPlayerService {
   private seekTimeout: any = null;
   private bufferedSeconds = 0;
   private lastPositionSaveTimestamp = 0;
-  // Tracks which song we've already triggered upcoming-preload for,
-  // so preloading starts only after the active song is really playing.
-  private preloadedForSongId: string | null = null;
   private unsubscribeQueue: (() => void) | null = null;
   private lastPlayedSongId: string | null = null;
   private lastPlayedIndex: number = -1;
   private isAutoPlaySuppressed = false;
-  private lastLockScreenSongId: string | null = null;
   private remoteSyncInterval: ReturnType<typeof setInterval> | null = null;
+  private loadedQueueSongIds: string[] = [];
+  private currentQuality: AudioQuality = "auto";
+  private statusSubscription: { remove: () => void } | null = null;
+  private trackChangedSubscription: { remove: () => void } | null = null;
 
-  private get activePlayer(): AudioPlayer | null {
-    return this.pool.getActiveSlot()?.player || null;
+  private get activePlayer(): AudioPlaylist | null {
+    return this.playlist;
   }
 
   public setOnTrackEnd(callback: (() => void) | null) {
@@ -58,26 +62,25 @@ export class AudioPlayerService {
 
     try {
       await configureAudioPriority();
-      await this.pool.init();
-
-      this.pool.setStatusListener((status: AudioStatus, _song: PlayerSong | null) => {
-        this.handlePlaybackStatusUpdate(status);
-      });
-
       this.initQueueSubscription();
       this.startRemoteSyncHeartbeat();
 
       this.isInitialized = true;
-      console.log("[AudioPlayerService] Successfully initialized multi-player rotation pool and queue subscription");
+      console.log(
+        "[AudioPlayerService] Successfully initialized AudioPlaylist engine and queue subscription"
+      );
     } catch (error) {
-      console.error("[AudioPlayerService] Failed to initialize audio player engine:", error);
+      console.error(
+        "[AudioPlayerService] Failed to initialize audio player engine:",
+        error
+      );
     }
   }
 
   private startRemoteSyncHeartbeat(): void {
     if (this.remoteSyncInterval) return;
     this.remoteSyncInterval = setInterval(() => {
-      const player = this.activePlayer;
+      const player = this.playlist;
       if (!player || this.isAdvancingTrack || this.isSeeking) return;
       const isReduxPlaying = store.getState().player.isPlaying;
       const isNativePlaying = Boolean((player as any).playing);
@@ -105,10 +108,41 @@ export class AudioPlayerService {
 
     this.unsubscribeQueue = store.subscribe(() => {
       const state = store.getState();
-      const { queue, currentIndex } = state.queue;
+      const { queue, currentIndex, repeatMode } = state.queue;
 
-      if (!queue || queue.length === 0 || currentIndex < 0 || currentIndex >= queue.length) {
+      if (
+        !queue ||
+        queue.length === 0 ||
+        currentIndex < 0 ||
+        currentIndex >= queue.length
+      ) {
         return;
+      }
+
+      // Synchronize repeat mode changes with AudioPlaylist loop mode
+      if (this.playlist) {
+        const expectedLoop =
+          repeatMode === "all" ? "all" : repeatMode === "one" ? "single" : "none";
+        if ((this.playlist as any).loop !== expectedLoop) {
+          (this.playlist as any).loop = expectedLoop;
+        }
+      }
+
+      // Append new upcoming songs added to queue (e.g. similarity recommendations)
+      if (this.playlist && queue.length > this.loadedQueueSongIds.length) {
+        const currentQuality = state.player.audioQuality || "auto";
+        for (let i = this.loadedQueueSongIds.length; i < queue.length; i++) {
+          const song = queue[i];
+          const uri = resolveStreamUrl(song, currentQuality);
+          if (uri) {
+            try {
+              this.playlist.add({ uri });
+              this.loadedQueueSongIds.push(song.id);
+            } catch (err) {
+              console.warn("[AudioPlayerService] Failed to append song to playlist:", err);
+            }
+          }
+        }
       }
 
       const currentSong = selectCurrentSongFromQueue(state.queue);
@@ -135,32 +169,72 @@ export class AudioPlayerService {
     });
   }
 
-  private handlePlaybackStatusUpdate(status: AudioStatus): void {
-    if (!status) return;
+  private handleTrackChanged(previousIndex: number, currentIndex: number): void {
+    console.log(
+      `[AudioPlayerService] ⏭️ Track Changed: ${previousIndex} -> ${currentIndex}`
+    );
+    const state = store.getState();
+    const queue = state.queue.queue;
+    if (!queue || currentIndex < 0 || currentIndex >= queue.length) return;
 
-    if ((status as any).remoteCommand === "nextTrack") {
-      console.log("[AudioPlayerService] Remote next track command from lock screen");
-      (store.dispatch as any)(nextTrack(true));
+    const nextSong = queue[currentIndex];
+    if (!nextSong) return;
+
+    if (
+      this.lastPlayedIndex === currentIndex &&
+      this.lastPlayedSongId === nextSong.id
+    ) {
       return;
     }
-    if ((status as any).remoteCommand === "previousTrack") {
-      console.log("[AudioPlayerService] Remote previous track command from lock screen");
-      (store.dispatch as any)(prevTrack());
-      return;
+
+    this.lastPlayedIndex = currentIndex;
+    this.lastPlayedSongId = nextSong.id;
+    const playerNextSong = mapToPlayerSong(nextSong);
+    this.currentPlayingSong = playerNextSong;
+
+    store.dispatch(setQueueIndex(currentIndex));
+    store.dispatch(setCurrentSong(playerNextSong));
+    store.dispatch(setCurrentTime(0));
+    store.dispatch(setIsPlaying(true));
+
+    safeSetActiveForLockScreen(
+      this.playlist,
+      true,
+      {
+        title: playerNextSong.title,
+        artist: playerNextSong.artistName,
+        albumTitle: playerNextSong.album || "Melody",
+        artworkUrl: playerNextSong.coverUrl || playerNextSong.posterUrl,
+      },
+      {
+        showSeekForward: false,
+        showSeekBackward: false,
+        showNextTrack: true,
+        showPreviousTrack: true,
+      }
+    );
+
+    interactionService.recordPlay(nextSong.id, 0);
+
+    if (queue.length - (currentIndex + 1) <= 2) {
+      (store.dispatch as any)(refillQueue(false));
     }
+  }
+
+  private handlePlaylistStatusUpdate(status: AudioPlaylistStatus): void {
+    if (!status) return;
 
     const dispatch = store.dispatch;
 
-    // Sync current time and duration with seek guard to prevent flicker / rubber-banding
+    // Sync current time
     if (typeof status.currentTime === "number" && !isNaN(status.currentTime)) {
       if (this.isSeeking && this.seekTargetTime !== null) {
         const diff = Math.abs(status.currentTime - this.seekTargetTime);
         const elapsedSinceResolve =
-          this.seekResolvedTimestamp > 0 ? Date.now() - this.seekResolvedTimestamp : 0;
+          this.seekResolvedTimestamp > 0
+            ? Date.now() - this.seekResolvedTimestamp
+            : 0;
 
-        // If native seekTo has resolved and either the reported position matches the target within 2.5s,
-        // or 400ms have elapsed since resolution (stale bridge events flushed),
-        // accept the position and release the seeking lock.
         if (this.seekToResolved && (diff <= 2.5 || elapsedSinceResolve > 400)) {
           this.isSeeking = false;
           this.seekTargetTime = null;
@@ -175,101 +249,39 @@ export class AudioPlayerService {
         dispatch(setCurrentTime(status.currentTime));
       }
     }
-    if (typeof status.duration === "number" && !isNaN(status.duration) && status.duration > 0) {
+
+    // Sync duration
+    if (
+      typeof status.duration === "number" &&
+      !isNaN(status.duration) &&
+      status.duration > 0
+    ) {
       dispatch(setDuration(status.duration));
     }
 
     const isPlaying = Boolean(status.playing);
     const isBuffering = Boolean(status.isBuffering);
-    const isLoaded = Boolean((status as any).isLoaded ?? true);
+    const isLoaded = Boolean(status.isLoaded ?? true);
 
     dispatch(setIsPlaying(isPlaying));
     dispatch(setIsLoading(!isLoaded || (isBuffering && !isPlaying)));
 
-    // One-time preload trigger: start buffering upcoming songs only AFTER the
-    // current song is actually playing, so it never competes for bandwidth.
+    // Save playback position periodically
     if (
       status.playing &&
-      !status.isBuffering &&
-      this.currentPlayingSong &&
-      this.preloadedForSongId !== this.currentPlayingSong.id
+      typeof status.currentTime === "number" &&
+      status.currentTime > 0
     ) {
-      this.preloadedForSongId = this.currentPlayingSong.id;
-      this.syncUpcomingPreload();
-    }
-
-    // Refresh lock screen controls once the song is actually playing with loaded duration
-    if (
-      status.playing &&
-      !status.isBuffering &&
-      this.currentPlayingSong &&
-      this.activePlayer &&
-      this.lastLockScreenSongId !== this.currentPlayingSong.id
-    ) {
-      this.lastLockScreenSongId = this.currentPlayingSong.id;
-      console.log(
-        `[LockScreen:DIAGNOSTIC] 🔄 Loaded status arrived (duration=${status.duration}s, playing=${status.playing}). Refreshing lock screen for: "${this.currentPlayingSong.title}"`
-      );
-      safeSetActiveForLockScreen(
-        this.activePlayer,
-        true,
-        {
-          title: this.currentPlayingSong.title,
-          artist: this.currentPlayingSong.artistName,
-          albumTitle: this.currentPlayingSong.album || "Melody",
-          artworkUrl: this.currentPlayingSong.coverUrl || this.currentPlayingSong.posterUrl,
-        },
-        {
-          showSeekForward: true,
-          showSeekBackward: true,
-          showNextTrack: true,
-          showPreviousTrack: true,
-          seekForwardIntervalSeconds: 10,
-          seekBackwardIntervalSeconds: 10,
-        }
-      );
-    }
-
-    // Throttle position saving to local storage (every 5 seconds while playing)
-    if (status.playing && typeof status.currentTime === "number" && status.currentTime > 0) {
       if (Date.now() - this.lastPositionSaveTimestamp > 5000) {
         this.lastPositionSaveTimestamp = Date.now();
         PlayerStore.savePlaybackPosition(status.currentTime);
       }
     }
 
-    // Sync buffered time to Redux
-    const nativeBuffered =
-      (status as any).bufferedPosition ?? (this.activePlayer as any)?.bufferedPosition;
-    const dur =
-      typeof status.duration === "number" && status.duration > 0
-        ? status.duration
-        : this.currentPlayingSong?.duration || 0;
-    const curr =
-      typeof status.currentTime === "number" && !isNaN(status.currentTime)
-        ? status.currentTime
-        : 0;
-
-    if (typeof nativeBuffered === "number" && nativeBuffered >= 0) {
-      this.bufferedSeconds = nativeBuffered;
-      dispatch(setBufferedTime(nativeBuffered));
-    } else if (dur > 0) {
-      const forwardWindow = status.isBuffering ? 8 : 25;
-      this.bufferedSeconds = Math.min(
-        dur,
-        Math.max(this.bufferedSeconds, curr + forwardWindow)
-      );
-      dispatch(setBufferedTime(this.bufferedSeconds));
-    }
-
-    // Track finished event (strictly validate track reached end and not currently advancing or seeking)
+    // Handle track completion on last track / repeatMode none
     if (
       status.didJustFinish &&
       !this.isSeeking &&
-      typeof status.duration === "number" &&
-      status.duration > 0 &&
-      typeof status.currentTime === "number" &&
-      status.currentTime >= status.duration - 1.5 &&
       !this.isAdvancingTrack
     ) {
       this.isAdvancingTrack = true;
@@ -277,65 +289,66 @@ export class AudioPlayerService {
         this.isAdvancingTrack = false;
       }, 1200);
 
-      // Report 100% listen to backend (track completed naturally)
       if (this.currentPlayingSong?.id) {
         interactionService.recordPlay(this.currentPlayingSong.id, 1.0);
       }
 
-      console.log("[AudioPlayerService] Track finished playback. Determining next action...");
+      console.log(
+        "[AudioPlayerService] Track finished playback. Determining next action..."
+      );
       const state = store.getState();
       const sleepTimer = state.player.sleepTimer;
       if (sleepTimer === -1) {
-        console.log("[AudioPlayerService] Sleep timer reached (End of track). Pausing playback.");
+        console.log(
+          "[AudioPlayerService] Sleep timer reached (End of track). Pausing playback."
+        );
         this.pause();
         store.dispatch(setSleepTimer(null));
         return;
       }
 
       const repeatMode: RepeatMode = state.queue.repeatMode;
-
-      if (repeatMode === "one" && this.activePlayer) {
-        console.log("[AudioPlayerService] RepeatMode=one. Replaying current track...");
-        const player = this.activePlayer;
-        player.seekTo(0).then(() => player?.play());
+      if (repeatMode === "one" && this.playlist) {
+        this.playlist.seekTo(0).then(() => this.playlist?.play());
       } else {
-        console.log("[AudioPlayerService] Advancing to next track in queue...");
         this.onTrackEndCallback?.();
       }
     }
   }
 
-  /**
-   * Synchronizes the upcoming 2 songs in the Redux queue into Standby 1 & 2.
-   */
   public syncUpcomingPreload(): void {
     const state = store.getState();
-    const { queue, currentIndex } = state.queue;
-    const quality = state.player.audioQuality || "auto";
+    const { queue } = state.queue;
+    if (!this.playlist || !queue) return;
 
-    if (queue && queue.length > 0) {
-      const next1 = queue[currentIndex + 1];
-      const next2 = queue[currentIndex + 2];
-      console.log(
-        `[AudioPlayerService:PRELOAD] Queue Pos: ${currentIndex}/${queue.length - 1} | Standby 1: ${next1 ? `"${next1.title}" (${next1.id})` : "None"} | Standby 2: ${next2 ? `"${next2.title}" (${next2.id})` : "None"}`
-      );
-      this.pool.syncPreloadQueue(queue, currentIndex, quality).catch((err) => {
-        console.warn("[AudioPlayerService] syncPreloadQueue error:", err);
-      });
+    if (queue.length > this.loadedQueueSongIds.length) {
+      const currentQuality = state.player.audioQuality || "auto";
+      for (let i = this.loadedQueueSongIds.length; i < queue.length; i++) {
+        const song = queue[i];
+        const uri = resolveStreamUrl(song, currentQuality);
+        if (uri) {
+          try {
+            this.playlist.add({ uri });
+            this.loadedQueueSongIds.push(song.id);
+          } catch {}
+        }
+      }
     }
   }
 
-  public async play(song: Song | PlayerSong, startTime = 0, force = false): Promise<void> {
+  public async play(
+    song: Song | PlayerSong,
+    startTime = 0,
+    force = false
+  ): Promise<void> {
     await this.init();
 
-    // Report listen telemetry for the song being replaced (partial listen)
     this.reportPartialListen();
 
     let playerSong: PlayerSong = (song as PlayerSong).audioStreamUrl
       ? (song as PlayerSong)
       : mapToPlayerSong(song);
 
-    // Fallback: If song is missing songKey, hydrate from backend
     if (!playerSong.songKey && playerSong.id) {
       try {
         const fullSong = await homeService.getSongById(playerSong.id);
@@ -348,181 +361,143 @@ export class AudioPlayerService {
     }
 
     console.log(
-      `▶ [AudioPlayerService:PLAY] "${playerSong.title}" - ${playerSong.artistName} [ID: ${playerSong.id}] | Duration: ${playerSong.duration}s | AudioKey: ${playerSong.songKey || (playerSong as any).audioKey || "N/A"}`
+      `▶ [AudioPlayerService:PLAY] "${playerSong.title}" - ${playerSong.artistName} [ID: ${playerSong.id}] | Duration: ${playerSong.duration}s | AudioKey: ${playerSong.songKey}`
     );
-
-    // 1. If this song is already playing and no seek/force is requested, resume
-    if (!force && this.currentPlayingSong?.id === playerSong.id && startTime === 0) {
-      const isPlaying = store.getState().player.isPlaying;
-      if (isPlaying) {
-        return;
-      }
-      this.resume();
-      return;
-    }
-
-    this.lastPlayedSongId = playerSong.id;
-    this.lastLockScreenSongId = null;
 
     const state = store.getState();
     const currentQuality = state.player.audioQuality || "auto";
+    this.currentQuality = currentQuality;
+    const queue = state.queue.queue;
+    const currentIndex = state.queue.currentIndex;
+    const repeatMode = state.queue.repeatMode;
+    const loopMode =
+      repeatMode === "all" ? "all" : repeatMode === "one" ? "single" : "none";
 
-    // 2. CHECK IF SONG IS READY IN STANDBY 1 (0ms Handover!)
-    const standby1 = this.pool.getStandbySlot("standby1");
-    if (startTime === 0 && standby1.song?.id === playerSong.id) {
-      console.log(
-        `[AudioPlayerService] Zero-delay gapless handover! Playing "${playerSong.title}" from Standby 1.`
-      );
-      this.isAdvancingTrack = false;
-      this.currentPlayingSong = playerSong;
-      this.preloadedForSongId = playerSong.id; // preload is triggered right below
-      this.bufferedSeconds = 10;
+    const queueSongs = queue && queue.length > 0 ? queue : [playerSong];
+    const currentSongIds = queueSongs.map((s) => s.id);
+    const targetIndex =
+      currentIndex >= 0 && currentIndex < queueSongs.length
+        ? currentIndex
+        : Math.max(0, queueSongs.findIndex((s) => s.id === playerSong.id));
 
-      store.dispatch(setCurrentSong(playerSong));
-      store.dispatch(setCurrentTime(0));
-      store.dispatch(setBufferedTime(10));
-      if (playerSong.duration) {
-        store.dispatch(setDuration(playerSong.duration));
-      }
-      store.dispatch(setIsPlaying(true));
-      store.dispatch(setIsLoading(false));
+    this.isAdvancingTrack = false;
+    this.currentPlayingSong = playerSong;
+    this.lastPlayedIndex = targetIndex;
+    this.lastPlayedSongId = playerSong.id;
+    this.bufferedSeconds = startTime;
 
-      await this.pool.promoteStandby("standby1", currentQuality);
-      PlayerStore.saveLastSong(playerSong, 0);
-
-      // Re-prime pool for the newly upcoming songs (song is already playing instantly)
-      this.syncUpcomingPreload();
-      return;
+    store.dispatch(setCurrentSong(playerSong));
+    store.dispatch(setCurrentTime(startTime));
+    store.dispatch(setBufferedTime(startTime));
+    if (playerSong.duration) {
+      store.dispatch(setDuration(playerSong.duration));
     }
+    store.dispatch(setIsLoading(true));
 
-    // 3. CHECK IF SONG IS READY IN STANDBY 2 (0ms Handover on fast double-skip)
-    const standby2 = this.pool.getStandbySlot("standby2");
-    if (startTime === 0 && standby2.song?.id === playerSong.id) {
+    const isSameQueue =
+      this.playlist &&
+      this.loadedQueueSongIds.length === currentSongIds.length &&
+      this.loadedQueueSongIds.every((id, idx) => id === currentSongIds[idx]);
+
+    if (isSameQueue && this.playlist && !force) {
       console.log(
-        `[AudioPlayerService] Zero-delay gapless handover! Playing "${playerSong.title}" from Standby 2.`
+        `[AudioPlayerService] Reusing active playlist for track index ${targetIndex}: "${playerSong.title}"`
       );
-      this.isAdvancingTrack = false;
-      this.currentPlayingSong = playerSong;
-      this.preloadedForSongId = playerSong.id; // preload is triggered right below
-      this.bufferedSeconds = 10;
-
-      store.dispatch(setCurrentSong(playerSong));
-      store.dispatch(setCurrentTime(0));
-      store.dispatch(setBufferedTime(10));
-      if (playerSong.duration) {
-        store.dispatch(setDuration(playerSong.duration));
+      if (this.playlist.currentIndex !== targetIndex) {
+        this.playlist.skipTo(targetIndex);
       }
-      store.dispatch(setIsPlaying(true));
-      store.dispatch(setIsLoading(false));
-
-      await this.pool.promoteStandby("standby2", currentQuality);
-      PlayerStore.saveLastSong(playerSong, 0);
-
-      // Re-prime pool for the newly upcoming songs
-      this.syncUpcomingPreload();
-      return;
-    }
-
-    // 4. Fallback: Cold start or cache miss (load in active player slot)
-    const activeSlot = this.pool.getActiveSlot();
-    const player = activeSlot.player;
-    if (!player) return;
-
-    try {
-      this.isAdvancingTrack = false;
-      this.currentPlayingSong = playerSong;
-      // Preload of upcoming songs is deferred until this song is actually playing
-      this.preloadedForSongId = null;
-      activeSlot.song = playerSong;
-      this.bufferedSeconds = startTime;
-
-      store.dispatch(setCurrentSong(playerSong));
-      store.dispatch(setCurrentTime(startTime));
-      store.dispatch(setBufferedTime(startTime));
-      if (playerSong.duration) {
-        store.dispatch(setDuration(playerSong.duration));
+      if (startTime > 0) {
+        this.playlist.seekTo(startTime).catch(() => {});
       }
-      store.dispatch(setIsLoading(true));
-
-      const uri = resolveStreamUrl(playerSong, currentQuality);
-      if (!uri) {
-        console.warn(`[AudioPlayerService] No stream URL found for song ${playerSong.title} (${playerSong.id})`);
-        store.dispatch(setIsLoading(false));
-        return;
+      (this.playlist as any).loop = loopMode;
+      this.playlist.play();
+    } else {
+      console.log(
+        `[AudioPlayerService] Creating new AudioPlaylist with ${queueSongs.length} track(s) starting at index ${targetIndex} for "${playerSong.title}"`
+      );
+      if (this.playlist) {
+        try {
+          this.playlist.pause();
+          safeSetActiveForLockScreen(this.playlist, false);
+          this.statusSubscription?.remove();
+          this.trackChangedSubscription?.remove();
+        } catch {}
       }
 
-      activeSlot.resolvedUri = uri;
-      console.log(`[AudioPlayerService] Loading stream for "${playerSong.title}" (${currentQuality}): ${uri}`);
+      const sources = queueSongs.map((s) => ({
+        uri: resolveStreamUrl(s, currentQuality),
+      }));
+      this.loadedQueueSongIds = [...currentSongIds];
 
-      // Ensure audio priority is initialized
-      configureAudioPriority().catch(() => {});
+      this.playlist = createAudioPlaylist({
+        sources,
+        updateInterval: 250,
+        loop: loopMode,
+      });
 
-      player.volume = 1.0;
-      // Sync replace: starts loading immediately, doesn't wait for buffering
-      player.replace({ uri });
+      this.statusSubscription = this.playlist.addListener(
+        "playlistStatusUpdate",
+        (status: AudioPlaylistStatus) => {
+          this.handlePlaylistStatusUpdate(status);
+        }
+      );
+
+      this.trackChangedSubscription = this.playlist.addListener(
+        "trackChanged",
+        (data: { previousIndex: number; currentIndex: number }) => {
+          this.handleTrackChanged(data.previousIndex, data.currentIndex);
+        }
+      );
+
+      if (targetIndex > 0 && targetIndex < sources.length) {
+        this.playlist.skipTo(targetIndex);
+      }
 
       if (startTime > 0) {
-        player.seekTo(startTime).catch((e: unknown) => {
-          console.warn("[AudioPlayerService] initial seekTo error:", e);
-        });
+        this.playlist.seekTo(startTime).catch(() => {});
       }
 
       const savedRate = store.getState().player.playbackRate;
       if (typeof savedRate === "number" && savedRate > 0) {
-        (player as any).setPlaybackRate?.(savedRate);
+        (this.playlist as any).playbackRate = savedRate;
       }
 
-      // Update native lock screen & notification controls BEFORE play()
-      safeSetActiveForLockScreen(
-        player,
-        true,
-        {
-          title: playerSong.title,
-          artist: playerSong.artistName,
-          albumTitle: playerSong.album || "Melody",
-          artworkUrl: playerSong.coverUrl || playerSong.posterUrl,
-        },
-        {
-          showSeekForward: true,
-          showSeekBackward: true,
-          showNextTrack: true,
-          showPreviousTrack: true,
-          seekForwardIntervalSeconds: 10,
-          seekBackwardIntervalSeconds: 10,
-        }
-      );
-
-      // Starts as soon as enough data arrives; isLoading is cleared by the
-      // status listener when buffering ends.
-      player.play();
-      store.dispatch(setIsPlaying(true));
-      store.dispatch(setIsLoading(false));
-
-      // Persist active song and initial playback position to local storage
-      PlayerStore.saveLastSong(playerSong, startTime);
-
-      // NOTE: syncUpcomingPreload() is intentionally NOT called here.
-      // It is triggered from handlePlaybackStatusUpdate once playback has started.
-    } catch (err) {
-      console.error(`[AudioPlayerService] Error playing song "${playerSong.title}":`, err);
-      store.dispatch(setIsLoading(false));
-      store.dispatch(setIsPlaying(false));
+      this.playlist.play();
     }
+
+    safeSetActiveForLockScreen(
+      this.playlist,
+      true,
+      {
+        title: playerSong.title,
+        artist: playerSong.artistName,
+        albumTitle: playerSong.album || "Melody",
+        artworkUrl: playerSong.coverUrl || playerSong.posterUrl,
+      },
+      {
+        showSeekForward: false,
+        showSeekBackward: false,
+        showNextTrack: true,
+        showPreviousTrack: true,
+      }
+    );
+
+    store.dispatch(setIsPlaying(true));
+    store.dispatch(setIsLoading(false));
+    PlayerStore.saveLastSong(playerSong, startTime);
   }
 
   public pause(): void {
-    const player = this.activePlayer;
-    if (!player) return;
-    player.pause();
+    if (!this.playlist) return;
+    this.playlist.pause();
     store.dispatch(setIsPlaying(false));
-    if (typeof player.currentTime === "number" && player.currentTime >= 0) {
-      PlayerStore.savePlaybackPosition(player.currentTime);
+    if (typeof this.playlist.currentTime === "number" && this.playlist.currentTime >= 0) {
+      PlayerStore.savePlaybackPosition(this.playlist.currentTime);
     }
   }
 
   public resume(): void {
-    // If resuming from cold-start with a restored song, trigger native playback
-    if (!this.currentPlayingSong) {
+    if (!this.playlist) {
       const state = store.getState();
       const restoredSong = state.player.currentSong;
       if (restoredSong) {
@@ -532,13 +507,11 @@ export class AudioPlayerService {
       }
     }
 
-    const player = this.activePlayer;
-    if (!player) return;
-    const curTime = player.currentTime || 0;
-    const dur = player.duration || 0;
+    if (!this.playlist) return;
+
     if (this.currentPlayingSong) {
       safeSetActiveForLockScreen(
-        player,
+        this.playlist,
         true,
         {
           title: this.currentPlayingSong.title,
@@ -547,32 +520,31 @@ export class AudioPlayerService {
           artworkUrl: this.currentPlayingSong.coverUrl || this.currentPlayingSong.posterUrl,
         },
         {
-          showSeekForward: true,
-          showSeekBackward: true,
+          showSeekForward: false,
+          showSeekBackward: false,
           showNextTrack: true,
           showPreviousTrack: true,
-          seekForwardIntervalSeconds: 10,
-          seekBackwardIntervalSeconds: 10,
         }
       );
     }
 
+    const curTime = this.playlist.currentTime || 0;
+    const dur = this.playlist.duration || 0;
     if (dur > 0 && curTime >= dur - 0.5) {
-      // Track is already at EOF: restart from 0 instead of immediately triggering didJustFinish
-      player.seekTo(0).then(() => {
-        player?.play();
+      this.playlist.seekTo(0).then(() => {
+        this.playlist?.play();
       });
     } else {
-      player.play();
+      this.playlist.play();
     }
     store.dispatch(setIsPlaying(true));
     store.dispatch(setIsLoading(false));
   }
 
   public refreshLockScreen(): void {
-    if (!this.activePlayer || !this.currentPlayingSong) return;
+    if (!this.playlist || !this.currentPlayingSong) return;
     safeSetActiveForLockScreen(
-      this.activePlayer,
+      this.playlist,
       true,
       {
         title: this.currentPlayingSong.title,
@@ -581,31 +553,20 @@ export class AudioPlayerService {
         artworkUrl: this.currentPlayingSong.coverUrl || this.currentPlayingSong.posterUrl,
       },
       {
-        showSeekForward: true,
-        showSeekBackward: true,
+        showSeekForward: false,
+        showSeekBackward: false,
         showNextTrack: true,
         showPreviousTrack: true,
-        seekForwardIntervalSeconds: 10,
-        seekBackwardIntervalSeconds: 10,
       }
     );
   }
 
   public togglePlay(): void {
-    // If cold-start restored song exists but hasn't begun native playback yet
-    if (!this.currentPlayingSong) {
-      const state = store.getState();
-      const restoredSong = state.player.currentSong;
-      if (restoredSong) {
-        const savedTime = state.player.currentTime || 0;
-        this.play(restoredSong, savedTime);
-        return;
-      }
+    if (!this.playlist) {
+      this.resume();
+      return;
     }
-
-    const player = this.activePlayer;
-    if (!player) return;
-    if (player.playing) {
+    if (this.playlist.playing) {
       this.pause();
     } else {
       this.resume();
@@ -613,8 +574,7 @@ export class AudioPlayerService {
   }
 
   public async seek(seconds: number): Promise<void> {
-    const player = this.activePlayer;
-    if (!player) return;
+    if (!this.playlist) return;
     const safeTime = Math.max(0, seconds);
     const seekId = ++this.currentSeekId;
 
@@ -626,7 +586,6 @@ export class AudioPlayerService {
     if (this.seekTimeout) {
       clearTimeout(this.seekTimeout);
     }
-    // Safety fallback: auto-unlock seeking after 1500ms in case native update never matches
     this.seekTimeout = setTimeout(() => {
       if (this.currentSeekId === seekId) {
         this.isSeeking = false;
@@ -636,14 +595,13 @@ export class AudioPlayerService {
       }
     }, 1500);
 
-    // Optimistically update store currentTime immediately so UI is completely responsive
     this.bufferedSeconds = safeTime;
     store.dispatch(setCurrentTime(safeTime));
     store.dispatch(setBufferedTime(safeTime));
     PlayerStore.savePlaybackPosition(safeTime);
 
     try {
-      await player.seekTo(safeTime);
+      await this.playlist.seekTo(safeTime);
       if (this.currentSeekId === seekId) {
         this.seekToResolved = true;
         this.seekResolvedTimestamp = Date.now();
@@ -663,19 +621,16 @@ export class AudioPlayerService {
   }
 
   public setVolume(vol: number): void {
-    const player = this.activePlayer;
-    if (!player) return;
-    const safeVol = Math.max(0, Math.min(1, vol));
-    player.volume = safeVol;
+    if (this.playlist) {
+      this.playlist.volume = Math.max(0, Math.min(1, vol));
+    }
   }
 
   private sleepTimerTimeout: any = null;
 
   public setPlaybackRate(rate: number): void {
-    const player = this.activePlayer;
-    if (!player) return;
-    if (typeof (player as any).setPlaybackRate === "function") {
-      (player as any).setPlaybackRate(rate);
+    if (this.playlist) {
+      (this.playlist as any).playbackRate = rate;
     }
   }
 
@@ -695,38 +650,36 @@ export class AudioPlayerService {
 
   public setAudioQuality(quality: AudioQuality): void {
     store.dispatch(setAudioQuality(quality));
-    console.log(`[AudioPlayerService] Audio quality preference set to "${quality}". Applies to streaming tracks.`);
-    this.syncUpcomingPreload();
+    console.log(
+      `[AudioPlayerService] Audio quality preference set to "${quality}". Applies to streaming tracks.`
+    );
+    this.currentQuality = quality;
+    if (this.currentPlayingSong) {
+      const curTime = this.playlist?.currentTime || 0;
+      this.play(this.currentPlayingSong, curTime, true);
+    }
   }
 
   public getCurrentTime(): number {
-    return this.activePlayer?.currentTime ?? 0;
+    return this.playlist?.currentTime ?? 0;
   }
 
   public isPlaying(): boolean {
-    return this.activePlayer?.playing ?? false;
+    return this.playlist?.playing ?? false;
   }
 
   public getCurrentSong(): PlayerSong | null {
     return this.currentPlayingSong;
   }
 
-  /**
-   * Reports a partial listen to the backend when a song is interrupted
-   * (e.g. user switches to another song before the current one finishes).
-   * Only fires if the user listened to at least 5% of the track.
-   */
   private reportPartialListen(): void {
-    if (!this.currentPlayingSong?.id) return;
-    const player = this.activePlayer;
-    if (!player) return;
+    if (!this.currentPlayingSong?.id || !this.playlist) return;
 
-    const currentTime = player.currentTime || 0;
-    const duration = player.duration || this.currentPlayingSong.duration || 0;
+    const currentTime = this.playlist.currentTime || 0;
+    const duration = this.playlist.duration || this.currentPlayingSong.duration || 0;
     if (duration <= 0 || currentTime <= 0) return;
 
     const percentage = Math.min(1.0, currentTime / duration);
-    // Only report if user listened to at least 5% (avoid noise from rapid skips)
     if (percentage >= 0.05) {
       interactionService.recordPlay(this.currentPlayingSong.id, percentage);
     }

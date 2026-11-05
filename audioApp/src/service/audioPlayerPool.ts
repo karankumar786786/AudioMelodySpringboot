@@ -296,8 +296,8 @@ export class AudioPlayerPool {
         artworkUrl: promotedSong.coverUrl || promotedSong.posterUrl,
       },
       {
-        showSeekForward: true,
-        showSeekBackward: true,
+        showSeekForward: false,
+        showSeekBackward: false,
         showNextTrack: true,
         showPreviousTrack: true,
         seekForwardIntervalSeconds: 10,
