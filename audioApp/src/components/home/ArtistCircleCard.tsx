@@ -4,6 +4,7 @@ import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
 import { Artist } from "@/types";
 import { getImageUrl } from "@/utils/imageUtils";
+import { formatFollowerCount } from "@/utils/formatUtils";
 import { hapticFeedback } from "@/utils/haptics";
 import { colors, radius, shadows, spacing } from "@/theme";
 
@@ -49,16 +50,24 @@ export function ArtistCircleCard({ artist, onPress }: ArtistCircleCardProps) {
       <Text style={styles.name} numberOfLines={1}>
         {artist.name}
       </Text>
-      <Text style={styles.badge} numberOfLines={1}>
-        Artist
-      </Text>
+      <View style={styles.followersRow}>
+        <Ionicons
+          name="people-outline"
+          size={11}
+          color={colors.textMuted}
+          style={styles.followerIcon}
+        />
+        <Text style={styles.followersText} numberOfLines={1}>
+          {formatFollowerCount(artist.followersCount, true)}
+        </Text>
+      </View>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    width: 104,
+    width: 108,
     marginRight: spacing.md,
     alignItems: "center",
   },
@@ -91,8 +100,18 @@ const styles = StyleSheet.create({
     width: "100%",
     marginBottom: 2,
   },
-  badge: {
-    color: colors.textMuted,
+  followersRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3.5,
+    maxWidth: "100%",
+  },
+  followerIcon: {
+    marginTop: 0.5,
+  },
+  followersText: {
+    color: colors.textSecondary,
     fontSize: 11,
     fontWeight: "500",
     textAlign: "center",

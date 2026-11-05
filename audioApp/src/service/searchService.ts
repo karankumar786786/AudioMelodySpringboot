@@ -87,21 +87,21 @@ export const searchService: SearchService = {
             indexName,
             query: trimmed,
             filters: "type:artist",
-            hitsPerPage: 8,
+            hitsPerPage: 4,
             typoTolerance: true,
           },
           {
             indexName,
             query: trimmed,
             filters: "type:song",
-            hitsPerPage: 20,
+            hitsPerPage: 8,
             typoTolerance: true,
           },
           {
             indexName,
             query: trimmed,
             filters: "type:playlist OR type:userPlaylist",
-            hitsPerPage: 10,
+            hitsPerPage: 8,
             typoTolerance: true,
           },
         ],
@@ -112,17 +112,21 @@ export const searchService: SearchService = {
       const songHits: any[] = (results[1] as any)?.hits || [];
       const playlistHits: any[] = (results[2] as any)?.hits || [];
 
-      const songs: Song[] = songHits.map((h: any) => normalizeSong(h, "algolia"));
-      const artists: Artist[] = artistHits.map(mapArtistHit);
+      const songs: Song[] = songHits.slice(0, 8).map((h: any) => normalizeSong(h, "algolia"));
+      const artists: Artist[] = artistHits.slice(0, 4).map(mapArtistHit);
       const playlists: Playlist[] = [];
       const userPlaylists: UserPlaylist[] = [];
 
       for (const hit of playlistHits) {
         const mapped = mapPlaylistHit(hit);
         if (mapped.isUserPlaylist && mapped.userPlaylist) {
-          userPlaylists.push(mapped.userPlaylist);
+          if (userPlaylists.length < 4) {
+            userPlaylists.push(mapped.userPlaylist);
+          }
         } else if (mapped.playlist) {
-          playlists.push(mapped.playlist);
+          if (playlists.length < 4) {
+            playlists.push(mapped.playlist);
+          }
         }
       }
 
@@ -152,21 +156,21 @@ export const searchService: SearchService = {
         const type = hit.type;
 
         if (type === "song") {
-          if (songs.length < 20) {
+          if (songs.length < 8) {
             songs.push(normalizeSong(hit, "algolia"));
           }
         } else if (type === "artist") {
-          if (artists.length < 8) {
+          if (artists.length < 4) {
             artists.push(mapArtistHit(hit));
           }
         } else if (type === "playlist" || type === "userPlaylist") {
           const mapped = mapPlaylistHit(hit);
           if (mapped.isUserPlaylist && mapped.userPlaylist) {
-            if (userPlaylists.length < 10) {
+            if (userPlaylists.length < 4) {
               userPlaylists.push(mapped.userPlaylist);
             }
           } else if (mapped.playlist) {
-            if (playlists.length < 10) {
+            if (playlists.length < 4) {
               playlists.push(mapped.playlist);
             }
           }

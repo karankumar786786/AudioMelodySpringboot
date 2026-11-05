@@ -17,8 +17,8 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { playWithSimilarSongs,AppDispatch } from "@/store";
-import { searchService } from "@/service";
+import { playWithSimilarSongs, AppDispatch } from "@/store";
+import { searchService, albumService } from "@/service";
 import {
   Song,
   Artist,
@@ -27,8 +27,18 @@ import {
   UserSearchHistoryItem,
   UserSearchHistoryGrouped,
 } from "@/types";
-import { SongRowItem,ArtistCircleCard,PlaylistCard,SearchHistoryItem,SearchTopResultCard,CategoryGenreCard,POPULAR_GENRES,UserPlaylistThumbnail } from "@/components";
-import {searchStyles as styles} from "@/styles";
+import {
+  SongRowItem,
+  ArtistCircleCard,
+  PlaylistCard,
+  SearchHistoryItem,
+  CategoryGenreCard,
+  POPULAR_GENRES,
+  UserPlaylistThumbnail,
+  AlbumCard,
+} from "@/components";
+import { hapticFeedback } from "@/utils/haptics";
+import { searchStyles as styles } from "@/styles";
 
 // Space reserved for the tab bar + mini player so the end of the page is reachable.
 const TAB_BAR_HEIGHT = 64;
@@ -84,40 +94,63 @@ export default function SearchScreen() {
   const playlists = searchResults?.playlists || [];
   const userPlaylists = searchResults?.userPlaylists || [];
 
+  // Query all albums to match against query
+  const { data: allAlbums = [] } = useQuery({
+    queryKey: ["all-albums"],
+    queryFn: () => albumService.getAllAlbums(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const matchingAlbums = useMemo(() => {
+    const q = (debouncedQuery || inputText).toLowerCase().trim();
+    if (!q) return [];
+
+    const map = new Map<string, any>();
+
+    // 1. Matches from allAlbums
+    for (const alb of allAlbums) {
+      const albName = (alb?.name || alb?.album || "").trim();
+      const artist = (alb?.artistName || "").trim();
+      if (
+        albName &&
+        (albName.toLowerCase().includes(q) || artist.toLowerCase().includes(q))
+      ) {
+        map.set(albName.toLowerCase(), {
+          name: albName,
+          artistName: alb.artistName || "Various Artists",
+          imageKey: alb.imageKey,
+          trackCount: alb.trackCount || alb.count,
+        });
+      }
+    }
+
+    // 2. Matches from search songs
+    for (const song of songs) {
+      const albName = (song.album || "").trim();
+      if (albName && !map.has(albName.toLowerCase())) {
+        if (
+          albName.toLowerCase().includes(q) ||
+          (song.title && song.title.toLowerCase().includes(q)) ||
+          (song.artistName && song.artistName.toLowerCase().includes(q))
+        ) {
+          map.set(albName.toLowerCase(), {
+            name: albName,
+            artistName: song.artistName || "Various Artists",
+            imageKey: song.imageKey,
+          });
+        }
+      }
+    }
+
+    return Array.from(map.values()).slice(0, 4);
+  }, [allAlbums, songs, debouncedQuery, inputText]);
+
   const hasAnyResults =
     songs.length > 0 ||
-    artists.length > 0 ||
+    matchingAlbums.length > 0 ||
     playlists.length > 0 ||
-    userPlaylists.length > 0;
-
-  // Determine top result
-  const topResult = useMemo(() => {
-    if (!hasAnyResults) return null;
-
-    const queryToMatch = (debouncedQuery || inputText).toLowerCase().trim();
-    if (!queryToMatch) return null;
-
-    const matchingArtist = artists.find((a) =>
-      a.name.toLowerCase().includes(queryToMatch)
-    );
-
-    if (matchingArtist) {
-      return { kind: "ARTIST" as const, item: matchingArtist };
-    }
-    if (songs.length > 0) {
-      return { kind: "SONG" as const, item: songs[0] };
-    }
-    if (artists.length > 0) {
-      return { kind: "ARTIST" as const, item: artists[0] };
-    }
-    if (playlists.length > 0) {
-      return { kind: "PLAYLIST" as const, item: playlists[0] };
-    }
-    if (userPlaylists.length > 0) {
-      return { kind: "USER_PLAYLIST" as const, item: userPlaylists[0] };
-    }
-    return null;
-  }, [songs, artists, playlists, userPlaylists, debouncedQuery, inputText, hasAnyResults]);
+    userPlaylists.length > 0 ||
+    artists.length > 0;
 
   // Handlers
   const handleSelectSong = (song: Song) => {
@@ -314,40 +347,7 @@ export default function SearchScreen() {
           onScrollBeginDrag={Keyboard.dismiss}
           contentContainerStyle={{ paddingTop: 8, paddingBottom: bottomSpace }}
         >
-          {topResult ? (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, styles.padded]}>Top result</Text>
-              <SearchTopResultCard
-                topResult={topResult}
-                onPress={() => {
-                  if (topResult.kind === "SONG") {
-                    handleSelectSong(topResult.item);
-                  } else if (topResult.kind === "ARTIST") {
-                    handleSelectArtist(topResult.item);
-                  } else if (topResult.kind === "PLAYLIST") {
-                    handleSelectPlaylist(topResult.item);
-                  } else if (topResult.kind === "USER_PLAYLIST") {
-                    handleSelectUserPlaylist(topResult.item);
-                  }
-                }}
-              />
-            </View>
-          ) : null}
-
-          {songs.length > 0 ? (
-            <View style={styles.section}>
-              <Text style={[styles.sectionTitle, styles.padded]}>Songs</Text>
-              {songs.map((song, idx) => (
-                <SongRowItem
-                  key={song.id}
-                  song={song}
-                  index={idx}
-                  onPress={() => handleSelectSong(song)}
-                />
-              ))}
-            </View>
-          ) : null}
-
+          {/* 1. Artists */}
           {artists.length > 0 ? (
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, styles.padded]}>Artists</Text>
@@ -367,6 +367,47 @@ export default function SearchScreen() {
             </View>
           ) : null}
 
+          {/* 2. Songs */}
+          {songs.length > 0 ? (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, styles.padded]}>Songs</Text>
+              {songs.map((song, idx) => (
+                <SongRowItem
+                  key={song.id}
+                  song={song}
+                  index={idx}
+                  onPress={() => handleSelectSong(song)}
+                />
+              ))}
+            </View>
+          ) : null}
+
+          {/* 3. Albums */}
+          {matchingAlbums.length > 0 ? (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, styles.padded]}>Albums</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalRow}
+              >
+                {matchingAlbums.map((album, idx) => (
+                  <AlbumCard
+                    key={`${album.name}-${idx}`}
+                    album={album}
+                    onPress={() => {
+                      hapticFeedback.light();
+                      router.push(
+                        `/album/${encodeURIComponent(album.name)}` as any
+                      );
+                    }}
+                  />
+                ))}
+              </ScrollView>
+            </View>
+          ) : null}
+
+          {/* 4. Playlists */}
           {playlists.length > 0 ? (
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, styles.padded]}>Playlists</Text>
@@ -386,9 +427,10 @@ export default function SearchScreen() {
             </View>
           ) : null}
 
+          {/* 5. User Playlists */}
           {userPlaylists.length > 0 ? (
             <View style={styles.section}>
-              <Text style={[styles.sectionTitle, styles.padded]}>User playlists</Text>
+              <Text style={[styles.sectionTitle, styles.padded]}>Community Playlists</Text>
               {userPlaylists.map((uPlaylist) => (
                 <TouchableOpacity
                   key={uPlaylist.id}
