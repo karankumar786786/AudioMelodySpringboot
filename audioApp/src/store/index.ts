@@ -7,3 +7,4 @@ export * from "./playerSlice";
 export * from "./queueSlice";
 export * from "./queueActions";
 export * from "./favouriteSlice";
+export * from "./userPlaylistSlice";

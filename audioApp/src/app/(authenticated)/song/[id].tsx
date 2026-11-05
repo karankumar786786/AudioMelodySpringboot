@@ -38,8 +38,9 @@ import {
   setDominantColor,
   selectIsFavourite,
   toggleFavourite,
+  selectIsSongInAnyPlaylist,
 } from "@/store";
-import { CanvasVideoPlayer, QueueModal, FullVideoPlayerModal, PlayerSettingsModal, DEFAULT_AUDIO_QUALITIES } from "@/components";
+import { CanvasVideoPlayer, QueueModal, FullVideoPlayerModal, PlayerSettingsModal, AddToPlaylistModal, DEFAULT_AUDIO_QUALITIES } from "@/components";
 import { formatDuration,  getImageUrl, useDominantColor,S3_BASE_URL } from "@/utils";
 import { hapticFeedback } from "@/utils/haptics";
 import { usePanGesture, GestureDetector } from "react-native-gesture-handler";
@@ -70,8 +71,8 @@ export default function SongDetailScreen() {
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAddToPlaylistOpen, setIsAddToPlaylistOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("canvas");
-  const isLiked = useSelector((state: AppState) => selectIsFavourite(state, activeSong?.id));
   const [isArtistImageModalOpen, setIsArtistImageModalOpen] = useState(false);
 
   // Subtle fade and scale animation between canvas and artwork mode
@@ -130,8 +131,16 @@ export default function SongDetailScreen() {
     enabled: Boolean(id && (!currentSong || currentSong.id !== id)),
   });
 
-  // Effective song to display: prefer currentSong from player state, fallback to fetchedSong
-  const activeSong = currentSong || fetchedSong;
+  // Effective song to display: prefer currentSong from player state if matching id, fallback to fetchedSong
+  const activeSong =
+    currentSong && String(currentSong.id) === String(id)
+      ? currentSong
+      : (fetchedSong || currentSong);
+  const targetSongId = (activeSong?.id || id) ? String(activeSong?.id || id) : undefined;
+  const isLiked = useSelector((state: AppState) => selectIsFavourite(state, targetSongId));
+  const isSongInAnyPlaylist = useSelector((state: AppState) =>
+    selectIsSongInAnyPlaylist(state, targetSongId)
+  );
 
   // Synced lyrics hook (with LRCLIB ID or title/artist fallback)
   const {
@@ -484,7 +493,8 @@ export default function SongDetailScreen() {
   };
 
   const handleToggleLike = async () => {
-    if (!activeSong) return;
+    const songToToggle = activeSong || (targetSongId ? ({ id: targetSongId, title: "Song" } as any) : null);
+    if (!songToToggle) return;
     const nextLiked = !isLiked;
     if (nextLiked) {
       hapticFeedback.success();
@@ -517,7 +527,7 @@ export default function SongDetailScreen() {
       ]).start();
     }
     try {
-      await dispatch(toggleFavourite(activeSong) as any).unwrap();
+      await dispatch(toggleFavourite(songToToggle) as any).unwrap();
       queryClient.invalidateQueries({ queryKey: ["favourites"] });
       queryClient.invalidateQueries({ queryKey: ["favourites-check"] });
     } catch (e) {
@@ -779,20 +789,39 @@ export default function SongDetailScreen() {
             </TouchableOpacity>
           </View>
 
-          <TouchableOpacity
-            hitSlop={14}
-            onPress={handleToggleLike}
-            style={styles.likeButton}
-            activeOpacity={0.75}
-          >
-            <Animated.View style={{ transform: [{ scale: heartScaleAnim }] }}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <TouchableOpacity
+              hitSlop={14}
+              onPress={() => {
+                hapticFeedback.light();
+                setIsAddToPlaylistOpen(true);
+              }}
+              style={styles.likeButton}
+              activeOpacity={0.75}
+              accessibilityLabel="Add to playlist"
+            >
               <Ionicons
-                name={isLiked ? "heart" : "heart-outline"}
-                size={28}
-                color={isLiked ? "#FF3B30" : "rgba(255, 255, 255, 0.75)"}
+                name={isSongInAnyPlaylist ? "checkmark-circle" : "add-circle-outline"}
+                size={27}
+                color={isSongInAnyPlaylist ? "#FFFFFF" : "rgba(255, 255, 255, 0.75)"}
               />
-            </Animated.View>
-          </TouchableOpacity>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              hitSlop={14}
+              onPress={handleToggleLike}
+              style={styles.likeButton}
+              activeOpacity={0.75}
+            >
+              <Animated.View style={{ transform: [{ scale: heartScaleAnim }] }}>
+                <Ionicons
+                  name={isLiked ? "heart" : "heart-outline"}
+                  size={28}
+                  color={isLiked ? "#FF3B30" : "rgba(255, 255, 255, 0.75)"}
+                />
+              </Animated.View>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* 5. Interactive Timeline / Scrubber */}
@@ -1267,6 +1296,13 @@ export default function SongDetailScreen() {
             </View>
           </SafeAreaView>
         </Modal>
+
+        {/* 10. Add To Playlist Modal */}
+        <AddToPlaylistModal
+          visible={isAddToPlaylistOpen}
+          onClose={() => setIsAddToPlaylistOpen(false)}
+          song={activeSong || { id: targetSongId || id, title: "Song" }}
+        />
       </SafeAreaView>
     </View>
   );

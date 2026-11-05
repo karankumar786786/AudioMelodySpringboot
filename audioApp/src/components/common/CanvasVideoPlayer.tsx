@@ -198,16 +198,27 @@ function VideoSurface({
 
     return () => {
       clearInterval(stallInterval);
-      statusSub.remove();
-      playingSub.remove();
-      playEndSub.remove();
-      timeUpdateSub.remove();
-      appStateSub.remove();
+      try {
+        statusSub.remove();
+      } catch {}
+      try {
+        playingSub.remove();
+      } catch {}
+      try {
+        playEndSub.remove();
+      } catch {}
+      try {
+        timeUpdateSub.remove();
+      } catch {}
+      try {
+        appStateSub.remove();
+      } catch {}
     };
   }, [isPlaying, player, triggerLoopReplay]);
 
   return (
     <VideoView
+      key={`vv-${videoUrl}`}
       style={StyleSheet.absoluteFill}
       player={player}
       contentFit="cover"

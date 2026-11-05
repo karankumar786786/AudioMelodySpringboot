@@ -21,7 +21,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { playlistService } from "@/service";
 import { Song } from "@/types";
-import { AppDispatch, AppState,playAll,playWithSimilarSongs } from "@/store";
+import { AppDispatch, AppState, playAll, playWithSimilarSongs, deleteUserPlaylist, removeSongFromUserPlaylist } from "@/store";
 import { PlaylistTrackItem,UserPlaylistThumbnail } from "@/components";
 import { userPlaylistDetailStyles as styles } from "@/styles";
 
@@ -133,7 +133,7 @@ export default function UserPlaylistDetailScreen() {
     );
 
     try {
-      await playlistService.removeSongFromUserPlaylist(id, songId);
+      await dispatch(removeSongFromUserPlaylist({ playlistId: id, songId })).unwrap();
       queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
       queryClient.invalidateQueries({ queryKey: ["user-playlist", id] });
     } catch {
@@ -153,7 +153,7 @@ export default function UserPlaylistDetailScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              await playlistService.deleteUserPlaylist(id);
+              await dispatch(deleteUserPlaylist(id)).unwrap();
               queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
               router.back();
             } catch (err) {

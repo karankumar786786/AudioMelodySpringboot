@@ -13,6 +13,7 @@ import {
   loadUserProfile,
   loadLastPlaybackState,
   loadFavourites,
+  loadUserPlaylists,
   store,
 } from "@/store";
 import { AuthToken } from "@/types";
@@ -68,6 +69,7 @@ function RootNavigator() {
     if (authToken.accessToken) {
       dispatch(loadUserProfile());
       dispatch(loadFavourites());
+      dispatch(loadUserPlaylists());
     }
   }, [authToken.accessToken, dispatch]);
 

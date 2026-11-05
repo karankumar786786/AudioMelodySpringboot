@@ -6,6 +6,7 @@ import userReducer from "./userSlice";
 import playerReducer from "./playerSlice";
 import queueReducer from "./queueSlice";
 import favouritesReducer from "./favouriteSlice";
+import userPlaylistsReducer from "./userPlaylistSlice";
 
 export const store = configureStore({
     reducer: {
@@ -16,6 +17,7 @@ export const store = configureStore({
         player: playerReducer,
         queue: queueReducer,
         favourites: favouritesReducer,
+        userPlaylists: userPlaylistsReducer,
     }
 });
 

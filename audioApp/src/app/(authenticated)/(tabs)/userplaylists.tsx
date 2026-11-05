@@ -19,7 +19,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useDispatch, useSelector } from "react-redux";
 
+import {
+  AppDispatch,
+  AppState,
+  selectAllUserPlaylists,
+  selectUserPlaylistsLoading,
+  loadUserPlaylists,
+  createUserPlaylist,
+} from "@/store";
 import { playlistService, albumService } from "@/service";
 import { UserPlaylist } from "@/types";
 import { UserPlaylistThumbnail } from "@/components";
@@ -49,6 +58,10 @@ export default function UserPlaylistsScreen() {
   const [newPlaylistPrivacy, setNewPlaylistPrivacy] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const dispatch = useDispatch<AppDispatch>();
+  const storePlaylists = useSelector(selectAllUserPlaylists);
+  const isStoreLoading = useSelector(selectUserPlaylistsLoading);
+
   // Playlists query
   const {
     data: playlistsData,
@@ -73,7 +86,10 @@ export default function UserPlaylistsScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const playlists: UserPlaylist[] = playlistsData?.content || [];
+  const playlists: UserPlaylist[] =
+    storePlaylists && storePlaylists.length > 0
+      ? storePlaylists
+      : (playlistsData?.content || []);
 
   const closeModal = () => {
     setIsCreateModalOpen(false);
@@ -85,10 +101,12 @@ export default function UserPlaylistsScreen() {
     try {
       setIsSubmitting(true);
       hapticFeedback.light();
-      const created = await playlistService.createUserPlaylist(
-        newPlaylistName.trim(),
-        newPlaylistPrivacy
-      );
+      const created = await dispatch(
+        createUserPlaylist({
+          name: newPlaylistName.trim(),
+          privacy: newPlaylistPrivacy,
+        })
+      ).unwrap();
       setIsCreateModalOpen(false);
       setNewPlaylistName("");
       setNewPlaylistPrivacy("PUBLIC");
@@ -373,6 +391,7 @@ export default function UserPlaylistsScreen() {
             <RefreshControl
               refreshing={isPlaylistsRefetching}
               onRefresh={() => {
+                dispatch(loadUserPlaylists());
                 refetchPlaylists();
                 refetchAlbums();
               }}
