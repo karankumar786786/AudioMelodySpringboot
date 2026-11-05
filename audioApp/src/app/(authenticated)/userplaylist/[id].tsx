@@ -136,8 +136,10 @@ export default function UserPlaylistDetailScreen() {
       await dispatch(removeSongFromUserPlaylist({ playlistId: id, songId })).unwrap();
       queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
       queryClient.invalidateQueries({ queryKey: ["user-playlist", id] });
+      queryClient.invalidateQueries({ queryKey: ["user-playlist-songs-thumb"] });
     } catch {
       queryClient.invalidateQueries({ queryKey: ["user-playlist-songs", id] });
+      queryClient.invalidateQueries({ queryKey: ["user-playlist-songs-thumb"] });
     }
   };
 
@@ -155,6 +157,7 @@ export default function UserPlaylistDetailScreen() {
             try {
               await dispatch(deleteUserPlaylist(id)).unwrap();
               queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
+              queryClient.invalidateQueries({ queryKey: ["user-playlist-songs-thumb"] });
               router.back();
             } catch (err) {
               console.error("Failed to delete playlist:", err);

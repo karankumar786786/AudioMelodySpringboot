@@ -12,6 +12,7 @@ export interface UserPlaylistThumbnailProps {
     id: string;
     coverImageKey?: string;
     name?: string;
+    totalSongs?: number;
   };
   /** Pre-loaded songs if already available (e.g., from the playlist details page) */
   songs?: Song[];
@@ -34,24 +35,49 @@ export function UserPlaylistThumbnail({
   borderRadius = 8,
   style,
 }: UserPlaylistThumbnailProps) {
-  // Only fetch songs when there is no custom cover and no songs passed in
+  const totalSongsCount = (playlist as any)?.totalSongs;
+  const isKnownEmpty = totalSongsCount === 0;
+
+  // Only fetch songs when there is no custom cover, no songs passed in, and it's not confirmed empty
   const needsSongs =
-    !playlist.coverImageKey && (!initialSongs || initialSongs.length === 0);
+    !playlist.coverImageKey &&
+    (!initialSongs || initialSongs.length === 0) &&
+    !isKnownEmpty;
 
   const { data: songsResponse } = useQuery({
-    queryKey: ["user-playlist-songs-thumb", playlist.id],
+    queryKey: ["user-playlist-songs-thumb", playlist.id, totalSongsCount],
     queryFn: () => playlistService.getUserPlaylistSongs(playlist.id, 0, 4),
     enabled: needsSongs,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 15 * 1000,
   });
 
   const songs: Song[] =
     initialSongs && initialSongs.length > 0
       ? initialSongs
-      : songsResponse?.content || [];
+      : songsResponse?.content ||
+        (Array.isArray(songsResponse) ? songsResponse : (songsResponse as any)?.data || []);
 
   const targetDimension = Math.max(Math.round(size * 2), 120);
   const mosaicDimension = Math.max(Math.round(size), 80);
+
+  const getSongArt = (song?: Song | any, dimension = 120): string | undefined => {
+    if (!song) return undefined;
+    const raw = song.imageKey || song.coverImageKey || song.posterUrl || song.coverUrl;
+    if (!raw) return undefined;
+    if (
+      typeof raw === "string" &&
+      (raw.startsWith("http://") || raw.startsWith("https://")) &&
+      !raw.includes("ik.imagekit.io")
+    ) {
+      return raw;
+    }
+    return getImageUrl(raw, {
+      width: dimension,
+      height: dimension,
+      quality: 90,
+      aspectRatio: "1-1",
+    });
+  };
 
   const coverUrl = getImageUrl(playlist.coverImageKey, {
     width: targetDimension,
@@ -60,26 +86,11 @@ export function UserPlaylistThumbnail({
     aspectRatio: "1-1",
   });
 
-  const mosaicImages = songs.slice(0, 4).map((s) =>
-    getImageUrl(s.imageKey, {
-      width: mosaicDimension,
-      height: mosaicDimension,
-      quality: 85,
-      aspectRatio: "1-1",
-    })
-  );
+  const mosaicImages = songs.slice(0, 4).map((s) => getSongArt(s, mosaicDimension));
 
   const showMosaic = !coverUrl && songs.length >= 4;
   const showSingle = !coverUrl && songs.length > 0 && songs.length < 4;
-  const singleImg =
-    showSingle && songs[0]
-      ? getImageUrl(songs[0].imageKey, {
-          width: targetDimension,
-          height: targetDimension,
-          quality: 90,
-          aspectRatio: "1-1",
-        })
-      : null;
+  const singleImg = showSingle && songs[0] ? getSongArt(songs[0], targetDimension) : null;
 
   const containerStyle = [
     styles.container,
@@ -99,7 +110,7 @@ export function UserPlaylistThumbnail({
           source={{ uri: coverUrl }}
           style={styles.imageFull}
           contentFit="cover"
-          cachePolicy="memory"
+          cachePolicy="memory-disk"
         />
       </View>
     );
@@ -114,7 +125,7 @@ export function UserPlaylistThumbnail({
             source={{ uri: imgUrl }}
             style={styles.imageFull}
             contentFit="cover"
-            cachePolicy="memory"
+            cachePolicy="memory-disk"
           />
         ) : (
           <View style={styles.mosaicCellFallback}>
@@ -152,7 +163,7 @@ export function UserPlaylistThumbnail({
           source={{ uri: singleImg }}
           style={styles.imageFull}
           contentFit="cover"
-          cachePolicy="memory"
+          cachePolicy="memory-disk"
         />
       </View>
     );

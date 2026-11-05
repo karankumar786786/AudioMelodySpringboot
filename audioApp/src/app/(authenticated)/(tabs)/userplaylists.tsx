@@ -112,6 +112,7 @@ export default function UserPlaylistsScreen() {
       setNewPlaylistPrivacy("PUBLIC");
 
       queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
+      queryClient.invalidateQueries({ queryKey: ["user-playlist-songs-thumb"] });
 
       router.push({
         pathname: "/(authenticated)/userplaylist/[id]",
@@ -394,6 +395,7 @@ export default function UserPlaylistsScreen() {
                 dispatch(loadUserPlaylists());
                 refetchPlaylists();
                 refetchAlbums();
+                queryClient.invalidateQueries({ queryKey: ["user-playlist-songs-thumb"] });
               }}
               tintColor="#FFFFFF"
               colors={["#FFFFFF"]}

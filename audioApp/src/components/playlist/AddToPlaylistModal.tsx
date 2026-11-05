@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { useDispatch, useSelector } from "react-redux";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { AppDispatch, AppState } from "@/store";
 import {
@@ -46,6 +47,7 @@ export function AddToPlaylistModal({
   song,
 }: AddToPlaylistModalProps) {
   const dispatch = useDispatch<AppDispatch>();
+  const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
 
   const playlists = useSelector(selectAllUserPlaylists);
@@ -71,12 +73,14 @@ export function AddToPlaylistModal({
     }
   }, [visible, dispatch]);
 
-  // Load songs for any playlist not yet in the map
+  // Load songs for any playlist not yet in the map (skip empty playlists to prevent race conditions)
   useEffect(() => {
     if (visible && playlists.length > 0) {
       playlists.forEach((pl) => {
         if (!playlistSongMap[pl.id]) {
-          dispatch(loadPlaylistSongs(pl.id));
+          if ((pl.totalSongs || 0) > 0) {
+            dispatch(loadPlaylistSongs(pl.id));
+          }
         }
       });
     }
@@ -99,6 +103,9 @@ export function AddToPlaylistModal({
         await dispatch(
           removeSongFromUserPlaylist({ playlistId: playlist.id, songId })
         ).unwrap();
+        queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
+        queryClient.invalidateQueries({ queryKey: ["user-playlist-songs-thumb"] });
+        queryClient.invalidateQueries({ queryKey: ["user-playlist-songs", playlist.id] });
         showFeedback(`Removed from "${playlist.name}"`);
       } catch (err: any) {
         showFeedback("Failed to update playlist");
@@ -109,6 +116,9 @@ export function AddToPlaylistModal({
         await dispatch(
           addSongToUserPlaylist({ playlistId: playlist.id, songId })
         ).unwrap();
+        queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
+        queryClient.invalidateQueries({ queryKey: ["user-playlist-songs-thumb"] });
+        queryClient.invalidateQueries({ queryKey: ["user-playlist-songs", playlist.id] });
         showFeedback(`Added to "${playlist.name}"`);
       } catch (err: any) {
         showFeedback("Failed to add to playlist");
@@ -130,6 +140,10 @@ export function AddToPlaylistModal({
       await dispatch(
         addSongToUserPlaylist({ playlistId: newPlaylist.id, songId })
       ).unwrap();
+
+      queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
+      queryClient.invalidateQueries({ queryKey: ["user-playlist-songs-thumb"] });
+      queryClient.invalidateQueries({ queryKey: ["user-playlist-songs", newPlaylist.id] });
 
       setNewPlaylistName("");
       setIsCreating(false);

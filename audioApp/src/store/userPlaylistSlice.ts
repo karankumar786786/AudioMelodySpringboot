@@ -178,14 +178,43 @@ export const userPlaylistSlice = createSlice({
       })
       .addCase(createUserPlaylist.fulfilled, (state, action) => {
         state.playlists.unshift(action.payload);
+        // Pre-initialize empty song list in map so loadPlaylistSongs is not triggered prematurely
+        state.playlistSongMap[action.payload.id] = [];
       })
       .addCase(deleteUserPlaylist.fulfilled, (state, action) => {
         state.playlists = state.playlists.filter((p) => p.id !== action.payload);
         delete state.playlistSongMap[action.payload];
       })
+      .addCase(addSongToUserPlaylist.fulfilled, (state, action) => {
+        const { playlistId, songId } = action.payload;
+        const existing = state.playlistSongMap[playlistId] || [];
+        if (!existing.includes(songId)) {
+          state.playlistSongMap[playlistId] = [songId, ...existing];
+        }
+        const pl = state.playlists.find((p) => p.id === playlistId);
+        if (pl) {
+          pl.totalSongs = Math.max(pl.totalSongs || 0, state.playlistSongMap[playlistId].length);
+        }
+      })
+      .addCase(removeSongFromUserPlaylist.fulfilled, (state, action) => {
+        const { playlistId, songId } = action.payload;
+        const existing = state.playlistSongMap[playlistId] || [];
+        state.playlistSongMap[playlistId] = existing.filter((id) => id !== songId);
+        const pl = state.playlists.find((p) => p.id === playlistId);
+        if (pl && pl.totalSongs > 0) {
+          pl.totalSongs = Math.max(0, pl.totalSongs - 1);
+        }
+      })
       .addCase(loadPlaylistSongs.fulfilled, (state, action) => {
         const { playlistId, songIds } = action.payload;
-        state.playlistSongMap[playlistId] = songIds;
+        const existing = state.playlistSongMap[playlistId] || [];
+        // Preserve any songs that were added locally and may not have reached server yet
+        const merged = Array.from(new Set([...existing, ...songIds]));
+        state.playlistSongMap[playlistId] = merged;
+        const pl = state.playlists.find((p) => p.id === playlistId);
+        if (pl && merged.length > pl.totalSongs) {
+          pl.totalSongs = merged.length;
+        }
       });
   },
 });
