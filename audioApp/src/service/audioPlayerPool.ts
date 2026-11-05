@@ -107,8 +107,10 @@ export class AudioPlayerPool {
     this.slots = roles.map((role, idx) => {
       // NOTE: no preferredForwardBufferDuration here. It is applied per-role below
       // so the active player is never capped.
+      // keepAudioSessionActive: false ensures audio focus yields cleanly to other apps
+      // (YouTube, Spotify, incoming phone calls) rather than holding the hardware session open.
       const player = createAudioPlayer(null, {
-        keepAudioSessionActive: true,
+        keepAudioSessionActive: false,
         updateInterval: 250,
       });
 

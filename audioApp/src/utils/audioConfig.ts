@@ -8,8 +8,9 @@ export const isExpoGo =
 /**
  * Configures top exclusive audio priority for One Melody.
  * - `playsInSilentMode: true`: audio continues playing even if phone is on silent/vibrate.
- * - `interruptionMode: 'doNotMix'`: requests exclusive audio focus (AudioManager.AUDIOFOCUS_GAIN),
- *   pausing for incoming calls / navigation / notifications, and automatically resuming in earphones/speakers when the interruption ends.
+ * - `interruptionMode: 'doNotMixPersistent'`: requests continuous media audio focus (AudioManager.AUDIOFOCUS_GAIN),
+ *   yielding focus and pausing when other media apps (YouTube, Spotify, Instagram) or phone calls take focus,
+ *   and supporting background playback on lock screen.
  * - `shouldPlayInBackground: true`: audio continues playing in background and lock screen.
  */
 let isConfigured = false;
@@ -20,14 +21,14 @@ export async function configureAudioPriority(force = false): Promise<void> {
   try {
     await setAudioModeAsync({
       playsInSilentMode: true,
-      interruptionMode: "doNotMix",
+      interruptionMode: "doNotMixPersistent",
       shouldPlayInBackground: true,
       allowsRecording: false,
       shouldRouteThroughEarpiece: false,
     });
     await setIsAudioActiveAsync(true);
     isConfigured = true;
-    console.log("[AudioPriority] Persistent audio priority configured (doNotMix, silentMode, background)");
+    console.log("[AudioPriority] Persistent audio priority configured (doNotMixPersistent, silentMode, background)");
   } catch (error) {
     console.warn("[AudioPriority] Failed to configure audio priority:", error);
   }
