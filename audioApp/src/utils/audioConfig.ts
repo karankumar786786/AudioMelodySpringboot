@@ -38,7 +38,7 @@ export async function configureAudioPriority(force = false): Promise<void> {
 
       await setAudioModeAsync({
         playsInSilentMode: true,
-        interruptionMode: "doNotMix",
+        interruptionMode: "doNotMixPersistent",
         shouldPlayInBackground: true,
         allowsRecording: false,
         shouldRouteThroughEarpiece: false,

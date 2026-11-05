@@ -128,6 +128,7 @@ function VideoSurface({
     const appStateSub = AppState.addEventListener("change", (nextState) => {
       if (nextState !== "active") {
         player.pause();
+        configureAudioPriority(true).catch(() => {});
       } else if (isPlaying) {
         player.play();
         setTimeout(restoreSession, 60);

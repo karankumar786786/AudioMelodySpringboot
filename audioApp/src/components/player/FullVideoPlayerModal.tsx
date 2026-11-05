@@ -20,6 +20,7 @@ import { useSelector } from "react-redux";
 import { store, AppState } from "@/store/hook";
 import { audioPlayerService } from "@/service/audioPlayerService";
 import { formatDuration } from "@/utils/formatUtils";
+import { configureAudioPriority } from "@/utils/audioConfig";
 import { useHlsQualities } from "@/hooks/useHlsQualities";
 import { PlayerSettingsModal, VideoResizeMode } from "./PlayerSettingsModal";
 import { hapticFeedback } from "@/utils/haptics";
@@ -263,6 +264,7 @@ export function FullVideoPlayerModal({
   useEffect(() => {
     if (!visible) {
       player?.pause();
+      configureAudioPriority(true).catch(() => {});
       return;
     }
 
@@ -304,6 +306,7 @@ export function FullVideoPlayerModal({
       if (nextState !== "active") {
         player.pause();
         setIsPlaying(false);
+        configureAudioPriority(true).catch(() => {});
       }
     });
     return () => {
@@ -333,6 +336,7 @@ export function FullVideoPlayerModal({
   useEffect(() => {
     return () => {
       player?.pause();
+      configureAudioPriority(true).catch(() => {});
     };
   }, [player]);
 
@@ -384,6 +388,7 @@ export function FullVideoPlayerModal({
     if (player) {
       player.pause();
     }
+    configureAudioPriority(true).catch(() => {});
     ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
     onClose(finalTime);
   };
