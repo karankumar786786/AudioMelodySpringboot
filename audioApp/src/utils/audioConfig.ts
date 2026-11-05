@@ -62,11 +62,20 @@ export function safeSetActiveForLockScreen(
   metadata?: any,
   options?: any
 ): void {
-  if (!player) return;
+  if (!player) {
+    console.warn("[LockScreen:DIAGNOSTIC] ⚠️ Cannot configure lock screen: AudioPlayer instance is null or undefined");
+    return;
+  }
+
+  const playerId = (player as any)?.id || "unknown";
+  const isPlaying = (player as any)?.playing ?? "unknown";
+  const duration = (player as any)?.duration ?? 0;
+  const currentTime = (player as any)?.currentTime ?? 0;
+  const stateSummary = `player[${playerId}] | isPlaying=${isPlaying} | duration=${duration}s | pos=${currentTime}s`;
 
   // On Android only: Expo Go lacks AudioControlsService in its manifest
   if (Platform.OS === "android" && isExpoGo) {
-    console.log("[LockScreen] Skipped on Android Expo Go to avoid missing manifest service");
+    console.warn(`[LockScreen:DIAGNOSTIC] ⚠️ Lock screen controls skipped on Android Expo Go (Expo Go manifest lacks AudioControlsService). Build a dev client to test Android lock screen. ${stateSummary}`);
     return;
   }
 
@@ -95,18 +104,21 @@ export function safeSetActiveForLockScreen(
         ...(options || {}),
       };
 
+      console.log(
+        `[LockScreen:DIAGNOSTIC] 📱 Activating Lock Screen & Control Center -> Title: "${cleanMetadata?.title}" | Artist: "${cleanMetadata?.artist}" | Artwork: ${cleanMetadata?.artworkUrl ? "YES" : "NO"} | ${stateSummary}`
+      );
+
       player.setActiveForLockScreen(active, cleanMetadata, cleanOptions);
-      console.log(`[LockScreen] Active on lock screen / Control Center for: "${cleanMetadata?.title}"`);
     } else {
+      console.log(`[LockScreen:DIAGNOSTIC] ⏹️ Deactivating lock screen controls | ${stateSummary}`);
       if (typeof (player as any).clearLockScreenControls === "function") {
         (player as any).clearLockScreenControls();
       } else {
         player.setActiveForLockScreen(false);
       }
-      console.log("[LockScreen] Deactivated lock screen controls");
     }
   } catch (err) {
-    console.warn("[LockScreen] Safe lock screen update error:", err);
+    console.error("[LockScreen:DIAGNOSTIC] ❌ Exception in player.setActiveForLockScreen:", err);
   }
 }
 

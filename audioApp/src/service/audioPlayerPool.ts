@@ -107,10 +107,11 @@ export class AudioPlayerPool {
     this.slots = roles.map((role, idx) => {
       // NOTE: no preferredForwardBufferDuration here. It is applied per-role below
       // so the active player is never capped.
-      // keepAudioSessionActive: false ensures audio focus yields cleanly to other apps
-      // (YouTube, Spotify, incoming phone calls) rather than holding the hardware session open.
+      // keepAudioSessionActive: true ensures the iOS audio session remains active across
+      // track transitions so the Lock Screen and Control Center widgets do not disappear
+      // when the old player is paused during standby promotion.
       const player = createAudioPlayer(null, {
-        keepAudioSessionActive: false,
+        keepAudioSessionActive: true,
         updateInterval: 250,
       });
 
@@ -273,16 +274,9 @@ export class AudioPlayerPool {
       applyBufferPolicy(slot);
     }
 
-    // 2. Deactivate old active player
-    safeSetActiveForLockScreen(currentActive.player, false);
-    currentActive.player.pause();
-    currentActive.player.volume = 0;
-
-    // 3. Immediately activate target player with audio unmuted
-    targetSlot.player.volume = 1.0;
-    targetSlot.player.play();
-
-    // 4. Update lock screen controls on the newly promoted player
+    // 2. Activate lock screen controls on target player FIRST
+    //    This marks targetSlot as activePlayable in iOS MediaController
+    //    and deactivates the old player's lock screen status in one atomic native step.
     safeSetActiveForLockScreen(
       targetSlot.player,
       true,
@@ -301,6 +295,14 @@ export class AudioPlayerPool {
         seekBackwardIntervalSeconds: 10,
       },
     );
+
+    // 3. Pause and mute old active player (its lock screen is already superseded)
+    currentActive.player.pause();
+    currentActive.player.volume = 0;
+
+    // 4. Immediately activate target player with audio unmuted
+    targetSlot.player.volume = 1.0;
+    targetSlot.player.play();
 
     return promotedSong;
   }

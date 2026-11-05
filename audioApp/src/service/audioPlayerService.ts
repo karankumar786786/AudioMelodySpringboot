@@ -42,6 +42,7 @@ export class AudioPlayerService {
   private lastPlayedSongId: string | null = null;
   private lastPlayedIndex: number = -1;
   private isAutoPlaySuppressed = false;
+  private lastLockScreenSongId: string | null = null;
 
   private get activePlayer(): AudioPlayer | null {
     return this.pool.getActiveSlot()?.player || null;
@@ -178,6 +179,30 @@ export class AudioPlayerService {
       this.syncUpcomingPreload();
     }
 
+    // Refresh lock screen controls once the song is actually playing with loaded duration
+    if (
+      status.playing &&
+      !status.isBuffering &&
+      this.currentPlayingSong &&
+      this.activePlayer &&
+      this.lastLockScreenSongId !== this.currentPlayingSong.id
+    ) {
+      this.lastLockScreenSongId = this.currentPlayingSong.id;
+      console.log(
+        `[LockScreen:DIAGNOSTIC] 🔄 Loaded status arrived (duration=${status.duration}s, playing=${status.playing}). Refreshing lock screen for: "${this.currentPlayingSong.title}"`
+      );
+      safeSetActiveForLockScreen(
+        this.activePlayer,
+        true,
+        {
+          title: this.currentPlayingSong.title,
+          artist: this.currentPlayingSong.artistName,
+          albumTitle: this.currentPlayingSong.album || "Melody",
+          artworkUrl: this.currentPlayingSong.coverUrl || this.currentPlayingSong.posterUrl,
+        }
+      );
+    }
+
     // Throttle position saving to local storage (every 5 seconds while playing)
     if (status.playing && typeof status.currentTime === "number" && status.currentTime > 0) {
       if (Date.now() - this.lastPositionSaveTimestamp > 5000) {
@@ -310,6 +335,7 @@ export class AudioPlayerService {
     }
 
     this.lastPlayedSongId = playerSong.id;
+    this.lastLockScreenSongId = null;
 
     const state = store.getState();
     const currentQuality = state.player.audioQuality || "auto";
@@ -419,16 +445,7 @@ export class AudioPlayerService {
         (player as any).setPlaybackRate?.(savedRate);
       }
 
-      // Starts as soon as enough data arrives; isLoading is cleared by the
-      // status listener when buffering ends.
-      player.play();
-      store.dispatch(setIsPlaying(true));
-      store.dispatch(setIsLoading(false));
-
-      // Persist active song and initial playback position to local storage
-      PlayerStore.saveLastSong(playerSong, startTime);
-
-      // Update native lock screen & notification controls
+      // Update native lock screen & notification controls BEFORE play()
       safeSetActiveForLockScreen(
         player,
         true,
@@ -447,6 +464,15 @@ export class AudioPlayerService {
           seekBackwardIntervalSeconds: 10,
         }
       );
+
+      // Starts as soon as enough data arrives; isLoading is cleared by the
+      // status listener when buffering ends.
+      player.play();
+      store.dispatch(setIsPlaying(true));
+      store.dispatch(setIsLoading(false));
+
+      // Persist active song and initial playback position to local storage
+      PlayerStore.saveLastSong(playerSong, startTime);
 
       // NOTE: syncUpcomingPreload() is intentionally NOT called here.
       // It is triggered from handlePlaybackStatusUpdate once playback has started.
@@ -483,17 +509,6 @@ export class AudioPlayerService {
     if (!player) return;
     const curTime = player.currentTime || 0;
     const dur = player.duration || 0;
-    if (dur > 0 && curTime >= dur - 0.5) {
-      // Track is already at EOF: restart from 0 instead of immediately triggering didJustFinish
-      player.seekTo(0).then(() => {
-        player?.play();
-      });
-    } else {
-      player.play();
-    }
-    store.dispatch(setIsPlaying(true));
-    store.dispatch(setIsLoading(false));
-
     if (this.currentPlayingSong) {
       safeSetActiveForLockScreen(
         player,
@@ -506,6 +521,17 @@ export class AudioPlayerService {
         }
       );
     }
+
+    if (dur > 0 && curTime >= dur - 0.5) {
+      // Track is already at EOF: restart from 0 instead of immediately triggering didJustFinish
+      player.seekTo(0).then(() => {
+        player?.play();
+      });
+    } else {
+      player.play();
+    }
+    store.dispatch(setIsPlaying(true));
+    store.dispatch(setIsLoading(false));
   }
 
   public togglePlay(): void {
