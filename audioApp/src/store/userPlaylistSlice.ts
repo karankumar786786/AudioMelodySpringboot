@@ -54,11 +54,11 @@ export const loadPlaylistSongs = createAsyncThunk<
 
 export const createUserPlaylist = createAsyncThunk<
   UserPlaylist,
-  { name: string; privacy?: "PUBLIC" | "PRIVATE" },
+  { name: string; privacy?: "PUBLIC" | "PRIVATE" | "SHARE_BY_LINK" },
   { rejectValue: string }
 >(
   "userPlaylists/createUserPlaylist",
-  async ({ name, privacy = "PUBLIC" }, { rejectWithValue }) => {
+  async ({ name, privacy = "PRIVATE" }, { rejectWithValue }) => {
     try {
       const created = await playlistService.createUserPlaylist(name, privacy);
       return created;

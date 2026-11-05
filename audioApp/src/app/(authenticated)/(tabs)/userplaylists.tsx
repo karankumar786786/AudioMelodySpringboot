@@ -55,7 +55,7 @@ export default function UserPlaylistsScreen() {
   const [selectedFilter, setSelectedFilter] = useState<LibraryFilter>("All");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
-  const [newPlaylistPrivacy, setNewPlaylistPrivacy] = useState<"PUBLIC" | "PRIVATE">("PUBLIC");
+  const [newPlaylistPrivacy, setNewPlaylistPrivacy] = useState<"PUBLIC" | "PRIVATE" | "SHARE_BY_LINK">("PRIVATE");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const dispatch = useDispatch<AppDispatch>();
@@ -109,7 +109,7 @@ export default function UserPlaylistsScreen() {
       ).unwrap();
       setIsCreateModalOpen(false);
       setNewPlaylistName("");
-      setNewPlaylistPrivacy("PUBLIC");
+      setNewPlaylistPrivacy("PRIVATE");
 
       queryClient.invalidateQueries({ queryKey: ["user-playlists"] });
       queryClient.invalidateQueries({ queryKey: ["user-playlist-songs-thumb"] });
@@ -439,7 +439,7 @@ export default function UserPlaylistsScreen() {
             />
 
             <View style={styles.privacyRow}>
-              {(["PUBLIC", "PRIVATE"] as const).map((value) => {
+              {(["PRIVATE", "SHARE_BY_LINK", "PUBLIC"] as const).map((value) => {
                 const active = newPlaylistPrivacy === value;
                 return (
                   <TouchableOpacity
@@ -452,11 +452,13 @@ export default function UserPlaylistsScreen() {
                       name={
                         value === "PUBLIC"
                           ? "globe-outline"
+                          : value === "SHARE_BY_LINK"
+                          ? "link-outline"
                           : "lock-closed-outline"
                       }
-                      size={16}
+                      size={15}
                       color={active ? "#000000" : "#FFFFFF"}
-                      style={{ marginRight: 6 }}
+                      style={{ marginRight: 5 }}
                     />
                     <Text
                       style={[
@@ -464,7 +466,11 @@ export default function UserPlaylistsScreen() {
                         active && styles.privacyTextActive,
                       ]}
                     >
-                      {value === "PUBLIC" ? "Public" : "Private"}
+                      {value === "PUBLIC"
+                        ? "Public"
+                        : value === "SHARE_BY_LINK"
+                        ? "Link Only"
+                        : "Private"}
                     </Text>
                   </TouchableOpacity>
                 );

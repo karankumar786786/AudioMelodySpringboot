@@ -58,6 +58,7 @@ export function AddToPlaylistModal({
 
   const [isCreating, setIsCreating] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
+  const [newPlaylistPrivacy, setNewPlaylistPrivacy] = useState<"PUBLIC" | "PRIVATE" | "SHARE_BY_LINK">("PRIVATE");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
@@ -69,6 +70,7 @@ export function AddToPlaylistModal({
       dispatch(loadUserPlaylists());
       setIsCreating(false);
       setNewPlaylistName("");
+      setNewPlaylistPrivacy("PRIVATE");
       setFeedbackMessage(null);
     }
   }, [visible, dispatch]);
@@ -134,7 +136,7 @@ export function AddToPlaylistModal({
       setIsSubmitting(true);
       hapticFeedback.success();
       const newPlaylist = await dispatch(
-        createUserPlaylist({ name: trimmed, privacy: "PUBLIC" })
+        createUserPlaylist({ name: trimmed, privacy: newPlaylistPrivacy })
       ).unwrap();
 
       await dispatch(
@@ -146,8 +148,15 @@ export function AddToPlaylistModal({
       queryClient.invalidateQueries({ queryKey: ["user-playlist-songs", newPlaylist.id] });
 
       setNewPlaylistName("");
+      setNewPlaylistPrivacy("PRIVATE");
       setIsCreating(false);
-      showFeedback(`Created "${trimmed}" and added song`);
+      const privacyLabel =
+        newPlaylistPrivacy === "PUBLIC"
+          ? "public"
+          : newPlaylistPrivacy === "SHARE_BY_LINK"
+          ? "unlisted"
+          : "private";
+      showFeedback(`Created "${trimmed}" (${privacyLabel}) and added song`);
     } catch (err: any) {
       showFeedback("Failed to create playlist");
     } finally {
@@ -233,12 +242,57 @@ export function AddToPlaylistModal({
                 returnKeyType="done"
                 onSubmitEditing={handleCreateAndAdd}
               />
+
+              {/* Privacy Selector (Default is Private) */}
+              <View style={styles.privacyContainer}>
+                <Text style={styles.privacyLabel}>Privacy</Text>
+                <View style={styles.privacyRow}>
+                  {[
+                    { key: "PRIVATE" as const, label: "Private", icon: "lock-closed-outline" as const, color: "#F59E0B" },
+                    { key: "SHARE_BY_LINK" as const, label: "Link Only", icon: "link-outline" as const, color: "#3B82F6" },
+                    { key: "PUBLIC" as const, label: "Public", icon: "globe-outline" as const, color: "#10B981" },
+                  ].map((p) => {
+                    const isSelected = newPlaylistPrivacy === p.key;
+                    return (
+                      <TouchableOpacity
+                        key={p.key}
+                        style={[
+                          styles.privacyOption,
+                          isSelected && styles.privacyOptionActive,
+                        ]}
+                        onPress={() => {
+                          hapticFeedback.selection();
+                          setNewPlaylistPrivacy(p.key);
+                        }}
+                        activeOpacity={0.75}
+                      >
+                        <Ionicons
+                          name={p.icon}
+                          size={14}
+                          color={isSelected ? "#000000" : p.color}
+                          style={{ marginRight: 5 }}
+                        />
+                        <Text
+                          style={[
+                            styles.privacyOptionText,
+                            isSelected && styles.privacyOptionTextActive,
+                          ]}
+                        >
+                          {p.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
               <View style={styles.createButtonsRow}>
                 <TouchableOpacity
                   style={styles.cancelButton}
                   onPress={() => {
                     setIsCreating(false);
                     setNewPlaylistName("");
+                    setNewPlaylistPrivacy("PRIVATE");
                   }}
                 >
                   <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -480,6 +534,46 @@ const styles = StyleSheet.create({
     fontSize: 15,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.12)",
+  },
+  privacyContainer: {
+    marginTop: 10,
+  },
+  privacyLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#8E8E93",
+    marginBottom: 6,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  privacyRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  privacyOption: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    backgroundColor: "#202020",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.1)",
+  },
+  privacyOptionActive: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#FFFFFF",
+  },
+  privacyOptionText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#FFFFFF",
+  },
+  privacyOptionTextActive: {
+    color: "#000000",
+    fontWeight: "700",
   },
   createButtonsRow: {
     flexDirection: "row",

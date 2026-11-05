@@ -23,7 +23,7 @@ export interface PlaylistService {
   ): Promise<PaginatedResponse<Song>>;
   createUserPlaylist(
     name: string,
-    privacy?: "PUBLIC" | "PRIVATE"
+    privacy?: "PUBLIC" | "PRIVATE" | "SHARE_BY_LINK"
   ): Promise<UserPlaylist>;
   deleteUserPlaylist(id: string): Promise<void>;
   addSongToUserPlaylist(
@@ -93,7 +93,7 @@ export const playlistService: PlaylistService = {
 
   async createUserPlaylist(
     name: string,
-    privacy: "PUBLIC" | "PRIVATE" = "PUBLIC"
+    privacy: "PUBLIC" | "PRIVATE" | "SHARE_BY_LINK" = "PRIVATE"
   ): Promise<UserPlaylist> {
     const response = await api.post<UserPlaylist>("/user/playlists", {
       name,
