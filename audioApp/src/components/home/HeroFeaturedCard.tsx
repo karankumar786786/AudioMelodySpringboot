@@ -40,8 +40,8 @@ export function HeroFeaturedCard({
     isAudioPlaying || (isCurrentTrack && Boolean(isPlaying));
 
   const imageUrl = getImageUrl(song.imageKey, {
-    width: 880,
-    height: 572,
+    width: 800,
+    height: 520,
     focus: "auto",
     aspectRatio: "16-9",
     crop: "at_least",
