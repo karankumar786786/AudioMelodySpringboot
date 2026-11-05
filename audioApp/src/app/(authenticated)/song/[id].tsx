@@ -75,20 +75,8 @@ export default function SongDetailScreen() {
   const [viewMode, setViewMode] = useState<ViewMode>("canvas");
   const [isArtistImageModalOpen, setIsArtistImageModalOpen] = useState(false);
 
-  // Subtle fade and scale animation between canvas and artwork mode
-  const modeFadeAnim = useRef(new Animated.Value(viewMode === "artwork" ? 1 : 0)).current;
-
   // Tactile pulse animation for heart/like toggle
   const heartScaleAnim = useRef(new Animated.Value(1)).current;
-
-  useEffect(() => {
-    Animated.timing(modeFadeAnim, {
-      toValue: viewMode === "artwork" ? 1 : 0,
-      duration: 260,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [viewMode]);
 
   // Redux Player & Queue State
   const currentSong = useSelector((state: AppState) => state.player.currentSong);
@@ -131,11 +119,11 @@ export default function SongDetailScreen() {
     enabled: Boolean(id && (!currentSong || currentSong.id !== id)),
   });
 
-  // Effective song to display: prefer currentSong from player state if matching id, fallback to fetchedSong
+  // Effective song to display: prefer currentSong from player state if matching id, then queue, fallback to fetchedSong
   const activeSong =
     currentSong && String(currentSong.id) === String(id)
       ? currentSong
-      : (fetchedSong || currentSong);
+      : (queue?.find((s) => String(s.id) === String(id)) || fetchedSong || currentSong);
   const targetSongId = (activeSong?.id || id) ? String(activeSong?.id || id) : undefined;
   const isLiked = useSelector((state: AppState) => selectIsFavourite(state, targetSongId));
   const isSongInAnyPlaylist = useSelector((state: AppState) =>
@@ -272,16 +260,21 @@ export default function SongDetailScreen() {
   }, [hasCanvas, hasFullVideo]);
 
   // When activeSong changes (next track clicked or song ends):
-  // If the new track does not have canvas, immediately switch to artwork mode with full opacity!
+  // If the new track does not have canvas, immediately switch to artwork mode; if it has canvas, default to canvas.
+  const currentTrackId = activeSong?.id ? String(activeSong.id) : undefined;
+  const lastTrackIdRef = useRef<string | undefined>(currentTrackId);
   useEffect(() => {
-    if (!hasCanvas) {
+    if (currentTrackId && currentTrackId !== lastTrackIdRef.current) {
+      lastTrackIdRef.current = currentTrackId;
+      if (hasCanvas) {
+        setViewMode("canvas");
+      } else {
+        setViewMode("artwork");
+      }
+    } else if (!hasCanvas && viewMode === "canvas") {
       setViewMode("artwork");
-      modeFadeAnim.setValue(1);
-    } else {
-      setViewMode("canvas");
-      modeFadeAnim.setValue(0);
     }
-  }, [activeSong?.id, hasCanvas]);
+  }, [currentTrackId, hasCanvas, viewMode]);
 
   // Navigation & mode switching handlers
   const handleDismissPlayer = () => {
@@ -537,21 +530,8 @@ export default function SongDetailScreen() {
 
   return (
     <View style={styles.root}>
-      {/* 1. Base Ambient Blurred Backdrop & Dominant Color Gradient for Artwork Mode */}
-      <Animated.View
-        style={[
-          StyleSheet.absoluteFill,
-          {
-            opacity: hasCanvas
-              ? modeFadeAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0, 1],
-                })
-              : 1,
-          },
-        ]}
-        pointerEvents="none"
-      >
+      {/* 1. Base Ambient Blurred Backdrop & Dominant Color Gradient */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
         {posterUrl ? (
           <Image
             source={{ uri: posterUrl }}
@@ -566,27 +546,16 @@ export default function SongDetailScreen() {
           locations={[0, 0.28, 0.58, 0.88, 1]}
           style={StyleSheet.absoluteFill}
         />
-      </Animated.View>
+      </View>
 
-      {/* 2. Full-Screen Canvas Video Backdrop (Smooth Cross-fade on top of Artwork Base) */}
-      {hasCanvas && activeSong.videoKey ? (
-        <Animated.View
-          style={[
-            StyleSheet.absoluteFill,
-            {
-              opacity: modeFadeAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [1, 0],
-              }),
-            },
-          ]}
-          pointerEvents="none"
-        >
+      {/* 2. Full-Screen Canvas Video Backdrop */}
+      {hasCanvas && activeSong.videoKey && effectiveViewMode === "canvas" ? (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
           <CanvasVideoPlayer
             videoUrl={(activeSong as any)?.canvasVideoUrl}
             videoKey={activeSong.videoKey}
             fallbackImageKey={activeSong.imageKey}
-            isPlaying={isPlaying && effectiveViewMode === "canvas" && !isVideoModalOpen}
+            isPlaying={isPlaying && !isVideoModalOpen}
             style={StyleSheet.absoluteFill}
           />
           {/* Multi-layered cinematic gradient wash for contrast */}
@@ -601,7 +570,7 @@ export default function SongDetailScreen() {
             locations={[0, 0.28, 0.6, 0.88, 1]}
             style={StyleSheet.absoluteFill}
           />
-        </Animated.View>
+        </View>
       ) : null}
 
       <SafeAreaView
@@ -738,36 +707,32 @@ export default function SongDetailScreen() {
                   </View>
                 ) : null}
 
-                {/* Mode Stage Display: Centered 1:1 image for artwork with subtle fade & scale */}
+                {/* Mode Stage Display: Centered 1:1 image for artwork with subtle scale */}
                 <View
                   style={styles.artworkStageBox}
                   pointerEvents={effectiveViewMode === "artwork" ? "auto" : "none"}
                 >
-                  <Animated.View
-                    style={[
-                      styles.artworkShadowContainer,
-                      {
-                        shadowColor: dominantTheme?.dominantColor || "#FFFFFF",
-                        opacity: hasCanvas
-                          ? modeFadeAnim.interpolate({
-                              inputRange: [0, 1],
-                              outputRange: [0, 1],
-                            })
-                          : 1,
-                        transform: [{ scale: artworkPlayingScaleAnim }],
-                      },
-                    ]}
-                  >
-                    <View style={styles.artworkWrapper}>
-                      <Image
-                        source={{ uri: posterUrl }}
-                        style={styles.artworkImage}
-                        contentFit="cover"
-                        transition={200}
-                        cachePolicy="memory"
-                      />
-                    </View>
-                  </Animated.View>
+                  {effectiveViewMode === "artwork" ? (
+                    <Animated.View
+                      style={[
+                        styles.artworkShadowContainer,
+                        {
+                          shadowColor: dominantTheme?.dominantColor || "#FFFFFF",
+                          transform: [{ scale: artworkPlayingScaleAnim }],
+                        },
+                      ]}
+                    >
+                      <View style={styles.artworkWrapper}>
+                        <Image
+                          source={{ uri: posterUrl }}
+                          style={styles.artworkImage}
+                          contentFit="cover"
+                          transition={200}
+                          cachePolicy="memory"
+                        />
+                      </View>
+                    </Animated.View>
+                  ) : null}
                 </View>
               </View>
             </GestureDetector>

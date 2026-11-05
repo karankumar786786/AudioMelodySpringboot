@@ -52,11 +52,10 @@ function VideoSurface({
     }
   }, [videoUrl]);
 
-  // Use VideoSource object with useCaching: true to cache the MP4 video locally in memory/disk
+  // Standard VideoSource for smooth AVPlayer / ExoPlayer streaming
   const videoSource = React.useMemo(
     () => ({
       uri: videoUrl,
-      useCaching: true,
     }),
     [videoUrl]
   );
@@ -314,18 +313,14 @@ export function CanvasVideoPlayer({
 
   return (
     <View style={[styles.container, style]} pointerEvents="none">
-      {/* Fallback poster image underneath */}
-      {shouldRenderImage ? (
-        imageUrl ? (
-          <Image
-            source={{ uri: imageUrl }}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            cachePolicy="memory"
-          />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, styles.fallbackContainer]} />
-        )
+      {/* Fallback poster image underneath — preserved so canvas never flashes black */}
+      {imageUrl ? (
+        <Image
+          source={{ uri: imageUrl }}
+          style={StyleSheet.absoluteFill}
+          contentFit="cover"
+          cachePolicy="memory"
+        />
       ) : (
         <View style={[StyleSheet.absoluteFill, styles.fallbackContainer]} />
       )}
