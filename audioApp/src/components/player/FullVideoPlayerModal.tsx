@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Modal,
   TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   useWindowDimensions,
   GestureResponderEvent,
@@ -20,7 +21,7 @@ import { audioPlayerService } from "@/service/audioPlayerService";
 import { formatDuration } from "@/utils/formatUtils";
 import { useHlsQualities } from "@/hooks/useHlsQualities";
 import { PlayerSettingsModal } from "./PlayerSettingsModal";
-import { usePanGesture, GestureDetector } from "react-native-gesture-handler";
+import { hapticFeedback } from "@/utils/haptics";
 
 interface FullVideoPlayerModalProps {
   visible: boolean;
@@ -277,6 +278,25 @@ export function FullVideoPlayerModal({
     onClose(finalTime);
   };
 
+  const handleToggleOrientation = async () => {
+    try {
+      hapticFeedback.light();
+      if (isLandscape) {
+        // Explicitly force to portrait mode without needing device auto-rotate
+        await ScreenOrientation.lockAsync(
+          ScreenOrientation.OrientationLock.PORTRAIT_UP
+        );
+      } else {
+        // Explicitly force to landscape mode
+        await ScreenOrientation.lockAsync(
+          ScreenOrientation.OrientationLock.LANDSCAPE_RIGHT
+        );
+      }
+    } catch (err) {
+      console.warn("Failed to toggle orientation:", err);
+    }
+  };
+
   const handleTogglePlay = () => {
     if (!player) return;
     if (player.playing) {
@@ -342,42 +362,6 @@ export function FullVideoPlayerModal({
     setScrubTime(null);
   };
 
-  const videoDismissGesture = usePanGesture({
-    runOnJS: true,
-    activeOffsetX: [-20, 20],
-    activeOffsetY: [0, 20],
-    onDeactivate: (e) => {
-      const { translationX, translationY, velocityX, velocityY } = e;
-
-      if (
-        (translationX > 40 || velocityX > 250) &&
-        Math.abs(translationX) > Math.abs(translationY) * 1.05
-      ) {
-        handleClose();
-        return;
-      }
-
-      if (
-        isLandscape &&
-        translationY > 35 &&
-        Math.abs(translationY) > Math.abs(translationX) * 0.8
-      ) {
-        handleClose();
-        return;
-      }
-
-      if (
-        !isLandscape &&
-        translationY > 45 &&
-        (velocityY > 200 || translationY > 75) &&
-        Math.abs(translationY) > Math.abs(translationX) * 1.05
-      ) {
-        handleClose();
-        return;
-      }
-    },
-  });
-
   if (!visible || !videoStreamUrl) return null;
 
   return (
@@ -388,66 +372,76 @@ export function FullVideoPlayerModal({
       onRequestClose={handleClose}
       supportedOrientations={["portrait", "landscape-left", "landscape-right"]}
     >
-      <GestureDetector gesture={videoDismissGesture}>
-        <View style={[styles.container, isLandscape && styles.containerLandscape]}>
-          {showControls ? (
-            <View style={[styles.header, isLandscape && styles.headerLandscape]}>
+      <View style={[styles.container, isLandscape && styles.containerLandscape]}>
+        {/* 1. Underlying Video Player */}
+        <View
+          style={[styles.videoWrapper, isLandscape && styles.videoWrapperLandscape]}
+          pointerEvents="none"
+        >
+          <VideoView
+            player={player}
+            style={[
+              isLandscape
+                ? styles.videoViewLandscape
+                : [
+                    styles.videoViewPortrait,
+                    { width: windowWidth, height: windowWidth * (9 / 16) },
+                  ],
+            ]}
+            contentFit="contain"
+            nativeControls={false}
+            allowsPictureInPicture={false}
+            startsPictureInPictureAutomatically={false}
+          />
+
+          {isBuffering ? (
+            <View style={styles.loaderOverlay} pointerEvents="none">
+              <ActivityIndicator size="large" color="#FFFFFF" />
+            </View>
+          ) : null}
+        </View>
+
+        {/* 2. Full-Screen Backdrop Touch Handler: Tapping screen toggles showControls useState */}
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={() => setShowControls((prev) => !prev)}
+        />
+
+        {/* 3. Top Header Overlay */}
+        {showControls ? (
+          <View style={[styles.header, isLandscape && styles.headerLandscape]}>
+            <TouchableOpacity
+              style={styles.iconCircleBtn}
+              hitSlop={14}
+              onPress={handleClose}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="close" size={22} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            <View style={styles.titleInfo}>
+              <Text style={styles.title} numberOfLines={1}>
+                {title}
+              </Text>
+              <Text style={styles.artist} numberOfLines={1}>
+                {artistName}
+              </Text>
+            </View>
+
+            <View style={styles.headerRightActions}>
               <TouchableOpacity
                 style={styles.iconCircleBtn}
                 hitSlop={14}
-                onPress={handleClose}
+                onPress={() => setIsSettingsOpen(true)}
                 activeOpacity={0.75}
               >
-                <Ionicons name="close" size={22} color="#FFFFFF" />
+                <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
               </TouchableOpacity>
-
-              <View style={styles.titleInfo}>
-                <Text style={styles.title} numberOfLines={1}>
-                  {title}
-                </Text>
-                <Text style={styles.artist} numberOfLines={1}>
-                  {artistName}
-                </Text>
-              </View>
-
-              <View style={styles.headerRightActions}>
-                <TouchableOpacity
-                  style={styles.iconCircleBtn}
-                  hitSlop={14}
-                  onPress={() => setIsSettingsOpen(true)}
-                  activeOpacity={0.75}
-                >
-                  <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
-                </TouchableOpacity>
-              </View>
             </View>
-          ) : null}
+          </View>
+        ) : null}
 
-          <TouchableOpacity
-            activeOpacity={1}
-            style={[styles.videoWrapper, isLandscape && styles.videoWrapperLandscape]}
-            onPress={() => setShowControls((prev) => !prev)}
-          >
-            <VideoView
-              player={player}
-              style={[
-                isLandscape
-                  ? styles.videoViewLandscape
-                  : [styles.videoViewPortrait, { width: windowWidth, height: windowWidth * (9 / 16) }],
-              ]}
-              contentFit="contain"
-              nativeControls={false}
-              allowsPictureInPicture={false}
-              startsPictureInPictureAutomatically={false}
-            />
-
-            {isBuffering ? (
-              <View style={styles.loaderOverlay}>
-                <ActivityIndicator size="large" color="#FFFFFF" />
-              </View>
-            ) : null}
-          </TouchableOpacity>
-
+          {/* Bottom Controls Overlay */}
           {showControls ? (
             <View style={[styles.controlsSection, isLandscape && styles.controlsSectionLandscape]}>
               <View style={styles.progressRow}>
@@ -493,6 +487,21 @@ export function FullVideoPlayerModal({
                   </View>
                 </View>
                 <Text style={styles.timeLabel}>{formatDuration(duration)}</Text>
+                <TouchableOpacity
+                  style={styles.orientationBtn}
+                  hitSlop={12}
+                  onPress={handleToggleOrientation}
+                  activeOpacity={0.75}
+                  accessibilityLabel={
+                    isLandscape ? "Switch to portrait" : "Switch to landscape"
+                  }
+                >
+                  <Ionicons
+                    name={isLandscape ? "phone-portrait-outline" : "scan-outline"}
+                    size={20}
+                    color="#FFFFFF"
+                  />
+                </TouchableOpacity>
               </View>
 
               <View style={styles.buttonsRow}>
@@ -554,7 +563,6 @@ export function FullVideoPlayerModal({
             }}
           />
         </View>
-      </GestureDetector>
     </Modal>
   );
 }
@@ -563,10 +571,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#000000",
-    justifyContent: "space-between",
+    position: "relative",
   },
   containerLandscape: { position: "relative" },
   header: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -577,10 +589,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   headerLandscape: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
     paddingTop: Platform.OS === "ios" ? 20 : 12,
     paddingHorizontal: 32,
     backgroundColor: "rgba(0, 0, 0, 0.65)",
@@ -605,7 +613,7 @@ const styles = StyleSheet.create({
   },
   artist: { color: "#8A8A8A", fontSize: 12, marginTop: 2 },
   videoWrapper: {
-    flex: 1,
+    ...StyleSheet.absoluteFill,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#000000",
@@ -620,16 +628,16 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.4)",
   },
   controlsSection: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
     paddingHorizontal: 18,
     paddingBottom: Platform.OS === "ios" ? 36 : 20,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     zIndex: 20,
   },
   controlsSectionLandscape: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
     paddingHorizontal: 40,
     paddingBottom: Platform.OS === "ios" ? 24 : 14,
     backgroundColor: "rgba(0, 0, 0, 0.65)",
@@ -666,6 +674,13 @@ const styles = StyleSheet.create({
     gap: 36,
   },
   controlBtn: { padding: 8 },
+  orientationBtn: {
+    paddingLeft: 8,
+    paddingRight: 2,
+    paddingVertical: 4,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   playPauseBtn: {
     width: 64,
     height: 64,

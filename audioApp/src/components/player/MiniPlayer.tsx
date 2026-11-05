@@ -14,12 +14,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  runOnJS,
-} from "react-native-reanimated";
+import { runOnJS } from "react-native-reanimated";
 import { AppState } from "@/store/hook";
 import { audioPlayerService } from "@/service/audioPlayerService";
 import { nextTrack, prevTrack } from "@/store/queueActions";
@@ -45,10 +40,6 @@ export function MiniPlayer() {
   const bufferedTime = useSelector((state: AppState) => state.player.bufferedTime || 0);
   const reduxDominantColor = useSelector((state: AppState) => state.player.dominantColor);
   const isLiked = useSelector((state: AppState) => selectIsFavourite(state, currentSong?.id));
-
-  // Gesture shared values
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
 
   const artworkUrl = currentSong
     ? (currentSong as any).coverUrl ||
@@ -116,17 +107,10 @@ export function MiniPlayer() {
   };
 
   // Pan gesture: swipe horizontally to skip tracks, swipe up to expand full player
+  // NOTE: No visual stretching or translation during the gesture so the miniplayer stays perfectly stable
   const panGesture = Gesture.Pan()
-    .activeOffsetX([-15, 15])
-    .activeOffsetY([-15, 15])
-    .onUpdate((event) => {
-      // Horizontal scrub preview
-      translateX.value = event.translationX * 0.4;
-      // Slight vertical pull up
-      if (event.translationY < 0) {
-        translateY.value = event.translationY * 0.3;
-      }
-    })
+    .activeOffsetX([-20, 20])
+    .activeOffsetY([-20, 20])
     .onEnd((event) => {
       // Swipe Up -> Open full player
       if (event.translationY < -40) {
@@ -140,18 +124,7 @@ export function MiniPlayer() {
       else if (event.translationX > SWIPE_THRESHOLD) {
         runOnJS(handlePrev)();
       }
-
-      // Spring back to resting position
-      translateX.value = withSpring(0, { damping: 15, stiffness: 150 });
-      translateY.value = withSpring(0, { damping: 15, stiffness: 150 });
     });
-
-  const animatedContentStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: translateX.value },
-      { translateY: translateY.value },
-    ],
-  }));
 
   if (!currentSong) return null;
 
@@ -184,7 +157,7 @@ export function MiniPlayer() {
           tint="dark"
           style={styles.blurContainer}
         >
-          <Animated.View style={[styles.contentRow, animatedContentStyle]}>
+          <View style={styles.contentRow}>
             {/* Track Info Touch Area */}
             <TouchableOpacity
               style={styles.trackInfoTouchArea}
@@ -264,7 +237,7 @@ export function MiniPlayer() {
                 )}
               </TouchableOpacity>
             </View>
-          </Animated.View>
+          </View>
 
           {/* Active Progress Bar at the bottom edge */}
           <View style={styles.progressBarBackground}>
