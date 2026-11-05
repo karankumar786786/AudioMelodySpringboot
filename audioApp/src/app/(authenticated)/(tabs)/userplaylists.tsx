@@ -16,7 +16,6 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDispatch, useSelector } from "react-redux";
@@ -29,10 +28,9 @@ import {
   loadUserPlaylists,
   createUserPlaylist,
 } from "@/store";
-import { playlistService, albumService } from "@/service";
+import { playlistService } from "@/service";
 import { UserPlaylist } from "@/types";
 import { UserPlaylistThumbnail } from "@/components";
-import { getImageUrl } from "@/utils";
 import { hapticFeedback } from "@/utils/haptics";
 import { colors, radii, spacing, typography, shadows } from "@/theme";
 import { userPlaylistStyles as styles } from "@/styles";
@@ -42,7 +40,18 @@ const TAB_BAR_HEIGHT = 64;
 const MINI_PLAYER_HEIGHT = 72;
 const EXTRA_BREATHING_ROOM = 32;
 
-type LibraryFilter = "All" | "Playlists" | "Albums";
+type PrivacyFilter = "All" | "Private" | "Link" | "Public";
+
+const PRIVACY_FILTERS: {
+  key: PrivacyFilter;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  { key: "All", label: "All", icon: "albums-outline" },
+  { key: "Private", label: "Private", icon: "lock-closed" },
+  { key: "Link", label: "Link", icon: "link-outline" },
+  { key: "Public", label: "Public", icon: "globe-outline" },
+];
 
 export default function UserPlaylistsScreen() {
   const router = useRouter();
@@ -52,10 +61,12 @@ export default function UserPlaylistsScreen() {
   const bottomSpace =
     TAB_BAR_HEIGHT + MINI_PLAYER_HEIGHT + EXTRA_BREATHING_ROOM + insets.bottom;
 
-  const [selectedFilter, setSelectedFilter] = useState<LibraryFilter>("All");
+  const [selectedFilter, setSelectedFilter] = useState<PrivacyFilter>("All");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
-  const [newPlaylistPrivacy, setNewPlaylistPrivacy] = useState<"PUBLIC" | "PRIVATE" | "SHARE_BY_LINK">("PRIVATE");
+  const [newPlaylistPrivacy, setNewPlaylistPrivacy] = useState<
+    "PUBLIC" | "PRIVATE" | "SHARE_BY_LINK"
+  >("PRIVATE");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const dispatch = useDispatch<AppDispatch>();
@@ -74,22 +85,23 @@ export default function UserPlaylistsScreen() {
     staleTime: 60 * 1000,
   });
 
-  // Albums query
-  const {
-    data: albums = [],
-    isLoading: isAlbumsLoading,
-    refetch: refetchAlbums,
-  } = useQuery({
-    queryKey: ["all-albums"],
-    queryFn: () => albumService.getAllAlbums(),
-    enabled: selectedFilter === "Albums" || selectedFilter === "All",
-    staleTime: 5 * 60 * 1000,
-  });
-
   const playlists: UserPlaylist[] =
     storePlaylists && storePlaylists.length > 0
       ? storePlaylists
-      : (playlistsData?.content || []);
+      : playlistsData?.content || [];
+
+  const filteredPlaylists = useMemo(() => {
+    if (selectedFilter === "Private") {
+      return playlists.filter((p) => !p.privacy || p.privacy === "PRIVATE");
+    }
+    if (selectedFilter === "Link") {
+      return playlists.filter((p) => p.privacy === "SHARE_BY_LINK");
+    }
+    if (selectedFilter === "Public") {
+      return playlists.filter((p) => p.privacy === "PUBLIC");
+    }
+    return playlists;
+  }, [playlists, selectedFilter]);
 
   const closeModal = () => {
     setIsCreateModalOpen(false);
@@ -132,8 +144,8 @@ export default function UserPlaylistsScreen() {
         <View style={styles.headerText}>
           <Text style={styles.title}>Your Library</Text>
           <Text style={styles.subtitle}>
-            {playlists.length} {playlists.length === 1 ? "playlist" : "playlists"}
-            {albums.length > 0 ? ` • ${albums.length} albums` : ""}
+            {filteredPlaylists.length}{" "}
+            {filteredPlaylists.length === 1 ? "playlist" : "playlists"}
           </Text>
         </View>
 
@@ -150,34 +162,42 @@ export default function UserPlaylistsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Filter Chips Bar */}
+      {/* Filter Chips Bar (Private, Link, Public, All) */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={localStyles.filtersRow}
       >
-        {(["All", "Playlists", "Albums"] as const).map((filter) => {
-          const isActive = selectedFilter === filter;
+        {PRIVACY_FILTERS.map((filter) => {
+          const isActive = selectedFilter === filter.key;
           return (
             <TouchableOpacity
-              key={filter}
+              key={filter.key}
               style={[
                 localStyles.filterChip,
                 isActive && localStyles.filterChipActive,
               ]}
               onPress={() => {
                 hapticFeedback.selection();
-                setSelectedFilter(filter);
+                setSelectedFilter((prev) =>
+                  prev === filter.key ? "All" : filter.key
+                );
               }}
               activeOpacity={0.75}
             >
+              <Ionicons
+                name={filter.icon}
+                size={12}
+                color={isActive ? "#000000" : colors.textSecondary}
+                style={{ marginRight: 5 }}
+              />
               <Text
                 style={[
                   localStyles.filterChipText,
                   isActive && localStyles.filterChipTextActive,
                 ]}
               >
-                {filter}
+                {filter.label}
               </Text>
             </TouchableOpacity>
           );
@@ -185,7 +205,7 @@ export default function UserPlaylistsScreen() {
       </ScrollView>
 
       {/* Pinned Liked Songs Card */}
-      {(selectedFilter === "All" || selectedFilter === "Playlists") && (
+      {(selectedFilter === "All" || selectedFilter === "Private") && (
         <TouchableOpacity
           style={localStyles.likedSongsCard}
           onPress={() => {
@@ -217,85 +237,8 @@ export default function UserPlaylistsScreen() {
           />
         </TouchableOpacity>
       )}
-
-      {/* Section Subheading if Albums filter is selected */}
-      {selectedFilter === "Albums" && (
-        <View style={localStyles.sectionSubheader}>
-          <Text style={localStyles.sectionSubheaderTitle}>Albums</Text>
-        </View>
-      )}
     </View>
   );
-
-  const uniqueAlbums = useMemo(() => {
-    const map = new Map<string, any>();
-    for (const alb of albums) {
-      const name = (alb?.name || alb?.album || "").trim();
-      if (name && !map.has(name.toLowerCase())) {
-        map.set(name.toLowerCase(), alb);
-      }
-    }
-    return Array.from(map.values());
-  }, [albums]);
-
-  const renderAlbumRow = (album: any, index: number) => {
-    const albumTitle = album.album || album.name || "Album";
-    const albumArtist = album.artistName || "Various Artists";
-    const albumSongsCount = album.totalSongs || album.count || 0;
-    const albumImg = album.imageKey
-      ? getImageUrl(album.imageKey, {
-          width: 140,
-          height: 140,
-          aspectRatio: "1-1",
-        })
-      : null;
-
-    return (
-      <TouchableOpacity
-        key={`${albumTitle}-${index}`}
-        style={styles.row}
-        onPress={() => {
-          hapticFeedback.light();
-          router.push(`/album/${encodeURIComponent(albumTitle)}` as any);
-        }}
-        activeOpacity={0.72}
-      >
-        <View style={localStyles.albumThumbnailWrapper}>
-          {albumImg ? (
-            <Image
-              source={{ uri: albumImg }}
-              style={localStyles.albumThumbnail}
-              contentFit="cover"
-              transition={150}
-            />
-          ) : (
-            <View style={localStyles.albumThumbnailFallback}>
-              <Ionicons name="disc" size={26} color={colors.textMuted} />
-            </View>
-          )}
-        </View>
-
-        <View style={styles.rowInfo}>
-          <Text style={styles.rowName} numberOfLines={1}>
-            {albumTitle}
-          </Text>
-          <View style={styles.rowMeta}>
-            <Text style={styles.rowSubtitle} numberOfLines={1}>
-              Album • {albumArtist}
-              {albumSongsCount > 0 ? ` • ${albumSongsCount} songs` : ""}
-            </Text>
-          </View>
-        </View>
-
-        <Ionicons
-          name="chevron-forward"
-          size={16}
-          color={colors.textMuted}
-          style={{ marginRight: 8 }}
-        />
-      </TouchableOpacity>
-    );
-  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -305,22 +248,9 @@ export default function UserPlaylistsScreen() {
         </View>
       ) : (
         <FlatList
-          data={selectedFilter === "Albums" ? [] : playlists}
+          data={filteredPlaylists}
           keyExtractor={(item) => item.id}
           ListHeaderComponent={renderHeader}
-          ListFooterComponent={
-            selectedFilter === "Albums" ? (
-              <View>
-                {isAlbumsLoading ? (
-                  <View style={{ paddingVertical: 30, alignItems: "center" }}>
-                    <ActivityIndicator size="small" color="#FFFFFF" />
-                  </View>
-                ) : (
-                  uniqueAlbums.map(renderAlbumRow)
-                )}
-              </View>
-            ) : undefined
-          }
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.row}
@@ -344,15 +274,34 @@ export default function UserPlaylistsScreen() {
                   {item.name}
                 </Text>
                 <View style={styles.rowMeta}>
-                  {item.privacy === "PRIVATE" ? (
+                  {item.privacy === "PUBLIC" ? (
+                    <Ionicons
+                      name="globe-outline"
+                      size={11}
+                      color="#8A8A8A"
+                      style={{ marginRight: 4 }}
+                    />
+                  ) : item.privacy === "SHARE_BY_LINK" ? (
+                    <Ionicons
+                      name="link-outline"
+                      size={12}
+                      color="#8A8A8A"
+                      style={{ marginRight: 4 }}
+                    />
+                  ) : (
                     <Ionicons
                       name="lock-closed"
                       size={11}
                       color="#8A8A8A"
                       style={{ marginRight: 4 }}
                     />
-                  ) : null}
+                  )}
                   <Text style={styles.rowSubtitle} numberOfLines={1}>
+                    {item.privacy === "PUBLIC"
+                      ? "Public • "
+                      : item.privacy === "SHARE_BY_LINK"
+                      ? "Link only • "
+                      : "Private • "}
                     {item.totalSongs} {item.totalSongs === 1 ? "song" : "songs"}
                   </Text>
                 </View>
@@ -360,33 +309,42 @@ export default function UserPlaylistsScreen() {
             </TouchableOpacity>
           )}
           ListEmptyComponent={
-            selectedFilter === "Albums" ? (
-              albums.length === 0 && !isAlbumsLoading ? (
-                <View style={styles.empty}>
-                  <Ionicons name="disc-outline" size={44} color="#FFFFFF" />
-                  <Text style={styles.emptyTitle}>No albums found</Text>
-                </View>
-              ) : undefined
-            ) : (
-              <View style={styles.empty}>
-                <Ionicons
-                  name="musical-notes-outline"
-                  size={44}
-                  color="#FFFFFF"
-                />
-                <Text style={styles.emptyTitle}>No playlists yet</Text>
-                <Text style={styles.emptyText}>
-                  Group your favourite songs into playlists for any mood.
-                </Text>
-                <TouchableOpacity
-                  style={styles.solidButton}
-                  onPress={() => setIsCreateModalOpen(true)}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.solidButtonText}>New playlist</Text>
-                </TouchableOpacity>
-              </View>
-            )
+            <View style={styles.empty}>
+              <Ionicons
+                name={
+                  selectedFilter === "Link"
+                    ? "link-outline"
+                    : selectedFilter === "Public"
+                    ? "globe-outline"
+                    : "musical-notes-outline"
+                }
+                size={44}
+                color="#FFFFFF"
+              />
+              <Text style={styles.emptyTitle}>
+                {selectedFilter === "Private"
+                  ? "No private playlists"
+                  : selectedFilter === "Link"
+                  ? "No link-shared playlists"
+                  : selectedFilter === "Public"
+                  ? "No public playlists"
+                  : "No playlists yet"}
+              </Text>
+              <Text style={styles.emptyText}>
+                {selectedFilter === "Link"
+                  ? "Playlists shared via direct link will appear here."
+                  : selectedFilter === "Public"
+                  ? "Public playlists visible to everyone will appear here."
+                  : "Group your favourite songs into playlists for any mood."}
+              </Text>
+              <TouchableOpacity
+                style={styles.solidButton}
+                onPress={() => setIsCreateModalOpen(true)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.solidButtonText}>New playlist</Text>
+              </TouchableOpacity>
+            </View>
           }
           refreshControl={
             <RefreshControl
@@ -394,8 +352,9 @@ export default function UserPlaylistsScreen() {
               onRefresh={() => {
                 dispatch(loadUserPlaylists());
                 refetchPlaylists();
-                refetchAlbums();
-                queryClient.invalidateQueries({ queryKey: ["user-playlist-songs-thumb"] });
+                queryClient.invalidateQueries({
+                  queryKey: ["user-playlist-songs-thumb"],
+                });
               }}
               tintColor="#FFFFFF"
               colors={["#FFFFFF"]}
@@ -510,6 +469,8 @@ const localStyles = StyleSheet.create({
     gap: spacing.sm,
   },
   filterChip: {
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: spacing.md + 2,
     paddingVertical: spacing.xs + 2,
     borderRadius: radii.full,
@@ -564,33 +525,5 @@ const localStyles = StyleSheet.create({
     ...typography.body2,
     color: colors.textSecondary,
     fontSize: 12,
-  },
-  sectionSubheader: {
-    paddingHorizontal: spacing.side,
-    paddingTop: spacing.xs,
-    paddingBottom: spacing.sm,
-  },
-  sectionSubheaderTitle: {
-    ...typography.title1,
-    color: colors.textPrimary,
-  },
-  albumThumbnailWrapper: {
-    width: 56,
-    height: 56,
-    borderRadius: radii.md,
-    overflow: "hidden",
-    backgroundColor: colors.card,
-    marginRight: spacing.md,
-  },
-  albumThumbnail: {
-    width: "100%",
-    height: "100%",
-  },
-  albumThumbnailFallback: {
-    width: "100%",
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: colors.surfaceElevated,
   },
 });
