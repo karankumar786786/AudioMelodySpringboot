@@ -40,8 +40,10 @@ export async function configureAudioPriority(force = false): Promise<void> {
       shouldRouteThroughEarpiece: false,
     });
     await setIsAudioActiveAsync(true);
+    if (!isConfigured) {
+      console.log("[AudioPriority] Audio session initialized (exclusive playback, background active)");
+    }
     isConfigured = true;
-    console.log("[AudioPriority] Persistent audio priority configured (doNotMixPersistent, silentMode, background)");
   } catch (error) {
     console.warn("[AudioPriority] Failed to configure audio priority:", error);
   }

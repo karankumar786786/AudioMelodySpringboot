@@ -10,7 +10,6 @@ import {
 import { useVideoPlayer, VideoView } from "expo-video";
 import { Image } from "expo-image";
 import { getImageUrl, getVideoUrl } from "@/utils/imageUtils";
-import { configureAudioPriority } from "@/utils/audioConfig";
 
 interface CanvasVideoPlayerProps {
   videoUrl?: string | null;
@@ -61,16 +60,11 @@ function VideoSurface({
   });
 
   useEffect(() => {
-    console.log(`[CanvasVideoPlayer] 🎬 Initializing player for video: ${videoUrl}`);
-
     player.loop = true;
     player.muted = true;
     player.volume = 0;
     player.staysActiveInBackground = false;
     player.audioMixingMode = "doNotMix";
-
-    // Re-assert exclusive audio priority so muted video never pollutes audio session
-    configureAudioPriority(true).catch(() => {});
 
     if (isPlaying && AppState.currentState === "active") {
       player.play();
@@ -79,11 +73,9 @@ function VideoSurface({
     }
 
     const checkStatus = (status: string, error?: any) => {
-      console.log(`[CanvasVideoPlayer] ℹ️ Player status: "${status}"`);
       if (status === "readyToPlay") {
         if (!hasTriggeredReady.current) {
           hasTriggeredReady.current = true;
-          console.log(`[CanvasVideoPlayer] ✅ Video ready to play (duration: ${player.duration}s)`);
           onReadyRef.current?.();
         }
         if (isPlaying && AppState.currentState === "active" && !player.playing) {
@@ -102,12 +94,8 @@ function VideoSurface({
     });
 
     const playingSub = player.addListener("playingChange", ({ isPlaying: isCurrentlyPlaying }) => {
-      console.log(
-        `[CanvasVideoPlayer] ▶️ Playing state changed: ${isCurrentlyPlaying ? "PLAYING" : "PAUSED"}`
-      );
       if (isCurrentlyPlaying && !hasTriggeredReady.current) {
         hasTriggeredReady.current = true;
-        console.log(`[CanvasVideoPlayer] ✅ Video playing first frame`);
         onReadyRef.current?.();
       }
     });
@@ -115,9 +103,6 @@ function VideoSurface({
     const appStateSub = AppState.addEventListener("change", (nextState) => {
       if (nextState !== "active") {
         player.pause();
-        // Crucial: Re-enforce exclusive audio priority when app is backgrounded
-        // so external apps (Instagram, YouTube) trigger clean interruption/pause.
-        configureAudioPriority(true).catch(() => {});
       } else if (isPlaying) {
         player.play();
       }
@@ -136,7 +121,6 @@ function VideoSurface({
       try {
         player.pause();
       } catch {}
-      configureAudioPriority(true).catch(() => {});
     };
   }, [isPlaying, player]);
 
@@ -178,12 +162,9 @@ export function CanvasVideoPlayer({
 
   const [isVideoReady, setIsVideoReady] = useState(false);
 
-  // Reset ready state and log when the track / video URL changes
+  // Reset ready state when the track / video URL changes
   useEffect(() => {
     setIsVideoReady(false);
-    if (videoUrl) {
-      console.log(`[CanvasVideoPlayer] ⏳ Canvas video started loading: ${videoUrl}`);
-    }
   }, [videoUrl]);
 
   // Only render fallback image if there is NO videoUrl available

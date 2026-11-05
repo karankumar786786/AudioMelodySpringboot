@@ -22,7 +22,6 @@ import { formatDuration } from "@/utils/formatUtils";
 import { useHlsQualities } from "@/hooks/useHlsQualities";
 import { PlayerSettingsModal } from "./PlayerSettingsModal";
 import { hapticFeedback } from "@/utils/haptics";
-import { configureAudioPriority } from "@/utils/audioConfig";
 
 interface FullVideoPlayerModalProps {
   visible: boolean;
@@ -152,7 +151,6 @@ export function FullVideoPlayerModal({
   useEffect(() => {
     if (!visible) {
       player?.pause();
-      configureAudioPriority(true).catch(() => {});
       return;
     }
 
@@ -194,7 +192,6 @@ export function FullVideoPlayerModal({
       if (nextState !== "active") {
         player.pause();
         setIsPlaying(false);
-        configureAudioPriority(true).catch(() => {});
       }
     });
     return () => {

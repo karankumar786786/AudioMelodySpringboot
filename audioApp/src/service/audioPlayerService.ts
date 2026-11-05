@@ -401,8 +401,8 @@ export class AudioPlayerService {
       activeSlot.resolvedUri = uri;
       console.log(`[AudioPlayerService] Loading stream for "${playerSong.title}" (${currentQuality}): ${uri}`);
 
-      // Don't block loading on audio session configuration
-      configureAudioPriority(true).catch(() => {});
+      // Ensure audio priority is initialized
+      configureAudioPriority().catch(() => {});
 
       player.volume = 1.0;
       // Sync replace: starts loading immediately, doesn't wait for buffering
