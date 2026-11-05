@@ -128,6 +128,22 @@ export const removeSongFromUserPlaylist = createAsyncThunk<
   }
 );
 
+export const updateUserPlaylistPrivacy = createAsyncThunk<
+  UserPlaylist,
+  { playlistId: string; privacy: "PUBLIC" | "PRIVATE" | "SHARE_BY_LINK" },
+  { rejectValue: string }
+>(
+  "userPlaylists/updateUserPlaylistPrivacy",
+  async ({ playlistId, privacy }, { rejectWithValue }) => {
+    try {
+      const updated = await playlistService.updatePlaylistPrivacy(playlistId, privacy);
+      return updated;
+    } catch (err: any) {
+      return rejectWithValue(err?.response?.data?.message || err?.message || "Failed to update privacy");
+    }
+  }
+);
+
 export const userPlaylistSlice = createSlice({
   name: "userPlaylists",
   initialState,
@@ -184,6 +200,12 @@ export const userPlaylistSlice = createSlice({
       .addCase(deleteUserPlaylist.fulfilled, (state, action) => {
         state.playlists = state.playlists.filter((p) => p.id !== action.payload);
         delete state.playlistSongMap[action.payload];
+      })
+      .addCase(updateUserPlaylistPrivacy.fulfilled, (state, action) => {
+        const idx = state.playlists.findIndex((p) => p.id === action.payload.id);
+        if (idx !== -1) {
+          state.playlists[idx] = action.payload;
+        }
       })
       .addCase(addSongToUserPlaylist.fulfilled, (state, action) => {
         const { playlistId, songId } = action.payload;

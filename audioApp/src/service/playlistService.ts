@@ -34,6 +34,14 @@ export interface PlaylistService {
     playlistId: string,
     songId: string
   ): Promise<UserPlaylist>;
+  updatePlaylistPrivacy(
+    id: string,
+    privacy: "PUBLIC" | "PRIVATE" | "SHARE_BY_LINK"
+  ): Promise<UserPlaylist>;
+  renamePlaylist(
+    id: string,
+    name: string
+  ): Promise<UserPlaylist>;
 }
 
 export const playlistService: PlaylistService = {
@@ -115,6 +123,25 @@ export const playlistService: PlaylistService = {
   ): Promise<UserPlaylist> {
     const response = await api.delete<UserPlaylist>(
       `/user/playlists/${encodeURIComponent(playlistId)}/songs/${encodeURIComponent(songId)}`
+    );
+    return response.data;
+  },
+
+  async updatePlaylistPrivacy(
+    id: string,
+    privacy: "PUBLIC" | "PRIVATE" | "SHARE_BY_LINK"
+  ): Promise<UserPlaylist> {
+    const response = await api.patch<UserPlaylist>(
+      `/user/playlists/${encodeURIComponent(id)}/privacy`,
+      { privacy }
+    );
+    return response.data;
+  },
+
+  async renamePlaylist(id: string, name: string): Promise<UserPlaylist> {
+    const response = await api.put<UserPlaylist>(
+      `/user/playlists/${encodeURIComponent(id)}`,
+      { name }
     );
     return response.data;
   },

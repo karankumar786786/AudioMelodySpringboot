@@ -1,7 +1,7 @@
 export interface UserPlaylist {
   id: string;
   name: string;
-  privacy?: "PUBLIC" | "PRIVATE" | string;
+  privacy?: "PUBLIC" | "PRIVATE" | "SHARE_BY_LINK" | string;
   shareToken?: string;
   totalSongs: number;
   userId?: string;

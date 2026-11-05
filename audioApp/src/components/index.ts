@@ -21,6 +21,7 @@ export * from "./player/QueueModal";
 export * from "./playlist/PlaylistTrackItem";
 export * from "./playlist/UserPlaylistThumbnail";
 export * from "./playlist/AddToPlaylistModal";
+export * from "./playlist/PlaylistAccessModal";
 export * from "./search/CategoryGenreCard";
 export * from "./search/SearchHistoryItem";
 export * from "./search/SearchTopResultCard";

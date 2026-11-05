@@ -1,4 +1,4 @@
-import  { useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Share,
   Alert,
   useWindowDimensions,
+  StyleSheet,
 } from "react-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,7 +23,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { playlistService } from "@/service";
 import { Song } from "@/types";
 import { AppDispatch, AppState, playAll, playWithSimilarSongs, deleteUserPlaylist, removeSongFromUserPlaylist } from "@/store";
-import { PlaylistTrackItem,UserPlaylistThumbnail } from "@/components";
+import { PlaylistTrackItem, UserPlaylistThumbnail, PlaylistAccessModal } from "@/components";
 import { userPlaylistDetailStyles as styles } from "@/styles";
 
 
@@ -45,6 +46,8 @@ export default function UserPlaylistDetailScreen() {
   const currentUserId = useSelector(
     (state: AppState) => state.user.profile?.id,
   );
+
+  const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
 
   const {
     data: playlist,
@@ -199,12 +202,16 @@ export default function UserPlaylistDetailScreen() {
       <View style={styles.topBarActions}>
         <TouchableOpacity
           style={styles.iconButton}
-          onPress={handleShare}
+          onPress={() => setIsAccessModalOpen(true)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           activeOpacity={0.7}
-          accessibilityLabel="Share playlist"
+          accessibilityLabel="Manage access and share"
         >
-          <Ionicons name="share-outline" size={22} color="#FFFFFF" />
+          <Ionicons
+            name={isOwner ? "options-outline" : "share-social-outline"}
+            size={22}
+            color="#FFFFFF"
+          />
         </TouchableOpacity>
 
         {isOwner ? (
@@ -235,18 +242,80 @@ export default function UserPlaylistDetailScreen() {
 
       <View style={styles.titleRow}>
         <View style={styles.titleText}>
+          {/* Access / Privacy Pill and Category */}
+          <View style={localStyles.badgeRow}>
+            <Text style={localStyles.categoryLabel}>
+              {isOwner ? "YOUR PLAYLIST" : "COMMUNITY PLAYLIST"}
+            </Text>
+            <Text style={localStyles.bullet}>•</Text>
+            <TouchableOpacity
+              style={[
+                localStyles.privacyPill,
+                playlist?.privacy === "PUBLIC"
+                  ? localStyles.privacyPillPublic
+                  : playlist?.privacy === "SHARE_BY_LINK"
+                  ? localStyles.privacyPillShare
+                  : localStyles.privacyPillPrivate,
+              ]}
+              onPress={() => isOwner && setIsAccessModalOpen(true)}
+              activeOpacity={isOwner ? 0.75 : 1}
+              disabled={!isOwner}
+            >
+              <Ionicons
+                name={
+                  playlist?.privacy === "PUBLIC"
+                    ? "globe-outline"
+                    : playlist?.privacy === "SHARE_BY_LINK"
+                    ? "link-outline"
+                    : "lock-closed-outline"
+                }
+                size={12}
+                color={
+                  playlist?.privacy === "PUBLIC"
+                    ? "#10B981"
+                    : playlist?.privacy === "SHARE_BY_LINK"
+                    ? "#3B82F6"
+                    : "#F59E0B"
+                }
+                style={{ marginRight: 4 }}
+              />
+              <Text
+                style={[
+                  localStyles.privacyPillText,
+                  playlist?.privacy === "PUBLIC"
+                    ? { color: "#10B981" }
+                    : playlist?.privacy === "SHARE_BY_LINK"
+                    ? { color: "#3B82F6" }
+                    : { color: "#F59E0B" },
+                ]}
+              >
+                {playlist?.privacy === "PUBLIC"
+                  ? "Public"
+                  : playlist?.privacy === "SHARE_BY_LINK"
+                  ? "Share by link"
+                  : "Private"}
+              </Text>
+              {isOwner ? (
+                <Ionicons
+                  name="chevron-down"
+                  size={10}
+                  color={
+                    playlist?.privacy === "PUBLIC"
+                      ? "rgba(16, 185, 129, 0.8)"
+                      : playlist?.privacy === "SHARE_BY_LINK"
+                      ? "rgba(59, 130, 246, 0.8)"
+                      : "rgba(245, 158, 11, 0.8)"
+                  }
+                  style={{ marginLeft: 3 }}
+                />
+              ) : null}
+            </TouchableOpacity>
+          </View>
+
           <Text style={styles.title} numberOfLines={2}>
             {playlist?.name || "Playlist"}
           </Text>
           <View style={styles.metaRow}>
-            {playlist?.privacy === "PRIVATE" ? (
-              <Ionicons
-                name="lock-closed"
-                size={12}
-                color="#8A8A8A"
-                style={{ marginRight: 5 }}
-              />
-            ) : null}
             <Text style={styles.meta} numberOfLines={1}>
               By {playlist?.ownerName || (isOwner ? "You" : "Community")}
               {"  ·  "}
@@ -340,7 +409,59 @@ export default function UserPlaylistDetailScreen() {
         contentContainerStyle={{ paddingBottom: bottomSpace }}
         showsVerticalScrollIndicator={false}
       />
+
+      {/* Playlist Access & Sharing Modal */}
+      <PlaylistAccessModal
+        visible={isAccessModalOpen}
+        onClose={() => setIsAccessModalOpen(false)}
+        playlist={playlist}
+        isOwner={isOwner}
+      />
     </View>
   );
 }
+
+const localStyles = StyleSheet.create({
+  badgeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  categoryLabel: {
+    fontSize: 10,
+    fontWeight: "800",
+    color: "rgba(255, 255, 255, 0.65)",
+    letterSpacing: 0.8,
+  },
+  bullet: {
+    fontSize: 10,
+    color: "rgba(255, 255, 255, 0.4)",
+  },
+  privacyPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  privacyPillPublic: {
+    backgroundColor: "rgba(16, 185, 129, 0.15)",
+    borderColor: "rgba(16, 185, 129, 0.4)",
+  },
+  privacyPillShare: {
+    backgroundColor: "rgba(59, 130, 246, 0.15)",
+    borderColor: "rgba(59, 130, 246, 0.4)",
+  },
+  privacyPillPrivate: {
+    backgroundColor: "rgba(245, 158, 11, 0.15)",
+    borderColor: "rgba(245, 158, 11, 0.4)",
+  },
+  privacyPillText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+});
 
