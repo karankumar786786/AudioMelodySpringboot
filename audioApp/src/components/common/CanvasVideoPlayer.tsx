@@ -10,6 +10,7 @@ import {
 import { useVideoPlayer, VideoView } from "expo-video";
 import { Image } from "expo-image";
 import { getImageUrl, getVideoUrl } from "@/utils/imageUtils";
+import { configureAudioPriority } from "@/utils/audioConfig";
 
 interface CanvasVideoPlayerProps {
   videoUrl?: string | null;
@@ -51,6 +52,7 @@ function VideoSurface({
     p.muted = true;
     p.volume = 0;
     p.staysActiveInBackground = false;
+    p.audioMixingMode = "doNotMix";
     if (isPlaying && AppState.currentState === "active") {
       p.play();
     } else {
@@ -65,6 +67,10 @@ function VideoSurface({
     player.muted = true;
     player.volume = 0;
     player.staysActiveInBackground = false;
+    player.audioMixingMode = "doNotMix";
+
+    // Re-assert exclusive audio priority so muted video never pollutes audio session
+    configureAudioPriority(true).catch(() => {});
 
     if (isPlaying && AppState.currentState === "active") {
       player.play();
@@ -109,6 +115,9 @@ function VideoSurface({
     const appStateSub = AppState.addEventListener("change", (nextState) => {
       if (nextState !== "active") {
         player.pause();
+        // Crucial: Re-enforce exclusive audio priority when app is backgrounded
+        // so external apps (Instagram, YouTube) trigger clean interruption/pause.
+        configureAudioPriority(true).catch(() => {});
       } else if (isPlaying) {
         player.play();
       }
@@ -124,6 +133,10 @@ function VideoSurface({
       try {
         appStateSub.remove();
       } catch {}
+      try {
+        player.pause();
+      } catch {}
+      configureAudioPriority(true).catch(() => {});
     };
   }, [isPlaying, player]);
 
