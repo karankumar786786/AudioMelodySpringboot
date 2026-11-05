@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   View,
   StyleSheet,
@@ -37,6 +37,21 @@ export function FeaturedSongsCarousel({
   const isPlayerPlaying = useSelector((state: AppState) => state.player.isPlaying);
   const favouriteIds = useSelector((state: AppState) => state.favourites.favouriteIds);
 
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 60,
+  }).current;
+
+  const onViewableItemsChanged = useRef(
+    (info: { viewableItems: Array<{ index?: number | null }>; changed: any[] }) => {
+      if (info.viewableItems && info.viewableItems.length > 0) {
+        const first = info.viewableItems[0];
+        if (typeof first.index === "number" && first.index >= 0) {
+          setActiveIndex(first.index);
+        }
+      }
+    }
+  ).current;
+
   if (!songs || songs.length === 0) return null;
 
   const handleLike = (song: Song) => {
@@ -57,7 +72,8 @@ export function FeaturedSongsCarousel({
           onLikePress={() => handleLike(song)}
           isLiked={isFav}
           isCurrentTrack={isCurrent}
-          isPlaying={isCurrent && isPlayerPlaying}
+          isAudioPlaying={isCurrent && isPlayerPlaying}
+          isFocused={isScreenFocused}
           cardWidth={CARD_WIDTH}
           totalSlides={1}
           activeIndex={0}
@@ -96,11 +112,14 @@ export function FeaturedSongsCarousel({
         decelerationRate="fast"
         onScroll={handleScroll}
         onMomentumScrollEnd={handleMomentumScrollEnd}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
         scrollEventThrottle={16}
         contentContainerStyle={styles.listContent}
         renderItem={({ item, index }) => {
           const isFav = favouriteIds.some((id) => String(id) === String(item.id));
           const isCurrent = currentSong?.id === item.id;
+          const isFocused = isScreenFocused && index === activeIndex;
 
           return (
             <HeroFeaturedCard
@@ -110,7 +129,8 @@ export function FeaturedSongsCarousel({
               onLikePress={() => handleLike(item)}
               isLiked={isFav}
               isCurrentTrack={isCurrent}
-              isPlaying={isCurrent && isPlayerPlaying}
+              isAudioPlaying={isCurrent && isPlayerPlaying}
+              isFocused={isFocused}
               cardWidth={CARD_WIDTH}
               totalSlides={songs.length}
               activeIndex={activeIndex}

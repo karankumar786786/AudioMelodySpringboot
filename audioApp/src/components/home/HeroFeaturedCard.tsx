@@ -1,10 +1,14 @@
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { Song } from "@/types";
 import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
 import { formatSongSubtitle } from "@/utils/formatUtils";
+import { getImageUrl } from "@/utils/imageUtils";
+import { useDominantColor } from "@/utils/colorUtils";
 import { hapticFeedback } from "@/utils/haptics";
+import { shadows } from "@/theme";
 
 interface HeroFeaturedCardProps {
   song: Song;
@@ -13,7 +17,9 @@ interface HeroFeaturedCardProps {
   onLikePress?: () => void;
   isLiked?: boolean;
   isPlaying?: boolean;
+  isAudioPlaying?: boolean;
   isCurrentTrack?: boolean;
+  isFocused?: boolean;
   cardWidth?: number;
   totalSlides?: number;
   activeIndex?: number;
@@ -25,12 +31,29 @@ export function HeroFeaturedCard({
   onPlayPress,
   onLikePress,
   isLiked = false,
-  isPlaying = false,
+  isPlaying,
+  isAudioPlaying = false,
   isCurrentTrack = false,
+  isFocused = true,
   cardWidth,
   totalSlides = 1,
   activeIndex = 0,
 }: HeroFeaturedCardProps) {
+  const shouldPlayCanvas = isFocused ?? isPlaying ?? true;
+  const effectiveAudioPlaying = isAudioPlaying || (isCurrentTrack && Boolean(isPlaying));
+
+  const coverUrl = getImageUrl(song.imageKey, {
+    width: 400,
+    height: 400,
+    focus: "auto",
+    aspectRatio: "1-1",
+  });
+
+  const { dominantColor } = useDominantColor(
+    coverUrl,
+    song.title || song.artistName || String(song.id),
+  );
+
   const handleLike = () => {
     hapticFeedback.light();
     onLikePress?.();
@@ -45,23 +68,43 @@ export function HeroFeaturedCard({
     <TouchableOpacity
       style={[
         styles.card,
+        {
+          backgroundColor: dominantColor,
+          borderColor: `${dominantColor}66`,
+        },
         cardWidth ? { width: cardWidth, marginHorizontal: 0 } : null,
       ]}
       onPress={onPress}
       activeOpacity={0.95}
     >
       {/* 1. Top Video/Canvas Preview Area: 260px */}
-      <View style={styles.videoContainer}>
+      <View
+        style={[
+          styles.videoContainer,
+          { backgroundColor: `${dominantColor}33` },
+        ]}
+      >
         {/* Decorative background shapes for fallback when canvas video is loading */}
-        <View style={styles.decorativeCircleOne} />
-        <View style={styles.decorativeCircleTwo} />
+        <View
+          style={[
+            styles.decorativeCircleOne,
+            { backgroundColor: `${dominantColor}66` },
+          ]}
+        />
+        <View
+          style={[
+            styles.decorativeCircleTwo,
+            { backgroundColor: `${dominantColor}22` },
+          ]}
+        />
 
-        {/* Looping Canvas Video / Artwork */}
+        {/* Focused card plays the silent looping canvas video */}
         <CanvasVideoPlayer
-          videoKey={song.videoKey}
+          videoKey={song.videoKey || (song as any).canvasKey}
           fallbackImageKey={song.imageKey}
           style={StyleSheet.absoluteFill}
-          isPlaying={isPlaying || isCurrentTrack}
+          isPlaying={shouldPlayCanvas}
+          showFallbackImage={true}
         />
 
         {/* Pager Dots at bottom of the video container */}
@@ -84,7 +127,23 @@ export function HeroFeaturedCard({
       </View>
 
       {/* 2. Bottom Metadata & Controls Area: 140px */}
-      <View style={styles.bottomBar}>
+      <View
+        style={[
+          styles.bottomBar,
+          { backgroundColor: dominantColor },
+        ]}
+      >
+        <LinearGradient
+          colors={[
+            `${dominantColor}FA`,
+            `${dominantColor}D4`,
+            "#121214",
+          ]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFill}
+        />
+
         <View style={styles.metaInfo}>
           <Text style={styles.title} numberOfLines={1}>
             {song.title}
@@ -118,10 +177,10 @@ export function HeroFeaturedCard({
             accessibilityLabel={`Play ${song.title}`}
           >
             <Ionicons
-              name={isCurrentTrack && isPlaying ? "pause" : "play"}
+              name={isCurrentTrack && effectiveAudioPlaying ? "pause" : "play"}
               size={22}
               color="#0B0B0C"
-              style={isCurrentTrack && isPlaying ? undefined : { marginLeft: 2 }}
+              style={isCurrentTrack && effectiveAudioPlaying ? undefined : { marginLeft: 2 }}
             />
           </TouchableOpacity>
         </View>
@@ -135,16 +194,14 @@ const styles = StyleSheet.create({
     height: 400,
     borderRadius: 24,
     overflow: "hidden",
-    backgroundColor: "#161618",
     marginHorizontal: 20,
     position: "relative",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.06)",
+    ...shadows.md,
   },
   videoContainer: {
     width: "100%",
     height: 260,
-    backgroundColor: "#2A2A2D",
     overflow: "hidden",
     position: "relative",
   },
@@ -155,7 +212,6 @@ const styles = StyleSheet.create({
     width: 320,
     height: 320,
     borderRadius: 160,
-    backgroundColor: "#3F3F43",
   },
   decorativeCircleTwo: {
     position: "absolute",
@@ -164,7 +220,6 @@ const styles = StyleSheet.create({
     width: 180,
     height: 180,
     borderRadius: 90,
-    backgroundColor: "#161618",
   },
   pagerContainer: {
     position: "absolute",
@@ -197,11 +252,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 12,
-    backgroundColor: "#161618",
+    position: "relative",
   },
   metaInfo: {
     flex: 1,
     minWidth: 0,
+    zIndex: 2,
   },
   title: {
     fontSize: 24,
@@ -213,7 +269,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 13,
-    color: "#B4B4BA",
+    color: "rgba(255, 255, 255, 0.78)",
     fontWeight: "500",
   },
   actionsRow: {
@@ -221,12 +277,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     flexShrink: 0,
+    zIndex: 2,
   },
   heartButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.18)",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -237,5 +296,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
+    ...shadows.sm,
   },
 });
