@@ -377,10 +377,7 @@ export default function HomeScreen() {
             {/* 2. Jump Back In Shelf */}
             {show("Featured") && jumpBackInSongs.length > 0 ? (
               <View style={styles.section}>
-                <SectionHeader
-                  title="Jump back in"
-                  onSeeAll={() => handleSelectCategory("Featured")}
-                />
+                <SectionHeader title="Jump back in" />
                 <FlatList
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -410,10 +407,6 @@ export default function HomeScreen() {
                 <SectionHeader
                   title="Trending now"
                   subtitle="Top tracks taking over the charts"
-                  onSeeAll={() => {
-                    hapticFeedback.light();
-                    router.push("/(authenticated)/(tabs)/search");
-                  }}
                 />
                 <View style={styles.verticalList}>
                   {trendingNowList.map((song: Song, index: number) => {
@@ -439,7 +432,6 @@ export default function HomeScreen() {
                 <SectionHeader
                   title="Watch"
                   subtitle="Full videos"
-                  onSeeAll={() => handleSelectCategory("Videos")}
                 />
                 <FlatList
                   horizontal
@@ -465,7 +457,6 @@ export default function HomeScreen() {
                 <SectionHeader
                   title="Popular albums"
                   subtitle="Soundtracks & full artist collections"
-                  onSeeAll={() => handleSelectCategory("Albums")}
                 />
                 <FlatList
                   horizontal
@@ -493,13 +484,7 @@ export default function HomeScreen() {
             {/* 6. Artists Shelf */}
             {selectedCategory === "All" && topArtists.length > 0 ? (
               <View style={styles.section}>
-                <SectionHeader
-                  title="Artists"
-                  onSeeAll={() => {
-                    hapticFeedback.light();
-                    router.push("/(authenticated)/(tabs)/search");
-                  }}
-                />
+                <SectionHeader title="Artists" />
                 <FlatList
                   horizontal
                   showsHorizontalScrollIndicator={false}

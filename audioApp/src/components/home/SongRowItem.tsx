@@ -78,7 +78,9 @@ export function SongRowItem({
         </Text>
       </View>
 
-      <Text style={styles.duration}>{formatDuration(song.duration)}</Text>
+      <Text style={[styles.duration, isActive && styles.durationActive]}>
+        {formatDuration(song.duration)}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -92,7 +94,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
   },
   containerActive: {
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
   },
   thumbnailContainer: {
     width: 48,
@@ -135,7 +137,8 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   titleActive: {
-    color: "#1DB954",
+    color: "#FFFFFF",
+    fontWeight: "800",
   },
   subtitle: {
     fontSize: 12.5,
@@ -147,5 +150,9 @@ const styles = StyleSheet.create({
     color: "#8E8E93",
     fontVariant: ["tabular-nums"],
     fontWeight: "500",
+  },
+  durationActive: {
+    color: "#FFFFFF",
+    fontWeight: "600",
   },
 });

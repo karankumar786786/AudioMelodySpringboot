@@ -38,7 +38,7 @@ export function JumpBackInCard({
       onPress={handlePress}
       activeOpacity={0.8}
     >
-      <View style={styles.imageContainer}>
+      <View style={[styles.imageContainer, isActive && styles.imageContainerActive]}>
         {imageUrl ? (
           <Image
             source={{ uri: imageUrl }}
@@ -91,6 +91,9 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255, 255, 255, 0.06)",
     ...shadows.sm,
   },
+  imageContainerActive: {
+    borderColor: "rgba(255, 255, 255, 0.4)",
+  },
   image: {
     width: "100%",
     height: "100%",
@@ -114,7 +117,8 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   titleActive: {
-    color: "#1DB954",
+    color: "#FFFFFF",
+    fontWeight: "800",
   },
   artist: {
     color: "#8E8E93",
