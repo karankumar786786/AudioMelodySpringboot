@@ -274,9 +274,18 @@ export class AudioPlayerPool {
       applyBufferPolicy(slot);
     }
 
-    // 2. Activate lock screen controls on target player FIRST
-    //    This marks targetSlot as activePlayable in iOS MediaController
-    //    and deactivates the old player's lock screen status in one atomic native step.
+    // 2. Immediately activate target player with audio unmuted FIRST
+    //    Starting audio output prevents iOS AVAudioSession from seeing a dead silence gap
+    targetSlot.player.volume = 1.0;
+    targetSlot.player.play();
+
+    // 3. Pause and mute old active player
+    currentActive.player.pause();
+    currentActive.player.volume = 0;
+
+    // 4. Activate lock screen controls on target player
+    //    Because the player is ALREADY playing, iOS MediaController registers rate=1.0
+    //    and active audio output without dropping the Now Playing widget.
     safeSetActiveForLockScreen(
       targetSlot.player,
       true,
@@ -287,22 +296,14 @@ export class AudioPlayerPool {
         artworkUrl: promotedSong.coverUrl || promotedSong.posterUrl,
       },
       {
-        showSeekForward: false,
-        showSeekBackward: false,
+        showSeekForward: true,
+        showSeekBackward: true,
         showNextTrack: true,
         showPreviousTrack: true,
         seekForwardIntervalSeconds: 10,
         seekBackwardIntervalSeconds: 10,
       },
     );
-
-    // 3. Pause and mute old active player (its lock screen is already superseded)
-    currentActive.player.pause();
-    currentActive.player.volume = 0;
-
-    // 4. Immediately activate target player with audio unmuted
-    targetSlot.player.volume = 1.0;
-    targetSlot.player.play();
 
     return promotedSong;
   }

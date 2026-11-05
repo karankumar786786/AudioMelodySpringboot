@@ -34,9 +34,9 @@ export async function configureAudioPriority(force = false): Promise<void> {
 
     await setAudioModeAsync({
       playsInSilentMode: true,
-      interruptionMode: "doNotMixPersistent",
+      interruptionMode: "doNotMix",
       shouldPlayInBackground: true,
-      allowsRecording: false,
+      allowsRecording: true,
       shouldRouteThroughEarpiece: false,
     });
     await setIsAudioActiveAsync(true);
@@ -95,8 +95,8 @@ export function safeSetActiveForLockScreen(
         : undefined;
 
       const cleanOptions = {
-        showSeekForward: false,
-        showSeekBackward: false,
+        showSeekForward: true,
+        showSeekBackward: true,
         showNextTrack: true,
         showPreviousTrack: true,
         seekForwardIntervalSeconds: 10,

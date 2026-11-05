@@ -43,6 +43,7 @@ export class AudioPlayerService {
   private lastPlayedIndex: number = -1;
   private isAutoPlaySuppressed = false;
   private lastLockScreenSongId: string | null = null;
+  private remoteSyncInterval: ReturnType<typeof setInterval> | null = null;
 
   private get activePlayer(): AudioPlayer | null {
     return this.pool.getActiveSlot()?.player || null;
@@ -64,12 +65,30 @@ export class AudioPlayerService {
       });
 
       this.initQueueSubscription();
+      this.startRemoteSyncHeartbeat();
 
       this.isInitialized = true;
       console.log("[AudioPlayerService] Successfully initialized multi-player rotation pool and queue subscription");
     } catch (error) {
       console.error("[AudioPlayerService] Failed to initialize audio player engine:", error);
     }
+  }
+
+  private startRemoteSyncHeartbeat(): void {
+    if (this.remoteSyncInterval) return;
+    this.remoteSyncInterval = setInterval(() => {
+      const player = this.activePlayer;
+      if (!player || this.isAdvancingTrack || this.isSeeking) return;
+      const isReduxPlaying = store.getState().player.isPlaying;
+      const isNativePlaying = Boolean((player as any).playing);
+
+      if (isReduxPlaying !== isNativePlaying) {
+        const isBuffering = Boolean((player as any).isBuffering);
+        if (!isBuffering) {
+          store.dispatch(setIsPlaying(isNativePlaying));
+        }
+      }
+    }, 1000);
   }
 
   public suppressAutoPlayOnce(): void {
@@ -199,6 +218,14 @@ export class AudioPlayerService {
           artist: this.currentPlayingSong.artistName,
           albumTitle: this.currentPlayingSong.album || "Melody",
           artworkUrl: this.currentPlayingSong.coverUrl || this.currentPlayingSong.posterUrl,
+        },
+        {
+          showSeekForward: true,
+          showSeekBackward: true,
+          showNextTrack: true,
+          showPreviousTrack: true,
+          seekForwardIntervalSeconds: 10,
+          seekBackwardIntervalSeconds: 10,
         }
       );
     }
@@ -456,8 +483,8 @@ export class AudioPlayerService {
           artworkUrl: playerSong.coverUrl || playerSong.posterUrl,
         },
         {
-          showSeekForward: false,
-          showSeekBackward: false,
+          showSeekForward: true,
+          showSeekBackward: true,
           showNextTrack: true,
           showPreviousTrack: true,
           seekForwardIntervalSeconds: 10,
@@ -518,6 +545,14 @@ export class AudioPlayerService {
           artist: this.currentPlayingSong.artistName,
           albumTitle: this.currentPlayingSong.album || "Melody",
           artworkUrl: this.currentPlayingSong.coverUrl || this.currentPlayingSong.posterUrl,
+        },
+        {
+          showSeekForward: true,
+          showSeekBackward: true,
+          showNextTrack: true,
+          showPreviousTrack: true,
+          seekForwardIntervalSeconds: 10,
+          seekBackwardIntervalSeconds: 10,
         }
       );
     }
@@ -532,6 +567,28 @@ export class AudioPlayerService {
     }
     store.dispatch(setIsPlaying(true));
     store.dispatch(setIsLoading(false));
+  }
+
+  public refreshLockScreen(): void {
+    if (!this.activePlayer || !this.currentPlayingSong) return;
+    safeSetActiveForLockScreen(
+      this.activePlayer,
+      true,
+      {
+        title: this.currentPlayingSong.title,
+        artist: this.currentPlayingSong.artistName,
+        albumTitle: this.currentPlayingSong.album || "Melody",
+        artworkUrl: this.currentPlayingSong.coverUrl || this.currentPlayingSong.posterUrl,
+      },
+      {
+        showSeekForward: true,
+        showSeekBackward: true,
+        showNextTrack: true,
+        showPreviousTrack: true,
+        seekForwardIntervalSeconds: 10,
+        seekBackwardIntervalSeconds: 10,
+      }
+    );
   }
 
   public togglePlay(): void {

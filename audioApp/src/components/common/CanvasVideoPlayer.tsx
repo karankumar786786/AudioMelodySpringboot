@@ -51,7 +51,8 @@ function VideoSurface({
     p.muted = true;
     p.volume = 0;
     p.staysActiveInBackground = false;
-    p.audioMixingMode = "doNotMix";
+    p.audioMixingMode = "mixWithOthers";
+    p.showNowPlayingNotification = false;
     if (isPlaying && AppState.currentState === "active") {
       p.play();
     } else {
@@ -64,7 +65,8 @@ function VideoSurface({
     player.muted = true;
     player.volume = 0;
     player.staysActiveInBackground = false;
-    player.audioMixingMode = "doNotMix";
+    player.audioMixingMode = "mixWithOthers";
+    player.showNowPlayingNotification = false;
 
     if (isPlaying && AppState.currentState === "active") {
       player.play();
