@@ -27,3 +27,5 @@ export * from "./playlist/PlaylistAccessModal";
 export * from "./search/CategoryGenreCard";
 export * from "./search/SearchHistoryItem";
 export * from "./search/SearchTopResultCard";
+export * from "./search/WordSuggestionPills";
+export * from "./search/AutocompleteSuggestionItem";

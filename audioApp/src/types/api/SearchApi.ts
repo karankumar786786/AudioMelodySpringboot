@@ -8,6 +8,31 @@ export interface SearchResult {
   userPlaylists: UserPlaylist[];
 }
 
+export interface WordSuggestion {
+  label: string;
+  type: "word" | "song" | "artist";
+  matchedPrefix?: string;
+}
+
+export interface RecentSearchItem {
+  id: string;
+  type: "word" | "song" | "artist" | "playlist" | "userPlaylist";
+  label: string;
+  subtitle?: string;
+  imageKey?: string;
+  timestamp: number;
+  data?: any;
+}
+
+export interface AutocompleteResult {
+  wordSuggestions: WordSuggestion[];
+  prediction: string;
+  songs: Song[];
+  artists: Artist[];
+  playlists: Playlist[];
+  userPlaylists: UserPlaylist[];
+}
+
 export type SearchHistoryType = "SONG" | "ARTIST" | "PLAYLIST" | "USER_PLAYLIST";
 
 export interface UserSearchHistoryItem {

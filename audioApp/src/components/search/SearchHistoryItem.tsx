@@ -2,11 +2,11 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { Image } from "expo-image";
 import { Ionicons } from "@expo/vector-icons";
-import { UserSearchHistoryItem } from "@/types";
+import { UserSearchHistoryItem, RecentSearchItem } from "@/types";
 import { getImageUrl } from "@/utils/imageUtils";
 
 interface SearchHistoryItemProps {
-  item: UserSearchHistoryItem;
+  item: UserSearchHistoryItem | RecentSearchItem;
   onPress: () => void;
   onDelete: () => void;
 }
@@ -22,24 +22,34 @@ export function SearchHistoryItem({
   let isCircle = false;
   let fallbackIcon: keyof typeof Ionicons.glyphMap = "musical-note";
 
-  if (item.type === "SONG" && item.song) {
-    title = item.song.title;
-    subtitle = `Song  ·  ${item.song.artistName || "Artist"}`;
-    imageKey = item.song.imageKey;
-  } else if (item.type === "ARTIST" && item.artist) {
-    title = item.artist.name;
+  if (item.type === "word") {
+    const recent = item as RecentSearchItem;
+    title = recent.label;
+    subtitle = recent.subtitle || "Recent search";
+    fallbackIcon = "time-outline";
+  } else if (item.type === "SONG" || item.type === "song") {
+    const rawSong = (item as any).song || (item as any).data;
+    title = rawSong?.title || (item as any).label || "Song";
+    subtitle = `Song  ·  ${rawSong?.artistName || "Artist"}`;
+    imageKey = rawSong?.imageKey || (item as any).imageKey;
+  } else if (item.type === "ARTIST" || item.type === "artist") {
+    const rawArtist = (item as any).artist || (item as any).data;
+    title = rawArtist?.name || (item as any).label || "Artist";
     subtitle = "Artist";
-    imageKey = item.artist.coverImageKey;
+    imageKey = rawArtist?.coverImageKey || (item as any).imageKey;
     isCircle = true;
     fallbackIcon = "person";
-  } else if (item.type === "PLAYLIST" && item.playlist) {
-    title = item.playlist.name;
-    subtitle = `Playlist  ·  ${item.playlist.totalSongs || 0} songs`;
-    imageKey = item.playlist.coverImageKey;
+  } else if (item.type === "PLAYLIST" || item.type === "playlist") {
+    const rawPlaylist = (item as any).playlist || (item as any).data;
+    title = rawPlaylist?.name || (item as any).label || "Playlist";
+    subtitle = `Playlist  ·  ${rawPlaylist?.totalSongs || 0} songs`;
+    imageKey = rawPlaylist?.coverImageKey || (item as any).imageKey;
     fallbackIcon = "musical-notes";
-  } else if (item.type === "USER_PLAYLIST" && item.userPlaylist) {
-    title = item.userPlaylist.name;
-    subtitle = `Playlist  ·  ${item.userPlaylist.ownerName || "Custom"}`;
+  } else if (item.type === "USER_PLAYLIST" || item.type === "userPlaylist") {
+    const rawUPlaylist = (item as any).userPlaylist || (item as any).data;
+    title = rawUPlaylist?.name || (item as any).label || "Community Playlist";
+    subtitle = `Community  ·  ${rawUPlaylist?.ownerName || "Custom"}`;
+    imageKey = rawUPlaylist?.coverImageKey || (item as any).imageKey;
     fallbackIcon = "musical-notes";
   }
 

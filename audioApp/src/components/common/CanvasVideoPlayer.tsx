@@ -93,13 +93,17 @@ function VideoSurface({
       player.pause();
     }
 
+    const markReady = () => {
+      if (!hasTriggeredReady.current) {
+        hasTriggeredReady.current = true;
+        onReadyRef.current?.();
+        restoreSession();
+      }
+    };
+
     const checkStatus = (status: string, error?: any) => {
       if (status === "readyToPlay") {
-        if (!hasTriggeredReady.current) {
-          hasTriggeredReady.current = true;
-          onReadyRef.current?.();
-          restoreSession();
-        }
+        markReady();
         if (isPlaying && AppState.currentState === "active" && !player.playing) {
           player.play();
         }
@@ -110,20 +114,45 @@ function VideoSurface({
     };
 
     checkStatus(player.status);
+    if (player.playing || player.currentTime > 0) {
+      markReady();
+    }
 
     const statusSub = player.addListener("statusChange", ({ status, error }) => {
       checkStatus(status, error);
     });
 
-    const playingSub = player.addListener("playingChange", ({ isPlaying: isCurrentlyPlaying }) => {
-      if (isCurrentlyPlaying) {
-        if (!hasTriggeredReady.current) {
-          hasTriggeredReady.current = true;
-          onReadyRef.current?.();
+    const playingSub = player.addListener(
+      "playingChange",
+      ({ isPlaying: isCurrentlyPlaying }) => {
+        if (isCurrentlyPlaying) {
+          markReady();
+          setTimeout(restoreSession, 60);
         }
-        setTimeout(restoreSession, 60);
+      }
+    );
+
+    const timeUpdateSub = player.addListener("timeUpdate", ({ currentTime }) => {
+      if (currentTime > 0 || player.playing) {
+        markReady();
       }
     });
+
+    const sourceLoadSub = player.addListener("sourceLoad", () => {
+      markReady();
+    });
+
+    // Active polling interval as a bulletproof fallback while video buffers
+    const pollInterval = setInterval(() => {
+      if (
+        player.status === "readyToPlay" ||
+        player.playing ||
+        player.currentTime > 0
+      ) {
+        markReady();
+        clearInterval(pollInterval);
+      }
+    }, 100);
 
     const appStateSub = AppState.addEventListener("change", (nextState) => {
       if (nextState !== "active") {
@@ -141,10 +170,19 @@ function VideoSurface({
 
     return () => {
       try {
+        clearInterval(pollInterval);
+      } catch {}
+      try {
         statusSub.remove();
       } catch {}
       try {
         playingSub.remove();
+      } catch {}
+      try {
+        timeUpdateSub.remove();
+      } catch {}
+      try {
+        sourceLoadSub.remove();
       } catch {}
       try {
         appStateSub.remove();
@@ -203,6 +241,15 @@ export function CanvasVideoPlayer({
     setIsVideoReady(false);
   }, [videoUrl]);
 
+  // Fallback safety: ensure loader never stays visible indefinitely once playing
+  useEffect(() => {
+    if (!videoUrl || isVideoReady || !isPlaying) return;
+    const safetyTimer = setTimeout(() => {
+      setIsVideoReady(true);
+    }, 2500);
+    return () => clearTimeout(safetyTimer);
+  }, [videoUrl, isVideoReady, isPlaying]);
+
   const handleVideoReady = () => {
     setIsVideoReady(true);
     onReady?.();
@@ -237,6 +284,7 @@ export function CanvasVideoPlayer({
       {/* Looping ambient canvas video */}
       {videoUrl ? (
         <VideoSurface
+          key={videoUrl}
           videoUrl={videoUrl}
           isPlaying={isPlaying}
           onReady={handleVideoReady}
