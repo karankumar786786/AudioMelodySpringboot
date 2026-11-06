@@ -10,8 +10,6 @@ import {
 import { useVideoPlayer, VideoView } from "expo-video";
 import { Image } from "expo-image";
 import { getImageUrl, getVideoUrl } from "@/utils/imageUtils";
-import { configureAudioPriority } from "@/utils/audioConfig";
-import { audioPlayerService } from "@/service/audioPlayerService";
 
 interface CanvasVideoPlayerProps {
   videoUrl?: string | null;
@@ -61,7 +59,7 @@ function VideoSurface({
     p.muted = true;
     p.volume = 0;
     p.staysActiveInBackground = false;
-    p.audioMixingMode = "doNotMix";
+    p.audioMixingMode = "mixWithOthers";
     p.showNowPlayingNotification = false;
     if (isPlaying && AppState.currentState === "active") {
       p.play();
@@ -75,17 +73,8 @@ function VideoSurface({
     player.muted = true;
     player.volume = 0;
     player.staysActiveInBackground = false;
-    player.audioMixingMode = "doNotMix";
+    player.audioMixingMode = "mixWithOthers";
     player.showNowPlayingNotification = false;
-
-    // Immediately restore audio session priority and refresh lock screen
-    // so expo-video's player setup cannot hijack the audio session
-    const restoreSession = () => {
-      configureAudioPriority(true).then(() => {
-        audioPlayerService.refreshLockScreen();
-      });
-    };
-    restoreSession();
 
     if (isPlaying && AppState.currentState === "active") {
       player.play();
@@ -97,7 +86,6 @@ function VideoSurface({
       if (!hasTriggeredReady.current) {
         hasTriggeredReady.current = true;
         onReadyRef.current?.();
-        restoreSession();
       }
     };
 
@@ -127,7 +115,6 @@ function VideoSurface({
       ({ isPlaying: isCurrentlyPlaying }) => {
         if (isCurrentlyPlaying) {
           markReady();
-          setTimeout(restoreSession, 60);
         }
       }
     );
@@ -157,14 +144,8 @@ function VideoSurface({
     const appStateSub = AppState.addEventListener("change", (nextState) => {
       if (nextState !== "active") {
         player.pause();
-        configureAudioPriority(true)
-          .then(() => {
-            audioPlayerService.refreshLockScreen();
-          })
-          .catch(() => {});
       } else if (isPlaying) {
         player.play();
-        setTimeout(restoreSession, 60);
       }
     });
 
@@ -190,7 +171,6 @@ function VideoSurface({
       try {
         player.pause();
       } catch {}
-      restoreSession();
     };
   }, [isPlaying, player]);
 

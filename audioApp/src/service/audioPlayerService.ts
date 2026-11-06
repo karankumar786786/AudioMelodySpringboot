@@ -6,7 +6,12 @@ import {
 } from "expo-audio";
 import { Song, PlayerSong, RepeatMode, AudioQuality } from "@/types";
 import { store } from "@/store/hook";
-import { configureAudioPriority, safeSetActiveForLockScreen } from "@/utils";
+import {
+  configureAudioPriority,
+  safeSetActiveForLockScreen,
+  safeUpdateLockScreenMetadata,
+  getImageUrl,
+} from "@/utils";
 export { configureAudioPriority };
 import { mapToPlayerSong } from "@/utils/playerUtils";
 import { selectCurrentSongFromQueue, setQueueIndex } from "@/store/queueSlice";
@@ -52,6 +57,7 @@ export class AudioPlayerService {
   private hasSyncedActiveLockScreen = false;
   private lastReportedPlayingState: boolean | null = null;
   private appStateSubscription: { remove: () => void } | null = null;
+  private currentLoopMode: "none" | "all" | "single" = "none";
 
   private get activePlayer(): AudioPlaylist | null {
     return this.playlist;
@@ -103,12 +109,8 @@ export class AudioPlayerService {
     if (this.appStateSubscription) return;
     this.appStateSubscription = AppState.addEventListener("change", (nextState) => {
       if (nextState !== "active" && this.playlist && this.currentPlayingSong) {
-        // Device locked or app sent to background: re-enforce audio session and lock screen controls
-        configureAudioPriority(true)
-          .then(() => {
-            this.refreshLockScreen();
-          })
-          .catch(() => {});
+        // Device locked or app sent to background: ensure lock screen metadata is refreshed
+        this.refreshLockScreen();
       }
     });
   }
@@ -138,12 +140,18 @@ export class AudioPlayerService {
         return;
       }
 
-      // Synchronize repeat mode changes with AudioPlaylist loop mode
+      // Synchronize repeat mode changes with AudioPlaylist loop mode without reading native .loop getter
+      // (Reading .loop calls ExoPlayer.getRepeatMode() on Android which throws on the JS thread)
       if (this.playlist) {
-        const expectedLoop =
+        const expectedLoop: "none" | "all" | "single" =
           repeatMode === "all" ? "all" : repeatMode === "one" ? "single" : "none";
-        if ((this.playlist as any).loop !== expectedLoop) {
-          (this.playlist as any).loop = expectedLoop;
+        if (this.currentLoopMode !== expectedLoop) {
+          this.currentLoopMode = expectedLoop;
+          try {
+            (this.playlist as any).loop = expectedLoop;
+          } catch (err) {
+            console.warn("[AudioPlayerService] Failed to set loop mode:", err);
+          }
         }
       }
 
@@ -196,7 +204,14 @@ export class AudioPlayerService {
     const queue = state.queue.queue;
     if (!queue || currentIndex < 0 || currentIndex >= queue.length) return;
 
-    const nextSong = queue[currentIndex];
+    let nextSong = queue[currentIndex];
+    if (
+      this.loadedQueueSongIds[currentIndex] &&
+      (!nextSong || nextSong.id !== this.loadedQueueSongIds[currentIndex])
+    ) {
+      const matched = queue.find((s) => s.id === this.loadedQueueSongIds[currentIndex]);
+      if (matched) nextSong = matched;
+    }
     if (!nextSong) return;
 
     if (
@@ -211,8 +226,8 @@ export class AudioPlayerService {
     const playerNextSong = mapToPlayerSong(nextSong);
     this.currentPlayingSong = playerNextSong;
     this.bufferedSeconds = 0;
-    this.hasSyncedActiveLockScreen = false;
-    this.lastReportedPlayingState = null;
+    this.hasSyncedActiveLockScreen = true;
+    this.lastReportedPlayingState = true;
 
     store.dispatch(setQueueIndex(currentIndex));
     store.dispatch(setCurrentSong(playerNextSong));
@@ -220,9 +235,8 @@ export class AudioPlayerService {
     store.dispatch(setBufferedTime(0));
     store.dispatch(setIsPlaying(true));
 
-    configureAudioPriority().then(() => {
-      this.refreshLockScreen();
-    });
+    // Immediately update lock screen title, artist, album, and artwork synchronously
+    this.updateLockScreen(playerNextSong);
 
     interactionService.recordPlay(nextSong.id, 0);
 
@@ -489,7 +503,12 @@ export class AudioPlayerService {
       if (startTime > 0) {
         this.playlist.seekTo(startTime).catch(() => {});
       }
-      (this.playlist as any).loop = loopMode;
+      if (this.currentLoopMode !== loopMode) {
+        this.currentLoopMode = loopMode;
+        try {
+          (this.playlist as any).loop = loopMode;
+        } catch {}
+      }
       this.playlist.play();
     } else {
       console.log(
@@ -511,6 +530,7 @@ export class AudioPlayerService {
         loop: loopMode,
       });
 
+      this.currentLoopMode = loopMode;
       this.playlist = newPlaylist;
 
       this.statusSubscription = newPlaylist.addListener(
@@ -544,6 +564,7 @@ export class AudioPlayerService {
 
       if (oldPlaylist) {
         try {
+          safeSetActiveForLockScreen(oldPlaylist, false);
           oldPlaylist.pause();
           oldStatusSub?.remove();
           oldTrackSub?.remove();
@@ -551,22 +572,7 @@ export class AudioPlayerService {
       }
     }
 
-    safeSetActiveForLockScreen(
-      this.playlist,
-      true,
-      {
-        title: playerSong.title,
-        artist: playerSong.artistName,
-        albumTitle: playerSong.album || "Melody",
-        artworkUrl: playerSong.coverUrl || playerSong.posterUrl,
-      },
-      {
-        showSeekForward: false,
-        showSeekBackward: false,
-        showNextTrack: true,
-        showPreviousTrack: true,
-      }
-    );
+    this.updateLockScreen(playerSong);
 
     store.dispatch(setIsPlaying(true));
     store.dispatch(setIsLoading(false));
@@ -614,17 +620,37 @@ export class AudioPlayerService {
     store.dispatch(setIsLoading(false));
   }
 
-  public async refreshLockScreen(): Promise<void> {
-    await configureAudioPriority(true);
-    if (!this.playlist || !this.currentPlayingSong) return;
+  public updateLockScreen(song?: PlayerSong | Song | null): void {
+    const targetSong = song || this.currentPlayingSong;
+    if (!this.playlist || !targetSong) return;
+
+    const rawImage =
+      (targetSong as any).coverUrl ||
+      (targetSong as any).posterUrl ||
+      (targetSong as any).imageKey ||
+      (targetSong as any).image_key ||
+      (targetSong as any).imageUrl;
+
+    const artworkUrl =
+      (typeof rawImage === "string" && rawImage.startsWith("http")
+        ? rawImage
+        : getImageUrl(rawImage, {
+            width: 500,
+            height: 500,
+            focus: "auto",
+            aspectRatio: "1-1",
+            format: "jpg",
+            quality: 85,
+          })) || undefined;
+
     safeSetActiveForLockScreen(
       this.playlist,
       true,
       {
-        title: this.currentPlayingSong.title,
-        artist: this.currentPlayingSong.artistName,
-        albumTitle: this.currentPlayingSong.album || "Melody",
-        artworkUrl: this.currentPlayingSong.coverUrl || this.currentPlayingSong.posterUrl,
+        title: targetSong.title || "One Melody",
+        artist: targetSong.artistName || "Unknown Artist",
+        albumTitle: targetSong.album || "Melody",
+        artworkUrl,
       },
       {
         showSeekForward: false,
@@ -633,6 +659,11 @@ export class AudioPlayerService {
         showPreviousTrack: true,
       }
     );
+  }
+
+  public refreshLockScreen(): void {
+    if (!this.playlist || !this.currentPlayingSong) return;
+    this.updateLockScreen(this.currentPlayingSong);
   }
 
   public togglePlay(): void {

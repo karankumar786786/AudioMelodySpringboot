@@ -14,8 +14,8 @@ export const isExpoGo =
 /**
  * Configures top exclusive audio priority for One Melody.
  * - `playsInSilentMode: true`: audio continues playing even if phone is on silent/vibrate.
- * - `interruptionMode: 'doNotMixPersistent'`: requests continuous media audio focus (AudioManager.AUDIOFOCUS_GAIN),
- *   yielding focus and pausing when other media apps (YouTube, Spotify, Instagram) or phone calls take focus,
+ * - `interruptionMode: 'doNotMix'`: requests exclusive audio focus, automatically
+ *   pausing playback when other media apps (Instagram, YouTube, TikTok, phone calls) play audio,
  *   and supporting background playback on lock screen.
  * - `shouldPlayInBackground: true`: audio continues playing in background and lock screen.
  */
@@ -24,6 +24,7 @@ let configuringPromise: Promise<void> | null = null;
 
 export async function configureAudioPriority(force = false): Promise<void> {
   if (Platform.OS === "web") return;
+  if (!force && isConfigured) return;
   if (!force && configuringPromise) return configuringPromise;
 
   configuringPromise = (async () => {
@@ -38,14 +39,15 @@ export async function configureAudioPriority(force = false): Promise<void> {
 
       await setAudioModeAsync({
         playsInSilentMode: true,
-        interruptionMode: "doNotMixPersistent",
+        interruptionMode: "doNotMix",
+        interruptionModeAndroid: "doNotMix",
         shouldPlayInBackground: true,
         allowsRecording: false,
         shouldRouteThroughEarpiece: false,
       });
       await setIsAudioActiveAsync(true);
       if (!isConfigured) {
-        console.log("[AudioPriority] Audio session initialized (high-fidelity stereo, background active)");
+        console.log("[AudioPriority] Audio session initialized (high-fidelity stereo, exclusive audio focus, background active)");
       }
       isConfigured = true;
     } catch (error) {
@@ -90,6 +92,16 @@ export function safeSetActiveForLockScreen(
 
   try {
     if (active) {
+      // If this player is already registered and active for lock screen, DO NOT
+      // call player.setActiveForLockScreen(true, ...) again. In expo-audio on Android,
+      // calling setActiveForLockScreen on an already active player releases the MediaSession
+      // and attempts to rebuild the foreground service, which gets suppressed/fails when the phone
+      // is locked. Instead, update the existing session's metadata and artwork in-place!
+      if ((player as any)._isLockScreenActive) {
+        safeUpdateLockScreenMetadata(player, metadata);
+        return;
+      }
+
       const cleanMetadata = metadata
         ? {
             title: metadata.title || "One Melody",
@@ -117,8 +129,10 @@ export function safeSetActiveForLockScreen(
         `[LockScreen:DIAGNOSTIC] 📱 Activating Lock Screen & Control Center -> Title: "${cleanMetadata?.title}" | Artist: "${cleanMetadata?.artist}" | Artwork: ${cleanMetadata?.artworkUrl ? "YES" : "NO"} | ${stateSummary}`
       );
 
+      (player as any)._isLockScreenActive = true;
       player.setActiveForLockScreen(active, cleanMetadata, cleanOptions);
     } else {
+      (player as any)._isLockScreenActive = false;
       console.log(`[LockScreen:DIAGNOSTIC] ⏹️ Deactivating lock screen controls | ${stateSummary}`);
       if (typeof (player as any).clearLockScreenControls === "function") {
         (player as any).clearLockScreenControls();
@@ -128,6 +142,63 @@ export function safeSetActiveForLockScreen(
     }
   } catch (err) {
     console.error("[LockScreen:DIAGNOSTIC] ❌ Exception in player.setActiveForLockScreen:", err);
+  }
+}
+
+/**
+ * Safely updates lock screen metadata (title, artist, album, artwork) on an active player.
+ * Calls player.updateLockScreenMetadata(metadata) directly without tearing down
+ * or rebuilding the underlying Android MediaSession / iOS MPNowPlayingInfoCenter.
+ */
+export function safeUpdateLockScreenMetadata(
+  player: AudioPlayer | AudioPlaylist | null | undefined,
+  metadata?: {
+    title?: string;
+    artist?: string;
+    albumTitle?: string;
+    artworkUrl?: string;
+  }
+): void {
+  if (!player) return;
+
+  if (Platform.OS === "android" && isExpoGo) {
+    return;
+  }
+
+  const cleanMetadata = metadata
+    ? {
+        title: metadata.title || "One Melody",
+        artist: metadata.artist || "Unknown Artist",
+        albumTitle: metadata.albumTitle || "One Melody",
+        artworkUrl:
+          typeof metadata.artworkUrl === "string" &&
+          metadata.artworkUrl.startsWith("http")
+            ? metadata.artworkUrl
+            : undefined,
+      }
+    : undefined;
+
+  if (!cleanMetadata) return;
+
+  // If lock screen controls have not been activated on this player yet, activate them first
+  if (!(player as any)._isLockScreenActive) {
+    safeSetActiveForLockScreen(player, true, cleanMetadata);
+    return;
+  }
+
+  try {
+    console.log(
+      `[LockScreen:METADATA] 🔄 Updating metadata -> "${cleanMetadata.title}" by "${cleanMetadata.artist}" | Artwork: ${cleanMetadata.artworkUrl ? "YES" : "NO"}`
+    );
+
+    if (typeof (player as any).updateLockScreenMetadata === "function") {
+      (player as any).updateLockScreenMetadata(cleanMetadata);
+    } else {
+      // Fallback if updateLockScreenMetadata is somehow not available
+      player.setActiveForLockScreen(true, cleanMetadata);
+    }
+  } catch (err) {
+    console.warn("[LockScreen:METADATA] ⚠️ Failed to update lock screen metadata:", err);
   }
 }
 

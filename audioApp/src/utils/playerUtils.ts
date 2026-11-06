@@ -28,22 +28,41 @@ export function mapToPlayerSong(song: Song | any, existingQueueId?: string): Pla
     ? `${S3_BASE_URL}/${fullVideoKey}/master.m3u8`
     : undefined;
 
+  const rawImage =
+    imageKey ||
+    song.coverUrl ||
+    song.posterUrl ||
+    song.imageUrl ||
+    song.cover_url ||
+    song.poster_url;
+
   const coverUrl =
-    getImageUrl(imageKey, {
+    getImageUrl(rawImage, {
       width: 400,
       height: 400,
       focus: "auto",
       aspectRatio: "1-1",
-    }) || "";
+    }) ||
+    (typeof song.coverUrl === "string" && song.coverUrl.startsWith("http")
+      ? song.coverUrl
+      : "") ||
+    (typeof song.posterUrl === "string" && song.posterUrl.startsWith("http")
+      ? song.posterUrl
+      : "") ||
+    "";
 
   const posterUrl =
-    getImageUrl(imageKey, {
+    getImageUrl(rawImage, {
       width: 720,
       height: 720,
       focus: "auto",
       aspectRatio: "1-1",
       quality: 90,
-    }) || coverUrl;
+    }) ||
+    (typeof song.posterUrl === "string" && song.posterUrl.startsWith("http")
+      ? song.posterUrl
+      : "") ||
+    coverUrl;
 
   const canvasVideoUrl = videoKey
     ? getVideoUrl(videoKey, {
