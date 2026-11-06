@@ -220,16 +220,24 @@ export const nextTrack =
     }
 
     if (currentIndex < queue.length - 1) {
+      const nextIndex = currentIndex + 1;
+      const nextSong = queue[nextIndex];
+      if (nextSong) {
+        audioPlayerService.setLastPlayed(nextSong.id, nextIndex);
+      }
       dispatch(advanceToNextTrack());
       const updated = getState().queue;
-      const nextSong = selectCurrentSongFromQueue(updated);
-      logQueueSnapshot("nextTrack (Advance)", updated.queue, updated.currentIndex, nextSong);
-      if (nextSong) {
-        await audioPlayerService.play(nextSong, 0, false);
+      const nextSongToPlay = selectCurrentSongFromQueue(updated);
+      logQueueSnapshot("nextTrack (Advance)", updated.queue, updated.currentIndex, nextSongToPlay);
+      if (nextSongToPlay) {
+        await audioPlayerService.play(nextSongToPlay, 0, false);
       }
     } else if (repeatMode === "all") {
-      dispatch(setQueue({ queue, index: 0 }));
       const firstSong = queue[0];
+      if (firstSong) {
+        audioPlayerService.setLastPlayed(firstSong.id, 0);
+      }
+      dispatch(setQueue({ queue, index: 0 }));
       logQueueSnapshot("nextTrack (Loop All to Start)", queue, 0, firstSong);
       if (firstSong) {
         await audioPlayerService.play(firstSong, 0, false);
@@ -239,6 +247,11 @@ export const nextTrack =
       await dispatch(refillQueue(false));
       const postRefillState = getState().queue;
       if (postRefillState.currentIndex < postRefillState.queue.length - 1) {
+        const nextIdx = postRefillState.currentIndex + 1;
+        const songAhead = postRefillState.queue[nextIdx];
+        if (songAhead) {
+          audioPlayerService.setLastPlayed(songAhead.id, nextIdx);
+        }
         dispatch(advanceToNextTrack());
         const after = getState().queue;
         const songToPlay = selectCurrentSongFromQueue(after);
@@ -274,12 +287,18 @@ export const prevTrack =
         interactionService.recordSkip(currentSong.id);
       }
 
+      const prevIndex = currentIndex - 1;
+      const prevSong = queue[prevIndex];
+      if (prevSong) {
+        audioPlayerService.setLastPlayed(prevSong.id, prevIndex);
+      }
+
       dispatch(retreatToPrevTrack());
       const updated = getState().queue;
-      const prevSong = selectCurrentSongFromQueue(updated);
-      logQueueSnapshot("prevTrack (Retreat)", updated.queue, updated.currentIndex, prevSong);
-      if (prevSong) {
-        await audioPlayerService.play(prevSong, 0, false);
+      const songToPlay = selectCurrentSongFromQueue(updated);
+      logQueueSnapshot("prevTrack (Retreat)", updated.queue, updated.currentIndex, songToPlay);
+      if (songToPlay) {
+        await audioPlayerService.play(songToPlay, 0, false);
       }
     } else {
       console.log(`[Queue:prevTrack] Already at index 0, seeking to start.`);

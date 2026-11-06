@@ -58,6 +58,7 @@ export class AudioPlayerService {
   private lastReportedPlayingState: boolean | null = null;
   private appStateSubscription: { remove: () => void } | null = null;
   private currentLoopMode: "none" | "all" | "single" = "none";
+  private currentPlaylistIndex: number = -1;
 
   private get activePlayer(): AudioPlaylist | null {
     return this.playlist;
@@ -200,6 +201,7 @@ export class AudioPlayerService {
     console.log(
       `[AudioPlayerService] ⏭️ Track Changed: ${previousIndex} -> ${currentIndex}`
     );
+    this.currentPlaylistIndex = currentIndex;
     const state = store.getState();
     const queue = state.queue.queue;
     if (!queue || currentIndex < 0 || currentIndex >= queue.length) return;
@@ -345,6 +347,13 @@ export class AudioPlayerService {
     }
 
     // Handle track completion on last track / repeatMode none
+    const state = store.getState();
+    const queue = state.queue.queue;
+    const currentIndex = state.queue.currentIndex;
+    const isLastTrackInQueue = !queue || currentIndex >= queue.length - 1;
+
+    // For AudioPlaylist, native ExoPlayer automatically transitions between sequential tracks (0 -> 1 -> 2...)
+    // and emits "trackChanged". JS only intervenes when reaching the very end of the playlist queue!
     const isNaturalTrackEnd =
       Boolean(status.didJustFinish) &&
       (typeof status.duration === "number" && status.duration > 0
@@ -353,6 +362,7 @@ export class AudioPlayerService {
 
     if (
       isNaturalTrackEnd &&
+      isLastTrackInQueue &&
       !this.isSeeking &&
       !this.isAdvancingTrack
     ) {
@@ -366,9 +376,8 @@ export class AudioPlayerService {
       }
 
       console.log(
-        "[AudioPlayerService] Track finished playback. Determining next action..."
+        "[AudioPlayerService] Reached end of playlist. Determining next action..."
       );
-      const state = store.getState();
       const sleepTimer = state.player.sleepTimer;
       if (sleepTimer === -1) {
         console.log(
@@ -382,6 +391,10 @@ export class AudioPlayerService {
       const repeatMode: RepeatMode = state.queue.repeatMode;
       if (repeatMode === "one" && this.playlist) {
         this.playlist.seekTo(0).then(() => this.playlist?.play());
+      } else if (repeatMode === "all" && this.playlist) {
+        this.currentPlaylistIndex = 0;
+        this.playlist.skipTo(0);
+        this.playlist.play();
       } else {
         this.onTrackEndCallback?.();
       }
@@ -497,7 +510,8 @@ export class AudioPlayerService {
         }
       }
 
-      if (this.playlist.currentIndex !== existingIndexInPlaylist) {
+      if (this.currentPlaylistIndex !== existingIndexInPlaylist) {
+        this.currentPlaylistIndex = existingIndexInPlaylist;
         this.playlist.skipTo(existingIndexInPlaylist);
       }
       if (startTime > 0) {
@@ -548,7 +562,10 @@ export class AudioPlayerService {
       );
 
       if (targetIndex > 0 && targetIndex < sources.length) {
+        this.currentPlaylistIndex = targetIndex;
         newPlaylist.skipTo(targetIndex);
+      } else {
+        this.currentPlaylistIndex = 0;
       }
 
       if (startTime > 0) {

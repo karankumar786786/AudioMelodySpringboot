@@ -180,13 +180,27 @@ export function safeUpdateLockScreenMetadata(
 
   if (!cleanMetadata) return;
 
+  // De-duplicate: Skip redundant updates if metadata hasn't changed
+  const lastMeta = (player as any)._lastAppliedMetadata;
+  if (
+    lastMeta &&
+    lastMeta.title === cleanMetadata.title &&
+    lastMeta.artist === cleanMetadata.artist &&
+    lastMeta.albumTitle === cleanMetadata.albumTitle &&
+    lastMeta.artworkUrl === cleanMetadata.artworkUrl
+  ) {
+    return;
+  }
+
   // If lock screen controls have not been activated on this player yet, activate them first
   if (!(player as any)._isLockScreenActive) {
     safeSetActiveForLockScreen(player, true, cleanMetadata);
+    (player as any)._lastAppliedMetadata = cleanMetadata;
     return;
   }
 
   try {
+    (player as any)._lastAppliedMetadata = cleanMetadata;
     console.log(
       `[LockScreen:METADATA] 🔄 Updating metadata -> "${cleanMetadata.title}" by "${cleanMetadata.artist}" | Artwork: ${cleanMetadata.artworkUrl ? "YES" : "NO"}`
     );
