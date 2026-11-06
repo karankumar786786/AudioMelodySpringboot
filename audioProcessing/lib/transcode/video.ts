@@ -366,6 +366,7 @@ export async function extractAudioFromVideo(videoPath: string, outputAudioPath: 
 
 /**
  * Cuts a short snippet from video between startSec and endSec as a muted looping canvas video.
+ * Completely erases all audio streams (-an) and auxiliary data for ultra-lightweight instant mobile loading.
  */
 export async function cutCanvasVideo(
     videoPath: string,
@@ -373,17 +374,17 @@ export async function cutCanvasVideo(
     startSec: number = 0,
     endSec: number = 15
 ): Promise<void> {
-    console.log(`[CUT CANVAS] Clipping video snippet from ${startSec}s to ${endSec}s -> ${outputCanvasPath}...`);
+    console.log(`[CUT CANVAS] Clipping silent video snippet from ${startSec}s to ${endSec}s (erasing audio stream) -> ${outputCanvasPath}...`);
     const duration = Math.max(1, endSec - startSec);
     const hwCaps = await detectHardwareCapabilities();
 
-    // Optimized mobile canvas profile (Spotify style: 720x1280 @ 1.2 Mbps, lightweight ~1.5MB)
+    // Highly optimized mobile canvas profile (vertical 720x1280 @ 800k, ultra-compact ~800KB-1.2MB for instant load)
     const canvasProfile = {
         width: 720,
         height: 1280,
-        bitrate: "1200k",
-        maxrate: "1600k",
-        bufsize: "2400k",
+        bitrate: "800k",
+        maxrate: "1000k",
+        bufsize: "1600k",
     };
 
     const primaryArgs = buildVideoEncoderArgs(
@@ -402,7 +403,7 @@ export async function cutCanvasVideo(
     );
 
     await executeFFmpegWithFallback(primaryArgs, fallbackArgs, "canvas video clip");
-    console.log(`[CUT CANVAS] Successfully cut canvas video snippet`);
+    console.log(`[CUT CANVAS] Successfully cut audio-erased canvas video snippet`);
 }
 
 /**

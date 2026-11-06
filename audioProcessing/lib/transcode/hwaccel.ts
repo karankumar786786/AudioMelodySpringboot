@@ -429,7 +429,8 @@ export function buildVideoEncoderArgs(
     }
 
     if (extraOptions.mute !== false) {
-        args.push("-an");
+        // Erase all audio, subtitle, and auxiliary data streams for purely silent, lightweight video
+        args.push("-an", "-sn", "-dn");
     }
 
     if (extraOptions.movflags) {
@@ -485,7 +486,8 @@ export function buildSoftwareVideoArgs(
     );
 
     if (extraOptions.mute !== false) {
-        args.push("-an");
+        // Erase all audio, subtitle, and auxiliary data streams for purely silent, lightweight video
+        args.push("-an", "-sn", "-dn");
     }
 
     if (extraOptions.movflags) {
