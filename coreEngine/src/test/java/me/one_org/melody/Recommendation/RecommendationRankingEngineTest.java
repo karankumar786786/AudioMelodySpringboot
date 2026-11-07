@@ -23,7 +23,7 @@ class RecommendationRankingEngineTest {
     private SongDto buildSongDto(String id, String title, String artist, String genre, String album, String language, Long streams) {
         return new SongDto(
                 id, title, artist, 200, "key/" + id, "img/" + id,
-                null, null, null, null, false, language, genre, album,
+                null, null, null, null, false, language, genre, album, "India",
                 "lrc", StatusEnum.ACTIVE, streams, null
         );
     }

@@ -54,6 +54,7 @@ public class AlgoliaSearch {
                             "artistName",
                             "artists",
                             "album",
+                            "country",
                             "name",
                             "language",
                             "genre",
@@ -63,6 +64,7 @@ public class AlgoliaSearch {
                             "searchable(language)",
                             "searchable(genre)",
                             "searchable(genres)",
+                            "searchable(country)",
                             "searchable(artistName)",
                             "searchable(artists)"))
                     .setCustomRanking(List.of(
@@ -126,6 +128,7 @@ public class AlgoliaSearch {
             }
         }
         record.put("album", song.getAlbum());
+        record.put("country", song.getCountry() != null ? song.getCountry() : "India");
         record.put("language", song.getLanguage());
         if (song.getGenre() != null && !song.getGenre().isBlank()) {
             record.put("genre", song.getGenre());
@@ -414,6 +417,7 @@ public class AlgoliaSearch {
             genre = list.stream().map(Object::toString).collect(java.util.stream.Collectors.joining(", "));
         }
         String album = (String) h.get("album");
+        String country = h.get("country") instanceof String c && !c.isBlank() ? c : "India";
         String lrclibId = (String) h.get("lrclibId");
 
         StatusEnum status = null;
@@ -431,7 +435,7 @@ public class AlgoliaSearch {
         return new SongDto(
             id, title, artistName, duration, songKey, imageKey,
             videoKey, fullVideoKey, previewStartTime, previewEndTime,
-            isFeatured, language, genre, album, lrclibId,
+            isFeatured, language, genre, album, country, lrclibId,
             status, jobId, totalStreams, createdAt
         );
     }

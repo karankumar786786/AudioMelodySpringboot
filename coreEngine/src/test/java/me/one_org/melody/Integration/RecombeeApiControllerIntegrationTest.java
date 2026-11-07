@@ -42,7 +42,7 @@ class RecombeeApiControllerIntegrationTest {
     @Test
     @DisplayName("GET /api/recommendations/similar/{songId} should return similar songs")
     void shouldRecommendSimilar() throws Exception {
-        SongDto song = new SongDto("s-sim-2", "Similar Song", "Artist Y", 200, "key", "img", null, null, null, null, false, "English", "Rock", "Album", "lrc", null, 2500L, null);
+        SongDto song = new SongDto("s-sim-2", "Similar Song", "Artist Y", 200, "key", "img", null, null, null, null, false, "English", "Rock", "Album", "India", "lrc", null, 2500L, null);
         when(recommendationApiService.recommendSimilar("s-seed", 5)).thenReturn(List.of(song));
 
         mockMvc.perform(get("/api/recommendations/similar/s-seed")
@@ -55,7 +55,7 @@ class RecombeeApiControllerIntegrationTest {
     @Test
     @DisplayName("GET /api/recommendations/radio should parse seed and excludeIds")
     void shouldRecommendRadio() throws Exception {
-        SongDto song = new SongDto("s-rad-3", "Radio Song", "Artist Z", 220, "key", "img", null, null, null, null, false, "English", "Indie", "Album", "lrc", null, 5000L, null);
+        SongDto song = new SongDto("s-rad-3", "Radio Song", "Artist Z", 220, "key", "img", null, null, null, null, false, "English", "Indie", "Album", "India", "lrc", null, 5000L, null);
         when(recommendationApiService.recommendRadio("seed-1", List.of("ex-1", "ex-2"), 10)).thenReturn(List.of(song));
 
         mockMvc.perform(get("/api/recommendations/radio")
@@ -70,7 +70,7 @@ class RecombeeApiControllerIntegrationTest {
     @Test
     @DisplayName("GET /api/recommendations/user should return personalized recommendations")
     void shouldRecommendForUser() throws Exception {
-        SongDto song = new SongDto("s-user-1", "User Recommended Song", "Artist U", 210, "key", "img", null, null, null, null, false, "English", "Pop", "Album", "lrc", null, 1500L, null);
+        SongDto song = new SongDto("s-user-1", "User Recommended Song", "Artist U", 210, "key", "img", null, null, null, null, false, "English", "Pop", "Album", "India", "lrc", null, 1500L, null);
         when(recommendationApiService.recommendForUser(any(), eq(10))).thenReturn(List.of(song));
 
         mockMvc.perform(get("/api/recommendations/user")

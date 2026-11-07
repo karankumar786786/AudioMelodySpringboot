@@ -24,7 +24,7 @@ class RedisSerializerTest {
 
         SongDto song = new SongDto(
                 "song-1", "Test Song", "Artist", 180, "key", "img", "vid", "fullVid",
-                0, 30, true, "en", "pop", "album", "lrclib", StatusEnum.ACTIVE, 100L, LocalDateTime.now()
+                0, 30, true, "en", "pop", "album", "India", "lrclib", StatusEnum.ACTIVE, 100L, LocalDateTime.now()
         );
         List<SongDto> list = java.util.stream.Stream.of(song).toList();
 

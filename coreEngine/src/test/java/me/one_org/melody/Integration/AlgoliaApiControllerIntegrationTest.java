@@ -42,7 +42,7 @@ class AlgoliaApiControllerIntegrationTest {
         SongDto songDto = new SongDto(
                 "song-1", "Smells Like Teen Spirit", "Nirvana", 301,
                 "song/key", "image/key", null, null, null, null,
-                true, "English", "Grunge", "Nevermind", "lrc-1",
+                true, "English", "Grunge", "Nevermind", "India", "lrc-1",
                 null, 150000L, null
         );
         SearchResult searchResult = new SearchResult(List.of(songDto), List.of(), List.of(), List.of());

@@ -70,6 +70,7 @@ public class Recombee {
         registerPropertySafely("genre", "string");
         registerPropertySafely("genres", "set");
         registerPropertySafely("album", "string");
+        registerPropertySafely("country", "string");
         registerPropertySafely("duration", "int");
         registerPropertySafely("totalStreams", "int");
         registerPropertySafely("imageKey", "string");
@@ -160,6 +161,7 @@ public class Recombee {
         if (song.getAlbum() != null && !song.getAlbum().isBlank()) {
             values.put("album", song.getAlbum());
         }
+        values.put("country", song.getCountry() != null && !song.getCountry().isBlank() ? song.getCountry() : "India");
         if (song.getImageKey() != null && !song.getImageKey().isBlank()) {
             values.put("imageKey", song.getImageKey());
         }
@@ -224,7 +226,7 @@ public class Recombee {
         saveSong(songId, title, artistName, language, genre, null, null, duration, 0L);
     }
 
-    public void saveSong(String songId, String title, String artistName, String language, String genre, String album, String imageKey, Integer duration, Long totalStreams) throws Exception {
+    public void saveSong(String songId, String title, String artistName, String language, String genre, String album, String country, String imageKey, Integer duration, Long totalStreams) throws Exception {
         Map<String, Object> values = new HashMap<>();
         values.put("title", title);
         values.put("artistName", artistName);
@@ -246,6 +248,7 @@ public class Recombee {
         if (album != null && !album.isBlank()) {
             values.put("album", album);
         }
+        values.put("country", country != null && !country.isBlank() ? country : "India");
         if (imageKey != null && !imageKey.isBlank()) {
             values.put("imageKey", imageKey);
         }
@@ -256,6 +259,10 @@ public class Recombee {
             values.put("totalStreams", (int) Math.min(totalStreams, Integer.MAX_VALUE));
         }
         recombeeClient.send(withTimeout(new SetItemValues(songId, values).setCascadeCreate(true)));
+    }
+
+    public void saveSong(String songId, String title, String artistName, String language, String genre, String album, String imageKey, Integer duration, Long totalStreams) throws Exception {
+        saveSong(songId, title, artistName, language, genre, album, "India", imageKey, duration, totalStreams);
     }
 
     public void delete(String songId) throws Exception {
@@ -401,6 +408,7 @@ public class Recombee {
             genre = list.stream().map(Object::toString).collect(java.util.stream.Collectors.joining(", "));
         }
         String album = (String) values.get("album");
+        String country = values.get("country") instanceof String c && !c.isBlank() ? c : "India";
         String lrclibId = (String) values.get("lrclibId");
 
         StatusEnum status = null;
@@ -418,7 +426,7 @@ public class Recombee {
         return new SongDto(
             id, title, artistName, duration, songKey, imageKey,
             videoKey, fullVideoKey, previewStartTime, previewEndTime,
-            isFeatured, language, genre, album, lrclibId,
+            isFeatured, language, genre, album, country, lrclibId,
             status, jobId, totalStreams, createdAt
         );
     }

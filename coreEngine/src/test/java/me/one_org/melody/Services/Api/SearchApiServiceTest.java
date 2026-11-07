@@ -28,8 +28,8 @@ class SearchApiServiceTest {
     @Test
     @DisplayName("Should query Algolia detailed and return ranked results with zero DB lookups")
     void shouldReturnAlgoliaDetailedResults() {
-        SongDto s1 = new SongDto("song-2", "Song Two", "Artist B", 200, "key2", "img2", null, null, null, null, false, "English", "Rock", "Album", "lrc", null, 5000L, null);
-        SongDto s2 = new SongDto("song-1", "Song One", "Artist A", 180, "key1", "img1", null, null, null, null, false, "English", "Pop", "Album", "lrc", null, 100L, null);
+        SongDto s1 = new SongDto("song-2", "Song Two", "Artist B", 200, "key2", "img2", null, null, null, null, false, "English", "Rock", "Album", "India", "lrc", null, 5000L, null);
+        SongDto s2 = new SongDto("song-1", "Song One", "Artist A", 180, "key1", "img1", null, null, null, null, false, "English", "Pop", "Album", "India", "lrc", null, 100L, null);
         SearchResult searchResult = new SearchResult(List.of(s1, s2), List.of(), List.of(), List.of());
 
         when(algoliaSearch.searchDetailed("rock")).thenReturn(searchResult);

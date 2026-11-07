@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Optional, List, Dict, Any
 from django.conf import settings
 # pyrefly: ignore[missing-import]
@@ -83,8 +84,9 @@ class RecombeeService:
         artist_name: Optional[str] = None,
         language: Optional[str] = None,
         genre: Optional[str] = None,
-        duration: Optional[int] = None,
         album: Optional[str] = None,
+        country: Optional[str] = None,
+        duration: Optional[int] = None,
         image_key: Optional[str] = None,
         total_streams: Optional[int] = None,
         song_key: Optional[str] = None,
@@ -139,6 +141,8 @@ class RecombeeService:
                     genre = song.get("genre")
                 if album is None:
                     album = song.get("album")
+                if country is None:
+                    country = song.get("country")
                 if duration is None:
                     duration = song.get("duration")
                 if image_key is None:
@@ -178,7 +182,8 @@ class RecombeeService:
                     genre = getattr(song, "genre", None)
                 if album is None:
                     album = getattr(song, "album", None)
-                country = getattr(song, "country", None) or "India"
+                if country is None:
+                    country = getattr(song, "country", None)
                 if duration is None:
                     duration = getattr(song, "duration", None)
                 if image_key is None:
@@ -277,7 +282,7 @@ class RecombeeService:
                 values["genres"] = genres_list
         if album and album.strip():
             values["album"] = album.strip()
-        country_val = country if 'country' in locals() and country else kwargs.get("country", "India")
+        country_val = country or kwargs.get("country") or "India"
         if country_val and str(country_val).strip():
             values["country"] = str(country_val).strip()
         if image_key and image_key.strip():

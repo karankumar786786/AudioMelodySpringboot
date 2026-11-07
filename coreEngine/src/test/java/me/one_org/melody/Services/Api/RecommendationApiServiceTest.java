@@ -27,8 +27,8 @@ class RecommendationApiServiceTest {
     @Test
     @DisplayName("Should return radio recommendations directly from Recombee")
     void shouldRecommendRadioDetailed() throws Exception {
-        SongDto s1 = new SongDto("song-1", "Song One", "Artist A", 180, "key1", "img1", null, null, null, null, false, "English", "Pop", "Album", "lrc", null, 120L, null);
-        SongDto s2 = new SongDto("song-2", "Song Two", "Artist B", 200, "key2", "img2", null, null, null, null, false, "English", "Rock", "Album", "lrc", null, 340L, null);
+        SongDto s1 = new SongDto("song-1", "Song One", "Artist A", 180, "key1", "img1", null, null, null, null, false, "English", "Pop", "Album", "India", "lrc", null, 120L, null);
+        SongDto s2 = new SongDto("song-2", "Song Two", "Artist B", 200, "key2", "img2", null, null, null, null, false, "English", "Rock", "Album", "India", "lrc", null, 340L, null);
 
         when(recombee.recommendRadioDetailed(eq("seed-1"), eq(List.of("ex-1")), anyInt())).thenReturn(List.of(s1, s2));
 
@@ -43,7 +43,7 @@ class RecommendationApiServiceTest {
     @Test
     @DisplayName("Should return similar recommendations directly from Recombee")
     void shouldRecommendSimilarDetailed() throws Exception {
-        SongDto s1 = new SongDto("song-1", "Song One", "Artist A", 180, "key1", "img1", null, null, null, null, false, "English", "Pop", "Album", "lrc", null, 120L, null);
+        SongDto s1 = new SongDto("song-1", "Song One", "Artist A", 180, "key1", "img1", null, null, null, null, false, "English", "Pop", "Album", "India", "lrc", null, 120L, null);
 
         when(recombee.recommendRadioDetailed(eq("song-seed"), eq(List.of()), anyInt())).thenReturn(List.of(s1));
 
