@@ -25,6 +25,16 @@ export function getAlgoliaClient(): {
     return null;
   }
 
+  // Guard against unconfigured placeholder strings
+  if (
+    ALGOLIA_APP_ID.includes("your_") ||
+    ALGOLIA_APP_ID.includes("default_") ||
+    ALGOLIA_SEARCH_KEY.includes("your_") ||
+    ALGOLIA_INDEX_NAME.includes("your_")
+  ) {
+    return null;
+  }
+
   if (!algoliaClientInstance) {
     algoliaClientInstance = algoliasearch(ALGOLIA_APP_ID, ALGOLIA_SEARCH_KEY);
   }
@@ -229,10 +239,8 @@ export async function getAlgoliaSimilarSongs(
   song: { id?: string; title?: string; artistName?: string; genre?: string | null; album?: string | null },
   limit = 10,
 ): Promise<Song[]> {
-  const algolia = getAlgoliaClient();
-  if (!algolia || !song?.id) return [];
+  if (!song?.id) return [];
 
-  const { client, indexName } = algolia;
   const artistTokens = (song.artistName || "")
     .split(/[,/&]|\bft\.?|\bfeat\.?/i)
     .map((a) => a.trim())
@@ -271,51 +279,124 @@ export async function getAlgoliaSimilarSongs(
   const seen = new Set<string>([song.id]);
   const results: Song[] = [];
 
-  for (const q of queries) {
-    if (results.length >= limit) break;
-    try {
-      const res = await client.searchSingleIndex({
-        indexName,
-        searchParams: {
-          query: q,
-          filters: `type:song AND NOT objectID:${song.id}`,
-          removeWordsIfNoResults: "allOptional",
-          hitsPerPage: limit,
-        },
-      });
-      for (const h of (res.hits || []) as any[]) {
-        const id = h.objectID || h.id;
-        if (id && !seen.has(id)) {
-          seen.add(id);
-          results.push(mapSongHit(h));
-          if (results.length >= limit) break;
+  const algolia = getAlgoliaClient();
+  let algoliaIsAvailable = Boolean(algolia);
+
+  if (algoliaIsAvailable && algolia) {
+    const { client, indexName } = algolia;
+
+    for (const q of queries) {
+      if (results.length >= limit) break;
+      try {
+        const res = await client.searchSingleIndex({
+          indexName,
+          searchParams: {
+            query: q,
+            filters: `type:song AND NOT objectID:${song.id}`,
+            removeWordsIfNoResults: "allOptional",
+            hitsPerPage: limit,
+          },
+        });
+        for (const h of (res.hits || []) as any[]) {
+          const id = h.objectID || h.id;
+          if (id && !seen.has(id)) {
+            seen.add(id);
+            results.push(mapSongHit(h));
+            if (results.length >= limit) break;
+          }
+        }
+      } catch (err: any) {
+        const isNetworkOrHostError =
+          err?.name === "RetryError" ||
+          err?.message?.includes("Unreachable hosts") ||
+          err?.message?.includes("Failed to fetch") ||
+          err?.message?.includes("NetworkError");
+
+        if (isNetworkOrHostError) {
+          // Avoid spamming unreachable host attempts
+          algoliaIsAvailable = false;
+          break;
         }
       }
-    } catch (err) {
-      console.warn("[Search] Algolia query failed for:", q, err);
+    }
+
+    // Broad catalog fallback if fewer than 4 songs matched and Algolia host is reachable
+    if (algoliaIsAvailable && results.length < 4) {
+      try {
+        const res = await client.searchSingleIndex({
+          indexName,
+          searchParams: {
+            query: "",
+            filters: `type:song AND NOT objectID:${song.id}`,
+            hitsPerPage: limit,
+          },
+        });
+        for (const h of (res.hits || []) as any[]) {
+          const id = h.objectID || h.id;
+          if (id && !seen.has(id)) {
+            seen.add(id);
+            results.push(mapSongHit(h));
+            if (results.length >= limit) break;
+          }
+        }
+      } catch {}
     }
   }
 
-  // Broad catalog fallback if fewer than 4 songs matched
-  if (results.length < 4) {
+  // Graceful fallback: If Algolia didn't yield enough songs, query backend endpoints
+  if (results.length < limit) {
     try {
-      const res = await client.searchSingleIndex({
-        indexName,
-        searchParams: {
-          query: "",
-          filters: `type:song AND NOT objectID:${song.id}`,
-          hitsPerPage: limit,
-        },
-      });
-      for (const h of (res.hits || []) as any[]) {
-        const id = h.objectID || h.id;
-        if (id && !seen.has(id)) {
-          seen.add(id);
-          results.push(mapSongHit(h));
-          if (results.length >= limit) break;
+      // 1. Try album tracks if current song has an album
+      if (song.album) {
+        const albumTracks = await request<Song[]>(
+          `/api/songs/album/${encodeURIComponent(song.album)}`,
+        ).catch(() => []);
+        if (Array.isArray(albumTracks)) {
+          for (const s of albumTracks) {
+            if (s && s.id && !seen.has(s.id)) {
+              seen.add(s.id);
+              results.push(s);
+              if (results.length >= limit) break;
+            }
+          }
         }
       }
-    } catch {}
+
+      // 2. Try backend search endpoint with primary genre/artist
+      if (results.length < limit && (primaryGenre || primaryArtist)) {
+        const searchQ = primaryGenre || primaryArtist;
+        const searchRes = await request<UnifiedSearchResult>(
+          `/api/search?q=${encodeURIComponent(searchQ)}`,
+        ).catch(() => null);
+        if (searchRes?.songs) {
+          for (const s of searchRes.songs) {
+            if (s && s.id && !seen.has(s.id)) {
+              seen.add(s.id);
+              results.push(s);
+              if (results.length >= limit) break;
+            }
+          }
+        }
+      }
+
+      // 3. Fallback to featured songs to ensure similar songs section is populated
+      if (results.length < 4) {
+        const featured = await request<Song[]>("/api/songs/featured").catch(
+          () => [],
+        );
+        if (Array.isArray(featured)) {
+          for (const s of featured) {
+            if (s && s.id && !seen.has(s.id)) {
+              seen.add(s.id);
+              results.push(s);
+              if (results.length >= limit) break;
+            }
+          }
+        }
+      }
+    } catch {
+      // Best-effort fallback
+    }
   }
 
   return results;
@@ -339,10 +420,10 @@ export const searchApi = {
       if (direct !== null) {
         return { data: direct };
       }
-    } catch (err) {
-      console.warn(
-        "[Search] Direct Algolia search failed, falling back to backend:",
-        err,
+    } catch (err: any) {
+      console.debug(
+        "[Search] Direct Algolia search unreachable, falling back to backend:",
+        err?.message || err,
       );
     }
 

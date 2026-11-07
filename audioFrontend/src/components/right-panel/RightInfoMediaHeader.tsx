@@ -134,16 +134,19 @@ export function RightInfoMediaHeader({
                   <span className="truncate">{currentSong.album}</span>
                 </Link>
               )}
-              {currentSong.genre && (
-                <>
-                {currentSong.genre.split(',').map((genre)=>(
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 border border-primary/30 text-primary font-bold uppercase tracking-wider">
-                  {genre}
-                </span>
-                ))}
-                
-                </>
-              )}
+              {currentSong.genre &&
+                currentSong.genre
+                  .split(",")
+                  .map((g) => g.trim())
+                  .filter(Boolean)
+                  .map((genre, idx) => (
+                    <span
+                      key={`genre-${genre}-${idx}`}
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/20 text-zinc-200 font-semibold uppercase tracking-wider"
+                    >
+                      {genre}
+                    </span>
+                  ))}
             </div>
           )}
         </div>
