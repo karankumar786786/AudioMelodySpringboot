@@ -31,7 +31,7 @@ export function QueueBackpressureWidget({
 }: QueueBackpressureWidgetProps) {
   if (!queueData) {
     return (
-      <div id="mail-queue" className="rounded-2xl border border-[#282828] bg-[#121212] p-5 animate-pulse">
+      <div id="mail-queue" className="rounded-2xl border border-white/8 bg-[#121215] p-5 animate-pulse">
         <div className="h-6 w-48 bg-zinc-800 rounded mb-4" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[1, 2].map((i) => (
@@ -142,61 +142,72 @@ export function QueueBackpressureWidget({
   const statusBadge = getOverallStatusBadge();
 
   return (
-    <div id="mail-queue" className="rounded-2xl border border-[#282828] bg-[#121212] p-5 sm:p-6 shadow-xl relative overflow-hidden transition-all duration-300 hover:border-zinc-700">
+    <div
+      id="mail-queue"
+      className={
+        compact
+          ? "relative z-10 pt-2"
+          : "rounded-2xl border border-white/8 bg-[#121215] p-5 sm:p-6 shadow-xl relative overflow-hidden transition-all duration-300 hover:border-white/16"
+      }
+    >
       {/* Background ambient subtle glow */}
-      <div className="absolute -top-24 -right-24 w-96 h-96 bg-white/2 rounded-full blur-3xl pointer-events-none" />
+      {!compact && (
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-white/[0.02] rounded-full blur-3xl pointer-events-none" />
+      )}
 
       {/* Header bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-5 border-b border-[#282828] relative z-10">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-zinc-900 border border-[#282828] text-white">
-            <Mail className="w-5 h-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                Redis Mail Queue (Transactional Emails)
-              </h2>
-              <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-white/5 text-zinc-400 border border-[#282828]">
-                Mail Dispatch &amp; DLQ
-              </span>
+      {!compact && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-5 border-b border-white/6 relative z-10">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-black border border-white/10 text-white">
+              <Mail className="w-5 h-5" />
             </div>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Real-time dispatch buffer for OTPs, invitations, password resets, and dead-letter monitoring
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Status badge */}
-          <div
-            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border ${statusBadge.bg}`}
-          >
-            <span className="relative flex h-2 w-2">
-              <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${statusBadge.dot}`} />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-current" />
-            </span>
-            {statusBadge.label}
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">
+                  Redis Mail Queue (Transactional Emails)
+                </h2>
+                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-white/5 text-zinc-400 border border-white/10">
+                  Mail Dispatch &amp; DLQ
+                </span>
+              </div>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Real-time dispatch buffer for OTPs, invitations, password resets, and dead-letter monitoring
+              </p>
+            </div>
           </div>
 
-          {/* Total Queued counter */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-black/60 border border-[#282828] text-zinc-300">
-            <span className="text-zinc-400">Mail Queued:</span>
-            <span className="font-bold text-white tabular-nums">{totalQueued}</span>
-          </div>
-
-          {onRefresh && (
-            <button
-              onClick={onRefresh}
-              disabled={isRefreshing}
-              className="p-1.5 rounded-xl bg-black/60 hover:bg-zinc-800 border border-[#282828] text-zinc-400 hover:text-white transition-all disabled:opacity-50"
-              title="Refresh mail queue metrics"
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Status badge */}
+            <div
+              className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border ${statusBadge.bg}`}
             >
-              <Activity className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
-            </button>
-          )}
+              <span className="relative flex h-2 w-2">
+                <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${statusBadge.dot}`} />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-current" />
+              </span>
+              {statusBadge.label}
+            </div>
+
+            {/* Total Queued counter */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-black/60 border border-white/10 text-zinc-300">
+              <span className="text-zinc-400">Mail Queued:</span>
+              <span className="font-bold text-white tabular-nums">{totalQueued}</span>
+            </div>
+
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                disabled={isRefreshing}
+                className="p-1.5 rounded-xl bg-black/60 hover:bg-white/10 border border-white/10 text-zinc-400 hover:text-white transition-all disabled:opacity-50"
+                title="Refresh mail queue metrics"
+              >
+                <Activity className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+              </button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Dead-Letter Alert Callout if mailDlqSize > 0 */}
       {mailDlqSize > 0 && (

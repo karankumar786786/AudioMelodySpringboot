@@ -19,11 +19,25 @@ interface DashboardMetricCardsProps {
   loading: boolean;
 }
 
+export function formatCompactMetric(value: number): string {
+  if (value >= 1_000_000_000) {
+    return (value / 1_000_000_000).toFixed(2).replace(/\.00$/, "") + "B";
+  }
+  if (value >= 1_000_000) {
+    return (value / 1_000_000).toFixed(2).replace(/\.00$/, "") + "M";
+  }
+  if (value >= 100_000) {
+    return (value / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
+  }
+  return value.toLocaleString();
+}
+
 export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsProps) {
   const statCards = [
     {
       name: "Songs Catalog",
-      value: stats?.totalSongs ?? 0,
+      rawValue: stats?.totalSongs ?? 0,
+      displayValue: formatCompactMetric(stats?.totalSongs ?? 0),
       subValue: `${stats?.activeSongs ?? 0} active`,
       badge: stats?.featuredSongs ? `${stats.featuredSongs} featured` : null,
       icon: Music,
@@ -32,8 +46,9 @@ export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsPro
     },
     {
       name: "Total Streams",
-      value: stats?.totalStreams ?? 0,
-      subValue: "Global audio telemetry",
+      rawValue: stats?.totalStreams ?? 0,
+      displayValue: formatCompactMetric(stats?.totalStreams ?? 0),
+      subValue: `${(stats?.totalStreams ?? 0).toLocaleString()} exact plays`,
       badge: (stats?.totalStreams ?? 0) > 0 ? "Active" : null,
       badgeType: "default",
       icon: Activity,
@@ -42,7 +57,8 @@ export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsPro
     },
     {
       name: "Artists Roster",
-      value: stats?.totalArtists ?? 0,
+      rawValue: stats?.totalArtists ?? 0,
+      displayValue: formatCompactMetric(stats?.totalArtists ?? 0),
       subValue: `${stats?.activeArtists ?? 0} verified`,
       badge: null,
       icon: Mic2,
@@ -51,7 +67,8 @@ export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsPro
     },
     {
       name: "Playlists",
-      value: stats?.totalPlaylists ?? 0,
+      rawValue: stats?.totalPlaylists ?? 0,
+      displayValue: formatCompactMetric(stats?.totalPlaylists ?? 0),
       subValue: `${stats?.activePlaylists ?? 0} public`,
       badge: null,
       icon: ListMusic,
@@ -60,7 +77,8 @@ export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsPro
     },
     {
       name: "User Accounts",
-      value: stats?.totalUsers ?? 0,
+      rawValue: stats?.totalUsers ?? 0,
+      displayValue: formatCompactMetric(stats?.totalUsers ?? 0),
       subValue: `${stats?.activeUsers ?? 0} active`,
       badge: (stats?.blockedUsers ?? 0) > 0 ? `${stats?.blockedUsers} blocked` : null,
       badgeType: "warning",
@@ -70,7 +88,8 @@ export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsPro
     },
     {
       name: "Processing Jobs",
-      value: stats?.totalJobs ?? 0,
+      rawValue: stats?.totalJobs ?? 0,
+      displayValue: formatCompactMetric(stats?.totalJobs ?? 0),
       subValue: `${stats?.completedJobs ?? 0} finished`,
       badge:
         (stats?.failedJobs ?? 0) > 0
@@ -124,8 +143,11 @@ export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsPro
             </div>
 
             <div className="space-y-1">
-              <div className="text-3xl font-bold tracking-tight text-white font-mono tabular-nums">
-                {card.value.toLocaleString()}
+              <div
+                className="text-2xl 2xl:text-3xl font-bold tracking-tight text-white font-mono tabular-nums truncate"
+                title={`${card.name}: ${card.rawValue.toLocaleString()}`}
+              >
+                {card.displayValue}
               </div>
               <div className="text-xs font-semibold text-zinc-400">
                 {card.name}
@@ -133,7 +155,9 @@ export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsPro
             </div>
 
             <div className="mt-4 pt-3 border-t border-white/6 flex items-center justify-between text-xs text-zinc-400">
-              <span className="truncate text-[11px]">{card.subValue}</span>
+              <span className="truncate text-[11px]" title={card.subValue}>
+                {card.subValue}
+              </span>
               <ArrowUpRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all text-white shrink-0" />
             </div>
           </Link>
