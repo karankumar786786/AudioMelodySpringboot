@@ -7,7 +7,7 @@ import { PaginationBar } from "@/components/PaginationBar";
 import { EditSongModal, type SongData } from "@/components/EditSongModal";
 import { adminFetch } from "@/lib/adminFetch";
 import type { Song } from "./types";
-import { SongsFilterBar } from "./components/SongsFilterBar";
+import { SongsFilterBar, type SongPresetFilter } from "./components/SongsFilterBar";
 import { SongsGrid } from "./components/SongsGrid";
 import { SongsDataTable } from "./components/SongsDataTable";
 import { BulkActionsBar } from "./components/BulkActionsBar";
@@ -25,6 +25,7 @@ function SongsContent() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [genreFilter, setGenreFilter] = useState("ALL");
+  const [presetFilter, setPresetFilter] = useState<SongPresetFilter>("ALL");
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
   const [selectedSongIds, setSelectedSongIds] = useState<string[]>([]);
   const [isProcessingBulk, setIsProcessingBulk] = useState(false);
@@ -70,6 +71,16 @@ function SongsContent() {
         queryParts.push(`search=${encodeURIComponent(effectiveSearch)}`);
       }
 
+      if (presetFilter === "FEATURED") {
+        queryParts.push("featured=true");
+      } else if (presetFilter === "CANVAS") {
+        queryParts.push("hasVideo=true");
+      } else if (presetFilter === "FULL_VIDEO") {
+        queryParts.push("hasFullVideo=true");
+      } else if (presetFilter === "LYRICS") {
+        queryParts.push("hasLyrics=true");
+      }
+
       const url = `/admin/song?${queryParts.join("&")}`;
       const res = await adminFetch(url);
       if (res.ok) {
@@ -93,7 +104,7 @@ function SongsContent() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, debouncedSearch, genreFilter, showToast]);
+  }, [page, pageSize, debouncedSearch, genreFilter, presetFilter, showToast]);
 
   useEffect(() => {
     fetchSongs();
@@ -289,6 +300,11 @@ function SongsContent() {
         genreFilter={genreFilter}
         onGenreFilterChange={(genre) => {
           setGenreFilter(genre);
+          setPage(0);
+        }}
+        presetFilter={presetFilter}
+        onPresetFilterChange={(preset) => {
+          setPresetFilter(preset);
           setPage(0);
         }}
         viewMode={viewMode}

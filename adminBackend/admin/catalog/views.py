@@ -311,6 +311,12 @@ class PlaylistSongsView(BaseAdminView):
 
         song_ids = PlaylistSong.objects.filter(playlist=playlist).values_list("song_id", flat=True)
         qs = Song.objects.select_related("metadata").filter(id__in=song_ids, status="ACTIVE")
+
+        featured_param = request.query_params.get("featured") or request.query_params.get("isFeatured")
+        if featured_param is not None and str(featured_param).strip() != "":
+            is_feat = str(featured_param).lower() in ("true", "1")
+            qs = qs.filter(is_featured=is_feat)
+
         if search:
             qs = qs.filter(Q(title__icontains=search) | Q(artist_name__icontains=search) | Q(album__icontains=search))
 
@@ -381,6 +387,9 @@ class SongListView(BaseAdminView):
         genre_param = (request.query_params.get("genre") or "").strip()
         lang_param = (request.query_params.get("language") or "").strip()
         featured_param = request.query_params.get("featured") or request.query_params.get("isFeatured")
+        has_video_param = request.query_params.get("hasVideo")
+        has_full_video_param = request.query_params.get("hasFullVideo")
+        has_lyrics_param = request.query_params.get("hasLyrics")
         offset = page * size
 
         qs = Song.objects.select_related("metadata").all()
@@ -390,12 +399,18 @@ class SongListView(BaseAdminView):
             qs = qs.filter(status="ACTIVE")
 
         if genre_param and genre_param.upper() != "ALL":
-            qs = qs.filter(genre__iexact=genre_param)
+            qs = qs.filter(Q(genre__iexact=genre_param) | Q(genre__icontains=genre_param))
         if lang_param and lang_param.upper() != "ALL":
             qs = qs.filter(language__iexact=lang_param)
         if featured_param is not None and str(featured_param).strip() != "":
             is_feat = str(featured_param).lower() in ("true", "1")
             qs = qs.filter(is_featured=is_feat)
+        if has_video_param and str(has_video_param).lower() in ("true", "1"):
+            qs = qs.filter(video_key__isnull=False).exclude(video_key="")
+        if has_full_video_param and str(has_full_video_param).lower() in ("true", "1"):
+            qs = qs.filter(full_video_key__isnull=False).exclude(full_video_key="")
+        if has_lyrics_param and str(has_lyrics_param).lower() in ("true", "1"):
+            qs = qs.filter(lrclib_id__isnull=False).exclude(lrclib_id=0)
 
         if search:
             qs = qs.filter(
@@ -413,6 +428,9 @@ class SongListView(BaseAdminView):
             or (genre_param and genre_param.upper() != "ALL")
             or (lang_param and lang_param.upper() != "ALL")
             or (featured_param is not None and str(featured_param).strip() != "")
+            or (has_video_param and str(has_video_param).lower() in ("true", "1"))
+            or (has_full_video_param and str(has_full_video_param).lower() in ("true", "1"))
+            or (has_lyrics_param and str(has_lyrics_param).lower() in ("true", "1"))
             or (status_param and status_param.upper() != "ACTIVE")
         )
 

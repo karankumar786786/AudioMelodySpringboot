@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Plus, ListMusic, Search, X } from "lucide-react";
 import { Toast, type ToastType } from "@/components/Toast";
 import { PaginationBar } from "@/components/PaginationBar";
 import { adminFetch } from "@/lib/adminFetch";
-import { uploadToImageKitWithProgress } from "@/lib/upload-utils";
-import type { Playlist, PlaylistSong } from "./types";
+import type { Playlist } from "./types";
 import { PlaylistsGrid } from "./components/PlaylistsGrid";
 import { CreatePlaylistModal } from "./components/CreatePlaylistModal";
-import { PlaylistDetailDrawer } from "./components/PlaylistDetailDrawer";
 
 export default function PlaylistsPage() {
+  const router = useRouter();
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -20,13 +20,7 @@ export default function PlaylistsPage() {
   const [pageSize, setPageSize] = useState(20);
   const [totalPlaylists, setTotalPlaylists] = useState(0);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
-  const [playlistSongs, setPlaylistSongs] = useState<PlaylistSong[]>([]);
-  const [loadingSongs, setLoadingSongs] = useState(false);
   const [deletingPlaylistId, setDeletingPlaylistId] = useState<string | null>(null);
-  const [removingSongId, setRemovingSongId] = useState<string | null>(null);
-  const [uploadingVideo, setUploadingVideo] = useState(false);
-  const [removingVideo, setRemovingVideo] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
 
   const showToast = useCallback((message: string, type: ToastType = "info") => {
@@ -70,32 +64,12 @@ export default function PlaylistsPage() {
     }
   }, [page, pageSize, debouncedSearch, showToast]);
 
-  const fetchPlaylistSongs = useCallback(async (playlistId: string) => {
-    try {
-      setLoadingSongs(true);
-      const res = await adminFetch(`/admin/playlist/${playlistId}/songs`);
-      if (res.ok) {
-        const data = await res.json();
-        const songs = (data.songs || data.content || data || []).map((s: any) => ({
-          id: s.id,
-          title: s.title,
-        }));
-        setPlaylistSongs(songs);
-      }
-    } catch (err) {
-      console.error("Failed to fetch playlist songs:", err);
-    } finally {
-      setLoadingSongs(false);
-    }
-  }, []);
-
   useEffect(() => {
     fetchPlaylists();
   }, [fetchPlaylists]);
 
   const handleSelectPlaylist = (playlist: Playlist) => {
-    setSelectedPlaylist(playlist);
-    fetchPlaylistSongs(playlist.id);
+    router.push(`/playlists/${playlist.id}`);
   };
 
   const handleDeletePlaylist = async (id: string, name: string) => {
@@ -107,7 +81,6 @@ export default function PlaylistsPage() {
       });
       if (res.ok) {
         setPlaylists((prev) => prev.filter((p) => p.id !== id));
-        if (selectedPlaylist?.id === id) setSelectedPlaylist(null);
         showToast(`Playlist "${name}" deleted successfully`, "success");
       } else {
         const data = await res.json().catch(() => null);
@@ -120,88 +93,6 @@ export default function PlaylistsPage() {
     }
   };
 
-  const handleRemoveSongFromPlaylist = async (songId: string, songTitle?: string) => {
-    if (!selectedPlaylist) return;
-    setRemovingSongId(songId);
-    try {
-      const res = await adminFetch(`/admin/playlist/${selectedPlaylist.id}/songs/${songId}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setPlaylistSongs((prev) => prev.filter((s) => s.id !== songId));
-        setPlaylists((prev) =>
-          prev.map((p) =>
-            p.id === selectedPlaylist.id
-              ? { ...p, totalSongs: Math.max(0, p.totalSongs - 1) }
-              : p,
-          ),
-        );
-        setSelectedPlaylist((prev) =>
-          prev ? { ...prev, totalSongs: Math.max(0, prev.totalSongs - 1) } : null,
-        );
-        showToast(`Removed "${songTitle || "track"}" from playlist`, "success");
-      } else {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.message || "Failed to remove song");
-      }
-    } catch (err: any) {
-      showToast(err.message || "Error removing song", "error");
-    } finally {
-      setRemovingSongId(null);
-    }
-  };
-
-  const handleAttachVideoToPlaylist = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !selectedPlaylist) return;
-
-    try {
-      setUploadingVideo(true);
-      const videoKey = await uploadToImageKitWithProgress(file, "/playlists/videos");
-      const res = await adminFetch(`/admin/playlist/${selectedPlaylist.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videoKey }),
-      });
-
-      if (res.ok) {
-        const updated = { ...selectedPlaylist, videoKey };
-        setSelectedPlaylist(updated);
-        setPlaylists((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-        showToast("Playlist teaser video attached!", "success");
-      }
-    } catch (err) {
-      console.error("Video attachment failed:", err);
-      showToast("Failed to upload teaser video", "error");
-    } finally {
-      setUploadingVideo(false);
-    }
-  };
-
-  const handleRemoveVideoFromPlaylist = async () => {
-    if (!selectedPlaylist || !selectedPlaylist.videoKey) return;
-    try {
-      setRemovingVideo(true);
-      const res = await adminFetch(`/admin/playlist/${selectedPlaylist.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videoKey: null }),
-      });
-
-      if (res.ok) {
-        const updated = { ...selectedPlaylist, videoKey: undefined };
-        setSelectedPlaylist(updated);
-        setPlaylists((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-        showToast("Playlist video removed", "success");
-      }
-    } catch (err) {
-      console.error("Failed to remove video:", err);
-      showToast("Error removing video", "error");
-    } finally {
-      setRemovingVideo(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       {toast && (
@@ -209,13 +100,13 @@ export default function PlaylistsPage() {
       )}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-[#121212] p-4 rounded-2xl border border-[#282828]">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-[#121215] p-4 rounded-2xl border border-white/8">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
             <ListMusic className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-white">Playlists</h1>
+            <h1 className="text-lg font-bold text-white">Playlists Studio</h1>
             <p className="text-xs text-zinc-400">
               {playlists.length} of {totalPlaylists} {totalPlaylists === 1 ? "collection" : "collections"} curated
             </p>
@@ -230,7 +121,7 @@ export default function PlaylistsPage() {
               placeholder="Search playlists..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-9 py-2 bg-black/60 border border-[#282828] rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-colors"
+              className="w-full pl-10 pr-9 py-2 bg-black/60 border border-white/8 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/30 transition-colors"
             />
             {search && (
               <button
@@ -254,51 +145,29 @@ export default function PlaylistsPage() {
         </div>
       </div>
 
-      {/* Main Content Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        {/* Playlists Grid (takes 1 col if detail drawer open, 3 cols if no detail) */}
-        <div className={selectedPlaylist ? "lg:col-span-1 space-y-4" : "lg:col-span-3 space-y-4"}>
-          <PlaylistsGrid
-            playlists={playlists}
-            loading={loading}
-            deletingPlaylistId={deletingPlaylistId}
-            selectedPlaylistId={selectedPlaylist?.id}
-            onSelectPlaylist={handleSelectPlaylist}
-            onDeletePlaylist={handleDeletePlaylist}
-          />
-          <PaginationBar
-            page={page}
-            pageSize={pageSize}
-            totalItems={totalPlaylists}
-            currentCount={playlists.length}
-            itemLabel="playlists"
-            onPageChange={setPage}
-            onPageSizeChange={(newSize) => {
-              setPageSize(newSize);
-              setPage(0);
-            }}
-            pageSizeOptions={[10, 20, 50, 100]}
-            loading={loading}
-          />
-        </div>
-
-        {/* Selected Playlist Detail Drawer */}
-        {selectedPlaylist && (
-          <div className="lg:col-span-2">
-            <PlaylistDetailDrawer
-              playlist={selectedPlaylist}
-              songs={playlistSongs}
-              loadingSongs={loadingSongs}
-              removingSongId={removingSongId}
-              uploadingVideo={uploadingVideo}
-              removingVideo={removingVideo}
-              onClose={() => setSelectedPlaylist(null)}
-              onRemoveSong={handleRemoveSongFromPlaylist}
-              onAttachVideo={handleAttachVideoToPlaylist}
-              onRemoveVideo={handleRemoveVideoFromPlaylist}
-            />
-          </div>
-        )}
+      {/* Main Full-Width Playlists Grid */}
+      <div className="space-y-4">
+        <PlaylistsGrid
+          playlists={playlists}
+          loading={loading}
+          deletingPlaylistId={deletingPlaylistId}
+          onSelectPlaylist={handleSelectPlaylist}
+          onDeletePlaylist={handleDeletePlaylist}
+        />
+        <PaginationBar
+          page={page}
+          pageSize={pageSize}
+          totalItems={totalPlaylists}
+          currentCount={playlists.length}
+          itemLabel="playlists"
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(0);
+          }}
+          pageSizeOptions={[10, 20, 50, 100]}
+          loading={loading}
+        />
       </div>
 
       {/* Create Playlist Modal */}

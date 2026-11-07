@@ -1,13 +1,17 @@
 "use client";
 
 import React from "react";
-import { Plus, Search, Music, LayoutGrid, List } from "lucide-react";
+import { Plus, Search, Music, LayoutGrid, List, Star, Film, Video } from "lucide-react";
+
+export type SongPresetFilter = "ALL" | "FEATURED" | "CANVAS" | "FULL_VIDEO" | "LYRICS";
 
 interface SongsFilterBarProps {
   search: string;
   onSearchChange: (value: string) => void;
   genreFilter: string;
   onGenreFilterChange: (genre: string) => void;
+  presetFilter: SongPresetFilter;
+  onPresetFilterChange: (preset: SongPresetFilter) => void;
   viewMode: "table" | "grid";
   onViewModeChange: (mode: "table" | "grid") => void;
   totalSongs: number;
@@ -34,6 +38,8 @@ export function SongsFilterBar({
   onSearchChange,
   genreFilter,
   onGenreFilterChange,
+  presetFilter,
+  onPresetFilterChange,
   viewMode,
   onViewModeChange,
   totalSongs,
@@ -120,8 +126,74 @@ export function SongsFilterBar({
         </div>
       </div>
 
+      {/* Preset Filters Row: All, Featured, Video Canvas, Full Video, Lyrics */}
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5">
+        <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mr-1">
+          Preset:
+        </span>
+        <button
+          type="button"
+          onClick={() => onPresetFilterChange("ALL")}
+          className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
+            presetFilter === "ALL"
+              ? "bg-white text-black font-bold shadow-sm"
+              : "bg-[#141418] text-zinc-400 hover:text-white hover:bg-[#1a1a20] border border-white/6"
+          }`}
+        >
+          All Tracks
+        </button>
+        <button
+          type="button"
+          onClick={() => onPresetFilterChange("FEATURED")}
+          className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+            presetFilter === "FEATURED"
+              ? "bg-white text-black font-bold shadow-sm"
+              : "bg-[#141418] text-zinc-400 hover:text-white hover:bg-[#1a1a20] border border-white/6"
+          }`}
+        >
+          <Star className={`w-3.5 h-3.5 ${presetFilter === "FEATURED" ? "fill-amber-500 text-amber-500" : "fill-amber-400 text-amber-400"}`} />
+          <span>Featured Only</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onPresetFilterChange("CANVAS")}
+          className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+            presetFilter === "CANVAS"
+              ? "bg-white text-black font-bold shadow-sm"
+              : "bg-[#141418] text-zinc-400 hover:text-white hover:bg-[#1a1a20] border border-white/6"
+          }`}
+        >
+          <Film className="w-3.5 h-3.5 text-zinc-300" />
+          <span>Vertical Canvas</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onPresetFilterChange("FULL_VIDEO")}
+          className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+            presetFilter === "FULL_VIDEO"
+              ? "bg-white text-black font-bold shadow-sm"
+              : "bg-[#141418] text-zinc-400 hover:text-white hover:bg-[#1a1a20] border border-white/6"
+          }`}
+        >
+          <Video className="w-3.5 h-3.5 text-zinc-300" />
+          <span>Full 16:9 Video</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onPresetFilterChange("LYRICS")}
+          className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${
+            presetFilter === "LYRICS"
+              ? "bg-white text-black font-bold shadow-sm"
+              : "bg-[#141418] text-zinc-400 hover:text-white hover:bg-[#1a1a20] border border-white/6"
+          }`}
+        >
+          <span className="font-mono text-[10px] font-bold">LRC</span>
+          <span>Synced Lyrics</span>
+        </button>
+      </div>
+
       {/* Multi-Genre Quick Filter Chips */}
-      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
         <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider mr-1">
           Genre:
         </span>
