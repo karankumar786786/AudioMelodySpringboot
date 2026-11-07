@@ -26,13 +26,13 @@ export async function generateMetadata({
     openGraph: {
       title: `${albumName} on One Melody`,
       description: `Stream ${albumName} in high definition audio.`,
-      images: [{ url: "/image.png" }],
+      images: [{ url: "/icon-512.png" }],
     },
     twitter: {
       card: "summary_large_image",
       title: `${albumName} on One Melody`,
       description: `Stream album ${albumName} on One Melody.`,
-      images: ["/image.png"],
+      images: ["/icon-512.png"],
     },
   };
 }

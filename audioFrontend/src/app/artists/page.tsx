@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Top Artists on One Melody",
     description: "Discover the best music creators and albums on One Melody.",
-    images: [{ url: "/image.png" }],
+    images: [{ url: "/icon-512.png" }],
   },
   twitter: {
     card: "summary_large_image",

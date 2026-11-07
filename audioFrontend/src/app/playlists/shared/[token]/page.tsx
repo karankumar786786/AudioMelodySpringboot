@@ -12,13 +12,13 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       title: "Shared Playlist on One Melody",
       description: "Listen to shared playlists on One Melody.",
-      images: [{ url: "/image.png" }],
+      images: [{ url: "/icon-512.png" }],
     },
     twitter: {
       card: "summary_large_image",
       title: "Shared Playlist on One Melody",
       description: "Listen to shared playlists on One Melody.",
-      images: ["/image.png"],
+      images: ["/icon-512.png"],
     },
   };
 }

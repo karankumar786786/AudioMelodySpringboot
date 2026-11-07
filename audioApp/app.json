@@ -28,8 +28,9 @@
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/image.png",
-        "backgroundColor": "#000000"
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundColor": "#000000",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
     },
