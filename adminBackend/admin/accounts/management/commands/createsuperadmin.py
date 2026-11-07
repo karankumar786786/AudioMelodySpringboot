@@ -47,6 +47,8 @@ class Command(BaseCommand):
                     continue
                 email = val
 
+        if not email:
+            raise CommandError("Email is required.")
         email = email.strip().lower()
         if not EMAIL_REGEX.match(email):
             raise CommandError(f"Invalid email address: '{email}'")

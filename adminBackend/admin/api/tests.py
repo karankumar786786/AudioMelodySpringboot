@@ -7,10 +7,22 @@ django.setup()
 import io
 import time
 from unittest.mock import patch, MagicMock
+from typing import TYPE_CHECKING, Any
 from django.conf import settings
 from django.core.management import call_command
 from django.test import SimpleTestCase
-from rest_framework.test import APIClient
+
+if TYPE_CHECKING:
+    from rest_framework.test import APIClient as _BaseAPIClient
+    class APIClient(_BaseAPIClient):
+        def get(self, *args: Any, **kwargs: Any) -> Any: ...
+        def post(self, *args: Any, **kwargs: Any) -> Any: ...
+        def put(self, *args: Any, **kwargs: Any) -> Any: ...
+        def patch(self, *args: Any, **kwargs: Any) -> Any: ...
+        def delete(self, *args: Any, **kwargs: Any) -> Any: ...
+        def options(self, *args: Any, **kwargs: Any) -> Any: ...
+else:
+    from rest_framework.test import APIClient
 from .models import Admin, User, Artist, Song, Playlist, Job, DeleteJob, Session, SongMetadata
 from .helpers import format_ms, format_paginated_response, to_job_progress_dto
 from .services import (
@@ -73,6 +85,8 @@ def make_test_session(user_id="user_admin_123", email="admin@example.com", role=
 
 
 class AdminEndpointRoutingTests(SimpleTestCase):
+    client: Any
+
     def setUp(self):
         self.client = APIClient()
         self.session_id = make_test_session("user_admin_123", "admin@example.com", "ADMIN")
@@ -400,6 +414,8 @@ class AdminEndpointRoutingTests(SimpleTestCase):
 
 
 class AdminAuthenticationFlowTests(SimpleTestCase):
+    client: Any
+
     def setUp(self):
         self.client = APIClient()
 

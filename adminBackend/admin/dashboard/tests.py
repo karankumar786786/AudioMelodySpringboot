@@ -1,4 +1,5 @@
 import time
+from typing import Any
 from django.test import SimpleTestCase
 from rest_framework.test import APIClient
 # pyrefly: ignore[missing-import]
@@ -6,6 +7,8 @@ from core.services import RedisService
 
 
 class DashboardAppTests(SimpleTestCase):
+    client: Any
+
     def setUp(self):
         self.client = APIClient()
         self.session_id = "test_dash_session_admin"

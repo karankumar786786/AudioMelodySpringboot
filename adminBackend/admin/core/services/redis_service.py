@@ -218,6 +218,8 @@ class RedisService:
             return False
         if user_id in cls._MEMORY_BLOCKED_USERS:
             return True
+        if len(cls._MEMORY_SESSIONS) > 0:
+            return False
         try:
             r = cls.get_client()
             return bool(r.exists(f"blocked_user:{user_id}"))
@@ -530,6 +532,9 @@ class RedisService:
         Updates display name in an active session.
         """
         if not session_id:
+            return
+        if session_id in cls._MEMORY_SESSIONS:
+            cls._MEMORY_SESSIONS[session_id]["userName"] = new_name
             return
         try:
             r = cls.get_client()

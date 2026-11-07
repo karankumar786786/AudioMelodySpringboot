@@ -389,13 +389,14 @@ class AdminProfileView(BaseAdminView):
     def get(self, request):
         user = request.user
         last_login = None
-        try:
-            r = RedisService.get_client()
-            raw = r.get(f"admin:last_login:{user.email.lower()}")
-            if raw:
-                last_login = json.loads(raw)
-        except Exception:
-            pass
+        if getattr(request, "session_id", None) not in RedisService._MEMORY_SESSIONS:
+            try:
+                r = RedisService.get_client()
+                raw = r.get(f"admin:last_login:{user.email.lower()}")
+                if raw:
+                    last_login = json.loads(raw)
+            except Exception:
+                pass
 
         return Response({
             "id": user.id,
