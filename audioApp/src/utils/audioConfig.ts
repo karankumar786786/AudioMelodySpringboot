@@ -139,6 +139,9 @@ export function safeSetActiveForLockScreen(
         showPreviousTrack: true,
         seekForwardIntervalSeconds: 10,
         seekBackwardIntervalSeconds: 10,
+        // Our songs are VOD. If ExoPlayer misdetects the HLS stream as live,
+        // Android hides/disables the lock screen seekbar; this overrides it.
+        isLiveStream: false,
         ...(options || {}),
       };
 

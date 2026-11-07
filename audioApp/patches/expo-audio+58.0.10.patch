@@ -20,6 +20,55 @@ index fb2d0b5..3cfc5db 100644
    val currentOffsetFromLive: Double?
      get() {
        val offset = ref.currentLiveOffset
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
+index 53c36f7..b26167e 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/service/AudioControlsService.kt
+@@ -424,8 +424,44 @@ class AudioControlsService : MediaSessionService() {
+         if (isLive) {
+           commands.remove(Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)
+         }
++        // A single-item ExoPlayer has no next/previous item, so Android 13+ system
++        // media controls would hide the buttons. The app owns the queue, so expose
++        // them whenever the playable supports track navigation.
++        if (playable.supportsNextTrack) {
++          commands.add(Player.COMMAND_SEEK_TO_NEXT)
++          commands.add(Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM)
++        }
++        if (playable.supportsPreviousTrack) {
++          commands.add(Player.COMMAND_SEEK_TO_PREVIOUS)
++          commands.add(Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM)
++        }
+         return commands.build()
+       }
++
++      override fun isCommandAvailable(command: Int): Boolean {
++        return availableCommands.contains(command)
++      }
++
++      override fun hasNextMediaItem(): Boolean = playable.supportsNextTrack || super.hasNextMediaItem()
++
++      override fun hasPreviousMediaItem(): Boolean =
++        playable.supportsPreviousTrack || super.hasPreviousMediaItem()
++
++      override fun seekToNext() {
++        if (playable.supportsNextTrack) playable.nextTrack() else super.seekToNext()
++      }
++
++      override fun seekToNextMediaItem() {
++        if (playable.supportsNextTrack) playable.nextTrack() else super.seekToNextMediaItem()
++      }
++
++      override fun seekToPrevious() {
++        if (playable.supportsPreviousTrack) playable.previousTrack() else super.seekToPrevious()
++      }
++
++      override fun seekToPreviousMediaItem() {
++        if (playable.supportsPreviousTrack) playable.previousTrack() else super.seekToPreviousMediaItem()
++      }
+     }
+   }
+ 
 diff --git a/node_modules/expo-audio/ios/AudioPlayer.swift b/node_modules/expo-audio/ios/AudioPlayer.swift
 index 0f68a52..d85d028 100644
 --- a/node_modules/expo-audio/ios/AudioPlayer.swift
