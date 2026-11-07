@@ -2,8 +2,6 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { Song, QueueState, RepeatMode } from "@/types";
 import { shuffleArray } from "@/utils/playerUtils";
 
-const MAX_HISTORY = 50;
-
 const initialState: QueueState = {
   queue: [],
   currentIndex: -1,
@@ -23,33 +21,11 @@ const initialState: QueueState = {
 };
 
 /**
- * Resolves the actual queue index from a logical index, taking shuffle into account.
+ * Design note: `currentIndex` is ALWAYS a physical index into `queue`, and `queue`
+ * order is exactly the order the native playlist plays. Shuffle physically
+ * reorders the songs after the current one, so Redux and the native player can
+ * never disagree. `shuffleOrder` is kept in the state type but is always null.
  */
-function resolveIndex(state: QueueState, logicalIndex: number): number {
-  if (state.shuffleOrder && logicalIndex >= 0 && logicalIndex < state.shuffleOrder.length) {
-    return state.shuffleOrder[logicalIndex];
-  }
-  return logicalIndex;
-}
-
-/**
- * Trims old history from the queue to prevent unbounded memory growth.
- * Keeps at most MAX_HISTORY items before the current index.
- */
-function applyRollingTrim(state: QueueState): void {
-  if (state.currentIndex <= MAX_HISTORY) return;
-
-  const trimCount = state.currentIndex - MAX_HISTORY;
-  state.queue = state.queue.slice(trimCount);
-  state.currentIndex = state.currentIndex - trimCount;
-
-  // Adjust shuffle order if active
-  if (state.shuffleOrder) {
-    state.shuffleOrder = state.shuffleOrder
-      .map((idx) => idx - trimCount)
-      .filter((idx) => idx >= 0);
-  }
-}
 
 export const queueSlice = createSlice({
   name: "queue",
@@ -59,9 +35,10 @@ export const queueSlice = createSlice({
       state,
       action: PayloadAction<{ queue: Song[]; index?: number }>,
     ) => {
-      state.queue = action.payload.queue;
-      state.currentIndex =
-        action.payload.index !== undefined ? action.payload.index : 0;
+      const q = action.payload.queue;
+      state.queue = q;
+      const idx = action.payload.index !== undefined ? action.payload.index : 0;
+      state.currentIndex = q.length === 0 ? -1 : Math.min(Math.max(0, idx), q.length - 1);
       state.shuffleOrder = null;
     },
     addToQueue: (state, action: PayloadAction<Song | Song[]>) => {
@@ -73,14 +50,19 @@ export const queueSlice = createSlice({
     playNextTrack: (state, action: PayloadAction<Song>) => {
       const insertIdx = Math.max(0, state.currentIndex + 1);
       state.queue.splice(insertIdx, 0, action.payload);
+      if (state.currentIndex < 0) state.currentIndex = 0;
     },
     removeFromQueue: (state, action: PayloadAction<number>) => {
       const idx = action.payload;
-      if (idx >= 0 && idx < state.queue.length) {
-        state.queue.splice(idx, 1);
-        if (state.currentIndex >= idx && state.currentIndex > 0) {
-          state.currentIndex -= 1;
-        }
+      if (idx < 0 || idx >= state.queue.length) return;
+      state.queue.splice(idx, 1);
+      if (state.queue.length === 0) {
+        state.currentIndex = -1;
+      } else if (idx < state.currentIndex) {
+        state.currentIndex -= 1;
+      } else if (idx === state.currentIndex) {
+        // Removed the playing song: the next song slides into this slot.
+        state.currentIndex = Math.min(state.currentIndex, state.queue.length - 1);
       }
     },
     removeSongFromQueue: (state, action: PayloadAction<string>) => {
@@ -108,7 +90,6 @@ export const queueSlice = createSlice({
       if (state.queue.length === 0) return;
       if (state.currentIndex < state.queue.length - 1) {
         state.currentIndex += 1;
-        applyRollingTrim(state);
       } else if (state.repeatMode === "all") {
         state.currentIndex = 0;
       }
@@ -121,21 +102,15 @@ export const queueSlice = createSlice({
     },
     toggleShuffle: (state) => {
       state.isShuffle = !state.isShuffle;
-      if (state.isShuffle && state.queue.length > 1) {
-        // Build a shuffle order that keeps the current song at position 0
-        const indices = Array.from({ length: state.queue.length }, (_, i) => i);
-        const currentOriginalIdx = state.currentIndex;
-        const otherIndices = indices.filter((i) => i !== currentOriginalIdx);
-        const shuffled = shuffleArray(otherIndices);
-        state.shuffleOrder = [currentOriginalIdx, ...shuffled];
-        state.currentIndex = 0;
-      } else {
-        // Unshuffle: restore the original position of the current song
-        if (state.shuffleOrder && state.currentIndex < state.shuffleOrder.length) {
-          const originalIdx = state.shuffleOrder[state.currentIndex];
-          state.currentIndex = originalIdx;
+      state.shuffleOrder = null;
+      // Shuffle only the songs AFTER the current one; history and the current
+      // song keep their positions. Turning shuffle off keeps the current order.
+      if (state.isShuffle && state.currentIndex >= 0) {
+        const head = state.queue.slice(0, state.currentIndex + 1);
+        const tail = state.queue.slice(state.currentIndex + 1);
+        if (tail.length > 1) {
+          state.queue = [...head, ...shuffleArray(tail)];
         }
-        state.shuffleOrder = null;
       }
     },
     toggleRepeat: (state) => {
@@ -213,24 +188,16 @@ export const queueSlice = createSlice({
   },
 });
 
-// Helper selector: get the current song from the queue respecting shuffle order
+// Helper selector: get the current song from the queue
 export function selectCurrentSongFromQueue(state: QueueState): Song | null {
   if (state.currentIndex < 0 || state.queue.length === 0) return null;
-  const idx = resolveIndex(state, state.currentIndex);
-  return state.queue[idx] || null;
+  return state.queue[state.currentIndex] || null;
 }
 
-// Helper selector: get upcoming songs (respecting shuffle order)
+// Helper selector: get upcoming songs
 export function selectUpcomingSongs(state: QueueState, count = 5): Song[] {
-  const result: Song[] = [];
-  for (let i = 1; i <= count; i++) {
-    const logicalIdx = state.currentIndex + i;
-    if (logicalIdx >= state.queue.length) break;
-    const idx = resolveIndex(state, logicalIdx);
-    const song = state.queue[idx];
-    if (song) result.push(song);
-  }
-  return result;
+  if (state.currentIndex < 0) return [];
+  return state.queue.slice(state.currentIndex + 1, state.currentIndex + 1 + count);
 }
 
 export const {

@@ -46,9 +46,9 @@ export const playAll =
     }
 
     const deduped = dedupeBySongId(songs);
-    if (!startPlaying) {
-      audioPlayerService.suppressAutoPlayOnce();
-    }
+    // Tell the service the new current song BEFORE the queue changes so its
+    // store subscription does not start a second, duplicate playback.
+    audioPlayerService.setLastPlayed(deduped[0].id, 0);
 
     dispatch(endRadioSession());
     dispatch(setQueue({ queue: deduped, index: 0 }));
@@ -90,9 +90,7 @@ export const playAllFrom =
         ? targetIdx
         : Math.min(Math.max(0, startIndex), deduped.length - 1);
 
-    if (!startPlaying) {
-      audioPlayerService.suppressAutoPlayOnce();
-    }
+    audioPlayerService.setLastPlayed(deduped[safeIndex].id, safeIndex);
 
     dispatch(endRadioSession());
     dispatch(setQueue({ queue: deduped, index: safeIndex }));
@@ -124,6 +122,7 @@ export const playWithSimilarSongs =
     }
 
     // Initialize queue with the clicked song at index 0
+    audioPlayerService.setLastPlayed(song.id, 0);
     dispatch(setQueue({ queue: [song], index: 0 }));
     dispatch(
       startRadioSession({
@@ -150,6 +149,9 @@ export const playWithSimilarSongs =
         dislikedSongIds: state.queue.dislikedSongIds,
         targetUserId: user,
       });
+
+      // The user may have started something else while similarity was loading
+      if (getState().queue.queue[0]?.id !== song.id) return;
 
       const dislikedSet = new Set(getState().queue.dislikedSongIds);
       const filteredSimilar = similarSongs.filter(
@@ -202,63 +204,49 @@ export const nextTrack =
     const { queue, currentIndex, repeatMode } = getState().queue;
     if (queue.length === 0) return;
 
+    const playingSong = queue[currentIndex];
+
     // Handle repeat mode "one" on auto-finish
-    if (repeatMode === "one" && !manualUserAction && queue[currentIndex]) {
+    if (repeatMode === "one" && !manualUserAction && playingSong) {
       await audioPlayerService.seek(0);
       audioPlayerService.resume();
       return;
     }
 
     // Report skip telemetry for the song being skipped (manual user action only)
-    if (manualUserAction && queue[currentIndex]) {
-      interactionService.recordSkip(queue[currentIndex].id);
+    if (manualUserAction && playingSong) {
+      interactionService.recordSkip(playingSong.id);
     }
 
-    // Trigger refill proactively if nearing end
-    if (queue.length - (currentIndex + 1) <= 2) {
+    // Trigger refill proactively if nearing end (not needed when looping the queue)
+    if (repeatMode !== "all" && queue.length - (currentIndex + 1) <= 2) {
       dispatch(refillQueue(false));
     }
 
     if (currentIndex < queue.length - 1) {
       const nextIndex = currentIndex + 1;
       const nextSong = queue[nextIndex];
-      if (nextSong) {
-        audioPlayerService.setLastPlayed(nextSong.id, nextIndex);
-      }
+      audioPlayerService.setLastPlayed(nextSong.id, nextIndex);
       dispatch(advanceToNextTrack());
-      const updated = getState().queue;
-      const nextSongToPlay = selectCurrentSongFromQueue(updated);
-      logQueueSnapshot("nextTrack (Advance)", updated.queue, updated.currentIndex, nextSongToPlay);
-      if (nextSongToPlay) {
-        await audioPlayerService.play(nextSongToPlay, 0, false);
-      }
+      logQueueSnapshot("nextTrack (Advance)", getState().queue.queue, nextIndex, nextSong);
+      await audioPlayerService.play(nextSong, 0, false);
     } else if (repeatMode === "all") {
       const firstSong = queue[0];
-      if (firstSong) {
-        audioPlayerService.setLastPlayed(firstSong.id, 0);
-      }
+      audioPlayerService.setLastPlayed(firstSong.id, 0);
       dispatch(setQueue({ queue, index: 0 }));
       logQueueSnapshot("nextTrack (Loop All to Start)", queue, 0, firstSong);
-      if (firstSong) {
-        await audioPlayerService.play(firstSong, 0, false);
-      }
+      await audioPlayerService.play(firstSong, 0, false);
     } else {
       // Reached the end with repeat none; try refill
       await dispatch(refillQueue(false));
-      const postRefillState = getState().queue;
-      if (postRefillState.currentIndex < postRefillState.queue.length - 1) {
-        const nextIdx = postRefillState.currentIndex + 1;
-        const songAhead = postRefillState.queue[nextIdx];
-        if (songAhead) {
-          audioPlayerService.setLastPlayed(songAhead.id, nextIdx);
-        }
+      const post = getState().queue;
+      if (post.currentIndex < post.queue.length - 1) {
+        const nextIdx = post.currentIndex + 1;
+        const songAhead = post.queue[nextIdx];
+        audioPlayerService.setLastPlayed(songAhead.id, nextIdx);
         dispatch(advanceToNextTrack());
-        const after = getState().queue;
-        const songToPlay = selectCurrentSongFromQueue(after);
-        logQueueSnapshot("nextTrack (After Refill Advance)", after.queue, after.currentIndex, songToPlay);
-        if (songToPlay) {
-          await audioPlayerService.play(songToPlay, 0, false);
-        }
+        logQueueSnapshot("nextTrack (After Refill Advance)", getState().queue.queue, nextIdx, songAhead);
+        await audioPlayerService.play(songAhead, 0, false);
       } else {
         console.log("[Queue] Reached end of queue and refill empty; pausing playback.");
         audioPlayerService.pause();
@@ -315,11 +303,15 @@ export const refillQueue =
   async (dispatch: AppDispatch, getState: () => AppState): Promise<void> => {
     if (inFlightRefillPromise) return inFlightRefillPromise;
 
-    const { queue, currentIndex, dislikedSongIds, radioSession } =
+    const { queue, currentIndex, dislikedSongIds, radioSession, repeatMode } =
       getState().queue;
     const remaining = queue.length - (currentIndex + 1);
 
     if (!isInit && remaining > 3) {
+      return;
+    }
+    // Repeat-all loops the existing queue; never pad it with recommendations.
+    if (repeatMode === "all") {
       return;
     }
 
@@ -392,8 +384,18 @@ export const loadLastPlaybackState =
       await audioPlayerService.init();
       const saved = await PlayerStore.getLastPlaybackState();
       if (saved?.song) {
-        audioPlayerService.suppressAutoPlayOnce();
-        audioPlayerService.setLastPlayed(saved.song.id, saved.queueIndex);
+        const restoredQueue =
+          saved.queue && saved.queue.length > 0 ? saved.queue : [saved.song];
+        const restoredIndex = Math.min(
+          Math.max(0, typeof saved.queueIndex === "number" ? saved.queueIndex : 0),
+          restoredQueue.length - 1
+        );
+        // Mark the restored song as "already current" so the queue subscription
+        // restores state silently instead of auto-playing.
+        audioPlayerService.setLastPlayed(
+          restoredQueue[restoredIndex].id,
+          restoredIndex
+        );
 
         const hydrated = (saved.song as PlayerSong).coverUrl
           ? (saved.song as PlayerSong)
@@ -410,20 +412,11 @@ export const loadLastPlaybackState =
         }
         dispatch(setIsPlaying(false));
 
-        if (saved.queue && saved.queue.length > 0) {
-          dispatch(
-            setQueue({
-              queue: saved.queue,
-              index: typeof saved.queueIndex === "number" ? saved.queueIndex : 0,
-            })
-          );
-        } else {
-          dispatch(setQueue({ queue: [saved.song], index: 0 }));
-        }
+        dispatch(setQueue({ queue: restoredQueue, index: restoredIndex }));
         logQueueSnapshot(
           "loadLastPlaybackState (Restored)",
-          saved.queue || [saved.song],
-          typeof saved.queueIndex === "number" ? saved.queueIndex : 0,
+          restoredQueue,
+          restoredIndex,
           hydrated
         );
         audioPlayerService.syncUpcomingPreload();

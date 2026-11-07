@@ -6,10 +6,34 @@ import {
   ViewStyle,
   ActivityIndicator,
   AppState,
+  Platform,
 } from "react-native";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { Image } from "expo-image";
 import { getImageUrl, getVideoUrl } from "@/utils/imageUtils";
+import { configureAudioPriority } from "@/utils/audioConfig";
+import { audioPlayerService } from "@/service/audioPlayerService";
+
+// iOS: expo-video's AudioSessionPolicy adds `.mixWithOthers` to the shared
+// AVAudioSession when a player is "mixWithOthers", which makes iOS drop the
+// Now Playing / lock screen controls of the real music player. Android: a
+// "doNotMix" video player would steal audio focus from the music player.
+const CANVAS_MIXING_MODE = Platform.OS === "ios" ? "doNotMix" : "mixWithOthers";
+
+// expo-video recalculates the audio session when its players start/stop, so
+// re-assert our session + lock screen shortly afterwards.
+let reassertTimer: ReturnType<typeof setTimeout> | null = null;
+function reassertPlaybackSession() {
+  if (Platform.OS !== "ios") return;
+  if (reassertTimer) clearTimeout(reassertTimer);
+  reassertTimer = setTimeout(async () => {
+    reassertTimer = null;
+    try {
+      await configureAudioPriority(true);
+      audioPlayerService.refreshLockScreen(true);
+    } catch {}
+  }, 250);
+}
 
 interface CanvasVideoPlayerProps {
   videoUrl?: string | null;
@@ -59,7 +83,7 @@ function VideoSurface({
     p.muted = true;
     p.volume = 0;
     p.staysActiveInBackground = false;
-    p.audioMixingMode = "mixWithOthers";
+    p.audioMixingMode = CANVAS_MIXING_MODE;
     p.showNowPlayingNotification = false;
     if (isPlaying && AppState.currentState === "active") {
       p.play();
@@ -73,7 +97,7 @@ function VideoSurface({
     player.muted = true;
     player.volume = 0;
     player.staysActiveInBackground = false;
-    player.audioMixingMode = "mixWithOthers";
+    player.audioMixingMode = CANVAS_MIXING_MODE;
     player.showNowPlayingNotification = false;
 
     if (isPlaying && AppState.currentState === "active") {
@@ -116,6 +140,7 @@ function VideoSurface({
         if (isCurrentlyPlaying) {
           markReady();
         }
+        reassertPlaybackSession();
       }
     );
 
@@ -144,8 +169,9 @@ function VideoSurface({
     const appStateSub = AppState.addEventListener("change", (nextState) => {
       if (nextState !== "active") {
         player.pause();
-      } else if (isPlaying) {
-        player.play();
+      } else {
+        if (isPlaying) player.play();
+        reassertPlaybackSession();
       }
     });
 
@@ -171,6 +197,7 @@ function VideoSurface({
       try {
         player.pause();
       } catch {}
+      reassertPlaybackSession();
     };
   }, [isPlaying, player]);
 
@@ -216,10 +243,20 @@ export function CanvasVideoPlayer({
 
   const [isVideoReady, setIsVideoReady] = useState(false);
 
-  // Reset ready state when the track / video URL changes
+  // Screen lock / background -> show artwork and release the video player;
+  // unlock / foreground -> bring the canvas back.
+  const [appActive, setAppActive] = useState(AppState.currentState === "active");
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (next) => {
+      setAppActive(next === "active");
+    });
+    return () => sub.remove();
+  }, []);
+
+  // Reset ready state when the track / video URL changes or the canvas remounts
   useEffect(() => {
     setIsVideoReady(false);
-  }, [videoUrl]);
+  }, [videoUrl, appActive]);
 
   // Fallback safety: ensure loader never stays visible indefinitely once playing
   useEffect(() => {
@@ -235,7 +272,8 @@ export function CanvasVideoPlayer({
     onReady?.();
   };
 
-  const isVideoLoading = Boolean(videoUrl) && !isVideoReady && isPlaying;
+  const isVideoLoading =
+    Boolean(videoUrl) && appActive && !isVideoReady && isPlaying;
   const shouldShowLoader =
     (showLoader ?? showLoaderWhenVideoAvailable ?? true) && isVideoLoading;
 
@@ -245,7 +283,7 @@ export function CanvasVideoPlayer({
 
   // Render backdrop artwork while video is buffering or as main fallback
   const shouldRenderImage =
-    showFallbackImage || !videoUrl || (!isVideoReady && Boolean(imageUrl));
+    showFallbackImage || !videoUrl || !appActive || (!isVideoReady && Boolean(imageUrl));
 
   return (
     <View style={[styles.container, style]} pointerEvents="none">
@@ -262,7 +300,7 @@ export function CanvasVideoPlayer({
       )}
 
       {/* Looping ambient canvas video */}
-      {videoUrl ? (
+      {videoUrl && appActive ? (
         <VideoSurface
           key={videoUrl}
           videoUrl={videoUrl}

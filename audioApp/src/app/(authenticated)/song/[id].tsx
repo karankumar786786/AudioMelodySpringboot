@@ -67,7 +67,6 @@ export default function SongDetailScreen() {
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
   const safeAreaHeight = Math.max(560, SCREEN_HEIGHT - insets.top);
-
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(mode === "video");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
