@@ -498,7 +498,7 @@ class SongListView(BaseAdminView):
             current_stage="QUEUED",
         )
         PaginationMetadataService.increment_job()
-        RedisService.queue_audio_processing(job_id)
+        RedisService.queue_audio_processing(job_id, attempt=job.transcoding_attempt)
 
         return Response({"jobId": job_id, "status": "PENDING"}, status=status.HTTP_201_CREATED)
 
@@ -708,7 +708,7 @@ class SongReprocessAudioView(BaseAdminView):
             current_stage="QUEUED",
         )
         PaginationMetadataService.increment_job()
-        RedisService.queue_audio_processing(job_id)
+        RedisService.queue_audio_processing(job_id, attempt=job.transcoding_attempt)
 
         return Response({"jobId": job_id, "status": "PENDING"}, status=status.HTTP_202_ACCEPTED)
 
@@ -755,7 +755,7 @@ class SongReprocessVideoView(BaseAdminView):
             current_stage="QUEUED",
         )
         PaginationMetadataService.increment_job()
-        RedisService.queue_audio_processing(job_id)
+        RedisService.queue_audio_processing(job_id, attempt=job.transcoding_attempt)
 
         return Response({"jobId": job_id, "status": "PENDING"}, status=status.HTTP_202_ACCEPTED)
 
@@ -808,7 +808,7 @@ class SongRecoverMediaView(BaseAdminView):
             current_stage="QUEUED",
         )
         PaginationMetadataService.increment_job()
-        RedisService.queue_audio_processing(job_id)
+        RedisService.queue_audio_processing(job_id, attempt=job.transcoding_attempt)
 
         return Response({"jobId": job_id, "status": "PENDING"}, status=status.HTTP_202_ACCEPTED)
 

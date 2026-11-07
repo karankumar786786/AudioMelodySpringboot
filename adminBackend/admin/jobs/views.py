@@ -2,6 +2,7 @@ import logging
 from django.conf import settings
 from django.db import models
 from django.db.models import Avg, Q
+from django.utils import timezone
 # pyrefly: ignore[missing-import]
 from core.shortcuts import get_object_or_404
 from rest_framework import status
@@ -242,7 +243,19 @@ class JobRetryView(BaseAdminView):
         job.save()
 
         PaginationMetadataService.transition_job(old_status, "PENDING")
-        RedisService.queue_audio_processing(job.id)
+        success = RedisService.queue_audio_processing(job.id, attempt=job.transcoding_attempt)
+        if not success:
+            logger.error("Failed to dispatch retry event to Inngest for job %s (attempt=%s)", job.id, job.transcoding_attempt)
+            job.status = "FAILED"
+            job.current_stage = "FAILED"
+            job.failure_reason = "Failed to dispatch retry event to Inngest orchestrator"
+            job.failed_at = timezone.now()
+            job.save()
+            PaginationMetadataService.transition_job("PENDING", "FAILED")
+            return Response(
+                {"error": "Failed to dispatch retry event to Inngest orchestrator", "job": to_job_progress_dto(job)},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
 
         return Response(to_job_progress_dto(job), status=status.HTTP_200_OK)
 
@@ -293,7 +306,19 @@ class JobRecoverMediaView(BaseAdminView):
         job.save()
 
         PaginationMetadataService.transition_job(old_status, "PENDING")
-        RedisService.queue_audio_processing(job.id)
+        success = RedisService.queue_audio_processing(job.id, attempt=job.transcoding_attempt)
+        if not success:
+            logger.error("Failed to dispatch recovery event to Inngest for job %s (attempt=%s)", job.id, job.transcoding_attempt)
+            job.status = "FAILED"
+            job.current_stage = "FAILED"
+            job.failure_reason = "Failed to dispatch recovery event to Inngest orchestrator"
+            job.failed_at = timezone.now()
+            job.save()
+            PaginationMetadataService.transition_job("PENDING", "FAILED")
+            return Response(
+                {"error": "Failed to dispatch recovery event to Inngest orchestrator", "job": to_job_progress_dto(job)},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
 
         return Response(to_job_progress_dto(job), status=status.HTTP_200_OK)
 

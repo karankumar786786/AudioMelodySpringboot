@@ -1,4 +1,5 @@
 import logging
+import time
 from typing import Any, Dict, Optional
 import requests
 from django.conf import settings
@@ -60,10 +61,10 @@ class InngestService:
                 endpoint,
                 json=payload,
                 headers=headers,
-                timeout=5,
+                timeout=10,
             )
             if response.status_code in (200, 201, 202):
-                logger.info("[INNGEST] Successfully dispatched event '%s' directly to Inngest (%s)", name, endpoint)
+                logger.info("[INNGEST] Successfully dispatched event '%s' directly to Inngest (%s, event_id=%s)", name, endpoint, event_id)
                 return True
             else:
                 logger.error("[INNGEST] Inngest returned error status %d for event '%s': %s", response.status_code, name, response.text)
@@ -73,29 +74,47 @@ class InngestService:
             return False
 
     @classmethod
-    def trigger_audio_job(cls, job_id: str) -> bool:
+    def trigger_audio_job(cls, job_id: str, attempt: Optional[int] = None) -> bool:
         """
         Dispatches 'audio/fetchjob' directly to Inngest to begin transcoding pipeline.
+        Includes attempt count or timestamp in event_id to prevent Inngest's 24-hour
+        deduplication cache from silently dropping retry attempts.
         """
-        logger.info("[INNGEST] Directly dispatching audio/fetchjob for job [%s]", job_id)
+        if attempt is None:
+            try:
+                from jobs.models import Job
+                job = Job.objects.filter(pk=job_id).first()
+                if job and job.transcoding_attempt is not None:
+                    attempt = job.transcoding_attempt
+            except Exception as e:
+                logger.warning("Could not query transcoding_attempt for job [%s]: %s", job_id, e)
+
+        attempt_str = str(attempt) if attempt is not None else str(int(time.time()))
+        event_id = f"job-{job_id}-{attempt_str}"
+        logger.info("[INNGEST] Directly dispatching audio/fetchjob for job [%s] (event_id=%s)", job_id, event_id)
         return cls.send_event(
             name="audio/fetchjob",
-            data={"jobId": job_id},
-            event_id=f"job-{job_id}",
+            data={"jobId": job_id, "attempt": attempt},
+            event_id=event_id,
         )
 
     @classmethod
-    def trigger_delete_event(cls, data: Dict[str, Any]) -> bool:
+    def trigger_delete_event(cls, data: Dict[str, Any], attempt: Optional[int] = None) -> bool:
         """
         Dispatches 'audio/delete.algolia' directly to Inngest for deletion workflow.
+        Includes attempt count or timestamp in event_id to prevent Inngest deduplication
+        from dropping retry executions.
         """
         entity_id = data.get("entityId", "")
         delete_job_id = data.get("deleteJobId", "")
-        logger.info("[INNGEST] Directly dispatching audio/delete.algolia for delete job [%s] entity [%s]", delete_job_id, entity_id)
+        event_key = delete_job_id or entity_id
+        attempt_str = str(attempt) if attempt is not None else str(int(time.time()))
+        event_id = f"del-{event_key}-{attempt_str}"
+        logger.info("[INNGEST] Directly dispatching audio/delete.algolia for delete job [%s] entity [%s] (event_id=%s)", delete_job_id, entity_id, event_id)
         return cls.send_event(
             name="audio/delete.algolia",
             data=data,
-            event_id=f"del-{delete_job_id or entity_id}",
+            event_id=event_id,
         )
 
     @classmethod

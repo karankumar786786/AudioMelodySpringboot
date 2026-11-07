@@ -98,14 +98,20 @@ class RedisService:
         }
 
     @classmethod
-    def queue_audio_processing(cls, job_id: str) -> None:
+    def queue_audio_processing(cls, job_id: str, attempt: Optional[int] = None) -> bool:
         from .inngest_service import InngestService
         # Direct durable dispatch to Inngest Cloud/Dev
         try:
-            InngestService.trigger_audio_job(job_id)
-            logger.info("Dispatched audio processing job [%s] directly to Inngest", job_id)
+            success = InngestService.trigger_audio_job(job_id, attempt=attempt)
+            if success:
+                logger.info("Dispatched audio processing job [%s] directly to Inngest (attempt=%s)", job_id, attempt)
+                return True
+            else:
+                logger.error("Failed to directly trigger Inngest for job [%s]", job_id)
+                return False
         except Exception as e:
             logger.error("Failed to directly trigger Inngest for job [%s]: %s", job_id, e)
+            return False
 
     @classmethod
     def remove_job_from_audio_queue(cls, job_id: str) -> None:
@@ -173,8 +179,8 @@ class RedisService:
         # Direct durable dispatch to Inngest Cloud/Dev
         from .inngest_service import InngestService
         try:
-            InngestService.trigger_delete_event(payload)
-            logger.info("Dispatched delete event for %s:%s (job [%s]) to Inngest", data.get("entityType"), data.get("entityId"), job_id)
+            InngestService.trigger_delete_event(payload, attempt=job.attempt_count)
+            logger.info("Dispatched delete event for %s:%s (job [%s], attempt=%s) to Inngest", data.get("entityType"), data.get("entityId"), job_id, job.attempt_count)
         except Exception as e:
             logger.error("Failed to directly trigger Inngest delete event for job [%s]: %s", job_id, e)
 
