@@ -140,9 +140,8 @@ export function SongsGrid({
                   </span>
                 )}
                 {song.country && (
-                  <span className="flex items-center gap-1 bg-black/70 text-zinc-200 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md backdrop-blur-sm border border-white/15">
-                    <span>{song.country.toLowerCase() === "india" ? "🇮🇳" : "🌐"}</span>
-                    <span>{song.country}</span>
+                  <span className="flex items-center bg-black/70 text-zinc-200 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md backdrop-blur-sm border border-white/15">
+                    {song.country}
                   </span>
                 )}
                 {song.videoKey && (

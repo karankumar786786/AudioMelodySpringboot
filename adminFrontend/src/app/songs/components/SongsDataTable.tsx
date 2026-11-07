@@ -235,9 +235,8 @@ export function SongsDataTable({
 
                   {/* Country */}
                   <td className="py-3 px-4">
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/6 text-zinc-300 border border-white/8 text-[11px] font-medium whitespace-nowrap">
-                      <span>{song.country === "India" ? "🇮🇳" : "🌐"}</span>
-                      <span>{song.country || "India"}</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-white/6 text-zinc-300 border border-white/8 text-[11px] font-medium whitespace-nowrap">
+                      {song.country || "India"}
                     </span>
                   </td>
 
