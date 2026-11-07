@@ -17,7 +17,6 @@ interface RightInfoRelatedSongsProps {
 export function RightInfoRelatedSongs({
   similarSongs,
   artistMoreSongs,
-  genre,
   isRelatedLoading,
   scrollRelated,
   relatedSongsRef,
@@ -31,14 +30,6 @@ export function RightInfoRelatedSongs({
           <h3 className="text-sm font-bold text-white tracking-tight shrink-0">
             Similar Songs
           </h3>
-          {genre && (
-            <span
-              className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/10 text-zinc-300 border border-white/10 truncate max-w-[130px]"
-              title={`Genre: ${genre}`}
-            >
-              {genre}
-            </span>
-          )}
         </div>
         {songs.length > 0 && (
           <div className="flex items-center gap-1 shrink-0">
