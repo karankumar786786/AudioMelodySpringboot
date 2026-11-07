@@ -91,9 +91,9 @@ export function PipelineDagVisualizer({
 
   return (
     <div
-      className={`w-full bg-[#121215] border border-white/[0.08] rounded-2xl p-5 ${className}`}
+      className={`w-full bg-[#121215] border border-white/8 rounded-2xl p-5 ${className}`}
     >
-      <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/[0.06]">
+      <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/6">
         <div className="flex items-center gap-2">
           <Clock className="w-4 h-4 text-indigo-400" />
           <h4 className="text-xs font-bold text-white uppercase tracking-wider">
@@ -118,12 +118,12 @@ export function PipelineDagVisualizer({
                 <div
                   className={`w-10 h-10 rounded-2xl flex items-center justify-center transition-all duration-300 ${
                     stepStatus === "completed"
-                      ? "bg-emerald-500/15 border-2 border-emerald-500 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.2)]"
+                      ? "bg-white/10 border-2 border-white text-white shadow-[0_0_12px_rgba(255,255,255,0.2)]"
                       : stepStatus === "in_progress"
                       ? "bg-indigo-500/20 border-2 border-indigo-400 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.4)] animate-pulse"
                       : stepStatus === "failed"
                       ? "bg-rose-500/20 border-2 border-rose-500 text-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.3)]"
-                      : "bg-[#16161a] border border-white/[0.08] text-zinc-600"
+                      : "bg-[#16161a] border border-white/8 text-zinc-600"
                   }`}
                 >
                   {stepStatus === "failed" ? (
@@ -136,7 +136,7 @@ export function PipelineDagVisualizer({
                 <span
                   className={`mt-2 text-[11px] font-semibold text-center whitespace-nowrap ${
                     stepStatus === "completed"
-                      ? "text-emerald-400"
+                      ? "text-white"
                       : stepStatus === "in_progress"
                       ? "text-indigo-300 font-bold"
                       : stepStatus === "failed"
@@ -154,12 +154,12 @@ export function PipelineDagVisualizer({
 
               {/* Connecting Pipeline Line */}
               {idx < STAGES.length - 1 && (
-                <div className="flex-1 h-0.5 mx-2 bg-white/[0.08] relative min-w-[24px]">
+                <div className="flex-1 h-0.5 mx-2 bg-white/8 relative min-w-[24px]">
                   {stepStatus === "completed" && (
-                    <div className="absolute inset-0 bg-emerald-500" />
+                    <div className="absolute inset-0 bg-white" />
                   )}
                   {stepStatus === "in_progress" && (
-                    <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 to-indigo-500 animate-pulse" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-white to-indigo-500 animate-pulse" />
                   )}
                 </div>
               )}

@@ -97,7 +97,7 @@ export function formatTime(isoString?: string | null): string {
 export function getStatusBadge(status: string) {
   switch (status) {
     case "COMPLETED":
-      return { label: "Completed", dot: "bg-emerald-500", text: "text-emerald-500", bg: "bg-emerald-500/10 border-emerald-500/20" };
+      return { label: "Completed", dot: "bg-white", text: "text-zinc-200", bg: "bg-white/10 border-white/20" };
     case "PROCESSING":
     case "IN_PROGRESS":
       return { label: "Processing", dot: "bg-indigo-500 animate-ping", text: "text-indigo-500", bg: "bg-indigo-500/10 border-indigo-500/20" };
@@ -123,7 +123,7 @@ export function getStageBadge(stage: JobStage) {
     case "FINALIZING":
       return { label: "Finalizing", bg: "bg-blue-500/10 text-blue-500 border-blue-500/20" };
     case "COMPLETED":
-      return { label: "Completed", bg: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" };
+      return { label: "Completed", bg: "bg-white/10 text-white border-white/20" };
     case "FAILED":
       return { label: "Failed", bg: "bg-rose-500/10 text-rose-500 border-rose-500/20" };
     default:
@@ -148,7 +148,7 @@ export function getDeleteStageBadge(stage: DeleteJobStage) {
     case "S3_DELETED":
       return { label: "S3 Purged", bg: "bg-indigo-500/10 text-indigo-500 border-indigo-500/20" };
     case "COMPLETED":
-      return { label: "Hard Deleted", bg: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20" };
+      return { label: "Hard Deleted", bg: "bg-white/10 text-white border-white/20" };
     case "FAILED":
       return { label: "Delete Failed", bg: "bg-rose-500/10 text-rose-500 border-rose-500/20" };
     default:

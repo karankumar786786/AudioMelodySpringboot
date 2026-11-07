@@ -6,12 +6,12 @@ import {
   Music,
   Video,
   Film,
-  Clock,
   Star,
   Edit2,
   Trash2,
   Play,
   Pause,
+  ListPlus,
 } from "lucide-react";
 import { getImageUrl } from "@/lib/image-utils";
 import { useAudio } from "@/lib/audio-context";
@@ -25,6 +25,7 @@ interface SongsGridProps {
   onToggleFeatured: (song: Song) => void;
   onEditSong: (song: Song) => void;
   onDeleteSong: (id: string, title: string) => void;
+  onAddToPlaylist?: (song: Song) => void;
 }
 
 const formatDuration = (num?: number) => {
@@ -43,6 +44,7 @@ export function SongsGrid({
   onToggleFeatured,
   onEditSong,
   onDeleteSong,
+  onAddToPlaylist,
 }: SongsGridProps) {
   const { currentTrack, isPlaying, playTrack, pauseTrack, resumeTrack } = useAudio();
 
@@ -73,7 +75,7 @@ export function SongsGrid({
         {Array.from({ length: 8 }).map((_, i) => (
           <div
             key={i}
-            className="bg-[#121215] border border-white/[0.08] rounded-2xl p-4 animate-pulse space-y-3"
+            className="bg-[#121215] border border-white/8 rounded-2xl p-4 animate-pulse space-y-3"
           >
             <div className="aspect-square bg-zinc-800 rounded-xl w-full" />
             <div className="h-4 bg-zinc-800 rounded-md w-3/4" />
@@ -86,7 +88,7 @@ export function SongsGrid({
 
   if (songs.length === 0) {
     return (
-      <div className="bg-[#121215] border border-white/[0.08] rounded-2xl p-16 text-center">
+      <div className="bg-[#121215] border border-white/8 rounded-2xl p-16 text-center">
         <Music className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
         <h3 className="text-white font-bold text-base">No tracks found</h3>
         <p className="text-zinc-500 text-xs mt-1">
@@ -107,7 +109,7 @@ export function SongsGrid({
         return (
           <div
             key={song.id}
-            className="group relative bg-[#121215] hover:bg-[#16161b] border border-white/[0.08] hover:border-white/[0.16] rounded-2xl p-3.5 transition-all duration-200 flex flex-col justify-between shadow-sm hover:shadow-lg hover:shadow-black/50"
+            className="group relative bg-[#121215] hover:bg-[#16161b] border border-white/8 hover:border-white/16 rounded-2xl p-3.5 transition-all duration-200 flex flex-col justify-between shadow-sm hover:shadow-lg hover:shadow-black/50"
           >
             {/* Cover Artwork Container */}
             <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-black mb-3 group/cover">
@@ -138,14 +140,14 @@ export function SongsGrid({
                   </span>
                 )}
                 {song.videoKey && (
-                  <span className="flex items-center gap-1 bg-indigo-600/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md backdrop-blur-sm">
-                    <Video className="w-2.5 h-2.5" />
+                  <span className="flex items-center gap-1 bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md backdrop-blur-sm border border-white/20">
+                    <Film className="w-2.5 h-2.5" />
                     <span>Canvas</span>
                   </span>
                 )}
                 {song.fullVideoKey && (
                   <span className="flex items-center gap-1 bg-white text-black text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md">
-                    <Film className="w-2.5 h-2.5" />
+                    <Video className="w-2.5 h-2.5" />
                     <span>Video</span>
                   </span>
                 )}
@@ -194,6 +196,21 @@ export function SongsGrid({
                 </button>
 
                 <div className="flex items-center gap-1.5">
+                  {/* Add to Playlist (+) */}
+                  {onAddToPlaylist && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddToPlaylist(song);
+                      }}
+                      className="p-1.5 rounded-lg bg-white/20 backdrop-blur-md text-white hover:bg-white hover:text-black transition-all cursor-pointer"
+                      title="Add to playlist"
+                    >
+                      <ListPlus className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={(e) => {
@@ -241,7 +258,7 @@ export function SongsGrid({
                 {song.artistName}
               </p>
 
-              <div className="flex items-center justify-between text-[11px] text-zinc-500 pt-1.5 border-t border-white/[0.06]">
+              <div className="flex items-center justify-between text-[11px] text-zinc-500 pt-1.5 border-t border-white/6">
                 <div className="flex items-center gap-2">
                   <span className="font-mono tabular-nums">
                     {formatDuration(song.duration)}
@@ -251,7 +268,7 @@ export function SongsGrid({
                     className="flex items-center gap-1 font-mono text-[10px] text-zinc-400 tabular-nums"
                     title="Total streams"
                   >
-                    <Play className="w-2.5 h-2.5 text-emerald-400 fill-emerald-400" />
+                    <Play className="w-2.5 h-2.5 text-white fill-white" />
                     {(song.totalStreams ?? 0).toLocaleString()}
                   </span>
                 </div>
@@ -260,7 +277,7 @@ export function SongsGrid({
                   {genres.slice(0, 2).map((g) => (
                     <span
                       key={g}
-                      className="bg-white/[0.06] text-zinc-300 border border-white/[0.08] px-1.5 py-0.5 rounded text-[9px] font-semibold"
+                      className="bg-white/6 text-zinc-300 border border-white/8 px-1.5 py-0.5 rounded text-[9px] font-semibold"
                     >
                       {g}
                     </span>

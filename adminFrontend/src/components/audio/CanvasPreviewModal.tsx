@@ -16,9 +16,9 @@ export function CanvasPreviewModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-in fade-in duration-200">
-      <div className="relative flex flex-col items-center max-w-sm w-full bg-[#121215] border border-white/[0.12] rounded-3xl overflow-hidden shadow-2xl">
+      <div className="relative flex flex-col items-center max-w-sm w-full bg-[#121215] border border-white/12 rounded-3xl overflow-hidden shadow-2xl">
         {/* Header bar */}
-        <div className="w-full px-5 py-4 flex items-center justify-between border-b border-white/[0.08] bg-[#0d0d0f]">
+        <div className="w-full px-5 py-4 flex items-center justify-between border-b border-white/8 bg-[#0d0d0f]">
           <div className="flex items-center gap-2 text-xs font-bold text-white">
             <Film className="w-4 h-4 text-indigo-400" />
             <span>Vertical Video Canvas (9:16)</span>
@@ -61,7 +61,7 @@ export function CanvasPreviewModal() {
               </p>
             </div>
             {isPlaying && (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 border border-white/20 text-white text-[10px] font-bold">
                 <Volume2 className="w-3 h-3 animate-pulse" />
                 <span>Audio Synced</span>
               </div>

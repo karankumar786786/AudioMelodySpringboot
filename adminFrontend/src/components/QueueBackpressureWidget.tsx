@@ -81,9 +81,9 @@ export function QueueBackpressureWidget({
       default:
         return {
           label: "Workers In-Sync (Optimal)",
-          bg: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-          dot: "bg-emerald-400 animate-pulse",
-          icon: <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />,
+          bg: "bg-white/10 text-white border-white/20",
+          dot: "bg-white animate-pulse",
+          icon: <CheckCircle2 className="w-3.5 h-3.5 text-white" />,
         };
     }
   };
@@ -92,7 +92,7 @@ export function QueueBackpressureWidget({
     if (type === "DLQ") {
       return <AlertOctagon className="w-4 h-4 text-rose-400" />;
     }
-    return <Mail className="w-4 h-4 text-emerald-400" />;
+    return <Mail className="w-4 h-4 text-white" />;
   };
 
   const getStatusVisuals = (status: string, size: number, isDlq: boolean) => {
@@ -107,8 +107,8 @@ export function QueueBackpressureWidget({
       }
       return {
         badgeText: "Clean (0)",
-        badgeClass: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-        barColor: "bg-emerald-500",
+        badgeClass: "bg-white/10 text-white border-white/20",
+        barColor: "bg-white",
         percentage: 0,
       };
     }
@@ -144,12 +144,12 @@ export function QueueBackpressureWidget({
   return (
     <div id="mail-queue" className="rounded-2xl border border-[#282828] bg-[#121212] p-5 sm:p-6 shadow-xl relative overflow-hidden transition-all duration-300 hover:border-zinc-700">
       {/* Background ambient subtle glow */}
-      <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/3 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -top-24 -right-24 w-96 h-96 bg-white/2 rounded-full blur-3xl pointer-events-none" />
 
       {/* Header bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 mb-5 border-b border-[#282828] relative z-10">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-zinc-900 border border-[#282828] text-emerald-400">
+          <div className="p-2.5 rounded-xl bg-zinc-900 border border-[#282828] text-white">
             <Mail className="w-5 h-5" />
           </div>
           <div>
@@ -227,12 +227,12 @@ export function QueueBackpressureWidget({
               className={`rounded-2xl border p-4 transition-all duration-200 ${
                 isDlq && q.size > 0
                   ? "bg-rose-950/20 border-rose-500/40 hover:border-rose-500/60 shadow-lg shadow-rose-950/30"
-                  : "bg-[#141418] border-white/[0.06] hover:border-white/[0.14] hover:bg-[#1a1a20]"
+                  : "bg-[#141418] border-white/6 hover:border-white/14 hover:bg-[#1a1a20]"
               }`}
             >
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="p-2 rounded-xl bg-black border border-white/[0.1] shrink-0 text-white">
+                  <div className="p-2 rounded-xl bg-black border border-white/10 shrink-0 text-white">
                     {icon}
                   </div>
                   <div className="truncate">
@@ -261,7 +261,7 @@ export function QueueBackpressureWidget({
                 </div>
                 <div className="text-[11px] text-zinc-400 font-medium">
                   {isDlq ? (
-                    <span className={q.size > 0 ? "text-rose-400 font-bold" : "text-emerald-400"}>
+                    <span className={q.size > 0 ? "text-rose-400 font-bold" : "text-white font-medium"}>
                       {q.size > 0 ? "Inspect Logs" : "DLQ Clean"}
                     </span>
                   ) : (

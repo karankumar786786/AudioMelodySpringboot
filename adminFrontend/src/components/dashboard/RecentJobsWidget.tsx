@@ -12,10 +12,10 @@ interface RecentJobsWidgetProps {
 
 export function RecentJobsWidget({ jobs, loading }: RecentJobsWidgetProps) {
   return (
-    <div className="bg-[#121215] rounded-2xl border border-white/[0.08] p-6 shadow-sm">
-      <div className="flex items-center justify-between mb-5 pb-4 border-b border-white/[0.06]">
+    <div className="bg-[#121215] rounded-2xl border border-white/8 p-6 shadow-sm">
+      <div className="flex items-center justify-between mb-5 pb-4 border-b border-white/6">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-black border border-white/[0.1] text-white">
+          <div className="p-2 rounded-xl bg-black border border-white/10 text-white">
             <Cpu className="w-5 h-5 text-indigo-400" />
           </div>
           <div>
@@ -44,8 +44,8 @@ export function RecentJobsWidget({ jobs, loading }: RecentJobsWidgetProps) {
           {jobs.map((job) => {
             const statusConfig = {
               COMPLETED: {
-                badge: "bg-emerald-500/10 text-emerald-400 border-emerald-500/25",
-                dot: "bg-emerald-400",
+                badge: "bg-white/10 text-white border-white/20",
+                dot: "bg-white",
                 label: "Completed",
               },
               PROCESSING: {
@@ -73,7 +73,7 @@ export function RecentJobsWidget({ jobs, loading }: RecentJobsWidgetProps) {
               <Link
                 key={job.id}
                 href="/jobs"
-                className="flex items-center justify-between p-2.5 rounded-xl bg-[#141418] hover:bg-[#1a1a20] border border-white/[0.06] hover:border-white/[0.14] transition-all group"
+                className="flex items-center justify-between p-2.5 rounded-xl bg-[#141418] hover:bg-[#1a1a20] border border-white/6 hover:border-white/14 transition-all group"
               >
                 <div className="min-w-0 pr-3">
                   <p className="font-bold text-white text-xs truncate group-hover:text-indigo-300 transition-colors">
@@ -84,7 +84,7 @@ export function RecentJobsWidget({ jobs, loading }: RecentJobsWidgetProps) {
                       {job.artistName} {job.isVideoReprocess ? "• Canvas Reprocess" : ""}
                     </span>
                     {job.currentStage && (
-                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/[0.06] border border-white/[0.08] font-mono font-semibold text-zinc-300">
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/6 border border-white/8 font-mono font-semibold text-zinc-300">
                         {job.currentStage}
                       </span>
                     )}

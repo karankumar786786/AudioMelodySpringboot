@@ -29,17 +29,17 @@ export function StatusPill({
     { text: string; bg: string; border: string; dot: string; ping?: boolean }
   > = {
     online: {
-      text: "text-emerald-400",
-      bg: "bg-emerald-500/10",
-      border: "border-emerald-500/20",
-      dot: "bg-emerald-400",
+      text: "text-zinc-200",
+      bg: "bg-white/10",
+      border: "border-white/20",
+      dot: "bg-white",
       ping: true,
     },
     completed: {
-      text: "text-emerald-400",
-      bg: "bg-emerald-500/10",
-      border: "border-emerald-500/20",
-      dot: "bg-emerald-400",
+      text: "text-zinc-200",
+      bg: "bg-white/10",
+      border: "border-white/20",
+      dot: "bg-white",
     },
     processing: {
       text: "text-indigo-400",

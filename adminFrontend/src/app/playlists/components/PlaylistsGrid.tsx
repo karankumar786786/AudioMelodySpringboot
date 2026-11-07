@@ -27,7 +27,7 @@ export function PlaylistsGrid({
         {Array.from({ length: 8 }).map((_, i) => (
           <div
             key={i}
-            className="bg-[#121215] border border-white/[0.08] rounded-2xl p-4 animate-pulse space-y-3"
+            className="bg-[#121215] border border-white/8 rounded-2xl p-4 animate-pulse space-y-3"
           >
             <div className="aspect-square bg-zinc-800 rounded-xl w-full" />
             <div className="h-4 bg-zinc-800 rounded-md w-3/4" />
@@ -40,7 +40,7 @@ export function PlaylistsGrid({
 
   if (playlists.length === 0) {
     return (
-      <div className="bg-[#121215] border border-white/[0.08] rounded-2xl p-16 text-center">
+      <div className="bg-[#121215] border border-white/8 rounded-2xl p-16 text-center">
         <ListMusic className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
         <h3 className="text-white font-bold text-base">No playlists found</h3>
         <p className="text-zinc-500 text-xs mt-1">
@@ -60,8 +60,8 @@ export function PlaylistsGrid({
             onClick={() => onSelectPlaylist(playlist)}
             className={`group relative bg-[#121215] hover:bg-[#16161b] border rounded-2xl p-3.5 transition-all duration-200 cursor-pointer flex flex-col justify-between shadow-sm hover:shadow-lg hover:shadow-black/50 ${
               isSelected
-                ? "border-emerald-500/80 shadow-lg shadow-emerald-500/10 ring-1 ring-emerald-500"
-                : "border-white/[0.08] hover:border-white/[0.16]"
+                ? "border-white shadow-lg ring-1 ring-white"
+                : "border-white/8 hover:border-white/16"
             }`}
           >
             {/* Cover Art */}
@@ -87,7 +87,7 @@ export function PlaylistsGrid({
               {/* Badges Over Cover */}
               <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none">
                 <span className="flex items-center gap-1 bg-black/80 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-full border border-white/10 shadow-sm">
-                  <Music className="w-2.5 h-2.5 text-emerald-400" />
+                  <Music className="w-2.5 h-2.5 text-zinc-300" />
                   <span>{playlist.totalSongs || 0} tracks</span>
                 </span>
 

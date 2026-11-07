@@ -23,9 +23,7 @@ export default function PlaylistsPage() {
   const [selectedPlaylist, setSelectedPlaylist] = useState<Playlist | null>(null);
   const [playlistSongs, setPlaylistSongs] = useState<PlaylistSong[]>([]);
   const [loadingSongs, setLoadingSongs] = useState(false);
-  const [availableSongs, setAvailableSongs] = useState<PlaylistSong[]>([]);
   const [deletingPlaylistId, setDeletingPlaylistId] = useState<string | null>(null);
-  const [addingSong, setAddingSong] = useState(false);
   const [removingSongId, setRemovingSongId] = useState<string | null>(null);
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [removingVideo, setRemovingVideo] = useState(false);
@@ -72,24 +70,6 @@ export default function PlaylistsPage() {
     }
   }, [page, pageSize, debouncedSearch, showToast]);
 
-  const fetchAvailableSongs = useCallback(async () => {
-    try {
-      const res = await adminFetch("/admin/song?page=0&size=500");
-      if (res.ok) {
-        const data = await res.json();
-        const songsList = (data.content || data.data?.content || data.data || []).map(
-          (s: any) => ({
-            id: s.id,
-            title: s.title,
-          }),
-        );
-        setAvailableSongs(songsList);
-      }
-    } catch (err) {
-      console.error("Failed to fetch available songs:", err);
-    }
-  }, []);
-
   const fetchPlaylistSongs = useCallback(async (playlistId: string) => {
     try {
       setLoadingSongs(true);
@@ -111,8 +91,7 @@ export default function PlaylistsPage() {
 
   useEffect(() => {
     fetchPlaylists();
-    fetchAvailableSongs();
-  }, [fetchPlaylists, fetchAvailableSongs]);
+  }, [fetchPlaylists]);
 
   const handleSelectPlaylist = (playlist: Playlist) => {
     setSelectedPlaylist(playlist);
@@ -138,38 +117,6 @@ export default function PlaylistsPage() {
       showToast(err.message || "Failed to delete playlist", "error");
     } finally {
       setDeletingPlaylistId(null);
-    }
-  };
-
-  const handleAddSongToPlaylist = async (songId: string) => {
-    if (!selectedPlaylist || !songId) return;
-    const song = availableSongs.find((s) => s.id === songId);
-    setAddingSong(true);
-    try {
-      const res = await adminFetch(`/admin/playlist/${selectedPlaylist.id}/songs`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ songId }),
-      });
-      if (res.ok) {
-        await fetchPlaylistSongs(selectedPlaylist.id);
-        setPlaylists((prev) =>
-          prev.map((p) =>
-            p.id === selectedPlaylist.id ? { ...p, totalSongs: p.totalSongs + 1 } : p,
-          ),
-        );
-        setSelectedPlaylist((prev) =>
-          prev ? { ...prev, totalSongs: prev.totalSongs + 1 } : null,
-        );
-        showToast(`Added "${song?.title || "track"}" to playlist`, "success");
-      } else {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.message || "Failed to add song");
-      }
-    } catch (err: any) {
-      showToast(err.message || "Error adding song to playlist", "error");
-    } finally {
-      setAddingSong(false);
     }
   };
 
@@ -264,8 +211,8 @@ export default function PlaylistsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-[#121212] p-4 rounded-2xl border border-[#282828]">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-            <ListMusic className="w-5 h-5 text-emerald-400" />
+          <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+            <ListMusic className="w-5 h-5 text-white" />
           </div>
           <div>
             <h1 className="text-lg font-bold text-white">Playlists</h1>
@@ -299,7 +246,7 @@ export default function PlaylistsPage() {
           <button
             type="button"
             onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm rounded-xl transition-all shadow-lg shadow-emerald-500/20 active:scale-95 shrink-0 cursor-pointer"
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-zinc-200 text-black font-bold text-sm rounded-xl transition-all shadow-lg active:scale-95 shrink-0 cursor-pointer"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>New Playlist</span>
@@ -341,14 +288,11 @@ export default function PlaylistsPage() {
             <PlaylistDetailDrawer
               playlist={selectedPlaylist}
               songs={playlistSongs}
-              availableSongs={availableSongs}
               loadingSongs={loadingSongs}
-              addingSong={addingSong}
               removingSongId={removingSongId}
               uploadingVideo={uploadingVideo}
               removingVideo={removingVideo}
               onClose={() => setSelectedPlaylist(null)}
-              onAddSong={handleAddSongToPlaylist}
               onRemoveSong={handleRemoveSongFromPlaylist}
               onAttachVideo={handleAttachVideoToPlaylist}
               onRemoveVideo={handleRemoveVideoFromPlaylist}

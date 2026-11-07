@@ -44,11 +44,11 @@ export function MiniAudioDock() {
     : "";
 
   return (
-    <div className="fixed bottom-0 left-64 right-0 z-40 bg-[#0e0e11]/90 backdrop-blur-2xl border-t border-white/[0.1] px-6 py-3 shadow-[0_-10px_35px_rgba(0,0,0,0.6)] animate-in slide-in-from-bottom-4 duration-200">
+    <div className="fixed bottom-0 left-64 right-0 z-40 bg-[#0e0e11]/90 backdrop-blur-2xl border-t border-white/10 px-6 py-3 shadow-[0_-10px_35px_rgba(0,0,0,0.6)] animate-in slide-in-from-bottom-4 duration-200">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
         {/* Left: Track Information & Cover Art */}
         <div className="flex items-center gap-3.5 min-w-[220px] max-w-xs shrink-0">
-          <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-white/[0.12] overflow-hidden shrink-0 flex items-center justify-center relative shadow-sm">
+          <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-white/12 overflow-hidden shrink-0 flex items-center justify-center relative shadow-sm">
             {coverUrl ? (
               <img
                 src={coverUrl}
@@ -60,7 +60,7 @@ export function MiniAudioDock() {
             )}
             {isPlaying && (
               <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping" />
               </div>
             )}
           </div>
@@ -133,7 +133,7 @@ export function MiniAudioDock() {
                 max={duration || 100}
                 value={currentTime}
                 onChange={(e) => seekTo(Number(e.target.value))}
-                className="w-full h-1 bg-white/[0.1] rounded-lg appearance-none cursor-pointer accent-white hover:h-1.5 transition-all"
+                className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white hover:h-1.5 transition-all"
               />
             </div>
             <span className="text-[10px] font-mono text-zinc-400 w-8 tabular-nums">
@@ -163,16 +163,16 @@ export function MiniAudioDock() {
               step={0.05}
               value={volume}
               onChange={(e) => setVolume(Number(e.target.value))}
-              className="w-16 h-1 bg-white/[0.1] rounded-lg appearance-none cursor-pointer accent-white"
+              className="w-16 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-white"
             />
           </div>
 
-          <div className="h-4 w-px bg-white/[0.1]" />
+          <div className="h-4 w-px bg-white/10" />
 
           <button
             type="button"
             onClick={stopTrack}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/6 transition-colors"
             title="Close Player"
           >
             <X className="w-4 h-4" />

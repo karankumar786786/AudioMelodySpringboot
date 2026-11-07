@@ -23,9 +23,9 @@ export function BulkActionsBar({
   if (selectedCount === 0) return null;
 
   return (
-    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 bg-[#16161b]/95 backdrop-blur-xl border border-white/[0.15] rounded-2xl px-5 py-3 shadow-[0_10px_35px_rgba(0,0,0,0.6)] flex items-center gap-4 animate-in slide-in-from-bottom-5 duration-200">
-      <div className="flex items-center gap-2 border-r border-white/[0.1] pr-4">
-        <CheckSquare className="w-4 h-4 text-emerald-400" />
+    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 bg-[#16161b]/95 backdrop-blur-xl border border-white/15 rounded-2xl px-5 py-3 shadow-[0_10px_35px_rgba(0,0,0,0.6)] flex items-center gap-4 animate-in slide-in-from-bottom-5 duration-200">
+      <div className="flex items-center gap-2 border-r border-white/10 pr-4">
+        <CheckSquare className="w-4 h-4 text-white" />
         <span className="text-xs font-bold text-white whitespace-nowrap">
           {selectedCount} {selectedCount === 1 ? "track" : "tracks"} selected
         </span>
@@ -64,7 +64,7 @@ export function BulkActionsBar({
           <span>Delete</span>
         </button>
 
-        <div className="h-4 w-px bg-white/[0.1]" />
+        <div className="h-4 w-px bg-white/10" />
 
         <button
           type="button"

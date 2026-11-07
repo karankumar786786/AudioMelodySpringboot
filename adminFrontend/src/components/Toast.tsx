@@ -30,10 +30,10 @@ export function Toast({
   const config = {
     success: {
       icon: CheckCircle2,
-      bg: "bg-emerald-500/10 dark:bg-emerald-950/40",
-      border: "border-emerald-500/30 dark:border-emerald-700/50",
-      text: "text-emerald-800 dark:text-emerald-200",
-      iconColor: "text-emerald-500",
+      bg: "bg-white/10 dark:bg-white/10",
+      border: "border-white/20 dark:border-white/20",
+      text: "text-white dark:text-white",
+      iconColor: "text-white",
     },
     error: {
       icon: AlertCircle,

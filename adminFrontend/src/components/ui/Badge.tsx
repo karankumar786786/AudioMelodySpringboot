@@ -33,9 +33,9 @@ export function Badge({
   }[size];
 
   const variantStyles = {
-    default: "bg-white/[0.08] text-zinc-200 border-white/[0.12]",
+    default: "bg-white/8 text-zinc-200 border-white/12",
     neutral: "bg-zinc-800/40 text-zinc-400 border-zinc-700/40",
-    success: "bg-emerald-500/10 text-emerald-400 border-emerald-500/25",
+    success: "bg-white/10 text-white border-white/20",
     indigo: "bg-indigo-500/10 text-indigo-400 border-indigo-500/25",
     purple: "bg-purple-500/10 text-purple-400 border-purple-500/25",
     cyan: "bg-cyan-500/10 text-cyan-400 border-cyan-500/25",
@@ -46,7 +46,7 @@ export function Badge({
   const dotColor = {
     default: "bg-zinc-300",
     neutral: "bg-zinc-500",
-    success: "bg-emerald-400",
+    success: "bg-white",
     indigo: "bg-indigo-400",
     purple: "bg-purple-400",
     cyan: "bg-cyan-400",

@@ -443,7 +443,7 @@ export function EditSongModal({
                 {song.title}
               </h2>
               <p className="text-xs text-zinc-400 truncate">
-                {song.artistName} • ID: {song.id.slice(0, 8)}... • <span className="text-emerald-400 font-semibold">{(song.totalStreams || 0).toLocaleString()} streams</span>
+                {song.artistName} • ID: {song.id.slice(0, 8)}... • <span className="text-white font-semibold">{(song.totalStreams || 0).toLocaleString()} streams</span>
               </p>
             </div>
           </div>
@@ -758,7 +758,7 @@ export function EditSongModal({
                 className={fileCls}
               />
               {formData.audioFile && (
-                <div className="mt-2 text-[11px] font-mono text-emerald-400 flex items-center gap-1.5">
+                <div className="mt-2 text-[11px] font-mono text-zinc-300 flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Selected: {formData.audioFile.name} ({(formData.audioFile.size / (1024 * 1024)).toFixed(2)} MB)</span>
                 </div>
@@ -832,7 +832,7 @@ export function EditSongModal({
                 )}
               </div>
               {song.videoKey && !formData.removeVideo && (
-                <p className="text-[10px] text-emerald-400 font-medium mb-2 flex items-center gap-1">
+                <p className="text-[10px] text-zinc-300 font-medium mb-2 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3" />
                   Active canvas video attached
                 </p>
@@ -889,7 +889,7 @@ export function EditSongModal({
               {song.fullVideoKey &&
                 !formData.removeFullVideo &&
                 !formData.fullVideoFile && (
-                  <p className="text-[10px] text-emerald-400 font-medium mb-2 flex items-center gap-1">
+                  <p className="text-[10px] text-zinc-300 font-medium mb-2 flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3" />
                     Active full video stream attached
                   </p>

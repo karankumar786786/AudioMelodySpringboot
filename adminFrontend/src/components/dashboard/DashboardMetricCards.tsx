@@ -101,10 +101,10 @@ export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsPro
           <Link
             key={card.name}
             href={card.href}
-            className="group relative overflow-hidden bg-[#121215] hover:bg-[#16161b] p-5 rounded-2xl border border-white/[0.08] hover:border-white/[0.16] transition-all duration-200 shadow-sm hover:shadow-lg hover:shadow-black/50"
+            className="group relative overflow-hidden bg-[#121215] hover:bg-[#16161b] p-5 rounded-2xl border border-white/8 hover:border-white/16 transition-all duration-200 shadow-sm hover:shadow-lg hover:shadow-black/50"
           >
             <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 rounded-xl bg-black border border-white/[0.1] flex items-center justify-center text-white transition-transform group-hover:scale-105 group-hover:border-white/20">
+              <div className="w-10 h-10 rounded-xl bg-black border border-white/10 flex items-center justify-center text-white transition-transform group-hover:scale-105 group-hover:border-white/20">
                 <Icon className="w-5 h-5" />
               </div>
 
@@ -132,7 +132,7 @@ export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsPro
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400">
+            <div className="mt-4 pt-3 border-t border-white/6 flex items-center justify-between text-xs text-zinc-400">
               <span className="truncate text-[11px]">{card.subValue}</span>
               <ArrowUpRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all text-white shrink-0" />
             </div>

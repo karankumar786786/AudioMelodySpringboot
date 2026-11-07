@@ -692,7 +692,7 @@ export function CreateSongModal({
             <button
               type="submit"
               disabled={uploading}
-              className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm transition-all shadow-lg shadow-emerald-500/20 active:scale-95 disabled:opacity-50 cursor-pointer flex items-center gap-2"
+              className="px-6 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-sm transition-all shadow-lg active:scale-95 disabled:opacity-50 cursor-pointer flex items-center gap-2"
             >
               {uploading && <Loader2 className="w-4 h-4 animate-spin" />}
               <span>{uploading ? "Uploading & Processing..." : "Create & Queue Track"}</span>

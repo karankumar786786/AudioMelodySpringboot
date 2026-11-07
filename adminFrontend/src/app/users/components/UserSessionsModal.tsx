@@ -133,17 +133,17 @@ export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-[#121215] border border-white/[0.1] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-2xl bg-[#121215] border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Modal Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/[0.08] bg-[#0e0e11]">
+        <div className="flex items-center justify-between p-6 border-b border-white/8 bg-[#0e0e11]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-black border border-white/[0.1] flex items-center justify-center text-white">
-              <Smartphone className="w-5 h-5 text-emerald-400" />
+            <div className="w-10 h-10 rounded-xl bg-black border border-white/10 flex items-center justify-center text-white">
+              <Smartphone className="w-5 h-5 text-white" />
             </div>
             <div>
               <h2 className="text-base font-bold text-white flex items-center gap-2">
                 Active Client Sessions
-                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-white/10 text-white border border-white/20">
                   {sessions.length} device{sessions.length !== 1 ? "s" : ""}
                 </span>
               </h2>
@@ -155,14 +155,14 @@ export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-zinc-400 hover:text-white rounded-xl hover:bg-white/[0.06] transition-colors cursor-pointer"
+            className="p-2 text-zinc-400 hover:text-white rounded-xl hover:bg-white/6 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Toolbar */}
-        <div className="px-6 py-3 bg-[#141418] border-b border-white/[0.06] flex items-center justify-between gap-4">
+        <div className="px-6 py-3 bg-[#141418] border-b border-white/6 flex items-center justify-between gap-4">
           <p className="text-xs text-zinc-400">
             Database-backed refresh sessions verified by <span className="font-semibold text-zinc-200">coreEngine</span>.
           </p>
@@ -171,7 +171,7 @@ export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({
               type="button"
               onClick={fetchSessions}
               disabled={loading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-zinc-300 bg-[#18181c] hover:bg-white hover:text-black border border-white/[0.08] transition-all disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-zinc-300 bg-[#18181c] hover:bg-white hover:text-black border border-white/8 transition-all disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               <span>Refresh</span>
@@ -232,9 +232,9 @@ export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({
                   <div className="flex items-center gap-3.5 min-w-0">
                     <div className="w-10 h-10 rounded-xl bg-zinc-900 border border-[#282828] flex items-center justify-center shrink-0">
                       {isMobile ? (
-                        <Smartphone className="w-5 h-5 text-emerald-400" />
+                        <Smartphone className="w-5 h-5 text-white" />
                       ) : (
-                        <Laptop className="w-5 h-5 text-indigo-400" />
+                        <Laptop className="w-5 h-5 text-zinc-300" />
                       )}
                     </div>
                     <div className="min-w-0">
@@ -242,7 +242,7 @@ export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({
                         <span className="font-mono font-bold text-sm text-white truncate">
                           {sess.deviceId}
                         </span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full font-mono font-semibold bg-white/10 text-white border border-white/20">
                           Active
                         </span>
                       </div>

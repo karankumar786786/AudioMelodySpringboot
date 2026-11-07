@@ -1,21 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Trash2, Video, Music, Loader2, X } from "lucide-react";
+import { Trash2, Video, Music, Loader2, X } from "lucide-react";
 import { getImageUrl } from "@/lib/image-utils";
 import type { Playlist, PlaylistSong } from "../types";
 
 interface PlaylistDetailDrawerProps {
   playlist: Playlist;
   songs: PlaylistSong[];
-  availableSongs: PlaylistSong[];
   loadingSongs: boolean;
-  addingSong: boolean;
   removingSongId: string | null;
   uploadingVideo: boolean;
   removingVideo: boolean;
   onClose: () => void;
-  onAddSong: (songId: string) => Promise<void>;
   onRemoveSong: (songId: string, songTitle?: string) => Promise<void>;
   onAttachVideo: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemoveVideo: () => void;
@@ -24,30 +20,15 @@ interface PlaylistDetailDrawerProps {
 export function PlaylistDetailDrawer({
   playlist,
   songs,
-  availableSongs,
   loadingSongs,
-  addingSong,
   removingSongId,
   uploadingVideo,
   removingVideo,
   onClose,
-  onAddSong,
   onRemoveSong,
   onAttachVideo,
   onRemoveVideo,
 }: PlaylistDetailDrawerProps) {
-  const [selectedSongId, setSelectedSongId] = useState("");
-
-  const filteredAvailable = availableSongs.filter(
-    (s) => !songs.some((ps) => ps.id === s.id),
-  );
-
-  const handleAddSubmit = async () => {
-    if (!selectedSongId) return;
-    await onAddSong(selectedSongId);
-    setSelectedSongId("");
-  };
-
   return (
     <div className="bg-[#121212] rounded-3xl border border-[#282828] p-6 sm:p-8 space-y-6 shadow-xl text-white">
       {/* Header */}
@@ -109,12 +90,12 @@ export function PlaylistDetailDrawer({
           >
             {uploadingVideo ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
                 <span>Uploading...</span>
               </>
             ) : (
               <>
-                <Video className="w-3.5 h-3.5 text-emerald-400" />
+                <Video className="w-3.5 h-3.5 text-white" />
                 <span>{playlist.videoKey ? "Replace Video" : "Attach Video"}</span>
               </>
             )}
@@ -138,45 +119,6 @@ export function PlaylistDetailDrawer({
         </div>
       </div>
 
-      {/* Add Track Selector */}
-      <div className="bg-[#181818] border border-[#282828] rounded-2xl p-4 space-y-3">
-        <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
-          <Plus className="w-3.5 h-3.5 text-emerald-400" />
-          Add Track to Playlist
-        </h4>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <select
-            value={selectedSongId}
-            onChange={(e) => setSelectedSongId(e.target.value)}
-            disabled={addingSong}
-            className="flex-1 bg-black/60 border border-[#282828] rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-white disabled:opacity-50 cursor-pointer"
-          >
-            <option value="" className="bg-[#121212] text-zinc-500">
-              Select a track to add ({filteredAvailable.length} available)...
-            </option>
-            {filteredAvailable.map((s) => (
-              <option key={s.id} value={s.id} className="bg-[#121212] text-white">
-                {s.title}
-              </option>
-            ))}
-          </select>
-
-          <button
-            type="button"
-            onClick={handleAddSubmit}
-            disabled={addingSong || !selectedSongId}
-            className="px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-sm rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2 shrink-0"
-          >
-            {addingSong ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Plus className="w-4 h-4 stroke-[2.5]" />
-            )}
-            <span>Add Track</span>
-          </button>
-        </div>
-      </div>
-
       {/* Playlist Songs Table */}
       <div className="space-y-3">
         <div className="flex items-center justify-between text-xs text-zinc-400 px-2 font-medium">
@@ -191,7 +133,7 @@ export function PlaylistDetailDrawer({
           </div>
         ) : songs.length === 0 ? (
           <div className="border border-dashed border-[#282828] rounded-2xl p-8 text-center text-zinc-500 text-xs">
-            No tracks in this playlist yet. Add songs using the selector above.
+            No tracks in this playlist yet. Add songs using the &quot;+&quot; button on any song in the Songs catalog.
           </div>
         ) : (
           <div className="space-y-2 max-h-100 overflow-y-auto pr-1">
@@ -204,7 +146,7 @@ export function PlaylistDetailDrawer({
                   <span className="text-xs font-mono text-zinc-500 w-5 text-right">
                     {index + 1}
                   </span>
-                  <Music className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <Music className="w-4 h-4 text-zinc-300 shrink-0" />
                   <span className="text-sm font-semibold text-white truncate">
                     {song.title}
                   </span>

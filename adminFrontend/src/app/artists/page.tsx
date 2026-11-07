@@ -95,9 +95,9 @@ export default function ArtistsPage() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-6 text-white font-sans">
+    <div className="p-6 md:p-8 max-w-400 mx-auto space-y-6 text-white font-sans">
       {/* Header and Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#121215] p-5 rounded-2xl border border-white/[0.08]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#121215] p-5 rounded-2xl border border-white/8">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">
             Artist Management
@@ -116,7 +116,7 @@ export default function ArtistsPage() {
               placeholder="Search artists..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-9 py-2 bg-[#16161a] border border-white/[0.08] hover:border-white/[0.14] focus:border-white/30 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none transition-all"
+              className="w-full pl-10 pr-9 py-2 bg-[#16161a] border border-white/8 hover:border-white/14 focus:border-white/30 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none transition-all"
             />
             {search && (
               <button

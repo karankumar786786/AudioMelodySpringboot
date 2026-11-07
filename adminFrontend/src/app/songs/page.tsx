@@ -12,6 +12,7 @@ import { SongsGrid } from "./components/SongsGrid";
 import { SongsDataTable } from "./components/SongsDataTable";
 import { BulkActionsBar } from "./components/BulkActionsBar";
 import { CreateSongModal } from "./components/CreateSongModal";
+import { AddToPlaylistModal } from "@/components/AddToPlaylistModal";
 
 function SongsContent() {
   const router = useRouter();
@@ -33,6 +34,7 @@ function SongsContent() {
   const [totalSongs, setTotalSongs] = useState(0);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(isNewQuery);
   const [editingSong, setEditingSong] = useState<SongData | null>(null);
+  const [playlistSongTarget, setPlaylistSongTarget] = useState<Song | null>(null);
   const [deletingSongId, setDeletingSongId] = useState<string | null>(null);
   const [togglingSongId, setTogglingSongId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
@@ -313,6 +315,7 @@ function SongsContent() {
           onToggleFeatured={handleToggleFeatured}
           onEditSong={(song) => setEditingSong(song as SongData)}
           onDeleteSong={handleDeleteSong}
+          onAddToPlaylist={(song) => setPlaylistSongTarget(song)}
         />
       ) : (
         <SongsGrid
@@ -323,6 +326,7 @@ function SongsContent() {
           onToggleFeatured={handleToggleFeatured}
           onEditSong={(song) => setEditingSong(song as SongData)}
           onDeleteSong={handleDeleteSong}
+          onAddToPlaylist={(song) => setPlaylistSongTarget(song)}
         />
       )}
 
@@ -338,7 +342,7 @@ function SongsContent() {
 
       {/* Pagination Controls */}
       {totalSongs > 0 && (
-        <div className="rounded-2xl overflow-hidden border border-white/[0.08] bg-[#121215]">
+        <div className="rounded-2xl overflow-hidden border border-white/8 bg-[#121215]">
           <PaginationBar
             page={page}
             pageSize={pageSize}
@@ -355,6 +359,16 @@ function SongsContent() {
           />
         </div>
       )}
+
+      {/* Add To Playlist Modal */}
+      <AddToPlaylistModal
+        song={playlistSongTarget}
+        isOpen={Boolean(playlistSongTarget)}
+        onClose={() => setPlaylistSongTarget(null)}
+        onSuccess={(playlistName) => {
+          showToast(`Track added to playlist "${playlistName}"`, "success");
+        }}
+      />
 
       {/* Create Song Modal */}
       <CreateSongModal

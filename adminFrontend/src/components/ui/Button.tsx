@@ -42,11 +42,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       primary:
         "bg-white hover:bg-zinc-200 text-black shadow-sm shadow-white/5 font-bold",
       secondary:
-        "bg-[#16161a] hover:bg-[#202026] text-zinc-200 hover:text-white border border-white/[0.08] hover:border-white/[0.14]",
+        "bg-[#16161a] hover:bg-[#202026] text-zinc-200 hover:text-white border border-white/8 hover:border-white/14",
       outline:
-        "bg-transparent hover:bg-white/[0.05] text-zinc-300 hover:text-white border border-white/[0.1] hover:border-white/[0.2]",
+        "bg-transparent hover:bg-white/5 text-zinc-300 hover:text-white border border-white/10 hover:border-white/20",
       ghost:
-        "bg-transparent hover:bg-white/[0.06] text-zinc-400 hover:text-white",
+        "bg-transparent hover:bg-white/6 text-zinc-400 hover:text-white",
       danger:
         "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 hover:border-rose-500/30",
     }[variant];

@@ -75,7 +75,7 @@ export function PaginationBar({
     >
       {/* Top Animated Loading Pulse Bar */}
       {loading && (
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-500 via-indigo-500 to-emerald-400 animate-pulse z-10" />
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-linear-to-r from-zinc-500 via-white to-zinc-400 animate-pulse z-10" />
       )}
 
       {/* Left: Item Counter and Page Size Select */}
@@ -110,7 +110,7 @@ export function PaginationBar({
           title="First Page"
         >
           {loading && pendingNav === "first" ? (
-            <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+            <Loader2 className="w-4 h-4 animate-spin text-white" />
           ) : (
             <ChevronsLeft className="w-4 h-4" />
           )}
@@ -122,16 +122,16 @@ export function PaginationBar({
           title="Previous Page"
         >
           {loading && pendingNav === "prev" ? (
-            <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+            <Loader2 className="w-4 h-4 animate-spin text-white" />
           ) : (
             <ChevronLeft className="w-4 h-4" />
           )}
         </button>
 
         {/* Page Indicator with Live Spinner */}
-        <span className="px-3 py-1 font-mono text-zinc-300 text-xs flex items-center gap-1.5 min-w-[110px] justify-center select-none">
+        <span className="px-3 py-1 font-mono text-zinc-300 text-xs flex items-center gap-1.5 min-w-27.5 justify-center select-none">
           {loading && (
-            <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400 shrink-0" />
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-white shrink-0" />
           )}
           <span>
             Page <strong className="text-white">{page + 1}</strong> of{" "}
@@ -146,7 +146,7 @@ export function PaginationBar({
           title="Next Page"
         >
           {loading && pendingNav === "next" ? (
-            <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+            <Loader2 className="w-4 h-4 animate-spin text-white" />
           ) : (
             <ChevronRight className="w-4 h-4" />
           )}
@@ -158,7 +158,7 @@ export function PaginationBar({
           title="Last Page"
         >
           {loading && pendingNav === "last" ? (
-            <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+            <Loader2 className="w-4 h-4 animate-spin text-white" />
           ) : (
             <ChevronsRight className="w-4 h-4" />
           )}

@@ -1,12 +1,11 @@
 "use client";
 
-import { LogOut, WifiOff, Plus, Radio } from "lucide-react";
+import { LogOut, WifiOff, Plus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useAudio } from "@/lib/audio-context";
 import { AuthScreen } from "./AuthScreen";
-import { GlobalSearch } from "./GlobalSearch";
 import { Sidebar } from "./Sidebar";
 import { MiniAudioDock } from "./audio/MiniAudioDock";
 import { CanvasPreviewModal } from "./audio/CanvasPreviewModal";
@@ -71,7 +70,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   if (!isAuthorized) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#080809] text-white font-sans p-6">
-        <div className="max-w-md w-full text-center space-y-6 p-8 bg-[#121215] border border-white/[0.08] rounded-3xl shadow-2xl">
+        <div className="max-w-md w-full text-center space-y-6 p-8 bg-[#121215] border border-white/8 rounded-3xl shadow-2xl">
           <div className="w-14 h-14 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center justify-center mx-auto text-rose-500 mb-2">
             <svg
               className="w-7 h-7"
@@ -112,13 +111,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-[#080809] text-white">
       <Sidebar />
       <div className="flex-1 ml-64 flex flex-col min-w-0">
-        <header className="h-16 border-b border-white/[0.08] bg-[#0a0a0c]/85 backdrop-blur-xl sticky top-0 z-40 px-8 flex items-center justify-between">
-          <div className="flex items-center gap-6 flex-1 max-w-xl">
-            <div className="text-xs font-medium text-zinc-400 whitespace-nowrap">
+        <header className="h-16 border-b border-white/8 bg-[#0a0a0c]/85 backdrop-blur-xl sticky top-0 z-40 px-8 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="text-xs font-medium text-zinc-400">
               Welcome back,{" "}
               <span className="text-white font-bold">{user.name}</span>
             </div>
-            <GlobalSearch />
           </div>
 
           <div className="flex items-center gap-4">
@@ -137,7 +135,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <button
               type="button"
               onClick={logout}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#141417] hover:bg-[#1c1c21] border border-white/[0.08] hover:border-white/[0.14] transition-all text-xs font-semibold text-zinc-300 hover:text-white cursor-pointer group"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#141417] hover:bg-[#1c1c21] border border-white/8 hover:border-white/14 transition-all text-xs font-semibold text-zinc-300 hover:text-white cursor-pointer group"
               title="Sign Out"
             >
               <span className="text-[11px] font-bold text-zinc-400 group-hover:text-white">
@@ -164,8 +162,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         )}
 
         {backOnlineBanner && (
-          <div className="bg-emerald-500/15 border-b border-emerald-500/30 text-emerald-300 px-8 py-2 text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-200 shrink-0">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+          <div className="bg-white/10 border-b border-white/20 text-zinc-200 px-8 py-2 text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-200 shrink-0">
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
             <span>Internet connection restored. You are back online.</span>
           </div>
         )}

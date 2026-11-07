@@ -44,16 +44,16 @@ export const UsersTable: React.FC<UsersTableProps> = ({
   onPageSizeChange,
 }) => {
   return (
-    <div className="relative bg-[#121215] rounded-2xl border border-white/[0.08] overflow-hidden shadow-sm">
+    <div className="relative bg-[#121215] rounded-2xl border border-white/8 overflow-hidden shadow-sm">
       {/* Top Animated Pulse Line during page/filter transitions */}
       {loading && (
-        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-emerald-500 via-indigo-500 to-emerald-400 animate-pulse z-20" />
+        <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-zinc-500 via-white to-zinc-400 animate-pulse z-20" />
       )}
 
       <div className="overflow-x-auto">
         <table className="w-full text-left text-xs">
           <thead>
-            <tr className="bg-[#0e0e11] border-b border-white/[0.08] text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+            <tr className="bg-[#0e0e11] border-b border-white/8 text-[10px] font-bold uppercase tracking-wider text-zinc-400">
               <th className="px-5 py-3.5">User</th>
               <th className="px-5 py-3.5">Email</th>
               <th className="px-5 py-3.5">Role</th>
@@ -61,7 +61,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
               <th className="px-5 py-3.5 text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/[0.06]">
+          <tbody className="divide-y divide-white/6">
             {loading ? (
               <TableSkeleton variant="user" rows={Math.min(pageSize, 8)} />
             ) : users.length === 0 ? (
@@ -90,7 +90,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                 return (
                   <tr
                     key={u.id || u.email}
-                    className="group hover:bg-white/[0.03] transition-colors"
+                    className="group hover:bg-white/3 transition-colors"
                   >
                     {/* User Info */}
                     <td className="px-5 py-3.5">
@@ -99,7 +99,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                           className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-sm ${
                             isAdmin
                               ? "bg-white text-black font-black"
-                              : "bg-[#18181c] text-zinc-300 border border-white/[0.1]"
+                              : "bg-[#18181c] text-zinc-300 border border-white/10"
                           }`}
                         >
                           {initial}
@@ -158,12 +158,12 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                         className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
                           isBlocked
                             ? "bg-rose-500/10 text-rose-400 border-rose-500/25"
-                            : "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
+                            : "bg-white/10 text-white border-white/20"
                         }`}
                       >
                         <span
                           className={`w-1.5 h-1.5 rounded-full ${
-                            isBlocked ? "bg-rose-500" : "bg-emerald-400"
+                            isBlocked ? "bg-rose-500" : "bg-white"
                           }`}
                         />
                         <span>{isBlocked ? "Blocked" : "Active"}</span>
@@ -181,7 +181,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                                 type="button"
                                 onClick={() => onUserAction(u, "demote")}
                                 disabled={Boolean(currentOp) || loading}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold text-zinc-300 bg-[#16161a] hover:bg-white hover:text-black border border-white/[0.08] transition-all disabled:opacity-40 cursor-pointer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold text-zinc-300 bg-[#16161a] hover:bg-white hover:text-black border border-white/8 transition-all disabled:opacity-40 cursor-pointer"
                                 title="Demote to standard User"
                               >
                                 {currentOp === "demote" ? (
@@ -196,7 +196,7 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                                 type="button"
                                 onClick={() => onUserAction(u, "promote")}
                                 disabled={Boolean(currentOp) || loading}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold text-zinc-300 bg-[#16161a] hover:bg-white hover:text-black border border-white/[0.08] transition-all disabled:opacity-40 cursor-pointer"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold text-zinc-300 bg-[#16161a] hover:bg-white hover:text-black border border-white/8 transition-all disabled:opacity-40 cursor-pointer"
                                 title="Promote to Admin"
                               >
                                 {currentOp === "promote" ? (
@@ -215,10 +215,10 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                           type="button"
                           onClick={() => onUserAction(u, "sessions")}
                           disabled={loading}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold text-zinc-300 bg-[#16161a] hover:bg-white hover:text-black border border-white/[0.08] transition-all disabled:opacity-40 cursor-pointer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-semibold text-zinc-300 bg-[#16161a] hover:bg-white hover:text-black border border-white/8 transition-all disabled:opacity-40 cursor-pointer"
                           title="View and manage connected devices"
                         >
-                          <Smartphone className="w-3 h-3 text-emerald-400" />
+                          <Smartphone className="w-3 h-3 text-zinc-300" />
                           <span className="hidden sm:inline text-[11px]">Devices</span>
                         </button>
 
@@ -230,8 +230,8 @@ export const UsersTable: React.FC<UsersTableProps> = ({
                             disabled={Boolean(currentOp) || loading}
                             className={`p-1.5 rounded-xl border transition-all disabled:opacity-40 cursor-pointer ${
                               isBlocked
-                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25 hover:bg-emerald-500/20"
-                                : "bg-[#16161a] text-zinc-400 hover:text-amber-400 border-white/[0.08] hover:border-amber-400/30"
+                                ? "bg-white/10 text-white border-white/20 hover:bg-white/20"
+                                : "bg-[#16161a] text-zinc-400 hover:text-amber-400 border-white/8 hover:border-amber-400/30"
                             }`}
                             title={isBlocked ? "Unblock User" : "Block User"}
                           >

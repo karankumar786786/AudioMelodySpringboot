@@ -45,10 +45,10 @@ export function RecentSongsWidget({ songs, loading }: RecentSongsWidgetProps) {
   };
 
   return (
-    <div className="bg-[#121215] rounded-2xl border border-white/[0.08] p-6 shadow-sm">
-      <div className="flex items-center justify-between mb-5 pb-4 border-b border-white/[0.06]">
+    <div className="bg-[#121215] rounded-2xl border border-white/8 p-6 shadow-sm">
+      <div className="flex items-center justify-between mb-5 pb-4 border-b border-white/6">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-black border border-white/[0.1] text-white">
+          <div className="p-2 rounded-xl bg-black border border-white/10 text-white">
             <Music className="w-5 h-5 text-indigo-400" />
           </div>
           <div>
@@ -79,10 +79,10 @@ export function RecentSongsWidget({ songs, loading }: RecentSongsWidgetProps) {
             return (
               <div
                 key={song.id}
-                className="group flex items-center justify-between p-2.5 rounded-xl bg-[#141418] hover:bg-[#1a1a20] border border-white/[0.06] hover:border-white/[0.14] transition-all"
+                className="group flex items-center justify-between p-2.5 rounded-xl bg-[#141418] hover:bg-[#1a1a20] border border-white/6 hover:border-white/14 transition-all"
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-black border border-white/[0.1] shrink-0 group/cover">
+                  <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-black border border-white/10 shrink-0 group/cover">
                     {song.imageKey ? (
                       <Image
                         src={getImageUrl(song.imageKey, { width: 88, height: 88, quality: 75 })}

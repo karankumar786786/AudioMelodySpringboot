@@ -42,11 +42,11 @@ export function JobDetailModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="bg-[#121215] border border-white/[0.1] rounded-3xl w-full max-w-3xl max-h-[92vh] overflow-hidden flex flex-col shadow-2xl">
+      <div className="bg-[#121215] border border-white/10 rounded-3xl w-full max-w-3xl max-h-[92vh] overflow-hidden flex flex-col shadow-2xl">
         {/* Modal Header */}
-        <div className="p-6 border-b border-white/[0.08] flex items-center justify-between bg-[#0e0e11]">
+        <div className="p-6 border-b border-white/8 flex items-center justify-between bg-[#0e0e11]">
           <div className="flex items-center gap-4">
-            <div className="relative w-13 h-13 rounded-xl overflow-hidden bg-black shrink-0 border border-white/[0.12] shadow-sm">
+            <div className="relative w-13 h-13 rounded-xl overflow-hidden bg-black shrink-0 border border-white/12 shadow-sm">
               {job.imageKey ? (
                 <Image
                   src={getImageUrl(job.imageKey, { width: 140, height: 140 })}
@@ -120,7 +120,7 @@ export function JobDetailModal({
                     <button
                       type="button"
                       onClick={() => onOpenRecoverModal(job)}
-                      className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+                      className="px-3.5 py-1.5 bg-white hover:bg-zinc-200 text-black font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
                       title="Upload fixed audio/video and reprocess job"
                     >
                       <UploadCloud className="w-3.5 h-3.5" />
@@ -169,7 +169,7 @@ export function JobDetailModal({
                       )}
                     </button>
                     {showRawError && (
-                      <pre className="mt-2 p-3 rounded-xl bg-black/80 border border-white/[0.08] text-[10px] font-mono text-zinc-300 overflow-x-auto max-h-40 whitespace-pre-wrap leading-tight">
+                      <pre className="mt-2 p-3 rounded-xl bg-black/80 border border-white/8 text-[10px] font-mono text-zinc-300 overflow-x-auto max-h-40 whitespace-pre-wrap leading-tight">
                         {failure.raw}
                       </pre>
                     )}
@@ -206,28 +206,28 @@ export function JobDetailModal({
                     key={idx}
                     className={`p-3.5 rounded-xl border flex items-center justify-between transition-all ${
                       isDone
-                        ? "bg-emerald-500/5 border-emerald-500/20"
+                        ? "bg-white/5 border-white/20"
                         : isInProgress
                         ? "bg-indigo-500/10 border-indigo-500/30 animate-pulse"
                         : isFailed
                         ? "bg-rose-500/10 border-rose-500/30"
                         : isSkipped
-                        ? "bg-black/40 border-white/[0.06] opacity-60"
-                        : "bg-black/40 border-white/[0.06]"
+                        ? "bg-black/40 border-white/6 opacity-60"
+                        : "bg-black/40 border-white/6"
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <div
                         className={`w-6 h-6 rounded-full flex items-center justify-center font-bold text-[11px] ${
                           isDone
-                            ? "bg-emerald-500 text-white"
+                            ? "bg-white text-black"
                             : isInProgress
                             ? "bg-indigo-600 text-white animate-spin"
                             : isFailed
                             ? "bg-rose-500 text-white"
                             : isSkipped
                             ? "bg-zinc-600 text-white"
-                            : "bg-black/60 text-zinc-400 border border-white/[0.08]"
+                            : "bg-black/60 text-zinc-400 border border-white/8"
                         }`}
                       >
                         {isDone ? "✓" : isFailed ? "✕" : isSkipped ? "-" : idx + 1}
@@ -252,7 +252,7 @@ export function JobDetailModal({
                       <span
                         className={`font-mono font-bold text-xs ${
                           isDone
-                            ? "text-emerald-400"
+                            ? "text-zinc-200"
                             : isInProgress
                             ? "text-indigo-400"
                             : "text-zinc-500"
@@ -268,7 +268,7 @@ export function JobDetailModal({
           </div>
 
           {/* S3 & Key Media Artifacts */}
-          <div className="p-4 rounded-2xl bg-[#0d0d0f] border border-white/[0.08] space-y-2 text-xs font-mono">
+          <div className="p-4 rounded-2xl bg-[#0d0d0f] border border-white/8 space-y-2 text-xs font-mono">
             <div className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider mb-2">
               S3 Media &amp; Index Artifacts
             </div>
@@ -281,7 +281,7 @@ export function JobDetailModal({
             {job.videoKey && (
               <div className="flex justify-between truncate">
                 <span className="text-zinc-500">Video Canvas:</span>
-                <span className="text-emerald-400 font-semibold truncate max-w-[340px]">
+                <span className="text-zinc-200 font-semibold truncate max-w-[340px]">
                   {job.videoKey}
                 </span>
               </div>

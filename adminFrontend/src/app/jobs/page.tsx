@@ -384,7 +384,7 @@ export default function JobMonitoringPage() {
   return (
     <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-8 text-white font-sans">
       {/* Header & Tab Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/[0.08]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/8">
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
@@ -421,7 +421,7 @@ export default function JobMonitoringPage() {
 
         <div className="flex items-center gap-2.5 flex-wrap">
           {/* Tab Selector */}
-          <div className="flex bg-[#121215] p-1 rounded-xl border border-white/[0.08]">
+          <div className="flex bg-[#121215] p-1 rounded-xl border border-white/8">
             <button
               type="button"
               onClick={() => {
@@ -460,13 +460,13 @@ export default function JobMonitoringPage() {
             onClick={() => setAutoRefresh(!autoRefresh)}
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 border cursor-pointer ${
               autoRefresh
-                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
-                : "bg-[#141418] text-zinc-400 border-white/[0.08]"
+                ? "bg-white/10 text-white border-white/20"
+                : "bg-[#141418] text-zinc-400 border-white/8"
             }`}
           >
             <span
               className={`w-2 h-2 rounded-full ${
-                autoRefresh ? "bg-emerald-400 animate-ping" : "bg-zinc-600"
+                autoRefresh ? "bg-white animate-ping" : "bg-zinc-600"
               }`}
             />
             <span>{autoRefresh ? "Live 4s" : "Paused"}</span>
@@ -477,7 +477,7 @@ export default function JobMonitoringPage() {
             type="button"
             onClick={() => fetchData(true)}
             disabled={refreshing}
-            className="p-2 rounded-xl bg-[#141418] hover:bg-[#1a1a20] border border-white/[0.08] hover:border-white/[0.14] text-zinc-400 hover:text-white transition-all disabled:opacity-50 cursor-pointer"
+            className="p-2 rounded-xl bg-[#141418] hover:bg-[#1a1a20] border border-white/8 hover:border-white/14 text-zinc-400 hover:text-white transition-all disabled:opacity-50 cursor-pointer"
             title="Refresh metrics now"
           >
             <RotateCcw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-white" : ""}`} />
@@ -488,10 +488,10 @@ export default function JobMonitoringPage() {
             type="button"
             onClick={handleSyncMetadata}
             disabled={isSyncingMetadata || refreshing}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#141418] hover:bg-[#1a1a20] border border-white/[0.08] hover:border-white/[0.14] text-zinc-300 hover:text-white transition-all disabled:opacity-50 cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#141418] hover:bg-[#1a1a20] border border-white/8 hover:border-white/14 text-zinc-300 hover:text-white transition-all disabled:opacity-50 cursor-pointer"
             title="Reconcile pagination metadata with actual PostgreSQL rows and flush caches"
           >
-            <Database className={`w-3.5 h-3.5 text-zinc-400 ${isSyncingMetadata ? "animate-spin text-emerald-400" : ""}`} />
+            <Database className={`w-3.5 h-3.5 text-zinc-400 ${isSyncingMetadata ? "animate-spin text-white" : ""}`} />
             <span>{isSyncingMetadata ? "Syncing..." : "Sync DB"}</span>
           </button>
         </div>

@@ -91,7 +91,7 @@ export function ArtistDiscographyTable({ songs }: ArtistDiscographyTableProps) {
                     </span>
                   </td>
                   <td className="p-6">
-                    <span className="text-emerald-400 font-mono text-xs font-bold">
+                    <span className="text-white font-mono text-xs font-bold">
                       {(song.totalStreams || 0).toLocaleString()}
                     </span>
                   </td>
@@ -102,7 +102,7 @@ export function ArtistDiscographyTable({ songs }: ArtistDiscographyTableProps) {
                   </td>
                   <td className="p-6">
                     {song.videoKey ? (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 border border-emerald-500/30 text-emerald-400 text-xs font-bold">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/60 border border-white/20 text-white text-xs font-bold">
                         <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
                         </svg>

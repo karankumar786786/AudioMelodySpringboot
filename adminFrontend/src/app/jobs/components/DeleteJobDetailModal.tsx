@@ -135,7 +135,7 @@ export function DeleteJobDetailModal({
                     key={idx}
                     className={`p-4 rounded-2xl border flex items-center justify-between transition-all ${
                       isDone
-                        ? "bg-emerald-500/5 border-emerald-500/20"
+                        ? "bg-white/5 border-white/20"
                         : isInProgress
                         ? "bg-rose-500/10 border-rose-500/30 animate-pulse"
                         : isFailed
@@ -149,7 +149,7 @@ export function DeleteJobDetailModal({
                       <div
                         className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs ${
                           isDone
-                            ? "bg-emerald-500 text-white"
+                            ? "bg-white text-black"
                             : isInProgress
                             ? "bg-rose-600 text-white animate-spin"
                             : isFailed
@@ -177,7 +177,7 @@ export function DeleteJobDetailModal({
                       <span
                         className={`font-mono font-bold text-xs ${
                           isDone
-                            ? "text-emerald-400"
+                            ? "text-zinc-200"
                             : isInProgress
                             ? "text-rose-400"
                             : "text-zinc-500"
@@ -216,7 +216,7 @@ export function DeleteJobDetailModal({
             {job.videoKey && (
               <div className="flex justify-between truncate">
                 <span className="text-zinc-500">Video Canvas:</span>
-                <span className="text-emerald-400 font-semibold truncate max-w-[280px]">
+                <span className="text-zinc-200 font-semibold truncate max-w-[280px]">
                   {job.videoKey}
                 </span>
               </div>

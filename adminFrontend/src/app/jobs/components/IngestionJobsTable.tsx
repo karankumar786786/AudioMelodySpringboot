@@ -74,7 +74,7 @@ export function IngestionJobsTable({
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                   isActive
                     ? "bg-white text-black font-bold shadow-sm"
-                    : "bg-[#141418] text-zinc-400 hover:text-white hover:bg-[#1a1a20] border border-white/[0.08]"
+                    : "bg-[#141418] text-zinc-400 hover:text-white hover:bg-[#1a1a20] border border-white/8"
                 }`}
               >
                 {s === "ALL" ? "All Jobs" : s}
@@ -103,21 +103,21 @@ export function IngestionJobsTable({
             placeholder="Search song, artist, job ID..."
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-[#121215] border border-white/[0.08] hover:border-white/[0.14] focus:border-white/30 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none transition-all"
+            className="w-full pl-9 pr-4 py-2 bg-[#121215] border border-white/8 hover:border-white/14 focus:border-white/30 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none transition-all"
           />
         </div>
       </div>
 
       {/* Ingestion Jobs Table */}
-      <div className="relative bg-[#121215] border border-white/[0.08] rounded-2xl overflow-hidden shadow-sm">
+      <div className="relative bg-[#121215] border border-white/8 rounded-2xl overflow-hidden shadow-sm">
         {/* Top Animated Pulse Line during page/filter transitions */}
         {loading && (
-          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-500 via-indigo-500 to-cyan-400 animate-pulse z-20" />
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-zinc-500 via-white to-zinc-400 animate-pulse z-20" />
         )}
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
-            <thead className="bg-[#0e0e11] border-b border-white/[0.08] text-zinc-400 uppercase font-bold tracking-wider text-[10px]">
+            <thead className="bg-[#0e0e11] border-b border-white/8 text-zinc-400 uppercase font-bold tracking-wider text-[10px]">
               <tr>
                 <th className="py-3 px-4">Song / Target</th>
                 <th className="py-3 px-4">Status</th>
@@ -129,7 +129,7 @@ export function IngestionJobsTable({
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/[0.06] font-mono">
+            <tbody className="divide-y divide-white/6 font-mono">
               {loading ? (
                 <TableSkeleton columns={8} rows={Math.min(pageSize, 8)} variant="job" />
               ) : jobs.length === 0 ? (
@@ -149,12 +149,12 @@ export function IngestionJobsTable({
                     <tr
                       key={job.id}
                       onClick={() => onSelectJob(job)}
-                      className="hover:bg-white/[0.03] cursor-pointer transition-colors group"
+                      className="hover:bg-white/3 cursor-pointer transition-colors group"
                     >
                       {/* Song details */}
                       <td className="py-3 px-4 font-sans">
                         <div className="flex items-center gap-3">
-                          <div className="relative w-8 h-8 rounded-lg overflow-hidden bg-black border border-white/[0.1] shrink-0">
+                          <div className="relative w-8 h-8 rounded-lg overflow-hidden bg-black border border-white/10 shrink-0">
                             {job.imageKey ? (
                               <Image
                                 src={getImageUrl(job.imageKey, { width: 64, height: 64 })}
@@ -227,7 +227,7 @@ export function IngestionJobsTable({
                               type="button"
                               onClick={(e) => onOpenRecoverModal(job, e)}
                               disabled={isRetrying || isDeleting}
-                              className="p-1.5 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-lg transition-colors cursor-pointer"
+                              className="p-1.5 text-zinc-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer"
                               title="Upload fresh media & reprocess"
                             >
                               <UploadCloud className="w-3.5 h-3.5" />

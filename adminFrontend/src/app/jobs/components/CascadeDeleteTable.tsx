@@ -104,7 +104,7 @@ export function CascadeDeleteTable({
       <div className="relative bg-[#121212] border border-[#282828] rounded-3xl overflow-hidden shadow-sm">
         {/* Top Animated Pulse Line during page/filter transitions */}
         {loading && (
-          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-emerald-500 via-indigo-500 to-emerald-400 animate-pulse z-20" />
+          <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-zinc-500 via-white to-zinc-400 animate-pulse z-20" />
         )}
 
         <div className="overflow-x-auto">

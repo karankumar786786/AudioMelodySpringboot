@@ -45,10 +45,10 @@ export function ActiveJobsLiveMonitor({
             <div
               key={job.id}
               onClick={() => onSelectJob(job)}
-              className="p-4 rounded-xl bg-[#141418] border border-white/[0.08] shadow-sm cursor-pointer hover:border-indigo-500/40 hover:bg-[#191920] transition-all space-y-3 group"
+              className="p-4 rounded-xl bg-[#141418] border border-white/8 shadow-sm cursor-pointer hover:border-indigo-500/40 hover:bg-[#191920] transition-all space-y-3 group"
             >
               <div className="flex items-center gap-3">
-                <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-black shrink-0 border border-white/[0.1]">
+                <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-black shrink-0 border border-white/10">
                   {job.imageKey ? (
                     <Image
                       src={getImageUrl(job.imageKey, { width: 100, height: 100 })}
@@ -78,7 +78,7 @@ export function ActiveJobsLiveMonitor({
                 </span>
               </div>
 
-              <div className="flex items-center justify-between text-[11px] text-zinc-400 font-mono pt-2 border-t border-white/[0.06]">
+              <div className="flex items-center justify-between text-[11px] text-zinc-400 font-mono pt-2 border-t border-white/6">
                 <span className="flex items-center gap-1.5">
                   <Cpu className="w-3.5 h-3.5 text-zinc-500" />
                   <span>{formatMs(job.elapsedTotalMs)}</span>

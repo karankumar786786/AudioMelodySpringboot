@@ -68,11 +68,11 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-64 bg-[#0d0d0f] border-r border-white/[0.08] flex flex-col z-50 select-none">
+    <aside className="fixed left-0 top-0 h-full w-64 bg-[#0d0d0f] border-r border-white/8 flex flex-col z-50 select-none">
       {/* Brand & Studio Header */}
-      <div className="p-5 pb-4 flex items-center justify-between border-b border-white/[0.06]">
+      <div className="p-5 pb-4 flex items-center justify-between border-b border-white/6">
         <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-9 h-9 rounded-xl bg-black flex items-center justify-center overflow-hidden shrink-0 border border-white/[0.12] group-hover:border-white/30 transition-all shadow-sm">
+          <div className="w-9 h-9 rounded-xl bg-black flex items-center justify-center overflow-hidden shrink-0 border border-white/12 group-hover:border-white/30 transition-all shadow-sm">
             <img
               src="/image.png"
               alt="One Melody Logo"
@@ -114,8 +114,8 @@ export function Sidebar() {
               href={item.href}
               className={`relative flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all duration-150 group text-xs font-semibold ${
                 isActive
-                  ? "bg-white/[0.1] text-white shadow-sm font-bold"
-                  : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200"
+                  ? "bg-white/10 text-white shadow-sm font-bold"
+                  : "text-zinc-400 hover:bg-white/4 hover:text-zinc-200"
               }`}
             >
               {/* Active Accent Indicator */}
@@ -159,23 +159,23 @@ export function Sidebar() {
       </nav>
 
       {/* System Telemetry Micro-Pill */}
-      <div className="p-3 mx-3 mb-2 rounded-xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-between text-[11px]">
+      <div className="p-3 mx-3 mb-2 rounded-xl bg-white/2 border border-white/6 flex items-center justify-between text-[11px]">
         <div className="flex items-center gap-2">
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
           </span>
           <span className="text-zinc-400 font-medium">Pipeline Nodes</span>
         </div>
-        <span className="text-emerald-400 font-mono font-bold text-[10px] uppercase">
+        <span className="text-zinc-200 font-mono font-bold text-[10px] uppercase">
           Online
         </span>
       </div>
 
       {/* Admin Profile Footer */}
       {user && (
-        <div className="p-3 border-t border-white/[0.08] bg-[#09090b]">
-          <div className="p-2.5 rounded-xl bg-[#141417] border border-white/[0.06] flex items-center gap-3">
+        <div className="p-3 border-t border-white/8 bg-[#09090b]">
+          <div className="p-2.5 rounded-xl bg-[#141417] border border-white/6 flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-zinc-700 to-zinc-900 border border-white/15 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-inner">
               {user.name ? user.name.charAt(0).toUpperCase() : "A"}
             </div>

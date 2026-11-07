@@ -203,7 +203,7 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
         {/* Header */}
         <div className="p-6 border-b border-[#282828] flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-2xl border border-emerald-500/20">
+            <div className="p-3 bg-white/10 text-white rounded-2xl border border-white/20">
               <UploadCloud className="w-6 h-6" />
             </div>
             <div>
@@ -288,7 +288,7 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
           <div className="border border-dashed border-[#282828] rounded-2xl p-4 bg-black/40 space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-zinc-200 flex items-center gap-1.5 uppercase tracking-wider">
-                <Music className="w-4 h-4 text-emerald-400" />
+                <Music className="w-4 h-4 text-white" />
                 Replacement Audio Track
               </label>
               {recoverAudioFile && (
@@ -312,7 +312,7 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
               className="w-full text-xs text-zinc-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#282828] file:text-white hover:file:bg-zinc-700 cursor-pointer"
             />
             {recoverAudioFile && (
-              <div className="text-[11px] text-emerald-400 flex items-center gap-1.5">
+              <div className="text-[11px] text-zinc-200 flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>
                   Selected: {recoverAudioFile.name} ({(recoverAudioFile.size / (1024 * 1024)).toFixed(2)} MB)
@@ -428,7 +428,7 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
             <button
               type="submit"
               disabled={isRecovering || (!recoverAudioFile && !recoverVideoFile)}
-              className="px-6 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs rounded-full transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+              className="px-6 py-2 bg-white hover:bg-zinc-200 text-black font-bold text-xs rounded-full transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
             >
               {isRecovering ? (
                 <>

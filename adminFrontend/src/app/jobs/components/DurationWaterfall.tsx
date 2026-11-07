@@ -35,7 +35,7 @@ export function DurationWaterfall({
 
   return (
     <div
-      className={`bg-[#141418] border border-white/[0.08] rounded-2xl p-4 space-y-3 ${className}`}
+      className={`bg-[#141418] border border-white/8 rounded-2xl p-4 space-y-3 ${className}`}
     >
       <div className="flex items-center justify-between text-xs font-semibold text-zinc-300">
         <span>Execution Waterfall &amp; Latency</span>
@@ -45,7 +45,7 @@ export function DurationWaterfall({
       </div>
 
       {/* Stacked Waterfall Bar */}
-      <div className="h-2.5 w-full bg-white/[0.05] rounded-full overflow-hidden flex">
+      <div className="h-2.5 w-full bg-white/5 rounded-full overflow-hidden flex">
         {tPct > 0 && (
           <div
             style={{ width: `${tPct}%` }}
@@ -70,7 +70,7 @@ export function DurationWaterfall({
         {fPct > 0 && (
           <div
             style={{ width: `${fPct}%` }}
-            className="h-full bg-emerald-500 transition-all"
+            className="h-full bg-white transition-all"
             title={`Finalize: ${formatMs(fMs)} (${fPct.toFixed(0)}%)`}
           />
         )}
@@ -94,7 +94,7 @@ export function DurationWaterfall({
           <span className="text-zinc-200">{formatMs(sMs)}</span>
         </div>
         <div className="flex items-center gap-1.5 text-zinc-400">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+          <span className="w-2 h-2 rounded-full bg-white shrink-0" />
           <span>Finalize:</span>
           <span className="text-zinc-200">{formatMs(fMs)}</span>
         </div>

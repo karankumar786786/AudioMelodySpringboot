@@ -10,14 +10,14 @@ interface DashboardHeaderProps {
 
 export function DashboardHeader({ onRefresh, loading, refreshing }: DashboardHeaderProps) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.08]">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/8">
       <div>
         <div className="flex items-center gap-3">
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-white flex items-center gap-2.5">
             Mission Control HUD
           </h1>
-          <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/10 text-white border border-white/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
             <span>Live Cluster</span>
           </span>
         </div>

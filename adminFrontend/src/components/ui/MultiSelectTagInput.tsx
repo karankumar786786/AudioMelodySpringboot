@@ -85,13 +85,13 @@ export function MultiSelectTagInput({
         className={`min-h-[42px] w-full bg-[#121215] border rounded-xl p-1.5 flex flex-wrap items-center gap-1.5 cursor-text transition-all ${
           isFocused
             ? "border-white/30 bg-[#16161a] ring-1 ring-white/10"
-            : "border-white/[0.08] hover:border-white/[0.14]"
+            : "border-white/8 hover:border-white/14"
         } ${error ? "border-rose-500/50" : ""}`}
       >
         {currentTags.map((tag, idx) => (
           <span
             key={`${tag}-${idx}`}
-            className="inline-flex items-center gap-1 text-[11px] font-semibold bg-white/[0.08] text-white border border-white/[0.12] px-2.5 py-1 rounded-lg animate-in fade-in zoom-in-95 duration-100"
+            className="inline-flex items-center gap-1 text-[11px] font-semibold bg-white/8 text-white border border-white/12 px-2.5 py-1 rounded-lg animate-in fade-in zoom-in-95 duration-100"
           >
             <span>{tag}</span>
             {!disabled && (
@@ -141,7 +141,7 @@ export function MultiSelectTagInput({
                 e.preventDefault(); // prevent blur before click
                 addTag(sugg);
               }}
-              className="inline-flex items-center gap-1 text-[10px] font-medium text-zinc-400 hover:text-white bg-white/[0.03] hover:bg-white/[0.08] border border-white/[0.06] hover:border-white/[0.14] px-2 py-0.5 rounded-md transition-all cursor-pointer"
+              className="inline-flex items-center gap-1 text-[10px] font-medium text-zinc-400 hover:text-white bg-white/3 hover:bg-white/8 border border-white/6 hover:border-white/14 px-2 py-0.5 rounded-md transition-all cursor-pointer"
             >
               <Plus className="w-2.5 h-2.5" />
               <span>{sugg}</span>
