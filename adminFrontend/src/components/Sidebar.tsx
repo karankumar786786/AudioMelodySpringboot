@@ -3,32 +3,50 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
+import {
+  LayoutDashboard,
+  Music,
+  Cpu,
+  Mic2,
+  ListMusic,
+  ShieldAlert,
+  ChevronRight,
+  Sparkles,
+} from "lucide-react";
 
-const navItems = [
+interface NavItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: string;
+  badgeVariant?: "danger" | "warning" | "default";
+}
+
+const baseNavItems: NavItem[] = [
   {
     name: "Dashboard",
     href: "/",
-    icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6",
+    icon: LayoutDashboard,
   },
   {
-    name: "Songs",
+    name: "Songs Studio",
     href: "/songs",
-    icon: "M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3",
+    icon: Music,
   },
   {
     name: "Processing",
     href: "/jobs",
-    icon: "M13 10V3L4 14h7v7l9-11h-7z",
+    icon: Cpu,
   },
   {
     name: "Artists",
     href: "/artists",
-    icon: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
+    icon: Mic2,
   },
   {
     name: "Playlists",
     href: "/playlists",
-    icon: "M4 6h16M4 10h16M4 14h16M4 18h16",
+    icon: ListMusic,
   },
 ];
 
@@ -36,92 +54,143 @@ export function Sidebar() {
   const pathname = usePathname();
   const { user } = useAuth();
 
-  // Only superadmin can manage other admins
-  const visibleNavItems = [...navItems];
+  const visibleNavItems = [...baseNavItems];
   const roleUpper = user?.role?.toUpperCase() || "";
-  if (roleUpper === "SUPERADMIN" || roleUpper === "SUPER_ADMIN") {
+  const isSuperAdmin =
+    roleUpper === "SUPERADMIN" || roleUpper === "SUPER_ADMIN";
+
+  if (isSuperAdmin) {
     visibleNavItems.push({
-      name: "Admins",
+      name: "Security & Admins",
       href: "/users",
-      icon: "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a3 3 0 11-6 0 3 3 0 016 0z",
+      icon: ShieldAlert,
     });
   }
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-64 bg-black border-r border-[#282828] flex flex-col z-50">
-      {/* Brand & Logo Header */}
-      <div className="p-6 pb-5 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-black flex items-center justify-center overflow-hidden shrink-0 border border-[#282828]">
-          <img
-            src="/image.png"
-            alt="One Melody Logo"
-            className="w-full h-full object-contain"
-          />
-        </div>
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-lg font-black text-white tracking-tight truncate">
-            One Melody
-          </span>
-        </div>
+    <aside className="fixed left-0 top-0 h-full w-64 bg-[#0d0d0f] border-r border-white/[0.08] flex flex-col z-50 select-none">
+      {/* Brand & Studio Header */}
+      <div className="p-5 pb-4 flex items-center justify-between border-b border-white/[0.06]">
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="w-9 h-9 rounded-xl bg-black flex items-center justify-center overflow-hidden shrink-0 border border-white/[0.12] group-hover:border-white/30 transition-all shadow-sm">
+            <img
+              src="/image.png"
+              alt="One Melody Logo"
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
+              One Melody
+              <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 bg-white/10 text-zinc-300 rounded border border-white/15">
+                Admin
+              </span>
+            </span>
+            <span className="text-[10px] text-zinc-500 font-mono tracking-wide">
+              Studio Console
+            </span>
+          </div>
+        </Link>
       </div>
 
-      {/* Navigation Links */}
-      <div className="px-4 py-2">
-        <h3 className="px-3 text-[11px] font-bold text-zinc-500 uppercase tracking-wider mb-2">
-          Management
-        </h3>
+      {/* Navigation Section */}
+      <div className="px-4 pt-4 pb-1">
+        <span className="px-3 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+          Platform Management
+        </span>
       </div>
 
-      <nav className="flex-1 px-3 space-y-1 overflow-y-auto no-scrollbar">
+      <nav className="flex-1 px-3 space-y-1 overflow-y-auto no-scrollbar py-2">
         {visibleNavItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive =
+            item.href === "/"
+              ? pathname === "/"
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const Icon = item.icon;
+
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-150 group text-xs font-semibold ${
+              className={`relative flex items-center justify-between px-3.5 py-2.5 rounded-xl transition-all duration-150 group text-xs font-semibold ${
                 isActive
-                  ? "bg-[#282828] text-white font-bold shadow-sm"
-                  : "text-zinc-400 hover:bg-[#181818] hover:text-white"
+                  ? "bg-white/[0.1] text-white shadow-sm font-bold"
+                  : "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-200"
               }`}
             >
-              <svg
-                className={`w-4 h-4 transition-colors ${
-                  isActive
-                    ? "text-white"
-                    : "text-zinc-500 group-hover:text-zinc-200"
-                }`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d={item.icon}
+              {/* Active Accent Indicator */}
+              {isActive && (
+                <div className="absolute left-0 top-2 bottom-2 w-1 bg-white rounded-r-full shadow-[0_0_8px_rgba(255,255,255,0.6)]" />
+              )}
+
+              <div className="flex items-center gap-3 min-w-0">
+                <Icon
+                  className={`w-4 h-4 shrink-0 transition-colors ${
+                    isActive
+                      ? "text-white"
+                      : "text-zinc-500 group-hover:text-zinc-300"
+                  }`}
                 />
-              </svg>
-              {item.name}
+                <span className="truncate">{item.name}</span>
+              </div>
+
+              {item.badge ? (
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    item.badgeVariant === "danger"
+                      ? "bg-rose-500/15 text-rose-400 border-rose-500/30"
+                      : "bg-white/10 text-zinc-300 border-white/20"
+                  }`}
+                >
+                  {item.badge}
+                </span>
+              ) : (
+                <ChevronRight
+                  className={`w-3.5 h-3.5 transition-transform ${
+                    isActive
+                      ? "text-white/60 opacity-100"
+                      : "text-zinc-600 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5"
+                  }`}
+                />
+              )}
             </Link>
           );
         })}
       </nav>
 
-      {/* Logged in User Profile Card */}
+      {/* System Telemetry Micro-Pill */}
+      <div className="p-3 mx-3 mb-2 rounded-xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-between text-[11px]">
+        <div className="flex items-center gap-2">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <span className="text-zinc-400 font-medium">Pipeline Nodes</span>
+        </div>
+        <span className="text-emerald-400 font-mono font-bold text-[10px] uppercase">
+          Online
+        </span>
+      </div>
+
+      {/* Admin Profile Footer */}
       {user && (
-        <div className="p-4 border-t border-[#282828]">
-          <div className="bg-[#121212] border border-[#282828] p-3 rounded-2xl flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-white text-black font-black text-xs flex items-center justify-center shrink-0">
-              {user.name.charAt(0).toUpperCase()}
+        <div className="p-3 border-t border-white/[0.08] bg-[#09090b]">
+          <div className="p-2.5 rounded-xl bg-[#141417] border border-white/[0.06] flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-zinc-700 to-zinc-900 border border-white/15 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-inner">
+              {user.name ? user.name.charAt(0).toUpperCase() : "A"}
             </div>
             <div className="flex flex-col min-w-0 flex-1">
               <span className="text-xs font-bold text-white truncate">
-                {user.name}
+                {user.name || "Administrator"}
               </span>
-              <span className="text-[10px] text-zinc-400 capitalize truncate">
-                {user.role}
-              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-wider truncate">
+                  {user.role}
+                </span>
+                {isSuperAdmin && (
+                  <Sparkles className="w-2.5 h-2.5 text-amber-400 shrink-0" />
+                )}
+              </div>
             </div>
           </div>
         </div>

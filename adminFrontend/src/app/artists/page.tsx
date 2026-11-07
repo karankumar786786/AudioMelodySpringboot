@@ -95,26 +95,28 @@ export default function ArtistsPage() {
   };
 
   return (
-    <div className="p-8 space-y-8">
+    <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-6 text-white font-sans">
       {/* Header and Controls */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-[#121212] p-6 rounded-3xl border border-[#282828]">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#121215] p-5 rounded-2xl border border-white/[0.08]">
         <div>
-          <h1 className="text-3xl font-bold text-white">Artist Management</h1>
-          <p className="text-zinc-400 mt-1 text-sm">
-            Manage artist profiles, discographies, and biographies.
+          <h1 className="text-2xl font-bold text-white tracking-tight">
+            Artist Management
+          </h1>
+          <p className="text-zinc-400 mt-1 text-xs leading-relaxed">
+            Manage artist profiles, discographies, cover artwork, and bios.
           </p>
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           {/* Search Box */}
           <div className="relative min-w-65 sm:w-72">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
             <input
               type="text"
               placeholder="Search artists..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-9 py-2.5 bg-black/60 border border-[#282828] rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 transition-colors"
+              className="w-full pl-10 pr-9 py-2 bg-[#16161a] border border-white/[0.08] hover:border-white/[0.14] focus:border-white/30 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none transition-all"
             />
             {search && (
               <button
@@ -122,17 +124,18 @@ export default function ArtistsPage() {
                 onClick={() => setSearch("")}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
 
           <button
+            type="button"
             onClick={() => setIsModalOpen(true)}
-            className="bg-white hover:bg-zinc-200 text-black px-5 py-2.5 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-2 shadow-sm text-sm shrink-0 cursor-pointer"
+            className="bg-white hover:bg-zinc-200 text-black px-4 py-2 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-2 shadow-sm text-xs shrink-0 cursor-pointer"
           >
-            <UserPlus className="w-4 h-4" />
-            Add Artist
+            <UserPlus className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>Add Artist</span>
           </button>
         </div>
       </div>

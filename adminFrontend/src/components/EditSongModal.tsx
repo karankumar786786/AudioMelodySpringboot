@@ -24,6 +24,7 @@ import {
   uploadWithProgress,
 } from "@/lib/upload-utils";
 import { UploadProgressBar } from "./UploadProgressBar";
+import { MultiSelectTagInput } from "./ui/MultiSelectTagInput";
 
 export interface SongData {
   id: string;
@@ -516,16 +517,17 @@ export function EditSongModal({
             </div>
 
             <div className="col-span-2">
-              <label className={labelCls}>Artist Name</label>
-              <input
-                required
-                type="text"
-                value={formData.artistName}
-                onChange={(e) =>
-                  setFormData({ ...formData, artistName: e.target.value })
+              <MultiSelectTagInput
+                label="Artist Name(s) *"
+                placeholder="e.g. Arijit Singh, Shreya Ghoshal"
+                values={
+                  formData.artistName
+                    ? formData.artistName.split(",").map((a) => a.trim()).filter(Boolean)
+                    : []
                 }
-                className={inputCls}
-                placeholder="Artist name..."
+                onChange={(artists) =>
+                  setFormData({ ...formData, artistName: artists.join(", ") })
+                }
               />
             </div>
 
@@ -570,15 +572,28 @@ export function EditSongModal({
             </div>
 
             <div>
-              <label className={labelCls}>Genre</label>
-              <input
-                type="text"
-                value={formData.genre}
-                onChange={(e) =>
-                  setFormData({ ...formData, genre: e.target.value })
+              <MultiSelectTagInput
+                label="Genres"
+                placeholder="e.g. Pop, Bollywood"
+                suggestions={[
+                  "Pop",
+                  "Hip-Hop",
+                  "Electronic",
+                  "R&B",
+                  "Rock",
+                  "Bollywood",
+                  "Indie",
+                  "Acoustic",
+                  "Ambient",
+                ]}
+                values={
+                  formData.genre
+                    ? formData.genre.split(",").map((g) => g.trim()).filter(Boolean)
+                    : []
                 }
-                className={inputCls}
-                placeholder="e.g. Pop, Romantic"
+                onChange={(genres) =>
+                  setFormData({ ...formData, genre: genres.join(", ") })
+                }
               />
             </div>
 

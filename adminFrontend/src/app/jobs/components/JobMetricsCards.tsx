@@ -49,7 +49,7 @@ export function JobMetricsCards(props: JobMetricsCardsProps) {
           {Array.from({ length: 5 }).map((_, idx) => (
             <div
               key={idx}
-              className="animate-pulse p-5 rounded-2xl bg-[#121212] border border-[#282828] space-y-3"
+              className="animate-pulse p-5 rounded-2xl bg-[#121215] border border-white/[0.08] space-y-3"
             >
               <div className="flex items-center justify-between">
                 <div className="h-3 w-16 bg-zinc-800 rounded" />
@@ -60,7 +60,7 @@ export function JobMetricsCards(props: JobMetricsCardsProps) {
             </div>
           ))}
         </div>
-        <div className="animate-pulse p-6 rounded-2xl bg-[#121212] border border-[#282828] h-36" />
+        <div className="animate-pulse p-6 rounded-2xl bg-[#121215] border border-white/[0.08] h-36" />
       </div>
     );
   }
@@ -72,289 +72,222 @@ export function JobMetricsCards(props: JobMetricsCardsProps) {
         {/* KPI Cards Grid */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {/* Currently Processing */}
-          <div className="p-5 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden group hover:border-zinc-700 hover:bg-[#181818] transition-all">
+          <div className="p-5 rounded-2xl bg-[#121215] border border-white/[0.08] shadow-sm relative overflow-hidden group hover:border-indigo-500/40 hover:bg-[#16161c] transition-all">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Processing</span>
-              <div className="w-8 h-8 rounded-xl bg-black border border-[#282828] text-white flex items-center justify-center">
+              <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+                Processing
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-black border border-white/[0.1] text-indigo-400 flex items-center justify-center">
                 <Activity className="w-4 h-4 animate-pulse" />
               </div>
             </div>
-            <div className="text-3xl font-bold text-white">
+            <div className="text-3xl font-bold text-white tabular-nums">
               {ingMetrics?.currentlyProcessing ?? 0}
             </div>
             <p className="text-[11px] text-zinc-400 mt-1">Active transcode &amp; sync</p>
           </div>
 
           {/* Queued / Pending */}
-          <div className="p-5 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden hover:border-zinc-700 hover:bg-[#181818] transition-all">
+          <div className="p-5 rounded-2xl bg-[#121215] border border-white/[0.08] shadow-sm relative overflow-hidden hover:border-amber-500/40 hover:bg-[#16161c] transition-all">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">In Queue</span>
-              <div className="w-8 h-8 rounded-xl bg-black border border-[#282828] text-amber-400 flex items-center justify-center">
+              <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+                In Queue
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-black border border-white/[0.1] text-amber-400 flex items-center justify-center">
                 <Clock className="w-4 h-4" />
               </div>
             </div>
-            <div className="text-3xl font-bold text-white">
+            <div className="text-3xl font-bold text-white tabular-nums">
               {ingMetrics?.pendingQueued ?? 0}
             </div>
             <p className="text-[11px] text-zinc-400 mt-1">Waiting for worker pick</p>
           </div>
 
-          {/* Successfully Completed */}
-          <div className="p-5 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden hover:border-zinc-700 hover:bg-[#181818] transition-all">
+          {/* Completed Successfully */}
+          <div className="p-5 rounded-2xl bg-[#121215] border border-white/[0.08] shadow-sm relative overflow-hidden hover:border-emerald-500/40 hover:bg-[#16161c] transition-all">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Completed</span>
-              <div className="w-8 h-8 rounded-xl bg-black border border-[#282828] text-emerald-400 flex items-center justify-center">
+              <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+                Completed
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-black border border-white/[0.1] text-emerald-400 flex items-center justify-center">
                 <CheckCircle2 className="w-4 h-4" />
               </div>
             </div>
-            <div className="text-3xl font-bold text-white">
+            <div className="text-3xl font-bold text-white tabular-nums">
               {ingMetrics?.completed ?? 0}
             </div>
-            <p className="text-[11px] text-zinc-400 mt-1">Ingested successfully</p>
+            <p className="text-[11px] text-zinc-400 mt-1">Finished &amp; indexed</p>
           </div>
 
-          {/* Failed */}
-          <div className="p-5 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden hover:border-zinc-700 hover:bg-[#181818] transition-all">
+          {/* Failed / Needs Attention */}
+          <div
+            className={`p-5 rounded-2xl border shadow-sm relative overflow-hidden transition-all ${
+              (ingMetrics?.failed ?? 0) > 0
+                ? "bg-rose-500/10 border-rose-500/25 text-rose-300"
+                : "bg-[#121215] border-white/[0.08] text-zinc-300 hover:border-white/[0.14]"
+            }`}
+          >
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Failed</span>
-              <div className="w-8 h-8 rounded-xl bg-black border border-[#282828] text-rose-400 flex items-center justify-center">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                Failed
+              </span>
+              <div
+                className={`w-8 h-8 rounded-xl border flex items-center justify-center ${
+                  (ingMetrics?.failed ?? 0) > 0
+                    ? "bg-rose-500/20 border-rose-500/40 text-rose-400"
+                    : "bg-black border-white/[0.1] text-zinc-500"
+                }`}
+              >
                 <AlertTriangle className="w-4 h-4" />
               </div>
             </div>
-            <div className="text-3xl font-bold text-white">
+            <div className="text-3xl font-bold tabular-nums">
               {ingMetrics?.failed ?? 0}
             </div>
-            <p className="text-[11px] text-zinc-400 mt-1">Errors requiring inspection</p>
+            <p className="text-[11px] text-zinc-400 mt-1">
+              {(ingMetrics?.failed ?? 0) > 0
+                ? "Requires retry or fix"
+                : "Zero pipeline errors"}
+            </p>
           </div>
 
-          {/* Total Jobs */}
-          <div className="p-5 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden col-span-2 md:col-span-1 hover:border-zinc-700 hover:bg-[#181818] transition-all">
+          {/* Total Ingested Lifetime */}
+          <div className="p-5 rounded-2xl bg-[#121215] border border-white/[0.08] shadow-sm relative overflow-hidden hover:border-white/[0.14] hover:bg-[#16161c] transition-all">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Total Lifetime</span>
-              <div className="w-8 h-8 rounded-xl bg-black border border-[#282828] text-zinc-300 flex items-center justify-center">
+              <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+                Total Ingested
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-black border border-white/[0.1] text-white flex items-center justify-center">
                 <Layers className="w-4 h-4" />
               </div>
             </div>
-            <div className="text-3xl font-bold text-white">
+            <div className="text-3xl font-bold text-white tabular-nums">
               {ingMetrics?.totalJobs ?? 0}
             </div>
-            <p className="text-[11px] text-zinc-400 mt-1">All pipeline executions</p>
+            <p className="text-[11px] text-zinc-400 mt-1">Catalog pipelines</p>
           </div>
         </div>
 
-
-        {/* Pipeline Flowchart Visualizer */}
-        <div className="p-6 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
+        {/* Latency & Stage Watermark Banner */}
+        <div className="p-5 rounded-2xl bg-[#121215] border border-white/[0.08] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-6">
             <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Cpu className="w-4 h-4 text-white" />
-                Song Ingestion Pipeline Architecture &amp; Latency
-              </h3>
-              <p className="text-xs text-zinc-400 mt-0.5">
-                Live state machine executing across workers, GPU accelerated transcoding, and cloud search indices.
-              </p>
+              <span className="text-[10px] text-zinc-500 uppercase font-mono tracking-wider">
+                Avg Transcode Latency
+              </span>
+              <div className="text-xl font-bold text-white font-mono mt-0.5 tabular-nums">
+                {formatMs(ingMetrics?.avgTranscodingMs)}
+              </div>
             </div>
-            <span className="text-xs font-mono font-bold text-zinc-300 bg-black/60 border border-[#282828] px-3 py-1 rounded-full">
-              Avg Total: {formatMs(ingMetrics?.avgTotalMs)}
-            </span>
+            <div className="h-8 w-px bg-white/[0.08]" />
+            <div>
+              <span className="text-[10px] text-zinc-500 uppercase font-mono tracking-wider">
+                Avg Full Turnaround
+              </span>
+              <div className="text-xl font-bold text-white font-mono mt-0.5 tabular-nums">
+                {formatMs(ingMetrics?.avgTotalMs)}
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2">
-            <div className="p-4 rounded-xl bg-black/50 border border-[#282828]">
-              <div className="flex items-center justify-between text-xs mb-2">
-                <span className="font-bold text-amber-400">1. Pickup &amp; Download</span>
-                <Radio className="w-3.5 h-3.5 text-amber-400" />
-              </div>
-              <div className="text-lg font-bold text-white">
-                {ingMetrics?.stageBreakdown?.["QUEUED"] ?? 0}
-              </div>
-              <div className="text-[11px] text-zinc-400 mt-1">Pending worker pickup</div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-black/50 border border-[#282828]">
-              <div className="flex items-center justify-between text-xs mb-2">
-                <span className="font-bold text-white">2. Transcoding (DASH/HLS)</span>
-                <Cpu className="w-3.5 h-3.5 text-white" />
-              </div>
-              <div className="text-lg font-bold text-white">
-                {ingMetrics?.stageBreakdown?.["TRANSCODING"] ?? 0}
-              </div>
-              <div className="text-[11px] text-zinc-400 mt-1">Avg: {formatMs(ingMetrics?.avgTranscodingMs)}</div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-black/50 border border-[#282828]">
-              <div className="flex items-center justify-between text-xs mb-2">
-                <span className="font-bold text-zinc-200">3. Recombee AI</span>
-                <Sparkles className="w-3.5 h-3.5 text-zinc-200" />
-              </div>
-              <div className="text-lg font-bold text-white">
-                {ingMetrics?.stageBreakdown?.["RECOMMENDATION_INDEXING"] ?? 0}
-              </div>
-              <div className="text-[11px] text-zinc-400 mt-1">Avg: {formatMs(ingMetrics?.avgRecommendationMs)}</div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-black/50 border border-[#282828]">
-              <div className="flex items-center justify-between text-xs mb-2">
-                <span className="font-bold text-zinc-200">4. Algolia Search</span>
-                <Search className="w-3.5 h-3.5 text-zinc-200" />
-              </div>
-              <div className="text-lg font-bold text-white">
-                {ingMetrics?.stageBreakdown?.["SEARCH_INDEXING"] ?? 0}
-              </div>
-              <div className="text-[11px] text-zinc-400 mt-1">Avg: {formatMs(ingMetrics?.avgSearchMs)}</div>
-            </div>
-
-            <div className="p-4 rounded-xl bg-black/50 border border-[#282828]">
-              <div className="flex items-center justify-between text-xs mb-2">
-                <span className="font-bold text-emerald-400">5. Finalize Song</span>
-                <Database className="w-3.5 h-3.5 text-emerald-400" />
-              </div>
-              <div className="text-lg font-bold text-white">
-                {ingMetrics?.stageBreakdown?.["FINALIZING"] ?? 0}
-              </div>
-              <div className="text-[11px] text-zinc-400 mt-1">Avg: {formatMs(ingMetrics?.avgFinalizeMs)}</div>
-            </div>
+          <div className="flex items-center gap-2 text-xs text-zinc-400 font-mono">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Worker Concurrency: Max 2 Parallel</span>
           </div>
         </div>
       </div>
     );
   }
 
-  // DELETION
+  // Deletion Pipeline Metrics
   const delMetrics = metrics as DeleteJobSummaryMetrics | null;
   return (
     <div className="space-y-4">
-      {/* Delete KPI Cards Grid */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div className="p-5 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden group hover:border-zinc-700 transition-all">
+        {/* Processing Deletions */}
+        <div className="p-5 rounded-2xl bg-[#121215] border border-white/[0.08] shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-rose-400 uppercase tracking-wider">In Progress</span>
-            <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center">
+            <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+              In Flight
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-black border border-white/[0.1] text-indigo-400 flex items-center justify-center">
               <Activity className="w-4 h-4 animate-pulse" />
             </div>
           </div>
-          <div className="text-3xl font-black text-white">
+          <div className="text-3xl font-bold text-white tabular-nums">
             {delMetrics?.currentlyProcessing ?? 0}
           </div>
-          <p className="text-[11px] text-zinc-500 mt-1">Purging cloud assets</p>
+          <p className="text-[11px] text-zinc-400 mt-1">Cascading cleanup</p>
         </div>
 
-        <div className="p-5 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden group hover:border-zinc-700 transition-all">
+        {/* Queued */}
+        <div className="p-5 rounded-2xl bg-[#121215] border border-white/[0.08] shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-amber-400 uppercase tracking-wider">In Queue</span>
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
+            <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+              Queued
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-black border border-white/[0.1] text-amber-400 flex items-center justify-center">
               <Clock className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-3xl font-black text-white">
+          <div className="text-3xl font-bold text-white tabular-nums">
             {delMetrics?.pendingQueued ?? 0}
           </div>
-          <p className="text-[11px] text-zinc-500 mt-1">Awaiting deletion dispatch</p>
+          <p className="text-[11px] text-zinc-400 mt-1">Waiting in deletion queue</p>
         </div>
 
-        <div className="p-5 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden group hover:border-zinc-700 transition-all">
+        {/* Completed */}
+        <div className="p-5 rounded-2xl bg-[#121215] border border-white/[0.08] shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Purged &amp; Deleted</span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+            <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+              Completed
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-black border border-white/[0.1] text-emerald-400 flex items-center justify-center">
               <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-3xl font-black text-white">
+          <div className="text-3xl font-bold text-white tabular-nums">
             {delMetrics?.completed ?? 0}
           </div>
-          <p className="text-[11px] text-zinc-500 mt-1">Zero orphaned assets</p>
+          <p className="text-[11px] text-zinc-400 mt-1">Hard deleted across all tiers</p>
         </div>
 
-        <div className="p-5 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden group hover:border-zinc-700 transition-all">
+        {/* Failed */}
+        <div
+          className={`p-5 rounded-2xl border shadow-sm ${
+            (delMetrics?.failed ?? 0) > 0
+              ? "bg-rose-500/10 border-rose-500/25 text-rose-300"
+              : "bg-[#121215] border-white/[0.08] text-zinc-300"
+          }`}
+        >
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-rose-400 uppercase tracking-wider">Failed</span>
-            <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+              Failed
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-black border border-white/[0.1] text-rose-400 flex items-center justify-center">
               <AlertTriangle className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-3xl font-black text-white">
+          <div className="text-3xl font-bold tabular-nums">
             {delMetrics?.failed ?? 0}
           </div>
-          <p className="text-[11px] text-zinc-500 mt-1">Actionable retry available</p>
+          <p className="text-[11px] text-zinc-400 mt-1">Orphaned cleanup jobs</p>
         </div>
 
-        <div className="p-5 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm relative overflow-hidden col-span-2 md:col-span-1 group hover:border-zinc-700 transition-all">
+        {/* Total Deletions */}
+        <div className="p-5 rounded-2xl bg-[#121215] border border-white/[0.08] shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Total Lifetime</span>
-            <div className="w-8 h-8 rounded-xl bg-black/60 text-zinc-300 border border-[#282828] flex items-center justify-center">
+            <span className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+              Total Purged
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-black border border-white/[0.1] text-white flex items-center justify-center">
               <Trash2 className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-3xl font-black text-white">
+          <div className="text-3xl font-bold text-white tabular-nums">
             {delMetrics?.totalJobs ?? 0}
           </div>
-          <p className="text-[11px] text-zinc-500 mt-1">All cascade operations</p>
-        </div>
-      </div>
-
-      {/* Delete Cascade Architecture Flowchart */}
-      <div className="p-6 rounded-2xl bg-[#121212] border border-[#282828] shadow-sm space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <CloudLightning className="w-4 h-4 text-rose-400" />
-              Cascade Delete Architecture &amp; Cleanup Flow
-            </h3>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Strict multi-tier distributed purge removing artifacts from indices, CDNs, object storage, and relational DB.
-            </p>
-          </div>
-          <span className="text-xs font-mono font-bold text-zinc-300 bg-black/60 border border-[#282828] px-3 py-1 rounded-full">
-            Avg Total: {formatMs(delMetrics?.avgTotalMs)}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 pt-2">
-          <div className="p-4 rounded-xl bg-black/50 border border-[#282828]">
-            <div className="flex items-center justify-between text-xs mb-2">
-              <span className="font-bold text-cyan-400">1. Algolia Purge</span>
-              <Search className="w-3.5 h-3.5 text-cyan-400" />
-            </div>
-            <div className="text-lg font-bold text-white">{delMetrics?.stageBreakdown?.["SEARCH_DELETED"] ?? 0}</div>
-            <div className="text-[11px] text-zinc-400 mt-1">Avg: {formatMs(delMetrics?.avgSearchMs)}</div>
-          </div>
-
-          <div className="p-4 rounded-xl bg-black/50 border border-[#282828]">
-            <div className="flex items-center justify-between text-xs mb-2">
-              <span className="font-bold text-purple-400">2. Recombee Purge</span>
-              <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-            </div>
-            <div className="text-lg font-bold text-white">{delMetrics?.stageBreakdown?.["RECOMMENDATION_DELETED"] ?? 0}</div>
-            <div className="text-[11px] text-zinc-400 mt-1">Avg: {formatMs(delMetrics?.avgRecommendationMs)}</div>
-          </div>
-
-          <div className="p-4 rounded-xl bg-black/50 border border-[#282828]">
-            <div className="flex items-center justify-between text-xs mb-2">
-              <span className="font-bold text-pink-400">3. ImageKit Purge</span>
-              <Workflow className="w-3.5 h-3.5 text-pink-400" />
-            </div>
-            <div className="text-lg font-bold text-white">{delMetrics?.stageBreakdown?.["IMAGEKIT_DELETED"] ?? 0}</div>
-            <div className="text-[11px] text-zinc-400 mt-1">Avg: {formatMs(delMetrics?.avgImageKitMs)}</div>
-          </div>
-
-          <div className="p-4 rounded-xl bg-black/50 border border-[#282828]">
-            <div className="flex items-center justify-between text-xs mb-2">
-              <span className="font-bold text-indigo-400">4. S3 Storage Purge</span>
-              <HardDrive className="w-3.5 h-3.5 text-indigo-400" />
-            </div>
-            <div className="text-lg font-bold text-white">{delMetrics?.stageBreakdown?.["S3_DELETED"] ?? 0}</div>
-            <div className="text-[11px] text-zinc-400 mt-1">Avg: {formatMs(delMetrics?.avgS3Ms)}</div>
-          </div>
-
-          <div className="p-4 rounded-xl bg-black/50 border border-[#282828]">
-            <div className="flex items-center justify-between text-xs mb-2">
-              <span className="font-bold text-emerald-400">5. DB Hard Delete</span>
-              <Database className="w-3.5 h-3.5 text-emerald-400" />
-            </div>
-            <div className="text-lg font-bold text-white">{delMetrics?.stageBreakdown?.["COMPLETED"] ?? 0}</div>
-            <div className="text-[11px] text-zinc-400 mt-1">Zero orphans</div>
-          </div>
+          <p className="text-[11px] text-zinc-400 mt-1">Entities wiped</p>
         </div>
       </div>
     </div>

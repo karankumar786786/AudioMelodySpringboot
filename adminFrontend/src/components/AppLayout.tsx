@@ -1,14 +1,20 @@
 "use client";
 
-import { LogOut, WifiOff } from "lucide-react";
+import { LogOut, WifiOff, Plus, Radio } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
+import { useAudio } from "@/lib/audio-context";
 import { AuthScreen } from "./AuthScreen";
 import { GlobalSearch } from "./GlobalSearch";
 import { Sidebar } from "./Sidebar";
+import { MiniAudioDock } from "./audio/MiniAudioDock";
+import { CanvasPreviewModal } from "./audio/CanvasPreviewModal";
+import { StatusPill } from "./ui/StatusPill";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
+  const { currentTrack } = useAudio();
   const [isOffline, setIsOffline] = useState(false);
   const [backOnlineBanner, setBackOnlineBanner] = useState(false);
 
@@ -40,8 +46,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-black text-white">
-        <div className="animate-spin rounded-full h-10 w-10 border-2 border-white/20 border-t-white"></div>
+      <div className="flex min-h-screen items-center justify-center bg-[#080809] text-white">
+        <div className="flex flex-col items-center gap-3">
+          <div className="animate-spin rounded-full h-8 w-8 border-2 border-white/20 border-t-white" />
+          <span className="text-xs text-zinc-500 font-mono tracking-wider">
+            INITIALIZING WORKSPACE...
+          </span>
+        </div>
       </div>
     );
   }
@@ -56,10 +67,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     roleUpper === "ADMIN" ||
     roleUpper === "SUPERADMIN" ||
     roleUpper === "SUPER_ADMIN";
+
   if (!isAuthorized) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-black text-white font-sans p-6">
-        <div className="max-w-md w-full text-center space-y-6 p-8 bg-[#121212] border border-[#282828] rounded-3xl shadow-2xl">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#080809] text-white font-sans p-6">
+        <div className="max-w-md w-full text-center space-y-6 p-8 bg-[#121215] border border-white/[0.08] rounded-3xl shadow-2xl">
           <div className="w-14 h-14 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center justify-center mx-auto text-rose-500 mb-2">
             <svg
               className="w-7 h-7"
@@ -84,6 +96,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             authorized to access this administration node.
           </p>
           <button
+            type="button"
             onClick={logout}
             className="w-full py-3.5 bg-white hover:bg-zinc-200 text-black rounded-xl transition-all font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-white/5"
           >
@@ -96,10 +109,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-black text-white">
+    <div className="flex min-h-screen bg-[#080809] text-white">
       <Sidebar />
       <div className="flex-1 ml-64 flex flex-col min-w-0">
-        <header className="h-16 border-b border-[#282828] bg-black/80 backdrop-blur-md sticky top-0 z-40 px-8 flex items-center justify-between">
+        <header className="h-16 border-b border-white/[0.08] bg-[#0a0a0c]/85 backdrop-blur-xl sticky top-0 z-40 px-8 flex items-center justify-between">
           <div className="flex items-center gap-6 flex-1 max-w-xl">
             <div className="text-xs font-medium text-zinc-400 whitespace-nowrap">
               Welcome back,{" "}
@@ -107,10 +120,24 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <GlobalSearch />
           </div>
+
           <div className="flex items-center gap-4">
+            {/* Live Infrastructure Node Indicator */}
+            <StatusPill status="online" label="Cluster Active" size="xs" />
+
+            {/* Quick Upload Action */}
+            <Link
+              href="/songs"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-xs transition-all shadow-sm active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Catalog</span>
+            </Link>
+
             <button
+              type="button"
               onClick={logout}
-              className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-[#121212] hover:bg-[#181818] border border-[#282828] transition-all text-xs font-semibold text-zinc-300 hover:text-white cursor-pointer group"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#141417] hover:bg-[#1c1c21] border border-white/[0.08] hover:border-white/[0.14] transition-all text-xs font-semibold text-zinc-300 hover:text-white cursor-pointer group"
               title="Sign Out"
             >
               <span className="text-[11px] font-bold text-zinc-400 group-hover:text-white">
@@ -138,15 +165,23 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
         {backOnlineBanner && (
           <div className="bg-emerald-500/15 border-b border-emerald-500/30 text-emerald-300 px-8 py-2 text-xs font-semibold flex items-center gap-2 animate-in fade-in duration-200 shrink-0">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span>Internet connection restored. You are back online.</span>
           </div>
         )}
 
-        <main className="flex-1 relative overflow-y-auto bg-black">
+        <main
+          className={`flex-1 relative overflow-y-auto bg-[#080809] custom-scrollbar ${
+            currentTrack ? "pb-28" : "pb-12"
+          }`}
+        >
           {children}
         </main>
       </div>
+
+      {/* Persistent Audio Preview Bar & Video Canvas Modal */}
+      <MiniAudioDock />
+      <CanvasPreviewModal />
     </div>
   );
 }

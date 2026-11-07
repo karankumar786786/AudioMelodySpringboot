@@ -7,6 +7,8 @@ export interface Song {
   genre?: string;
   album?: string;
   imageKey: string;
+  songKey?: string;
+  status?: string;
   videoKey?: string | null;
   fullVideoKey?: string | null;
   previewStartTime?: number | null;

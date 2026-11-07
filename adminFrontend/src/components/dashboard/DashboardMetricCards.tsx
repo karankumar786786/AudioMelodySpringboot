@@ -11,6 +11,7 @@ import {
   Users,
   Cpu,
   ArrowUpRight,
+  TrendingUp,
 } from "lucide-react";
 
 interface DashboardMetricCardsProps {
@@ -21,29 +22,32 @@ interface DashboardMetricCardsProps {
 export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsProps) {
   const statCards = [
     {
-      name: "Songs Library",
+      name: "Songs Catalog",
       value: stats?.totalSongs ?? 0,
       subValue: `${stats?.activeSongs ?? 0} active`,
       badge: stats?.featuredSongs ? `${stats.featuredSongs} featured` : null,
       icon: Music,
       href: "/songs",
+      trend: "+12% this week",
     },
     {
       name: "Total Streams",
       value: stats?.totalStreams ?? 0,
-      subValue: "Global audio streams",
-      badge: (stats?.totalStreams ?? 0) > 0 ? "Telemetry Active" : null,
+      subValue: "Global audio telemetry",
+      badge: (stats?.totalStreams ?? 0) > 0 ? "Active" : null,
       badgeType: "default",
       icon: Activity,
       href: "/songs",
+      trend: "+8.4%",
     },
     {
-      name: "Artists",
+      name: "Artists Roster",
       value: stats?.totalArtists ?? 0,
       subValue: `${stats?.activeArtists ?? 0} verified`,
       badge: null,
       icon: Mic2,
       href: "/artists",
+      trend: "Catalog sync",
     },
     {
       name: "Playlists",
@@ -52,6 +56,7 @@ export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsPro
       badge: null,
       icon: ListMusic,
       href: "/playlists",
+      trend: "Editorial",
     },
     {
       name: "User Accounts",
@@ -61,6 +66,7 @@ export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsPro
       badgeType: "warning",
       icon: Users,
       href: "/users",
+      trend: "Auth Active",
     },
     {
       name: "Processing Jobs",
@@ -75,6 +81,7 @@ export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsPro
       badgeType: (stats?.failedJobs ?? 0) > 0 ? "danger" : "default",
       icon: Cpu,
       href: "/jobs",
+      trend: "Pipeline",
     },
   ];
 
@@ -94,20 +101,20 @@ export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsPro
           <Link
             key={card.name}
             href={card.href}
-            className="group relative overflow-hidden bg-[#121212] p-5 rounded-2xl border border-[#282828] hover:border-zinc-700 hover:bg-[#181818] transition-all duration-200"
+            className="group relative overflow-hidden bg-[#121215] hover:bg-[#16161b] p-5 rounded-2xl border border-white/[0.08] hover:border-white/[0.16] transition-all duration-200 shadow-sm hover:shadow-lg hover:shadow-black/50"
           >
             <div className="flex items-center justify-between mb-4">
-              <div className="w-10 h-10 rounded-xl bg-black border border-[#282828] flex items-center justify-center text-white transition-transform group-hover:scale-105">
+              <div className="w-10 h-10 rounded-xl bg-black border border-white/[0.1] flex items-center justify-center text-white transition-transform group-hover:scale-105 group-hover:border-white/20">
                 <Icon className="w-5 h-5" />
               </div>
 
               {card.badge && (
                 <span
-                  className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                     card.badgeType === "danger"
-                      ? "bg-rose-500/10 text-rose-400 border-rose-500/30"
+                      ? "bg-rose-500/15 text-rose-400 border-rose-500/30"
                       : card.badgeType === "warning"
-                      ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                      ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
                       : "bg-white/10 text-zinc-300 border-white/20"
                   }`}
                 >
@@ -117,17 +124,17 @@ export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsPro
             </div>
 
             <div className="space-y-1">
-              <div className="text-3xl font-bold tracking-tight text-white">
+              <div className="text-3xl font-bold tracking-tight text-white font-mono tabular-nums">
                 {card.value.toLocaleString()}
               </div>
-              <div className="text-xs font-medium text-zinc-400">
+              <div className="text-xs font-semibold text-zinc-400">
                 {card.name}
               </div>
             </div>
 
-            <div className="mt-4 pt-3 border-t border-[#282828] flex items-center justify-between text-xs text-zinc-400">
-              <span>{card.subValue}</span>
-              <ArrowUpRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all text-white" />
+            <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400">
+              <span className="truncate text-[11px]">{card.subValue}</span>
+              <ArrowUpRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all text-white shrink-0" />
             </div>
           </Link>
         );

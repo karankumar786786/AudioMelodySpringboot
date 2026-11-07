@@ -224,15 +224,15 @@ export function QueueBackpressureWidget({
           return (
             <div
               key={q.queueKey}
-              className={`rounded-xl border p-4 transition-all duration-200 ${
+              className={`rounded-2xl border p-4 transition-all duration-200 ${
                 isDlq && q.size > 0
                   ? "bg-rose-950/20 border-rose-500/40 hover:border-rose-500/60 shadow-lg shadow-rose-950/30"
-                  : "bg-black/50 border-[#282828] hover:border-zinc-700 hover:bg-[#181818]"
+                  : "bg-[#141418] border-white/[0.06] hover:border-white/[0.14] hover:bg-[#1a1a20]"
               }`}
             >
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2 min-w-0">
-                  <div className="p-2 rounded-lg bg-zinc-900 border border-[#282828] shrink-0 text-white">
+                  <div className="p-2 rounded-xl bg-black border border-white/[0.1] shrink-0 text-white">
                     {icon}
                   </div>
                   <div className="truncate">
@@ -245,7 +245,7 @@ export function QueueBackpressureWidget({
                   </div>
                 </div>
                 <span
-                  className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border whitespace-nowrap ${visual.badgeClass}`}
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border whitespace-nowrap ${visual.badgeClass}`}
                 >
                   {visual.badgeText}
                 </span>

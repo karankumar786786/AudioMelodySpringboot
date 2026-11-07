@@ -132,18 +132,18 @@ export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-[#121212] border border-[#282828] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="relative w-full max-w-2xl bg-[#121215] border border-white/[0.1] rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Modal Header */}
-        <div className="flex items-center justify-between p-6 border-b border-[#282828] bg-black/40">
+        <div className="flex items-center justify-between p-6 border-b border-white/[0.08] bg-[#0e0e11]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-zinc-900 border border-[#282828] flex items-center justify-center text-white">
+            <div className="w-10 h-10 rounded-xl bg-black border border-white/[0.1] flex items-center justify-center text-white">
               <Smartphone className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
                 Active Client Sessions
-                <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   {sessions.length} device{sessions.length !== 1 ? "s" : ""}
                 </span>
               </h2>
@@ -153,46 +153,49 @@ export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 text-zinc-400 hover:text-white rounded-full hover:bg-zinc-800/60 transition-colors"
+            className="p-2 text-zinc-400 hover:text-white rounded-xl hover:bg-white/[0.06] transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Toolbar */}
-        <div className="px-6 py-3.5 bg-zinc-950/40 border-b border-[#282828] flex items-center justify-between gap-4">
+        <div className="px-6 py-3 bg-[#141418] border-b border-white/[0.06] flex items-center justify-between gap-4">
           <p className="text-xs text-zinc-400">
-            Database-backed refresh sessions verified by <span className="font-semibold text-zinc-300">coreEngine</span>.
+            Database-backed refresh sessions verified by <span className="font-semibold text-zinc-200">coreEngine</span>.
           </p>
           <div className="flex items-center gap-2 shrink-0">
             <button
+              type="button"
               onClick={fetchSessions}
               disabled={loading}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-zinc-300 bg-black/60 hover:bg-zinc-800 border border-[#282828] transition-all disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-zinc-300 bg-[#18181c] hover:bg-white hover:text-black border border-white/[0.08] transition-all disabled:opacity-50 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
-              Refresh
+              <span>Refresh</span>
             </button>
             {sessions.length > 0 && (
               <button
+                type="button"
                 onClick={handleRevokeAll}
                 disabled={revokingAll || loading}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 transition-all disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/25 transition-all disabled:opacity-50 cursor-pointer"
               >
                 {revokingAll ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
                   <Trash2 className="w-3.5 h-3.5 text-rose-400" />
                 )}
-                Revoke All Devices
+                <span>Revoke All Devices</span>
               </button>
             )}
           </div>
         </div>
 
         {/* Modal Body / Sessions List */}
-        <div className="p-6 overflow-y-auto space-y-3 flex-1">
+        <div className="p-6 overflow-y-auto space-y-3 flex-1 custom-scrollbar">
           {error && (
             <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />

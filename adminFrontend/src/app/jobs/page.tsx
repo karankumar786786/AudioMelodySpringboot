@@ -384,77 +384,84 @@ export default function JobMonitoringPage() {
   return (
     <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-8 text-white font-sans">
       {/* Header & Tab Switcher */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/[0.08]">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2.5">
               {activeTab === "INGESTION" ? (
-                <Zap className="w-5 h-5 text-white fill-white" />
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                  <Zap className="w-4 h-4 fill-indigo-400" />
+                </div>
               ) : (
-                <Trash2 className="w-5 h-5 text-rose-400 fill-rose-500/20" />
+                <div className="w-8 h-8 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400">
+                  <Trash2 className="w-4 h-4" />
+                </div>
               )}
               {activeTab === "INGESTION" ? "Song Ingestion Pipeline" : "Cascade Delete Pipeline"}
             </h1>
             {activeTab === "INGESTION" && activeJobs.length > 0 && (
-              <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-white/10 text-white border border-white/20 animate-pulse">
-                <span className="w-1.5 h-1.5 rounded-full bg-white" />
+              <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
                 {activeJobs.length} active
               </span>
             )}
             {activeTab === "DELETION" && activeDeleteJobs.length > 0 && (
-              <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/20 animate-pulse">
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+              <span className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-400" />
                 {activeDeleteJobs.length} active
               </span>
             )}
           </div>
-          <p className="text-zinc-400 text-sm mt-1">
+          <p className="text-zinc-400 text-xs mt-1.5 leading-relaxed">
             {activeTab === "INGESTION"
-              ? "Real-time telemetry, stage execution time, retry tracking, and webhook lifecycle logs for audio & canvas transcoding."
+              ? "Real-time telemetry, stage execution latency, DAG transitions, and webhook logs for audio & canvas transcoding."
               : "End-to-end cascade deletion tracking across Algolia, Recombee, ImageKit CDN, AWS S3, and PostgreSQL with 1-click retry."}
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5 flex-wrap">
           {/* Tab Selector */}
-          <div className="flex bg-black/60 p-1 rounded-full border border-[#282828]">
+          <div className="flex bg-[#121215] p-1 rounded-xl border border-white/[0.08]">
             <button
+              type="button"
               onClick={() => {
                 setLoading(true);
                 setActiveTab("INGESTION");
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === "INGESTION"
-                  ? "bg-white text-black shadow-sm"
+                  ? "bg-white text-black font-bold shadow-sm"
                   : "text-zinc-400 hover:text-white"
               }`}
             >
               <Workflow className="w-3.5 h-3.5" />
-              Ingestion Pipeline
+              <span>Ingestion</span>
             </button>
             <button
+              type="button"
               onClick={() => {
                 setLoading(true);
                 setActiveTab("DELETION");
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all ${
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                 activeTab === "DELETION"
-                  ? "bg-white text-black shadow-sm"
+                  ? "bg-white text-black font-bold shadow-sm"
                   : "text-zinc-400 hover:text-white"
               }`}
             >
               <Trash2 className="w-3.5 h-3.5" />
-              Cascade Delete
+              <span>Cascade Delete</span>
             </button>
           </div>
 
           {/* Auto-Refresh Toggle */}
           <button
+            type="button"
             onClick={() => setAutoRefresh(!autoRefresh)}
-            className={`px-3.5 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 border ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 border cursor-pointer ${
               autoRefresh
-                ? "bg-white/10 text-white border-white/20"
-                : "bg-black/60 text-zinc-400 border-[#282828]"
+                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                : "bg-[#141418] text-zinc-400 border-white/[0.08]"
             }`}
           >
             <span
@@ -462,28 +469,30 @@ export default function JobMonitoringPage() {
                 autoRefresh ? "bg-emerald-400 animate-ping" : "bg-zinc-600"
               }`}
             />
-            {autoRefresh ? "Live 4s" : "Paused"}
+            <span>{autoRefresh ? "Live 4s" : "Paused"}</span>
           </button>
 
           {/* Manual Refresh */}
           <button
+            type="button"
             onClick={() => fetchData(true)}
             disabled={refreshing}
-            className="p-2 rounded-full bg-black/60 border border-[#282828] text-zinc-400 hover:text-white transition-all disabled:opacity-50"
+            className="p-2 rounded-xl bg-[#141418] hover:bg-[#1a1a20] border border-white/[0.08] hover:border-white/[0.14] text-zinc-400 hover:text-white transition-all disabled:opacity-50 cursor-pointer"
             title="Refresh metrics now"
           >
-            <RotateCcw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+            <RotateCcw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-white" : ""}`} />
           </button>
 
           {/* Sync DB Metadata */}
           <button
+            type="button"
             onClick={handleSyncMetadata}
             disabled={isSyncingMetadata || refreshing}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700 transition-all disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#141418] hover:bg-[#1a1a20] border border-white/[0.08] hover:border-white/[0.14] text-zinc-300 hover:text-white transition-all disabled:opacity-50 cursor-pointer"
             title="Reconcile pagination metadata with actual PostgreSQL rows and flush caches"
           >
             <Database className={`w-3.5 h-3.5 text-zinc-400 ${isSyncingMetadata ? "animate-spin text-emerald-400" : ""}`} />
-            {isSyncingMetadata ? "Syncing..." : "Sync DB"}
+            <span>{isSyncingMetadata ? "Syncing..." : "Sync DB"}</span>
           </button>
         </div>
       </div>

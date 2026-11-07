@@ -9,21 +9,29 @@ import { adminFetch } from "@/lib/adminFetch";
 import type { Song } from "./types";
 import { SongsFilterBar } from "./components/SongsFilterBar";
 import { SongsGrid } from "./components/SongsGrid";
+import { SongsDataTable } from "./components/SongsDataTable";
+import { BulkActionsBar } from "./components/BulkActionsBar";
 import { CreateSongModal } from "./components/CreateSongModal";
 
 function SongsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
+  const isNewQuery = searchParams.get("new") === "true";
 
   const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [genreFilter, setGenreFilter] = useState("ALL");
+  const [viewMode, setViewMode] = useState<"table" | "grid">("table");
+  const [selectedSongIds, setSelectedSongIds] = useState<string[]>([]);
+  const [isProcessingBulk, setIsProcessingBulk] = useState(false);
+
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(20);
   const [totalSongs, setTotalSongs] = useState(0);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(isNewQuery);
   const [editingSong, setEditingSong] = useState<SongData | null>(null);
   const [deletingSongId, setDeletingSongId] = useState<string | null>(null);
   const [togglingSongId, setTogglingSongId] = useState<string | null>(null);
@@ -46,11 +54,21 @@ function SongsContent() {
   const fetchSongs = useCallback(async () => {
     try {
       setLoading(true);
-      const searchParam = debouncedSearch.trim()
-        ? `&search=${encodeURIComponent(debouncedSearch.trim())}`
-        : "";
-      const url = `/admin/song?page=${page}&size=${pageSize}${searchParam}`;
+      const queryParts: string[] = [`page=${page}`, `size=${pageSize}`];
 
+      // Combine text search with genre filter if active
+      let effectiveSearch = debouncedSearch.trim();
+      if (genreFilter !== "ALL") {
+        effectiveSearch = effectiveSearch
+          ? `${effectiveSearch} ${genreFilter}`
+          : genreFilter;
+      }
+
+      if (effectiveSearch) {
+        queryParts.push(`search=${encodeURIComponent(effectiveSearch)}`);
+      }
+
+      const url = `/admin/song?${queryParts.join("&")}`;
       const res = await adminFetch(url);
       if (res.ok) {
         const data = await res.json();
@@ -73,7 +91,7 @@ function SongsContent() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, debouncedSearch, showToast]);
+  }, [page, pageSize, debouncedSearch, genreFilter, showToast]);
 
   useEffect(() => {
     fetchSongs();
@@ -86,15 +104,32 @@ function SongsContent() {
       if (target) {
         setEditingSong(target as SongData);
       } else {
-        adminFetch(`/admin/song/${editId}`).then(async (res) => {
-          if (res.ok) {
-            const song = await res.json();
-            setEditingSong(song);
-          }
-        }).catch(() => {});
+        adminFetch(`/admin/song/${editId}`)
+          .then(async (res) => {
+            if (res.ok) {
+              const song = await res.json();
+              setEditingSong(song);
+            }
+          })
+          .catch(() => {});
       }
     }
   }, [editId, songs]);
+
+  // Multi-selection handlers
+  const handleToggleSelectAll = () => {
+    if (selectedSongIds.length === songs.length && songs.length > 0) {
+      setSelectedSongIds([]);
+    } else {
+      setSelectedSongIds(songs.map((s) => s.id));
+    }
+  };
+
+  const handleToggleSelectSong = (id: string) => {
+    setSelectedSongIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
 
   // Toggle Featured Hero status
   const handleToggleFeatured = async (song: Song) => {
@@ -109,11 +144,15 @@ function SongsContent() {
       if (!res.ok) throw new Error("Failed to update featured status");
 
       setSongs((prev) =>
-        prev.map((s) => (s.id === song.id ? { ...s, isFeatured: !s.isFeatured } : s)),
+        prev.map((s) =>
+          s.id === song.id ? { ...s, isFeatured: !s.isFeatured } : s
+        )
       );
       showToast(
-        song.isFeatured ? "Removed from hero featured" : "Marked as hero featured",
-        "success",
+        song.isFeatured
+          ? "Removed from hero featured"
+          : "Marked as hero featured",
+        "success"
       );
     } catch (err) {
       console.error("Failed to toggle featured:", err);
@@ -125,7 +164,11 @@ function SongsContent() {
 
   // Delete Track
   const handleDeleteSong = async (id: string, title: string) => {
-    if (!confirm(`Are you sure you want to delete "${title}"? This initiates a cascade purge across S3, CDN, and Algolia.`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete "${title}"? This initiates a cascade purge across S3, CDN, and Algolia.`
+      )
+    ) {
       return;
     }
 
@@ -138,13 +181,74 @@ function SongsContent() {
       if (!res.ok) throw new Error("Failed to delete song");
 
       setSongs((prev) => prev.filter((s) => s.id !== id));
+      setSelectedSongIds((prev) => prev.filter((item) => item !== id));
       setTotalSongs((prev) => Math.max(0, prev - 1));
-      showToast(`Track "${title}" successfully queued for deletion`, "success");
+      showToast(`Track "${title}" queued for deletion`, "success");
     } catch (err) {
       console.error("Failed to delete song:", err);
       showToast("Could not delete song", "error");
     } finally {
       setDeletingSongId(null);
+    }
+  };
+
+  // Bulk Actions
+  const handleBulkDelete = async () => {
+    if (
+      !confirm(
+        `Are you sure you want to delete ${selectedSongIds.length} selected tracks?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setIsProcessingBulk(true);
+      await Promise.all(
+        selectedSongIds.map((id) =>
+          adminFetch(`/admin/song/${id}`, { method: "DELETE" })
+        )
+      );
+      setSongs((prev) => prev.filter((s) => !selectedSongIds.includes(s.id)));
+      showToast(`Deleted ${selectedSongIds.length} tracks`, "success");
+      setSelectedSongIds([]);
+      fetchSongs();
+    } catch (err) {
+      console.error("Bulk delete error", err);
+      showToast("Failed to delete some tracks", "error");
+    } finally {
+      setIsProcessingBulk(false);
+    }
+  };
+
+  const handleBulkSyncAlgolia = async () => {
+    try {
+      setIsProcessingBulk(true);
+      showToast("Triggering search sync for selected tracks...", "info");
+      // Call sync-metadata or batch index
+      await adminFetch("/admin/jobs/sync-metadata", { method: "POST" });
+      showToast("Search index synced successfully", "success");
+      setSelectedSongIds([]);
+    } catch (err) {
+      console.error("Bulk Algolia sync error", err);
+      showToast("Failed to sync search index", "error");
+    } finally {
+      setIsProcessingBulk(false);
+    }
+  };
+
+  const handleBulkSyncRecombee = async () => {
+    try {
+      setIsProcessingBulk(true);
+      showToast("Triggering Recombee recommendation sync...", "info");
+      await adminFetch("/admin/jobs/sync-metadata", { method: "POST" });
+      showToast("Recombee catalog synced successfully", "success");
+      setSelectedSongIds([]);
+    } catch (err) {
+      console.error("Bulk Recombee sync error", err);
+      showToast("Failed to sync recommendations", "error");
+    } finally {
+      setIsProcessingBulk(false);
     }
   };
 
@@ -157,14 +261,16 @@ function SongsContent() {
 
   const handleEditModalSuccess = (updatedSong: SongData) => {
     setSongs((prev) =>
-      prev.map((s) => (s.id === updatedSong.id ? { ...s, ...updatedSong } : s)),
+      prev.map((s) =>
+        s.id === updatedSong.id ? { ...s, ...updatedSong } : s
+      )
     );
     showToast(`Track "${updatedSong.title}" updated successfully`, "success");
     handleEditModalClose();
   };
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-6 text-white font-sans">
       {/* Toast Notification */}
       {toast && (
         <Toast
@@ -174,10 +280,17 @@ function SongsContent() {
         />
       )}
 
-      {/* Header & Controls */}
+      {/* Header & Filter Controls */}
       <SongsFilterBar
         search={search}
         onSearchChange={setSearch}
+        genreFilter={genreFilter}
+        onGenreFilterChange={(genre) => {
+          setGenreFilter(genre);
+          setPage(0);
+        }}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
         totalSongs={totalSongs}
         pageSize={pageSize}
         onPageSizeChange={(newSize) => {
@@ -187,20 +300,45 @@ function SongsContent() {
         onOpenCreateModal={() => setIsCreateModalOpen(true)}
       />
 
-      {/* Songs Grid */}
-      <SongsGrid
-        songs={songs}
-        loading={loading}
-        togglingSongId={togglingSongId}
-        deletingSongId={deletingSongId}
-        onToggleFeatured={handleToggleFeatured}
-        onEditSong={(song) => setEditingSong(song as SongData)}
-        onDeleteSong={handleDeleteSong}
+      {/* Dual View Display: Spreadsheet Table vs Artwork Grid */}
+      {viewMode === "table" ? (
+        <SongsDataTable
+          songs={songs}
+          loading={loading}
+          selectedSongIds={selectedSongIds}
+          onToggleSelectAll={handleToggleSelectAll}
+          onToggleSelectSong={handleToggleSelectSong}
+          togglingSongId={togglingSongId}
+          deletingSongId={deletingSongId}
+          onToggleFeatured={handleToggleFeatured}
+          onEditSong={(song) => setEditingSong(song as SongData)}
+          onDeleteSong={handleDeleteSong}
+        />
+      ) : (
+        <SongsGrid
+          songs={songs}
+          loading={loading}
+          togglingSongId={togglingSongId}
+          deletingSongId={deletingSongId}
+          onToggleFeatured={handleToggleFeatured}
+          onEditSong={(song) => setEditingSong(song as SongData)}
+          onDeleteSong={handleDeleteSong}
+        />
+      )}
+
+      {/* Bulk Actions Floating Dock */}
+      <BulkActionsBar
+        selectedCount={selectedSongIds.length}
+        onClearSelection={() => setSelectedSongIds([])}
+        onBulkDelete={handleBulkDelete}
+        onBulkSyncAlgolia={handleBulkSyncAlgolia}
+        onBulkSyncRecombee={handleBulkSyncRecombee}
+        isProcessing={isProcessingBulk}
       />
 
       {/* Pagination Controls */}
       {totalSongs > 0 && (
-        <div className="rounded-2xl overflow-hidden border border-[#282828]">
+        <div className="rounded-2xl overflow-hidden border border-white/[0.08] bg-[#121215]">
           <PaginationBar
             page={page}
             pageSize={pageSize}
@@ -221,7 +359,10 @@ function SongsContent() {
       {/* Create Song Modal */}
       <CreateSongModal
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          if (isNewQuery) router.replace("/songs");
+        }}
         onSuccess={() => {
           fetchSongs();
         }}

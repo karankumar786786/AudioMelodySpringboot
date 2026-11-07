@@ -1,16 +1,27 @@
 @import "tailwindcss";
 
 :root {
-  --background: #000000;
-  --foreground: #ffffff;
+  --background: #080809;
+  --foreground: #f4f4f5;
   --primary: #ffffff;
-  --primary-foreground: #000000;
-  --border: #282828;
-  --sidebar: #000000;
-  --card: #121212;
-  --card-foreground: #ffffff;
-  --card-hover: #181818;
-  --radius: 0.75rem;
+  --primary-foreground: #09090b;
+  --border: rgba(255, 255, 255, 0.08);
+  --sidebar: #0d0d0f;
+  --card: #121214;
+  --card-foreground: #f4f4f5;
+  --card-hover: #1a1a1e;
+  --radius: 0.875rem;
+
+  --surface-0: #080809;
+  --surface-1: #0f0f12;
+  --surface-2: #16161a;
+  --surface-3: #1f1f24;
+  --surface-card: #131316;
+  --surface-card-hover: #1c1c21;
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-muted: rgba(255, 255, 255, 0.04);
+  --border-glow: rgba(255, 255, 255, 0.16);
 }
 
 @theme inline {
@@ -23,35 +34,85 @@
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-card-hover: var(--card-hover);
+
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-surface-card: var(--surface-card);
+  --color-surface-card-hover: var(--surface-card-hover);
+
+  --color-border-subtle: var(--border-subtle);
+  --color-border-muted: var(--border-muted);
+  --color-border-glow: var(--border-glow);
+
   --font-sans: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: var(--font-geist-mono), monospace;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 body {
-  background-color: #000000;
-  color: #ffffff;
+  background-color: var(--surface-0);
+  color: var(--foreground);
   font-family: var(--font-sans);
   min-height: 100vh;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.012em;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* ─── Modern Theme Utilities ─── */
+/* ─── Studio Glass & Surface Utilities ─── */
 
-@utility glass-effect {
-  @apply bg-[#181818] border border-[#282828];
+@utility glass-card {
+  background-color: rgba(19, 19, 22, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-@utility glass-dark {
-  @apply bg-[#121212] border border-[#282828];
+@utility glass-header {
+  background-color: rgba(8, 8, 9, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-@utility card-dark {
-  @apply bg-[#121212] border border-[#282828];
+@utility glass-dock {
+  background-color: rgba(13, 13, 15, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.5);
 }
 
-@utility hover-scale {
-  @apply transition-all duration-200 hover:scale-[1.02] active:scale-[0.98];
+@utility surface-card {
+  background-color: var(--surface-card);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+  &:hover {
+    background-color: var(--surface-card-hover);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+}
+
+@utility custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 9999px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
 }
 
 @utility no-scrollbar {
@@ -61,4 +122,8 @@ body {
   &::-webkit-scrollbar {
     display: none;
   }
+}
+
+@utility subtle-glow {
+  box-shadow: 0 0 25px -5px rgba(255, 255, 255, 0.05);
 }

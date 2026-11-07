@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, Music, Video, Film, Loader2 } from "lucide-react";
 import { UploadProgressBar } from "@/components/UploadProgressBar";
+import { MultiSelectTagInput } from "@/components/ui/MultiSelectTagInput";
 import { adminFetch } from "@/lib/adminFetch";
 import {
   getFriendlyUploadErrorMessage,
@@ -418,17 +419,17 @@ export function CreateSongModal({
               </div>
 
               <div>
-                <label htmlFor="song-artist" className={labelCls}>
-                  Artist Name <span className="text-red-400">*</span>
-                </label>
-                <input
-                  id="song-artist"
-                  required
-                  type="text"
-                  placeholder="e.g. The Weeknd"
-                  value={formData.artistName}
-                  onChange={(e) => setFormData({ ...formData, artistName: e.target.value })}
-                  className={inputCls}
+                <MultiSelectTagInput
+                  label="Artists (Primary & Collaborators) *"
+                  placeholder="e.g. The Weeknd, Daft Punk"
+                  values={
+                    formData.artistName
+                      ? formData.artistName.split(",").map((a) => a.trim()).filter(Boolean)
+                      : []
+                  }
+                  onChange={(artists) =>
+                    setFormData({ ...formData, artistName: artists.join(", ") })
+                  }
                 />
               </div>
 
@@ -444,14 +445,28 @@ export function CreateSongModal({
                   />
                 </div>
                 <div>
-                  <label htmlFor="song-genre" className={labelCls}>Genre</label>
-                  <input
-                    id="song-genre"
-                    type="text"
-                    placeholder="e.g. Pop"
-                    value={formData.genre}
-                    onChange={(e) => setFormData({ ...formData, genre: e.target.value })}
-                    className={inputCls}
+                  <MultiSelectTagInput
+                    label="Genres"
+                    placeholder="e.g. Pop, Synthwave"
+                    suggestions={[
+                      "Pop",
+                      "Hip-Hop",
+                      "Electronic",
+                      "R&B",
+                      "Rock",
+                      "Bollywood",
+                      "Indie",
+                      "Acoustic",
+                      "Ambient",
+                    ]}
+                    values={
+                      formData.genre
+                        ? formData.genre.split(",").map((g) => g.trim()).filter(Boolean)
+                        : []
+                    }
+                    onChange={(genres) =>
+                      setFormData({ ...formData, genre: genres.join(", ") })
+                    }
                   />
                 </div>
               </div>
