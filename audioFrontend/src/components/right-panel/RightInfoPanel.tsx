@@ -281,7 +281,6 @@ export function RightInfoPanel() {
             <RightInfoRelatedSongs
               similarSongs={similarSongList}
               artistMoreSongs={similarSongList}
-              genre={currentSong.genre}
               isRelatedLoading={isRelatedLoading}
               scrollRelated={scrollRelated}
               relatedSongsRef={relatedSongsRef}
