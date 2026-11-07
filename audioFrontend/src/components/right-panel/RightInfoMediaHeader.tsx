@@ -135,9 +135,14 @@ export function RightInfoMediaHeader({
                 </Link>
               )}
               {currentSong.genre && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 border border-primary/30 text-primary font-bold uppercase tracking-wider">
-                  {currentSong.genre.split(',').map((genre)=>(<span className="" key={genre}>{genre}</span>))}
+                <>
+                {currentSong.genre.split(',').map((genre)=>(
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 border border-primary/30 text-primary font-bold uppercase tracking-wider">
+                  {genre}
                 </span>
+                ))}
+                
+                </>
               )}
             </div>
           )}
