@@ -52,6 +52,7 @@ public class AlgoliaSearch {
                     .setSearchableAttributes(List.of(
                             "title",
                             "artistName",
+                            "artists",
                             "album",
                             "name",
                             "language",
@@ -61,7 +62,9 @@ public class AlgoliaSearch {
                             "filterOnly(type)",
                             "searchable(language)",
                             "searchable(genre)",
-                            "searchable(genres)"))
+                            "searchable(genres)",
+                            "searchable(artistName)",
+                            "searchable(artists)"))
                     .setCustomRanking(List.of(
                             "desc(searchCount)",
                             "desc(totalStreams)")));
@@ -112,6 +115,16 @@ public class AlgoliaSearch {
         record.put("type", "song");
         record.put("title", song.getTitle());
         record.put("artistName", song.getArtistName());
+        if (song.getArtistName() != null && !song.getArtistName().isBlank()) {
+            List<String> artistsList = java.util.Arrays.stream(song.getArtistName().split("[,/&]|\\b(?:ft|feat)(?:\\.|\\b)"))
+                    .map(s -> s.replaceAll("^[.\\s]+|[.\\s]+$", "").trim())
+                    .filter(s -> !s.isEmpty())
+                    .distinct()
+                    .toList();
+            if (!artistsList.isEmpty()) {
+                record.put("artists", artistsList);
+            }
+        }
         record.put("album", song.getAlbum());
         record.put("language", song.getLanguage());
         if (song.getGenre() != null && !song.getGenre().isBlank()) {
@@ -384,6 +397,9 @@ public class AlgoliaSearch {
         if (id == null) return null;
         String title = (String) h.get("title");
         String artistName = (String) h.get("artistName");
+        if ((artistName == null || artistName.isBlank()) && h.get("artists") instanceof List<?> list && !list.isEmpty()) {
+            artistName = list.stream().map(Object::toString).collect(java.util.stream.Collectors.joining(", "));
+        }
         Integer duration = h.get("duration") instanceof Number n ? n.intValue() : null;
         String songKey = (String) h.get("songKey");
         String imageKey = (String) h.get("imageKey");

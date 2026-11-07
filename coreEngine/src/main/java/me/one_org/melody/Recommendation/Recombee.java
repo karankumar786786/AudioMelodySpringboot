@@ -65,6 +65,7 @@ public class Recombee {
         // Register each item property independently so existence of one does not abort remaining registrations
         registerPropertySafely("title", "string");
         registerPropertySafely("artistName", "string");
+        registerPropertySafely("artists", "set");
         registerPropertySafely("language", "string");
         registerPropertySafely("genre", "string");
         registerPropertySafely("genres", "set");
@@ -126,10 +127,27 @@ public class Recombee {
                 .toList();
     }
 
+    public static List<String> parseArtists(String artistStr) {
+        if (artistStr == null || artistStr.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(artistStr.split("[,/&]|\\b(?:ft|feat)(?:\\.|\\b)"))
+                .map(s -> s.replaceAll("^[.\\s]+|[.\\s]+$", "").trim())
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .toList();
+    }
+
     public Map<String, Object> buildSongValues(Song song) {
         Map<String, Object> values = new HashMap<>();
         values.put("title", song.getTitle());
         values.put("artistName", song.getArtistName());
+        if (song.getArtistName() != null && !song.getArtistName().isBlank()) {
+            List<String> artistsList = parseArtists(song.getArtistName());
+            if (!artistsList.isEmpty()) {
+                values.put("artists", artistsList);
+            }
+        }
         values.put("language", song.getLanguage());
         if (song.getGenre() != null && !song.getGenre().isBlank()) {
             String trimmedGenre = song.getGenre().trim();
@@ -210,6 +228,12 @@ public class Recombee {
         Map<String, Object> values = new HashMap<>();
         values.put("title", title);
         values.put("artistName", artistName);
+        if (artistName != null && !artistName.isBlank()) {
+            List<String> artistsList = parseArtists(artistName);
+            if (!artistsList.isEmpty()) {
+                values.put("artists", artistsList);
+            }
+        }
         values.put("language", language);
         if (genre != null && !genre.isBlank()) {
             String trimmedGenre = genre.trim();
@@ -360,6 +384,9 @@ public class Recombee {
 
         String title = (String) values.get("title");
         String artistName = (String) values.get("artistName");
+        if ((artistName == null || artistName.isBlank()) && values.get("artists") instanceof List<?> list && !list.isEmpty()) {
+            artistName = list.stream().map(Object::toString).collect(java.util.stream.Collectors.joining(", "));
+        }
         Integer duration = values.get("duration") instanceof Number n ? n.intValue() : null;
         String songKey = (String) values.get("songKey");
         String imageKey = (String) values.get("imageKey");

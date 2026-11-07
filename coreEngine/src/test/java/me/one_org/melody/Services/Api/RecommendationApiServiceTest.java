@@ -201,4 +201,54 @@ class RecommendationApiServiceTest {
         verify(mockSongsRepo).findActiveByGenre(eq("Dance"), any());
         verify(mockSongsRepo).findActiveByGenre(eq("Electronic"), any());
     }
+
+    @Test
+    @DisplayName("Should query database candidates for each artist token when seed artist contains commas")
+    void shouldFallbackToMultiArtistTokensWhenSeedHasCommaSeparatedArtists() throws Exception {
+        me.one_org.melody.Repository.SongsRepository mockSongsRepo = mock(me.one_org.melody.Repository.SongsRepository.class);
+        RecommendationApiService service = new RecommendationApiService(recombee, mockSongsRepo);
+
+        when(recombee.recommendRadioDetailed(eq("artist-seed"), eq(List.of()), anyInt())).thenReturn(List.of());
+
+        me.one_org.melody.Entity.Song multiArtistSeed = me.one_org.melody.Entity.Song.builder()
+                .id("artist-seed")
+                .title("Collab Track")
+                .artistName("Drake, 21 Savage")
+                .genre("Hip Hop")
+                .album("Her Loss")
+                .language("English")
+                .build();
+        when(mockSongsRepo.findById("artist-seed")).thenReturn(java.util.Optional.of(multiArtistSeed));
+
+        me.one_org.melody.Entity.Song drakeSolo = me.one_org.melody.Entity.Song.builder()
+                .id("drake-solo")
+                .title("God's Plan")
+                .artistName("Drake")
+                .genre("Hip Hop")
+                .language("English")
+                .status(me.one_org.melody.Enums.StatusEnum.ACTIVE)
+                .build();
+
+        me.one_org.melody.Entity.Song savageSolo = me.one_org.melody.Entity.Song.builder()
+                .id("savage-solo")
+                .title("Redrum")
+                .artistName("21 Savage")
+                .genre("Hip Hop")
+                .language("English")
+                .status(me.one_org.melody.Enums.StatusEnum.ACTIVE)
+                .build();
+
+        when(mockSongsRepo.findActiveByGenre(any(), any())).thenReturn(List.of());
+        when(mockSongsRepo.findActiveByLanguage(any(), any())).thenReturn(List.of());
+        when(mockSongsRepo.findByAlbum(any())).thenReturn(List.of());
+        when(mockSongsRepo.findActiveSongs(any())).thenReturn(List.of());
+        when(mockSongsRepo.findActiveByArtistName(eq("Drake"), any())).thenReturn(List.of(drakeSolo));
+        when(mockSongsRepo.findActiveByArtistName(eq("21 Savage"), any())).thenReturn(List.of(savageSolo));
+
+        List<SongDto> results = service.recommendSimilar("artist-seed", 5);
+
+        assertThat(results).isNotEmpty();
+        verify(mockSongsRepo).findActiveByArtistName(eq("Drake"), any());
+        verify(mockSongsRepo).findActiveByArtistName(eq("21 Savage"), any());
+    }
 }

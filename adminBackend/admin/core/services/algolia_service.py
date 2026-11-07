@@ -152,6 +152,8 @@ class AlgoliaService:
 
             streams_val = int(s_streams or 0)
             search_count_val = int(s_search_count or 0)
+            import re
+            artists_list = [a.strip() for a in re.split(r"[,/&]|\bft\.?|\bfeat\.?", str(s_artist or ""), flags=re.IGNORECASE) if a.strip()]
             genres_list = [g.strip() for g in str(s_genre).split(",") if g.strip()] if s_genre else []
             record = {
                 "objectID": str(s_id),
@@ -159,6 +161,7 @@ class AlgoliaService:
                 "title": str(s_title or ""),
                 "artistName": str(s_artist or ""),
                 "artist": str(s_artist or ""),
+                "artists": artists_list,
                 "album": str(s_album).strip() if s_album else None,
                 "genre": str(s_genre).strip() if s_genre else None,
                 "genres": genres_list,
@@ -356,6 +359,8 @@ class AlgoliaService:
         if not s_id:
             return None
 
+        import re
+        artists_list = [a.strip() for a in re.split(r"[,/&]|\bft\.?|\bfeat\.?", str(s_artist or ""), flags=re.IGNORECASE) if a.strip()]
         genres_list = [g.strip() for g in str(s_genre).split(",") if g.strip()] if s_genre else []
         return {
             "objectID": str(s_id),
@@ -363,6 +368,7 @@ class AlgoliaService:
             "title": str(s_title or ""),
             "artistName": str(s_artist or ""),
             "artist": str(s_artist or ""),
+            "artists": artists_list,
             "album": str(s_album).strip() if s_album else None,
             "genre": str(s_genre).strip() if s_genre else None,
             "genres": genres_list,
@@ -665,7 +671,7 @@ class AlgoliaService:
             settings_dict = {
                 "searchableAttributes": [
                     "title,album",
-                    "artistName,artist",
+                    "artistName,artist,artists",
                     "name",
                     "genre,genres",
                     "language",
@@ -675,6 +681,8 @@ class AlgoliaService:
                     "searchable(language)",
                     "searchable(genre)",
                     "searchable(genres)",
+                    "searchable(artistName)",
+                    "searchable(artists)",
                 ],
                 "customRanking": [
                     "desc(searchCount)",

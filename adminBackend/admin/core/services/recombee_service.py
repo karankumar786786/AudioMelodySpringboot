@@ -28,6 +28,7 @@ class RecombeeService:
         feature_props = [
             ("title", "string"),
             ("artistName", "string"),
+            ("artists", "set"),
             ("language", "string"),
             ("genre", "string"),
             ("genres", "set"),
@@ -260,6 +261,12 @@ class RecombeeService:
             "artistName": artist_name or "",
             "language": language or "",
         }
+        if artist_name and artist_name.strip():
+            import re
+            clean_artist = artist_name.strip()
+            artists_list = [a.strip() for a in re.split(r"[,/&]|\bft\.?|\bfeat\.?", clean_artist, flags=re.IGNORECASE) if a.strip()]
+            if artists_list:
+                values["artists"] = artists_list
         if genre and genre.strip():
             clean_genre = genre.strip()
             values["genre"] = clean_genre
@@ -462,6 +469,12 @@ class RecombeeService:
                 "artistName": s.artist_name,
                 "language": s.language or "",
             }
+            if s.artist_name and s.artist_name.strip():
+                import re
+                clean_artist = s.artist_name.strip()
+                artists_list = [a.strip() for a in re.split(r"[,/&]|\bft\.?|\bfeat\.?", clean_artist, flags=re.IGNORECASE) if a.strip()]
+                if artists_list:
+                    vals["artists"] = artists_list
             if s.genre and s.genre.strip():
                 clean_genre = s.genre.strip()
                 vals["genre"] = clean_genre

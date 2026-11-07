@@ -233,7 +233,11 @@ export async function getAlgoliaSimilarSongs(
   if (!algolia || !song?.id) return [];
 
   const { client, indexName } = algolia;
-  const primaryArtist = song.artistName ? song.artistName.split(",")[0].trim() : "";
+  const artistTokens = (song.artistName || "")
+    .split(/[,/&]|\bft\.?|\bfeat\.?/i)
+    .map((a) => a.trim())
+    .filter(Boolean);
+  const primaryArtist = artistTokens[0] || "";
   const queries: string[] = [];
 
   const genreTokens = (song.genre || "")
@@ -256,6 +260,9 @@ export async function getAlgoliaSimilarSongs(
   }
   if (primaryArtist) {
     queries.push(primaryArtist);
+  }
+  for (let i = 1; i < artistTokens.length; i++) {
+    queries.push(artistTokens[i]);
   }
   if (song.album) {
     queries.push(song.album);

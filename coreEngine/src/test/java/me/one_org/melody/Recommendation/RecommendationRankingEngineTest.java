@@ -190,5 +190,71 @@ class RecommendationRankingEngineTest {
         Set<String> set = RecommendationRankingEngine.parseGenreSet(" Pop , Dance,  , Electronic , Pop  ");
         assertThat(set).containsExactlyInAnyOrder("pop", "dance", "electronic");
     }
+
+    @Test
+    @DisplayName("Should score high for multi-artist matches and collaborator overlap")
+    void shouldScoreHighForMultiArtistMatches() {
+        Song seed = buildSongEntity("seed-1", "Rich Flex", "Drake, 21 Savage", "Hip Hop", "Her Loss", "English");
+
+        // Exact match with different order: "21 Savage, Drake"
+        SongDto reversedOrder = buildSongDto("c-1", "Spin Bout U", "21 Savage, Drake", "Hip Hop", "Album A", "English", 500L);
+        // Primary artist match: "Drake, Travis Scott"
+        SongDto primaryMatch = buildSongDto("c-2", "Meltdown", "Drake, Travis Scott", "Hip Hop", "Album B", "English", 500L);
+        // Collaborator match: "Future, 21 Savage"
+        SongDto collabMatch = buildSongDto("c-3", "Superhero", "Future, 21 Savage", "Hip Hop", "Album C", "English", 500L);
+        // Zero overlap
+        SongDto unrelatedArtist = buildSongDto("c-4", "Starboy", "The Weeknd", "Hip Hop", "Album D", "English", 500L);
+
+        double scoreReversed = engine.scoreCandidate(reversedOrder, seed, null);
+        double scorePrimary = engine.scoreCandidate(primaryMatch, seed, null);
+        double scoreCollab = engine.scoreCandidate(collabMatch, seed, null);
+        double scoreUnrelated = engine.scoreCandidate(unrelatedArtist, seed, null);
+
+        // Reversed full duo match and primary match both earn maximum artist affinity (15 pts artist)
+        // Allow small tolerance for deterministic playback jitter (0-3 pts)
+        assertThat(scoreReversed).isCloseTo(scorePrimary, org.assertj.core.data.Offset.offset(3.5));
+        // Shared collaborator (10 pts artist) should be higher than unrelated (0 pts artist)
+        assertThat(scoreCollab).isGreaterThan(scoreUnrelated);
+        // Full duo/primary match (15 pts) should beat shared collaborator (10 pts)
+        assertThat(scorePrimary).isGreaterThan(scoreCollab);
+    }
+
+    @Test
+    @DisplayName("Should enforce max tracks per artist across all comma-separated collaborators")
+    void shouldEnforceMaxTracksAcrossAllCommaSeparatedArtists() {
+        Song seed = buildSongEntity("seed-1", "Seed", "Seed Singer", "Pop", "Album", "English");
+
+        // Drake appears as primary or collaborator across 4 songs
+        List<SongDto> candidates = new ArrayList<>();
+        candidates.add(buildSongDto("s-1", "Track 1", "Drake, 21 Savage", "Pop", "Album 1", "English", 1000L));
+        candidates.add(buildSongDto("s-2", "Track 2", "Drake, Travis Scott", "Pop", "Album 2", "English", 900L));
+        candidates.add(buildSongDto("s-3", "Track 3", "Future, Drake", "Pop", "Album 3", "English", 800L));
+        candidates.add(buildSongDto("s-4", "Track 4", "Drake", "Pop", "Album 4", "English", 700L));
+
+        // Other artists
+        candidates.add(buildSongDto("s-5", "Track 5", "Post Malone", "Pop", "Album 5", "English", 600L));
+        candidates.add(buildSongDto("s-6", "Track 6", "The Weeknd", "Pop", "Album 6", "English", 500L));
+
+        List<SongDto> results = engine.rankAndDiversify(
+                seed,
+                candidates,
+                List.of(),
+                Set.of("seed-1"),
+                4,
+                2, // max 2 per artist
+                2
+        );
+
+        assertThat(results).hasSize(4);
+        long drakeCount = results.stream().filter(s -> s.artistName().toLowerCase().contains("drake")).count();
+        assertThat(drakeCount).isLessThanOrEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("Should parse artist set cleanly with comma, slash, ampersand, and feat delimiters")
+    void shouldParseArtistSetCleanly() {
+        Set<String> set = RecommendationRankingEngine.parseArtistSet("Drake, 21 Savage / Metro Boomin & Future ft. Travis Scott feat. Lil Baby");
+        assertThat(set).containsExactlyInAnyOrder("drake", "21 savage", "metro boomin", "future", "travis scott", "lil baby");
+    }
 }
 

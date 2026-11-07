@@ -98,9 +98,21 @@ public class RecommendationApiService {
                 if (seedSong.getLanguage() != null && !seedSong.getLanguage().isBlank()) {
                     dbCandidates.addAll(songsRepository.findActiveByLanguage(seedSong.getLanguage().trim(), PageRequest.of(0, 20)));
                 }
-                // Artist candidates (controlled sample)
+                // Artist candidates (controlled sample across all comma-separated artists)
                 if (seedSong.getArtistName() != null && !seedSong.getArtistName().isBlank()) {
-                    dbCandidates.addAll(songsRepository.findActiveByArtistName(seedSong.getArtistName().trim(), PageRequest.of(0, 10)));
+                    List<String> artistTokens = Arrays.stream(seedSong.getArtistName().split("[,/&]|\\b(?:ft|feat)(?:\\.|\\b)"))
+                            .map(s -> s.replaceAll("^[.\\s]+|[.\\s]+$", "").trim())
+                            .filter(s -> !s.isBlank())
+                            .distinct()
+                            .toList();
+                    if (artistTokens.size() <= 1) {
+                        dbCandidates.addAll(songsRepository.findActiveByArtistName(seedSong.getArtistName().trim(), PageRequest.of(0, 10)));
+                    } else {
+                        int perArtist = Math.max(5, 10 / artistTokens.size());
+                        for (String a : artistTokens) {
+                            dbCandidates.addAll(songsRepository.findActiveByArtistName(a, PageRequest.of(0, perArtist)));
+                        }
+                    }
                 }
                 // Album candidates
                 if (seedSong.getAlbum() != null && !seedSong.getAlbum().isBlank()) {

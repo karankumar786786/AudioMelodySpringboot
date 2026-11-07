@@ -103,13 +103,20 @@ export function RightInfoPanel() {
         );
       };
 
-      const targetGenres = parseGenres(currentSong.genre);
-      const primaryArtist = currentSong.artistName
-        ?.split(",")[0]
-        ?.trim()
-        .toLowerCase();
+      const parseArtists = (artistStr?: string | null): Set<string> => {
+        if (!artistStr) return new Set();
+        return new Set(
+          artistStr
+            .split(/[,/&]|\bft\.?|\bfeat\.?/i)
+            .map((a) => a.trim().toLowerCase())
+            .filter(Boolean),
+        );
+      };
 
-      // Strong boost for matching genre, secondary boost for primary artist
+      const targetGenres = parseGenres(currentSong.genre);
+      const targetArtists = parseArtists(currentSong.artistName);
+
+      // Strong boost for matching genre, secondary boost for artist alignment (multi-artist aware)
       const scoreSong = (s: Song) => {
         let score = 0;
         if (targetGenres.size > 0 && s.genre) {
@@ -131,12 +138,24 @@ export function RightInfoPanel() {
             }
           }
         }
-        if (
-          primaryArtist &&
-          s.artistName &&
-          s.artistName.toLowerCase().includes(primaryArtist)
-        ) {
-          score += 8;
+        if (targetArtists.size > 0 && s.artistName) {
+          const sArtists = parseArtists(s.artistName);
+          let match = false;
+          sArtists.forEach((a) => {
+            if (targetArtists.has(a)) match = true;
+          });
+          if (match) {
+            score += 8;
+          } else {
+            for (const ta of targetArtists) {
+              for (const sa of sArtists) {
+                if (ta.includes(sa) || sa.includes(ta)) {
+                  score += 4;
+                  break;
+                }
+              }
+            }
+          }
         }
         return score;
       };
@@ -158,21 +177,27 @@ export function RightInfoPanel() {
         }
       }
 
-      if (targetGenres.size > 0 || primaryArtist) {
+      if (targetGenres.size > 0 || targetArtists.size > 0) {
         pool.sort((a, b) => scoreSong(b) - scoreSong(a));
       }
 
-      // Enforce artist diversity: maximum 2 tracks per primary artist
+      // Enforce artist diversity: maximum 2 tracks per artist (multi-artist aware)
       const artistCounts = new Map<string, number>();
       const diversePool: Song[] = [];
       const deferred: Song[] = [];
 
       for (const s of pool) {
-        const artistKey = s.artistName?.split(/[,/&]|ft\./i)[0]?.trim().toLowerCase() || "unknown";
-        const count = artistCounts.get(artistKey) || 0;
-        if (count < 2) {
+        const sArtists = parseArtists(s.artistName);
+        let artistLimitReached = false;
+        for (const a of sArtists) {
+          if ((artistCounts.get(a) || 0) >= 2) {
+            artistLimitReached = true;
+            break;
+          }
+        }
+        if (!artistLimitReached) {
           diversePool.push(s);
-          artistCounts.set(artistKey, count + 1);
+          sArtists.forEach((a) => artistCounts.set(a, (artistCounts.get(a) || 0) + 1));
         } else {
           deferred.push(s);
         }

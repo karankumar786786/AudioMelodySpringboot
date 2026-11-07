@@ -325,16 +325,24 @@ public interface SongsRepository extends JpaRepository<Song, String> {
             }
         }
 
-        // 3. Same Artist
+        // 3. Same Artist (handles comma-separated multi-artist strings)
         if (artistName != null && !artistName.isBlank() && results.size() < limit) {
-            int needed = limit - results.size();
-            List<Song> artistMatches = excluded.isEmpty()
-                    ? findActiveByArtistName(artistName.trim(), PageRequest.of(0, needed))
-                    : findActiveByArtistNameExcluding(artistName.trim(), excluded, PageRequest.of(0, needed));
-            for (Song s : artistMatches) {
-                results.add(s);
-                excluded.add(s.getId());
+            List<String> artistTokens = Arrays.stream(artistName.split("[,/&]|\\b(?:ft|feat)(?:\\.|\\b)"))
+                    .map(s -> s.replaceAll("^[.\\s]+|[.\\s]+$", "").trim())
+                    .filter(s -> !s.isBlank())
+                    .distinct()
+                    .toList();
+            for (String singleArtist : artistTokens) {
                 if (results.size() >= limit) break;
+                int needed = limit - results.size();
+                List<Song> artistMatches = excluded.isEmpty()
+                        ? findActiveByArtistName(singleArtist, PageRequest.of(0, needed))
+                        : findActiveByArtistNameExcluding(singleArtist, excluded, PageRequest.of(0, needed));
+                for (Song s : artistMatches) {
+                    results.add(s);
+                    excluded.add(s.getId());
+                    if (results.size() >= limit) break;
+                }
             }
         }
 

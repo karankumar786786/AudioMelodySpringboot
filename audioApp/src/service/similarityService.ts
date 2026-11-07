@@ -84,38 +84,44 @@ export const similarityService = {
       }
     }
 
-    // 2. Artist alignment (controlled: up to 12 pts, so artist does not dominate musical vibe)
-    if (seedArtist && candArtist) {
-      const seedParts = seedArtist
-        .split(/[,&]/)
-        .map((p) => p.trim())
-        .filter((p) => p.length > 2);
-      const candParts = candArtist
-        .split(/[,&]/)
-        .map((p) => p.trim())
-        .filter((p) => p.length > 2);
+    // 2. Artist alignment (controlled: up to 12 pts, multi-artist / comma-separated aware)
+    const parseArtists = (artistStr?: string): Set<string> => {
+      if (!artistStr) return new Set();
+      return new Set(
+        artistStr
+          .split(/[,/&]|\bft\.?|\bfeat\.?/i)
+          .map((a) => a.trim().toLowerCase())
+          .filter((a) => a.length > 1)
+      );
+    };
 
-      const primarySeed = seedParts[0];
-      const primaryCand = candParts[0];
+    const seedArtists = parseArtists(seed.artistName);
+    const candArtists = parseArtists(candidate.artistName);
 
-      if (
-        primarySeed &&
-        primaryCand &&
-        (primarySeed === primaryCand || candArtist.includes(primarySeed))
-      ) {
-        score += 12; // Controlled primary artist match
+    if (seedArtists.size > 0 && candArtists.size > 0) {
+      let sharedArtistCount = 0;
+      seedArtists.forEach((a) => {
+        if (candArtists.has(a)) sharedArtistCount++;
+      });
+
+      if (seedArtists.size === candArtists.size && sharedArtistCount === seedArtists.size) {
+        score += 12; // All artists match (e.g. duo/band/exact collaborators)
+      } else if (sharedArtistCount > 0) {
+        score += 10; // Collaborator / shared artist match
       } else {
-        // Collaborator match
-        const hasCollaboratorOverlap = seedParts.some((sp) =>
-          candParts.some(
-            (cp) =>
-              cp === sp ||
-              candArtist.includes(sp) ||
-              seedArtist.includes(cp)
-          )
-        );
-        if (hasCollaboratorOverlap) {
-          score += 6;
+        // Substring / partial artist token match (e.g. "dj snake" vs "snake")
+        let submatch = false;
+        for (const sa of seedArtists) {
+          for (const ca of candArtists) {
+            if (sa.includes(ca) || ca.includes(sa)) {
+              submatch = true;
+              break;
+            }
+          }
+          if (submatch) break;
+        }
+        if (submatch) {
+          score += 5;
         }
       }
     }
@@ -199,9 +205,9 @@ export const similarityService = {
       const results: Song[] = [];
 
       const artists = (seed.artistName || "")
-        .split(/[,&]/)
+        .split(/[,/&]|\bft\.?|\bfeat\.?/i)
         .map((a) => a.trim())
-        .filter((a) => a.length > 2);
+        .filter((a) => a.length > 1);
       const primaryArtist = artists[0] || "";
 
       // 1. Target queries prioritizing genre and musical vibe
@@ -232,7 +238,11 @@ export const similarityService = {
       if (primaryArtist) {
         queries.push(primaryArtist);
       }
-      // Query E: Album
+      // Query E: Additional individual collaborator artists
+      for (let i = 1; i < artists.length; i++) {
+        queries.push(artists[i]);
+      }
+      // Query F: Album
       if (seed.album) {
         queries.push(seed.album);
       }

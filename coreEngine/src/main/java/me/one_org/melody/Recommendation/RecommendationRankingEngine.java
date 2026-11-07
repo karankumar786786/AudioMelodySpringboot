@@ -106,14 +106,24 @@ public class RecommendationRankingEngine {
             }
 
             SongDto song = item.song();
+            Set<String> songArtists = parseArtistSet(song.artistName());
             String primaryArtist = getPrimaryArtistKey(song.artistName());
             String albumKey = getNormalizedKey(song.album());
 
-            int currentArtistCount = artistCount.getOrDefault(primaryArtist, 0);
             int currentAlbumCount = (albumKey != null) ? albumCount.getOrDefault(albumKey, 0) : 0;
-
-            boolean artistLimitReached = currentArtistCount >= maxPerArtist;
             boolean albumLimitReached = (albumKey != null) && (currentAlbumCount >= maxPerAlbum);
+
+            // Multi-artist quota check: verify none of the comma-separated artists exceeded maxPerArtist
+            boolean artistLimitReached = false;
+            for (String artistKey : songArtists) {
+                if (artistCount.getOrDefault(artistKey, 0) >= maxPerArtist) {
+                    artistLimitReached = true;
+                    break;
+                }
+            }
+            if (songArtists.isEmpty() && artistCount.getOrDefault(primaryArtist, 0) >= maxPerArtist) {
+                artistLimitReached = true;
+            }
 
             if (artistLimitReached || albumLimitReached) {
                 deferredDueToQuotas.add(item);
@@ -121,7 +131,12 @@ public class RecommendationRankingEngine {
             }
 
             selected.add(song);
-            artistCount.put(primaryArtist, currentArtistCount + 1);
+            for (String artistKey : songArtists) {
+                artistCount.put(artistKey, artistCount.getOrDefault(artistKey, 0) + 1);
+            }
+            if (songArtists.isEmpty()) {
+                artistCount.put(primaryArtist, artistCount.getOrDefault(primaryArtist, 0) + 1);
+            }
             if (albumKey != null) {
                 albumCount.put(albumKey, currentAlbumCount + 1);
             }
@@ -165,6 +180,21 @@ public class RecommendationRankingEngine {
         Set<String> set = new LinkedHashSet<>();
         for (String part : genreStr.split(",")) {
             String trimmed = part.trim().toLowerCase();
+            if (!trimmed.isEmpty()) {
+                set.add(trimmed);
+            }
+        }
+        return set;
+    }
+
+    public static Set<String> parseArtistSet(String artistName) {
+        if (artistName == null || artistName.isBlank()) {
+            return Collections.emptySet();
+        }
+        Set<String> set = new LinkedHashSet<>();
+        String[] parts = artistName.split("[,/&]|\\b(?:ft|feat)(?:\\.|\\b)");
+        for (String part : parts) {
+            String trimmed = part.trim().toLowerCase().replaceAll("^[.\\s]+|[.\\s]+$", "");
             if (!trimmed.isEmpty()) {
                 set.add(trimmed);
             }
@@ -246,15 +276,39 @@ public class RecommendationRankingEngine {
         }
 
         // 4. Artist Affinity (Controlled Weight, up to 15 pts)
+        // Multi-artist aware: handles comma-separated multiple artists (e.g. duos, collabs, features).
         // Kept controlled so same artist does NOT dominate over genre + language + Recombee
-        if (seedArtist != null && candArtist != null) {
+        Set<String> seedArtists = parseArtistSet(seedSong.getArtistName());
+        Set<String> candArtists = parseArtistSet(candidate.artistName());
+
+        if (!seedArtists.isEmpty() && !candArtists.isEmpty()) {
             String seedPrimary = getPrimaryArtistKey(seedSong.getArtistName());
             String candPrimary = getPrimaryArtistKey(candidate.artistName());
 
-            if (seedPrimary.equals(candPrimary)) {
-                score += 15.0;
-            } else if (candArtist.contains(seedPrimary) || seedArtist.contains(candPrimary)) {
-                score += 8.0; // Collaborator / featuring match
+            if (seedArtists.equals(candArtists)) {
+                score += 15.0; // All artists match (e.g. exact group / collabs)
+            } else if (seedPrimary.equals(candPrimary)) {
+                score += 15.0; // Primary lead artist matches
+            } else {
+                Set<String> sharedArtists = new HashSet<>(seedArtists);
+                sharedArtists.retainAll(candArtists);
+                if (!sharedArtists.isEmpty()) {
+                    score += 10.0; // Shared collaborator / featured artist match
+                } else {
+                    boolean submatch = false;
+                    for (String sa : seedArtists) {
+                        for (String ca : candArtists) {
+                            if (sa.contains(ca) || ca.contains(sa)) {
+                                submatch = true;
+                                break;
+                            }
+                        }
+                        if (submatch) break;
+                    }
+                    if (submatch) {
+                        score += 5.0;
+                    }
+                }
             }
         }
 
@@ -287,10 +341,10 @@ public class RecommendationRankingEngine {
     public static String getPrimaryArtistKey(String artistName) {
         if (artistName == null || artistName.isBlank()) return "unknown";
         String cleaned = artistName.trim().toLowerCase();
-        // Split on comma, slash, ampersand, or "ft."
-        String[] parts = cleaned.split("[,/&]|\\bft\\.?|\\bfeat\\.?");
+        // Split on comma, slash, ampersand, or "ft." / "feat."
+        String[] parts = cleaned.split("[,/&]|\\b(?:ft|feat)(?:\\.|\\b)");
         if (parts.length > 0 && !parts[0].isBlank()) {
-            return parts[0].trim();
+            return parts[0].replaceAll("^[.\\s]+|[.\\s]+$", "").trim();
         }
         return cleaned;
     }
