@@ -1,6 +1,7 @@
 export * from "./HomeSkeleton";
 export * from "./HomeHeader";
 export * from "./TrendingSection";
+export * from "./FullVideosSection";
 export * from "./TopArtistsSection";
 export * from "./RecentlyPlayedSection";
 export * from "./FeaturedPlaylistsSection";

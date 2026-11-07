@@ -51,6 +51,13 @@ public class SongsApiController {
         return ResponseEntity.ok(songsAppService.getFeaturedSongs());
     }
 
+    @GetMapping("/videos")
+    public ResponseEntity<List<SongDto>> getSongsWithVideo(@RequestParam(defaultValue = "15") int limit) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(10, TimeUnit.MINUTES).cachePublic())
+                .body(songsAppService.getSongsWithVideo(limit));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<SongDto> getSongById(@PathVariable @NotBlank(message = "Song ID is required") String id) {
         return ResponseEntity.ok()

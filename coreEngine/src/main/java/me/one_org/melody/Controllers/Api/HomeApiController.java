@@ -110,6 +110,16 @@ public class HomeApiController {
                     }
                 }
 
+                // 3. Full Music Videos (Limit 15)
+                if (!isClosed.get()) {
+                    try {
+                        List<SongDto> videos = songsApiService.getSongsWithVideo(15);
+                        sendEvent(emitter, isClosed, "videos", videos);
+                    } catch (Exception e) {
+                        log.warn("[HomeStream] Failed to fetch music videos: {}", e.getMessage());
+                    }
+                }
+
                 // 3. Top Artists (Page 0, Size 15)
                 if (!isClosed.get()) {
                     try {

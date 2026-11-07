@@ -74,6 +74,14 @@ public class SongsApiService {
                 .toList();
     }
 
+    @Cacheable(value = "video_songs", key = "#limit")
+    public List<SongDto> getSongsWithVideo(int limit) {
+        int safeLimit = Math.max(1, Math.min(limit, 50));
+        return songsRepository.findSongsWithVideo(safeLimit).stream()
+                .map(SongDto::fromEntity)
+                .toList();
+    }
+
     public List<SongDto> getSongsByAlbum(String albumName) {
         return songsRepository.findByAlbum(albumName).stream()
                 .map(SongDto::fromEntity)

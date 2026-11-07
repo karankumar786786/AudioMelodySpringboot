@@ -15,7 +15,7 @@ interface HomeHeaderProps {
   isQuickPicksLoading: boolean;
 }
 
-const FILTERS = ["All", "Trending", "Artists", "Playlists", "Explore"] as const;
+const FILTERS = ["All", "Trending", "Videos", "Artists", "Playlists", "Explore"] as const;
 
 export const HomeHeader: React.FC<HomeHeaderProps> = ({
   greeting,
@@ -55,6 +55,7 @@ export const HomeHeader: React.FC<HomeHeaderProps> = ({
                 }`}
               >
                 {filter === "Trending" && "🔥 "}
+                {filter === "Videos" && "🎬 "}
                 {filter === "Artists" && "🎤 "}
                 {filter === "Playlists" && "💿 "}
                 {filter}

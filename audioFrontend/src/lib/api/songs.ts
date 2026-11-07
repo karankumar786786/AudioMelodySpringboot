@@ -15,4 +15,9 @@ export const songsApi = {
     const list = Array.isArray(res) ? res : [];
     return list;
   },
+  getVideos: async (limit = 15) => {
+    const res = await request<Song[]>(`/api/songs/videos?limit=${limit}`);
+    const list = Array.isArray(res) ? res : [];
+    return list;
+  },
 };

@@ -249,6 +249,14 @@ public interface SongsRepository extends JpaRepository<Song, String> {
     @Query("SELECT s FROM Song s WHERE s.isFeatured = true AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt DESC")
     List<Song> findFeatured();
 
+    @EntityGraph(attributePaths = {"songMetadata"})
+    @Query("SELECT s FROM Song s WHERE s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '' AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt DESC")
+    List<Song> findSongsWithVideo(Pageable pageable);
+
+    default List<Song> findSongsWithVideo(int limit) {
+        return findSongsWithVideo(PageRequest.of(0, limit));
+    }
+
     @Query("SELECT COUNT(s) FROM Song s WHERE s.isFeatured = true AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE")
     long countFeatured();
 

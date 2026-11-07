@@ -20,6 +20,7 @@ import {
   HomeSkeleton,
   HomeHeader,
   TrendingSection,
+  FullVideosSection,
   TopArtistsSection,
   RecentlyPlayedSection,
   FeaturedPlaylistsSection,
@@ -51,6 +52,8 @@ export function HomeClientView() {
           queryClient.setQueryData(["featured-songs"], payload);
         } else if (section === "trending") {
           queryClient.setQueryData(["trending-songs"], payload);
+        } else if (section === "videos") {
+          queryClient.setQueryData(["home-videos"], payload);
         } else if (section === "artists") {
           queryClient.setQueryData(["home-artists"], formatPaginated(payload));
         } else if (section === "playlists") {
@@ -90,12 +93,14 @@ export function HomeClientView() {
 
   // Section anchor refs for filter pills
   const trendingSectionRef = useRef<HTMLElement>(null);
+  const videosSectionRef = useRef<HTMLElement>(null);
   const artistsSectionRef = useRef<HTMLElement>(null);
   const playlistsSectionRef = useRef<HTMLElement>(null);
   const exploreSectionRef = useRef<HTMLElement>(null);
 
   // Horizontal scroll container refs
   const trendingScrollRef = useRef<HTMLDivElement>(null);
+  const videosScrollRef = useRef<HTMLDivElement>(null);
   const artistsScrollRef = useRef<HTMLDivElement>(null);
   const recentlyPlayedScrollRef = useRef<HTMLDivElement>(null);
   const playlistsScrollRef = useRef<HTMLDivElement>(null);
@@ -122,6 +127,14 @@ export function HomeClientView() {
   const { data: trending, isLoading: isTrendingLoading } = useQuery({
     queryKey: ["trending-songs"],
     queryFn: () => musicApi.interactions.getTrending(12),
+    enabled: useFallback,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // 2b. Full Music Videos (ONLY enabled if SSE stream fails)
+  const { data: serverVideos } = useQuery({
+    queryKey: ["home-videos"],
+    queryFn: () => musicApi.songs.getVideos(15),
     enabled: useFallback,
     staleTime: 5 * 60 * 1000,
   });
@@ -278,6 +291,28 @@ export function HomeClientView() {
     data?.pages,
   ]);
 
+  // Full Music Videos (from SSE, dedicated API query, or catalog discovery)
+  const effectiveVideos = useMemo(() => {
+    const raw = (serverVideos as any)?.data || serverVideos || [];
+    const directList: Song[] = Array.isArray(raw) ? raw : [];
+    if (directList.length > 0) return directList;
+
+    const pool: Song[] = [
+      ...(trending?.data?.data || []),
+      ...(featuredSongs || []),
+      ...(data?.pages?.[0]?.data?.data || []),
+    ];
+    const seen = new Set<string>();
+    return pool.filter((song) => {
+      const hasVideo = Boolean(song.fullVideoKey || (song as any).full_video_key);
+      if (hasVideo && song.id && !seen.has(String(song.id))) {
+        seen.add(String(song.id));
+        return true;
+      }
+      return false;
+    });
+  }, [serverVideos, trending?.data?.data, featuredSongs, data?.pages]);
+
   const effectiveIsArtistsLoading =
     isArtistsLoading || (streamActive && !artists?.data?.data);
   const effectiveIsPlaylistsLoading =
@@ -296,6 +331,11 @@ export function HomeClientView() {
       mainContainer?.scrollTo({ top: 0, behavior: "smooth" });
     } else if (filter === "Trending") {
       trendingSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    } else if (filter === "Videos") {
+      videosSectionRef.current?.scrollIntoView({
         behavior: "smooth",
         block: "start",
       });
@@ -427,7 +467,15 @@ export function HomeClientView() {
         trendingSongs={trendingSongs}
       />
 
-      {/* 3. Top Artists Section */}
+      {/* 3. Full Music Videos Section */}
+      <FullVideosSection
+        sectionRef={videosSectionRef}
+        scrollRef={videosScrollRef}
+        onScroll={(dist) => scrollContainer(videosScrollRef, dist)}
+        videos={effectiveVideos}
+      />
+
+      {/* 4. Top Artists Section */}
       <TopArtistsSection
         sectionRef={artistsSectionRef}
         scrollRef={artistsScrollRef}
