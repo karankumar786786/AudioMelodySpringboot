@@ -67,6 +67,7 @@ public class Recombee {
         registerPropertySafely("artistName", "string");
         registerPropertySafely("language", "string");
         registerPropertySafely("genre", "string");
+        registerPropertySafely("genres", "set");
         registerPropertySafely("album", "string");
         registerPropertySafely("duration", "int");
         registerPropertySafely("totalStreams", "int");
@@ -114,13 +115,29 @@ public class Recombee {
 
     // ── Save song item with properties ──
 
+    public static List<String> parseGenres(String genreStr) {
+        if (genreStr == null || genreStr.isBlank()) {
+            return List.of();
+        }
+        return java.util.Arrays.stream(genreStr.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .toList();
+    }
+
     public Map<String, Object> buildSongValues(Song song) {
         Map<String, Object> values = new HashMap<>();
         values.put("title", song.getTitle());
         values.put("artistName", song.getArtistName());
         values.put("language", song.getLanguage());
         if (song.getGenre() != null && !song.getGenre().isBlank()) {
-            values.put("genre", song.getGenre());
+            String trimmedGenre = song.getGenre().trim();
+            values.put("genre", trimmedGenre);
+            List<String> genreList = parseGenres(trimmedGenre);
+            if (!genreList.isEmpty()) {
+                values.put("genres", genreList);
+            }
         }
         if (song.getAlbum() != null && !song.getAlbum().isBlank()) {
             values.put("album", song.getAlbum());
@@ -195,7 +212,12 @@ public class Recombee {
         values.put("artistName", artistName);
         values.put("language", language);
         if (genre != null && !genre.isBlank()) {
-            values.put("genre", genre);
+            String trimmedGenre = genre.trim();
+            values.put("genre", trimmedGenre);
+            List<String> genreList = parseGenres(trimmedGenre);
+            if (!genreList.isEmpty()) {
+                values.put("genres", genreList);
+            }
         }
         if (album != null && !album.isBlank()) {
             values.put("album", album);
@@ -348,6 +370,9 @@ public class Recombee {
         Boolean isFeatured = values.get("isFeatured") instanceof Boolean b ? b : false;
         String language = (String) values.get("language");
         String genre = (String) values.get("genre");
+        if ((genre == null || genre.isBlank()) && values.get("genres") instanceof List<?> list && !list.isEmpty()) {
+            genre = list.stream().map(Object::toString).collect(java.util.stream.Collectors.joining(", "));
+        }
         String album = (String) values.get("album");
         String lrclibId = (String) values.get("lrclibId");
 

@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -303,16 +304,24 @@ public interface SongsRepository extends JpaRepository<Song, String> {
             }
         }
 
-        // 2. Same Genre
+        // 2. Same Genre (handles comma-separated multi-genre strings)
         if (genre != null && !genre.isBlank() && results.size() < limit) {
-            int needed = limit - results.size();
-            List<Song> genreMatches = excluded.isEmpty()
-                    ? findActiveByGenre(genre.trim(), PageRequest.of(0, needed))
-                    : findActiveByGenreExcluding(genre.trim(), excluded, PageRequest.of(0, needed));
-            for (Song s : genreMatches) {
-                results.add(s);
-                excluded.add(s.getId());
+            List<String> genreTokens = Arrays.stream(genre.split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isBlank())
+                    .distinct()
+                    .toList();
+            for (String singleGenre : genreTokens) {
                 if (results.size() >= limit) break;
+                int needed = limit - results.size();
+                List<Song> genreMatches = excluded.isEmpty()
+                        ? findActiveByGenre(singleGenre, PageRequest.of(0, needed))
+                        : findActiveByGenreExcluding(singleGenre, excluded, PageRequest.of(0, needed));
+                for (Song s : genreMatches) {
+                    results.add(s);
+                    excluded.add(s.getId());
+                    if (results.size() >= limit) break;
+                }
             }
         }
 

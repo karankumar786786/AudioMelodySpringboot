@@ -31,8 +31,18 @@ export const similarityService = {
 
     let score = 0;
 
-    const seedGenre = (seed.genre || "").trim().toLowerCase();
-    const candGenre = (candidate.genre || "").trim().toLowerCase();
+    const parseGenres = (genreStr?: string): Set<string> => {
+      if (!genreStr) return new Set();
+      return new Set(
+        genreStr
+          .split(",")
+          .map((g) => g.trim().toLowerCase())
+          .filter(Boolean)
+      );
+    };
+
+    const seedGenres = parseGenres(seed.genre);
+    const candGenres = parseGenres(candidate.genre);
 
     const seedArtist = (seed.artistName || "").toLowerCase();
     const candArtist = (candidate.artistName || "").toLowerCase();
@@ -41,11 +51,36 @@ export const similarityService = {
     const candAlbum = (candidate.album || "").trim().toLowerCase();
 
     // 1. Genre alignment (up to 40 pts)
-    if (seedGenre && candGenre) {
-      if (seedGenre === candGenre) {
+    // Multi-genre aware: handles comma-separated genres with exact set equality,
+    // Jaccard token overlap for partial multi-genre matches, and subgenre substring matching.
+    if (seedGenres.size > 0 && candGenres.size > 0) {
+      let intersectionCount = 0;
+      seedGenres.forEach((g) => {
+        if (candGenres.has(g)) intersectionCount++;
+      });
+
+      if (seedGenres.size === candGenres.size && intersectionCount === seedGenres.size) {
         score += 40;
-      } else if (seedGenre.includes(candGenre) || candGenre.includes(seedGenre)) {
-        score += 25;
+      } else if (intersectionCount > 0) {
+        const jaccard =
+          intersectionCount /
+          (seedGenres.size + candGenres.size - intersectionCount);
+        score += 25 + Math.round(15 * jaccard);
+      } else {
+        // Subgenre / partial overlap across tokens (e.g. "dance-pop" contains "pop")
+        let subgenreMatch = false;
+        for (const sg of seedGenres) {
+          for (const cg of candGenres) {
+            if (sg.includes(cg) || cg.includes(sg)) {
+              subgenreMatch = true;
+              break;
+            }
+          }
+          if (subgenreMatch) break;
+        }
+        if (subgenreMatch) {
+          score += 20;
+        }
       }
     }
 
@@ -172,19 +207,32 @@ export const similarityService = {
       // 1. Target queries prioritizing genre and musical vibe
       const queries: string[] = [];
 
-      // Query A: Genre alone (discovers tracks by all artists in the same genre)
-      if (seed.genre) {
+      const genreTokens = (seed.genre || "")
+        .split(",")
+        .map((g) => g.trim())
+        .filter(Boolean);
+      const primaryGenre = genreTokens[0] || "";
+
+      // Query A: Primary genre alone (discovers tracks by all artists in the same genre)
+      if (primaryGenre) {
+        queries.push(primaryGenre);
+      }
+      // Query B: Primary genre + primary artist
+      if (primaryGenre && primaryArtist) {
+        queries.push(`${primaryGenre} ${primaryArtist}`);
+      }
+      // Query C: Additional individual genres
+      for (let i = 1; i < genreTokens.length; i++) {
+        queries.push(genreTokens[i]);
+      }
+      if (seed.genre && genreTokens.length > 1) {
         queries.push(seed.genre);
       }
-      // Query B: Genre + primary artist
-      if (seed.genre && primaryArtist) {
-        queries.push(`${seed.genre} ${primaryArtist}`);
-      }
-      // Query C: Primary artist alone (single query, capped)
+      // Query D: Primary artist alone (single query, capped)
       if (primaryArtist) {
         queries.push(primaryArtist);
       }
-      // Query D: Album
+      // Query E: Album
       if (seed.album) {
         queries.push(seed.album);
       }

@@ -151,5 +151,44 @@ class RecommendationRankingEngineTest {
         // In fallback pass, relaxes quota so user still gets 3 songs rather than 2
         assertThat(results).hasSize(3);
     }
+
+    @Test
+    @DisplayName("Should score high for comma-separated multi-genre overlap regardless of order")
+    void shouldScoreHighForCommaSeparatedMultiGenreOverlap() {
+        Song seed = buildSongEntity("seed-1", "Seed", "Artist Seed", "Pop, Dance, Electronic", "Album A", "English");
+
+        // Exact match with different order and whitespace
+        SongDto exactDifferentOrder = buildSongDto("c-1", "Dance All Night", "Artist B", "Electronic,  Pop, Dance", "Album B", "English", 500L);
+        // Partial overlap: shares "Pop" and "Dance"
+        SongDto partialOverlap = buildSongDto("c-2", "Club Party", "Artist C", "Dance, Pop, House", "Album C", "English", 500L);
+        // Single shared genre: shares "Pop"
+        SongDto singleOverlap = buildSongDto("c-3", "Acoustic Pop", "Artist D", "Pop", "Album D", "English", 500L);
+        // Subgenre substring overlap: "dance-pop" contains "dance" and "pop"
+        SongDto subgenreOverlap = buildSongDto("c-4", "Synth Anthem", "Artist E", "Synth-Pop", "Album E", "English", 500L);
+        // Zero overlap
+        SongDto unrelatedGenre = buildSongDto("c-5", "Dark Metal", "Artist F", "Black Metal", "Album F", "English", 500L);
+
+        double scoreExact = engine.scoreCandidate(exactDifferentOrder, seed, null);
+        double scorePartial = engine.scoreCandidate(partialOverlap, seed, null);
+        double scoreSingle = engine.scoreCandidate(singleOverlap, seed, null);
+        double scoreSubgenre = engine.scoreCandidate(subgenreOverlap, seed, null);
+        double scoreUnrelated = engine.scoreCandidate(unrelatedGenre, seed, null);
+
+        // Lang is 20 + streams boost for all, so compare relative genre contributions
+        assertThat(scoreExact).isGreaterThan(scorePartial);
+        assertThat(scorePartial).isGreaterThan(scoreSingle);
+        assertThat(scoreSingle).isGreaterThan(scoreSubgenre);
+        assertThat(scoreSubgenre).isGreaterThan(scoreUnrelated);
+
+        // Exact match of all comma-separated genres should achieve max 40 genre points (total score = 40 genre + 20 lang + stream boost)
+        assertThat(scoreExact).isGreaterThanOrEqualTo(60.0);
+    }
+
+    @Test
+    @DisplayName("Should parse genre set cleanly trimming whitespace and dropping empties")
+    void shouldParseGenreSetCleanly() {
+        Set<String> set = RecommendationRankingEngine.parseGenreSet(" Pop , Dance,  , Electronic , Pop  ");
+        assertThat(set).containsExactlyInAnyOrder("pop", "dance", "electronic");
+    }
 }
 

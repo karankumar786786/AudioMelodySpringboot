@@ -55,11 +55,13 @@ public class AlgoliaSearch {
                             "album",
                             "name",
                             "language",
-                            "genre"))
+                            "genre",
+                            "genres"))
                     .setAttributesForFaceting(List.of(
                             "filterOnly(type)",
                             "searchable(language)",
-                            "searchable(genre)"))
+                            "searchable(genre)",
+                            "searchable(genres)"))
                     .setCustomRanking(List.of(
                             "desc(searchCount)",
                             "desc(totalStreams)")));
@@ -114,6 +116,14 @@ public class AlgoliaSearch {
         record.put("language", song.getLanguage());
         if (song.getGenre() != null && !song.getGenre().isBlank()) {
             record.put("genre", song.getGenre());
+            List<String> genresList = java.util.Arrays.stream(song.getGenre().split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .distinct()
+                    .toList();
+            if (!genresList.isEmpty()) {
+                record.put("genres", genresList);
+            }
         }
         if (song.getDuration() != null && song.getDuration() > 0) {
             record.put("duration", song.getDuration());
@@ -384,6 +394,9 @@ public class AlgoliaSearch {
         Boolean isFeatured = h.get("isFeatured") instanceof Boolean b ? b : false;
         String language = (String) h.get("language");
         String genre = (String) h.get("genre");
+        if ((genre == null || genre.isBlank()) && h.get("genres") instanceof List<?> list && !list.isEmpty()) {
+            genre = list.stream().map(Object::toString).collect(java.util.stream.Collectors.joining(", "));
+        }
         String album = (String) h.get("album");
         String lrclibId = (String) h.get("lrclibId");
 

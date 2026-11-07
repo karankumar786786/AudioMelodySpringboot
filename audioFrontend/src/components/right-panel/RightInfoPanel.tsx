@@ -93,7 +93,17 @@ export function RightInfoPanel() {
             )
           : [];
 
-      const targetGenre = currentSong.genre?.trim().toLowerCase();
+      const parseGenres = (genreStr?: string | null): Set<string> => {
+        if (!genreStr) return new Set();
+        return new Set(
+          genreStr
+            .split(",")
+            .map((g) => g.trim().toLowerCase())
+            .filter(Boolean),
+        );
+      };
+
+      const targetGenres = parseGenres(currentSong.genre);
       const primaryArtist = currentSong.artistName
         ?.split(",")[0]
         ?.trim()
@@ -102,8 +112,24 @@ export function RightInfoPanel() {
       // Strong boost for matching genre, secondary boost for primary artist
       const scoreSong = (s: Song) => {
         let score = 0;
-        if (targetGenre && s.genre && s.genre.trim().toLowerCase() === targetGenre) {
-          score += 15;
+        if (targetGenres.size > 0 && s.genre) {
+          const sGenres = parseGenres(s.genre);
+          let match = false;
+          sGenres.forEach((g) => {
+            if (targetGenres.has(g)) match = true;
+          });
+          if (match) {
+            score += 15;
+          } else {
+            for (const tg of targetGenres) {
+              for (const sg of sGenres) {
+                if (tg.includes(sg) || sg.includes(tg)) {
+                  score += 10;
+                  break;
+                }
+              }
+            }
+          }
         }
         if (
           primaryArtist &&
@@ -132,7 +158,7 @@ export function RightInfoPanel() {
         }
       }
 
-      if (targetGenre || primaryArtist) {
+      if (targetGenres.size > 0 || primaryArtist) {
         pool.sort((a, b) => scoreSong(b) - scoreSong(a));
       }
 

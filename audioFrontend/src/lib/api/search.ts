@@ -236,10 +236,22 @@ export async function getAlgoliaSimilarSongs(
   const primaryArtist = song.artistName ? song.artistName.split(",")[0].trim() : "";
   const queries: string[] = [];
 
-  if (song.genre && primaryArtist) {
-    queries.push(`${song.genre} ${primaryArtist}`);
+  const genreTokens = (song.genre || "")
+    .split(",")
+    .map((g) => g.trim())
+    .filter(Boolean);
+  const primaryGenre = genreTokens[0] || "";
+
+  if (primaryGenre && primaryArtist) {
+    queries.push(`${primaryGenre} ${primaryArtist}`);
   }
-  if (song.genre) {
+  if (primaryGenre) {
+    queries.push(primaryGenre);
+  }
+  for (let i = 1; i < genreTokens.length; i++) {
+    queries.push(genreTokens[i]);
+  }
+  if (song.genre && genreTokens.length > 1) {
     queries.push(song.genre);
   }
   if (primaryArtist) {

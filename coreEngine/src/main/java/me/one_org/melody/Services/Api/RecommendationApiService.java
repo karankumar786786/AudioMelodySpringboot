@@ -80,7 +80,19 @@ public class RecommendationApiService {
             try {
                 // Genre candidates (highest relevance)
                 if (seedSong.getGenre() != null && !seedSong.getGenre().isBlank()) {
-                    dbCandidates.addAll(songsRepository.findActiveByGenre(seedSong.getGenre().trim(), PageRequest.of(0, 30)));
+                    List<String> genreTokens = Arrays.stream(seedSong.getGenre().split(","))
+                            .map(String::trim)
+                            .filter(s -> !s.isBlank())
+                            .distinct()
+                            .toList();
+                    if (genreTokens.size() <= 1) {
+                        dbCandidates.addAll(songsRepository.findActiveByGenre(seedSong.getGenre().trim(), PageRequest.of(0, 30)));
+                    } else {
+                        int perGenre = Math.max(10, 30 / genreTokens.size());
+                        for (String g : genreTokens) {
+                            dbCandidates.addAll(songsRepository.findActiveByGenre(g, PageRequest.of(0, perGenre)));
+                        }
+                    }
                 }
                 // Language candidates
                 if (seedSong.getLanguage() != null && !seedSong.getLanguage().isBlank()) {
@@ -166,8 +178,16 @@ public class RecommendationApiService {
                                 if (vibeSeed == null) {
                                     vibeSeed = h.getSong();
                                 }
-                                if (h.getSong().getGenre() != null) {
-                                    dbCandidates.addAll(songsRepository.findActiveByGenre(h.getSong().getGenre(), PageRequest.of(0, 15)));
+                                if (h.getSong().getGenre() != null && !h.getSong().getGenre().isBlank()) {
+                                    List<String> tokens = Arrays.stream(h.getSong().getGenre().split(","))
+                                            .map(String::trim)
+                                            .filter(s -> !s.isBlank())
+                                            .distinct()
+                                            .toList();
+                                    int perGenre = Math.max(5, 15 / Math.max(1, tokens.size()));
+                                    for (String g : tokens) {
+                                        dbCandidates.addAll(songsRepository.findActiveByGenre(g, PageRequest.of(0, perGenre)));
+                                    }
                                 }
                             }
                         }

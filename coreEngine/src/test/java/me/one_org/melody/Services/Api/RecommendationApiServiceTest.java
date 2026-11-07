@@ -153,4 +153,52 @@ class RecommendationApiServiceTest {
         assertThat(results).hasSize(1);
         assertThat(results.get(0).id()).isEqualTo("song-cat");
     }
+
+    @Test
+    @DisplayName("Should query database candidates for each genre token when seed genre contains commas")
+    void shouldFallbackToMultiGenreTokensWhenSeedHasCommaSeparatedGenres() throws Exception {
+        me.one_org.melody.Repository.SongsRepository mockSongsRepo = mock(me.one_org.melody.Repository.SongsRepository.class);
+        RecommendationApiService service = new RecommendationApiService(recombee, mockSongsRepo);
+
+        when(recombee.recommendRadioDetailed(eq("multi-seed"), eq(List.of()), anyInt())).thenReturn(List.of());
+
+        me.one_org.melody.Entity.Song multiGenreSeed = me.one_org.melody.Entity.Song.builder()
+                .id("multi-seed")
+                .title("Multi Genre Hit")
+                .artistName("Fusion Band")
+                .genre("Pop, Dance, Electronic")
+                .album("Fusion Album")
+                .language("English")
+                .build();
+        when(mockSongsRepo.findById("multi-seed")).thenReturn(java.util.Optional.of(multiGenreSeed));
+
+        me.one_org.melody.Entity.Song danceSong = me.one_org.melody.Entity.Song.builder()
+                .id("song-dance")
+                .title("Dance Beat")
+                .artistName("DJ Groove")
+                .genre("Dance")
+                .language("English")
+                .status(me.one_org.melody.Enums.StatusEnum.ACTIVE)
+                .build();
+
+        me.one_org.melody.Entity.Song electroSong = me.one_org.melody.Entity.Song.builder()
+                .id("song-electro")
+                .title("Electro Synth")
+                .artistName("Synth Wave")
+                .genre("Electronic")
+                .language("English")
+                .status(me.one_org.melody.Enums.StatusEnum.ACTIVE)
+                .build();
+
+        when(mockSongsRepo.findActiveByGenre(eq("Pop"), any())).thenReturn(List.of());
+        when(mockSongsRepo.findActiveByGenre(eq("Dance"), any())).thenReturn(List.of(danceSong));
+        when(mockSongsRepo.findActiveByGenre(eq("Electronic"), any())).thenReturn(List.of(electroSong));
+
+        List<SongDto> results = service.recommendSimilar("multi-seed", 5);
+
+        assertThat(results).isNotEmpty();
+        verify(mockSongsRepo).findActiveByGenre(eq("Pop"), any());
+        verify(mockSongsRepo).findActiveByGenre(eq("Dance"), any());
+        verify(mockSongsRepo).findActiveByGenre(eq("Electronic"), any());
+    }
 }

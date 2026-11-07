@@ -158,6 +158,20 @@ public class RecommendationRankingEngine {
         );
     }
 
+    public static Set<String> parseGenreSet(String genreStr) {
+        if (genreStr == null || genreStr.isBlank()) {
+            return Collections.emptySet();
+        }
+        Set<String> set = new LinkedHashSet<>();
+        for (String part : genreStr.split(",")) {
+            String trimmed = part.trim().toLowerCase();
+            if (!trimmed.isEmpty()) {
+                set.add(trimmed);
+            }
+        }
+        return set;
+    }
+
     /**
      * Multi-factor scoring model that prioritizes musical genre, mood, and language over artist duplication.
      */
@@ -173,8 +187,8 @@ public class RecommendationRankingEngine {
             return score;
         }
 
-        String seedGenre = getNormalizedKey(seedSong.getGenre());
-        String candGenre = getNormalizedKey(candidate.genre());
+        Set<String> seedGenres = parseGenreSet(seedSong.getGenre());
+        Set<String> candGenres = parseGenreSet(candidate.genre());
 
         String seedLang = getNormalizedKey(seedSong.getLanguage());
         String candLang = getNormalizedKey(candidate.language());
@@ -186,11 +200,35 @@ public class RecommendationRankingEngine {
         String candAlbum = getNormalizedKey(candidate.album());
 
         // 1. Genre Affinity (Highest Weight, up to 40 pts)
-        if (seedGenre != null && candGenre != null) {
-            if (seedGenre.equals(candGenre)) {
+        // Multi-genre aware: handles comma-separated genres with exact set equality,
+        // Jaccard token overlap for partial multi-genre matches, and subgenre substring matching.
+        if (!seedGenres.isEmpty() && !candGenres.isEmpty()) {
+            if (seedGenres.equals(candGenres)) {
                 score += 40.0;
-            } else if (seedGenre.contains(candGenre) || candGenre.contains(seedGenre)) {
-                score += 25.0; // Subgenre / partial overlap (e.g. "Bollywood Romantic" vs "Romantic")
+            } else {
+                Set<String> intersection = new HashSet<>(seedGenres);
+                intersection.retainAll(candGenres);
+
+                if (!intersection.isEmpty()) {
+                    // Shared exact genre tokens: award 25.0 base + up to 15.0 proportional to overlap
+                    double jaccard = (double) intersection.size() / (seedGenres.size() + candGenres.size() - intersection.size());
+                    score += 25.0 + (15.0 * jaccard);
+                } else {
+                    // Subgenre / partial overlap across tokens (e.g. "dance-pop" contains "pop" or "bollywood romantic" contains "romantic")
+                    boolean subgenreMatch = false;
+                    for (String sg : seedGenres) {
+                        for (String cg : candGenres) {
+                            if (sg.contains(cg) || cg.contains(sg)) {
+                                subgenreMatch = true;
+                                break;
+                            }
+                        }
+                        if (subgenreMatch) break;
+                    }
+                    if (subgenreMatch) {
+                        score += 20.0;
+                    }
+                }
             }
         }
 

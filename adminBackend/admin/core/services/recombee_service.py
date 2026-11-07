@@ -30,6 +30,7 @@ class RecombeeService:
             ("artistName", "string"),
             ("language", "string"),
             ("genre", "string"),
+            ("genres", "set"),
             ("album", "string"),
             ("duration", "int"),
             ("totalStreams", "int"),
@@ -260,7 +261,11 @@ class RecombeeService:
             "language": language or "",
         }
         if genre and genre.strip():
-            values["genre"] = genre.strip()
+            clean_genre = genre.strip()
+            values["genre"] = clean_genre
+            genres_list = [g.strip() for g in clean_genre.split(",") if g.strip()]
+            if genres_list:
+                values["genres"] = genres_list
         if album and album.strip():
             values["album"] = album.strip()
         if image_key and image_key.strip():
@@ -458,7 +463,11 @@ class RecombeeService:
                 "language": s.language or "",
             }
             if s.genre and s.genre.strip():
-                vals["genre"] = s.genre.strip()
+                clean_genre = s.genre.strip()
+                vals["genre"] = clean_genre
+                genres_list = [g.strip() for g in clean_genre.split(",") if g.strip()]
+                if genres_list:
+                    vals["genres"] = genres_list
             if s.album and s.album.strip():
                 vals["album"] = s.album.strip()
             if s.image_key and s.image_key.strip():

@@ -152,6 +152,7 @@ class AlgoliaService:
 
             streams_val = int(s_streams or 0)
             search_count_val = int(s_search_count or 0)
+            genres_list = [g.strip() for g in str(s_genre).split(",") if g.strip()] if s_genre else []
             record = {
                 "objectID": str(s_id),
                 "type": "song",
@@ -160,6 +161,7 @@ class AlgoliaService:
                 "artist": str(s_artist or ""),
                 "album": str(s_album).strip() if s_album else None,
                 "genre": str(s_genre).strip() if s_genre else None,
+                "genres": genres_list,
                 "language": str(s_lang or ""),
                 "imageKey": str(s_img or ""),
                 "songKey": str(s_song_key or ""),
@@ -354,6 +356,7 @@ class AlgoliaService:
         if not s_id:
             return None
 
+        genres_list = [g.strip() for g in str(s_genre).split(",") if g.strip()] if s_genre else []
         return {
             "objectID": str(s_id),
             "type": "song",
@@ -362,6 +365,7 @@ class AlgoliaService:
             "artist": str(s_artist or ""),
             "album": str(s_album).strip() if s_album else None,
             "genre": str(s_genre).strip() if s_genre else None,
+            "genres": genres_list,
             "language": str(s_lang or ""),
             "imageKey": str(s_img or ""),
             "songKey": str(s_song_key or ""),
@@ -663,13 +667,14 @@ class AlgoliaService:
                     "title,album",
                     "artistName,artist",
                     "name",
-                    "genre",
+                    "genre,genres",
                     "language",
                 ],
                 "attributesForFaceting": [
                     "filterOnly(type)",
                     "searchable(language)",
                     "searchable(genre)",
+                    "searchable(genres)",
                 ],
                 "customRanking": [
                     "desc(searchCount)",
