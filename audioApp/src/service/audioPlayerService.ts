@@ -135,12 +135,25 @@ export class AudioPlayerService {
             .catch(() => {})
             .finally(() => this.refreshLockScreen(true));
         }, 300);
-      } else {
-        // Locking: re-register Now Playing a few times
+      } else if (nextState === "inactive") {
+        // iOS: "inactive" fires BEFORE "background" during lock.
+        // Re-assert audio session BEFORE expo-video gets a chance to corrupt it.
+        // Also reset _isLockScreenActive so the next refreshLockScreen(true)
+        // forces a full native re-registration instead of a metadata-only update.
+        if (this.activePlayer) {
+          (this.activePlayer as any)._isLockScreenActive = false;
+        }
+        configureAudioPriority(true).catch(() => {});
         this.refreshLockScreen(true);
-        [500, 1500].forEach((d) =>
+      } else {
+        // "background": reset lock screen flag and retry with escalating delays
+        if (this.activePlayer) {
+          (this.activePlayer as any)._isLockScreenActive = false;
+        }
+        this.refreshLockScreen(true);
+        [300, 800, 1500, 3000].forEach((d) =>
           setTimeout(() => {
-            if (AppState.currentState !== "active") this.refreshLockScreen(true);
+            this.refreshLockScreen(true);
           }, d)
         );
       }

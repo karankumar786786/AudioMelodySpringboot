@@ -53,7 +53,7 @@ function computeBarZoom(
 // inserts `.mixWithOthers` again, iOS then drops our lock screen controls, and
 // we can't undo it from the background (OSStatus 560557684). So on iOS the muted
 // canvas keeps "playing" through lock instead of being paused/unmounted.
-const KEEP_CANVAS_ALIVE_IN_BACKGROUND = Platform.OS === "ios";
+const KEEP_CANVAS_ALIVE_IN_BACKGROUND = false;
 
 // expo-video recalculates the audio session when its players start/stop, so
 // re-assert our session + lock screen shortly afterwards.
@@ -63,12 +63,14 @@ function reassertPlaybackSession() {
   reassertTimers.forEach(clearTimeout);
   // Several attempts: expo-video recalculates the session asynchronously, and
   // while locking iOS may reject the first try (errors are swallowed).
+  // NOTE: We no longer gate on AppState === "active" so the lock screen can
+  // be re-asserted even while transitioning to background (locking).
   reassertTimers = [250, 900, 2000].map((delay) =>
     setTimeout(async () => {
-      // iOS rejects session changes from the background (OSStatus 560557684)
-      if (AppState.currentState !== "active") return;
       try {
         await configureAudioPriority(true);
+      } catch {}
+      try {
         audioPlayerService.refreshLockScreen(true);
       } catch {}
     }, delay)
@@ -224,8 +226,11 @@ function VideoSurface({
       if (nextState === "active") {
         if (isPlaying && !player.playing) player.play();
         reassertPlaybackSession();
-      } else if (!KEEP_CANVAS_ALIVE_IN_BACKGROUND) {
+      } else {
+        // Pause canvas video on inactive/background to prevent expo-video
+        // from recalculating the AVAudioSession and dropping lock screen controls
         player.pause();
+        reassertPlaybackSession();
       }
     });
 
@@ -323,20 +328,16 @@ export function CanvasVideoPlayer({
         clearTimeout(resumeTimer);
         resumeTimer = null;
       }
-      if (KEEP_CANVAS_ALIVE_IN_BACKGROUND) {
-        // iOS: never unmount/pause the canvas on lock (see note above)
-        return;
-      }
-      if (next === "background") {
-        // iOS sends "inactive" first when locking. Release the video player
-        // right away so it stops influencing the audio session while locking.
+      if (next === "background" || next === "inactive") {
+        // Immediately unmount the VideoSurface on lock/background so expo-video
+        // cannot corrupt the iOS AVAudioSession and drop lock screen controls
         setAppActive(false);
       } else if (next === "active") {
         // Debounce: iOS can flip states twice while unlocking
         resumeTimer = setTimeout(() => {
           resumeTimer = null;
           setAppActive(true);
-        }, 300);
+        }, 400);
       }
     });
     return () => {
