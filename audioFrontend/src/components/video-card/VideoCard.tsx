@@ -88,13 +88,13 @@ export function VideoCard({ song, className, priority = false }: VideoCardProps)
             className="object-cover transition-transform duration-500 ease-out group-hover:scale-105"
           />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-950 text-zinc-500">
+          <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-zinc-800 to-zinc-950 text-zinc-500">
             <Film className="h-12 w-12 stroke-[1.5]" />
           </div>
         )}
 
         {/* Ambient Dark Gradient Vignette for Readability */}
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-black/35 transition-opacity duration-300 group-hover:opacity-85" />
+        <div className="pointer-events-none absolute inset-0 bg-linear-to-t from-black/90 via-black/25 to-black/35 transition-opacity duration-300 group-hover:opacity-85" />
 
         {/* Top-Left: "Music Video" Badge (Pure White Monochrome) */}
         <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 rounded-full bg-black/75 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-md border border-white/20 shadow-md">

@@ -76,7 +76,7 @@ export const FullVideosSection: React.FC<FullVideosSectionProps> = ({
             />
           ))}
         </motion.div>
-        <div className="pointer-events-none absolute top-0 right-0 h-[calc(100%-1rem)] w-20 bg-gradient-to-l from-black via-black/40 to-transparent" />
+        <div className="pointer-events-none absolute top-0 right-0 h-[calc(100%-1rem)] w-20 bg-linear-to-l from-black via-black/40 to-transparent" />
       </div>
     </section>
   );
