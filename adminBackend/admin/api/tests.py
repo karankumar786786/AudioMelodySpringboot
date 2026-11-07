@@ -190,6 +190,10 @@ class AdminEndpointRoutingTests(SimpleTestCase):
         fake_job.mode = 1
         fake_job.audio_features = None
 
+        fake_song = MagicMock()
+        fake_song.id = "song-123"
+        fake_song.status = "ACTIVE"
+
         with patch("webhooks.views.get_object_or_404", return_value=fake_job), \
              patch("api.views.get_object_or_404", return_value=fake_job), \
              patch.object(PaginationMetadataService, "transition_job"), \
@@ -198,8 +202,10 @@ class AdminEndpointRoutingTests(SimpleTestCase):
              patch.object(AlgoliaService, "save_song"), \
              patch.object(S3Service, "delete_object"), \
              patch.object(SongMetadata.objects, "get_or_create"), \
-             patch.object(Song.objects, "create"), \
+             patch.object(Song.objects, "filter") as mock_song_filter, \
+             patch.object(Song.objects, "create", return_value=fake_song), \
              patch.object(Artist.objects, "filter") as mock_art_filter:
+            mock_song_filter.return_value.first.return_value = None
             mock_art_filter.return_value.first.return_value = None
 
             # 1. GET /webhook/job/{jobId}
@@ -322,12 +328,19 @@ class AdminEndpointRoutingTests(SimpleTestCase):
         fake_user.id = "u-123"
         fake_user.email = "client@example.com"
 
-        fake_session = MagicMock()
-        fake_session.id = "sess-1"
-        fake_session.device_id = "device-android-1"
-        fake_session.expires_at = datetime.now()
-        fake_session.created_at = datetime.now()
-        fake_session.updated_at = datetime.now()
+        user = User(id="u-123", email="client@example.com")
+        fake_session = Session(
+            id="sess-1",
+            user=user,
+            device_id="device-android-1",
+            device_name=None,
+            ip_address=None,
+            location=None,
+            last_active_at=None,
+            expires_at=datetime.now(),
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+        )
 
         with patch("accounts.views.get_object_or_404", return_value=fake_user), \
              patch("api.views.get_object_or_404", return_value=fake_user), \

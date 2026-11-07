@@ -23,6 +23,8 @@ class RedisService:
                 password=settings.REDIS_PASSWORD,
                 ssl=settings.REDIS_SSL,
                 decode_responses=True,
+                socket_connect_timeout=1.0,
+                socket_timeout=1.0,
             )
         return cls._client
 
@@ -190,6 +192,7 @@ class RedisService:
     def block_user_in_redis(cls, user_id: str) -> None:
         if not user_id:
             return
+        cls._MEMORY_BLOCKED_USERS.add(user_id)
         try:
             r = cls.get_client()
             r.setex(f"blocked_user:{user_id}", 7 * 86400, "blocked")
@@ -201,6 +204,7 @@ class RedisService:
     def unblock_user_in_redis(cls, user_id: str) -> None:
         if not user_id:
             return
+        cls._MEMORY_BLOCKED_USERS.discard(user_id)
         try:
             r = cls.get_client()
             r.delete(f"blocked_user:{user_id}")
@@ -212,12 +216,14 @@ class RedisService:
     def is_user_blocked(cls, user_id: str) -> bool:
         if not user_id:
             return False
+        if user_id in cls._MEMORY_BLOCKED_USERS:
+            return True
         try:
             r = cls.get_client()
             return bool(r.exists(f"blocked_user:{user_id}"))
         except Exception as e:
             logger.warning("Failed to check blocked user status in Redis: %s", e)
-            return False
+            return user_id in cls._MEMORY_BLOCKED_USERS
 
     @classmethod
     def evict_pagination_cache(cls, entity_name: str) -> None:
@@ -255,10 +261,11 @@ class RedisService:
         except Exception as e:
             logger.warning("Failed to evict all Redis pagination cache: %s", e)
 
-    # In-memory session fallbacks
+    # In-memory session & blacklist fallbacks
     _MEMORY_SESSIONS: Dict[str, Dict[str, Any]] = {}
     _MEMORY_USER_SESSIONS: Dict[str, set] = {}
     _MEMORY_REFRESH_SESSIONS: Dict[str, Dict[str, Any]] = {}
+    _MEMORY_BLOCKED_USERS: Set[str] = set()
 
     @classmethod
     def create_admin_session(
