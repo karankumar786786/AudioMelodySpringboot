@@ -33,6 +33,7 @@ class SongSerializer(serializers.ModelSerializer):
             "language",
             "genre",
             "album",
+            "country",
             "lrclibId",
             "status",
             "totalStreams",

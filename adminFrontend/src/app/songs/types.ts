@@ -6,6 +6,7 @@ export interface Song {
   language: string;
   genre?: string;
   album?: string;
+  country?: string;
   imageKey: string;
   songKey?: string;
   status?: string;
@@ -25,6 +26,7 @@ export interface CreateSongFormData {
   language: string;
   genre: string;
   album: string;
+  country?: string;
   lrclibId: string;
   songFile: File | null;
   imageFile: File | null;

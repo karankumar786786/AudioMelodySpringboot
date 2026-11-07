@@ -112,7 +112,9 @@ export function SongsDataTable({
                 />
               </th>
               <th className="py-3.5 px-4">Track / Artist</th>
+              <th className="py-3.5 px-4">Album</th>
               <th className="py-3.5 px-4">Genres</th>
+              <th className="py-3.5 px-4">Country</th>
               <th className="py-3.5 px-4">Duration</th>
               <th className="py-3.5 px-4">Streams</th>
               <th className="py-3.5 px-4">Assets</th>
@@ -189,23 +191,28 @@ export function SongsDataTable({
 
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <p className="font-bold text-white group-hover:text-zinc-300 transition-colors truncate max-w-[200px]">
+                          <p className="font-bold text-white group-hover:text-zinc-300 transition-colors truncate max-w-50">
                             {song.title}
                           </p>
                           {song.isFeatured && (
                             <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400 shrink-0" />
                           )}
                         </div>
-                        <p className="text-[11px] text-zinc-400 truncate max-w-[200px]">
+                        <p className="text-[11px] text-zinc-400 truncate max-w-50">
                           {song.artistName}
                         </p>
                       </div>
                     </div>
                   </td>
 
+                  {/* Album */}
+                  <td className="py-3 px-4 font-medium text-zinc-300 truncate max-w-40" title={song.album || ""}>
+                    {song.album || <span className="text-zinc-600">—</span>}
+                  </td>
+
                   {/* Multi-Genre Pills */}
                   <td className="py-3 px-4">
-                    <div className="flex flex-wrap gap-1 max-w-[220px]">
+                    <div className="flex flex-wrap gap-1 max-w-55">
                       {genreBadges.length > 0 ? (
                         genreBadges.slice(0, 3).map((g) => (
                           <span
@@ -224,6 +231,14 @@ export function SongsDataTable({
                         </span>
                       )}
                     </div>
+                  </td>
+
+                  {/* Country */}
+                  <td className="py-3 px-4">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/6 text-zinc-300 border border-white/8 text-[11px] font-medium whitespace-nowrap">
+                      <span>{song.country === "India" ? "🇮🇳" : "🌐"}</span>
+                      <span>{song.country || "India"}</span>
+                    </span>
                   </td>
 
                   {/* Duration */}

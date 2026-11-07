@@ -73,7 +73,12 @@ class GlobalSearchView(BaseAdminView):
 
         # 1. Search Songs
         songs_qs = Song.objects.filter(
-            Q(title__icontains=q) | Q(artist_name__icontains=q) | Q(language__icontains=q),
+            Q(title__icontains=q)
+            | Q(artist_name__icontains=q)
+            | Q(album__icontains=q)
+            | Q(genre__icontains=q)
+            | Q(country__icontains=q)
+            | Q(language__icontains=q),
             status="ACTIVE",
         ).order_by("-created_at")[:15]
         songs = [

@@ -56,6 +56,9 @@ public class Song{
     private String album;
 
     @Column(nullable = false)
+    private String country;
+
+    @Column(nullable = false)
     private String lrclibId;
 
     @Column(name = "job_id")
@@ -78,7 +81,7 @@ public class Song{
     @Builder
     public Song(String id, String title, String artistName, Integer duration, String songKey, String imageKey,
                 String videoKey, String fullVideoKey, Integer previewStartTime, Integer previewEndTime,
-                Boolean isFeatured, String language, String genre, String album, String lrclibId, String jobId,
+                Boolean isFeatured, String language, String genre, String album, String country, String lrclibId, String jobId,
                 StatusEnum status, SongMetadata songMetadata, LocalDateTime createdAt) {
         super();
         this.id = id;
@@ -95,6 +98,7 @@ public class Song{
         this.language = language;
         this.genre = genre;
         this.album = album;
+        this.country = country != null ? country : "India";
         this.lrclibId = lrclibId;
         this.jobId = jobId;
         this.status = status;

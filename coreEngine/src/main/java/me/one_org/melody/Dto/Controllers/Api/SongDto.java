@@ -19,6 +19,7 @@ public record SongDto(
     String language,
     String genre,
     String album,
+    String country,
     String lrclibId,
     StatusEnum status,
     String jobId,
@@ -28,11 +29,11 @@ public record SongDto(
     public SongDto(
         String id, String title, String artistName, Integer duration, String songKey, String imageKey,
         String videoKey, String fullVideoKey, Integer previewStartTime, Integer previewEndTime,
-        Boolean isFeatured, String language, String genre, String album, String lrclibId,
+        Boolean isFeatured, String language, String genre, String album, String country, String lrclibId,
         StatusEnum status, Long totalStreams, LocalDateTime createdAt
     ) {
         this(id, title, artistName, duration, songKey, imageKey, videoKey, fullVideoKey,
-             previewStartTime, previewEndTime, isFeatured, language, genre, album, lrclibId,
+             previewStartTime, previewEndTime, isFeatured, language, genre, album, country, lrclibId,
              status, null, totalStreams, createdAt);
     }
 
@@ -54,6 +55,7 @@ public record SongDto(
             song.getLanguage(),
             song.getGenre(),
             song.getAlbum(),
+            song.getCountry() != null ? song.getCountry() : "India",
             song.getLrclibId(),
             song.getStatus(),
             song.getJobId(),

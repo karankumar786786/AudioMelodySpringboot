@@ -34,6 +34,7 @@ export interface SongData {
   language?: string;
   album?: string;
   genre?: string;
+  country?: string;
   imageKey?: string;
   videoKey?: string | null;
   fullVideoKey?: string | null;
@@ -64,6 +65,7 @@ export function EditSongModal({
     language: "Hindi",
     album: "",
     genre: "",
+    country: "India",
     lrclibId: "",
     previewStartMin: "" as string | number,
     previewStartSec: "" as string | number,
@@ -116,6 +118,7 @@ export function EditSongModal({
       language: song.language || "Hindi",
       album: song.album || "",
       genre: song.genre || "",
+      country: song.country || "India",
       lrclibId: song.lrclibId ? String(song.lrclibId) : "",
       previewStartMin: startTotal !== null ? Math.floor(startTotal / 60) : "",
       previewStartSec: startTotal !== null ? startTotal % 60 : "",
@@ -358,6 +361,7 @@ export function EditSongModal({
           language: formData.language,
           album: formData.album.trim() || undefined,
           genre: formData.genre.trim() || undefined,
+          country: formData.country.trim() || "India",
           lrclibId: formData.lrclibId.trim() || "0",
           previewStartTime: previewStartTime !== null ? previewStartTime : -1,
           previewEndTime: previewEndTime !== null ? previewEndTime : -1,
@@ -379,6 +383,7 @@ export function EditSongModal({
         language: formData.language,
         album: formData.album,
         genre: formData.genre,
+        country: formData.country,
         lrclibId: formData.lrclibId,
         imageKey,
         videoKey: videoKey === "" ? null : (videoKey ?? null),
@@ -555,6 +560,19 @@ export function EditSongModal({
                 }
                 className={inputCls}
                 placeholder="e.g. Aashiqui 2"
+              />
+            </div>
+
+            <div>
+              <label className={labelCls}>Country</label>
+              <input
+                type="text"
+                value={formData.country}
+                onChange={(e) =>
+                  setFormData({ ...formData, country: e.target.value })
+                }
+                className={inputCls}
+                placeholder="e.g. India"
               />
             </div>
 

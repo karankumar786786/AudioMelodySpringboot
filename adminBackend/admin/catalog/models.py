@@ -78,6 +78,7 @@ class Song(models.Model):
     language = models.CharField(max_length=255)
     genre = models.CharField(max_length=255, blank=True, null=True)
     album = models.CharField(max_length=255, blank=True, null=True)
+    country = models.CharField(max_length=255, default="India", db_column="country")
     lrclib_id = models.CharField(max_length=255, db_column="lrclib_id")
     status = models.CharField(max_length=255, default="ACTIVE")
     job_id = models.CharField(max_length=255, db_column="job_id")

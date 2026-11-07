@@ -13,6 +13,7 @@ export interface Song {
   language: string;
   genre?: string;
   album?: string;
+  country?: string;
   lrclibId: string;
   isFeatured?: boolean;
   status?: string;

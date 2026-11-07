@@ -386,6 +386,7 @@ class SongListView(BaseAdminView):
         status_param = (request.query_params.get("status") or "").strip()
         genre_param = (request.query_params.get("genre") or "").strip()
         lang_param = (request.query_params.get("language") or "").strip()
+        country_param = (request.query_params.get("country") or "").strip()
         featured_param = request.query_params.get("featured") or request.query_params.get("isFeatured")
         has_video_param = request.query_params.get("hasVideo")
         has_full_video_param = request.query_params.get("hasFullVideo")
@@ -402,6 +403,8 @@ class SongListView(BaseAdminView):
             qs = qs.filter(Q(genre__iexact=genre_param) | Q(genre__icontains=genre_param))
         if lang_param and lang_param.upper() != "ALL":
             qs = qs.filter(language__iexact=lang_param)
+        if country_param and country_param.upper() != "ALL":
+            qs = qs.filter(country__iexact=country_param)
         if featured_param is not None and str(featured_param).strip() != "":
             is_feat = str(featured_param).lower() in ("true", "1")
             qs = qs.filter(is_featured=is_feat)
@@ -417,6 +420,8 @@ class SongListView(BaseAdminView):
                 Q(title__icontains=search)
                 | Q(artist_name__icontains=search)
                 | Q(album__icontains=search)
+                | Q(genre__icontains=search)
+                | Q(country__icontains=search)
                 | Q(language__icontains=search)
             )
 
@@ -427,6 +432,7 @@ class SongListView(BaseAdminView):
             search
             or (genre_param and genre_param.upper() != "ALL")
             or (lang_param and lang_param.upper() != "ALL")
+            or (country_param and country_param.upper() != "ALL")
             or (featured_param is not None and str(featured_param).strip() != "")
             or (has_video_param and str(has_video_param).lower() in ("true", "1"))
             or (has_full_video_param and str(has_full_video_param).lower() in ("true", "1"))
@@ -573,6 +579,9 @@ class SongDetailView(BaseAdminView):
         if "album" in data:
             alb = str(data["album"]).strip() if data["album"] else None
             song.album = alb
+        if "country" in data:
+            c = str(data["country"]).strip() if data["country"] else "India"
+            song.country = c
         if "lrclibId" in data and data["lrclibId"]:
             song.lrclib_id = str(data["lrclibId"])
         if "isFeatured" in data:

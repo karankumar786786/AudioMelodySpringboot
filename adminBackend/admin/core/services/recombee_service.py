@@ -33,6 +33,7 @@ class RecombeeService:
             ("genre", "string"),
             ("genres", "set"),
             ("album", "string"),
+            ("country", "string"),
             ("duration", "int"),
             ("totalStreams", "int"),
             ("imageKey", "string"),
@@ -177,6 +178,7 @@ class RecombeeService:
                     genre = getattr(song, "genre", None)
                 if album is None:
                     album = getattr(song, "album", None)
+                country = getattr(song, "country", None) or "India"
                 if duration is None:
                     duration = getattr(song, "duration", None)
                 if image_key is None:
@@ -275,6 +277,9 @@ class RecombeeService:
                 values["genres"] = genres_list
         if album and album.strip():
             values["album"] = album.strip()
+        country_val = country if 'country' in locals() and country else kwargs.get("country", "India")
+        if country_val and str(country_val).strip():
+            values["country"] = str(country_val).strip()
         if image_key and image_key.strip():
             values["imageKey"] = image_key.strip()
         if duration and duration > 0:
@@ -468,6 +473,7 @@ class RecombeeService:
                 "title": s.title,
                 "artistName": s.artist_name,
                 "language": s.language or "",
+                "country": getattr(s, "country", None) or "India",
             }
             if s.artist_name and s.artist_name.strip():
                 import re
@@ -562,12 +568,17 @@ class RecombeeService:
             requests_list.append(SetItemValues(s.id, vals, cascade_create=True))
 
         try:
-            chunk_size = 50
+            chunk_size = 25
             for i in range(0, len(requests_list), chunk_size):
                 chunk = requests_list[i : i + chunk_size]
                 batch_req = Batch(chunk)
-                batch_req.timeout = 25000
-                client.send(batch_req)
+                batch_req.timeout = 45000
+                try:
+                    client.send(batch_req)
+                except Exception as chunk_err:
+                    logger.warning("Retrying Recombee chunk %d due to: %s", i // chunk_size, chunk_err)
+                    time.sleep(1.0)
+                    client.send(batch_req)
             logger.info("Re-indexed %d songs in Recombee with full metadata, keys, clip timestamps and audio features", len(requests_list))
             return len(requests_list)
         except Exception as e:

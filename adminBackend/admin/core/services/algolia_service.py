@@ -155,6 +155,11 @@ class AlgoliaService:
             import re
             artists_list = [a.strip() for a in re.split(r"[,/&]|\bft\.?|\bfeat\.?", str(s_artist or ""), flags=re.IGNORECASE) if a.strip()]
             genres_list = [g.strip() for g in str(s_genre).split(",") if g.strip()] if s_genre else []
+            s_country = (
+                song.get("country")
+                if isinstance(song, dict)
+                else (getattr(song, "country", None) or kwargs.get("country") or "India")
+            )
             record = {
                 "objectID": str(s_id),
                 "type": "song",
@@ -165,6 +170,7 @@ class AlgoliaService:
                 "album": str(s_album).strip() if s_album else None,
                 "genre": str(s_genre).strip() if s_genre else None,
                 "genres": genres_list,
+                "country": str(s_country or "India"),
                 "language": str(s_lang or ""),
                 "imageKey": str(s_img or ""),
                 "songKey": str(s_song_key or ""),
@@ -674,6 +680,7 @@ class AlgoliaService:
                     "artistName,artist,artists",
                     "name",
                     "genre,genres",
+                    "country",
                     "language",
                 ],
                 "attributesForFaceting": [
@@ -681,6 +688,7 @@ class AlgoliaService:
                     "searchable(language)",
                     "searchable(genre)",
                     "searchable(genres)",
+                    "searchable(country)",
                     "searchable(artistName)",
                     "searchable(artists)",
                 ],
