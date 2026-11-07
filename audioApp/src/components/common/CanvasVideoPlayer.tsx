@@ -55,6 +55,12 @@ function computeBarZoom(
 // canvas keeps "playing" through lock instead of being paused/unmounted.
 const KEEP_CANVAS_ALIVE_IN_BACKGROUND = Platform.OS === "ios";
 
+// AppState.currentState can be "unknown" right after launch; that is NOT background.
+const isAppForeground = () => {
+  const s = AppState.currentState;
+  return s !== "background" && s !== "inactive";
+};
+
 // expo-video recalculates the audio session when its players start/stop, so
 // re-assert our session + lock screen shortly afterwards.
 let reassertTimers: ReturnType<typeof setTimeout>[] = [];
@@ -131,7 +137,7 @@ function VideoSurface({
     p.staysActiveInBackground = KEEP_CANVAS_ALIVE_IN_BACKGROUND;
     p.audioMixingMode = CANVAS_MIXING_MODE;
     p.showNowPlayingNotification = false;
-    if (isPlaying && AppState.currentState === "active") {
+    if (isPlaying && (isAppForeground() || KEEP_CANVAS_ALIVE_IN_BACKGROUND)) {
       p.play();
     } else {
       p.pause();
@@ -146,7 +152,7 @@ function VideoSurface({
     player.audioMixingMode = CANVAS_MIXING_MODE;
     player.showNowPlayingNotification = false;
 
-    if (isPlaying && AppState.currentState === "active") {
+    if (isPlaying && (isAppForeground() || KEEP_CANVAS_ALIVE_IN_BACKGROUND)) {
       player.play();
     } else {
       player.pause();
@@ -169,8 +175,12 @@ function VideoSurface({
     const checkStatus = (status: string, error?: any) => {
       if (status === "readyToPlay") {
         readSize();
-        markReady();
-        if (isPlaying && AppState.currentState === "active" && !player.playing) {
+        // NOT ready yet: the loader stays until the video is actually playing
+        if (
+          isPlaying &&
+          (isAppForeground() || KEEP_CANVAS_ALIVE_IN_BACKGROUND) &&
+          !player.playing
+        ) {
           player.play();
         }
       } else if (status === "error") {
@@ -181,7 +191,7 @@ function VideoSurface({
     };
 
     checkStatus(player.status);
-    if (player.playing || player.currentTime > 0) {
+    if (player.playing && player.currentTime > 0) {
       markReady();
     }
 
@@ -200,24 +210,19 @@ function VideoSurface({
     );
 
     const timeUpdateSub = player.addListener("timeUpdate", ({ currentTime }) => {
-      if (currentTime > 0 || player.playing) {
+      if (currentTime > 0 && player.playing) {
         markReady();
       }
     });
 
     const sourceLoadSub = player.addListener("sourceLoad", () => {
       readSize();
-      markReady();
     });
     const trackSub = (player as any).addListener("videoTrackChange", () => readSize());
 
     // Active polling interval as a bulletproof fallback while video buffers
     const pollInterval = setInterval(() => {
-      if (
-        player.status === "readyToPlay" ||
-        player.playing ||
-        player.currentTime > 0
-      ) {
+      if (player.playing && player.currentTime > 0) {
         markReady();
         clearInterval(pollInterval);
       }
@@ -226,6 +231,7 @@ function VideoSurface({
     const appStateSub = AppState.addEventListener("change", (nextState) => {
       if (nextState === "active") {
         if (isPlaying && !player.playing) player.play();
+        else if (!isPlaying && player.playing) player.pause();
         reassertPlaybackSession();
       } else if (!KEEP_CANVAS_ALIVE_IN_BACKGROUND) {
         // Android only. On iOS pausing the last playing video player makes
@@ -256,12 +262,19 @@ function VideoSurface({
       try {
         appStateSub.remove();
       } catch {}
+    };
+  }, [isPlaying, player]);
+
+  // Unmount only: pausing here on every `isPlaying` change would briefly stop the
+  // last video player and make expo-video drop the lock screen player on iOS.
+  useEffect(() => {
+    return () => {
       try {
         player.pause();
       } catch {}
       reassertPlaybackSession();
     };
-  }, [isPlaying, player]);
+  }, [player]);
 
   return (
     <VideoView
@@ -316,10 +329,34 @@ export function CanvasVideoPlayer({
   });
 
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const [videoError, setVideoError] = useState(false);
+  useEffect(() => {
+    setVideoError(false);
+  }, [videoUrl]);
+
+  // iOS: while the app is not in the foreground, the video player must neither be
+  // swapped (song change -> new player) nor paused (song paused) or expo-video
+  // re-adds `.mixWithOthers` and the lock screen player disappears. So we freeze
+  // the canvas (same URL, playing) until the app is active again.
+  const [isForeground, setIsForeground] = useState(isAppForeground());
+  useEffect(() => {
+    if (!KEEP_CANVAS_ALIVE_IN_BACKGROUND) return;
+    const sub = AppState.addEventListener("change", (next) => {
+      setIsForeground(next === "active");
+    });
+    return () => sub.remove();
+  }, []);
+  const frozen = useRef({ videoUrl, isPlaying });
+  if (isForeground || !KEEP_CANVAS_ALIVE_IN_BACKGROUND) {
+    frozen.current = { videoUrl, isPlaying };
+  }
+  const surfaceUrl = frozen.current.videoUrl;
+  const surfacePlaying =
+    isForeground || !KEEP_CANVAS_ALIVE_IN_BACKGROUND ? isPlaying : true;
 
   // Screen lock / background -> show artwork and release the video player;
   // unlock / foreground -> bring the canvas back.
-  const [appActive, setAppActive] = useState(AppState.currentState === "active");
+  const [appActive, setAppActive] = useState(isAppForeground());
   useEffect(() => {
     let resumeTimer: ReturnType<typeof setTimeout> | null = null;
     const sub = AppState.addEventListener("change", (next) => {
@@ -356,9 +393,10 @@ export function CanvasVideoPlayer({
   // Fallback safety: ensure loader never stays visible indefinitely once playing
   useEffect(() => {
     if (!videoUrl || isVideoReady || !isPlaying) return;
+    // Only a stall fallback (e.g. video never starts); normal start hides the loader
     const safetyTimer = setTimeout(() => {
       setIsVideoReady(true);
-    }, 2500);
+    }, 20000);
     return () => clearTimeout(safetyTimer);
   }, [videoUrl, isVideoReady, isPlaying]);
 
@@ -368,7 +406,7 @@ export function CanvasVideoPlayer({
   };
 
   const isVideoLoading =
-    Boolean(videoUrl) && appActive && !isVideoReady && isPlaying;
+    Boolean(videoUrl) && appActive && !isVideoReady && isPlaying && !videoError;
   const shouldShowLoader =
     (showLoader ?? showLoaderWhenVideoAvailable ?? true) && isVideoLoading;
 
@@ -395,14 +433,15 @@ export function CanvasVideoPlayer({
       )}
 
       {/* Looping ambient canvas video */}
-      {videoUrl && appActive ? (
+      {surfaceUrl && appActive ? (
         <VideoSurface
-          key={videoUrl}
-          videoUrl={videoUrl}
-          isPlaying={isPlaying}
+          key={surfaceUrl}
+          videoUrl={surfaceUrl}
+          isPlaying={surfacePlaying}
           onReady={handleVideoReady}
           onError={(err) => {
             console.warn("[CanvasVideoPlayer] Canvas video error:", err);
+            setVideoError(true);
           }}
         />
       ) : null}
