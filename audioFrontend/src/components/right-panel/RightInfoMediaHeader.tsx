@@ -136,7 +136,7 @@ export function RightInfoMediaHeader({
               )}
               {currentSong.genre && (
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 border border-primary/30 text-primary font-bold uppercase tracking-wider">
-                  {currentSong.genre}
+                  {currentSong.genre.split(',').map((genre)=> genre)}
                 </span>
               )}
             </div>

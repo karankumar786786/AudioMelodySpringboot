@@ -1,7 +1,9 @@
 import { createAudioPlayer, AudioPlayer, AudioStatus } from "expo-audio";
 import { Song, PlayerSong, AudioQuality } from "@/types";
 import { configureAudioPriority, safeSetActiveForLockScreen } from "@/utils/audioConfig";
+import { getImageUrl } from "@/utils";
 import { mapToPlayerSong, S3_BASE_URL } from "@/utils/playerUtils";
+import { store } from "@/store/hook";
 
 export type SlotRole = "active" | "standby1" | "standby2";
 
@@ -128,12 +130,20 @@ export class AudioPlayerPool {
       applyBufferPolicy(slot);
 
       // Listener only forwards updates to the service if this slot is active.
-      // Standby readiness is tracked in preloadSlot() after replace completes.
+      // Standby readiness is tracked in preloadSlot() and when status becomes loaded.
       const sub = player.addListener(
         "playbackStatusUpdate",
         (status: AudioStatus) => {
           if (slot.role === "active") {
             this.onActiveStatusUpdate?.(status, slot.song);
+          } else {
+            if ((status as any)?.isLoaded) {
+              slot.isReady = true;
+            }
+            if (status.playing) {
+              slot.player.pause();
+              slot.player.volume = 0;
+            }
           }
         },
       );
@@ -276,28 +286,54 @@ export class AudioPlayerPool {
 
     // 2. Immediately activate target player with audio unmuted FIRST
     //    Starting audio output prevents iOS AVAudioSession from seeing a dead silence gap
+    const savedRate = store.getState().player.playbackRate;
+    if (typeof savedRate === "number" && savedRate > 0 && savedRate !== 1.0) {
+      try {
+        (targetSlot.player as any).playbackRate = savedRate;
+      } catch {}
+    }
     targetSlot.player.volume = 1.0;
     targetSlot.player.play();
 
-    // 3. Pause and mute old active player
+    // 3. Pause, mute, and release lock screen on old active player
     currentActive.player.pause();
     currentActive.player.volume = 0;
+    safeSetActiveForLockScreen(currentActive.player, false);
 
     // 4. Activate lock screen controls on target player
     //    Because the player is ALREADY playing, iOS MediaController registers rate=1.0
     //    and active audio output without dropping the Now Playing widget.
+    const rawImage =
+      (promotedSong as any).coverUrl ||
+      (promotedSong as any).posterUrl ||
+      (promotedSong as any).imageKey ||
+      (promotedSong as any).image_key ||
+      (promotedSong as any).imageUrl;
+
+    const artworkUrl =
+      (typeof rawImage === "string" && rawImage.startsWith("http")
+        ? rawImage
+        : getImageUrl(rawImage, {
+            width: 500,
+            height: 500,
+            focus: "auto",
+            aspectRatio: "1-1",
+            format: "jpg",
+            quality: 85,
+          })) || undefined;
+
     safeSetActiveForLockScreen(
       targetSlot.player,
       true,
       {
-        title: promotedSong.title,
-        artist: promotedSong.artistName,
+        title: promotedSong.title || "One Melody",
+        artist: promotedSong.artistName || "Unknown Artist",
         albumTitle: promotedSong.album || "Melody",
-        artworkUrl: promotedSong.coverUrl || promotedSong.posterUrl,
+        artworkUrl,
       },
       {
-        showSeekForward: false,
-        showSeekBackward: false,
+        showSeekForward: true,
+        showSeekBackward: true,
         showNextTrack: true,
         showPreviousTrack: true,
         seekForwardIntervalSeconds: 10,
@@ -306,6 +342,109 @@ export class AudioPlayerPool {
     );
 
     return promotedSong;
+  }
+
+  /**
+   * Loads a song directly into the active slot (used for cold starts or non-standby jumps).
+   */
+  async loadActive(
+    song: Song | PlayerSong,
+    quality: AudioQuality = "auto",
+    startTime = 0,
+    autoplay = true
+  ): Promise<PlayerSong | null> {
+    await this.init();
+    const activeSlot = this.getActiveSlot();
+    if (!activeSlot) return null;
+
+    const playerSong: PlayerSong = (song as PlayerSong).audioStreamUrl
+      ? (song as PlayerSong)
+      : mapToPlayerSong(song);
+
+    const targetUri = resolveStreamUrl(playerSong, quality);
+    if (!targetUri) return null;
+
+    activeSlot.song = playerSong;
+    activeSlot.resolvedUri = targetUri;
+    activeSlot.isReady = false;
+
+    applyBufferPolicy(activeSlot);
+    activeSlot.player.volume = autoplay ? 1.0 : 0;
+
+    try {
+      if (typeof (activeSlot.player as any)?.replaceAsync === "function") {
+        await (activeSlot.player as any).replaceAsync({ uri: targetUri });
+      } else {
+        activeSlot.player.replace({ uri: targetUri });
+      }
+
+      if (startTime > 0) {
+        try {
+          await activeSlot.player.seekTo(startTime);
+        } catch {}
+      }
+
+      const savedRate = store.getState().player.playbackRate;
+      if (typeof savedRate === "number" && savedRate > 0 && savedRate !== 1.0) {
+        try {
+          (activeSlot.player as any).playbackRate = savedRate;
+        } catch {}
+      }
+
+      if (autoplay) {
+        activeSlot.player.play();
+      } else {
+        activeSlot.player.pause();
+      }
+
+      activeSlot.isReady = true;
+
+      const rawImage =
+        (playerSong as any).coverUrl ||
+        (playerSong as any).posterUrl ||
+        (playerSong as any).imageKey ||
+        (playerSong as any).image_key ||
+        (playerSong as any).imageUrl;
+
+      const artworkUrl =
+        (typeof rawImage === "string" && rawImage.startsWith("http")
+          ? rawImage
+          : getImageUrl(rawImage, {
+              width: 500,
+              height: 500,
+              focus: "auto",
+              aspectRatio: "1-1",
+              format: "jpg",
+              quality: 85,
+            })) || undefined;
+
+      safeSetActiveForLockScreen(
+        activeSlot.player,
+        true,
+        {
+          title: playerSong.title || "One Melody",
+          artist: playerSong.artistName || "Unknown Artist",
+          albumTitle: playerSong.album || "Melody",
+          artworkUrl,
+        },
+        {
+          showSeekForward: true,
+          showSeekBackward: true,
+          showNextTrack: true,
+          showPreviousTrack: true,
+          seekForwardIntervalSeconds: 10,
+          seekBackwardIntervalSeconds: 10,
+        }
+      );
+
+      return playerSong;
+    } catch (err) {
+      console.warn(
+        `[AudioPlayerPool] Failed to load active song "${playerSong.title}":`,
+        err
+      );
+      return null;
+    }
   }
 
   /**
