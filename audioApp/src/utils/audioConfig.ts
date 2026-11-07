@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { Platform, AppState } from "react-native";
 import {
   setAudioModeAsync,
   setIsAudioActiveAsync,
@@ -28,6 +28,9 @@ let configuringPromise: Promise<void> | null = null;
 export async function configureAudioPriority(force = false): Promise<void> {
   if (Platform.OS === "web") return;
   if (!force && isConfigured) return;
+  // iOS refuses to re-activate a non-mixable session from the background
+  // (OSStatus '!int' / 560557684), so forced re-assertion is foreground-only.
+  if (force && AppState.currentState !== "active") return;
   if (configuringPromise) return configuringPromise;
 
   configuringPromise = (async () => {

@@ -28,6 +28,7 @@ function reassertPlaybackSession() {
   if (reassertTimer) clearTimeout(reassertTimer);
   reassertTimer = setTimeout(async () => {
     reassertTimer = null;
+    if (AppState.currentState !== "active") return;
     try {
       await configureAudioPriority(true);
       audioPlayerService.refreshLockScreen(true);
