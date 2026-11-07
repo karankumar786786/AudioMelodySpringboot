@@ -256,5 +256,37 @@ class RecommendationRankingEngineTest {
         Set<String> set = RecommendationRankingEngine.parseArtistSet("Drake, 21 Savage / Metro Boomin & Future ft. Travis Scott feat. Lil Baby");
         assertThat(set).containsExactlyInAnyOrder("drake", "21 savage", "metro boomin", "future", "travis scott", "lil baby");
     }
+
+    @Test
+    @DisplayName("Should boost score for matching country")
+    void shouldBoostScoreForMatchingCountry() {
+        Song seed = Song.builder()
+                .id("seed-1")
+                .title("Seed")
+                .artistName("Artist A")
+                .genre("Pop")
+                .album("Album A")
+                .language("Hindi")
+                .country("India")
+                .status(StatusEnum.ACTIVE)
+                .build();
+
+        SongDto matchingCountry = new SongDto(
+                "c-1", "Match", "Artist B", 200, "key/1", "img/1",
+                null, null, null, null, false, "Hindi", "Pop", "Album B", "India",
+                "lrc", StatusEnum.ACTIVE, 500L, null
+        );
+
+        SongDto differentCountry = new SongDto(
+                "c-2", "Diff", "Artist B", 200, "key/2", "img/2",
+                null, null, null, null, false, "Hindi", "Pop", "Album B", "USA",
+                "lrc", StatusEnum.ACTIVE, 500L, null
+        );
+
+        double scoreMatch = engine.scoreCandidate(matchingCountry, seed, null);
+        double scoreDiff = engine.scoreCandidate(differentCountry, seed, null);
+
+        assertThat(scoreMatch).isGreaterThan(scoreDiff);
+    }
 }
 

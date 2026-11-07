@@ -223,11 +223,11 @@ public class RecommendationRankingEngine {
         String seedLang = getNormalizedKey(seedSong.getLanguage());
         String candLang = getNormalizedKey(candidate.language());
 
-        String seedArtist = getNormalizedKey(seedSong.getArtistName());
-        String candArtist = getNormalizedKey(candidate.artistName());
-
         String seedAlbum = getNormalizedKey(seedSong.getAlbum());
         String candAlbum = getNormalizedKey(candidate.album());
+
+        String seedCountry = getNormalizedKey(seedSong.getCountry());
+        String candCountry = getNormalizedKey(candidate.country());
 
         // 1. Genre Affinity (Highest Weight, up to 40 pts)
         // Multi-genre aware: handles comma-separated genres with exact set equality,
@@ -317,10 +317,15 @@ public class RecommendationRankingEngine {
             score += 10.0;
         }
 
-        // 6. Popularity & Streaming Momentum (up to 10 pts)
+        // 6. Country Affinity (Regional Relevance, +5 pts)
+        if (seedCountry != null && candCountry != null && seedCountry.equals(candCountry)) {
+            score += 5.0;
+        }
+
+        // 7. Popularity & Streaming Momentum (up to 10 pts)
         score += computeStreamBoost(candidate.totalStreams());
 
-        // 7. Freshness / Deterministic Jitter (0.0 to 3.0 pts)
+        // 8. Freshness / Deterministic Jitter (0.0 to 3.0 pts)
         // Prevents static deterministic queue freezing across playbacks
         int hash = Math.abs((seedSong.getId() + "_" + candidate.id()).hashCode());
         double jitter = (hash % 100) / 33.3;
