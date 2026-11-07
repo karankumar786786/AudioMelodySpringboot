@@ -20,20 +20,57 @@ import { audioPlayerService } from "@/service/audioPlayerService";
 // "doNotMix" video player would steal audio focus from the music player.
 const CANVAS_MIXING_MODE = Platform.OS === "ios" ? "doNotMix" : "mixWithOthers";
 
+// Many canvas files are a 16:9 clip centered inside a taller frame, so black bars
+// are baked into the video itself (top + bottom). `cover` can't remove those, so
+// we zoom in until the 16:9 content fills the container, cropping the bars.
+// Zoom-to-fill switch. false = show the video as-is (no cover crop, no bar trimming).
+const ZOOM_TO_FILL = false;
+const CONTENT_ASPECT = 16 / 9;
+const MAX_BAR_ZOOM = 4;
+
+function computeBarZoom(
+  video: { width: number; height: number } | null | undefined,
+  box: { width: number; height: number }
+): number {
+  if (!ZOOM_TO_FILL) return 1;
+  if (!video || !video.width || !video.height || !box.width || !box.height) return 1;
+  // Not taller than the content itself -> no room for baked-in bars
+  if (video.height < (video.width / CONTENT_ASPECT) * 1.15) return 1;
+
+  // Scale `cover` applies, and the height the 16:9 content then occupies
+  const coverScale = Math.max(box.width / video.width, box.height / video.height);
+  const contentHeight = (video.width / CONTENT_ASPECT) * coverScale;
+  const contentWidth = video.width * coverScale;
+  // Zoom so the content fills the box height (width only overflows -> cropped)
+  const zoom = Math.max(box.height / contentHeight, box.width / contentWidth, 1);
+  return Math.min(MAX_BAR_ZOOM, zoom);
+}
+
+// WHY iOS keeps the canvas playing in the background:
+// expo-video's AudioSessionPolicy only removes `.mixWithOthers` (needed for Now
+// Playing / lock screen controls) while a "doNotMix" video player is PLAYING.
+// The moment all video players pause or unmount (lock screen, app switch) it
+// inserts `.mixWithOthers` again, iOS then drops our lock screen controls, and
+// we can't undo it from the background (OSStatus 560557684). So on iOS the muted
+// canvas keeps "playing" through lock instead of being paused/unmounted.
+const KEEP_CANVAS_ALIVE_IN_BACKGROUND = Platform.OS === "ios";
+
 // expo-video recalculates the audio session when its players start/stop, so
 // re-assert our session + lock screen shortly afterwards.
-let reassertTimer: ReturnType<typeof setTimeout> | null = null;
+let reassertTimers: ReturnType<typeof setTimeout>[] = [];
 function reassertPlaybackSession() {
   if (Platform.OS !== "ios") return;
-  if (reassertTimer) clearTimeout(reassertTimer);
-  reassertTimer = setTimeout(async () => {
-    reassertTimer = null;
-    if (AppState.currentState !== "active") return;
-    try {
-      await configureAudioPriority(true);
-      audioPlayerService.refreshLockScreen(true);
-    } catch {}
-  }, 250);
+  reassertTimers.forEach(clearTimeout);
+  // Several attempts: expo-video recalculates the session asynchronously, and
+  // while locking iOS may reject the first try (errors are swallowed).
+  reassertTimers = [250, 900, 2000].map((delay) =>
+    setTimeout(async () => {
+      try {
+        await configureAudioPriority(true);
+        audioPlayerService.refreshLockScreen(true);
+      } catch {}
+    }, delay)
+  );
 }
 
 interface CanvasVideoPlayerProps {
@@ -79,11 +116,15 @@ function VideoSurface({
     [videoUrl]
   );
 
+  const [box, setBox] = useState({ width: 0, height: 0 });
+  const [videoSize, setVideoSize] = useState<{ width: number; height: number } | null>(null);
+  const barZoom = React.useMemo(() => computeBarZoom(videoSize, box), [videoSize, box]);
+
   const player = useVideoPlayer(videoSource, (p) => {
     p.loop = true;
     p.muted = true;
     p.volume = 0;
-    p.staysActiveInBackground = false;
+    p.staysActiveInBackground = KEEP_CANVAS_ALIVE_IN_BACKGROUND;
     p.audioMixingMode = CANVAS_MIXING_MODE;
     p.showNowPlayingNotification = false;
     if (isPlaying && AppState.currentState === "active") {
@@ -97,7 +138,7 @@ function VideoSurface({
     player.loop = true;
     player.muted = true;
     player.volume = 0;
-    player.staysActiveInBackground = false;
+    player.staysActiveInBackground = KEEP_CANVAS_ALIVE_IN_BACKGROUND;
     player.audioMixingMode = CANVAS_MIXING_MODE;
     player.showNowPlayingNotification = false;
 
@@ -114,8 +155,16 @@ function VideoSurface({
       }
     };
 
+    const readSize = () => {
+      const size = (player as any).videoTrack?.size;
+      if (size?.width && size?.height) {
+        setVideoSize({ width: size.width, height: size.height });
+      }
+    };
+
     const checkStatus = (status: string, error?: any) => {
       if (status === "readyToPlay") {
+        readSize();
         markReady();
         if (isPlaying && AppState.currentState === "active" && !player.playing) {
           player.play();
@@ -152,8 +201,10 @@ function VideoSurface({
     });
 
     const sourceLoadSub = player.addListener("sourceLoad", () => {
+      readSize();
       markReady();
     });
+    const trackSub = (player as any).addListener("videoTrackChange", () => readSize());
 
     // Active polling interval as a bulletproof fallback while video buffers
     const pollInterval = setInterval(() => {
@@ -168,11 +219,11 @@ function VideoSurface({
     }, 100);
 
     const appStateSub = AppState.addEventListener("change", (nextState) => {
-      if (nextState !== "active") {
-        player.pause();
-      } else {
-        if (isPlaying) player.play();
+      if (nextState === "active") {
+        if (isPlaying && !player.playing) player.play();
         reassertPlaybackSession();
+      } else if (!KEEP_CANVAS_ALIVE_IN_BACKGROUND) {
+        player.pause();
       }
     });
 
@@ -193,6 +244,9 @@ function VideoSurface({
         sourceLoadSub.remove();
       } catch {}
       try {
+        trackSub?.remove();
+      } catch {}
+      try {
         appStateSub.remove();
       } catch {}
       try {
@@ -204,9 +258,21 @@ function VideoSurface({
 
   return (
     <VideoView
-      style={StyleSheet.absoluteFill}
+      style={[
+        StyleSheet.absoluteFill,
+        { width: "100%", height: "100%" },
+        barZoom > 1 ? { transform: [{ scale: barZoom }] } : null,
+      ]}
+      onLayout={(e) => {
+        const { width, height } = e.nativeEvent.layout;
+        setBox((prev) =>
+          prev.width === width && prev.height === height ? prev : { width, height }
+        );
+      }}
       player={player}
-      contentFit="cover"
+      // "cover" = zoom to fill: always scales the video up and crops overflow,
+      // never letterboxes
+      contentFit={ZOOM_TO_FILL ? "cover" : "contain"}
       nativeControls={false}
       allowsPictureInPicture={false}
       pointerEvents="none"
@@ -248,10 +314,33 @@ export function CanvasVideoPlayer({
   // unlock / foreground -> bring the canvas back.
   const [appActive, setAppActive] = useState(AppState.currentState === "active");
   useEffect(() => {
+    let resumeTimer: ReturnType<typeof setTimeout> | null = null;
     const sub = AppState.addEventListener("change", (next) => {
-      setAppActive(next === "active");
+      console.log(`[Canvas] AppState -> ${next}`);
+      if (resumeTimer) {
+        clearTimeout(resumeTimer);
+        resumeTimer = null;
+      }
+      if (KEEP_CANVAS_ALIVE_IN_BACKGROUND) {
+        // iOS: never unmount/pause the canvas on lock (see note above)
+        return;
+      }
+      if (next === "background") {
+        // iOS sends "inactive" first when locking. Release the video player
+        // right away so it stops influencing the audio session while locking.
+        setAppActive(false);
+      } else if (next === "active") {
+        // Debounce: iOS can flip states twice while unlocking
+        resumeTimer = setTimeout(() => {
+          resumeTimer = null;
+          setAppActive(true);
+        }, 300);
+      }
     });
-    return () => sub.remove();
+    return () => {
+      sub.remove();
+      if (resumeTimer) clearTimeout(resumeTimer);
+    };
   }, []);
 
   // Reset ready state when the track / video URL changes or the canvas remounts

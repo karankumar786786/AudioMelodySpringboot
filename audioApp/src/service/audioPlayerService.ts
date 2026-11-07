@@ -59,6 +59,7 @@ export class AudioPlayerService {
   private currentLoopMode: "none" | "all" | "single" = "none";
   private currentPlaylistIndex: number = -1;
   private playRequestId = 0;
+  private resumeTimer: ReturnType<typeof setTimeout> | null = null;
   private lastSyncedQueue: (Song | PlayerSong)[] | null = null;
   private lastSyncedIndex = -2;
   private lastSyncedQuality: AudioQuality | null = null;
@@ -113,15 +114,31 @@ export class AudioPlayerService {
   private initAppStateSubscription(): void {
     if (this.appStateSubscription) return;
     this.appStateSubscription = AppState.addEventListener("change", (nextState) => {
+      console.log(`[AudioPlayerService] AppState -> ${nextState}`);
+      if (this.resumeTimer) {
+        clearTimeout(this.resumeTimer);
+        this.resumeTimer = null;
+      }
       if (!this.playlist || !this.currentPlayingSong) return;
       if (nextState === "active") {
         // Back in foreground: iOS may have dropped Now Playing / remote commands
-        // (audio session changed by another player). Re-assert both.
-        configureAudioPriority(true)
-          .catch(() => {})
-          .finally(() => this.refreshLockScreen(true));
+        // (audio session changed by another player). Re-assert both, after a short
+        // delay so iOS has finished the unlock state flips.
+        this.resumeTimer = setTimeout(() => {
+          this.resumeTimer = null;
+          configureAudioPriority(true)
+            .catch(() => {})
+            .finally(() => this.refreshLockScreen(true));
+        }, 300);
       } else {
-        this.refreshLockScreen();
+        // Locking: re-register Now Playing a few times (iOS may reject the first
+        // attempt while the app is transitioning).
+        this.refreshLockScreen(true);
+        [500, 1500].forEach((d) =>
+          setTimeout(() => {
+            if (AppState.currentState !== "active") this.refreshLockScreen(true);
+          }, d)
+        );
       }
     });
   }
