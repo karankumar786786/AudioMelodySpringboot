@@ -65,6 +65,8 @@ function reassertPlaybackSession() {
   // while locking iOS may reject the first try (errors are swallowed).
   reassertTimers = [250, 900, 2000].map((delay) =>
     setTimeout(async () => {
+      // iOS rejects session changes from the background (OSStatus 560557684)
+      if (AppState.currentState !== "active") return;
       try {
         await configureAudioPriority(true);
         audioPlayerService.refreshLockScreen(true);

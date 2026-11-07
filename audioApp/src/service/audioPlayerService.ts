@@ -1,6 +1,7 @@
 import { AppState } from "react-native";
 import {
   createAudioPlaylist,
+  preload as preloadAudioSource,
   AudioPlaylist,
   AudioPlaylistStatus,
 } from "expo-audio";
@@ -59,6 +60,10 @@ export class AudioPlayerService {
   private currentLoopMode: "none" | "all" | "single" = "none";
   private currentPlaylistIndex: number = -1;
   private playRequestId = 0;
+  private bufferedSeconds = 0;
+  private lastLoggedBuffering: boolean | null = null;
+  private lastTrackChangeAt = 0;
+  private preloadedUris = new Set<string>();
   private resumeTimer: ReturnType<typeof setTimeout> | null = null;
   private lastSyncedQueue: (Song | PlayerSong)[] | null = null;
   private lastSyncedIndex = -2;
@@ -216,6 +221,11 @@ export class AudioPlayerService {
     const state = store.getState();
     const queue = state.queue.queue;
     if (!queue || currentIndex < 0) return;
+    const now = Date.now();
+    console.log(
+      `[Track] ⏭ native ${previousIndex} -> ${currentIndex} "${queue[currentIndex]?.title}" | +${this.lastTrackChangeAt ? now - this.lastTrackChangeAt : 0}ms since last change | preloaded=${this.preloadedUris.size}`
+    );
+    this.lastTrackChangeAt = now;
 
     // Resolve the song by the id the native playlist loaded at that slot, then map
     // it back to its queue index (robust against a queue edit mid-transition).
@@ -240,6 +250,7 @@ export class AudioPlayerService {
       );
     }
     this.lastProgressRatio = 0;
+    this.bufferedSeconds = 0;
 
     this.lastPlayedIndex = queueIdx;
     this.lastPlayedSongId = nextSong.id;
@@ -257,6 +268,7 @@ export class AudioPlayerService {
     this.updateLockScreen(playerNextSong);
     interactionService.recordPlay(nextSong.id, 0);
     PlayerStore.saveLastQueue(queue, queueIdx);
+    this.preloadUpcoming();
 
     // "End of track" sleep timer must also work between tracks of the playlist
     if (state.player.sleepTimer === -1) {
@@ -315,6 +327,12 @@ export class AudioPlayerService {
     const isBuffering = Boolean(status.isBuffering);
     const isLoaded = Boolean(status.isLoaded ?? true);
 
+    if (isBuffering !== this.lastLoggedBuffering) {
+      this.lastLoggedBuffering = isBuffering;
+      console.log(
+        `[Buffer] ${isBuffering ? "🔴 BUFFERING" : "🟢 buffered"} | "${this.currentPlayingSong?.title}" | pos=${(status.currentTime ?? 0).toFixed(1)}s | est=${this.bufferedSeconds.toFixed(1)}s | playing=${isPlaying}`
+      );
+    }
     dispatch(setIsPlaying(isPlaying));
     dispatch(setIsLoading(!isLoaded || (isBuffering && !isPlaying)));
 
@@ -328,8 +346,24 @@ export class AudioPlayerService {
         ? status.duration
         : (this.currentPlayingSong?.duration || 0);
 
+    const curr =
+      typeof status.currentTime === "number" && !isNaN(status.currentTime)
+        ? status.currentTime
+        : 0;
+
     if (typeof nativeBuffered === "number" && nativeBuffered > 0) {
+      this.bufferedSeconds = nativeBuffered;
       dispatch(setBufferedTime(nativeBuffered));
+    } else if (dur > 0) {
+      // expo-audio does not expose the buffered position, so this is an ESTIMATE:
+      // a forward window that grows at streaming speed (never behind playback).
+      const lead = isBuffering ? 12 : 25;
+      const step = isPlaying ? 1.5 : 0.2;
+      this.bufferedSeconds = Math.min(
+        dur,
+        Math.max(curr + lead, this.bufferedSeconds + step)
+      );
+      dispatch(setBufferedTime(this.bufferedSeconds));
     }
 
     if (dur > 0 && typeof status.currentTime === "number" && !isNaN(status.currentTime)) {
@@ -425,6 +459,33 @@ export class AudioPlayerService {
   }
 
   /**
+   * Warms the network cache for the next two songs so the next track starts
+   * instantly. Errors are ignored (preload is best-effort).
+   */
+  private preloadUpcoming(): void {
+    const { queue, currentIndex } = store.getState().queue;
+    const quality = store.getState().player.audioQuality || "auto";
+    for (const song of queue.slice(currentIndex + 1, currentIndex + 3)) {
+      const uri = resolveStreamUrl(song, quality);
+      if (!uri || this.preloadedUris.has(uri)) continue;
+      this.preloadedUris.add(uri);
+      if (this.preloadedUris.size > 20) {
+        this.preloadedUris.delete(this.preloadedUris.values().next().value as string);
+      }
+      const t0 = Date.now();
+      console.log(`[Preload] ⏳ start "${song.title}" (${uri})`);
+      preloadAudioSource({ uri }, { preferredForwardBufferDuration: 30 })
+        .then(() =>
+          console.log(`[Preload] ✅ ready "${song.title}" in ${Date.now() - t0}ms`)
+        )
+        .catch((err) => {
+          console.warn(`[Preload] ❌ failed "${song.title}":`, err);
+          this.preloadedUris.delete(uri);
+        });
+    }
+  }
+
+  /**
    * Makes the native playlist match the Redux queue.
    * - queue only grew at the end  -> append the new tracks
    * - order/contents changed      -> rebuild around the song that is playing
@@ -454,6 +515,7 @@ export class AudioPlayerService {
       loaded.length <= queue.length && loaded.every((id, i) => id === queue[i].id);
 
     if (isPrefix) {
+      this.preloadUpcoming();
       for (let i = loaded.length; i < queue.length; i++) {
         const uri = resolveStreamUrl(queue[i], quality);
         if (!uri) break; // keep indexes aligned; retry on next sync
@@ -624,6 +686,7 @@ export class AudioPlayerService {
     this.lastPlayedIndex = targetIndex;
     this.lastPlayedSongId = playerSong.id;
     this.lastProgressRatio = 0;
+    this.bufferedSeconds = startTime;
     this.hasSyncedActiveLockScreen = false;
     this.lastReportedPlayingState = null;
 
@@ -650,10 +713,21 @@ export class AudioPlayerService {
     if (canReuse && this.playlist) {
       this.syncPlaylistWithQueue(queueSongs, targetIndex, currentQuality);
 
-      if (this.currentPlaylistIndex !== targetIndex) {
+      // Ask the native player where it really is: the cached index can be stale
+      // after lock-screen / background transitions, which made in-app next a no-op.
+      let nativeIdx = this.currentPlaylistIndex;
+      try {
+        const n = (this.playlist as any).currentIndex;
+        if (typeof n === "number" && n >= 0) nativeIdx = n;
+      } catch {}
+      console.log(
+        `[Play] reuse playlist: native=${nativeIdx} cached=${this.currentPlaylistIndex} target=${targetIndex} "${playerSong.title}"`
+      );
+      if (nativeIdx !== targetIndex) {
         this.currentPlaylistIndex = targetIndex;
         this.playlist.skipTo(targetIndex);
       }
+      this.currentPlaylistIndex = targetIndex;
       if (startTime > 0) {
         this.playlist.seekTo(startTime).catch(() => {});
       }
@@ -673,6 +747,7 @@ export class AudioPlayerService {
     store.dispatch(setIsPlaying(autoplay));
     store.dispatch(setIsLoading(false));
     PlayerStore.saveLastSong(playerSong, startTime);
+    this.preloadUpcoming();
   }
 
   public pause(): void {
@@ -802,7 +877,9 @@ export class AudioPlayerService {
       }
     }, 1500);
 
+    this.bufferedSeconds = Math.max(this.bufferedSeconds, safeTime + 20);
     store.dispatch(setCurrentTime(safeTime));
+    store.dispatch(setBufferedTime(this.bufferedSeconds));
     PlayerStore.savePlaybackPosition(safeTime);
 
     try {
