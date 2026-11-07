@@ -283,7 +283,7 @@ function SongsContent() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-6 text-white font-sans">
+    <div className="p-6 md:p-8 max-w-400 mx-auto space-y-6 text-white font-sans">
       {/* Toast Notification */}
       {toast && (
         <Toast
