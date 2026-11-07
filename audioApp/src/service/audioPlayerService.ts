@@ -670,12 +670,10 @@ export class AudioPlayerService {
         artworkUrl,
       },
       {
-        showSeekForward: true,
-        showSeekBackward: true,
+        showSeekForward: false,
+        showSeekBackward: false,
         showNextTrack: true,
         showPreviousTrack: true,
-        seekForwardIntervalSeconds: 10,
-        seekBackwardIntervalSeconds: 10,
       },
       force
     );

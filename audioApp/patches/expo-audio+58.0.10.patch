@@ -1,0 +1,49 @@
+diff --git a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
+index fb2d0b5..3cfc5db 100644
+--- a/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
++++ b/node_modules/expo-audio/android/src/main/java/expo/modules/audio/AudioPlayer.kt
+@@ -72,6 +72,17 @@ class AudioPlayer(
+   override val isLive: Boolean
+     get() = ref.isCurrentMediaItemLive
+ 
++  override val supportsNextTrack = true
++  override val supportsPreviousTrack = true
++
++  override fun nextTrack() {
++    sendStatusUpdate(mapOf("remoteCommand" to "nextTrack"))
++  }
++
++  override fun previousTrack() {
++    sendStatusUpdate(mapOf("remoteCommand" to "previousTrack"))
++  }
++
+   val currentOffsetFromLive: Double?
+     get() {
+       val offset = ref.currentLiveOffset
+diff --git a/node_modules/expo-audio/ios/AudioPlayer.swift b/node_modules/expo-audio/ios/AudioPlayer.swift
+index 0f68a52..d85d028 100644
+--- a/node_modules/expo-audio/ios/AudioPlayer.swift
++++ b/node_modules/expo-audio/ios/AudioPlayer.swift
+@@ -82,6 +82,22 @@ public class AudioPlayer: SharedRef<AVPlayer>, Playable, LockScreenPlayable {
+     ref
+   }
+ 
++  var supportsNextTrack: Bool {
++    true
++  }
++
++  var supportsPreviousTrack: Bool {
++    true
++  }
++
++  func nextTrack() {
++    updateStatus(with: ["remoteCommand": "nextTrack"])
++  }
++
++  func previousTrack() {
++    updateStatus(with: ["remoteCommand": "previousTrack"])
++  }
++
+   var currentOffsetFromLive: Double? {
+     // currentDate() blocks until the item has loaded, and a still-loading item looks live too.
+     guard let item = ref.currentItem, item.status == .readyToPlay, item.duration.isIndefinite,
