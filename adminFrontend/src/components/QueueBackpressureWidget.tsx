@@ -131,11 +131,20 @@ export function QueueBackpressureWidget({
       };
     }
 
+    if (size === 0) {
+      return {
+        badgeText: "Optimal",
+        badgeClass: "bg-white/10 text-zinc-300 border-white/20",
+        barColor: "bg-white",
+        percentage: 0,
+      };
+    }
+
     return {
       badgeText: "Optimal",
       badgeClass: "bg-white/10 text-zinc-300 border-white/20",
       barColor: "bg-white",
-      percentage: Math.max(8, Math.min(100, Math.round((size / 10) * 40))),
+      percentage: Math.min(100, Math.max(5, Math.round((size / 10) * 100))),
     };
   };
 
@@ -152,7 +161,7 @@ export function QueueBackpressureWidget({
     >
       {/* Background ambient subtle glow */}
       {!compact && (
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-white/[0.02] rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-white/2 rounded-full blur-3xl pointer-events-none" />
       )}
 
       {/* Header bar */}

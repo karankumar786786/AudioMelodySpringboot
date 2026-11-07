@@ -209,7 +209,7 @@ export function SystemStatusWidget({
             <div className="w-full h-2 rounded-full bg-zinc-800/80 overflow-hidden">
               <div
                 className={`h-full transition-all duration-500 rounded-full ${cpuStyles.bar}`}
-                style={{ width: `${Math.max(3, cpuPercent)}%` }}
+                style={{ width: `${cpuPercent > 0 ? Math.max(2, cpuPercent) : 0}%` }}
               />
             </div>
 
