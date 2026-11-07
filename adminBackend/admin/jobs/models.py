@@ -21,6 +21,7 @@ class Job(models.Model):
     language = models.CharField(max_length=255, blank=True, null=True)
     genre = models.CharField(max_length=255, blank=True, null=True)
     album = models.CharField(max_length=255, blank=True, null=True)
+    country = models.CharField(max_length=255, default="India", db_column="country")
     lrclib_id = models.CharField(max_length=255, blank=True, null=True, db_column="lrclib_id")
     song_id = models.CharField(max_length=255, db_column="song_id")
     transcoding_id = models.CharField(max_length=255, blank=True, null=True, db_column="transcoding_id")

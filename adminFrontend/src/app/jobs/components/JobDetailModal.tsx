@@ -71,7 +71,7 @@ export function JobDetailModal({
                 )}
               </h3>
               <p className="text-xs text-zinc-400">
-                {job.artistName} • <span className="font-mono text-zinc-500">ID: {job.id}</span>
+                {job.artistName} {job.country ? ` ${job.country}` : ""} • <span className="font-mono text-zinc-500">ID: {job.id}</span>
               </p>
             </div>
           </div>
@@ -274,14 +274,14 @@ export function JobDetailModal({
             </div>
             <div className="flex justify-between truncate">
               <span className="text-zinc-500">Song Key:</span>
-              <span className="text-zinc-200 font-semibold truncate max-w-[340px]">
+              <span className="text-zinc-200 font-semibold truncate max-w-85">
                 {job.songId ? `audios/${job.songId}` : "-"}
               </span>
             </div>
             {job.videoKey && (
               <div className="flex justify-between truncate">
                 <span className="text-zinc-500">Video Canvas:</span>
-                <span className="text-zinc-200 font-semibold truncate max-w-[340px]">
+                <span className="text-zinc-200 font-semibold truncate max-w-85">
                   {job.videoKey}
                 </span>
               </div>
@@ -289,7 +289,7 @@ export function JobDetailModal({
             {job.fullVideoKey && (
               <div className="flex justify-between truncate">
                 <span className="text-zinc-500">Full Video:</span>
-                <span className="text-indigo-400 font-semibold truncate max-w-[340px]">
+                <span className="text-indigo-400 font-semibold truncate max-w-85">
                   {job.fullVideoKey}
                 </span>
               </div>

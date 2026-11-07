@@ -38,6 +38,7 @@ public interface SongsRepository extends JpaRepository<Song, String> {
     @Query("SELECT s FROM Song s WHERE LOWER(s.title) LIKE LOWER(CONCAT('%', :search, '%')) " +
            "OR LOWER(s.artistName) LIKE LOWER(CONCAT('%', :search, '%')) " +
            "OR LOWER(s.album) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(s.country) LIKE LOWER(CONCAT('%', :search, '%')) " +
            "ORDER BY s.createdAt DESC")
     List<Song> findAllPaginatedWithSearch(@Param("search") String search, Pageable pageable);
 
@@ -50,7 +51,8 @@ public interface SongsRepository extends JpaRepository<Song, String> {
 
     @Query("SELECT COUNT(s) FROM Song s WHERE LOWER(s.title) LIKE LOWER(CONCAT('%', :search, '%')) " +
            "OR LOWER(s.artistName) LIKE LOWER(CONCAT('%', :search, '%')) " +
-           "OR LOWER(s.album) LIKE LOWER(CONCAT('%', :search, '%'))")
+           "OR LOWER(s.album) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(s.country) LIKE LOWER(CONCAT('%', :search, '%'))")
     long countSongsWithSearch(@Param("search") String search);
 
     default long countSongs(String search) {
@@ -378,6 +380,14 @@ public interface SongsRepository extends JpaRepository<Song, String> {
     @EntityGraph(attributePaths = {"songMetadata"})
     @Query("SELECT s FROM Song s WHERE LOWER(TRIM(s.album)) = LOWER(TRIM(:album)) AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt ASC")
     List<Song> findByAlbum(@Param("album") String album);
+
+    @EntityGraph(attributePaths = {"songMetadata"})
+    @Query("SELECT s FROM Song s WHERE LOWER(TRIM(s.country)) = LOWER(TRIM(:country)) AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt DESC")
+    List<Song> findByCountry(@Param("country") String country, Pageable pageable);
+
+    @EntityGraph(attributePaths = {"songMetadata"})
+    @Query("SELECT s FROM Song s WHERE LOWER(TRIM(s.country)) = LOWER(TRIM(:country)) AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt DESC")
+    List<Song> findByCountry(@Param("country") String country);
 
     @Query("SELECT s.album, s.artistName, COUNT(s), MIN(s.imageKey), MIN(s.genre) " +
            "FROM Song s " +

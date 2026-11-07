@@ -118,6 +118,10 @@ public class RecommendationApiService {
                 if (seedSong.getAlbum() != null && !seedSong.getAlbum().isBlank()) {
                     dbCandidates.addAll(songsRepository.findByAlbum(seedSong.getAlbum().trim()));
                 }
+                // Country candidates (regional relevance)
+                if (seedSong.getCountry() != null && !seedSong.getCountry().isBlank()) {
+                    dbCandidates.addAll(songsRepository.findByCountry(seedSong.getCountry().trim(), PageRequest.of(0, 15)));
+                }
                 // General active catalog tracks
                 dbCandidates.addAll(songsRepository.findActiveSongs(PageRequest.of(0, 20)));
             } catch (Exception ex) {

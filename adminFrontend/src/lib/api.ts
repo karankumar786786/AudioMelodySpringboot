@@ -86,6 +86,9 @@ export interface JobProgress {
   artistName: string;
   songId: string;
   imageKey: string;
+  genre?: string | null;
+  album?: string | null;
+  country?: string | null;
   videoKey?: string | null;
   fullVideoKey?: string | null;
   duration?: number | null;
@@ -232,6 +235,9 @@ export interface Job {
   previewStartTime?: number;
   previewEndTime?: number;
   language?: string;
+  genre?: string;
+  album?: string;
+  country?: string;
   status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
   currentStage?: JobStage;
   transcodingAttempt?: number;

@@ -80,6 +80,13 @@ public class SongsApiService {
                 .toList();
     }
 
+    public List<SongDto> getSongsByCountry(String countryName) {
+        if (countryName == null || countryName.isBlank()) return List.of();
+        return songsRepository.findByCountry(countryName.trim()).stream()
+                .map(SongDto::fromEntity)
+                .toList();
+    }
+
     public List<me.one_org.melody.Dto.Controllers.AlbumDto> getAllAlbums() {
         return songsRepository.findDistinctAlbums().stream()
                 .map(row -> new me.one_org.melody.Dto.Controllers.AlbumDto(

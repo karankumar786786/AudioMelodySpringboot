@@ -441,6 +441,7 @@ class WebhookJobFinalizeView(BaseAdminView):
                 lrclib_id=job.lrclib_id,
                 genre=job.genre,
                 album=job.album,
+                country=getattr(job, "country", None) or "India",
                 job_id=job.id,
                 status="ACTIVE",
             )
@@ -457,6 +458,8 @@ class WebhookJobFinalizeView(BaseAdminView):
             song.preview_end_time = job.preview_end_time or song.preview_end_time
             song.genre = job.genre or song.genre
             song.album = job.album or song.album
+            if hasattr(job, "country") and job.country:
+                song.country = job.country
             song.language = job.language or song.language
             song.lrclib_id = job.lrclib_id or song.lrclib_id
             song.status = "ACTIVE"

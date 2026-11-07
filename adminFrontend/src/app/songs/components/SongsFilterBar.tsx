@@ -58,7 +58,7 @@ export function SongsFilterBar({
             type="text"
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="Search by title, artist, language, genre, or album..."
+            placeholder="Search by title, artist, country, language, genre, or album..."
             className="w-full bg-[#16161a] border border-white/8 hover:border-white/14 focus:border-white/30 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none transition-all"
           />
         </div>

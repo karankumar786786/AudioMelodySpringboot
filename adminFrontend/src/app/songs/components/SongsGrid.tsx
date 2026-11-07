@@ -139,6 +139,12 @@ export function SongsGrid({
                     <span>Featured</span>
                   </span>
                 )}
+                {song.country && (
+                  <span className="flex items-center gap-1 bg-black/70 text-zinc-200 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md backdrop-blur-sm border border-white/15">
+                    <span>{song.country.toLowerCase() === "india" ? "🇮🇳" : "🌐"}</span>
+                    <span>{song.country}</span>
+                  </span>
+                )}
                 {song.videoKey && (
                   <span className="flex items-center gap-1 bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md backdrop-blur-sm border border-white/20">
                     <Film className="w-2.5 h-2.5" />
@@ -251,12 +257,16 @@ export function SongsGrid({
               >
                 {song.title}
               </h4>
-              <p
-                className="text-[11px] text-zinc-400 truncate"
-                title={song.artistName}
-              >
-                {song.artistName}
-              </p>
+              <div className="flex items-center justify-between gap-1.5 text-[11px] text-zinc-400">
+                <span className="truncate" title={song.artistName}>
+                  {song.artistName}
+                </span>
+                {song.album && (
+                  <span className="truncate text-zinc-500 text-[10px] shrink-0 max-w-[45%]" title={song.album}>
+                    • {song.album}
+                  </span>
+                )}
+              </div>
 
               <div className="flex items-center justify-between text-[11px] text-zinc-500 pt-1.5 border-t border-white/6">
                 <div className="flex items-center gap-2">

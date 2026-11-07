@@ -28,6 +28,7 @@ const initialFormData: CreateSongFormData = {
   language: "Hindi",
   genre: "",
   album: "",
+  country: "India",
   lrclibId: "",
   songFile: null,
   imageFile: null,
@@ -294,6 +295,7 @@ export function CreateSongModal({
           language: formData.language,
           genre: formData.genre || undefined,
           album: formData.album || undefined,
+          country: formData.country || "India",
           lrclibId: formData.lrclibId || undefined,
         }),
       });
@@ -471,7 +473,7 @@ export function CreateSongModal({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label htmlFor="song-album" className={labelCls}>Album</label>
                   <input
@@ -480,6 +482,17 @@ export function CreateSongModal({
                     placeholder="Optional album"
                     value={formData.album}
                     onChange={(e) => setFormData({ ...formData, album: e.target.value })}
+                    className={inputCls}
+                  />
+                </div>
+                <div>
+                  <label htmlFor="song-country" className={labelCls}>Country</label>
+                  <input
+                    id="song-country"
+                    type="text"
+                    placeholder="e.g. India"
+                    value={formData.country ?? "India"}
+                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
                     className={inputCls}
                   />
                 </div>

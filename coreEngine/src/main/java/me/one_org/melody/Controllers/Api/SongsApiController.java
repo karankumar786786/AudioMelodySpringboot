@@ -63,6 +63,11 @@ public class SongsApiController {
         return ResponseEntity.ok(songsAppService.getSongsByAlbum(albumName));
     }
 
+    @GetMapping(value = {"/country/{countryName}", "/country/{countryName}/songs"})
+    public ResponseEntity<List<SongDto>> getSongsByCountry(@PathVariable @NotBlank(message = "Country name is required") String countryName) {
+        return ResponseEntity.ok(songsAppService.getSongsByCountry(countryName));
+    }
+
     @GetMapping("/albums")
     public ResponseEntity<List<me.one_org.melody.Dto.Controllers.AlbumDto>> getAllAlbums() {
         return ResponseEntity.ok()
