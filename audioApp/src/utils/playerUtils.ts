@@ -65,11 +65,7 @@ export function mapToPlayerSong(song: Song | any, existingQueueId?: string): Pla
     coverUrl;
 
   const canvasVideoUrl = videoKey
-    ? getVideoUrl(videoKey, {
-        width: 540,
-        quality: 70,
-        format: "mp4",
-      })
+    ? getVideoUrl(videoKey)
     : undefined;
 
   return {

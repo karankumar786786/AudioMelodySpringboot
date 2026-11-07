@@ -174,8 +174,9 @@ function VideoSurface({
           player.play();
         }
       } else if (status === "error") {
-        console.warn("[CanvasVideoPlayer] ❌ Native player error:", error);
-        onErrorRef.current?.(error);
+        const err = error || (player as any).error;
+        console.warn("[CanvasVideoPlayer] ❌ Native player error:", err);
+        onErrorRef.current?.(err);
       }
     };
 
@@ -301,10 +302,10 @@ export function CanvasVideoPlayer({
 }: CanvasVideoPlayerProps) {
   const videoUrl =
     (directVideoUrl
-      ? getVideoUrl(directVideoUrl, { width: 540, quality: 70, format: "mp4" })
+      ? (directVideoUrl.startsWith("http") ? directVideoUrl : getVideoUrl(directVideoUrl))
       : undefined) ||
     (videoKey
-      ? getVideoUrl(videoKey, { width: 540, quality: 70, format: "mp4" })
+      ? getVideoUrl(videoKey)
       : undefined);
 
   const imageUrl = getImageUrl(fallbackImageKey, {
