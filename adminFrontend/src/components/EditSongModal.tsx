@@ -21,7 +21,6 @@ import {
   UploadError,
   uploadToImageKitWithProgress,
   uploadToS3WithProgress,
-  uploadWithProgress,
 } from "@/lib/upload-utils";
 import { UploadProgressBar } from "./UploadProgressBar";
 import { MultiSelectTagInput } from "./ui/MultiSelectTagInput";

@@ -11,7 +11,6 @@ import {
   UploadError,
   uploadToImageKitWithProgress,
   uploadToS3WithProgress,
-  uploadWithProgress,
 } from "@/lib/upload-utils";
 import type { CreateSongFormData, UploadMode, UploadProgressStats, UploadErrorState } from "../types";
 

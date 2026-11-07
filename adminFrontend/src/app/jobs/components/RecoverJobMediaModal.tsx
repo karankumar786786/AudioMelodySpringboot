@@ -15,7 +15,6 @@ import { JobProgress } from "@/lib/api";
 import { UploadProgressBar } from "@/components/UploadProgressBar";
 import {
   uploadToS3WithProgress,
-  uploadWithProgress,
   getFriendlyUploadErrorMessage,
   isDeviceOnline,
 } from "@/lib/upload-utils";
