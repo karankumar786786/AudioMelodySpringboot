@@ -304,6 +304,7 @@ class AlgoliaService:
             s_artist = song.get("artist_name") or song.get("artistName")
             s_album = song.get("album")
             s_genre = song.get("genre")
+            s_country = song.get("country") or "India"
             s_img = song.get("image_key") or song.get("imageKey")
             s_dur = song.get("duration")
             s_lang = song.get("language")
@@ -327,6 +328,7 @@ class AlgoliaService:
             s_artist = getattr(song, "artist_name", None)
             s_album = getattr(song, "album", None)
             s_genre = getattr(song, "genre", None)
+            s_country = getattr(song, "country", None) or "India"
             s_img = getattr(song, "image_key", None)
             s_dur = getattr(song, "duration", None)
             s_lang = getattr(song, "language", None)
@@ -378,6 +380,7 @@ class AlgoliaService:
             "album": str(s_album).strip() if s_album else None,
             "genre": str(s_genre).strip() if s_genre else None,
             "genres": genres_list,
+            "country": str(s_country or "India"),
             "language": str(s_lang or ""),
             "imageKey": str(s_img or ""),
             "songKey": str(s_song_key or ""),

@@ -474,11 +474,12 @@ class RecombeeService:
         from recombee_api_client.api_requests import Batch, Request, SetItemValues
         requests_list: List[Request] = []
         for s in songs:
+            s_country = (s.get("country") if isinstance(s, dict) else getattr(s, "country", None)) or "India"
             vals: Dict[str, Any] = {
-                "title": s.title,
-                "artistName": s.artist_name,
-                "language": s.language or "",
-                "country": getattr(s, "country", None) or "India",
+                "title": s.get("title") if isinstance(s, dict) else s.title,
+                "artistName": s.get("artist_name") if isinstance(s, dict) else s.artist_name,
+                "language": (s.get("language") if isinstance(s, dict) else s.language) or "",
+                "country": str(s_country or "India"),
             }
             if s.artist_name and s.artist_name.strip():
                 import re
