@@ -822,6 +822,39 @@ export class AudioPlayerService {
     return this.currentPlayingSong;
   }
 
+  public stopAndReset(): void {
+    try {
+      if (this.remoteSyncInterval) {
+        clearInterval(this.remoteSyncInterval);
+        this.remoteSyncInterval = null;
+      }
+      if (this.resumeTimer) {
+        clearTimeout(this.resumeTimer);
+        this.resumeTimer = null;
+      }
+      if (this.seekTimeout) {
+        clearTimeout(this.seekTimeout);
+        this.seekTimeout = null;
+      }
+      if (this.sleepTimerTimeout) {
+        clearTimeout(this.sleepTimerTimeout);
+        this.sleepTimerTimeout = null;
+      }
+      this.currentPlayingSong = null;
+      this.lastPlayedSongId = null;
+      this.lastPlayedIndex = -1;
+      this.hasSyncedActiveLockScreen = false;
+      this.lastReportedPlayingState = null;
+      this.bufferedSeconds = 0;
+      this.isAdvancingTrack = false;
+      this.isSeeking = false;
+      this.preloadedForSongId = null;
+      this.pool.resetAll();
+    } catch (e) {
+      console.warn("[AudioPlayerService] Error during stopAndReset:", e);
+    }
+  }
+
   private reportPartialListen(): void {
     const player = this.activePlayer;
     if (!this.currentPlayingSong?.id || !player) return;

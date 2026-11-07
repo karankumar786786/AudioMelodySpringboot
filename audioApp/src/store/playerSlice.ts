@@ -1,6 +1,7 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { PlayerSong, PlayerState, PlaybackMode, VideoQuality, AudioQuality } from "@/types";
 import { stringToSolidDarkColor } from "@/utils/colorUtils";
+import { clearAuthToken } from "./authSlice";
 
 const initialState: PlayerState = {
   currentSong: null,
@@ -93,6 +94,11 @@ export const playerSlice = createSlice({
       state.seekTarget = null;
       state.playbackMode = "audio";
     },
+  },
+  extraReducers: (builder) => {
+    builder.addCase(clearAuthToken.fulfilled, () => {
+      return initialState;
+    });
   },
 });
 

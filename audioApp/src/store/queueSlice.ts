@@ -1,6 +1,7 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { Song, QueueState, RepeatMode } from "@/types";
 import { shuffleArray } from "@/utils/playerUtils";
+import { clearAuthToken } from "./authSlice";
 
 const initialState: QueueState = {
   queue: [],
@@ -185,6 +186,11 @@ export const queueSlice = createSlice({
         state.currentIndex += 1;
       }
     },
+  },
+  extraReducers: (builder) => {
+    builder.addCase(clearAuthToken.fulfilled, () => {
+      return initialState;
+    });
   },
 });
 

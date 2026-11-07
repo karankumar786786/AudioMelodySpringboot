@@ -209,7 +209,7 @@ export default function ProfileScreen() {
             console.warn("Logout error:", e);
           } finally {
             queryClient.clear();
-            dispatch(clearAuthToken());
+            await (dispatch as any)(clearAuthToken()).unwrap().catch(() => {});
             setIsLoggingOut(false);
             router.replace("/login" as any);
           }

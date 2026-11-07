@@ -479,6 +479,7 @@ export class AudioPlayerPool {
       try {
         slot.player.pause();
         slot.player.volume = 0;
+        safeSetActiveForLockScreen(slot.player, false);
         slot.song = null;
         slot.resolvedUri = null;
         slot.isReady = false;

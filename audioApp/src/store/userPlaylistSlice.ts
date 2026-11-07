@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { UserPlaylist, Song } from "@/types";
+import { clearAuthToken } from "./authSlice";
 
 export interface UserPlaylistState {
   playlists: UserPlaylist[];
@@ -243,6 +244,9 @@ export const userPlaylistSlice = createSlice({
         if (pl && merged.length > pl.totalSongs) {
           pl.totalSongs = merged.length;
         }
+      })
+      .addCase(clearAuthToken.fulfilled, () => {
+        return initialState;
       });
   },
 });

@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { Song } from "@/types";
+import { clearAuthToken } from "./authSlice";
 
 export interface FavouriteState {
   favouriteIds: string[];
@@ -115,6 +116,9 @@ export const favouriteSlice = createSlice({
       .addCase(loadFavourites.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
+      })
+      .addCase(clearAuthToken.fulfilled, () => {
+        return initialState;
       });
   },
 });

@@ -27,10 +27,35 @@ const loadAuthToken = createAsyncThunk(
 
 const clearAuthToken = createAsyncThunk(
     "auth/cleartokentostore",
-    async ():Promise<void> => {
+    async (): Promise<void> => {
+        try {
+            // 1. Stop audio playback and clear lock screen / media session immediately
+            const { audioPlayerService } = await import("@/service/audioPlayerService");
+            audioPlayerService.stopAndReset();
+        } catch (e) {
+            console.warn("[clearAuthToken] Error stopping audio player:", e);
+        }
+
+        try {
+            // 2. Clear persisted playback state (last song, last queue, last position)
+            const { PlayerStore } = await import("@/storage/PlayerStore");
+            await PlayerStore.clear();
+        } catch (e) {
+            console.warn("[clearAuthToken] Error clearing PlayerStore:", e);
+        }
+
+        try {
+            // 3. Clear recent search history
+            const { searchService } = await import("@/service/searchService");
+            await searchService.clearAllRecentSearches();
+        } catch (e) {
+            console.warn("[clearAuthToken] Error clearing search history:", e);
+        }
+
+        // 4. Clear auth tokens from SecureStore (device_id in SecureStore is preserved!)
         await AuthStore.clearAuthToken();
     }
-)
+);
 
 
 export const authSlice = createSlice(
