@@ -53,7 +53,7 @@ function computeBarZoom(
 // inserts `.mixWithOthers` again, iOS then drops our lock screen controls, and
 // we can't undo it from the background (OSStatus 560557684). So on iOS the muted
 // canvas keeps "playing" through lock instead of being paused/unmounted.
-const KEEP_CANVAS_ALIVE_IN_BACKGROUND = false;
+const KEEP_CANVAS_ALIVE_IN_BACKGROUND = Platform.OS === "ios";
 
 // expo-video recalculates the audio session when its players start/stop, so
 // re-assert our session + lock screen shortly afterwards.
@@ -227,11 +227,10 @@ function VideoSurface({
       if (nextState === "active") {
         if (isPlaying && !player.playing) player.play();
         reassertPlaybackSession();
-      } else {
-        // Pause canvas video on inactive/background to prevent expo-video
-        // from recalculating the AVAudioSession and dropping lock screen controls
+      } else if (!KEEP_CANVAS_ALIVE_IN_BACKGROUND) {
+        // Android only. On iOS pausing the last playing video player makes
+        // expo-video re-add `.mixWithOthers`, which drops the lock screen player.
         player.pause();
-        reassertPlaybackSession();
       }
     });
 
@@ -329,9 +328,11 @@ export function CanvasVideoPlayer({
         clearTimeout(resumeTimer);
         resumeTimer = null;
       }
-      if (next === "background" || next === "inactive") {
-        // Immediately unmount the VideoSurface on lock/background so expo-video
-        // cannot corrupt the iOS AVAudioSession and drop lock screen controls
+      if (KEEP_CANVAS_ALIVE_IN_BACKGROUND) {
+        // iOS: never unmount/pause the canvas on lock (see note above)
+        return;
+      }
+      if (next === "background") {
         setAppActive(false);
       } else if (next === "active") {
         // Debounce: iOS can flip states twice while unlocking

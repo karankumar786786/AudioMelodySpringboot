@@ -344,6 +344,10 @@ export class AudioPlayerPool {
     // On Android: DO NOT call safeSetActiveForLockScreen(currentActive, false)!
     // Doing so triggers AudioControlsService.clearSessionInternal() -> stopForeground(STOP_FOREGROUND_REMOVE),
     // which removes the lock screen notification and causes ForegroundServiceStartNotAllowedException on Android 12+.
+    // iOS: do NOT clear the old player natively. Activating the new player above
+    // already deactivates the old one inside MediaController, and a late native
+    // clear from the old player can wipe the new player's Now Playing (lock screen
+    // player vanishing on song change). Only reset the JS flags.
     if (Platform.OS === "ios") {
       safeSetActiveForLockScreen(currentActive.player, false);
     }
@@ -479,7 +483,7 @@ export class AudioPlayerPool {
       try {
         slot.player.pause();
         slot.player.volume = 0;
-        safeSetActiveForLockScreen(slot.player, false);
+        safeSetActiveForLockScreen(slot.player, false, undefined, undefined, false, true);
         slot.song = null;
         slot.resolvedUri = null;
         slot.isReady = false;

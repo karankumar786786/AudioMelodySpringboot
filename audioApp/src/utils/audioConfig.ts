@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { Platform, AppState } from "react-native";
 import {
   setAudioModeAsync,
   setIsAudioActiveAsync,
@@ -28,6 +28,10 @@ let configuringPromise: Promise<void> | null = null;
 export async function configureAudioPriority(force = false): Promise<void> {
   if (Platform.OS === "web") return;
   if (!force && isConfigured) return;
+  // iOS rejects re-activating the non-mixable session while the app is not in the
+  // foreground (OSStatus 560557684 '!int'). It can never succeed there, so skip
+  // the forced re-apply instead of failing; the foreground re-assert handles it.
+  if (force && isConfigured && AppState.currentState !== "active") return;
   if (configuringPromise) return configuringPromise;
 
   configuringPromise = (async () => {
@@ -104,7 +108,8 @@ export function safeSetActiveForLockScreen(
   active: boolean,
   metadata?: any,
   options?: any,
-  force = false
+  force = false,
+  hardClear = false
 ): void {
   if (!player) {
     console.warn("[LockScreen] Cannot configure lock screen: player is null or undefined");
@@ -146,6 +151,16 @@ export function safeSetActiveForLockScreen(
     } else {
       (player as any)._isLockScreenActive = false;
       (player as any)._lastAppliedMetadata = undefined;
+
+      // iOS: MediaController is a singleton. Activating a new player already
+      // deactivates the previous one, and a native "clear" from an old player can
+      // race with that and wipe the NEW player's Now Playing / remote commands
+      // (lock screen player disappearing on song change). So on iOS we only reset
+      // our JS flags, unless a full stop explicitly asks for a hard clear.
+      if (Platform.OS === "ios" && !hardClear) {
+        return;
+      }
+
       if (typeof (player as any).clearLockScreenControls === "function") {
         (player as any).clearLockScreenControls();
       } else {
