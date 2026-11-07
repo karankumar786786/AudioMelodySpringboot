@@ -1,4 +1,4 @@
-import { AppState } from "react-native";
+import { AppState, Platform } from "react-native";
 import { AudioPlayer, AudioStatus } from "expo-audio";
 import { Song, PlayerSong, RepeatMode, AudioQuality } from "@/types";
 import { store } from "@/store/hook";
@@ -136,26 +136,35 @@ export class AudioPlayerService {
             .finally(() => this.refreshLockScreen(true));
         }, 300);
       } else if (nextState === "inactive") {
-        // iOS: "inactive" fires BEFORE "background" during lock.
-        // Re-assert audio session BEFORE expo-video gets a chance to corrupt it.
-        // Also reset _isLockScreenActive so the next refreshLockScreen(true)
-        // forces a full native re-registration instead of a metadata-only update.
-        if (this.activePlayer) {
-          (this.activePlayer as any)._isLockScreenActive = false;
+        if (Platform.OS === "ios") {
+          // iOS: "inactive" fires BEFORE "background" during lock.
+          // Re-assert audio session BEFORE expo-video gets a chance to corrupt it.
+          // Also reset _isLockScreenActive so the next refreshLockScreen(true)
+          // forces a full native re-registration instead of a metadata-only update.
+          if (this.activePlayer) {
+            (this.activePlayer as any)._isLockScreenActive = false;
+          }
+          configureAudioPriority(true).catch(() => {});
+          this.refreshLockScreen(true);
         }
-        configureAudioPriority(true).catch(() => {});
-        this.refreshLockScreen(true);
       } else {
-        // "background": reset lock screen flag and retry with escalating delays
-        if (this.activePlayer) {
-          (this.activePlayer as any)._isLockScreenActive = false;
+        // "background":
+        if (Platform.OS === "ios") {
+          // iOS only: reset lock screen flag and retry with escalating delays
+          if (this.activePlayer) {
+            (this.activePlayer as any)._isLockScreenActive = false;
+          }
+          this.refreshLockScreen(true);
+          [300, 800, 1500, 3000].forEach((d) =>
+            setTimeout(() => {
+              this.refreshLockScreen(true);
+            }, d)
+          );
+        } else {
+          // Android: AudioControlsService remains running in the foreground.
+          // Safe in-place metadata sync without tearing down the MediaSession / notification.
+          this.refreshLockScreen(false);
         }
-        this.refreshLockScreen(true);
-        [300, 800, 1500, 3000].forEach((d) =>
-          setTimeout(() => {
-            this.refreshLockScreen(true);
-          }, d)
-        );
       }
     });
   }

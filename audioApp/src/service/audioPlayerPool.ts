@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import { createAudioPlayer, AudioPlayer, AudioStatus } from "expo-audio";
 import { Song, PlayerSong, AudioQuality } from "@/types";
 import { configureAudioPriority, safeSetActiveForLockScreen } from "@/utils/audioConfig";
@@ -295,14 +296,10 @@ export class AudioPlayerPool {
     targetSlot.player.volume = 1.0;
     targetSlot.player.play();
 
-    // 3. Pause, mute, and release lock screen on old active player
-    currentActive.player.pause();
-    currentActive.player.volume = 0;
-    safeSetActiveForLockScreen(currentActive.player, false);
-
-    // 4. Activate lock screen controls on target player
-    //    Because the player is ALREADY playing, iOS MediaController registers rate=1.0
-    //    and active audio output without dropping the Now Playing widget.
+    // 3. Activate lock screen controls on target player FIRST
+    //    On Android: directly swaps the active player inside AudioControlsService without
+    //    calling stopForeground(STOP_FOREGROUND_REMOVE), preventing the lock screen widget from disappearing.
+    //    On iOS: registers Now Playing while audio is actively playing at rate=1.0.
     const rawImage =
       (promotedSong as any).coverUrl ||
       (promotedSong as any).posterUrl ||
@@ -338,6 +335,18 @@ export class AudioPlayerPool {
         showPreviousTrack: true,
       },
     );
+
+    // 4. Pause and mute old active player
+    currentActive.player.pause();
+    currentActive.player.volume = 0;
+
+    // On iOS only: explicitly detach the old player from AVAudioSession lock screen
+    // On Android: DO NOT call safeSetActiveForLockScreen(currentActive, false)!
+    // Doing so triggers AudioControlsService.clearSessionInternal() -> stopForeground(STOP_FOREGROUND_REMOVE),
+    // which removes the lock screen notification and causes ForegroundServiceStartNotAllowedException on Android 12+.
+    if (Platform.OS === "ios") {
+      safeSetActiveForLockScreen(currentActive.player, false);
+    }
 
     return promotedSong;
   }
