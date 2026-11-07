@@ -173,7 +173,7 @@ export function SongsGrid({
               </button>
 
               {/* Bottom Quick Actions Bar */}
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-between p-2.5">
+              <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-between p-2.5">
                 <button
                   type="button"
                   disabled={togglingSongId === song.id}

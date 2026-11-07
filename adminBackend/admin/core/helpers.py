@@ -11,6 +11,7 @@ def format_ms(ms: Optional[int]) -> str:
     return f"{sec:.1f}s"
 
 
+
 def safe_diff_ms(t2: Optional[datetime], t1: Optional[datetime]) -> Optional[int]:
     """Calculates millisecond difference between two timestamps safely,
     handling offset-naive and offset-aware datetimes across databases."""

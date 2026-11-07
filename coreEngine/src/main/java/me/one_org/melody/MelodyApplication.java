@@ -11,7 +11,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableAsync
 @EnableScheduling
 public class MelodyApplication {
-
 	public static void main(String[] args) {
 		SpringApplication.run(MelodyApplication.class, args);
 	}
