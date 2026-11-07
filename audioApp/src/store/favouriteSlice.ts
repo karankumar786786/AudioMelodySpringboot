@@ -1,6 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { Song } from "@/types";
-import { favouriteService } from "@/service/favouriteService";
 
 export interface FavouriteState {
   favouriteIds: string[];
@@ -20,6 +19,7 @@ export const loadFavourites = createAsyncThunk(
   "favourites/loadFavourites",
   async (_, { rejectWithValue }) => {
     try {
+      const { favouriteService } = await import("@/service/favouriteService");
       const response = await favouriteService.getFavourites(0, 100);
       const list = response?.content || (Array.isArray(response) ? response : []);
       return list as Song[];
@@ -46,6 +46,7 @@ export const toggleFavourite = createAsyncThunk<
     dispatch(favouriteSlice.actions.optimisticToggle(song));
 
     try {
+      const { favouriteService } = await import("@/service/favouriteService");
       // 3. Make correct API call matching audioFrontend
       if (wasLiked) {
         await favouriteService.removeFavourite(sid);

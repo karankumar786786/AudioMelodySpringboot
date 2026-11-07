@@ -10,7 +10,6 @@ import {
 export { configureAudioPriority };
 import { mapToPlayerSong } from "@/utils/playerUtils";
 import { selectCurrentSongFromQueue } from "@/store/queueSlice";
-import { nextTrack, prevTrack } from "@/store/queueActions";
 import { homeService } from "./homeService";
 import {
   setCurrentTime,
@@ -55,6 +54,16 @@ export class AudioPlayerService {
   private resumeTimer: ReturnType<typeof setTimeout> | null = null;
   private lastProgressRatio = 0;
   private preloadedForSongId: string | null = null;
+  private onRemoteNextTrack: (() => void) | null = null;
+  private onRemotePreviousTrack: (() => void) | null = null;
+
+  public setRemoteCommandHandlers(handlers: {
+    onNext?: () => void;
+    onPrev?: () => void;
+  }): void {
+    if (handlers.onNext) this.onRemoteNextTrack = handlers.onNext;
+    if (handlers.onPrev) this.onRemotePreviousTrack = handlers.onPrev;
+  }
 
   private get activePlayer(): AudioPlayer | null {
     return this.pool.getActiveSlot()?.player || null;
@@ -193,12 +202,16 @@ export class AudioPlayerService {
     // Handle remote lock screen scrub & skip commands
     if ((status as any).remoteCommand === "nextTrack") {
       console.log("[AudioPlayerService] Remote next track command from lock screen");
-      (store.dispatch as any)(nextTrack(true));
+      if (this.onRemoteNextTrack) {
+        this.onRemoteNextTrack();
+      }
       return;
     }
     if ((status as any).remoteCommand === "previousTrack") {
       console.log("[AudioPlayerService] Remote previous track command from lock screen");
-      (store.dispatch as any)(prevTrack());
+      if (this.onRemotePreviousTrack) {
+        this.onRemotePreviousTrack();
+      }
       return;
     }
     if ((status as any).remoteCommand === "skipForward") {
@@ -539,6 +552,38 @@ export class AudioPlayerService {
     this.syncUpcomingPreload();
   }
 
+  /**
+   * Pre-primes the active slot with a restored song and position without starting playback.
+   */
+  public async primeRestoredPlayback(
+    song: Song | PlayerSong,
+    startTime = 0
+  ): Promise<void> {
+    await this.init();
+    let playerSong: PlayerSong = (song as PlayerSong).audioStreamUrl
+      ? (song as PlayerSong)
+      : mapToPlayerSong(song);
+
+    if (!playerSong.songKey && playerSong.id) {
+      try {
+        const fullSong = await homeService.getSongById(playerSong.id);
+        if (fullSong?.songKey) {
+          playerSong = mapToPlayerSong(fullSong);
+        }
+      } catch (e) {
+        console.warn("[AudioPlayerService] Hydration fallback note:", e);
+      }
+    }
+
+    this.currentPlayingSong = playerSong;
+    this.lastPlayedSongId = playerSong.id;
+    this.bufferedSeconds = startTime;
+
+    const quality = store.getState().player.audioQuality || "auto";
+    await this.pool.loadActive(playerSong, quality, startTime, false);
+    this.refreshLockScreen();
+  }
+
   public pause(): void {
     const player = this.activePlayer;
     if (!player) return;
@@ -552,18 +597,28 @@ export class AudioPlayerService {
   }
 
   public resume(): void {
-    const player = this.activePlayer;
-    if (!player) {
+    const activeSlot = this.pool.getActiveSlot();
+    const hasSongLoaded = Boolean(activeSlot?.song && activeSlot?.resolvedUri);
+
+    // If active player has no song loaded yet (cold start fallback)
+    if (!hasSongLoaded || !this.currentPlayingSong) {
       const state = store.getState();
-      const restoredSong = state.player.currentSong;
-      if (restoredSong) {
+      const songToPlay =
+        this.currentPlayingSong ||
+        state.player.currentSong ||
+        state.queue.queue[state.queue.currentIndex];
+      if (songToPlay) {
         const savedTime = state.player.currentTime || 0;
-        this.play(restoredSong, savedTime);
+        this.play(songToPlay, savedTime, true, true);
         return;
       }
-      return;
     }
 
+    const player = this.activePlayer;
+    if (!player) return;
+
+    // Un-mute active player (in case it was loaded in muted/standby state)
+    player.volume = 1.0;
     const curTime = player.currentTime || 0;
     const dur = player.duration || 0;
     if (dur > 0 && curTime >= dur - 0.5) {

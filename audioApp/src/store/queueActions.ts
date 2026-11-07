@@ -370,9 +370,13 @@ export const refillQueue =
     return inFlightRefillPromise;
   };
 
-// Wire audioPlayerService auto-advance on natural track completion
+// Wire audioPlayerService auto-advance on natural track completion & remote lock screen commands
 audioPlayerService.setOnTrackEnd(() => {
   store.dispatch(nextTrack());
+});
+audioPlayerService.setRemoteCommandHandlers({
+  onNext: () => store.dispatch(nextTrack(true)),
+  onPrev: () => store.dispatch(prevTrack()),
 });
 
 /**
@@ -386,20 +390,27 @@ export const loadLastPlaybackState =
       if (saved?.song) {
         const restoredQueue =
           saved.queue && saved.queue.length > 0 ? saved.queue : [saved.song];
-        const restoredIndex = Math.min(
+        let restoredIndex = Math.min(
           Math.max(0, typeof saved.queueIndex === "number" ? saved.queueIndex : 0),
           restoredQueue.length - 1
-        );
-        // Mark the restored song as "already current" so the queue subscription
-        // restores state silently instead of auto-playing.
-        audioPlayerService.setLastPlayed(
-          restoredQueue[restoredIndex].id,
-          restoredIndex
         );
 
         const hydrated = (saved.song as PlayerSong).coverUrl
           ? (saved.song as PlayerSong)
           : mapToPlayerSong(saved.song);
+
+        // Align queue index with the actual restored song if present in queue
+        const matchingIdx = restoredQueue.findIndex((s) => s.id === hydrated.id);
+        if (matchingIdx !== -1) {
+          restoredIndex = matchingIdx;
+        }
+
+        // Mark the restored song as "already current" so the queue subscription
+        // restores state silently instead of auto-playing.
+        audioPlayerService.setLastPlayed(
+          hydrated.id,
+          restoredIndex
+        );
 
         dispatch(setCurrentSong(hydrated));
         const pos =
@@ -419,6 +430,7 @@ export const loadLastPlaybackState =
           restoredIndex,
           hydrated
         );
+        await audioPlayerService.primeRestoredPlayback(hydrated, pos);
         audioPlayerService.syncUpcomingPreload();
       }
     } catch (err) {

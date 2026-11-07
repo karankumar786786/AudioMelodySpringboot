@@ -1,6 +1,5 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { UserPlaylist, Song } from "@/types";
-import { playlistService } from "@/service/playlistService";
 
 export interface UserPlaylistState {
   playlists: UserPlaylist[];
@@ -24,6 +23,7 @@ export const loadUserPlaylists = createAsyncThunk<
   "userPlaylists/loadUserPlaylists",
   async (_, { rejectWithValue }) => {
     try {
+      const { playlistService } = await import("@/service/playlistService");
       const response = await playlistService.getUserPlaylists(0, 100);
       const list = response?.content || (Array.isArray(response) ? response : []);
       return list as UserPlaylist[];
@@ -42,6 +42,7 @@ export const loadPlaylistSongs = createAsyncThunk<
   "userPlaylists/loadPlaylistSongs",
   async (playlistId: string, { rejectWithValue }) => {
     try {
+      const { playlistService } = await import("@/service/playlistService");
       const response = await playlistService.getUserPlaylistSongs(playlistId, 0, 100);
       const songs = response?.content || (Array.isArray(response) ? response : []);
       const songIds = (songs as Song[]).map((s) => String(s.id));
@@ -60,6 +61,7 @@ export const createUserPlaylist = createAsyncThunk<
   "userPlaylists/createUserPlaylist",
   async ({ name, privacy = "PRIVATE" }, { rejectWithValue }) => {
     try {
+      const { playlistService } = await import("@/service/playlistService");
       const created = await playlistService.createUserPlaylist(name, privacy);
       return created;
     } catch (err: any) {
@@ -76,6 +78,7 @@ export const deleteUserPlaylist = createAsyncThunk<
   "userPlaylists/deleteUserPlaylist",
   async (playlistId: string, { rejectWithValue }) => {
     try {
+      const { playlistService } = await import("@/service/playlistService");
       await playlistService.deleteUserPlaylist(playlistId);
       return playlistId;
     } catch (err: any) {
@@ -94,6 +97,7 @@ export const addSongToUserPlaylist = createAsyncThunk<
     const sId = String(songId);
     dispatch(userPlaylistSlice.actions.optimisticAddSong({ playlistId, songId: sId }));
     try {
+      const { playlistService } = await import("@/service/playlistService");
       await playlistService.addSongToUserPlaylist(playlistId, sId);
       return { playlistId, songId: sId };
     } catch (err: any) {
@@ -116,6 +120,7 @@ export const removeSongFromUserPlaylist = createAsyncThunk<
     const sId = String(songId);
     dispatch(userPlaylistSlice.actions.optimisticRemoveSong({ playlistId, songId: sId }));
     try {
+      const { playlistService } = await import("@/service/playlistService");
       await playlistService.removeSongFromUserPlaylist(playlistId, sId);
       return { playlistId, songId: sId };
     } catch (err: any) {
@@ -136,6 +141,7 @@ export const updateUserPlaylistPrivacy = createAsyncThunk<
   "userPlaylists/updateUserPlaylistPrivacy",
   async ({ playlistId, privacy }, { rejectWithValue }) => {
     try {
+      const { playlistService } = await import("@/service/playlistService");
       const updated = await playlistService.updatePlaylistPrivacy(playlistId, privacy);
       return updated;
     } catch (err: any) {
