@@ -181,6 +181,9 @@ export const playSong = playWithSimilarSongs;
 export const playNext =
   (song: Song | PlayerSong) => (dispatch: AppDispatch, getState: () => AppState) => {
     dispatch(playNextReducer(song));
+    if (song?.id) {
+      interactionService.recordQueueAdd(song.id);
+    }
     logQueueSnapshot("playNext", getState().queue.queue, getState().queue.currentIndex);
   };
 
@@ -192,6 +195,11 @@ export const enqueue =
   (dispatch: AppDispatch, getState: () => AppState) => {
     const list = Array.isArray(songs) ? songs : [songs];
     dispatch(addToQueue(list));
+    list.forEach((s) => {
+      if (s?.id) {
+        interactionService.recordQueueAdd(s.id);
+      }
+    });
     logQueueSnapshot("enqueue", getState().queue.queue, getState().queue.currentIndex);
   };
 
@@ -216,6 +224,7 @@ export const nextTrack =
     // Report skip telemetry for the song being skipped (manual user action only)
     if (manualUserAction && playingSong) {
       interactionService.recordSkip(playingSong.id);
+      audioPlayerService.markCurrentTrackReported();
     }
 
     // Trigger refill proactively if nearing end (not needed when looping the queue)
@@ -273,6 +282,7 @@ export const prevTrack =
       const currentSong = queue[currentIndex];
       if (currentSong) {
         interactionService.recordSkip(currentSong.id);
+        audioPlayerService.markCurrentTrackReported();
       }
 
       const prevIndex = currentIndex - 1;

@@ -56,6 +56,11 @@ export class AudioPlayerService {
   private preloadedForSongId: string | null = null;
   private onRemoteNextTrack: (() => void) | null = null;
   private onRemotePreviousTrack: (() => void) | null = null;
+  private hasReportedListen = false;
+
+  public markCurrentTrackReported(): void {
+    this.hasReportedListen = true;
+  }
 
   public setRemoteCommandHandlers(handlers: {
     onNext?: () => void;
@@ -380,8 +385,9 @@ export class AudioPlayerService {
         this.isAdvancingTrack = false;
       }, 1200);
 
-      if (this.currentPlayingSong?.id) {
+      if (this.currentPlayingSong?.id && !this.hasReportedListen) {
         interactionService.recordPlay(this.currentPlayingSong.id, 1.0);
+        this.hasReportedListen = true;
       }
 
       console.log(
@@ -400,6 +406,7 @@ export class AudioPlayerService {
 
       const repeatMode: RepeatMode = state.queue.repeatMode;
       if (repeatMode === "one" && this.activePlayer) {
+        this.hasReportedListen = false;
         this.activePlayer.seekTo(0).then(() => this.activePlayer?.play());
       } else {
         this.onTrackEndCallback?.();
@@ -493,6 +500,7 @@ export class AudioPlayerService {
 
     this.isAdvancingTrack = false;
     this.currentPlayingSong = playerSong;
+    this.hasReportedListen = false;
     this.lastPlayedIndex = targetIndex;
     this.lastPlayedSongId = playerSong.id;
     this.lastProgressRatio = 0;
@@ -533,7 +541,6 @@ export class AudioPlayerService {
 
       // Re-prime pool for newly upcoming songs
       this.syncUpcomingPreload();
-      interactionService.recordPlay(playerSong.id, 0);
       return;
     }
 
@@ -556,7 +563,6 @@ export class AudioPlayerService {
 
       // Re-prime pool for newly upcoming songs
       this.syncUpcomingPreload();
-      interactionService.recordPlay(playerSong.id, 0);
       return;
     }
 
@@ -568,7 +574,6 @@ export class AudioPlayerService {
     store.dispatch(setIsPlaying(autoplay));
     store.dispatch(setIsLoading(false));
     PlayerStore.saveLastSong(playerSong, startTime);
-    interactionService.recordPlay(playerSong.id, 0);
 
     // Prime Standby 1 & 2 for upcoming tracks
     this.syncUpcomingPreload();
@@ -598,6 +603,7 @@ export class AudioPlayerService {
     }
 
     this.currentPlayingSong = playerSong;
+    this.hasReportedListen = false;
     this.lastPlayedSongId = playerSong.id;
     this.bufferedSeconds = startTime;
 
@@ -840,7 +846,9 @@ export class AudioPlayerService {
         clearTimeout(this.sleepTimerTimeout);
         this.sleepTimerTimeout = null;
       }
+      this.reportPartialListen();
       this.currentPlayingSong = null;
+      this.hasReportedListen = false;
       this.lastPlayedSongId = null;
       this.lastPlayedIndex = -1;
       this.hasSyncedActiveLockScreen = false;
@@ -857,7 +865,7 @@ export class AudioPlayerService {
 
   private reportPartialListen(): void {
     const player = this.activePlayer;
-    if (!this.currentPlayingSong?.id || !player) return;
+    if (!this.currentPlayingSong?.id || !player || this.hasReportedListen) return;
 
     const currentTime = player.currentTime || 0;
     const duration = player.duration || this.currentPlayingSong.duration || 0;
@@ -866,6 +874,7 @@ export class AudioPlayerService {
     const percentage = Math.min(1.0, currentTime / duration);
     if (percentage >= 0.05) {
       interactionService.recordPlay(this.currentPlayingSong.id, percentage);
+      this.hasReportedListen = true;
     }
   }
 }

@@ -22,6 +22,7 @@ import { AppState } from "@/store/hook";
 import { Song, PlayerSong } from "@/types";
 import { clearUpcomingQueue, removeSongFromQueue } from "@/store/queueSlice";
 import { playSong, refillQueue } from "@/store/queueActions";
+import { interactionService } from "@/service/interactionService";
 import { formatDuration } from "@/utils/formatUtils";
 import { getImageUrl } from "@/utils/imageUtils";
 import { hapticFeedback } from "@/utils/haptics";
@@ -230,6 +231,7 @@ export function QueueModal({ visible, onClose }: QueueModalProps) {
 
   const handleRemove = (songId: string) => {
     hapticFeedback.light();
+    interactionService.recordQueueRemove(songId);
     dispatch(removeSongFromQueue(songId));
   };
 
