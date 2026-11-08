@@ -417,7 +417,6 @@ export function buildVideoEncoderArgs(
             args.push(
                 "-c:v", "libx264",
                 "-preset", "fast",
-                "-crf", "22",
                 "-profile:v", "high",
                 "-b:v", profile.bitrate,
                 "-maxrate", profile.maxrate,
@@ -477,7 +476,6 @@ export function buildSoftwareVideoArgs(
     args.push(
         "-c:v", "libx264",
         "-preset", "fast",
-        "-crf", "22",
         "-profile:v", "high",
         "-b:v", profile.bitrate,
         "-maxrate", profile.maxrate,

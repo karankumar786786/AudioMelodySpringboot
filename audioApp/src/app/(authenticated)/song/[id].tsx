@@ -15,7 +15,6 @@ import {
   LayoutAnimation,
   Platform,
   UIManager,
-  Share,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
@@ -26,7 +25,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSelector, useDispatch } from "react-redux";
 import { AppState } from "@/store/hook";
-import { homeService, favouriteService, artistService, interactionService } from "@/service";
+import { homeService, favouriteService, artistService } from "@/service";
 import { audioPlayerService } from "@/service/audioPlayerService";
 import { useLyrics } from "@/hooks/useLyrics";
 import { useSongInfo } from "@/hooks/useSongInfo";
@@ -34,7 +33,6 @@ import {
   playSong,
   nextTrack,
   prevTrack,
-  dislikeCurrentSong,
   toggleShuffle,
   toggleRepeat,
   setDominantColor,
@@ -566,30 +564,6 @@ export default function SongDetailScreen() {
     }
   };
 
-  const handleDislikeSong = async () => {
-    hapticFeedback.medium();
-    await (dispatch as any)(dislikeCurrentSong());
-  };
-
-  const handleShareSong = async () => {
-    const songToShare = activeSong || fetchedSong;
-    if (!songToShare) return;
-    hapticFeedback.light();
-    try {
-      const shareUrl = `https://audiomelody.me/song/${songToShare.id}`;
-      const result = await Share.share({
-        title: songToShare.title,
-        message: `Listen to "${songToShare.title}" by ${songToShare.artistName} on One Melody: ${shareUrl}`,
-        url: shareUrl,
-      });
-      if (result.action === Share.sharedAction) {
-        interactionService.recordShare(songToShare.id);
-      }
-    } catch {
-      // User cancelled share
-    }
-  };
-
   return (
     <View style={styles.root}>
       {/* 1. Base Ambient Blurred Backdrop & Dominant Color Gradient */}
@@ -816,38 +790,7 @@ export default function SongDetailScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            {/* Share Song Button */}
-            <TouchableOpacity
-              hitSlop={14}
-              onPress={handleShareSong}
-              style={styles.likeButton}
-              activeOpacity={0.75}
-              accessibilityLabel="Share song"
-            >
-              <Ionicons
-                name="share-outline"
-                size={23}
-                color="rgba(255, 255, 255, 0.75)"
-              />
-            </TouchableOpacity>
-
-            {/* Dislike / Hide Button */}
-            <TouchableOpacity
-              hitSlop={14}
-              onPress={handleDislikeSong}
-              style={styles.likeButton}
-              activeOpacity={0.75}
-              accessibilityLabel="Don't recommend this song"
-            >
-              <Ionicons
-                name="thumbs-down-outline"
-                size={22}
-                color="rgba(255, 255, 255, 0.75)"
-              />
-            </TouchableOpacity>
-
-            {/* Add to Playlist Button */}
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
             <TouchableOpacity
               hitSlop={14}
               onPress={() => {
@@ -865,7 +808,6 @@ export default function SongDetailScreen() {
               />
             </TouchableOpacity>
 
-            {/* Like/Heart Button */}
             <TouchableOpacity
               hitSlop={14}
               onPress={handleToggleLike}

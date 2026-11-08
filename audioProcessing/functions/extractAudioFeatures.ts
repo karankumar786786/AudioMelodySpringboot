@@ -65,8 +65,7 @@ export const extractAudioFeaturesTask = inngest.createFunction(
 
                 const localUuid = crypto.randomUUID();
                 const localAudioPath = path.join(baseTmpDir, `raw_feat_audio_${localUuid}`);
-                const videoExt = tempVideoKey ? (path.extname(tempVideoKey) || ".mp4") : ".mp4";
-                const localVideoPath = path.join(baseTmpDir, `raw_feat_video_${localUuid}${videoExt}`);
+                const localVideoPath = path.join(baseTmpDir, `raw_feat_video_${localUuid}.mp4`);
                 const localExtractedPath = path.join(baseTmpDir, `extracted_feat_audio_${localUuid}.m4a`);
 
                 registerActiveTmpPath(localAudioPath);

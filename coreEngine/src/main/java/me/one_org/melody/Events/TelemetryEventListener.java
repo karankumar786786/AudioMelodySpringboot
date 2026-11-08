@@ -63,68 +63,48 @@ public class TelemetryEventListener {
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onSongPlay(TelemetryEvents.SongPlayEvent event) {
-        // Evaluate industry-standard 30-second stream qualification rule
-        int durationSec = 180;
+        long currentStreams = 1L;
         try {
-            Song song = songsRepository.findById(event.songId()).orElse(null);
-            if (song != null && song.getDuration() != null && song.getDuration() > 0) {
-                durationSec = song.getDuration();
-            }
-        } catch (Exception e) {
-            log.warn("Could not determine duration for song [{}], fallback to 180s: {}", event.songId(), e.getMessage());
-        }
-
-        double listenedSeconds = event.percentage() * durationSec;
-        boolean qualifiesAsStream = (listenedSeconds >= 30.0) || (durationSec < 30 && event.percentage() >= 0.5);
-
-        if (qualifiesAsStream) {
-            long currentStreams = 1L;
-            try {
-                int updated = songMetadataRepository.incrementStreams(event.songId());
-                if (updated == 0) {
-                    try {
-                        Song songRef = songsRepository.getReferenceById(event.songId());
-                        SongMetadata meta = SongMetadata.builder()
-                                .id(UUID.randomUUID().toString())
-                                .song(songRef)
-                                .totalStreams(1L)
-                                .build();
-                        songMetadataRepository.save(meta);
-                        currentStreams = 1L;
-                    } catch (Exception ex) {
-                        songMetadataRepository.incrementStreams(event.songId());
-                        currentStreams = songMetadataRepository.findBySong_Id(event.songId())
-                                .map(sm -> sm.getTotalStreams() != null ? sm.getTotalStreams() : 1L)
-                                .orElse(1L);
-                    }
-                } else {
+            int updated = songMetadataRepository.incrementStreams(event.songId());
+            if (updated == 0) {
+                try {
+                    Song songRef = songsRepository.getReferenceById(event.songId());
+                    SongMetadata meta = SongMetadata.builder()
+                            .id(UUID.randomUUID().toString())
+                            .song(songRef)
+                            .totalStreams(1L)
+                            .build();
+                    songMetadataRepository.save(meta);
+                    currentStreams = 1L;
+                } catch (Exception ex) {
+                    songMetadataRepository.incrementStreams(event.songId());
                     currentStreams = songMetadataRepository.findBySong_Id(event.songId())
                             .map(sm -> sm.getTotalStreams() != null ? sm.getTotalStreams() : 1L)
                             .orElse(1L);
                 }
-            } catch (Exception e) {
-                log.warn("Failed to increment stream count in database for song [{}]: {}", event.songId(), e.getMessage());
+            } else {
+                currentStreams = songMetadataRepository.findBySong_Id(event.songId())
+                        .map(sm -> sm.getTotalStreams() != null ? sm.getTotalStreams() : 1L)
+                        .orElse(1L);
             }
-
-            final long finalStreams = currentStreams;
-            RetryUtil.executeWithRetry(
-                    () -> algoliaSearch.incrementTotalStreams(event.songId()),
-                    3, 500L, "Algolia incrementTotalStreams [" + event.songId() + "]", log
-            );
-
-            RetryUtil.executeWithRetry(
-                    () -> recombee.updateTotalStreams(event.songId(), finalStreams),
-                    3, 500L, "Recombee updateTotalStreams [" + event.songId() + "]", log
-            );
-        } else {
-            log.debug("Play event for song [{}] did not qualify as official stream (listened {:.1f}s / {}s). Stream count unchanged.",
-                    event.songId(), listenedSeconds, durationSec);
+        } catch (Exception e) {
+            log.warn("Failed to increment stream count in database for song [{}]: {}", event.songId(), e.getMessage());
         }
 
-        // Always inform Recombee of user listening signal (scaled rating based on completion percentage)
+        final long finalStreams = currentStreams;
+        RetryUtil.executeWithRetry(
+                () -> algoliaSearch.incrementTotalStreams(event.songId()),
+                3, 500L, "Algolia incrementTotalStreams [" + event.songId() + "]", log
+        );
+
         RetryUtil.executeWithRetry(
                 () -> recombee.trackPlay(event.userId(), event.songId(), event.percentage()),
                 3, 500L, "Recombee trackPlay user [" + event.userId() + "] song [" + event.songId() + "]", log
+        );
+
+        RetryUtil.executeWithRetry(
+                () -> recombee.updateTotalStreams(event.songId(), finalStreams),
+                3, 500L, "Recombee updateTotalStreams [" + event.songId() + "]", log
         );
     }
 

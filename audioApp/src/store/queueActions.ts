@@ -11,7 +11,6 @@ import {
   setIsRefilling,
   startRadioSession,
   endRadioSession,
-  dislikeSong,
   selectCurrentSongFromQueue,
 } from "./queueSlice";
 import {
@@ -302,21 +301,6 @@ export const prevTrack =
     } else {
       console.log(`[Queue:prevTrack] Already at index 0, seeking to start.`);
       await audioPlayerService.seek(0);
-    }
-  };
-
-/**
- * Dislikes the currently playing song, excludes it from future radio & similarity recommendations,
- * records negative affinity telemetry to Recombee, and advances to the next track.
- */
-export const dislikeCurrentSong =
-  () => async (dispatch: AppDispatch, getState: () => AppState) => {
-    const { queue, currentIndex } = getState().queue;
-    const currentSong = queue[currentIndex];
-    if (currentSong?.id) {
-      dispatch(dislikeSong(currentSong.id));
-      await interactionService.recordDislike(currentSong.id);
-      await (dispatch as any)(nextTrack(true));
     }
   };
 

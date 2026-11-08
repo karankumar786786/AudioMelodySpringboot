@@ -66,8 +66,7 @@ export const transcodeCanvasTask = inngest.createFunction(
                 }
 
             const localUuid = crypto.randomUUID();
-            const ext = path.extname(tempVideoKey) || ".mp4";
-            const localVideoDownloadPath = path.join(baseTmpDir, `raw_video_canvas_${localUuid}${ext}`);
+            const localVideoDownloadPath = path.join(baseTmpDir, `raw_video_canvas_${localUuid}.mp4`);
             const localCanvasClipPath = path.join(baseTmpDir, `canvas_${localUuid}.mp4`);
 
             registerActiveTmpPath(localVideoDownloadPath);

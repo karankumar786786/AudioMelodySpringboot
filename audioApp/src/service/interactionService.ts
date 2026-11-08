@@ -1,111 +1,22 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { AppState, AppStateStatus } from "react-native";
 import { api } from "./baseApi";
-
-interface QueuedTelemetryEvent {
-  endpoint: string;
-  payload: any;
-  timestamp: number;
-}
-
-const TELEMETRY_QUEUE_KEY = "audiomelody_telemetry_outbox";
-const MAX_QUEUE_SIZE = 60;
-
-let isFlushing = false;
-let memoryQueue: QueuedTelemetryEvent[] | null = null;
-
-async function loadQueue(): Promise<QueuedTelemetryEvent[]> {
-  if (memoryQueue !== null) return memoryQueue;
-  try {
-    const raw = await AsyncStorage.getItem(TELEMETRY_QUEUE_KEY);
-    memoryQueue = raw ? JSON.parse(raw) : [];
-  } catch {
-    memoryQueue = [];
-  }
-  return memoryQueue || [];
-}
-
-async function persistQueue(queue: QueuedTelemetryEvent[]): Promise<void> {
-  memoryQueue = queue.slice(-MAX_QUEUE_SIZE);
-  try {
-    await AsyncStorage.setItem(TELEMETRY_QUEUE_KEY, JSON.stringify(memoryQueue));
-  } catch {
-    // Non-blocking storage error
-  }
-}
-
-async function queueOfflineEvent(endpoint: string, payload: any): Promise<void> {
-  const queue = await loadQueue();
-  queue.push({ endpoint, payload, timestamp: Date.now() });
-  await persistQueue(queue);
-}
-
-export async function flushTelemetryQueue(): Promise<void> {
-  if (isFlushing) return;
-  const queue = await loadQueue();
-  if (!queue || queue.length === 0) return;
-
-  isFlushing = true;
-  try {
-    const remaining: QueuedTelemetryEvent[] = [];
-    for (let i = 0; i < queue.length; i++) {
-      const item = queue[i]!;
-      try {
-        await api.post(item.endpoint, item.payload);
-      } catch (err: any) {
-        const isNetworkError =
-          !err?.response ||
-          err?.code === "ERR_NETWORK" ||
-          err?.code === "ECONNABORTED" ||
-          err?.message?.includes("Network Error");
-        if (isNetworkError) {
-          // Device still offline or timed out; preserve item and rest of queue for next retry
-          remaining.push(...queue.slice(i));
-          break;
-        }
-        // HTTP 4xx/5xx: discard to avoid unresolvable poison pill
-      }
-    }
-    await persistQueue(remaining);
-  } finally {
-    isFlushing = false;
-  }
-}
-
-// Automatically flush pending offline telemetry when returning to foreground
-if (typeof AppState !== "undefined" && AppState.addEventListener) {
-  AppState.addEventListener("change", (status: AppStateStatus) => {
-    if (status === "active") {
-      flushTelemetryQueue().catch(() => {});
-    }
-  });
-}
-
-/**
- * Sends telemetry to backend, queuing to persistent offline storage if network fails.
- */
-async function sendTelemetry(endpoint: string, payload: any): Promise<void> {
-  try {
-    await api.post(endpoint, payload);
-    flushTelemetryQueue().catch(() => {});
-  } catch (err: any) {
-    const isNetworkError =
-      !err?.response ||
-      err?.code === "ERR_NETWORK" ||
-      err?.code === "ECONNABORTED" ||
-      err?.message?.includes("Network Error");
-    if (isNetworkError) {
-      await queueOfflineEvent(endpoint, payload);
-    }
-  }
-}
+import { store } from "@/store/hook";
 
 /**
  * Interaction Telemetry Service
  *
  * Mirrors the backend InteractionApiController endpoints for mobile telemetry.
- * All methods are resilient and offline-aware: events are queued locally in AsyncStorage
- * during poor connectivity or airplane mode, then flushed automatically on reconnect.
+ * All methods are fire-and-forget — errors are silently caught so telemetry
+ * never blocks or crashes playback.
+ *
+ * Backend endpoints (Spring Boot):
+ *   POST /api/interaction/play          — records a listen with percentage
+ *   POST /api/interaction/skip          — records a skip event
+ *   POST /api/interaction/search-play   — records a play originating from search
+ *   POST /api/interaction/search-click  — records a click on a search result
+ *   POST /api/interaction/queue-add     — records a song added to queue
+ *   POST /api/interaction/queue-remove  — records a song removed from queue
+ *   POST /api/interaction/dislike       — records a dislike
+ *   POST /api/interaction/share         — records a share
  */
 export const interactionService = {
   /**
@@ -115,8 +26,12 @@ export const interactionService = {
    */
   async recordPlay(songId: string, percentage: number): Promise<void> {
     if (!songId) return;
-    const safePercentage = Math.min(1.0, Math.max(0.0, isNaN(percentage) ? 0.05 : percentage));
-    await sendTelemetry("/interaction/play", { songId, percentage: safePercentage });
+    try {
+      const safePercentage = Math.min(1.0, Math.max(0.0, isNaN(percentage) ? 0.05 : percentage));
+      await api.post("/interaction/play", { songId, percentage: safePercentage });
+    } catch {
+      // Silently catch — telemetry should never block playback
+    }
   },
 
   /**
@@ -125,7 +40,11 @@ export const interactionService = {
    */
   async recordSkip(songId: string): Promise<void> {
     if (!songId) return;
-    await sendTelemetry("/interaction/skip", { songId });
+    try {
+      await api.post("/interaction/skip", { songId });
+    } catch {
+      // Silently catch
+    }
   },
 
   /**
@@ -134,7 +53,11 @@ export const interactionService = {
    */
   async recordSearchPlay(songId: string): Promise<void> {
     if (!songId) return;
-    await sendTelemetry("/interaction/search-play", { songId });
+    try {
+      await api.post("/interaction/search-play", { songId });
+    } catch {
+      // Silently catch
+    }
   },
 
   /**
@@ -144,7 +67,11 @@ export const interactionService = {
    */
   async recordSearchClick(type: "SONG" | "ARTIST" | "PLAYLIST", id: string): Promise<void> {
     if (!id) return;
-    await sendTelemetry("/interaction/search-click", { type, id });
+    try {
+      await api.post("/interaction/search-click", { type, id });
+    } catch {
+      // Silently catch
+    }
   },
 
   /**
@@ -153,7 +80,11 @@ export const interactionService = {
    */
   async recordQueueAdd(songId: string): Promise<void> {
     if (!songId) return;
-    await sendTelemetry("/interaction/queue-add", { songId });
+    try {
+      await api.post("/interaction/queue-add", { songId });
+    } catch {
+      // Silently catch
+    }
   },
 
   /**
@@ -162,7 +93,11 @@ export const interactionService = {
    */
   async recordQueueRemove(songId: string): Promise<void> {
     if (!songId) return;
-    await sendTelemetry("/interaction/queue-remove", { songId });
+    try {
+      await api.post("/interaction/queue-remove", { songId });
+    } catch {
+      // Silently catch
+    }
   },
 
   /**
@@ -171,7 +106,11 @@ export const interactionService = {
    */
   async recordDislike(songId: string): Promise<void> {
     if (!songId) return;
-    await sendTelemetry("/interaction/dislike", { songId });
+    try {
+      await api.post("/interaction/dislike", { songId });
+    } catch {
+      // Silently catch
+    }
   },
 
   /**
@@ -180,6 +119,10 @@ export const interactionService = {
    */
   async recordShare(songId: string): Promise<void> {
     if (!songId) return;
-    await sendTelemetry("/interaction/share", { songId });
+    try {
+      await api.post("/interaction/share", { songId });
+    } catch {
+      // Silently catch
+    }
   },
 };
