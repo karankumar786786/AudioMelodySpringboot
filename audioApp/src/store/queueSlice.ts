@@ -154,6 +154,12 @@ export const queueSlice = createSlice({
         skippedSongIds: [],
       };
     },
+    dislikeSong: (state, action: PayloadAction<string>) => {
+      const songId = action.payload;
+      if (!state.dislikedSongIds.includes(songId)) {
+        state.dislikedSongIds.push(songId);
+      }
+    },
     reorderQueue: (
       state,
       action: PayloadAction<{ fromIndex: number; toIndex: number }>,
@@ -224,6 +230,7 @@ export const {
   setIsLoadingQueue,
   startRadioSession,
   endRadioSession,
+  dislikeSong,
   reorderQueue,
 } = queueSlice.actions;
 

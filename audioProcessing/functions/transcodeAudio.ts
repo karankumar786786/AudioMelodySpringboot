@@ -58,7 +58,8 @@ export const transcodeAudioTask = inngest.createFunction(
 
             const localUuid = crypto.randomUUID();
             const localAudioDownloadPath = path.join(baseTmpDir, `raw_audio_main_${localUuid}`);
-            const localVideoDownloadPath = path.join(baseTmpDir, `raw_video_extract_${localUuid}.mp4`);
+            const videoExt = tempVideoKey ? (path.extname(tempVideoKey) || ".mp4") : ".mp4";
+            const localVideoDownloadPath = path.join(baseTmpDir, `raw_video_extract_${localUuid}${videoExt}`);
             const localExtractedAudioPath = path.join(baseTmpDir, `extracted_audio_${localUuid}.m4a`);
             const audioOutputDir = path.join(baseTmpDir, `transcoded_audio_${localUuid}`);
 

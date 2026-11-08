@@ -54,7 +54,8 @@ export const transcodeVideoTask = inngest.createFunction(
                 }
 
             const localUuid = crypto.randomUUID();
-            const localVideoDownloadPath = path.join(baseTmpDir, `raw_video_main_${localUuid}.mp4`);
+            const ext = path.extname(tempVideoKey) || ".mp4";
+            const localVideoDownloadPath = path.join(baseTmpDir, `raw_video_main_${localUuid}${ext}`);
             const videoOutputDir = path.join(baseTmpDir, `transcoded_video_${localUuid}`);
 
             registerActiveTmpPath(localVideoDownloadPath);

@@ -90,4 +90,20 @@ class TelemetryEventListenerTest {
 
         verify(recombee).trackArtistUnfollow("user-1", "artist-99");
     }
+
+    @Test
+    @DisplayName("Should NOT increment streams if listen is under 30 seconds")
+    void shouldNotIncrementStreamsWhenListenIsUnderThirtySeconds() throws Exception {
+        Song mockSong = Song.builder().id("song-short").duration(200).build();
+        when(songsRepository.findById("song-short")).thenReturn(Optional.of(mockSong));
+
+        // 10% of 200s is 20s (< 30s)
+        TelemetryEvents.SongPlayEvent event = new TelemetryEvents.SongPlayEvent("user-1", "song-short", 0.10);
+        eventListener.onSongPlay(event);
+
+        verify(songMetadataRepository, never()).incrementStreams(any());
+        verify(algoliaSearch, never()).incrementTotalStreams(any());
+        verify(recombee, never()).updateTotalStreams(any(), anyLong());
+        verify(recombee).trackPlay("user-1", "song-short", 0.10);
+    }
 }
