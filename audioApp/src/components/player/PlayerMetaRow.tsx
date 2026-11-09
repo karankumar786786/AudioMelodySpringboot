@@ -1,0 +1,116 @@
+import React, { memo } from "react";
+import { View, Text, TouchableOpacity, Animated } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { songStyles as styles } from "@/styles";
+
+interface PlayerMetaRowProps {
+  title: string;
+  artistName: string;
+  isLiked: boolean;
+  isDisliked?: boolean;
+  isSongInAnyPlaylist: boolean;
+  heartScaleAnim: Animated.Value;
+  onOpenArtist: () => void;
+  onShare: () => void;
+  onDislike: () => void;
+  onOpenAddToPlaylist: () => void;
+  onToggleLike: () => void;
+}
+
+export const PlayerMetaRow = memo(function PlayerMetaRow({
+  title,
+  artistName,
+  isLiked,
+  isDisliked = false,
+  isSongInAnyPlaylist,
+  heartScaleAnim,
+  onOpenArtist,
+  onShare,
+  onDislike,
+  onOpenAddToPlaylist,
+  onToggleLike,
+}: PlayerMetaRowProps) {
+  return (
+    <View style={styles.metaSection}>
+      <View style={styles.titleContainer}>
+        <Text style={styles.songTitle} numberOfLines={1}>
+          {title}
+        </Text>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={onOpenArtist}
+          hitSlop={{ top: 8, bottom: 8, left: 0, right: 14 }}
+        >
+          <Text style={styles.artistName} numberOfLines={1}>
+            {artistName}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+        {/* Share Song Button */}
+        <TouchableOpacity
+          hitSlop={14}
+          onPress={onShare}
+          style={styles.likeButton}
+          activeOpacity={0.75}
+          accessibilityLabel="Share song"
+        >
+          <Ionicons
+            name="share-outline"
+            size={23}
+            color="rgba(255, 255, 255, 0.75)"
+          />
+        </TouchableOpacity>
+
+        {/* Dislike / Hide Button */}
+        <TouchableOpacity
+          hitSlop={14}
+          onPress={onDislike}
+          style={styles.likeButton}
+          activeOpacity={0.75}
+          accessibilityLabel={isDisliked ? "Remove dislike" : "Don't recommend this song"}
+        >
+          <Ionicons
+            name={isDisliked ? "thumbs-down" : "thumbs-down-outline"}
+            size={22}
+            color={isDisliked ? "#FF3B30" : "rgba(255, 255, 255, 0.75)"}
+          />
+        </TouchableOpacity>
+
+        {/* Add to Playlist Button */}
+        <TouchableOpacity
+          hitSlop={14}
+          onPress={onOpenAddToPlaylist}
+          style={styles.likeButton}
+          activeOpacity={0.75}
+          accessibilityLabel="Add to playlist"
+        >
+          <Ionicons
+            name={isSongInAnyPlaylist ? "checkmark-circle" : "add-circle-outline"}
+            size={27}
+            color={isSongInAnyPlaylist ? "#FFFFFF" : "rgba(255, 255, 255, 0.75)"}
+          />
+        </TouchableOpacity>
+
+        {/* Like / Heart Button */}
+        <TouchableOpacity
+          hitSlop={14}
+          onPress={onToggleLike}
+          style={styles.likeButton}
+          activeOpacity={0.75}
+          accessibilityLabel={isLiked ? "Unlike song" : "Like song"}
+        >
+          <Animated.View style={{ transform: [{ scale: heartScaleAnim }] }}>
+            <Ionicons
+              name={isLiked ? "heart" : "heart-outline"}
+              size={28}
+              color={isLiked ? "#FF3B30" : "rgba(255, 255, 255, 0.75)"}
+            />
+          </Animated.View>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
+

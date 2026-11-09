@@ -160,6 +160,15 @@ export const queueSlice = createSlice({
         state.dislikedSongIds.push(songId);
       }
     },
+    toggleDislikeSong: (state, action: PayloadAction<string>) => {
+      const songId = action.payload;
+      const idx = state.dislikedSongIds.indexOf(songId);
+      if (idx >= 0) {
+        state.dislikedSongIds.splice(idx, 1);
+      } else {
+        state.dislikedSongIds.push(songId);
+      }
+    },
     reorderQueue: (
       state,
       action: PayloadAction<{ fromIndex: number; toIndex: number }>,
@@ -231,6 +240,7 @@ export const {
   startRadioSession,
   endRadioSession,
   dislikeSong,
+  toggleDislikeSong,
   reorderQueue,
 } = queueSlice.actions;
 

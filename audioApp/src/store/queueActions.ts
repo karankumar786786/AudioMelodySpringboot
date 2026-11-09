@@ -12,6 +12,7 @@ import {
   startRadioSession,
   endRadioSession,
   dislikeSong,
+  toggleDislikeSong,
   selectCurrentSongFromQueue,
 } from "./queueSlice";
 import {
@@ -306,17 +307,25 @@ export const prevTrack =
   };
 
 /**
- * Dislikes the currently playing song, excludes it from future radio & similarity recommendations,
- * records negative affinity telemetry to Recombee, and advances to the next track.
+ * Toggles dislike status for the current song, excludes it from future recommendations,
+ * and records negative affinity telemetry without interrupting or skipping playback.
  */
 export const dislikeCurrentSong =
-  () => async (dispatch: AppDispatch, getState: () => AppState) => {
-    const { queue, currentIndex } = getState().queue;
-    const currentSong = queue[currentIndex];
-    if (currentSong?.id) {
-      dispatch(dislikeSong(currentSong.id));
-      await interactionService.recordDislike(currentSong.id);
-      await (dispatch as any)(nextTrack(true));
+  (songIdParam?: string) =>
+  async (dispatch: AppDispatch, getState: () => AppState) => {
+    const state = getState();
+    const songId =
+      songIdParam ||
+      state.player.currentSong?.id ||
+      state.queue.queue[state.queue.currentIndex]?.id;
+
+    if (!songId) return;
+
+    const isCurrentlyDisliked = state.queue.dislikedSongIds?.includes(songId);
+    dispatch(toggleDislikeSong(songId));
+
+    if (!isCurrentlyDisliked) {
+      await interactionService.recordDislike(songId);
     }
   };
 
