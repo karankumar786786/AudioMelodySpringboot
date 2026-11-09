@@ -330,6 +330,7 @@ export function FullVideoPlayerModal({
         currentTimeRef.current = 0;
         setCurrentTime(0);
         seekTargetRef.current = null;
+        setIsBuffering(true);
       } else if (initialTime > 0) {
         // First mount opening video from existing audio timestamp
         player.currentTime = initialTime;
@@ -356,16 +357,26 @@ export function FullVideoPlayerModal({
     };
   }, [player]);
 
-  // Listen to native playToEnd event from expo-video
+  // Listen to native player events from expo-video
   useEffect(() => {
     if (!player) return;
 
-    const subscription = player.addListener("playToEnd", () => {
+    const playToEndSub = player.addListener("playToEnd", () => {
       handleVideoEnd();
     });
 
+    const statusSub = (player as any).addListener?.("statusChange", ({ status }: any) => {
+      setIsBuffering(status === "loading" || status === "idle");
+    });
+
+    const playingSub = (player as any).addListener?.("playingChange", ({ isPlaying: playing }: any) => {
+      setIsPlaying(playing);
+    });
+
     return () => {
-      subscription?.remove();
+      playToEndSub?.remove();
+      statusSub?.remove?.();
+      playingSub?.remove?.();
     };
   }, [player, repeatMode, onTrackEnd]);
 
@@ -406,7 +417,7 @@ export function FullVideoPlayerModal({
         }
         setDuration(dur);
         setBufferedTime(buf);
-        setIsBuffering(player.status === "loading");
+        setIsBuffering(player.status === "loading" || player.status === "idle");
         setIsPlaying(player.playing);
 
         // Fallback EOF check if native playToEnd event is missed or not supported
@@ -574,7 +585,7 @@ export function FullVideoPlayerModal({
             startsPictureInPictureAutomatically={false}
           />
 
-          {isBuffering ? (
+          {isBuffering && !showControls ? (
             <View style={styles.loaderOverlay} pointerEvents="none">
               <ActivityIndicator size="large" color="#FFFFFF" />
             </View>
@@ -680,33 +691,39 @@ export function FullVideoPlayerModal({
               <Ionicons name="play-skip-back" size={26} color="#FFFFFF" />
             </TouchableOpacity>
 
-            {/* Play / Pause / Replay Button */}
-            <TouchableOpacity
-              style={styles.centerPlayPauseBtn}
-              onPress={() => {
-                resetHideControlsTimer();
-                handleTogglePlay();
-              }}
-              activeOpacity={0.88}
-              accessibilityLabel={isPlaying ? "Pause video" : "Play video"}
-            >
-              <Ionicons
-                name={
-                  isPlaying
-                    ? "pause"
-                    : duration > 0 && (currentTimeRef.current || currentTime) >= duration - 0.5
-                    ? "reload"
-                    : "play"
-                }
-                size={34}
-                color="#000000"
-                style={
-                  isPlaying || (duration > 0 && (currentTimeRef.current || currentTime) >= duration - 0.5)
-                    ? undefined
-                    : { marginLeft: 3 }
-                }
-              />
-            </TouchableOpacity>
+            {/* Play / Pause / Replay Button - hidden when loading/buffering */}
+            {isBuffering ? (
+              <View style={styles.centerLoadingSlot}>
+                <ActivityIndicator size="large" color="#FFFFFF" />
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.centerPlayPauseBtn}
+                onPress={() => {
+                  resetHideControlsTimer();
+                  handleTogglePlay();
+                }}
+                activeOpacity={0.88}
+                accessibilityLabel={isPlaying ? "Pause video" : "Play video"}
+              >
+                <Ionicons
+                  name={
+                    isPlaying
+                      ? "pause"
+                      : duration > 0 && (currentTimeRef.current || currentTime) >= duration - 0.5
+                      ? "reload"
+                      : "play"
+                  }
+                  size={34}
+                  color="#000000"
+                  style={
+                    isPlaying || (duration > 0 && (currentTimeRef.current || currentTime) >= duration - 0.5)
+                      ? undefined
+                      : { marginLeft: 3 }
+                  }
+                />
+              </TouchableOpacity>
+            )}
 
             {/* Next Track Button */}
             <TouchableOpacity
@@ -990,6 +1007,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.4,
     shadowRadius: 8,
     elevation: 6,
+  },
+  centerLoadingSlot: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    justifyContent: "center",
+    alignItems: "center",
   },
   centerNavBtn: {
     width: 52,
