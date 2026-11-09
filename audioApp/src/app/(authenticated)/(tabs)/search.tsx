@@ -737,36 +737,6 @@ export default function SearchScreen() {
             </View>
           )}
 
-          {/* Button to see all search results */}
-          <TouchableOpacity
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "center",
-              marginHorizontal: 18,
-              marginTop: 12,
-              paddingVertical: 14,
-              borderRadius: 14,
-              backgroundColor: "#161618",
-              borderWidth: 1,
-              borderColor: "rgba(255, 255, 255, 0.08)",
-              gap: 8,
-            }}
-            onPress={() => {
-              hapticFeedback.light();
-              setIsSubmitted(true);
-              Keyboard.dismiss();
-            }}
-          >
-            <Ionicons name="search" size={15} color="#FFFFFF" />
-            <Text
-              style={{ color: "#FFFFFF", fontSize: 14, fontWeight: "600" }}
-            >
-              See all results for &ldquo;{inputText.trim()}&rdquo;
-            </Text>
-            <Ionicons name="arrow-forward" size={15} color="#8E8E93" />
-          </TouchableOpacity>
-
           {!isActivelySearching && !hasAutocompleteResults && (
             <View style={[styles.center, { paddingTop: 40 }]}>
               <Ionicons name="search-outline" size={38} color="#FFFFFF" />
@@ -774,7 +744,7 @@ export default function SearchScreen() {
                 No recommendations for &ldquo;{inputText.trim()}&rdquo;
               </Text>
               <Text style={styles.noResultsText}>
-                Press return or tap &lsquo;See all results&rsquo; to search the entire catalog.
+                Press return to search the entire catalog.
               </Text>
             </View>
           )}
