@@ -58,6 +58,7 @@ export class AudioPlayerService {
   private onRemotePreviousTrack: (() => void) | null = null;
   private hasReportedListen = false;
   private lastSavedQueueLength = 0;
+  private isExplicitlyPaused = false;
 
   public markCurrentTrackReported(): void {
     this.hasReportedListen = true;
@@ -296,14 +297,26 @@ export class AudioPlayerService {
     const isBuffering = Boolean(status.isBuffering);
     const isLoaded = Boolean((status as any).isLoaded ?? true);
 
-    if (isBuffering !== this.lastLoggedBuffering) {
+    // Only log buffer transitions during active playback to prevent noise while paused
+    if (isPlaying && isBuffering !== this.lastLoggedBuffering) {
       this.lastLoggedBuffering = isBuffering;
       console.log(
         `[Buffer] ${isBuffering ? "🔴 BUFFERING" : "🟢 buffered"} | "${this.currentPlayingSong?.title || slotSong?.title}" | pos=${(status.currentTime ?? 0).toFixed(1)}s | est=${this.bufferedSeconds.toFixed(1)}s | playing=${isPlaying}`
       );
     }
     dispatch(setIsPlaying(isPlaying));
-    dispatch(setIsLoading(!isLoaded || (isBuffering && !isPlaying)));
+
+    // A paused song is NEVER loading.
+    // During active playback, only show loading on initial track load (!isLoaded)
+    // or if genuine buffer starvation occurs (buffer is within 0.8s of current time).
+    const isBufferingStarvation =
+      isPlaying &&
+      !this.isExplicitlyPaused &&
+      isBuffering &&
+      this.bufferedSeconds <= (status.currentTime ?? 0) + 0.8;
+
+    const shouldShowLoading = !isLoaded || isBufferingStarvation;
+    dispatch(setIsLoading(shouldShowLoading));
 
     // One-time preload trigger: start buffering upcoming songs into Standby 1 & 2
     // only AFTER current song is actually playing, so it never competes for bandwidth
@@ -504,6 +517,7 @@ export class AudioPlayerService {
     }
 
     this.isAdvancingTrack = false;
+    this.isExplicitlyPaused = false;
     this.currentPlayingSong = playerSong;
     this.hasReportedListen = false;
     this.lastPlayedIndex = targetIndex;
@@ -620,9 +634,11 @@ export class AudioPlayerService {
   public pause(): void {
     const player = this.activePlayer;
     if (!player) return;
+    this.isExplicitlyPaused = true;
     player.pause();
     this.lastReportedPlayingState = false;
     store.dispatch(setIsPlaying(false));
+    store.dispatch(setIsLoading(false));
     if (typeof player.currentTime === "number" && player.currentTime >= 0) {
       PlayerStore.savePlaybackPosition(player.currentTime);
     }
@@ -630,6 +646,7 @@ export class AudioPlayerService {
   }
 
   public resume(): void {
+    this.isExplicitlyPaused = false;
     const activeSlot = this.pool.getActiveSlot();
     const hasSongLoaded = Boolean(activeSlot?.song && activeSlot?.resolvedUri);
 

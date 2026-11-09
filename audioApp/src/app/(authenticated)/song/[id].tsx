@@ -715,16 +715,15 @@ export default function SongDetailScreen() {
                   pointerEvents={effectiveViewMode === "artwork" ? "auto" : "none"}
                 >
                   {effectiveViewMode === "artwork" ? (
-                    <Animated.View
-                      style={[
-                        styles.artworkShadowContainer,
-                        {
-                          shadowColor: dominantTheme?.dominantColor || "#FFFFFF",
-                          transform: [{ scale: artworkPlayingScaleAnim }],
-                        },
-                      ]}
-                    >
-                      <View style={styles.artworkWrapper}>
+                    <View style={styles.artworkShadowContainer}>
+                      <Animated.View
+                        style={[
+                          styles.artworkWrapper,
+                          {
+                            transform: [{ scale: artworkPlayingScaleAnim }],
+                          },
+                        ]}
+                      >
                         <Image
                           source={{ uri: posterUrl }}
                           style={styles.artworkImage}
@@ -732,8 +731,8 @@ export default function SongDetailScreen() {
                           transition={200}
                           cachePolicy="memory"
                         />
-                      </View>
-                    </Animated.View>
+                      </Animated.View>
+                    </View>
                   ) : null}
                 </View>
               </View>
