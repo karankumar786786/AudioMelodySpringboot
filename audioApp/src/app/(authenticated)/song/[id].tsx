@@ -380,6 +380,56 @@ export default function SongDetailScreen() {
     }
   };
 
+  const handleVideoNextTrack = async () => {
+    hapticFeedback.light();
+    const nextIndex = currentIndex + 1;
+    let nextSong: any = undefined;
+
+    if (nextIndex < queue.length) {
+      nextSong = queue[nextIndex];
+    } else if (repeatMode === "all" && queue.length > 0) {
+      nextSong = queue[0];
+    }
+
+    const nextHasVideo = Boolean(nextSong?.fullVideoKey || nextSong?.videoStreamUrl);
+
+    if (nextSong && nextHasVideo) {
+      await (dispatch as any)(nextTrack(true));
+      audioPlayerService.pause();
+    } else {
+      setIsVideoModalOpen(false);
+      setViewMode("artwork");
+      router.setParams({ mode: "" });
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+      await (dispatch as any)(nextTrack(true));
+    }
+  };
+
+  const handleVideoPrevTrack = async () => {
+    hapticFeedback.light();
+    const prevIndex = currentIndex - 1;
+    let prevSong: any = undefined;
+
+    if (prevIndex >= 0) {
+      prevSong = queue[prevIndex];
+    } else if (repeatMode === "all" && queue.length > 0) {
+      prevSong = queue[queue.length - 1];
+    }
+
+    const prevHasVideo = Boolean(prevSong?.fullVideoKey || prevSong?.videoStreamUrl);
+
+    if (prevSong && prevHasVideo) {
+      await (dispatch as any)(prevTrack(true));
+      audioPlayerService.pause();
+    } else {
+      setIsVideoModalOpen(false);
+      setViewMode("artwork");
+      router.setParams({ mode: "" });
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
+      await (dispatch as any)(prevTrack(true));
+    }
+  };
+
   // Horizontal slide between Canvas, Artwork, Video
   const stagePanGesture = usePanGesture({
     runOnJS: true,
@@ -790,6 +840,8 @@ export default function SongDetailScreen() {
             artworkUrl={posterUrl}
             onClose={handleVideoModalClose}
             onTrackEnd={handleVideoTrackEnd}
+            onNextTrack={handleVideoNextTrack}
+            onPrevTrack={handleVideoPrevTrack}
           />
         ) : null}
 

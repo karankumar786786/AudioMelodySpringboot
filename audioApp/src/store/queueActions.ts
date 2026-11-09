@@ -270,10 +270,11 @@ export const nextTrack =
  * Skip back to previous track, or restart current track if played > 3 seconds.
  */
 export const prevTrack =
-  () => async (dispatch: AppDispatch, getState: () => AppState) => {
+  (forceSkip = false) =>
+  async (dispatch: AppDispatch, getState: () => AppState) => {
     const currentTime = audioPlayerService.getCurrentTime();
 
-    if (currentTime > 3) {
+    if (!forceSkip && currentTime > 3) {
       console.log(`[Queue:prevTrack] Current time is ${currentTime.toFixed(1)}s (> 3s), restarting current track.`);
       await audioPlayerService.seek(0);
       return;

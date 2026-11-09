@@ -18,6 +18,7 @@ import * as ScreenOrientation from "expo-screen-orientation";
 import { Ionicons } from "@expo/vector-icons";
 import { useSelector } from "react-redux";
 import { store, AppState } from "@/store/hook";
+import { nextTrack, prevTrack } from "@/store/queueActions";
 import { audioPlayerService } from "@/service/audioPlayerService";
 import { formatDuration } from "@/utils/formatUtils";
 import { configureAudioPriority } from "@/utils/audioConfig";
@@ -38,7 +39,7 @@ const RESIZE_MODES: ResizeModeConfig[] = [
     key: "fit",
     label: "Fit",
     badgeLabel: "Fit to Screen",
-    iconName: "scan-outline",
+    iconName: "contract-outline",
     description: "Entire video visible without cropping",
   },
   {
@@ -59,7 +60,7 @@ const RESIZE_MODES: ResizeModeConfig[] = [
     key: "fill",
     label: "Stretch",
     badgeLabel: "Stretch to Fit",
-    iconName: "resize-outline",
+    iconName: "swap-horizontal-outline",
     description: "Stretched to fill all screen edges",
   },
 ];
@@ -73,6 +74,8 @@ interface FullVideoPlayerModalProps {
   artworkUrl?: string;
   onClose: (finalTimestamp: number) => void;
   onTrackEnd?: () => void;
+  onNextTrack?: () => void;
+  onPrevTrack?: () => void;
 }
 
 const applyRate = (targetPlayer: any, rate: number) => {
@@ -94,6 +97,8 @@ export function FullVideoPlayerModal({
   artworkUrl,
   onClose,
   onTrackEnd,
+  onNextTrack,
+  onPrevTrack,
 }: FullVideoPlayerModalProps) {
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const isLandscape = windowWidth > windowHeight;
@@ -113,7 +118,44 @@ export function FullVideoPlayerModal({
   const prevUrlRef = useRef<string | undefined>(visible ? videoStreamUrl : undefined);
   const isHandlingEndRef = useRef(false);
 
-  // Aspect ratio / resize mode state
+  // Auto-hide controls timer
+  const hideControlsTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const resetHideControlsTimer = () => {
+    if (hideControlsTimerRef.current) {
+      clearTimeout(hideControlsTimerRef.current);
+      hideControlsTimerRef.current = null;
+    }
+    if (isPlaying && !isScrubbing && !isSettingsOpen) {
+      hideControlsTimerRef.current = setTimeout(() => {
+        setShowControls(false);
+      }, 4000);
+    }
+  };
+
+  useEffect(() => {
+    if (showControls) {
+      resetHideControlsTimer();
+    } else if (hideControlsTimerRef.current) {
+      clearTimeout(hideControlsTimerRef.current);
+      hideControlsTimerRef.current = null;
+    }
+    return () => {
+      if (hideControlsTimerRef.current) {
+        clearTimeout(hideControlsTimerRef.current);
+      }
+    };
+  }, [showControls, isPlaying, isScrubbing, isSettingsOpen]);
+
+  const handleToggleControls = () => {
+    setShowControls((prev) => {
+      const next = !prev;
+      if (next) {
+        resetHideControlsTimer();
+      }
+      return next;
+    });
+  };
   const [resizeMode, setResizeMode] = useState<VideoResizeMode>("fit");
   const [hudMessage, setHudMessage] = useState<{
     text: string;
@@ -439,6 +481,36 @@ export function FullVideoPlayerModal({
     setCurrentTime(target);
   };
 
+  const handlePrevious = () => {
+    hapticFeedback.light();
+    resetHideControlsTimer();
+    const curTime = currentTimeRef.current || currentTime;
+    if (curTime > 3) {
+      if (player) {
+        player.currentTime = 0;
+        currentTimeRef.current = 0;
+        setCurrentTime(0);
+        seekTargetRef.current = null;
+      }
+      return;
+    }
+    if (onPrevTrack) {
+      onPrevTrack();
+    } else {
+      (store.dispatch as any)(prevTrack(true));
+    }
+  };
+
+  const handleNext = () => {
+    hapticFeedback.light();
+    resetHideControlsTimer();
+    if (onNextTrack) {
+      onNextTrack();
+    } else {
+      (store.dispatch as any)(nextTrack(true));
+    }
+  };
+
   const calculateTargetFromEvent = (e: GestureResponderEvent) => {
     if (progressBarWidth <= 0 || duration <= 0) return 0;
     const { locationX } = e.nativeEvent;
@@ -509,10 +581,10 @@ export function FullVideoPlayerModal({
           ) : null}
         </View>
 
-        {/* 2. Full-Screen Backdrop Touch Handler: Tapping screen toggles showControls useState */}
+        {/* 2. Full-Screen Backdrop Touch Handler: Tapping screen toggles showControls */}
         <Pressable
           style={StyleSheet.absoluteFill}
-          onPress={() => setShowControls((prev) => !prev)}
+          onPress={handleToggleControls}
         />
 
         {/* Floating HUD feedback when toggling resize mode */}
@@ -541,8 +613,9 @@ export function FullVideoPlayerModal({
               hitSlop={14}
               onPress={handleClose}
               activeOpacity={0.75}
+              accessibilityLabel="Dismiss video player"
             >
-              <Ionicons name="close" size={22} color="#FFFFFF" />
+              <Ionicons name="chevron-down" size={24} color="#FFFFFF" />
             </TouchableOpacity>
 
             <View style={styles.titleInfo}>
@@ -559,12 +632,15 @@ export function FullVideoPlayerModal({
               <TouchableOpacity
                 style={styles.fitModeBtn}
                 hitSlop={8}
-                onPress={handleCycleResizeMode}
+                onPress={() => {
+                  resetHideControlsTimer();
+                  handleCycleResizeMode();
+                }}
                 activeOpacity={0.75}
                 accessibilityLabel={`Aspect ratio: ${currentModeConfig.badgeLabel}`}
               >
                 <Ionicons
-                  name={currentModeConfig.iconName}
+                  name="crop-outline"
                   size={15}
                   color="#FFFFFF"
                 />
@@ -576,6 +652,7 @@ export function FullVideoPlayerModal({
                 hitSlop={14}
                 onPress={() => setIsSettingsOpen(true)}
                 activeOpacity={0.75}
+                accessibilityLabel="Video settings"
               >
                 <Ionicons name="settings-outline" size={20} color="#FFFFFF" />
               </TouchableOpacity>
@@ -583,148 +660,192 @@ export function FullVideoPlayerModal({
           </View>
         ) : null}
 
-          {/* Bottom Controls Overlay */}
-          {showControls ? (
-            <View style={[styles.controlsSection, isLandscape && styles.controlsSectionLandscape]}>
-              <View style={styles.progressRow}>
-                <Text style={styles.timeLabel}>{formatDuration(isScrubbing && scrubTime !== null ? scrubTime : currentTime)}</Text>
+        {/* 4. Center Playback Controls Overlay (Previous, Play/Pause, Next) */}
+        {showControls ? (
+          <View
+            style={[
+              styles.centerControlsOverlay,
+              isLandscape && styles.centerControlsOverlayLandscape,
+            ]}
+            pointerEvents="box-none"
+          >
+            {/* Previous Track Button */}
+            <TouchableOpacity
+              style={styles.centerNavBtn}
+              hitSlop={14}
+              onPress={handlePrevious}
+              activeOpacity={0.75}
+              accessibilityLabel="Previous track"
+            >
+              <Ionicons name="play-skip-back" size={26} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            {/* Play / Pause / Replay Button */}
+            <TouchableOpacity
+              style={styles.centerPlayPauseBtn}
+              onPress={() => {
+                resetHideControlsTimer();
+                handleTogglePlay();
+              }}
+              activeOpacity={0.88}
+              accessibilityLabel={isPlaying ? "Pause video" : "Play video"}
+            >
+              <Ionicons
+                name={
+                  isPlaying
+                    ? "pause"
+                    : duration > 0 && (currentTimeRef.current || currentTime) >= duration - 0.5
+                    ? "reload"
+                    : "play"
+                }
+                size={34}
+                color="#000000"
+                style={
+                  isPlaying || (duration > 0 && (currentTimeRef.current || currentTime) >= duration - 0.5)
+                    ? undefined
+                    : { marginLeft: 3 }
+                }
+              />
+            </TouchableOpacity>
+
+            {/* Next Track Button */}
+            <TouchableOpacity
+              style={styles.centerNavBtn}
+              hitSlop={14}
+              onPress={handleNext}
+              activeOpacity={0.75}
+              accessibilityLabel="Next track"
+            >
+              <Ionicons name="play-skip-forward" size={26} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {/* 5. Bottom Controls Overlay */}
+        {showControls ? (
+          <View style={[styles.controlsSection, isLandscape && styles.controlsSectionLandscape]}>
+            {/* Full-width Scrubber Bar */}
+            <View
+              style={styles.progressTouchArea}
+              onLayout={(e) => setProgressBarWidth(e.nativeEvent.layout.width)}
+              onStartShouldSetResponder={() => true}
+              onMoveShouldSetResponder={() => true}
+              onResponderGrant={(e) => {
+                resetHideControlsTimer();
+                handleSeekStart(e);
+              }}
+              onResponderMove={(e) => {
+                resetHideControlsTimer();
+                handleSeekMove(e);
+              }}
+              onResponderRelease={(e) => {
+                resetHideControlsTimer();
+                handleSeekEnd(e);
+              }}
+              onResponderTerminate={handleSeekCancel}
+              onResponderTerminationRequest={() => false}
+            >
+              <View style={styles.progressTrack} pointerEvents="none">
                 <View
-                  style={styles.progressTouchArea}
-                  onLayout={(e) => setProgressBarWidth(e.nativeEvent.layout.width)}
-                  onStartShouldSetResponder={() => true}
-                  onMoveShouldSetResponder={() => true}
-                  onResponderGrant={handleSeekStart}
-                  onResponderMove={handleSeekMove}
-                  onResponderRelease={handleSeekEnd}
-                  onResponderTerminate={handleSeekCancel}
-                  onResponderTerminationRequest={() => false}
-                >
-                  <View style={styles.progressTrack} pointerEvents="none">
-                    <View
-                      style={[
-                        styles.progressBuffer,
-                        {
-                          width: `${
-                            duration > 0
-                              ? Math.min(100, Math.max(0, (bufferedTime / duration) * 100))
-                              : 0
-                          }%`,
-                        },
-                      ]}
-                      pointerEvents="none"
-                    />
-                    <View
-                      style={[
-                        styles.progressFill,
-                        {
-                          width: `${
-                            duration > 0
-                              ? ((isScrubbing && scrubTime !== null ? scrubTime : currentTime) / duration) * 100
-                              : 0
-                          }%`,
-                        },
-                      ]}
-                      pointerEvents="none"
-                    />
-                  </View>
-                </View>
-                <Text style={styles.timeLabel}>{formatDuration(duration)}</Text>
-                <TouchableOpacity
-                  style={styles.controlIconBtn}
-                  hitSlop={10}
-                  onPress={handleCycleResizeMode}
-                  activeOpacity={0.75}
-                  accessibilityLabel={`Toggle aspect ratio: ${currentModeConfig.badgeLabel}`}
-                >
-                  <Ionicons
-                    name={currentModeConfig.iconName}
-                    size={20}
-                    color="#FFFFFF"
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.orientationBtn}
-                  hitSlop={12}
-                  onPress={handleToggleOrientation}
-                  activeOpacity={0.75}
-                  accessibilityLabel={
-                    isLandscape ? "Switch to portrait" : "Switch to landscape"
-                  }
-                >
-                  <Ionicons
-                    name={isLandscape ? "phone-portrait-outline" : "scan-outline"}
-                    size={20}
-                    color="#FFFFFF"
-                  />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.buttonsRow}>
-                <TouchableOpacity
-                  style={styles.controlBtn}
-                  hitSlop={14}
-                  onPress={() => handleSeek(-10)}
-                  activeOpacity={0.75}
-                >
-                  <Ionicons name="play-back-outline" size={26} color="#FFFFFF" />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.playPauseBtn}
-                  onPress={handleTogglePlay}
-                  activeOpacity={0.88}
-                >
-                  <Ionicons
-                    name={
-                      isPlaying
-                        ? "pause"
-                        : duration > 0 && (currentTimeRef.current || currentTime) >= duration - 0.5
-                        ? "reload"
-                        : "play"
-                    }
-                    size={32}
-                    color="#000000"
-                    style={
-                      isPlaying || (duration > 0 && (currentTimeRef.current || currentTime) >= duration - 0.5)
-                        ? undefined
-                        : { marginLeft: 3 }
-                    }
-                  />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.controlBtn}
-                  hitSlop={14}
-                  onPress={() => handleSeek(10)}
-                  activeOpacity={0.75}
-                >
-                  <Ionicons name="play-forward-outline" size={26} color="#FFFFFF" />
-                </TouchableOpacity>
+                  style={[
+                    styles.progressBuffer,
+                    {
+                      width: `${
+                        duration > 0
+                          ? Math.min(100, Math.max(0, (bufferedTime / duration) * 100))
+                          : 0
+                      }%`,
+                    },
+                  ]}
+                  pointerEvents="none"
+                />
+                <View
+                  style={[
+                    styles.progressFill,
+                    {
+                      width: `${
+                        duration > 0
+                          ? ((isScrubbing && scrubTime !== null ? scrubTime : currentTime) / duration) * 100
+                          : 0
+                      }%`,
+                    },
+                  ]}
+                  pointerEvents="none"
+                />
+                <View
+                  style={[
+                    styles.progressKnob,
+                    {
+                      left: `${
+                        duration > 0
+                          ? Math.max(0, Math.min(100, ((isScrubbing && scrubTime !== null ? scrubTime : currentTime) / duration) * 100))
+                          : 0
+                      }%`,
+                    },
+                  ]}
+                  pointerEvents="none"
+                />
               </View>
             </View>
-          ) : null}
 
-          <PlayerSettingsModal
-            visible={isSettingsOpen}
-            onClose={() => setIsSettingsOpen(false)}
-            mode="video"
-            useNativeModal={false}
-            videoQualities={variants.map((v) => ({ id: v.id, label: v.label }))}
-            resizeMode={resizeMode}
-            onResizeModeChange={(newMode) => {
-              setResizeMode(newMode);
-              const target = RESIZE_MODES.find((m) => m.key === newMode);
-              if (target) {
-                showHudToast(target.badgeLabel, target.iconName);
-              }
-            }}
-            onSpeedChange={(rate) => {
-              applyRate(player, rate);
-            }}
-            onQualityChange={(quality) => {
-              applyQualityConstraint(quality);
-            }}
-          />
+            {/* Bottom Status & Actions Row */}
+            <View style={styles.bottomInfoRow}>
+              <View style={styles.timeCluster}>
+                <Text style={styles.currentTimeText}>
+                  {formatDuration(isScrubbing && scrubTime !== null ? scrubTime : currentTime)}
+                </Text>
+                <Text style={styles.timeDivider}> / </Text>
+                <Text style={styles.totalDurationText}>
+                  {formatDuration(duration)}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.orientationBtn}
+                hitSlop={12}
+                onPress={() => {
+                  resetHideControlsTimer();
+                  handleToggleOrientation();
+                }}
+                activeOpacity={0.75}
+                accessibilityLabel={
+                  isLandscape ? "Switch to portrait" : "Switch to landscape"
+                }
+              >
+                <Ionicons
+                  name={isLandscape ? "phone-portrait-outline" : "phone-landscape-outline"}
+                  size={20}
+                  color="#FFFFFF"
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
+
+        <PlayerSettingsModal
+          visible={isSettingsOpen}
+          onClose={() => {
+            setIsSettingsOpen(false);
+            if (showControls) resetHideControlsTimer();
+          }}
+          mode="video"
+          useNativeModal={false}
+          videoQualities={variants.map((v) => ({ id: v.id, label: v.label }))}
+          resizeMode={resizeMode}
+          onResizeModeChange={(newMode) => {
+            setResizeMode(newMode);
+            const target = RESIZE_MODES.find((m) => m.key === newMode);
+            if (target) {
+              showHudToast(target.badgeLabel, target.iconName);
+            }
+          }}
+          onSpeedChange={(rate) => {
+            applyRate(player, rate);
+          }}
+          onQualityChange={(quality) => {
+            applyQualityConstraint(quality);
+          }}
+        />
         </View>
     </Modal>
   );
@@ -842,71 +963,133 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "rgba(0, 0, 0, 0.4)",
   },
+  centerControlsOverlay: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 36,
+    zIndex: 25,
+  },
+  centerControlsOverlayLandscape: {
+    gap: 52,
+  },
+  centerPlayPauseBtn: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  centerNavBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "rgba(18, 18, 18, 0.75)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.18)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   controlsSection: {
     position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    paddingHorizontal: 18,
-    paddingBottom: Platform.OS === "ios" ? 36 : 20,
+    paddingHorizontal: 20,
+    paddingBottom: Platform.OS === "ios" ? 34 : 20,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     zIndex: 20,
   },
   controlsSectionLandscape: {
-    paddingHorizontal: 40,
-    paddingBottom: Platform.OS === "ios" ? 24 : 14,
+    paddingHorizontal: 36,
+    paddingBottom: Platform.OS === "ios" ? 22 : 14,
     backgroundColor: "rgba(0, 0, 0, 0.65)",
   },
-  progressRow: { flexDirection: "row", alignItems: "center", marginBottom: 16 },
-  progressTouchArea: { flex: 1, paddingVertical: 10, marginHorizontal: 8 },
-  timeLabel: {
-    color: "#8A8A8A",
-    fontSize: 12,
-    width: 44,
-    textAlign: "center",
-    fontVariant: ["tabular-nums"],
+  progressTouchArea: {
+    width: "100%",
+    paddingVertical: 12,
   },
   progressTrack: {
     height: 4,
     backgroundColor: "#262626",
     borderRadius: 2,
     position: "relative",
-    overflow: "hidden",
   },
   progressBuffer: {
     position: "absolute",
     left: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: "rgba(255, 255, 255, 0.4)",
+    backgroundColor: "rgba(255, 255, 255, 0.35)",
     borderRadius: 2,
   },
-  progressFill: { height: "100%", backgroundColor: "#FFFFFF" },
-  buttonsRow: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 36,
+  progressFill: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 2,
   },
-  controlBtn: { padding: 8 },
-  controlIconBtn: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    justifyContent: "center",
+  progressKnob: {
+    position: "absolute",
+    top: -5,
+    marginLeft: -7,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  bottomInfoRow: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 2,
+    paddingHorizontal: 2,
+  },
+  timeCluster: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  currentTimeText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+    fontVariant: ["tabular-nums"],
+  },
+  timeDivider: {
+    color: "#666666",
+    fontSize: 13,
+    fontWeight: "500",
+    marginHorizontal: 3,
+  },
+  totalDurationText: {
+    color: "#8A8A8A",
+    fontSize: 13,
+    fontWeight: "500",
+    fontVariant: ["tabular-nums"],
   },
   orientationBtn: {
-    paddingLeft: 8,
-    paddingRight: 2,
-    paddingVertical: 4,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  playPauseBtn: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "#FFFFFF",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
     justifyContent: "center",
     alignItems: "center",
   },
