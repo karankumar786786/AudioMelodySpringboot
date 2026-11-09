@@ -7,12 +7,9 @@ interface PlayerMetaRowProps {
   title: string;
   artistName: string;
   isLiked: boolean;
-  isDisliked?: boolean;
   isSongInAnyPlaylist: boolean;
   heartScaleAnim: Animated.Value;
   onOpenArtist: () => void;
-  onShare: () => void;
-  onDislike: () => void;
   onOpenAddToPlaylist: () => void;
   onToggleLike: () => void;
 }
@@ -21,12 +18,9 @@ export const PlayerMetaRow = memo(function PlayerMetaRow({
   title,
   artistName,
   isLiked,
-  isDisliked = false,
   isSongInAnyPlaylist,
   heartScaleAnim,
   onOpenArtist,
-  onShare,
-  onDislike,
   onOpenAddToPlaylist,
   onToggleLike,
 }: PlayerMetaRowProps) {
@@ -47,37 +41,7 @@ export const PlayerMetaRow = memo(function PlayerMetaRow({
         </TouchableOpacity>
       </View>
 
-      <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-        {/* Share Song Button */}
-        <TouchableOpacity
-          hitSlop={14}
-          onPress={onShare}
-          style={styles.likeButton}
-          activeOpacity={0.75}
-          accessibilityLabel="Share song"
-        >
-          <Ionicons
-            name="share-outline"
-            size={23}
-            color="rgba(255, 255, 255, 0.75)"
-          />
-        </TouchableOpacity>
-
-        {/* Dislike / Hide Button */}
-        <TouchableOpacity
-          hitSlop={14}
-          onPress={onDislike}
-          style={styles.likeButton}
-          activeOpacity={0.75}
-          accessibilityLabel={isDisliked ? "Remove dislike" : "Don't recommend this song"}
-        >
-          <Ionicons
-            name={isDisliked ? "thumbs-down" : "thumbs-down-outline"}
-            size={22}
-            color={isDisliked ? "#FF3B30" : "rgba(255, 255, 255, 0.75)"}
-          />
-        </TouchableOpacity>
-
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
         {/* Add to Playlist Button */}
         <TouchableOpacity
           hitSlop={14}

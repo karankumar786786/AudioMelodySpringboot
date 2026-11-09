@@ -38,6 +38,9 @@ export interface PlayerSettingsModalProps {
   onClose: () => void;
   mode?: "audio" | "video";
   useNativeModal?: boolean;
+  isDisliked?: boolean;
+  onShare?: () => void;
+  onDislike?: () => void;
   /**
    * Qualities that actually exist for the current media. "Auto" is always added.
    * If a mode has no real choices, its Quality row is hidden.
@@ -118,6 +121,9 @@ export function PlayerSettingsModal({
   onClose,
   mode = "audio",
   useNativeModal = true,
+  isDisliked = false,
+  onShare,
+  onDislike,
   videoQualities,
   audioQualities,
   resizeMode,
@@ -308,6 +314,63 @@ export function PlayerSettingsModal({
                     </View>
                   </TouchableOpacity>
                 ))}
+
+              {/* Action Rows: Share & Dislike */}
+              {(onShare || onDislike) ? <View style={styles.divider} /> : null}
+
+              {onShare ? (
+                <TouchableOpacity
+                  style={styles.menuRow}
+                  onPress={() => {
+                    onClose();
+                    onShare();
+                  }}
+                  activeOpacity={0.75}
+                  accessibilityLabel="Share track"
+                >
+                  <View style={styles.menuRowLeft}>
+                    <Ionicons name="share-outline" size={20} color="#FFFFFF" style={styles.menuIcon} />
+                    <Text style={styles.menuRowTitle}>Share Track</Text>
+                  </View>
+                  <Ionicons name="open-outline" size={15} color="#5A5A5A" />
+                </TouchableOpacity>
+              ) : null}
+
+              {onDislike ? (
+                <TouchableOpacity
+                  style={styles.menuRow}
+                  onPress={() => {
+                    onDislike();
+                  }}
+                  activeOpacity={0.75}
+                  accessibilityLabel={isDisliked ? "Remove dislike" : "Don't recommend this song"}
+                >
+                  <View style={styles.menuRowLeft}>
+                    <Ionicons
+                      name={isDisliked ? "thumbs-down" : "thumbs-down-outline"}
+                      size={20}
+                      color={isDisliked ? "#FF3B30" : "#FFFFFF"}
+                      style={styles.menuIcon}
+                    />
+                    <Text
+                      style={[
+                        styles.menuRowTitle,
+                        isDisliked ? { color: "#FF3B30" } : undefined,
+                      ]}
+                    >
+                      {isDisliked ? "Remove Dislike" : "Don't Recommend This"}
+                    </Text>
+                  </View>
+                  <Text
+                    style={[
+                      styles.menuRowValue,
+                      isDisliked ? { color: "#FF3B30", fontWeight: "600" } : undefined,
+                    ]}
+                  >
+                    {isDisliked ? "Disliked" : ""}
+                  </Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           ) : null}
 
@@ -442,6 +505,11 @@ const styles = StyleSheet.create({
   },
   scrollContent: { paddingVertical: 2 },
   menuList: { paddingVertical: 2 },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "#262626",
+    marginVertical: 4,
+  },
   menuRow: {
     flexDirection: "row",
     alignItems: "center",

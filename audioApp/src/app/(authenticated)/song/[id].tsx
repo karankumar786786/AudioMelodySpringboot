@@ -689,17 +689,14 @@ export default function SongDetailScreen() {
               </View>
             </GestureDetector>
 
-            {/* Song Metadata & Actions (Share, Dislike, Add to Playlist, Like) */}
+            {/* Song Metadata & Primary Actions (Add to Playlist, Like) */}
             <PlayerMetaRow
               title={activeSong.title}
               artistName={activeSong.artistName}
               isLiked={isLiked}
-              isDisliked={Boolean(isDisliked)}
               isSongInAnyPlaylist={isSongInAnyPlaylist}
               heartScaleAnim={heartScaleAnim}
               onOpenArtist={handleOpenArtist}
-              onShare={handleShareSong}
-              onDislike={handleDislikeSong}
               onOpenAddToPlaylist={() => {
                 hapticFeedback.light();
                 setIsAddToPlaylistOpen(true);
@@ -769,12 +766,15 @@ export default function SongDetailScreen() {
           onClose={() => setIsQueueOpen(false)}
         />
 
-        {/* Playback Settings Modal */}
+        {/* Playback Settings & Secondary Options Modal (Quality, Speed, Timer, Share, Dislike) */}
         <PlayerSettingsModal
           visible={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
           mode="audio"
           audioQualities={DEFAULT_AUDIO_QUALITIES}
+          isDisliked={Boolean(isDisliked)}
+          onDislike={handleDislikeSong}
+          onShare={handleShareSong}
           onSpeedChange={(rate) => audioPlayerService.setPlaybackRate(rate)}
           onAudioQualityChange={(quality) => audioPlayerService.setAudioQuality(quality)}
         />
