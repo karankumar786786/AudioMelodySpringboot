@@ -57,6 +57,7 @@ export class AudioPlayerService {
   private onRemoteNextTrack: (() => void) | null = null;
   private onRemotePreviousTrack: (() => void) | null = null;
   private hasReportedListen = false;
+  private lastSavedQueueLength = 0;
 
   public markCurrentTrackReported(): void {
     this.hasReportedListen = true;
@@ -204,6 +205,12 @@ export class AudioPlayerService {
 
       const hasIndexChanged = currentIndex !== this.lastPlayedIndex;
       const hasSongChanged = currentSong.id !== this.lastPlayedSongId;
+      const hasQueueLengthChanged = queue.length !== this.lastSavedQueueLength;
+
+      if (hasQueueLengthChanged || hasIndexChanged) {
+        this.lastSavedQueueLength = queue.length;
+        PlayerStore.saveLastQueue(queue, currentIndex);
+      }
 
       if (hasIndexChanged || hasSongChanged) {
         this.lastPlayedIndex = currentIndex;
@@ -217,8 +224,6 @@ export class AudioPlayerService {
         this.play(currentSong).catch((err) => {
           console.warn("[AudioPlayerService] Auto-play from queue error:", err);
         });
-
-        PlayerStore.saveLastQueue(queue, currentIndex);
       }
     });
   }

@@ -169,6 +169,7 @@ export const playWithSimilarSongs =
           song
         );
         audioPlayerService.syncUpcomingPreload();
+        PlayerStore.saveLastQueue(getState().queue.queue, getState().queue.currentIndex);
       }
     } catch (err) {
       console.warn("[Queue] Failed to load similar songs:", err);
@@ -393,6 +394,7 @@ export const refillQueue =
           dispatch(addToQueue(filtered));
           logQueueSnapshot("refillQueue (New Tracks Added)", getState().queue.queue, getState().queue.currentIndex);
           audioPlayerService.syncUpcomingPreload();
+          PlayerStore.saveLastQueue(getState().queue.queue, getState().queue.currentIndex);
         }
       } catch (err) {
         console.warn("[Queue Refill] Failed to fetch autoplay tracks:", err);
@@ -459,6 +461,13 @@ export const loadLastPlaybackState =
         dispatch(setIsPlaying(false));
 
         dispatch(setQueue({ queue: restoredQueue, index: restoredIndex }));
+        dispatch(
+          startRadioSession({
+            seedSongId: hydrated.id,
+            seedTitle: hydrated.title,
+            seedSong: hydrated,
+          })
+        );
         logQueueSnapshot(
           "loadLastPlaybackState (Restored)",
           restoredQueue,
@@ -467,6 +476,15 @@ export const loadLastPlaybackState =
         );
         await audioPlayerService.primeRestoredPlayback(hydrated, pos);
         audioPlayerService.syncUpcomingPreload();
+
+        // If restored queue has few or no upcoming tracks, proactively populate similar songs!
+        const upcomingCount = restoredQueue.length - (restoredIndex + 1);
+        if (upcomingCount < 3) {
+          console.log(
+            `[loadLastPlaybackState] Restored queue has only ${upcomingCount} upcoming tracks; proactively refilling queue.`
+          );
+          (dispatch as any)(refillQueue(true));
+        }
       }
     } catch (err) {
       console.warn("[PlayerStore] Failed to restore playback state:", err);
