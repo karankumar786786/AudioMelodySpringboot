@@ -185,7 +185,9 @@ function VideoSurface({
         }
       } else if (status === "error") {
         const err = error || (player as any).error;
-        console.warn("[CanvasVideoPlayer] ❌ Native player error:", err);
+        if (err) {
+          console.warn("[CanvasVideoPlayer] ❌ Native player error:", err);
+        }
         onErrorRef.current?.(err);
       }
     };
@@ -440,7 +442,9 @@ export function CanvasVideoPlayer({
           isPlaying={surfacePlaying}
           onReady={handleVideoReady}
           onError={(err) => {
-            console.warn("[CanvasVideoPlayer] Canvas video error:", err);
+            if (err) {
+              console.warn("[CanvasVideoPlayer] Canvas video error:", err);
+            }
             setVideoError(true);
           }}
         />

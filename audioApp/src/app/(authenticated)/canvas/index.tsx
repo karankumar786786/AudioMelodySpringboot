@@ -49,6 +49,68 @@ export function parseArtistNames(artistStr?: string | null): string[] {
     .filter(Boolean);
 }
 
+async function safeSeek(player: AudioPlayer | null, seconds: number) {
+  if (!player) return;
+  try {
+    if (typeof player.seekTo === "function") {
+      await player.seekTo(Math.max(0, seconds));
+    }
+  } catch {
+    // Player may still be loading, seeking, or transitioning
+  }
+}
+
+interface SpinningVinylDiscProps {
+  isActive: boolean;
+  imageUrl?: string | null;
+}
+
+const SpinningVinylDisc = React.memo(function SpinningVinylDisc({
+  isActive,
+  imageUrl,
+}: SpinningVinylDiscProps) {
+  const rotationAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    let anim: Animated.CompositeAnimation | null = null;
+    if (isActive) {
+      anim = Animated.loop(
+        Animated.timing(rotationAnim, {
+          toValue: 1,
+          duration: 5000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      );
+      anim.start();
+    } else {
+      rotationAnim.stopAnimation();
+      rotationAnim.setValue(0);
+    }
+    return () => {
+      if (anim) anim.stop();
+      rotationAnim.stopAnimation();
+    };
+  }, [isActive, rotationAnim]);
+
+  const rotate = rotationAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
+  return (
+    <View pointerEvents="none" style={styles.vinylDiscContainer}>
+      <Animated.View style={[styles.vinylDisc, { transform: [{ rotate }] }]}>
+        <Image
+          source={imageUrl ? { uri: imageUrl } : undefined}
+          style={styles.discImage}
+          contentFit="cover"
+        />
+      </Animated.View>
+    </View>
+  );
+});
+
 interface CanvasShortsScreenProps {
   isTab?: boolean;
 }
@@ -90,7 +152,6 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
   const playPauseAnim = useRef(new Animated.Value(0)).current;
   const heartScaleAnim = useRef(new Animated.Value(0)).current;
   const heartOpacityAnim = useRef(new Animated.Value(0)).current;
-  const discRotationAnim = useRef(new Animated.Value(0)).current;
 
   // 1. Fetch User's Liked Shorts to initialize like state
   const { data: initialLikedIds } = useQuery({
@@ -236,7 +297,9 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
   // 5. Isolated Preview Player: Plays the active short on an endless loop
   useEffect(() => {
     if (!isScreenFocused || !activeSong) {
-      shortsPlayerRef.current?.pause();
+      try {
+        shortsPlayerRef.current?.pause();
+      } catch {}
       setIsShortsPlaying(false);
       return;
     }
@@ -256,6 +319,29 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
 
     const setupIsolatedPlayer = async () => {
       try {
+        let initialSeekDone = startSec <= 0;
+
+        const onStatus = async (status: AudioStatus) => {
+          if (!isMounted) return;
+          setIsShortsPlaying(status.playing);
+
+          // Once player is loaded, perform initial hook window seek if needed
+          if (!initialSeekDone && (status as any)?.isLoaded) {
+            initialSeekDone = true;
+            await safeSeek(shortsPlayerRef.current, startSec);
+          }
+
+          // Looping preview hook window
+          if (endSec > 0 && status.currentTime >= endSec && !isPaused) {
+            await safeSeek(shortsPlayerRef.current, startSec);
+          } else if (status.didJustFinish && !isPaused) {
+            await safeSeek(shortsPlayerRef.current, startSec);
+            try {
+              shortsPlayerRef.current?.play();
+            } catch {}
+          }
+        };
+
         if (!shortsPlayerRef.current) {
           const player = createAudioPlayer(
             { uri: streamUrl },
@@ -266,37 +352,33 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
           );
           player.loop = endSec <= 0; // Native loop if no custom endSec window
           player.muted = isMuted;
-
-          player.addListener("playbackStatusUpdate", (status: AudioStatus) => {
-            if (!isMounted) return;
-            setIsShortsPlaying(status.playing);
-
-            // Hook preview window looping
-            if (endSec > 0 && status.currentTime >= endSec && !isPaused) {
-              player.seekTo(startSec);
-            } else if (status.didJustFinish && !isPaused) {
-              player.seekTo(startSec);
-              player.play();
-            }
-          });
-
+          player.addListener("playbackStatusUpdate", onStatus);
           shortsPlayerRef.current = player;
         } else {
-          shortsPlayerRef.current.replace({ uri: streamUrl });
-          shortsPlayerRef.current.loop = endSec <= 0;
-          shortsPlayerRef.current.muted = isMuted;
+          const player = shortsPlayerRef.current;
+          if (typeof (player as any)?.replaceAsync === "function") {
+            await (player as any).replaceAsync({ uri: streamUrl });
+          } else {
+            player.replace({ uri: streamUrl });
+          }
+          player.loop = endSec <= 0;
+          player.muted = isMuted;
         }
 
         if (startSec > 0) {
-          shortsPlayerRef.current.seekTo(startSec);
+          safeSeek(shortsPlayerRef.current, startSec);
         }
 
         if (!isPaused && isScreenFocused) {
-          shortsPlayerRef.current.play();
-          setIsShortsPlaying(true);
+          try {
+            shortsPlayerRef.current?.play();
+            setIsShortsPlaying(true);
+          } catch {}
         } else {
-          shortsPlayerRef.current.pause();
-          setIsShortsPlaying(false);
+          try {
+            shortsPlayerRef.current?.pause();
+            setIsShortsPlaying(false);
+          } catch {}
         }
       } catch (err) {
         console.warn("[CanvasShorts] Isolated player error:", err);
@@ -313,19 +395,23 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
   // Handle Play / Pause state for isolated preview audio
   useEffect(() => {
     if (!shortsPlayerRef.current || !isScreenFocused) return;
-    if (isPaused) {
-      shortsPlayerRef.current.pause();
-      setIsShortsPlaying(false);
-    } else {
-      shortsPlayerRef.current.play();
-      setIsShortsPlaying(true);
-    }
+    try {
+      if (isPaused) {
+        shortsPlayerRef.current.pause();
+        setIsShortsPlaying(false);
+      } else {
+        shortsPlayerRef.current.play();
+        setIsShortsPlaying(true);
+      }
+    } catch {}
   }, [isPaused, isScreenFocused]);
 
   // Handle Mute toggle for isolated preview audio
   useEffect(() => {
     if (shortsPlayerRef.current) {
-      shortsPlayerRef.current.muted = isMuted;
+      try {
+        shortsPlayerRef.current.muted = isMuted;
+      } catch {}
     }
   }, [isMuted]);
 
@@ -359,32 +445,6 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
       }
     });
   }, [activeIndex, songs]);
-
-  // 7. Continuous Vinyl Disc Spin Animation (Purely visual)
-  useEffect(() => {
-    let loopAnimation: Animated.CompositeAnimation | null = null;
-    if (isShortsPlaying && !isPaused && isScreenFocused) {
-      loopAnimation = Animated.loop(
-        Animated.timing(discRotationAnim, {
-          toValue: 1,
-          duration: 5000,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        })
-      );
-      loopAnimation.start();
-    } else {
-      discRotationAnim.stopAnimation();
-    }
-    return () => {
-      if (loopAnimation) loopAnimation.stop();
-    };
-  }, [isShortsPlaying, isPaused, isScreenFocused]);
-
-  const discRotateInterpolate = discRotationAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0deg", "360deg"],
-  });
 
   // Pull to refresh with randomized fresh content
   const handleRefresh = useCallback(async () => {
@@ -556,14 +616,30 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
           <TouchableWithoutFeedback onPress={handleScreenPress}>
             <View style={StyleSheet.absoluteFill}>
               {/* Full-screen Edge-to-Edge Looping Canvas Video Backdrop */}
-              <CanvasVideoPlayer
-                videoKey={videoKey}
-                fallbackImageKey={item.imageKey}
-                isPlaying={isActive && isScreenFocused && !isPaused}
-                showFallbackImage={true}
-                showLoader={false}
-                style={StyleSheet.absoluteFill}
-              />
+              {isActive && videoKey ? (
+                <CanvasVideoPlayer
+                  videoUrl={(item as any)?.canvasVideoUrl}
+                  videoKey={videoKey}
+                  fallbackImageKey={item.imageKey}
+                  isPlaying={isScreenFocused && !isPaused}
+                  showFallbackImage={true}
+                  showLoader={false}
+                  style={StyleSheet.absoluteFill}
+                />
+              ) : (
+                <Image
+                  source={{
+                    uri: getImageUrl(item.imageKey, {
+                      width: 800,
+                      height: 1400,
+                      aspectRatio: "9-16",
+                      crop: "at_least",
+                    }),
+                  }}
+                  style={StyleSheet.absoluteFill}
+                  contentFit="cover"
+                />
+              )}
 
               {/* Top Gradient for Status Bar & Header clarity */}
               <LinearGradient
@@ -713,20 +789,10 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
             </TouchableOpacity>
 
             {/* Non-Pressable Revolving Vinyl Disc */}
-            <View pointerEvents="none" style={styles.vinylDiscContainer}>
-              <Animated.View
-                style={[
-                  styles.vinylDisc,
-                  { transform: [{ rotate: discRotateInterpolate }] },
-                ]}
-              >
-                <Image
-                  source={{ uri: artistImageUrl }}
-                  style={styles.discImage}
-                  contentFit="cover"
-                />
-              </Animated.View>
-            </View>
+            <SpinningVinylDisc
+              isActive={isActive && isShortsPlaying && !isPaused && isScreenFocused}
+              imageUrl={artistImageUrl}
+            />
           </View>
 
           {/* Bottom Left Info / Track Details — Hugs Close Above Bottom Tabs */}
@@ -812,6 +878,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
       likeCountsMap,
       isScreenFocused,
       isPaused,
+      isShortsPlaying,
       tabBottomSpace,
       handleScreenPress,
       showPlayPauseIcon,
@@ -822,7 +889,6 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
       handleToggleLike,
       handlePlayMainSong,
       handleShare,
-      discRotateInterpolate,
       router,
     ]
   );
@@ -900,9 +966,9 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
             }
           }}
           onEndReachedThreshold={1.5}
-          initialNumToRender={2}
-          maxToRenderPerBatch={4}
-          windowSize={7}
+          initialNumToRender={1}
+          maxToRenderPerBatch={2}
+          windowSize={3}
           removeClippedSubviews={Platform.OS === "android"}
           refreshControl={
             <RefreshControl

@@ -214,14 +214,16 @@ export default function UserPlaylistsScreen() {
           }}
           activeOpacity={0.75}
         >
-          <LinearGradient
-            colors={["#4F149B", "#7B2CBF"]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={localStyles.likedSongsIconBox}
-          >
-            <Ionicons name="heart" size={26} color="#FFFFFF" />
-          </LinearGradient>
+          <View style={localStyles.likedSongsIconWrapper}>
+            <LinearGradient
+              colors={["#4F149B", "#7B2CBF"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={localStyles.likedSongsIconBox}
+            >
+              <Ionicons name="heart" size={26} color="#FFFFFF" />
+            </LinearGradient>
+          </View>
 
           <View style={localStyles.likedSongsInfo}>
             <Text style={localStyles.likedSongsTitle}>Liked Songs</Text>
@@ -502,14 +504,20 @@ const localStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderSubtle,
   },
-  likedSongsIconBox: {
+  likedSongsIconWrapper: {
     width: 56,
     height: 56,
     borderRadius: radii.md,
+    marginRight: spacing.md,
+    backgroundColor: "#4F149B",
+    ...shadows.sm,
+  },
+  likedSongsIconBox: {
+    width: "100%",
+    height: "100%",
+    borderRadius: radii.md,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: spacing.md,
-    ...shadows.sm,
   },
   likedSongsInfo: {
     flex: 1,
