@@ -97,7 +97,7 @@ public class ShortsLikesApiService {
     @Transactional(readOnly = true)
     public PaginatedResponseDto<SongDto> getLikedShortSongs(String userId, int page, int size) {
         if (userId == null || userId.isBlank()) {
-            return new PaginatedResponseDto<SongDto>(List.of(), page, size, null);
+            return PaginatedResponseDto.empty(page, size);
         }
         int safePage = Math.max(0, page);
         int safeSize = Math.max(1, Math.min(50, size));

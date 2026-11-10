@@ -13,4 +13,8 @@ public record PaginatedResponseDto<T>(
     public PaginatedResponseDto(List<T> content, int page, int size, PaginationMetaData metaData) {
         this(content, page, size, PaginationMetaDataDto.fromEntity(metaData));
     }
+
+    public static <T> PaginatedResponseDto<T> empty(int page, int size) {
+        return new PaginatedResponseDto<>(List.of(), page, size, (PaginationMetaDataDto) null);
+    }
 }
