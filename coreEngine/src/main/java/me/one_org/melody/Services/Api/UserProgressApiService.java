@@ -29,7 +29,6 @@ public class UserProgressApiService {
     private final SongsRepository songsRepository;
     private final ObjectMapper objectMapper;
 
-    @org.springframework.beans.factory.annotation.Autowired
     public UserProgressApiService(
             @org.springframework.beans.factory.annotation.Autowired(required = false) StringRedisTemplate redisTemplate,
             SongsRepository songsRepository,
