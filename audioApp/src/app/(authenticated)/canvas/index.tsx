@@ -189,15 +189,28 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     hasNextPage,
     isFetchingNextPage,
     isLoading: isFeedLoading,
+    isError: isFeedError,
+    error: feedError,
   } = useInfiniteQuery({
     queryKey: ["canvas-feed-shorts"],
-    queryFn: ({ pageParam = 0 }) =>
-      canvasService.getFeed({
-        page: pageParam,
-        size: 10,
-        sort: "random",
-        seed: seedRef.current,
-      }),
+    queryFn: async ({ pageParam = 0 }) => {
+      console.log(`[CanvasShorts] 🚀 Fetching feed page=${pageParam}, seed=${seedRef.current}`);
+      try {
+        const res = await canvasService.getFeed({
+          page: pageParam,
+          size: 10,
+          sort: "random",
+          seed: seedRef.current,
+        });
+        console.log(
+          `[CanvasShorts] 📦 Feed page=${pageParam} response: ${res?.content?.length || 0} songs (total: ${res?.paginationMetaData?.totalCount ?? "?"})`
+        );
+        return res;
+      } catch (e: any) {
+        console.error(`[CanvasShorts] ❌ Feed fetch error:`, e?.response?.status, e?.message);
+        throw e;
+      }
+    },
     initialPageParam: 0,
     getNextPageParam: (lastPage) => {
       if (!lastPage || !lastPage.content || lastPage.content.length === 0) {
@@ -222,7 +235,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     // If navigated with a specific songId, pin it at the top until user refreshes
     if (params.songId && !hasRefreshedRef.current) {
       const match = rawFeed.find((s) => s.id === params.songId) || targetSong;
-      if (match && match.id && (match.videoKey || match.fullVideoKey || (match as any).canvasVideoUrl)) {
+      if (match && match.id && (match.videoKey || (match as any).canvasVideoUrl)) {
         seen.add(match.id);
         result.push(match);
       }
@@ -233,6 +246,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
       seen.add(song.id);
       result.push(song);
     }
+    console.log(`[CanvasShorts] 🎶 Consolidated songs count: ${result.length} (from ${rawFeed.length} raw items)`);
     return result;
   }, [feedData?.pages, params.songId, targetSong]);
 
@@ -618,7 +632,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
       const isActive = index === activeIndex;
       const isLiked = !!likedShortsMap[String(item.id)];
       const likeCount = likeCountsMap[String(item.id)];
-      const videoKey = item.videoKey || item.fullVideoKey;
+      const videoKey = item.videoKey || (item.fullVideoKey?.includes(".") ? item.fullVideoKey : null);
       const artistImageUrl = getImageUrl(item.imageKey, {
         width: 120,
         height: 120,
@@ -629,6 +643,12 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
       const artistNames = parseArtistNames(item.artistName);
       const primaryArtist = artistNames[0] || item.artistName || "Unknown Artist";
       const shouldMountVideo = (isActive || index === activeIndex + 1) && Boolean(videoKey);
+
+      if (isActive) {
+        console.log(
+          `[CanvasShorts] 🎯 Active slide [${index}]: id=${item.id}, title="${item.title}", videoKey="${videoKey}", shouldMount=${shouldMountVideo}, isActive=${isActive}, isScreenFocused=${isScreenFocused}, isPaused=${isPaused}`
+        );
+      }
 
       return (
         <View style={[styles.pageContainer, { height: containerHeight }]}>
@@ -961,8 +981,25 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
       {/* Vertical Swipeable Shorts Feed */}
       {isFeedLoading && songs.length === 0 ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FFFFFF" />
+          <ActivityIndicator size="large" color="#FF2D55" />
           <Text style={styles.loadingText}>Loading Shorts...</Text>
+        </View>
+      ) : songs.length === 0 ? (
+        <View style={styles.loadingContainer}>
+          <Ionicons name="film-outline" size={54} color="rgba(255,255,255,0.4)" />
+          <Text style={styles.loadingText}>
+            {isFeedError
+              ? `Failed to load shorts feed (${(feedError as any)?.message || "Network Error"})`
+              : "No canvas videos available"}
+          </Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={handleRefresh}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="refresh" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+            <Text style={styles.retryButtonText}>Tap to Retry</Text>
+          </TouchableOpacity>
         </View>
       ) : (
         <FlatList
@@ -1274,5 +1311,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     marginTop: 12,
+  },
+  retryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: radius.full,
+    backgroundColor: "#FF2D55",
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
   },
 });

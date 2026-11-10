@@ -272,7 +272,7 @@ public interface SongsRepository extends JpaRepository<Song, String> {
     long countVideos(@Param("genre") String genre, @Param("language") String language);
 
     @EntityGraph(attributePaths = {"songMetadata"})
-    @Query("SELECT s FROM Song s WHERE ((s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '') OR (s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '')) " +
+    @Query("SELECT s FROM Song s WHERE (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '') " +
            "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
            "AND (:genre IS NULL OR LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%'))) " +
            "ORDER BY s.createdAt DESC")
@@ -280,20 +280,20 @@ public interface SongsRepository extends JpaRepository<Song, String> {
 
     @EntityGraph(attributePaths = {"songMetadata"})
     @Query("SELECT s FROM Song s LEFT JOIN s.songMetadata sm " +
-           "WHERE ((s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '') OR (s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '')) " +
+           "WHERE (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '') " +
            "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
            "AND (:genre IS NULL OR LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%'))) " +
            "ORDER BY (SELECT COUNT(usl) FROM UserShortsLike usl WHERE usl.song = s) DESC, COALESCE(sm.totalStreams, 0) DESC, s.createdAt DESC")
     List<Song> findCanvasSongsPopular(@Param("genre") String genre, Pageable pageable);
 
     @EntityGraph(attributePaths = {"songMetadata"})
-    @Query("SELECT s FROM Song s WHERE ((s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '') OR (s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '')) " +
+    @Query("SELECT s FROM Song s WHERE (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '') " +
            "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
            "AND (:genre IS NULL OR LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%'))) " +
            "ORDER BY function('random')")
     List<Song> findCanvasSongsRandom(@Param("genre") String genre, Pageable pageable);
 
-    @Query("SELECT COUNT(s) FROM Song s WHERE ((s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '') OR (s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '')) " +
+    @Query("SELECT COUNT(s) FROM Song s WHERE (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '') " +
            "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
            "AND (:genre IS NULL OR LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%')))")
     long countCanvasSongs(@Param("genre") String genre);

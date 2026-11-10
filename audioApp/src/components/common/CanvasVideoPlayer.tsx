@@ -55,10 +55,10 @@ function computeBarZoom(
 // canvas keeps "playing" through lock instead of being paused/unmounted.
 const KEEP_CANVAS_ALIVE_IN_BACKGROUND = Platform.OS === "ios";
 
-// AppState.currentState can be "unknown" right after launch; that is NOT background.
+// AppState.currentState can be "unknown" right after launch; only "background" is inactive.
 const isAppForeground = () => {
   const s = AppState.currentState;
-  return s !== "background" && s !== "inactive";
+  return s !== "background";
 };
 
 // expo-video recalculates the audio session when its players start/stop, so
@@ -173,6 +173,7 @@ function VideoSurface({
     };
 
     const checkStatus = (status: string, error?: any) => {
+      console.log(`[VideoSurface] 📊 statusChange -> ${status}, playing=${player.playing}, isPlayingProp=${isPlaying}, error=${error ? JSON.stringify(error) : "none"}`);
       if (status === "readyToPlay") {
         readSize();
         // NOT ready yet: the loader stays until the video is actually playing
@@ -185,9 +186,7 @@ function VideoSurface({
         }
       } else if (status === "error") {
         const err = error || (player as any).error;
-        if (err) {
-          console.warn("[CanvasVideoPlayer] ❌ Native player error:", err);
-        }
+        console.warn("[CanvasVideoPlayer] ❌ Native player error:", err);
         onErrorRef.current?.(err);
       }
     };
@@ -340,16 +339,18 @@ export function CanvasVideoPlayer({
   // swapped (song change -> new player) nor paused (song paused) or expo-video
   // re-adds `.mixWithOthers` and the lock screen player disappears. So we freeze
   // the canvas (same URL, playing) until the app is active again.
-  const [isForeground, setIsForeground] = useState(isAppForeground());
+  const [isForeground, setIsForeground] = useState(
+    KEEP_CANVAS_ALIVE_IN_BACKGROUND ? true : isAppForeground()
+  );
   useEffect(() => {
     if (!KEEP_CANVAS_ALIVE_IN_BACKGROUND) return;
     const sub = AppState.addEventListener("change", (next) => {
-      setIsForeground(next === "active");
+      setIsForeground(next !== "background");
     });
     return () => sub.remove();
   }, []);
   const frozen = useRef({ videoUrl, isPlaying });
-  if (isForeground || !KEEP_CANVAS_ALIVE_IN_BACKGROUND) {
+  if (isForeground || !KEEP_CANVAS_ALIVE_IN_BACKGROUND || !frozen.current.videoUrl) {
     frozen.current = { videoUrl, isPlaying };
   }
   const surfaceUrl = frozen.current.videoUrl;
@@ -358,23 +359,24 @@ export function CanvasVideoPlayer({
 
   // Screen lock / background -> show artwork and release the video player;
   // unlock / foreground -> bring the canvas back.
-  const [appActive, setAppActive] = useState(isAppForeground());
+  const [appActive, setAppActive] = useState(
+    KEEP_CANVAS_ALIVE_IN_BACKGROUND ? true : isAppForeground()
+  );
   useEffect(() => {
     let resumeTimer: ReturnType<typeof setTimeout> | null = null;
     const sub = AppState.addEventListener("change", (next) => {
-      console.log(`[Canvas] AppState -> ${next}`);
+      console.log(`[CanvasVideoPlayer] AppState -> ${next}`);
       if (resumeTimer) {
         clearTimeout(resumeTimer);
         resumeTimer = null;
       }
       if (KEEP_CANVAS_ALIVE_IN_BACKGROUND) {
-        // iOS: never unmount/pause the canvas on lock (see note above)
+        setAppActive(true);
         return;
       }
       if (next === "background") {
         setAppActive(false);
-      } else if (next === "active") {
-        // Debounce: iOS can flip states twice while unlocking
+      } else {
         resumeTimer = setTimeout(() => {
           resumeTimer = null;
           setAppActive(true);
@@ -415,6 +417,12 @@ export function CanvasVideoPlayer({
   useEffect(() => {
     onLoadingChange?.(isVideoLoading);
   }, [isVideoLoading, onLoadingChange]);
+
+  useEffect(() => {
+    console.log(
+      `[CanvasVideoPlayer] 🎬 State: videoUrl=${videoUrl || "none"}, surfaceUrl=${surfaceUrl || "none"}, appActive=${appActive}, isPlaying=${isPlaying}, surfacePlaying=${surfacePlaying}, isVideoReady=${isVideoReady}, videoError=${videoError}`
+    );
+  }, [videoUrl, surfaceUrl, appActive, isPlaying, surfacePlaying, isVideoReady, videoError]);
 
   // Render backdrop artwork while video is buffering or as main fallback
   const shouldRenderImage =
