@@ -294,7 +294,7 @@ export default function ProfileScreen() {
         <View style={styles.stats}>
           <TouchableOpacity
             style={styles.stat}
-            onPress={() => router.push("/(authenticated)/(tabs)/favourites")}
+            onPress={() => router.push("/(authenticated)/favourites" as any)}
             activeOpacity={0.7}
           >
             <Text style={styles.statNumber}>{totalLikedSongs}</Text>

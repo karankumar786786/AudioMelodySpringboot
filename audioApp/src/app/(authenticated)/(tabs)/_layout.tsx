@@ -1,14 +1,17 @@
 
 import { View, StyleSheet, Platform } from "react-native";
 import { NativeTabs } from "expo-router/native-tabs";
+import { usePathname } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MiniPlayer } from "@/components";
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const pathname = usePathname();
   // iOS UITabBar is 49pt + insets.bottom. Android Material 3 NavigationBar is 80dp + insets.bottom.
   const tabHeight = Platform.OS === "ios" ? 49 + insets.bottom : 80 + insets.bottom;
+  const isShortsTab = pathname.includes("shorts");
 
   return (
     <View style={styles.container}>
@@ -52,12 +55,12 @@ export default function TabLayout() {
           <NativeTabs.Trigger.Label>Search</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
 
-        <NativeTabs.Trigger name="favourites">
+        <NativeTabs.Trigger name="shorts">
           <NativeTabs.Trigger.Icon
-            sf={{ default: "heart", selected: "heart.fill" }}
-            src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="heart" />}
+            sf={{ default: "play.rectangle.on.rectangle", selected: "play.rectangle.on.rectangle.fill" }}
+            src={<NativeTabs.Trigger.VectorIcon family={Ionicons} name="flash" />}
           />
-          <NativeTabs.Trigger.Label>Favourites</NativeTabs.Trigger.Label>
+          <NativeTabs.Trigger.Label>Shorts</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
 
         <NativeTabs.Trigger name="userplaylists">
@@ -77,13 +80,15 @@ export default function TabLayout() {
         </NativeTabs.Trigger>
       </NativeTabs>
 
-      {/* Floating persistent MiniPlayer docked above the tab bar */}
-      <View
-        pointerEvents="box-none"
-        style={[styles.miniPlayerWrapper, { bottom: tabHeight }]}
-      >
-        <MiniPlayer />
-      </View>
+      {/* Floating persistent MiniPlayer docked above the tab bar (hidden when on Shorts tab) */}
+      {!isShortsTab ? (
+        <View
+          pointerEvents="box-none"
+          style={[styles.miniPlayerWrapper, { bottom: tabHeight }]}
+        >
+          <MiniPlayer />
+        </View>
+      ) : null}
     </View>
   );
 }

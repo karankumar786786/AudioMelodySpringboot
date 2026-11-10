@@ -33,12 +33,21 @@ import { colors, radius, shadows, spacing } from "@/theme";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
-export default function CanvasShortsScreen() {
+interface CanvasShortsScreenProps {
+  isTab?: boolean;
+}
+
+export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreenProps = {}) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
   const isScreenFocused = useIsFocused();
   const params = useLocalSearchParams<{ songId?: string }>();
+
+  // When rendered as a bottom tab, leave breathing room above the native tab bar
+  const tabBottomSpace = isTab
+    ? (Platform.OS === "ios" ? 54 + insets.bottom : 80 + insets.bottom)
+    : insets.bottom;
 
   const currentSong = useSelector((state: AppState) => state.player.currentSong);
   const isPlayerPlaying = useSelector((state: AppState) => state.player.isPlaying);
@@ -274,7 +283,11 @@ export default function CanvasShortsScreen() {
 
   const handleDismiss = useCallback(() => {
     hapticFeedback.light();
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.push("/(authenticated)/(tabs)/home" as any);
+    }
   }, [router]);
 
   const renderShortItem = useCallback(
@@ -364,7 +377,7 @@ export default function CanvasShortsScreen() {
           <View
             style={[
               styles.rightActionsColumn,
-              { bottom: insets.bottom + 90 },
+              { bottom: tabBottomSpace + 74 },
             ]}
           >
             {/* Artist Avatar */}
@@ -457,7 +470,7 @@ export default function CanvasShortsScreen() {
           <View
             style={[
               styles.bottomInfoContainer,
-              { bottom: insets.bottom + 24 },
+              { bottom: tabBottomSpace + 16 },
             ]}
           >
             {/* Verified Artist Pill */}

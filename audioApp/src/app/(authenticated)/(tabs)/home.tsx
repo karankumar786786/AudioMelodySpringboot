@@ -50,7 +50,7 @@ const TAB_BAR_HEIGHT = 64;
 const MINI_PLAYER_HEIGHT = 74;
 const EXTRA_BREATHING_ROOM = 32;
 
-const CATEGORIES = ["All", "Shorts", "Featured", "Videos", "Albums"] as const;
+const CATEGORIES = ["All", "Featured", "Videos", "Albums"] as const;
 type Category = (typeof CATEGORIES)[number];
 
 export default function HomeScreen() {
@@ -332,10 +332,6 @@ export default function HomeScreen() {
 
   const handleSelectCategory = (cat: Category) => {
     hapticFeedback.selection();
-    if (cat === "Shorts") {
-      router.push("/(authenticated)/canvas" as any);
-      return;
-    }
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setSelectedCategory(cat);
   };
@@ -385,25 +381,6 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.shortsHeaderBtn}
-              onPress={() => {
-                hapticFeedback.light();
-                router.push("/(authenticated)/canvas" as any);
-              }}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={["#FF2D55", "#9B51E0"]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.shortsHeaderGradient}
-              >
-                <Ionicons name="flash" size={12} color="#FFFFFF" style={{ marginRight: 4 }} />
-                <Text style={styles.shortsHeaderText}>Shorts</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.avatar}
               onPress={() => {
@@ -511,12 +488,12 @@ export default function HomeScreen() {
             ) : null}
 
             {/* 3b. Canvas Shorts Shelf (Vertical looping visual cards) */}
-            {show("Shorts") && canvasSongs.length > 0 ? (
+            {selectedCategory === "All" && canvasSongs.length > 0 ? (
               <View style={styles.section}>
                 <SectionHeader
                   title="Canvas Shorts"
                   subtitle="Looping visual vertical clips"
-                  onSeeAll={() => router.push("/(authenticated)/canvas" as any)}
+                  onSeeAll={() => router.push("/(authenticated)/(tabs)/shorts" as any)}
                   seeAllText="Feed"
                 />
                 <FlatList

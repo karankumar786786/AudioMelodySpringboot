@@ -80,6 +80,14 @@ export default function AuthenticatedLayout() {
           animation: "slide_from_bottom",
         }}
       />
+      <Stack.Screen
+        name="favourites"
+        options={{
+          headerShown: false,
+          presentation: "card",
+          animation: "slide_from_right",
+        }}
+      />
     </Stack>
   );
 }

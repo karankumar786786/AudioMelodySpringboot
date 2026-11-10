@@ -210,7 +210,7 @@ export default function UserPlaylistsScreen() {
           style={localStyles.likedSongsCard}
           onPress={() => {
             hapticFeedback.light();
-            router.push("/(authenticated)/(tabs)/favourites" as any);
+            router.push("/(authenticated)/favourites" as any);
           }}
           activeOpacity={0.75}
         >
