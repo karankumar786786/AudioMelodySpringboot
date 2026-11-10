@@ -15,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Dto.Controllers.Api.UpdateProgressRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.UserProgressDto;
-import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Repository.SongsRepository;
 
 @Service
