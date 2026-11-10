@@ -304,7 +304,12 @@ export function HomeClientView() {
     ];
     const seen = new Set<string>();
     return pool.filter((song) => {
-      const hasVideo = Boolean(song.fullVideoKey || (song as any).full_video_key);
+      const hasVideo = Boolean(
+        song.fullVideoKey ||
+        (song as any).full_video_key ||
+        song.videoKey ||
+        (song as any).video_key
+      );
       if (hasVideo && song.id && !seen.has(String(song.id))) {
         seen.add(String(song.id));
         return true;

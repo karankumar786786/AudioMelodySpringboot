@@ -179,13 +179,14 @@ export default function HomeScreen() {
     return trendingSongs.slice(0, 4);
   }, [trendingSongs]);
 
-  // Watch (Full Videos): queried from video API, with pool fallback
+  // Watch (Full Videos): queried from video API, with pool fallback strictly for tracks with video
   const videoSongs = useMemo(() => {
     if (videosData?.content && videosData.content.length > 0) {
-      return videosData.content;
+      const valid = videosData.content.filter((s) => Boolean(s.fullVideoKey || s.videoKey));
+      if (valid.length > 0) return valid;
     }
 
-    const pool = [...featuredSongs, ...trendingSongs, ...allSongs];
+    const pool = [...allSongs, ...trendingSongs, ...featuredSongs];
     const seen = new Set<string>();
     const withVideo: Song[] = [];
 
@@ -197,12 +198,8 @@ export default function HomeScreen() {
       }
     }
 
-    if (withVideo.length >= 2) {
-      return withVideo.slice(0, 10);
-    }
-
-    // Fallback so Watch section is always populated
-    return (trendingSongs.length > 0 ? trendingSongs : featuredSongs).slice(0, 8);
+    // Strictly return songs that actually have a video; never fall back to non-video songs
+    return withVideo.slice(0, 10);
   }, [videosData?.content, featuredSongs, trendingSongs, allSongs]);
 
   // Popular Albums: deduplicate and cap to 10
