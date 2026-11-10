@@ -5,12 +5,14 @@ import { interactionsApi } from "./interactions";
 import { playlistsApi } from "./playlists";
 import { searchApi } from "./search";
 import { songsApi } from "./songs";
+import { videosApi } from "./videos";
 import { usersApi } from "./users";
 import { recombeeApi } from "./recombee";
 
 export * from "./types";
 export * from "./client";
 export * from "./songs";
+export * from "./videos";
 export * from "./artists";
 export * from "./playlists";
 export * from "./albums";
@@ -23,6 +25,7 @@ export * from "./home-stream";
 
 export const musicApi = {
   songs: songsApi,
+  videos: videosApi,
   artists: artistsApi,
   playlists: playlistsApi,
   albums: albumsApi,

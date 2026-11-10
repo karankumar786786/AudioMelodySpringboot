@@ -134,7 +134,7 @@ export function HomeClientView() {
   // 2b. Full Music Videos (ONLY enabled if SSE stream fails)
   const { data: serverVideos } = useQuery({
     queryKey: ["home-videos"],
-    queryFn: () => musicApi.songs.getVideos(15),
+    queryFn: () => musicApi.videos.getPopular(15),
     enabled: useFallback,
     staleTime: 5 * 60 * 1000,
   });

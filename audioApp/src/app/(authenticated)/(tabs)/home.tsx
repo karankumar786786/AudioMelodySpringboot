@@ -22,7 +22,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { AppDispatch, AppState, loadUserProfile } from "@/store";
 import { playWithSimilarSongs } from "@/store/queueActions";
-import { homeService, albumService, userService } from "@/service";
+import { homeService, albumService, userService, videoService } from "@/service";
 import { audioPlayerService } from "@/service/audioPlayerService";
 import {
   FeaturedSongsCarousel,
@@ -120,6 +120,21 @@ export default function HomeScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // 5b. Music Videos (Watch section)
+  const {
+    data: videosData,
+    refetch: refetchVideos,
+  } = useQuery({
+    queryKey: ["home-videos"],
+    queryFn: () =>
+      videoService.getVideos({
+        page: 0,
+        size: 15,
+        sort: "popular",
+      }),
+    staleTime: 5 * 60 * 1000,
+  });
+
   // 6. Infinite Discover Feed (Discover More)
   const {
     data: feedData,
@@ -164,8 +179,12 @@ export default function HomeScreen() {
     return trendingSongs.slice(0, 4);
   }, [trendingSongs]);
 
-  // Watch (Full Videos): songs with videoKey or fullVideoKey
+  // Watch (Full Videos): queried from video API, with pool fallback
   const videoSongs = useMemo(() => {
+    if (videosData?.content && videosData.content.length > 0) {
+      return videosData.content;
+    }
+
     const pool = [...featuredSongs, ...trendingSongs, ...allSongs];
     const seen = new Set<string>();
     const withVideo: Song[] = [];
@@ -184,7 +203,7 @@ export default function HomeScreen() {
 
     // Fallback so Watch section is always populated
     return (trendingSongs.length > 0 ? trendingSongs : featuredSongs).slice(0, 8);
-  }, [featuredSongs, trendingSongs, allSongs]);
+  }, [videosData?.content, featuredSongs, trendingSongs, allSongs]);
 
   // Popular Albums: deduplicate and cap to 10
   const displayAlbums = useMemo(() => {
@@ -240,6 +259,7 @@ export default function HomeScreen() {
       refetchRecent(),
       refetchAlbums(),
       refetchArtists(),
+      refetchVideos(),
       refetchFeed(),
     ]);
     setRefreshing(false);
