@@ -593,6 +593,16 @@ export default function CanvasShortsScreen() {
             offset: SCREEN_HEIGHT * index,
             index,
           })}
+          onScrollToIndexFailed={(info) => {
+            setTimeout(() => {
+              if (songs.length > 0) {
+                flatListRef.current?.scrollToIndex({
+                  index: Math.min(info.index, songs.length - 1),
+                  animated: false,
+                });
+              }
+            }, 100);
+          }}
         />
       )}
     </View>
