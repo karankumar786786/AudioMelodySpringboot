@@ -75,10 +75,6 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     position: "relative",
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
     elevation: 3,
   },
   name: {
