@@ -13,25 +13,41 @@ import {
   ActivityIndicator,
   Animated,
   Easing,
+  RefreshControl,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams, useIsFocused } from "expo-router";
-import { useSelector, useDispatch } from "react-redux";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useDispatch } from "react-redux";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
+import { createAudioPlayer, preload, AudioPlayer, AudioStatus } from "expo-audio";
 
 import { Song } from "@/types";
-import { AppState, AppDispatch, toggleFavourite } from "@/store";
+import { AppDispatch } from "@/store";
 import { playWithSimilarSongs } from "@/store/queueActions";
-import { canvasService, videoService, homeService } from "@/service";
+import {
+  canvasService,
+  videoService,
+  homeService,
+  audioPlayerService,
+  resolveStreamUrl,
+} from "@/service";
 import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
 import { getImageUrl } from "@/utils/imageUtils";
 import { hapticFeedback } from "@/utils/haptics";
-import { colors, radius, shadows, spacing } from "@/theme";
+import { radius, shadows } from "@/theme";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+export function parseArtistNames(artistStr?: string | null): string[] {
+  if (!artistStr) return [];
+  return artistStr
+    .split(/[,;&]|(?:\s+feat\.?\s+)|\s+ft\.?\s+/i)
+    .map((a) => a.trim())
+    .filter(Boolean);
+}
 
 interface CanvasShortsScreenProps {
   isTab?: boolean;
@@ -41,25 +57,34 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const dispatch = useDispatch<AppDispatch>();
+  const queryClient = useQueryClient();
   const isScreenFocused = useIsFocused();
   const params = useLocalSearchParams<{ songId?: string }>();
 
-  // When rendered as a bottom tab, leave breathing room above the native tab bar
-  const tabBottomSpace = isTab
-    ? (Platform.OS === "ios" ? 54 + insets.bottom : 80 + insets.bottom)
-    : insets.bottom;
+  // Full-height measurement accounting for tabs & safe areas
+  const [containerHeight, setContainerHeight] = useState<number>(SCREEN_HEIGHT);
 
-  const currentSong = useSelector((state: AppState) => state.player.currentSong);
-  const isPlayerPlaying = useSelector((state: AppState) => state.player.isPlaying);
-  const favouriteIds = useSelector((state: AppState) => state.favourites.favouriteIds);
+  // Spacing above the bottom tab bar or safe area
+  const tabBottomSpace = isTab
+    ? (Platform.OS === "ios" ? 49 + insets.bottom : 80 + insets.bottom)
+    : insets.bottom;
 
   const flatListRef = useRef<FlatList<Song>>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [showPlayPauseIcon, setShowPlayPauseIcon] = useState(false);
   const [showHeartBurst, setShowHeartBurst] = useState(false);
   const lastTapRef = useRef<number>(0);
+
+  // Isolated Shorts Audio Player & playback state
+  const shortsPlayerRef = useRef<AudioPlayer | null>(null);
+  const [isShortsPlaying, setIsShortsPlaying] = useState<boolean>(false);
+
+  // Separate Shorts Like tracking
+  const [likedShortsMap, setLikedShortsMap] = useState<Record<string, boolean>>({});
+  const [likeCountsMap, setLikeCountsMap] = useState<Record<string, number>>({});
 
   // Animations
   const playPauseAnim = useRef(new Animated.Value(0)).current;
@@ -67,46 +92,40 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
   const heartOpacityAnim = useRef(new Animated.Value(0)).current;
   const discRotationAnim = useRef(new Animated.Value(0)).current;
 
-  // Continuous spinning vinyl disc animation
-  useEffect(() => {
-    let loopAnimation: Animated.CompositeAnimation | null = null;
-    if (isPlayerPlaying && !isPaused && isScreenFocused) {
-      loopAnimation = Animated.loop(
-        Animated.timing(discRotationAnim, {
-          toValue: 1,
-          duration: 6000,
-          easing: Easing.linear,
-          useNativeDriver: true,
-        })
-      );
-      loopAnimation.start();
-    } else {
-      discRotationAnim.stopAnimation();
-    }
-    return () => {
-      if (loopAnimation) loopAnimation.stop();
-    };
-  }, [isPlayerPlaying, isPaused, isScreenFocused]);
-
-  const discRotateInterpolate = discRotationAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0deg", "360deg"],
+  // 1. Fetch User's Liked Shorts to initialize like state
+  const { data: initialLikedIds } = useQuery({
+    queryKey: ["user-liked-shorts-feed"],
+    queryFn: () => canvasService.getLikedShorts(0, 100),
+    staleTime: 60 * 1000,
   });
 
-  // 1. Fetch Infinite Canvas Feed
+  useEffect(() => {
+    if (Array.isArray(initialLikedIds) && initialLikedIds.length > 0) {
+      setLikedShortsMap((prev) => {
+        const next = { ...prev };
+        initialLikedIds.forEach((id) => {
+          next[String(id)] = true;
+        });
+        return next;
+      });
+    }
+  }, [initialLikedIds]);
+
+  // 2. Fetch Infinite Canvas Feed with random sort for fresh results every time
   const {
     data: feedData,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
     isLoading: isFeedLoading,
+    refetch,
   } = useInfiniteQuery({
     queryKey: ["canvas-feed-shorts"],
     queryFn: ({ pageParam = 0 }) =>
       canvasService.getFeed({
         page: pageParam,
         size: 10,
-        sort: "latest",
+        sort: "random",
       }),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => {
@@ -120,10 +139,10 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
       }
       return nextPage;
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 0, // Fresh on refresh
   });
 
-  // 2. Fallback pool: Popular videos & featured tracks in case canvas feed is small
+  // 3. Fallback pool: Popular videos & featured tracks in case canvas feed is small
   const { data: popularVideos } = useQuery({
     queryKey: ["canvas-fallback-videos"],
     queryFn: () => videoService.getVideos({ page: 0, size: 20, sort: "popular" }),
@@ -147,7 +166,6 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
 
     for (const song of pool) {
       if (!song || !song.id || seen.has(song.id)) continue;
-      // Include tracks that have canvas videoKey or fullVideoKey
       if (song.videoKey || song.fullVideoKey || result.length < 5) {
         seen.add(song.id);
         result.push(song);
@@ -172,17 +190,172 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     }
   }, [params.songId, songs.length]);
 
-  // Auto-play the track audio when the active slide changes
   const activeSong = songs[activeIndex];
+
+  // 4. Audio Isolation: Pause main listening session when entering Shorts
   useEffect(() => {
-    if (!isScreenFocused || !activeSong || isPaused) return;
-
-    if (currentSong?.id !== activeSong.id) {
-      dispatch(playWithSimilarSongs(activeSong, songs));
+    if (isScreenFocused) {
+      // Pause main listening session so audio does not overlap
+      audioPlayerService.pause();
+    } else {
+      // Pause shorts preview audio when user leaves Shorts screen/tab
+      shortsPlayerRef.current?.pause();
+      setIsShortsPlaying(false);
     }
-  }, [activeIndex, activeSong?.id, isScreenFocused, isPaused]);
+  }, [isScreenFocused]);
 
-  // Viewable items changed handler
+  // 5. Isolated Preview Player: Plays the active short on an endless loop
+  useEffect(() => {
+    if (!isScreenFocused || !activeSong) {
+      shortsPlayerRef.current?.pause();
+      setIsShortsPlaying(false);
+      return;
+    }
+
+    const streamUrl = resolveStreamUrl(activeSong);
+    if (!streamUrl) return;
+
+    let isMounted = true;
+
+    const setupIsolatedPlayer = async () => {
+      try {
+        if (!shortsPlayerRef.current) {
+          const player = createAudioPlayer(
+            { uri: streamUrl },
+            {
+              keepAudioSessionActive: true,
+              updateInterval: 250,
+            }
+          );
+          player.loop = true;
+          player.muted = isMuted;
+
+          player.addListener("playbackStatusUpdate", (status: AudioStatus) => {
+            if (!isMounted) return;
+            setIsShortsPlaying(status.playing);
+            if (status.didJustFinish && !isPaused) {
+              player.seekTo(0);
+              player.play();
+            }
+          });
+
+          shortsPlayerRef.current = player;
+        } else {
+          shortsPlayerRef.current.replace({ uri: streamUrl });
+          shortsPlayerRef.current.loop = true;
+          shortsPlayerRef.current.muted = isMuted;
+        }
+
+        if (!isPaused && isScreenFocused) {
+          shortsPlayerRef.current.play();
+          setIsShortsPlaying(true);
+        } else {
+          shortsPlayerRef.current.pause();
+          setIsShortsPlaying(false);
+        }
+      } catch (err) {
+        console.warn("[CanvasShorts] Isolated player error:", err);
+      }
+    };
+
+    setupIsolatedPlayer();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeIndex, activeSong?.id, isScreenFocused]);
+
+  // Handle Play / Pause state for isolated preview audio
+  useEffect(() => {
+    if (!shortsPlayerRef.current || !isScreenFocused) return;
+    if (isPaused) {
+      shortsPlayerRef.current.pause();
+      setIsShortsPlaying(false);
+    } else {
+      shortsPlayerRef.current.play();
+      setIsShortsPlaying(true);
+    }
+  }, [isPaused, isScreenFocused]);
+
+  // Handle Mute toggle for isolated preview audio
+  useEffect(() => {
+    if (shortsPlayerRef.current) {
+      shortsPlayerRef.current.muted = isMuted;
+    }
+  }, [isMuted]);
+
+  // Cleanup isolated audio player on unmount
+  useEffect(() => {
+    return () => {
+      try {
+        shortsPlayerRef.current?.pause();
+        shortsPlayerRef.current?.remove();
+        shortsPlayerRef.current = null;
+      } catch {}
+    };
+  }, []);
+
+  // 6. Eager Preload: Next 2-3 songs audio & artwork
+  useEffect(() => {
+    if (songs.length === 0) return;
+    const nextTracks = songs.slice(activeIndex + 1, activeIndex + 4);
+    nextTracks.forEach((track) => {
+      // Preload image
+      if (track.imageKey) {
+        const imgUrl = getImageUrl(track.imageKey, { width: 400, height: 400 });
+        if (imgUrl) Image.prefetch(imgUrl);
+      }
+      // Preload audio stream
+      const streamUrl = resolveStreamUrl(track);
+      if (streamUrl) {
+        try {
+          preload(streamUrl);
+        } catch {}
+      }
+    });
+  }, [activeIndex, songs]);
+
+  // 7. Continuous Vinyl Disc Spin Animation (Purely visual)
+  useEffect(() => {
+    let loopAnimation: Animated.CompositeAnimation | null = null;
+    if (isShortsPlaying && !isPaused && isScreenFocused) {
+      loopAnimation = Animated.loop(
+        Animated.timing(discRotationAnim, {
+          toValue: 1,
+          duration: 5000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      );
+      loopAnimation.start();
+    } else {
+      discRotationAnim.stopAnimation();
+    }
+    return () => {
+      if (loopAnimation) loopAnimation.stop();
+    };
+  }, [isShortsPlaying, isPaused, isScreenFocused]);
+
+  const discRotateInterpolate = discRotationAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "360deg"],
+  });
+
+  // Pull to refresh with randomized fresh content
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    hapticFeedback.light();
+    try {
+      await queryClient.invalidateQueries({ queryKey: ["canvas-feed-shorts"] });
+      await refetch();
+      setActiveIndex(0);
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [queryClient, refetch]);
+
+  // Viewable item changed in swipe feed
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: Array<any> }) => {
       if (viewableItems && viewableItems.length > 0) {
@@ -199,19 +372,44 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     itemVisiblePercentThreshold: 80,
   }).current;
 
+  // 8. Separate Shorts Like Toggle (Does NOT affect Library Favourites)
+  const handleToggleLike = useCallback(
+    async (song: Song) => {
+      if (!song?.id) return;
+      hapticFeedback.medium();
+      const songIdStr = String(song.id);
+      const currentlyLiked = !!likedShortsMap[songIdStr];
+      const currentCount = likeCountsMap[songIdStr] ?? 0;
+
+      // Optimistic update
+      setLikedShortsMap((prev) => ({ ...prev, [songIdStr]: !currentlyLiked }));
+      setLikeCountsMap((prev) => ({
+        ...prev,
+        [songIdStr]: Math.max(0, currentCount + (currentlyLiked ? -1 : 1)),
+      }));
+
+      try {
+        const res = await canvasService.toggleLike(song.id);
+        setLikedShortsMap((prev) => ({ ...prev, [songIdStr]: res.isLiked }));
+        setLikeCountsMap((prev) => ({ ...prev, [songIdStr]: res.count }));
+      } catch (err) {
+        // Revert on failure
+        setLikedShortsMap((prev) => ({ ...prev, [songIdStr]: currentlyLiked }));
+        setLikeCountsMap((prev) => ({ ...prev, [songIdStr]: currentCount }));
+      }
+    },
+    [likedShortsMap, likeCountsMap]
+  );
+
   // Single / Double Tap Gestures
   const handleScreenPress = useCallback(() => {
     const now = Date.now();
     const DOUBLE_PRESS_DELAY = 300;
 
     if (now - lastTapRef.current < DOUBLE_PRESS_DELAY) {
-      // Double tap -> Like song
+      // Double tap -> Like Shorts
       if (activeSong) {
-        hapticFeedback.medium();
-        const isFav = favouriteIds.some((id) => String(id) === String(activeSong.id));
-        if (!isFav) {
-          dispatch(toggleFavourite(activeSong));
-        }
+        handleToggleLike(activeSong);
 
         // Trigger Heart Burst animation
         setShowHeartBurst(true);
@@ -234,7 +432,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
         });
       }
     } else {
-      // Single tap -> Play / Pause toggle
+      // Single tap -> Play / Pause preview
       hapticFeedback.light();
       setIsPaused((prev) => {
         const next = !prev;
@@ -253,22 +451,23 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     }
 
     lastTapRef.current = now;
-  }, [activeSong, favouriteIds, dispatch]);
+  }, [activeSong, handleToggleLike, heartOpacityAnim, heartScaleAnim, playPauseAnim]);
 
-  const handleToggleLike = useCallback(
+  // 9. Play on Main Player and Main Queue ONLY when user explicitly clicks "Play"
+  const handlePlayMainSong = useCallback(
     (song: Song) => {
       hapticFeedback.medium();
-      dispatch(toggleFavourite(song));
-    },
-    [dispatch]
-  );
+      // Stop isolated preview audio
+      shortsPlayerRef.current?.pause();
+      setIsShortsPlaying(false);
 
-  const handleOpenFullPlayer = useCallback(
-    (song: Song) => {
-      hapticFeedback.medium();
+      // Play on main player & populate main queue
+      dispatch(playWithSimilarSongs(song, songs));
+
+      // Open full song player
       router.push(`/song/${song.id}`);
     },
-    [router]
+    [songs, dispatch, router]
   );
 
   const handleShare = useCallback(async (song: Song) => {
@@ -290,10 +489,12 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     }
   }, [router]);
 
+  // Render individual vertical Short slide
   const renderShortItem = useCallback(
     ({ item, index }: { item: Song; index: number }) => {
       const isActive = index === activeIndex;
-      const isLiked = favouriteIds.some((id) => String(id) === String(item.id));
+      const isLiked = !!likedShortsMap[String(item.id)];
+      const likeCount = likeCountsMap[String(item.id)];
       const videoKey = item.videoKey || item.fullVideoKey;
       const artistImageUrl = getImageUrl(item.imageKey, {
         width: 120,
@@ -301,11 +502,15 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
         aspectRatio: "1-1",
       });
 
+      // Split multiple artists into clean individual names
+      const artistNames = parseArtistNames(item.artistName);
+      const primaryArtist = artistNames[0] || item.artistName || "Unknown Artist";
+
       return (
-        <View style={styles.pageContainer}>
+        <View style={[styles.pageContainer, { height: containerHeight }]}>
           <TouchableWithoutFeedback onPress={handleScreenPress}>
             <View style={StyleSheet.absoluteFill}>
-              {/* Full-screen Looping Canvas Video Backdrop */}
+              {/* Full-screen Edge-to-Edge Looping Canvas Video Backdrop */}
               <CanvasVideoPlayer
                 videoKey={videoKey}
                 fallbackImageKey={item.imageKey}
@@ -315,16 +520,22 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
                 style={StyleSheet.absoluteFill}
               />
 
-              {/* Top Gradient */}
+              {/* Top Gradient for Status Bar & Header clarity */}
               <LinearGradient
-                colors={["rgba(0,0,0,0.65)", "transparent"]}
+                colors={["rgba(0,0,0,0.7)", "rgba(0,0,0,0.2)", "transparent"]}
+                locations={[0, 0.45, 1]}
                 style={styles.topGradient}
               />
 
               {/* Bottom Gradient for Text & Control Readability */}
               <LinearGradient
-                colors={["transparent", "rgba(0,0,0,0.45)", "rgba(0,0,0,0.92)"]}
-                locations={[0.4, 0.7, 1.0]}
+                colors={[
+                  "transparent",
+                  "rgba(0,0,0,0.15)",
+                  "rgba(0,0,0,0.65)",
+                  "rgba(0,0,0,0.95)",
+                ]}
+                locations={[0, 0.35, 0.7, 1]}
                 style={styles.bottomGradient}
               />
             </View>
@@ -377,17 +588,17 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
           <View
             style={[
               styles.rightActionsColumn,
-              { bottom: tabBottomSpace + 74 },
+              { bottom: tabBottomSpace + 16 },
             ]}
           >
-            {/* Artist Avatar */}
+            {/* Artist Avatar (Primary Artist) */}
             <TouchableOpacity
               style={styles.actionItem}
               onPress={() => {
                 hapticFeedback.light();
                 router.push({
                   pathname: "/(authenticated)/artist/[id]",
-                  params: { id: item.artistName, name: item.artistName },
+                  params: { id: primaryArtist, name: primaryArtist },
                 });
               }}
               activeOpacity={0.8}
@@ -401,34 +612,45 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
                 />
               </View>
               <View style={styles.plusBadge}>
-                <Ionicons name="add" size={12} color="#FFFFFF" />
+                <Ionicons name="person" size={10} color="#FFFFFF" />
               </View>
             </TouchableOpacity>
 
-            {/* Like / Heart Button */}
+            {/* Separate Shorts Like / Heart Button */}
             <TouchableOpacity
               style={styles.actionItem}
               onPress={() => handleToggleLike(item)}
               activeOpacity={0.75}
             >
-              <View style={styles.actionIconCircle}>
+              <View
+                style={[
+                  styles.actionIconCircle,
+                  isLiked && styles.actionIconCircleLiked,
+                ]}
+              >
                 <Ionicons
                   name={isLiked ? "heart" : "heart-outline"}
-                  size={28}
+                  size={26}
                   color={isLiked ? "#FF2D55" : "#FFFFFF"}
                 />
               </View>
-              <Text style={styles.actionText}>{isLiked ? "Liked" : "Like"}</Text>
+              <Text style={styles.actionText}>
+                {likeCount !== undefined && likeCount > 0
+                  ? String(likeCount)
+                  : isLiked
+                  ? "Liked"
+                  : "Like"}
+              </Text>
             </TouchableOpacity>
 
-            {/* Full Player / Audio Details */}
+            {/* Play on Main Player Action */}
             <TouchableOpacity
               style={styles.actionItem}
-              onPress={() => handleOpenFullPlayer(item)}
+              onPress={() => handlePlayMainSong(item)}
               activeOpacity={0.75}
             >
               <View style={styles.actionIconCircle}>
-                <Ionicons name="musical-notes" size={26} color="#FFFFFF" />
+                <Ionicons name="play" size={24} color="#FFFFFF" />
               </View>
               <Text style={styles.actionText}>Play</Text>
             </TouchableOpacity>
@@ -440,17 +662,13 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
               activeOpacity={0.75}
             >
               <View style={styles.actionIconCircle}>
-                <Ionicons name="paper-plane-outline" size={24} color="#FFFFFF" />
+                <Ionicons name="paper-plane-outline" size={22} color="#FFFFFF" />
               </View>
               <Text style={styles.actionText}>Share</Text>
             </TouchableOpacity>
 
-            {/* Spinning Vinyl Disc with Artwork */}
-            <TouchableOpacity
-              style={styles.vinylDiscContainer}
-              onPress={() => handleOpenFullPlayer(item)}
-              activeOpacity={0.85}
-            >
+            {/* Non-Pressable Revolving Vinyl Disc */}
+            <View pointerEvents="none" style={styles.vinylDiscContainer}>
               <Animated.View
                 style={[
                   styles.vinylDisc,
@@ -463,44 +681,53 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
                   contentFit="cover"
                 />
               </Animated.View>
-            </TouchableOpacity>
+            </View>
           </View>
 
-          {/* Bottom Left Info / Track Details */}
+          {/* Bottom Left Info / Track Details — Hugs Close Above Bottom Tabs */}
           <View
             style={[
               styles.bottomInfoContainer,
-              { bottom: tabBottomSpace + 16 },
+              { bottom: tabBottomSpace + 8 },
             ]}
           >
-            {/* Verified Artist Pill */}
-            <View style={styles.artistPill}>
-              <Text style={styles.artistName} numberOfLines={1}>
-                @{item.artistName}
-              </Text>
-              <Ionicons
-                name="checkmark-circle"
-                size={14}
-                color="#3897F0"
-                style={{ marginLeft: 4 }}
-              />
+            {/* Multi-Artist Parsing with Clickable Tags */}
+            <View style={styles.artistRow}>
+              {artistNames.map((name, idx) => (
+                <TouchableOpacity
+                  key={`${name}-${idx}`}
+                  onPress={() => {
+                    hapticFeedback.light();
+                    router.push({
+                      pathname: "/(authenticated)/artist/[id]",
+                      params: { id: name, name },
+                    });
+                  }}
+                  activeOpacity={0.7}
+                  style={styles.artistPill}
+                >
+                  <Text style={styles.artistName} numberOfLines={1}>
+                    @{name}
+                  </Text>
+                  {idx === 0 && (
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={13}
+                      color="#3897F0"
+                      style={{ marginLeft: 3 }}
+                    />
+                  )}
+                  {idx < artistNames.length - 1 && (
+                    <Text style={styles.artistComma}>,</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
             </View>
 
-            {/* Song Title */}
-            <Text style={styles.songTitle} numberOfLines={2}>
-              {item.title}
-            </Text>
-
-            {/* Sound / Music Note Ticker */}
-            <View style={styles.soundTickerRow}>
-              <Ionicons
-                name="musical-note"
-                size={14}
-                color="#FFFFFF"
-                style={{ marginRight: 6 }}
-              />
-              <Text style={styles.soundTickerText} numberOfLines={1}>
-                {item.title} • {item.artistName}
+            {/* Song Title & Optional Genre Pill */}
+            <View style={styles.titleRow}>
+              <Text style={styles.songTitle} numberOfLines={2}>
+                {item.title}
               </Text>
               {item.genre ? (
                 <View style={styles.genreBadge}>
@@ -508,16 +735,39 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
                 </View>
               ) : null}
             </View>
+
+            {/* Sound Ticker / Play Prompt Row */}
+            <TouchableOpacity
+              style={styles.soundTickerRow}
+              onPress={() => handlePlayMainSong(item)}
+              activeOpacity={0.8}
+            >
+              <Ionicons
+                name="musical-notes"
+                size={14}
+                color="#FFFFFF"
+                style={{ marginRight: 6 }}
+              />
+              <Text style={styles.soundTickerText} numberOfLines={1}>
+                {item.title} • {primaryArtist}
+              </Text>
+              <View style={styles.playHintBadge}>
+                <Ionicons name="play" size={10} color="#FFFFFF" style={{ marginRight: 3 }} />
+                <Text style={styles.playHintText}>Full Song</Text>
+              </View>
+            </TouchableOpacity>
           </View>
         </View>
       );
     },
     [
       activeIndex,
+      containerHeight,
+      likedShortsMap,
+      likeCountsMap,
       isScreenFocused,
       isPaused,
-      favouriteIds,
-      insets.bottom,
+      tabBottomSpace,
       handleScreenPress,
       showPlayPauseIcon,
       playPauseAnim,
@@ -525,7 +775,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
       heartOpacityAnim,
       heartScaleAnim,
       handleToggleLike,
-      handleOpenFullPlayer,
+      handlePlayMainSong,
       handleShare,
       discRotateInterpolate,
       router,
@@ -533,7 +783,15 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
   );
 
   return (
-    <View style={styles.root}>
+    <View
+      style={styles.root}
+      onLayout={(e) => {
+        const h = e.nativeEvent.layout.height;
+        if (h > 0 && Math.abs(h - containerHeight) > 1) {
+          setContainerHeight(h);
+        }
+      }}
+    >
       <StatusBar barStyle="light-content" />
 
       {/* Top Header Overlay */}
@@ -543,11 +801,11 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
           onPress={handleDismiss}
           activeOpacity={0.7}
         >
-          <Ionicons name="close" size={26} color="#FFFFFF" />
+          <Ionicons name="close" size={24} color="#FFFFFF" />
         </TouchableOpacity>
 
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Canvas Shorts</Text>
+          <Text style={styles.headerTitle}>Shorts</Text>
           <View style={styles.liveIndicator}>
             <View style={[styles.liveDot, { backgroundColor: "#FF2D55" }]} />
             <Text style={styles.liveText}>DISCOVER</Text>
@@ -564,7 +822,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
         >
           <Ionicons
             name={isMuted ? "volume-mute" : "volume-high"}
-            size={22}
+            size={20}
             color="#FFFFFF"
           />
         </TouchableOpacity>
@@ -586,7 +844,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
           }
           pagingEnabled
           showsVerticalScrollIndicator={false}
-          snapToInterval={SCREEN_HEIGHT}
+          snapToInterval={containerHeight}
           snapToAlignment="start"
           decelerationRate="fast"
           onViewableItemsChanged={onViewableItemsChanged}
@@ -596,14 +854,22 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
               fetchNextPage();
             }
           }}
-          onEndReachedThreshold={0.5}
+          onEndReachedThreshold={1.5}
           initialNumToRender={2}
-          maxToRenderPerBatch={3}
-          windowSize={5}
+          maxToRenderPerBatch={4}
+          windowSize={7}
           removeClippedSubviews={Platform.OS === "android"}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor="#FFFFFF"
+              colors={["#FF2D55"]}
+            />
+          }
           getItemLayout={(_, index) => ({
-            length: SCREEN_HEIGHT,
-            offset: SCREEN_HEIGHT * index,
+            length: containerHeight,
+            offset: containerHeight * index,
             index,
           })}
           onScrollToIndexFailed={(info) => {
@@ -629,7 +895,6 @@ const styles = StyleSheet.create({
   },
   pageContainer: {
     width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
     position: "relative",
     backgroundColor: "#000000",
   },
@@ -638,7 +903,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: 140,
+    height: 150,
     zIndex: 1,
   },
   bottomGradient: {
@@ -646,7 +911,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    height: 320,
+    height: 340,
     zIndex: 1,
   },
   headerOverlay: {
@@ -659,9 +924,9 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   headerIconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: "rgba(0, 0, 0, 0.45)",
     justifyContent: "center",
     alignItems: "center",
@@ -689,7 +954,7 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   liveText: {
-    color: "rgba(255, 255, 255, 0.6)",
+    color: "rgba(255, 255, 255, 0.65)",
     fontSize: 9,
     fontWeight: "800",
     letterSpacing: 0.8,
@@ -711,34 +976,38 @@ const styles = StyleSheet.create({
     right: 14,
     alignItems: "center",
     zIndex: 5,
-    gap: 18,
+    gap: 16,
   },
   actionItem: {
     alignItems: "center",
   },
   actionIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "rgba(0, 0, 0, 0.42)",
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.12)",
+    borderColor: "rgba(255, 255, 255, 0.15)",
+  },
+  actionIconCircleLiked: {
+    backgroundColor: "rgba(255, 45, 85, 0.18)",
+    borderColor: "rgba(255, 45, 85, 0.4)",
   },
   actionText: {
     color: "#FFFFFF",
     fontSize: 11,
     fontWeight: "600",
-    marginTop: 4,
-    textShadowColor: "rgba(0,0,0,0.75)",
+    marginTop: 3,
+    textShadowColor: "rgba(0,0,0,0.8)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
   avatarBorder: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     borderWidth: 2,
     borderColor: "#FFFFFF",
     overflow: "hidden",
@@ -749,86 +1018,121 @@ const styles = StyleSheet.create({
   },
   plusBadge: {
     position: "absolute",
-    bottom: -4,
+    bottom: -3,
     alignSelf: "center",
-    width: 18,
-    height: 18,
-    borderRadius: 9,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: "#FF2D55",
     justifyContent: "center",
     alignItems: "center",
   },
   vinylDiscContainer: {
-    marginTop: 4,
+    marginTop: 2,
     alignItems: "center",
   },
   vinylDisc: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "#1C1C1E",
-    borderWidth: 8,
-    borderColor: "#000000",
+    borderWidth: 7,
+    borderColor: "#0A0A0A",
     justifyContent: "center",
     alignItems: "center",
     ...shadows.lg,
   },
   discImage: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
   },
   bottomInfoContainer: {
     position: "absolute",
-    left: 16,
-    right: 80,
+    left: 14,
+    right: 76,
     zIndex: 4,
+    gap: 4,
+  },
+  artistRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 4,
   },
   artistPill: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 6,
   },
   artistName: {
     color: "#FFFFFF",
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700",
     textShadowColor: "rgba(0,0,0,0.8)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
   },
+  artistComma: {
+    color: "rgba(255, 255, 255, 0.7)",
+    fontSize: 14,
+    fontWeight: "700",
+    marginRight: 2,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
   songTitle: {
     color: "#FFFFFF",
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: "800",
-    lineHeight: 22,
-    marginBottom: 10,
-    textShadowColor: "rgba(0,0,0,0.8)",
+    lineHeight: 21,
+    textShadowColor: "rgba(0,0,0,0.85)",
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
+    flexShrink: 1,
+  },
+  genreBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.full,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    borderWidth: 0.5,
+    borderColor: "rgba(255, 255, 255, 0.25)",
+  },
+  genreText: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
   },
   soundTickerRow: {
     flexDirection: "row",
     alignItems: "center",
+    marginTop: 2,
   },
   soundTickerText: {
-    color: "rgba(255, 255, 255, 0.85)",
-    fontSize: 13,
+    color: "rgba(255, 255, 255, 0.88)",
+    fontSize: 12,
     fontWeight: "600",
     flexShrink: 1,
   },
-  genreBadge: {
+  playHintBadge: {
+    flexDirection: "row",
+    alignItems: "center",
     marginLeft: 8,
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: radius.full,
-    backgroundColor: "rgba(255, 255, 255, 0.18)",
+    backgroundColor: "rgba(255, 45, 85, 0.8)",
   },
-  genreText: {
+  playHintText: {
     color: "#FFFFFF",
     fontSize: 10,
     fontWeight: "700",
-    textTransform: "uppercase",
   },
   loadingContainer: {
     flex: 1,

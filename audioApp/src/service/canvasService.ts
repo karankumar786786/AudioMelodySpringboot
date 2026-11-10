@@ -5,12 +5,18 @@ export interface GetCanvasFeedParams {
   page?: number;
   size?: number;
   genre?: string;
-  sort?: "latest" | "popular";
+  sort?: "latest" | "popular" | "random" | "discover" | "shuffle";
+}
+
+export interface ShortsLikeStatus {
+  songId: number;
+  isLiked: boolean;
+  count: number;
 }
 
 export const canvasService = {
   async getFeed(params: GetCanvasFeedParams = {}): Promise<PaginatedResponse<Song>> {
-    const { page = 0, size = 10, genre, sort = "latest" } = params;
+    const { page = 0, size = 10, genre, sort = "random" } = params;
     const queryParams: Record<string, any> = { page, size, sort };
     if (genre && genre !== "All") queryParams.genre = genre;
 
@@ -28,6 +34,28 @@ export const canvasService = {
       return Array.isArray(response.data) ? response.data : [];
     } catch (e) {
       console.warn("[canvasService] getFeatured error:", e);
+      return [];
+    }
+  },
+
+  async toggleLike(songId: number | string): Promise<ShortsLikeStatus> {
+    const response = await api.post<ShortsLikeStatus>(`/canvas/${songId}/like`);
+    return response.data;
+  },
+
+  async getLikeStatus(songId: number | string): Promise<ShortsLikeStatus> {
+    const response = await api.get<ShortsLikeStatus>(`/canvas/${songId}/like`);
+    return response.data;
+  },
+
+  async getLikedShorts(page = 0, size = 50): Promise<number[]> {
+    try {
+      const response = await api.get<{ content: number[] }>("/canvas/liked", {
+        params: { page, size },
+      });
+      return response.data?.content || [];
+    } catch (e) {
+      console.warn("[canvasService] getLikedShorts error:", e);
       return [];
     }
   },

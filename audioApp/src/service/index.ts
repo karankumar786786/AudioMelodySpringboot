@@ -7,6 +7,7 @@ export * from "./favouriteService";
 export * from "./artistService";
 export * from "./playlistService";
 export * from "./audioPlayerService";
+export * from "./audioPlayerPool";
 export * from "./songInfoService";
 export * from "./recombeeService";
 export * from "./interactionService";

@@ -32,7 +32,9 @@ public class CanvasApiService {
         String effectiveSort = (sort != null && !sort.trim().isBlank()) ? sort.trim().toLowerCase() : "latest";
 
         List<Song> songs;
-        if ("popular".equals(effectiveSort)) {
+        if ("random".equals(effectiveSort) || "discover".equals(effectiveSort) || "shuffle".equals(effectiveSort)) {
+            songs = songsRepository.findCanvasSongsRandom(cleanGenre, PageRequest.of(safePage, safeSize));
+        } else if ("popular".equals(effectiveSort)) {
             songs = songsRepository.findCanvasSongsPopular(cleanGenre, PageRequest.of(safePage, safeSize));
         } else {
             songs = songsRepository.findCanvasSongsLatest(cleanGenre, PageRequest.of(safePage, safeSize));
