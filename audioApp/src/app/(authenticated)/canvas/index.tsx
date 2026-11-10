@@ -29,7 +29,6 @@ import { AppDispatch } from "@/store";
 import { playWithSimilarSongs } from "@/store/queueActions";
 import {
   canvasService,
-  videoService,
   homeService,
   audioPlayerService,
   resolveStreamUrl,
@@ -172,6 +171,17 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     }
   }, [initialLikedIds]);
 
+  const seedRef = useRef(Date.now());
+  const hasRefreshedRef = useRef(false);
+
+  // Optional target song if navigated from external card
+  const { data: targetSong } = useQuery({
+    queryKey: ["canvas-target-song", params.songId],
+    queryFn: () => homeService.getSongById(String(params.songId)),
+    enabled: Boolean(params.songId),
+    staleTime: 5 * 60 * 1000,
+  });
+
   // 2. Fetch Infinite Canvas Feed with random sort for fresh results every time
   const {
     data: feedData,
@@ -179,7 +189,6 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     hasNextPage,
     isFetchingNextPage,
     isLoading: isFeedLoading,
-    refetch,
   } = useInfiniteQuery({
     queryKey: ["canvas-feed-shorts"],
     queryFn: ({ pageParam = 0 }) =>
@@ -187,6 +196,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
         page: pageParam,
         size: 10,
         sort: "random",
+        seed: seedRef.current,
       }),
     initialPageParam: 0,
     getNextPageParam: (lastPage) => {
@@ -200,40 +210,31 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
       }
       return nextPage;
     },
-    staleTime: 0, // Fresh on refresh
+    staleTime: 0,
   });
 
-  // 3. Fallback pool: Popular videos & featured tracks in case canvas feed is small
-  const { data: popularVideos } = useQuery({
-    queryKey: ["canvas-fallback-videos"],
-    queryFn: () => videoService.getVideos({ page: 0, size: 20, sort: "popular" }),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const { data: featuredSongs = [] } = useQuery({
-    queryKey: ["featured-songs"],
-    queryFn: () => homeService.getFeaturedSongs(),
-    staleTime: 5 * 60 * 1000,
-  });
-
-  // Consolidate unique songs list
+  // Consolidate unique songs list directly from the Canvas Feed (no non-canvas fallbacks)
   const songs: Song[] = useMemo(() => {
     const rawFeed = feedData?.pages?.flatMap((p) => p.content || []) || [];
-    const videoPool = popularVideos?.content || [];
-    const pool = [...rawFeed, ...videoPool, ...featuredSongs];
-
     const seen = new Set<string>();
     const result: Song[] = [];
 
-    for (const song of pool) {
-      if (!song || !song.id || seen.has(song.id)) continue;
-      if (song.videoKey || song.fullVideoKey || result.length < 5) {
-        seen.add(song.id);
-        result.push(song);
+    // If navigated with a specific songId, pin it at the top until user refreshes
+    if (params.songId && !hasRefreshedRef.current) {
+      const match = rawFeed.find((s) => s.id === params.songId) || targetSong;
+      if (match && match.id && (match.videoKey || match.fullVideoKey || (match as any).canvasVideoUrl)) {
+        seen.add(match.id);
+        result.push(match);
       }
     }
+
+    for (const song of rawFeed) {
+      if (!song || !song.id || seen.has(song.id)) continue;
+      seen.add(song.id);
+      result.push(song);
+    }
     return result;
-  }, [feedData?.pages, popularVideos?.content, featuredSongs]);
+  }, [feedData?.pages, params.songId, targetSong]);
 
   // Sync server-returned isLiked and likesCount from the feed items
   useEffect(() => {
@@ -266,7 +267,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
 
   // Initial song jump if songId param is passed
   useEffect(() => {
-    if (params.songId && songs.length > 0) {
+    if (params.songId && songs.length > 0 && !hasRefreshedRef.current) {
       const targetIdx = songs.findIndex((s) => s.id === params.songId);
       if (targetIdx >= 0 && targetIdx !== activeIndex) {
         setActiveIndex(targetIdx);
@@ -465,14 +466,17 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     setIsRefreshing(true);
     hapticFeedback.light();
     try {
-      await queryClient.invalidateQueries({ queryKey: ["canvas-feed-shorts"] });
-      await refetch();
+      hasRefreshedRef.current = true;
+      seedRef.current = Date.now();
       setActiveIndex(0);
       flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+      await queryClient.resetQueries({ queryKey: ["canvas-feed-shorts"] });
+    } catch (e) {
+      console.warn("[CanvasShorts] Refresh error:", e);
     } finally {
       setIsRefreshing(false);
     }
-  }, [queryClient, refetch]);
+  }, [queryClient]);
 
   // Viewable item changed in swipe feed
   const onViewableItemsChanged = useRef(

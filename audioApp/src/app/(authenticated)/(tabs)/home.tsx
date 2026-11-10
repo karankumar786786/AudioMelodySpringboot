@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -138,13 +138,21 @@ export default function HomeScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
+  const canvasSeedRef = useRef(Date.now());
+
   // 5c. Canvas Shorts (Vertical video loops)
   const {
     data: canvasData,
     refetch: refetchCanvas,
   } = useQuery({
     queryKey: ["home-canvas-shorts"],
-    queryFn: () => canvasService.getFeed({ page: 0, size: 10 }),
+    queryFn: () =>
+      canvasService.getFeed({
+        page: 0,
+        size: 10,
+        sort: "random",
+        seed: canvasSeedRef.current,
+      }),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -215,26 +223,10 @@ export default function HomeScreen() {
     return withVideo.slice(0, 10);
   }, [videosData?.content, featuredSongs, trendingSongs, allSongs]);
 
-  // Canvas Shorts: queried from canvas feed, with catalog video fallback
+  // Canvas Shorts: strictly from genuine canvas feed (no fallbacks)
   const canvasSongs = useMemo(() => {
-    if (canvasData?.content && canvasData.content.length > 0) {
-      return canvasData.content;
-    }
-
-    const pool = [...(videosData?.content || []), ...allSongs, ...featuredSongs, ...trendingSongs];
-    const seen = new Set<string>();
-    const result: Song[] = [];
-
-    for (const song of pool) {
-      if (!song || !song.id || seen.has(song.id)) continue;
-      if (song.videoKey || song.fullVideoKey) {
-        seen.add(song.id);
-        result.push(song);
-      }
-    }
-
-    return result.slice(0, 10);
-  }, [canvasData?.content, videosData?.content, allSongs, featuredSongs, trendingSongs]);
+    return canvasData?.content || [];
+  }, [canvasData?.content]);
 
   // Popular Albums: deduplicate and cap to 10
   const displayAlbums = useMemo(() => {
@@ -283,6 +275,7 @@ export default function HomeScreen() {
   const onRefresh = async () => {
     hapticFeedback.light();
     setRefreshing(true);
+    canvasSeedRef.current = Date.now();
     await Promise.allSettled([
       dispatch(loadUserProfile()).unwrap(),
       refetchFeatured(),
@@ -493,8 +486,6 @@ export default function HomeScreen() {
                 <SectionHeader
                   title="Canvas Shorts"
                   subtitle="Looping visual vertical clips"
-                  onSeeAll={() => router.push("/(authenticated)/(tabs)/shorts" as any)}
-                  seeAllText="Feed"
                 />
                 <FlatList
                   horizontal

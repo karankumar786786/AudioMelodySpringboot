@@ -6,6 +6,7 @@ export interface GetCanvasFeedParams {
   size?: number;
   genre?: string;
   sort?: "latest" | "popular" | "random" | "discover" | "shuffle";
+  seed?: number | string;
 }
 
 export interface ShortsLikeStatus {
@@ -16,9 +17,10 @@ export interface ShortsLikeStatus {
 
 export const canvasService = {
   async getFeed(params: GetCanvasFeedParams = {}): Promise<PaginatedResponse<Song>> {
-    const { page = 0, size = 10, genre, sort = "random" } = params;
+    const { page = 0, size = 10, genre, sort = "random", seed } = params;
     const queryParams: Record<string, any> = { page, size, sort };
     if (genre && genre !== "All") queryParams.genre = genre;
+    if (seed !== undefined) queryParams._t = seed;
 
     const response = await api.get<PaginatedResponse<Song>>("/canvas/feed", {
       params: queryParams,

@@ -41,9 +41,9 @@ public class CanvasApiController {
             @RequestParam(defaultValue = "latest") String sort
     ) {
         String userId = currentUser != null ? currentUser.getId() : null;
-        // If sorting randomly on refresh, do not cache client-side so each fetch is fresh
+        // If sorting randomly on refresh, do not cache anywhere (no-store) so each fetch is completely fresh
         CacheControl cache = "random".equalsIgnoreCase(sort) || "discover".equalsIgnoreCase(sort)
-                ? CacheControl.noCache()
+                ? CacheControl.noStore()
                 : CacheControl.maxAge(5, TimeUnit.MINUTES).cachePublic();
 
         return ResponseEntity.ok()
