@@ -46,10 +46,16 @@ export const canvasApi = {
     return request<ShortsLikeStatus>(`/api/canvas/${songId}/like`);
   },
 
-  getLikedShorts: async (page = 0, size = 50): Promise<number[]> => {
+  getLikedShorts: async (): Promise<string[]> => {
     try {
-      const res = await request<{ content: number[] }>(`/api/canvas/liked?page=${page}&size=${size}`);
-      return res?.content || [];
+      const res = await request<any>("/api/canvas/liked");
+      if (Array.isArray(res)) {
+        return res.map(String);
+      }
+      if (Array.isArray(res?.content)) {
+        return res.content.map(String);
+      }
+      return [];
     } catch {
       return [];
     }

@@ -95,7 +95,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
   // 1. Fetch User's Liked Shorts to initialize like state
   const { data: initialLikedIds } = useQuery({
     queryKey: ["user-liked-shorts-feed"],
-    queryFn: () => canvasService.getLikedShorts(0, 100),
+    queryFn: () => canvasService.getLikedShorts(),
     staleTime: 60 * 1000,
   });
 

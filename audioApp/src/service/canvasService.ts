@@ -48,12 +48,16 @@ export const canvasService = {
     return response.data;
   },
 
-  async getLikedShorts(page = 0, size = 50): Promise<number[]> {
+  async getLikedShorts(): Promise<string[]> {
     try {
-      const response = await api.get<{ content: number[] }>("/canvas/liked", {
-        params: { page, size },
-      });
-      return response.data?.content || [];
+      const response = await api.get<any>("/canvas/liked");
+      if (Array.isArray(response.data)) {
+        return response.data.map(String);
+      }
+      if (Array.isArray(response.data?.content)) {
+        return response.data.content.map(String);
+      }
+      return [];
     } catch (e) {
       console.warn("[canvasService] getLikedShorts error:", e);
       return [];

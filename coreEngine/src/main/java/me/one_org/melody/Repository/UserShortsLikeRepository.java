@@ -17,7 +17,7 @@ public interface UserShortsLikeRepository extends JpaRepository<UserShortsLike, 
     @Query("SELECT COUNT(l) FROM UserShortsLike l WHERE l.song.id = :songId")
     long countBySongId(@Param("songId") String songId);
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("DELETE FROM UserShortsLike l WHERE l.userId = :userId AND l.song.id = :songId")
     int deleteByUserIdAndSongId(@Param("userId") String userId, @Param("songId") String songId);
 
