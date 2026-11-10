@@ -13,3 +13,4 @@ CREATE TABLE IF NOT EXISTS user_shorts_likes (
 
 CREATE INDEX IF NOT EXISTS idx_shorts_like_user ON user_shorts_likes(user_id);
 CREATE INDEX IF NOT EXISTS idx_shorts_like_song ON user_shorts_likes(song_id);
+
