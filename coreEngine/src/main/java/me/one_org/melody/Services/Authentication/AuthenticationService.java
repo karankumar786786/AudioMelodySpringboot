@@ -60,7 +60,7 @@ public class AuthenticationService {
     private final StringRedisTemplate redisTemplate;
 
     private static final String ROTATED_TOKEN_PREFIX = "auth:rotated:";
-    private static final Duration ROTATION_GRACE_DURATION = Duration.ofSeconds(60);
+    private static final Duration ROTATION_GRACE_DURATION = Duration.ofMinutes(15);
     private final Map<String, RotatedTokenGraceEntry> localGraceCache = new ConcurrentHashMap<>();
 
     private record RotatedTokenGraceEntry(String sessionId, Instant expiresAt) {}

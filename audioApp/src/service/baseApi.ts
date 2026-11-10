@@ -2,6 +2,7 @@ import axios, { InternalAxiosRequestConfig } from "axios";
 import { store } from "@/store/hook";
 import { saveAuthToken, clearAuthToken } from "@/store/authSlice";
 import { AuthStore } from "@/storage";
+import { Device } from "@/storage/Device";
 
 interface CustomRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -63,24 +64,66 @@ api.interceptors.response.use(
 
       originalRequest._retry = true;
 
-      const refreshToken = store.getState().auth.refreshToken;
+      // 1. Get refreshToken with fallback to SecureStore
+      let refreshToken = store.getState().auth.refreshToken;
+      if (!refreshToken) {
+        try {
+          const stored = await AuthStore.getAuthTokenFromSecureStorage();
+          refreshToken = stored?.refreshToken;
+        } catch {}
+      }
+
       if (!refreshToken) {
         await store.dispatch(clearAuthToken());
         return Promise.reject(error);
       }
 
-      // Handle concurrent requests by sharing a single refresh promise
+      // 2. Handle concurrent requests by sharing a single refresh promise
       if (!refreshTokenPromise) {
         refreshTokenPromise = (async () => {
           try {
             const authBaseUrl = (api.defaults.baseURL || "http://localhost:8080").replace(/\/api\/?$/, "");
-            const deviceId = store.getState().device.deviceId;
-            const res = await axios.post<{
-              accessToken: string;
-              refreshToken?: string;
-            }>(`${authBaseUrl}/auth/refresh-token`, { refreshToken, deviceId });
 
-            if (res.data?.accessToken) {
+            let deviceId = store.getState().device.deviceId;
+            if (!deviceId) {
+              try {
+                deviceId = await Device.getId();
+              } catch {}
+            }
+
+            if (!deviceId) {
+              console.warn("[baseApi] No device ID available for refresh token");
+              return null;
+            }
+
+            // Retry up to 2 times for transient network drops (e.g. WiFi reconnect on phone wake)
+            let res: any = null;
+            for (let attempt = 1; attempt <= 2; attempt++) {
+              try {
+                res = await axios.post<{
+                  accessToken: string;
+                  refreshToken?: string;
+                }>(
+                  `${authBaseUrl}/auth/refresh-token`,
+                  { refreshToken, deviceId },
+                  { timeout: 15000 }
+                );
+                break;
+              } catch (postErr: any) {
+                const status = postErr.response?.status;
+                // If it's an explicit 401 or 403, stop retrying immediately
+                if (status === 401 || status === 403) {
+                  throw postErr;
+                }
+                if (attempt === 1) {
+                  await new Promise((resolve) => setTimeout(resolve, 500));
+                } else {
+                  throw postErr;
+                }
+              }
+            }
+
+            if (res?.data?.accessToken) {
               const newAccessToken = res.data.accessToken;
               const newRefreshToken = res.data.refreshToken || refreshToken;
 
@@ -93,11 +136,18 @@ api.interceptors.response.use(
 
               return newAccessToken;
             } else {
-              await store.dispatch(clearAuthToken());
               return null;
             }
-          } catch (refreshError) {
-            await store.dispatch(clearAuthToken());
+          } catch (refreshError: any) {
+            const status = refreshError.response?.status;
+            // ONLY log the user out if the server explicitly confirmed the session/token is invalid or revoked (401 or 403)
+            // DO NOT clear auth tokens on transient network drops, timeouts, or 500 errors!
+            if (status === 401 || status === 403) {
+              console.warn("[baseApi] Refresh token rejected by server (401/403). Clearing auth session.");
+              await store.dispatch(clearAuthToken());
+            } else {
+              console.warn("[baseApi] Transient network/server error during refresh. Retaining tokens.", refreshError?.message);
+            }
             return null;
           } finally {
             refreshTokenPromise = null;

@@ -48,8 +48,8 @@ class JwtUtilTest {
     }
 
     @Test
-    @DisplayName("Should generate access token with ~5 minute lifetime and valid claims")
-    void shouldGenerateAccessTokenWithFiveMinuteLifetime() {
+    @DisplayName("Should generate access token with ~1 hour lifetime and valid claims")
+    void shouldGenerateAccessTokenWithOneHourLifetime() {
         User user = User.builder()
                 .id("user-123")
                 .userName("karan")
@@ -70,7 +70,8 @@ class JwtUtilTest {
         Date exp = jwtUtil.getExpirationDate(token);
         assertThat(exp).isAfter(new Date());
         long remaining = jwtUtil.getRemainingSeconds(token);
-        assertThat(remaining).isBetween(280L, 305L);
+        long oneHourInSeconds = Duration.ofHours(1).toSeconds();
+        assertThat(remaining).isBetween(oneHourInSeconds - 30L, oneHourInSeconds + 5L);
     }
 
     @Test
