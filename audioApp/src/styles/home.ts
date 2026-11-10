@@ -36,6 +36,24 @@ export const homeStyles = StyleSheet.create({
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 10,
+  },
+  shortsHeaderBtn: {
+    borderRadius: radius.full,
+    overflow: "hidden",
+  },
+  shortsHeaderGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 11,
+    paddingVertical: 6,
+    borderRadius: radius.full,
+  },
+  shortsHeaderText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.3,
   },
   avatar: {
     width: 38,

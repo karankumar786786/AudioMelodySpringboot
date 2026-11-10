@@ -64,6 +64,22 @@ export default function AuthenticatedLayout() {
           animation: "fade_from_bottom"
         }}
       />
+      <Stack.Screen
+        name="canvas/index"
+        options={{
+          headerShown: false,
+          presentation: "fullScreenModal",
+          animation: "slide_from_bottom",
+        }}
+      />
+      <Stack.Screen
+        name="shorts"
+        options={{
+          headerShown: false,
+          presentation: "fullScreenModal",
+          animation: "slide_from_bottom",
+        }}
+      />
     </Stack>
   );
 }

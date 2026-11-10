@@ -15,6 +15,7 @@ export * from "./home/PlaylistCard";
 export * from "./home/QuickPickCard";
 export * from "./home/JumpBackInCard";
 export * from "./home/WatchVideoCard";
+export * from "./home/ShortsPreviewCard";
 export * from "./home/SongRowItem";
 export * from "./home/TrendingSongCard";
 export * from "./player/FullVideoPlayerModal";

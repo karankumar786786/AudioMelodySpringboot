@@ -20,14 +20,17 @@ import {
 import { useRouter } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
 import { AppDispatch, AppState, loadUserProfile } from "@/store";
 import { playWithSimilarSongs } from "@/store/queueActions";
-import { homeService, albumService, userService, videoService } from "@/service";
+import { homeService, albumService, userService, videoService, canvasService } from "@/service";
 import { audioPlayerService } from "@/service/audioPlayerService";
 import {
   FeaturedSongsCarousel,
   JumpBackInCard,
   WatchVideoCard,
+  ShortsPreviewCard,
   SongRowItem,
   AlbumCard,
   ArtistCircleCard,
@@ -47,7 +50,7 @@ const TAB_BAR_HEIGHT = 64;
 const MINI_PLAYER_HEIGHT = 74;
 const EXTRA_BREATHING_ROOM = 32;
 
-const CATEGORIES = ["All", "Featured", "Videos", "Albums"] as const;
+const CATEGORIES = ["All", "Shorts", "Featured", "Videos", "Albums"] as const;
 type Category = (typeof CATEGORIES)[number];
 
 export default function HomeScreen() {
@@ -135,6 +138,16 @@ export default function HomeScreen() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // 5c. Canvas Shorts (Vertical video loops)
+  const {
+    data: canvasData,
+    refetch: refetchCanvas,
+  } = useQuery({
+    queryKey: ["home-canvas-shorts"],
+    queryFn: () => canvasService.getFeed({ page: 0, size: 10 }),
+    staleTime: 5 * 60 * 1000,
+  });
+
   // 6. Infinite Discover Feed (Discover More)
   const {
     data: feedData,
@@ -202,6 +215,27 @@ export default function HomeScreen() {
     return withVideo.slice(0, 10);
   }, [videosData?.content, featuredSongs, trendingSongs, allSongs]);
 
+  // Canvas Shorts: queried from canvas feed, with catalog video fallback
+  const canvasSongs = useMemo(() => {
+    if (canvasData?.content && canvasData.content.length > 0) {
+      return canvasData.content;
+    }
+
+    const pool = [...(videosData?.content || []), ...allSongs, ...featuredSongs, ...trendingSongs];
+    const seen = new Set<string>();
+    const result: Song[] = [];
+
+    for (const song of pool) {
+      if (!song || !song.id || seen.has(song.id)) continue;
+      if (song.videoKey || song.fullVideoKey) {
+        seen.add(song.id);
+        result.push(song);
+      }
+    }
+
+    return result.slice(0, 10);
+  }, [canvasData?.content, videosData?.content, allSongs, featuredSongs, trendingSongs]);
+
   // Popular Albums: deduplicate and cap to 10
   const displayAlbums = useMemo(() => {
     const albumMap = new Map<string, any>();
@@ -257,6 +291,7 @@ export default function HomeScreen() {
       refetchAlbums(),
       refetchArtists(),
       refetchVideos(),
+      refetchCanvas(),
       refetchFeed(),
     ]);
     setRefreshing(false);
@@ -297,6 +332,10 @@ export default function HomeScreen() {
 
   const handleSelectCategory = (cat: Category) => {
     hapticFeedback.selection();
+    if (cat === "Shorts") {
+      router.push("/(authenticated)/canvas" as any);
+      return;
+    }
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setSelectedCategory(cat);
   };
@@ -346,6 +385,25 @@ export default function HomeScreen() {
           </View>
 
           <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.shortsHeaderBtn}
+              onPress={() => {
+                hapticFeedback.light();
+                router.push("/(authenticated)/canvas" as any);
+              }}
+              activeOpacity={0.8}
+            >
+              <LinearGradient
+                colors={["#FF2D55", "#9B51E0"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.shortsHeaderGradient}
+              >
+                <Ionicons name="flash" size={12} color="#FFFFFF" style={{ marginRight: 4 }} />
+                <Text style={styles.shortsHeaderText}>Shorts</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.avatar}
               onPress={() => {
@@ -449,6 +507,38 @@ export default function HomeScreen() {
                     );
                   })}
                 </View>
+              </View>
+            ) : null}
+
+            {/* 3b. Canvas Shorts Shelf (Vertical looping visual cards) */}
+            {show("Shorts") && canvasSongs.length > 0 ? (
+              <View style={styles.section}>
+                <SectionHeader
+                  title="Canvas Shorts"
+                  subtitle="Looping visual vertical clips"
+                  onSeeAll={() => router.push("/(authenticated)/canvas" as any)}
+                  seeAllText="Feed"
+                />
+                <FlatList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.horizontalList}
+                  data={canvasSongs}
+                  keyExtractor={(item, index) =>
+                    item?.id ? `canvas-short-${item.id}-${index}` : `short-${index}`
+                  }
+                  renderItem={({ item }) => (
+                    <ShortsPreviewCard
+                      song={item}
+                      onPress={() => {
+                        router.push({
+                          pathname: "/(authenticated)/canvas" as any,
+                          params: { songId: item.id },
+                        });
+                      }}
+                    />
+                  )}
+                />
               </View>
             ) : null}
 
