@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { lyricsService } from "@/service/lyricsService";
 
 export interface LyricEntry {
   text: string;
@@ -41,8 +42,26 @@ async function fetchLyrics(
   input: string | number | undefined | null,
   trackTitle?: string,
   artistName?: string,
-  duration?: number
+  duration?: number,
+  songId?: string
 ): Promise<{ transcriptions: LyricEntry[]; plainLyrics: string | null }> {
+  // 1. Primary: Query our dedicated backend /api/lyrics/{songId} gateway (Redis cached, sub-10ms)
+  if (songId) {
+    try {
+      const backendLyrics = await lyricsService.getLyrics(songId);
+      if (backendLyrics) {
+        if (backendLyrics.syncedLyrics && typeof backendLyrics.syncedLyrics === "string") {
+          return { transcriptions: parseLrcToEntries(backendLyrics.syncedLyrics), plainLyrics: null };
+        }
+        if (backendLyrics.plainLyrics && typeof backendLyrics.plainLyrics === "string") {
+          return { transcriptions: [], plainLyrics: backendLyrics.plainLyrics };
+        }
+      }
+    } catch {
+      // Fallback silently to direct client lookup
+    }
+  }
+
   const query = input ? String(input).trim() : "";
   const isValidId = query !== "" && query !== "0" && query !== "null" && query !== "undefined";
 
@@ -129,17 +148,18 @@ export function useLyrics(
   currentTime: number,
   trackTitle?: string,
   artistName?: string,
-  duration?: number
+  duration?: number,
+  songId?: string
 ) {
   const idStr = lrclibId ? String(lrclibId).trim() : "";
   const isValidId = idStr !== "" && idStr !== "0" && idStr !== "null" && idStr !== "undefined";
-  const hasFallback = Boolean(trackTitle && artistName);
-  const cacheKey = isValidId ? idStr : `${trackTitle || ""}-${artistName || ""}`;
+  const hasFallback = Boolean(trackTitle && artistName) || Boolean(songId);
+  const cacheKey = songId ? `song-${songId}` : isValidId ? idStr : `${trackTitle || ""}-${artistName || ""}`;
 
   const { data, isLoading } = useQuery({
     queryKey: ["lyrics", cacheKey],
-    queryFn: () => fetchLyrics(isValidId ? idStr : undefined, trackTitle, artistName, duration),
-    enabled: Boolean(isValidId || hasFallback),
+    queryFn: () => fetchLyrics(isValidId ? idStr : undefined, trackTitle, artistName, duration, songId),
+    enabled: Boolean(isValidId || hasFallback || songId),
     staleTime: 1000 * 60 * 60 * 24, // 24 hours
     gcTime: 1000 * 60 * 60 * 48,
     retry: 1,

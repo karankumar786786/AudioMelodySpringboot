@@ -54,7 +54,8 @@ export default function LyricsScreen() {
     currentTime,
     activeSong?.title,
     activeSong?.artistName,
-    activeSong?.duration
+    activeSong?.duration,
+    activeSong?.id
   );
 
   const scrollViewRef = useRef<any>(null);
