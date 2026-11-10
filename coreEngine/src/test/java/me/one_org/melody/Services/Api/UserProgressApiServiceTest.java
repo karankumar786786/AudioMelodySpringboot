@@ -11,7 +11,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import me.one_org.melody.Dto.Controllers.Api.UpdateProgressRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.UserProgressDto;
@@ -37,8 +36,6 @@ class UserProgressApiServiceTest {
 
     @InjectMocks
     private UserProgressApiService progressApiService;
-
-    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
     @DisplayName("saveProgress should compute percentage and save to Redis")

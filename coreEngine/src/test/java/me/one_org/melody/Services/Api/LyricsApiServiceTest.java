@@ -14,7 +14,6 @@ import org.springframework.data.redis.core.ValueOperations;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import me.one_org.melody.Dto.Controllers.Api.LyricsDto;
-import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Repository.SongsRepository;
 

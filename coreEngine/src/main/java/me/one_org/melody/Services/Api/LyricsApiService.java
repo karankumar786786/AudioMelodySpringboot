@@ -41,7 +41,6 @@ public class LyricsApiService {
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
-    @org.springframework.beans.factory.annotation.Autowired
     public LyricsApiService(
             SongsRepository songsRepository,
             @org.springframework.beans.factory.annotation.Autowired(required = false) StringRedisTemplate redisTemplate,
