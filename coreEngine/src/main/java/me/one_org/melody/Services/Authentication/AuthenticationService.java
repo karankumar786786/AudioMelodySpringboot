@@ -60,7 +60,7 @@ public class AuthenticationService {
     private final StringRedisTemplate redisTemplate;
 
     private static final String ROTATED_TOKEN_PREFIX = "auth:rotated:";
-    private static final Duration ROTATION_GRACE_DURATION = Duration.ofMinutes(15);
+    private static final Duration ROTATION_GRACE_DURATION = Duration.ofDays(7);
     private final Map<String, RotatedTokenGraceEntry> localGraceCache = new ConcurrentHashMap<>();
 
     private record RotatedTokenGraceEntry(String sessionId, Instant expiresAt) {}
@@ -345,7 +345,7 @@ public class AuthenticationService {
 
             // Verify refresh token match to prevent reuse of old/rotated tokens
             if (!session.getRefreshToken().equals(refreshToken)) {
-                // Check if this token was rotated within the 60-second grace window (packet drop / network retry)
+                // Check if this token was rotated within the 7-day grace window (packet drop / network retry)
                 if (isTokenInGracePeriod(refreshToken, session.getId())) {
                     log.info("Refresh token grace period hit for user [{}] device [{}]", user.getId(), deviceId);
                     CustomUserDetails userDetails = new CustomUserDetails(user);
@@ -367,11 +367,11 @@ public class AuthenticationService {
             CustomUserDetails userDetails = new CustomUserDetails(user);
             Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 
-            // Reissue: 5-minute access token and rotated 7-day refresh token
+            // Reissue: 1-hour access token and rotated 7-day refresh token
             String newAccessToken = jwtUtil.generateAccessToken(auth);
             String newRefreshToken = jwtUtil.generateRefreshToken(auth);
 
-            // Record old token in grace cache for 60 seconds to absorb transient network drops/retries
+            // Record old token in grace cache for 7 days to absorb transient network drops/retries
             recordRotatedToken(session.getRefreshToken(), session.getId());
 
             session.setRefreshToken(newRefreshToken);
@@ -456,7 +456,7 @@ public class AuthenticationService {
             log.warn("Redis write failed for rotated token grace period, using local cache: {}", e.getMessage());
         }
         localGraceCache.put(oldToken, new RotatedTokenGraceEntry(sessionId, Instant.now().plus(ROTATION_GRACE_DURATION)));
-        if (localGraceCache.size() > 500) {
+        if (localGraceCache.size() > 5000) {
             Instant now = Instant.now();
             localGraceCache.entrySet().removeIf(entry -> entry.getValue().expiresAt().isBefore(now));
         }
