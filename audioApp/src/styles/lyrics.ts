@@ -131,20 +131,14 @@ export const lyricsStyles = StyleSheet.create({
   },
   floatingSyncText: { color: "#000000", fontSize: 13, fontWeight: "800" },
 
-  // Floating Frosted Playback Dock
-  dockFloatingWrapper: {
-    marginHorizontal: SIDE,
-    marginBottom: 8,
-    borderRadius: 24,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.14)",
-  },
-  playbackDockBlur: {
-    paddingTop: 12,
-    paddingBottom: 14,
-    paddingHorizontal: 16,
-    backgroundColor: "rgba(10, 10, 14, 0.65)",
+  // Full-width Bottom Playback Dock
+  playbackDock: {
+    width: "100%",
+    paddingTop: 14,
+    paddingHorizontal: 20,
+    borderWidth: 0,
+    borderColor: "transparent",
+    backgroundColor: "transparent",
   },
   progressRow: {
     flexDirection: "row",
@@ -200,10 +194,6 @@ export const lyricsStyles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "#FFFFFF",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
     elevation: 4,
   },
 });

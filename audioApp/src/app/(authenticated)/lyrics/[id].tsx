@@ -14,7 +14,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { BlurView } from "expo-blur";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppState } from "@/store";
 import { homeService, audioPlayerService } from "@/service";
@@ -213,7 +212,7 @@ export default function LyricsScreen() {
         </View>
       ) : null}
 
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
@@ -318,74 +317,74 @@ export default function LyricsScreen() {
           ) : null}
         </View>
 
-        {/* Floating Frosted Playback Dock */}
+        {/* Full-width Bottom Playback Dock */}
         <View
           style={[
-            styles.dockFloatingWrapper,
-            { marginBottom: Math.max(12, insets.bottom) },
+            styles.playbackDock,
+            {
+              paddingBottom: Math.max(16, insets.bottom + 8),
+            },
           ]}
         >
-          <BlurView intensity={75} tint="dark" style={styles.playbackDockBlur}>
-            <View style={styles.progressRow}>
-              <Text style={styles.dockTimeText}>{formatDuration(displayTime)}</Text>
-              <View
-                style={styles.dockTrackTouchArea}
-                onLayout={(e) => {
-                  const w = e.nativeEvent.layout.width;
-                  if (w > 0) setProgressBarWidth(w);
-                }}
-                onStartShouldSetResponder={() => true}
-                onMoveShouldSetResponder={() => true}
-                onResponderGrant={handleSeekStart}
-                onResponderMove={handleSeekMove}
-                onResponderRelease={handleSeekEnd}
-                onResponderTerminate={handleSeekCancel}
-                onResponderTerminationRequest={() => false}
-              >
-                <View style={[styles.dockTrack, isScrubbing && styles.dockTrackActive]}>
-                  <View style={[styles.dockFill, { width: `${progressPercent}%` }]} />
-                </View>
+          <View style={styles.progressRow}>
+            <Text style={styles.dockTimeText}>{formatDuration(displayTime)}</Text>
+            <View
+              style={styles.dockTrackTouchArea}
+              onLayout={(e) => {
+                const w = e.nativeEvent.layout.width;
+                if (w > 0) setProgressBarWidth(w);
+              }}
+              onStartShouldSetResponder={() => true}
+              onMoveShouldSetResponder={() => true}
+              onResponderGrant={handleSeekStart}
+              onResponderMove={handleSeekMove}
+              onResponderRelease={handleSeekEnd}
+              onResponderTerminate={handleSeekCancel}
+              onResponderTerminationRequest={() => false}
+            >
+              <View style={[styles.dockTrack, isScrubbing && styles.dockTrackActive]}>
+                <View style={[styles.dockFill, { width: `${progressPercent}%` }]} />
               </View>
-              <Text style={styles.dockTimeText}>{formatDuration(effectiveDuration)}</Text>
             </View>
+            <Text style={styles.dockTimeText}>{formatDuration(effectiveDuration)}</Text>
+          </View>
 
-            <View style={styles.controlsRow}>
-              <TouchableOpacity
-                hitSlop={14}
-                onPress={handlePrev}
-                style={styles.dockIconBtn}
-                activeOpacity={0.75}
-              >
-                <Ionicons name="play-skip-back" size={22} color="#FFFFFF" />
-              </TouchableOpacity>
+          <View style={styles.controlsRow}>
+            <TouchableOpacity
+              hitSlop={14}
+              onPress={handlePrev}
+              style={styles.dockIconBtn}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="play-skip-back" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.dockPlayBtn}
-                activeOpacity={0.88}
-                onPress={handleTogglePlay}
-              >
-                {isLoading ? (
-                  <ActivityIndicator size="small" color="#000000" />
-                ) : (
-                  <Ionicons
-                    name={isPlaying ? "pause" : "play"}
-                    size={28}
-                    color="#000000"
-                    style={isPlaying ? undefined : { marginLeft: 2 }}
-                  />
-                )}
-              </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.dockPlayBtn}
+              activeOpacity={0.88}
+              onPress={handleTogglePlay}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color="#000000" />
+              ) : (
+                <Ionicons
+                  name={isPlaying ? "pause" : "play"}
+                  size={28}
+                  color="#000000"
+                  style={isPlaying ? undefined : { marginLeft: 2 }}
+                />
+              )}
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                hitSlop={14}
-                onPress={handleNext}
-                style={styles.dockIconBtn}
-                activeOpacity={0.75}
-              >
-                <Ionicons name="play-skip-forward" size={22} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-          </BlurView>
+            <TouchableOpacity
+              hitSlop={14}
+              onPress={handleNext}
+              style={styles.dockIconBtn}
+              activeOpacity={0.75}
+            >
+              <Ionicons name="play-skip-forward" size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
     </View>
