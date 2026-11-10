@@ -6,6 +6,7 @@ import { playerStore, playerActions } from "@/store/player.store";
 import { getImageUrl } from "@/lib/image-utils";
 import { getSolidBgFromImage } from "@/lib/color-utils";
 import { toast } from "sonner";
+import { progressApi } from "@/lib/api/progress";
 
 // Overlays
 import { PlayerLyricsView } from "../PlayerLyricsView";
@@ -87,6 +88,18 @@ export function HlsMusicPlayer() {
         if (!isNaN(t) && t > 0) {
           setLocalTime(t);
         }
+      } else {
+        // Cross-device resume fallback from Redis
+        progressApi.getResumeState().then((state) => {
+          if (state?.song && !playerStore.state.currentSong) {
+            playerActions.playSong(state.song);
+            playerActions.setIsPlaying(false);
+            if (state.currentTime) {
+              setLocalTime(state.currentTime);
+              playerActions.setCurrentTime(state.currentTime);
+            }
+          }
+        }).catch(() => {});
       }
     }
   }, []);

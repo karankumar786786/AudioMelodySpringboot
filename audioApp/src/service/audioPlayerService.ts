@@ -24,6 +24,7 @@ import {
 import { PlayerStore } from "@/storage/PlayerStore";
 import { audioPlayerPool, resolveStreamUrl } from "./audioPlayerPool";
 import { interactionService } from "./interactionService";
+import { userProgressService } from "./userProgressService";
 
 export class AudioPlayerService {
   private pool = audioPlayerPool;
@@ -38,6 +39,7 @@ export class AudioPlayerService {
   private currentSeekId = 0;
   private seekTimeout: any = null;
   private lastPositionSaveTimestamp = 0;
+  private lastServerProgressTimestamp = 0;
   private unsubscribeQueue: (() => void) | null = null;
   private lastPlayedSongId: string | null = null;
   private lastPlayedIndex: number = -1;
@@ -347,7 +349,7 @@ export class AudioPlayerService {
       }
     }
 
-    // Save playback position periodically
+    // Save playback position periodically (local + server sync)
     if (
       status.playing &&
       typeof status.currentTime === "number" &&
@@ -356,6 +358,10 @@ export class AudioPlayerService {
       if (Date.now() - this.lastPositionSaveTimestamp > 5000) {
         this.lastPositionSaveTimestamp = Date.now();
         PlayerStore.savePlaybackPosition(status.currentTime);
+      }
+      if (Date.now() - this.lastServerProgressTimestamp > 20000) {
+        this.lastServerProgressTimestamp = Date.now();
+        this.syncServerProgress(status.currentTime, status.duration);
       }
     }
 
@@ -641,6 +647,7 @@ export class AudioPlayerService {
     store.dispatch(setIsLoading(false));
     if (typeof player.currentTime === "number" && player.currentTime >= 0) {
       PlayerStore.savePlaybackPosition(player.currentTime);
+      this.syncServerProgress(player.currentTime, player.duration);
     }
     this.refreshLockScreen();
   }
@@ -898,6 +905,17 @@ export class AudioPlayerService {
       interactionService.recordPlay(this.currentPlayingSong.id, percentage);
       this.hasReportedListen = true;
     }
+  }
+
+  private syncServerProgress(currentTime: number, duration?: number): void {
+    const songId = this.currentPlayingSong?.id;
+    if (!songId || currentTime < 2) return;
+    const dur = duration && duration > 0 ? duration : this.currentPlayingSong?.duration || 0;
+    userProgressService.saveProgress({
+      songId,
+      currentTime: Math.round(currentTime * 10) / 10,
+      duration: dur,
+    }).catch(() => {});
   }
 }
 

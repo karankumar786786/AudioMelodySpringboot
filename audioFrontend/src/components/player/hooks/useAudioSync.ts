@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback, MutableRefObject } from "react";
 import { playerActions, playerStore } from "../../../store/player.store";
 import { useAppSelector } from "@/store/hooks";
 import { toast } from "sonner";
+import { progressApi } from "@/lib/api/progress";
 
 export function useAudioSync(
   audioElement: HTMLAudioElement | null,
@@ -288,6 +289,16 @@ export function useAudioSync(
           "last_current_time",
           audioElement.currentTime.toFixed(2),
         );
+      }
+
+      // Sync progress to backend for cross-device resume
+      const curSong = currentSongRef.current;
+      if (curSong?.id && isFinite(audioElement.currentTime) && audioElement.currentTime > 2) {
+        progressApi.saveProgress({
+          songId: curSong.id,
+          currentTime: Math.round(audioElement.currentTime * 10) / 10,
+          duration: isFinite(audioElement.duration) && audioElement.duration > 0 ? audioElement.duration : curSong.duration || 0,
+        }).catch(() => {});
       }
     };
 

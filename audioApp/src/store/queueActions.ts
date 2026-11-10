@@ -26,6 +26,7 @@ import { audioPlayerService } from "@/service/audioPlayerService";
 import { homeService } from "@/service/homeService";
 import { interactionService } from "@/service/interactionService";
 import { similarityService } from "@/service/similarityService";
+import { userProgressService } from "@/service/userProgressService";
 
 let inFlightRefillPromise: Promise<void> | null = null;
 
@@ -486,6 +487,24 @@ export const loadLastPlaybackState =
           );
           (dispatch as any)(refillQueue(true));
         }
+      } else {
+        // Fallback: check cross-device server resume state from Redis
+        try {
+          const serverResume = await userProgressService.getResumeState();
+          if (serverResume?.song) {
+            const hydrated = mapToPlayerSong(serverResume.song);
+            audioPlayerService.setLastPlayed(hydrated.id, 0);
+            dispatch(setCurrentSong(hydrated));
+            const resumePos = typeof serverResume.currentTime === "number" ? serverResume.currentTime : 0;
+            dispatch(setCurrentTime(resumePos));
+            if (serverResume.duration) {
+              dispatch(setDuration(serverResume.duration));
+            }
+            dispatch(setIsPlaying(false));
+            dispatch(setQueue({ queue: [hydrated], index: 0 }));
+            await audioPlayerService.primeRestoredPlayback(hydrated, resumePos);
+          }
+        } catch {}
       }
     } catch (err) {
       console.warn("[PlayerStore] Failed to restore playback state:", err);
