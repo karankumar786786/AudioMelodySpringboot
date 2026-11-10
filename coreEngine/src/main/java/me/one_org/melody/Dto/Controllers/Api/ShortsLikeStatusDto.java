@@ -5,3 +5,4 @@ public record ShortsLikeStatusDto(
         boolean isLiked,
         long count
 ) {}
+
