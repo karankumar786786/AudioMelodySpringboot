@@ -631,7 +631,10 @@ export function FullVideoPlayerModal({
             </TouchableOpacity>
 
             <View style={styles.titleInfo}>
-              <MarqueeText style={styles.title} containerStyle={{ maxWidth: "100%" }}>
+              <MarqueeText
+                style={[styles.title, { textAlign: "center" }]}
+                containerStyle={{ alignSelf: "stretch" }}
+              >
                 {title}
               </MarqueeText>
               <Text style={styles.artist} numberOfLines={1}>
@@ -923,7 +926,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: -0.2,
   },
-  titleInfo: { flex: 1, alignItems: "center", paddingHorizontal: 16 },
+  titleInfo: { flex: 1, alignItems: "center", paddingHorizontal: 16, minWidth: 0, overflow: "hidden" },
   title: {
     color: "#FFFFFF",
     fontSize: 16,

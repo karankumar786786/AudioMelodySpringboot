@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, memo } from "react";
+import React, { useEffect, useRef, useState, memo, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,17 +9,20 @@ import {
   TextStyle,
   ViewStyle,
   LayoutChangeEvent,
+  ScrollView,
+  AppState,
+  AppStateStatus,
 } from "react-native";
 
 export interface MarqueeTextProps {
   children?: React.ReactNode;
   style?: StyleProp<TextStyle>;
   containerStyle?: StyleProp<ViewStyle>;
-  /** Scrolling speed in pixels per second (default: 32) */
+  /** Scrolling speed in pixels per second (default: 34) */
   speed?: number;
-  /** Delay in milliseconds before scrolling starts (default: 2000) */
+  /** Delay in milliseconds before scrolling starts (default: 1400) */
   delay?: number;
-  /** Gap in pixels between repeated text instances in loop (default: 36) */
+  /** Gap in pixels between repeated text instances in loop (default: 40) */
   gap?: number;
   /** When true, disables marquee animation and behaves like standard text */
   disabled?: boolean;
@@ -29,33 +32,39 @@ export const MarqueeText = memo(function MarqueeText({
   children,
   style,
   containerStyle,
-  speed = 32,
-  delay = 2000,
-  gap = 36,
+  speed = 34,
+  delay = 1400,
+  gap = 40,
   disabled = false,
 }: MarqueeTextProps) {
-  const text = typeof children === "string" ? children : String(children || "");
+  const text = typeof children === "string" ? children : children ? String(children) : "";
 
   const [containerWidth, setContainerWidth] = useState(0);
   const [textWidth, setTextWidth] = useState(0);
 
   const translateX = useRef(new Animated.Value(0)).current;
 
-  const shouldScroll = !disabled && containerWidth > 0 && textWidth > containerWidth + 2;
+  // Reset measurements when text string changes
+  useEffect(() => {
+    setTextWidth(0);
+    translateX.setValue(0);
+  }, [text, translateX]);
 
-  const handleContainerLayout = (e: LayoutChangeEvent) => {
+  const handleContainerLayout = useCallback((e: LayoutChangeEvent) => {
     const w = Math.round(e.nativeEvent.layout.width);
-    if (w > 0 && w !== containerWidth) {
-      setContainerWidth(w);
+    if (w > 0) {
+      setContainerWidth((prev) => (Math.abs(prev - w) > 1 ? w : prev));
     }
-  };
+  }, []);
 
-  const handleTextLayout = (e: LayoutChangeEvent) => {
-    const w = Math.round(e.nativeEvent.layout.width);
-    if (w > 0 && w !== textWidth) {
-      setTextWidth(w);
+  const handleTextLayout = useCallback((e: LayoutChangeEvent) => {
+    const w = Math.ceil(e.nativeEvent.layout.width);
+    if (w > 0) {
+      setTextWidth((prev) => (Math.abs(prev - w) > 1 ? w : prev));
     }
-  };
+  }, []);
+
+  const shouldScroll = !disabled && containerWidth > 0 && textWidth > containerWidth + 4;
 
   useEffect(() => {
     if (!shouldScroll) {
@@ -64,64 +73,62 @@ export const MarqueeText = memo(function MarqueeText({
     }
 
     let isMounted = true;
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-    let animation: Animated.CompositeAnimation | null = null;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let anim: Animated.CompositeAnimation | null = null;
 
     const scrollDistance = textWidth + gap;
-    const duration = Math.max(1500, (scrollDistance / Math.max(1, speed)) * 1000);
+    const duration = (scrollDistance / Math.max(10, speed)) * 1000;
 
-    const startAnimation = () => {
+    const runCycle = () => {
       if (!isMounted) return;
       translateX.setValue(0);
 
-      timeoutId = setTimeout(() => {
+      timer = setTimeout(() => {
         if (!isMounted) return;
-        animation = Animated.timing(translateX, {
+
+        anim = Animated.timing(translateX, {
           toValue: -scrollDistance,
           duration,
           easing: Easing.linear,
           useNativeDriver: true,
         });
 
-        animation.start(({ finished }) => {
-          if (finished && isMounted) {
-            startAnimation();
+        anim.start(({ finished }) => {
+          if (!isMounted) return;
+          if (finished) {
+            // Instantly snap to 0 (visually seamless as duplicate text has reached x=0)
+            translateX.setValue(0);
+            // Brief pause before scrolling again
+            timer = setTimeout(() => {
+              if (isMounted) runCycle();
+            }, 1000);
           }
         });
       }, delay);
     };
 
-    startAnimation();
+    runCycle();
+
+    // Re-trigger animation when app returns from background / lockscreen
+    const appStateSub = AppState.addEventListener("change", (nextState: AppStateStatus) => {
+      if (nextState === "active" && isMounted && shouldScroll) {
+        if (timer) clearTimeout(timer);
+        if (anim) anim.stop();
+        runCycle();
+      }
+    });
 
     return () => {
       isMounted = false;
-      if (timeoutId) clearTimeout(timeoutId);
-      if (animation) animation.stop();
+      if (timer) clearTimeout(timer);
+      if (anim) anim.stop();
+      appStateSub.remove();
       translateX.setValue(0);
     };
-  }, [shouldScroll, textWidth, containerWidth, gap, speed, delay, text]);
+  }, [shouldScroll, textWidth, containerWidth, gap, speed, delay, text, translateX]);
 
-  if (!shouldScroll) {
-    return (
-      <View
-        style={[styles.container, containerStyle]}
-        onLayout={handleContainerLayout}
-      >
-        <Text style={style} numberOfLines={1}>
-          {text}
-        </Text>
-        {/* Hidden measurement layer */}
-        <View style={styles.hiddenMeasure} pointerEvents="none">
-          <Text
-            onLayout={handleTextLayout}
-            numberOfLines={1}
-            style={[style, styles.measureText]}
-          >
-            {text}
-          </Text>
-        </View>
-      </View>
-    );
+  if (!text) {
+    return <View style={[styles.container, containerStyle]} />;
   }
 
   return (
@@ -129,32 +136,48 @@ export const MarqueeText = memo(function MarqueeText({
       style={[styles.container, containerStyle]}
       onLayout={handleContainerLayout}
     >
-      <Animated.View
-        style={[
-          styles.row,
-          {
-            transform: [{ translateX }],
-          },
-        ]}
-      >
-        <Text style={[style, styles.noShrink]} numberOfLines={1}>
-          {text}
-        </Text>
-        <View style={{ width: gap }} />
-        <Text style={[style, styles.noShrink]} numberOfLines={1}>
-          {text}
-        </Text>
-      </Animated.View>
-
-      {/* Hidden measurement layer to keep track of dynamic changes */}
-      <View style={styles.hiddenMeasure} pointerEvents="none">
-        <Text
-          onLayout={handleTextLayout}
-          numberOfLines={1}
-          style={[style, styles.measureText]}
+      {shouldScroll ? (
+        <Animated.View
+          style={[
+            styles.scrollRow,
+            {
+              transform: [{ translateX }],
+            },
+          ]}
         >
+          <Text style={[style, styles.noShrink]} numberOfLines={1}>
+            {text}
+          </Text>
+          <View style={{ width: gap }} />
+          <Text style={[style, styles.noShrink]} numberOfLines={1}>
+            {text}
+          </Text>
+        </Animated.View>
+      ) : (
+        <Text style={style} numberOfLines={1}>
           {text}
         </Text>
+      )}
+
+      {/* Invisible measurement layer: unconstrained horizontal ScrollView guarantees full single-line text measurement */}
+      <View
+        style={styles.measureContainer}
+        pointerEvents="none"
+        aria-hidden={true}
+      >
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          scrollEnabled={false}
+          bounces={false}
+        >
+          <Text
+            onLayout={handleTextLayout}
+            style={[style, styles.measureText]}
+          >
+            {text}
+          </Text>
+        </ScrollView>
       </View>
     </View>
   );
@@ -163,23 +186,26 @@ export const MarqueeText = memo(function MarqueeText({
 const styles = StyleSheet.create({
   container: {
     overflow: "hidden",
+    alignSelf: "stretch",
+    width: "100%",
+    maxWidth: "100%",
   },
-  row: {
+  scrollRow: {
     flexDirection: "row",
     alignItems: "center",
+    alignSelf: "flex-start",
   },
   noShrink: {
     flexShrink: 0,
   },
-  hiddenMeasure: {
+  measureContainer: {
     position: "absolute",
-    left: -9999,
-    top: -9999,
+    top: 0,
+    left: 0,
     opacity: 0,
-    flexDirection: "row",
+    zIndex: -1,
   },
   measureText: {
     flexShrink: 0,
   },
 });
-

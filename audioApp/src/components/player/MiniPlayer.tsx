@@ -297,6 +297,7 @@ const styles = StyleSheet.create({
     marginRight: spacing.sm,
     justifyContent: "center",
     minWidth: 0,
+    overflow: "hidden",
   },
   title: {
     ...typography.body1,

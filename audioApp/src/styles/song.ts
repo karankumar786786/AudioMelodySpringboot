@@ -165,7 +165,7 @@ export const songStyles = StyleSheet.create({
     paddingHorizontal: SIDE,
     marginBottom: 6,
   },
-  titleContainer: { flex: 1, paddingRight: 16 },
+  titleContainer: { flex: 1, paddingRight: 16, minWidth: 0, overflow: "hidden" },
   songTitle: {
     fontSize: 26,
     fontWeight: "800",
