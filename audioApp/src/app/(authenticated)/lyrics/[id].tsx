@@ -267,28 +267,22 @@ export default function LyricsScreen() {
                 return (
                   <TouchableOpacity
                     key={`${entry.start_time_seconds}-${index}`}
-                    style={[
-                      styles.lyricLineContainer,
-                      isActive && { backgroundColor: "rgba(255, 255, 255, 0.08)" },
-                    ]}
+                    style={styles.lyricLineContainer}
                     activeOpacity={0.75}
                     onPress={() => handleLinePress(entry)}
                     onLayout={(e) => {
                       lineLayoutsRef.current[index] = e.nativeEvent.layout.y;
                     }}
                   >
-                    <View style={isActive ? styles.activeIndicatorRow : undefined}>
-                      {isActive ? <View style={styles.activePulseDot} /> : null}
-                      <Text
-                        style={[
-                          styles.lyricLineText,
-                          isPast && styles.lyricLineTextPast,
-                          isActive && styles.lyricLineTextActive,
-                        ]}
-                      >
-                        {entry.text}
-                      </Text>
-                    </View>
+                    <Text
+                      style={[
+                        styles.lyricLineText,
+                        isPast && styles.lyricLineTextPast,
+                        isActive && styles.lyricLineTextActive,
+                      ]}
+                    >
+                      {entry.text}
+                    </Text>
                   </TouchableOpacity>
                 );
               })}

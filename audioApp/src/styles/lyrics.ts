@@ -51,8 +51,7 @@ export const lyricsStyles = StyleSheet.create({
   scrollList: { paddingHorizontal: SIDE + 6 },
   lyricLineContainer: {
     paddingVertical: 14,
-    paddingHorizontal: 4,
-    borderRadius: 12,
+    paddingHorizontal: 0,
   },
   // Inactive lines recede; the active line is prominent pure white with bold presence
   lyricLineText: {
@@ -69,17 +68,6 @@ export const lyricsStyles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 29,
     lineHeight: 40,
-  },
-  activeIndicatorRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  activePulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "#FFFFFF",
   },
   plainLyricsText: {
     color: "rgba(255, 255, 255, 0.88)",
