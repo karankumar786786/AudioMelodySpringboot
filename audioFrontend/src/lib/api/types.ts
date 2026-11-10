@@ -13,6 +13,8 @@ export interface Song {
   lrclibId: string;
   status?: string;
   isFeatured?: boolean;
+  isLiked?: boolean;
+  likesCount?: number;
   jobId?: string | null;
   previewStartTime?: number | null;
   previewEndTime?: number | null;

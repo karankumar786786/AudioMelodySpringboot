@@ -38,8 +38,10 @@ public class UserShortsLike {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
-    private String userId;
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    private User user;
 
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "song_id", nullable = false)
@@ -55,11 +57,15 @@ public class UserShortsLike {
     }
 
     @Builder
-    public UserShortsLike(Long id, String userId, Song song, LocalDateTime createdAt) {
+    public UserShortsLike(Long id, User user, Song song, LocalDateTime createdAt) {
         this.id = id;
-        this.userId = userId;
+        this.user = user;
         this.song = song;
         this.createdAt = createdAt;
+    }
+
+    public String getUserId() {
+        return user != null ? user.getId() : null;
     }
 }
 

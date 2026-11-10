@@ -34,11 +34,13 @@ public class CanvasApiController {
      */
     @GetMapping("/feed")
     public ResponseEntity<PaginatedResponseDto<SongDto>> getCanvasFeed(
+            @CurrentUser CustomUserDetails currentUser,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String genre,
             @RequestParam(defaultValue = "latest") String sort
     ) {
+        String userId = currentUser != null ? currentUser.getId() : null;
         // If sorting randomly on refresh, do not cache client-side so each fetch is fresh
         CacheControl cache = "random".equalsIgnoreCase(sort) || "discover".equalsIgnoreCase(sort)
                 ? CacheControl.noCache()
@@ -46,7 +48,7 @@ public class CanvasApiController {
 
         return ResponseEntity.ok()
                 .cacheControl(cache)
-                .body(canvasApiService.getCanvasFeed(page, size, genre, sort));
+                .body(canvasApiService.getCanvasFeed(userId, page, size, genre, sort));
     }
 
     /**
@@ -92,6 +94,18 @@ public class CanvasApiController {
             @CurrentUser CustomUserDetails currentUser
     ) {
         return ResponseEntity.ok(shortsLikesApiService.getLikedSongIds(currentUser.getId()));
+    }
+
+    /**
+     * Get paginated songs for shorts liked by the current user.
+     */
+    @GetMapping("/liked/songs")
+    public ResponseEntity<PaginatedResponseDto<SongDto>> getLikedShortSongs(
+            @CurrentUser CustomUserDetails currentUser,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return ResponseEntity.ok(shortsLikesApiService.getLikedShortSongs(currentUser.getId(), page, size));
     }
 }
 

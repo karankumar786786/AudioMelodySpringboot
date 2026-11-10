@@ -60,5 +60,13 @@ export const canvasApi = {
       return [];
     }
   },
+
+  getLikedShortSongs: async (page = 1, size = 20) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set("page", String(page - 1));
+    searchParams.set("size", String(size));
+    const res = await request(`/api/canvas/liked/songs?${searchParams.toString()}`);
+    return formatPaginated<Song>(res);
+  },
 };
 

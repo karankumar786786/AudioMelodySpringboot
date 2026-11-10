@@ -63,5 +63,12 @@ export const canvasService = {
       return [];
     }
   },
+
+  async getLikedShortSongs(page = 0, size = 20): Promise<PaginatedResponse<Song>> {
+    const response = await api.get<PaginatedResponse<Song>>("/canvas/liked/songs", {
+      params: { page, size },
+    });
+    return response.data;
+  },
 };
 

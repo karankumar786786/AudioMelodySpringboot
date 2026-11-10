@@ -1,7 +1,12 @@
 package me.one_org.melody.Services.Api;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
@@ -13,18 +18,25 @@ import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Repository.SongsRepository;
+import me.one_org.melody.Repository.UserShortsLikeRepository;
 
 @Service
 @Transactional(readOnly = true)
 public class CanvasApiService {
 
     private final SongsRepository songsRepository;
+    private final UserShortsLikeRepository shortsLikeRepository;
 
-    public CanvasApiService(SongsRepository songsRepository) {
+    public CanvasApiService(SongsRepository songsRepository, UserShortsLikeRepository shortsLikeRepository) {
         this.songsRepository = songsRepository;
+        this.shortsLikeRepository = shortsLikeRepository;
     }
 
     public PaginatedResponseDto<SongDto> getCanvasFeed(int page, int size, String genre, String sort) {
+        return getCanvasFeed(null, page, size, genre, sort);
+    }
+
+    public PaginatedResponseDto<SongDto> getCanvasFeed(String userId, int page, int size, String genre, String sort) {
         int safePage = Math.max(0, page);
         int safeSize = Math.max(1, Math.min(50, size));
         String cleanGenre = (genre != null && !genre.trim().isBlank() && !genre.trim().equalsIgnoreCase("all"))
@@ -51,8 +63,26 @@ public class CanvasApiService {
                 LocalDateTime.now()
         );
 
+        List<String> songIds = songs.stream().map(Song::getId).toList();
+        Set<String> likedIdsSet = (userId != null && !userId.isBlank() && !songIds.isEmpty())
+                ? new HashSet<>(shortsLikeRepository.findLikedSongIdsByUserIdAndSongIds(userId, songIds))
+                : Collections.emptySet();
+
+        Map<String, Long> likesCountMap = !songIds.isEmpty()
+                ? shortsLikeRepository.countLikesBySongIds(songIds).stream()
+                        .collect(Collectors.toMap(
+                                arr -> (String) arr[0],
+                                arr -> (Long) arr[1],
+                                (a, b) -> a
+                        ))
+                : Collections.emptyMap();
+
         List<SongDto> dtos = songs.stream()
-                .map(SongDto::fromEntity)
+                .map(s -> SongDto.fromEntity(
+                        s,
+                        likedIdsSet.contains(s.getId()),
+                        likesCountMap.getOrDefault(s.getId(), 0L)
+                ))
                 .toList();
 
         return new PaginatedResponseDto<>(dtos, safePage, safeSize, meta);

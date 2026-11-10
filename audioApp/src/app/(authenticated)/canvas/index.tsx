@@ -174,6 +174,35 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     return result;
   }, [feedData?.pages, popularVideos?.content, featuredSongs]);
 
+  // Sync server-returned isLiked and likesCount from the feed items
+  useEffect(() => {
+    if (songs.length > 0) {
+      setLikedShortsMap((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        songs.forEach((song) => {
+          if (song.id && song.isLiked !== undefined && next[String(song.id)] === undefined) {
+            next[String(song.id)] = song.isLiked;
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+
+      setLikeCountsMap((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        songs.forEach((song) => {
+          if (song.id && song.likesCount !== undefined && next[String(song.id)] === undefined) {
+            next[String(song.id)] = song.likesCount;
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }
+  }, [songs]);
+
   // Initial song jump if songId param is passed
   useEffect(() => {
     if (params.songId && songs.length > 0) {
@@ -216,6 +245,14 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     if (!streamUrl) return;
 
     let isMounted = true;
+    const startSec =
+      typeof activeSong.previewStartTime === "number" && activeSong.previewStartTime > 0
+        ? activeSong.previewStartTime
+        : 0;
+    const endSec =
+      typeof activeSong.previewEndTime === "number" && activeSong.previewEndTime > startSec
+        ? activeSong.previewEndTime
+        : 0;
 
     const setupIsolatedPlayer = async () => {
       try {
@@ -227,14 +264,18 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
               updateInterval: 250,
             }
           );
-          player.loop = true;
+          player.loop = endSec <= 0; // Native loop if no custom endSec window
           player.muted = isMuted;
 
           player.addListener("playbackStatusUpdate", (status: AudioStatus) => {
             if (!isMounted) return;
             setIsShortsPlaying(status.playing);
-            if (status.didJustFinish && !isPaused) {
-              player.seekTo(0);
+
+            // Hook preview window looping
+            if (endSec > 0 && status.currentTime >= endSec && !isPaused) {
+              player.seekTo(startSec);
+            } else if (status.didJustFinish && !isPaused) {
+              player.seekTo(startSec);
               player.play();
             }
           });
@@ -242,8 +283,12 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
           shortsPlayerRef.current = player;
         } else {
           shortsPlayerRef.current.replace({ uri: streamUrl });
-          shortsPlayerRef.current.loop = true;
+          shortsPlayerRef.current.loop = endSec <= 0;
           shortsPlayerRef.current.muted = isMuted;
+        }
+
+        if (startSec > 0) {
+          shortsPlayerRef.current.seekTo(startSec);
         }
 
         if (!isPaused && isScreenFocused) {

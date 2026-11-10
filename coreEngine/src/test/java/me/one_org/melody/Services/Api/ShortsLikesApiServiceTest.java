@@ -11,9 +11,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import me.one_org.melody.Dto.Controllers.Api.ShortsLikeStatusDto;
 import me.one_org.melody.Entity.Song;
+import me.one_org.melody.Entity.User;
 import me.one_org.melody.Entity.UserShortsLike;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserShortsLikeRepository;
+import me.one_org.melody.Repository.UsersRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -25,13 +27,17 @@ class ShortsLikesApiServiceTest {
     private UserShortsLikeRepository shortsLikeRepository;
     @Mock
     private SongsRepository songsRepository;
+    @Mock
+    private UsersRepository usersRepository;
     @InjectMocks
     private ShortsLikesApiService shortsLikesApiService;
     @Test
     @DisplayName("toggleLike should add like if not already liked")
     void toggleLike_Add() {
         Song song = Song.builder().id("song-101").title("Short Song").build();
+        User user = User.builder().id("user-1").userName("testuser").build();
         when(songsRepository.findById("song-101")).thenReturn(Optional.of(song));
+        when(usersRepository.findById("user-1")).thenReturn(Optional.of(user));
         when(shortsLikeRepository.existsByUserIdAndSongId("user-1", "song-101")).thenReturn(false);
         when(shortsLikeRepository.countBySongId("song-101")).thenReturn(1L);
 

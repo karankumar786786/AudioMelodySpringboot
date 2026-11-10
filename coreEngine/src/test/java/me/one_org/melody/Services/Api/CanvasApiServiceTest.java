@@ -14,6 +14,7 @@ import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Repository.SongsRepository;
+import me.one_org.melody.Repository.UserShortsLikeRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -24,6 +25,9 @@ class CanvasApiServiceTest {
 
     @Mock
     private SongsRepository songsRepository;
+
+    @Mock
+    private UserShortsLikeRepository shortsLikeRepository;
 
     @InjectMocks
     private CanvasApiService canvasApiService;

@@ -283,7 +283,7 @@ public interface SongsRepository extends JpaRepository<Song, String> {
            "WHERE ((s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '') OR (s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '')) " +
            "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
            "AND (:genre IS NULL OR LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%'))) " +
-           "ORDER BY COALESCE(sm.totalStreams, 0) DESC, s.createdAt DESC")
+           "ORDER BY (SELECT COUNT(usl) FROM UserShortsLike usl WHERE usl.song = s) DESC, COALESCE(sm.totalStreams, 0) DESC, s.createdAt DESC")
     List<Song> findCanvasSongsPopular(@Param("genre") String genre, Pageable pageable);
 
     @EntityGraph(attributePaths = {"songMetadata"})

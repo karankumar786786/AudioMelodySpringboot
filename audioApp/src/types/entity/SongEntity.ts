@@ -16,6 +16,8 @@ export interface Song {
   canvasStartTime?: number;
   canvasEndTime?: number;
   isFeatured?: boolean;
+  isLiked?: boolean;
+  likesCount?: number;
   language?: string;
   genre?: string;
   album?: string;
