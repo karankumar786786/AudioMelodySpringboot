@@ -25,6 +25,7 @@ import { configureAudioPriority } from "@/utils/audioConfig";
 import { useHlsQualities } from "@/hooks/useHlsQualities";
 import { PlayerSettingsModal, VideoResizeMode } from "./PlayerSettingsModal";
 import { hapticFeedback } from "@/utils/haptics";
+import { MarqueeText } from "../common/MarqueeText";
 
 interface ResizeModeConfig {
   key: VideoResizeMode;
@@ -630,9 +631,9 @@ export function FullVideoPlayerModal({
             </TouchableOpacity>
 
             <View style={styles.titleInfo}>
-              <Text style={styles.title} numberOfLines={1}>
+              <MarqueeText style={styles.title} containerStyle={{ maxWidth: "100%" }}>
                 {title}
-              </Text>
+              </MarqueeText>
               <Text style={styles.artist} numberOfLines={1}>
                 {artistName}
               </Text>

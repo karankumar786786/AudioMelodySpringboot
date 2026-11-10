@@ -23,6 +23,7 @@ import { selectIsFavourite, toggleFavourite } from "@/store/favouriteSlice";
 import { favouriteService } from "@/service";
 import { hapticFeedback } from "@/utils/haptics";
 import { useDominantColor } from "@/utils/colorUtils";
+import { MarqueeText } from "../common/MarqueeText";
 import { getImageUrl } from "@/utils/imageUtils";
 import { colors, radii, shadows, spacing, typography } from "@/theme";
 
@@ -180,9 +181,9 @@ export function MiniPlayer() {
               )}
 
               <View style={styles.textContainer}>
-                <Text style={styles.title} numberOfLines={1}>
+                <MarqueeText style={styles.title} speed={28}>
                   {currentSong.title}
-                </Text>
+                </MarqueeText>
                 <Text style={styles.artist} numberOfLines={1}>
                   {currentSong.artistName}
                 </Text>

@@ -3,6 +3,7 @@ export * from "./common/CanvasVideoPlayer";
 export * from "./common/ThemedText";
 export * from "./common/Badge";
 export * from "./common/IconButton";
+export * from "./common/MarqueeText";
 export * from "./favourites/FavouriteSongItem";
 export * from "./home/ArtistCircleCard";
 export * from "./home/AlbumCard";

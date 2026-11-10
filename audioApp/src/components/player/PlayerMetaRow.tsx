@@ -1,6 +1,7 @@
 import React, { memo } from "react";
 import { View, Text, TouchableOpacity, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { MarqueeText } from "../common/MarqueeText";
 import { songStyles as styles } from "@/styles";
 
 interface PlayerMetaRowProps {
@@ -27,9 +28,9 @@ export const PlayerMetaRow = memo(function PlayerMetaRow({
   return (
     <View style={styles.metaSection}>
       <View style={styles.titleContainer}>
-        <Text style={styles.songTitle} numberOfLines={1}>
+        <MarqueeText style={styles.songTitle}>
           {title}
-        </Text>
+        </MarqueeText>
         <TouchableOpacity
           activeOpacity={0.7}
           onPress={onOpenArtist}
