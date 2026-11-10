@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { lyricsApi } from "@/lib/api/lyrics";
 
 export interface WordEntry {
   text: string;
@@ -44,8 +45,26 @@ export function parseLrcToTranscriptions(lrcText: string): TranscriptionEntry[] 
 }
 
 async function fetchLyrics(
-  input: string
+  input: string,
+  songId?: string
 ): Promise<{ transcriptions: TranscriptionEntry[]; plainLyrics: string | null }> {
+  // 1. Primary: Try dedicated backend /api/lyrics/{songId} gateway (Redis cache, sub-10ms)
+  if (songId) {
+    try {
+      const backendLyrics = await lyricsApi.getLyrics(songId);
+      if (backendLyrics) {
+        if (backendLyrics.syncedLyrics && typeof backendLyrics.syncedLyrics === "string") {
+          return { transcriptions: parseLrcToTranscriptions(backendLyrics.syncedLyrics), plainLyrics: null };
+        }
+        if (backendLyrics.plainLyrics && typeof backendLyrics.plainLyrics === "string") {
+          return { transcriptions: [], plainLyrics: backendLyrics.plainLyrics };
+        }
+      }
+    } catch {
+      // Fallback silently to direct client lookup
+    }
+  }
+
   if (input.startsWith("http://") || input.startsWith("https://")) {
     const r = await fetch(input);
     const text = await r.text();
@@ -110,14 +129,16 @@ async function fetchLyrics(
 
 export function useLyrics(
   lrclibIdOrCaptionUrl: string | undefined,
-  currentTime: number
+  currentTime: number,
+  songId?: string
 ) {
   const input = lrclibIdOrCaptionUrl?.trim();
+  const cacheKey = songId ? `song-${songId}` : input || "";
 
   const { data, isLoading } = useQuery({
-    queryKey: ["lyrics", input],
-    queryFn: () => (input ? fetchLyrics(input) : { transcriptions: [], plainLyrics: null }),
-    enabled: Boolean(input),
+    queryKey: ["lyrics", cacheKey],
+    queryFn: () => (input || songId ? fetchLyrics(input || "", songId) : { transcriptions: [], plainLyrics: null }),
+    enabled: Boolean(input || songId),
     staleTime: 1000 * 60 * 60 * 24, // 24 hours
     gcTime: 1000 * 60 * 60 * 48,
   });

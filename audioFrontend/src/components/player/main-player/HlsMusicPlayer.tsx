@@ -104,6 +104,7 @@ export function HlsMusicPlayer() {
   const { currentCaption, transcriptions, plainLyrics, isLoading: isLyricsLoading } = useLyrics(
     currentSong?.lrclibId || currentSong?.captionUrl,
     localTime,
+    currentSong?.id
   );
 
   // Synchronize lyrics availability to playerStore to enable/disable Zen Focus Mode

@@ -32,7 +32,8 @@ export const PlayerLyricsPreviewCard = memo(function PlayerLyricsPreviewCard({
     currentTime,
     song?.title,
     song?.artistName,
-    song?.duration
+    song?.duration,
+    song?.id
   );
 
   if (!hasLyrics || !song) return null;

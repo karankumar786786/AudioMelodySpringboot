@@ -6,6 +6,9 @@ import { playlistsApi } from "./playlists";
 import { searchApi } from "./search";
 import { songsApi } from "./songs";
 import { videosApi } from "./videos";
+import { lyricsApi } from "./lyrics";
+import { canvasApi } from "./canvas";
+import { progressApi } from "./progress";
 import { usersApi } from "./users";
 import { recombeeApi } from "./recombee";
 
@@ -13,6 +16,9 @@ export * from "./types";
 export * from "./client";
 export * from "./songs";
 export * from "./videos";
+export * from "./lyrics";
+export * from "./canvas";
+export * from "./progress";
 export * from "./artists";
 export * from "./playlists";
 export * from "./albums";
@@ -26,6 +32,9 @@ export * from "./home-stream";
 export const musicApi = {
   songs: songsApi,
   videos: videosApi,
+  lyrics: lyricsApi,
+  canvas: canvasApi,
+  progress: progressApi,
   artists: artistsApi,
   playlists: playlistsApi,
   albums: albumsApi,
