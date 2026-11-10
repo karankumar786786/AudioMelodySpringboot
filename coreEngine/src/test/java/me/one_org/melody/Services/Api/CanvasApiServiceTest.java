@@ -42,9 +42,9 @@ class CanvasApiServiceTest {
                 .genre("Pop")
                 .build();
 
-        when(songsRepository.findCanvasSongsLatest(eq("Pop"), any(PageRequest.class)))
+        when(songsRepository.findCanvasSongsLatestByGenre(eq("Pop"), any(PageRequest.class)))
                 .thenReturn(List.of(song));
-        when(songsRepository.countCanvasSongs(eq("Pop"))).thenReturn(1L);
+        when(songsRepository.countCanvasSongsByGenre(eq("Pop"))).thenReturn(1L);
 
         PaginatedResponseDto<SongDto> result = canvasApiService.getCanvasFeed(0, 10, "Pop", "latest");
 
@@ -62,7 +62,7 @@ class CanvasApiServiceTest {
                 .videoKey("canvas/feat.mp4")
                 .build();
 
-        when(songsRepository.findCanvasSongsPopular(isNull(), any(PageRequest.class)))
+        when(songsRepository.findCanvasSongsPopular(any(PageRequest.class)))
                 .thenReturn(List.of(song));
 
         List<SongDto> result = canvasApiService.getFeaturedCanvas(10);

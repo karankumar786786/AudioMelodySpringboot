@@ -274,29 +274,52 @@ public interface SongsRepository extends JpaRepository<Song, String> {
     @EntityGraph(attributePaths = {"songMetadata"})
     @Query("SELECT s FROM Song s WHERE (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '') " +
            "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
-           "AND (:genre IS NULL OR LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%'))) " +
            "ORDER BY s.createdAt DESC")
-    List<Song> findCanvasSongsLatest(@Param("genre") String genre, Pageable pageable);
+    List<Song> findCanvasSongsLatest(Pageable pageable);
+
+    @EntityGraph(attributePaths = {"songMetadata"})
+    @Query("SELECT s FROM Song s WHERE (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '') " +
+           "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
+           "AND (LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%'))) " +
+           "ORDER BY s.createdAt DESC")
+    List<Song> findCanvasSongsLatestByGenre(@Param("genre") String genre, Pageable pageable);
 
     @EntityGraph(attributePaths = {"songMetadata"})
     @Query("SELECT s FROM Song s LEFT JOIN s.songMetadata sm " +
            "WHERE (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '') " +
            "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
-           "AND (:genre IS NULL OR LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%'))) " +
            "ORDER BY (SELECT COUNT(usl) FROM UserShortsLike usl WHERE usl.song = s) DESC, COALESCE(sm.totalStreams, 0) DESC, s.createdAt DESC")
-    List<Song> findCanvasSongsPopular(@Param("genre") String genre, Pageable pageable);
+    List<Song> findCanvasSongsPopular(Pageable pageable);
+
+    @EntityGraph(attributePaths = {"songMetadata"})
+    @Query("SELECT s FROM Song s LEFT JOIN s.songMetadata sm " +
+           "WHERE (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '') " +
+           "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
+           "AND (LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%'))) " +
+           "ORDER BY (SELECT COUNT(usl) FROM UserShortsLike usl WHERE usl.song = s) DESC, COALESCE(sm.totalStreams, 0) DESC, s.createdAt DESC")
+    List<Song> findCanvasSongsPopularByGenre(@Param("genre") String genre, Pageable pageable);
 
     @EntityGraph(attributePaths = {"songMetadata"})
     @Query("SELECT s FROM Song s WHERE (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '') " +
            "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
-           "AND (:genre IS NULL OR LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%'))) " +
            "ORDER BY function('random')")
-    List<Song> findCanvasSongsRandom(@Param("genre") String genre, Pageable pageable);
+    List<Song> findCanvasSongsRandom(Pageable pageable);
+
+    @EntityGraph(attributePaths = {"songMetadata"})
+    @Query("SELECT s FROM Song s WHERE (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '') " +
+           "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
+           "AND (LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%'))) " +
+           "ORDER BY function('random')")
+    List<Song> findCanvasSongsRandomByGenre(@Param("genre") String genre, Pageable pageable);
+
+    @Query("SELECT COUNT(s) FROM Song s WHERE (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '') " +
+           "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE")
+    long countCanvasSongs();
 
     @Query("SELECT COUNT(s) FROM Song s WHERE (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '') " +
            "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
-           "AND (:genre IS NULL OR LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%')))")
-    long countCanvasSongs(@Param("genre") String genre);
+           "AND (LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%')))")
+    long countCanvasSongsByGenre(@Param("genre") String genre);
 
     @EntityGraph(attributePaths = {"songMetadata"})
     @Query("SELECT s FROM Song s LEFT JOIN s.songMetadata sm " +

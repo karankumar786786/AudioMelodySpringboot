@@ -43,16 +43,23 @@ public class CanvasApiService {
                 ? genre.trim() : null;
         String effectiveSort = (sort != null && !sort.trim().isBlank()) ? sort.trim().toLowerCase() : "latest";
 
+        boolean hasGenre = cleanGenre != null;
         List<Song> songs;
         if ("random".equals(effectiveSort) || "discover".equals(effectiveSort) || "shuffle".equals(effectiveSort)) {
-            songs = songsRepository.findCanvasSongsRandom(cleanGenre, PageRequest.of(safePage, safeSize));
+            songs = hasGenre
+                    ? songsRepository.findCanvasSongsRandomByGenre(cleanGenre, PageRequest.of(safePage, safeSize))
+                    : songsRepository.findCanvasSongsRandom(PageRequest.of(safePage, safeSize));
         } else if ("popular".equals(effectiveSort)) {
-            songs = songsRepository.findCanvasSongsPopular(cleanGenre, PageRequest.of(safePage, safeSize));
+            songs = hasGenre
+                    ? songsRepository.findCanvasSongsPopularByGenre(cleanGenre, PageRequest.of(safePage, safeSize))
+                    : songsRepository.findCanvasSongsPopular(PageRequest.of(safePage, safeSize));
         } else {
-            songs = songsRepository.findCanvasSongsLatest(cleanGenre, PageRequest.of(safePage, safeSize));
+            songs = hasGenre
+                    ? songsRepository.findCanvasSongsLatestByGenre(cleanGenre, PageRequest.of(safePage, safeSize))
+                    : songsRepository.findCanvasSongsLatest(PageRequest.of(safePage, safeSize));
         }
 
-        long totalCount = songsRepository.countCanvasSongs(cleanGenre);
+        long totalCount = hasGenre ? songsRepository.countCanvasSongsByGenre(cleanGenre) : songsRepository.countCanvasSongs();
         PaginationMetaDataDto meta = new PaginationMetaDataDto(
                 "canvas_feed",
                 "songs",
@@ -72,7 +79,7 @@ public class CanvasApiService {
                 ? shortsLikeRepository.countLikesBySongIds(songIds).stream()
                         .collect(Collectors.toMap(
                                 arr -> (String) arr[0],
-                                arr -> (Long) arr[1],
+                                arr -> arr[1] instanceof Number num ? num.longValue() : 0L,
                                 (a, b) -> a
                         ))
                 : Collections.emptyMap();
@@ -91,7 +98,7 @@ public class CanvasApiService {
     @Cacheable(value = "canvas_featured", key = "#limit")
     public List<SongDto> getFeaturedCanvas(int limit) {
         int safeLimit = Math.max(1, Math.min(30, limit));
-        return songsRepository.findCanvasSongsPopular(null, PageRequest.of(0, safeLimit)).stream()
+        return songsRepository.findCanvasSongsPopular(PageRequest.of(0, safeLimit)).stream()
                 .map(SongDto::fromEntity)
                 .toList();
     }
