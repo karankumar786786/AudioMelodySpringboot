@@ -141,15 +141,24 @@ export const MarqueeText = memo(function MarqueeText({
           style={[
             styles.scrollRow,
             {
+              width: (textWidth + gap) * 2,
               transform: [{ translateX }],
             },
           ]}
         >
-          <Text style={[style, styles.noShrink]} numberOfLines={1}>
+          <Text
+            style={[style, styles.noShrink, { width: textWidth + 8 }]}
+            numberOfLines={1}
+            ellipsizeMode="clip"
+          >
             {text}
           </Text>
           <View style={{ width: gap }} />
-          <Text style={[style, styles.noShrink]} numberOfLines={1}>
+          <Text
+            style={[style, styles.noShrink, { width: textWidth + 8 }]}
+            numberOfLines={1}
+            ellipsizeMode="clip"
+          >
             {text}
           </Text>
         </Animated.View>
@@ -194,6 +203,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     alignSelf: "flex-start",
+    flexWrap: "nowrap",
   },
   noShrink: {
     flexShrink: 0,
