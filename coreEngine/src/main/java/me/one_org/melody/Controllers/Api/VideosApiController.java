@@ -97,3 +97,4 @@ public class VideosApiController {
                 .body(videosApiService.getVideosByArtist(artistName, page, size));
     }
 }
+
