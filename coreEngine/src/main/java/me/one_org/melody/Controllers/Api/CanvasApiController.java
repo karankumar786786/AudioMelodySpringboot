@@ -50,3 +50,4 @@ public class CanvasApiController {
                 .body(canvasApiService.getFeaturedCanvas(limit));
     }
 }
+

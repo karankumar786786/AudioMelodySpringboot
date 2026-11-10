@@ -186,3 +186,4 @@ public class LyricsApiService {
         return cleaned.isEmpty() ? text.trim() : cleaned;
     }
 }
+

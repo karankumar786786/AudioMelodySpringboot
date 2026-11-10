@@ -77,3 +77,4 @@ class LyricsApiServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 }
+

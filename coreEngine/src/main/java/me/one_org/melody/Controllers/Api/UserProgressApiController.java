@@ -59,3 +59,4 @@ public class UserProgressApiController {
         return ResponseEntity.ok().build();
     }
 }
+

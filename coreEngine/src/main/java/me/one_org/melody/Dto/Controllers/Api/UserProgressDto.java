@@ -12,3 +12,4 @@ public record UserProgressDto(
     LocalDateTime updatedAt,
     SongDto song
 ) {}
+

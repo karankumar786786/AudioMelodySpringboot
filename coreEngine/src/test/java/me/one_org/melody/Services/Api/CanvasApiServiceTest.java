@@ -67,3 +67,4 @@ class CanvasApiServiceTest {
         assertThat(result.get(0).title()).isEqualTo("Featured Canvas");
     }
 }
+

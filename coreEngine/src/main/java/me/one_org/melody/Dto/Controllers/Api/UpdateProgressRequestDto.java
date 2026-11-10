@@ -11,3 +11,4 @@ public record UpdateProgressRequestDto(
     String contextType,
     String contextId
 ) {}
+
