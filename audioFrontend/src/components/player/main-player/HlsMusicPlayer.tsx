@@ -88,8 +88,10 @@ export function HlsMusicPlayer() {
         if (!isNaN(t) && t > 0) {
           setLocalTime(t);
         }
-      } else {
-        // Cross-device resume fallback from Redis
+      }
+
+      // If no song restored from local storage, fetch cross-device resume from Redis
+      if (!playerStore.state.currentSong) {
         progressApi.getResumeState().then((state) => {
           if (state?.song && !playerStore.state.currentSong) {
             playerActions.playSong(state.song);

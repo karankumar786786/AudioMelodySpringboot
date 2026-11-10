@@ -30,6 +30,7 @@ import {
   favouriteService,
   artistService,
   interactionService,
+  videoService,
 } from "@/service";
 import { audioPlayerService } from "@/service/audioPlayerService";
 import { useSongInfo } from "@/hooks/useSongInfo";
@@ -372,6 +373,18 @@ export default function SongDetailScreen() {
       await (dispatch as any)(nextTrack(false));
       audioPlayerService.pause();
     } else {
+      if (activeSong?.id) {
+        try {
+          const related = await videoService.getRelatedVideos(activeSong.id, 5);
+          const videoTrack = related?.find((s) => s.id !== activeSong.id && Boolean(s.fullVideoKey));
+          if (videoTrack) {
+            await (dispatch as any)(playSong(videoTrack, related));
+            audioPlayerService.pause();
+            return;
+          }
+        } catch {}
+      }
+
       setIsVideoModalOpen(false);
       setViewMode("artwork");
       router.setParams({ mode: "" });
@@ -397,6 +410,18 @@ export default function SongDetailScreen() {
       await (dispatch as any)(nextTrack(true));
       audioPlayerService.pause();
     } else {
+      if (activeSong?.id) {
+        try {
+          const related = await videoService.getRelatedVideos(activeSong.id, 5);
+          const videoTrack = related?.find((s) => s.id !== activeSong.id && Boolean(s.fullVideoKey));
+          if (videoTrack) {
+            await (dispatch as any)(playSong(videoTrack, related));
+            audioPlayerService.pause();
+            return;
+          }
+        } catch {}
+      }
+
       setIsVideoModalOpen(false);
       setViewMode("artwork");
       router.setParams({ mode: "" });

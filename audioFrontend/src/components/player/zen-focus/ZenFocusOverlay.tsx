@@ -49,7 +49,8 @@ export const ZenFocusOverlay: React.FC<ZenFocusOverlayProps> = ({
   // Fallback to internal hook if props are not supplied
   const fallbackLyrics = useLyrics(
     transcriptionsProp ? undefined : (currentSong?.lrclibId || currentSong?.captionUrl),
-    currentTime
+    currentTime,
+    transcriptionsProp ? undefined : currentSong?.id
   );
   const transcriptions = transcriptionsProp ?? fallbackLyrics.transcriptions;
   const plainLyrics = plainLyricsProp ?? fallbackLyrics.plainLyrics;
