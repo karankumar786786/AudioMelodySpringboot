@@ -35,7 +35,7 @@ import {
   resolveStreamUrl,
 } from "@/service";
 import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
-import { getImageUrl } from "@/utils/imageUtils";
+import { getImageUrl, getVideoUrl } from "@/utils/imageUtils";
 import { hapticFeedback } from "@/utils/haptics";
 import { radius, shadows } from "@/theme";
 
@@ -350,6 +350,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
               updateInterval: 250,
             }
           );
+          player.volume = 1.0;
           player.loop = endSec <= 0; // Native loop if no custom endSec window
           player.muted = isMuted;
           player.addListener("playbackStatusUpdate", onStatus);
@@ -361,6 +362,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
           } else {
             player.replace({ uri: streamUrl });
           }
+          player.volume = 1.0;
           player.loop = endSec <= 0;
           player.muted = isMuted;
         }
@@ -426,21 +428,33 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     };
   }, []);
 
-  // 6. Eager Preload: Next 2-3 songs audio & artwork
+  // 6. Eager Preload: Next 2-3 songs audio, canvas video & artwork
   useEffect(() => {
     if (songs.length === 0) return;
     const nextTracks = songs.slice(activeIndex + 1, activeIndex + 4);
     nextTracks.forEach((track) => {
-      // Preload image
+      // 1. Eagerly preload artwork
       if (track.imageKey) {
-        const imgUrl = getImageUrl(track.imageKey, { width: 400, height: 400 });
+        const imgUrl = getImageUrl(track.imageKey, { width: 800, height: 1400 });
         if (imgUrl) Image.prefetch(imgUrl);
       }
-      // Preload audio stream
+
+      // 2. Eagerly preload audio stream with 15s forward buffer
       const streamUrl = resolveStreamUrl(track);
       if (streamUrl) {
         try {
-          preload(streamUrl);
+          preload(streamUrl, { preferredForwardBufferDuration: 15 }).catch(() => {});
+          fetch(streamUrl).catch(() => {});
+        } catch {}
+      }
+
+      // 3. Eagerly fetch and cache upcoming canvas video
+      const videoKey = track.videoKey || track.fullVideoKey;
+      const canvasVideoUrl =
+        (track as any)?.canvasVideoUrl || (videoKey ? getVideoUrl(videoKey) : null);
+      if (canvasVideoUrl) {
+        try {
+          fetch(canvasVideoUrl).catch(() => {});
         } catch {}
       }
     });
@@ -610,18 +624,19 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
       // Split multiple artists into clean individual names
       const artistNames = parseArtistNames(item.artistName);
       const primaryArtist = artistNames[0] || item.artistName || "Unknown Artist";
+      const shouldMountVideo = (isActive || index === activeIndex + 1) && Boolean(videoKey);
 
       return (
         <View style={[styles.pageContainer, { height: containerHeight }]}>
           <TouchableWithoutFeedback onPress={handleScreenPress}>
             <View style={StyleSheet.absoluteFill}>
               {/* Full-screen Edge-to-Edge Looping Canvas Video Backdrop */}
-              {isActive && videoKey ? (
+              {shouldMountVideo ? (
                 <CanvasVideoPlayer
                   videoUrl={(item as any)?.canvasVideoUrl}
                   videoKey={videoKey}
                   fallbackImageKey={item.imageKey}
-                  isPlaying={isScreenFocused && !isPaused}
+                  isPlaying={isActive && isScreenFocused && !isPaused}
                   showFallbackImage={true}
                   showLoader={false}
                   style={StyleSheet.absoluteFill}
