@@ -41,10 +41,11 @@ public class LyricsApiService {
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public LyricsApiService(
             SongsRepository songsRepository,
-            StringRedisTemplate redisTemplate,
-            ObjectMapper objectMapper
+            @org.springframework.beans.factory.annotation.Autowired(required = false) StringRedisTemplate redisTemplate,
+            @org.springframework.beans.factory.annotation.Autowired(required = false) ObjectMapper objectMapper
     ) {
         this.songsRepository = songsRepository;
         this.redisTemplate = redisTemplate;
