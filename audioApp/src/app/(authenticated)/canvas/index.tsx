@@ -335,6 +335,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
 
     const setupIsolatedPlayer = async () => {
       try {
+        console.log(`[CanvasShorts] 🎵 Audio setup for "${activeSong.title}": streamUrl="${streamUrl}"`);
         let initialSeekDone = startSec <= 0;
 
         const onStatus = async (status: AudioStatus) => {
@@ -344,10 +345,12 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
           // Once player is loaded, perform initial hook window seek if needed
           if (!initialSeekDone && (status as any)?.isLoaded) {
             initialSeekDone = true;
-            await safeSeek(shortsPlayerRef.current, startSec);
+            if (startSec > 0) {
+              await safeSeek(shortsPlayerRef.current, startSec);
+            }
           }
 
-          // Looping preview hook window
+          // Looping preview hook window or track end
           if (endSec > 0 && status.currentTime >= endSec && !isPaused) {
             await safeSeek(shortsPlayerRef.current, startSec);
           } else if (status.didJustFinish && !isPaused) {
@@ -364,7 +367,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
             updateInterval: 250,
           });
           player.volume = 1.0;
-          player.loop = endSec <= 0; // Native loop if no custom endSec window
+          player.loop = false; // Always keep native loop false to prevent AVQueuePlayer empty-queue crash
           player.muted = isMuted;
           player.addListener("playbackStatusUpdate", onStatus);
           shortsPlayerRef.current = player;
@@ -372,16 +375,12 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
 
         const player = shortsPlayerRef.current;
         player.volume = 1.0;
-        player.loop = endSec <= 0;
+        player.loop = false;
         player.muted = isMuted;
 
         if (streamUrl) {
           try {
-            if (typeof (player as any)?.replaceAsync === "function") {
-              await (player as any).replaceAsync({ uri: streamUrl });
-            } else {
-              player.replace({ uri: streamUrl });
-            }
+            player.replace({ uri: streamUrl });
           } catch (replaceErr) {
             console.warn("[CanvasShorts] Audio stream load error (non-fatal):", replaceErr);
           }

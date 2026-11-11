@@ -59,12 +59,13 @@ export function resolveStreamUrl(
       (song as any).audioKey ||
       (song as any).fullVideoKey;
     if (key) {
-      if (key.startsWith("http://") || key.startsWith("https://")) {
-        uri = key;
-      } else if (key.endsWith(".mp4")) {
-        uri = `${S3_BASE_URL}/${key}`;
+      const cleanKey = String(key).replace(/^\/+/, "");
+      if (cleanKey.startsWith("http://") || cleanKey.startsWith("https://")) {
+        uri = cleanKey;
+      } else if (cleanKey.endsWith(".mp4")) {
+        uri = `${S3_BASE_URL}/${cleanKey}`;
       } else {
-        uri = `${S3_BASE_URL}/${key}/master.m3u8`;
+        uri = `${S3_BASE_URL}/${cleanKey}/master.m3u8`;
       }
     }
   }
