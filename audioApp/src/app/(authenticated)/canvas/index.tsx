@@ -788,16 +788,12 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
               onPress={() => handleToggleLike(item)}
               activeOpacity={0.75}
             >
-              <View
-                style={[
-                  styles.actionIconCircle,
-                  isLiked && styles.actionIconCircleLiked,
-                ]}
-              >
+              <View style={styles.actionIconCircle}>
                 <Ionicons
                   name={isLiked ? "heart" : "heart-outline"}
-                  size={26}
+                  size={30}
                   color={isLiked ? "#FF2D55" : "#FFFFFF"}
+                  style={styles.actionIconShadow}
                 />
               </View>
               <Text style={styles.actionText}>
@@ -816,7 +812,12 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
               activeOpacity={0.75}
             >
               <View style={styles.actionIconCircle}>
-                <Ionicons name="play" size={24} color="#FFFFFF" />
+                <Ionicons
+                  name="play"
+                  size={28}
+                  color="#FFFFFF"
+                  style={styles.actionIconShadow}
+                />
               </View>
               <Text style={styles.actionText}>Play</Text>
             </TouchableOpacity>
@@ -828,7 +829,12 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
               activeOpacity={0.75}
             >
               <View style={styles.actionIconCircle}>
-                <Ionicons name="paper-plane-outline" size={22} color="#FFFFFF" />
+                <Ionicons
+                  name="paper-plane-outline"
+                  size={26}
+                  color="#FFFFFF"
+                  style={styles.actionIconShadow}
+                />
               </View>
               <Text style={styles.actionText}>Share</Text>
             </TouchableOpacity>
@@ -1159,18 +1165,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   actionIconCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: "rgba(0, 0, 0, 0.42)",
+    width: 44,
+    height: 44,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.15)",
+    backgroundColor: "transparent",
   },
-  actionIconCircleLiked: {
-    backgroundColor: "rgba(255, 45, 85, 0.18)",
-    borderColor: "rgba(255, 45, 85, 0.4)",
+  actionIconShadow: {
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 1.5 },
+    shadowOpacity: 0.85,
+    shadowRadius: 3,
   },
   actionText: {
     color: "#FFFFFF",
