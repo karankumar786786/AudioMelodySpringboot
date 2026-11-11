@@ -27,6 +27,7 @@ import {
 } from "@/components";
 import { homeStyles as styles } from "@/styles";
 import { hapticFeedback } from "@/utils/haptics";
+import { configureAudioPriority } from "@/utils/audioConfig";
 import { Song } from "@/types";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -127,6 +128,7 @@ export default function HomeScreen() {
 
   const playSong = (song: Song, context?: Song[]) => {
     hapticFeedback.medium();
+    configureAudioPriority().catch(() => {});
     if (currentSong?.id === song.id) {
       audioPlayerService.togglePlay();
       return;

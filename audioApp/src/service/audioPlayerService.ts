@@ -152,18 +152,12 @@ export class AudioPlayerService {
         if (Platform.OS === "ios") {
           // iOS: "inactive" fires BEFORE "background" during lock.
           // Re-assert audio session and ensure lock screen controls are active.
-          if (this.activePlayer) {
-            (this.activePlayer as any)._isLockScreenActive = false;
-          }
           configureAudioPriority(true).catch(() => {});
           this.refreshLockScreen(true);
         }
       } else {
         // "background":
         if (Platform.OS === "ios") {
-          if (this.activePlayer) {
-            (this.activePlayer as any)._isLockScreenActive = false;
-          }
           this.refreshLockScreen(true);
           // One single safety retry after transition stabilizes
           setTimeout(() => {
@@ -346,7 +340,7 @@ export class AudioPlayerService {
       this.refreshLockScreen(true);
     } else if (this.lastReportedPlayingState !== isPlaying) {
       this.lastReportedPlayingState = isPlaying;
-      if (this.hasSyncedActiveLockScreen) {
+      if (this.hasSyncedActiveLockScreen || isPlaying) {
         this.refreshLockScreen(true);
       }
     }
@@ -604,6 +598,20 @@ export class AudioPlayerService {
 
     // Prime Standby 1 & 2 for upcoming tracks
     this.syncUpcomingPreload();
+
+    if (autoplay) {
+      setTimeout(() => {
+        if (store.getState().player.isPlaying) {
+          this.refreshLockScreen(true);
+        }
+      }, 100);
+
+      setTimeout(() => {
+        if (store.getState().player.isPlaying) {
+          this.refreshLockScreen(true);
+        }
+      }, 300);
+    }
   }
 
   /**
@@ -633,6 +641,8 @@ export class AudioPlayerService {
     this.hasReportedListen = false;
     this.lastPlayedSongId = playerSong.id;
     this.bufferedSeconds = startTime;
+    this.hasSyncedActiveLockScreen = false;
+    this.lastReportedPlayingState = false;
 
     const quality = store.getState().player.audioQuality || "auto";
     await this.pool.loadActive(playerSong, quality, startTime, false);
@@ -644,6 +654,7 @@ export class AudioPlayerService {
     if (!player) return;
     this.isExplicitlyPaused = true;
     player.pause();
+    this.hasSyncedActiveLockScreen = false;
     this.lastReportedPlayingState = false;
     store.dispatch(setIsPlaying(false));
     store.dispatch(setIsLoading(false));
@@ -656,6 +667,10 @@ export class AudioPlayerService {
 
   public resume(): void {
     this.isExplicitlyPaused = false;
+    configureAudioPriority(true).catch(() => {});
+    this.hasSyncedActiveLockScreen = false;
+    this.lastReportedPlayingState = null;
+
     const activeSlot = this.pool.getActiveSlot();
     const hasSongLoaded = Boolean(activeSlot?.song && activeSlot?.resolvedUri);
 
@@ -683,16 +698,27 @@ export class AudioPlayerService {
     if (dur > 0 && curTime >= dur - 0.5) {
       player.seekTo(0).then(() => {
         player.play();
-        this.lastReportedPlayingState = true;
         this.refreshLockScreen(true);
       });
     } else {
       player.play();
-      this.lastReportedPlayingState = true;
       this.refreshLockScreen(true);
     }
     store.dispatch(setIsPlaying(true));
     store.dispatch(setIsLoading(false));
+
+    // Staggered refresh after native AVPlayer/ExoPlayer transitions to rate = 1.0
+    setTimeout(() => {
+      if (store.getState().player.isPlaying) {
+        this.refreshLockScreen(true);
+      }
+    }, 100);
+
+    setTimeout(() => {
+      if (store.getState().player.isPlaying) {
+        this.refreshLockScreen(true);
+      }
+    }, 300);
   }
 
   public updateLockScreen(song?: PlayerSong | Song | null, force = true): void {

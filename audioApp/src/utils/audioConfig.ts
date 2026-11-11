@@ -127,9 +127,10 @@ export function safeSetActiveForLockScreen(
       const isIOS = Platform.OS === "ios";
       // On iOS, MediaController.shared is a singleton. Calling setActiveForLockScreen(true)
       // re-claims the native lock screen and updates MPNowPlayingInfoCenter reliably.
-      // On Android, calling setActiveForLockScreen repeatedly re-creates the foreground service,
-      // so Android uses safeUpdateLockScreenMetadata in-place unless force=true is requested.
-      const reactivate = force || isIOS;
+      // On Android, calling setActiveForLockScreen repeatedly re-creates the foreground service
+      // (calling stopForeground and releasing MediaSession), which kills the lock screen notification.
+      // So on Android, once active, we always update metadata in-place.
+      const reactivate = isIOS;
 
       if (alreadyActive && !reactivate) {
         safeUpdateLockScreenMetadata(player, metadata);

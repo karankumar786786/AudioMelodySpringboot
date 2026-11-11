@@ -1,10 +1,12 @@
 
+import { useEffect } from "react";
 import { View, StyleSheet, Platform } from "react-native";
 import { NativeTabs } from "expo-router/native-tabs";
 import { usePathname } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MiniPlayer } from "@/components";
+import { configureAudioPriority } from "@/utils/audioConfig";
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
@@ -12,6 +14,10 @@ export default function TabLayout() {
   // iOS UITabBar is 49pt + insets.bottom. Android Material 3 NavigationBar is 80dp + insets.bottom.
   const tabHeight = Platform.OS === "ios" ? 49 + insets.bottom : 80 + insets.bottom;
   const isShortsTab = pathname.includes("shorts") || pathname.includes("canvas");
+
+  useEffect(() => {
+    configureAudioPriority().catch(() => {});
+  }, []);
 
   return (
     <View style={styles.container}>

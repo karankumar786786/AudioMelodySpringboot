@@ -17,6 +17,7 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { runOnJS } from "react-native-reanimated";
 import { AppState } from "@/store/hook";
 import { audioPlayerService } from "@/service/audioPlayerService";
+import { configureAudioPriority } from "@/utils/audioConfig";
 import { nextTrack, prevTrack } from "@/store/queueActions";
 import { setDominantColor } from "@/store/playerSlice";
 import { selectIsFavourite, toggleFavourite } from "@/store/favouriteSlice";
@@ -87,6 +88,7 @@ export function MiniPlayer() {
   const handleTogglePlay = (e?: any) => {
     e?.stopPropagation?.();
     hapticFeedback.medium();
+    configureAudioPriority().catch(() => {});
     audioPlayerService.togglePlay();
   };
 
