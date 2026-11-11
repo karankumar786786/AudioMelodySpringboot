@@ -113,7 +113,7 @@ export function QuickPicksGrid({
           className="group relative flex items-center h-11 sm:h-12 rounded-lg overflow-hidden transition-all duration-200 cursor-pointer border bg-white/6 hover:bg-white/12 border-white/5 hover:border-white/10 select-none"
         >
           {/* Left Cover Gradient */}
-          <div className="w-11 sm:w-12 h-11 sm:h-12 shrink-0 relative bg-gradient-to-br from-[#450af5] to-[#8e8ee5] flex items-center justify-center shadow-inner">
+          <div className="w-11 sm:w-12 h-11 sm:h-12 shrink-0 relative bg-linear-to-br from-[#450af5] to-[#8e8ee5] flex items-center justify-center shadow-inner">
             <Heart className="w-5 h-5 text-white fill-white drop-shadow-sm" />
           </div>
 

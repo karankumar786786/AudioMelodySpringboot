@@ -64,12 +64,22 @@ export function SongCardInfo({ song, isActiveSong }: SongCardInfoProps) {
         </span>
 
         {song.genre && (
-          <span
-            className="text-[9px] sm:text-[9.5px] font-sans px-1.5 py-0.5 text-zinc-400 bg-white/5 border border-white/10 rounded-full truncate max-w-[85px]"
-            title={`Genre: ${song.genre}`}
-          >
-            {song.genre}
-          </span>
+          <div className="flex items-center gap-1 overflow-hidden shrink-0">
+            {song.genre
+              .split(",")
+              .map((g) => g.trim())
+              .filter(Boolean)
+              .slice(0, 2)
+              .map((genre) => (
+                <span
+                  key={genre}
+                  className="text-[9px] sm:text-[9.5px] font-sans px-1.5 py-0.5 text-zinc-400 bg-white/5 border border-white/10 rounded-full truncate max-w-21.25"
+                  title={`Genre: ${song.genre}`}
+                >
+                  {genre}
+                </span>
+              ))}
+          </div>
         )}
       </div>
     </div>
