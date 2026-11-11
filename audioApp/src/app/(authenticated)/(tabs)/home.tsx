@@ -17,7 +17,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import { AppDispatch, AppState, loadUserProfile } from "@/store";
 import { playWithSimilarSongs } from "@/store/queueActions";
-import { homeService, userService } from "@/service";
+import { homeService, userService, audioPlayerService } from "@/service";
 import {
   QuickPickCard,
   JumpBackInCard,
@@ -32,7 +32,7 @@ import { Song } from "@/types";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const GRID_GAP = 8;
 const GRID_PADDING = 18 * 2;
-const CARD_WIDTH = (SCREEN_WIDTH - GRID_PADDING - GRID_GAP) / 2;
+const CARD_WIDTH = Math.floor((SCREEN_WIDTH - GRID_PADDING - GRID_GAP) / 2);
 
 // Space reserved for the tab bar + mini player + comfortable breathing room
 const TAB_BAR_HEIGHT = 64;
@@ -127,6 +127,10 @@ export default function HomeScreen() {
 
   const playSong = (song: Song, context?: Song[]) => {
     hapticFeedback.medium();
+    if (currentSong?.id === song.id) {
+      audioPlayerService.togglePlay();
+      return;
+    }
     const playbackContext = context && context.length > 0 ? context : [song];
     dispatch(playWithSimilarSongs(song, playbackContext));
     router.push(`/song/${song.id}`);
@@ -179,22 +183,42 @@ export default function HomeScreen() {
   }, [recentlyPlayed, recommendations, trendingSongs, featuredSongs]);
 
   // Jump Back In pool: user history or graceful fallback
+  const hasRecentHistory = Boolean(recentlyPlayed && recentlyPlayed.length > 0);
   const jumpBackInSongs = useMemo(() => {
-    if (recentlyPlayed && recentlyPlayed.length > 0) {
+    if (hasRecentHistory) {
       return recentlyPlayed.slice(0, 10);
     }
     const fallback = featuredSongs.length > 0 ? featuredSongs : trendingSongs;
     return fallback.slice(0, 8);
-  }, [recentlyPlayed, featuredSongs, trendingSongs]);
+  }, [hasRecentHistory, recentlyPlayed, featuredSongs, trendingSongs]);
 
-  // Made For You: personalized algorithmic tracks or trending fallback
+  const jumpBackInTitle = hasRecentHistory ? "Jump back in" : "Featured for you";
+  const jumpBackInSubtitle = hasRecentHistory
+    ? "Your recent listening"
+    : "Handpicked tracks to start your journey";
+
+  // Made For You: personalized algorithmic tracks or distinct fallback
+  const hasRecommendations = Boolean(recommendations && recommendations.length > 0);
   const madeForYouSongs = useMemo(() => {
-    if (recommendations && recommendations.length > 0) {
+    if (hasRecommendations) {
       return recommendations.slice(0, 10);
     }
-    const fallback = trendingSongs.length > 0 ? trendingSongs : featuredSongs;
-    return fallback.slice(0, 8);
-  }, [recommendations, trendingSongs, featuredSongs]);
+    if (hasRecentHistory && featuredSongs.length > 0) {
+      return featuredSongs.slice(0, 10);
+    }
+    if (trendingSongs.length > 6) {
+      return trendingSongs.slice(0, 6);
+    }
+    return [];
+  }, [hasRecommendations, recommendations, hasRecentHistory, featuredSongs, trendingSongs]);
+
+  // Trending Now Shelf: deduplicated from fallback shelves
+  const trendingShelfSongs = useMemo(() => {
+    if (hasRecommendations || hasRecentHistory) {
+      return trendingSongs.slice(0, 12);
+    }
+    return trendingSongs.length > 6 ? trendingSongs.slice(6, 16) : trendingSongs;
+  }, [hasRecommendations, hasRecentHistory, trendingSongs]);
 
   // Top Artists
   const topArtists = useMemo(() => {
@@ -256,7 +280,7 @@ export default function HomeScreen() {
                 likedCount={favouriteIds.length}
                 onPress={() => {
                   hapticFeedback.light();
-                  router.push("/favourites" as any);
+                  router.push("/(authenticated)/favourites" as any);
                 }}
               />
 
@@ -276,12 +300,12 @@ export default function HomeScreen() {
               })}
             </View>
 
-            {/* 1. Jump Back In Shelf (User Listening History) */}
+            {/* 1. Jump Back In Shelf (User Listening History or Featured Fallback) */}
             {jumpBackInSongs.length > 0 ? (
               <View style={styles.section}>
                 <SectionHeader
-                  title="Jump back in"
-                  subtitle="Your recent listening"
+                  title={jumpBackInTitle}
+                  subtitle={jumpBackInSubtitle}
                 />
                 <FlatList
                   horizontal
@@ -368,7 +392,7 @@ export default function HomeScreen() {
             ) : null}
 
             {/* 4. Trending Now Shelf */}
-            {trendingSongs.length > 0 ? (
+            {trendingShelfSongs.length > 0 ? (
               <View style={styles.section}>
                 <SectionHeader
                   title="Trending now"
@@ -378,7 +402,7 @@ export default function HomeScreen() {
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.horizontalList}
-                  data={trendingSongs}
+                  data={trendingShelfSongs}
                   keyExtractor={(item, index) =>
                     item?.id ? `trend-${item.id}-${index}` : `trend-${index}`
                   }
@@ -389,7 +413,7 @@ export default function HomeScreen() {
                         song={item}
                         isActive={active}
                         isPlaying={active && isPlaying}
-                        onPress={() => playSong(item, trendingSongs)}
+                        onPress={() => playSong(item, trendingShelfSongs)}
                       />
                     );
                   }}
