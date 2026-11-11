@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
 import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import type React from "react";
 import { PlaylistCard } from "@/components/PlaylistCard";
 import type { Playlist } from "@/lib/api/types";
 
@@ -14,13 +14,9 @@ interface FeaturedPlaylistsSectionProps {
   playlists?: Playlist[];
 }
 
-export const FeaturedPlaylistsSection: React.FC<FeaturedPlaylistsSectionProps> = ({
-  sectionRef,
-  scrollRef,
-  onScroll,
-  isPlaylistsLoading,
-  playlists,
-}) => {
+export const FeaturedPlaylistsSection: React.FC<
+  FeaturedPlaylistsSectionProps
+> = ({ sectionRef, scrollRef, onScroll, isPlaylistsLoading, playlists }) => {
   return (
     <section ref={sectionRef} className="space-y-3">
       <div className="flex items-center justify-between">
@@ -56,10 +52,7 @@ export const FeaturedPlaylistsSection: React.FC<FeaturedPlaylistsSectionProps> =
       >
         {isPlaylistsLoading
           ? [1, 2, 3, 4, 5, 6].map((i) => (
-              <div
-                key={i}
-                className="flex-none w-37.5 sm:w-45 space-y-3"
-              >
+              <div key={i} className="flex-none w-37.5 sm:w-45 space-y-3">
                 <div className="aspect-square rounded-xl bg-zinc-900 animate-pulse border border-white/5" />
                 <div className="h-3 w-1/2 bg-zinc-900 rounded animate-pulse" />
               </div>

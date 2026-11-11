@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
 import { motion } from "framer-motion";
+import type React from "react";
 import { SongCard } from "@/components/SongCard";
 import type { Song } from "@/lib/api/types";
 

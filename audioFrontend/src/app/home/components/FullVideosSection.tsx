@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
 import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Film } from "lucide-react";
+import type React from "react";
 import { VideoCard } from "@/components/video-card";
 import type { Song } from "@/lib/api/types";
 

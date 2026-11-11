@@ -1,23 +1,15 @@
-import React from "react";
+import type React from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const HomeSkeleton: React.FC = () => {
   return (
-    <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-(--app-content-pt,1.5rem) space-y-5 sm:space-y-6 select-none">
-      {/* Header & Filter Pills Skeleton */}
-      <div className="space-y-2.5">
-        <Skeleton className="h-7 sm:h-8 w-48 rounded-lg" />
-        <div className="flex gap-2">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <Skeleton
-              key={i}
-              className="h-7 w-20 rounded-full"
-            />
-          ))}
-        </div>
+    <div className="px-4 sm:px-6 md:px-8 xl:px-10 pb-20 bg-black pt-(--app-content-pt,1.5rem) space-y-7 sm:space-y-8 select-none">
+      {/* Header Skeleton */}
+      <div className="space-y-2">
+        <Skeleton className="h-8 sm:h-9 w-56 rounded-lg" />
       </div>
 
-      {/* Quick Picks Skeleton */}
+      {/* Quick Picks Skeleton (2 rows x 3 columns) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-2.5">
         {[1, 2, 3, 4, 5, 6].map((i) => (
           <div
@@ -33,33 +25,43 @@ export const HomeSkeleton: React.FC = () => {
         ))}
       </div>
 
-      {/* Artists Skeleton */}
+      {/* Shelf 1 Skeleton (Jump back in) */}
       <div className="space-y-3">
-        <Skeleton className="h-6 w-32 rounded-lg" />
-        <div className="flex gap-4 overflow-hidden">
+        <Skeleton className="h-6 w-36 rounded-lg" />
+        <div className="flex gap-3 overflow-hidden">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div
-              key={i}
-              className="flex-none w-31.5 sm:w-32.5 space-y-3"
-            >
-              <Skeleton className="aspect-square rounded-full" />
-              <Skeleton className="h-3 w-3/4 mx-auto" />
+            <div key={i} className="flex-none w-36 sm:w-44 space-y-2.5">
+              <Skeleton className="aspect-square rounded-xl" />
+              <Skeleton className="h-3.5 w-4/5" />
+              <Skeleton className="h-2.5 w-1/2" />
             </div>
           ))}
         </div>
       </div>
 
-      {/* Playlists Skeleton */}
+      {/* Shelf 2 Skeleton (Artists) */}
       <div className="space-y-3">
-        <Skeleton className="h-6 w-40 rounded-lg" />
+        <Skeleton className="h-6 w-36 rounded-lg" />
         <div className="flex gap-4 overflow-hidden">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div
-              key={i}
-              className="flex-none w-36.25 sm:w-38.75 space-y-3"
-            >
+            <div key={i} className="flex-none w-28.75 sm:w-31 space-y-2.5">
+              <Skeleton className="aspect-square rounded-full mx-auto" />
+              <Skeleton className="h-3 w-3/4 mx-auto" />
+              <Skeleton className="h-2 w-1/2 mx-auto" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Shelf 3 Skeleton (Trending) */}
+      <div className="space-y-3">
+        <Skeleton className="h-6 w-36 rounded-lg" />
+        <div className="flex gap-3 overflow-hidden">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="flex-none w-36 sm:w-44 space-y-2.5">
               <Skeleton className="aspect-square rounded-xl" />
-              <Skeleton className="h-3 w-3/4" />
+              <Skeleton className="h-3.5 w-4/5" />
+              <Skeleton className="h-2.5 w-1/2" />
             </div>
           ))}
         </div>

@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Clock } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import type React from "react";
 import { SongCard } from "@/components/SongCard";
 import type { Song } from "@/lib/api/types";
 
@@ -10,23 +10,31 @@ interface RecentlyPlayedSectionProps {
   scrollRef: React.RefObject<HTMLDivElement | null>;
   onScroll: (distance: number) => void;
   songs?: Song[];
+  title?: string;
+  subtitle?: string;
 }
 
 export const RecentlyPlayedSection: React.FC<RecentlyPlayedSectionProps> = ({
   scrollRef,
   onScroll,
   songs,
+  title = "Jump back in",
+  subtitle = "Your recent listening",
 }) => {
   if (!songs || songs.length === 0) return null;
 
   return (
     <section className="space-y-3">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Clock size={20} className="text-primary" />
+        <div>
           <h2 className="text-xl font-bold text-white tracking-tight">
-            Recently Played
+            {title}
           </h2>
+          {subtitle && (
+            <p className="text-xs text-zinc-400 font-medium mt-0.5">
+              {subtitle}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <button

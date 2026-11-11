@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, Flame } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import type React from "react";
 import { SongCard } from "@/components/SongCard";
 import type { Song } from "@/lib/api/types";
 
@@ -11,6 +11,8 @@ interface TrendingSectionProps {
   scrollRef: React.RefObject<HTMLDivElement | null>;
   onScroll: (distance: number) => void;
   trendingSongs: Song[];
+  title?: string;
+  subtitle?: string;
 }
 
 export const TrendingSection: React.FC<TrendingSectionProps> = ({
@@ -18,17 +20,23 @@ export const TrendingSection: React.FC<TrendingSectionProps> = ({
   scrollRef,
   onScroll,
   trendingSongs,
+  title = "Trending now",
+  subtitle = "Top tracks taking over the charts",
 }) => {
   if (!trendingSongs.length) return null;
 
   return (
     <section ref={sectionRef} className="space-y-2">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Flame size={20} className="text-amber-500 fill-amber-500/20" />
+        <div>
           <h2 className="text-xl font-bold text-white tracking-tight">
-            Trending Hits
+            {title}
           </h2>
+          {subtitle && (
+            <p className="text-xs text-zinc-400 font-medium mt-0.5">
+              {subtitle}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <button

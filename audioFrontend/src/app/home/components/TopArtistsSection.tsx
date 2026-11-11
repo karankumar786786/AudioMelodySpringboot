@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
 import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import type React from "react";
 import { ArtistCard } from "@/components/ArtistCard";
 import type { Artist } from "@/lib/api/types";
 
@@ -12,6 +12,8 @@ interface TopArtistsSectionProps {
   onScroll: (distance: number) => void;
   isArtistsLoading: boolean;
   artists?: Artist[];
+  title?: string;
+  subtitle?: string;
 }
 
 export const TopArtistsSection: React.FC<TopArtistsSectionProps> = ({
@@ -20,13 +22,22 @@ export const TopArtistsSection: React.FC<TopArtistsSectionProps> = ({
   onScroll,
   isArtistsLoading,
   artists,
+  title = "Artists you love",
+  subtitle = "Based on your taste",
 }) => {
   return (
-    <section ref={sectionRef} className="space-y-1.5 -mt-1 sm:-mt-2">
+    <section ref={sectionRef} className="space-y-2">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-white tracking-tight">
-          Top Artists
-        </h2>
+        <div>
+          <h2 className="text-xl font-bold text-white tracking-tight">
+            {title}
+          </h2>
+          {subtitle && (
+            <p className="text-xs text-zinc-400 font-medium mt-0.5">
+              {subtitle}
+            </p>
+          )}
+        </div>
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => onScroll(-380)}
@@ -66,7 +77,11 @@ export const TopArtistsSection: React.FC<TopArtistsSectionProps> = ({
               </div>
             ))
           : artists?.map((artist: Artist) => (
-              <ArtistCard key={artist.id} artist={artist} className="snap-start" />
+              <ArtistCard
+                key={artist.id}
+                artist={artist}
+                className="snap-start"
+              />
             ))}
       </motion.div>
     </section>

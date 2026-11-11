@@ -1,23 +1,18 @@
 "use client";
 
-import { useAppSelector } from "@/store/hooks";
 import { motion } from "framer-motion";
 import {
   CornerDownRight,
+  Heart,
   ListPlus,
   Loader2,
   Pause,
   Play,
   Radio,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type React from "react";
 import { toast } from "sonner";
-import { musicApi, type Song } from "../lib/api";
-import { getImageUrl } from "../lib/image-utils";
-import { mapToPlayerSong, formatStreamCount } from "../lib/player-utils";
-import { previewPlayer } from "../lib/preview-player";
-import { playerActions } from "../store/player.store";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -25,16 +20,28 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAppSelector } from "@/store/hooks";
+import { musicApi, type Song } from "../lib/api";
+import { getImageUrl } from "../lib/image-utils";
+import { formatStreamCount, mapToPlayerSong } from "../lib/player-utils";
+import { previewPlayer } from "../lib/preview-player";
+import { playerActions } from "../store/player.store";
 
 interface QuickPicksGridProps {
   songs: Song[];
   isLoading?: boolean;
+  favouritesCount?: number;
+  onLikedSongsClick?: () => void;
 }
 
 export function QuickPicksGrid({
   songs,
   isLoading = false,
+  favouritesCount,
+  onLikedSongsClick,
 }: QuickPicksGridProps) {
+  const router = useRouter();
   const currentSong = useAppSelector((s) => s.player.currentSong);
   const isPlaying = useAppSelector((s) => s.player.isPlaying);
   const isAudioLoading = useAppSelector((s) => s.player.isLoading);
@@ -59,15 +66,58 @@ export function QuickPicksGrid({
     );
   }
 
-  // Display top 6 items (2 rows x 3 columns on desktop)
-  const displaySongs = songs.slice(0, 6);
+  const hasLikedTile = favouritesCount !== undefined;
+  // If Liked Songs tile is present, show 5 songs; otherwise 6
+  const displaySongs = songs.slice(0, hasLikedTile ? 5 : 6);
 
-  if (displaySongs.length === 0) {
+  if (displaySongs.length === 0 && !hasLikedTile) {
     return null;
   }
 
+  const handleLikedTileClick = () => {
+    previewPlayer.stopPreview(true);
+    if (onLikedSongsClick) {
+      onLikedSongsClick();
+    } else {
+      router.push("/my-playlists/favourites");
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-2.5 select-none">
+      {/* Spotify Signature Liked Songs Tile */}
+      {hasLikedTile && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          onClick={handleLikedTileClick}
+          className="group relative flex items-center h-11 sm:h-12 rounded-lg overflow-hidden transition-all duration-200 cursor-pointer border bg-white/6 hover:bg-white/12 border-white/5 hover:border-white/10 select-none"
+        >
+          {/* Left Cover Gradient */}
+          <div className="w-11 sm:w-12 h-11 sm:h-12 shrink-0 relative bg-gradient-to-br from-[#450af5] to-[#8e8ee5] flex items-center justify-center shadow-inner">
+            <Heart className="w-5 h-5 text-white fill-white drop-shadow-sm" />
+          </div>
+
+          {/* Info */}
+          <div className="flex-1 min-w-0 px-2.5 py-0.5 flex flex-col justify-center">
+            <p className="text-xs sm:text-[13px] font-bold text-zinc-100 group-hover:text-white truncate leading-tight">
+              Liked Songs
+            </p>
+            <p className="text-[10.5px] sm:text-[11px] text-zinc-400 truncate mt-0.5 font-medium">
+              {favouritesCount > 0 ? `${favouritesCount} songs` : "Playlist"}
+            </p>
+          </div>
+
+          {/* Hover Play Action Button */}
+          <div className="pr-2.5 pl-1 shrink-0 flex items-center justify-center">
+            <div className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-black shadow-md opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200">
+              <Play className="w-4 h-4 fill-current ml-0.5 text-black" />
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       {displaySongs.map((song, index) => {
         const isCurrent = currentSong?.id === song.id;
         const isCurrentActive = isCurrent && isPlaying;
@@ -111,7 +161,10 @@ export function QuickPicksGrid({
                   songToPlay = { ...song, ...res.data };
                 }
               } catch (err) {
-                console.warn("Failed to load song details from DB for quick pick:", err);
+                console.warn(
+                  "Failed to load song details from DB for quick pick:",
+                  err,
+                );
               }
             }
             playerActions.playWithRadio(mapToPlayerSong(songToPlay));
@@ -131,7 +184,10 @@ export function QuickPicksGrid({
                   songToPlay = { ...song, ...res.data };
                 }
               } catch (err) {
-                console.warn("Failed to load song details from DB for quick pick:", err);
+                console.warn(
+                  "Failed to load song details from DB for quick pick:",
+                  err,
+                );
               }
             }
             playerActions.playWithRadio(mapToPlayerSong(songToPlay));
@@ -232,14 +288,27 @@ export function QuickPicksGrid({
                   </div>
                   <p
                     className="text-[10.5px] sm:text-[11px] text-zinc-400 truncate mt-0.5 font-medium flex items-center gap-1.5"
-                    title={[song.artistName || "Unknown Artist", song.album, song.genre].filter(Boolean).join(" • ")}
+                    title={[
+                      song.artistName || "Unknown Artist",
+                      song.album,
+                      song.genre,
+                    ]
+                      .filter(Boolean)
+                      .join(" • ")}
                   >
-                    <span className="truncate">{song.artistName || "Unknown Artist"}</span>
+                    <span className="truncate">
+                      {song.artistName || "Unknown Artist"}
+                    </span>
                     <span className="text-zinc-600 shrink-0">•</span>
                     <span className="text-white font-mono text-[10px] shrink-0 font-semibold drop-shadow-[0_0_6px_rgba(255,255,255,0.45)]">
                       {formatStreamCount(song.totalStreams)}
                     </span>
-                    {song.album && <span className="text-zinc-500 font-normal truncate hidden sm:inline"> • {song.album}</span>}
+                    {song.album && (
+                      <span className="text-zinc-500 font-normal truncate hidden sm:inline">
+                        {" "}
+                        • {song.album}
+                      </span>
+                    )}
                   </p>
                 </div>
 
@@ -289,7 +358,10 @@ export function QuickPicksGrid({
                         <span className="absolute -inset-0.5 rounded-full border border-white animate-ping opacity-50 pointer-events-none" />
                         <motion.span
                           className="absolute -inset-1.5 rounded-full border border-white/40 pointer-events-none"
-                          animate={{ scale: [1, 1.15, 1], opacity: [0.6, 0, 0.6] }}
+                          animate={{
+                            scale: [1, 1.15, 1],
+                            opacity: [0.6, 0, 0.6],
+                          }}
                           transition={{
                             duration: 1.2,
                             repeat: Infinity,
@@ -359,12 +431,18 @@ export function QuickPicksGrid({
                     >
                       {isCurrentActive ? (
                         isAudioLoading ? (
-                          <Loader2 size={13} className="animate-spin text-black" />
+                          <Loader2
+                            size={13}
+                            className="animate-spin text-black"
+                          />
                         ) : (
                           <Pause size={14} className="fill-black text-black" />
                         )
                       ) : isPreviewLoading ? (
-                        <Loader2 size={13} className="animate-spin text-black" />
+                        <Loader2
+                          size={13}
+                          className="animate-spin text-black"
+                        />
                       ) : isPreviewPlaying ? (
                         <div className="flex items-end justify-center gap-0.5 h-3 w-3">
                           <motion.span
