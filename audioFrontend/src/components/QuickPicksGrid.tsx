@@ -24,7 +24,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAppSelector } from "@/store/hooks";
 import { musicApi, type Song } from "../lib/api";
 import { getImageUrl } from "../lib/image-utils";
-import { formatStreamCount, mapToPlayerSong } from "../lib/player-utils";
+import {
+  formatStreamCount,
+  mapListToPlayerSongs,
+  mapToPlayerSong,
+} from "../lib/player-utils";
 import { previewPlayer } from "../lib/preview-player";
 import { playerActions } from "../store/player.store";
 
@@ -83,6 +87,20 @@ export function QuickPicksGrid({
     }
   };
 
+  const handleLikedPlayClick = async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    previewPlayer.stopPreview(true);
+    try {
+      const res = await musicApi.users.getFavourites(1, 50);
+      const favSongs = res?.data?.data || [];
+      if (favSongs.length > 0) {
+        playerActions.playAll(mapListToPlayerSongs(favSongs));
+        return;
+      }
+    } catch {}
+    router.push("/my-playlists/favourites");
+  };
+
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-2.5 select-none">
       {/* Spotify Signature Liked Songs Tile */}
@@ -111,9 +129,14 @@ export function QuickPicksGrid({
 
           {/* Hover Play Action Button */}
           <div className="pr-2.5 pl-1 shrink-0 flex items-center justify-center">
-            <div className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-black shadow-md opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200">
+            <button
+              type="button"
+              onClick={handleLikedPlayClick}
+              aria-label="Play Liked Songs"
+              className="w-8 h-8 flex items-center justify-center rounded-full bg-white text-black shadow-md opacity-0 translate-y-1 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-200 hover:scale-105 cursor-pointer"
+            >
               <Play className="w-4 h-4 fill-current ml-0.5 text-black" />
-            </div>
+            </button>
           </div>
         </motion.div>
       )}

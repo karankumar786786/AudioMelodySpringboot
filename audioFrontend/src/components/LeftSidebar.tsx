@@ -98,7 +98,7 @@ export function LeftSidebar() {
                     : "text-zinc-300 hover:text-white hover:bg-[#1a1a1a]"
                 }`}
               >
-                <div className="w-8.5 h-8.5 rounded-md bg-lineat-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shrink-0 shadow-md">
+                <div className="w-8.5 h-8.5 rounded-md bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shrink-0 shadow-md">
                   <Heart size={16} fill="white" className="text-white" />
                 </div>
                 <div className="hidden xl:flex flex-col min-w-0 flex-1">
