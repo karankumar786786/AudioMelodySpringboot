@@ -62,6 +62,10 @@ export class AudioPlayerService {
   private lastSavedQueueLength = 0;
   private isExplicitlyPaused = false;
 
+  public get currentSong(): PlayerSong | null {
+    return this.currentPlayingSong;
+  }
+
   public markCurrentTrackReported(): void {
     this.hasReportedListen = true;
   }
@@ -147,9 +151,7 @@ export class AudioPlayerService {
       } else if (nextState === "inactive") {
         if (Platform.OS === "ios") {
           // iOS: "inactive" fires BEFORE "background" during lock.
-          // Re-assert audio session BEFORE expo-video gets a chance to corrupt it.
-          // Also reset _isLockScreenActive so the next refreshLockScreen(true)
-          // forces a full native re-registration instead of a metadata-only update.
+          // Re-assert audio session and ensure lock screen controls are active.
           if (this.activePlayer) {
             (this.activePlayer as any)._isLockScreenActive = false;
           }
@@ -159,16 +161,16 @@ export class AudioPlayerService {
       } else {
         // "background":
         if (Platform.OS === "ios") {
-          // iOS only: reset lock screen flag and retry with escalating delays
           if (this.activePlayer) {
             (this.activePlayer as any)._isLockScreenActive = false;
           }
           this.refreshLockScreen(true);
-          [300, 800, 1500, 3000].forEach((d) =>
-            setTimeout(() => {
+          // One single safety retry after transition stabilizes
+          setTimeout(() => {
+            if (AppState.currentState !== "active") {
               this.refreshLockScreen(true);
-            }, d)
-          );
+            }
+          }, 350);
         } else {
           // Android: AudioControlsService remains running in the foreground.
           // Safe in-place metadata sync without tearing down the MediaSession / notification.
@@ -341,11 +343,11 @@ export class AudioPlayerService {
     if (isPlaying && dur > 0 && !this.hasSyncedActiveLockScreen) {
       this.hasSyncedActiveLockScreen = true;
       this.lastReportedPlayingState = true;
-      this.refreshLockScreen();
+      this.refreshLockScreen(true);
     } else if (this.lastReportedPlayingState !== isPlaying) {
       this.lastReportedPlayingState = isPlaying;
       if (this.hasSyncedActiveLockScreen) {
-        this.refreshLockScreen();
+        this.refreshLockScreen(true);
       }
     }
 
@@ -634,7 +636,7 @@ export class AudioPlayerService {
 
     const quality = store.getState().player.audioQuality || "auto";
     await this.pool.loadActive(playerSong, quality, startTime, false);
-    this.refreshLockScreen();
+    this.refreshLockScreen(true);
   }
 
   public pause(): void {
@@ -649,7 +651,7 @@ export class AudioPlayerService {
       PlayerStore.savePlaybackPosition(player.currentTime);
       this.syncServerProgress(player.currentTime, player.duration);
     }
-    this.refreshLockScreen();
+    this.refreshLockScreen(true);
   }
 
   public resume(): void {
@@ -682,18 +684,18 @@ export class AudioPlayerService {
       player.seekTo(0).then(() => {
         player.play();
         this.lastReportedPlayingState = true;
-        this.refreshLockScreen();
+        this.refreshLockScreen(true);
       });
     } else {
       player.play();
       this.lastReportedPlayingState = true;
-      this.refreshLockScreen();
+      this.refreshLockScreen(true);
     }
     store.dispatch(setIsPlaying(true));
     store.dispatch(setIsLoading(false));
   }
 
-  public updateLockScreen(song?: PlayerSong | Song | null, force = false): void {
+  public updateLockScreen(song?: PlayerSong | Song | null, force = true): void {
     const targetSong = song || this.currentPlayingSong;
     const player = this.activePlayer;
     if (!player || !targetSong) return;
@@ -736,7 +738,7 @@ export class AudioPlayerService {
     );
   }
 
-  public refreshLockScreen(force = false): void {
+  public refreshLockScreen(force = true): void {
     if (!this.activePlayer || !this.currentPlayingSong) return;
     this.updateLockScreen(this.currentPlayingSong, force);
   }

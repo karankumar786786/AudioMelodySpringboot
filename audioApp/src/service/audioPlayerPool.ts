@@ -340,11 +340,16 @@ export class AudioPlayerPool {
         showNextTrack: true,
         showPreviousTrack: true,
       },
+      true
     );
 
     // 4. Pause and mute old active player
     currentActive.player.pause();
     currentActive.player.volume = 0;
+
+    // Reset flags on demoted player so when reused, it re-registers cleanly
+    (currentActive.player as any)._isLockScreenActive = false;
+    (currentActive.player as any)._lastAppliedMetadata = undefined;
 
     // On iOS only: explicitly detach the old player from AVAudioSession lock screen
     // On Android: DO NOT call safeSetActiveForLockScreen(currentActive, false)!
@@ -449,7 +454,8 @@ export class AudioPlayerPool {
           showSeekBackward: false,
           showNextTrack: true,
           showPreviousTrack: true,
-        }
+        },
+        true
       );
 
       return playerSong;

@@ -25,7 +25,6 @@ import { Image } from "expo-image";
 import {
   createAudioPlayer,
   preload,
-  clearAllPreloadedSources,
   AudioPlayer,
   AudioStatus,
 } from "expo-audio";
@@ -41,6 +40,7 @@ import {
 } from "@/service";
 import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
 import { getImageUrl, getVideoUrl } from "@/utils/imageUtils";
+import { configureAudioPriority, safeSetActiveForLockScreen } from "@/utils";
 import { hapticFeedback } from "@/utils/haptics";
 import { radius, shadows } from "@/theme";
 
@@ -304,15 +304,48 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
 
   const activeSong = songs[activeIndex];
 
-  // 4. Audio Isolation: Pause main listening session when entering Shorts
+  // Scroll navigation helpers for tap and remote lock screen commands
+  const handleScrollToNext = useCallback(() => {
+    setActiveIndex((prev) => {
+      const nextIdx = Math.min(prev + 1, songs.length - 1);
+      if (nextIdx !== prev) {
+        flatListRef.current?.scrollToIndex({ index: nextIdx, animated: true });
+      }
+      return nextIdx;
+    });
+  }, [songs.length]);
+
+  const handleScrollToPrev = useCallback(() => {
+    setActiveIndex((prev) => {
+      const prevIdx = Math.max(prev - 1, 0);
+      if (prevIdx !== prev) {
+        flatListRef.current?.scrollToIndex({ index: prevIdx, animated: true });
+      }
+      return prevIdx;
+    });
+  }, []);
+
+  // 4. Audio Isolation: Pause main listening session when entering Shorts; restore lock screen on exit
   useEffect(() => {
     if (isScreenFocused) {
       // Pause main listening session so audio does not overlap
       audioPlayerService.pause();
     } else {
       // Pause shorts preview audio when user leaves Shorts screen/tab
-      shortsPlayerRef.current?.pause();
+      try {
+        shortsPlayerRef.current?.pause();
+        shortsPlayerRef.current = null;
+      } catch {}
       setIsShortsPlaying(false);
+
+      // Re-configure audio priority and restore lock screen for the main listening session
+      configureAudioPriority(true)
+        .catch(() => {})
+        .finally(() => {
+          if (audioPlayerService.currentSong) {
+            audioPlayerService.refreshLockScreen(true);
+          }
+        });
     }
   }, [isScreenFocused]);
 
@@ -339,12 +372,12 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
         ? activeSong.previewEndTime
         : 0;
 
-    // Clean up any existing player from the previous slide to avoid AVQueuePlayer reuse issues
+    // Clean up any existing player from the previous slide without calling native remove()
+    // (native remove() deactivates the shared AVAudioSession and drops lock screen controls)
     if (shortsPlayerRef.current) {
       try {
         shortsPlayerRef.current.pause();
-        shortsPlayerRef.current.remove?.();
-        (shortsPlayerRef.current as any).release?.();
+        shortsPlayerRef.current.volume = 0;
       } catch {}
       shortsPlayerRef.current = null;
     }
@@ -357,6 +390,16 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
         const onStatus = async (status: AudioStatus) => {
           if (!isMounted) return;
           setIsShortsPlaying(status.playing);
+
+          // Handle lock screen next/previous commands while on Shorts
+          if ((status as any)?.remoteCommand === "nextTrack") {
+            handleScrollToNext();
+            return;
+          }
+          if ((status as any)?.remoteCommand === "previousTrack") {
+            handleScrollToPrev();
+            return;
+          }
 
           // Once player is loaded, perform initial hook window seek if needed
           if (!initialSeekDone && (status as any)?.isLoaded) {
@@ -390,6 +433,42 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
         player.addListener("playbackStatusUpdate", onStatus);
         shortsPlayerRef.current = player;
 
+        // Configure lock screen controls for the currently active short
+        const rawCover =
+          (activeSong as any).coverUrl ||
+          (activeSong as any).posterUrl ||
+          activeSong.imageKey ||
+          (activeSong as any).imageUrl;
+        const artworkUrl =
+          (typeof rawCover === "string" && rawCover.startsWith("http")
+            ? rawCover
+            : getImageUrl(rawCover, {
+                width: 500,
+                height: 500,
+                focus: "auto",
+                aspectRatio: "1-1",
+                format: "jpg",
+                quality: 85,
+              })) || undefined;
+
+        safeSetActiveForLockScreen(
+          player,
+          true,
+          {
+            title: activeSong.title || "One Melody Shorts",
+            artist: activeSong.artistName || "Unknown Artist",
+            albumTitle: "Shorts",
+            artworkUrl,
+          },
+          {
+            showSeekForward: false,
+            showSeekBackward: false,
+            showNextTrack: true,
+            showPreviousTrack: true,
+          },
+          true
+        );
+
         if (!isPaused && isScreenFocused) {
           try {
             player.play();
@@ -413,8 +492,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
       if (shortsPlayerRef.current) {
         try {
           shortsPlayerRef.current.pause();
-          shortsPlayerRef.current.remove?.();
-          (shortsPlayerRef.current as any).release?.();
+          shortsPlayerRef.current.volume = 0;
         } catch {}
         shortsPlayerRef.current = null;
       }
@@ -455,13 +533,6 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     });
   }, [activeIndex, songs, isScreenFocused]);
 
-  // Clean up all preloaded sources when exiting Shorts screen
-  useEffect(() => {
-    return () => {
-      clearAllPreloadedSources().catch(() => {});
-    };
-  }, []);
-
   // Handle Mute toggle for isolated preview audio
   useEffect(() => {
     if (shortsPlayerRef.current) {
@@ -471,14 +542,16 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     }
   }, [isMuted]);
 
-  // Cleanup isolated audio player on unmount
+  // Cleanup isolated audio player on unmount and restore lock screen for main session
   useEffect(() => {
     return () => {
       try {
         shortsPlayerRef.current?.pause();
-        shortsPlayerRef.current?.remove();
         shortsPlayerRef.current = null;
       } catch {}
+      if (audioPlayerService.currentSong) {
+        audioPlayerService.refreshLockScreen(true);
+      }
     };
   }, []);
 

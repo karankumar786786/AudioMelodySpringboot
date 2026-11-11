@@ -13,6 +13,7 @@ import { Image } from "expo-image";
 import { getImageUrl, getVideoUrl } from "@/utils/imageUtils";
 import { configureAudioPriority } from "@/utils/audioConfig";
 import { audioPlayerService } from "@/service/audioPlayerService";
+import { store } from "@/store/hook";
 
 // iOS: expo-video's AudioSessionPolicy adds `.mixWithOthers` to the shared
 // AVAudioSession when a player is "mixWithOthers", which makes iOS drop the
@@ -67,17 +68,15 @@ let reassertTimers: ReturnType<typeof setTimeout>[] = [];
 function reassertPlaybackSession() {
   if (Platform.OS !== "ios") return;
   reassertTimers.forEach(clearTimeout);
-  // Several attempts: expo-video recalculates the session asynchronously, and
-  // while locking iOS may reject the first try (errors are swallowed).
-  // NOTE: We no longer gate on AppState === "active" so the lock screen can
-  // be re-asserted even while transitioning to background (locking).
-  reassertTimers = [250, 900, 2000].map((delay) =>
+  reassertTimers = [250, 900].map((delay) =>
     setTimeout(async () => {
       try {
         await configureAudioPriority(true);
       } catch {}
       try {
-        audioPlayerService.refreshLockScreen(true);
+        if (store.getState().player.isPlaying) {
+          audioPlayerService.refreshLockScreen(true);
+        }
       } catch {}
     }, delay)
   );
