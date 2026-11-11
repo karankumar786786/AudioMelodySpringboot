@@ -634,6 +634,7 @@ export default function SongDetailScreen() {
             videoKey={activeSong.videoKey}
             fallbackImageKey={null}
             isPlaying={isPlaying && !isVideoModalOpen}
+            contentFit="cover"
             style={StyleSheet.absoluteFill}
           />
           <LinearGradient

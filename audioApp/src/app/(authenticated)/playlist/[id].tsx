@@ -164,6 +164,7 @@ export default function PlaylistDetailScreen() {
         fallbackImageKey={heroImageKey}
         style={StyleSheet.absoluteFill}
         isPlaying={true}
+        contentFit="cover"
         showLoaderWhenVideoAvailable={true}
       />
 

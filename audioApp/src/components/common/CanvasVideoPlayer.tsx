@@ -21,32 +21,6 @@ import { store } from "@/store/hook";
 // "doNotMix" video player would steal audio focus from the music player.
 const CANVAS_MIXING_MODE = Platform.OS === "ios" ? "doNotMix" : "mixWithOthers";
 
-// Many canvas files are a 16:9 clip centered inside a taller frame, so black bars
-// are baked into the video itself (top + bottom). `cover` can't remove those, so
-// we zoom in until the 16:9 content fills the container, cropping the bars.
-// Zoom-to-fill switch. false = show the video as-is (no cover crop, no bar trimming).
-const ZOOM_TO_FILL = true;
-const CONTENT_ASPECT = 16 / 9;
-const MAX_BAR_ZOOM = 4;
-
-function computeBarZoom(
-  video: { width: number; height: number } | null | undefined,
-  box: { width: number; height: number }
-): number {
-  if (!ZOOM_TO_FILL) return 1;
-  if (!video || !video.width || !video.height || !box.width || !box.height) return 1;
-  // Not taller than the content itself -> no room for baked-in bars
-  if (video.height < (video.width / CONTENT_ASPECT) * 1.15) return 1;
-
-  // Scale `cover` applies, and the height the 16:9 content then occupies
-  const coverScale = Math.max(box.width / video.width, box.height / video.height);
-  const contentHeight = (video.width / CONTENT_ASPECT) * coverScale;
-  const contentWidth = video.width * coverScale;
-  // Zoom so the content fills the box height (width only overflows -> cropped)
-  const zoom = Math.max(box.height / contentHeight, box.width / contentWidth, 1);
-  return Math.min(MAX_BAR_ZOOM, zoom);
-}
-
 // WHY iOS keeps the canvas playing in the background:
 // expo-video's AudioSessionPolicy only removes `.mixWithOthers` (needed for Now
 // Playing / lock screen controls) while a "doNotMix" video player is PLAYING.
@@ -91,6 +65,7 @@ interface CanvasVideoPlayerProps {
   showLoaderWhenVideoAvailable?: boolean;
   showFallbackImage?: boolean;
   showLoader?: boolean;
+  contentFit?: "cover" | "contain" | "fill";
   onReady?: () => void;
   onLoadingChange?: (loading: boolean) => void;
 }
@@ -98,11 +73,13 @@ interface CanvasVideoPlayerProps {
 function VideoSurface({
   videoUrl,
   isPlaying = true,
+  contentFit = "cover",
   onReady,
   onError,
 }: {
   videoUrl: string;
   isPlaying?: boolean;
+  contentFit?: "cover" | "contain" | "fill";
   onReady?: () => void;
   onError?: (err?: any) => void;
 }) {
@@ -124,10 +101,6 @@ function VideoSurface({
     }),
     [videoUrl]
   );
-
-  const [box, setBox] = useState({ width: 0, height: 0 });
-  const [videoSize, setVideoSize] = useState<{ width: number; height: number } | null>(null);
-  const barZoom = React.useMemo(() => computeBarZoom(videoSize, box), [videoSize, box]);
 
   const player = useVideoPlayer(videoSource, (p) => {
     p.loop = true;
@@ -164,17 +137,9 @@ function VideoSurface({
       }
     };
 
-    const readSize = () => {
-      const size = (player as any).videoTrack?.size;
-      if (size?.width && size?.height) {
-        setVideoSize({ width: size.width, height: size.height });
-      }
-    };
-
     const checkStatus = (status: string, error?: any) => {
       console.log(`[VideoSurface] 📊 statusChange -> ${status}, playing=${player.playing}, isPlayingProp=${isPlaying}, error=${error ? JSON.stringify(error) : "none"}`);
       if (status === "readyToPlay") {
-        readSize();
         // NOT ready yet: the loader stays until the video is actually playing
         if (
           isPlaying &&
@@ -215,11 +180,6 @@ function VideoSurface({
       }
     });
 
-    const sourceLoadSub = player.addListener("sourceLoad", () => {
-      readSize();
-    });
-    const trackSub = (player as any).addListener("videoTrackChange", () => readSize());
-
     // Active polling interval as a bulletproof fallback while video buffers
     const pollInterval = setInterval(() => {
       if (player.playing && player.currentTime > 0) {
@@ -254,12 +214,6 @@ function VideoSurface({
         timeUpdateSub.remove();
       } catch {}
       try {
-        sourceLoadSub.remove();
-      } catch {}
-      try {
-        trackSub?.remove();
-      } catch {}
-      try {
         appStateSub.remove();
       } catch {}
     };
@@ -278,21 +232,9 @@ function VideoSurface({
 
   return (
     <VideoView
-      style={[
-        StyleSheet.absoluteFill,
-        { width: "100%", height: "100%" },
-        barZoom > 1 ? { transform: [{ scale: barZoom }] } : null,
-      ]}
-      onLayout={(e) => {
-        const { width, height } = e.nativeEvent.layout;
-        setBox((prev) =>
-          prev.width === width && prev.height === height ? prev : { width, height }
-        );
-      }}
+      style={[StyleSheet.absoluteFill, { width: "100%", height: "100%" }]}
       player={player}
-      // "cover" = zoom to fill: always scales the video up and crops overflow,
-      // never letterboxes
-      contentFit={ZOOM_TO_FILL ? "cover" : "contain"}
+      contentFit={contentFit}
       nativeControls={false}
       allowsPictureInPicture={false}
       pointerEvents="none"
@@ -306,6 +248,7 @@ export function CanvasVideoPlayer({
   fallbackImageKey,
   style,
   isPlaying = true,
+  contentFit = "cover",
   showFallbackImage = true,
   showLoader = true,
   showLoaderWhenVideoAvailable,
@@ -434,7 +377,7 @@ export function CanvasVideoPlayer({
         <Image
           source={{ uri: imageUrl }}
           style={StyleSheet.absoluteFill}
-          contentFit="cover"
+          contentFit={contentFit === "contain" ? "contain" : "cover"}
           cachePolicy="memory"
         />
       ) : (
@@ -447,6 +390,7 @@ export function CanvasVideoPlayer({
           key={surfaceUrl}
           videoUrl={surfaceUrl}
           isPlaying={surfacePlaying}
+          contentFit={contentFit}
           onReady={handleVideoReady}
           onError={(err) => {
             if (err) {

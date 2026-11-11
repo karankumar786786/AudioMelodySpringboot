@@ -775,6 +775,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
                   isPlaying={isActive && isScreenFocused && !isPaused}
                   showFallbackImage={true}
                   showLoader={false}
+                  contentFit="cover"
                   style={StyleSheet.absoluteFill}
                 />
               ) : (
