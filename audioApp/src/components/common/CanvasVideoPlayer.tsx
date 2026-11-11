@@ -24,7 +24,7 @@ const CANVAS_MIXING_MODE = Platform.OS === "ios" ? "doNotMix" : "mixWithOthers";
 // are baked into the video itself (top + bottom). `cover` can't remove those, so
 // we zoom in until the 16:9 content fills the container, cropping the bars.
 // Zoom-to-fill switch. false = show the video as-is (no cover crop, no bar trimming).
-const ZOOM_TO_FILL = false;
+const ZOOM_TO_FILL = true;
 const CONTENT_ASPECT = 16 / 9;
 const MAX_BAR_ZOOM = 4;
 

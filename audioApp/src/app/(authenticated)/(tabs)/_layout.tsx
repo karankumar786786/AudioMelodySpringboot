@@ -11,11 +11,12 @@ export default function TabLayout() {
   const pathname = usePathname();
   // iOS UITabBar is 49pt + insets.bottom. Android Material 3 NavigationBar is 80dp + insets.bottom.
   const tabHeight = Platform.OS === "ios" ? 49 + insets.bottom : 80 + insets.bottom;
-  const isShortsTab = pathname.includes("shorts");
+  const isShortsTab = pathname.includes("shorts") || pathname.includes("canvas");
 
   return (
     <View style={styles.container}>
       <NativeTabs
+        hidden={isShortsTab}
         backgroundColor="#000000"
         indicatorColor="transparent"
         disableIndicator={true}

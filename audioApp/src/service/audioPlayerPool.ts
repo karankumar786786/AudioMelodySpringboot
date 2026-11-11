@@ -56,11 +56,16 @@ export function resolveStreamUrl(
   if (!uri) {
     const key =
       song.songKey ||
-      (song as any).fullVideoKey ||
       (song as any).audioKey ||
-      (song as any).videoKey;
+      (song as any).fullVideoKey;
     if (key) {
-      uri = `${S3_BASE_URL}/${key}/master.m3u8`;
+      if (key.startsWith("http://") || key.startsWith("https://")) {
+        uri = key;
+      } else if (key.endsWith(".mp4")) {
+        uri = `${S3_BASE_URL}/${key}`;
+      } else {
+        uri = `${S3_BASE_URL}/${key}/master.m3u8`;
+      }
     }
   }
 

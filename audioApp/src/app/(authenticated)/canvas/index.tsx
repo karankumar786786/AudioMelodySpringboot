@@ -38,7 +38,10 @@ import { getImageUrl, getVideoUrl } from "@/utils/imageUtils";
 import { hapticFeedback } from "@/utils/haptics";
 import { radius, shadows } from "@/theme";
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const screenDimensions = Dimensions.get("screen");
+const windowDimensions = Dimensions.get("window");
+const SCREEN_WIDTH = windowDimensions.width;
+const SCREEN_HEIGHT = Math.max(screenDimensions.height, windowDimensions.height);
 
 export function parseArtistNames(artistStr?: string | null): string[] {
   if (!artistStr) return [];
@@ -125,10 +128,8 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
   // Full-height measurement accounting for tabs & safe areas
   const [containerHeight, setContainerHeight] = useState<number>(SCREEN_HEIGHT);
 
-  // Spacing above the bottom tab bar or safe area
-  const tabBottomSpace = isTab
-    ? (Platform.OS === "ios" ? 49 + insets.bottom : 80 + insets.bottom)
-    : insets.bottom;
+  // Spacing above the bottom home indicator / safe area (Shorts is full-screen)
+  const tabBottomSpace = insets.bottom;
 
   const flatListRef = useRef<FlatList<Song>>(null);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -358,32 +359,32 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
         };
 
         if (!shortsPlayerRef.current) {
-          const player = createAudioPlayer(
-            { uri: streamUrl },
-            {
-              keepAudioSessionActive: true,
-              updateInterval: 250,
-            }
-          );
+          const player = createAudioPlayer(null, {
+            keepAudioSessionActive: true,
+            updateInterval: 250,
+          });
           player.volume = 1.0;
           player.loop = endSec <= 0; // Native loop if no custom endSec window
           player.muted = isMuted;
           player.addListener("playbackStatusUpdate", onStatus);
           shortsPlayerRef.current = player;
-        } else {
-          const player = shortsPlayerRef.current;
-          if (typeof (player as any)?.replaceAsync === "function") {
-            await (player as any).replaceAsync({ uri: streamUrl });
-          } else {
-            player.replace({ uri: streamUrl });
-          }
-          player.volume = 1.0;
-          player.loop = endSec <= 0;
-          player.muted = isMuted;
         }
 
-        if (startSec > 0) {
-          safeSeek(shortsPlayerRef.current, startSec);
+        const player = shortsPlayerRef.current;
+        player.volume = 1.0;
+        player.loop = endSec <= 0;
+        player.muted = isMuted;
+
+        if (streamUrl) {
+          try {
+            if (typeof (player as any)?.replaceAsync === "function") {
+              await (player as any).replaceAsync({ uri: streamUrl });
+            } else {
+              player.replace({ uri: streamUrl });
+            }
+          } catch (replaceErr) {
+            console.warn("[CanvasShorts] Audio stream load error (non-fatal):", replaceErr);
+          }
         }
 
         if (!isPaused && isScreenFocused) {
@@ -1011,9 +1012,10 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
           }
           pagingEnabled
           showsVerticalScrollIndicator={false}
-          snapToInterval={containerHeight}
-          snapToAlignment="start"
-          decelerationRate="fast"
+          snapToInterval={Platform.OS === "android" ? containerHeight : undefined}
+          snapToAlignment={Platform.OS === "android" ? "start" : undefined}
+          decelerationRate={Platform.OS === "ios" ? "normal" : "fast"}
+          disableIntervalMomentum={true}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
           onEndReached={() => {
@@ -1064,6 +1066,7 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH,
     position: "relative",
     backgroundColor: "#000000",
+    overflow: "hidden",
   },
   topGradient: {
     position: "absolute",
@@ -1128,10 +1131,12 @@ const styles = StyleSheet.create({
   },
   centerPlayIndicator: {
     position: "absolute",
-    top: SCREEN_HEIGHT / 2 - 40,
-    left: SCREEN_WIDTH / 2 - 40,
+    top: "50%",
+    left: "50%",
     width: 80,
     height: 80,
+    marginLeft: -40,
+    marginTop: -40,
     borderRadius: 40,
     backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
