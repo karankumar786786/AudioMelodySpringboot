@@ -22,7 +22,13 @@ import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-quer
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
-import { createAudioPlayer, preload, AudioPlayer, AudioStatus } from "expo-audio";
+import {
+  createAudioPlayer,
+  preload,
+  clearAllPreloadedSources,
+  AudioPlayer,
+  AudioStatus,
+} from "expo-audio";
 
 import { Song } from "@/types";
 import { AppDispatch } from "@/store";
@@ -428,6 +434,33 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
       }
     } catch {}
   }, [isPaused, isScreenFocused]);
+
+  // 6. Preload Audio for upcoming short (N+1) so audio buffers in background
+  useEffect(() => {
+    if (!isScreenFocused || songs.length === 0) return;
+
+    const nextSong = songs[activeIndex + 1];
+    if (!nextSong) return;
+
+    const nextStreamUrl = resolveStreamUrl(nextSong);
+    if (!nextStreamUrl) return;
+
+    console.log(
+      `[CanvasShorts] ⚡ Preloading audio for next short [${activeIndex + 1}]: "${nextSong.title}"`
+    );
+
+    preload({ uri: nextStreamUrl }, { preferredForwardBufferDuration: 15 }).catch((err) => {
+      // Non-fatal: playback will fall back to live load if preload fails
+      console.warn("[CanvasShorts] Next audio preload error (non-fatal):", err);
+    });
+  }, [activeIndex, songs, isScreenFocused]);
+
+  // Clean up all preloaded sources when exiting Shorts screen
+  useEffect(() => {
+    return () => {
+      clearAllPreloadedSources().catch(() => {});
+    };
+  }, []);
 
   // Handle Mute toggle for isolated preview audio
   useEffect(() => {
