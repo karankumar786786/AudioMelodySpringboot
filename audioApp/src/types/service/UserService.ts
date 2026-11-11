@@ -8,5 +8,5 @@ import { Song } from "../entity/SongEntity";
 export interface UserService {
   getProfile(): Promise<UserProfileResponse>;
   updateProfile(request: UpdateProfileRequest): Promise<UpdateProfileResponse>;
-  getRecentlyPlayed?(): Promise<Song[]>;
+  getRecentlyPlayed(): Promise<Song[]>;
 }

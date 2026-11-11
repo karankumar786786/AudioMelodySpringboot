@@ -8,9 +8,21 @@ export interface HomeService {
   getFeaturedPlaylists(page?: number, size?: number): Promise<PaginatedResponse<Playlist>>;
   getDiscoverFeed(page?: number, size?: number): Promise<PaginatedResponse<Song>>;
   getSongById(id: string): Promise<Song>;
+  getPersonalizedRecommendations(count?: number): Promise<Song[]>;
 }
 
 export const homeService: HomeService = {
+  async getPersonalizedRecommendations(count = 10): Promise<Song[]> {
+    try {
+      const response = await api.get<Song[]>("/recommendations/user", {
+        params: { count },
+      });
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (e) {
+      console.warn("[homeService] getPersonalizedRecommendations fallback note:", e);
+      return [];
+    }
+  },
   async getFeaturedSongs(): Promise<Song[]> {
     const response = await api.get<Song[]>("/songs/featured");
     return Array.isArray(response.data) ? response.data : [];

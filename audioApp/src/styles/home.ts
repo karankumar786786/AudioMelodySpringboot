@@ -13,7 +13,7 @@ export const homeStyles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 18,
     paddingTop: spacing.xs,
-    paddingBottom: 14,
+    paddingBottom: 16,
   },
   headerGreetingCol: {
     flex: 1,
@@ -28,32 +28,15 @@ export const homeStyles = StyleSheet.create({
     marginBottom: 4,
   },
   greeting: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: "800",
     color: "#FFFFFF",
-    letterSpacing: -0.4,
+    letterSpacing: -0.5,
   },
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-  },
-  shortsHeaderBtn: {
-    borderRadius: radius.full,
-    overflow: "hidden",
-  },
-  shortsHeaderGradient: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 11,
-    paddingVertical: 6,
-    borderRadius: radius.full,
-  },
-  shortsHeaderText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "800",
-    letterSpacing: 0.3,
   },
   avatar: {
     width: 38,
@@ -71,38 +54,16 @@ export const homeStyles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  pillsScrollView: {
-    maxHeight: 46,
-    marginBottom: 16,
-  },
-  pillsRow: {
+  quickAccessGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     paddingHorizontal: 18,
     gap: 8,
-  },
-  pill: {
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: radius.full,
-    backgroundColor: "#1A1A1A",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.08)",
-  },
-  pillActive: {
-    backgroundColor: "#FFFFFF",
-    borderColor: "#FFFFFF",
-  },
-  pillText: {
-    color: "#A0A0A0",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-  pillTextActive: {
-    color: "#000000",
-    fontWeight: "700",
+    marginBottom: 28,
   },
 
   section: {
-    marginBottom: 8,
+    marginBottom: 28,
   },
   horizontalList: {
     paddingHorizontal: 18,
