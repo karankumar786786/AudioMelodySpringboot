@@ -69,7 +69,7 @@ export function SongCardInfo({ song, isActiveSong }: SongCardInfoProps) {
               .split(",")
               .map((g) => g.trim())
               .filter(Boolean)
-              .slice(0, 2)
+              .slice(0, 1)
               .map((genre) => (
                 <span
                   key={genre}
