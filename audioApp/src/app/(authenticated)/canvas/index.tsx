@@ -333,6 +333,16 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
         ? activeSong.previewEndTime
         : 0;
 
+    // Clean up any existing player from the previous slide to avoid AVQueuePlayer reuse issues
+    if (shortsPlayerRef.current) {
+      try {
+        shortsPlayerRef.current.pause();
+        shortsPlayerRef.current.remove?.();
+        (shortsPlayerRef.current as any).release?.();
+      } catch {}
+      shortsPlayerRef.current = null;
+    }
+
     const setupIsolatedPlayer = async () => {
       try {
         console.log(`[CanvasShorts] 🎵 Audio setup for "${activeSong.title}": streamUrl="${streamUrl}"`);
@@ -361,39 +371,27 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
           }
         };
 
-        if (!shortsPlayerRef.current) {
-          const player = createAudioPlayer(null, {
+        const player = createAudioPlayer(
+          { uri: streamUrl },
+          {
             keepAudioSessionActive: true,
             updateInterval: 250,
-          });
-          player.volume = 1.0;
-          player.loop = false; // Always keep native loop false to prevent AVQueuePlayer empty-queue crash
-          player.muted = isMuted;
-          player.addListener("playbackStatusUpdate", onStatus);
-          shortsPlayerRef.current = player;
-        }
-
-        const player = shortsPlayerRef.current;
-        player.volume = 1.0;
-        player.loop = false;
-        player.muted = isMuted;
-
-        if (streamUrl) {
-          try {
-            player.replace({ uri: streamUrl });
-          } catch (replaceErr) {
-            console.warn("[CanvasShorts] Audio stream load error (non-fatal):", replaceErr);
           }
-        }
+        );
+        player.volume = 1.0;
+        player.loop = false; // Always keep native loop false; loop via onStatus didJustFinish
+        player.muted = isMuted;
+        player.addListener("playbackStatusUpdate", onStatus);
+        shortsPlayerRef.current = player;
 
         if (!isPaused && isScreenFocused) {
           try {
-            shortsPlayerRef.current?.play();
+            player.play();
             setIsShortsPlaying(true);
           } catch {}
         } else {
           try {
-            shortsPlayerRef.current?.pause();
+            player.pause();
             setIsShortsPlaying(false);
           } catch {}
         }
@@ -406,6 +404,14 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
 
     return () => {
       isMounted = false;
+      if (shortsPlayerRef.current) {
+        try {
+          shortsPlayerRef.current.pause();
+          shortsPlayerRef.current.remove?.();
+          (shortsPlayerRef.current as any).release?.();
+        } catch {}
+        shortsPlayerRef.current = null;
+      }
     };
   }, [activeIndex, activeSong?.id, isScreenFocused]);
 
