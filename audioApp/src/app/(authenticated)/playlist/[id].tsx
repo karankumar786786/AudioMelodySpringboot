@@ -22,18 +22,13 @@ import { PlaylistTrackItem,CanvasVideoPlayer } from "@/components";
 import { playlistDetailStyles as styles } from "@/styles";
 
 
-// Space reserved for the mini player so the last track is reachable.
-// (No tab bar here: this is a stack screen.)
-const MINI_PLAYER_HEIGHT = 72;
-const EXTRA_BREATHING_ROOM = 32;
-
 export default function PlaylistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   const insets = useSafeAreaInsets();
 
-  const bottomSpace = MINI_PLAYER_HEIGHT + EXTRA_BREATHING_ROOM + insets.bottom;
+  const bottomSpace = insets.bottom + 20;
 
   // 1. Fetch Playlist Details
   const {

@@ -19,11 +19,6 @@ import { Song } from "@/types";
 import { FavouriteSongItem } from "@/components";
 import { favouriteStyles as styles } from "@/styles";
 
-// Space reserved for the tab bar + mini player so the last song is reachable.
-const TAB_BAR_HEIGHT = 64;
-const MINI_PLAYER_HEIGHT = 72;
-const EXTRA_BREATHING_ROOM = 32;
-
 export default function FavouritesScreen() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
@@ -31,8 +26,7 @@ export default function FavouritesScreen() {
   const insets = useSafeAreaInsets();
   const canGoBack = router.canGoBack();
 
-  const bottomSpace =
-    TAB_BAR_HEIGHT + MINI_PLAYER_HEIGHT + EXTRA_BREATHING_ROOM + insets.bottom;
+  const bottomSpace = insets.bottom + 20;
 
   const currentSong = useSelector((state: AppState) => state.player.currentSong);
   const isPlaying = useSelector((state: AppState) => state.player.isPlaying);

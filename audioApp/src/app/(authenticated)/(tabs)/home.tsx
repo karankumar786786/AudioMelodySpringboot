@@ -10,7 +10,6 @@ import {
 } from "react-native";
 import {
   SafeAreaView,
-  useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useDispatch, useSelector } from "react-redux";
@@ -29,25 +28,20 @@ import { homeStyles as styles } from "@/styles";
 import { hapticFeedback } from "@/utils/haptics";
 import { configureAudioPriority } from "@/utils/audioConfig";
 import { Song } from "@/types";
+import { useBottomBarSpacing } from "@/hooks";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const GRID_GAP = 8;
 const GRID_PADDING = 18 * 2;
 const CARD_WIDTH = Math.floor((SCREEN_WIDTH - GRID_PADDING - GRID_GAP) / 2);
 
-// Space reserved for the tab bar + mini player + comfortable breathing room
-const TAB_BAR_HEIGHT = 64;
-const MINI_PLAYER_HEIGHT = 74;
-const EXTRA_BREATHING_ROOM = 24;
-
 export default function HomeScreen() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
-  const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
 
-  const bottomSpace =
-    TAB_BAR_HEIGHT + MINI_PLAYER_HEIGHT + EXTRA_BREATHING_ROOM + insets.bottom;
+  // Exact tight spacing so content ends right above the miniplayer (or tab bar) without excess free space
+  const { bottomSpace } = useBottomBarSpacing({ hasMarginBottom: 28, gap: 8 });
 
   const profile = useSelector((state: AppState) => state.user.profile);
   const currentSong = useSelector((state: AppState) => state.player.currentSong);

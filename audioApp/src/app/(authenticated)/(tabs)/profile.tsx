@@ -12,7 +12,8 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useBottomBarSpacing } from "@/hooks";
 import { useDispatch, useSelector } from "react-redux";
 import { useRouter } from "expo-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -33,12 +34,6 @@ import {
 import { UserSession } from "@/types";
 import {profileStyles as styles} from "@/styles";
 
-// Space reserved at the bottom for the tab bar + mini player so the
-// last item (Log out) can scroll fully into view. Adjust if needed.
-const TAB_BAR_HEIGHT = 64;
-const MINI_PLAYER_HEIGHT = 72;
-const EXTRA_BREATHING_ROOM = 32;
-
 const C = {
   black: "#000000",
   white: "#FFFFFF",
@@ -52,9 +47,8 @@ export default function ProfileScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const insets = useSafeAreaInsets();
-  const bottomSpace =
-    TAB_BAR_HEIGHT + MINI_PLAYER_HEIGHT + EXTRA_BREATHING_ROOM + insets.bottom;
+
+  const { bottomSpace } = useBottomBarSpacing({ gap: 10 });
 
   const deviceId = useSelector((state: AppState) => state.device.deviceId);
   const refreshToken = useSelector((state: AppState) => state.auth.refreshToken);

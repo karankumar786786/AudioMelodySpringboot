@@ -27,11 +27,6 @@ import { PlaylistTrackItem, UserPlaylistThumbnail, PlaylistAccessModal } from "@
 import { userPlaylistDetailStyles as styles } from "@/styles";
 
 
-// Space reserved for the mini player so the last track is reachable.
-// (No tab bar here: this is a stack screen.)
-const MINI_PLAYER_HEIGHT = 72;
-const EXTRA_BREATHING_ROOM = 32;
-
 export default function UserPlaylistDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -41,7 +36,7 @@ export default function UserPlaylistDetailScreen() {
   const { width } = useWindowDimensions();
 
   const coverSize = Math.min(width - 96, 260);
-  const bottomSpace = MINI_PLAYER_HEIGHT + EXTRA_BREATHING_ROOM + insets.bottom;
+  const bottomSpace = insets.bottom + 20;
 
   const currentUserId = useSelector(
     (state: AppState) => state.user.profile?.id,

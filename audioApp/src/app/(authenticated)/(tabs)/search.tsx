@@ -8,7 +8,8 @@ import {
   ActivityIndicator,
   Keyboard,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useBottomBarSpacing } from "@/hooks";
 import { useRouter } from "expo-router";
 import { useDispatch } from "react-redux";
 import { Ionicons } from "@expo/vector-icons";
@@ -43,11 +44,6 @@ import {
 } from "@/components";
 import { hapticFeedback } from "@/utils/haptics";
 import { searchStyles as styles } from "@/styles";
-
-// Space reserved for the tab bar + mini player so the end of the page is reachable.
-const TAB_BAR_HEIGHT = 64;
-const MINI_PLAYER_HEIGHT = 72;
-const EXTRA_BREATHING_ROOM = 32;
 
 const FALLBACK_TRENDING: RecentSearchItem[] = [
   {
@@ -91,10 +87,8 @@ export default function SearchScreen() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
   const queryClient = useQueryClient();
-  const insets = useSafeAreaInsets();
 
-  const bottomSpace =
-    TAB_BAR_HEIGHT + MINI_PLAYER_HEIGHT + EXTRA_BREATHING_ROOM + insets.bottom;
+  const { bottomSpace } = useBottomBarSpacing({ gap: 10 });
 
   const [inputText, setInputText] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
