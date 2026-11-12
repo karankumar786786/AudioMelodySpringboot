@@ -66,6 +66,7 @@ interface CanvasVideoPlayerProps {
   showFallbackImage?: boolean;
   showLoader?: boolean;
   contentFit?: "cover" | "contain" | "fill";
+  staysActiveInBackground?: boolean;
   onReady?: () => void;
   onLoadingChange?: (loading: boolean) => void;
 }
@@ -74,12 +75,14 @@ function VideoSurface({
   videoUrl,
   isPlaying = true,
   contentFit = "cover",
+  staysActiveInBackground = KEEP_CANVAS_ALIVE_IN_BACKGROUND,
   onReady,
   onError,
 }: {
   videoUrl: string;
   isPlaying?: boolean;
   contentFit?: "cover" | "contain" | "fill";
+  staysActiveInBackground?: boolean;
   onReady?: () => void;
   onError?: (err?: any) => void;
 }) {
@@ -106,10 +109,10 @@ function VideoSurface({
     p.loop = true;
     p.muted = true;
     p.volume = 0;
-    p.staysActiveInBackground = KEEP_CANVAS_ALIVE_IN_BACKGROUND;
+    p.staysActiveInBackground = staysActiveInBackground;
     p.audioMixingMode = CANVAS_MIXING_MODE;
     p.showNowPlayingNotification = false;
-    if (isPlaying && (isAppForeground() || KEEP_CANVAS_ALIVE_IN_BACKGROUND)) {
+    if (isPlaying && (isAppForeground() || staysActiveInBackground)) {
       p.play();
     } else {
       p.pause();
@@ -120,11 +123,11 @@ function VideoSurface({
     player.loop = true;
     player.muted = true;
     player.volume = 0;
-    player.staysActiveInBackground = KEEP_CANVAS_ALIVE_IN_BACKGROUND;
+    player.staysActiveInBackground = staysActiveInBackground;
     player.audioMixingMode = CANVAS_MIXING_MODE;
     player.showNowPlayingNotification = false;
 
-    if (isPlaying && (isAppForeground() || KEEP_CANVAS_ALIVE_IN_BACKGROUND)) {
+    if (isPlaying && (isAppForeground() || staysActiveInBackground)) {
       player.play();
     } else {
       player.pause();
@@ -143,7 +146,7 @@ function VideoSurface({
         // NOT ready yet: the loader stays until the video is actually playing
         if (
           isPlaying &&
-          (isAppForeground() || KEEP_CANVAS_ALIVE_IN_BACKGROUND) &&
+          (isAppForeground() || staysActiveInBackground) &&
           !player.playing
         ) {
           player.play();
@@ -193,9 +196,8 @@ function VideoSurface({
         if (isPlaying && !player.playing) player.play();
         else if (!isPlaying && player.playing) player.pause();
         reassertPlaybackSession();
-      } else if (!KEEP_CANVAS_ALIVE_IN_BACKGROUND) {
-        // Android only. On iOS pausing the last playing video player makes
-        // expo-video re-add `.mixWithOthers`, which drops the lock screen player.
+      } else if (!staysActiveInBackground) {
+        // Pauses video when app is backgrounded or screen locked
         player.pause();
       }
     });
@@ -249,6 +251,7 @@ export function CanvasVideoPlayer({
   style,
   isPlaying = true,
   contentFit = "cover",
+  staysActiveInBackground = KEEP_CANVAS_ALIVE_IN_BACKGROUND,
   showFallbackImage = true,
   showLoader = true,
   showLoaderWhenVideoAvailable,
@@ -277,32 +280,34 @@ export function CanvasVideoPlayer({
     setVideoError(false);
   }, [videoUrl]);
 
+  const effectiveKeepAlive = staysActiveInBackground;
+
   // iOS: while the app is not in the foreground, the video player must neither be
   // swapped (song change -> new player) nor paused (song paused) or expo-video
   // re-adds `.mixWithOthers` and the lock screen player disappears. So we freeze
   // the canvas (same URL, playing) until the app is active again.
   const [isForeground, setIsForeground] = useState(
-    KEEP_CANVAS_ALIVE_IN_BACKGROUND ? true : isAppForeground()
+    effectiveKeepAlive ? true : isAppForeground()
   );
   useEffect(() => {
-    if (!KEEP_CANVAS_ALIVE_IN_BACKGROUND) return;
     const sub = AppState.addEventListener("change", (next) => {
-      setIsForeground(next !== "background");
+      setIsForeground(next === "active");
     });
     return () => sub.remove();
-  }, []);
+  }, [effectiveKeepAlive]);
   const frozen = useRef({ videoUrl, isPlaying });
-  if (isForeground || !KEEP_CANVAS_ALIVE_IN_BACKGROUND || !frozen.current.videoUrl) {
+  if (isForeground || !effectiveKeepAlive || !frozen.current.videoUrl) {
     frozen.current = { videoUrl, isPlaying };
   }
   const surfaceUrl = frozen.current.videoUrl;
-  const surfacePlaying =
-    isForeground || !KEEP_CANVAS_ALIVE_IN_BACKGROUND ? isPlaying : true;
+  const surfacePlaying = effectiveKeepAlive
+    ? (isForeground || Platform.OS === "ios" ? isPlaying : true)
+    : (isForeground ? isPlaying : false);
 
   // Screen lock / background -> show artwork and release the video player;
   // unlock / foreground -> bring the canvas back.
   const [appActive, setAppActive] = useState(
-    KEEP_CANVAS_ALIVE_IN_BACKGROUND ? true : isAppForeground()
+    effectiveKeepAlive ? true : isAppForeground()
   );
   useEffect(() => {
     let resumeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -312,11 +317,11 @@ export function CanvasVideoPlayer({
         clearTimeout(resumeTimer);
         resumeTimer = null;
       }
-      if (KEEP_CANVAS_ALIVE_IN_BACKGROUND) {
+      if (effectiveKeepAlive) {
         setAppActive(true);
         return;
       }
-      if (next === "background") {
+      if (next !== "active") {
         setAppActive(false);
       } else {
         resumeTimer = setTimeout(() => {
@@ -329,7 +334,7 @@ export function CanvasVideoPlayer({
       sub.remove();
       if (resumeTimer) clearTimeout(resumeTimer);
     };
-  }, []);
+  }, [effectiveKeepAlive]);
 
   // Reset ready state when the track / video URL changes or the canvas remounts
   useEffect(() => {
@@ -391,6 +396,7 @@ export function CanvasVideoPlayer({
           videoUrl={surfaceUrl}
           isPlaying={surfacePlaying}
           contentFit={contentFit}
+          staysActiveInBackground={staysActiveInBackground}
           onReady={handleVideoReady}
           onError={(err) => {
             if (err) {

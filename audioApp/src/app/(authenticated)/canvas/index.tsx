@@ -14,6 +14,7 @@ import {
   Animated,
   Easing,
   RefreshControl,
+  AppState,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter, useLocalSearchParams, useIsFocused } from "expo-router";
@@ -40,7 +41,7 @@ import {
 } from "@/service";
 import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
 import { getImageUrl, getVideoUrl } from "@/utils/imageUtils";
-import { configureAudioPriority, safeSetActiveForLockScreen } from "@/utils";
+import { configureAudioPriority } from "@/utils";
 import { hapticFeedback } from "@/utils/haptics";
 import { radius, shadows } from "@/theme";
 
@@ -149,6 +150,35 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
   // Isolated Shorts Audio Player & playback state
   const shortsPlayerRef = useRef<AudioPlayer | null>(null);
   const [isShortsPlaying, setIsShortsPlaying] = useState<boolean>(false);
+
+  // App active tracking: Shorts MUST NOT play in background or on lock screen
+  const [isAppActive, setIsAppActive] = useState<boolean>(
+    AppState.currentState === "active"
+  );
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (nextState) => {
+      const active = nextState === "active";
+      setIsAppActive(active);
+
+      if (!active) {
+        // App backgrounded or screen locked -> immediately pause shorts audio
+        try {
+          shortsPlayerRef.current?.pause();
+        } catch {}
+        setIsShortsPlaying(false);
+      } else {
+        // App returned to foreground -> resume shorts if screen focused and not paused
+        if (isScreenFocused && !isPaused && shortsPlayerRef.current) {
+          try {
+            shortsPlayerRef.current.play();
+            setIsShortsPlaying(true);
+          } catch {}
+        }
+      }
+    });
+
+    return () => sub.remove();
+  }, [isScreenFocused, isPaused]);
 
   // Separate Shorts Like tracking
   const [likedShortsMap, setLikedShortsMap] = useState<Record<string, boolean>>({});
@@ -349,9 +379,9 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     }
   }, [isScreenFocused]);
 
-  // 5. Isolated Preview Player: Plays the active short on an endless loop
+  // 5. Isolated Preview Player: Plays the active short on an endless loop (foreground only)
   useEffect(() => {
-    if (!isScreenFocused || !activeSong) {
+    if (!isScreenFocused || !isAppActive || !activeSong) {
       try {
         shortsPlayerRef.current?.pause();
       } catch {}
@@ -373,7 +403,6 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
         : 0;
 
     // Clean up any existing player from the previous slide without calling native remove()
-    // (native remove() deactivates the shared AVAudioSession and drops lock screen controls)
     if (shortsPlayerRef.current) {
       try {
         shortsPlayerRef.current.pause();
@@ -391,16 +420,6 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
           if (!isMounted) return;
           setIsShortsPlaying(status.playing);
 
-          // Handle lock screen next/previous commands while on Shorts
-          if ((status as any)?.remoteCommand === "nextTrack") {
-            handleScrollToNext();
-            return;
-          }
-          if ((status as any)?.remoteCommand === "previousTrack") {
-            handleScrollToPrev();
-            return;
-          }
-
           // Once player is loaded, perform initial hook window seek if needed
           if (!initialSeekDone && (status as any)?.isLoaded) {
             initialSeekDone = true;
@@ -410,9 +429,9 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
           }
 
           // Looping preview hook window or track end
-          if (endSec > 0 && status.currentTime >= endSec && !isPaused) {
+          if (endSec > 0 && status.currentTime >= endSec && !isPaused && isAppActive) {
             await safeSeek(shortsPlayerRef.current, startSec);
-          } else if (status.didJustFinish && !isPaused) {
+          } else if (status.didJustFinish && !isPaused && isAppActive) {
             await safeSeek(shortsPlayerRef.current, startSec);
             try {
               shortsPlayerRef.current?.play();
@@ -423,53 +442,17 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
         const player = createAudioPlayer(
           { uri: streamUrl },
           {
-            keepAudioSessionActive: true,
+            keepAudioSessionActive: false, // Shorts must NOT play in background
             updateInterval: 250,
           }
         );
         player.volume = 1.0;
-        player.loop = false; // Always keep native loop false; loop via onStatus didJustFinish
+        player.loop = false; // Loop via onStatus didJustFinish
         player.muted = isMuted;
         player.addListener("playbackStatusUpdate", onStatus);
         shortsPlayerRef.current = player;
 
-        // Configure lock screen controls for the currently active short
-        const rawCover =
-          (activeSong as any).coverUrl ||
-          (activeSong as any).posterUrl ||
-          activeSong.imageKey ||
-          (activeSong as any).imageUrl;
-        const artworkUrl =
-          (typeof rawCover === "string" && rawCover.startsWith("http")
-            ? rawCover
-            : getImageUrl(rawCover, {
-                width: 500,
-                height: 500,
-                focus: "auto",
-                aspectRatio: "1-1",
-                format: "jpg",
-                quality: 85,
-              })) || undefined;
-
-        safeSetActiveForLockScreen(
-          player,
-          true,
-          {
-            title: activeSong.title || "One Melody Shorts",
-            artist: activeSong.artistName || "Unknown Artist",
-            albumTitle: "Shorts",
-            artworkUrl,
-          },
-          {
-            showSeekForward: false,
-            showSeekBackward: false,
-            showNextTrack: true,
-            showPreviousTrack: true,
-          },
-          true
-        );
-
-        if (!isPaused && isScreenFocused) {
+        if (!isPaused && isScreenFocused && isAppActive) {
           try {
             player.play();
             setIsShortsPlaying(true);
@@ -497,11 +480,11 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
         shortsPlayerRef.current = null;
       }
     };
-  }, [activeIndex, activeSong?.id, isScreenFocused]);
+  }, [activeIndex, activeSong?.id, isScreenFocused, isAppActive]);
 
   // Handle Play / Pause state for isolated preview audio
   useEffect(() => {
-    if (!shortsPlayerRef.current || !isScreenFocused) return;
+    if (!shortsPlayerRef.current || !isScreenFocused || !isAppActive) return;
     try {
       if (isPaused) {
         shortsPlayerRef.current.pause();
@@ -511,7 +494,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
         setIsShortsPlaying(true);
       }
     } catch {}
-  }, [isPaused, isScreenFocused]);
+  }, [isPaused, isScreenFocused, isAppActive]);
 
   // 6. Preload Audio for upcoming short (N+1) so audio buffers in background
   useEffect(() => {
@@ -772,10 +755,11 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
                   videoUrl={(item as any)?.canvasVideoUrl}
                   videoKey={videoKey}
                   fallbackImageKey={item.imageKey}
-                  isPlaying={isActive && isScreenFocused && !isPaused}
+                  isPlaying={isActive && isScreenFocused && !isPaused && isAppActive}
                   showFallbackImage={true}
                   showLoader={false}
                   contentFit="cover"
+                  staysActiveInBackground={false}
                   style={StyleSheet.absoluteFill}
                 />
               ) : (
@@ -1035,6 +1019,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
       likedShortsMap,
       likeCountsMap,
       isScreenFocused,
+      isAppActive,
       isPaused,
       isShortsPlaying,
       tabBottomSpace,
