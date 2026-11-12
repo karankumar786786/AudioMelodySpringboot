@@ -45,3 +45,4 @@ export function useBottomBarSpacing(options?: UseBottomBarSpacingOptions) {
     insets,
   };
 }
+
