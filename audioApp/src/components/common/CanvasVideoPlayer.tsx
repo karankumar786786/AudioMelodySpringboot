@@ -336,9 +336,10 @@ export function CanvasVideoPlayer({
     };
   }, [effectiveKeepAlive]);
 
-  // Reset ready state when the track / video URL changes or the canvas remounts
+  // Phase 4C: Reset ready state AND error state when video URL or activity changes
   useEffect(() => {
     setIsVideoReady(false);
+    setVideoError(false);
   }, [videoUrl, appActive]);
 
   // Fallback safety: ensure loader never stays visible indefinitely once playing

@@ -23,12 +23,7 @@ import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-quer
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Image } from "expo-image";
-import {
-  createAudioPlayer,
-  preload,
-  AudioPlayer,
-  AudioStatus,
-} from "expo-audio";
+import { setAudioModeAsync } from "expo-audio";
 
 import { Song } from "@/types";
 import { AppDispatch } from "@/store";
@@ -40,10 +35,13 @@ import {
   resolveStreamUrl,
 } from "@/service";
 import { CanvasVideoPlayer } from "@/components/common/CanvasVideoPlayer";
+import { ShortsProgressBar } from "@/components/shorts/ShortsProgressBar";
 import { getImageUrl, getVideoUrl } from "@/utils/imageUtils";
 import { configureAudioPriority } from "@/utils";
 import { hapticFeedback } from "@/utils/haptics";
 import { radius, shadows } from "@/theme";
+import { useShortsAudioPlayer } from "@/hooks/useShortsAudioPlayer";
+import { useShortsPreload } from "@/hooks/useShortsPreload";
 
 const screenDimensions = Dimensions.get("screen");
 const windowDimensions = Dimensions.get("window");
@@ -58,16 +56,7 @@ export function parseArtistNames(artistStr?: string | null): string[] {
     .filter(Boolean);
 }
 
-async function safeSeek(player: AudioPlayer | null, seconds: number) {
-  if (!player) return;
-  try {
-    if (typeof player.seekTo === "function") {
-      await player.seekTo(Math.max(0, seconds));
-    }
-  } catch {
-    // Player may still be loading, seeking, or transitioning
-  }
-}
+// ─── Spinning Vinyl Disc ─────────────────────────────────────────────────────
 
 interface SpinningVinylDiscProps {
   isActive: boolean;
@@ -120,6 +109,8 @@ const SpinningVinylDisc = React.memo(function SpinningVinylDisc({
   );
 });
 
+// ─── Main Screen ─────────────────────────────────────────────────────────────
+
 interface CanvasShortsScreenProps {
   isTab?: boolean;
 }
@@ -132,10 +123,8 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
   const isScreenFocused = useIsFocused();
   const params = useLocalSearchParams<{ songId?: string }>();
 
-  // Full-height measurement accounting for tabs & safe areas
+  // Container height
   const [containerHeight, setContainerHeight] = useState<number>(SCREEN_HEIGHT);
-
-  // Spacing above the bottom home indicator / safe area (Shorts is full-screen)
   const tabBottomSpace = insets.bottom;
 
   const flatListRef = useRef<FlatList<Song>>(null);
@@ -147,49 +136,35 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
   const [showHeartBurst, setShowHeartBurst] = useState(false);
   const lastTapRef = useRef<number>(0);
 
-  // Isolated Shorts Audio Player & playback state
-  const shortsPlayerRef = useRef<AudioPlayer | null>(null);
-  const [isShortsPlaying, setIsShortsPlaying] = useState<boolean>(false);
-
-  // App active tracking: Shorts MUST NOT play in background or on lock screen
+  // ── App Active State ───────────────────────────────────────────────────────
+  // Track app foreground state for the FlatList render (the hook handles its own ref)
   const [isAppActive, setIsAppActive] = useState<boolean>(
     AppState.currentState === "active"
   );
   useEffect(() => {
-    const sub = AppState.addEventListener("change", (nextState) => {
-      const active = nextState === "active";
-      setIsAppActive(active);
-
-      if (!active) {
-        // App backgrounded or screen locked -> immediately pause shorts audio
-        try {
-          shortsPlayerRef.current?.pause();
-        } catch {}
-        setIsShortsPlaying(false);
-      } else {
-        // App returned to foreground -> resume shorts if screen focused and not paused
-        if (isScreenFocused && !isPaused && shortsPlayerRef.current) {
-          try {
-            shortsPlayerRef.current.play();
-            setIsShortsPlaying(true);
-          } catch {}
-        }
-      }
+    const sub = AppState.addEventListener("change", (next) => {
+      setIsAppActive(next === "active");
     });
-
     return () => sub.remove();
-  }, [isScreenFocused, isPaused]);
+  }, []);
 
-  // Separate Shorts Like tracking
+  // ── Shorts Like State ──────────────────────────────────────────────────────
   const [likedShortsMap, setLikedShortsMap] = useState<Record<string, boolean>>({});
   const [likeCountsMap, setLikeCountsMap] = useState<Record<string, number>>({});
 
-  // Animations
+  // ── Progress Bar State ─────────────────────────────────────────────────────
+  const [currentPlaybackTime, setCurrentPlaybackTime] = useState(0);
+
+  // ── Animations ────────────────────────────────────────────────────────────
   const playPauseAnim = useRef(new Animated.Value(0)).current;
   const heartScaleAnim = useRef(new Animated.Value(0)).current;
   const heartOpacityAnim = useRef(new Animated.Value(0)).current;
 
-  // 1. Fetch User's Liked Shorts to initialize like state
+  // ── Seed for feed randomisation ────────────────────────────────────────────
+  const seedRef = useRef(Date.now());
+  const hasRefreshedRef = useRef(false);
+
+  // ── Liked Shorts (server) ─────────────────────────────────────────────────
   const { data: initialLikedIds } = useQuery({
     queryKey: ["user-liked-shorts-feed"],
     queryFn: () => canvasService.getLikedShorts(),
@@ -200,18 +175,13 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     if (Array.isArray(initialLikedIds) && initialLikedIds.length > 0) {
       setLikedShortsMap((prev) => {
         const next = { ...prev };
-        initialLikedIds.forEach((id) => {
-          next[String(id)] = true;
-        });
+        initialLikedIds.forEach((id) => { next[String(id)] = true; });
         return next;
       });
     }
   }, [initialLikedIds]);
 
-  const seedRef = useRef(Date.now());
-  const hasRefreshedRef = useRef(false);
-
-  // Optional target song if navigated from external card
+  // ── Target song from deep link ─────────────────────────────────────────────
   const { data: targetSong } = useQuery({
     queryKey: ["canvas-target-song", params.songId],
     queryFn: () => homeService.getSongById(String(params.songId)),
@@ -219,7 +189,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     staleTime: 5 * 60 * 1000,
   });
 
-  // 2. Fetch Infinite Canvas Feed with random sort for fresh results every time
+  // ── Infinite Canvas Feed ───────────────────────────────────────────────────
   const {
     data: feedData,
     fetchNextPage,
@@ -231,7 +201,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
   } = useInfiniteQuery({
     queryKey: ["canvas-feed-shorts"],
     queryFn: async ({ pageParam = 0 }) => {
-      console.log(`[CanvasShorts] 🚀 Fetching feed page=${pageParam}, seed=${seedRef.current}`);
+      if (__DEV__) console.log(`[CanvasShorts] 🚀 Fetching feed page=${pageParam}, seed=${seedRef.current}`);
       try {
         const res = await canvasService.getFeed({
           page: pageParam,
@@ -239,9 +209,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
           sort: "random",
           seed: seedRef.current,
         });
-        console.log(
-          `[CanvasShorts] 📦 Feed page=${pageParam} response: ${res?.content?.length || 0} songs (total: ${res?.paginationMetaData?.totalCount ?? "?"})`
-        );
+        if (__DEV__) console.log(`[CanvasShorts] 📦 Feed page=${pageParam}: ${res?.content?.length || 0} songs`);
         return res;
       } catch (e: any) {
         console.error(`[CanvasShorts] ❌ Feed fetch error:`, e?.response?.status, e?.message);
@@ -250,26 +218,21 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     },
     initialPageParam: 0,
     getNextPageParam: (lastPage) => {
-      if (!lastPage || !lastPage.content || lastPage.content.length === 0) {
-        return undefined;
-      }
+      if (!lastPage || !lastPage.content || lastPage.content.length === 0) return undefined;
       const totalCount = lastPage.paginationMetaData?.totalCount;
       const nextPage = lastPage.page + 1;
-      if (totalCount !== undefined && nextPage * lastPage.size >= totalCount) {
-        return undefined;
-      }
+      if (totalCount !== undefined && nextPage * lastPage.size >= totalCount) return undefined;
       return nextPage;
     },
     staleTime: 0,
   });
 
-  // Consolidate unique songs list directly from the Canvas Feed (no non-canvas fallbacks)
+  // ── Consolidated unique song list ──────────────────────────────────────────
   const songs: Song[] = useMemo(() => {
     const rawFeed = feedData?.pages?.flatMap((p) => p.content || []) || [];
     const seen = new Set<string>();
     const result: Song[] = [];
 
-    // If navigated with a specific songId, pin it at the top until user refreshes
     if (params.songId && !hasRefreshedRef.current) {
       const match = rawFeed.find((s) => s.id === params.songId) || targetSong;
       if (match && match.id && (match.videoKey || (match as any).canvasVideoUrl)) {
@@ -283,50 +246,45 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
       seen.add(song.id);
       result.push(song);
     }
-    console.log(`[CanvasShorts] 🎶 Consolidated songs count: ${result.length} (from ${rawFeed.length} raw items)`);
+    if (__DEV__) console.log(`[CanvasShorts] 🎶 Songs: ${result.length} (raw: ${rawFeed.length})`);
     return result;
   }, [feedData?.pages, params.songId, targetSong]);
 
-  // Sync server-returned isLiked and likesCount from the feed items
+  // ── Sync server isLiked / likesCount ──────────────────────────────────────
   useEffect(() => {
-    if (songs.length > 0) {
-      setLikedShortsMap((prev) => {
-        let changed = false;
-        const next = { ...prev };
-        songs.forEach((song) => {
-          if (song.id && song.isLiked !== undefined && next[String(song.id)] === undefined) {
-            next[String(song.id)] = song.isLiked;
-            changed = true;
-          }
-        });
-        return changed ? next : prev;
+    if (songs.length === 0) return;
+    setLikedShortsMap((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      songs.forEach((song) => {
+        if (song.id && song.isLiked !== undefined && next[String(song.id)] === undefined) {
+          next[String(song.id)] = song.isLiked;
+          changed = true;
+        }
       });
-
-      setLikeCountsMap((prev) => {
-        let changed = false;
-        const next = { ...prev };
-        songs.forEach((song) => {
-          if (song.id && song.likesCount !== undefined && next[String(song.id)] === undefined) {
-            next[String(song.id)] = song.likesCount;
-            changed = true;
-          }
-        });
-        return changed ? next : prev;
+      return changed ? next : prev;
+    });
+    setLikeCountsMap((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      songs.forEach((song) => {
+        if (song.id && song.likesCount !== undefined && next[String(song.id)] === undefined) {
+          next[String(song.id)] = song.likesCount;
+          changed = true;
+        }
       });
-    }
+      return changed ? next : prev;
+    });
   }, [songs]);
 
-  // Initial song jump if songId param is passed
+  // ── Jump to target song on deep-link ──────────────────────────────────────
   useEffect(() => {
     if (params.songId && songs.length > 0 && !hasRefreshedRef.current) {
       const targetIdx = songs.findIndex((s) => s.id === params.songId);
       if (targetIdx >= 0 && targetIdx !== activeIndex) {
         setActiveIndex(targetIdx);
         setTimeout(() => {
-          flatListRef.current?.scrollToIndex({
-            index: targetIdx,
-            animated: false,
-          });
+          flatListRef.current?.scrollToIndex({ index: targetIdx, animated: false });
         }, 100);
       }
     }
@@ -334,13 +292,11 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
 
   const activeSong = songs[activeIndex];
 
-  // Scroll navigation helpers for tap and remote lock screen commands
+  // ── Scroll helpers ─────────────────────────────────────────────────────────
   const handleScrollToNext = useCallback(() => {
     setActiveIndex((prev) => {
       const nextIdx = Math.min(prev + 1, songs.length - 1);
-      if (nextIdx !== prev) {
-        flatListRef.current?.scrollToIndex({ index: nextIdx, animated: true });
-      }
+      if (nextIdx !== prev) flatListRef.current?.scrollToIndex({ index: nextIdx, animated: true });
       return nextIdx;
     });
   }, [songs.length]);
@@ -348,27 +304,30 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
   const handleScrollToPrev = useCallback(() => {
     setActiveIndex((prev) => {
       const prevIdx = Math.max(prev - 1, 0);
-      if (prevIdx !== prev) {
-        flatListRef.current?.scrollToIndex({ index: prevIdx, animated: true });
-      }
+      if (prevIdx !== prev) flatListRef.current?.scrollToIndex({ index: prevIdx, animated: true });
       return prevIdx;
     });
   }, []);
 
-  // 4. Audio Isolation: Pause main listening session when entering Shorts; restore lock screen on exit
+  // ── Phase 1A: Audio session on screen enter/exit ──────────────────────────
+  // Flips `shouldPlayInBackground` to false so Shorts NEVER bleeds into bg/lock screen.
+  // Restores the main music session when leaving Shorts.
   useEffect(() => {
     if (isScreenFocused) {
-      // Pause main listening session so audio does not overlap
+      // Pause main listening session
       audioPlayerService.pause();
-    } else {
-      // Pause shorts preview audio when user leaves Shorts screen/tab
-      try {
-        shortsPlayerRef.current?.pause();
-        shortsPlayerRef.current = null;
-      } catch {}
-      setIsShortsPlaying(false);
 
-      // Re-configure audio priority and restore lock screen for the main listening session
+      // Flip audio session to foreground-only for Shorts
+      setAudioModeAsync({
+        playsInSilentMode: true,
+        interruptionMode: "doNotMix",
+        interruptionModeAndroid: "doNotMix",
+        shouldPlayInBackground: false, // 🔑 Shorts MUST NOT play in background
+        allowsRecording: false,
+        shouldRouteThroughEarpiece: false,
+      }).catch(() => {});
+    } else {
+      // Restore full background audio for the main music session
       configureAudioPriority(true)
         .catch(() => {})
         .finally(() => {
@@ -379,198 +338,32 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     }
   }, [isScreenFocused]);
 
-  // 5. Isolated Preview Player: Plays the active short on an endless loop (foreground only)
-  useEffect(() => {
-    if (!isScreenFocused || !isAppActive || !activeSong) {
-      try {
-        shortsPlayerRef.current?.pause();
-      } catch {}
-      setIsShortsPlaying(false);
-      return;
-    }
+  // ── Phase 6A: Isolated audio player via custom hook ───────────────────────
+  const [isShortsPlaying, setIsShortsPlaying] = useState(false);
 
-    const streamUrl = resolveStreamUrl(activeSong);
-    if (!streamUrl) return;
+  const { playerRef: shortsPlayerRef } = useShortsAudioPlayer({
+    activeSong,
+    activeIndex,
+    isScreenFocused,
+    isAppActive,
+    isPaused,
+    isMuted,
+    onPlayingChange: setIsShortsPlaying,
+  });
 
-    let isMounted = true;
-    const startSec =
-      typeof activeSong.previewStartTime === "number" && activeSong.previewStartTime > 0
-        ? activeSong.previewStartTime
-        : 0;
-    const endSec =
-      typeof activeSong.previewEndTime === "number" && activeSong.previewEndTime > startSec
-        ? activeSong.previewEndTime
-        : 0;
+  // ── Phase 6B: Preloading via custom hook ──────────────────────────────────
+  useShortsPreload({ songs, activeIndex, isScreenFocused });
 
-    // Clean up any existing player from the previous slide without calling native remove()
-    if (shortsPlayerRef.current) {
-      try {
-        shortsPlayerRef.current.pause();
-        shortsPlayerRef.current.volume = 0;
-      } catch {}
-      shortsPlayerRef.current = null;
-    }
-
-    const setupIsolatedPlayer = async () => {
-      try {
-        console.log(`[CanvasShorts] 🎵 Audio setup for "${activeSong.title}": streamUrl="${streamUrl}"`);
-        let initialSeekDone = startSec <= 0;
-
-        const onStatus = async (status: AudioStatus) => {
-          if (!isMounted) return;
-          setIsShortsPlaying(status.playing);
-
-          // Once player is loaded, perform initial hook window seek if needed
-          if (!initialSeekDone && (status as any)?.isLoaded) {
-            initialSeekDone = true;
-            if (startSec > 0) {
-              await safeSeek(shortsPlayerRef.current, startSec);
-            }
-          }
-
-          // Looping preview hook window or track end
-          if (endSec > 0 && status.currentTime >= endSec && !isPaused && isAppActive) {
-            await safeSeek(shortsPlayerRef.current, startSec);
-          } else if (status.didJustFinish && !isPaused && isAppActive) {
-            await safeSeek(shortsPlayerRef.current, startSec);
-            try {
-              shortsPlayerRef.current?.play();
-            } catch {}
-          }
-        };
-
-        const player = createAudioPlayer(
-          { uri: streamUrl },
-          {
-            keepAudioSessionActive: false, // Shorts must NOT play in background
-            updateInterval: 250,
-          }
-        );
-        player.volume = 1.0;
-        player.loop = false; // Loop via onStatus didJustFinish
-        player.muted = isMuted;
-        player.addListener("playbackStatusUpdate", onStatus);
-        shortsPlayerRef.current = player;
-
-        if (!isPaused && isScreenFocused && isAppActive) {
-          try {
-            player.play();
-            setIsShortsPlaying(true);
-          } catch {}
-        } else {
-          try {
-            player.pause();
-            setIsShortsPlaying(false);
-          } catch {}
-        }
-      } catch (err) {
-        console.warn("[CanvasShorts] Isolated player error:", err);
-      }
-    };
-
-    setupIsolatedPlayer();
-
-    return () => {
-      isMounted = false;
-      if (shortsPlayerRef.current) {
-        try {
-          shortsPlayerRef.current.pause();
-          shortsPlayerRef.current.volume = 0;
-        } catch {}
-        shortsPlayerRef.current = null;
-      }
-    };
-  }, [activeIndex, activeSong?.id, isScreenFocused, isAppActive]);
-
-  // Handle Play / Pause state for isolated preview audio
-  useEffect(() => {
-    if (!shortsPlayerRef.current || !isScreenFocused || !isAppActive) return;
-    try {
-      if (isPaused) {
-        shortsPlayerRef.current.pause();
-        setIsShortsPlaying(false);
-      } else {
-        shortsPlayerRef.current.play();
-        setIsShortsPlaying(true);
-      }
-    } catch {}
-  }, [isPaused, isScreenFocused, isAppActive]);
-
-  // 6. Preload Audio for upcoming short (N+1) so audio buffers in background
-  useEffect(() => {
-    if (!isScreenFocused || songs.length === 0) return;
-
-    const nextSong = songs[activeIndex + 1];
-    if (!nextSong) return;
-
-    const nextStreamUrl = resolveStreamUrl(nextSong);
-    if (!nextStreamUrl) return;
-
-    console.log(
-      `[CanvasShorts] ⚡ Preloading audio for next short [${activeIndex + 1}]: "${nextSong.title}"`
-    );
-
-    preload({ uri: nextStreamUrl }, { preferredForwardBufferDuration: 15 }).catch((err) => {
-      // Non-fatal: playback will fall back to live load if preload fails
-      console.warn("[CanvasShorts] Next audio preload error (non-fatal):", err);
-    });
-  }, [activeIndex, songs, isScreenFocused]);
-
-  // Handle Mute toggle for isolated preview audio
-  useEffect(() => {
-    if (shortsPlayerRef.current) {
-      try {
-        shortsPlayerRef.current.muted = isMuted;
-      } catch {}
-    }
-  }, [isMuted]);
-
-  // Cleanup isolated audio player on unmount and restore lock screen for main session
+  // ── Cleanup on unmount ─────────────────────────────────────────────────────
   useEffect(() => {
     return () => {
-      try {
-        shortsPlayerRef.current?.pause();
-        shortsPlayerRef.current = null;
-      } catch {}
       if (audioPlayerService.currentSong) {
         audioPlayerService.refreshLockScreen(true);
       }
     };
   }, []);
 
-  // 6. Eager Preload: Next 2-3 songs audio, canvas video & artwork
-  useEffect(() => {
-    if (songs.length === 0) return;
-    const nextTracks = songs.slice(activeIndex + 1, activeIndex + 4);
-    nextTracks.forEach((track) => {
-      // 1. Eagerly preload artwork
-      if (track.imageKey) {
-        const imgUrl = getImageUrl(track.imageKey, { width: 800, height: 1400 });
-        if (imgUrl) Image.prefetch(imgUrl);
-      }
-
-      // 2. Eagerly preload audio stream with 15s forward buffer
-      const streamUrl = resolveStreamUrl(track);
-      if (streamUrl) {
-        try {
-          preload(streamUrl, { preferredForwardBufferDuration: 15 }).catch(() => {});
-          fetch(streamUrl).catch(() => {});
-        } catch {}
-      }
-
-      // 3. Eagerly fetch and cache upcoming canvas video
-      const videoKey = track.videoKey || track.fullVideoKey;
-      const canvasVideoUrl =
-        (track as any)?.canvasVideoUrl || (videoKey ? getVideoUrl(videoKey) : null);
-      if (canvasVideoUrl) {
-        try {
-          fetch(canvasVideoUrl).catch(() => {});
-        } catch {}
-      }
-    });
-  }, [activeIndex, songs]);
-
-  // Pull to refresh with randomized fresh content
+  // ── Pull-to-refresh ────────────────────────────────────────────────────────
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     hapticFeedback.light();
@@ -581,13 +374,13 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
       flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
       await queryClient.resetQueries({ queryKey: ["canvas-feed-shorts"] });
     } catch (e) {
-      console.warn("[CanvasShorts] Refresh error:", e);
+      if (__DEV__) console.warn("[CanvasShorts] Refresh error:", e);
     } finally {
       setIsRefreshing(false);
     }
   }, [queryClient]);
 
-  // Viewable item changed in swipe feed
+  // ── Viewable items ─────────────────────────────────────────────────────────
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: Array<any> }) => {
       if (viewableItems && viewableItems.length > 0) {
@@ -595,6 +388,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
         if (typeof first.index === "number" && first.index >= 0) {
           setActiveIndex(first.index);
           setIsPaused(false);
+          setCurrentPlaybackTime(0); // Reset progress bar on slide change
         }
       }
     }
@@ -604,7 +398,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     itemVisiblePercentThreshold: 80,
   }).current;
 
-  // 8. Separate Shorts Like Toggle (Does NOT affect Library Favourites)
+  // ── Shorts Like Toggle ─────────────────────────────────────────────────────
   const handleToggleLike = useCallback(
     async (song: Song) => {
       if (!song?.id) return;
@@ -613,7 +407,6 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
       const currentlyLiked = !!likedShortsMap[songIdStr];
       const currentCount = likeCountsMap[songIdStr] ?? 0;
 
-      // Optimistic update
       setLikedShortsMap((prev) => ({ ...prev, [songIdStr]: !currentlyLiked }));
       setLikeCountsMap((prev) => ({
         ...prev,
@@ -624,8 +417,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
         const res = await canvasService.toggleLike(song.id);
         setLikedShortsMap((prev) => ({ ...prev, [songIdStr]: res.isLiked }));
         setLikeCountsMap((prev) => ({ ...prev, [songIdStr]: res.count }));
-      } catch (err) {
-        // Revert on failure
+      } catch {
         setLikedShortsMap((prev) => ({ ...prev, [songIdStr]: currentlyLiked }));
         setLikeCountsMap((prev) => ({ ...prev, [songIdStr]: currentCount }));
       }
@@ -633,38 +425,30 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     [likedShortsMap, likeCountsMap]
   );
 
-  // Single / Double Tap Gestures
+  // ── Single / Double Tap ────────────────────────────────────────────────────
   const handleScreenPress = useCallback(() => {
     const now = Date.now();
     const DOUBLE_PRESS_DELAY = 300;
 
     if (now - lastTapRef.current < DOUBLE_PRESS_DELAY) {
-      // Double tap -> Like Shorts
+      // Double tap → Like
       if (activeSong) {
         handleToggleLike(activeSong);
-
-        // Trigger Heart Burst animation
         setShowHeartBurst(true);
         heartScaleAnim.setValue(0);
         heartOpacityAnim.setValue(1);
         Animated.parallel([
-          Animated.spring(heartScaleAnim, {
-            toValue: 1.4,
-            friction: 4,
-            useNativeDriver: true,
-          }),
+          Animated.spring(heartScaleAnim, { toValue: 1.4, friction: 4, useNativeDriver: true }),
           Animated.timing(heartOpacityAnim, {
             toValue: 0,
             duration: 800,
             delay: 400,
             useNativeDriver: true,
           }),
-        ]).start(() => {
-          setShowHeartBurst(false);
-        });
+        ]).start(() => setShowHeartBurst(false));
       }
     } else {
-      // Single tap -> Play / Pause preview
+      // Single tap → Play/Pause
       hapticFeedback.light();
       setIsPaused((prev) => {
         const next = !prev;
@@ -675,9 +459,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
           duration: 700,
           delay: 300,
           useNativeDriver: true,
-        }).start(() => {
-          setShowPlayPauseIcon(false);
-        });
+        }).start(() => setShowPlayPauseIcon(false));
         return next;
       });
     }
@@ -685,21 +467,16 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     lastTapRef.current = now;
   }, [activeSong, handleToggleLike, heartOpacityAnim, heartScaleAnim, playPauseAnim]);
 
-  // 9. Play on Main Player and Main Queue ONLY when user explicitly clicks "Play"
+  // ── Play on Main Player ────────────────────────────────────────────────────
   const handlePlayMainSong = useCallback(
     (song: Song) => {
       hapticFeedback.medium();
-      // Stop isolated preview audio
-      shortsPlayerRef.current?.pause();
+      try { shortsPlayerRef.current?.pause(); } catch {}
       setIsShortsPlaying(false);
-
-      // Play on main player & populate main queue
       dispatch(playWithSimilarSongs(song, songs));
-
-      // Open full song player
       router.push(`/song/${song.id}`);
     },
-    [songs, dispatch, router]
+    [songs, dispatch, router, shortsPlayerRef]
   );
 
   const handleShare = useCallback(async (song: Song) => {
@@ -721,7 +498,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     }
   }, [router]);
 
-  // Render individual vertical Short slide
+  // ── Render individual slide ────────────────────────────────────────────────
   const renderShortItem = useCallback(
     ({ item, index }: { item: Song; index: number }) => {
       const isActive = index === activeIndex;
@@ -734,14 +511,15 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
         aspectRatio: "1-1",
       });
 
-      // Split multiple artists into clean individual names
       const artistNames = parseArtistNames(item.artistName);
       const primaryArtist = artistNames[0] || item.artistName || "Unknown Artist";
+
+      // Mount video for active slide and the next slide (pre-buffer), not beyond
       const shouldMountVideo = (isActive || index === activeIndex + 1) && Boolean(videoKey);
 
-      if (isActive) {
+      if (__DEV__ && isActive) {
         console.log(
-          `[CanvasShorts] 🎯 Active slide [${index}]: id=${item.id}, title="${item.title}", videoKey="${videoKey}", shouldMount=${shouldMountVideo}, isActive=${isActive}, isScreenFocused=${isScreenFocused}, isPaused=${isPaused}`
+          `[CanvasShorts] 🎯 Active [${index}]: id=${item.id}, title="${item.title}", videoKey="${videoKey}", shouldMount=${shouldMountVideo}`
         );
       }
 
@@ -749,7 +527,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
         <View style={[styles.pageContainer, { height: containerHeight }]}>
           <TouchableWithoutFeedback onPress={handleScreenPress}>
             <View style={StyleSheet.absoluteFill}>
-              {/* Full-screen Edge-to-Edge Looping Canvas Video Backdrop */}
+              {/* Full-screen canvas video or artwork fallback */}
               {shouldMountVideo ? (
                 <CanvasVideoPlayer
                   videoUrl={(item as any)?.canvasVideoUrl}
@@ -777,14 +555,14 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
                 />
               )}
 
-              {/* Top Gradient for Status Bar & Header clarity */}
+              {/* Top gradient */}
               <LinearGradient
                 colors={["rgba(0,0,0,0.7)", "rgba(0,0,0,0.2)", "transparent"]}
                 locations={[0, 0.45, 1]}
                 style={styles.topGradient}
               />
 
-              {/* Bottom Gradient for Text & Control Readability */}
+              {/* Bottom gradient */}
               <LinearGradient
                 colors={[
                   "transparent",
@@ -798,7 +576,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
             </View>
           </TouchableWithoutFeedback>
 
-          {/* Centered Play / Pause Fade Indicator */}
+          {/* Play / Pause indicator */}
           {showPlayPauseIcon && isActive && (
             <Animated.View
               pointerEvents="none"
@@ -825,7 +603,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
             </Animated.View>
           )}
 
-          {/* Centered Heart Burst Animation on Double Tap */}
+          {/* Heart burst on double tap */}
           {showHeartBurst && isActive && (
             <Animated.View
               pointerEvents="none"
@@ -841,14 +619,14 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
             </Animated.View>
           )}
 
-          {/* Right Floating Actions Column */}
+          {/* Right actions column */}
           <View
             style={[
               styles.rightActionsColumn,
               { bottom: tabBottomSpace + 16 },
             ]}
           >
-            {/* Artist Avatar (Primary Artist) */}
+            {/* Artist avatar */}
             <TouchableOpacity
               style={styles.actionItem}
               onPress={() => {
@@ -873,7 +651,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
               </View>
             </TouchableOpacity>
 
-            {/* Separate Shorts Like / Heart Button */}
+            {/* Like button */}
             <TouchableOpacity
               style={styles.actionItem}
               onPress={() => handleToggleLike(item)}
@@ -896,7 +674,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
               </Text>
             </TouchableOpacity>
 
-            {/* Play on Main Player Action */}
+            {/* Play on main player */}
             <TouchableOpacity
               style={styles.actionItem}
               onPress={() => handlePlayMainSong(item)}
@@ -913,7 +691,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
               <Text style={styles.actionText}>Play</Text>
             </TouchableOpacity>
 
-            {/* Share Button */}
+            {/* Share */}
             <TouchableOpacity
               style={styles.actionItem}
               onPress={() => handleShare(item)}
@@ -930,21 +708,21 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
               <Text style={styles.actionText}>Share</Text>
             </TouchableOpacity>
 
-            {/* Non-Pressable Revolving Vinyl Disc */}
+            {/* Spinning vinyl disc */}
             <SpinningVinylDisc
               isActive={isActive && isShortsPlaying && !isPaused && isScreenFocused}
               imageUrl={artistImageUrl}
             />
           </View>
 
-          {/* Bottom Left Info / Track Details — Hugs Close Above Bottom Tabs */}
+          {/* Bottom info */}
           <View
             style={[
               styles.bottomInfoContainer,
               { bottom: tabBottomSpace + 8 },
             ]}
           >
-            {/* Multi-Artist Parsing with Clickable Tags */}
+            {/* Artist pills */}
             <View style={styles.artistRow}>
               {artistNames.map((name, idx) => (
                 <TouchableOpacity
@@ -977,7 +755,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
               ))}
             </View>
 
-            {/* Song Title & Optional Genre Pill */}
+            {/* Song title + genre */}
             <View style={styles.titleRow}>
               <Text style={styles.songTitle} numberOfLines={2}>
                 {item.title}
@@ -989,7 +767,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
               ) : null}
             </View>
 
-            {/* Sound Ticker / Play Prompt Row */}
+            {/* Sound ticker */}
             <TouchableOpacity
               style={styles.soundTickerRow}
               onPress={() => handlePlayMainSong(item)}
@@ -1010,6 +788,18 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
               </View>
             </TouchableOpacity>
           </View>
+
+          {/* Phase 5A: Preview progress bar */}
+          {isActive && (
+            <ShortsProgressBar
+              currentTime={currentPlaybackTime}
+              startTime={typeof item.previewStartTime === "number" ? item.previewStartTime : 0}
+              endTime={typeof item.previewEndTime === "number" ? item.previewEndTime : 0}
+              duration={typeof (item as any).duration === "number" ? (item as any).duration : 30}
+              isPaused={isPaused}
+              isVisible={isShortsPlaying}
+            />
+          )}
         </View>
       );
     },
@@ -1032,10 +822,12 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
       handleToggleLike,
       handlePlayMainSong,
       handleShare,
+      currentPlaybackTime,
       router,
     ]
   );
 
+  // ── Root render ────────────────────────────────────────────────────────────
   return (
     <View
       style={styles.root}
@@ -1048,7 +840,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
     >
       <StatusBar barStyle="light-content" />
 
-      {/* Top Header Overlay */}
+      {/* Top header */}
       <View style={[styles.headerOverlay, { top: insets.top + 8 }]}>
         <TouchableOpacity
           style={styles.headerIconButton}
@@ -1082,7 +874,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
         </TouchableOpacity>
       </View>
 
-      {/* Vertical Swipeable Shorts Feed */}
+      {/* Feed */}
       {isFeedLoading && songs.length === 0 ? (
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FF2D55" />
@@ -1122,15 +914,13 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
           onEndReached={() => {
-            if (hasNextPage && !isFetchingNextPage) {
-              fetchNextPage();
-            }
+            if (hasNextPage && !isFetchingNextPage) fetchNextPage();
           }}
           onEndReachedThreshold={1.5}
           initialNumToRender={1}
           maxToRenderPerBatch={2}
           windowSize={3}
-          removeClippedSubviews={Platform.OS === "android"}
+          removeClippedSubviews={true} // Phase 4A: enabled on both platforms
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
