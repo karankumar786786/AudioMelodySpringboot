@@ -1,7 +1,6 @@
 package me.one_org.melody.Services.Api;
 
 import java.util.*;
-import java.util.Comparator;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -25,9 +24,6 @@ import me.one_org.melody.Recommendation.RecommendationRankingEngine;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserHistoryRepository;
 import me.one_org.melody.Repository.UsersRepository;
-
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.MeterRegistry;
 
 @Service
 @Slf4j
@@ -277,9 +273,8 @@ public class RecommendationApiService {
                             recColdStartCounter.increment();
                             log.debug("[P6] Cold-start genre prefs used for user={}: {}", userId, prefGenres);
                         }
-                    } else if (!recent.isEmpty()) {
+                    } else {
                         Map<String, Double> genreWeights = new java.util.LinkedHashMap<>();
-                        Song bestVibeSeed = null;
                         int bestPart = -1;
 
                         for (int i = 0; i < recent.size(); i++) {
@@ -293,10 +288,10 @@ public class RecommendationApiService {
                             double completionWeight = part >= 90 ? 1.5 : part >= 50 ? 1.2 : 0.6;
                             double weight = recencyWeight * completionWeight;
 
-                            // Track best vibeSeed as the most-completed recent track
+                            // Track best vibeSeed directly as the most-completed recent track
                             if (part > bestPart) {
                                 bestPart = part;
-                                bestVibeSeed = h.getSong();
+                                vibeSeed = h.getSong();
                             }
 
                             // Accumulate weighted genre scores
@@ -306,15 +301,11 @@ public class RecommendationApiService {
                                         .filter(s -> !s.isBlank())
                                         .distinct()
                                         .toList();
-                                int perGenre = Math.max(5, 15 / Math.max(1, tokens.size()));
                                 for (String g : tokens) {
                                     genreWeights.merge(g, weight, Double::sum);
                                 }
                             }
                         }
-
-                        // Set vibeSeed to best-completed song (not just first)
-                        if (bestVibeSeed != null) vibeSeed = bestVibeSeed;
 
                         // Fetch DB candidates for top 3 weighted genres
                         List<String> topGenres = genreWeights.entrySet().stream()
@@ -322,9 +313,9 @@ public class RecommendationApiService {
                                 .limit(3)
                                 .map(Map.Entry::getKey)
                                 .toList();
-                        int perGenre = Math.max(5, 15 / Math.max(1, topGenres.size()));
+                        int fetchLimit = Math.max(5, 15 / Math.max(1, topGenres.size()));
                         for (String g : topGenres) {
-                            dbCandidates.addAll(songsRepository.findActiveByGenre(g, PageRequest.of(0, perGenre)));
+                            dbCandidates.addAll(songsRepository.findActiveByGenre(g, PageRequest.of(0, fetchLimit)));
                         }
                     }
                 }

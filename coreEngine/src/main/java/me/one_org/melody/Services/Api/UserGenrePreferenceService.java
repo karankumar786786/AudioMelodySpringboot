@@ -4,7 +4,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,7 +23,6 @@ public class UserGenrePreferenceService {
     private final UserGenrePreferenceRepository repo;
     private final UsersRepository usersRepository;
 
-    @Autowired
     public UserGenrePreferenceService(UserGenrePreferenceRepository repo,
                                       UsersRepository usersRepository) {
         this.repo = repo;

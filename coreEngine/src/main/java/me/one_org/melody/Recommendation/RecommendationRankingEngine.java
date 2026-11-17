@@ -351,10 +351,27 @@ public class RecommendationRankingEngine {
      * Safely handles null — Recombee candidates have audio features; DB candidates do not.
      */
     private double scoreAudioFeatures(SongDto candidate, Song seedSong) {
-        // TODO: Populate audio features on Song entity or fetch seed features from Recombee.
-        // Currently, only Recombee candidates carry audio features (via returnProperties).
-        // Seed song audio features require a separate Recombee item lookup.
-        return 0.0;
+        // Candidate audio features come from Recombee returnProperties; seed song entity lacks them.
+        // When seed has no audio data we gracefully skip (return 0).
+        if (candidate == null || seedSong == null) return 0.0;
+
+        // Seed song entity doesn't carry audio features — use candidate-only heuristic:
+        // reward moderate energy/danceability tracks (closer to 0.5–0.7 sweet-spot) with up to 3 pts.
+        Double energy = candidate.energy();
+        Double dance  = candidate.danceability();
+        if (energy == null && dance == null) return 0.0;
+
+        double score = 0.0;
+        // Proximity to ideal range [0.5, 0.7] — bell-curve style
+        if (energy != null) {
+            double dist = Math.abs(energy - 0.6);
+            score += Math.max(0, 1.5 - dist * 3.0); // 0–1.5 pts
+        }
+        if (dance != null) {
+            double dist = Math.abs(dance - 0.6);
+            score += Math.max(0, 1.5 - dist * 3.0); // 0–1.5 pts
+        }
+        return score;
     }
 
     public static String getPrimaryArtistKey(String artistName) {
