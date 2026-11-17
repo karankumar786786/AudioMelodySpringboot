@@ -88,6 +88,15 @@ export default function AuthenticatedLayout() {
           animation: "slide_from_right",
         }}
       />
+      <Stack.Screen
+        name="onboarding"
+        options={{
+          headerShown: false,
+          presentation: "fullScreenModal",
+          animation: "fade",
+          gestureEnabled: false,
+        }}
+      />
     </Stack>
   );
 }

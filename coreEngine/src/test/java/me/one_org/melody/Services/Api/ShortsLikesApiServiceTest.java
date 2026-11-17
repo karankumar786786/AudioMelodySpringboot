@@ -13,6 +13,7 @@ import me.one_org.melody.Dto.Controllers.Api.ShortsLikeStatusDto;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Entity.User;
 import me.one_org.melody.Entity.UserShortsLike;
+import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserShortsLikeRepository;
 import me.one_org.melody.Repository.UsersRepository;
@@ -24,6 +25,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class ShortsLikesApiServiceTest {
     @Mock
+    private Recombee recombee;
+    @Mock
     private UserShortsLikeRepository shortsLikeRepository;
     @Mock
     private SongsRepository songsRepository;
@@ -33,7 +36,7 @@ class ShortsLikesApiServiceTest {
     private ShortsLikesApiService shortsLikesApiService;
     @Test
     @DisplayName("toggleLike should add like if not already liked")
-    void toggleLike_Add() {
+    void toggleLike_Add() throws Exception {
         Song song = Song.builder().id("song-101").title("Short Song").build();
         User user = User.builder().id("user-1").userName("testuser").build();
         when(songsRepository.findById("song-101")).thenReturn(Optional.of(song));
@@ -46,10 +49,11 @@ class ShortsLikesApiServiceTest {
         assertThat(result.isLiked()).isTrue();
         assertThat(result.count()).isEqualTo(1L);
         verify(shortsLikeRepository).save(any(UserShortsLike.class));
+        verify(recombee).trackDetailView("user-1", "song-101");
     }
     @Test
     @DisplayName("toggleLike should remove like if already liked")
-    void toggleLike_Remove() {
+    void toggleLike_Remove() throws Exception {
         Song song = Song.builder().id("song-101").title("Short Song").build();
         when(songsRepository.findById("song-101")).thenReturn(Optional.of(song));
         when(shortsLikeRepository.existsByUserIdAndSongId("user-1", "song-101")).thenReturn(true);
@@ -60,6 +64,7 @@ class ShortsLikesApiServiceTest {
         assertThat(result.isLiked()).isFalse();
         assertThat(result.count()).isEqualTo(0L);
         verify(shortsLikeRepository).deleteByUserIdAndSongId("user-1", "song-101");
+        verify(recombee).trackRating("user-1", "song-101", -0.5);
     }
     @Test
     @DisplayName("getLikeStatus should return liked state and total count")

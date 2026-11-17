@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import me.one_org.melody.Controllers.Api.RecombeeApiController;
+import me.one_org.melody.Dto.Controllers.Api.RadioResponseDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Services.Api.RecommendationApiService;
 
@@ -65,6 +66,23 @@ class RecombeeApiControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value("s-rad-3"));
+    }
+
+    @Test
+    @DisplayName("GET /api/recommendations/radio/session should return songs and recommId")
+    void shouldRecommendRadioSession() throws Exception {
+        SongDto song = new SongDto("s-rad-3", "Radio Song", "Artist Z", 220, "key", "img", null, null, null, null, false, "English", "Indie", "Album", "India", "lrc", null, 5000L, null);
+        RadioResponseDto responseDto = new RadioResponseDto(List.of(song), "rec-token-123");
+        when(recommendationApiService.recommendRadioSession("seed-1", List.of("ex-1", "ex-2"), 10)).thenReturn(responseDto);
+
+        mockMvc.perform(get("/api/recommendations/radio/session")
+                        .param("seedSongId", "seed-1")
+                        .param("excludeIds", "ex-1,ex-2")
+                        .param("count", "10")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recommId").value("rec-token-123"))
+                .andExpect(jsonPath("$.songs[0].id").value("s-rad-3"));
     }
 
     @Test

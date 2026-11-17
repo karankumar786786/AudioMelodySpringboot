@@ -462,14 +462,8 @@ export const similarityService = {
     // 4. Rank candidates using multi-factor similarity scorer with tie-breaker
     const scored = candidates.map((c) => {
       const baseScore = this.scoreSimilarity(c, hydratedSeed);
-      // Small deterministic tie-breaker based on ID hash to avoid deterministic repetition
-      let hash = 0;
-      const combined = c.id + hydratedSeed.id;
-      for (let i = 0; i < combined.length; i++) {
-        hash = (hash << 5) - hash + combined.charCodeAt(i);
-        hash |= 0;
-      }
-      const jitter = ((Math.abs(hash) % 100) / 100) * 0.5;
+      // P5: True random jitter — same seed produces fresh queue each session
+      const jitter = Math.random() * 0.5;
       return {
         song: c,
         score: baseScore + jitter,

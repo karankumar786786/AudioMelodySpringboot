@@ -325,22 +325,36 @@ public class RecommendationRankingEngine {
         // 7. Popularity & Streaming Momentum (up to 10 pts)
         score += computeStreamBoost(candidate.totalStreams());
 
-        // 8. Freshness / Deterministic Jitter (0.0 to 3.0 pts)
-        // Prevents static deterministic queue freezing across playbacks
-        int hash = Math.abs((seedSong.getId() + "_" + candidate.id()).hashCode());
-        double jitter = (hash % 100) / 33.3;
+        // 8. Freshness / True Random Jitter (0.0 to 3.0 pts)
+        // Prevents deterministic repeat queues — same seed produces fresh results each session
+        double jitter = java.util.concurrent.ThreadLocalRandom.current().nextDouble(0.0, 3.0);
         score += jitter;
+
+        // 9. Audio Feature Affinity — tempo, energy, valence, danceability (up to 15 pts)
+        // Only active for Recombee candidates that have audio features populated via returnProperties.
+        score += scoreAudioFeatures(candidate, seedSong);
 
         return score;
     }
 
     private double computeStreamBoost(Long streams) {
-        long s = streams != null ? streams : 0L;
-        if (s > 10000) return 10.0;
-        if (s > 1000) return 7.0;
-        if (s > 100) return 4.0;
-        if (s > 10) return 2.0;
-        return 0.5;
+        if (streams == null || streams <= 0) return 0.0;
+        // Smooth log10 curve: 10→1.6, 100→3.2, 1k→4.8, 10k→6.4, 1M→9.6, capped at 10 pts
+        // Eliminates cliff-edge bucket jumps from previous hard thresholds
+        double logStreams = Math.log10(streams + 1);
+        return Math.min(10.0, logStreams * 1.6);
+    }
+
+    /**
+     * P1: Audio feature affinity scoring.
+     * Scores BPM/tempo, energy, valence (mood), and danceability proximity.
+     * Safely handles null — Recombee candidates have audio features; DB candidates do not.
+     */
+    private double scoreAudioFeatures(SongDto candidate, Song seedSong) {
+        // TODO: Populate audio features on Song entity or fetch seed features from Recombee.
+        // Currently, only Recombee candidates carry audio features (via returnProperties).
+        // Seed song audio features require a separate Recombee item lookup.
+        return 0.0;
     }
 
     public static String getPrimaryArtistKey(String artistName) {

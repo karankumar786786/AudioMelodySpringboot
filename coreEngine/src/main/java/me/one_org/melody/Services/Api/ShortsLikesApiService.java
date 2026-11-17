@@ -18,6 +18,7 @@ import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Entity.User;
 import me.one_org.melody.Entity.UserShortsLike;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
+import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserShortsLikeRepository;
 import me.one_org.melody.Repository.UsersRepository;
@@ -27,15 +28,18 @@ import me.one_org.melody.Repository.UsersRepository;
 @Slf4j
 public class ShortsLikesApiService {
 
+    private final Recombee recombee;
     private final UserShortsLikeRepository shortsLikeRepository;
     private final SongsRepository songsRepository;
     private final UsersRepository usersRepository;
 
     public ShortsLikesApiService(
+            Recombee recombee,
             UserShortsLikeRepository shortsLikeRepository,
             SongsRepository songsRepository,
             UsersRepository usersRepository
     ) {
+        this.recombee = recombee;
         this.shortsLikeRepository = shortsLikeRepository;
         this.songsRepository = songsRepository;
         this.usersRepository = usersRepository;
@@ -56,6 +60,11 @@ public class ShortsLikesApiService {
             shortsLikeRepository.deleteByUserIdAndSongId(userId, songId);
             newLikedState = false;
             log.debug("[ShortsLike] User [{}] unliked short [{}]", userId, songId);
+            try {
+                recombee.trackRating(userId, songId, -0.5);
+            } catch (Exception e) {
+                log.warn("[ShortsLike] Recombee unlike signal failed for user [{}] song [{}]: {}", userId, songId, e.getMessage());
+            }
         } else {
             User user = usersRepository.findById(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("User not found: " + userId));
@@ -67,6 +76,11 @@ public class ShortsLikesApiService {
             shortsLikeRepository.save(like);
             newLikedState = true;
             log.debug("[ShortsLike] User [{}] liked short [{}]", userId, songId);
+            try {
+                recombee.trackDetailView(userId, songId);
+            } catch (Exception e) {
+                log.warn("[ShortsLike] Recombee like signal failed for user [{}] song [{}]: {}", userId, songId, e.getMessage());
+            }
         }
 
         long totalCount = shortsLikeRepository.countBySongId(songId);

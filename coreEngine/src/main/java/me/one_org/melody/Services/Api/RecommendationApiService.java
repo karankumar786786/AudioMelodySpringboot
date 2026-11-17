@@ -1,6 +1,8 @@
 package me.one_org.melody.Services.Api;
 
 import java.util.*;
+import java.util.Comparator;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -9,7 +11,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
+import me.one_org.melody.Dto.Controllers.Api.RadioResponseDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Entity.User;
@@ -20,6 +25,9 @@ import me.one_org.melody.Recommendation.RecommendationRankingEngine;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserHistoryRepository;
 import me.one_org.melody.Repository.UsersRepository;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 
 @Service
 @Slf4j
@@ -32,26 +40,58 @@ public class RecommendationApiService {
     private final UsersRepository usersRepository;
     private final RecommendationRankingEngine rankingEngine;
 
+    // P6: cold-start genre preferences
+    private final UserGenrePreferenceService genrePreferenceService;
+
+    // P9: Micrometer observability counters
+    private final Counter recServCounter;
+    private final Counter recFallbackCounter;
+    private final Counter recColdStartCounter;
+
     @Autowired
     public RecommendationApiService(
             Recombee recombee,
             @Autowired(required = false) SongsRepository songsRepository,
             @Autowired(required = false) UserHistoryRepository userHistoryRepository,
             @Autowired(required = false) UsersRepository usersRepository,
-            @Autowired(required = false) RecommendationRankingEngine rankingEngine) {
+            @Autowired(required = false) RecommendationRankingEngine rankingEngine,
+            @Autowired(required = false) UserGenrePreferenceService genrePreferenceService,
+            @Autowired(required = false) MeterRegistry meterRegistry) {
         this.recombee = recombee;
         this.songsRepository = songsRepository;
         this.userHistoryRepository = userHistoryRepository;
         this.usersRepository = usersRepository;
         this.rankingEngine = (rankingEngine != null) ? rankingEngine : new RecommendationRankingEngine();
+        this.genrePreferenceService = genrePreferenceService;
+        // P9: safe no-op counters when MeterRegistry is absent (e.g. in tests)
+        if (meterRegistry != null) {
+            this.recServCounter    = meterRegistry.counter("recommendations.served",   "source", "recombee");
+            this.recFallbackCounter= meterRegistry.counter("recommendations.served",   "source", "fallback");
+            this.recColdStartCounter=meterRegistry.counter("recommendations.cold_start","source","genre_prefs");
+        } else {
+            io.micrometer.core.instrument.simple.SimpleMeterRegistry noOpReg =
+                    new io.micrometer.core.instrument.simple.SimpleMeterRegistry();
+            this.recServCounter     = noOpReg.counter("recommendations.served",    "source", "recombee");
+            this.recFallbackCounter = noOpReg.counter("recommendations.served",    "source", "fallback");
+            this.recColdStartCounter= noOpReg.counter("recommendations.cold_start","source", "genre_prefs");
+        }
     }
 
     public RecommendationApiService(Recombee recombee) {
-        this(recombee, null, null, null, null);
+        this(recombee, null, null, null, null, null, null);
     }
 
     public RecommendationApiService(Recombee recombee, SongsRepository songsRepository) {
-        this(recombee, songsRepository, null, null, null);
+        this(recombee, songsRepository, null, null, null, null, null);
+    }
+
+    public RecommendationApiService(
+            Recombee recombee,
+            SongsRepository songsRepository,
+            UserHistoryRepository userHistoryRepository,
+            UsersRepository usersRepository,
+            RecommendationRankingEngine rankingEngine) {
+        this(recombee, songsRepository, userHistoryRepository, usersRepository, rankingEngine, null, null);
     }
 
     public List<SongDto> recommendSimilar(String songId, int count) {
@@ -75,6 +115,66 @@ public class RecommendationApiService {
         }
 
         // 2. Gather Database candidate songs across genre, language, artist, and album
+        List<Song> dbCandidates = getDatabaseCandidates(seedSong, seedSongId);
+
+        // 3. Prepare exclusions (exclude seed song and client excludeIds)
+        Set<String> excludes = new HashSet<>();
+        if (excludeIds != null) {
+            excludes.addAll(excludeIds);
+        }
+        if (seedSongId != null) {
+            excludes.add(seedSongId);
+        }
+
+        // 4. Rank, score, and enforce artist & album diversity constraints
+        List<SongDto> diverseRecommendations = rankingEngine.rankAndDiversify(
+                seedSong,
+                recombeeHits,
+                dbCandidates,
+                excludes,
+                count
+        );
+
+        if (!diverseRecommendations.isEmpty()) {
+            return diverseRecommendations;
+        }
+
+        // 5. Fallback: Catalog active songs if candidate pool was completely empty
+        return fallbackCatalog(count);
+    }
+
+    public RadioResponseDto recommendRadioSession(String seedSongId, List<String> excludeIds, int count) {
+        Song seedSong = null;
+        if (songsRepository != null && seedSongId != null && !seedSongId.isBlank()) {
+            seedSong = songsRepository.findById(seedSongId).orElse(null);
+        }
+
+        RadioResponseDto recombeeResult = null;
+        if (seedSongId != null && !seedSongId.isBlank()) {
+            try {
+                recombeeResult = recombee.recommendRadioWithRecommId(seedSongId, excludeIds, Math.max(count * 3, 20));
+            } catch (Exception e) {
+                log.warn("Recombee radio session failed for seed {}: {}", seedSongId, e.getMessage());
+            }
+        }
+
+        List<SongDto> recombeeSongs = recombeeResult != null ? recombeeResult.songs() : List.of();
+        String recommId = recombeeResult != null ? recombeeResult.recommId() : null;
+
+        // DB candidates fallback same as recommendRadio
+        List<Song> dbCandidates = getDatabaseCandidates(seedSong, seedSongId);
+
+        Set<String> excludes = new HashSet<>(excludeIds != null ? excludeIds : List.of());
+        if (seedSongId != null) excludes.add(seedSongId);
+
+        List<SongDto> ranked = rankingEngine.rankAndDiversify(seedSong, recombeeSongs, dbCandidates, excludes, count);
+        if (!ranked.isEmpty()) {
+            return new RadioResponseDto(ranked, recommId);
+        }
+        return new RadioResponseDto(fallbackCatalog(count), null);
+    }
+
+    private List<Song> getDatabaseCandidates(Song seedSong, String seedSongId) {
         List<Song> dbCandidates = new ArrayList<>();
         if (songsRepository != null && seedSong != null) {
             try {
@@ -128,31 +228,7 @@ public class RecommendationApiService {
                 log.warn("Error gathering DB candidates for seed {}: {}", seedSongId, ex.getMessage());
             }
         }
-
-        // 3. Prepare exclusions (exclude seed song and client excludeIds)
-        Set<String> excludes = new HashSet<>();
-        if (excludeIds != null) {
-            excludes.addAll(excludeIds);
-        }
-        if (seedSongId != null) {
-            excludes.add(seedSongId);
-        }
-
-        // 4. Rank, score, and enforce artist & album diversity constraints
-        List<SongDto> diverseRecommendations = rankingEngine.rankAndDiversify(
-                seedSong,
-                recombeeHits,
-                dbCandidates,
-                excludes,
-                count
-        );
-
-        if (!diverseRecommendations.isEmpty()) {
-            return diverseRecommendations;
-        }
-
-        // 5. Fallback: Catalog active songs if candidate pool was completely empty
-        return fallbackCatalog(count);
+        return dbCandidates;
     }
 
     public List<SongDto> recommendForUser(String userId, int count) {
@@ -187,25 +263,68 @@ public class RecommendationApiService {
             try {
                 User user = usersRepository.findById(userId).orElse(null);
                 if (user != null) {
-                    List<UserHistory> recent = userHistoryRepository.findRecentByUser(user, 3);
-                    if (recent != null && !recent.isEmpty()) {
-                        for (UserHistory h : recent) {
-                            if (h.getSong() != null) {
-                                if (vibeSeed == null) {
-                                    vibeSeed = h.getSong();
-                                }
-                                if (h.getSong().getGenre() != null && !h.getSong().getGenre().isBlank()) {
-                                    List<String> tokens = Arrays.stream(h.getSong().getGenre().split(","))
-                                            .map(String::trim)
-                                            .filter(s -> !s.isBlank())
-                                            .distinct()
-                                            .toList();
-                                    int perGenre = Math.max(5, 15 / Math.max(1, tokens.size()));
-                                    for (String g : tokens) {
-                                        dbCandidates.addAll(songsRepository.findActiveByGenre(g, PageRequest.of(0, perGenre)));
-                                    }
+                    // P8: Fire repeat-listen rating signals asynchronously (best-effort)
+                    fireRepeatListenSignals(user, userId);
+                    List<UserHistory> recent = userHistoryRepository.findRecentByUser(user, 20);
+                    if (recent == null || recent.isEmpty()) {
+                        // P6: Cold-start — no history yet, use onboarding genre prefs
+                        if (genrePreferenceService != null && genrePreferenceService.hasPreferences(userId)) {
+                            List<String> prefGenres = genrePreferenceService.getPreferences(userId);
+                            int pg = Math.max(5, 20 / Math.max(1, prefGenres.size()));
+                            for (String g : prefGenres) {
+                                dbCandidates.addAll(songsRepository.findActiveByGenre(g, PageRequest.of(0, pg)));
+                            }
+                            recColdStartCounter.increment();
+                            log.debug("[P6] Cold-start genre prefs used for user={}: {}", userId, prefGenres);
+                        }
+                    } else if (!recent.isEmpty()) {
+                        Map<String, Double> genreWeights = new java.util.LinkedHashMap<>();
+                        Song bestVibeSeed = null;
+                        int bestPart = -1;
+
+                        for (int i = 0; i < recent.size(); i++) {
+                            UserHistory h = recent.get(i);
+                            if (h.getSong() == null) continue;
+
+                            // Recency decay: index 0 = most recent → weight 1.0, decays 10% per position
+                            double recencyWeight = Math.pow(0.90, i);
+                            // Completion boost: ≥90% = 1.5×, ≥50% = 1.2×, <25% = 0.6×
+                            int part = h.getPart() != null ? h.getPart() : 0;
+                            double completionWeight = part >= 90 ? 1.5 : part >= 50 ? 1.2 : 0.6;
+                            double weight = recencyWeight * completionWeight;
+
+                            // Track best vibeSeed as the most-completed recent track
+                            if (part > bestPart) {
+                                bestPart = part;
+                                bestVibeSeed = h.getSong();
+                            }
+
+                            // Accumulate weighted genre scores
+                            if (h.getSong().getGenre() != null && !h.getSong().getGenre().isBlank()) {
+                                List<String> tokens = Arrays.stream(h.getSong().getGenre().split(","))
+                                        .map(String::trim)
+                                        .filter(s -> !s.isBlank())
+                                        .distinct()
+                                        .toList();
+                                int perGenre = Math.max(5, 15 / Math.max(1, tokens.size()));
+                                for (String g : tokens) {
+                                    genreWeights.merge(g, weight, Double::sum);
                                 }
                             }
+                        }
+
+                        // Set vibeSeed to best-completed song (not just first)
+                        if (bestVibeSeed != null) vibeSeed = bestVibeSeed;
+
+                        // Fetch DB candidates for top 3 weighted genres
+                        List<String> topGenres = genreWeights.entrySet().stream()
+                                .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+                                .limit(3)
+                                .map(Map.Entry::getKey)
+                                .toList();
+                        int perGenre = Math.max(5, 15 / Math.max(1, topGenres.size()));
+                        for (String g : topGenres) {
+                            dbCandidates.addAll(songsRepository.findActiveByGenre(g, PageRequest.of(0, perGenre)));
                         }
                     }
                 }
@@ -228,10 +347,33 @@ public class RecommendationApiService {
         );
 
         if (!diverseUserFeed.isEmpty()) {
+            recServCounter.increment();
             return diverseUserFeed;
         }
 
+        recFallbackCounter.increment();
         return fallbackCatalog(count);
+    }
+
+    // ── P8: Send repeat-listen strong signals to Recombee (songs played 3+ times with ≥70% avg completion) ──
+    private void fireRepeatListenSignals(User user, String userId) {
+        if (userHistoryRepository == null || user == null) return;
+        try {
+            java.time.LocalDateTime thirtyDaysAgo = java.time.LocalDateTime.now().minusDays(30);
+            List<Object[]> frequentSongs = userHistoryRepository.findFrequentlyPlayedSongs(
+                    user, thirtyDaysAgo, 3L, PageRequest.of(0, 10));
+            for (Object[] row : frequentSongs) {
+                String freqSongId = (String) row[0];
+                double avgCompletion = row[2] instanceof Number ? ((Number) row[2]).doubleValue() : 0.0;
+                if (avgCompletion >= 70.0) {
+                    try {
+                        recombee.trackRating(userId, freqSongId, 1.0);
+                    } catch (Exception ignored) {}
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("[Recommendation] Repeat-listen Recombee signal failed for user {}: {}", userId, ex.getMessage());
+        }
     }
 
     private List<SongDto> fallbackCatalog(int count) {

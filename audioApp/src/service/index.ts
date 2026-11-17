@@ -16,3 +16,4 @@ export * from "./videoService";
 export * from "./lyricsService";
 export * from "./canvasService";
 export * from "./userProgressService";
+export * from "./genrePreferenceService";

@@ -1,6 +1,7 @@
 package me.one_org.melody.Services.Api;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -9,8 +10,17 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import me.one_org.melody.Dto.Controllers.Api.RadioResponseDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
+import me.one_org.melody.Entity.Song;
+import me.one_org.melody.Entity.User;
+import me.one_org.melody.Entity.UserHistory;
+import me.one_org.melody.Enums.StatusEnum;
 import me.one_org.melody.Recommendation.Recombee;
+import me.one_org.melody.Recommendation.RecommendationRankingEngine;
+import me.one_org.melody.Repository.SongsRepository;
+import me.one_org.melody.Repository.UserHistoryRepository;
+import me.one_org.melody.Repository.UsersRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
@@ -250,5 +260,88 @@ class RecommendationApiServiceTest {
         assertThat(results).isNotEmpty();
         verify(mockSongsRepo).findActiveByArtistName(eq("Drake"), any());
         verify(mockSongsRepo).findActiveByArtistName(eq("21 Savage"), any());
+    }
+
+    @Test
+    @DisplayName("Should use top-20 history to pick best-completed vibe seed and query top-3 weighted genres")
+    void shouldBuildWeightedGenreProfileAndPickBestVibeSeedFromHistory() throws Exception {
+        SongsRepository mockSongsRepo = mock(SongsRepository.class);
+        UserHistoryRepository mockHistoryRepo = mock(UserHistoryRepository.class);
+        UsersRepository mockUsersRepo = mock(UsersRepository.class);
+        RecommendationRankingEngine mockRankingEngine = mock(RecommendationRankingEngine.class);
+
+        RecommendationApiService service = new RecommendationApiService(
+                recombee, mockSongsRepo, mockHistoryRepo, mockUsersRepo, mockRankingEngine);
+
+        when(recombee.recommendForUser(eq("user-1"), anyInt())).thenReturn(List.of());
+
+        User user = User.builder().id("user-1").userName("testuser").build();
+        when(mockUsersRepo.findById("user-1")).thenReturn(Optional.of(user));
+
+        Song songLowCompletion = Song.builder().id("s-recent").genre("Pop").build();
+        Song songHighCompletion = Song.builder().id("s-completed").genre("Rock").build();
+
+        UserHistory h1 = new UserHistory("h1", user, songLowCompletion, 20, null);
+        UserHistory h2 = new UserHistory("h2", user, songHighCompletion, 95, null);
+
+        when(mockHistoryRepo.findRecentByUser(eq(user), eq(20))).thenReturn(List.of(h1, h2));
+
+        Song rockSong = Song.builder().id("s-rock-candidate").title("Rock Song").genre("Rock").status(StatusEnum.ACTIVE).build();
+        when(mockSongsRepo.findActiveByGenre(eq("Rock"), any())).thenReturn(List.of(rockSong));
+        when(mockSongsRepo.findActiveByGenre(eq("Pop"), any())).thenReturn(List.of());
+        when(mockSongsRepo.findActiveSongs(any())).thenReturn(List.of());
+
+        when(mockRankingEngine.rankAndDiversify(eq(songHighCompletion), any(), any(), any(), anyInt()))
+                .thenReturn(List.of(SongDto.fromEntity(rockSong)));
+
+        List<SongDto> result = service.recommendForUser("user-1", 5);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).id()).isEqualTo("s-rock-candidate");
+        verify(mockHistoryRepo).findRecentByUser(user, 20);
+        verify(mockRankingEngine).rankAndDiversify(eq(songHighCompletion), any(), any(), any(), eq(5));
+    }
+
+    @Test
+    @DisplayName("Should return radio session recommendations with recommId")
+    void shouldRecommendRadioSessionWithRecommId() throws Exception {
+        SongDto s1 = new SongDto("song-1", "Song One", "Artist A", 180, "key1", "img1", null, null, null, null, false, "English", "Pop", "Album", "India", "lrc", null, 120L, null);
+        RadioResponseDto recombeeDto = new RadioResponseDto(List.of(s1), "rec-session-123");
+
+        when(recombee.recommendRadioWithRecommId(eq("seed-1"), eq(List.of()), anyInt())).thenReturn(recombeeDto);
+
+        RadioResponseDto result = recommendationApiService.recommendRadioSession("seed-1", List.of(), 5);
+
+        assertThat(result).isNotNull();
+        assertThat(result.recommId()).isEqualTo("rec-session-123");
+        assertThat(result.songs()).hasSize(1);
+        assertThat(result.songs().get(0).id()).isEqualTo("song-1");
+        verify(recombee).recommendRadioWithRecommId(eq("seed-1"), eq(List.of()), anyInt());
+    }
+
+    @Test
+    @DisplayName("Should send repeat listen rating signals to Recombee for songs played 3+ times with >= 70% completion")
+    void shouldTrackRepeatListenSignalsForFrequentlyPlayedSongs() throws Exception {
+        SongsRepository mockSongsRepo = mock(SongsRepository.class);
+        UserHistoryRepository mockHistoryRepo = mock(UserHistoryRepository.class);
+        UsersRepository mockUsersRepo = mock(UsersRepository.class);
+
+        RecommendationApiService service = new RecommendationApiService(
+                recombee, mockSongsRepo, mockHistoryRepo, mockUsersRepo, null);
+
+        User user = User.builder().id("user-1").userName("testuser").build();
+        when(mockUsersRepo.findById("user-1")).thenReturn(Optional.of(user));
+        when(recombee.recommendForUser(eq("user-1"), anyInt())).thenReturn(List.of());
+
+        // Frequent songs query: [songId, count, avgCompletion]
+        Object[] row1 = new Object[]{"song-frequent-1", 5L, 85.0};
+        Object[] row2 = new Object[]{"song-low-completion", 4L, 50.0};
+        when(mockHistoryRepo.findFrequentlyPlayedSongs(eq(user), any(), eq(3L), any()))
+                .thenReturn(List.of(row1, row2));
+
+        service.recommendForUser("user-1", 5);
+
+        verify(recombee).trackRating(eq("user-1"), eq("song-frequent-1"), eq(1.0));
+        verify(recombee, never()).trackRating(eq("user-1"), eq("song-low-completion"), anyDouble());
     }
 }

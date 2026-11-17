@@ -35,6 +35,18 @@ public interface UserHistoryRepository extends JpaRepository<UserHistory, String
 
     long countByUser(User user);
 
+    @Query("SELECT h.song.id, COUNT(h) as playCount, AVG(h.part) as avgCompletion " +
+           "FROM UserHistory h WHERE h.user = :user " +
+           "AND h.listenedAt >= :since " +
+           "GROUP BY h.song.id " +
+           "HAVING COUNT(h) >= :minPlays " +
+           "ORDER BY COUNT(h) DESC, AVG(h.part) DESC")
+    List<Object[]> findFrequentlyPlayedSongs(
+            @Param("user") User user,
+            @Param("since") java.time.LocalDateTime since,
+            @Param("minPlays") long minPlays,
+            Pageable pageable);
+
     @Modifying
     @Transactional
     @Query("DELETE FROM UserHistory h WHERE h.user = :user")

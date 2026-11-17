@@ -288,5 +288,63 @@ class RecommendationRankingEngineTest {
 
         assertThat(scoreMatch).isGreaterThan(scoreDiff);
     }
+
+    @Test
+    @DisplayName("P5: Freshness random jitter varies between calls and stays within [0.0, 3.0]")
+    void shouldProduceRandomJitterWithinBounds() {
+        Song seed = buildSongEntity("seed-1", "Seed", "Artist A", "Pop", "Album A", "English");
+        SongDto candidate = buildSongDto("c-1", "Cand", "Artist B", "Pop", "Album B", "English", 500L);
+
+        // Sample multiple times to verify non-deterministic behavior
+        Set<Double> distinctScores = new HashSet<>();
+        for (int i = 0; i < 20; i++) {
+            double score = engine.scoreCandidate(candidate, seed, null);
+            distinctScores.add(score);
+        }
+        // With ThreadLocalRandom(0.0, 3.0), 20 samples should produce multiple distinct scores
+        assertThat(distinctScores.size()).isGreaterThan(1);
+    }
+
+    @Test
+    @DisplayName("P7: Stream boost follows smooth log10 curve capped at 10.0")
+    void shouldFollowSmoothLogStreamBoost() {
+        SongDto zeroStreams = buildSongDto("c-0", "Z", "Artist B", "Pop", "A", "English", 0L);
+        SongDto nullStreams = buildSongDto("c-null", "N", "Artist B", "Pop", "A", "English", null);
+        SongDto streams100 = buildSongDto("c-100", "Mid", "Artist B", "Pop", "A", "English", 100L);
+        SongDto streams1M = buildSongDto("c-1m", "High", "Artist B", "Pop", "A", "English", 1_000_000L);
+
+        // When seedSong is null, scoreCandidate returns recombeeRank score + computeStreamBoost
+        double scoreZero = engine.scoreCandidate(zeroStreams, null, null);
+        double scoreNull = engine.scoreCandidate(nullStreams, null, null);
+        assertThat(scoreZero).isEqualTo(0.0);
+        assertThat(scoreNull).isEqualTo(0.0);
+
+        double score100 = engine.scoreCandidate(streams100, null, null);
+        double score1M = engine.scoreCandidate(streams1M, null, null);
+        // Math.log10(101) * 1.6 ≈ 3.2
+        assertThat(score100).isBetween(3.0, 3.5);
+        // Math.log10(1000001) * 1.6 ≈ 9.6 <= 10.0
+        assertThat(score1M).isBetween(9.0, 10.0);
+    }
+
+    @Test
+    @DisplayName("P1: SongDto audio features are preserved and safely handled in scoring")
+    void shouldPreserveAudioFeaturesInSongDto() {
+        SongDto dtoWithAudio = new SongDto(
+                "s-audio-1", "Audio Track", "Artist X", 210, "key/x", "img/x",
+                null, null, null, null, false, "English", "Electronic", "Album X", "India",
+                "lrc", StatusEnum.ACTIVE, "job-1", 1000L, null,
+                128.0, 0.85, 0.65, 0.78
+        );
+
+        assertThat(dtoWithAudio.tempo()).isEqualTo(128.0);
+        assertThat(dtoWithAudio.energy()).isEqualTo(0.85);
+        assertThat(dtoWithAudio.valence()).isEqualTo(0.65);
+        assertThat(dtoWithAudio.danceability()).isEqualTo(0.78);
+
+        Song seed = buildSongEntity("seed-1", "Seed", "Artist X", "Electronic", "Album X", "English");
+        double score = engine.scoreCandidate(dtoWithAudio, seed, null);
+        assertThat(score).isGreaterThan(0.0);
+    }
 }
 

@@ -15,6 +15,7 @@ import com.recombee.api_client.bindings.RecommendationResponse;
 
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
+import me.one_org.melody.Dto.Controllers.Api.RadioResponseDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Enums.StatusEnum;
@@ -359,6 +360,16 @@ public class Recombee {
         recombeeClient.send(withTimeout(new AddRating(userId, artistId, -0.5).setCascadeCreate(true)));
     }
 
+    // explicit rating signal (e.g. repeat-listen strong positive signals)
+    public void trackRating(String userId, String songId, double rating) throws Exception {
+        recombeeClient.send(withTimeout(new AddRating(userId, songId, rating).setCascadeCreate(true)));
+    }
+
+    // detail view / short preview interaction
+    public void trackDetailView(String userId, String songId) throws Exception {
+        recombeeClient.send(withTimeout(new AddDetailView(userId, songId).setCascadeCreate(true)));
+    }
+
     // ── Recommendations — return only IDs, caller fetches from DB ──
 
     public List<String> recommendForUser(String userId, int count) throws Exception {
@@ -423,11 +434,17 @@ public class Recombee {
             try { createdAt = LocalDateTime.parse(s); } catch (Exception ignored) {}
         }
 
+        Double tempo = values.get("tempo") instanceof Number n ? n.doubleValue() : null;
+        Double energy = values.get("energy") instanceof Number n ? n.doubleValue() : null;
+        Double valence = values.get("valence") instanceof Number n ? n.doubleValue() : null;
+        Double danceability = values.get("danceability") instanceof Number n ? n.doubleValue() : null;
+
         return new SongDto(
             id, title, artistName, duration, songKey, imageKey,
             videoKey, fullVideoKey, previewStartTime, previewEndTime,
             isFeatured, language, genre, album, country, lrclibId,
-            status, jobId, totalStreams, createdAt
+            status, jobId, totalStreams, createdAt,
+            tempo, energy, valence, danceability
         );
     }
 
@@ -468,6 +485,50 @@ public class Recombee {
             }
         }
         return result;
+    }
+
+    /**
+     * P4: Returns radio recommendations along with the Recombee recommId for session-continuity.
+     * The recommId can be passed to recommendNextItems() for sequential auto-play recommendations.
+     */
+    public RadioResponseDto recommendRadioWithRecommId(String seedSongId, List<String> excludeIds, int count) throws Exception {
+        java.util.Set<String> excludedSet = new java.util.HashSet<>();
+        if (excludeIds != null) {
+            for (String id : excludeIds) {
+                if (id != null && !id.isBlank()) excludedSet.add(id.trim());
+            }
+        }
+        if (seedSongId != null) excludedSet.add(seedSongId.trim());
+
+        int fetchCount = Math.max(count * 2, 20);
+        RecommendationResponse response;
+        try {
+            response = recombeeClient.send(
+                    withTimeout(new RecommendItemsToItem(seedSongId, null, fetchCount)
+                            .setReturnProperties(true)
+                            .setBooster(TOTAL_STREAMS_BOOSTER)));
+        } catch (Exception e) {
+            log.warn("Recombee recommendRadioWithRecommId booster failed, retrying: {}", e.getMessage());
+            response = recombeeClient.send(
+                    withTimeout(new RecommendItemsToItem(seedSongId, null, fetchCount)
+                            .setReturnProperties(true)));
+        }
+
+        String recommId = response != null ? response.getRecommId() : null;
+        List<SongDto> result = new ArrayList<>();
+        if (response != null) {
+            for (Recommendation hit : response) {
+                if (hit != null && hit.getId() != null && !excludedSet.contains(hit.getId())) {
+                    SongDto dto = mapHitToSongDto(hit);
+                    if (dto != null && (dto.status() == null || dto.status() == StatusEnum.ACTIVE)) {
+                        result.add(dto);
+                        excludedSet.add(hit.getId());
+                        if (result.size() >= count) break;
+                    }
+                }
+            }
+        }
+        return new RadioResponseDto(result, recommId);
     }
 
     public List<SongDto> recommendSimilarDetailed(String songId, int count) throws Exception {

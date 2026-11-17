@@ -53,7 +53,12 @@ export default function VerifyOtpScreen() {
     mutationFn: authService.verifyOtp,
     onSuccess: (response: VerifyOtpResponse) => {
       dispatch(saveAuthToken(response));
-      router.replace("/(authenticated)/(tabs)/home");
+      // P6: Route new users to genre onboarding; existing users go straight home
+      if (response.isNewUser) {
+        router.replace("/(authenticated)/onboarding" as any);
+      } else {
+        router.replace("/(authenticated)/(tabs)/home");
+      }
     },
     onError: (error: any) => {
       const msg =

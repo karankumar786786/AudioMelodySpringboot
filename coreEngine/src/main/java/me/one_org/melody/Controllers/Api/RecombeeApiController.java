@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.validation.annotation.Validated;
 import jakarta.validation.constraints.NotBlank;
+import me.one_org.melody.Dto.Controllers.Api.RadioResponseDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Security.CurrentUser;
 import me.one_org.melody.Security.CustomUserDetails;
@@ -46,5 +47,17 @@ public class RecombeeApiController {
                 ? List.of(excludeIds.split(","))
                 : List.of();
         return ResponseEntity.ok(recommendationApiService.recommendRadio(seedSongId, excludedList, count));
+    }
+
+    // P4: Session-aware radio – returns recommId for sequential continuity
+    @GetMapping("/radio/session")
+    public ResponseEntity<RadioResponseDto> recommendRadioSession(
+            @RequestParam @NotBlank(message = "Seed song ID is required") String seedSongId,
+            @RequestParam(required = false) String excludeIds,
+            @RequestParam(defaultValue = "10") int count) {
+        List<String> excludedList = (excludeIds != null && !excludeIds.isBlank())
+                ? List.of(excludeIds.split(","))
+                : List.of();
+        return ResponseEntity.ok(recommendationApiService.recommendRadioSession(seedSongId, excludedList, count));
     }
 }
