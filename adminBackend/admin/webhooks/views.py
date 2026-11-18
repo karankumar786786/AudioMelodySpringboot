@@ -52,6 +52,25 @@ def find_delete_job(entity_type: str, entity_id: str, delete_job_id: Optional[st
     return DeleteJob.objects.filter(entity_type=entity_type.upper(), entity_id=entity_id).order_by("-created_at").first()
 
 
+# Audio features the core API ranks on; mirrored from jobs onto songs (Flyway V15).
+SONG_AUDIO_FEATURE_FIELDS = ("tempo", "energy", "valence", "danceability")
+
+
+def copy_audio_features_to_song(job, song) -> list:
+    """
+    Copies the job's non-null ranking features onto ``song`` in memory and returns the
+    names of fields that changed. Null job values never overwrite known song values, so a
+    video-only reprocess (which computes no features) keeps the song's existing ones.
+    """
+    changed = []
+    for field in SONG_AUDIO_FEATURE_FIELDS:
+        value = getattr(job, field, None)
+        if value is not None and getattr(song, field, None) != value:
+            setattr(song, field, value)
+            changed.append(field)
+    return changed
+
+
 # ==============================================================================
 # Internal Webhooks & Presigned Uploads (/webhook/internal/*)
 # ==============================================================================
@@ -250,6 +269,18 @@ class WebhookJobAudioFeaturesView(BaseAdminView):
             job.audio_features = features
             job.save()
             logger.info("Persisted audio features directly for job [%s]", job.id)
+
+            # Features normally land before finalize (which copies them onto the song).
+            # If this job already finalized, the song exists and must be updated here.
+            if job.status == "COMPLETED":
+                try:
+                    song = Song.objects.filter(id=job.song_id).first()
+                    if song:
+                        changed = copy_audio_features_to_song(job, song)
+                        if changed:
+                            song.save(update_fields=changed)
+                except Exception as e:
+                    logger.warning("Failed to copy late audio features onto song %s: %s", job.song_id, e)
         return Response({"status": "saved", "jobId": job.id}, status=status.HTTP_200_OK)
 
 
@@ -395,6 +426,7 @@ class WebhookJobFinalizeView(BaseAdminView):
                     song.video_key = job.video_key
                     song.full_video_key = job.full_video_key
 
+                copy_audio_features_to_song(job, song)
                 song.save()
                 try:
                     AlgoliaService.save_song(
@@ -449,6 +481,10 @@ class WebhookJobFinalizeView(BaseAdminView):
                 country=getattr(job, "country", None) or "India",
                 job_id=job.id,
                 status="ACTIVE",
+                tempo=job.tempo,
+                energy=job.energy,
+                valence=job.valence,
+                danceability=job.danceability,
             )
             created = True
         else:
@@ -468,6 +504,7 @@ class WebhookJobFinalizeView(BaseAdminView):
             song.language = job.language or song.language
             song.lrclib_id = job.lrclib_id or song.lrclib_id
             song.status = "ACTIVE"
+            copy_audio_features_to_song(job, song)
             song.save()
         try:
             AlgoliaService.save_song(
