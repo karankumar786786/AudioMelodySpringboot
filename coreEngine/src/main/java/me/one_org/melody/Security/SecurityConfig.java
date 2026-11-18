@@ -133,21 +133,7 @@ public class SecurityConfig {
             )
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .oauth2ResourceServer(oauth2 -> oauth2
-                .bearerTokenResolver(request -> {
-                    String uri = request.getRequestURI();
-                    if (uri != null && (uri.startsWith("/auth/") || uri.startsWith("/actuator/"))) {
-                        return null;
-                    }
-                    String authHeader = request.getHeader("Authorization");
-                    if (authHeader != null && authHeader.startsWith("Bearer ")) {
-                        return authHeader.substring(7).trim();
-                    }
-                    String tokenParam = request.getParameter("token");
-                    if (tokenParam != null && !tokenParam.isBlank()) {
-                        return tokenParam.trim();
-                    }
-                    return null;
-                })
+                .bearerTokenResolver(new MelodyBearerTokenResolver())
                 .jwt(jwt -> jwt
                     .decoder(jwtDecoder)
                     .jwtAuthenticationConverter(jwtAuthenticationConverter)
