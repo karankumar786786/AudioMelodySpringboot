@@ -217,41 +217,48 @@ class JobDetailView(BaseAdminView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+def requeue_job(job: Job) -> bool:
+    """Resets a job's pipeline state, bumps its attempt and re-dispatches it to Inngest.
+    On dispatch failure the job is marked FAILED again. Returns whether dispatch succeeded."""
+    old_status = job.status
+
+    job.status = "PENDING"
+    job.current_stage = "QUEUED"
+    job.failure_reason = None
+    job.failed_at = None
+    job.completed_at = None
+    job.transcoding_started_at = None
+    job.transcoded_at = None
+    job.recommendation_saved_at = None
+    job.search_saved_at = None
+    job.transcoding_duration_ms = None
+    job.recommendation_duration_ms = None
+    job.search_duration_ms = None
+    job.finalize_duration_ms = None
+    job.total_duration_ms = None
+    job.transcoded = False
+    job.saved_in_search = False
+    job.saved_in_recommendation = False
+    job.transcoding_attempt = (job.transcoding_attempt or 0) + 1
+    job.save()
+
+    PaginationMetadataService.transition_job(old_status, "PENDING")
+    success = RedisService.queue_audio_processing(job.id, attempt=job.transcoding_attempt)
+    if not success:
+        logger.error("Failed to dispatch retry event to Inngest for job %s (attempt=%s)", job.id, job.transcoding_attempt)
+        job.status = "FAILED"
+        job.current_stage = "FAILED"
+        job.failure_reason = "Failed to dispatch retry event to Inngest orchestrator"
+        job.failed_at = timezone.now()
+        job.save()
+        PaginationMetadataService.transition_job("PENDING", "FAILED")
+    return success
+
+
 class JobRetryView(BaseAdminView):
     def post(self, request, pk):
         job = get_object_or_404(Job, pk=pk)
-        old_status = job.status
-
-        job.status = "PENDING"
-        job.current_stage = "QUEUED"
-        job.failure_reason = None
-        job.failed_at = None
-        job.completed_at = None
-        job.transcoding_started_at = None
-        job.transcoded_at = None
-        job.recommendation_saved_at = None
-        job.search_saved_at = None
-        job.transcoding_duration_ms = None
-        job.recommendation_duration_ms = None
-        job.search_duration_ms = None
-        job.finalize_duration_ms = None
-        job.total_duration_ms = None
-        job.transcoded = False
-        job.saved_in_search = False
-        job.saved_in_recommendation = False
-        job.transcoding_attempt = (job.transcoding_attempt or 0) + 1
-        job.save()
-
-        PaginationMetadataService.transition_job(old_status, "PENDING")
-        success = RedisService.queue_audio_processing(job.id, attempt=job.transcoding_attempt)
-        if not success:
-            logger.error("Failed to dispatch retry event to Inngest for job %s (attempt=%s)", job.id, job.transcoding_attempt)
-            job.status = "FAILED"
-            job.current_stage = "FAILED"
-            job.failure_reason = "Failed to dispatch retry event to Inngest orchestrator"
-            job.failed_at = timezone.now()
-            job.save()
-            PaginationMetadataService.transition_job("PENDING", "FAILED")
+        if not requeue_job(job):
             return Response(
                 {"error": "Failed to dispatch retry event to Inngest orchestrator", "job": to_job_progress_dto(job)},
                 status=status.HTTP_502_BAD_GATEWAY,
