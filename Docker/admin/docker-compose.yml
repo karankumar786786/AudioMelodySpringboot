@@ -1,6 +1,6 @@
 services:
   admin:
-    image: karankumar9955/admin:latest
+    image: karankumar9955/admin:stable
     container_name: admin
     pull_policy: always
     restart: unless-stopped
@@ -14,7 +14,7 @@ services:
       - app
 
   process:
-    image: karankumar9955/audioprocessing:latest
+    image: karankumar9955/audioprocessing:stable
     container_name: process
     pull_policy: always
     restart: unless-stopped

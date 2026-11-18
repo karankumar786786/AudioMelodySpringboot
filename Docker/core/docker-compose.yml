@@ -1,6 +1,6 @@
 services:
   core:
-    image: karankumar9955/core:latest
+    image: karankumar9955/core:stable
     container_name: core
     pull_policy: always
     restart: unless-stopped
@@ -14,7 +14,7 @@ services:
       - app
 
   mail:
-    image: karankumar9955/mail:latest
+    image: karankumar9955/mail:stable
     container_name: mail
     pull_policy: always
     restart: unless-stopped
