@@ -2,6 +2,7 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { PlayerSong, PlayerState, PlaybackMode, VideoQuality, AudioQuality } from "@/types";
 import { stringToSolidDarkColor } from "@/utils/colorUtils";
 import { clearAuthToken } from "./authSlice";
+import { clampCrossfadeSeconds } from "@/service/player/transitionMath";
 
 const initialState: PlayerState = {
   currentSong: null,
@@ -17,6 +18,7 @@ const initialState: PlayerState = {
   selectedQuality: "auto",
   audioQuality: "auto",
   sleepTimer: null,
+  crossfadeSeconds: 0,
   dominantColor: "#1A1A1A",
   playbackMode: "audio",
 };
@@ -78,6 +80,9 @@ export const playerSlice = createSlice({
     setSleepTimer: (state, action: PayloadAction<number | null>) => {
       state.sleepTimer = action.payload;
     },
+    setCrossfadeSeconds: (state, action: PayloadAction<number>) => {
+      state.crossfadeSeconds = clampCrossfadeSeconds(action.payload);
+    },
     setDominantColor: (state, action: PayloadAction<string>) => {
       state.dominantColor = action.payload;
     },
@@ -96,8 +101,9 @@ export const playerSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    builder.addCase(clearAuthToken.fulfilled, () => {
-      return initialState;
+    builder.addCase(clearAuthToken.fulfilled, (state) => {
+      // Crossfade is a device preference (kept in PlayerStore), not account state.
+      return { ...initialState, crossfadeSeconds: state.crossfadeSeconds };
     });
   },
 });
@@ -117,6 +123,7 @@ export const {
   setSelectedQuality,
   setAudioQuality,
   setSleepTimer,
+  setCrossfadeSeconds,
   setDominantColor,
   setPlaybackMode,
   resetPlayer,
