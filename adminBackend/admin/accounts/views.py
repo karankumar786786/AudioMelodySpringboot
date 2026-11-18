@@ -62,6 +62,22 @@ def set_auth_cookies(response: Response, session_id: str, refresh_session_id: st
         )
 
 
+WEB_CLIENT_HEADER = "X-Admin-Client"
+_SESSION_BODY_KEYS = ("sessionId", "refreshSessionId", "accessToken", "refreshToken")
+
+
+def is_web_cookie_client(request) -> bool:
+    """The admin web app opts in with X-Admin-Client: web and relies on the HttpOnly cookies."""
+    return (request.headers.get(WEB_CLIENT_HEADER) or "").strip().lower() == "web"
+
+
+def session_body(request, tokens: dict) -> dict:
+    """Leave session IDs out of the JSON body for the web app; scripts never need them."""
+    if not is_web_cookie_client(request):
+        return tokens
+    return {k: v for k, v in tokens.items() if k not in _SESSION_BODY_KEYS}
+
+
 def clear_auth_cookies(response: Response) -> None:
     """Clears all admin authentication cookies."""
     for key in ("admin_session", "session_id", "refresh_session", "refresh_token", "access_token"):
@@ -274,7 +290,7 @@ class AdminVerifyOtpView(APIView):
         AdminAuthService.delete_otp(email)
         tokens = AdminAuthService.issue_tokens_for_admin(admin, request)
 
-        res = Response(tokens, status=status.HTTP_200_OK)
+        res = Response(session_body(request, tokens), status=status.HTTP_200_OK)
         set_auth_cookies(res, tokens["sessionId"], tokens["refreshSessionId"])
         return res
 
@@ -375,7 +391,7 @@ class AdminRefreshTokenView(APIView):
         # Rotate: revoke old refresh session and issue new pair
         RedisService.revoke_refresh_session(refresh_id)
         tokens = AdminAuthService.issue_tokens_for_admin(admin, request)
-        res = Response(tokens, status=status.HTTP_200_OK)
+        res = Response(session_body(request, tokens), status=status.HTTP_200_OK)
         set_auth_cookies(res, tokens["sessionId"], tokens["refreshSessionId"])
         return res
 
@@ -398,7 +414,7 @@ class AdminProfileView(BaseAdminView):
             except Exception:
                 pass
 
-        return Response({
+        body = {
             "id": user.id,
             "email": user.email,
             "userName": getattr(user, "userName", "") or getattr(user, "name", "") or getattr(user, "user_name", ""),
@@ -407,7 +423,8 @@ class AdminProfileView(BaseAdminView):
             "status": user.status,
             "sessionId": getattr(request, "session_id", None),
             "lastLogin": last_login,
-        }, status=status.HTTP_200_OK)
+        }
+        return Response(session_body(request, body), status=status.HTTP_200_OK)
 
     def patch(self, request):
         user = request.user
