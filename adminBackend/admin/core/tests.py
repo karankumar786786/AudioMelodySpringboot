@@ -109,3 +109,18 @@ class SecuritySettingsTests(SimpleTestCase):
             AdminAuthService.notify_otp("admin@example.com", "LOGIN", otp)
         self.assertNotIn(otp, out.getvalue())
         self.assertFalse(any(otp in line for line in logs.output))
+
+
+class HeartbeatMetricTests(SimpleTestCase):
+    def test_heartbeat_increments_counter_even_if_redis_is_down(self):
+        from unittest import mock
+        # pyrefly: ignore[missing-import]
+        from core.services import system_health_service as shs
+
+        with mock.patch.object(shs, "HEARTBEAT_COUNTER") as counter, mock.patch(
+            "core.services.redis_service.RedisService.get_client", side_effect=RuntimeError("redis down")
+        ):
+            ack = shs.SystemHealthService.record_audio_processing_heartbeat({"status": "UP", "activeJobs": 1})
+
+        self.assertTrue(ack["ack"])
+        counter.add.assert_called_once_with(1, {"status": "UP"})
