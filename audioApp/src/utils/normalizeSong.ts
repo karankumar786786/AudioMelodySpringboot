@@ -1,4 +1,5 @@
 import { Song } from "@/types";
+import { extractLyricsMatch } from "./lyricsMatch";
 
 /**
  * Data source hint for normalizeSong.
@@ -124,5 +125,6 @@ export function normalizeSong(raw: any, source: SongSource = "api"): Song {
       data.instrumentalness != null && !isNaN(Number(data.instrumentalness))
         ? Number(data.instrumentalness)
         : undefined,
+    lyricsMatch: source === "algolia" ? extractLyricsMatch(raw) : undefined,
   };
 }

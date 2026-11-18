@@ -800,6 +800,7 @@ export default function SearchScreen() {
                   key={song.id}
                   song={song}
                   index={idx}
+                  lyricsMatch={song.lyricsMatch}
                   onPress={() => handleSelectSong(song, fullSongs)}
                 />
               ))}
