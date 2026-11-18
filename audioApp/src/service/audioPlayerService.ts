@@ -14,6 +14,7 @@ import {
   setCurrentSong,
   setSleepTimer,
   setAudioQuality,
+  setCrossfadeSeconds,
 } from "@/store/playerSlice";
 import { PlayerStore } from "@/storage/PlayerStore";
 import { audioPlayerPool } from "./audioPlayerPool";
@@ -22,6 +23,8 @@ import { ProgressReporter } from "./player/progressReporter";
 import { QueueAdvancer, decideTrackEndAction } from "./player/queueAdvancer";
 import { SeekGuard } from "./player/seekGuard";
 import { SleepTimer } from "./player/sleepTimer";
+import { TransitionController } from "./player/transitionController";
+import { clampCrossfadeSeconds } from "./player/transitionMath";
 import {
   estimateBufferedSeconds,
   finiteOrNull,
@@ -60,6 +63,15 @@ export class AudioPlayerService {
   private lockScreen = new LockScreenController({
     getActivePlayer: () => this.activePlayer,
     getCurrentSong: () => this.currentPlayingSong,
+  });
+  private transition = new TransitionController({
+    pool: this.pool,
+    isSeeking: () => this.seekGuard.isSeeking,
+    isAdvancing: () => this.queue.isAdvancing,
+    isExplicitlyPaused: () => this.isExplicitlyPaused,
+    onHandoverDue: () => this.handleTransitionHandover(),
+    onSettled: () => this.syncUpcomingPreload(),
+    ensurePreload: () => this.syncUpcomingPreload(),
   });
 
   public get currentSong(): PlayerSong | null {
@@ -100,6 +112,7 @@ export class AudioPlayerService {
       this.initQueueSubscription();
       this.startRemoteSyncHeartbeat();
       this.lockScreen.subscribeToAppState();
+      this.restoreCrossfadeSetting();
 
       this.isInitialized = true;
       console.log(
@@ -258,10 +271,29 @@ export class AudioPlayerService {
       this.lastProgressRatio = Math.min(1, reportedTime / dur);
     }
 
+    // Gapless / crossfade: watch the play head and hand over to the preloaded next track
+    this.transition.onStatus();
+
     // Handle track completion on natural track end
-    if (isNaturalTrackEnd(status) && !this.seekGuard.isSeeking && !this.queue.isAdvancing) {
+    if (
+      isNaturalTrackEnd(status) &&
+      !this.seekGuard.isSeeking &&
+      !this.queue.isAdvancing &&
+      !this.transition.isHandoverPending
+    ) {
       this.handleNaturalTrackEnd();
     }
+  }
+
+  /**
+   * A gapless/crossfade transition reached its handover point: advance the queue as a
+   * natural track end would. The queue calls play(next), which promotes the incoming
+   * player without stopping the outgoing one (see play()).
+   */
+  private handleTransitionHandover(): void {
+    this.queue.beginAdvance();
+    this.progress.reportFullListen();
+    this.onTrackEndCallback?.();
   }
 
   private handleNaturalTrackEnd(): void {
@@ -402,6 +434,34 @@ export class AudioPlayerService {
     );
     this.lastTrackChangeAt = now;
 
+    // 0. Gapless / crossfade handover: the incoming player is already playing.
+    //    Promote it without stopping the outgoing one, which fades out / plays to its end.
+    const handover =
+      startTime === 0 && !force && this.transition.isHandoverFor(playerSong.id)
+        ? this.transition.handoverTarget()
+        : null;
+    if (handover) {
+      console.log(
+        `[AudioPlayerPool] ⚡ Transition handover to "${playerSong.title}" from ${handover.role} (volume ${handover.volume.toFixed(2)}).`
+      );
+      this.preloadedForSongId = playerSong.id;
+      this.bufferedSeconds = 10;
+      store.dispatch(setBufferedTime(10));
+      store.dispatch(setIsPlaying(autoplay));
+      store.dispatch(setIsLoading(false));
+
+      this.transition.markHandedOver();
+      await this.pool.promoteStandby(handover.role, currentQuality, {
+        keepOutgoingPlaying: true,
+        incomingVolume: handover.volume,
+      });
+      PlayerStore.saveLastSong(playerSong, 0);
+      this.syncUpcomingPreload();
+      return;
+    }
+    // Any other play request (skip, jump, quality change) cancels a running transition.
+    if (this.transition.isRunning) await this.transition.cancel("skip");
+
     // 1 & 2. Song is ready in Standby 1 or Standby 2: 0ms instant handover
     for (const role of ["standby1", "standby2"] as const) {
       const standby = this.pool.getStandbySlot(role);
@@ -465,6 +525,7 @@ export class AudioPlayerService {
     if (!player) return;
     this.isExplicitlyPaused = true;
     player.pause();
+    this.transition.pause();
     this.lockScreen.resetSync(false);
     store.dispatch(setIsPlaying(false));
     store.dispatch(setIsLoading(false));
@@ -500,11 +561,13 @@ export class AudioPlayerService {
     const player = this.activePlayer;
     if (!player) return;
 
-    // Un-mute active player (in case it was loaded in muted/standby state)
-    player.volume = 1.0;
+    // Un-mute active player (in case it was loaded in muted/standby state),
+    // or restore its place on the curve if a crossfade is paused mid-way.
+    player.volume = this.transition.activeVolume() ?? 1.0;
+    this.transition.resume();
     const curTime = player.currentTime || 0;
     const dur = player.duration || 0;
-    if (dur > 0 && curTime >= dur - 0.5) {
+    if (dur > 0 && curTime >= dur - 0.5 && !this.transition.isRunning) {
       player.seekTo(0).then(() => {
         player.play();
         this.refreshLockScreen(true);
@@ -546,6 +609,9 @@ export class AudioPlayerService {
     if (!player) return;
     const safeTime = Math.max(0, seconds);
     const seekId = this.seekGuard.begin(safeTime);
+    // Seeking mid-transition: before the midpoint roll the fade back (it restarts if the
+    // new position is still in the fade window); after it, finish on the incoming track.
+    if (this.transition.isRunning) await this.transition.cancel("seek");
 
     this.bufferedSeconds = Math.max(this.bufferedSeconds, safeTime + 20);
     store.dispatch(setCurrentTime(safeTime));
@@ -575,6 +641,31 @@ export class AudioPlayerService {
     }
   }
 
+  /**
+   * Crossfade length in seconds: 0 (off, gapless) to 12. Saved with the player storage.
+   */
+  public setCrossfade(seconds: number): void {
+    const value = clampCrossfadeSeconds(seconds);
+    store.dispatch(setCrossfadeSeconds(value));
+    PlayerStore.saveCrossfadeSeconds(value);
+  }
+
+  public getCrossfade(): number {
+    return store.getState().player.crossfadeSeconds ?? 0;
+  }
+
+  private restoreCrossfadeSetting(): void {
+    PlayerStore.getCrossfadeSeconds().then((saved) => {
+      if (saved !== null) {
+        store.dispatch(setCrossfadeSeconds(clampCrossfadeSeconds(saved)));
+      }
+    });
+  }
+
+  /**
+   * Timed sleep timer. If it fires mid-crossfade, both players pause together and the
+   * fade resumes where it stopped on the next play.
+   */
   public setSleepTimer(minutes: number | null): void {
     this.sleepTimer.set(minutes, (m) => {
       console.log(`[AudioPlayerService] Sleep timer finished (${m}m). Pausing.`);
@@ -617,6 +708,7 @@ export class AudioPlayerService {
       this.lockScreen.clearResumeTimer();
       this.seekGuard.clear();
       this.sleepTimer.clear();
+      this.transition.reset();
       this.progress.reportPartialListen(this.activePlayer);
       this.currentPlayingSong = null;
       this.progress.resetForNewTrack();

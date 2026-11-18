@@ -15,6 +15,11 @@ export interface PlayerSlot {
   song: PlayerSong | null;
   resolvedUri: string | null;
   isReady: boolean;
+  /**
+   * True while this slot is part of a gapless/crossfade transition: it plays although
+   * it is not the active slot, so it must not be auto-paused or re-targeted by preload.
+   */
+  isTransitioning: boolean;
   statusSubscription: { remove: () => void } | null;
 }
 
@@ -131,6 +136,7 @@ export class AudioPlayerPool {
         song: null,
         resolvedUri: null,
         isReady: false,
+        isTransitioning: false,
         statusSubscription: null,
       };
 
@@ -147,7 +153,7 @@ export class AudioPlayerPool {
             if ((status as any)?.isLoaded) {
               slot.isReady = true;
             }
-            if (status.playing) {
+            if (status.playing && !slot.isTransitioning) {
               slot.player.pause();
               slot.player.volume = 0;
             }
@@ -191,6 +197,10 @@ export class AudioPlayerPool {
     await this.init();
     const slot = this.getStandbySlot(role);
     if (!slot) return;
+
+    // A slot that is fading in/out must keep its current source. The service re-syncs
+    // the preload queue once the transition settles.
+    if (slot.isTransitioning) return;
 
     if (!song) {
       slot.song = null;
@@ -253,6 +263,15 @@ export class AudioPlayerPool {
   async promoteStandby(
     targetRole: "standby1" | "standby2",
     quality: AudioQuality = "auto",
+    options: {
+      /**
+       * Crossfade/gapless handover: leave the old active player playing (it becomes a
+       * transitioning standby) instead of pausing and muting it.
+       */
+      keepOutgoingPlaying?: boolean;
+      /** Volume for the promoted player (default 1). Used mid-crossfade. */
+      incomingVolume?: number;
+    } = {},
   ): Promise<PlayerSong | null> {
     await this.init();
 
@@ -299,7 +318,8 @@ export class AudioPlayerPool {
         (targetSlot.player as any).playbackRate = savedRate;
       } catch {}
     }
-    targetSlot.player.volume = 1.0;
+    targetSlot.player.volume = options.incomingVolume ?? 1.0;
+    targetSlot.isTransitioning = false;
     targetSlot.player.play();
 
     // 3. Activate lock screen controls on target player FIRST
@@ -308,9 +328,13 @@ export class AudioPlayerPool {
     //    On iOS: registers Now Playing while audio is actively playing at rate=1.0.
     activateLockScreenFor(targetSlot.player, promotedSong, true);
 
-    // 4. Pause and mute old active player
-    currentActive.player.pause();
-    currentActive.player.volume = 0;
+    // 4. Pause and mute old active player (unless it is fading out / playing to its end)
+    if (options.keepOutgoingPlaying) {
+      currentActive.isTransitioning = true;
+    } else {
+      currentActive.player.pause();
+      currentActive.player.volume = 0;
+    }
 
     // Reset flags on demoted player so when reused, it re-registers cleanly
     (currentActive.player as any)._isLockScreenActive = false;
@@ -329,6 +353,43 @@ export class AudioPlayerPool {
     }
 
     return promotedSong;
+  }
+
+  /**
+   * Starts a preloaded standby player silently (volume 0) so it can be faded in
+   * while the active player is still playing. Returns null if it isn't ready.
+   */
+  startTransitionIn(role: "standby1" | "standby2"): PlayerSlot | null {
+    const slot = this.getStandbySlot(role);
+    if (!slot?.song || !slot.isReady) return null;
+    slot.isTransitioning = true;
+    const savedRate = store.getState().player.playbackRate;
+    if (typeof savedRate === "number" && savedRate > 0 && savedRate !== 1.0) {
+      try {
+        (slot.player as any).playbackRate = savedRate;
+      } catch {}
+    }
+    slot.player.volume = 0;
+    slot.player.play();
+    return slot;
+  }
+
+  /**
+   * Ends a slot's part in a transition: pauses and mutes it, optionally rewinding it
+   * to the start (rolling back a fade-in so it can be played normally later).
+   */
+  async endTransition(slot: PlayerSlot, rewind = false): Promise<void> {
+    slot.isTransitioning = false;
+    if (slot.role === "active") return;
+    try {
+      slot.player.pause();
+      slot.player.volume = 0;
+      if (rewind) {
+        await slot.player.seekTo(0);
+      }
+    } catch (err) {
+      console.warn("[AudioPlayerPool] endTransition error:", err);
+    }
   }
 
   /**
@@ -429,6 +490,7 @@ export class AudioPlayerPool {
         slot.song = null;
         slot.resolvedUri = null;
         slot.isReady = false;
+        slot.isTransitioning = false;
       } catch {}
     }
   }

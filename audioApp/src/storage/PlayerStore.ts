@@ -4,6 +4,8 @@ import { Song, PlayerSong } from "@/types";
 const LAST_SONG_KEY = "melody_last_playing_song";
 const LAST_POSITION_KEY = "melody_last_playback_position";
 const LAST_QUEUE_KEY = "melody_last_queue";
+// Device preference: deliberately not removed by clear() (which runs with the saved session).
+const CROSSFADE_SECONDS_KEY = "melody_crossfade_seconds";
 
 export interface SavedPlaybackState {
   song: Song | PlayerSong;
@@ -86,6 +88,32 @@ export const PlayerStore = {
       };
     } catch (err) {
       console.warn("[PlayerStore] Failed to load last playback state:", err);
+      return null;
+    }
+  },
+
+  /**
+   * Persists the crossfade length in seconds (0 = off).
+   */
+  async saveCrossfadeSeconds(seconds: number): Promise<void> {
+    try {
+      await AsyncStorage.setItem(CROSSFADE_SECONDS_KEY, String(seconds));
+    } catch (err) {
+      console.warn("[PlayerStore] Failed to save crossfade setting:", err);
+    }
+  },
+
+  /**
+   * Reads the saved crossfade length in seconds, or null if never set.
+   */
+  async getCrossfadeSeconds(): Promise<number | null> {
+    try {
+      const raw = await AsyncStorage.getItem(CROSSFADE_SECONDS_KEY);
+      if (raw === null) return null;
+      const n = parseFloat(raw);
+      return Number.isFinite(n) ? n : null;
+    } catch (err) {
+      console.warn("[PlayerStore] Failed to load crossfade setting:", err);
       return null;
     }
   },
