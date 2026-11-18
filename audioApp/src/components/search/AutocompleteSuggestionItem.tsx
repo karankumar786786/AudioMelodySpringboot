@@ -64,6 +64,7 @@ export function AutocompleteSuggestionItem({
           </View>
           {onFill && (
             <TouchableOpacity
+              accessibilityRole="button"
               style={styles.fillButton}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               onPress={(e) => {
@@ -133,6 +134,7 @@ export function AutocompleteSuggestionItem({
           </View>
           {onPlaySong && (
             <TouchableOpacity
+              accessibilityRole="button"
               style={styles.playIconButton}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               onPress={(e) => {

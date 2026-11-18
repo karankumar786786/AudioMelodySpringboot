@@ -69,6 +69,7 @@ export function FavouriteSongItem({
 
       {/* Unlike */}
       <TouchableOpacity
+        accessibilityRole="button"
         style={styles.heartButton}
         onPress={(e) => {
           e.stopPropagation?.();

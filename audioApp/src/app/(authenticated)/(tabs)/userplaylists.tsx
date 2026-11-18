@@ -144,6 +144,7 @@ export default function UserPlaylistsScreen() {
         </View>
 
         <TouchableOpacity
+          accessibilityRole="button"
           style={styles.addButton}
           onPress={() => {
             hapticFeedback.light();
@@ -374,6 +375,8 @@ export default function UserPlaylistsScreen() {
           style={styles.backdrop}
         >
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Close"
             style={styles.backdropTouch}
             activeOpacity={1}
             onPress={closeModal}
