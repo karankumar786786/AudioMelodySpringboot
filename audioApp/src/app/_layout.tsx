@@ -19,6 +19,8 @@ import {
 import { AuthToken } from "@/types";
 import { configureAudioPriority } from "@/utils";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
+import { OfflineBanner } from "@/components/common/OfflineBanner";
+import { setupNetworkAwareness } from "@/service/network";
 
 
 // Configure global exclusive audio priority as soon as the app starts
@@ -30,6 +32,9 @@ if (Platform.OS !== "web") {
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const queryClient = new QueryClient();
+
+// Pause/resume React Query with the device connection and app foreground state
+setupNetworkAwareness();
 
 function RootNavigator() {
   const dispatch = useDispatch<AppDispatch>();
@@ -97,6 +102,7 @@ function RootNavigator() {
   }
 
   return (
+    <>
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: "#000000" } }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="register" />
@@ -105,6 +111,8 @@ function RootNavigator() {
       <Stack.Screen name="(authenticated)" />
       <Stack.Screen name="+not-found" />
     </Stack>
+    <OfflineBanner />
+    </>
   );
 }
 
