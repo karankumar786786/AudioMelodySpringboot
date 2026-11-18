@@ -20,6 +20,8 @@ const COLUMN_COUNT = 3;
 const CHIP_MARGIN = 6;
 const CHIP_WIDTH = (width - 40 - CHIP_MARGIN * 2 * COLUMN_COUNT) / COLUMN_COUNT;
 const MIN_SELECTION = 3;
+// Must match UserGenrePreferenceService.MAX_GENRES on the backend
+const MAX_SELECTION = 10;
 
 const GENRES = [
   "Pop",
@@ -69,7 +71,7 @@ export default function OnboardingGenreScreen() {
       const next = new Set(prev);
       if (next.has(genre)) {
         next.delete(genre);
-      } else {
+      } else if (next.size < MAX_SELECTION) {
         next.add(genre);
       }
       return next;
@@ -114,7 +116,7 @@ export default function OnboardingGenreScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>What do you listen to?</Text>
         <Text style={styles.subtitle}>
-          Pick at least {MIN_SELECTION} genres so we can personalize your feed.
+          Pick {MIN_SELECTION} to {MAX_SELECTION} genres so we can personalize your feed.
         </Text>
       </View>
 

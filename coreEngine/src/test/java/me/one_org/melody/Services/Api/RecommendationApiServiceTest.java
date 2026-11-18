@@ -1,6 +1,8 @@
 package me.one_org.melody.Services.Api;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.DisplayName;
@@ -16,6 +18,7 @@ import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Entity.User;
 import me.one_org.melody.Entity.UserHistory;
 import me.one_org.melody.Enums.StatusEnum;
+import me.one_org.melody.Recommendation.AudioProfile;
 import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Recommendation.RecommendationRankingEngine;
 import me.one_org.melody.Repository.SongsRepository;
@@ -30,6 +33,13 @@ class RecommendationApiServiceTest {
 
     @Mock
     private Recombee recombee;
+
+    /** Ordered Recombee user recommendations with no audio features. */
+    private static Map<String, AudioProfile> recs(String... ids) {
+        Map<String, AudioProfile> m = new LinkedHashMap<>();
+        for (String id : ids) m.put(id, null);
+        return m;
+    }
 
     @InjectMocks
     private RecommendationApiService recommendationApiService;
@@ -116,7 +126,7 @@ class RecommendationApiServiceTest {
         me.one_org.melody.Repository.SongsRepository mockSongsRepo = mock(me.one_org.melody.Repository.SongsRepository.class);
         RecommendationApiService service = new RecommendationApiService(recombee, mockSongsRepo);
 
-        when(recombee.recommendForUser(eq("user-1"), anyInt())).thenReturn(List.of("song-1", "song-2"));
+        when(recombee.recommendForUserWithAudio(eq("user-1"), anyInt())).thenReturn(recs("song-1", "song-2"));
 
         me.one_org.melody.Entity.Song s1 = me.one_org.melody.Entity.Song.builder()
                 .id("song-1")
@@ -146,7 +156,7 @@ class RecommendationApiServiceTest {
         me.one_org.melody.Repository.SongsRepository mockSongsRepo = mock(me.one_org.melody.Repository.SongsRepository.class);
         RecommendationApiService service = new RecommendationApiService(recombee, mockSongsRepo);
 
-        when(recombee.recommendForUser(eq("user-new"), anyInt())).thenReturn(List.of());
+        when(recombee.recommendForUserWithAudio(eq("user-new"), anyInt())).thenReturn(recs());
 
         me.one_org.melody.Entity.Song catalogSong = me.one_org.melody.Entity.Song.builder()
                 .id("song-cat")
@@ -273,7 +283,7 @@ class RecommendationApiServiceTest {
         RecommendationApiService service = new RecommendationApiService(
                 recombee, mockSongsRepo, mockHistoryRepo, mockUsersRepo, mockRankingEngine);
 
-        when(recombee.recommendForUser(eq("user-1"), anyInt())).thenReturn(List.of());
+        when(recombee.recommendForUserWithAudio(eq("user-1"), anyInt())).thenReturn(recs());
 
         User user = User.builder().id("user-1").userName("testuser").build();
         when(mockUsersRepo.findById("user-1")).thenReturn(Optional.of(user));
@@ -291,7 +301,7 @@ class RecommendationApiServiceTest {
         when(mockSongsRepo.findActiveByGenre(eq("Pop"), any())).thenReturn(List.of());
         when(mockSongsRepo.findActiveSongs(any())).thenReturn(List.of());
 
-        when(mockRankingEngine.rankAndDiversify(eq(songHighCompletion), any(), any(), any(), anyInt()))
+        when(mockRankingEngine.rankAndDiversify(eq(songHighCompletion), any(), any(), any(), any(), anyInt()))
                 .thenReturn(List.of(SongDto.fromEntity(rockSong)));
 
         List<SongDto> result = service.recommendForUser("user-1", 5);
@@ -299,7 +309,7 @@ class RecommendationApiServiceTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).id()).isEqualTo("s-rock-candidate");
         verify(mockHistoryRepo).findRecentByUser(user, 20);
-        verify(mockRankingEngine).rankAndDiversify(eq(songHighCompletion), any(), any(), any(), eq(5));
+        verify(mockRankingEngine).rankAndDiversify(eq(songHighCompletion), any(), any(), any(), any(), eq(5));
     }
 
     @Test
@@ -331,7 +341,7 @@ class RecommendationApiServiceTest {
 
         User user = User.builder().id("user-1").userName("testuser").build();
         when(mockUsersRepo.findById("user-1")).thenReturn(Optional.of(user));
-        when(recombee.recommendForUser(eq("user-1"), anyInt())).thenReturn(List.of());
+        when(recombee.recommendForUserWithAudio(eq("user-1"), anyInt())).thenReturn(recs());
 
         // Frequent songs query: [songId, count, avgCompletion]
         Object[] row1 = new Object[]{"song-frequent-1", 5L, 85.0};
@@ -343,5 +353,78 @@ class RecommendationApiServiceTest {
 
         verify(recombee).trackRating(eq("user-1"), eq("song-frequent-1"), eq(1.0));
         verify(recombee, never()).trackRating(eq("user-1"), eq("song-low-completion"), anyDouble());
+    }
+
+    @Test
+    @DisplayName("P6: Cold-start user with genre prefs is ranked against a genre seed built from those prefs")
+    void shouldRankColdStartUserAgainstPreferredGenres() throws Exception {
+        SongsRepository mockSongsRepo = mock(SongsRepository.class);
+        UserHistoryRepository mockHistoryRepo = mock(UserHistoryRepository.class);
+        UsersRepository mockUsersRepo = mock(UsersRepository.class);
+        UserGenrePreferenceService prefs = mock(UserGenrePreferenceService.class);
+
+        RecommendationApiService service = new RecommendationApiService(
+                recombee, mockSongsRepo, mockHistoryRepo, mockUsersRepo, null, prefs, null);
+
+        User user = User.builder().id("user-new").userName("newbie").build();
+        when(mockUsersRepo.findById("user-new")).thenReturn(Optional.of(user));
+        when(mockHistoryRepo.findRecentByUser(eq(user), eq(20))).thenReturn(List.of());
+        when(prefs.getPreferences(user)).thenReturn(List.of("Rock"));
+
+        // Recombee returns a very popular pop song; the DB returns a rock song with no streams.
+        Song popHit = Song.builder().id("pop-hit").title("Pop Hit").artistName("Pop Star")
+                .genre("Pop").status(StatusEnum.ACTIVE).build();
+        Song rockSong = Song.builder().id("rock-1").title("Rock Song").artistName("Rock Band")
+                .genre("Rock").status(StatusEnum.ACTIVE).build();
+        when(recombee.recommendForUserWithAudio(eq("user-new"), anyInt())).thenReturn(recs("pop-hit"));
+        when(mockSongsRepo.findAllByIds(List.of("pop-hit"))).thenReturn(List.of(popHit));
+        when(mockSongsRepo.findActiveByGenre(eq("Rock"), any())).thenReturn(List.of(rockSong));
+        when(mockSongsRepo.findActiveSongs(any())).thenReturn(List.of());
+
+        List<SongDto> result = service.recommendForUser("user-new", 5);
+
+        assertThat(result).extracting(SongDto::id).containsExactly("rock-1", "pop-hit");
+        verify(prefs).getPreferences(user);
+        verify(prefs, never()).hasPreferences(any());
+    }
+
+    @Test
+    @DisplayName("P1: Home feed attaches Recombee audio features to hydrated songs and uses seed audio")
+    void shouldAttachAudioFeaturesAndSeedAudioForUserFeed() throws Exception {
+        SongsRepository mockSongsRepo = mock(SongsRepository.class);
+        UserHistoryRepository mockHistoryRepo = mock(UserHistoryRepository.class);
+        UsersRepository mockUsersRepo = mock(UsersRepository.class);
+        RecommendationRankingEngine mockRankingEngine = mock(RecommendationRankingEngine.class);
+
+        RecommendationApiService service = new RecommendationApiService(
+                recombee, mockSongsRepo, mockHistoryRepo, mockUsersRepo, mockRankingEngine);
+
+        User user = User.builder().id("user-1").userName("testuser").build();
+        when(mockUsersRepo.findById("user-1")).thenReturn(Optional.of(user));
+        Song seed = Song.builder().id("seed").genre("Rock").build();
+        when(mockHistoryRepo.findRecentByUser(eq(user), eq(20)))
+                .thenReturn(List.of(new UserHistory("h1", user, seed, 100, null)));
+
+        AudioProfile candAudio = new AudioProfile(120.0, 0.7, 0.5, 0.6);
+        AudioProfile seedAudio = new AudioProfile(118.0, 0.72, 0.5, 0.62);
+        Map<String, AudioProfile> recMap = new LinkedHashMap<>();
+        recMap.put("rec-1", candAudio);
+        when(recombee.recommendForUserWithAudio(eq("user-1"), anyInt())).thenReturn(recMap);
+        when(recombee.getAudioProfile("seed")).thenReturn(seedAudio);
+        Song rec1 = Song.builder().id("rec-1").status(StatusEnum.ACTIVE).build();
+        when(mockSongsRepo.findAllByIds(List.of("rec-1"))).thenReturn(List.of(rec1));
+        when(mockSongsRepo.findActiveByGenre(eq("Rock"), any())).thenReturn(List.of());
+        when(mockSongsRepo.findActiveSongs(any())).thenReturn(List.of());
+        when(mockRankingEngine.rankAndDiversify(any(), any(), any(), any(), any(), anyInt())).thenReturn(List.of());
+
+        service.recommendForUser("user-1", 5);
+
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<List<SongDto>> captor = org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(mockRankingEngine).rankAndDiversify(eq(seed), eq(seedAudio), captor.capture(), any(), any(), eq(5));
+        assertThat(captor.getValue()).singleElement().satisfies(dto -> {
+            assertThat(dto.tempo()).isEqualTo(120.0);
+            assertThat(dto.energy()).isEqualTo(0.7);
+        });
     }
 }

@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 
 /**
  * P6: Stores user genre preferences selected during cold-start onboarding.
- * Table must be created in DB before first run (see /docs/migrations/V1__user_genre_preferences.sql).
+ * Table is created by the Flyway migration V14__add_user_genre_preferences.sql in the migration module.
  */
 @Entity
 @Table(name = "user_genre_preferences")

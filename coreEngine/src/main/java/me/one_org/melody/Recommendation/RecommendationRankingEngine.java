@@ -42,6 +42,23 @@ public class RecommendationRankingEngine {
             int targetCount,
             int maxPerArtist,
             int maxPerAlbum) {
+        return rankAndDiversify(seedSong, null, recombeeCandidates, dbCandidates, excludedIds,
+                targetCount, maxPerArtist, maxPerAlbum);
+    }
+
+    /**
+     * Same as {@link #rankAndDiversify(Song, List, List, Set, int, int, int)} but also scores
+     * candidates by audio-feature similarity to {@code seedAudio} (may be null).
+     */
+    public List<SongDto> rankAndDiversify(
+            Song seedSong,
+            AudioProfile seedAudio,
+            List<SongDto> recombeeCandidates,
+            List<Song> dbCandidates,
+            Set<String> excludedIds,
+            int targetCount,
+            int maxPerArtist,
+            int maxPerAlbum) {
 
         Set<String> excludes = new HashSet<>();
         if (excludedIds != null) {
@@ -86,7 +103,7 @@ public class RecommendationRankingEngine {
         // 1. Score every candidate
         List<ScoredCandidate> scoredList = new ArrayList<>(candidatePool.size());
         for (SongDto candidate : candidatePool.values()) {
-            double score = scoreCandidate(candidate, seedSong, recombeeRankMap.get(candidate.id()));
+            double score = scoreCandidate(candidate, seedSong, seedAudio, recombeeRankMap.get(candidate.id()));
             scoredList.add(new ScoredCandidate(candidate, score));
         }
 
@@ -173,6 +190,36 @@ public class RecommendationRankingEngine {
         );
     }
 
+    public List<SongDto> rankAndDiversify(
+            Song seedSong,
+            AudioProfile seedAudio,
+            List<SongDto> recombeeCandidates,
+            List<Song> dbCandidates,
+            Set<String> excludedIds,
+            int targetCount) {
+        return rankAndDiversify(seedSong, seedAudio, recombeeCandidates, dbCandidates, excludedIds,
+                targetCount, DEFAULT_MAX_PER_ARTIST, DEFAULT_MAX_PER_ALBUM);
+    }
+
+    /**
+     * Builds a transient, never-persisted seed carrying only genres. Used for cold-start users
+     * who picked genres during onboarding but have no listening history yet, so candidates are
+     * scored by genre affinity instead of popularity alone.
+     */
+    /** True for a seed built by {@link #genreSeed(List)} (transient: no id, genres only). */
+    public static boolean isGenreSeed(Song seed) {
+        return seed != null && seed.getId() == null && seed.getTitle() == null && seed.getGenre() != null;
+    }
+
+    public static Song genreSeed(List<String> genres) {
+        if (genres == null || genres.isEmpty()) return null;
+        String joined = String.join(",", genres);
+        if (joined.isBlank()) return null;
+        Song seed = new Song();
+        seed.setGenre(joined);
+        return seed;
+    }
+
     public static Set<String> parseGenreSet(String genreStr) {
         if (genreStr == null || genreStr.isBlank()) {
             return Collections.emptySet();
@@ -206,6 +253,10 @@ public class RecommendationRankingEngine {
      * Multi-factor scoring model that prioritizes musical genre, mood, and language over artist duplication.
      */
     public double scoreCandidate(SongDto candidate, Song seedSong, Integer recombeeRank) {
+        return scoreCandidate(candidate, seedSong, null, recombeeRank);
+    }
+
+    public double scoreCandidate(SongDto candidate, Song seedSong, AudioProfile seedAudio, Integer recombeeRank) {
         double score = 0.0;
 
         // If no seed song provided (e.g. general / user recommendation), score by Recombee & popularity
@@ -232,8 +283,12 @@ public class RecommendationRankingEngine {
         // 1. Genre Affinity (Highest Weight, up to 40 pts)
         // Multi-genre aware: handles comma-separated genres with exact set equality,
         // Jaccard token overlap for partial multi-genre matches, and subgenre substring matching.
+        // A genre seed is a set of picked genres (not one song's genres), so matching ANY
+        // of them is a full match — Jaccard would penalise users for picking more genres.
+        boolean genreSeed = isGenreSeed(seedSong);
         if (!seedGenres.isEmpty() && !candGenres.isEmpty()) {
-            if (seedGenres.equals(candGenres)) {
+            if (seedGenres.equals(candGenres)
+                    || (genreSeed && !Collections.disjoint(seedGenres, candGenres))) {
                 score += 40.0;
             } else {
                 Set<String> intersection = new HashSet<>(seedGenres);
@@ -268,11 +323,15 @@ public class RecommendationRankingEngine {
         }
 
         // 3. Recombee Collaborative Signal (up to 30 pts)
+        // Halved for genre seeds: a cold-start user has no interactions, so Recombee's picks are
+        // popularity-driven and must not outweigh the genres the user explicitly chose.
         if (recombeeRank != null) {
-            if (recombeeRank == 0) score += 30.0;
-            else if (recombeeRank <= 2) score += 25.0;
-            else if (recombeeRank <= 6) score += 20.0;
-            else score += 15.0;
+            double recombeeScore;
+            if (recombeeRank == 0) recombeeScore = 30.0;
+            else if (recombeeRank <= 2) recombeeScore = 25.0;
+            else if (recombeeRank <= 6) recombeeScore = 20.0;
+            else recombeeScore = 15.0;
+            score += genreSeed ? recombeeScore / 2 : recombeeScore;
         }
 
         // 4. Artist Affinity (Controlled Weight, up to 15 pts)
@@ -330,12 +389,20 @@ public class RecommendationRankingEngine {
         double jitter = java.util.concurrent.ThreadLocalRandom.current().nextDouble(0.0, 3.0);
         score += jitter;
 
-        // 9. Audio Feature Affinity — tempo, energy, valence, danceability (up to 15 pts)
-        // Only active for Recombee candidates that have audio features populated via returnProperties.
-        score += scoreAudioFeatures(candidate, seedSong);
+        // 9. Audio Feature Affinity — similarity to the seed's tempo, energy, valence, danceability (up to 15 pts)
+        score += scoreAudioFeatures(candidate, seedAudio);
 
         return score;
     }
+
+    static final double TEMPO_WEIGHT = 3.0;
+    static final double FEATURE_WEIGHT = 4.0;
+    /** BPM difference at which tempo similarity reaches zero. */
+    static final double TEMPO_TOLERANCE = 40.0;
+    /** 0..1 feature difference at which similarity reaches zero. */
+    static final double FEATURE_TOLERANCE = 0.4;
+    /** Share of a feature's weight given when the candidate's value is unknown. */
+    static final double UNKNOWN_CREDIT = 0.5;
 
     private double computeStreamBoost(Long streams) {
         if (streams == null || streams <= 0) return 0.0;
@@ -346,32 +413,25 @@ public class RecommendationRankingEngine {
     }
 
     /**
-     * P1: Audio feature affinity scoring.
-     * Scores BPM/tempo, energy, valence (mood), and danceability proximity.
-     * Safely handles null — Recombee candidates have audio features; DB candidates do not.
+     * P1: Audio feature affinity — how close the candidate sounds to the seed.
+     * Tempo is worth up to 3 pts; energy, valence and danceability up to 4 pts each (15 max).
+     * Each feature scores linearly from full weight (identical) to 0 (difference ≥ tolerance).
+     * Features the seed lacks are skipped. Features the candidate lacks (e.g. DB-only candidates)
+     * get neutral half credit, so candidates aren't favoured merely for having audio data.
      */
-    private double scoreAudioFeatures(SongDto candidate, Song seedSong) {
-        // Candidate audio features come from Recombee returnProperties; seed song entity lacks them.
-        // When seed has no audio data we gracefully skip (return 0).
-        if (candidate == null || seedSong == null) return 0.0;
+    double scoreAudioFeatures(SongDto candidate, AudioProfile seed) {
+        if (candidate == null || seed == null || !seed.hasAny()) return 0.0;
+        return featureScore(seed.tempo(), candidate.tempo(), TEMPO_TOLERANCE, TEMPO_WEIGHT)
+                + featureScore(seed.energy(), candidate.energy(), FEATURE_TOLERANCE, FEATURE_WEIGHT)
+                + featureScore(seed.valence(), candidate.valence(), FEATURE_TOLERANCE, FEATURE_WEIGHT)
+                + featureScore(seed.danceability(), candidate.danceability(), FEATURE_TOLERANCE, FEATURE_WEIGHT);
+    }
 
-        // Seed song entity doesn't carry audio features — use candidate-only heuristic:
-        // reward moderate energy/danceability tracks (closer to 0.5–0.7 sweet-spot) with up to 3 pts.
-        Double energy = candidate.energy();
-        Double dance  = candidate.danceability();
-        if (energy == null && dance == null) return 0.0;
-
-        double score = 0.0;
-        // Proximity to ideal range [0.5, 0.7] — bell-curve style
-        if (energy != null) {
-            double dist = Math.abs(energy - 0.6);
-            score += Math.max(0, 1.5 - dist * 3.0); // 0–1.5 pts
-        }
-        if (dance != null) {
-            double dist = Math.abs(dance - 0.6);
-            score += Math.max(0, 1.5 - dist * 3.0); // 0–1.5 pts
-        }
-        return score;
+    private static double featureScore(Double seedValue, Double candValue, double tolerance, double weight) {
+        if (seedValue == null) return 0.0;
+        if (candValue == null) return weight * UNKNOWN_CREDIT;
+        double similarity = Math.max(0.0, 1.0 - Math.abs(seedValue - candValue) / tolerance);
+        return weight * similarity;
     }
 
     public static String getPrimaryArtistKey(String artistName) {

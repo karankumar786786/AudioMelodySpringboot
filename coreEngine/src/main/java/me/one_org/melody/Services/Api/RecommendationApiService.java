@@ -19,6 +19,7 @@ import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Entity.User;
 import me.one_org.melody.Entity.UserHistory;
 import me.one_org.melody.Enums.StatusEnum;
+import me.one_org.melody.Recommendation.AudioProfile;
 import me.one_org.melody.Recommendation.Recombee;
 import me.one_org.melody.Recommendation.RecommendationRankingEngine;
 import me.one_org.melody.Repository.SongsRepository;
@@ -125,6 +126,7 @@ public class RecommendationApiService {
         // 4. Rank, score, and enforce artist & album diversity constraints
         List<SongDto> diverseRecommendations = rankingEngine.rankAndDiversify(
                 seedSong,
+                seedAudioProfile(seedSong),
                 recombeeHits,
                 dbCandidates,
                 excludes,
@@ -163,11 +165,18 @@ public class RecommendationApiService {
         Set<String> excludes = new HashSet<>(excludeIds != null ? excludeIds : List.of());
         if (seedSongId != null) excludes.add(seedSongId);
 
-        List<SongDto> ranked = rankingEngine.rankAndDiversify(seedSong, recombeeSongs, dbCandidates, excludes, count);
+        List<SongDto> ranked = rankingEngine.rankAndDiversify(
+                seedSong, seedAudioProfile(seedSong), recombeeSongs, dbCandidates, excludes, count);
         if (!ranked.isEmpty()) {
             return new RadioResponseDto(ranked, recommId);
         }
         return new RadioResponseDto(fallbackCatalog(count), null);
+    }
+
+    /** Audio features of a real (persisted) seed song, looked up in Recombee; null if unavailable. */
+    private AudioProfile seedAudioProfile(Song seedSong) {
+        if (seedSong == null || seedSong.getId() == null || recombee == null) return null;
+        return recombee.getAudioProfile(seedSong.getId());
     }
 
     private List<Song> getDatabaseCandidates(Song seedSong, String seedSongId) {
@@ -235,8 +244,9 @@ public class RecommendationApiService {
         // 1. Primary: Recombee AI Personalized Recommendations for User
         List<SongDto> recombeeUserSongs = new ArrayList<>();
         try {
-            List<String> songIds = recombee.recommendForUser(userId, Math.max(count * 3, 20));
-            if (songIds != null && !songIds.isEmpty() && songsRepository != null) {
+            Map<String, AudioProfile> recs = recombee.recommendForUserWithAudio(userId, Math.max(count * 3, 20));
+            List<String> songIds = recs != null ? new ArrayList<>(recs.keySet()) : List.of();
+            if (!songIds.isEmpty() && songsRepository != null) {
                 Map<String, Song> songMap = songsRepository.findAllByIds(songIds).stream()
                         .filter(s -> s.getStatus() == null || s.getStatus() == StatusEnum.ACTIVE)
                         .collect(Collectors.toMap(Song::getId, Function.identity(), (a, b) -> a));
@@ -244,7 +254,13 @@ public class RecommendationApiService {
                 for (String id : songIds) {
                     Song song = songMap.get(id);
                     if (song != null) {
-                        recombeeUserSongs.add(SongDto.fromEntity(song));
+                        // DB entities carry no audio features — attach the ones Recombee returned
+                        SongDto dto = SongDto.fromEntity(song);
+                        AudioProfile audio = recs.get(id);
+                        if (audio != null) {
+                            dto = dto.withAudioFeatures(audio.tempo(), audio.energy(), audio.valence(), audio.danceability());
+                        }
+                        recombeeUserSongs.add(dto);
                     }
                 }
             }
@@ -264,8 +280,12 @@ public class RecommendationApiService {
                     List<UserHistory> recent = userHistoryRepository.findRecentByUser(user, 20);
                     if (recent == null || recent.isEmpty()) {
                         // P6: Cold-start — no history yet, use onboarding genre prefs
-                        if (genrePreferenceService != null && genrePreferenceService.hasPreferences(userId)) {
-                            List<String> prefGenres = genrePreferenceService.getPreferences(userId);
+                        List<String> prefGenres = genrePreferenceService != null
+                                ? genrePreferenceService.getPreferences(user)
+                                : List.of();
+                        if (!prefGenres.isEmpty()) {
+                            // Rank candidates by affinity to the picked genres, not popularity alone
+                            vibeSeed = RecommendationRankingEngine.genreSeed(prefGenres);
                             int pg = Math.max(5, 20 / Math.max(1, prefGenres.size()));
                             for (String g : prefGenres) {
                                 dbCandidates.addAll(songsRepository.findActiveByGenre(g, PageRequest.of(0, pg)));
@@ -331,6 +351,7 @@ public class RecommendationApiService {
         // 3. Multi-factor rank and enforce artist diversity for home user feed
         List<SongDto> diverseUserFeed = rankingEngine.rankAndDiversify(
                 vibeSeed,
+                seedAudioProfile(vibeSeed),
                 recombeeUserSongs,
                 dbCandidates,
                 Set.of(),

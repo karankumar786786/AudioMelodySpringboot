@@ -7,7 +7,10 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.validation.annotation.Validated;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.Security.CurrentUser;
 import me.one_org.melody.Security.CustomUserDetails;
@@ -30,7 +33,12 @@ public class UserGenrePreferenceController {
         this.service = service;
     }
 
-    record GenrePreferenceRequest(@NotEmpty List<String> genres) {}
+    record GenrePreferenceRequest(
+            @NotEmpty
+            @Size(max = UserGenrePreferenceService.MAX_GENRES)
+            List<@NotBlank
+                 @Size(max = UserGenrePreferenceService.MAX_GENRE_LENGTH)
+                 @Pattern(regexp = "[^,]+", message = "must not contain commas") String> genres) {}
     record GenrePreferenceResponse(List<String> genres) {}
 
     @PostMapping("/genres")

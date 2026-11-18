@@ -86,6 +86,14 @@ public record SongDto(
         return fromEntity(song, null, null);
     }
 
+    /** Returns a copy of this DTO with the given audio features. */
+    public SongDto withAudioFeatures(Double tempo, Double energy, Double valence, Double danceability) {
+        return new SongDto(id, title, artistName, duration, songKey, imageKey, videoKey, fullVideoKey,
+                previewStartTime, previewEndTime, isFeatured, language, genre, album, country, lrclibId,
+                status, jobId, totalStreams, createdAt, isLiked, likesCount,
+                tempo, energy, valence, danceability);
+    }
+
     public static SongDto fromEntity(Song song, Boolean isLiked, Long likesCount) {
         if (song == null) return null;
         Long streams = song.getSongMetadata() != null ? song.getSongMetadata().getTotalStreams() : 0L;
