@@ -2,9 +2,9 @@ import { Platform } from "react-native";
 import { createAudioPlayer, AudioPlayer, AudioStatus } from "expo-audio";
 import { Song, PlayerSong, AudioQuality } from "@/types";
 import { configureAudioPriority, safeSetActiveForLockScreen } from "@/utils/audioConfig";
-import { getImageUrl } from "@/utils";
 import { mapToPlayerSong, S3_BASE_URL } from "@/utils/playerUtils";
 import { store } from "@/store/hook";
+import { activateLockScreenFor } from "./player/lockScreenMetadata";
 
 export type SlotRole = "active" | "standby1" | "standby2";
 
@@ -306,42 +306,7 @@ export class AudioPlayerPool {
     //    On Android: directly swaps the active player inside AudioControlsService without
     //    calling stopForeground(STOP_FOREGROUND_REMOVE), preventing the lock screen widget from disappearing.
     //    On iOS: registers Now Playing while audio is actively playing at rate=1.0.
-    const rawImage =
-      (promotedSong as any).coverUrl ||
-      (promotedSong as any).posterUrl ||
-      (promotedSong as any).imageKey ||
-      (promotedSong as any).image_key ||
-      (promotedSong as any).imageUrl;
-
-    const artworkUrl =
-      (typeof rawImage === "string" && rawImage.startsWith("http")
-        ? rawImage
-        : getImageUrl(rawImage, {
-            width: 500,
-            height: 500,
-            focus: "auto",
-            aspectRatio: "1-1",
-            format: "jpg",
-            quality: 85,
-          })) || undefined;
-
-    safeSetActiveForLockScreen(
-      targetSlot.player,
-      true,
-      {
-        title: promotedSong.title || "One Melody",
-        artist: promotedSong.artistName || "Unknown Artist",
-        albumTitle: promotedSong.album || "Melody",
-        artworkUrl,
-      },
-      {
-        showSeekForward: false,
-        showSeekBackward: false,
-        showNextTrack: true,
-        showPreviousTrack: true,
-      },
-      true
-    );
+    activateLockScreenFor(targetSlot.player, promotedSong, true);
 
     // 4. Pause and mute old active player
     currentActive.player.pause();
@@ -421,42 +386,7 @@ export class AudioPlayerPool {
 
       activeSlot.isReady = true;
 
-      const rawImage =
-        (playerSong as any).coverUrl ||
-        (playerSong as any).posterUrl ||
-        (playerSong as any).imageKey ||
-        (playerSong as any).image_key ||
-        (playerSong as any).imageUrl;
-
-      const artworkUrl =
-        (typeof rawImage === "string" && rawImage.startsWith("http")
-          ? rawImage
-          : getImageUrl(rawImage, {
-              width: 500,
-              height: 500,
-              focus: "auto",
-              aspectRatio: "1-1",
-              format: "jpg",
-              quality: 85,
-            })) || undefined;
-
-      safeSetActiveForLockScreen(
-        activeSlot.player,
-        true,
-        {
-          title: playerSong.title || "One Melody",
-          artist: playerSong.artistName || "Unknown Artist",
-          albumTitle: playerSong.album || "Melody",
-          artworkUrl,
-        },
-        {
-          showSeekForward: false,
-          showSeekBackward: false,
-          showNextTrack: true,
-          showPreviousTrack: true,
-        },
-        true
-      );
+      activateLockScreenFor(activeSlot.player, playerSong, true);
 
       return playerSong;
     } catch (err) {
