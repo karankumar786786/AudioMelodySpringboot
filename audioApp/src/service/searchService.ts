@@ -15,6 +15,7 @@ import {
 } from "@/types";
 import { getAlgoliaClient } from "./algoliaClient";
 import { normalizeSong } from "@/utils/normalizeSong";
+import { LYRICS_SNIPPET_PARAMS } from "@/utils/lyricsMatch";
 
 const RECENT_SEARCHES_STORAGE_KEY = "@one_melody_recent_searches_v2";
 const MAX_RECENT_ITEMS = 12;
@@ -160,6 +161,7 @@ export const searchService: SearchService = {
             indexName,
             query: trimmed,
             filters: "type:song",
+            ...LYRICS_SNIPPET_PARAMS,
             hitsPerPage: 8,
             typoTolerance: true,
           },
@@ -209,6 +211,7 @@ export const searchService: SearchService = {
           query: trimmed,
           hitsPerPage: 100,
           typoTolerance: true,
+          ...LYRICS_SNIPPET_PARAMS,
         },
       });
 
@@ -322,6 +325,7 @@ export const searchService: SearchService = {
             indexName,
             query: trimmed,
             filters: "type:song",
+            ...LYRICS_SNIPPET_PARAMS,
             hitsPerPage: 5,
             typoTolerance: true,
           },
