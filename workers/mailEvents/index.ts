@@ -1,6 +1,7 @@
 import { redis } from "./Redis";
 import { sendMail } from "./NodeMailer";
 import { config } from "dotenv";
+import { startTelemetry, recordSent, recordFailure } from "./telemetry"; // metrics only
 config();
 
 interface MailJob {
@@ -17,6 +18,7 @@ const POLL_TIMEOUT_SECONDS = Number(process.env.QUEUE_POLL_TIMEOUT_SECS) || 2;
 
 ;(async (mailQueue: string) => {
     const dlqQueue = `${mailQueue}_dlq`;
+    startTelemetry(async () => ({ [mailQueue]: await redis.llen(mailQueue), [dlqQueue]: await redis.llen(dlqQueue) }));
     console.log(`Mail worker started. Listening on queue: "${mailQueue}", DLQ: "${dlqQueue}" (idle wait: ${EMPTY_QUEUE_DELAY_MS}ms)`);
 
     while (true) {
@@ -33,6 +35,7 @@ const POLL_TIMEOUT_SECONDS = Number(process.env.QUEUE_POLL_TIMEOUT_SECS) || 2;
 
                 try {
                     await sendMail(data.to, data.subject, data.otp);
+                    recordSent();
                 } catch (error: any) {
                     data.retries = (data.retries || 0) + 1;
 
@@ -48,17 +51,20 @@ const POLL_TIMEOUT_SECONDS = Number(process.env.QUEUE_POLL_TIMEOUT_SECS) || 2;
                             `Moving job to DLQ (${dlqQueue}) and pausing worker for 30s to prevent rate-limit lockout.`
                         );
                         await redis.rpush(dlqQueue, JSON.stringify(data));
+                        recordFailure("dlq", "auth");
                         await sleep(30000);
                     } else if (data.retries >= MAX_RETRIES) {
                         console.error(
                             `[MAX RETRIES REACHED] Failed to send email to ${data.to} after ${data.retries} attempts. Moving to DLQ (${dlqQueue}).`
                         );
                         await redis.rpush(dlqQueue, JSON.stringify(data));
+                        recordFailure("dlq", "max_retries");
                     } else {
                         const delayMs = Math.min(5000 * Math.pow(2, data.retries - 1), 30000);
                         console.warn(
                             `[RETRY ${data.retries}/${MAX_RETRIES}] Retrying mail to ${data.to} in ${delayMs / 1000}s...`
                         );
+                        recordFailure("retry");
                         await sleep(delayMs);
                         await redis.rpush(mailQueue, JSON.stringify(data));
                     }
