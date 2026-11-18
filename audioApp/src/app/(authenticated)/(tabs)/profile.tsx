@@ -353,6 +353,7 @@ export default function ProfileScreen() {
               </View>
               {!s.isCurrent ? (
                 <TouchableOpacity
+                  accessibilityRole="button"
                   onPress={() => handleRevokeSession(s)}
                   hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   accessibilityLabel="Log out this device"
@@ -391,6 +392,8 @@ export default function ProfileScreen() {
           style={styles.backdrop}
         >
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Close edit profile"
             style={styles.backdropTouch}
             activeOpacity={1}
             onPress={() => setIsEditModalOpen(false)}

@@ -51,6 +51,7 @@ export function WordSuggestionPills({
               {item.label}
             </Text>
             <TouchableOpacity
+              accessibilityRole="button"
               style={styles.fillButton}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               onPress={(e) => {

@@ -139,6 +139,8 @@ export default function FavouritesScreen() {
       <View style={{ flexDirection: "row", alignItems: "center", flex: 1 }}>
         {canGoBack && (
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
             style={{ marginRight: 10, padding: 4 }}
             onPress={() => router.back()}
             activeOpacity={0.7}
@@ -159,6 +161,7 @@ export default function FavouritesScreen() {
 
       {allSongs.length > 0 ? (
         <TouchableOpacity
+          accessibilityRole="button"
           style={styles.playButton}
           onPress={handlePlayAll}
           activeOpacity={0.85}
