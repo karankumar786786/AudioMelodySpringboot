@@ -1,5 +1,6 @@
 import React, { Component, type ErrorInfo, type ReactNode } from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { crashReporter } from "@/service/crashReporter";
 
 interface Props {
   children: ReactNode;
@@ -14,6 +15,8 @@ interface State {
 /**
  * Root-level error boundary that catches unhandled render errors
  * and shows a user-friendly fallback instead of a white screen crash.
+ * Mounting it also installs the crash reporter's global JS error handler;
+ * both are no-ops unless EXPO_PUBLIC_CRASH_REPORT_URL is set.
  */
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
@@ -25,8 +28,17 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
+  componentDidMount() {
+    crashReporter.installGlobalHandler();
+  }
+
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error("[ErrorBoundary] Uncaught render error:", error, errorInfo);
+    void crashReporter.report({
+      error,
+      source: "error-boundary",
+      componentStack: errorInfo.componentStack,
+    });
   }
 
   private handleRetry = () => {
@@ -55,6 +67,8 @@ export class ErrorBoundary extends Component<Props, State> {
             style={styles.retryButton}
             onPress={this.handleRetry}
             activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Try again"
           >
             <Text style={styles.retryText}>Try Again</Text>
           </TouchableOpacity>
