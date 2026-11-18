@@ -346,5 +346,58 @@ class RecommendationRankingEngineTest {
         double score = engine.scoreCandidate(dtoWithAudio, seed, null);
         assertThat(score).isGreaterThan(0.0);
     }
-}
 
+    private SongDto withAudio(String id, Double tempo, Double energy, Double valence, Double dance) {
+        return buildSongDto(id, "T " + id, "Artist " + id, "Pop", null, "English", 0L)
+                .withAudioFeatures(tempo, energy, valence, dance);
+    }
+
+    @Test
+    @DisplayName("P1: Audio score rewards candidates that sound like the seed")
+    void shouldScoreAudioSimilarityRelativeToSeed() {
+        AudioProfile seed = new AudioProfile(120.0, 0.8, 0.6, 0.7);
+
+        double identical = engine.scoreAudioFeatures(withAudio("a", 120.0, 0.8, 0.6, 0.7), seed);
+        double close = engine.scoreAudioFeatures(withAudio("b", 125.0, 0.75, 0.55, 0.65), seed);
+        double far = engine.scoreAudioFeatures(withAudio("c", 70.0, 0.1, 0.0, 0.1), seed);
+
+        assertThat(identical).isEqualTo(15.0);
+        assertThat(close).isLessThan(identical).isGreaterThan(10.0);
+        assertThat(far).isEqualTo(0.0);
+    }
+
+    @Test
+    @DisplayName("P1: Audio score is zero without seed audio and neutral for candidates without features")
+    void shouldHandleMissingAudioFeatures() {
+        SongDto noAudio = withAudio("d", null, null, null, null);
+        AudioProfile seed = new AudioProfile(120.0, 0.8, 0.6, 0.7);
+
+        assertThat(engine.scoreAudioFeatures(withAudio("a", 120.0, 0.8, 0.6, 0.7), null)).isEqualTo(0.0);
+        assertThat(engine.scoreAudioFeatures(noAudio, seed)).isEqualTo(7.5);
+        // Seed with only energy known: only energy contributes
+        assertThat(engine.scoreAudioFeatures(withAudio("a", 60.0, 0.8, 0.0, 0.0),
+                new AudioProfile(null, 0.8, null, null))).isEqualTo(4.0);
+    }
+
+    @Test
+    @DisplayName("P6: Genre seed ranks preferred-genre songs above popular off-genre Recombee picks")
+    void shouldRankByPreferredGenresWithGenreSeed() {
+        Song seed = RecommendationRankingEngine.genreSeed(List.of("Rock", "Jazz"));
+        assertThat(seed).isNotNull();
+        assertThat(seed.getId()).isNull();
+
+        SongDto popularPop = buildSongDto("pop", "Pop Hit", "Pop Star", "Pop", null, "English", 1_000_000L);
+        Song rock = buildSongEntity("rock", "Rock Song", "Rock Band", "Rock", null, "English");
+
+        List<SongDto> ranked = engine.rankAndDiversify(seed, List.of(popularPop), List.of(rock), Set.of(), 2);
+
+        assertThat(ranked).extracting(SongDto::id).containsExactly("rock", "pop");
+    }
+
+    @Test
+    @DisplayName("P6: Genre seed is null for empty preferences")
+    void shouldReturnNullGenreSeedForEmptyPrefs() {
+        assertThat(RecommendationRankingEngine.genreSeed(List.of())).isNull();
+        assertThat(RecommendationRankingEngine.genreSeed(null)).isNull();
+    }
+}

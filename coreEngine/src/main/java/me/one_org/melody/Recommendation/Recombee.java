@@ -373,23 +373,53 @@ public class Recombee {
     // ── Recommendations — return only IDs, caller fetches from DB ──
 
     public List<String> recommendForUser(String userId, int count) throws Exception {
+        return new ArrayList<>(recommendForUserWithAudio(userId, count).keySet());
+    }
+
+    /**
+     * Personalized recommendations for a user, in Recombee rank order, mapped to each item's
+     * audio features (value is null when the item has none). Only audio properties are returned.
+     */
+    public Map<String, AudioProfile> recommendForUserWithAudio(String userId, int count) throws Exception {
         RecommendationResponse response;
         try {
             response = recombeeClient.send(
                     withTimeout(new RecommendItemsToUser(userId, count)
                             .setCascadeCreate(true)
+                            .setReturnProperties(true)
+                            .setIncludedProperties(AudioProfile.PROPERTY_NAMES)
                             .setBooster(TOTAL_STREAMS_BOOSTER)));
         } catch (Exception e) {
             log.warn("Recombee recommendForUser with booster failed, retrying without booster: {}", e.getMessage());
             response = recombeeClient.send(
                     withTimeout(new RecommendItemsToUser(userId, count)
-                            .setCascadeCreate(true)));
+                            .setCascadeCreate(true)
+                            .setReturnProperties(true)
+                            .setIncludedProperties(AudioProfile.PROPERTY_NAMES)));
         }
-        List<String> songIds = new ArrayList<>();
-        for (Recommendation hit : response) {
-            songIds.add(hit.getId());
+        Map<String, AudioProfile> result = new java.util.LinkedHashMap<>();
+        if (response != null) {
+            for (Recommendation hit : response) {
+                if (hit != null && hit.getId() != null) {
+                    result.putIfAbsent(hit.getId(), AudioProfile.fromValues(hit.getValues()));
+                }
+            }
         }
-        return songIds;
+        return result;
+    }
+
+    /**
+     * Fetches a song's audio features from Recombee. Best-effort: returns null when the item
+     * is unknown, has no audio data, or the request fails.
+     */
+    public AudioProfile getAudioProfile(String songId) {
+        if (songId == null || songId.isBlank()) return null;
+        try {
+            return AudioProfile.fromValues(recombeeClient.send(withTimeout(new GetItemValues(songId))));
+        } catch (Exception e) {
+            log.debug("Recombee audio profile lookup failed for {}: {}", songId, e.getMessage());
+            return null;
+        }
     }
 
     public SongDto mapHitToSongDto(Recommendation hit) {
