@@ -82,6 +82,11 @@ class Song(models.Model):
     lrclib_id = models.CharField(max_length=255, db_column="lrclib_id")
     status = models.CharField(max_length=255, default="ACTIVE")
     job_id = models.CharField(max_length=255, db_column="job_id")
+    # Ranking-relevant audio features copied from the producing job (V15); null until analysed
+    tempo = models.FloatField(blank=True, null=True, db_column="tempo")
+    energy = models.FloatField(blank=True, null=True, db_column="energy")
+    valence = models.FloatField(blank=True, null=True, db_column="valence")
+    danceability = models.FloatField(blank=True, null=True, db_column="danceability")
     created_at = models.DateTimeField(auto_now_add=True, db_column="created_at")
 
     class Meta:
