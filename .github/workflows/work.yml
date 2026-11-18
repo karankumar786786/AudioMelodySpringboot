@@ -26,6 +26,9 @@ jobs:
       admin: ${{ steps.filter.outputs.admin }}
       audioprocessing: ${{ steps.filter.outputs.audioprocessing }}
       mail: ${{ steps.filter.outputs.mail }}
+      adminfrontend: ${{ steps.filter.outputs.adminfrontend }}
+      audiofrontend: ${{ steps.filter.outputs.audiofrontend }}
+      mobileapp: ${{ steps.filter.outputs.mobileapp }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -46,6 +49,15 @@ jobs:
               - '.github/workflows/work.yml'
             mail:
               - 'workers/mailEvents/**'
+              - '.github/workflows/work.yml'
+            adminfrontend:
+              - 'adminFrontend/**'
+              - '.github/workflows/work.yml'
+            audiofrontend:
+              - 'audioFrontend/**'
+              - '.github/workflows/work.yml'
+            mobileapp:
+              - 'audioApp/**'
               - '.github/workflows/work.yml'
 
   # =========================================================================
@@ -183,6 +195,117 @@ jobs:
         run: |
           bun install --frozen-lockfile
           bun run build
+
+  # =========================================================================
+  # 4b. Frontend Checks (type check + production build; lint is report-only)
+  # =========================================================================
+  check-adminfrontend:
+    name: Check Admin Frontend
+    needs: changes
+    if: needs.changes.outputs.adminfrontend == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      # Placeholder public config so the production build can run in CI.
+      NEXT_PUBLIC_API_URL: https://ci.invalid/api
+      NEXT_PUBLIC_APP_URL: https://ci.invalid
+      NEXT_PUBLIC_S3_BASE_URL: https://ci.invalid
+      NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY: ci-placeholder
+      NEXT_PUBLIC_ALGOLIA_APP_ID: CIPLACEHOLDER
+      NEXT_PUBLIC_ALGOLIA_SEARCH_KEY: ci-placeholder
+      NEXT_PUBLIC_ALGOLIA_INDEX_NAME: ci-placeholder
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Bun Runtime
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+
+      - name: Install Dependencies
+        working-directory: ./adminFrontend
+        run: bun install --frozen-lockfile
+
+      - name: Type Check
+        working-directory: ./adminFrontend
+        run: bunx tsc --noEmit
+
+      - name: Production Build
+        working-directory: ./adminFrontend
+        run: bun run build
+
+      # Report-only until the existing Biome errors are cleaned up; then remove continue-on-error.
+      - name: Lint (Biome, report only)
+        working-directory: ./adminFrontend
+        continue-on-error: true
+        run: bunx biome ci .
+
+  check-audiofrontend:
+    name: Check Web Player
+    needs: changes
+    if: needs.changes.outputs.audiofrontend == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      # Placeholder public config so the production build can run in CI.
+      NEXT_PUBLIC_API_URL: https://ci.invalid/api
+      NEXT_PUBLIC_APP_URL: https://ci.invalid
+      NEXT_PUBLIC_S3_BASE_URL: https://ci.invalid
+      NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY: ci-placeholder
+      NEXT_PUBLIC_ALGOLIA_APP_ID: CIPLACEHOLDER
+      NEXT_PUBLIC_ALGOLIA_SEARCH_KEY: ci-placeholder
+      NEXT_PUBLIC_ALGOLIA_INDEX_NAME: ci-placeholder
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Bun Runtime
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+
+      - name: Install Dependencies
+        working-directory: ./audioFrontend
+        run: bun install --frozen-lockfile
+
+      - name: Type Check
+        working-directory: ./audioFrontend
+        run: bunx tsc --noEmit
+
+      - name: Production Build
+        working-directory: ./audioFrontend
+        run: bun run build
+
+      # Report-only until the existing Biome errors are cleaned up; then remove continue-on-error.
+      - name: Lint (Biome, report only)
+        working-directory: ./audioFrontend
+        continue-on-error: true
+        run: bunx biome ci .
+
+  check-mobileapp:
+    name: Check Mobile App
+    needs: changes
+    if: needs.changes.outputs.mobileapp == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: audioApp/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: ./audioApp
+        run: npm ci
+
+      - name: Type Check
+        working-directory: ./audioApp
+        run: npx tsc --noEmit
 
   # =========================================================================
   # 5. Selective Docker Build & Push (Only rebuilt when service files change)
