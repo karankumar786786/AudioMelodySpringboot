@@ -1,9 +1,4 @@
-import {
-  clearSessionStorage,
-  getDeviceId,
-  request,
-  tokenStorage,
-} from "./client";
+import { clearSessionStorage, getDeviceId, request } from "./client";
 import type { SessionStatus, User } from "./types";
 
 export const authApi = {
@@ -41,12 +36,8 @@ export const authApi = {
       body: JSON.stringify({ tempToken: token, otp: code, deviceId }),
     });
 
-    // Store JWT tokens securely in localStorage
-    if (verifyRes?.accessToken) {
-      tokenStorage.setTokens(verifyRes.accessToken, verifyRes.refreshToken);
-    }
-
-    // Fetch profile and store user identity for client-side state
+    // The API sets HttpOnly auth cookies on this response; nothing secret is stored here.
+    // Fetch profile and cache the (non-secret) user identity for client-side state
     const profile = await request("/api/user/profile");
     const userPayload = {
       ...profile,
@@ -75,10 +66,10 @@ export const authApi = {
   logout: async (allDevices = false) => {
     try {
       const deviceId = getDeviceId();
-      const refreshToken = tokenStorage.getRefreshToken() || undefined;
-      await request("/api/user/sessions/logout", {
+      // Revokes the session and clears the HttpOnly cookies (works even if the access cookie expired)
+      await request("/auth/logout", {
         method: "POST",
-        body: JSON.stringify({ deviceId, refreshToken, allDevices }),
+        body: JSON.stringify({ deviceId, allDevices }),
       });
     } catch {
       // Silently handle logout failure on network error
