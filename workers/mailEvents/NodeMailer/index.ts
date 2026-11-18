@@ -44,3 +44,12 @@ export async function sendMail(to: string, subject: string, body: string) {
         throw err;
     }
 }
+
+export function isAuthError(error: any): boolean {
+    return (
+        error?.code === "EAUTH" ||
+        error?.responseCode === 454 ||
+        error?.responseCode === 535 ||
+        /Too many login attempts/i.test(error?.message || "")
+    );
+}
