@@ -125,6 +125,7 @@ CORS_ALLOW_HEADERS = [
     "x-session-id",
     "x-admin-session",
     "session-id",
+    "x-admin-client",
 ]
 
 # Security Headers & Cookie Policies

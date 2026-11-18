@@ -56,3 +56,19 @@ class AccountsAppTests(SimpleTestCase):
         data = serializer.data
         self.assertEqual(data["deviceId"], "iphone-15-pro")
         self.assertEqual(data["id"], "sess-1")
+
+
+class WebSessionBodyTests(SimpleTestCase):
+    """The admin web app (X-Admin-Client: web) must never receive session IDs in JSON."""
+
+    def test_session_ids_are_stripped_for_web_client(self):
+        from rest_framework.test import APIRequestFactory
+        # pyrefly: ignore[missing-import]
+        from accounts.views import session_body
+
+        tokens = {"sessionId": "s", "refreshSessionId": "r", "accessToken": "s", "refreshToken": "r", "expiresIn": 10}
+        web = APIRequestFactory().post("/auth/verify-otp", HTTP_X_ADMIN_CLIENT="web")
+        other = APIRequestFactory().post("/auth/verify-otp")
+
+        self.assertEqual(session_body(web, tokens), {"expiresIn": 10})
+        self.assertEqual(session_body(other, tokens), tokens)
