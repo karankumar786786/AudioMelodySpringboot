@@ -525,7 +525,7 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
 
       return (
         <View style={[styles.pageContainer, { height: containerHeight }]}>
-          <TouchableWithoutFeedback onPress={handleScreenPress}>
+          <TouchableWithoutFeedback onPress={handleScreenPress} accessibilityRole="button" accessibilityLabel="Play or pause" accessibilityHint="Double tap twice quickly to like the song">
             <View style={StyleSheet.absoluteFill}>
               {/* Full-screen canvas video or artwork fallback */}
               {shouldMountVideo ? (
@@ -628,6 +628,8 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
           >
             {/* Artist avatar */}
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={`Open artist ${primaryArtist}`}
               style={styles.actionItem}
               onPress={() => {
                 hapticFeedback.light();
@@ -843,6 +845,8 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
       {/* Top header */}
       <View style={[styles.headerOverlay, { top: insets.top + 8 }]}>
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Close shorts"
           style={styles.headerIconButton}
           onPress={handleDismiss}
           activeOpacity={0.7}
@@ -859,6 +863,8 @@ export default function CanvasShortsScreen({ isTab = false }: CanvasShortsScreen
         </View>
 
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={isMuted ? "Unmute" : "Mute"}
           style={styles.headerIconButton}
           onPress={() => {
             hapticFeedback.light();

@@ -180,6 +180,7 @@ export default function PlaylistDetailScreen() {
 
           {songs.length > 0 ? (
             <TouchableOpacity
+              accessibilityRole="button"
               style={styles.playButton}
               onPress={handlePlayAll}
               activeOpacity={0.85}
@@ -270,6 +271,7 @@ export default function PlaylistDetailScreen() {
       {/* Back + share float over the video */}
       <View style={[styles.floatingNav, { top: insets.top + 6 }]} pointerEvents="box-none">
         <TouchableOpacity
+          accessibilityRole="button"
           style={styles.floatingButton}
           onPress={() => router.back()}
           activeOpacity={0.75}
@@ -279,6 +281,7 @@ export default function PlaylistDetailScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
+          accessibilityRole="button"
           style={styles.floatingButton}
           onPress={handleShare}
           activeOpacity={0.75}

@@ -240,6 +240,8 @@ export default function ArtistDetailScreen() {
 
             {songs.length > 0 ? (
               <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Play all songs"
                 style={styles.playButton}
                 onPress={handlePlayAll}
                 activeOpacity={0.85}
@@ -328,6 +330,8 @@ export default function ArtistDetailScreen() {
       {/* Floating back / share (the styles and handler already existed, but nothing rendered them) */}
       <View style={[styles.floatingNav, { top: insets.top + 8 }]} pointerEvents="box-none">
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
           style={styles.floatingButton}
           onPress={handleBack}
           hitSlop={12}
@@ -337,6 +341,8 @@ export default function ArtistDetailScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Share artist"
           style={styles.floatingButton}
           onPress={handleShare}
           hitSlop={12}
