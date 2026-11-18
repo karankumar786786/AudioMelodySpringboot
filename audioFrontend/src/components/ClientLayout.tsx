@@ -10,7 +10,7 @@ import { LeftSidebar } from "@/components/LeftSidebar";
 import { playerStore } from "@/store/player.store";
 import { RightInfoPanel } from "@/components/RightInfoPanel";
 import { NetworkStatusBanner } from "@/components/NetworkStatusBanner";
-import { tokenStorage } from "@/lib/api/client";
+import { migrateLegacyTokens, tokenStorage } from "@/lib/api/client";
 
 interface ClientLayoutProps {
   children: React.ReactNode;
@@ -36,8 +36,9 @@ export function ClientLayout({ children }: ClientLayoutProps) {
   // Hydrate user from localStorage on mount
   useEffect(() => {
     setMounted(true);
-    const token = tokenStorage.getAccessToken();
-    if (token) {
+    // Drops any JWTs left in localStorage by older builds (swapping them for cookies once).
+    void migrateLegacyTokens();
+    if (tokenStorage.hasSession()) {
       if (!playerStore.state.systemUser) {
         const stored = localStorage.getItem("system_user");
         if (stored) {
@@ -73,10 +74,7 @@ export function ClientLayout({ children }: ClientLayoutProps) {
   // Handle client-side routing & auth guard
   useEffect(() => {
     if (!mounted) return;
-    const token = tokenStorage.getAccessToken();
-    const hasSession = Boolean(
-      token && (systemUser || (typeof window !== "undefined" && localStorage.getItem("system_user")))
-    );
+    const hasSession = Boolean(systemUser) || tokenStorage.hasSession();
 
     if (hasSession) {
       if (isAuthFormRoute) {
