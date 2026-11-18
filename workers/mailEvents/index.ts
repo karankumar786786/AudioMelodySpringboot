@@ -1,71 +1,39 @@
 import { redis } from "./Redis";
-import { sendMail } from "./NodeMailer";
+import { sendMail, isAuthError } from "./NodeMailer";
+import { createRedisStore, handleRawJob } from "./lib/queue";
 import { config } from "dotenv";
 config();
 
-interface MailJob {
-    to: string;
-    subject: string;
-    otp: string;
-    retries?: number;
-}
-
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const MAX_RETRIES = 3;
 const EMPTY_QUEUE_DELAY_MS = Number(process.env.QUEUE_EMPTY_DELAY_MS) || 2000;
 const POLL_TIMEOUT_SECONDS = Number(process.env.QUEUE_POLL_TIMEOUT_SECS) || 2;
+const AUTH_FAILURE_PAUSE_MS = 30000;
 
 ;(async (mailQueue: string) => {
-    const dlqQueue = `${mailQueue}_dlq`;
-    console.log(`Mail worker started. Listening on queue: "${mailQueue}", DLQ: "${dlqQueue}" (idle wait: ${EMPTY_QUEUE_DELAY_MS}ms)`);
+    const store = createRedisStore(redis, mailQueue);
+    console.log(
+        `Mail worker started. Listening on queue: "${mailQueue}", delayed: "${store.delayedKey}", DLQ: "${store.dlqKey}" (idle wait: ${EMPTY_QUEUE_DELAY_MS}ms)`
+    );
 
     while (true) {
         try {
-            const result = await redis.blpop(mailQueue, POLL_TIMEOUT_SECONDS);
-            if (result && result[1]) {
-                let data: MailJob;
-                try {
-                    data = JSON.parse(result[1]);
-                } catch (parseErr) {
-                    console.error("Malformed mail job payload. Discarding:", result[1], parseErr);
-                    continue;
-                }
+            await store.promoteDue(Date.now());
 
-                try {
-                    await sendMail(data.to, data.subject, data.otp);
-                } catch (error: any) {
-                    data.retries = (data.retries || 0) + 1;
-
-                    const isAuthError =
-                        error?.code === "EAUTH" ||
-                        error?.responseCode === 454 ||
-                        error?.responseCode === 535 ||
-                        /Too many login attempts/i.test(error?.message || "");
-
-                    if (isAuthError) {
-                        console.error(
-                            `[AUTH FAILURE] Google SMTP rejected authentication (Code: ${error?.code || error?.responseCode}). ` +
-                            `Moving job to DLQ (${dlqQueue}) and pausing worker for 30s to prevent rate-limit lockout.`
-                        );
-                        await redis.rpush(dlqQueue, JSON.stringify(data));
-                        await sleep(30000);
-                    } else if (data.retries >= MAX_RETRIES) {
-                        console.error(
-                            `[MAX RETRIES REACHED] Failed to send email to ${data.to} after ${data.retries} attempts. Moving to DLQ (${dlqQueue}).`
-                        );
-                        await redis.rpush(dlqQueue, JSON.stringify(data));
-                    } else {
-                        const delayMs = Math.min(5000 * Math.pow(2, data.retries - 1), 30000);
-                        console.warn(
-                            `[RETRY ${data.retries}/${MAX_RETRIES}] Retrying mail to ${data.to} in ${delayMs / 1000}s...`
-                        );
-                        await sleep(delayMs);
-                        await redis.rpush(mailQueue, JSON.stringify(data));
-                    }
-                }
-            } else {
-                // Queue is empty: back off for 1-3 seconds to prevent continuous polling
+            const raw = await store.pop(POLL_TIMEOUT_SECONDS);
+            if (raw === null) {
                 await sleep(EMPTY_QUEUE_DELAY_MS);
+                continue;
+            }
+
+            const outcome = await handleRawJob(raw, { send: sendMail, isAuthError, store });
+
+            if (outcome.kind === "dlq" && outcome.reason === "auth") {
+                // Credentials are rejected for every message, so pause the provider
+                // briefly rather than hammering it into a rate-limit lockout.
+                console.error(
+                    `[AUTH FAILURE] Mail provider rejected authentication. Job moved to DLQ (${store.dlqKey}); pausing ${AUTH_FAILURE_PAUSE_MS / 1000}s.`
+                );
+                await sleep(AUTH_FAILURE_PAUSE_MS);
             }
         } catch (error) {
             console.error("Mail worker poll error:", error);
