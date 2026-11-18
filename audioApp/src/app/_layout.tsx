@@ -4,7 +4,8 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { Provider, useDispatch, useSelector } from "react-redux";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useIsRestoring } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import {
   AppDispatch,
   AppState,
@@ -20,6 +21,7 @@ import { AuthToken } from "@/types";
 import { configureAudioPriority } from "@/utils";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
 import { OfflineBanner } from "@/components/common/OfflineBanner";
+import { queryClient, persistOptions } from "@/service/queryClient";
 import { setupNetworkAwareness } from "@/service/network";
 
 
@@ -31,8 +33,6 @@ if (Platform.OS !== "web") {
 // Prevent splash screen from auto-hiding until initial token/device loading is done
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-const queryClient = new QueryClient();
-
 // Pause/resume React Query with the device connection and app foreground state
 setupNetworkAwareness();
 
@@ -42,6 +42,10 @@ function RootNavigator() {
   const segments = useSegments();
   const authToken: AuthToken = useSelector((state: AppState) => state.auth);
   const [isReady, setIsReady] = useState(false);
+  // Keep the splash up until the on-disk query cache is restored, so home renders
+  // cached rows on the first frame instead of a skeleton.
+  const isRestoringCache = useIsRestoring();
+  const isAppReady = isReady && !isRestoringCache;
 
   useEffect(() => {
     let isMounted = true;
@@ -58,7 +62,6 @@ function RootNavigator() {
       } finally {
         if (isMounted) {
           setIsReady(true);
-          await SplashScreen.hideAsync().catch(() => {});
         }
       }
     }
@@ -71,6 +74,12 @@ function RootNavigator() {
   }, [dispatch]);
 
   useEffect(() => {
+    if (isAppReady) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [isAppReady]);
+
+  useEffect(() => {
     if (authToken.accessToken) {
       dispatch(loadUserProfile());
       dispatch(loadFavourites());
@@ -79,7 +88,7 @@ function RootNavigator() {
   }, [authToken.accessToken, dispatch]);
 
   useEffect(() => {
-    if (!isReady) return;
+    if (!isAppReady) return;
 
     const inAuthGroup = segments[0] === "(authenticated)";
     const isAuthenticated = Boolean(authToken.accessToken);
@@ -95,9 +104,9 @@ function RootNavigator() {
         router.replace("/(authenticated)/(tabs)/home");
       }
     }
-  }, [authToken.accessToken, segments, isReady, router]);
+  }, [authToken.accessToken, segments, isAppReady, router]);
 
-  if (!isReady) {
+  if (!isAppReady) {
     return null;
   }
 
@@ -123,9 +132,9 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#000000" }}>
       <ErrorBoundary>
         <Provider store={store}>
-          <QueryClientProvider client={queryClient}>
+          <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
             <RootNavigator />
-          </QueryClientProvider>
+          </PersistQueryClientProvider>
         </Provider>
       </ErrorBoundary>
     </GestureHandlerRootView>
