@@ -109,3 +109,39 @@ class SecuritySettingsTests(SimpleTestCase):
             AdminAuthService.notify_otp("admin@example.com", "LOGIN", otp)
         self.assertNotIn(otp, out.getvalue())
         self.assertFalse(any(otp in line for line in logs.output))
+
+
+class InternalApiKeyAuthenticationTests(SimpleTestCase):
+    """Service-to-service API key handling in AdminSessionAuthentication."""
+
+    def _auth(self, headers):
+        from django.test import override_settings
+        from rest_framework.test import APIRequestFactory
+        # pyrefly: ignore[missing-import]
+        from core.authentication import AdminSessionAuthentication
+
+        request = APIRequestFactory().get("/webhook/job/x", **headers)
+        with override_settings(AUDIO_PROCESSING_API_KEY="proc-key", APPLICATION_API_KEY="app-key"):
+            return AdminSessionAuthentication().authenticate(request)
+
+    def test_valid_key_authenticates_as_admin_not_super_admin(self):
+        user, _ = self._auth({"HTTP_X_API_KEY": "app-key"})
+        self.assertEqual(user.role, "ADMIN")
+        self.assertTrue(user.is_admin)
+        self.assertFalse(user.is_super_admin)
+
+    def test_either_configured_key_is_accepted(self):
+        user, _ = self._auth({"HTTP_X_API_KEY": "proc-key"})
+        self.assertEqual(user.id, "system-api")
+
+    def test_wrong_key_does_not_authenticate(self):
+        # No session supplied either, so authentication falls through to None.
+        self.assertIsNone(self._auth({"HTTP_X_API_KEY": "app-kez"}))
+        self.assertIsNone(self._auth({"HTTP_X_API_KEY": "app-key-longer"}))
+
+    def test_matches_any_key_helper(self):
+        # pyrefly: ignore[missing-import]
+        from core.authentication import _matches_any_key
+        self.assertTrue(_matches_any_key("b", ["a", "b"]))
+        self.assertFalse(_matches_any_key("c", ["a", "b"]))
+        self.assertFalse(_matches_any_key("x", []))
