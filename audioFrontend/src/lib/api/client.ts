@@ -27,32 +27,66 @@ export function getDeviceId(): string {
   return deviceId;
 }
 
+/**
+ * Auth tokens live in HttpOnly cookies set by the API (melody_access / melody_refresh);
+ * scripts never see them. This header opts requests into cookie auth on the API and,
+ * being a custom header, forces a CORS preflight (CSRF protection).
+ */
+export const WEB_CLIENT_HEADERS = { "X-Melody-Client": "web" } as const;
+
+/** Keys that used to hold JWTs in localStorage. Removed on load; never written again. */
+const LEGACY_TOKEN_KEYS = ["system_token", "system_refresh_token"] as const;
+const USER_KEY = "system_user";
+
+export const sessionStorageKeys = { USER_KEY };
+
 export const tokenStorage = {
-  getAccessToken: (): string | null => {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem("system_token");
-  },
-  getRefreshToken: (): string | null => {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem("system_refresh_token");
-  },
-  setTokens: (accessToken: string, refreshToken?: string): void => {
-    if (typeof window === "undefined") return;
-    if (accessToken) {
-      localStorage.setItem("system_token", accessToken);
-    }
-    if (refreshToken) {
-      localStorage.setItem("system_refresh_token", refreshToken);
-    }
+  /**
+   * Whether this browser believes it is signed in. The cached (non-secret) profile is the
+   * marker, since the cookies are not readable; the API is still the source of truth.
+   */
+  hasSession: (): boolean => {
+    if (typeof window === "undefined") return false;
+    return Boolean(localStorage.getItem(USER_KEY));
   },
   clearTokens: (): void => {
     if (typeof window === "undefined") return;
-    localStorage.removeItem("system_token");
-    localStorage.removeItem("system_refresh_token");
-    localStorage.removeItem("system_user");
+    for (const key of LEGACY_TOKEN_KEYS) localStorage.removeItem(key);
+    localStorage.removeItem(USER_KEY);
     notifySessionCleared();
   },
 };
+
+let legacyMigration: Promise<void> | null = null;
+
+/**
+ * One-time upgrade for browsers that signed in before cookie auth: trade the legacy
+ * localStorage refresh token for HttpOnly cookies, then delete the legacy keys.
+ * Safe to call repeatedly; runs at most once per page load.
+ */
+export function migrateLegacyTokens(): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  if (legacyMigration) return legacyMigration;
+  legacyMigration = (async () => {
+    const legacyRefresh = localStorage.getItem("system_refresh_token");
+    for (const key of LEGACY_TOKEN_KEYS) localStorage.removeItem(key);
+    if (!legacyRefresh || !localStorage.getItem(USER_KEY)) return;
+    try {
+      await axios.post(
+        `${API_BASE_URL}/auth/refresh-token`,
+        { refreshToken: legacyRefresh, deviceId: getDeviceId() },
+        {
+          timeout: 15000,
+          withCredentials: true,
+          headers: { "Content-Type": "application/json", ...WEB_CLIENT_HEADERS },
+        },
+      );
+    } catch {
+      // Expired or revoked: the next API call gets a 401 and the normal flow logs the user out.
+    }
+  })();
+  return legacyMigration;
+}
 
 export function notifySessionCleared(): void {
   if (typeof window !== "undefined") {
@@ -66,19 +100,21 @@ export function clearSessionStorage(): void {
 
 /**
  * Centralized Axios client instance.
- * Automatically configured with JWT Bearer token authentication,
- * base URL, and request/response interceptors.
+ * Authenticates with the API's HttpOnly cookies (withCredentials) and handles
+ * base URL plus request/response interceptors.
  */
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
+    ...WEB_CLIENT_HEADERS,
   },
 });
 
-// Request interceptor: Offline guard + Bearer Token injection
-apiClient.interceptors.request.use((config) => {
+// Request interceptor: Offline guard (+ finish any legacy token migration first)
+apiClient.interceptors.request.use(async (config) => {
   if (typeof navigator !== "undefined" && !navigator.onLine) {
     const offlineErr = new Error("Device is offline");
     (offlineErr as any).isOffline = true;
@@ -86,11 +122,7 @@ apiClient.interceptors.request.use((config) => {
     return Promise.reject(offlineErr);
   }
 
-  const token = tokenStorage.getAccessToken();
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
+  await migrateLegacyTokens();
   return config;
 });
 
@@ -151,15 +183,7 @@ apiClient.interceptors.response.use(
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
-          .then(() => {
-            if (originalRequest.headers) {
-              const freshToken = tokenStorage.getAccessToken();
-              if (freshToken) {
-                originalRequest.headers.Authorization = `Bearer ${freshToken}`;
-              }
-            }
-            return apiClient(originalRequest);
-          })
+          .then(() => apiClient(originalRequest))
           .catch((err) => Promise.reject(err));
       }
 
@@ -170,12 +194,6 @@ apiClient.interceptors.response.use(
         const refreshResult = await refreshAccessToken();
         if (refreshResult.success) {
           processQueue(null, true);
-          if (originalRequest.headers) {
-            const freshToken = tokenStorage.getAccessToken();
-            if (freshToken) {
-              originalRequest.headers.Authorization = `Bearer ${freshToken}`;
-            }
-          }
           return apiClient(originalRequest);
         }
 
@@ -188,7 +206,7 @@ apiClient.interceptors.response.use(
         }
 
         // On transient network errors, socket drops, or timeouts:
-        // DO NOT log the user out! Keep tokens in storage and reject with the network error.
+        // DO NOT log the user out! Keep the session and reject with the network error.
         processQueue(refreshResult.error || error, false);
         return Promise.reject(refreshResult.error || error);
       } catch (refreshErr) {
@@ -204,18 +222,14 @@ apiClient.interceptors.response.use(
 );
 
 /**
- * Refreshes JWT tokens globally with the backend via Axios.
- * Uses refresh token and device ID from localStorage and persists renewed tokens.
- * Handles transient network errors gracefully without purging user tokens.
+ * Refreshes the session with the backend. The refresh token travels as an HttpOnly
+ * cookie and the API rotates both cookies in its response.
+ * Handles transient network errors gracefully without purging the session.
  */
 export async function refreshAccessToken(): Promise<RefreshResult> {
   try {
-    const refreshToken = tokenStorage.getRefreshToken();
+    await migrateLegacyTokens();
     const deviceId = getDeviceId();
-    if (!refreshToken || !deviceId) {
-      tokenStorage.clearTokens();
-      return { success: false, isAuthError: true, isNetworkError: false };
-    }
 
     // Fast check: if device is completely offline, do not attempt or purge
     if (typeof navigator !== "undefined" && !navigator.onLine) {
@@ -225,22 +239,16 @@ export async function refreshAccessToken(): Promise<RefreshResult> {
     // Retry once for transient glitches (e.g. WiFi handshake latency)
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        const res = await axios.post(
+        await axios.post(
           `${API_BASE_URL}/auth/refresh-token`,
-          { refreshToken, deviceId },
+          { deviceId },
           {
             timeout: 15000,
-            headers: { "Content-Type": "application/json" },
+            withCredentials: true,
+            headers: { "Content-Type": "application/json", ...WEB_CLIENT_HEADERS },
           },
         );
-
-        if (res.data?.accessToken) {
-          tokenStorage.setTokens(res.data.accessToken, res.data.refreshToken);
-          return { success: true, isAuthError: false, isNetworkError: false };
-        }
-
-        tokenStorage.clearTokens();
-        return { success: false, isAuthError: true, isNetworkError: false };
+        return { success: true, isAuthError: false, isNetworkError: false };
       } catch (err: any) {
         const status = err.response?.status;
         const isExplicitAuthFailure =
@@ -273,7 +281,7 @@ export async function refreshAccessToken(): Promise<RefreshResult> {
           continue;
         }
 
-        // Return network error without wiping tokens!
+        // Return network error without wiping the session!
         return {
           success: false,
           isAuthError: false,
