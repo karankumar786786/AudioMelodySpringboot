@@ -28,7 +28,9 @@ export function ClientLayout({ children }: ClientLayoutProps) {
     pathname === "/" ||
     pathname === "/login" ||
     pathname === "/signup" ||
-    pathname === "/callback";
+    pathname === "/callback" ||
+    // Shared song links must open for guests too (link previews, signed-out friends).
+    pathname.startsWith("/song/");
 
   const isAuthFormRoute =
     pathname === "/" || pathname === "/login" || pathname === "/signup";
