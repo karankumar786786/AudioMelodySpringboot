@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Song } from "@/types";
 import { getImageUrl } from "@/utils/imageUtils";
 import { formatDuration, formatSongSubtitle } from "@/utils/formatUtils";
+import { ShareSongButton } from "@/components/common/ShareSongButton";
 
 interface PlaylistTrackItemProps {
   song: Song;
@@ -50,6 +51,8 @@ export function PlaylistTrackItem({ song, onPress, onRemove }: PlaylistTrackItem
 
       <Text style={styles.duration}>{formatDuration(song.duration)}</Text>
 
+      <ShareSongButton song={song} size={18} color="#8A8A8A" style={styles.shareButton} />
+
       {onRemove ? (
         <TouchableOpacity
           style={styles.removeButton}
@@ -68,6 +71,10 @@ export function PlaylistTrackItem({ song, onPress, onRemove }: PlaylistTrackItem
 }
 
 const styles = StyleSheet.create({
+  shareButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
   container: {
     flexDirection: "row",
     alignItems: "center",
