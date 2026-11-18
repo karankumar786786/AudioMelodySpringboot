@@ -148,9 +148,17 @@ class AdminEndpointRoutingTests(SimpleTestCase):
         resp = client.post("/admin/account/test@example.com/block")
         self.assertIn(resp.status_code, [401, 403])
 
+    def test_internal_webhook_upload_url_requires_auth(self):
+        with patch.object(S3Service, "generate_presigned_upload_url", return_value="https://s3.example.com/upload"):
+            resp = APIClient().get("/webhook/internal/song-upload-url")
+            self.assertIn(resp.status_code, [401, 403])
+
     def test_internal_webhook_upload_url(self):
+        # pyrefly: ignore[missing-import]
+        from core.authentication import AdminUser
         with patch.object(S3Service, "generate_presigned_upload_url", return_value="https://s3.example.com/upload"):
             client = APIClient()
+            client.force_authenticate(user=AdminUser(user_id="admin-1", email="admin@example.com", role="ADMIN"))
             resp = client.get("/webhook/internal/song-upload-url")
             self.assertEqual(resp.status_code, 200)
             data = resp.json()

@@ -58,3 +58,54 @@ class CoreAppTests(SimpleTestCase):
         self.assertEqual(data["entityName"], "SONG")
         self.assertEqual(data["totalCount"], 50)
         self.assertEqual(data["activeCount"], 45)
+
+
+class SecuritySettingsTests(SimpleTestCase):
+    """Production-safety checks for settings and admin OTP handling."""
+
+    def _import_settings(self, env):
+        import os
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        base_env = {k: v for k, v in os.environ.items()
+                    if k not in ("DJANGO_DEBUG", "DJANGO_SECRET_KEY")}
+        base_env.update(env)
+        # Run outside "manage.py test" so the test-mode key fallback doesn't apply.
+        code = ("import sys; sys.argv=['gunicorn'];"
+                "import admin.settings as s; print('DEBUG=' + str(s.DEBUG))")
+        return subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=str(Path(__file__).resolve().parent.parent),
+            env=base_env, capture_output=True, text=True, timeout=60,
+        )
+
+    def test_refuses_to_start_without_secret_key_when_not_debug(self):
+        # Empty values override anything load_dotenv would pick up from local .env files.
+        result = self._import_settings({"DJANGO_DEBUG": "false", "DJANGO_SECRET_KEY": ""})
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("DJANGO_SECRET_KEY is not set", result.stderr)
+
+    def test_debug_defaults_to_off(self):
+        result = self._import_settings({"DJANGO_DEBUG": "", "DJANGO_SECRET_KEY": "x" * 64})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("DEBUG=False", result.stdout)
+
+    def test_otp_is_never_logged_or_printed_outside_debug(self):
+        import io
+        from contextlib import redirect_stdout
+        from unittest.mock import patch
+        from django.test import override_settings
+        # pyrefly: ignore[missing-import]
+        from core.services.admin_auth_service import AdminAuthService
+
+        otp = "917364"
+        out = io.StringIO()
+        with override_settings(DEBUG=False), \
+                patch("core.services.admin_auth_service.RedisService.get_client"), \
+                self.assertLogs("core.services.admin_auth_service", level="DEBUG") as logs, \
+                redirect_stdout(out):
+            AdminAuthService.notify_otp("admin@example.com", "LOGIN", otp)
+        self.assertNotIn(otp, out.getvalue())
+        self.assertFalse(any(otp in line for line in logs.output))
