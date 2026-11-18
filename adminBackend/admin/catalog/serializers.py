@@ -85,3 +85,23 @@ class PlaylistSerializer(serializers.ModelSerializer):
             "createdAt",
             "updatedAt",
         ]
+
+
+class CatalogHealthSongSerializer(serializers.ModelSerializer):
+    artistName = serializers.CharField(source="artist_name")
+    imageKey = serializers.CharField(source="image_key", allow_null=True)
+    lrclibId = serializers.CharField(source="lrclib_id", allow_null=True)
+    jobId = serializers.CharField(source="job_id", allow_null=True)
+    createdAt = serializers.DateTimeField(source="created_at", format="%Y-%m-%dT%H:%M:%S")
+    issues = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Song
+        fields = [
+            "id", "title", "artistName", "album", "genre", "language", "imageKey",
+            "lrclibId", "jobId", "status", "createdAt", "issues",
+        ]
+
+    def get_issues(self, obj):
+        from .health import issues_for
+        return issues_for(obj)
