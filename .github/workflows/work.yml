@@ -111,6 +111,10 @@ jobs:
 
       - name: Validate Django Configuration
         working-directory: ./adminBackend/admin
+        env:
+          # Validate the production configuration (debug off) with a throwaway CI-only key.
+          DJANGO_DEBUG: "false"
+          DJANGO_SECRET_KEY: ci-only-not-a-real-secret-${{ github.run_id }}-${{ github.run_attempt }}
         run: uv run python manage.py check
 
       - name: Run Django Test Suite

@@ -8,7 +8,8 @@ from django.db import models
 # pyrefly: ignore[missing-import]
 from core.shortcuts import get_object_or_404
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+# pyrefly: ignore[missing-import]
+from core.authentication import AdminSessionAuthentication, IsAdminUserPermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -56,8 +57,9 @@ def find_delete_job(entity_type: str, entity_id: str, delete_job_id: Optional[st
 # ==============================================================================
 
 class SongUploadUrlWebhookView(APIView):
-    authentication_classes = []
-    permission_classes = [AllowAny]
+    # Issues upload credentials, so it must require an admin session. Never make this AllowAny.
+    authentication_classes = [AdminSessionAuthentication]
+    permission_classes = [IsAdminUserPermission]
 
     def get(self, request):
         key = str(uuid.uuid4())
@@ -66,8 +68,9 @@ class SongUploadUrlWebhookView(APIView):
 
 
 class VideoUploadUrlWebhookView(APIView):
-    authentication_classes = []
-    permission_classes = [AllowAny]
+    # Issues upload credentials, so it must require an admin session. Never make this AllowAny.
+    authentication_classes = [AdminSessionAuthentication]
+    permission_classes = [IsAdminUserPermission]
 
     def get(self, request):
         key = str(uuid.uuid4())
@@ -76,8 +79,9 @@ class VideoUploadUrlWebhookView(APIView):
 
 
 class ImageUploadParamWebhookView(APIView):
-    authentication_classes = []
-    permission_classes = [AllowAny]
+    # Issues upload credentials, so it must require an admin session. Never make this AllowAny.
+    authentication_classes = [AdminSessionAuthentication]
+    permission_classes = [IsAdminUserPermission]
 
     def get(self, request):
         params = ImageKitService.generate_upload_params()
@@ -85,8 +89,9 @@ class ImageUploadParamWebhookView(APIView):
 
 
 class VideoUploadParamWebhookView(APIView):
-    authentication_classes = []
-    permission_classes = [AllowAny]
+    # Issues upload credentials, so it must require an admin session. Never make this AllowAny.
+    authentication_classes = [AdminSessionAuthentication]
+    permission_classes = [IsAdminUserPermission]
 
     def get(self, request):
         params = ImageKitService.generate_upload_params()

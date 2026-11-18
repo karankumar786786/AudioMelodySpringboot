@@ -99,12 +99,14 @@ class AdminAuthService:
 
     @classmethod
     def notify_otp(cls, email: str, purpose: str, otp: str) -> None:
-        # 1. Output clearly in console for instant developer feedback
-        print("\n" + "=" * 60)
-        print(f" [ADMIN AUTH OTP] Purpose: {purpose} | Email: {email}")
-        print(f" >>> VERIFICATION OTP CODE: {otp} <<< (Valid 10 mins)")
-        print("=" * 60 + "\n")
-        logger.info("[ADMIN AUTH] Generated OTP for %s (%s): %s", email, purpose, otp)
+        # 1. The OTP is a login credential: never log it. In local development only
+        #    (DJANGO_DEBUG=true), print it to the console for convenience.
+        if settings.DEBUG:
+            print("\n" + "=" * 60)
+            print(f" [ADMIN AUTH OTP] Purpose: {purpose} | Email: {email}")
+            print(f" >>> VERIFICATION OTP CODE: {otp} <<< (Valid 10 mins) [DEBUG only]")
+            print("=" * 60 + "\n")
+        logger.info("[ADMIN AUTH] Generated OTP for %s (%s)", email, purpose)
 
         # 2. Push to Redis mail queue if running
         try:

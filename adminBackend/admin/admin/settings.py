@@ -23,13 +23,34 @@ load_dotenv(BASE_DIR.parent / ".env")
 load_dotenv(BASE_DIR.parent.parent / "coreEngine" / ".env")
 load_dotenv(BASE_DIR.parent.parent / ".env")
 
-# Quick-start development settings - unsuitable for production
-SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-+q972&qv$kay2p)ugul7gq!xzs2vvgug=tdn6p(223^us^llj2")
-JWT_SECRET = os.getenv("JWT_SECRET", "super_secret_jwt_key_that_is_at_least_32_bytes_long_and_very_secure_12345")
+import secrets
+import sys
+from django.core.exceptions import ImproperlyConfigured
 
-DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() in ("true", "1", "yes")
+# Debug is OFF unless explicitly enabled (set DJANGO_DEBUG=true for local development only).
+DEBUG = os.getenv("DJANGO_DEBUG", "false").strip().lower() in ("true", "1", "yes")
+_RUNNING_TESTS = "test" in sys.argv
 
-ALLOWED_HOSTS = ["*"]
+# SECRET_KEY must come from the environment outside local development and tests.
+# Never commit a real key; generate one with:
+#   python -c "import secrets; print(secrets.token_urlsafe(64))"
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "").strip()
+if not SECRET_KEY:
+    if DEBUG or _RUNNING_TESTS:
+        # Throwaway per-process key: fine for dev/tests, never valid across restarts.
+        SECRET_KEY = "django-insecure-dev-" + secrets.token_urlsafe(48)
+    else:
+        raise ImproperlyConfigured(
+            "DJANGO_SECRET_KEY is not set. Set it in the environment, or set DJANGO_DEBUG=true for local development."
+        )
+
+JWT_SECRET = os.getenv("JWT_SECRET", "")
+
+# Comma-separated, e.g. "api-admin-one-melody.one-org.me,admin,localhost". Defaults to any host
+# because Caddy terminates public traffic and internal services call this container by name.
+ALLOWED_HOSTS = [
+    h.strip() for h in os.getenv("DJANGO_ALLOWED_HOSTS", "*").split(",") if h.strip()
+]
 
 # Application definition
 INSTALLED_APPS = [
@@ -116,6 +137,12 @@ SESSION_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_HTTPONLY = True
 CSRF_COOKIE_SAMESITE = "Lax"
 
+if not DEBUG:
+    # Served behind Caddy over HTTPS: trust its forwarded scheme and only send cookies over HTTPS.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
 ROOT_URLCONF = "admin.urls"
 
 TEMPLATES = [
@@ -162,8 +189,7 @@ if not _db_config.get("PASSWORD") and _db_password:
 _db_config["CONN_MAX_AGE"] = 600
 _db_config["CONN_HEALTH_CHECKS"] = True
 
-import sys
-if "test" in sys.argv:
+if _RUNNING_TESTS:
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
