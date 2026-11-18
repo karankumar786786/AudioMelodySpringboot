@@ -34,9 +34,17 @@ export const ShareSongModal: React.FC<ShareSongModalProps> = ({
 
   if (!song) return null;
 
-  const shareUrl = typeof window !== "undefined"
-    ? `${window.location.origin}/home?song=${song.id}`
-    : `https://audiomelody.com/songs/${song.id}`;
+  // Public song page with link-preview metadata; also opens in the mobile app.
+  const shareParams = new URLSearchParams();
+  if (song.title) shareParams.set("t", song.title.slice(0, 120));
+  if (song.artistName) shareParams.set("a", song.artistName.slice(0, 120));
+  if (song.imageKey && !/^https?:/i.test(song.imageKey)) shareParams.set("c", song.imageKey);
+  const shareQuery = shareParams.toString();
+  const shareOrigin =
+    typeof window !== "undefined"
+      ? window.location.origin
+      : process.env.NEXT_PUBLIC_APP_URL || "";
+  const shareUrl = `${shareOrigin}/song/${encodeURIComponent(song.id)}${shareQuery ? `?${shareQuery}` : ""}`;
 
   const songCover = song.imageKey
     ? getImageUrl(song.imageKey, { width: 500, height: 500, aspectRatio: "1-1" })
