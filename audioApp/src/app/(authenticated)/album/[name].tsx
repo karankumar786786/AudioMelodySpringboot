@@ -198,6 +198,8 @@ export default function AlbumDetailScreen() {
       {/* Top Navbar */}
       <View style={[styles.navBar, { paddingTop: insets.top + 6 }]}>
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
           style={styles.backButton}
           onPress={() => router.back()}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -206,6 +208,8 @@ export default function AlbumDetailScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Share album"
           style={styles.shareButton}
           onPress={handleShareAlbum}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -304,6 +308,8 @@ export default function AlbumDetailScreen() {
         {/* Action Controls */}
         <View style={styles.controlsRow}>
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={isAlbumPlaying ? "Pause album" : "Play album"}
             style={styles.playButton}
             onPress={handlePlayAlbum}
             activeOpacity={0.85}
@@ -317,6 +323,8 @@ export default function AlbumDetailScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Shuffle album"
             style={styles.secondaryButton}
             onPress={handleShuffleAlbum}
             activeOpacity={0.7}
@@ -325,6 +333,8 @@ export default function AlbumDetailScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Add album to queue"
             style={styles.secondaryButton}
             onPress={handleAddToQueue}
             activeOpacity={0.7}
@@ -440,6 +450,8 @@ export default function AlbumDetailScreen() {
 
                 {/* Heart Button */}
                 <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={isFavourited ? `Remove ${item.title} from favourites` : `Add ${item.title} to favourites`}
                   style={styles.trackActionBtn}
                   onPress={() => handleToggleFavourite(item)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}

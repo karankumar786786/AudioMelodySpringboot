@@ -217,6 +217,8 @@ export default function LyricsScreen() {
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Close lyrics"
             style={styles.headerBtn}
             onPress={() => router.back()}
             hitSlop={14}
@@ -346,6 +348,8 @@ export default function LyricsScreen() {
 
           <View style={styles.controlsRow}>
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Previous track"
               hitSlop={14}
               onPress={handlePrev}
               style={styles.dockIconBtn}
@@ -355,6 +359,8 @@ export default function LyricsScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={isPlaying ? "Pause" : "Play"}
               style={styles.dockPlayBtn}
               activeOpacity={0.88}
               onPress={handleTogglePlay}
@@ -372,6 +378,8 @@ export default function LyricsScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Next track"
               hitSlop={14}
               onPress={handleNext}
               style={styles.dockIconBtn}

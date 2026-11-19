@@ -52,6 +52,7 @@ export function PlaylistTrackItem({ song, onPress, onRemove }: PlaylistTrackItem
 
       {onRemove ? (
         <TouchableOpacity
+          accessibilityRole="button"
           style={styles.removeButton}
           onPress={(e) => {
             e.stopPropagation?.();
