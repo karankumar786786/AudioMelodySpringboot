@@ -8,7 +8,28 @@ export interface RadioResponse {
   recommId?: string;
 }
 
+/** Moods served by GET /recommendations/radio/mood (see coreEngine Recommendation/Mood.java). */
+export type Mood = "chill" | "workout" | "focus" | "happy" | "sad";
+
 export const recombeeService = {
+  /**
+   * Mood radio: songs whose audio features match the mood, ranked server-side
+   * with the user's recently played songs left out. Returns [] on failure.
+   */
+  async getMoodRadio(mood: Mood, count = 20): Promise<Song[]> {
+    try {
+      const response = await api.get<Song[]>(
+        `/recommendations/radio/mood?mood=${encodeURIComponent(mood)}&count=${count}`
+      );
+      if (Array.isArray(response.data)) {
+        return response.data.map((s) => normalizeSong(s, "api"));
+      }
+    } catch (err) {
+      console.warn(`[RecombeeService] Backend /recommendations/radio/mood failed for ${mood}:`, err);
+    }
+    return [];
+  },
+
   /**
    * Fetch similar songs for a clicked song from Spring Boot backend.
    */
