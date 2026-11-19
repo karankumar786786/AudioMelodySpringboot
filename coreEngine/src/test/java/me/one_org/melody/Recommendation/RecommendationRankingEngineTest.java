@@ -400,4 +400,38 @@ class RecommendationRankingEngineTest {
         assertThat(RecommendationRankingEngine.genreSeed(List.of())).isNull();
         assertThat(RecommendationRankingEngine.genreSeed(null)).isNull();
     }
+
+    @Test
+    @DisplayName("Audio-only seed (no seed song) ranks candidates by closeness to the target profile")
+    void shouldRankByAudioWhenSeedIsProfileOnly() {
+        AudioProfile chill = new AudioProfile(90.0, 0.3, 0.55, 0.45);
+        Song near = buildSongEntity("near", "Near", "Artist N", "Pop", null, "English");
+        near.setTempo(92.0); near.setEnergy(0.32); near.setValence(0.5); near.setDanceability(0.45);
+        Song far = buildSongEntity("far", "Far", "Artist F", "Pop", null, "English");
+        far.setTempo(140.0); far.setEnergy(0.95); far.setValence(0.9); far.setDanceability(0.9);
+
+        for (int i = 0; i < 20; i++) { // jitter (0..3) must never flip a ~28-point gap
+            List<SongDto> ranked = engine.rankAndDiversify(null, chill, List.of(), List.of(far, near), Set.of(), 2);
+            assertThat(ranked).extracting(SongDto::id).containsExactly("near", "far");
+        }
+    }
+
+    @Test
+    @DisplayName("DB candidates now carry stored features, so they score on real similarity, not neutral credit")
+    void shouldScoreDbCandidatesOnStoredFeatures() {
+        AudioProfile seed = new AudioProfile(120.0, 0.8, 0.6, 0.7);
+        Song stored = buildSongEntity("stored", "S", "Artist S", "Pop", null, "English");
+        stored.setTempo(120.0); stored.setEnergy(0.8); stored.setValence(0.6); stored.setDanceability(0.7);
+        Song unknown = buildSongEntity("unknown", "U", "Artist U", "Pop", null, "English");
+
+        assertThat(engine.scoreAudioFeatures(SongDto.fromEntity(stored), seed)).isEqualTo(15.0);
+        assertThat(engine.scoreAudioFeatures(SongDto.fromEntity(unknown), seed)).isEqualTo(7.5);
+    }
+
+    @Test
+    @DisplayName("Without seed song or seed audio, scoring stays Recombee + popularity only")
+    void shouldKeepNoSeedScoringDeterministicWithoutAudio() {
+        SongDto cand = withAudio("x", 120.0, 0.8, 0.6, 0.7);
+        assertThat(engine.scoreCandidate(cand, null, null, 0)).isEqualTo(50.0);
+    }
 }

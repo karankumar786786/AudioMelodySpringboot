@@ -77,4 +77,31 @@ class SongDtoTest {
         assertThat(dto.id()).isEqualTo("song-2");
         assertThat(dto.totalStreams()).isEqualTo(7420L);
     }
+
+    @Test
+    @DisplayName("fromEntity maps stored audio features (V15) onto the DTO")
+    void shouldMapAudioFeaturesFromEntity() {
+        Song song = Song.builder().id("song-a").title("T").artistName("A").status(StatusEnum.ACTIVE)
+                .tempo(124.5).energy(0.81).valence(0.42).danceability(0.67).build();
+
+        SongDto dto = SongDto.fromEntity(song, true, 3L);
+
+        assertThat(dto.tempo()).isEqualTo(124.5);
+        assertThat(dto.energy()).isEqualTo(0.81);
+        assertThat(dto.valence()).isEqualTo(0.42);
+        assertThat(dto.danceability()).isEqualTo(0.67);
+        assertThat(dto.hasAudioFeatures()).isTrue();
+        assertThat(dto.isLiked()).isTrue();
+    }
+
+    @Test
+    @DisplayName("fromEntity leaves audio features null for songs not yet analysed")
+    void shouldLeaveAudioFeaturesNullWhenEntityHasNone() {
+        SongDto dto = SongDto.fromEntity(Song.builder().id("song-b").build());
+        assertThat(dto.tempo()).isNull();
+        assertThat(dto.energy()).isNull();
+        assertThat(dto.valence()).isNull();
+        assertThat(dto.danceability()).isNull();
+        assertThat(dto.hasAudioFeatures()).isFalse();
+    }
 }

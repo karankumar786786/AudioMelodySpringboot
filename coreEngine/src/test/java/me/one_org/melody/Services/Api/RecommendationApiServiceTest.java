@@ -427,4 +427,65 @@ class RecommendationApiServiceTest {
             assertThat(dto.energy()).isEqualTo(0.7);
         });
     }
+
+    @Test
+    @DisplayName("Radio uses the seed song's stored features and skips the Recombee profile lookup")
+    void shouldUseStoredSeedFeaturesWithoutRecombeeLookup() {
+        SongsRepository mockSongsRepo = mock(SongsRepository.class);
+        RecommendationRankingEngine mockRankingEngine = mock(RecommendationRankingEngine.class);
+        RecommendationApiService service = new RecommendationApiService(
+                recombee, mockSongsRepo, null, null, mockRankingEngine);
+
+        Song seed = Song.builder().id("seed").genre("Rock").status(StatusEnum.ACTIVE)
+                .tempo(118.0).energy(0.7).valence(0.4).danceability(0.6).build();
+        when(mockSongsRepo.findById("seed")).thenReturn(Optional.of(seed));
+        when(mockRankingEngine.rankAndDiversify(any(), any(), any(), any(), any(), anyInt()))
+                .thenReturn(List.of(SongDto.fromEntity(Song.builder().id("r1").build())));
+
+        service.recommendRadio("seed", List.of(), 5);
+        service.recommendRadioSession("seed", List.of(), 5);
+
+        verify(recombee, never()).getAudioProfile(anyString());
+        verify(mockRankingEngine, times(2)).rankAndDiversify(
+                eq(seed), eq(new AudioProfile(118.0, 0.7, 0.4, 0.6)), any(), any(), any(), eq(5));
+    }
+
+    @Test
+    @DisplayName("Seed profile falls back to Recombee only when the song row has no features")
+    void shouldFallBackToRecombeeProfileWhenSeedHasNoFeatures() {
+        RecommendationApiService service = new RecommendationApiService(recombee);
+        AudioProfile remote = new AudioProfile(100.0, 0.5, 0.5, 0.5);
+        when(recombee.getAudioProfile("bare")).thenReturn(remote);
+
+        assertThat(service.seedAudioProfile(Song.builder().id("bare").build())).isEqualTo(remote);
+        assertThat(service.seedAudioProfile(RecommendationRankingEngine.genreSeed(List.of("pop")))).isNull();
+        verify(recombee, times(1)).getAudioProfile(anyString());
+    }
+
+    @Test
+    @DisplayName("Home feed keeps a song's stored features over the ones Recombee returned")
+    void shouldPreferStoredCandidateFeaturesOverRecombee() throws Exception {
+        SongsRepository mockSongsRepo = mock(SongsRepository.class);
+        RecommendationRankingEngine mockRankingEngine = mock(RecommendationRankingEngine.class);
+        RecommendationApiService service = new RecommendationApiService(
+                recombee, mockSongsRepo, null, null, mockRankingEngine);
+
+        Map<String, AudioProfile> recMap = new LinkedHashMap<>();
+        recMap.put("rec-1", new AudioProfile(60.0, 0.1, 0.1, 0.1));
+        when(recombee.recommendForUserWithAudio(eq("user-1"), anyInt())).thenReturn(recMap);
+        Song rec1 = Song.builder().id("rec-1").status(StatusEnum.ACTIVE).tempo(128.0).energy(0.9).build();
+        when(mockSongsRepo.findAllByIds(List.of("rec-1"))).thenReturn(List.of(rec1));
+        when(mockSongsRepo.findActiveSongs(any())).thenReturn(List.of());
+        when(mockRankingEngine.rankAndDiversify(any(), any(), any(), any(), any(), anyInt())).thenReturn(List.of());
+
+        service.recommendForUser("user-1", 5);
+
+        @SuppressWarnings("unchecked")
+        org.mockito.ArgumentCaptor<List<SongDto>> captor = org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(mockRankingEngine).rankAndDiversify(isNull(), isNull(), captor.capture(), any(), any(), eq(5));
+        assertThat(captor.getValue()).singleElement().satisfies(dto -> {
+            assertThat(dto.tempo()).isEqualTo(128.0);
+            assertThat(dto.energy()).isEqualTo(0.9);
+        });
+    }
 }
