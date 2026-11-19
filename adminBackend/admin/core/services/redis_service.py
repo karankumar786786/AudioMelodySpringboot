@@ -339,22 +339,49 @@ class RedisService:
 
         return None
 
+    # Renew a session at most this often. Every admin request used to renew it (a GET
+    # and a SETEX), and Upstash bills per command; a 7-day window loses nothing by being
+    # renewed every 10 minutes, and lastActivityAt stays accurate to 10 minutes.
+    SESSION_TOUCH_INTERVAL_SECONDS = 600
+
     @classmethod
-    def touch_admin_session(cls, session_id: str, sliding_window_ttl: int = 7 * 86400) -> None:
+    def touch_admin_session(
+        cls,
+        session_id: str,
+        sliding_window_ttl: int = 7 * 86400,
+        session: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """
         Refreshes the session's lastActivityAt timestamp and resets its TTL in Redis.
+
+        Pass the session already read for this request to skip a second GET. The write
+        is skipped when the session was renewed within SESSION_TOUCH_INTERVAL_SECONDS.
         """
         if not session_id:
             return
+        now = time.time()
+        if session is not None:
+            expires_at = session.get("expiresAt")
+            if isinstance(expires_at, (int, float)) and (
+                expires_at - now > sliding_window_ttl - cls.SESSION_TOUCH_INTERVAL_SECONDS
+            ):
+                return
         now_iso = datetime.now(timezone.utc).isoformat()
         try:
             r = cls.get_client()
-            raw = r.get(f"admin:session:{session_id}")
-            if raw and isinstance(raw, (str, bytes, bytearray)):
-                data = json.loads(raw)
-                data["lastActivityAt"] = now_iso
-                data["expiresAt"] = time.time() + sliding_window_ttl
+            data = session
+            if data is None:
+                raw = r.get(f"admin:session:{session_id}")
+                if raw and isinstance(raw, (str, bytes, bytearray)):
+                    data = json.loads(raw)
+            if data is not None:
+                data = {**data, "lastActivityAt": now_iso, "expiresAt": now + sliding_window_ttl}
                 r.setex(f"admin:session:{session_id}", sliding_window_ttl, json.dumps(data))
+                # Keep this worker's in-memory copy in step, or its stale expiresAt
+                # would trigger a renewal write on every later request.
+                if session_id in cls._MEMORY_SESSIONS:
+                    cls._MEMORY_SESSIONS[session_id]["lastActivityAt"] = now_iso
+                    cls._MEMORY_SESSIONS[session_id]["expiresAt"] = data["expiresAt"]
                 return
         except Exception:
             pass

@@ -141,7 +141,7 @@ class AdminSessionAuthentication(authentication.BaseAuthentication):
                 logger.debug("Database admin lookup during auth skipped: %s", e)
 
         # 6. Slide Redis session window and set request context
-        RedisService.touch_admin_session(session_id)
+        RedisService.touch_admin_session(session_id, session=session)
         request.session_id = session_id
 
         user = AdminUser(

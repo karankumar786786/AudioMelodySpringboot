@@ -18,6 +18,8 @@ import { JobDetailModal } from "./components/JobDetailModal";
 import { DeleteJobDetailModal } from "./components/DeleteJobDetailModal";
 import { RecoverJobMediaModal } from "./components/RecoverJobMediaModal";
 
+const JOBS_REFRESH_MS = 15_000;
+
 export default function JobMonitoringPage() {
   // Tab State: "INGESTION" | "DELETION"
   const [activeTab, setActiveTab] = useState<"INGESTION" | "DELETION">("INGESTION");
@@ -204,7 +206,10 @@ export default function JobMonitoringPage() {
     fetchData(true);
   }, [fetchData]);
 
-  // Live Auto-Refresh (every 4 seconds, quiet in background without flashing skeleton)
+  // Live auto-refresh, quiet in the background without flashing the skeleton.
+  // Each refresh is 3 API calls, and each call reads and renews the admin session in
+  // Redis (Upstash bills per command), so refresh every 15 s and only while the tab is
+  // visible. Coming back to the tab refreshes at once.
   useEffect(() => {
     if (!autoRefresh) {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -212,11 +217,17 @@ export default function JobMonitoringPage() {
     }
 
     timerRef.current = setInterval(() => {
-      fetchData(false);
-    }, 4000);
+      if (document.visibilityState === "visible") fetchData(false);
+    }, JOBS_REFRESH_MS);
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") fetchData(false);
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [autoRefresh, fetchData]);
 
@@ -469,7 +480,7 @@ export default function JobMonitoringPage() {
                 autoRefresh ? "bg-white animate-ping" : "bg-zinc-600"
               }`}
             />
-            <span>{autoRefresh ? "Live 4s" : "Paused"}</span>
+            <span>{autoRefresh ? `Live ${JOBS_REFRESH_MS / 1000}s` : "Paused"}</span>
           </button>
 
           {/* Manual Refresh */}
