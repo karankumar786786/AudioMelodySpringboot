@@ -1,0 +1,204 @@
+# One Melody — production alert rules for Uptrace (Uptrace YAML monitor format).
+#
+# Import: Uptrace → Alerting → Monitors → New monitor → "From YAML", paste ONE
+# monitor entry (or the whole list if your Uptrace version accepts it).
+# What each alert means and what to check first: infra/observability/README.md
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# NOTIFICATION CHANNEL — PLACEHOLDER, NOT CONFIGURED YET
+#   No email/Slack destination has been chosen. Until one is created in
+#   Uptrace → Alerting → Notification channels and attached to these monitors,
+#   alerts only show up in the Uptrace UI. See README.md "Connecting a channel".
+#   notification_channel: TODO_CHOOSE_EMAIL_OR_SLACK
+# ─────────────────────────────────────────────────────────────────────────────
+#
+# Conventions
+# - Uptrace writes OTel names with underscores: http.server.request.duration →
+#   http_server_request_duration, service.name → service_name.
+# - Evaluation resolution is 1 minute, so num_eval_points = minutes in the window;
+#   min_breach_points = num_eval_points means "every minute of the window breached".
+# - Service names come from OTEL_SERVICE_NAME: core-engine, admin-backend,
+#   audio-processing, mail-worker.
+# - Metric sources:
+#     uptrace_tracing_spans                  Uptrace's metric derived from spans (all traced services)
+#     http_server_request_duration (s)       OTel Java agent in coreEngine (http_route, http_response_status_code)
+#     audio_processing_runs / _steps         audioProcessing/lib/jobMetrics.ts
+#     audio_processing_heartbeats_received   adminBackend core/services/system_health_service.py
+#     mail_sent / mail_send_failures / mail_dlq_pushed / mail_queue_length
+#                                            workers/mailEvents/telemetry.ts
+
+monitors:
+  # ── 1. HTTP 5xx rate > 2% for 5 minutes, per service ──────────────────────
+  # Server spans get status "error" only for 5xx responses (4xx stay unset), so
+  # the error ratio of httpserver spans is the 5xx ratio. Fires per service_name.
+  - name: "HTTP 5xx rate > 2% (5m)"
+    type: threshold
+    metrics:
+      - uptrace_tracing_spans as $spans
+    query:
+      - histogram_count($spans{_status_code="error"}) / histogram_count($spans) as err_rate
+      - where _type = "httpserver"
+      - where service_name in ("core-engine", "admin-backend")
+      - group by service_name
+    column:
+      name: err_rate
+      unit: utilization
+    max_value: 0.02
+    num_eval_points: 5
+    min_breach_points: 5
+
+  # ── 2. p95 latency of core home / recommendation endpoints > 1.5s for 10m ──
+  # Routes (coreEngine controllers): GET /api/home/stream (SSE: the span covers the
+  # whole feed until the emitter completes), /api/recommendations/user,
+  # /api/recommendations/similar/{songId}, /api/recommendations/radio,
+  # /api/recommendations/radio/session.
+  - name: "Core home/recommendations p95 > 1.5s (10m)"
+    type: threshold
+    metrics:
+      - http_server_request_duration as $dur
+    query:
+      - p95($dur) as p95_dur
+      - where service_name = "core-engine"
+      - where http_route ~ "^/api/(home|recommendations)"
+      - group by http_route
+    column:
+      name: p95_dur
+      unit: seconds
+    max_value: 1.5
+    num_eval_points: 10
+    min_breach_points: 10
+
+  # ── 3. Any audio processing job failure ───────────────────────────────────
+  # outcome="failure" is only recorded once Inngest has exhausted retries.
+  - name: "Audio processing job failed"
+    type: threshold
+    metrics:
+      - audio_processing_runs as $runs
+    query:
+      - sum($runs{outcome="failure"}) as failed_runs
+      - group by function
+    column:
+      name: failed_runs
+      unit: "{run}"
+    max_value: 0
+    num_eval_points: 1
+    min_breach_points: 1
+
+  # Companion: a step that keeps retrying (flaky S3/ImageKit/coreEngine callback)
+  # before it turns into a failure. Lower urgency.
+  - name: "Audio processing step retries > 10/min"
+    type: threshold
+    metrics:
+      - audio_processing_steps as $steps
+    query:
+      - sum($steps{outcome="retry"}) as step_retries
+      - group by function, step
+    column:
+      name: step_retries
+      unit: "{step}"
+    max_value: 10
+    num_eval_points: 1
+    min_breach_points: 1
+
+  # ── 4. No audio-processing heartbeat for 3 minutes ────────────────────────
+  # audioProcessing POSTs a heartbeat every 10s (≈6/min). `default 0` turns
+  # empty buckets into zero so silence (worker down, admin down, auth/network
+  # failure) breaches instead of producing a gap.
+  - name: "No audio-processing heartbeat (3m)"
+    type: threshold
+    metrics:
+      - audio_processing_heartbeats_received as $hb
+    query:
+      - sum($hb) default 0 as heartbeats
+    column:
+      name: heartbeats
+      unit: "{heartbeat}"
+    min_value: 1
+    num_eval_points: 3
+    min_breach_points: 3
+
+  # ── 5. Mail: DLQ growth and send failures ────────────────────────────────
+  - name: "Mail moved to DLQ"
+    type: threshold
+    metrics:
+      - mail_dlq_pushed as $dlq
+    query:
+      - sum($dlq) as dlq_pushed
+      - group by reason
+    column:
+      name: dlq_pushed
+      unit: "{email}"
+    max_value: 0
+    num_eval_points: 1
+    min_breach_points: 1
+
+  - name: "Mail send failures > 5/min (5m)"
+    type: threshold
+    metrics:
+      - mail_send_failures as $fail
+    query:
+      - sum($fail) as send_failures
+    column:
+      name: send_failures
+      unit: "{attempt}"
+    max_value: 5
+    num_eval_points: 5
+    min_breach_points: 5
+
+  - name: "Mail queue backlog > 50 (10m)"
+    type: threshold
+    metrics:
+      - mail_queue_length as $len
+    query:
+      - max($len{queue!~"_dlq$"}) as backlog
+    column:
+      name: backlog
+      unit: "{job}"
+    max_value: 50
+    num_eval_points: 10
+    min_breach_points: 10
+
+  # ── 6. Restarts / crash loops (proxy) ─────────────────────────────────────
+  # Container restart counts are NOT collected (the collector has no Docker
+  # socket; see README "Container restarts"). These "went silent" monitors catch
+  # a crashed or crash-looping service instead.
+  # core-engine: Docker HEALTHCHECK hits /actuator/health every 30s → ≥2 spans/min.
+  # admin-backend: heartbeats + /health checks → ≥6 spans/min.
+  - name: "core-engine sent no spans (5m)"
+    type: threshold
+    metrics:
+      - uptrace_tracing_spans as $spans
+    query:
+      - histogram_count($spans{service_name="core-engine"}) default 0 as spans
+    column:
+      name: spans
+      unit: "{span}"
+    min_value: 1
+    num_eval_points: 5
+    min_breach_points: 5
+
+  - name: "admin-backend sent no spans (5m)"
+    type: threshold
+    metrics:
+      - uptrace_tracing_spans as $spans
+    query:
+      - histogram_count($spans{service_name="admin-backend"}) default 0 as spans
+    column:
+      name: spans
+      unit: "{span}"
+    min_value: 1
+    num_eval_points: 5
+    min_breach_points: 5
+
+  # mail-worker exports mail_queue_length every 15s while it is alive.
+  - name: "Mail worker silent (5m)"
+    type: threshold
+    metrics:
+      - mail_queue_length as $len
+    query:
+      - absent($len) as missing
+    column:
+      name: missing
+    max_value: 0
+    num_eval_points: 5
+    min_breach_points: 5

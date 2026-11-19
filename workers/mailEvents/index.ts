@@ -2,6 +2,7 @@ import { redis } from "./Redis";
 import { createMailProvider } from "./providers";
 import { blockTimeoutSeconds, createRedisStore, handleRawJob, MAX_BLOCK_SECONDS } from "./lib/queue";
 import { config } from "dotenv";
+import { startTelemetry, recordSent, recordFailure } from "./telemetry"; // metrics only
 config();
 
 const provider = createMailProvider();
@@ -29,6 +30,10 @@ const MAX_BLOCK = Math.min(Math.max(Number(process.env.QUEUE_BLOCK_TIMEOUT_SECS)
 
 ;(async (mailQueue: string) => {
     const store = createRedisStore(redis, mailQueue);
+    startTelemetry(async () => ({
+        [mailQueue]: await redis.llen(mailQueue),
+        [store.dlqKey]: await redis.llen(store.dlqKey),
+    }));
     console.log(
         `Mail worker started (provider: ${provider.name}). Listening on queue: "${mailQueue}", delayed: "${store.delayedKey}", DLQ: "${store.dlqKey}" (blocking wait up to ${MAX_BLOCK}s)`
     );
@@ -45,6 +50,9 @@ const MAX_BLOCK = Math.min(Math.max(Number(process.env.QUEUE_BLOCK_TIMEOUT_SECS)
             }
 
             const outcome = await handleRawJob(raw, { send: sendMail, isAuthError: (e) => provider.isAuthError(e), store });
+            if (outcome.kind === "sent") recordSent();
+            else if (outcome.kind === "retry") recordFailure("retry");
+            else if (outcome.kind === "dlq") recordFailure("dlq", outcome.reason === "auth" ? "auth" : "max_retries");
 
             if (outcome.kind === "dlq" && outcome.reason === "auth") {
                 // Credentials are rejected for every message, so pause the provider
