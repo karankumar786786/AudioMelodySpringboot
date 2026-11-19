@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from "react-native";
 import { GestureDetector } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
 import { songStyles as styles } from "@/styles";
+import { ShareSongButton } from "@/components/common/ShareSongButton";
 
 interface PlayerTopBarProps {
   album?: string | null;
@@ -54,6 +55,8 @@ export const PlayerTopBar = memo(function PlayerTopBar({
 
       {/* Right Actions: Settings & Queue */}
       <View style={styles.topBarRightActions}>
+        <ShareSongButton style={styles.topBarCircleBtn} />
+
         <TouchableOpacity
           style={styles.topBarCircleBtn}
           hitSlop={14}
