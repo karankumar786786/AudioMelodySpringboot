@@ -194,6 +194,7 @@ jobs:
         working-directory: ./workers/mailEvents
         run: |
           bun install --frozen-lockfile
+          bun test
           bun run build
 
   # =========================================================================
@@ -306,6 +307,10 @@ jobs:
       - name: Type Check
         working-directory: ./audioApp
         run: npx tsc --noEmit
+
+      - name: Unit Tests
+        working-directory: ./audioApp
+        run: npm test -- --ci
 
   # =========================================================================
   # 5. Selective Docker Build & Push (Only rebuilt when service files change)
