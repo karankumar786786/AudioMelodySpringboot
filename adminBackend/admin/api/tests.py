@@ -501,6 +501,18 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
             self.assertEqual(res_cookie_profile.status_code, 200)
             self.assertEqual(res_cookie_profile.json()["email"], "admin@example.com")
 
+            # 4b. The web app (X-Admin-Client: web) gets cookies only, no session IDs in bodies
+            res_cookie_profile_web = cookie_client.get("/api/user/profile", HTTP_X_ADMIN_CLIENT="web")
+            self.assertEqual(res_cookie_profile_web.status_code, 200)
+            self.assertNotIn("sessionId", res_cookie_profile_web.json())
+            self.assertIn("sessionId", res_cookie_profile.json())
+
+            # 4b. The web app (X-Admin-Client: web) gets cookies only, no session IDs in bodies
+            res_cookie_profile_web = cookie_client.get("/api/user/profile", HTTP_X_ADMIN_CLIENT="web")
+            self.assertEqual(res_cookie_profile_web.status_code, 200)
+            self.assertNotIn("sessionId", res_cookie_profile_web.json())
+            self.assertIn("sessionId", res_cookie_profile.json())
+
             # 5. POST /auth/logout revokes the session
             res_logout = cookie_client.post("/auth/logout")
             self.assertEqual(res_logout.status_code, 200)

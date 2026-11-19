@@ -1,3 +1,4 @@
+import hmac
 import logging
 from django.conf import settings
 from rest_framework import authentication, exceptions, permissions
@@ -14,6 +15,16 @@ def _get_admin_model():
         # pyrefly: ignore[missing-import]
         from accounts.models import Admin
         return Admin
+
+
+def _matches_any_key(provided: str, expected_keys) -> bool:
+    """Constant-time comparison against every configured key (no early exit)."""
+    provided_b = provided.encode("utf-8")
+    matched = False
+    for key in expected_keys:
+        if hmac.compare_digest(provided_b, str(key).encode("utf-8")):
+            matched = True
+    return matched
 
 
 class AdminUser:
@@ -66,11 +77,13 @@ class AdminSessionAuthentication(authentication.BaseAuthentication):
             getattr(settings, "APPLICATION_API_KEY", None),
         ]
         expected_keys = [k for k in expected_keys if k]
-        if api_key and api_key in expected_keys:
+        if api_key and _matches_any_key(api_key, expected_keys):
+            # Service callers (audioProcessing webhooks) only need ADMIN-level
+            # endpoints; SUPER_ADMIN stays reserved for human operators.
             user = AdminUser(
                 user_id="system-api",
                 email="system@internal",
-                role="SUPER_ADMIN",
+                role="ADMIN",
                 user_name="Internal Service Worker",
                 status="ACTIVE"
             )

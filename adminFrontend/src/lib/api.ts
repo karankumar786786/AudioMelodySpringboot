@@ -1,3 +1,4 @@
+import { withAdminHeaders } from "./adminFetch";
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -344,13 +345,14 @@ export const adminClient = {
       return { data: { token: data.tempToken } };
     },
     verifyOtp: async (token: string, otp: string, email: string) => {
-      // 1. Verify OTP with the real backend (sets HTTP-only session cookies)
+      // 1. Verify OTP with the real backend. It sets the HttpOnly session cookies and,
+      //    because of X-Admin-Client: web, leaves the session IDs out of the body.
       const verifyRes = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
         method: "POST",
-        headers: {
+        headers: withAdminHeaders({
           "Content-Type": "application/json",
           "X-TEMP-TOKEN": token,
-        },
+        }),
         body: JSON.stringify({ otp }),
         credentials: "include",
       });
@@ -359,16 +361,10 @@ export const adminClient = {
         try { const d = await verifyRes.json(); msg = d.message || msg; } catch {}
         throw new Error(msg);
       }
-      const verifyData = await verifyRes.json();
-      const sessionId = verifyData.sessionId || verifyData.accessToken;
-      const refreshSessionId = verifyData.refreshSessionId || verifyData.refreshToken;
 
-      // 2. Fetch user profile with the stateful Redis session
+      // 2. Fetch user profile using the session cookie
       const profileRes = await fetch(`${API_BASE_URL}/api/user/profile`, {
-        headers: {
-          "X-Session-Id": sessionId,
-          "Authorization": `Session ${sessionId}`,
-        },
+        headers: withAdminHeaders(),
         credentials: "include",
       });
 
@@ -380,19 +376,10 @@ export const adminClient = {
           email: profile.email,
           name: profile.userName || profile.name || "Admin",
           role: profile.role || "user",
-          sessionId: profile.sessionId || sessionId,
         };
       }
 
-      return {
-        data: {
-          sessionId,
-          refreshSessionId,
-          accessToken: sessionId,
-          refreshToken: refreshSessionId,
-          user,
-        },
-      };
+      return { data: { user } };
     },
     resendOtp: async (token: string, email: string) => {
       const res = await fetch(`${API_BASE_URL}/auth/resend-otp`, {
