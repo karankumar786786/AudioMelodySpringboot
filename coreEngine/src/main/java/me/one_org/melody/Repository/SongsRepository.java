@@ -547,6 +547,21 @@ public interface SongsRepository extends JpaRepository<Song, String> {
     @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND LOWER(s.language) = LOWER(:language) AND s.id NOT IN :excluded ORDER BY s.createdAt DESC")
     List<Song> findActiveByLanguageExcluding(@Param("language") String language, @Param("excluded") List<String> excluded, Pageable pageable);
 
+    /**
+     * Mood radio candidates: active songs whose stored energy and valence fall in the given ranges
+     * (served by idx_songs_active_energy_valence, V15). Songs with unknown tempo still qualify.
+     */
+    @EntityGraph(attributePaths = {"songMetadata"})
+    @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
+           "AND s.energy BETWEEN :minEnergy AND :maxEnergy " +
+           "AND s.valence BETWEEN :minValence AND :maxValence " +
+           "AND (s.tempo IS NULL OR s.tempo BETWEEN :minTempo AND :maxTempo) " +
+           "ORDER BY s.createdAt DESC")
+    List<Song> findActiveByAudioRange(@Param("minEnergy") double minEnergy, @Param("maxEnergy") double maxEnergy,
+                                      @Param("minValence") double minValence, @Param("maxValence") double maxValence,
+                                      @Param("minTempo") double minTempo, @Param("maxTempo") double maxTempo,
+                                      Pageable pageable);
+
     @EntityGraph(attributePaths = {"songMetadata"})
     @Query("SELECT s FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE AND (LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%'))) ORDER BY s.createdAt DESC")
     List<Song> findActiveByGenre(@Param("genre") String genre, Pageable pageable);
