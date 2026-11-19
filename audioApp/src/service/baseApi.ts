@@ -3,7 +3,7 @@ import { store } from "@/store/hook";
 import { saveAuthToken, clearAuthToken } from "@/store/authSlice";
 import { AuthStore } from "@/storage";
 import { Device } from "@/storage/Device";
-import { isOnline, reportRequestFailure } from "./network";
+import { isOnline, reportRequestFailure, reportRequestSuccess } from "./network";
 
 interface CustomRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
@@ -111,6 +111,7 @@ let refreshTokenPromise: Promise<string | null> | null = null;
 
 api.interceptors.response.use(
   (response) => {
+    reportRequestSuccess();
     return response;
   },
   async (error) => {
