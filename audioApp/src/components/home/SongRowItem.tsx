@@ -6,6 +6,7 @@ import { Song } from "@/types";
 import { getImageUrl } from "@/utils/imageUtils";
 import { formatDuration, formatSongSubtitle } from "@/utils/formatUtils";
 import { hapticFeedback } from "@/utils/haptics";
+import { splitHighlight } from "@/utils/lyricsMatch";
 import { colors, radius, spacing } from "@/theme";
 
 interface SongRowItemProps {
@@ -14,6 +15,8 @@ interface SongRowItemProps {
   isActive?: boolean;
   isPlaying?: boolean;
   onPress: () => void;
+  /** Algolia lyrics snippet (with <em> tags); shown as a third line when set. */
+  lyricsMatch?: string;
 }
 
 export function SongRowItem({
@@ -22,6 +25,7 @@ export function SongRowItem({
   isActive = false,
   isPlaying = false,
   onPress,
+  lyricsMatch,
 }: SongRowItemProps) {
   const imageUrl = getImageUrl(song.imageKey, {
     width: 160,
@@ -76,6 +80,21 @@ export function SongRowItem({
         <Text style={styles.subtitle} numberOfLines={1}>
           {formatSongSubtitle(song.artistName, song.album)}
         </Text>
+        {lyricsMatch ? (
+          <View
+            style={styles.lyricsRow}
+            accessibilityLabel={`Matched lyrics: ${splitHighlight(lyricsMatch).map((p) => p.text).join("")}`}
+          >
+            <Ionicons name="musical-notes-outline" size={11} color="#8E8E93" style={styles.lyricsIcon} />
+            <Text style={styles.lyricsText} numberOfLines={1}>
+              {splitHighlight(lyricsMatch).map((part, i) => (
+                <Text key={i} style={part.highlighted ? styles.lyricsHighlight : undefined}>
+                  {part.text}
+                </Text>
+              ))}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       <Text style={[styles.duration, isActive && styles.durationActive]}>
@@ -144,6 +163,25 @@ const styles = StyleSheet.create({
     fontSize: 12.5,
     color: "#8E8E93",
     fontWeight: "500",
+  },
+  lyricsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 3,
+  },
+  lyricsIcon: {
+    marginRight: 4,
+  },
+  lyricsText: {
+    flex: 1,
+    fontSize: 12,
+    fontStyle: "italic",
+    color: "#8E8E93",
+  },
+  lyricsHighlight: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontStyle: "normal",
   },
   duration: {
     fontSize: 12.5,

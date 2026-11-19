@@ -25,7 +25,8 @@ from jobs.models import Job
 # pyrefly: ignore[missing-import]
 from jobs.serializers import JobSerializer
 from .models import Artist, Playlist, PlaylistSong, Song
-from .serializers import ArtistSerializer, PlaylistSerializer, SongSerializer
+from .serializers import ArtistSerializer, CatalogHealthSongSerializer, PlaylistSerializer, SongSerializer
+from . import health as catalog_health
 
 logger = logging.getLogger(__name__)
 
@@ -923,3 +924,160 @@ class CatalogSyncHealthView(BaseAdminView):
             return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+
+
+# ==============================================================================
+# Catalog Health (/admin/catalog/health)
+# ==============================================================================
+
+MAX_HEALTH_BULK_SONGS = 200
+
+
+def _parse_song_ids(data):
+    ids = data.get("songIds") if isinstance(data, dict) else None
+    if not isinstance(ids, list) or not ids:
+        return None, Response({"error": "songIds must be a non-empty list"}, status=status.HTTP_400_BAD_REQUEST)
+    ids = list(dict.fromkeys(str(i).strip() for i in ids if str(i).strip()))
+    if len(ids) > MAX_HEALTH_BULK_SONGS:
+        return None, Response(
+            {"error": f"At most {MAX_HEALTH_BULK_SONGS} songs per request"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return ids, None
+
+
+class CatalogHealthView(BaseAdminView):
+    """GET summary counts + paginated songs with problems.
+
+    Query params: issue=<comma list of catalog_health.ISSUES> (default: any issue),
+    match=any|all, search, status=ACTIVE|INACTIVE|ALL (default ACTIVE), page (0-based), size.
+    """
+
+    def get(self, request):
+        try:
+            page = max(0, int(request.query_params.get("page", 0)))
+            size = min(100, max(1, int(request.query_params.get("size", 20))))
+        except (TypeError, ValueError):
+            return Response({"error": "page and size must be integers"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            issues = catalog_health.parse_issues(request.query_params.get("issue"))
+        except ValueError as e:
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        match = (request.query_params.get("match") or "any").lower()
+        if match not in ("any", "all"):
+            return Response({"error": "match must be 'any' or 'all'"}, status=status.HTTP_400_BAD_REQUEST)
+        status_param = (request.query_params.get("status") or "ACTIVE").strip().upper()
+        search = (request.query_params.get("search") or "").strip()
+
+        base = Song.objects.all()
+        if status_param != "ALL":
+            base = base.filter(status=status_param)
+        base = catalog_health.annotate_health(base)
+        summary = catalog_health.summarize(base)
+
+        qs = catalog_health.filter_by_issues(base, issues, match)
+        if search:
+            qs = qs.filter(Q(title__icontains=search) | Q(artist_name__icontains=search) | Q(album__icontains=search))
+        total = qs.count()
+        songs = list(qs.order_by("-created_at", "id")[page * size : page * size + size])
+
+        return Response(
+            {
+                "summary": summary,
+                "issues": catalog_health.ISSUES,
+                "content": CatalogHealthSongSerializer(songs, many=True).data,
+                "page": page,
+                "size": size,
+                "totalElements": total,
+                "totalPages": (total + size - 1) // size,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class CatalogHealthResyncView(BaseAdminView):
+    """POST {songIds: [...], targets?: ["algolia", "recombee"]} -> re-push selected ACTIVE songs."""
+
+    def post(self, request):
+        ids, error = _parse_song_ids(request.data)
+        if error:
+            return error
+        targets = request.data.get("targets") or ["algolia", "recombee"]
+        if not isinstance(targets, list) or not set(targets) <= {"algolia", "recombee"} or not targets:
+            return Response({"error": "targets must be a subset of ['algolia', 'recombee']"}, status=status.HTTP_400_BAD_REQUEST)
+
+        songs = list(Song.objects.filter(id__in=ids, status="ACTIVE").select_related("metadata"))
+        found = {s.id for s in songs}
+        skipped = [{"songId": i, "reason": "not found or not ACTIVE"} for i in ids if i not in found]
+        result = {"requested": len(ids), "skipped": skipped, "algolia": None, "recombee": None}
+        if not songs:
+            return Response(result, status=status.HTTP_200_OK)
+
+        jobs_map = CatalogSyncService.build_jobs_map(songs)
+        errors = {}
+        if "algolia" in targets:
+            try:
+                result["algolia"] = AlgoliaService.reindex_all_active_songs(songs, jobs_by_song_id=jobs_map)
+            except Exception as e:
+                errors["algolia"] = str(e)
+        if "recombee" in targets:
+            try:
+                result["recombee"] = RecombeeService.reindex_all_active_songs(songs, jobs_by_song_id=jobs_map)
+            except Exception as e:
+                errors["recombee"] = str(e)
+
+        # Record successful pushes on the songs' completed jobs so "notIndexed" clears.
+        # Counts of 0 mean the engine client isn't configured, so nothing is marked then.
+        song_ids = list(found)
+        completed_jobs = Job.objects.filter(Q(song_id__in=song_ids) | Q(id__in=[s.job_id for s in songs if s.job_id]), status="COMPLETED")
+        if result["algolia"] == len(songs):
+            completed_jobs.filter(saved_in_search=False).update(saved_in_search=True)
+        if result["recombee"] == len(songs):
+            completed_jobs.filter(saved_in_recommendation=False).update(saved_in_recommendation=True)
+
+        if errors:
+            result["errors"] = errors
+            return Response(result, status=status.HTTP_502_BAD_GATEWAY)
+        return Response(result, status=status.HTTP_200_OK)
+
+
+class CatalogHealthReprocessView(BaseAdminView):
+    """POST {songIds: [...]} -> retry each song's latest FAILED ingestion job.
+
+    Completed jobs can't be re-run: finalize deletes their temp uploads, so those songs
+    are skipped and need a new file via Songs Studio -> Reprocess audio.
+    """
+
+    def post(self, request):
+        # pyrefly: ignore[missing-import]
+        from jobs.views import requeue_job
+
+        ids, error = _parse_song_ids(request.data)
+        if error:
+            return error
+        songs = {s.id: s for s in Song.objects.filter(id__in=ids)}
+        jobs_by_song = {}
+        for job in Job.objects.filter(Q(song_id__in=list(songs)) | Q(id__in=[s.job_id for s in songs.values() if s.job_id])).order_by("-created_at"):
+            for s_id, s in songs.items():
+                if (job.song_id == s_id or job.id == s.job_id) and s_id not in jobs_by_song:
+                    jobs_by_song[s_id] = job
+
+        queued, skipped = [], []
+        for s_id in ids:
+            job = jobs_by_song.get(s_id)
+            if s_id not in songs:
+                skipped.append({"songId": s_id, "reason": "song not found"})
+            elif job is None:
+                skipped.append({"songId": s_id, "reason": "no ingestion job"})
+            elif job.status != "FAILED":
+                skipped.append({
+                    "songId": s_id,
+                    "jobId": job.id,
+                    "reason": f"latest job is {job.status}; upload new media via Reprocess audio instead",
+                })
+            elif requeue_job(job):
+                queued.append({"songId": s_id, "jobId": job.id})
+            else:
+                skipped.append({"songId": s_id, "jobId": job.id, "reason": "failed to dispatch to Inngest"})
+
+        return Response({"queued": queued, "skipped": skipped}, status=status.HTTP_200_OK)

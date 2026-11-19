@@ -12,6 +12,7 @@ import {
   ShieldAlert,
   ChevronRight,
   Sparkles,
+  Stethoscope,
 } from "lucide-react";
 
 interface NavItem {
@@ -37,6 +38,11 @@ const baseNavItems: NavItem[] = [
     name: "Processing",
     href: "/jobs",
     icon: Cpu,
+  },
+  {
+    name: "Catalog Health",
+    href: "/catalog-health",
+    icon: Stethoscope,
   },
   {
     name: "Artists",
