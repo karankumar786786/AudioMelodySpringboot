@@ -109,3 +109,63 @@ class SecuritySettingsTests(SimpleTestCase):
             AdminAuthService.notify_otp("admin@example.com", "LOGIN", otp)
         self.assertNotIn(otp, out.getvalue())
         self.assertFalse(any(otp in line for line in logs.output))
+
+
+class AdminSessionTouchTests(SimpleTestCase):
+    """The session is renewed at most every SESSION_TOUCH_INTERVAL_SECONDS (each renewal costs Redis commands)."""
+
+    TTL = 7 * 86400
+
+    def setUp(self):
+        # pyrefly: ignore[missing-import]
+        from core.services.redis_service import RedisService
+
+        self.RedisService = RedisService
+        RedisService._MEMORY_SESSIONS.pop("sess-1", None)
+
+    def tearDown(self):
+        self.RedisService._MEMORY_SESSIONS.pop("sess-1", None)
+
+    def test_recently_renewed_session_is_not_written(self):
+        import time
+        from unittest.mock import patch
+
+        session = {"sessionId": "sess-1", "expiresAt": time.time() + self.TTL - 60}
+        with patch.object(self.RedisService, "get_client") as get_client:
+            self.RedisService.touch_admin_session("sess-1", session=session)
+        get_client.assert_not_called()
+
+    def test_due_session_is_written_once_without_a_second_get(self):
+        import json
+        import time
+        from unittest.mock import MagicMock, patch
+
+        session = {"sessionId": "sess-1", "email": "a@example.com", "expiresAt": time.time() + 3600}
+        self.RedisService._MEMORY_SESSIONS["sess-1"] = dict(session)
+        client = MagicMock()
+        with patch.object(self.RedisService, "get_client", return_value=client):
+            self.RedisService.touch_admin_session("sess-1", session=session)
+
+        client.get.assert_not_called()
+        client.setex.assert_called_once()
+        key, ttl, payload = client.setex.call_args.args
+        self.assertEqual(key, "admin:session:sess-1")
+        self.assertEqual(ttl, self.TTL)
+        written = json.loads(payload)
+        self.assertGreater(written["expiresAt"], time.time() + self.TTL - 5)
+        self.assertEqual(written["email"], "a@example.com")
+        # The worker's in-memory copy moves with it, so the next request skips the write.
+        self.assertEqual(self.RedisService._MEMORY_SESSIONS["sess-1"]["expiresAt"], written["expiresAt"])
+
+    def test_without_session_data_it_reads_then_writes(self):
+        import json
+        import time
+        from unittest.mock import MagicMock, patch
+
+        client = MagicMock()
+        client.get.return_value = json.dumps({"sessionId": "sess-1", "expiresAt": time.time() + 3600})
+        with patch.object(self.RedisService, "get_client", return_value=client):
+            self.RedisService.touch_admin_session("sess-1")
+
+        client.get.assert_called_once_with("admin:session:sess-1")
+        client.setex.assert_called_once()
