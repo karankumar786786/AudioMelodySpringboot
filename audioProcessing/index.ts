@@ -20,7 +20,6 @@ import { deleteFromRecombee } from "./functions/deleteFromRecombee";
 import { deleteFromImageKit } from "./functions/deleteFromImageKit";
 import { deleteFromS3 } from "./functions/deleteFromS3";
 import { finalizeDelete } from "./functions/finalizeDelete";
-import { fetchCancelEventsFromList } from "./jobseeker/cancelWorker";
 import {
   setupGracefulShutdownCleanup,
   cleanupStaleTmpFiles,
@@ -200,9 +199,10 @@ app.listen(5010, () => {
   );
 
   // Start bidirectional telemetry heartbeat worker to adminBackend
-  startHeartbeatWorker(10000);
-
-  // Still observe cancel events if any in queue
-  fetchCancelEventsFromList();
+  // Every 60 s: the admin dashboard only needs "alive in the last few minutes", and each
+  // heartbeat costs a Redis write on the admin side (Upstash bills per command).
+  // Cancellation needs no Redis worker: the admin API and POST /cancel send
+  // audio/job.cancel to Inngest, and every job function lists it in cancelOn.
+  startHeartbeatWorker(60000);
 });
 
