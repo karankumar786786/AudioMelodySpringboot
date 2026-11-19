@@ -18,6 +18,7 @@ export * from "./home/WatchVideoCard";
 export * from "./home/ShortsPreviewCard";
 export * from "./home/SongRowItem";
 export * from "./home/TrendingSongCard";
+export * from "./home/MoodChips";
 export * from "./player/FullVideoPlayerModal";
 export * from "./player/MiniPlayer";
 export * from "./player/PlayerSettingsModal";
