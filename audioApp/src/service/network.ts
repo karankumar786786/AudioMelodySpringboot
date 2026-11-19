@@ -59,6 +59,26 @@ export function reportRequestFailure(kind: RequestFailureKind): void {
   });
 }
 
+type SuccessListener = () => void;
+const successListeners = new Set<SuccessListener>();
+
+/** Called by the API layer on any successful response, so failure messages can clear. */
+export function reportRequestSuccess(): void {
+  if (successListeners.size === 0) return;
+  successListeners.forEach((listener) => {
+    try {
+      listener();
+    } catch {}
+  });
+}
+
+export function subscribeToRequestSuccess(listener: SuccessListener): () => void {
+  successListeners.add(listener);
+  return () => {
+    successListeners.delete(listener);
+  };
+}
+
 export function subscribeToRequestFailures(listener: FailureListener): () => void {
   failureListeners.add(listener);
   return () => {

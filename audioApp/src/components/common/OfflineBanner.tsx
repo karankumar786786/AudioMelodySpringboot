@@ -3,9 +3,14 @@ import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { onlineManager } from "@tanstack/react-query";
-import { subscribeToRequestFailures, RequestFailureKind } from "@/service/network";
+import {
+  subscribeToRequestFailures,
+  subscribeToRequestSuccess,
+  RequestFailureKind,
+} from "@/service/network";
 
-const FAILURE_MESSAGE_MS = 4000;
+// A failure message stays until a request succeeds, or at most this long.
+const FAILURE_MESSAGE_MAX_MS = 8000;
 
 function useIsOnline(): boolean {
   const [online, setOnline] = useState(() => onlineManager.isOnline());
@@ -16,7 +21,7 @@ function useIsOnline(): boolean {
 /**
  * Small, non-blocking banner pinned to the top of the screen.
  * - Offline: stays up until the connection returns.
- * - Online but a request failed after retries: shows briefly, then hides.
+ * - Online but a request failed after retries: shows until a request succeeds (max 8s).
  * It never intercepts touches.
  */
 export function OfflineBanner() {
@@ -29,10 +34,15 @@ export function OfflineBanner() {
     const unsubscribe = subscribeToRequestFailures((kind) => {
       setFailure(kind);
       if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => setFailure(null), FAILURE_MESSAGE_MS);
+      timer.current = setTimeout(() => setFailure(null), FAILURE_MESSAGE_MAX_MS);
+    });
+    const unsubscribeSuccess = subscribeToRequestSuccess(() => {
+      if (timer.current) clearTimeout(timer.current);
+      setFailure(null);
     });
     return () => {
       unsubscribe();
+      unsubscribeSuccess();
       if (timer.current) clearTimeout(timer.current);
     };
   }, []);
