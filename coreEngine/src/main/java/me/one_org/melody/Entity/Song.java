@@ -64,6 +64,16 @@ public class Song{
     @Column(name = "job_id")
     private String jobId;
 
+    // Audio features (Flyway V15), copied from the producing job; null until analysed.
+    // Tempo is BPM; energy, valence and danceability are 0..1.
+    private Double tempo;
+
+    private Double energy;
+
+    private Double valence;
+
+    private Double danceability;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private StatusEnum status;
@@ -82,7 +92,8 @@ public class Song{
     public Song(String id, String title, String artistName, Integer duration, String songKey, String imageKey,
                 String videoKey, String fullVideoKey, Integer previewStartTime, Integer previewEndTime,
                 Boolean isFeatured, String language, String genre, String album, String country, String lrclibId, String jobId,
-                StatusEnum status, SongMetadata songMetadata, LocalDateTime createdAt) {
+                StatusEnum status, SongMetadata songMetadata, LocalDateTime createdAt,
+                Double tempo, Double energy, Double valence, Double danceability) {
         super();
         this.id = id;
         this.title = title;
@@ -104,5 +115,9 @@ public class Song{
         this.status = status;
         this.songMetadata = songMetadata;
         this.createdAt = createdAt;
+        this.tempo = tempo;
+        this.energy = energy;
+        this.valence = valence;
+        this.danceability = danceability;
     }
 }

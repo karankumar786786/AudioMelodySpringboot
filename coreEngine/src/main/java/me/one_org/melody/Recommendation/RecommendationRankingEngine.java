@@ -265,6 +265,13 @@ public class RecommendationRankingEngine {
                 score += Math.max(10.0, 50.0 - (recombeeRank * 2.0));
             }
             score += computeStreamBoost(candidate.totalStreams());
+            // Audio-only seed (e.g. mood radio): how a track sounds is the main signal, so audio
+            // affinity is doubled (up to 30 pts) to outweigh popularity (up to 10), plus jitter
+            // so the same mood doesn't replay an identical queue.
+            if (seedAudio != null && seedAudio.hasAny()) {
+                score += AUDIO_ONLY_SEED_MULTIPLIER * scoreAudioFeatures(candidate, seedAudio);
+                score += java.util.concurrent.ThreadLocalRandom.current().nextDouble(0.0, 3.0);
+            }
             return score;
         }
 
@@ -403,6 +410,8 @@ public class RecommendationRankingEngine {
     static final double FEATURE_TOLERANCE = 0.4;
     /** Share of a feature's weight given when the candidate's value is unknown. */
     static final double UNKNOWN_CREDIT = 0.5;
+    /** Audio affinity multiplier when the seed is a bare {@link AudioProfile} (no seed song). */
+    static final double AUDIO_ONLY_SEED_MULTIPLIER = 2.0;
 
     private double computeStreamBoost(Long streams) {
         if (streams == null || streams <= 0) return 0.0;
@@ -416,8 +425,9 @@ public class RecommendationRankingEngine {
      * P1: Audio feature affinity — how close the candidate sounds to the seed.
      * Tempo is worth up to 3 pts; energy, valence and danceability up to 4 pts each (15 max).
      * Each feature scores linearly from full weight (identical) to 0 (difference ≥ tolerance).
-     * Features the seed lacks are skipped. Features the candidate lacks (e.g. DB-only candidates)
-     * get neutral half credit, so candidates aren't favoured merely for having audio data.
+     * Features the seed lacks are skipped. Features the candidate lacks (songs not yet analysed,
+     * since DB candidates now carry their stored features) get neutral half credit, so
+     * candidates aren't favoured merely for having audio data.
      */
     double scoreAudioFeatures(SongDto candidate, AudioProfile seed) {
         if (candidate == null || seed == null || !seed.hasAny()) return 0.0;
