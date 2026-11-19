@@ -12,16 +12,24 @@ interface MailJob {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const MAX_RETRIES = 3;
-const EMPTY_QUEUE_DELAY_MS = Number(process.env.QUEUE_EMPTY_DELAY_MS) || 2000;
-const POLL_TIMEOUT_SECONDS = Number(process.env.QUEUE_POLL_TIMEOUT_SECS) || 2;
+const ERROR_BACKOFF_MS = 5000;
+
+// Upstash bills every command, including a BLPOP that times out empty. One long
+// blocking wait keeps an idle worker at about one command a minute while still
+// picking up a new job the moment it is pushed. Clamped so a small value in an old
+// env file (the previous QUEUE_POLL_TIMEOUT_SECS=2) can't bring back fast polling.
+const BLOCK_TIMEOUT_SECONDS = Math.min(
+    Math.max(Number(process.env.QUEUE_BLOCK_TIMEOUT_SECS) || 55, 30),
+    300,
+);
 
 ;(async (mailQueue: string) => {
     const dlqQueue = `${mailQueue}_dlq`;
-    console.log(`Mail worker started. Listening on queue: "${mailQueue}", DLQ: "${dlqQueue}" (idle wait: ${EMPTY_QUEUE_DELAY_MS}ms)`);
+    console.log(`Mail worker started. Listening on queue: "${mailQueue}", DLQ: "${dlqQueue}" (blocking wait: ${BLOCK_TIMEOUT_SECONDS}s)`);
 
     while (true) {
         try {
-            const result = await redis.blpop(mailQueue, POLL_TIMEOUT_SECONDS);
+            const result = await redis.blpop(mailQueue, BLOCK_TIMEOUT_SECONDS);
             if (result && result[1]) {
                 let data: MailJob;
                 try {
@@ -63,13 +71,11 @@ const POLL_TIMEOUT_SECONDS = Number(process.env.QUEUE_POLL_TIMEOUT_SECS) || 2;
                         await redis.rpush(mailQueue, JSON.stringify(data));
                     }
                 }
-            } else {
-                // Queue is empty: back off for 1-3 seconds to prevent continuous polling
-                await sleep(EMPTY_QUEUE_DELAY_MS);
             }
+            // An empty result means BLPOP already waited BLOCK_TIMEOUT_SECONDS; loop straight back.
         } catch (error) {
             console.error("Mail worker poll error:", error);
-            await sleep(EMPTY_QUEUE_DELAY_MS);
+            await sleep(ERROR_BACKOFF_MS);
         }
     }
 })(process.env.MAIL_QUEUE || "mail_queue");
