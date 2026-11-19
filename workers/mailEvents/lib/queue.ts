@@ -29,6 +29,20 @@ export interface MailQueueStore {
     pushDlq(entry: DlqEntry): Promise<void>;
     /** Move delayed jobs whose time has come back onto the ready queue. Returns how many moved. */
     promoteDue(now: number): Promise<number>;
+    /** When the earliest delayed retry becomes due (ms epoch), or null if none is waiting. */
+    nextDueAt?(): Promise<number | null>;
+}
+
+/** Longest single BLPOP while idle. Upstash bills every command, so idle waits are long. */
+export const MAX_BLOCK_SECONDS = 55;
+
+/**
+ * How long the next BLPOP may block: the full idle wait, but never past the moment a
+ * delayed retry becomes due, so retries still run on time.
+ */
+export function blockTimeoutSeconds(now: number, nextDueAt: number | null, maxSeconds = MAX_BLOCK_SECONDS): number {
+    if (nextDueAt === null) return maxSeconds;
+    return Math.min(maxSeconds, Math.max(1, Math.ceil((nextDueAt - now) / 1000)));
 }
 
 export type SendFn = (to: string, subject: string, body: string) => Promise<unknown>;
@@ -139,7 +153,7 @@ end
 return #due
 `;
 
-export function createRedisStore(redis: Redis, queue: string): MailQueueStore & { delayedKey: string; dlqKey: string } {
+export function createRedisStore(redis: Redis, queue: string): MailQueueStore & { delayedKey: string; dlqKey: string; nextDueAt(): Promise<number | null> } {
     const delayedKey = `${queue}_delayed`;
     const dlqKey = `${queue}_dlq`;
     return {
@@ -159,6 +173,10 @@ export function createRedisStore(redis: Redis, queue: string): MailQueueStore & 
         async promoteDue(now) {
             const moved = await redis.eval(PROMOTE_SCRIPT, 2, delayedKey, queue, String(now), "100");
             return Number(moved) || 0;
+        },
+        async nextDueAt() {
+            const first = await redis.zrange(delayedKey, "0", "0", "WITHSCORES");
+            return first.length >= 2 ? Number(first[1]) : null;
         },
     };
 }

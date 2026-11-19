@@ -1,5 +1,5 @@
 import { describe, it, expect, spyOn, afterEach } from "bun:test";
-import { handleRawJob, parseJob, buildDlqEntry, retryDelayMs, type MailJob, type MailQueueStore, type DlqEntry } from "../lib/queue";
+import { blockTimeoutSeconds, handleRawJob, parseJob, buildDlqEntry, retryDelayMs, type MailJob, type MailQueueStore, type DlqEntry } from "../lib/queue";
 
 class MemoryStore implements MailQueueStore {
     ready: string[] = [];
@@ -108,5 +108,18 @@ describe("mail queue handling", () => {
         expect(retryDelayMs(1)).toBe(5000);
         expect(retryDelayMs(2)).toBe(10000);
         expect(retryDelayMs(5)).toBe(30000);
+    });
+});
+
+describe("blockTimeoutSeconds", () => {
+    it("waits the full idle time when no retry is waiting", () => {
+        expect(blockTimeoutSeconds(1_000, null, 55)).toBe(55);
+    });
+    it("wakes in time for the next due retry", () => {
+        expect(blockTimeoutSeconds(0, 7_200, 55)).toBe(8);
+    });
+    it("never blocks less than 1 s or more than the cap", () => {
+        expect(blockTimeoutSeconds(10_000, 5_000, 55)).toBe(1);
+        expect(blockTimeoutSeconds(0, 600_000, 55)).toBe(55);
     });
 });

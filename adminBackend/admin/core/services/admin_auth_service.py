@@ -42,13 +42,18 @@ class AdminAuthService:
     def decode_temp_token(cls, temp_token: str) -> Optional[Dict[str, Any]]:
         if not temp_token:
             return None
-        try:
-            r = RedisService.get_client()
-            raw = r.get(f"admin:temp_token:{temp_token}")
-            if raw:
-                return json.loads(raw)
-        except Exception:
-            pass
+        if not RedisService._memory_store_only():
+            # Redis is the source of truth; this worker's copy is only for when Redis is
+            # down. Otherwise a token used up on another worker would still work here.
+            try:
+                raw = RedisService.get_client().get(f"admin:temp_token:{temp_token}")
+            except Exception:
+                pass
+            else:
+                if raw:
+                    return json.loads(raw)
+                cls._MEMORY_TEMP_TOKENS.pop(temp_token, None)
+                return None
         cached = cls._MEMORY_TEMP_TOKENS.get(temp_token)
         if cached and cached.get("expiresAt", 0) > time.time():
             return cached
@@ -72,13 +77,19 @@ class AdminAuthService:
     def get_otp(cls, email: str) -> Optional[Dict[str, Any]]:
         norm_email = email.strip().lower()
         key = f"admin:otp:{norm_email}"
-        try:
-            r = RedisService.get_client()
-            raw = r.get(key)
-            if raw:
-                return json.loads(raw)
-        except Exception:
-            pass
+        if not RedisService._memory_store_only():
+            # Redis is the source of truth. Falling back to this worker's copy when the
+            # key is gone let a used or locked-out OTP work again here, with its failed
+            # attempt count reset. The copy is only for when Redis is down.
+            try:
+                raw = RedisService.get_client().get(key)
+            except Exception:
+                pass
+            else:
+                if raw:
+                    return json.loads(raw)
+                cls._MEMORY_OTP_CACHE.pop(norm_email, None)
+                return None
         cached = cls._MEMORY_OTP_CACHE.get(norm_email)
         if cached:
             if cached.get("expires_at", 0) > time.time():
