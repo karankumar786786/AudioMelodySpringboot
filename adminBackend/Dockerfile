@@ -66,5 +66,8 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=15s \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Start Gunicorn WSGI server
-CMD ["gunicorn", "admin.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--threads", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]
+# Start Gunicorn WSGI server.
+# --no-control-socket: gunicorn >=25.1 opens a gunicornc control socket under
+# $HOME/.gunicorn by default; appuser is a system user without a home dir, which
+# logged "Control server error: Permission denied". We do not use gunicornc.
+CMD ["gunicorn", "admin.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--threads", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "--no-control-socket"]
