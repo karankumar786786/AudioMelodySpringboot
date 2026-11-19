@@ -52,7 +52,15 @@ const clearAuthToken = createAsyncThunk(
             console.warn("[clearAuthToken] Error clearing search history:", e);
         }
 
-        // 4. Clear auth tokens from SecureStore (device_id in SecureStore is preserved!)
+        try {
+            // 4. Drop the React Query cache, in memory and the copy persisted to AsyncStorage
+            const { clearQueryCache } = await import("@/service/queryClient");
+            await clearQueryCache();
+        } catch (e) {
+            console.warn("[clearAuthToken] Error clearing query cache:", e);
+        }
+
+        // 5. Clear auth tokens from SecureStore (device_id in SecureStore is preserved!)
         await AuthStore.clearAuthToken();
     }
 );

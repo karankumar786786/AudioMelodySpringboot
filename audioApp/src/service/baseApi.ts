@@ -3,9 +3,76 @@ import { store } from "@/store/hook";
 import { saveAuthToken, clearAuthToken } from "@/store/authSlice";
 import { AuthStore } from "@/storage";
 import { Device } from "@/storage/Device";
+import { isOnline, reportRequestFailure } from "./network";
 
 interface CustomRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean;
+  _networkRetryCount?: number;
+}
+
+// --- Retry with backoff for idempotent reads ----------------------------------
+const MAX_NETWORK_RETRIES = 2;
+const BASE_RETRY_DELAY_MS = 400;
+
+// Never auto-retry anything auth or OTP related (refresh, login, verify/resend OTP...).
+const NO_RETRY_PATTERN = /\/auth\/|otp/i;
+
+function isRetryableFailure(error: any): "network" | "server" | null {
+  if (axios.isCancel(error) || error?.code === "ERR_CANCELED") return null;
+  const status: number | undefined = error?.response?.status;
+  if (!error?.response) return "network"; // timeout, DNS, connection dropped
+  if (typeof status === "number" && status >= 500) return "server";
+  return null;
+}
+
+function canRetry(config: CustomRequestConfig | undefined): config is CustomRequestConfig {
+  if (!config) return false;
+  if ((config.method ?? "get").toLowerCase() !== "get") return false;
+  if (config.url && NO_RETRY_PATTERN.test(config.url)) return false;
+  return true;
+}
+
+function backoffDelay(attempt: number): number {
+  const exp = BASE_RETRY_DELAY_MS * 2 ** attempt;
+  return exp + Math.floor(Math.random() * BASE_RETRY_DELAY_MS);
+}
+
+/**
+ * Retries GETs on network errors and 5xx with exponential backoff.
+ * Returns the retried response, or null when the error should fall through.
+ */
+async function retryIdempotentRequest(error: any) {
+  const config = error?.config as CustomRequestConfig | undefined;
+  const kind = isRetryableFailure(error);
+  if (!kind) return null;
+  if (!canRetry(config)) {
+    reportRequestFailure(kind);
+    return null;
+  }
+
+  const attempt = config._networkRetryCount ?? 0;
+  // No point hammering the network while the device is offline; React Query
+  // refetches once the connection is back.
+  if (attempt >= MAX_NETWORK_RETRIES || !isOnline()) {
+    reportRequestFailure(kind);
+    return null;
+  }
+
+  config._networkRetryCount = attempt + 1;
+  await new Promise((resolve) => setTimeout(resolve, backoffDelay(attempt)));
+  return api(config);
+}
+
+/** A short, user-facing explanation for a failed request. */
+export function getRequestErrorMessage(error: unknown): string {
+  const e = error as any;
+  if (!isOnline()) return "You're offline. Connect to the internet and try again.";
+  if (!e?.response) return "Can't reach One Melody. Check your connection and try again.";
+  const status: number = e.response.status;
+  if (status >= 500) return "Something went wrong on our side. Please try again in a moment.";
+  const serverMessage = e.response.data?.message;
+  if (typeof serverMessage === "string" && serverMessage.trim()) return serverMessage;
+  return "That didn't work. Please try again.";
 }
 
 export const api = axios.create({
@@ -47,6 +114,9 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
+    const retried = await retryIdempotentRequest(error);
+    if (retried) return retried;
+
     const originalRequest = error.config as CustomRequestConfig | undefined;
 
     if (
