@@ -10,7 +10,9 @@ from django.db import connection
 logger = logging.getLogger(__name__)
 
 REDIS_TELEMETRY_KEY = "system:telemetry:audio_processing"
-TELEMETRY_TTL_SECONDS = 45
+# audioProcessing sends a heartbeat every 60 s; keep each one for 2.5 intervals so a
+# single late beat does not show the service as down.
+TELEMETRY_TTL_SECONDS = 150
 
 
 class SystemHealthService:
@@ -152,7 +154,7 @@ class SystemHealthService:
                     "memoryUsedMb": 0,
                     "activeJobs": 0,
                     "concurrencyLimit": 2,
-                    "error": ping_res.get("error", "No heartbeat received in last 45 seconds"),
+                    "error": ping_res.get("error", f"No heartbeat received in the last {TELEMETRY_TTL_SECONDS} seconds"),
                 }
 
         return {

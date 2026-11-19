@@ -1,6 +1,6 @@
 import { redis } from "./Redis";
 import { createMailProvider } from "./providers";
-import { createRedisStore, handleRawJob } from "./lib/queue";
+import { blockTimeoutSeconds, createRedisStore, handleRawJob, MAX_BLOCK_SECONDS } from "./lib/queue";
 import { config } from "dotenv";
 config();
 
@@ -17,23 +17,30 @@ async function sendMail(to: string, subject: string, text: string) {
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const EMPTY_QUEUE_DELAY_MS = Number(process.env.QUEUE_EMPTY_DELAY_MS) || 2000;
-const POLL_TIMEOUT_SECONDS = Number(process.env.QUEUE_POLL_TIMEOUT_SECS) || 2;
+const ERROR_BACKOFF_MS = 5000;
 const AUTH_FAILURE_PAUSE_MS = 30000;
+
+// Upstash bills every command, including a BLPOP that times out empty. One long
+// blocking wait keeps an idle worker at a few commands a minute while still picking up
+// a new job the moment it is pushed; the wait is cut short when a delayed retry is
+// due. Clamped so a small value in an old env file (the previous
+// QUEUE_POLL_TIMEOUT_SECS=2) can't bring back fast polling.
+const MAX_BLOCK = Math.min(Math.max(Number(process.env.QUEUE_BLOCK_TIMEOUT_SECS) || MAX_BLOCK_SECONDS, 30), 300);
 
 ;(async (mailQueue: string) => {
     const store = createRedisStore(redis, mailQueue);
     console.log(
-        `Mail worker started (provider: ${provider.name}). Listening on queue: "${mailQueue}", delayed: "${store.delayedKey}", DLQ: "${store.dlqKey}" (idle wait: ${EMPTY_QUEUE_DELAY_MS}ms)`
+        `Mail worker started (provider: ${provider.name}). Listening on queue: "${mailQueue}", delayed: "${store.delayedKey}", DLQ: "${store.dlqKey}" (blocking wait up to ${MAX_BLOCK}s)`
     );
 
     while (true) {
         try {
             await store.promoteDue(Date.now());
 
-            const raw = await store.pop(POLL_TIMEOUT_SECONDS);
+            const timeout = blockTimeoutSeconds(Date.now(), await store.nextDueAt(), MAX_BLOCK);
+            const raw = await store.pop(timeout);
             if (raw === null) {
-                await sleep(EMPTY_QUEUE_DELAY_MS);
+                // BLPOP already waited; loop straight back to promote any retry now due.
                 continue;
             }
 
@@ -49,7 +56,7 @@ const AUTH_FAILURE_PAUSE_MS = 30000;
             }
         } catch (error) {
             console.error("Mail worker poll error:", error);
-            await sleep(EMPTY_QUEUE_DELAY_MS);
+            await sleep(ERROR_BACKOFF_MS);
         }
     }
 })(process.env.MAIL_QUEUE || "mail_queue");

@@ -213,13 +213,18 @@ class RedisService:
             logger.warning("Failed to delete blocked user in Redis: %s", e)
 
     @classmethod
+    def _memory_store_only(cls) -> bool:
+        """True when sessions live only in this process (tests). See ADMIN_SESSION_STORE."""
+        return getattr(settings, "ADMIN_SESSION_STORE", "redis") == "memory"
+
+    @classmethod
     def is_user_blocked(cls, user_id: str) -> bool:
         if not user_id:
             return False
-        if user_id in cls._MEMORY_BLOCKED_USERS:
-            return True
-        if len(cls._MEMORY_SESSIONS) > 0:
-            return False
+        if cls._memory_store_only():
+            return user_id in cls._MEMORY_BLOCKED_USERS
+        # Redis is the source of truth: a block or unblock made by another worker must
+        # count here too. This worker's set is only a fallback while Redis is down.
         try:
             r = cls.get_client()
             return bool(r.exists(f"blocked_user:{user_id}"))
@@ -320,41 +325,85 @@ class RedisService:
         """
         if not session_id:
             return None
+        if cls._memory_store_only():
+            return cls._get_memory_session(session_id)
 
-        # Check in-memory sessions first (fast path for test suites and memory cache)
-        cached = cls._MEMORY_SESSIONS.get(session_id)
-        if cached:
-            if cached.get("expiresAt", 0) > time.time():
-                return cached
-            cls.revoke_admin_session(session_id)
-            return None
-
+        # Redis is the source of truth. Each gunicorn worker keeps its own memory copy of
+        # the sessions it created, so reading that copy first let a session revoked or
+        # logged out through another worker keep working here until it expired.
         try:
-            r = cls.get_client()
-            raw = r.get(f"admin:session:{session_id}")
-            if raw and isinstance(raw, (str, bytes, bytearray)):
-                return json.loads(raw)
+            raw = cls.get_client().get(f"admin:session:{session_id}")
         except Exception as e:
-            logger.debug("Redis error retrieving session: %s", e)
+            logger.warning("Redis unavailable reading admin session; using this worker's copy: %s", e)
+            return cls._get_memory_session(session_id)
 
+        if raw and isinstance(raw, (str, bytes, bytearray)):
+            return json.loads(raw)
+        # Gone from Redis means revoked or expired, whichever worker did it.
+        cls._forget_memory_session(session_id)
         return None
 
     @classmethod
-    def touch_admin_session(cls, session_id: str, sliding_window_ttl: int = 7 * 86400) -> None:
+    def _get_memory_session(cls, session_id: str) -> Optional[Dict[str, Any]]:
+        cached = cls._MEMORY_SESSIONS.get(session_id)
+        if not cached:
+            return None
+        if cached.get("expiresAt", 0) > time.time():
+            return cached
+        cls.revoke_admin_session(session_id)
+        return None
+
+    @classmethod
+    def _forget_memory_session(cls, session_id: str) -> None:
+        cached = cls._MEMORY_SESSIONS.pop(session_id, None)
+        if cached:
+            email = (cached.get("email") or "").lower()
+            if email in cls._MEMORY_USER_SESSIONS:
+                cls._MEMORY_USER_SESSIONS[email].discard(session_id)
+
+    # Renew a session at most this often. Every admin request used to renew it (a GET
+    # and a SETEX), and Upstash bills per command; a 7-day window loses nothing by being
+    # renewed every 10 minutes, and lastActivityAt stays accurate to 10 minutes.
+    SESSION_TOUCH_INTERVAL_SECONDS = 600
+
+    @classmethod
+    def touch_admin_session(
+        cls,
+        session_id: str,
+        sliding_window_ttl: int = 7 * 86400,
+        session: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """
         Refreshes the session's lastActivityAt timestamp and resets its TTL in Redis.
+
+        Pass the session already read for this request to skip a second GET. The write
+        is skipped when the session was renewed within SESSION_TOUCH_INTERVAL_SECONDS.
         """
         if not session_id:
             return
+        now = time.time()
+        if session is not None:
+            expires_at = session.get("expiresAt")
+            if isinstance(expires_at, (int, float)) and (
+                expires_at - now > sliding_window_ttl - cls.SESSION_TOUCH_INTERVAL_SECONDS
+            ):
+                return
         now_iso = datetime.now(timezone.utc).isoformat()
         try:
             r = cls.get_client()
-            raw = r.get(f"admin:session:{session_id}")
-            if raw and isinstance(raw, (str, bytes, bytearray)):
-                data = json.loads(raw)
-                data["lastActivityAt"] = now_iso
-                data["expiresAt"] = time.time() + sliding_window_ttl
+            data = session
+            if data is None:
+                raw = r.get(f"admin:session:{session_id}")
+                if raw and isinstance(raw, (str, bytes, bytearray)):
+                    data = json.loads(raw)
+            if data is not None:
+                data = {**data, "lastActivityAt": now_iso, "expiresAt": now + sliding_window_ttl}
                 r.setex(f"admin:session:{session_id}", sliding_window_ttl, json.dumps(data))
+                # Keep this worker's in-memory copy in step, or its stale expiresAt
+                # would trigger a renewal write on every later request.
+                if session_id in cls._MEMORY_SESSIONS:
+                    cls._MEMORY_SESSIONS[session_id]["lastActivityAt"] = now_iso
+                    cls._MEMORY_SESSIONS[session_id]["expiresAt"] = data["expiresAt"]
                 return
         except Exception:
             pass
@@ -465,13 +514,18 @@ class RedisService:
         """
         if not refresh_id:
             return None
-        try:
-            r = cls.get_client()
-            raw = r.get(f"admin:refresh:{refresh_id}")
-            if raw and isinstance(raw, (str, bytes, bytearray)):
-                return json.loads(raw)
-        except Exception as e:
-            logger.debug("Redis error retrieving refresh session: %s", e)
+        if not cls._memory_store_only():
+            # Redis is the source of truth: a refresh token revoked by another worker
+            # must not live on in this worker's memory copy.
+            try:
+                raw = cls.get_client().get(f"admin:refresh:{refresh_id}")
+            except Exception as e:
+                logger.warning("Redis unavailable reading refresh session; using this worker's copy: %s", e)
+            else:
+                if raw and isinstance(raw, (str, bytes, bytearray)):
+                    return json.loads(raw)
+                cls._MEMORY_REFRESH_SESSIONS.pop(refresh_id, None)
+                return None
 
         cached = cls._MEMORY_REFRESH_SESSIONS.get(refresh_id)
         if cached:
@@ -533,20 +587,20 @@ class RedisService:
         """
         if not session_id:
             return
-        if session_id in cls._MEMORY_SESSIONS:
-            cls._MEMORY_SESSIONS[session_id]["userName"] = new_name
-            return
-        try:
-            r = cls.get_client()
-            raw = r.get(f"admin:session:{session_id}")
-            if raw:
-                data = json.loads(raw)
-                data["userName"] = new_name
-                ttl = r.ttl(f"admin:session:{session_id}")
-                if ttl > 0:
-                    r.setex(f"admin:session:{session_id}", ttl, json.dumps(data))
-        except Exception:
-            pass
+        # Update Redis even when this worker has a memory copy, or the other workers
+        # keep serving the old name.
+        if not cls._memory_store_only():
+            try:
+                r = cls.get_client()
+                raw = r.get(f"admin:session:{session_id}")
+                if raw:
+                    data = json.loads(raw)
+                    data["userName"] = new_name
+                    ttl = r.ttl(f"admin:session:{session_id}")
+                    if ttl > 0:
+                        r.setex(f"admin:session:{session_id}", ttl, json.dumps(data))
+            except Exception:
+                pass
         if session_id in cls._MEMORY_SESSIONS:
             cls._MEMORY_SESSIONS[session_id]["userName"] = new_name
 

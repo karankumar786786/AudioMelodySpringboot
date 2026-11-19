@@ -145,3 +145,168 @@ class InternalApiKeyAuthenticationTests(SimpleTestCase):
         self.assertTrue(_matches_any_key("b", ["a", "b"]))
         self.assertFalse(_matches_any_key("c", ["a", "b"]))
         self.assertFalse(_matches_any_key("x", []))
+
+
+class AdminSessionTouchTests(SimpleTestCase):
+    """The session is renewed at most every SESSION_TOUCH_INTERVAL_SECONDS (each renewal costs Redis commands)."""
+
+    TTL = 7 * 86400
+
+    def setUp(self):
+        # pyrefly: ignore[missing-import]
+        from core.services.redis_service import RedisService
+
+        self.RedisService = RedisService
+        RedisService._MEMORY_SESSIONS.pop("sess-1", None)
+
+    def tearDown(self):
+        self.RedisService._MEMORY_SESSIONS.pop("sess-1", None)
+
+    def test_recently_renewed_session_is_not_written(self):
+        import time
+        from unittest.mock import patch
+
+        session = {"sessionId": "sess-1", "expiresAt": time.time() + self.TTL - 60}
+        with patch.object(self.RedisService, "get_client") as get_client:
+            self.RedisService.touch_admin_session("sess-1", session=session)
+        get_client.assert_not_called()
+
+    def test_due_session_is_written_once_without_a_second_get(self):
+        import json
+        import time
+        from unittest.mock import MagicMock, patch
+
+        session = {"sessionId": "sess-1", "email": "a@example.com", "expiresAt": time.time() + 3600}
+        self.RedisService._MEMORY_SESSIONS["sess-1"] = dict(session)
+        client = MagicMock()
+        with patch.object(self.RedisService, "get_client", return_value=client):
+            self.RedisService.touch_admin_session("sess-1", session=session)
+
+        client.get.assert_not_called()
+        client.setex.assert_called_once()
+        key, ttl, payload = client.setex.call_args.args
+        self.assertEqual(key, "admin:session:sess-1")
+        self.assertEqual(ttl, self.TTL)
+        written = json.loads(payload)
+        self.assertGreater(written["expiresAt"], time.time() + self.TTL - 5)
+        self.assertEqual(written["email"], "a@example.com")
+        # The worker's in-memory copy moves with it, so the next request skips the write.
+        self.assertEqual(self.RedisService._MEMORY_SESSIONS["sess-1"]["expiresAt"], written["expiresAt"])
+
+    def test_without_session_data_it_reads_then_writes(self):
+        import json
+        import time
+        from unittest.mock import MagicMock, patch
+
+        client = MagicMock()
+        client.get.return_value = json.dumps({"sessionId": "sess-1", "expiresAt": time.time() + 3600})
+        with patch.object(self.RedisService, "get_client", return_value=client):
+            self.RedisService.touch_admin_session("sess-1")
+
+        client.get.assert_called_once_with("admin:session:sess-1")
+        client.setex.assert_called_once()
+
+
+class AdminSessionStoreTests(SimpleTestCase):
+    """
+    With several gunicorn workers, Redis is the source of truth for sessions, refresh
+    sessions, blocks, OTPs and temp tokens. A worker's in-memory copy may only be used
+    while Redis is unreachable, never to revive something Redis says is gone.
+    """
+
+    def setUp(self):
+        import time
+
+        # pyrefly: ignore[missing-import]
+        from core.services.admin_auth_service import AdminAuthService
+        # pyrefly: ignore[missing-import]
+        from core.services.redis_service import RedisService
+
+        self.RedisService = RedisService
+        self.AdminAuthService = AdminAuthService
+        self.session = {"sessionId": "sess-x", "email": "a@example.com", "expiresAt": time.time() + 3600}
+        RedisService._MEMORY_SESSIONS["sess-x"] = dict(self.session)
+        RedisService._MEMORY_USER_SESSIONS.setdefault("a@example.com", set()).add("sess-x")
+        RedisService._MEMORY_REFRESH_SESSIONS["ref-x"] = {"refreshSessionId": "ref-x", "expiresAt": time.time() + 3600}
+        AdminAuthService._MEMORY_OTP_CACHE["a@example.com"] = {"otp_hash": "h", "expires_at": time.time() + 600}
+        AdminAuthService._MEMORY_TEMP_TOKENS["tmp-x"] = {"email": "a@example.com", "expiresAt": time.time() + 600}
+
+    def tearDown(self):
+        self.RedisService._MEMORY_SESSIONS.pop("sess-x", None)
+        self.RedisService._MEMORY_USER_SESSIONS.get("a@example.com", set()).discard("sess-x")
+        self.RedisService._MEMORY_REFRESH_SESSIONS.pop("ref-x", None)
+        self.AdminAuthService._MEMORY_OTP_CACHE.pop("a@example.com", None)
+        self.AdminAuthService._MEMORY_TEMP_TOKENS.pop("tmp-x", None)
+
+    def _redis(self, **kwargs):
+        from unittest.mock import MagicMock, patch
+
+        client = MagicMock(**kwargs)
+        return patch.object(self.RedisService, "get_client", return_value=client), client
+
+    def test_session_revoked_on_another_worker_is_rejected(self):
+        from django.test import override_settings
+
+        patcher, client = self._redis()
+        client.get.return_value = None
+        with override_settings(ADMIN_SESSION_STORE="redis"), patcher:
+            self.assertIsNone(self.RedisService.get_admin_session("sess-x"))
+        self.assertNotIn("sess-x", self.RedisService._MEMORY_SESSIONS)
+        self.assertNotIn("sess-x", self.RedisService._MEMORY_USER_SESSIONS["a@example.com"])
+
+    def test_session_read_from_redis_when_present(self):
+        import json
+        from django.test import override_settings
+
+        patcher, client = self._redis()
+        client.get.return_value = json.dumps({**self.session, "userName": "From Redis"})
+        with override_settings(ADMIN_SESSION_STORE="redis"), patcher:
+            session = self.RedisService.get_admin_session("sess-x")
+        self.assertEqual(session["userName"], "From Redis")
+
+    def test_memory_copy_used_only_while_redis_is_down(self):
+        from django.test import override_settings
+
+        patcher, client = self._redis()
+        client.get.side_effect = ConnectionError("redis down")
+        with override_settings(ADMIN_SESSION_STORE="redis"), patcher:
+            session = self.RedisService.get_admin_session("sess-x")
+        self.assertEqual(session["sessionId"], "sess-x")
+
+    def test_refresh_session_revoked_on_another_worker_is_rejected(self):
+        from django.test import override_settings
+
+        patcher, client = self._redis()
+        client.get.return_value = None
+        with override_settings(ADMIN_SESSION_STORE="redis"), patcher:
+            self.assertIsNone(self.RedisService.get_refresh_session("ref-x"))
+        self.assertNotIn("ref-x", self.RedisService._MEMORY_REFRESH_SESSIONS)
+
+    def test_block_set_by_another_worker_counts_even_with_local_sessions(self):
+        from django.test import override_settings
+
+        patcher, client = self._redis()
+        client.exists.return_value = 1
+        with override_settings(ADMIN_SESSION_STORE="redis"), patcher:
+            self.assertTrue(self.RedisService.is_user_blocked("user-x"))
+        client.exists.assert_called_once_with("blocked_user:user-x")
+
+    def test_used_otp_and_temp_token_are_not_revived_from_memory(self):
+        from django.test import override_settings
+
+        patcher, client = self._redis()
+        client.get.return_value = None
+        with override_settings(ADMIN_SESSION_STORE="redis"), patcher:
+            self.assertIsNone(self.AdminAuthService.get_otp("a@example.com"))
+            self.assertIsNone(self.AdminAuthService.decode_temp_token("tmp-x"))
+        self.assertNotIn("a@example.com", self.AdminAuthService._MEMORY_OTP_CACHE)
+        self.assertNotIn("tmp-x", self.AdminAuthService._MEMORY_TEMP_TOKENS)
+
+    def test_memory_store_never_calls_redis(self):
+        from django.test import override_settings
+
+        patcher, client = self._redis()
+        with override_settings(ADMIN_SESSION_STORE="memory"), patcher as get_client:
+            self.assertEqual(self.RedisService.get_admin_session("sess-x")["sessionId"], "sess-x")
+            self.assertFalse(self.RedisService.is_user_blocked("user-x"))
+        get_client.assert_not_called()

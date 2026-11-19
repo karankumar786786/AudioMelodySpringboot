@@ -26,6 +26,9 @@ import { audioPlayerPool, resolveStreamUrl } from "./audioPlayerPool";
 import { interactionService } from "./interactionService";
 import { userProgressService } from "./userProgressService";
 
+/** How often a playing track's position is saved to the server for cross-device resume. */
+const SERVER_PROGRESS_INTERVAL_MS = 60_000;
+
 export class AudioPlayerService {
   private pool = audioPlayerPool;
   private isInitialized = false;
@@ -355,7 +358,9 @@ export class AudioPlayerService {
         this.lastPositionSaveTimestamp = Date.now();
         PlayerStore.savePlaybackPosition(status.currentTime);
       }
-      if (Date.now() - this.lastServerProgressTimestamp > 20000) {
+      // Every save is a Redis write on the server (Upstash bills per command), so sync
+      // once a minute; pause and the first seconds of a new track also save.
+      if (Date.now() - this.lastServerProgressTimestamp > SERVER_PROGRESS_INTERVAL_MS) {
         this.lastServerProgressTimestamp = Date.now();
         this.syncServerProgress(status.currentTime, status.duration);
       }
@@ -522,6 +527,9 @@ export class AudioPlayerService {
     this.isExplicitlyPaused = false;
     this.currentPlayingSong = playerSong;
     this.hasReportedListen = false;
+    // Save the new track about 5 s in, so resume on another device points at it
+    // without waiting a full interval.
+    this.lastServerProgressTimestamp = Date.now() - SERVER_PROGRESS_INTERVAL_MS + 5000;
     this.lastPlayedIndex = targetIndex;
     this.lastPlayedSongId = playerSong.id;
     this.lastProgressRatio = 0;
