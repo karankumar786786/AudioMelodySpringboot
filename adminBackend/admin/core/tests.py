@@ -310,3 +310,18 @@ class AdminSessionStoreTests(SimpleTestCase):
             self.assertEqual(self.RedisService.get_admin_session("sess-x")["sessionId"], "sess-x")
             self.assertFalse(self.RedisService.is_user_blocked("user-x"))
         get_client.assert_not_called()
+
+
+class HeartbeatMetricTests(SimpleTestCase):
+    def test_heartbeat_increments_counter_even_if_redis_is_down(self):
+        from unittest import mock
+        # pyrefly: ignore[missing-import]
+        from core.services import system_health_service as shs
+
+        with mock.patch.object(shs, "HEARTBEAT_COUNTER") as counter, mock.patch(
+            "core.services.redis_service.RedisService.get_client", side_effect=RuntimeError("redis down")
+        ):
+            ack = shs.SystemHealthService.record_audio_processing_heartbeat({"status": "UP", "activeJobs": 1})
+
+        self.assertTrue(ack["ack"])
+        counter.add.assert_called_once_with(1, {"status": "UP"})
