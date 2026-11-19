@@ -185,6 +185,7 @@ export default function UserPlaylistDetailScreen() {
   const topBar = (
     <View style={[styles.topBar, { paddingTop: insets.top + 6 }]}>
       <TouchableOpacity
+        accessibilityRole="button"
         style={styles.iconButton}
         onPress={() => router.back()}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -196,6 +197,7 @@ export default function UserPlaylistDetailScreen() {
 
       <View style={styles.topBarActions}>
         <TouchableOpacity
+          accessibilityRole="button"
           style={styles.iconButton}
           onPress={() => setIsAccessModalOpen(true)}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -211,6 +213,7 @@ export default function UserPlaylistDetailScreen() {
 
         {isOwner ? (
           <TouchableOpacity
+            accessibilityRole="button"
             style={styles.iconButton}
             onPress={handleDeletePlaylist}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -321,6 +324,7 @@ export default function UserPlaylistDetailScreen() {
 
         {songs.length > 0 ? (
           <TouchableOpacity
+            accessibilityRole="button"
             style={styles.playButton}
             onPress={handlePlayAll}
             activeOpacity={0.85}

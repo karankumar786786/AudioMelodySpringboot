@@ -119,11 +119,12 @@ export function HeroFeaturedCard({
         <View style={styles.actionsRow}>
           {/* Favourite / Heart Button */}
           <TouchableOpacity
+            accessibilityRole="button"
             style={styles.heartButton}
             onPress={handleLike}
             activeOpacity={0.7}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            accessibilityLabel="Favourite"
+            accessibilityLabel={isLiked ? "Remove from favourites" : "Add to favourites"}
           >
             <Ionicons
               name={isLiked ? "heart" : "heart-outline"}
@@ -134,6 +135,7 @@ export function HeroFeaturedCard({
 
           {/* White Circular Play/Pause Button */}
           <TouchableOpacity
+            accessibilityRole="button"
             style={styles.playButton}
             onPress={handlePlay}
             activeOpacity={0.85}
