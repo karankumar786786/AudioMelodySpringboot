@@ -18,6 +18,10 @@ import {
   setSleepTimer,
 } from "@/store/playerSlice";
 import { audioPlayerService } from "@/service/audioPlayerService";
+import {
+  MAX_CROSSFADE_SECONDS,
+  MIN_CROSSFADE_SECONDS,
+} from "@/service/player/transitionMath";
 import { VideoQuality, AudioQuality } from "@/types";
 
 export interface QualityChoice<T extends string> {
@@ -54,7 +58,13 @@ export interface PlayerSettingsModalProps {
   onAudioQualityChange?: (quality: AudioQuality) => void;
 }
 
-type SettingsSubView = "main" | "quality" | "speed" | "timer" | "aspectRatio";
+type SettingsSubView = "main" | "quality" | "speed" | "timer" | "aspectRatio" | "crossfade";
+
+const CROSSFADE_PRESETS = [0, 3, 6, 9, 12];
+
+function formatCrossfade(seconds: number): string {
+  return seconds <= 0 ? "Off" : `${seconds}s`;
+}
 
 const RESIZE_OPTIONS: Array<{ mode: VideoResizeMode; label: string; isDefault?: boolean }> = [
   { mode: "fit", label: "Fit to screen (Original)", isDefault: true },
@@ -146,6 +156,7 @@ export function PlayerSettingsModal({
   const selectedQuality = useSelector((state: AppState) => state.player.selectedQuality ?? "auto");
   const audioQuality = useSelector((state: AppState) => state.player.audioQuality ?? "auto");
   const sleepTimer = useSelector((state: AppState) => state.player.sleepTimer);
+  const crossfadeSeconds = useSelector((state: AppState) => state.player.crossfadeSeconds ?? 0);
 
   const effectiveAudioQualities =
     audioQualities && audioQualities.length > 0
@@ -201,6 +212,13 @@ export function PlayerSettingsModal({
     onClose();
   };
 
+  // Stays open so the user can step through values; saved on every change.
+  const handleSetCrossfade = (seconds: number) => {
+    const next = Math.min(MAX_CROSSFADE_SECONDS, Math.max(MIN_CROSSFADE_SECONDS, seconds));
+    if (next === crossfadeSeconds) return;
+    audioPlayerService.setCrossfade(next);
+  };
+
   const handleSelectSleepTimer = (val: number | null) => {
     dispatch(setSleepTimer(val));
     audioPlayerService.setSleepTimer(val);
@@ -232,6 +250,13 @@ export function PlayerSettingsModal({
     },
     { key: "speed", icon: "speedometer-outline", title: "Playback speed", value: speedLabel, show: true },
     { key: "timer", icon: "moon-outline", title: "Sleep timer", value: sleepLabel, show: true },
+    {
+      key: "crossfade",
+      icon: "git-merge-outline",
+      title: "Crossfade",
+      value: formatCrossfade(crossfadeSeconds),
+      show: mode === "audio",
+    },
   ];
 
   const content = (
@@ -273,6 +298,8 @@ export function PlayerSettingsModal({
                   ? "Playback speed"
                   : activeView === "aspectRatio"
                   ? "Aspect ratio / Fit"
+                  : activeView === "crossfade"
+                  ? "Crossfade"
                   : "Sleep timer"}
               </Text>
             </TouchableOpacity>
@@ -424,6 +451,76 @@ export function PlayerSettingsModal({
             </View>
           ) : null}
 
+          {activeView === "crossfade" ? (
+            <View style={styles.optionsList}>
+              <View style={styles.stepperRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.stepperBtn,
+                    crossfadeSeconds <= MIN_CROSSFADE_SECONDS && styles.stepperBtnDisabled,
+                  ]}
+                  onPress={() => handleSetCrossfade(crossfadeSeconds - 1)}
+                  disabled={crossfadeSeconds <= MIN_CROSSFADE_SECONDS}
+                  activeOpacity={0.75}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Shorter crossfade"
+                >
+                  <Ionicons name="remove" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+                <Text
+                  style={styles.stepperValue}
+                  accessibilityLiveRegion="polite"
+                  accessibilityLabel={
+                    crossfadeSeconds <= 0
+                      ? "Crossfade off"
+                      : `Crossfade ${crossfadeSeconds} seconds`
+                  }
+                >
+                  {crossfadeSeconds <= 0 ? "Off" : `${crossfadeSeconds} s`}
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.stepperBtn,
+                    crossfadeSeconds >= MAX_CROSSFADE_SECONDS && styles.stepperBtnDisabled,
+                  ]}
+                  onPress={() => handleSetCrossfade(crossfadeSeconds + 1)}
+                  disabled={crossfadeSeconds >= MAX_CROSSFADE_SECONDS}
+                  activeOpacity={0.75}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Longer crossfade"
+                >
+                  <Ionicons name="add" size={20} color="#FFFFFF" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.presetRow}>
+                {CROSSFADE_PRESETS.map((s) => {
+                  const selected = s === crossfadeSeconds;
+                  return (
+                    <TouchableOpacity
+                      key={s}
+                      style={[styles.presetChip, selected && styles.presetChipActive]}
+                      onPress={() => handleSetCrossfade(s)}
+                      activeOpacity={0.75}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={s === 0 ? "Crossfade off" : `Crossfade ${s} seconds`}
+                    >
+                      <Text style={[styles.presetChipText, selected && styles.presetChipTextActive]}>
+                        {formatCrossfade(s)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <Text style={styles.subHintText}>
+                Blends the end of each song into the next. Off plays tracks back to back
+                with no gap. Not used with repeat one or the last song in the queue.
+              </Text>
+            </View>
+          ) : null}
+
           {activeView === "timer" ? (
             <View style={styles.optionsList}>
               {SLEEP_TIMER_OPTIONS.map((opt) => (
@@ -548,6 +645,51 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   defaultBadgeText: { color: "#8A8A8A", fontSize: 11, fontWeight: "600" },
+  stepperRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+  },
+  stepperBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#151515",
+    borderWidth: 1,
+    borderColor: "#262626",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  stepperBtnDisabled: { opacity: 0.35 },
+  stepperValue: {
+    color: "#FFFFFF",
+    fontSize: 26,
+    fontWeight: "800",
+    letterSpacing: -0.4,
+    minWidth: 80,
+    textAlign: "center",
+  },
+  presetRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 6,
+    paddingHorizontal: 4,
+    paddingTop: 6,
+  },
+  presetChip: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "#151515",
+    borderWidth: 1,
+    borderColor: "#262626",
+  },
+  presetChipActive: { backgroundColor: "#FFFFFF", borderColor: "#FFFFFF" },
+  presetChipText: { color: "#8A8A8A", fontSize: 13, fontWeight: "600" },
+  presetChipTextActive: { color: "#000000", fontWeight: "800" },
   subHintText: {
     color: "#5A5A5A",
     fontSize: 12,

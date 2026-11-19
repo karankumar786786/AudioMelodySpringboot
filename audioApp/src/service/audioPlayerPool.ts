@@ -2,9 +2,9 @@ import { Platform } from "react-native";
 import { createAudioPlayer, AudioPlayer, AudioStatus } from "expo-audio";
 import { Song, PlayerSong, AudioQuality } from "@/types";
 import { configureAudioPriority, safeSetActiveForLockScreen } from "@/utils/audioConfig";
-import { getImageUrl } from "@/utils";
 import { mapToPlayerSong, S3_BASE_URL } from "@/utils/playerUtils";
 import { store } from "@/store/hook";
+import { activateLockScreenFor } from "./player/lockScreenMetadata";
 
 export type SlotRole = "active" | "standby1" | "standby2";
 
@@ -15,6 +15,11 @@ export interface PlayerSlot {
   song: PlayerSong | null;
   resolvedUri: string | null;
   isReady: boolean;
+  /**
+   * True while this slot is part of a gapless/crossfade transition: it plays although
+   * it is not the active slot, so it must not be auto-paused or re-targeted by preload.
+   */
+  isTransitioning: boolean;
   statusSubscription: { remove: () => void } | null;
 }
 
@@ -131,6 +136,7 @@ export class AudioPlayerPool {
         song: null,
         resolvedUri: null,
         isReady: false,
+        isTransitioning: false,
         statusSubscription: null,
       };
 
@@ -147,7 +153,7 @@ export class AudioPlayerPool {
             if ((status as any)?.isLoaded) {
               slot.isReady = true;
             }
-            if (status.playing) {
+            if (status.playing && !slot.isTransitioning) {
               slot.player.pause();
               slot.player.volume = 0;
             }
@@ -191,6 +197,10 @@ export class AudioPlayerPool {
     await this.init();
     const slot = this.getStandbySlot(role);
     if (!slot) return;
+
+    // A slot that is fading in/out must keep its current source. The service re-syncs
+    // the preload queue once the transition settles.
+    if (slot.isTransitioning) return;
 
     if (!song) {
       slot.song = null;
@@ -253,6 +263,15 @@ export class AudioPlayerPool {
   async promoteStandby(
     targetRole: "standby1" | "standby2",
     quality: AudioQuality = "auto",
+    options: {
+      /**
+       * Crossfade/gapless handover: leave the old active player playing (it becomes a
+       * transitioning standby) instead of pausing and muting it.
+       */
+      keepOutgoingPlaying?: boolean;
+      /** Volume for the promoted player (default 1). Used mid-crossfade. */
+      incomingVolume?: number;
+    } = {},
   ): Promise<PlayerSong | null> {
     await this.init();
 
@@ -299,53 +318,23 @@ export class AudioPlayerPool {
         (targetSlot.player as any).playbackRate = savedRate;
       } catch {}
     }
-    targetSlot.player.volume = 1.0;
+    targetSlot.player.volume = options.incomingVolume ?? 1.0;
+    targetSlot.isTransitioning = false;
     targetSlot.player.play();
 
     // 3. Activate lock screen controls on target player FIRST
     //    On Android: directly swaps the active player inside AudioControlsService without
     //    calling stopForeground(STOP_FOREGROUND_REMOVE), preventing the lock screen widget from disappearing.
     //    On iOS: registers Now Playing while audio is actively playing at rate=1.0.
-    const rawImage =
-      (promotedSong as any).coverUrl ||
-      (promotedSong as any).posterUrl ||
-      (promotedSong as any).imageKey ||
-      (promotedSong as any).image_key ||
-      (promotedSong as any).imageUrl;
+    activateLockScreenFor(targetSlot.player, promotedSong, true);
 
-    const artworkUrl =
-      (typeof rawImage === "string" && rawImage.startsWith("http")
-        ? rawImage
-        : getImageUrl(rawImage, {
-            width: 500,
-            height: 500,
-            focus: "auto",
-            aspectRatio: "1-1",
-            format: "jpg",
-            quality: 85,
-          })) || undefined;
-
-    safeSetActiveForLockScreen(
-      targetSlot.player,
-      true,
-      {
-        title: promotedSong.title || "One Melody",
-        artist: promotedSong.artistName || "Unknown Artist",
-        albumTitle: promotedSong.album || "Melody",
-        artworkUrl,
-      },
-      {
-        showSeekForward: false,
-        showSeekBackward: false,
-        showNextTrack: true,
-        showPreviousTrack: true,
-      },
-      true
-    );
-
-    // 4. Pause and mute old active player
-    currentActive.player.pause();
-    currentActive.player.volume = 0;
+    // 4. Pause and mute old active player (unless it is fading out / playing to its end)
+    if (options.keepOutgoingPlaying) {
+      currentActive.isTransitioning = true;
+    } else {
+      currentActive.player.pause();
+      currentActive.player.volume = 0;
+    }
 
     // Reset flags on demoted player so when reused, it re-registers cleanly
     (currentActive.player as any)._isLockScreenActive = false;
@@ -364,6 +353,43 @@ export class AudioPlayerPool {
     }
 
     return promotedSong;
+  }
+
+  /**
+   * Starts a preloaded standby player silently (volume 0) so it can be faded in
+   * while the active player is still playing. Returns null if it isn't ready.
+   */
+  startTransitionIn(role: "standby1" | "standby2"): PlayerSlot | null {
+    const slot = this.getStandbySlot(role);
+    if (!slot?.song || !slot.isReady) return null;
+    slot.isTransitioning = true;
+    const savedRate = store.getState().player.playbackRate;
+    if (typeof savedRate === "number" && savedRate > 0 && savedRate !== 1.0) {
+      try {
+        (slot.player as any).playbackRate = savedRate;
+      } catch {}
+    }
+    slot.player.volume = 0;
+    slot.player.play();
+    return slot;
+  }
+
+  /**
+   * Ends a slot's part in a transition: pauses and mutes it, optionally rewinding it
+   * to the start (rolling back a fade-in so it can be played normally later).
+   */
+  async endTransition(slot: PlayerSlot, rewind = false): Promise<void> {
+    slot.isTransitioning = false;
+    if (slot.role === "active") return;
+    try {
+      slot.player.pause();
+      slot.player.volume = 0;
+      if (rewind) {
+        await slot.player.seekTo(0);
+      }
+    } catch (err) {
+      console.warn("[AudioPlayerPool] endTransition error:", err);
+    }
   }
 
   /**
@@ -421,42 +447,7 @@ export class AudioPlayerPool {
 
       activeSlot.isReady = true;
 
-      const rawImage =
-        (playerSong as any).coverUrl ||
-        (playerSong as any).posterUrl ||
-        (playerSong as any).imageKey ||
-        (playerSong as any).image_key ||
-        (playerSong as any).imageUrl;
-
-      const artworkUrl =
-        (typeof rawImage === "string" && rawImage.startsWith("http")
-          ? rawImage
-          : getImageUrl(rawImage, {
-              width: 500,
-              height: 500,
-              focus: "auto",
-              aspectRatio: "1-1",
-              format: "jpg",
-              quality: 85,
-            })) || undefined;
-
-      safeSetActiveForLockScreen(
-        activeSlot.player,
-        true,
-        {
-          title: playerSong.title || "One Melody",
-          artist: playerSong.artistName || "Unknown Artist",
-          albumTitle: playerSong.album || "Melody",
-          artworkUrl,
-        },
-        {
-          showSeekForward: false,
-          showSeekBackward: false,
-          showNextTrack: true,
-          showPreviousTrack: true,
-        },
-        true
-      );
+      activateLockScreenFor(activeSlot.player, playerSong, true);
 
       return playerSong;
     } catch (err) {
@@ -499,6 +490,7 @@ export class AudioPlayerPool {
         slot.song = null;
         slot.resolvedUri = null;
         slot.isReady = false;
+        slot.isTransitioning = false;
       } catch {}
     }
   }
