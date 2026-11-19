@@ -8,8 +8,10 @@ import org.springframework.validation.annotation.Validated;
 import jakarta.validation.constraints.NotBlank;
 import me.one_org.melody.Dto.Controllers.Api.RadioResponseDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
+import me.one_org.melody.Recommendation.Mood;
 import me.one_org.melody.Security.CurrentUser;
 import me.one_org.melody.Security.CustomUserDetails;
+import me.one_org.melody.Services.Api.MoodRadioService;
 import me.one_org.melody.Services.Api.RecommendationApiService;
 
 @RestController
@@ -18,9 +20,22 @@ import me.one_org.melody.Services.Api.RecommendationApiService;
 public class RecombeeApiController {
 
     private final RecommendationApiService recommendationApiService;
+    private final MoodRadioService moodRadioService;
 
-    public RecombeeApiController(RecommendationApiService recommendationApiService) {
+    public RecombeeApiController(RecommendationApiService recommendationApiService,
+                                 MoodRadioService moodRadioService) {
         this.recommendationApiService = recommendationApiService;
+        this.moodRadioService = moodRadioService;
+    }
+
+    /** Mood radio: songs matching a mood's audio profile (chill, workout, focus, happy, sad). */
+    @GetMapping("/radio/mood")
+    public ResponseEntity<List<SongDto>> recommendMoodRadio(
+            @CurrentUser CustomUserDetails currentUser,
+            @RequestParam @NotBlank(message = "Mood is required") String mood,
+            @RequestParam(defaultValue = "20") int count) {
+        String userId = (currentUser != null) ? currentUser.getId() : null;
+        return ResponseEntity.ok(moodRadioService.recommendMood(Mood.parse(mood), userId, count));
     }
 
     @GetMapping("/user")
