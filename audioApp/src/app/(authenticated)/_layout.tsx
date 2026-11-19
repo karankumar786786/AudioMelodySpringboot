@@ -2,7 +2,7 @@ import { Stack } from "expo-router";
 
 // Deep links (e.g. audioapp://song/<id>) open on top of the tabs, so "back" lands on home.
 export const unstable_settings = {
-  initialRouteName: "(tabs)",
+  anchor: "(tabs)",
 };
 
 export default function AuthenticatedLayout() {
