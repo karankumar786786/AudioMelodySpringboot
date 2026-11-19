@@ -58,7 +58,18 @@ public class AlgoliaSearch {
                             "name",
                             "language",
                             "genre",
-                            "genres"))
+                            "genres",
+                            // Lowest priority so lyric matches never outrank title/artist matches.
+                            "unordered(lyrics)"))
+                    // Lyrics are indexed by adminBackend/audioProcessing (capped ~6KB). Keep hits small:
+                    // never return them in full, only a short snippet. (unretrievableAttributes
+                    // would also suppress the snippet.) Keep in sync with AlgoliaService.configure_index.
+                    .setAttributesToRetrieve(List.of("*", "-lyrics"))
+                    .setAttributesToHighlight(List.of(
+                            "title", "album", "artistName", "artist", "artists", "name",
+                            "genre", "genres", "country", "language"))
+                    .setAttributesToSnippet(List.of("lyrics:12"))
+                    .setSnippetEllipsisText("…")
                     .setAttributesForFaceting(List.of(
                             "filterOnly(type)",
                             "searchable(language)",

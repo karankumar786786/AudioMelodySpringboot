@@ -32,4 +32,6 @@ export interface Song {
   valence?: number;
   acousticness?: number;
   instrumentalness?: number;
+  /** Search-only: Algolia lyrics snippet (with <em> tags) when the hit matched on lyrics. */
+  lyricsMatch?: string;
 }

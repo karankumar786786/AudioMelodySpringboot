@@ -4,6 +4,15 @@ from django.conf import settings
 
 # pyrefly: ignore[missing-import]
 from catalog.models import Song, Artist, Playlist
+from core.services.lyrics_service import LyricsService, to_searchable_lyrics
+
+# Searchable attributes highlighted in hits. Listed explicitly so the (long) lyrics
+# attribute is never highlighted in full; clients get a short snippet of it instead.
+HIGHLIGHTED_ATTRIBUTES = [
+    "title", "album", "artistName", "artist", "artists", "name",
+    "genre", "genres", "country", "language",
+]
+LYRICS_SNIPPET_WORDS = 12
 
 logger = logging.getLogger(__name__)
 
@@ -194,6 +203,12 @@ class AlgoliaService:
                 "searchCount": search_count_val,
             }
 
+            s_lyrics = song.get("lyrics") if isinstance(song, dict) else kwargs.get("lyrics")
+            if s_lyrics is not None:
+                record["lyrics"] = to_searchable_lyrics(s_lyrics)
+            else:
+                record["lyrics"] = LyricsService.get_lyrics(str(s_id), s_lrclib_id)
+
             index_name = getattr(settings, "ALGOLIA_INDEX_NAME", "one_melody_springboot")
             client.save_object(index_name=index_name, body=record)
             logger.info("Successfully saved song [%s] to Algolia index [%s]", s_id, index_name)
@@ -295,7 +310,11 @@ class AlgoliaService:
             logger.warning("Algolia save playlist [%s] failed: %s", getattr(playlist, "id", "unknown"), e)
 
     @classmethod
-    def build_song_record(cls, song: Any, job: Optional[Any] = None) -> Optional[Dict[str, Any]]:
+    def build_song_record(
+        cls, song: Any, job: Optional[Any] = None, lyrics: Optional[str] = None
+    ) -> Optional[Dict[str, Any]]:
+        """Builds the Algolia song record. ``lyrics`` must already be normalised
+        (see ``to_searchable_lyrics``); it is stored as-is."""
         s_clip_start = None
         s_clip_end = None
         if isinstance(song, dict):
@@ -402,6 +421,7 @@ class AlgoliaService:
             "createdAt": str(s_created_at) if s_created_at else None,
             "totalStreams": int(s_streams or 0),
             "searchCount": int(s_search_count or 0),
+            "lyrics": lyrics or None,
         }
 
     @classmethod
@@ -505,10 +525,18 @@ class AlgoliaService:
         songs: List[Any],
         batch_size: int = 100,
         jobs_by_song_id: Optional[Dict[str, Any]] = None,
+        lyrics_by_song_id: Optional[Dict[str, Optional[str]]] = None,
     ) -> int:
         client = cls.get_client()
         if not client or not songs:
             return 0
+
+        if lyrics_by_song_id is None:
+            lyrics_by_song_id = LyricsService.get_many({
+                str(getattr(s, "id", None) or (s.get("id") if isinstance(s, dict) else "") or ""):
+                    (getattr(s, "lrclib_id", None) if not isinstance(s, dict) else (s.get("lrclib_id") or s.get("lrclibId")))
+                for s in songs
+            })
 
         if jobs_by_song_id is None:
             try:
@@ -593,7 +621,7 @@ class AlgoliaService:
                     job = jobs_by_song_id.get(s_id_val)
                 elif s_job_id_val and s_job_id_val in jobs_by_song_id:
                     job = jobs_by_song_id.get(s_job_id_val)
-            rec = cls.build_song_record(s, job=job)
+            rec = cls.build_song_record(s, job=job, lyrics=lyrics_by_song_id.get(s_id_val))
             if rec:
                 records.append(rec)
 
@@ -685,7 +713,15 @@ class AlgoliaService:
                     "genre,genres",
                     "country",
                     "language",
+                    # Lowest priority: a lyrics hit should never outrank a title/artist hit.
+                    "unordered(lyrics)",
                 ],
+                # Keep hits small: lyrics are searchable but never returned in full.
+                # (unretrievableAttributes would also suppress the snippet, so use this instead.)
+                "attributesToRetrieve": ["*", "-lyrics"],
+                "attributesToHighlight": HIGHLIGHTED_ATTRIBUTES,
+                "attributesToSnippet": [f"lyrics:{LYRICS_SNIPPET_WORDS}"],
+                "snippetEllipsisText": "…",
                 "attributesForFaceting": [
                     "filterOnly(type)",
                     "searchable(language)",
