@@ -169,3 +169,108 @@ class AdminSessionTouchTests(SimpleTestCase):
 
         client.get.assert_called_once_with("admin:session:sess-1")
         client.setex.assert_called_once()
+
+
+class AdminSessionStoreTests(SimpleTestCase):
+    """
+    With several gunicorn workers, Redis is the source of truth for sessions, refresh
+    sessions, blocks, OTPs and temp tokens. A worker's in-memory copy may only be used
+    while Redis is unreachable, never to revive something Redis says is gone.
+    """
+
+    def setUp(self):
+        import time
+
+        # pyrefly: ignore[missing-import]
+        from core.services.admin_auth_service import AdminAuthService
+        # pyrefly: ignore[missing-import]
+        from core.services.redis_service import RedisService
+
+        self.RedisService = RedisService
+        self.AdminAuthService = AdminAuthService
+        self.session = {"sessionId": "sess-x", "email": "a@example.com", "expiresAt": time.time() + 3600}
+        RedisService._MEMORY_SESSIONS["sess-x"] = dict(self.session)
+        RedisService._MEMORY_USER_SESSIONS.setdefault("a@example.com", set()).add("sess-x")
+        RedisService._MEMORY_REFRESH_SESSIONS["ref-x"] = {"refreshSessionId": "ref-x", "expiresAt": time.time() + 3600}
+        AdminAuthService._MEMORY_OTP_CACHE["a@example.com"] = {"otp_hash": "h", "expires_at": time.time() + 600}
+        AdminAuthService._MEMORY_TEMP_TOKENS["tmp-x"] = {"email": "a@example.com", "expiresAt": time.time() + 600}
+
+    def tearDown(self):
+        self.RedisService._MEMORY_SESSIONS.pop("sess-x", None)
+        self.RedisService._MEMORY_USER_SESSIONS.get("a@example.com", set()).discard("sess-x")
+        self.RedisService._MEMORY_REFRESH_SESSIONS.pop("ref-x", None)
+        self.AdminAuthService._MEMORY_OTP_CACHE.pop("a@example.com", None)
+        self.AdminAuthService._MEMORY_TEMP_TOKENS.pop("tmp-x", None)
+
+    def _redis(self, **kwargs):
+        from unittest.mock import MagicMock, patch
+
+        client = MagicMock(**kwargs)
+        return patch.object(self.RedisService, "get_client", return_value=client), client
+
+    def test_session_revoked_on_another_worker_is_rejected(self):
+        from django.test import override_settings
+
+        patcher, client = self._redis()
+        client.get.return_value = None
+        with override_settings(ADMIN_SESSION_STORE="redis"), patcher:
+            self.assertIsNone(self.RedisService.get_admin_session("sess-x"))
+        self.assertNotIn("sess-x", self.RedisService._MEMORY_SESSIONS)
+        self.assertNotIn("sess-x", self.RedisService._MEMORY_USER_SESSIONS["a@example.com"])
+
+    def test_session_read_from_redis_when_present(self):
+        import json
+        from django.test import override_settings
+
+        patcher, client = self._redis()
+        client.get.return_value = json.dumps({**self.session, "userName": "From Redis"})
+        with override_settings(ADMIN_SESSION_STORE="redis"), patcher:
+            session = self.RedisService.get_admin_session("sess-x")
+        self.assertEqual(session["userName"], "From Redis")
+
+    def test_memory_copy_used_only_while_redis_is_down(self):
+        from django.test import override_settings
+
+        patcher, client = self._redis()
+        client.get.side_effect = ConnectionError("redis down")
+        with override_settings(ADMIN_SESSION_STORE="redis"), patcher:
+            session = self.RedisService.get_admin_session("sess-x")
+        self.assertEqual(session["sessionId"], "sess-x")
+
+    def test_refresh_session_revoked_on_another_worker_is_rejected(self):
+        from django.test import override_settings
+
+        patcher, client = self._redis()
+        client.get.return_value = None
+        with override_settings(ADMIN_SESSION_STORE="redis"), patcher:
+            self.assertIsNone(self.RedisService.get_refresh_session("ref-x"))
+        self.assertNotIn("ref-x", self.RedisService._MEMORY_REFRESH_SESSIONS)
+
+    def test_block_set_by_another_worker_counts_even_with_local_sessions(self):
+        from django.test import override_settings
+
+        patcher, client = self._redis()
+        client.exists.return_value = 1
+        with override_settings(ADMIN_SESSION_STORE="redis"), patcher:
+            self.assertTrue(self.RedisService.is_user_blocked("user-x"))
+        client.exists.assert_called_once_with("blocked_user:user-x")
+
+    def test_used_otp_and_temp_token_are_not_revived_from_memory(self):
+        from django.test import override_settings
+
+        patcher, client = self._redis()
+        client.get.return_value = None
+        with override_settings(ADMIN_SESSION_STORE="redis"), patcher:
+            self.assertIsNone(self.AdminAuthService.get_otp("a@example.com"))
+            self.assertIsNone(self.AdminAuthService.decode_temp_token("tmp-x"))
+        self.assertNotIn("a@example.com", self.AdminAuthService._MEMORY_OTP_CACHE)
+        self.assertNotIn("tmp-x", self.AdminAuthService._MEMORY_TEMP_TOKENS)
+
+    def test_memory_store_never_calls_redis(self):
+        from django.test import override_settings
+
+        patcher, client = self._redis()
+        with override_settings(ADMIN_SESSION_STORE="memory"), patcher as get_client:
+            self.assertEqual(self.RedisService.get_admin_session("sess-x")["sessionId"], "sess-x")
+            self.assertFalse(self.RedisService.is_user_blocked("user-x"))
+        get_client.assert_not_called()

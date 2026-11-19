@@ -259,6 +259,12 @@ REDIS_DELETE_QUEUE = os.getenv("REDIS_DELETE_QUEUE", "delete_event_queue")
 REDIS_CANCEL_QUEUE = os.getenv("REDIS_CANCEL_QUEUE", "audio_cancel_queue")
 REDIS_MAIL_QUEUE = os.getenv("REDIS_MAIL_QUEUE", "mail_queue")
 
+# Where admin sessions, refresh sessions and blocks are read from.
+# "redis": Redis is the source of truth, shared by every gunicorn worker; a worker's
+#          in-memory copy is used only while Redis can't be reached.
+# "memory": this process only. For tests, which put sessions straight into memory.
+ADMIN_SESSION_STORE = os.getenv("ADMIN_SESSION_STORE", "memory" if _RUNNING_TESTS else "redis")
+
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", os.getenv("ACCESS_KEY_ID", "default_access_key"))
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", os.getenv("SECRET_KEY", "default_secret_key"))
 AWS_REGION = os.getenv("AWS_REGION", os.getenv("REGION", "ap-south-1"))
