@@ -15,6 +15,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import me.one_org.melody.Controllers.Api.RecombeeApiController;
 import me.one_org.melody.Dto.Controllers.Api.RadioResponseDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
+import me.one_org.melody.Recommendation.Mood;
+import me.one_org.melody.Services.Api.MoodRadioService;
 import me.one_org.melody.Services.Api.RecommendationApiService;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -31,9 +33,12 @@ class RecombeeApiControllerIntegrationTest {
     @Mock
     private RecommendationApiService recommendationApiService;
 
+    @Mock
+    private MoodRadioService moodRadioService;
+
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new RecombeeApiController(recommendationApiService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new RecombeeApiController(recommendationApiService, moodRadioService))
                 .setCustomArgumentResolvers(new me.one_org.melody.Utils.CurrentUserTestArgumentResolver())
                 .build();
     }
@@ -96,5 +101,18 @@ class RecombeeApiControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value("s-user-1"));
+    }
+
+    @Test
+    @DisplayName("GET /api/recommendations/radio/mood parses the mood case-insensitively")
+    void shouldRecommendMoodRadio() throws Exception {
+        SongDto song = new SongDto("s-mood-1", "Mellow", "Artist M", 200, "key", "img", null, null, null, null, false, "English", "Lofi", "Album", "India", "lrc", null, 10L, null);
+        when(moodRadioService.recommendMood(eq(Mood.CHILL), any(), eq(15))).thenReturn(List.of(song));
+
+        mockMvc.perform(get("/api/recommendations/radio/mood")
+                        .param("mood", "Chill")
+                        .param("count", "15"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value("s-mood-1"));
     }
 }
