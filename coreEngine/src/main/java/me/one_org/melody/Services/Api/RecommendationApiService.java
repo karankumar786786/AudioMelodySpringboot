@@ -251,6 +251,9 @@ public class RecommendationApiService {
         List<SongDto> recombeeUserSongs = new ArrayList<>();
         try {
             Map<String, AudioProfile> recs = recombee.recommendForUserWithAudio(userId, Math.max(count * 3, 20));
+            if (recs == null) {
+                return recombeeUserSongs;
+            }
             List<String> songIds = recs != null ? new ArrayList<>(recs.keySet()) : List.of();
             if (!songIds.isEmpty() && songsRepository != null) {
                 Map<String, Song> songMap = songsRepository.findAllByIds(songIds).stream()

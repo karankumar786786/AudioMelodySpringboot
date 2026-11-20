@@ -1,0 +1,12 @@
+{
+  "type": "record", "name": "SongStatDelta", "namespace": "me.oneorg.melody.events.stats",
+  "doc": "Internal to statsStreams: one event's contribution to a song's totals.",
+  "fields": [
+    {"name": "song_id", "type": "string"},
+    {"name": "plays", "type": "long", "default": 0},
+    {"name": "qualified_streams", "type": "long", "default": 0},
+    {"name": "listened_ratio_sum", "type": "double", "default": 0},
+    {"name": "skips", "type": "long", "default": 0},
+    {"name": "favourites", "type": "long", "default": 0}
+  ]
+}

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Root build for the JVM services. Each module keeps its own Spring Boot parent;
+  this file only lets Maven build them together, so the core API and the stream
+  services compile against the same generated Avro classes from communication/.
+
+    ./mvnw -pl coreEngine -am test     # core API (builds communication first)
+    ./mvnw -pl streams -am test        # stream services
+    ./mvnw verify                      # everything
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>me.oneorg</groupId>
+	<artifactId>one-melody-jvm</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<packaging>pom</packaging>
+
+	<modules>
+		<module>communication</module>
+		<module>coreEngine</module>
+		<module>streams</module>
+	</modules>
+</project>
