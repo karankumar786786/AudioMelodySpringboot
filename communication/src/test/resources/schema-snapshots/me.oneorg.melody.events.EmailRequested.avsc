@@ -1,0 +1,79 @@
+{
+  "type" : "record",
+  "name" : "EmailRequested",
+  "namespace" : "me.oneorg.melody.events",
+  "doc" : "One email to send. Topics notification.email.v1 and notification.email.retry.v1, key = SHA-256 of the address. May carry a one-time code: 1-day retention, restricted readers, never logged.",
+  "fields" : [ {
+    "name" : "meta",
+    "type" : {
+      "type" : "record",
+      "name" : "EventMeta",
+      "doc" : "Embedded in every event. Consumers drop duplicates by event_id.",
+      "fields" : [ {
+        "name" : "event_id",
+        "type" : {
+          "type" : "string",
+          "avro.java.string" : "String"
+        },
+        "doc" : "UUID v7; made by the client for telemetry, by the server for state changes."
+      }, {
+        "name" : "occurred_at",
+        "type" : {
+          "type" : "long",
+          "logicalType" : "timestamp-millis"
+        },
+        "doc" : "When it happened on the device or server."
+      }, {
+        "name" : "received_at",
+        "type" : {
+          "type" : "long",
+          "logicalType" : "timestamp-millis"
+        },
+        "doc" : "When the core API accepted it."
+      }, {
+        "name" : "source",
+        "type" : {
+          "type" : "string",
+          "avro.java.string" : "String"
+        },
+        "doc" : "Who produced it, e.g. app, web, core-api, admin-api."
+      } ]
+    }
+  }, {
+    "name" : "to",
+    "type" : {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }
+  }, {
+    "name" : "kind",
+    "type" : {
+      "type" : "string",
+      "avro.java.string" : "String"
+    },
+    "doc" : "REGISTER, LOGIN, ADMIN_LOGIN, NEW_RELEASE, ..."
+  }, {
+    "name" : "subject",
+    "type" : {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }
+  }, {
+    "name" : "body",
+    "type" : {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }
+  }, {
+    "name" : "attempt",
+    "type" : "int",
+    "default" : 0
+  }, {
+    "name" : "not_before",
+    "type" : [ "null", {
+      "type" : "long",
+      "logicalType" : "timestamp-millis"
+    } ],
+    "default" : null
+  } ]
+}

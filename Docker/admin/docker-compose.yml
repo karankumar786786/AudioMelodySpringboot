@@ -27,6 +27,88 @@ services:
     networks:
       - app
 
+  # --- Event pipeline -------------------------------------------------------
+  # Redpanda (Kafka API + Schema Registry + HTTP proxy), one node. Data lives on the
+  # dedicated EBS volume mounted at /mnt/kafka (deploy.sh mounts it). Kafka and the
+  # registry listen on the private IP only; the security group admits only our two
+  # instances. Inside this network, services use redpanda:29092 / :8081 / :8082.
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v26.1.20
+    container_name: redpanda
+    restart: unless-stopped
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --default-log-level=warn
+      - --kafka-addr=internal://0.0.0.0:29092,external://0.0.0.0:9092
+      - --advertise-kafka-addr=internal://redpanda:29092,external://${REDPANDA_ADVERTISED_HOST:-127.0.0.1}:9092
+      - --schema-registry-addr=0.0.0.0:8081
+      - --pandaproxy-addr=0.0.0.0:8082
+      - --rpc-addr=redpanda:33145
+      - --advertise-rpc-addr=redpanda:33145
+    ports:
+      - "${REDPANDA_BIND_IP:-127.0.0.1}:9092:9092"
+      - "${REDPANDA_BIND_IP:-127.0.0.1}:8081:8081"
+    volumes:
+      - ${KAFKA_DATA_DIR:-/mnt/kafka}/redpanda:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "health", "--exit-when-healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    mem_limit: 1536m
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    networks:
+      - app
+
+  # Creates missing topics from kafka/topics.yaml on every deploy, then exits.
+  redpanda-init:
+    image: docker.redpanda.com/redpandadata/redpanda:v26.1.20
+    container_name: redpanda-init
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "/kafka/apply-topics.sh", "/kafka/topics.yaml"]
+    environment:
+      RPK_BROKERS: redpanda:29092
+    volumes:
+      - ./kafka:/kafka:ro
+    restart: "no"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    networks:
+      - app
+
+  # Outbox relay + Kafka Streams services (one JVM; STREAMS_PROFILES picks them).
+  streams:
+    image: karankumar9955/streams:stable
+    container_name: streams
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      redpanda-init:
+        condition: service_completed_successfully
+    env_file:
+      - streams.env
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:29092
+      SCHEMA_REGISTRY_URL: http://redpanda:8081
+      STREAMS_STATE_DIR: /var/lib/streams
+    volumes:
+      - ${KAFKA_DATA_DIR:-/mnt/kafka}/streams:/var/lib/streams
+    expose:
+      - "8095"
+    mem_limit: 768m
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks:
+      - app
+
   caddy:
     image: caddy:2
     container_name: caddy

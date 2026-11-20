@@ -1,0 +1,37 @@
+{
+  "type" : "record",
+  "name" : "SongDailyStats",
+  "namespace" : "me.oneorg.melody.events.stats",
+  "doc" : "Totals per song per UTC day. Topic stats.song-daily.v1, key song_id|yyyy-MM-dd.",
+  "fields" : [ {
+    "name" : "song_id",
+    "type" : {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }
+  }, {
+    "name" : "day",
+    "type" : {
+      "type" : "int",
+      "logicalType" : "date"
+    }
+  }, {
+    "name" : "plays",
+    "type" : "long",
+    "default" : 0
+  }, {
+    "name" : "qualified_streams",
+    "type" : "long",
+    "default" : 0
+  }, {
+    "name" : "skips",
+    "type" : "long",
+    "default" : 0
+  }, {
+    "name" : "updated_at",
+    "type" : {
+      "type" : "long",
+      "logicalType" : "timestamp-millis"
+    }
+  } ]
+}

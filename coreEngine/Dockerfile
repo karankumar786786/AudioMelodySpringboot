@@ -1,3 +1,5 @@
+# Build from the repository root (the image needs communication/ too):
+#   docker build -f coreEngine/Dockerfile .
 # ---------- Builder ----------
 FROM maven:3.9-eclipse-temurin-21 AS builder
 
@@ -6,15 +8,18 @@ WORKDIR /app
 # Download official OpenTelemetry Java instrumentation agent in builder
 ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar /app/opentelemetry-javaagent.jar
 
+# Poms first, so dependency downloads are cached until a pom changes.
 COPY pom.xml .
+COPY communication/pom.xml communication/
+COPY coreEngine/pom.xml coreEngine/
+COPY streams/pom.xml streams/
+RUN mvn -q -pl coreEngine -am dependency:go-offline -DexcludeArtifactIds=communication || true
 
-RUN mvn dependency:go-offline
-
-# Copy source code into builder stage for compiling and testing
-COPY src ./src
+COPY communication/src communication/src
+COPY coreEngine/src coreEngine/src
 
 # Package standalone executable JAR (unit tests run in CI workflow)
-RUN mvn clean package -DskipTests
+RUN mvn -q -pl coreEngine -am clean package -DskipTests
 
 
 # ---------- Runner (Ubuntu 24.04 LTS Noble - Rock-Solid Mirror Stability) ----------
@@ -31,7 +36,7 @@ RUN apt-get update -o Acquire::Retries=3 --fix-missing \
 RUN addgroup --system app && adduser --system --ingroup app app
 
 # Copy ONLY the generated JAR and OpenTelemetry Java agent from builder
-COPY --from=builder /app/target/*.jar app.jar
+COPY --from=builder /app/coreEngine/target/*.jar app.jar
 COPY --from=builder /app/opentelemetry-javaagent.jar /app/opentelemetry-javaagent.jar
 RUN chmod 644 /app/opentelemetry-javaagent.jar
 
