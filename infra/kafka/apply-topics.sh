@@ -9,7 +9,7 @@ BROKERS="${RPK_BROKERS:-localhost:9092}"
 
 # Wait for the broker (the init container starts alongside it).
 for i in $(seq 1 60); do
-  if rpk cluster health -X brokers="$BROKERS" --exit-when-healthy >/dev/null 2>&1; then break; fi
+  if rpk topic list -X brokers="$BROKERS" >/dev/null 2>&1; then break; fi
   sleep 2
   if [ "$i" = 60 ]; then echo "Redpanda at $BROKERS not healthy" >&2; exit 1; fi
 done
