@@ -17,7 +17,11 @@ export async function patchPages<T>(
   const snapshot = qc.getQueriesData({ queryKey: prefix });
   qc.setQueriesData<Page<T>>({ queryKey: prefix }, (old) => {
     if (!old || !Array.isArray(old.rows)) return old;
-    return { ...old, rows: update(old.rows), total: Math.max(0, old.total + totalDelta) };
+    return {
+      ...old,
+      rows: update(old.rows),
+      total: Math.max(0, old.total + totalDelta),
+    };
   });
   return snapshot;
 }

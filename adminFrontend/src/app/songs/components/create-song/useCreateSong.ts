@@ -2,9 +2,9 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { apiRequest } from "@/lib/http";
 import { toSeconds } from "@/lib/forms/schemas";
 import { useUploadProgress } from "@/lib/forms/useUploadProgress";
+import { apiRequest } from "@/lib/http";
 import { queryKeys } from "@/lib/query/keys";
 import {
   getFriendlyUploadErrorMessage,
@@ -17,7 +17,8 @@ import type { UploadErrorState } from "../../types";
 import type { CreateSongValues } from "./schema";
 
 /** A clip bound is sent only when the song has video and the field was filled in. */
-const clip = (hasVideo: boolean, v: number | "") => (hasVideo && v !== "" ? v : undefined);
+const clip = (hasVideo: boolean, v: number | "") =>
+  hasVideo && v !== "" ? v : undefined;
 
 /**
  * Uploads the media (audio or full video to S3, artwork and canvas to ImageKit), then
@@ -38,14 +39,19 @@ export function useCreateSong() {
   };
 
   /** Resolves `{ ok: true }` when the song was created, otherwise the error to show. */
-  const create = async (v: CreateSongValues): Promise<{ ok: true } | { ok: false; message?: string }> => {
+  const create = async (
+    v: CreateSongValues,
+  ): Promise<{ ok: true } | { ok: false; message?: string }> => {
     if (!isDeviceOnline()) {
       const offline = getFriendlyUploadErrorMessage(
-        new UploadError("You appear to be offline. Please check your connection.", {
-          isOffline: true,
-          isNetworkError: true,
-          canRetry: true,
-        }),
+        new UploadError(
+          "You appear to be offline. Please check your connection.",
+          {
+            isOffline: true,
+            isNetworkError: true,
+            canRetry: true,
+          },
+        ),
       );
       setError(offline);
       return { ok: false, message: offline.message };
@@ -76,7 +82,10 @@ export function useCreateSong() {
 
       if (v.mode === "videoOnly" && v.fullVideoFile) {
         setStep(1);
-        progress.step("Uploading full music video to S3 storage...", v.fullVideoFile);
+        progress.step(
+          "Uploading full music video to S3 storage...",
+          v.fullVideoFile,
+        );
         const res = await uploadToS3WithProgress(
           v.fullVideoFile,
           "/webhook/internal/video-upload-url",
@@ -90,18 +99,34 @@ export function useCreateSong() {
 
       setStep(2);
       progress.step("Uploading cover artwork to ImageKit CDN...", v.imageFile);
-      const imageKey = await uploadToImageKitWithProgress(v.imageFile, "/songs/images", progress.onProgress, retry);
+      const imageKey = await uploadToImageKitWithProgress(
+        v.imageFile,
+        "/songs/images",
+        progress.onProgress,
+        retry,
+      );
       progress.settle();
 
       let videoKey: string | null = null;
       if (v.mode === "audio" && v.videoFile) {
-        progress.step("Uploading canvas background loop to ImageKit CDN...", v.videoFile);
-        videoKey = await uploadToImageKitWithProgress(v.videoFile, "/songs/videos", progress.onProgress, retry);
+        progress.step(
+          "Uploading canvas background loop to ImageKit CDN...",
+          v.videoFile,
+        );
+        videoKey = await uploadToImageKitWithProgress(
+          v.videoFile,
+          "/songs/videos",
+          progress.onProgress,
+          retry,
+        );
         progress.settle();
       }
 
       setStep(3);
-      progress.step("Registering song & scheduling background processing...", 100);
+      progress.step(
+        "Registering song & scheduling background processing...",
+        100,
+      );
 
       const hasVideo = v.mode === "videoOnly" || Boolean(v.videoFile);
       await apiRequest("/admin/song", {

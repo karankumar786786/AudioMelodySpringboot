@@ -17,7 +17,9 @@ export default function JobMonitoringPage() {
   const [live, setLive] = useState(true);
 
   const ingestionTable = useServerTable({ initialFilters: { status: "ALL" } });
-  const deletionTable = useServerTable({ initialFilters: { status: "ALL", entityType: "ALL" } });
+  const deletionTable = useServerTable({
+    initialFilters: { status: "ALL", entityType: "ALL" },
+  });
 
   // Only the visible tab's queries run (and poll every 15 s while the browser tab is visible).
   const ingestion = useIngestionJobs(
@@ -52,7 +54,8 @@ export default function JobMonitoringPage() {
   const handleSync = () =>
     sync.mutate(undefined, {
       onSuccess: () => toast("Pagination metadata synced"),
-      onError: (err) => toast(err.message || "Failed to sync pagination metadata.", "error"),
+      onError: (err) =>
+        toast(err.message || "Failed to sync pagination metadata.", "error"),
     });
 
   return (
@@ -78,7 +81,12 @@ export default function JobMonitoringPage() {
           onRefresh={refresh}
         />
       ) : (
-        <DeletionPanel table={deletionTable} summary={deletion.summary} list={deletion.list} onRefresh={refresh} />
+        <DeletionPanel
+          table={deletionTable}
+          summary={deletion.summary}
+          list={deletion.list}
+          onRefresh={refresh}
+        />
       )}
     </div>
   );

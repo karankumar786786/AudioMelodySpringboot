@@ -1,19 +1,18 @@
 "use client";
 
-import type React from "react";
 import {
-  Smartphone,
+  AlertCircle,
+  Calendar,
+  Clock,
   Laptop,
+  Loader2,
+  RefreshCw,
   Shield,
+  Smartphone,
   Trash2,
   X,
-  RefreshCw,
-  Loader2,
-  Clock,
-  Calendar,
-  AlertCircle,
-  CheckCircle2,
 } from "lucide-react";
+import type React from "react";
 import { useConfirm } from "@/components/feedback/ConfirmProvider";
 import { useToast } from "@/components/feedback/ToastProvider";
 import { useRevokeSession, useUserSessions } from "@/lib/queries/users";
@@ -25,7 +24,11 @@ export interface UserSessionsModalProps {
   onClose: () => void;
 }
 
-export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({ user, isOpen, onClose }) => {
+export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({
+  user,
+  isOpen,
+  onClose,
+}) => {
   const toast = useToast();
   const confirm = useConfirm();
   const sessionsQuery = useUserSessions(isOpen ? user?.email : null);
@@ -35,7 +38,8 @@ export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({ user, isOp
   const error = sessionsQuery.error?.message ?? null;
   const fetchSessions = () => sessionsQuery.refetch();
   const revokingAll = revoke.isPending && revoke.variables === "all";
-  const revokingId = revoke.isPending && revoke.variables !== "all" ? revoke.variables : null;
+  const revokingId =
+    revoke.isPending && revoke.variables !== "all" ? revoke.variables : null;
 
   const handleRevokeSingle = (sessionId: string) =>
     revoke.mutate(sessionId, {
@@ -47,7 +51,8 @@ export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({ user, isOp
     if (!user?.email) return;
     const ok = await confirm({
       title: `Sign out every device for ${user.email}?`,
-      description: "All of this user's sessions end; they must sign in again on each device.",
+      description:
+        "All of this user's sessions end; they must sign in again on each device.",
       confirmLabel: "Revoke all",
       destructive: true,
       typeToConfirm: "revoke all",
@@ -110,7 +115,8 @@ export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({ user, isOp
         {/* Modal Toolbar */}
         <div className="px-6 py-3 bg-[#141418] border-b border-white/6 flex items-center justify-between gap-4">
           <p className="text-xs text-zinc-400">
-            Database-backed refresh sessions verified by <span className="font-semibold text-zinc-200">coreEngine</span>.
+            Database-backed refresh sessions verified by{" "}
+            <span className="font-semibold text-zinc-200">coreEngine</span>.
           </p>
           <div className="flex items-center gap-2 shrink-0">
             <button
@@ -119,7 +125,9 @@ export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({ user, isOp
               disabled={loading}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-zinc-300 bg-[#18181c] hover:bg-white hover:text-black border border-white/8 transition-all disabled:opacity-50 cursor-pointer"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
+              />
               <span>Refresh</span>
             </button>
             {sessions.length > 0 && (
@@ -157,7 +165,9 @@ export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({ user, isOp
           ) : sessions.length === 0 ? (
             <div className="py-16 text-center text-zinc-500">
               <Shield className="w-10 h-10 mx-auto mb-2 opacity-30 text-zinc-400" />
-              <p className="font-semibold text-sm text-zinc-300">No active device sessions</p>
+              <p className="font-semibold text-sm text-zinc-300">
+                No active device sessions
+              </p>
               <p className="text-xs mt-1 text-zinc-500">
                 This user has no active refresh tokens registered in PostgreSQL.
               </p>
@@ -206,6 +216,7 @@ export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({ user, isOp
                   </div>
 
                   <button
+                    type="button"
                     onClick={() => handleRevokeSingle(sess.id)}
                     disabled={isCurrentRevoking || revokingAll}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-zinc-300 hover:text-rose-400 bg-zinc-900 hover:bg-rose-500/10 border border-[#282828] hover:border-rose-500/30 transition-all shrink-0 disabled:opacity-40"
@@ -227,6 +238,7 @@ export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({ user, isOp
         {/* Modal Footer */}
         <div className="p-4 border-t border-[#282828] bg-black/40 flex justify-end">
           <button
+            type="button"
             onClick={onClose}
             className="px-5 py-2 rounded-full text-xs font-bold text-black bg-white hover:bg-zinc-200 transition-all"
           >

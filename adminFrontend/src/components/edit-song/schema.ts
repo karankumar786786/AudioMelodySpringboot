@@ -1,5 +1,13 @@
 import { z } from "zod";
-import { fileOrNull, fromSeconds, lrclibId, minutes, requiredText, seconds, toSeconds } from "@/lib/forms/schemas";
+import {
+  fileOrNull,
+  fromSeconds,
+  lrclibId,
+  minutes,
+  requiredText,
+  seconds,
+  toSeconds,
+} from "@/lib/forms/schemas";
 import type { SongData } from "./types";
 
 /**

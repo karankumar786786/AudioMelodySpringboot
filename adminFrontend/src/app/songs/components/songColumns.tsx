@@ -22,7 +22,10 @@ export interface SongRowActions {
   busyId?: string | null;
 }
 
-export function songColumns(actions: SongRowActions, selectable: boolean): ColumnDef<Song>[] {
+export function songColumns(
+  actions: SongRowActions,
+  selectable: boolean,
+): ColumnDef<Song>[] {
   const cols: ColumnDef<Song>[] = [
     {
       id: "title",
@@ -35,14 +38,17 @@ export function songColumns(actions: SongRowActions, selectable: boolean): Colum
       id: "artistName",
       accessorFn: (s) => s.artistName,
       header: "Artist",
-      cell: ({ getValue }) => <span className="text-zinc-300">{getValue<string>()}</span>,
+      cell: ({ getValue }) => (
+        <span className="text-zinc-300">{getValue<string>()}</span>
+      ),
     },
     {
       id: "album",
       accessorFn: (s) => s.album ?? "",
       header: "Album",
       meta: { cellClassName: "font-medium text-zinc-300 truncate max-w-40" },
-      cell: ({ getValue }) => getValue<string>() || <span className="text-zinc-600">—</span>,
+      cell: ({ getValue }) =>
+        getValue<string>() || <span className="text-zinc-600">—</span>,
     },
     {
       id: "genre",
@@ -55,7 +61,9 @@ export function songColumns(actions: SongRowActions, selectable: boolean): Colum
       id: "language",
       accessorFn: (s) => s.language ?? "",
       header: "Language",
-      cell: ({ getValue }) => <span className="text-zinc-300">{getValue<string>() || "—"}</span>,
+      cell: ({ getValue }) => (
+        <span className="text-zinc-300">{getValue<string>() || "—"}</span>
+      ),
     },
     {
       id: "country",
@@ -71,7 +79,10 @@ export function songColumns(actions: SongRowActions, selectable: boolean): Colum
       id: "duration",
       accessorFn: (s) => s.duration ?? 0,
       header: "Duration",
-      meta: { cellClassName: "font-mono text-zinc-400 tabular-nums", csv: (s) => formatDuration(s.duration) },
+      meta: {
+        cellClassName: "font-mono text-zinc-400 tabular-nums",
+        csv: (s) => formatDuration(s.duration),
+      },
       cell: ({ row }) => formatDuration(row.original.duration),
     },
     {
@@ -87,7 +98,11 @@ export function songColumns(actions: SongRowActions, selectable: boolean): Colum
       enableSorting: false,
       meta: {
         csv: (s) =>
-          [s.videoKey && "canvas", s.fullVideoKey && "full video", s.lrclibId && s.lrclibId !== "0" && "lyrics"]
+          [
+            s.videoKey && "canvas",
+            s.fullVideoKey && "full video",
+            s.lrclibId && s.lrclibId !== "0" && "lyrics",
+          ]
             .filter(Boolean)
             .join(" "),
       },
@@ -105,7 +120,11 @@ export function songColumns(actions: SongRowActions, selectable: boolean): Colum
       header: "Added",
       cell: ({ getValue }) => {
         const v = getValue<string>();
-        return <span className="text-zinc-500 text-[11px]">{v ? new Date(v).toLocaleDateString() : "—"}</span>;
+        return (
+          <span className="text-zinc-500 text-[11px]">
+            {v ? new Date(v).toLocaleDateString() : "—"}
+          </span>
+        );
       },
     },
     {
@@ -113,7 +132,12 @@ export function songColumns(actions: SongRowActions, selectable: boolean): Colum
       header: () => <span className="sr-only">Actions</span>,
       enableSorting: false,
       enableHiding: false,
-      meta: { csv: false, label: "Actions", headerClassName: "text-right", cellClassName: "text-right" },
+      meta: {
+        csv: false,
+        label: "Actions",
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+      },
       cell: ({ row }) => {
         const song = row.original;
         const busy = actions.busyId === song.id;
@@ -141,10 +165,20 @@ export function songColumns(actions: SongRowActions, selectable: boolean): Colum
                     ? "text-amber-400 hover:text-amber-300 hover:bg-amber-400/10"
                     : "text-zinc-500 hover:text-zinc-300 hover:bg-white/6"
                 }`}
-                title={song.isFeatured ? "Remove from Featured Hero" : "Promote to Featured Hero"}
-                aria-label={song.isFeatured ? `Unfeature ${song.title}` : `Feature ${song.title}`}
+                title={
+                  song.isFeatured
+                    ? "Remove from Featured Hero"
+                    : "Promote to Featured Hero"
+                }
+                aria-label={
+                  song.isFeatured
+                    ? `Unfeature ${song.title}`
+                    : `Feature ${song.title}`
+                }
               >
-                <Star className={`w-3.5 h-3.5 ${song.isFeatured ? "fill-amber-400" : ""}`} />
+                <Star
+                  className={`w-3.5 h-3.5 ${song.isFeatured ? "fill-amber-400" : ""}`}
+                />
               </button>
             )}
             {actions.onEdit && (

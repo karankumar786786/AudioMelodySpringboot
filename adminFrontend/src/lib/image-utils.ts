@@ -42,7 +42,7 @@ export function getImageUrl(
   // Dimensions
   if (width) tr.push(`w-${width}`);
   if (height) tr.push(`h-${height}`);
-  
+
   // Crop & Fit mode
   if (crop === "pad_resize") {
     tr.push("cm-pad_resize");
@@ -60,7 +60,7 @@ export function getImageUrl(
   // Quality & Format
   if (quality) tr.push(`q-${quality}`);
   if (format) tr.push(`f-${format}`);
-  
+
   // Effects
   if (blur) tr.push(`bl-${blur}`);
 
@@ -75,4 +75,3 @@ export function getVideoUrl(key: string | undefined | null) {
   const path = key.startsWith("/") ? key : `/${key}`;
   return `${IMAGEKIT_URL_ENDPOINT}${path}?tr=orig`;
 }
-

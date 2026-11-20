@@ -4,7 +4,13 @@ import { LayoutGrid, List } from "lucide-react";
 
 export type ViewMode = "table" | "grid";
 
-export function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (v: ViewMode) => void }) {
+export function ViewToggle({
+  value,
+  onChange,
+}: {
+  value: ViewMode;
+  onChange: (v: ViewMode) => void;
+}) {
   const btn = (mode: ViewMode, label: string, Icon: typeof List) => (
     <button
       type="button"
@@ -13,7 +19,9 @@ export function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (v:
       title={label}
       onClick={() => onChange(mode)}
       className={`p-1.5 rounded-lg transition-all cursor-pointer ${
-        value === mode ? "bg-white text-black" : "text-zinc-400 hover:text-white"
+        value === mode
+          ? "bg-white text-black"
+          : "text-zinc-400 hover:text-white"
       }`}
     >
       <Icon className="w-3.5 h-3.5" />

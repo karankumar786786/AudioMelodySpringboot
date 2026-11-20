@@ -3,7 +3,12 @@
 import { useMemo, useState } from "react";
 import type { PlaylistSong } from "@/app/playlists/types";
 
-export type TrackFilter = "ALL" | "FEATURED" | "CANVAS" | "FULL_VIDEO" | "LYRICS";
+export type TrackFilter =
+  | "ALL"
+  | "FEATURED"
+  | "CANVAS"
+  | "FULL_VIDEO"
+  | "LYRICS";
 
 const MATCHES: Record<TrackFilter, (s: PlaylistSong) => boolean> = {
   ALL: () => true,

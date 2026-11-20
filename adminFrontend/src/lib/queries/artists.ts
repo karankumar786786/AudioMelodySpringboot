@@ -1,6 +1,11 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import type { Artist } from "@/app/artists/types";
 import { useToast } from "@/components/feedback/ToastProvider";
 import { apiGet, apiRequest, fetchPage } from "@/lib/http";
@@ -18,7 +23,8 @@ export interface ArtistListParams {
 export function useArtists(params: ArtistListParams) {
   return useQuery({
     queryKey: queryKeys.artists.list({ ...params }),
-    queryFn: ({ signal }) => fetchPage<Artist>("/admin/artist", { ...params }, signal),
+    queryFn: ({ signal }) =>
+      fetchPage<Artist>("/admin/artist", { ...params }, signal),
     placeholderData: keepPreviousData,
   });
 }
@@ -30,10 +36,14 @@ export function useArtist(id: string) {
   });
 }
 
-export function useArtistSongs<T>(id: string, params: { page: number; size: number }) {
+export function useArtistSongs<T>(
+  id: string,
+  params: { page: number; size: number },
+) {
   return useQuery({
     queryKey: queryKeys.artists.songs(id, params),
-    queryFn: ({ signal }) => fetchPage<T>(`/admin/artist/${id}/songs`, params, signal),
+    queryFn: ({ signal }) =>
+      fetchPage<T>(`/admin/artist/${id}/songs`, params, signal),
     placeholderData: keepPreviousData,
   });
 }
@@ -49,7 +59,11 @@ export function useCreateArtist() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateArtistInput) =>
-      apiRequest<Artist>("/admin/artist", { method: "POST", body: input, errorMessage: "Failed to create artist" }),
+      apiRequest<Artist>("/admin/artist", {
+        method: "POST",
+        body: input,
+        errorMessage: "Failed to create artist",
+      }),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.artists.all });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
@@ -62,7 +76,10 @@ export function useDeleteArtist() {
   const toast = useToast();
   return useMutation({
     mutationFn: (artist: Pick<Artist, "id" | "name">) =>
-      apiRequest(`/admin/artist/${artist.id}`, { method: "DELETE", errorMessage: "Delete failed" }),
+      apiRequest(`/admin/artist/${artist.id}`, {
+        method: "DELETE",
+        errorMessage: "Delete failed",
+      }),
     retry: retryIdempotent,
     onMutate: async (artist) => ({
       snapshot: await patchPages<Artist>(

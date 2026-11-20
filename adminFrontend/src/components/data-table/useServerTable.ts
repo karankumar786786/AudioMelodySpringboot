@@ -1,7 +1,7 @@
 "use client";
 
 import type { PaginationState, RowSelectionState } from "@tanstack/react-table";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * State for a server-paged list: page, page size, a debounced search and typed filters.
@@ -16,9 +16,13 @@ export function useServerTable<F extends Record<string, string>>({
   initialPageSize?: number;
   debounceMs?: number;
 }) {
-  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: initialPageSize });
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: initialPageSize,
+  });
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const initial = useRef(initialFilters);
   const [filters, setFilters] = useState<F>(initialFilters);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
@@ -41,10 +45,8 @@ export function useServerTable<F extends Record<string, string>>({
   const reset = useCallback(() => {
     setSearch("");
     setDebouncedSearch("");
-    setFilters(initialFilters);
+    setFilters(initial.current);
     setPagination((p) => ({ ...p, pageIndex: 0 }));
-    // initialFilters is a literal at the call site; resetting to its first value is intended.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {
@@ -59,6 +61,11 @@ export function useServerTable<F extends Record<string, string>>({
     rowSelection,
     setRowSelection,
     /** Query params common to every adminBackend list endpoint. */
-    params: { page: pagination.pageIndex, size: pagination.pageSize, search: debouncedSearch, ...filters },
+    params: {
+      page: pagination.pageIndex,
+      size: pagination.pageSize,
+      search: debouncedSearch,
+      ...filters,
+    },
   };
 }

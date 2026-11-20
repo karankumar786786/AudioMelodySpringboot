@@ -8,7 +8,11 @@ import { selectionColumn } from "@/components/data-table/columns";
 import { getImageUrl } from "@/lib/image-utils";
 import type { Artist } from "../types";
 
-export function artistColumns({ onDelete }: { onDelete?: (a: Artist) => void }): ColumnDef<Artist>[] {
+export function artistColumns({
+  onDelete,
+}: {
+  onDelete?: (a: Artist) => void;
+}): ColumnDef<Artist>[] {
   return [
     selectionColumn<Artist>(),
     {
@@ -21,7 +25,6 @@ export function artistColumns({ onDelete }: { onDelete?: (a: Artist) => void }):
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl overflow-hidden bg-black border border-white/10 shrink-0 flex items-center justify-center">
               {a.coverImageKey ? (
-                // biome-ignore lint/performance/noImgElement: ImageKit already serves a resized thumbnail
                 <img
                   src={getImageUrl(a.coverImageKey, { width: 80, height: 80 })}
                   alt={a.name}
@@ -42,14 +45,20 @@ export function artistColumns({ onDelete }: { onDelete?: (a: Artist) => void }):
       header: "About",
       enableSorting: false,
       cell: ({ getValue }) => (
-        <span className="text-zinc-400 line-clamp-2 max-w-md">{getValue<string>() || "—"}</span>
+        <span className="text-zinc-400 line-clamp-2 max-w-md">
+          {getValue<string>() || "—"}
+        </span>
       ),
     },
     {
       id: "dob",
       accessorFn: (a) => a.dob ?? "",
       header: "Born",
-      cell: ({ getValue }) => <span className="text-zinc-400 font-mono">{getValue<string>() || "—"}</span>,
+      cell: ({ getValue }) => (
+        <span className="text-zinc-400 font-mono">
+          {getValue<string>() || "—"}
+        </span>
+      ),
     },
     {
       id: "status",
@@ -62,7 +71,12 @@ export function artistColumns({ onDelete }: { onDelete?: (a: Artist) => void }):
       header: () => <span className="sr-only">Actions</span>,
       enableSorting: false,
       enableHiding: false,
-      meta: { csv: false, label: "Actions", headerClassName: "text-right", cellClassName: "text-right" },
+      meta: {
+        csv: false,
+        label: "Actions",
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+      },
       cell: ({ row }) => (
         <div className="flex items-center justify-end gap-1">
           <Link

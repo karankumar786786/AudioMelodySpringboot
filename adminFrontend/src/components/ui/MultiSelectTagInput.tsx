@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useRef, useEffect, KeyboardEvent } from "react";
-import { X, Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
+import { type KeyboardEvent, useId, useRef, useState } from "react";
 
 export interface MultiSelectTagInputProps {
   label?: string;
@@ -25,6 +25,7 @@ export function MultiSelectTagInput({
   const [inputValue, setInputValue] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const inputId = useId();
 
   // Normalize list of values
   const currentTags = Array.isArray(values) ? values : [];
@@ -69,17 +70,22 @@ export function MultiSelectTagInput({
     (s) =>
       !currentTags.some((t) => t.toLowerCase() === s.toLowerCase()) &&
       (!inputValue.trim() ||
-        s.toLowerCase().includes(inputValue.toLowerCase().trim()))
+        s.toLowerCase().includes(inputValue.toLowerCase().trim())),
   );
 
   return (
     <div className="w-full space-y-1.5">
       {label && (
-        <label className="block text-xs font-semibold text-zinc-300">
+        <label
+          htmlFor={inputId}
+          className="block text-xs font-semibold text-zinc-300"
+        >
           {label}
         </label>
       )}
 
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: a mouse convenience; the input inside takes keyboard focus */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: as above */}
       <div
         onClick={() => inputRef.current?.focus()}
         className={`min-h-[42px] w-full bg-[#121215] border rounded-xl p-1.5 flex flex-wrap items-center gap-1.5 cursor-text transition-all ${
@@ -90,7 +96,7 @@ export function MultiSelectTagInput({
       >
         {currentTags.map((tag, idx) => (
           <span
-            key={`${tag}-${idx}`}
+            key={tag}
             className="inline-flex items-center gap-1 text-[11px] font-semibold bg-white/8 text-white border border-white/12 px-2.5 py-1 rounded-lg animate-in fade-in zoom-in-95 duration-100"
           >
             <span>{tag}</span>
@@ -111,6 +117,7 @@ export function MultiSelectTagInput({
 
         {!disabled && (
           <input
+            id={inputId}
             ref={inputRef}
             type="text"
             value={inputValue}
@@ -132,7 +139,9 @@ export function MultiSelectTagInput({
       {/* Suggested chips below input */}
       {filteredSuggestions.length > 0 && isFocused && (
         <div className="flex flex-wrap gap-1.5 pt-1">
-          <span className="text-[10px] text-zinc-500 self-center mr-1">Suggestions:</span>
+          <span className="text-[10px] text-zinc-500 self-center mr-1">
+            Suggestions:
+          </span>
           {filteredSuggestions.slice(0, 8).map((sugg) => (
             <button
               key={sugg}
@@ -150,8 +159,9 @@ export function MultiSelectTagInput({
         </div>
       )}
 
-      {error && <p className="text-[11px] text-rose-400 font-medium">{error}</p>}
+      {error && (
+        <p className="text-[11px] text-rose-400 font-medium">{error}</p>
+      )}
     </div>
   );
 }
-

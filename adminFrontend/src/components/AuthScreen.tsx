@@ -1,19 +1,33 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  AlertCircle,
+  ArrowRight,
+  Mail,
+  RefreshCw,
+  ShieldCheck,
+  User,
+} from "lucide-react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useAuth } from "@/lib/auth-context";
 import { emailField } from "@/lib/forms/schemas";
-import { Mail, User, ArrowRight, RefreshCw, ShieldCheck, AlertCircle } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 
 /** Mirrors /auth/login and /auth/register: email always, name when registering. */
 const emailFormSchema = z
-  .object({ mode: z.enum(["login", "register"]), email: emailField, name: z.string().trim() })
-  .refine((v) => v.mode === "login" || v.name.length > 0, { path: ["name"], message: "Name is required" });
+  .object({
+    mode: z.enum(["login", "register"]),
+    email: emailField,
+    name: z.string().trim(),
+  })
+  .refine((v) => v.mode === "login" || v.name.length > 0, {
+    path: ["name"],
+    message: "Name is required",
+  });
 type EmailForm = z.infer<typeof emailFormSchema>;
 
 /** /auth/verify-otp expects the six-digit code. */
@@ -53,26 +67,35 @@ export function AuthScreen() {
     if (mode !== "otp") emailForm.setValue("mode", mode);
   }, [mode, emailForm]);
 
-  const handleEmailSubmit = emailForm.handleSubmit(async ({ mode: formMode, email: addr, name: fullName }) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = formMode === "login" ? await login(addr) : await register(fullName, addr);
-      setEmailToken(res.token);
-      setMode("otp");
-      setResendCooldown(30);
-      setExpiresIn(300);
-      setOtp(Array(6).fill(""));
-    } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : "Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  });
+  const handleEmailSubmit = emailForm.handleSubmit(
+    async ({ mode: formMode, email: addr, name: fullName }) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res =
+          formMode === "login"
+            ? await login(addr)
+            : await register(fullName, addr);
+        setEmailToken(res.token);
+        setMode("otp");
+        setResendCooldown(30);
+        setExpiresIn(300);
+        setOtp(Array(6).fill(""));
+      } catch (err) {
+        setError(
+          err instanceof Error && err.message
+            ? err.message
+            : "Something went wrong. Please try again.",
+        );
+      } finally {
+        setLoading(false);
+      }
+    },
+  );
 
   const handleOtpChange = (index: number, value: string) => {
     if (!/^[0-9]?$/.test(value)) return; // Allow numbers only (or backspace)
-    
+
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
@@ -83,7 +106,10 @@ export function AuthScreen() {
     }
   };
 
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleOtpKeyDown = (
+    index: number,
+    e: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
       // Focus previous input on backspace if current is empty
       otpInputsRef.current[index - 1]?.focus();
@@ -91,6 +117,7 @@ export function AuthScreen() {
   };
 
   // Trigger verify automatically when 6 digits are typed
+  // biome-ignore lint/correctness/useExhaustiveDependencies: verify only when the digits change, not when the handler is recreated
   useEffect(() => {
     if (mode === "otp" && otp.every((digit) => digit !== "")) {
       handleOtpVerify();
@@ -109,8 +136,10 @@ export function AuthScreen() {
     try {
       await verifyOtp(email.trim().toLowerCase(), otpCode, emailToken);
       // Auth context will automatically update user state, closing this screen
-    } catch (err: any) {
-      setError(err.message || "Invalid OTP code");
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message ? err.message : "Invalid OTP code",
+      );
     } finally {
       setLoading(false);
     }
@@ -129,15 +158,22 @@ export function AuthScreen() {
       setExpiresIn(300);
       setOtp(Array(6).fill(""));
       otpInputsRef.current[0]?.focus();
-    } catch (err: any) {
-      setError(err.message || "Failed to resend OTP");
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Failed to resend OTP",
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const shownError =
-    error ?? (mode !== "otp" ? (formErrors.email?.message ?? formErrors.name?.message ?? null) : null);
+    error ??
+    (mode !== "otp"
+      ? (formErrors.email?.message ?? formErrors.name?.message ?? null)
+      : null);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -200,7 +236,10 @@ export function AuthScreen() {
           <form onSubmit={handleEmailSubmit} noValidate className="space-y-4">
             {mode === "register" && (
               <div className="space-y-1.5">
-                <label htmlFor="auth-name" className="text-xs font-semibold text-zinc-300 uppercase tracking-wider pl-1">
+                <label
+                  htmlFor="auth-name"
+                  className="text-xs font-semibold text-zinc-300 uppercase tracking-wider pl-1"
+                >
                   Full Name
                 </label>
                 <div className="relative group">
@@ -221,7 +260,10 @@ export function AuthScreen() {
             )}
 
             <div className="space-y-1.5">
-              <label htmlFor="auth-email" className="text-xs font-semibold text-zinc-300 uppercase tracking-wider pl-1">
+              <label
+                htmlFor="auth-email"
+                className="text-xs font-semibold text-zinc-300 uppercase tracking-wider pl-1"
+              >
                 Email Address
               </label>
               <div className="relative group">
@@ -293,11 +335,17 @@ export function AuthScreen() {
             <div className="flex justify-between gap-2">
               {otp.map((digit, idx) => (
                 <input
+                  // biome-ignore lint/suspicious/noArrayIndexKey: fixed-position placeholders never reorder
                   key={idx}
                   type="text"
+                  inputMode="numeric"
+                  autoComplete={idx === 0 ? "one-time-code" : "off"}
+                  aria-label={`Verification code digit ${idx + 1}`}
                   maxLength={1}
                   required
-                  ref={(el) => { otpInputsRef.current[idx] = el; }}
+                  ref={(el) => {
+                    otpInputsRef.current[idx] = el;
+                  }}
                   value={digit}
                   onChange={(e) => handleOtpChange(idx, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(idx, e)}
@@ -343,6 +391,7 @@ export function AuthScreen() {
             </div>
 
             <button
+              type="button"
               onClick={handleOtpVerify}
               disabled={loading || otp.some((d) => d === "")}
               className="w-full bg-white text-black hover:bg-zinc-200 font-bold text-sm tracking-wide py-3.5 rounded-full transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"

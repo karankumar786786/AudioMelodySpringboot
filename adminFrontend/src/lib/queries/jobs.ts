@@ -1,7 +1,17 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { DeleteJobProgress, DeleteJobSummaryMetrics, JobProgress, JobSummaryMetrics } from "@/lib/api";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import type {
+  DeleteJobProgress,
+  DeleteJobSummaryMetrics,
+  JobProgress,
+  JobSummaryMetrics,
+} from "@/lib/api";
 import { apiGet, apiRequest, fetchPage } from "@/lib/http";
 import { queryKeys } from "@/lib/query/keys";
 import { patchPages, restore } from "@/lib/query/optimistic";
@@ -42,42 +52,56 @@ export interface DeletionListParams extends IngestionListParams {
   entityType: string;
 }
 
-export function useIngestionJobs(params: IngestionListParams, { live, enabled }: { live: boolean; enabled: boolean }) {
+export function useIngestionJobs(
+  params: IngestionListParams,
+  { live, enabled }: { live: boolean; enabled: boolean },
+) {
   const opts = liveOptions(live, enabled);
   const summary = useQuery({
     queryKey: queryKeys.jobs.ingestion.summary(),
-    queryFn: ({ signal }) => apiGet<JobSummaryMetrics>("/admin/jobs/summary", signal),
+    queryFn: ({ signal }) =>
+      apiGet<JobSummaryMetrics>("/admin/jobs/summary", signal),
     ...opts,
   });
   const active = useQuery({
     queryKey: queryKeys.jobs.ingestion.active(),
-    queryFn: async ({ signal }) => asArray<JobProgress>(await apiGet("/admin/jobs/active", signal)),
+    queryFn: async ({ signal }) =>
+      asArray<JobProgress>(await apiGet("/admin/jobs/active", signal)),
     ...opts,
   });
   const list = useQuery({
     queryKey: queryKeys.jobs.ingestion.list({ ...params }),
-    queryFn: ({ signal }) => fetchPage<JobProgress>("/admin/jobs", { ...params }, signal),
+    queryFn: ({ signal }) =>
+      fetchPage<JobProgress>("/admin/jobs", { ...params }, signal),
     placeholderData: keepPreviousData,
     ...opts,
   });
   return { summary, active, list };
 }
 
-export function useDeletionJobs(params: DeletionListParams, { live, enabled }: { live: boolean; enabled: boolean }) {
+export function useDeletionJobs(
+  params: DeletionListParams,
+  { live, enabled }: { live: boolean; enabled: boolean },
+) {
   const opts = liveOptions(live, enabled);
   const summary = useQuery({
     queryKey: queryKeys.jobs.deletion.summary(),
-    queryFn: ({ signal }) => apiGet<DeleteJobSummaryMetrics>("/admin/delete-jobs/summary", signal),
+    queryFn: ({ signal }) =>
+      apiGet<DeleteJobSummaryMetrics>("/admin/delete-jobs/summary", signal),
     ...opts,
   });
   const active = useQuery({
     queryKey: queryKeys.jobs.deletion.active(),
-    queryFn: async ({ signal }) => asArray<DeleteJobProgress>(await apiGet("/admin/delete-jobs/active", signal)),
+    queryFn: async ({ signal }) =>
+      asArray<DeleteJobProgress>(
+        await apiGet("/admin/delete-jobs/active", signal),
+      ),
     ...opts,
   });
   const list = useQuery({
     queryKey: queryKeys.jobs.deletion.list({ ...params }),
-    queryFn: ({ signal }) => fetchPage<DeleteJobProgress>("/admin/delete-jobs", { ...params }, signal),
+    queryFn: ({ signal }) =>
+      fetchPage<DeleteJobProgress>("/admin/delete-jobs", { ...params }, signal),
     placeholderData: keepPreviousData,
     ...opts,
   });
@@ -86,19 +110,31 @@ export function useDeletionJobs(params: DeletionListParams, { live, enabled }: {
 
 type Pipeline = "ingestion" | "deletion";
 
-const BASE: Record<Pipeline, string> = { ingestion: "/admin/jobs", deletion: "/admin/delete-jobs" };
+const BASE: Record<Pipeline, string> = {
+  ingestion: "/admin/jobs",
+  deletion: "/admin/delete-jobs",
+};
 
 /** Replaces one job in the cached list pages and the active list. */
 function useWriteJob(pipeline: Pipeline) {
   const qc = useQueryClient();
   return (job: { id: string }) => {
-    qc.setQueriesData<{ rows: { id: string }[] }>({ queryKey: queryKeys.jobs[pipeline].lists() }, (old) =>
-      old?.rows ? { ...old, rows: old.rows.map((j) => (j.id === job.id ? job : j)) } : old,
+    qc.setQueriesData<{ rows: { id: string }[] }>(
+      { queryKey: queryKeys.jobs[pipeline].lists() },
+      (old) =>
+        old?.rows
+          ? { ...old, rows: old.rows.map((j) => (j.id === job.id ? job : j)) }
+          : old,
     );
-    qc.setQueryData<{ id: string }[]>(queryKeys.jobs[pipeline].active(), (old) => {
-      if (!old) return old;
-      return old.some((j) => j.id === job.id) ? old.map((j) => (j.id === job.id ? job : j)) : [job, ...old];
-    });
+    qc.setQueryData<{ id: string }[]>(
+      queryKeys.jobs[pipeline].active(),
+      (old) => {
+        if (!old) return old;
+        return old.some((j) => j.id === job.id)
+          ? old.map((j) => (j.id === job.id ? job : j))
+          : [job, ...old];
+      },
+    );
   };
 }
 
@@ -109,12 +145,16 @@ export function useRetryJob<T extends { id: string }>(pipeline: Pipeline) {
     mutationFn: (jobId: string) =>
       apiRequest<T>(`${BASE[pipeline]}/${jobId}/retry`, {
         method: "POST",
-        errorMessage: pipeline === "ingestion" ? "Failed to retry ingestion job." : "Failed to retry delete job.",
+        errorMessage:
+          pipeline === "ingestion"
+            ? "Failed to retry ingestion job."
+            : "Failed to retry delete job.",
       }),
     onSuccess: (job) => {
       if (job && typeof job === "object" && "id" in job) write(job);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.jobs[pipeline].all }),
+    onSettled: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.jobs[pipeline].all }),
   });
 }
 
@@ -135,7 +175,9 @@ export function useDeleteJob(pipeline: Pipeline) {
       apiRequest(`${BASE[pipeline]}/${jobId}`, {
         method: "DELETE",
         errorMessage:
-          pipeline === "ingestion" ? "Failed to delete ingestion job." : "Failed to delete cascade delete record.",
+          pipeline === "ingestion"
+            ? "Failed to delete ingestion job."
+            : "Failed to delete cascade delete record.",
       }),
     onMutate: async (jobId) => {
       const snapshot = await patchPages<{ id: string }>(
@@ -146,14 +188,17 @@ export function useDeleteJob(pipeline: Pipeline) {
       );
       const activeKey = queryKeys.jobs[pipeline].active();
       const previousActive = qc.getQueryData(activeKey);
-      qc.setQueryData<{ id: string }[]>(activeKey, (old) => old?.filter((j) => j.id !== jobId));
+      qc.setQueryData<{ id: string }[]>(activeKey, (old) =>
+        old?.filter((j) => j.id !== jobId),
+      );
       return { snapshot, previousActive, activeKey };
     },
     onError: (_e, _id, ctx) => {
       restore(qc, ctx?.snapshot);
       if (ctx) qc.setQueryData(ctx.activeKey, ctx.previousActive);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.jobs[pipeline].all }),
+    onSettled: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.jobs[pipeline].all }),
   });
 }
 

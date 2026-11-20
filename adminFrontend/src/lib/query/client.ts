@@ -4,14 +4,20 @@ import { ApiError } from "@/lib/http";
 const MAX_QUERY_RETRIES = 2;
 
 /** Retry network failures and 5xx/429; never retry other 4xx (auth, validation, not found). */
-export function shouldRetry(failureCount: number, error: unknown, max = MAX_QUERY_RETRIES): boolean {
+export function shouldRetry(
+  failureCount: number,
+  error: unknown,
+  max = MAX_QUERY_RETRIES,
+): boolean {
   if (failureCount >= max) return false;
-  if (error instanceof ApiError) return error.status >= 500 || error.status === 429;
+  if (error instanceof ApiError)
+    return error.status >= 500 || error.status === 429;
   return true;
 }
 
 /** For idempotent mutations (PUT/DELETE/toggles): one retry on network errors or 5xx. */
-export const retryIdempotent = (failureCount: number, error: Error) => shouldRetry(failureCount, error, 1);
+export const retryIdempotent = (failureCount: number, error: Error) =>
+  shouldRetry(failureCount, error, 1);
 
 export function createQueryClient(): QueryClient {
   return new QueryClient({

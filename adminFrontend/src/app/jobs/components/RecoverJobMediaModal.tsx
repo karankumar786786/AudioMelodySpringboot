@@ -1,22 +1,23 @@
 "use client";
 
-import React, { useState } from "react";
 import {
+  AlertTriangle,
+  CheckCircle2,
+  Film,
+  Music,
+  RotateCcw,
   UploadCloud,
   X,
-  AlertTriangle,
-  Music,
-  Film,
-  CheckCircle2,
-  RotateCcw,
 } from "lucide-react";
-import { adminFetch } from "@/lib/adminFetch";
-import { JobProgress } from "@/lib/api";
+import type React from "react";
+import { useState } from "react";
 import { UploadProgressBar } from "@/components/UploadProgressBar";
+import { adminFetch } from "@/lib/adminFetch";
+import type { JobProgress } from "@/lib/api";
 import {
-  uploadToS3WithProgress,
   getFriendlyUploadErrorMessage,
   isDeviceOnline,
+  uploadToS3WithProgress,
 } from "@/lib/upload-utils";
 
 interface RecoverJobMediaModalProps {
@@ -39,10 +40,18 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
 }) => {
   const [recoverAudioFile, setRecoverAudioFile] = useState<File | null>(null);
   const [recoverVideoFile, setRecoverVideoFile] = useState<File | null>(null);
-  const [recoverClipStartMin, setRecoverClipStartMin] = useState<string | number>("");
-  const [recoverClipStartSec, setRecoverClipStartSec] = useState<string | number>("");
-  const [recoverClipEndMin, setRecoverClipEndMin] = useState<string | number>("");
-  const [recoverClipEndSec, setRecoverClipEndSec] = useState<string | number>("");
+  const [recoverClipStartMin, setRecoverClipStartMin] = useState<
+    string | number
+  >("");
+  const [recoverClipStartSec, setRecoverClipStartSec] = useState<
+    string | number
+  >("");
+  const [recoverClipEndMin, setRecoverClipEndMin] = useState<string | number>(
+    "",
+  );
+  const [recoverClipEndSec, setRecoverClipEndSec] = useState<string | number>(
+    "",
+  );
   const [isRecovering, setIsRecovering] = useState(false);
   const [recoverPercent, setRecoverPercent] = useState<number | null>(null);
   const [recoverProgressText, setRecoverProgressText] = useState("");
@@ -51,7 +60,9 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
     speedText?: string;
     fileName?: string;
   }>({});
-  const [recoverError, setRecoverError] = useState<RecoverErrorState | null>(null);
+  const [recoverError, setRecoverError] = useState<RecoverErrorState | null>(
+    null,
+  );
   const [isRecoverRetrying, setIsRecoverRetrying] = useState(false);
   const [recoverRetryStatusText, setRecoverRetryStatusText] = useState("");
 
@@ -72,7 +83,8 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
     if (!recoverAudioFile && !recoverVideoFile) {
       setRecoverError({
         title: "No Media Selected",
-        message: "Please select at least one replacement audio or video file to reprocess.",
+        message:
+          "Please select at least one replacement audio or video file to reprocess.",
       });
       return;
     }
@@ -80,7 +92,8 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
     if (!isDeviceOnline()) {
       setRecoverError({
         title: "You Are Offline",
-        message: "Network is currently disconnected. Reconnect to upload replacement media.",
+        message:
+          "Network is currently disconnected. Reconnect to upload replacement media.",
         isNetworkError: true,
       });
       return;
@@ -89,10 +102,14 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
     setIsRecovering(true);
     setRecoverError(null);
 
-    const retryHandler = (attempt: number, maxRetries: number, delayMs: number) => {
+    const retryHandler = (
+      attempt: number,
+      maxRetries: number,
+      delayMs: number,
+    ) => {
       setIsRecoverRetrying(true);
       setRecoverRetryStatusText(
-        `Network issue detected. Retrying in ${Math.ceil(delayMs / 1000)}s (attempt ${attempt}/${maxRetries})...`
+        `Network issue detected. Retrying in ${Math.ceil(delayMs / 1000)}s (attempt ${attempt}/${maxRetries})...`,
       );
     };
 
@@ -118,7 +135,7 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
               fileName: recoverAudioFile.name,
             });
           },
-          { onRetry: retryHandler, maxRetries: 4 }
+          { onRetry: retryHandler, maxRetries: 4 },
         );
         setIsRecoverRetrying(false);
         setRecoverRetryStatusText("");
@@ -143,7 +160,7 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
               fileName: recoverVideoFile.name,
             });
           },
-          { onRetry: retryHandler, maxRetries: 4 }
+          { onRetry: retryHandler, maxRetries: 4 },
         );
         setIsRecoverRetrying(false);
         setRecoverRetryStatusText("");
@@ -151,15 +168,19 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
       }
 
       // 3. Parse optional canvas clip timestamps
-      let clipStartMin: number | undefined = undefined;
-      let clipStartSec: number | undefined = undefined;
-      let clipEndMin: number | undefined = undefined;
-      let clipEndSec: number | undefined = undefined;
+      let clipStartMin: number | undefined;
+      let clipStartSec: number | undefined;
+      let clipEndMin: number | undefined;
+      let clipEndSec: number | undefined;
 
-      if (recoverClipStartMin !== "") clipStartMin = parseInt(String(recoverClipStartMin), 10) || 0;
-      if (recoverClipStartSec !== "") clipStartSec = parseInt(String(recoverClipStartSec), 10) || 0;
-      if (recoverClipEndMin !== "") clipEndMin = parseInt(String(recoverClipEndMin), 10) || 0;
-      if (recoverClipEndSec !== "") clipEndSec = parseInt(String(recoverClipEndSec), 10) || 0;
+      if (recoverClipStartMin !== "")
+        clipStartMin = parseInt(String(recoverClipStartMin), 10) || 0;
+      if (recoverClipStartSec !== "")
+        clipStartSec = parseInt(String(recoverClipStartSec), 10) || 0;
+      if (recoverClipEndMin !== "")
+        clipEndMin = parseInt(String(recoverClipEndMin), 10) || 0;
+      if (recoverClipEndSec !== "")
+        clipEndSec = parseInt(String(recoverClipEndSec), 10) || 0;
 
       // 4. Trigger recovery endpoint on coreEngine
       setRecoverProgressText("Re-enqueueing job with healthy media...");
@@ -180,13 +201,15 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
 
       if (!res.ok) {
         const errData = await res.json().catch(() => null);
-        throw new Error(errData?.message || "Failed to recover failed ingestion job.");
+        throw new Error(
+          errData?.message || "Failed to recover failed ingestion job.",
+        );
       }
 
       const updated: JobProgress = await res.json();
       onSuccess(updated);
       handleClose();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Failed to recover job:", err);
       const friendly = getFriendlyUploadErrorMessage(err);
       setRecoverError(friendly);
@@ -206,10 +229,13 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
               <UploadCloud className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-white">Upload & Reprocess Job</h3>
+              <h3 className="font-bold text-base text-white">
+                Upload & Reprocess Job
+              </h3>
               <p className="text-xs text-zinc-400">
                 Replace corrupted audio or video for{" "}
-                <span className="text-white font-medium">{job.title}</span> ({job.artistName})
+                <span className="text-white font-medium">{job.title}</span> (
+                {job.artistName})
               </p>
             </div>
           </div>
@@ -224,13 +250,18 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
         </div>
 
         {/* Body / Form */}
-        <form onSubmit={handleRecoverJobSubmit} className="p-6 space-y-4 relative">
+        <form
+          onSubmit={handleRecoverJobSubmit}
+          className="p-6 space-y-4 relative"
+        >
           {/* Recovery Upload Overlay with animated real-time progress bar & error/retry controls */}
           {(isRecovering || recoverError) && (
             <div className="absolute inset-0 z-30 bg-black/95 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-200">
               <UploadProgressBar
                 percent={recoverPercent ?? 0}
-                statusText={recoverProgressText || "Transferring replacement media..."}
+                statusText={
+                  recoverProgressText || "Transferring replacement media..."
+                }
                 fileName={recoverStats.fileName}
                 loadedText={recoverStats.loadedText}
                 speedText={recoverStats.speedText}
@@ -266,8 +297,12 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
             <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-start gap-2.5 text-xs text-rose-300">
               <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
               <div>
-                <span className="font-bold block">Previous Failure Reason:</span>
-                <span className="text-zinc-300 line-clamp-2">{job.failureReason}</span>
+                <span className="font-bold block">
+                  Previous Failure Reason:
+                </span>
+                <span className="text-zinc-300 line-clamp-2">
+                  {job.failureReason}
+                </span>
               </div>
             </div>
           )}
@@ -277,7 +312,9 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
             <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-start gap-2.5 text-xs text-amber-300">
               <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
               <div>
-                <span className="font-bold block">{recoverError.title || "Recovery Error"}</span>
+                <span className="font-bold block">
+                  {recoverError.title || "Recovery Error"}
+                </span>
                 <span>{recoverError.message}</span>
               </div>
             </div>
@@ -286,7 +323,10 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
           {/* Replacement Audio */}
           <div className="border border-dashed border-[#282828] rounded-2xl p-4 bg-black/40 space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-zinc-200 flex items-center gap-1.5 uppercase tracking-wider">
+              <label
+                htmlFor="recover-audio-file"
+                className="text-xs font-bold text-zinc-200 flex items-center gap-1.5 uppercase tracking-wider"
+              >
                 <Music className="w-4 h-4 text-white" />
                 Replacement Audio Track
               </label>
@@ -301,9 +341,11 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
               )}
             </div>
             <p className="text-[11px] text-zinc-400">
-              Upload an uncorrupted audio file (.mp3, .wav, .flac, .aac, .m4a) to replace the damaged audio stream.
+              Upload an uncorrupted audio file (.mp3, .wav, .flac, .aac, .m4a)
+              to replace the damaged audio stream.
             </p>
             <input
+              id="recover-audio-file"
               type="file"
               accept="audio/*,.mp3,.wav,.flac,.aac,.m4a"
               disabled={isRecovering}
@@ -314,7 +356,8 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
               <div className="text-[11px] text-zinc-200 flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>
-                  Selected: {recoverAudioFile.name} ({(recoverAudioFile.size / (1024 * 1024)).toFixed(2)} MB)
+                  Selected: {recoverAudioFile.name} (
+                  {(recoverAudioFile.size / (1024 * 1024)).toFixed(2)} MB)
                 </span>
               </div>
             )}
@@ -323,7 +366,10 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
           {/* Replacement Video */}
           <div className="border border-dashed border-[#282828] rounded-2xl p-4 bg-black/40 space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-zinc-200 flex items-center gap-1.5 uppercase tracking-wider">
+              <label
+                htmlFor="recover-video-file"
+                className="text-xs font-bold text-zinc-200 flex items-center gap-1.5 uppercase tracking-wider"
+              >
                 <Film className="w-4 h-4 text-blue-400" />
                 Replacement Video File (optional)
               </label>
@@ -338,9 +384,11 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
               )}
             </div>
             <p className="text-[11px] text-zinc-400">
-              Upload a replacement video (.mp4, .mov) if the source video was corrupt or missing.
+              Upload a replacement video (.mp4, .mov) if the source video was
+              corrupt or missing.
             </p>
             <input
+              id="recover-video-file"
               type="file"
               accept="video/*,.mp4,.mov"
               disabled={isRecovering}
@@ -351,7 +399,8 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
               <div className="text-[11px] text-blue-400 flex items-center gap-1.5">
                 <CheckCircle2 className="w-3.5 h-3.5" />
                 <span>
-                  Selected: {recoverVideoFile.name} ({(recoverVideoFile.size / (1024 * 1024)).toFixed(2)} MB)
+                  Selected: {recoverVideoFile.name} (
+                  {(recoverVideoFile.size / (1024 * 1024)).toFixed(2)} MB)
                 </span>
               </div>
             )}
@@ -365,7 +414,9 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
               </span>
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
-                  <span className="text-[10px] text-zinc-500 block mb-1">Start (min : sec)</span>
+                  <span className="text-[10px] text-zinc-500 block mb-1">
+                    Start (min : sec)
+                  </span>
                   <div className="flex items-center gap-1.5">
                     <input
                       type="number"
@@ -388,7 +439,9 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
                   </div>
                 </div>
                 <div>
-                  <span className="text-[10px] text-zinc-500 block mb-1">End (min : sec)</span>
+                  <span className="text-[10px] text-zinc-500 block mb-1">
+                    End (min : sec)
+                  </span>
                   <div className="flex items-center gap-1.5">
                     <input
                       type="number"
@@ -426,7 +479,9 @@ export const RecoverJobMediaModal: React.FC<RecoverJobMediaModalProps> = ({
             </button>
             <button
               type="submit"
-              disabled={isRecovering || (!recoverAudioFile && !recoverVideoFile)}
+              disabled={
+                isRecovering || (!recoverAudioFile && !recoverVideoFile)
+              }
               className="px-6 py-2 bg-white hover:bg-zinc-200 text-black font-bold text-xs rounded-full transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
             >
               {isRecovering ? (

@@ -6,7 +6,11 @@ import { GENRE_SUGGESTIONS, TagsField } from "@/components/forms/TagsField";
 import { TimeRangeFields } from "@/components/forms/TimeRangeFields";
 import type { EditSongValues } from "./schema";
 
-export function SongMetadataFields({ form }: { form: UseFormReturn<EditSongValues> }) {
+export function SongMetadataFields({
+  form,
+}: {
+  form: UseFormReturn<EditSongValues>;
+}) {
   const {
     register,
     control,
@@ -22,7 +26,12 @@ export function SongMetadataFields({ form }: { form: UseFormReturn<EditSongValue
 
   return (
     <div className="grid grid-cols-2 gap-4">
-      <Field label="Song Title" htmlFor="edit-song-title" error={errors.title} className="col-span-2">
+      <Field
+        label="Song Title"
+        htmlFor="edit-song-title"
+        error={errors.title}
+        className="col-span-2"
+      >
         <input type="text" placeholder="Song title..." {...text("title")} />
       </Field>
 
@@ -35,8 +44,16 @@ export function SongMetadataFields({ form }: { form: UseFormReturn<EditSongValue
         />
       </div>
 
-      <Field label="Language" htmlFor="edit-song-language" error={errors.language}>
-        <input type="text" placeholder="e.g. Hindi, English" {...text("language")} />
+      <Field
+        label="Language"
+        htmlFor="edit-song-language"
+        error={errors.language}
+      >
+        <input
+          type="text"
+          placeholder="e.g. Hindi, English"
+          {...text("language")}
+        />
       </Field>
       <Field label="Album" htmlFor="edit-song-album" error={errors.album}>
         <input type="text" placeholder="e.g. Aashiqui 2" {...text("album")} />
@@ -44,8 +61,17 @@ export function SongMetadataFields({ form }: { form: UseFormReturn<EditSongValue
       <Field label="Country" htmlFor="edit-song-country" error={errors.country}>
         <input type="text" placeholder="e.g. India" {...text("country")} />
       </Field>
-      <Field label="LRCLIB ID" htmlFor="edit-song-lrclibId" error={errors.lrclibId}>
-        <input type="text" inputMode="numeric" placeholder="Optional ID" {...text("lrclibId")} />
+      <Field
+        label="LRCLIB ID"
+        htmlFor="edit-song-lrclibId"
+        error={errors.lrclibId}
+      >
+        <input
+          type="text"
+          inputMode="numeric"
+          placeholder="Optional ID"
+          {...text("lrclibId")}
+        />
       </Field>
 
       <TagsField

@@ -1,6 +1,11 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import type { UserActionType, UserItem } from "@/app/users/types";
 import { useToast } from "@/components/feedback/ToastProvider";
 import type { UserSession } from "@/lib/api";
@@ -20,14 +25,18 @@ export interface UserListParams {
 export function useUsers(params: UserListParams) {
   return useQuery({
     queryKey: queryKeys.users.list({ ...params }),
-    queryFn: ({ signal }) => fetchPage<UserItem>("/admin/account", { ...params }, signal),
+    queryFn: ({ signal }) =>
+      fetchPage<UserItem>("/admin/account", { ...params }, signal),
     placeholderData: keepPreviousData,
   });
 }
 
 type AccountAction = Exclude<UserActionType, "sessions">;
 
-const ACTION_REQUEST: Record<AccountAction, { suffix: string; method: "POST" | "DELETE" }> = {
+const ACTION_REQUEST: Record<
+  AccountAction,
+  { suffix: string; method: "POST" | "DELETE" }
+> = {
   promote: { suffix: "", method: "POST" },
   demote: { suffix: "/demote", method: "POST" },
   block: { suffix: "/block", method: "POST" },
@@ -43,7 +52,11 @@ const ACTION_DONE: Record<AccountAction, (email: string) => string> = {
   delete: (e) => `Account ${e} was successfully deleted`,
 };
 
-function applyAction(rows: UserItem[], email: string, action: AccountAction): UserItem[] {
+function applyAction(
+  rows: UserItem[],
+  email: string,
+  action: AccountAction,
+): UserItem[] {
   if (action === "delete") return rows.filter((u) => u.email !== email);
   return rows.map((u) => {
     if (u.email !== email) return u;
@@ -59,12 +72,21 @@ export function useUserAction() {
   const qc = useQueryClient();
   const toast = useToast();
   return useMutation({
-    mutationFn: ({ user, action }: { user: UserItem; action: AccountAction }) => {
+    mutationFn: ({
+      user,
+      action,
+    }: {
+      user: UserItem;
+      action: AccountAction;
+    }) => {
       const { suffix, method } = ACTION_REQUEST[action];
-      return apiRequest(`/admin/account/${encodeURIComponent(user.email)}${suffix}`, {
-        method,
-        errorMessage: `Action '${action}' failed`,
-      });
+      return apiRequest(
+        `/admin/account/${encodeURIComponent(user.email)}${suffix}`,
+        {
+          method,
+          errorMessage: `Action '${action}' failed`,
+        },
+      );
     },
     // Every account action sets a target state, so repeating one is harmless.
     retry: retryIdempotent,
@@ -92,8 +114,12 @@ export function useUserSessions(email: string | null | undefined) {
   return useQuery({
     queryKey: queryKeys.users.sessions(email ?? ""),
     queryFn: async ({ signal }) =>
-      (await apiGet<{ sessions?: UserSession[] }>(`/admin/account/${encodeURIComponent(email ?? "")}/sessions`, signal))
-        .sessions ?? [],
+      (
+        await apiGet<{ sessions?: UserSession[] }>(
+          `/admin/account/${encodeURIComponent(email ?? "")}/sessions`,
+          signal,
+        )
+      ).sessions ?? [],
     enabled: Boolean(email),
     staleTime: 0,
   });
@@ -105,18 +131,26 @@ export function useRevokeSession(email: string) {
   return useMutation({
     mutationFn: (sessionId: string | "all") =>
       sessionId === "all"
-        ? apiRequest(`/admin/account/${encodeURIComponent(email)}/sessions/revoke-all`, {
-            method: "POST",
-            errorMessage: "Failed to revoke all sessions",
-          })
-        : apiRequest(`/admin/account/${encodeURIComponent(email)}/sessions/${sessionId}`, {
-            method: "DELETE",
-            errorMessage: "Failed to revoke session",
-          }),
+        ? apiRequest(
+            `/admin/account/${encodeURIComponent(email)}/sessions/revoke-all`,
+            {
+              method: "POST",
+              errorMessage: "Failed to revoke all sessions",
+            },
+          )
+        : apiRequest(
+            `/admin/account/${encodeURIComponent(email)}/sessions/${sessionId}`,
+            {
+              method: "DELETE",
+              errorMessage: "Failed to revoke session",
+            },
+          ),
     onMutate: async (sessionId) => {
       await qc.cancelQueries({ queryKey: key });
       const previous = qc.getQueryData<UserSession[]>(key);
-      qc.setQueryData<UserSession[]>(key, (old) => (sessionId === "all" ? [] : old?.filter((s) => s.id !== sessionId)));
+      qc.setQueryData<UserSession[]>(key, (old) =>
+        sessionId === "all" ? [] : old?.filter((s) => s.id !== sessionId),
+      );
       return { previous };
     },
     onError: (_e, _id, ctx) => qc.setQueryData(key, ctx?.previous),

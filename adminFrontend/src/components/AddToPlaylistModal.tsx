@@ -1,10 +1,10 @@
 "use client";
 
+import { ListMusic, Loader2, Music, Plus, Search, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { ListMusic, Plus, Check, Loader2, X, Search, Music } from "lucide-react";
-import { useAddSongToPlaylist, usePlaylists } from "@/lib/queries/playlists";
-import { getImageUrl } from "@/lib/image-utils";
 import type { Song } from "@/app/songs/types";
+import { getImageUrl } from "@/lib/image-utils";
+import { useAddSongToPlaylist, usePlaylists } from "@/lib/queries/playlists";
 
 interface BasicPlaylist {
   id: string;
@@ -28,14 +28,19 @@ export function AddToPlaylistModal({
 }: AddToPlaylistModalProps) {
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const playlistsQuery = usePlaylists({ page: 0, size: 100, search: "", status: "" }, { enabled: isOpen });
+  const playlistsQuery = usePlaylists(
+    { page: 0, size: 100, search: "", status: "" },
+    { enabled: isOpen },
+  );
   const addSong = useAddSongToPlaylist();
   const playlists: BasicPlaylist[] = playlistsQuery.data?.rows ?? [];
   const loading = playlistsQuery.isPending && isOpen;
-  const addingToId = addSong.isPending ? (addSong.variables?.playlistId ?? null) : null;
-  const shownError = error ?? (playlistsQuery.error ? "Error loading playlists" : null);
+  const addingToId = addSong.isPending
+    ? (addSong.variables?.playlistId ?? null)
+    : null;
+  const shownError =
+    error ?? (playlistsQuery.error ? "Error loading playlists" : null);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset the picker each time it closes
   useEffect(() => {
     if (!isOpen) {
       setSearch("");
@@ -45,7 +50,9 @@ export function AddToPlaylistModal({
 
   if (!isOpen || !song) return null;
 
-  const filteredPlaylists = playlists.filter((p) => p.name.toLowerCase().includes(search.toLowerCase().trim()));
+  const filteredPlaylists = playlists.filter((p) =>
+    p.name.toLowerCase().includes(search.toLowerCase().trim()),
+  );
 
   const handleSelectPlaylist = (playlist: BasicPlaylist) => {
     setError(null);
@@ -56,7 +63,8 @@ export function AddToPlaylistModal({
           onSuccess(playlist.name);
           onClose();
         },
-        onError: (err) => setError(err.message || "Failed to add track to playlist"),
+        onError: (err) =>
+          setError(err.message || "Failed to add track to playlist"),
       },
     );
   };
@@ -147,7 +155,10 @@ export function AddToPlaylistModal({
                     <div className="w-9 h-9 rounded-lg bg-black border border-white/10 overflow-hidden shrink-0 flex items-center justify-center">
                       {p.coverImageKey ? (
                         <img
-                          src={getImageUrl(p.coverImageKey, { width: 72, height: 72 })}
+                          src={getImageUrl(p.coverImageKey, {
+                            width: 72,
+                            height: 72,
+                          })}
                           alt={p.name}
                           className="w-full h-full object-cover"
                         />

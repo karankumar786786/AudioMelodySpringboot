@@ -1,7 +1,15 @@
 "use client";
 
 import { AlertTriangle, X } from "lucide-react";
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 
 export interface ConfirmOptions {
@@ -59,8 +67,20 @@ export function useConfirm(): Confirm {
   return ctx;
 }
 
-function ConfirmDialog({ options, onSettle }: { options: ConfirmOptions; onSettle: (ok: boolean) => void }) {
-  const { title, description, confirmLabel = "Confirm", destructive = false, typeToConfirm } = options;
+function ConfirmDialog({
+  options,
+  onSettle,
+}: {
+  options: ConfirmOptions;
+  onSettle: (ok: boolean) => void;
+}) {
+  const {
+    title,
+    description,
+    confirmLabel = "Confirm",
+    destructive = false,
+    typeToConfirm,
+  } = options;
   const [typed, setTyped] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
@@ -76,6 +96,7 @@ function ConfirmDialog({ options, onSettle }: { options: ConfirmOptions; onSettl
   }, [typeToConfirm, onSettle]);
 
   return createPortal(
+    // biome-ignore lint/a11y/noStaticElementInteractions: clicking the backdrop closes; Escape is handled on window
     <div
       className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
       role="presentation"
@@ -105,10 +126,18 @@ function ConfirmDialog({ options, onSettle }: { options: ConfirmOptions; onSettl
               <h2 id="confirm-title" className="text-sm font-bold">
                 {title}
               </h2>
-              {description && <div className="mt-1.5 text-xs text-zinc-400 leading-relaxed">{description}</div>}
+              {description && (
+                <div className="mt-1.5 text-xs text-zinc-400 leading-relaxed">
+                  {description}
+                </div>
+              )}
               {typeToConfirm && (
                 <label className="mt-4 block text-xs text-zinc-400">
-                  Type <span className="font-mono font-semibold text-white select-all">{typeToConfirm}</span> to confirm
+                  Type{" "}
+                  <span className="font-mono font-semibold text-white select-all">
+                    {typeToConfirm}
+                  </span>{" "}
+                  to confirm
                   <input
                     ref={inputRef}
                     value={typed}
@@ -143,7 +172,9 @@ function ConfirmDialog({ options, onSettle }: { options: ConfirmOptions; onSettl
               type="submit"
               disabled={!matches}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
-                destructive ? "bg-rose-500 text-white hover:bg-rose-400" : "bg-white text-black hover:bg-zinc-200"
+                destructive
+                  ? "bg-rose-500 text-white hover:bg-rose-400"
+                  : "bg-white text-black hover:bg-zinc-200"
               }`}
             >
               {confirmLabel}

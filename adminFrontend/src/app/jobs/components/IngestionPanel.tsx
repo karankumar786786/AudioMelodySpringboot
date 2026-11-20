@@ -2,7 +2,7 @@
 
 import type { UseQueryResult } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { DataTable } from "@/components/data-table/DataTable";
 import { SearchInput, SegmentedFilter } from "@/components/data-table/Toolbar";
 import type { useServerTable } from "@/components/data-table/useServerTable";
@@ -11,16 +11,29 @@ import { useToast } from "@/components/feedback/ToastProvider";
 import type { JobProgress, JobSummaryMetrics } from "@/lib/api";
 import type { Page } from "@/lib/http";
 import { usePermissions } from "@/lib/permissions";
-import { useDeleteJob, useJobUpdated, usePurgeFailedJobs, useRetryJob } from "@/lib/queries/jobs";
+import {
+  useDeleteJob,
+  useJobUpdated,
+  usePurgeFailedJobs,
+  useRetryJob,
+} from "@/lib/queries/jobs";
 import { ActiveJobsLiveMonitor } from "./ActiveJobsLiveMonitor";
 import { JobDetailModal } from "./JobDetailModal";
 import { JobMetricsCards } from "./JobMetricsCards";
 import { ingestionColumns } from "./jobColumns";
 import { RecoverJobMediaModal } from "./RecoverJobMediaModal";
 
-export type IngestionTable = ReturnType<typeof useServerTable<{ status: string }>>;
+export type IngestionTable = ReturnType<
+  typeof useServerTable<{ status: string }>
+>;
 
-const STATUSES = ["ALL", "PENDING", "PROCESSING", "COMPLETED", "FAILED"] as const;
+const STATUSES = [
+  "ALL",
+  "PENDING",
+  "PROCESSING",
+  "COMPLETED",
+  "FAILED",
+] as const;
 
 export function IngestionPanel({
   table,
@@ -50,13 +63,20 @@ export function IngestionPanel({
   const activeJobs = active.data ?? [];
   // Read the selected job from the live data so the modal follows each refresh.
   const selectedJob =
-    (selectedId && (rows.find((j) => j.id === selectedId) ?? activeJobs.find((j) => j.id === selectedId))) || null;
+    (selectedId &&
+      (rows.find((j) => j.id === selectedId) ??
+        activeJobs.find((j) => j.id === selectedId))) ||
+    null;
 
   const handleRetry = (id: string) =>
-    retry.mutate(id, { onError: (err) => toast(err.message || "Error retrying ingestion job", "error") });
+    retry.mutate(id, {
+      onError: (err) =>
+        toast(err.message || "Error retrying ingestion job", "error"),
+    });
 
   const handleDelete = async (id: string) => {
-    const job = rows.find((j) => j.id === id) ?? activeJobs.find((j) => j.id === id);
+    const job =
+      rows.find((j) => j.id === id) ?? activeJobs.find((j) => j.id === id);
     const ok = await confirm({
       title: "Delete this ingestion job?",
       description:
@@ -70,7 +90,8 @@ export function IngestionPanel({
       onSuccess: () => {
         if (selectedId === id) setSelectedId(null);
       },
-      onError: (err) => toast(err.message || "Error deleting ingestion job", "error"),
+      onError: (err) =>
+        toast(err.message || "Error deleting ingestion job", "error"),
     });
   };
 
@@ -86,27 +107,25 @@ export function IngestionPanel({
     if (!ok) return;
     purge.mutate(undefined, {
       onSuccess: (data) => {
-        toast(`Purged ${data?.deletedCount ?? 0} failed job(s) and their cloud/storage artifacts.`);
+        toast(
+          `Purged ${data?.deletedCount ?? 0} failed job(s) and their cloud/storage artifacts.`,
+        );
         if (selectedJob?.status === "FAILED") setSelectedId(null);
       },
-      onError: (err) => toast(err.message || "Error purging failed jobs", "error"),
+      onError: (err) =>
+        toast(err.message || "Error purging failed jobs", "error"),
     });
   };
 
   const retryingId = retry.isPending ? (retry.variables ?? null) : null;
   const deletingId = remove.isPending ? (remove.variables ?? null) : null;
-  const columns = useMemo(
-    () =>
-      ingestionColumns({
-        onRetry: handleRetry,
-        onDelete: handleDelete,
-        onRecover: setRecovering,
-        retryingId,
-        deletingId,
-      }),
-    // biome-ignore lint/correctness/useExhaustiveDependencies: handlers read fresh state when called
-    [retryingId, deletingId, rows],
-  );
+  const columns = ingestionColumns({
+    onRetry: handleRetry,
+    onDelete: handleDelete,
+    onRecover: setRecovering,
+    retryingId,
+    deletingId,
+  });
 
   const hasFailed = rows.some((j) => j.status === "FAILED");
 
@@ -120,7 +139,10 @@ export function IngestionPanel({
         isRefreshing={summary.isFetching}
       />
 
-      <ActiveJobsLiveMonitor activeJobs={activeJobs} onSelectJob={(job) => setSelectedId(job.id)} />
+      <ActiveJobsLiveMonitor
+        activeJobs={activeJobs}
+        onSelectJob={(job) => setSelectedId(job.id)}
+      />
 
       <DataTable<JobProgress>
         columns={columns}
@@ -140,7 +162,10 @@ export function IngestionPanel({
               label="Job status"
               value={table.filters.status}
               onChange={(s) => table.setFilter("status", s)}
-              options={STATUSES.map((s) => ({ value: s, label: s === "ALL" ? "All Jobs" : s }))}
+              options={STATUSES.map((s) => ({
+                value: s,
+                label: s === "ALL" ? "All Jobs" : s,
+              }))}
             />
             {hasFailed && can("job.purgeFailed") && (
               <button
@@ -150,14 +175,22 @@ export function IngestionPanel({
                 className="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-500/10 text-rose-400 border border-rose-500/25 hover:bg-rose-500/20 transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>{purge.isPending ? "Purging..." : "Purge All Failed"}</span>
+                <span>
+                  {purge.isPending ? "Purging..." : "Purge All Failed"}
+                </span>
               </button>
             )}
-            <SearchInput value={table.search} onChange={table.setSearch} placeholder="Search song, artist, job ID..." />
+            <SearchInput
+              value={table.search}
+              onChange={table.setSearch}
+              placeholder="Search song, artist, job ID..."
+            />
           </>
         }
         emptyState={
-          <div className="py-12 text-center text-zinc-500 text-xs">No ingestion jobs found matching filter criteria.</div>
+          <div className="py-12 text-center text-zinc-500 text-xs">
+            No ingestion jobs found matching filter criteria.
+          </div>
         }
         exportFileName="ingestion-jobs"
         storageKey="ingestion-jobs"
@@ -179,7 +212,11 @@ export function IngestionPanel({
         deletingJobId={deletingId}
       />
 
-      <RecoverJobMediaModal job={recovering} onClose={() => setRecovering(null)} onSuccess={jobUpdated} />
+      <RecoverJobMediaModal
+        job={recovering}
+        onClose={() => setRecovering(null)}
+        onSuccess={jobUpdated}
+      />
     </>
   );
 }

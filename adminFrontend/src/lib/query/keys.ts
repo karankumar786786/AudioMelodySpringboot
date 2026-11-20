@@ -21,7 +21,8 @@ export const queryKeys = {
     lists: () => ["artists", "list"] as const,
     list: (params: Params) => ["artists", "list", params] as const,
     detail: (id: string) => ["artists", "detail", id] as const,
-    songs: (id: string, params: Params) => ["artists", "songs", id, params] as const,
+    songs: (id: string, params: Params) =>
+      ["artists", "songs", id, params] as const,
   },
   playlists: {
     all: ["playlists"] as const,

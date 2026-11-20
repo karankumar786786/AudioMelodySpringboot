@@ -14,7 +14,14 @@ import {
   useReactTable,
   type VisibilityState,
 } from "@tanstack/react-table";
-import { AlertTriangle, ArrowDown, ArrowUp, ChevronsUpDown, Download, RotateCcw } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ChevronsUpDown,
+  Download,
+  RotateCcw,
+} from "lucide-react";
 import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { PaginationBar } from "@/components/PaginationBar";
 import { ColumnVisibilityMenu } from "./ColumnVisibilityMenu";
@@ -40,7 +47,10 @@ export interface DataTableProps<T> {
   rowSelection?: RowSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState>;
   /** Shown above the table while rows are selected. */
-  renderBulkActions?: (selectedIds: string[], clearSelection: () => void) => ReactNode;
+  renderBulkActions?: (
+    selectedIds: string[],
+    clearSelection: () => void,
+  ) => ReactNode;
 
   /**
    * Sorting. The adminBackend list endpoints have a fixed `-created_at` order, so by
@@ -70,7 +80,10 @@ export interface DataTableProps<T> {
   className?: string;
 }
 
-function readVisibility(key: string | undefined, fallback: VisibilityState): VisibilityState {
+function readVisibility(
+  key: string | undefined,
+  fallback: VisibilityState,
+): VisibilityState {
   if (!key || typeof window === "undefined") return fallback;
   try {
     const raw = window.localStorage.getItem(`table-columns:${key}`);
@@ -111,11 +124,15 @@ export function DataTable<T>({
   className = "",
 }: DataTableProps<T>) {
   const defaultVisibility = useMemo<VisibilityState>(
-    () => Object.fromEntries((defaultHiddenColumns ?? []).map((id) => [id, false])),
+    () =>
+      Object.fromEntries((defaultHiddenColumns ?? []).map((id) => [id, false])),
     [defaultHiddenColumns],
   );
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>(defaultVisibility);
-  const [internalSelection, setInternalSelection] = useState<RowSelectionState>({});
+  const [columnVisibility, setColumnVisibility] =
+    useState<VisibilityState>(defaultVisibility);
+  const [internalSelection, setInternalSelection] = useState<RowSelectionState>(
+    {},
+  );
   const [internalSorting, setInternalSorting] = useState<SortingState>([]);
 
   // Load the saved column choice after mount so server and client render the same markup.
@@ -126,7 +143,10 @@ export function DataTable<T>({
   useEffect(() => {
     if (!storageKey) return;
     try {
-      window.localStorage.setItem(`table-columns:${storageKey}`, JSON.stringify(columnVisibility));
+      window.localStorage.setItem(
+        `table-columns:${storageKey}`,
+        JSON.stringify(columnVisibility),
+      );
     } catch {
       // Storage can be unavailable (private mode); the choice then lasts for this visit.
     }
@@ -149,7 +169,9 @@ export function DataTable<T>({
     enableRowSelection,
     enableSortingRemoval: true,
     onPaginationChange: (updater) =>
-      onPaginationChange(typeof updater === "function" ? updater(pagination) : updater),
+      onPaginationChange(
+        typeof updater === "function" ? updater(pagination) : updater,
+      ),
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
@@ -157,7 +179,9 @@ export function DataTable<T>({
     getSortedRowModel: manualSorting ? undefined : getSortedRowModel(),
   });
 
-  const selectedIds = Object.keys(rowSelection).filter((id) => rowSelection[id]);
+  const selectedIds = Object.keys(rowSelection).filter(
+    (id) => rowSelection[id],
+  );
   const clearSelection = () => setRowSelection({});
   const rows = table.getRowModel().rows;
   const visibleColumnCount = table.getVisibleLeafColumns().length;
@@ -183,7 +207,11 @@ export function DataTable<T>({
       </div>
     );
   } else if (!loading && rows.length === 0) {
-    body = emptyState ?? <div className="py-14 text-center text-xs text-zinc-500">No {itemLabel} found.</div>;
+    body = emptyState ?? (
+      <div className="py-14 text-center text-xs text-zinc-500">
+        No {itemLabel} found.
+      </div>
+    );
   } else if (renderRows) {
     body = renderRows(rows, loading);
   }
@@ -192,7 +220,9 @@ export function DataTable<T>({
     <div className={`space-y-3 ${className}`}>
       {(toolbar || actions || exportFileName) && (
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2 min-w-0">{toolbar}</div>
+          <div className="flex flex-wrap items-center gap-2 min-w-0">
+            {toolbar}
+          </div>
           <div className="flex items-center gap-2 shrink-0">
             {actions}
             {!renderRows && <ColumnVisibilityMenu table={table} />}
@@ -202,7 +232,9 @@ export function DataTable<T>({
                 onClick={() => downloadCsv(tableToCsv(table), exportFileName)}
                 disabled={rows.length === 0}
                 title={
-                  selectedIds.length > 0 ? "Export the selected rows on this page" : "Export the rows on this page"
+                  selectedIds.length > 0
+                    ? "Export the selected rows on this page"
+                    : "Export the rows on this page"
                 }
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#141418] hover:bg-[#1a1a20] border border-white/8 text-zinc-300 hover:text-white disabled:opacity-40 cursor-pointer"
               >
@@ -219,9 +251,15 @@ export function DataTable<T>({
           className="flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs"
           aria-live="polite"
         >
-          <span className="font-semibold text-white">{selectedIds.length} selected</span>
+          <span className="font-semibold text-white">
+            {selectedIds.length} selected
+          </span>
           {renderBulkActions?.(selectedIds, clearSelection)}
-          <button type="button" onClick={clearSelection} className="ml-auto text-zinc-400 hover:text-white">
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="ml-auto text-zinc-400 hover:text-white"
+          >
             Clear selection
           </button>
         </div>
@@ -236,7 +274,10 @@ export function DataTable<T>({
           <div className={renderRows ? "p-4" : ""}>{body}</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs" aria-busy={loading || fetching}>
+            <table
+              className="w-full text-left text-xs"
+              aria-busy={loading || fetching}
+            >
               <thead className="bg-[#0e0e11] border-b border-white/8 text-zinc-400 uppercase font-bold tracking-wider text-[10px]">
                 {table.getHeaderGroups().map((group) => (
                   <tr key={group.id}>
@@ -245,19 +286,32 @@ export function DataTable<T>({
                       const sorted = header.column.getIsSorted();
                       const content = header.isPlaceholder
                         ? null
-                        : flexRender(header.column.columnDef.header, header.getContext());
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          );
                       return (
                         <th
                           key={header.id}
                           scope="col"
-                          aria-sort={sorted === "asc" ? "ascending" : sorted === "desc" ? "descending" : undefined}
+                          aria-sort={
+                            sorted === "asc"
+                              ? "ascending"
+                              : sorted === "desc"
+                                ? "descending"
+                                : undefined
+                          }
                           className={`py-3.5 px-4 whitespace-nowrap ${header.column.columnDef.meta?.headerClassName ?? ""}`}
                         >
                           {canSort ? (
                             <button
                               type="button"
                               onClick={header.column.getToggleSortingHandler()}
-                              title={manualSorting ? "Sort" : "Sort the rows on this page"}
+                              title={
+                                manualSorting
+                                  ? "Sort"
+                                  : "Sort the rows on this page"
+                              }
                               className="inline-flex items-center gap-1 uppercase hover:text-white cursor-pointer"
                             >
                               {content}
@@ -280,29 +334,52 @@ export function DataTable<T>({
               </thead>
               <tbody className="divide-y divide-white/6">
                 {loading
-                  ? Array.from({ length: Math.min(pagination.pageSize, 8) }, (_, i) => (
-                      // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
-                      <tr key={i} className="animate-pulse">
-                        {Array.from({ length: visibleColumnCount }, (_, j) => (
-                          // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton cells
-                          <td key={j} className="py-4 px-4">
-                            <div className="h-3 rounded bg-white/6" style={{ width: `${50 + ((i + j) % 4) * 12}%` }} />
-                          </td>
-                        ))}
-                      </tr>
-                    ))
+                  ? Array.from(
+                      { length: Math.min(pagination.pageSize, 8) },
+                      (_, i) => (
+                        // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
+                        <tr key={i} className="animate-pulse">
+                          {Array.from(
+                            { length: visibleColumnCount },
+                            (_, j) => (
+                              // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton cells
+                              <td key={j} className="py-4 px-4">
+                                <div
+                                  className="h-3 rounded bg-white/6"
+                                  style={{
+                                    width: `${50 + ((i + j) % 4) * 12}%`,
+                                  }}
+                                />
+                              </td>
+                            ),
+                          )}
+                        </tr>
+                      ),
+                    )
                   : rows.map((row) => (
                       <tr
                         key={row.id}
-                        data-state={row.getIsSelected() ? "selected" : undefined}
-                        onClick={onRowClick ? () => onRowClick(row.original) : undefined}
+                        data-state={
+                          row.getIsSelected() ? "selected" : undefined
+                        }
+                        onClick={
+                          onRowClick
+                            ? () => onRowClick(row.original)
+                            : undefined
+                        }
                         className={`group transition-colors hover:bg-white/3 ${row.getIsSelected() ? "bg-white/4" : ""} ${
                           onRowClick ? "cursor-pointer" : ""
                         }`}
                       >
                         {row.getVisibleCells().map((cell) => (
-                          <td key={cell.id} className={`py-3 px-4 ${cell.column.columnDef.meta?.cellClassName ?? ""}`}>
-                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          <td
+                            key={cell.id}
+                            className={`py-3 px-4 ${cell.column.columnDef.meta?.cellClassName ?? ""}`}
+                          >
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext(),
+                            )}
                           </td>
                         ))}
                       </tr>
@@ -318,8 +395,12 @@ export function DataTable<T>({
           totalItems={rowCount}
           currentCount={data.length}
           itemLabel={itemLabel}
-          onPageChange={(pageIndex) => onPaginationChange({ ...pagination, pageIndex })}
-          onPageSizeChange={(pageSize) => onPaginationChange({ pageIndex: 0, pageSize })}
+          onPageChange={(pageIndex) =>
+            onPaginationChange({ ...pagination, pageIndex })
+          }
+          onPageSizeChange={(pageSize) =>
+            onPaginationChange({ pageIndex: 0, pageSize })
+          }
           pageSizeOptions={pageSizeOptions}
           loading={fetching}
         />

@@ -1,8 +1,11 @@
 "use client";
 
 import { UserPlus } from "lucide-react";
-import { useMemo, useState } from "react";
-import { type CatalogStatus, CatalogStatusFilter } from "@/components/catalog/StatusFilter";
+import { useState } from "react";
+import {
+  type CatalogStatus,
+  CatalogStatusFilter,
+} from "@/components/catalog/StatusFilter";
 import { DataTable } from "@/components/data-table/DataTable";
 import { SearchInput } from "@/components/data-table/Toolbar";
 import { useServerTable } from "@/components/data-table/useServerTable";
@@ -10,15 +13,17 @@ import { type ViewMode, ViewToggle } from "@/components/data-table/ViewToggle";
 import { useConfirm } from "@/components/feedback/ConfirmProvider";
 import { usePermissions } from "@/lib/permissions";
 import { useArtists, useDeleteArtist } from "@/lib/queries/artists";
-import { artistColumns } from "./components/artistColumns";
 import { ArtistsGrid } from "./components/ArtistsGrid";
+import { artistColumns } from "./components/artistColumns";
 import { CreateArtistModal } from "./components/CreateArtistModal";
 import type { Artist } from "./types";
 
 export default function ArtistsPage() {
   const { can } = usePermissions();
   const confirm = useConfirm();
-  const table = useServerTable({ initialFilters: { status: "ACTIVE" as CatalogStatus } });
+  const table = useServerTable({
+    initialFilters: { status: "ACTIVE" as CatalogStatus },
+  });
   const { pagination } = table;
   const artistsQuery = useArtists({
     page: pagination.pageIndex,
@@ -45,14 +50,15 @@ export default function ArtistsPage() {
   };
   const onDelete = can("artist.delete") ? handleDelete : undefined;
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: handleDelete reads fresh state when called
-  const columns = useMemo(() => artistColumns({ onDelete }), [Boolean(onDelete)]);
+  const columns = artistColumns({ onDelete });
 
   return (
     <div className="p-6 md:p-8 max-w-400 mx-auto space-y-6 text-white font-sans">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#121215] p-5 rounded-2xl border border-white/8">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Artist Management</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">
+            Artist Management
+          </h1>
           <p className="text-zinc-400 mt-1 text-xs leading-relaxed">
             Manage artist profiles, discographies, cover artwork, and bios.
           </p>
@@ -83,11 +89,22 @@ export default function ArtistsPage() {
         enableRowSelection={view === "table"}
         rowSelection={table.rowSelection}
         onRowSelectionChange={table.setRowSelection}
-        renderBulkActions={() => <span className="text-zinc-400">Export the selection with Export CSV.</span>}
+        renderBulkActions={() => (
+          <span className="text-zinc-400">
+            Export the selection with Export CSV.
+          </span>
+        )}
         toolbar={
           <>
-            <SearchInput value={table.search} onChange={table.setSearch} placeholder="Search artists..." />
-            <CatalogStatusFilter value={table.filters.status} onChange={(v) => table.setFilter("status", v)} />
+            <SearchInput
+              value={table.search}
+              onChange={table.setSearch}
+              placeholder="Search artists..."
+            />
+            <CatalogStatusFilter
+              value={table.filters.status}
+              onChange={(v) => table.setFilter("status", v)}
+            />
           </>
         }
         actions={<ViewToggle value={view} onChange={setView} />}
@@ -114,7 +131,10 @@ export default function ArtistsPage() {
         }
       />
 
-      <CreateArtistModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <CreateArtistModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+      />
     </div>
   );
 }

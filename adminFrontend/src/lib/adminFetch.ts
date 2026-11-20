@@ -30,7 +30,8 @@ export function clearLegacyAdminTokens(): void {
 
 export function withAdminHeaders(init?: HeadersInit): Headers {
   const headers = new Headers(init);
-  for (const [key, value] of Object.entries(ADMIN_WEB_HEADERS)) headers.set(key, value);
+  for (const [key, value] of Object.entries(ADMIN_WEB_HEADERS))
+    headers.set(key, value);
   return headers;
 }
 
@@ -81,7 +82,7 @@ export function refreshAdminSession(): Promise<boolean> {
 
 export async function adminFetch(
   input: RequestInfo | URL,
-  init?: RequestInit
+  init?: RequestInit,
 ): Promise<Response> {
   let url = input.toString();
 

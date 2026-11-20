@@ -5,7 +5,17 @@ import { useController } from "react-hook-form";
 import { MultiSelectTagInput } from "@/components/ui/MultiSelectTagInput";
 import { FieldErrorText } from "./fields";
 
-export const GENRE_SUGGESTIONS = ["Pop", "Hip-Hop", "Electronic", "R&B", "Rock", "Bollywood", "Indie", "Acoustic", "Ambient"];
+export const GENRE_SUGGESTIONS = [
+  "Pop",
+  "Hip-Hop",
+  "Electronic",
+  "R&B",
+  "Rock",
+  "Bollywood",
+  "Indie",
+  "Acoustic",
+  "Ambient",
+];
 
 /** A comma-separated string field edited as tags (artists, genres). */
 export function TagsField<T extends FieldValues>({
@@ -29,7 +39,14 @@ export function TagsField<T extends FieldValues>({
         label={label}
         placeholder={placeholder}
         suggestions={suggestions}
-        values={value ? value.split(",").map((v) => v.trim()).filter(Boolean) : []}
+        values={
+          value
+            ? value
+                .split(",")
+                .map((v) => v.trim())
+                .filter(Boolean)
+            : []
+        }
         onChange={(values) => field.onChange(values.join(", "))}
       />
       <FieldErrorText error={fieldState.error} />

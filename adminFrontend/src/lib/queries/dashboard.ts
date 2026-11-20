@@ -7,9 +7,15 @@ import { queryKeys } from "@/lib/query/keys";
 
 /** Builds the stats from the list endpoints when the aggregate endpoint is unavailable. */
 async function fallbackStats(signal?: AbortSignal): Promise<DashboardStats> {
-  const safe = <T,>(p: Promise<T>) => p.catch(() => null);
+  const safe = <T>(p: Promise<T>) => p.catch(() => null);
   const [songs, artists, playlists, users, queues] = await Promise.all([
-    safe(fetchPage<DashboardStats["recentSongs"][number]>("/admin/song", { page: 0, size: 5 }, signal)),
+    safe(
+      fetchPage<DashboardStats["recentSongs"][number]>(
+        "/admin/song",
+        { page: 0, size: 5 },
+        signal,
+      ),
+    ),
     safe(fetchPage("/admin/artist", { page: 0, size: 1 }, signal)),
     safe(fetchPage("/admin/playlist", { page: 0, size: 1 }, signal)),
     safe(fetchPage("/admin/account", { page: 0, size: 1 }, signal)),

@@ -9,7 +9,11 @@ import { UploadProgressBar } from "@/components/UploadProgressBar";
 import { MediaSection } from "./create-song/MediaSection";
 import { MetadataSection } from "./create-song/MetadataSection";
 import { ModeTabs } from "./create-song/ModeTabs";
-import { type CreateSongValues, createSongDefaults, createSongSchema } from "./create-song/schema";
+import {
+  type CreateSongValues,
+  createSongDefaults,
+  createSongSchema,
+} from "./create-song/schema";
 import { useCreateSong } from "./create-song/useCreateSong";
 
 interface CreateSongModalProps {
@@ -18,7 +22,11 @@ interface CreateSongModalProps {
   onSuccess?: () => void;
 }
 
-export function CreateSongModal({ isOpen, onClose, onSuccess }: CreateSongModalProps) {
+export function CreateSongModal({
+  isOpen,
+  onClose,
+  onSuccess,
+}: CreateSongModalProps) {
   const toast = useToast();
   const confirm = useConfirm();
   const { create, uploading, step, error, progress, reset } = useCreateSong();
@@ -72,10 +80,15 @@ export function CreateSongModal({ isOpen, onClose, onSuccess }: CreateSongModalP
       >
         <div className="px-6 py-4.5 border-b border-[#282828] flex justify-between items-center">
           <div>
-            <h2 id="create-song-heading" className="text-lg font-bold text-white">
+            <h2
+              id="create-song-heading"
+              className="text-lg font-bold text-white"
+            >
               Add New Track
             </h2>
-            <p className="text-xs text-zinc-400 mt-0.5">Upload a standard audio track or extract from a full music video</p>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Upload a standard audio track or extract from a full music video
+            </p>
           </div>
           <button
             type="button"
@@ -96,7 +109,11 @@ export function CreateSongModal({ isOpen, onClose, onSuccess }: CreateSongModalP
           }}
         />
 
-        <form onSubmit={submit} noValidate className="flex-1 overflow-y-auto p-6 space-y-6">
+        <form
+          onSubmit={submit}
+          noValidate
+          className="flex-1 overflow-y-auto p-6 space-y-6"
+        >
           {(uploading || error) && (
             <UploadProgressBar
               percent={progress.percent ?? 0}
@@ -132,7 +149,11 @@ export function CreateSongModal({ isOpen, onClose, onSuccess }: CreateSongModalP
               className="px-6 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-sm transition-all shadow-lg active:scale-95 disabled:opacity-50 cursor-pointer flex items-center gap-2"
             >
               {uploading && <Loader2 className="w-4 h-4 animate-spin" />}
-              <span>{uploading ? "Uploading & Processing..." : "Create & Queue Track"}</span>
+              <span>
+                {uploading
+                  ? "Uploading & Processing..."
+                  : "Create & Queue Track"}
+              </span>
             </button>
           </div>
         </form>

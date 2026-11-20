@@ -6,7 +6,13 @@ import Image from "next/image";
 import { iconButton } from "@/components/catalog/SongCells";
 import type { DeleteJobProgress, JobProgress } from "@/lib/api";
 import { getImageUrl } from "@/lib/image-utils";
-import { formatMs, formatTime, getDeleteStageBadge, getStageBadge, getStatusBadge } from "./jobHelpers";
+import {
+  formatMs,
+  formatTime,
+  getDeleteStageBadge,
+  getStageBadge,
+  getStatusBadge,
+} from "./jobHelpers";
 
 export interface JobRowActions {
   onRetry: (id: string) => void;
@@ -19,7 +25,9 @@ export interface JobRowActions {
 function StatusCell({ status }: { status: string }) {
   const badge = getStatusBadge(status);
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${badge.bg}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${badge.bg}`}
+    >
       <span className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
       {badge.label}
     </span>
@@ -28,7 +36,9 @@ function StatusCell({ status }: { status: string }) {
 
 function StageCell({ badge }: { badge: { bg: string; label: string } }) {
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${badge.bg}`}>
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${badge.bg}`}
+    >
       {badge.label}
     </span>
   );
@@ -68,25 +78,36 @@ export function ingestionColumns(a: JobRowActions): ColumnDef<JobProgress>[] {
                   className="object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex items-center justify-center text-zinc-600 text-xs">🎵</div>
+                <div className="w-full h-full flex items-center justify-center text-zinc-600 text-xs">
+                  🎵
+                </div>
               )}
             </div>
             <div className="min-w-0">
               <p className="font-bold text-white group-hover:text-indigo-300 transition-colors truncate max-w-[200px]">
                 {job.title}
               </p>
-              <p className="text-[11px] text-zinc-400 truncate max-w-[200px]">{job.artistName}</p>
+              <p className="text-[11px] text-zinc-400 truncate max-w-[200px]">
+                {job.artistName}
+              </p>
             </div>
           </div>
         );
       },
     },
-    { id: "status", accessorFn: (j) => j.status, header: "Status", cell: ({ row }) => <StatusCell status={row.original.status} /> },
+    {
+      id: "status",
+      accessorFn: (j) => j.status,
+      header: "Status",
+      cell: ({ row }) => <StatusCell status={row.original.status} />,
+    },
     {
       id: "currentStage",
       accessorFn: (j) => j.currentStage,
       header: "Current Stage",
-      cell: ({ row }) => <StageCell badge={getStageBadge(row.original.currentStage)} />,
+      cell: ({ row }) => (
+        <StageCell badge={getStageBadge(row.original.currentStage)} />
+      ),
     },
     {
       id: "transcodingAttempt",
@@ -98,14 +119,20 @@ export function ingestionColumns(a: JobRowActions): ColumnDef<JobProgress>[] {
       id: "transcodingDurationMs",
       accessorFn: (j) => j.transcodingDurationMs ?? 0,
       header: "Transcoding",
-      meta: { cellClassName: "text-zinc-400 tabular-nums font-mono", csv: (j) => formatMs(j.transcodingDurationMs) },
+      meta: {
+        cellClassName: "text-zinc-400 tabular-nums font-mono",
+        csv: (j) => formatMs(j.transcodingDurationMs),
+      },
       cell: ({ row }) => formatMs(row.original.transcodingDurationMs),
     },
     {
       id: "totalDurationMs",
       accessorFn: (j) => j.totalDurationMs ?? 0,
       header: "Total Time",
-      meta: { cellClassName: "font-bold text-white tabular-nums font-mono", csv: (j) => formatMs(j.totalDurationMs) },
+      meta: {
+        cellClassName: "font-bold text-white tabular-nums font-mono",
+        csv: (j) => formatMs(j.totalDurationMs),
+      },
       cell: ({ row }) => formatMs(row.original.totalDurationMs),
     },
     {
@@ -113,7 +140,11 @@ export function ingestionColumns(a: JobRowActions): ColumnDef<JobProgress>[] {
       accessorFn: (j) => j.failureReason ?? "",
       header: "Failure",
       enableSorting: false,
-      cell: ({ getValue }) => <span className="text-rose-300/80 truncate max-w-60 block">{getValue<string>() || "—"}</span>,
+      cell: ({ getValue }) => (
+        <span className="text-rose-300/80 truncate max-w-60 block">
+          {getValue<string>() || "—"}
+        </span>
+      ),
     },
     created as ColumnDef<JobProgress>,
     {
@@ -121,7 +152,12 @@ export function ingestionColumns(a: JobRowActions): ColumnDef<JobProgress>[] {
       header: () => <span className="sr-only">Actions</span>,
       enableSorting: false,
       enableHiding: false,
-      meta: { csv: false, label: "Actions", headerClassName: "text-right", cellClassName: "text-right" },
+      meta: {
+        csv: false,
+        label: "Actions",
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+      },
       cell: ({ row }) => {
         const job = row.original;
         const retrying = a.retryingId === job.id;
@@ -149,7 +185,9 @@ export function ingestionColumns(a: JobRowActions): ColumnDef<JobProgress>[] {
                 title="Retry pipeline job now"
                 aria-label={`Retry ${job.title}`}
               >
-                <RotateCcw className={`w-3.5 h-3.5 ${retrying ? "animate-spin text-white" : ""}`} />
+                <RotateCcw
+                  className={`w-3.5 h-3.5 ${retrying ? "animate-spin text-white" : ""}`}
+                />
               </button>
             )}
             <button
@@ -160,7 +198,9 @@ export function ingestionColumns(a: JobRowActions): ColumnDef<JobProgress>[] {
               title="Delete job & wipe cloud storage"
               aria-label={`Delete job ${job.title}`}
             >
-              <Trash2 className={`w-3.5 h-3.5 ${deleting ? "animate-spin text-rose-400" : ""}`} />
+              <Trash2
+                className={`w-3.5 h-3.5 ${deleting ? "animate-spin text-rose-400" : ""}`}
+              />
             </button>
           </div>
         );
@@ -169,7 +209,9 @@ export function ingestionColumns(a: JobRowActions): ColumnDef<JobProgress>[] {
   ];
 }
 
-export function deletionColumns(a: JobRowActions): ColumnDef<DeleteJobProgress>[] {
+export function deletionColumns(
+  a: JobRowActions,
+): ColumnDef<DeleteJobProgress>[] {
   return [
     {
       id: "entityTitle",
@@ -177,8 +219,12 @@ export function deletionColumns(a: JobRowActions): ColumnDef<DeleteJobProgress>[
       header: "Entity",
       cell: ({ row }) => (
         <div className="min-w-0">
-          <p className="font-bold text-white truncate max-w-[180px]">{row.original.entityTitle || "Untitled Entity"}</p>
-          <p className="text-[11px] text-zinc-500 font-mono truncate max-w-[180px]">ID: {row.original.entityId}</p>
+          <p className="font-bold text-white truncate max-w-[180px]">
+            {row.original.entityTitle || "Untitled Entity"}
+          </p>
+          <p className="text-[11px] text-zinc-500 font-mono truncate max-w-[180px]">
+            ID: {row.original.entityId}
+          </p>
         </div>
       ),
     },
@@ -192,12 +238,19 @@ export function deletionColumns(a: JobRowActions): ColumnDef<DeleteJobProgress>[
         </span>
       ),
     },
-    { id: "status", accessorFn: (j) => j.status, header: "Status", cell: ({ row }) => <StatusCell status={row.original.status} /> },
+    {
+      id: "status",
+      accessorFn: (j) => j.status,
+      header: "Status",
+      cell: ({ row }) => <StatusCell status={row.original.status} />,
+    },
     {
       id: "currentStage",
       accessorFn: (j) => j.currentStage,
       header: "Current Stage",
-      cell: ({ row }) => <StageCell badge={getDeleteStageBadge(row.original.currentStage)} />,
+      cell: ({ row }) => (
+        <StageCell badge={getDeleteStageBadge(row.original.currentStage)} />
+      ),
     },
     {
       id: "attempts",
@@ -210,14 +263,20 @@ export function deletionColumns(a: JobRowActions): ColumnDef<DeleteJobProgress>[
       id: "s3DurationMs",
       accessorFn: (j) => j.s3DurationMs ?? 0,
       header: "S3 Purge",
-      meta: { cellClassName: "text-zinc-400 font-mono", csv: (j) => formatMs(j.s3DurationMs) },
+      meta: {
+        cellClassName: "text-zinc-400 font-mono",
+        csv: (j) => formatMs(j.s3DurationMs),
+      },
       cell: ({ row }) => formatMs(row.original.s3DurationMs),
     },
     {
       id: "totalDurationMs",
       accessorFn: (j) => j.totalDurationMs ?? 0,
       header: "Total Time",
-      meta: { cellClassName: "font-bold text-white font-mono", csv: (j) => formatMs(j.totalDurationMs) },
+      meta: {
+        cellClassName: "font-bold text-white font-mono",
+        csv: (j) => formatMs(j.totalDurationMs),
+      },
       cell: ({ row }) => formatMs(row.original.totalDurationMs),
     },
     created as ColumnDef<DeleteJobProgress>,
@@ -226,7 +285,12 @@ export function deletionColumns(a: JobRowActions): ColumnDef<DeleteJobProgress>[
       header: () => <span className="sr-only">Actions</span>,
       enableSorting: false,
       enableHiding: false,
-      meta: { csv: false, label: "Actions", headerClassName: "text-right", cellClassName: "text-right" },
+      meta: {
+        csv: false,
+        label: "Actions",
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+      },
       cell: ({ row }) => {
         const job = row.original;
         const retrying = a.retryingId === job.id;
@@ -242,7 +306,9 @@ export function deletionColumns(a: JobRowActions): ColumnDef<DeleteJobProgress>[
                 title="Retry cascade delete job"
                 aria-label={`Retry delete of ${job.entityTitle ?? job.entityId}`}
               >
-                <RotateCcw className={`w-4 h-4 ${retrying ? "animate-spin text-white" : ""}`} />
+                <RotateCcw
+                  className={`w-4 h-4 ${retrying ? "animate-spin text-white" : ""}`}
+                />
               </button>
             )}
             <button
@@ -253,7 +319,9 @@ export function deletionColumns(a: JobRowActions): ColumnDef<DeleteJobProgress>[
               title="Delete cascade delete audit record"
               aria-label={`Delete record for ${job.entityTitle ?? job.entityId}`}
             >
-              <Trash2 className={`w-4 h-4 ${deleting ? "animate-spin text-rose-400" : ""}`} />
+              <Trash2
+                className={`w-4 h-4 ${deleting ? "animate-spin text-rose-400" : ""}`}
+              />
             </button>
           </div>
         );

@@ -1,15 +1,16 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { adminClient } from "./api";
+import type React from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import {
   ADMIN_USER_KEY,
   clearLegacyAdminTokens,
   refreshAdminSession,
   withAdminHeaders,
 } from "./adminFetch";
+import { adminClient } from "./api";
 
 interface User {
   id: string;
@@ -21,10 +22,22 @@ interface User {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string) => Promise<{ success: boolean; token: string; message?: string }>;
-  register: (name: string, email: string) => Promise<{ success: boolean; token: string; message?: string }>;
-  verifyOtp: (email: string, otp: string, token: string) => Promise<{ success: boolean; message?: string }>;
-  resendOtp: (email: string, token: string) => Promise<{ success: boolean; token?: string; message?: string }>;
+  login: (
+    email: string,
+  ) => Promise<{ success: boolean; token: string; message?: string }>;
+  register: (
+    name: string,
+    email: string,
+  ) => Promise<{ success: boolean; token: string; message?: string }>;
+  verifyOtp: (
+    email: string,
+    otp: string,
+    token: string,
+  ) => Promise<{ success: boolean; message?: string }>;
+  resendOtp: (
+    email: string,
+    token: string,
+  ) => Promise<{ success: boolean; token?: string; message?: string }>;
   logout: () => void;
 }
 
@@ -37,7 +50,15 @@ function clearStorage() {
   localStorage.removeItem(ADMIN_USER_KEY);
 }
 
-function toUser(profile: any): User {
+interface ProfileResponse {
+  id: string;
+  email: string;
+  userName?: string;
+  name?: string;
+  role?: string;
+}
+
+function toUser(profile: ProfileResponse): User {
   return {
     id: profile.id,
     email: profile.email,
@@ -124,7 +145,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Listen for session-expired events from adminFetch
   useEffect(() => {
     const handleSessionExpired = () => {
-      console.warn("[Admin Auth] Session expired event received. Redirecting to login.");
+      console.warn(
+        "[Admin Auth] Session expired event received. Redirecting to login.",
+      );
       clearStorage();
       queryClient.clear();
       setUser(null);
@@ -133,7 +156,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
     window.addEventListener("admin:session-expired", handleSessionExpired);
-    return () => window.removeEventListener("admin:session-expired", handleSessionExpired);
+    return () =>
+      window.removeEventListener("admin:session-expired", handleSessionExpired);
   }, [router, queryClient]);
 
   const login = async (email: string) => {
@@ -141,8 +165,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearStorage();
       const res = await adminClient.auth.login(email);
       return { success: true, token: res.data.token };
-    } catch (err: any) {
-      throw new Error(err.message || "Failed to log in");
+    } catch (err) {
+      throw new Error(
+        err instanceof Error && err.message ? err.message : "Failed to log in",
+      );
     }
   };
 
@@ -151,8 +177,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       clearStorage();
       const res = await adminClient.auth.register(name, email);
       return { success: true, token: res.data.token };
-    } catch (err: any) {
-      throw new Error(err.message || "Failed to register");
+    } catch (err) {
+      throw new Error(
+        err instanceof Error && err.message
+          ? err.message
+          : "Failed to register",
+      );
     }
   };
 
@@ -163,8 +193,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(ADMIN_USER_KEY, JSON.stringify(userData));
       setUser(userData);
       return { success: true };
-    } catch (err: any) {
-      throw new Error(err.message || "Failed to verify OTP");
+    } catch (err) {
+      throw new Error(
+        err instanceof Error && err.message
+          ? err.message
+          : "Failed to verify OTP",
+      );
     }
   };
 
@@ -172,8 +206,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await adminClient.auth.resendOtp(emailToken, email);
       return { success: true, token: res.data.token };
-    } catch (err: any) {
-      throw new Error(err.message || "Failed to resend OTP");
+    } catch (err) {
+      throw new Error(
+        err instanceof Error && err.message
+          ? err.message
+          : "Failed to resend OTP",
+      );
     }
   };
 
