@@ -92,6 +92,15 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 30s
 
+# Spring Cloud AWS: only the 'aws' profile (below) talks to Secrets Manager. Without this,
+# its auto-configuration builds a client at start-up and fails where no AWS region is set.
+---
+spring:
+  cloud:
+    aws:
+      secretsmanager:
+        enabled: false
+---
 # LEGACY (default) | DUAL | KAFKA. See Events/Kafka/EventsMode.java.
 melody:
   events:
@@ -184,5 +193,7 @@ spring:
       - aws-secretsmanager:${SECRET_IDS:onemelody/prod/db;onemelody/prod/redis;onemelody/prod/kafka;onemelody/prod/core}
   cloud:
     aws:
+      secretsmanager:
+        enabled: true
       region:
         static: ${AWS_REGION:ap-south-1}

@@ -94,7 +94,9 @@ jobs:
       # From the repo root, so the shared Avro contracts (communication/) build first.
       # Includes the schema compatibility check and the Testcontainers Redpanda test.
       - name: Run Spring Boot Unit & Integration Tests
-        run: ./mvnw -pl coreEngine -am test --batch-mode --no-transfer-progress
+        run: |
+          ./mvnw --version >/dev/null || (sleep 10 && ./mvnw --version >/dev/null)
+          ./mvnw -pl coreEngine -am test --batch-mode --no-transfer-progress
 
       - name: Upload Core Engine Test Reports
         if: always()
@@ -125,7 +127,10 @@ jobs:
           cache: 'maven'
 
       - name: Run Stream Services Tests
-        run: chmod +x mvnw && ./mvnw -pl streams -am test --batch-mode --no-transfer-progress
+        run: |
+          chmod +x mvnw
+          ./mvnw --version >/dev/null || (sleep 10 && ./mvnw --version >/dev/null)
+          ./mvnw -pl streams -am test --batch-mode --no-transfer-progress
 
       - name: Upload Stream Services Test Reports
         if: always()
@@ -168,6 +173,9 @@ jobs:
           # Validate the production configuration (debug off) with a throwaway CI-only key.
           DJANGO_DEBUG: "false"
           DJANGO_SECRET_KEY: ci-only-not-a-real-secret-${{ github.run_id }}-${{ github.run_attempt }}
+          # Production settings now require the Inngest keys; CI uses throwaway values.
+          INNGEST_EVENT_KEY: ci-only-not-a-real-key
+          INNGEST_SIGNING_KEY: signkey-test-ci-only-not-a-real-key
         run: uv run python manage.py check
 
       - name: Run Django Test Suite
