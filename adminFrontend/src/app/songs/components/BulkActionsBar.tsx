@@ -6,9 +6,10 @@ import { CheckSquare, Sparkles, Search, Trash2, X, RefreshCw } from "lucide-reac
 interface BulkActionsBarProps {
   selectedCount: number;
   onClearSelection: () => void;
-  onBulkDelete: () => void;
-  onBulkSyncAlgolia: () => void;
-  onBulkSyncRecombee: () => void;
+  /** Each action is left out when the current role may not take it. */
+  onBulkDelete?: () => void;
+  onBulkSyncAlgolia?: () => void;
+  onBulkSyncRecombee?: () => void;
   isProcessing?: boolean;
 }
 
@@ -32,6 +33,7 @@ export function BulkActionsBar({
       </div>
 
       <div className="flex items-center gap-2">
+        {onBulkSyncAlgolia && (
         <button
           type="button"
           onClick={onBulkSyncAlgolia}
@@ -42,7 +44,9 @@ export function BulkActionsBar({
           <Search className="w-3.5 h-3.5" />
           <span>Sync Search</span>
         </button>
+        )}
 
+        {onBulkSyncRecombee && (
         <button
           type="button"
           onClick={onBulkSyncRecombee}
@@ -53,7 +57,9 @@ export function BulkActionsBar({
           <Sparkles className="w-3.5 h-3.5" />
           <span>Sync Recombee</span>
         </button>
+        )}
 
+        {onBulkDelete && (
         <button
           type="button"
           onClick={onBulkDelete}
@@ -63,6 +69,7 @@ export function BulkActionsBar({
           <Trash2 className="w-3.5 h-3.5" />
           <span>Delete</span>
         </button>
+        )}
 
         <div className="h-4 w-px bg-white/10" />
 

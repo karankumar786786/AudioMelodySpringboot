@@ -1,68 +1,24 @@
 "use client";
 
-import { useEffect, useState, useCallback, use } from "react";
 import Link from "next/link";
+import { use, useState } from "react";
 import { PaginationBar } from "@/components/PaginationBar";
-import { adminFetch } from "@/lib/adminFetch";
-import { Artist } from "@/app/artists/types";
+import { useArtist, useArtistSongs } from "@/lib/queries/artists";
+import { ArtistDiscographyTable, type DiscographySong } from "./components/ArtistDiscographyTable";
 import { ArtistHeroBanner } from "./components/ArtistHeroBanner";
-import { ArtistDiscographyTable, DiscographySong } from "./components/ArtistDiscographyTable";
 
 export default function ArtistSongsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const [artist, setArtist] = useState<Artist | null>(null);
-  const [songs, setSongs] = useState<DiscographySong[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingSongs, setLoadingSongs] = useState(false);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(20);
-  const [totalSongs, setTotalSongs] = useState(0);
+  const artistQuery = useArtist(id);
+  const songsQuery = useArtistSongs<DiscographySong>(id, { page, size: pageSize });
 
-  // Fetch Artist Details (once)
-  useEffect(() => {
-    let isMounted = true;
-    adminFetch(`/admin/artist/${id}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (isMounted && data) setArtist(data);
-      })
-      .catch((err) => console.error("Failed to fetch artist details", err))
-      .finally(() => {
-        if (isMounted) setLoading(false);
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, [id]);
-
-  // Fetch Artist Songs (when page/pageSize changes)
-  const fetchArtistSongs = useCallback(async () => {
-    try {
-      setLoadingSongs(true);
-      const res = await adminFetch(`/admin/artist/${id}/songs?page=${page}&size=${pageSize}`);
-      if (res.ok) {
-        const data = await res.json();
-        const content = data.content || [];
-        setSongs(content);
-        const metaTotal = data.paginationMetaData?.totalCount ?? data.totalElements;
-        if (metaTotal !== undefined && metaTotal !== null) {
-          setTotalSongs(Number(metaTotal));
-        } else if (content.length < pageSize) {
-          setTotalSongs(page * pageSize + content.length);
-        } else {
-          setTotalSongs((page + 1) * pageSize);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to fetch artist songs", err);
-    } finally {
-      setLoadingSongs(false);
-    }
-  }, [id, page, pageSize]);
-
-  useEffect(() => {
-    fetchArtistSongs();
-  }, [fetchArtistSongs]);
+  const artist = artistQuery.data ?? null;
+  const loading = artistQuery.isPending;
+  const songs = songsQuery.data?.rows ?? [];
+  const totalSongs = songsQuery.data?.total ?? 0;
+  const loadingSongs = songsQuery.isFetching;
 
   if (loading) {
     return (

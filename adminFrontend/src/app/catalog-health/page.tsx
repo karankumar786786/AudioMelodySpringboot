@@ -1,6 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
+import { useConfirm } from "@/components/feedback/ConfirmProvider";
+import { apiGet, withQuery } from "@/lib/http";
+import { queryKeys } from "@/lib/query/keys";
 import {
   Stethoscope,
   RefreshCw,
@@ -118,10 +122,7 @@ function describeSkipped(skipped: SkippedItem[]): string {
 }
 
 export default function CatalogHealthPage() {
-  const [data, setData] = useState<HealthResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
+  const confirm = useConfirm();
   const [issues, setIssues] = useState<IssueKey[]>([]);
   const [match, setMatch] = useState<"any" | "all">("any");
   const [statusFilter, setStatusFilter] = useState("ACTIVE");
@@ -143,34 +144,16 @@ export default function CatalogHealthPage() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const fetchHealth = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams({
-        page: String(page),
-        size: String(pageSize),
-        status: statusFilter,
-        match,
-      });
-      if (issues.length) params.set("issue", issues.join(","));
-      if (search) params.set("search", search);
-      const res = await adminFetch(`/admin/catalog/health?${params.toString()}`);
-      if (!res.ok) {
-        const body = await res.json().catch(() => null);
-        throw new Error(body?.error || `Request failed (${res.status})`);
-      }
-      setData(await res.json());
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load catalog health");
-    } finally {
-      setLoading(false);
-    }
-  }, [page, pageSize, statusFilter, match, issues, search]);
-
-  useEffect(() => {
-    fetchHealth();
-  }, [fetchHealth]);
+  const params = { page, size: pageSize, status: statusFilter, match, issue: issues.join(","), search };
+  const healthQuery = useQuery({
+    queryKey: queryKeys.catalogHealth.list(params),
+    queryFn: ({ signal }) => apiGet<HealthResponse>(withQuery("/admin/catalog/health", params), signal),
+    placeholderData: keepPreviousData,
+  });
+  const data = healthQuery.data ?? null;
+  const loading = healthQuery.isFetching;
+  const error = healthQuery.error ? healthQuery.error.message || "Failed to load catalog health" : null;
+  const fetchHealth = () => healthQuery.refetch();
 
   // Selection only spans the visible page; clear it when the result set changes.
   useEffect(() => {
@@ -203,9 +186,12 @@ export default function CatalogHealthPage() {
     if (songIds.length === 0) return;
     if (
       action === "reprocess" &&
-      !confirm(
-        `Retry the failed ingestion job for ${songIds.length} song(s)? Songs whose latest job already completed are skipped (they need a new upload via Reprocess audio).`
-      )
+      !(await confirm({
+        title: `Retry the failed ingestion job for ${songIds.length} song(s)?`,
+        description:
+          "Songs whose latest job already completed are skipped (they need a new upload via Reprocess audio).",
+        confirmLabel: "Retry jobs",
+      }))
     ) {
       return;
     }

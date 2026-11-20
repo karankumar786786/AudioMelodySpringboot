@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import type React from "react";
 import {
   Smartphone,
   Laptop,
@@ -14,103 +14,49 @@ import {
   AlertCircle,
   CheckCircle2,
 } from "lucide-react";
-import { adminFetch } from "@/lib/adminFetch";
-import { UserSession } from "@/lib/api";
-import { UserItem } from "../types";
+import { useConfirm } from "@/components/feedback/ConfirmProvider";
+import { useToast } from "@/components/feedback/ToastProvider";
+import { useRevokeSession, useUserSessions } from "@/lib/queries/users";
+import type { UserItem } from "../types";
 
 export interface UserSessionsModalProps {
   user: UserItem | null;
   isOpen: boolean;
   onClose: () => void;
-  onNotify?: (message: string, type: "success" | "error") => void;
 }
 
-export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({
-  user,
-  isOpen,
-  onClose,
-  onNotify,
-}) => {
-  const [sessions, setSessions] = useState<UserSession[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [revokingId, setRevokingId] = useState<string | null>(null);
-  const [revokingAll, setRevokingAll] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({ user, isOpen, onClose }) => {
+  const toast = useToast();
+  const confirm = useConfirm();
+  const sessionsQuery = useUserSessions(isOpen ? user?.email : null);
+  const revoke = useRevokeSession(user?.email ?? "");
+  const sessions = sessionsQuery.data ?? [];
+  const loading = sessionsQuery.isFetching;
+  const error = sessionsQuery.error?.message ?? null;
+  const fetchSessions = () => sessionsQuery.refetch();
+  const revokingAll = revoke.isPending && revoke.variables === "all";
+  const revokingId = revoke.isPending && revoke.variables !== "all" ? revoke.variables : null;
 
-  const fetchSessions = useCallback(async () => {
-    if (!user?.email) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await adminFetch(`/admin/account/${encodeURIComponent(user.email)}/sessions`);
-      if (res.ok) {
-        const data = await res.json();
-        setSessions(data.sessions || []);
-      } else {
-        const err = await res.json().catch(() => null);
-        setError(err?.error || err?.message || "Failed to load user device sessions");
-      }
-    } catch (e: any) {
-      setError(e.message || "Network error loading sessions");
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.email]);
-
-  useEffect(() => {
-    if (isOpen && user) {
-      fetchSessions();
-    } else {
-      setSessions([]);
-      setError(null);
-    }
-  }, [isOpen, user, fetchSessions]);
-
-  const handleRevokeSingle = async (sessionId: string) => {
-    if (!user?.email) return;
-    setRevokingId(sessionId);
-    try {
-      const res = await adminFetch(
-        `/admin/account/${encodeURIComponent(user.email)}/sessions/${sessionId}`,
-        { method: "DELETE" }
-      );
-      if (res.ok) {
-        setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-        if (onNotify) onNotify("Device session revoked successfully", "success");
-      } else {
-        const err = await res.json().catch(() => null);
-        if (onNotify) onNotify(err?.error || "Failed to revoke session", "error");
-      }
-    } catch (e: any) {
-      if (onNotify) onNotify("Network error revoking session", "error");
-    } finally {
-      setRevokingId(null);
-    }
-  };
+  const handleRevokeSingle = (sessionId: string) =>
+    revoke.mutate(sessionId, {
+      onSuccess: () => toast("Device session revoked successfully"),
+      onError: (err) => toast(err.message, "error"),
+    });
 
   const handleRevokeAll = async () => {
     if (!user?.email) return;
-    if (!confirm(`Are you sure you want to log out all devices for ${user.email}?`)) {
-      return;
-    }
-    setRevokingAll(true);
-    try {
-      const res = await adminFetch(
-        `/admin/account/${encodeURIComponent(user.email)}/sessions/revoke-all`,
-        { method: "POST" }
-      );
-      if (res.ok) {
-        setSessions([]);
-        if (onNotify) onNotify("All device sessions revoked successfully", "success");
-      } else {
-        const err = await res.json().catch(() => null);
-        if (onNotify) onNotify(err?.error || "Failed to revoke all sessions", "error");
-      }
-    } catch (e: any) {
-      if (onNotify) onNotify("Network error revoking sessions", "error");
-    } finally {
-      setRevokingAll(false);
-    }
+    const ok = await confirm({
+      title: `Sign out every device for ${user.email}?`,
+      description: "All of this user's sessions end; they must sign in again on each device.",
+      confirmLabel: "Revoke all",
+      destructive: true,
+      typeToConfirm: "revoke all",
+    });
+    if (!ok) return;
+    revoke.mutate("all", {
+      onSuccess: () => toast("All device sessions revoked successfully"),
+      onError: (err) => toast(err.message, "error"),
+    });
   };
 
   if (!isOpen || !user) return null;
