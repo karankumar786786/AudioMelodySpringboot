@@ -1,102 +1,59 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { Search, X, UserPlus } from "lucide-react";
-import { Toast, type ToastType } from "@/components/Toast";
-import { PaginationBar } from "@/components/PaginationBar";
-import { adminFetch } from "@/lib/adminFetch";
-import { Artist } from "./types";
+import { UserPlus } from "lucide-react";
+import { useState } from "react";
+import {
+  type CatalogStatus,
+  CatalogStatusFilter,
+} from "@/components/catalog/StatusFilter";
+import { DataTable } from "@/components/data-table/DataTable";
+import { SearchInput } from "@/components/data-table/Toolbar";
+import { useServerTable } from "@/components/data-table/useServerTable";
+import { type ViewMode, ViewToggle } from "@/components/data-table/ViewToggle";
+import { useConfirm } from "@/components/feedback/ConfirmProvider";
+import { usePermissions } from "@/lib/permissions";
+import { useArtists, useDeleteArtist } from "@/lib/queries/artists";
 import { ArtistsGrid } from "./components/ArtistsGrid";
+import { artistColumns } from "./components/artistColumns";
 import { CreateArtistModal } from "./components/CreateArtistModal";
+import type { Artist } from "./types";
 
 export default function ArtistsPage() {
-  const [artists, setArtists] = useState<Artist[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(20);
-  const [totalArtists, setTotalArtists] = useState(0);
+  const { can } = usePermissions();
+  const confirm = useConfirm();
+  const table = useServerTable({
+    initialFilters: { status: "ACTIVE" as CatalogStatus },
+  });
+  const { pagination } = table;
+  const artistsQuery = useArtists({
+    page: pagination.pageIndex,
+    size: pagination.pageSize,
+    search: table.debouncedSearch,
+    status: table.filters.status,
+  });
+  const rows = artistsQuery.data?.rows ?? [];
+  const total = artistsQuery.data?.total ?? 0;
+
+  const [view, setView] = useState<ViewMode>("grid");
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [toast, setToast] = useState<{
-    message: string;
-    type: ToastType;
-  } | null>(null);
+  const deleteArtist = useDeleteArtist();
 
-  const showToast = useCallback((message: string, type: ToastType = "success") => {
-    setToast({ message, type });
-  }, []);
-
-  // Debounce search input
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-      setPage(0);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [search]);
-
-  const fetchArtists = useCallback(async () => {
-    try {
-      setLoading(true);
-      const searchParam = debouncedSearch.trim()
-        ? `&search=${encodeURIComponent(debouncedSearch.trim())}`
-        : "";
-      const response = await adminFetch(`/admin/artist?page=${page}&size=${pageSize}${searchParam}`);
-      if (response.ok) {
-        const result = await response.json();
-        const content = result.content || result.data?.content || result.data || [];
-        setArtists(content);
-        const metaTotal = result.paginationMetaData?.totalCount ?? result.totalElements;
-        if (metaTotal !== undefined && metaTotal !== null) {
-          setTotalArtists(Number(metaTotal));
-        } else if (content.length < pageSize) {
-          setTotalArtists(page * pageSize + content.length);
-        } else {
-          setTotalArtists((page + 1) * pageSize);
-        }
-      } else {
-        showToast("Failed to fetch artists", "error");
-      }
-    } catch (err) {
-      console.error("Failed to fetch artists", err);
-      showToast("Network error fetching artists", "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [page, pageSize, debouncedSearch, showToast]);
-
-  useEffect(() => {
-    fetchArtists();
-  }, [fetchArtists]);
-
-  const handleDelete = async (id: string) => {
-    if (
-      !confirm(
-        "Are you sure? This will delete the artist and potentially affect associated songs.",
-      )
-    )
-      return;
-    try {
-      const res = await adminFetch(`/admin/artist/${id}`, { method: "DELETE" });
-      if (res.ok) {
-        setArtists((prev) => prev.filter((a) => a.id !== id));
-        setTotalArtists((prev) => Math.max(0, prev - 1));
-        showToast("Artist deleted successfully", "success");
-      } else {
-        showToast("Delete failed", "error");
-      }
-    } catch (err: any) {
-      showToast(
-        err?.message || "Delete failed due to a network error",
-        "error",
-      );
-    }
+  const handleDelete = async (artist: Artist) => {
+    const ok = await confirm({
+      title: `Delete artist "${artist.name}"?`,
+      description: "This deletes the artist and may affect their songs.",
+      confirmLabel: "Delete artist",
+      destructive: true,
+      typeToConfirm: artist.name,
+    });
+    if (ok) deleteArtist.mutate(artist);
   };
+  const onDelete = can("artist.delete") ? handleDelete : undefined;
+
+  const columns = artistColumns({ onDelete });
 
   return (
     <div className="p-6 md:p-8 max-w-400 mx-auto space-y-6 text-white font-sans">
-      {/* Header and Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#121215] p-5 rounded-2xl border border-white/8">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">
@@ -106,82 +63,78 @@ export default function ArtistsPage() {
             Manage artist profiles, discographies, cover artwork, and bios.
           </p>
         </div>
-
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          {/* Search Box */}
-          <div className="relative min-w-65 sm:w-72">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="Search artists..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-9 py-2 bg-[#16161a] border border-white/8 hover:border-white/14 focus:border-white/30 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none transition-all"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-
+        {can("artist.create") && (
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
-            className="bg-white hover:bg-zinc-200 text-black px-4 py-2 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-2 shadow-sm text-xs shrink-0 cursor-pointer"
+            className="bg-white hover:bg-zinc-200 text-black px-4 py-2 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-2 shadow-sm text-xs shrink-0 cursor-pointer self-start md:self-auto"
           >
             <UserPlus className="w-3.5 h-3.5 stroke-[2.5]" />
             <span>Add Artist</span>
           </button>
-        </div>
+        )}
       </div>
 
-      {/* Grid */}
-      <div className="space-y-6">
-        <ArtistsGrid
-          artists={artists}
-          loading={loading}
-          onDelete={handleDelete}
-        />
+      <DataTable<Artist>
+        columns={columns}
+        data={rows}
+        getRowId={(a) => a.id}
+        rowCount={total}
+        pagination={pagination}
+        onPaginationChange={table.setPagination}
+        loading={artistsQuery.isPending}
+        fetching={artistsQuery.isFetching}
+        error={artistsQuery.error}
+        onRetry={() => artistsQuery.refetch()}
+        enableRowSelection={view === "table"}
+        rowSelection={table.rowSelection}
+        onRowSelectionChange={table.setRowSelection}
+        renderBulkActions={() => (
+          <span className="text-zinc-400">
+            Export the selection with Export CSV.
+          </span>
+        )}
+        toolbar={
+          <>
+            <SearchInput
+              value={table.search}
+              onChange={table.setSearch}
+              placeholder="Search artists..."
+            />
+            <CatalogStatusFilter
+              value={table.filters.status}
+              onChange={(v) => table.setFilter("status", v)}
+            />
+          </>
+        }
+        actions={<ViewToggle value={view} onChange={setView} />}
+        exportFileName="artists"
+        storageKey="artists"
+        itemLabel="artists"
+        renderRows={
+          view === "grid"
+            ? (tableRows, loading) => (
+                <ArtistsGrid
+                  artists={tableRows.map((r) => r.original)}
+                  loading={loading}
+                  onDelete={
+                    onDelete
+                      ? (id) => {
+                          const a = rows.find((x) => x.id === id);
+                          if (a) onDelete(a);
+                        }
+                      : undefined
+                  }
+                />
+              )
+            : undefined
+        }
+      />
 
-        {/* Pagination Bar */}
-        <PaginationBar
-          page={page}
-          pageSize={pageSize}
-          totalItems={totalArtists}
-          currentCount={artists.length}
-          itemLabel="artists"
-          onPageChange={setPage}
-          onPageSizeChange={(newSize) => {
-            setPageSize(newSize);
-            setPage(0);
-          }}
-          pageSizeOptions={[10, 20, 50, 100]}
-          loading={loading}
-        />
-      </div>
-
-      {/* Modal */}
       <CreateArtistModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={fetchArtists}
-        showToast={showToast}
       />
-
-      {/* Toast Notifications */}
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
-      )}
     </div>
   );
 }
-

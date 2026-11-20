@@ -260,6 +260,12 @@ REDIS_DELETE_QUEUE = os.getenv("REDIS_DELETE_QUEUE", "delete_event_queue")
 REDIS_CANCEL_QUEUE = os.getenv("REDIS_CANCEL_QUEUE", "audio_cancel_queue")
 REDIS_MAIL_QUEUE = os.getenv("REDIS_MAIL_QUEUE", "mail_queue")
 
+# Event pipeline (core/services/outbox_service.py). LEGACY keeps today's behaviour.
+EVENTS_MODE = os.getenv("EVENTS_MODE", "LEGACY").upper()
+# Redpanda HTTP proxy, used only to nudge outboxRelay after a commit.
+KAFKA_REST_PROXY_URL = os.getenv("KAFKA_REST_PROXY_URL", "")
+EVENTS_OTP_FALLBACK_SECONDS = float(os.getenv("EVENTS_OTP_FALLBACK_SECONDS", "30"))
+
 # Where admin sessions, refresh sessions and blocks are read from.
 # "redis": Redis is the source of truth, shared by every gunicorn worker; a worker's
 #          in-memory copy is used only while Redis can't be reached.

@@ -1,0 +1,10 @@
+{
+  "type": "record", "name": "FavouriteChanged", "namespace": "me.oneorg.melody.events",
+  "doc": "Saved in Postgres first, then published through the outbox. Topic engagement.favourite.v1, key user_id.",
+  "fields": [
+    {"name": "meta", "type": "EventMeta"},
+    {"name": "user_id", "type": "string"},
+    {"name": "song_id", "type": "string"},
+    {"name": "added", "type": "boolean"}
+  ]
+}

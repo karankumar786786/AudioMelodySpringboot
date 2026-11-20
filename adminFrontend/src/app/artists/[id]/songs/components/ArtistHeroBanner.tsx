@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import type { Artist } from "@/app/artists/types";
 import { getImageUrl } from "@/lib/image-utils";
-import { Artist } from "@/app/artists/types";
 
 interface ArtistHeroBannerProps {
   artist: Artist;
@@ -51,7 +51,12 @@ export function ArtistHeroBanner({ artist }: ArtistHeroBannerProps) {
 
           <div className="flex-1 pb-2">
             <div className="flex items-center gap-2 mb-2 text-zinc-400 font-bold uppercase tracking-widest text-xs">
-              <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+              <svg
+                aria-hidden="true"
+                className="w-4 h-4 text-white"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+              >
                 <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z" />
               </svg>
               Verified Artist
@@ -71,8 +76,19 @@ export function ArtistHeroBanner({ artist }: ArtistHeroBannerProps) {
               href="/artists"
               className="bg-black/60 hover:bg-white hover:text-black border border-[#282828] text-zinc-300 px-5 py-2.5 rounded-full font-bold transition-all flex items-center gap-2 text-sm"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              <svg
+                aria-hidden="true"
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                />
               </svg>
               All Artists
             </Link>

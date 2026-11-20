@@ -1,0 +1,11 @@
+{
+  "type": "record", "name": "PlayEvent", "namespace": "me.oneorg.melody.events",
+  "doc": "A listen of one track, sent when the track ends or is replaced. Topic listening.play.v1, key user_id.",
+  "fields": [
+    {"name": "meta", "type": "EventMeta"},
+    {"name": "user_id", "type": "string"},
+    {"name": "song_id", "type": "string"},
+    {"name": "listened_ratio", "type": "double", "doc": "0.0-1.0 of the track that was played."},
+    {"name": "duration_ms", "type": ["null", "long"], "default": null, "doc": "Track length if the client knows it."}
+  ]
+}

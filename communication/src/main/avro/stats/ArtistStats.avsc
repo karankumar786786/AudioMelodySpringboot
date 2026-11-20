@@ -1,0 +1,10 @@
+{
+  "type": "record", "name": "ArtistStats", "namespace": "me.oneorg.melody.events.stats",
+  "doc": "Running totals per artist. Topic stats.artist.v1 (compacted), key artist_id.",
+  "fields": [
+    {"name": "artist_id", "type": "string"},
+    {"name": "follows_gained", "type": "long", "default": 0},
+    {"name": "follows_lost", "type": "long", "default": 0},
+    {"name": "updated_at", "type": {"type": "long", "logicalType": "timestamp-millis"}}
+  ]
+}

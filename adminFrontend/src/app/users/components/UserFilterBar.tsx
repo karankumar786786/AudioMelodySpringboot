@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
 import { Search } from "lucide-react";
-import { RoleFilter, StatusFilter } from "../types";
+import type React from "react";
+import type { RoleFilter, StatusFilter } from "../types";
 
 export interface UserFilterBarProps {
   searchQuery: string;
@@ -35,7 +35,8 @@ export const UserFilterBar: React.FC<UserFilterBarProps> = ({
   blockedCount,
   onResetFilters,
 }) => {
-  const isFiltered = searchQuery || roleFilter !== "ALL" || statusFilter !== "ALL";
+  const isFiltered =
+    searchQuery || roleFilter !== "ALL" || statusFilter !== "ALL";
 
   return (
     <div className="bg-[#121212] border border-[#282828] rounded-3xl p-6 shadow-xl space-y-6">
@@ -59,6 +60,7 @@ export const UserFilterBar: React.FC<UserFilterBarProps> = ({
           <div className="flex items-center bg-[#181818] p-1 rounded-full border border-[#282828] text-xs font-semibold">
             {(["ALL", "ADMIN", "USER"] as const).map((role) => (
               <button
+                type="button"
                 key={role}
                 onClick={() => onRoleFilterChange(role)}
                 className={`px-3 py-1.5 rounded-full transition-all ${
@@ -76,6 +78,7 @@ export const UserFilterBar: React.FC<UserFilterBarProps> = ({
           <div className="flex items-center bg-[#181818] p-1 rounded-full border border-[#282828] text-xs font-semibold">
             {(["ALL", "ACTIVE", "BLOCKED"] as const).map((status) => (
               <button
+                type="button"
                 key={status}
                 onClick={() => onStatusFilterChange(status)}
                 className={`px-3 py-1.5 rounded-full transition-all ${
@@ -100,7 +103,9 @@ export const UserFilterBar: React.FC<UserFilterBarProps> = ({
           </strong>{" "}
           to{" "}
           <strong className="text-white">
-            {totalUsers === 0 || displayedCount === 0 ? 0 : page * pageSize + displayedCount}
+            {totalUsers === 0 || displayedCount === 0
+              ? 0
+              : page * pageSize + displayedCount}
           </strong>{" "}
           of <strong className="text-white">{totalUsers}</strong> accounts
           {activeCount !== null && (
@@ -111,6 +116,7 @@ export const UserFilterBar: React.FC<UserFilterBarProps> = ({
         </span>
         {isFiltered && (
           <button
+            type="button"
             onClick={onResetFilters}
             className="text-white font-medium hover:underline cursor-pointer"
           >

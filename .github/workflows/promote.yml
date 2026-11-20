@@ -12,7 +12,7 @@ on:
         description: "Services to promote"
         type: choice
         default: all
-        options: [all, core, admin, audioprocessing, mail]
+        options: [all, core, admin, audioprocessing, mail, streams]
       sha:
         description: "Short commit SHA (7 chars) of the build to promote. Leave empty to promote the current :latest."
         type: string
@@ -56,7 +56,7 @@ jobs:
             exit 1
           fi
           if [[ "$SERVICES" == "all" ]]; then
-            list="core admin audioprocessing mail"
+            list="core admin audioprocessing mail streams"
           else
             list="$SERVICES"
           fi
@@ -106,6 +106,7 @@ jobs:
               admin)           urls+=("https://api-admin-one-melody.one-org.me/health") ;;
               audioprocessing) urls+=("https://audio-processing.one-org.me/health") ;;
               mail)            echo "::notice::mail has no public health endpoint; check its container logs" ;;
+              streams)         echo "::notice::streams has no public health endpoint; check its container logs" ;;
             esac
           done
           [[ ${#urls[@]} -eq 0 ]] && exit 0

@@ -31,8 +31,8 @@ variable "server_secret_access" {
   type        = map(list(string))
   description = "Server role => secret names (within runtime_environment) its instance role may read"
   default = {
-    # core server: core (Spring) + mail worker
-    core = ["db", "redis", "core", "mail"]
+    # core server: core (Spring, also a Kafka client) + mail worker
+    core = ["db", "redis", "kafka", "core", "mail"]
     # admin/processing server: admin (Django) + process (Bun), later streams + Redpanda
     processing = ["db", "redis", "admin", "processing", "kafka", "streams"]
   }

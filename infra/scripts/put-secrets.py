@@ -65,8 +65,23 @@ SECRETS: dict[str, tuple[str, list[str]]] = {
         "ALGOLIA_APP_ID", "ALGOLIA_API_KEY",
         "CONCURRENT_TRANSCODING_LIMIT", "MAX_CONCURRENT_JOBS",
     ]),
-    # kafka and streams are filled in by the Kafka/streams work; nothing to copy yet.
+    # Kafka client settings for core (Redpanda on the processing server's private IP;
+    # `terraform output kafka`) and the stream services. Written as {} while unset, so
+    # core's required import of this secret still succeeds.
+    "kafka": ("core/core.env", [
+        "KAFKA_BOOTSTRAP_SERVERS", "SCHEMA_REGISTRY_URL",
+        "KAFKA_SECURITY_PROTOCOL", "KAFKA_SASL_MECHANISM", "KAFKA_SASL_JAAS_CONFIG",
+    ]),
+    # streams/ still reads streams.env today; this prepares its secret for the switch.
+    "streams": ("admin/streams.env", [
+        "RECOMBEE_DATABASE_ID", "RECOMBEE_DATABASE_SECRET",
+        "ALGOLIA_APP_ID", "ALGOLIA_API_KEY",
+        "SMTP_USER", "SMTP_PASS", "SMTP_FROM", "MAIL_FROM", "RESEND_API_KEY",
+    ]),
 }
+
+# Secrets whose env file may not exist yet; they are written as {} instead of failing.
+MAY_BE_EMPTY = {"kafka", "streams"}
 
 LINE_RE = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$")
 
@@ -106,11 +121,14 @@ def main() -> int:
     for name in wanted:
         env_file, keys = SECRETS[name]
         path = docker / env_file
-        if not path.is_file():
+        if path.is_file():
+            env = read_env(path)
+        elif name in MAY_BE_EMPTY:
+            env = {}
+        else:
             print(f"{name}: {path} not found", file=sys.stderr)
             failed = True
             continue
-        env = read_env(path)
         payload = {k: env[k] for k in keys if env.get(k, "") != ""}
         missing = [k for k in keys if k not in payload]
         secret_id = f"onemelody/{args.env}/{name}"

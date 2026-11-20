@@ -1,20 +1,13 @@
 "use client";
 
-import React from "react";
-import { QueueBackpressureSummary, QueueItem } from "@/lib/api";
 import {
   Activity,
-  Layers,
-  Inbox,
-  Mail,
-  Trash2,
+  AlertOctagon,
   AlertTriangle,
   CheckCircle2,
-  AlertOctagon,
-  Gauge,
-  Sparkles,
-  Server,
+  Mail,
 } from "lucide-react";
+import type { QueueBackpressureSummary } from "@/lib/api";
 
 interface QueueBackpressureWidgetProps {
   queueData?: QueueBackpressureSummary | null;
@@ -31,7 +24,10 @@ export function QueueBackpressureWidget({
 }: QueueBackpressureWidgetProps) {
   if (!queueData) {
     return (
-      <div id="mail-queue" className="rounded-2xl border border-white/8 bg-[#121215] p-5 animate-pulse">
+      <div
+        id="mail-queue"
+        className="rounded-2xl border border-white/8 bg-[#121215] p-5 animate-pulse"
+      >
         <div className="h-6 w-48 bg-zinc-800 rounded mb-4" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[1, 2].map((i) => (
@@ -45,14 +41,14 @@ export function QueueBackpressureWidget({
   const {
     totalQueued = 0,
     overallStatus = "HEALTHY",
-    mailQueueSize = 0,
     mailDlqSize = 0,
     queues = [],
-    timestamp,
   } = queueData;
 
   // Filter strictly for Mail Dispatch and Dead-Letter queues
-  const displayQueues = queues.filter((q) => q.queueKey.includes("mail") || q.type === "DLQ");
+  const displayQueues = queues.filter(
+    (q) => q.queueKey.includes("mail") || q.type === "DLQ",
+  );
 
   const getOverallStatusBadge = () => {
     switch (overallStatus) {
@@ -77,7 +73,6 @@ export function QueueBackpressureWidget({
           dot: "bg-amber-500 animate-pulse",
           icon: <Activity className="w-3.5 h-3.5 text-amber-400" />,
         };
-      case "HEALTHY":
       default:
         return {
           label: "Workers In-Sync (Optimal)",
@@ -88,7 +83,7 @@ export function QueueBackpressureWidget({
     }
   };
 
-  const getQueueIcon = (queueKey: string, type: string) => {
+  const getQueueIcon = (_queueKey: string, type: string) => {
     if (type === "DLQ") {
       return <AlertOctagon className="w-4 h-4 text-rose-400" />;
     }
@@ -100,7 +95,8 @@ export function QueueBackpressureWidget({
       if (size > 0) {
         return {
           badgeText: `${size} FAILED`,
-          badgeClass: "bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse",
+          badgeClass:
+            "bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse",
           barColor: "bg-gradient-to-r from-rose-500 to-red-600",
           percentage: 100,
         };
@@ -116,7 +112,8 @@ export function QueueBackpressureWidget({
     if (status === "HIGH" || size >= 50) {
       return {
         badgeText: "High Backpressure",
-        badgeClass: "bg-rose-500/15 text-rose-400 border-rose-500/30 animate-pulse",
+        badgeClass:
+          "bg-rose-500/15 text-rose-400 border-rose-500/30 animate-pulse",
         barColor: "bg-rose-500",
         percentage: Math.min(100, Math.round((size / 50) * 100)),
       };
@@ -181,7 +178,8 @@ export function QueueBackpressureWidget({
                 </span>
               </div>
               <p className="text-xs text-zinc-400 mt-0.5">
-                Real-time dispatch buffer for OTPs, invitations, password resets, and dead-letter monitoring
+                Real-time dispatch buffer for OTPs, invitations, password
+                resets, and dead-letter monitoring
               </p>
             </div>
           </div>
@@ -192,7 +190,9 @@ export function QueueBackpressureWidget({
               className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border ${statusBadge.bg}`}
             >
               <span className="relative flex h-2 w-2">
-                <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${statusBadge.dot}`} />
+                <span
+                  className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${statusBadge.dot}`}
+                />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-current" />
               </span>
               {statusBadge.label}
@@ -201,17 +201,22 @@ export function QueueBackpressureWidget({
             {/* Total Queued counter */}
             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-black/60 border border-white/10 text-zinc-300">
               <span className="text-zinc-400">Mail Queued:</span>
-              <span className="font-bold text-white tabular-nums">{totalQueued}</span>
+              <span className="font-bold text-white tabular-nums">
+                {totalQueued}
+              </span>
             </div>
 
             {onRefresh && (
               <button
+                type="button"
                 onClick={onRefresh}
                 disabled={isRefreshing}
                 className="p-1.5 rounded-xl bg-black/60 hover:bg-white/10 border border-white/10 text-zinc-400 hover:text-white transition-all disabled:opacity-50"
                 title="Refresh mail queue metrics"
               >
-                <Activity className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
+                <Activity
+                  className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`}
+                />
               </button>
             )}
           </div>
@@ -224,11 +229,14 @@ export function QueueBackpressureWidget({
           <AlertOctagon className="w-5 h-5 text-rose-400 shrink-0 mt-0.5 animate-bounce" />
           <div className="flex-1 min-w-0">
             <h4 className="text-sm font-semibold text-rose-300">
-              {mailDlqSize} Failed Email{mailDlqSize > 1 ? "s" : ""} in Dead-Letter Queue
+              {mailDlqSize} Failed Email{mailDlqSize > 1 ? "s" : ""} in
+              Dead-Letter Queue
             </h4>
             <p className="text-xs text-rose-300/80 mt-1 leading-relaxed">
-              Email deliveries failed after maximum retry attempts or encountered SMTP provider lockouts (e.g. Gmail 454 rate-limits).
-              Inspect worker logs in <code>workers/mailEvents</code> to investigate recipient addresses or authenticate SMTP credentials.
+              Email deliveries failed after maximum retry attempts or
+              encountered SMTP provider lockouts (e.g. Gmail 454 rate-limits).
+              Inspect worker logs in <code>workers/mailEvents</code> to
+              investigate recipient addresses or authenticate SMTP credentials.
             </p>
           </div>
         </div>
@@ -256,7 +264,10 @@ export function QueueBackpressureWidget({
                     {icon}
                   </div>
                   <div className="truncate">
-                    <h3 className="text-xs font-semibold text-zinc-200 truncate" title={q.queueName}>
+                    <h3
+                      className="text-xs font-semibold text-zinc-200 truncate"
+                      title={q.queueName}
+                    >
                       {q.queueName}
                     </h3>
                     <code className="text-[10px] text-zinc-500 truncate block font-mono">
@@ -281,7 +292,13 @@ export function QueueBackpressureWidget({
                 </div>
                 <div className="text-[11px] text-zinc-400 font-medium">
                   {isDlq ? (
-                    <span className={q.size > 0 ? "text-rose-400 font-bold" : "text-white font-medium"}>
+                    <span
+                      className={
+                        q.size > 0
+                          ? "text-rose-400 font-bold"
+                          : "text-white font-medium"
+                      }
+                    >
                       {q.size > 0 ? "Inspect Logs" : "DLQ Clean"}
                     </span>
                   ) : (
@@ -299,7 +316,10 @@ export function QueueBackpressureWidget({
               </div>
 
               {!compact && (
-                <p className="text-[11px] text-zinc-400 leading-normal line-clamp-2" title={q.description}>
+                <p
+                  className="text-[11px] text-zinc-400 leading-normal line-clamp-2"
+                  title={q.description}
+                >
                   {q.description}
                 </p>
               )}

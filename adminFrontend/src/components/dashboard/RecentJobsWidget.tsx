@@ -1,9 +1,9 @@
 "use client";
 
+import { ArrowUpRight, Cpu } from "lucide-react";
 import Link from "next/link";
-import { Cpu, ArrowUpRight } from "lucide-react";
-import { Job } from "@/lib/api";
 import { SkeletonCard } from "@/components/SkeletonCard";
+import type { Job } from "@/lib/api";
 
 interface RecentJobsWidgetProps {
   jobs: Job[] | undefined;
@@ -20,7 +20,9 @@ export function RecentJobsWidget({ jobs, loading }: RecentJobsWidgetProps) {
           </div>
           <div>
             <h2 className="text-base font-bold text-white">Pipeline Jobs</h2>
-            <p className="text-xs text-zinc-400">Audio transcoding &amp; analysis status</p>
+            <p className="text-xs text-zinc-400">
+              Audio transcoding &amp; analysis status
+            </p>
           </div>
         </div>
         <Link
@@ -81,25 +83,29 @@ export function RecentJobsWidget({ jobs, loading }: RecentJobsWidgetProps) {
                   </p>
                   <p className="text-[11px] text-zinc-400 truncate flex items-center gap-1.5 mt-0.5">
                     <span>
-                      {job.artistName} {job.isVideoReprocess ? "• Canvas Reprocess" : ""}
+                      {job.artistName}{" "}
+                      {job.isVideoReprocess ? "• Canvas Reprocess" : ""}
                     </span>
                     {job.currentStage && (
                       <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/6 border border-white/8 font-mono font-semibold text-zinc-300">
                         {job.currentStage}
                       </span>
                     )}
-                    {job.transcodingAttempt != null && job.transcodingAttempt > 1 && (
-                      <span className="text-[10px] text-amber-400 font-bold">
-                        ⚠️ #{job.transcodingAttempt}
-                      </span>
-                    )}
+                    {job.transcodingAttempt != null &&
+                      job.transcodingAttempt > 1 && (
+                        <span className="text-[10px] text-amber-400 font-bold">
+                          ⚠️ #{job.transcodingAttempt}
+                        </span>
+                      )}
                   </p>
                 </div>
 
                 <span
                   className={`shrink-0 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${statusConfig.badge}`}
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`} />
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${statusConfig.dot}`}
+                  />
                   {statusConfig.label}
                 </span>
               </Link>
