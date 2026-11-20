@@ -33,7 +33,11 @@ spring:
     # --- Hikari Connection Pool Config ---
     hikari:
       pool-name: MelodyHikariPool
-      minimum-idle: 2                    # maintain 2 warm connections to avoid cold-start SSL handshakes
+      # No idle connections: Neon suspends compute only after 5 min without activity, and
+      # warm connections (recycled every max-lifetime) kept it awake around the clock, which
+      # used up the plan's compute quota. The first query after a quiet spell opens a fresh
+      # connection (and may wait for Neon to wake), which is the trade-off.
+      minimum-idle: 0
       maximum-pool-size: 20              # allow up to 20 concurrent queries without queuing
       idle-timeout: 60000                # close idle connections after 1 min
       max-lifetime: 240000
