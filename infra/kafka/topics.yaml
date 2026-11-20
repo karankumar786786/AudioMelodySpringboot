@@ -62,3 +62,8 @@ topics:
   - name: pipeline.dlq.v1
     partitions: 3
     config: retention.ms=1209600000
+
+  # Plain-string nudge to outboxRelay after a commit (1 hour)
+  - name: outbox.wakeup.v1
+    partitions: 1
+    config: retention.ms=3600000
