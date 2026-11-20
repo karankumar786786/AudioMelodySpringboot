@@ -1,0 +1,15 @@
+# Build context for the JVM images (coreEngine/Dockerfile, streams/Dockerfile), which
+# build from the repo root so they can include communication/. Keep it small.
+**
+!pom.xml
+!.mvn/wrapper/maven-wrapper.properties
+!communication/pom.xml
+!communication/src/**
+!coreEngine/pom.xml
+!coreEngine/src/**
+!streams/pom.xml
+!streams/src/**
+**/target
+**/.env
+**/*.env
+**/.DS_Store

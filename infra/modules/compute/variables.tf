@@ -99,3 +99,9 @@ variable "allowed_app_cidr_blocks" {
   description = "List of CIDR blocks allowed for application port access"
   default     = ["0.0.0.0/0"]
 }
+
+variable "kafka_volume_size" {
+  description = "Size in GB of the EBS volume for Redpanda data and Kafka Streams state"
+  type        = number
+  default     = 30
+}

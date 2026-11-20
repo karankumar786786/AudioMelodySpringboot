@@ -1,0 +1,55 @@
+{
+  "type" : "record",
+  "name" : "SkipEvent",
+  "namespace" : "me.oneorg.melody.events",
+  "doc" : "The skip button was pressed. Topic listening.skip.v1, key user_id.",
+  "fields" : [ {
+    "name" : "meta",
+    "type" : {
+      "type" : "record",
+      "name" : "EventMeta",
+      "doc" : "Embedded in every event. Consumers drop duplicates by event_id.",
+      "fields" : [ {
+        "name" : "event_id",
+        "type" : {
+          "type" : "string",
+          "avro.java.string" : "String"
+        },
+        "doc" : "UUID v7; made by the client for telemetry, by the server for state changes."
+      }, {
+        "name" : "occurred_at",
+        "type" : {
+          "type" : "long",
+          "logicalType" : "timestamp-millis"
+        },
+        "doc" : "When it happened on the device or server."
+      }, {
+        "name" : "received_at",
+        "type" : {
+          "type" : "long",
+          "logicalType" : "timestamp-millis"
+        },
+        "doc" : "When the core API accepted it."
+      }, {
+        "name" : "source",
+        "type" : {
+          "type" : "string",
+          "avro.java.string" : "String"
+        },
+        "doc" : "Who produced it, e.g. app, web, core-api, admin-api."
+      } ]
+    }
+  }, {
+    "name" : "user_id",
+    "type" : {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }
+  }, {
+    "name" : "song_id",
+    "type" : {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }
+  } ]
+}

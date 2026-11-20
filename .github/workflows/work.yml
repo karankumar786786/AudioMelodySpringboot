@@ -29,6 +29,7 @@ jobs:
       adminfrontend: ${{ steps.filter.outputs.adminfrontend }}
       audiofrontend: ${{ steps.filter.outputs.audiofrontend }}
       mobileapp: ${{ steps.filter.outputs.mobileapp }}
+      streams: ${{ steps.filter.outputs.streams }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -40,6 +41,14 @@ jobs:
           filters: |
             core:
               - 'coreEngine/**'
+              - 'communication/**'
+              - 'pom.xml'
+              - '.github/workflows/work.yml'
+            streams:
+              - 'streams/**'
+              - 'communication/**'
+              - 'migration/src/main/resources/db/migration/**'
+              - 'pom.xml'
               - '.github/workflows/work.yml'
             admin:
               - 'adminBackend/**'
@@ -80,11 +89,12 @@ jobs:
           cache: 'maven'
 
       - name: Make Maven Wrapper Executable
-        run: chmod +x coreEngine/mvnw
+        run: chmod +x mvnw
 
+      # From the repo root, so the shared Avro contracts (communication/) build first.
+      # Includes the schema compatibility check and the Testcontainers Redpanda test.
       - name: Run Spring Boot Unit & Integration Tests
-        working-directory: ./coreEngine
-        run: ./mvnw test --batch-mode --no-transfer-progress
+        run: ./mvnw -pl coreEngine -am test --batch-mode --no-transfer-progress
 
       - name: Upload Core Engine Test Reports
         if: always()
@@ -92,6 +102,37 @@ jobs:
         with:
           name: core-engine-test-reports
           path: coreEngine/target/surefire-reports/
+          retention-days: 7
+
+  # =========================================================================
+  # 1b. Stream services Tests (Spring Boot + Kafka Streams / Java 21)
+  #     Topology tests, plus Postgres (all Flyway migrations) and Redpanda containers.
+  # =========================================================================
+  test-streams:
+    name: Test Stream Services
+    needs: changes
+    if: needs.changes.outputs.streams == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run Stream Services Tests
+        run: chmod +x mvnw && ./mvnw -pl streams -am test --batch-mode --no-transfer-progress
+
+      - name: Upload Stream Services Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: streams-test-reports
+          path: streams/target/surefire-reports/
           retention-days: 7
 
   # =========================================================================
@@ -346,13 +387,54 @@ jobs:
       - name: Build and Push Core Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: ./coreEngine
+          context: .
+          file: ./coreEngine/Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=core
           cache-to: type=gha,mode=max,scope=core
+
+  build-streams:
+    name: Docker Build & Push (streams)
+    needs: [changes, test-streams]
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && (needs.changes.outputs.streams == 'true' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Extract Docker Metadata & Tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKER_USERNAME }}/streams
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+            type=ref,event=branch
+
+      - name: Build and Push Streams Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./streams/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=streams
+          cache-to: type=gha,mode=max,scope=streams
 
   build-admin:
     name: Docker Build & Push (admin)
