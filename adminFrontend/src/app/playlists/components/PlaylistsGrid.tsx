@@ -10,7 +10,8 @@ interface PlaylistsGridProps {
   deletingPlaylistId: string | null;
   selectedPlaylistId?: string | null;
   onSelectPlaylist: (playlist: Playlist) => void;
-  onDeletePlaylist: (id: string, name: string) => void;
+  /** Left out when the current role may not delete playlists. */
+  onDeletePlaylist?: (id: string, name: string) => void;
 }
 
 export function PlaylistsGrid({
@@ -101,12 +102,13 @@ export function PlaylistsGrid({
 
               {/* Delete action overlay */}
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end justify-end p-2.5">
-                <button
+                {onDeletePlaylist && (
+<button
                   type="button"
                   disabled={deletingPlaylistId === playlist.id}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onDeletePlaylist(playlist.id, playlist.name);
+                    onDeletePlaylist?.(playlist.id, playlist.name);
                   }}
                   className="p-1.5 rounded-lg bg-rose-500/20 backdrop-blur-md text-rose-300 hover:bg-rose-600 hover:text-white transition-all cursor-pointer disabled:opacity-50"
                   title="Delete playlist"
@@ -117,6 +119,7 @@ export function PlaylistsGrid({
                     <Trash2 className="w-3.5 h-3.5" />
                   )}
                 </button>
+)}
               </div>
             </div>
 

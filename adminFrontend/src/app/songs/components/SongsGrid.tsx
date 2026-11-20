@@ -22,9 +22,9 @@ interface SongsGridProps {
   loading: boolean;
   togglingSongId: string | null;
   deletingSongId: string | null;
-  onToggleFeatured: (song: Song) => void;
-  onEditSong: (song: Song) => void;
-  onDeleteSong: (id: string, title: string) => void;
+  onToggleFeatured?: (song: Song) => void;
+  onEditSong?: (song: Song) => void;
+  onDeleteSong?: (id: string, title: string) => void;
   onAddToPlaylist?: (song: Song) => void;
 }
 
@@ -179,6 +179,7 @@ export function SongsGrid({
 
               {/* Bottom Quick Actions Bar */}
               <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-between p-2.5">
+                {onToggleFeatured ? (
                 <button
                   type="button"
                   disabled={togglingSongId === song.id}
@@ -199,6 +200,9 @@ export function SongsGrid({
                     />
                   )}
                 </button>
+                ) : (
+                  <span />
+                )}
 
                 <div className="flex items-center gap-1.5">
                   {/* Add to Playlist (+) */}
@@ -216,6 +220,7 @@ export function SongsGrid({
                     </button>
                   )}
 
+                  {onEditSong && (
                   <button
                     type="button"
                     onClick={(e) => {
@@ -227,7 +232,9 @@ export function SongsGrid({
                   >
                     <Edit2 className="w-3.5 h-3.5" />
                   </button>
+                  )}
 
+                  {onDeleteSong && (
                   <button
                     type="button"
                     disabled={deletingSongId === song.id}
@@ -244,6 +251,7 @@ export function SongsGrid({
                       <Trash2 className="w-3.5 h-3.5" />
                     )}
                   </button>
+                  )}
                 </div>
               </div>
             </div>

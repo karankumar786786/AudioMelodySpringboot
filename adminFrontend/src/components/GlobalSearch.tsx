@@ -1,12 +1,20 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, Pencil } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { adminFetch } from "@/lib/adminFetch";
+import { useEffect, useRef, useState } from "react";
+import { EditSongModal } from "@/components/edit-song/EditSongModal";
+import type { SongData } from "@/components/edit-song/types";
+import { useConfirm } from "@/components/feedback/ConfirmProvider";
+import { useToast } from "@/components/feedback/ToastProvider";
+import { apiGet } from "@/lib/http";
 import { getImageUrl } from "@/lib/image-utils";
-import { EditSongModal, SongData } from "./EditSongModal";
-import { Loader2, Pencil } from "lucide-react";
+import { usePermissions } from "@/lib/permissions";
+import { useAddSongToPlaylist, usePlaylists } from "@/lib/queries/playlists";
+import { useDeleteSong, useMergeSong } from "@/lib/queries/songs";
+import { queryKeys } from "@/lib/query/keys";
 
 interface SearchResult {
   id: string;
@@ -23,27 +31,59 @@ interface UnifiedSearchResponse {
   playlists: SearchResult[];
 }
 
-interface BasicPlaylist {
-  id: string;
-  name: string;
+function useDebounced(value: string, ms: number) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return debounced;
 }
 
 export function GlobalSearch() {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<UnifiedSearchResponse | null>(null);
   const [isFocused, setIsFocused] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [showPlaylistPicker, setShowPlaylistPicker] = useState<string | null>(null); // songId
-  const [playlists, setPlaylists] = useState<BasicPlaylist[]>([]);
-  const [playlistLoading, setPlaylistLoading] = useState(false);
-
-  // Edit song modal states
   const [editingSong, setEditingSong] = useState<SongData | null>(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [fetchingSongId, setFetchingSongId] = useState<string | null>(null);
-  
+
   const containerRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const qc = useQueryClient();
+  const confirm = useConfirm();
+  const toast = useToast();
+  const { can } = usePermissions();
+
+  const debouncedQuery = useDebounced(query, 300);
+  const searchKey = queryKeys.search.global(debouncedQuery);
+  const searchQuery = useQuery({
+    queryKey: searchKey,
+    queryFn: async ({ signal }) => {
+      const data = await apiGet<{ data?: UnifiedSearchResponse } & UnifiedSearchResponse>(
+        `/api/search?q=${encodeURIComponent(debouncedQuery)}`,
+        signal,
+      );
+      return data.data || data;
+    },
+    enabled: debouncedQuery.length > 1,
+    staleTime: 10_000,
+  });
+  const results = query.length > 1 ? (searchQuery.data ?? null) : null;
+  const loading = searchQuery.isFetching;
+
+  const playlistsQuery = usePlaylists(
+    { page: 0, size: 100, search: "", status: "" },
+    { enabled: showPlaylistPicker !== null },
+  );
+  const playlists = playlistsQuery.data?.rows ?? [];
+  const playlistLoading = playlistsQuery.isPending && showPlaylistPicker !== null;
+
+  const deleteSong = useDeleteSong();
+  const addToPlaylist = useAddSongToPlaylist();
+  const mergeSong = useMergeSong();
+
+  const patchResults = (update: (songs: SearchResult[]) => SearchResult[]) =>
+    qc.setQueryData<UnifiedSearchResponse>(searchKey, (old) => (old ? { ...old, songs: update(old.songs) } : old));
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -56,157 +96,85 @@ export function GlobalSearch() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset the search on navigation
   useEffect(() => {
     setIsFocused(false);
     setQuery("");
     setShowPlaylistPicker(null);
   }, [pathname]);
 
-  useEffect(() => {
-    const delayDebounceFn = setTimeout(() => {
-      if (query.length > 1) {
-        performSearch();
-      } else {
-        setResults(null);
-      }
-    }, 300);
-
-    return () => clearTimeout(delayDebounceFn);
-  }, [query]);
-
-  const performSearch = async () => {
-    setLoading(true);
-    try {
-      const res = await adminFetch(`/api/search?q=${encodeURIComponent(query)}`);
-      if (res.ok) {
-        const data = await res.json();
-        setResults(data.data || data);
-      }
-    } catch (err) {
-      console.error("Search failed:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchPlaylists = async () => {
-    setPlaylistLoading(true);
-    try {
-      const res = await adminFetch("/admin/playlist?page=0&size=100");
-      if (res.ok) {
-        const data = await res.json();
-        const list = data.content || data.data?.content || (Array.isArray(data.data) ? data.data : []);
-        setPlaylists(list);
-      }
-    } catch (err) {
-      console.error("Failed to fetch playlists", err);
-    } finally {
-      setPlaylistLoading(false);
-    }
-  };
-
-  const handleDeleteSong = async (id: string, e: React.MouseEvent) => {
+  const handleDeleteSong = async (song: SearchResult, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (!confirm("Are you sure you want to delete this song? This cannot be undone.")) return;
-
-    try {
-      const res = await adminFetch(`/admin/song/${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        // Update local results to remove the song
-        if (results) {
-          setResults({
-            ...results,
-            songs: results.songs.filter(s => s.id !== id)
-          });
-        }
-        alert("Song deleted successfully");
-      }
-    } catch (err) {
-      console.error("Delete failed:", err);
-      alert("Failed to delete song");
-    }
+    const title = song.title || "this song";
+    const ok = await confirm({
+      title: `Delete "${title}"?`,
+      description: "This starts a cascade purge across S3, the CDN, search and recommendations.",
+      confirmLabel: "Delete track",
+      destructive: true,
+      typeToConfirm: song.title || "delete",
+    });
+    if (!ok) return;
+    const previous = qc.getQueryData<UnifiedSearchResponse>(searchKey);
+    patchResults((songs) => songs.filter((s) => s.id !== song.id));
+    deleteSong.mutate(
+      { id: song.id, title },
+      { onError: () => previous && qc.setQueryData(searchKey, previous) },
+    );
   };
 
-  const handleAddToPlaylist = async (playlistId: string, songId: string) => {
-    try {
-      const res = await adminFetch(`/admin/playlist/${playlistId}/songs`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ songId }),
-      });
-      if (res.ok) {
-        alert("Song added to playlist!");
-        setShowPlaylistPicker(null);
-      } else {
-        const err = await res.json();
-        alert(err.message || "Failed to add song");
-      }
-    } catch (err) {
-      console.error("Add to playlist failed:", err);
-    }
+  const handleAddToPlaylist = (playlistId: string, songId: string) => {
+    addToPlaylist.mutate(
+      { playlistId, songId },
+      {
+        onSuccess: () => {
+          toast("Song added to playlist!");
+          setShowPlaylistPicker(null);
+        },
+        onError: (err) => toast(err.message || "Failed to add song", "error"),
+      },
+    );
   };
 
   const openPlaylistPicker = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setShowPlaylistPicker(id);
-    if (playlists.length === 0) fetchPlaylists();
   };
 
   const handleEditSong = async (song: SearchResult, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setFetchingSongId(song.id);
+    const fallback: SongData = {
+      id: song.id,
+      title: song.title || "",
+      artistName: song.artistName || "",
+      imageKey: song.imageKey,
+    };
     try {
-      const res = await adminFetch(`/admin/song/${song.id}`);
-      if (res.ok) {
-        const fullSong = await res.json();
-        setEditingSong(fullSong);
-      } else {
-        setEditingSong({
-          id: song.id,
-          title: song.title || "",
-          artistName: song.artistName || "",
-          imageKey: song.imageKey,
-        });
-      }
-      setIsEditModalOpen(true);
-      setIsFocused(false);
-    } catch (err) {
-      console.error("Failed to load song details for editing:", err);
-      setEditingSong({
-        id: song.id,
-        title: song.title || "",
-        artistName: song.artistName || "",
-        imageKey: song.imageKey,
+      const full = await qc.fetchQuery({
+        queryKey: queryKeys.songs.detail(song.id),
+        queryFn: ({ signal }) => apiGet<SongData>(`/admin/song/${song.id}`, signal),
       });
-      setIsEditModalOpen(true);
-      setIsFocused(false);
+      setEditingSong(full);
+    } catch {
+      setEditingSong(fallback);
     } finally {
+      setIsFocused(false);
       setFetchingSongId(null);
     }
   };
 
   const handleEditSuccess = (updatedSong: SongData) => {
-    if (results) {
-      setResults({
-        ...results,
-        songs: results.songs.map((s) =>
-          s.id === updatedSong.id
-            ? {
-                ...s,
-                title: updatedSong.title,
-                artistName: updatedSong.artistName,
-                imageKey: updatedSong.imageKey,
-              }
-            : s
-        ),
-      });
-    }
+    mergeSong(updatedSong);
+    patchResults((songs) =>
+      songs.map((s) =>
+        s.id === updatedSong.id
+          ? { ...s, title: updatedSong.title, artistName: updatedSong.artistName, imageKey: updatedSong.imageKey }
+          : s,
+      ),
+    );
   };
 
   const hasResults = results && (results.songs.length > 0 || results.artists.length > 0 || results.playlists.length > 0);
@@ -262,7 +230,8 @@ export function GlobalSearch() {
                       
                       {/* Action Buttons */}
                       <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover/item:opacity-100 transition-opacity">
-                         <button 
+                         {can("song.edit") && (
+<button 
                           onClick={(e) => handleEditSong(song, e)}
                           disabled={fetchingSongId === song.id}
                           title="Edit Song"
@@ -274,20 +243,25 @@ export function GlobalSearch() {
                               <Pencil className="w-4 h-4" />
                             )}
                          </button>
-                         <button 
+)}
+                         {can("playlist.edit") && (
+<button 
                           onClick={(e) => openPlaylistPicker(song.id, e)}
                           title="Add to Playlist"
                           className="p-1.5 text-zinc-400 hover:text-white hover:bg-[#282828] rounded-lg transition-all"
                          >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
                          </button>
-                         <button 
-                          onClick={(e) => handleDeleteSong(song.id, e)}
+)}
+                         {can("song.delete") && (
+<button 
+                          onClick={(e) => handleDeleteSong(song, e)}
                           title="Delete Song"
                           className="p-1.5 text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all"
                          >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                          </button>
+)}
                       </div>
 
                       {/* Playlist Picker Overlay */}
@@ -358,11 +332,8 @@ export function GlobalSearch() {
       {/* Edit Song Modal */}
       <EditSongModal
         song={editingSong}
-        isOpen={isEditModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false);
-          setEditingSong(null);
-        }}
+        isOpen={Boolean(editingSong)}
+        onClose={() => setEditingSong(null)}
         onSuccess={handleEditSuccess}
       />
     </div>

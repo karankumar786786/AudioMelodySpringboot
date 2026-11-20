@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { adminClient } from "./api";
 import {
@@ -49,6 +50,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  // Cached admin data belongs to the signed-in session; drop it when the session ends.
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     // Session IDs from older builds are no longer kept in localStorage; the backend's
@@ -123,6 +126,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const handleSessionExpired = () => {
       console.warn("[Admin Auth] Session expired event received. Redirecting to login.");
       clearStorage();
+      queryClient.clear();
       setUser(null);
       if (typeof window !== "undefined" && window.location.pathname !== "/") {
         router.push("/");
@@ -130,7 +134,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
     window.addEventListener("admin:session-expired", handleSessionExpired);
     return () => window.removeEventListener("admin:session-expired", handleSessionExpired);
-  }, [router]);
+  }, [router, queryClient]);
 
   const login = async (email: string) => {
     try {
@@ -182,6 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       credentials: "include",
     }).catch(() => {});
     clearStorage();
+    queryClient.clear();
     setUser(null);
     router.push("/");
   };

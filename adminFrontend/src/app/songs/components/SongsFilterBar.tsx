@@ -17,7 +17,8 @@ interface SongsFilterBarProps {
   totalSongs: number;
   pageSize: number;
   onPageSizeChange: (pageSize: number) => void;
-  onOpenCreateModal: () => void;
+  /** Left out when the current role may not create songs. */
+  onOpenCreateModal?: () => void;
 }
 
 const COMMON_GENRES = [
@@ -115,6 +116,7 @@ export function SongsFilterBar({
           </div>
 
           {/* Add Song Button */}
+          {onOpenCreateModal && (
           <button
             type="button"
             onClick={onOpenCreateModal}
@@ -123,6 +125,7 @@ export function SongsFilterBar({
             <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
             <span>Add Song</span>
           </button>
+          )}
         </div>
       </div>
 
