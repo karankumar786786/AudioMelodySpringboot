@@ -1,6 +1,6 @@
 "use client";
 
-import { RefreshCw, Activity } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 interface DashboardHeaderProps {
   onRefresh: () => void;
@@ -8,7 +8,11 @@ interface DashboardHeaderProps {
   refreshing: boolean;
 }
 
-export function DashboardHeader({ onRefresh, loading, refreshing }: DashboardHeaderProps) {
+export function DashboardHeader({
+  onRefresh,
+  loading,
+  refreshing,
+}: DashboardHeaderProps) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/8">
       <div>
@@ -22,7 +26,8 @@ export function DashboardHeader({ onRefresh, loading, refreshing }: DashboardHea
           </span>
         </div>
         <p className="text-zinc-400 mt-1 text-xs md:text-sm leading-relaxed">
-          Real-time catalog telemetry, media transcoding pipeline flow &amp; distributed system health.
+          Real-time catalog telemetry, media transcoding pipeline flow &amp;
+          distributed system health.
         </p>
       </div>
 
@@ -33,7 +38,9 @@ export function DashboardHeader({ onRefresh, loading, refreshing }: DashboardHea
           disabled={loading || refreshing}
           className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-black bg-white hover:bg-zinc-200 transition-all active:scale-[0.98] shadow-sm disabled:opacity-50 cursor-pointer"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+          <RefreshCw
+            className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`}
+          />
           <span>{refreshing ? "Refreshing..." : "Sync Metrics"}</span>
         </button>
       </div>

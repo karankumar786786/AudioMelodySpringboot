@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { apiRequest } from "@/lib/http";
 import { useUploadProgress } from "@/lib/forms/useUploadProgress";
+import { apiRequest } from "@/lib/http";
 import {
   getFriendlyUploadErrorMessage,
   isDeviceOnline,
@@ -27,7 +27,10 @@ export function useSaveSong(song: SongData | null) {
     if (!isDeviceOnline()) {
       setError(
         getFriendlyUploadErrorMessage(
-          new UploadError("You appear to be offline.", { isOffline: true, isNetworkError: true }),
+          new UploadError("You appear to be offline.", {
+            isOffline: true,
+            isNetworkError: true,
+          }),
         ),
       );
       return null;
@@ -42,7 +45,12 @@ export function useSaveSong(song: SongData | null) {
       let imageKey = song.imageKey;
       if (values.imageFile) {
         progress.step("Uploading new cover image...", values.imageFile);
-        imageKey = await uploadToImageKitWithProgress(values.imageFile, "/songs/images", progress.onProgress, retry);
+        imageKey = await uploadToImageKitWithProgress(
+          values.imageFile,
+          "/songs/images",
+          progress.onProgress,
+          retry,
+        );
         progress.settle();
       }
 
@@ -51,7 +59,12 @@ export function useSaveSong(song: SongData | null) {
         videoKey = "";
       } else if (values.videoFile) {
         progress.step("Uploading canvas video...", values.videoFile);
-        videoKey = await uploadToImageKitWithProgress(values.videoFile, "/songs/videos", progress.onProgress, retry);
+        videoKey = await uploadToImageKitWithProgress(
+          values.videoFile,
+          "/songs/videos",
+          progress.onProgress,
+          retry,
+        );
         progress.settle();
       }
 

@@ -23,27 +23,47 @@ import {
 export const playlistSchema = z.object({
   name: requiredText("Playlist name"),
   description: z.string().trim(),
-  coverImage: fileOrNull.refine((f) => Boolean(f), "Please select a cover image"),
+  coverImage: fileOrNull.refine(
+    (f) => Boolean(f),
+    "Please select a cover image",
+  ),
   videoFile: fileOrNull,
 });
 type Values = z.infer<typeof playlistSchema>;
-const DEFAULTS: Values = { name: "", description: "", coverImage: null, videoFile: null };
+const DEFAULTS: Values = {
+  name: "",
+  description: "",
+  coverImage: null,
+  videoFile: null,
+};
 
 const inputCls =
   "w-full bg-[#181818] border border-[#282828] rounded-xl px-3.5 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-white transition-colors aria-[invalid=true]:border-rose-500/60";
-const labelCls = "block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1.5";
+const labelCls =
+  "block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1.5";
 const fileCls =
   "w-full text-xs text-zinc-400 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-zinc-800 file:text-white hover:file:bg-zinc-700 cursor-pointer";
 
-export function CreatePlaylistModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+export function CreatePlaylistModal({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) {
   const toast = useToast();
   const confirm = useConfirm();
   const createPlaylist = useCreatePlaylist();
   const progress = useUploadProgress();
   const [creating, setCreating] = useState(false);
   const [step, setStep] = useState(0);
-  const [createError, setCreateError] = useState<ReturnType<typeof getFriendlyUploadErrorMessage> | null>(null);
-  const form = useForm<Values>({ resolver: zodResolver(playlistSchema), defaultValues: DEFAULTS });
+  const [createError, setCreateError] = useState<ReturnType<
+    typeof getFriendlyUploadErrorMessage
+  > | null>(null);
+  const form = useForm<Values>({
+    resolver: zodResolver(playlistSchema),
+    defaultValues: DEFAULTS,
+  });
   const {
     register,
     setValue,
@@ -62,7 +82,10 @@ export function CreatePlaylistModal({ isOpen, onClose }: { isOpen: boolean; onCl
 
   const handleClose = async () => {
     if (creating) {
-      const ok = await confirm({ title: "Cancel the upload?", confirmLabel: "Cancel upload" });
+      const ok = await confirm({
+        title: "Cancel the upload?",
+        confirmLabel: "Cancel upload",
+      });
       if (!ok) return;
     }
     resetAll();
@@ -74,11 +97,14 @@ export function CreatePlaylistModal({ isOpen, onClose }: { isOpen: boolean; onCl
       if (!coverImage) return;
       if (!isDeviceOnline()) {
         const offline = getFriendlyUploadErrorMessage(
-          new UploadError("You appear to be offline. Please check your connection.", {
-            isOffline: true,
-            isNetworkError: true,
-            canRetry: true,
-          }),
+          new UploadError(
+            "You appear to be offline. Please check your connection.",
+            {
+              isOffline: true,
+              isNetworkError: true,
+              canRetry: true,
+            },
+          ),
         );
         setCreateError(offline);
         toast(offline.message, "error");
@@ -89,21 +115,39 @@ export function CreatePlaylistModal({ isOpen, onClose }: { isOpen: boolean; onCl
       const retry = { onRetry: progress.onRetry };
       try {
         setStep(1);
-        progress.step("Uploading playlist artwork to ImageKit CDN...", coverImage);
-        const coverImageKey = await uploadToImageKitWithProgress(coverImage, "/playlists/images", progress.onProgress, retry);
+        progress.step(
+          "Uploading playlist artwork to ImageKit CDN...",
+          coverImage,
+        );
+        const coverImageKey = await uploadToImageKitWithProgress(
+          coverImage,
+          "/playlists/images",
+          progress.onProgress,
+          retry,
+        );
         progress.settle();
 
         let videoKey: string | undefined;
         if (videoFile) {
           setStep(2);
           progress.step("Uploading video teaser to ImageKit CDN...", videoFile);
-          videoKey = await uploadToImageKitWithProgress(videoFile, "/playlists/videos", progress.onProgress, retry);
+          videoKey = await uploadToImageKitWithProgress(
+            videoFile,
+            "/playlists/videos",
+            progress.onProgress,
+            retry,
+          );
           progress.settle();
         }
 
         setStep(3);
         progress.step("Registering curated playlist...", 100);
-        await createPlaylist.mutateAsync({ name, description, coverImageKey, videoKey });
+        await createPlaylist.mutateAsync({
+          name,
+          description,
+          coverImageKey,
+          videoKey,
+        });
         toast("Playlist created successfully!");
         resetAll();
         onClose();
@@ -133,10 +177,15 @@ export function CreatePlaylistModal({ isOpen, onClose }: { isOpen: boolean; onCl
       >
         <div className="px-6 py-4.5 border-b border-[#282828] flex justify-between items-center">
           <div>
-            <h2 id="create-playlist-heading" className="text-lg font-bold text-white">
+            <h2
+              id="create-playlist-heading"
+              className="text-lg font-bold text-white"
+            >
               Create New Playlist
             </h2>
-            <p className="text-xs text-zinc-400 mt-0.5">Curate a collection of tracks for listeners</p>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Curate a collection of tracks for listeners
+            </p>
           </div>
           <button
             type="button"
@@ -202,7 +251,9 @@ export function CreatePlaylistModal({ isOpen, onClose }: { isOpen: boolean; onCl
               accept="image/*"
               aria-invalid={Boolean(errors.coverImage)}
               onChange={(e) =>
-                setValue("coverImage", e.target.files?.[0] ?? null, { shouldValidate: Boolean(errors.coverImage) })
+                setValue("coverImage", e.target.files?.[0] ?? null, {
+                  shouldValidate: Boolean(errors.coverImage),
+                })
               }
               className={fileCls}
             />
@@ -211,13 +262,16 @@ export function CreatePlaylistModal({ isOpen, onClose }: { isOpen: boolean; onCl
 
           <div>
             <label htmlFor="playlist-video" className={labelCls}>
-              Teaser Video Loop <span className="text-zinc-500 font-normal">(Optional)</span>
+              Teaser Video Loop{" "}
+              <span className="text-zinc-500 font-normal">(Optional)</span>
             </label>
             <input
               id="playlist-video"
               type="file"
               accept="video/*"
-              onChange={(e) => setValue("videoFile", e.target.files?.[0] ?? null)}
+              onChange={(e) =>
+                setValue("videoFile", e.target.files?.[0] ?? null)
+              }
               className={fileCls}
             />
           </div>
@@ -237,7 +291,9 @@ export function CreatePlaylistModal({ isOpen, onClose }: { isOpen: boolean; onCl
               className="px-6 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-sm transition-all shadow-lg active:scale-95 disabled:opacity-50 cursor-pointer flex items-center gap-2"
             >
               {creating && <Loader2 className="w-4 h-4 animate-spin" />}
-              <span>{creating ? "Creating Playlist..." : "Create Playlist"}</span>
+              <span>
+                {creating ? "Creating Playlist..." : "Create Playlist"}
+              </span>
             </button>
           </div>
         </form>

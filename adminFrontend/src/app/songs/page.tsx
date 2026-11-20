@@ -1,12 +1,12 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useState } from "react";
 import { AddToPlaylistModal } from "@/components/AddToPlaylistModal";
-import { EditSongModal } from "@/components/edit-song/EditSongModal";
-import type { SongData } from "@/components/edit-song/types";
 import { DataTable } from "@/components/data-table/DataTable";
 import { useServerTable } from "@/components/data-table/useServerTable";
+import { EditSongModal } from "@/components/edit-song/EditSongModal";
+import type { SongData } from "@/components/edit-song/types";
 import { useConfirm } from "@/components/feedback/ConfirmProvider";
 import { useToast } from "@/components/feedback/ToastProvider";
 import { usePermissions } from "@/lib/permissions";
@@ -37,7 +37,9 @@ function SongsContent() {
   const confirm = useConfirm();
   const toast = useToast();
 
-  const table = useServerTable({ initialFilters: { genre: "ALL", preset: "ALL" as SongPreset } });
+  const table = useServerTable({
+    initialFilters: { genre: "ALL", preset: "ALL" as SongPreset },
+  });
   const { pagination, filters, rowSelection, setRowSelection } = table;
   const songsQuery = useSongs({
     page: pagination.pageIndex,
@@ -58,7 +60,10 @@ function SongsContent() {
   const editFromList = editId ? rows.find((s) => s.id === editId) : undefined;
   const editFetch = useSong(editId && !editFromList ? editId : null);
   const editTarget: SongData | null =
-    editingSong ?? (editId ? ((editFromList ?? editFetch.data) as SongData | undefined) ?? null : null);
+    editingSong ??
+    (editId
+      ? (((editFromList ?? editFetch.data) as SongData | undefined) ?? null)
+      : null);
 
   const toggleFeatured = useToggleFeatured();
   const deleteSong = useDeleteSong();
@@ -66,12 +71,15 @@ function SongsContent() {
   const syncMetadata = useSyncMetadata();
   const mergeSong = useMergeSong();
 
-  const selectedIds = Object.keys(rowSelection).filter((id) => rowSelection[id]);
+  const selectedIds = Object.keys(rowSelection).filter(
+    (id) => rowSelection[id],
+  );
 
   const handleDelete = async (song: Song) => {
     const ok = await confirm({
       title: `Delete "${song.title}"?`,
-      description: "This starts a cascade purge across S3, the CDN, search and recommendations.",
+      description:
+        "This starts a cascade purge across S3, the CDN, search and recommendations.",
       confirmLabel: "Delete track",
       destructive: true,
       typeToConfirm: song.title,
@@ -90,7 +98,8 @@ function SongsContent() {
     const phrase = `delete ${count} tracks`;
     const ok = await confirm({
       title: `Delete ${count} selected tracks?`,
-      description: "Each track starts a cascade purge across S3, the CDN, search and recommendations.",
+      description:
+        "Each track starts a cascade purge across S3, the CDN, search and recommendations.",
       confirmLabel: "Delete tracks",
       destructive: true,
       typeToConfirm: phrase,
@@ -110,26 +119,27 @@ function SongsContent() {
     });
   };
 
-  const actions = useMemo(
-    () => ({
-      onToggleFeatured: can("song.feature")
-        ? (song: Song) => toggleFeatured.mutate({ song, featured: !song.isFeatured })
-        : undefined,
-      onEdit: can("song.edit") ? (song: Song) => setEditingSong(song as SongData) : undefined,
-      onDelete: can("song.delete") ? handleDelete : undefined,
-      onAddToPlaylist: can("playlist.edit") ? (song: Song) => setPlaylistTarget(song) : undefined,
-      busyId: toggleFeatured.isPending
-        ? toggleFeatured.variables?.song.id
-        : deleteSong.isPending
-          ? deleteSong.variables?.id
-          : null,
-    }),
-    // biome-ignore lint/correctness/useExhaustiveDependencies: handlers read fresh state when called
-    [can, toggleFeatured.isPending, toggleFeatured.variables, deleteSong.isPending, deleteSong.variables],
-  );
+  const actions = {
+    onToggleFeatured: can("song.feature")
+      ? (song: Song) =>
+          toggleFeatured.mutate({ song, featured: !song.isFeatured })
+      : undefined,
+    onEdit: can("song.edit")
+      ? (song: Song) => setEditingSong(song as SongData)
+      : undefined,
+    onDelete: can("song.delete") ? handleDelete : undefined,
+    onAddToPlaylist: can("playlist.edit")
+      ? (song: Song) => setPlaylistTarget(song)
+      : undefined,
+    busyId: toggleFeatured.isPending
+      ? toggleFeatured.variables?.song.id
+      : deleteSong.isPending
+        ? deleteSong.variables?.id
+        : null,
+  };
 
   const selectable = can("song.delete") || can("system.syncMetadata");
-  const columns = useMemo(() => songColumns(actions, selectable), [actions, selectable]);
+  const columns = songColumns(actions, selectable);
 
   const closeEdit = () => {
     setEditingSong(null);
@@ -149,8 +159,12 @@ function SongsContent() {
         onViewModeChange={setViewMode}
         totalSongs={total}
         pageSize={pagination.pageSize}
-        onPageSizeChange={(pageSize) => table.setPagination({ pageIndex: 0, pageSize })}
-        onOpenCreateModal={can("song.create") ? () => setIsCreateOpen(true) : undefined}
+        onPageSizeChange={(pageSize) =>
+          table.setPagination({ pageIndex: 0, pageSize })
+        }
+        onOpenCreateModal={
+          can("song.create") ? () => setIsCreateOpen(true) : undefined
+        }
       />
 
       <DataTable<Song>
@@ -177,8 +191,16 @@ function SongsContent() {
                 <SongsGrid
                   songs={tableRows.map((r) => r.original)}
                   loading={loading}
-                  togglingSongId={toggleFeatured.isPending ? (toggleFeatured.variables?.song.id ?? null) : null}
-                  deletingSongId={deleteSong.isPending ? (deleteSong.variables?.id ?? null) : null}
+                  togglingSongId={
+                    toggleFeatured.isPending
+                      ? (toggleFeatured.variables?.song.id ?? null)
+                      : null
+                  }
+                  deletingSongId={
+                    deleteSong.isPending
+                      ? (deleteSong.variables?.id ?? null)
+                      : null
+                  }
                   onToggleFeatured={actions.onToggleFeatured}
                   onEditSong={actions.onEdit}
                   onDeleteSong={
@@ -200,8 +222,14 @@ function SongsContent() {
         selectedCount={selectedIds.length}
         onClearSelection={() => setRowSelection({})}
         onBulkDelete={can("song.delete") ? handleBulkDelete : undefined}
-        onBulkSyncAlgolia={can("system.syncMetadata") ? handleSync("Search index") : undefined}
-        onBulkSyncRecombee={can("system.syncMetadata") ? handleSync("Recombee catalog") : undefined}
+        onBulkSyncAlgolia={
+          can("system.syncMetadata") ? handleSync("Search index") : undefined
+        }
+        onBulkSyncRecombee={
+          can("system.syncMetadata")
+            ? handleSync("Recombee catalog")
+            : undefined
+        }
         isProcessing={bulkDelete.isPending || syncMetadata.isPending}
       />
 
@@ -209,7 +237,9 @@ function SongsContent() {
         song={playlistTarget}
         isOpen={Boolean(playlistTarget)}
         onClose={() => setPlaylistTarget(null)}
-        onSuccess={(playlistName) => toast(`Track added to playlist "${playlistName}"`)}
+        onSuccess={(playlistName) =>
+          toast(`Track added to playlist "${playlistName}"`)
+        }
       />
 
       <CreateSongModal
@@ -236,7 +266,13 @@ function SongsContent() {
 
 export default function SongsPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-center text-zinc-500 text-sm">Loading track manager...</div>}>
+    <Suspense
+      fallback={
+        <div className="p-8 text-center text-zinc-500 text-sm">
+          Loading track manager...
+        </div>
+      }
+    >
       <SongsContent />
     </Suspense>
   );

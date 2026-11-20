@@ -6,7 +6,12 @@ import { useRouter } from "next/navigation";
 import { use, useCallback } from "react";
 import { useConfirm } from "@/components/feedback/ConfirmProvider";
 import { usePermissions } from "@/lib/permissions";
-import { useDeletePlaylist, usePlaylist, usePlaylistSongs, useRemovePlaylistSong } from "@/lib/queries/playlists";
+import {
+  useDeletePlaylist,
+  usePlaylist,
+  usePlaylistSongs,
+  useRemovePlaylistSong,
+} from "@/lib/queries/playlists";
 import type { PlaylistSong } from "../types";
 import { PlaylistHero } from "./components/PlaylistHero";
 import { PlaylistTracksTable } from "./components/PlaylistTracksTable";
@@ -18,7 +23,10 @@ function NotFound() {
         <Music className="w-8 h-8" />
       </div>
       <h2 className="text-xl font-bold text-white">Playlist Not Found</h2>
-      <p className="text-xs text-zinc-400">The requested playlist collection may have been removed or does not exist.</p>
+      <p className="text-xs text-zinc-400">
+        The requested playlist collection may have been removed or does not
+        exist.
+      </p>
       <Link
         href="/playlists"
         className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white hover:bg-zinc-200 text-black font-bold text-xs transition-all shadow-sm"
@@ -30,7 +38,11 @@ function NotFound() {
   );
 }
 
-export default function PlaylistDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default function PlaylistDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = use(params);
   const router = useRouter();
   const confirm = useConfirm();
@@ -43,14 +55,21 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
 
   const playlist = playlistQuery.data;
   const songs = songsQuery.data ?? [];
-  const removingId = removeSong.isPending ? (removeSong.variables?.id ?? null) : null;
-  const handleRemove = useCallback((song: PlaylistSong) => removeSong.mutate(song), [removeSong.mutate]);
+  const removingId = removeSong.isPending
+    ? (removeSong.variables?.id ?? null)
+    : null;
+  const handleRemove = useCallback(
+    (song: PlaylistSong) => removeSong.mutate(song),
+    [removeSong.mutate],
+  );
 
   if (playlistQuery.isPending) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3 text-white">
         <Loader2 className="w-8 h-8 animate-spin text-white" />
-        <span className="text-xs text-zinc-500 font-mono tracking-wider">LOADING PLAYLIST WORKSPACE...</span>
+        <span className="text-xs text-zinc-500 font-mono tracking-wider">
+          LOADING PLAYLIST WORKSPACE...
+        </span>
       </div>
     );
   }
@@ -65,7 +84,9 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
       typeToConfirm: playlist.name,
     });
     if (!ok) return;
-    deletePlaylist.mutate(playlist, { onSuccess: () => router.push("/playlists") });
+    deletePlaylist.mutate(playlist, {
+      onSuccess: () => router.push("/playlists"),
+    });
   };
 
   return (
@@ -92,7 +113,11 @@ export default function PlaylistDetailPage({ params }: { params: Promise<{ id: s
         )}
       </div>
 
-      <PlaylistHero playlist={playlist} songs={songs} editable={can("playlist.edit")} />
+      <PlaylistHero
+        playlist={playlist}
+        songs={songs}
+        editable={can("playlist.edit")}
+      />
 
       <PlaylistTracksTable
         playlistId={id}

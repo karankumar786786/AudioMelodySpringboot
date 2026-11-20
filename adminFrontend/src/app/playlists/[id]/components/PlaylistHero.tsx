@@ -40,9 +40,13 @@ export function PlaylistHero({
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 min-w-0">
           <div className="relative w-36 h-36 md:w-44 md:h-44 rounded-2xl overflow-hidden bg-black border border-white/10 shrink-0 shadow-2xl group">
             {playlist.coverImageKey ? (
-              // biome-ignore lint/performance/noImgElement: ImageKit already serves a resized image
               <img
-                src={getImageUrl(playlist.coverImageKey, { width: 360, height: 360, focus: "auto", aspectRatio: "1-1" })}
+                src={getImageUrl(playlist.coverImageKey, {
+                  width: 360,
+                  height: 360,
+                  focus: "auto",
+                  aspectRatio: "1-1",
+                })}
                 alt={playlist.name}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
@@ -59,12 +63,17 @@ export function PlaylistHero({
                 Curated Playlist
               </span>
               <span className="text-zinc-500 text-xs">•</span>
-              <span className="text-xs text-zinc-400 font-mono">ID: {playlist.id.slice(0, 8)}...</span>
+              <span className="text-xs text-zinc-400 font-mono">
+                ID: {playlist.id.slice(0, 8)}...
+              </span>
             </div>
 
             {editing ? (
               <PlaylistMetadataForm
-                initial={{ name: playlist.name, description: playlist.description ?? "" }}
+                initial={{
+                  name: playlist.name,
+                  description: playlist.description ?? "",
+                }}
                 saving={update.isPending}
                 onCancel={() => setEditing(false)}
                 onSave={(values) => {
@@ -72,14 +81,20 @@ export function PlaylistHero({
                   setEditing(false);
                   update.mutate(values, {
                     onSuccess: () => toast("Playlist details updated"),
-                    onError: (err) => toast(err.message || "Failed to update playlist", "error"),
+                    onError: (err) =>
+                      toast(
+                        err.message || "Failed to update playlist",
+                        "error",
+                      ),
                   });
                 }}
               />
             ) : (
               <div>
                 <div className="flex items-center gap-3">
-                  <h1 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight">{playlist.name}</h1>
+                  <h1 className="text-2xl md:text-4xl font-extrabold text-white tracking-tight">
+                    {playlist.name}
+                  </h1>
                   {editable && (
                     <button
                       type="button"
@@ -100,18 +115,25 @@ export function PlaylistHero({
 
             <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-zinc-400">
               <span className="flex items-center gap-1.5">
-                <strong className="text-white font-bold font-mono">{songs.length}</strong>{" "}
+                <strong className="text-white font-bold font-mono">
+                  {songs.length}
+                </strong>{" "}
                 {songs.length === 1 ? "track" : "tracks"}
               </span>
               <span className="text-zinc-600">•</span>
               <span className="flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-zinc-500" />
-                <span className="font-mono text-zinc-300">{totalRuntime(songs)}</span>
+                <span className="font-mono text-zinc-300">
+                  {totalRuntime(songs)}
+                </span>
               </span>
               <span className="text-zinc-600">•</span>
               <span className="flex items-center gap-1.5 font-mono">
                 <Play className="w-3 h-3 text-white fill-white" />
-                <span className="text-white font-bold">{totalStreams.toLocaleString()}</span> streams
+                <span className="text-white font-bold">
+                  {totalStreams.toLocaleString()}
+                </span>{" "}
+                streams
               </span>
             </div>
           </div>

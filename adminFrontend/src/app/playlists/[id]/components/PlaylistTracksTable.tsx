@@ -15,15 +15,25 @@ import {
 } from "@/components/catalog/SongCells";
 import { DataTable } from "@/components/data-table/DataTable";
 import { SearchInput, SegmentedFilter } from "@/components/data-table/Toolbar";
-import { type TrackFilter, usePlaylistTrackFilter } from "./usePlaylistTrackFilter";
+import {
+  type TrackFilter,
+  usePlaylistTrackFilter,
+} from "./usePlaylistTrackFilter";
 
-function columns(onRemove: ((s: PlaylistSong) => void) | undefined, removingId: string | null): ColumnDef<PlaylistSong>[] {
+function columns(
+  onRemove: ((s: PlaylistSong) => void) | undefined,
+  removingId: string | null,
+): ColumnDef<PlaylistSong>[] {
   const cols: ColumnDef<PlaylistSong>[] = [
     {
       id: "index",
       header: "#",
       enableSorting: false,
-      meta: { csv: false, headerClassName: "w-12 text-center", cellClassName: "font-mono text-zinc-500 text-center" },
+      meta: {
+        csv: false,
+        headerClassName: "w-12 text-center",
+        cellClassName: "font-mono text-zinc-500 text-center",
+      },
       cell: ({ row }) => row.index + 1,
     },
     {
@@ -31,7 +41,9 @@ function columns(onRemove: ((s: PlaylistSong) => void) | undefined, removingId: 
       accessorFn: (s) => s.title,
       header: "Track / Artist",
       meta: { label: "Title" },
-      cell: ({ row }) => <SongTitleCell song={row.original} maxWidth="max-w-[260px]" />,
+      cell: ({ row }) => (
+        <SongTitleCell song={row.original} maxWidth="max-w-[260px]" />
+      ),
     },
     {
       id: "artistName",
@@ -49,7 +61,10 @@ function columns(onRemove: ((s: PlaylistSong) => void) | undefined, removingId: 
       id: "duration",
       accessorFn: (s) => s.duration ?? 0,
       header: "Duration",
-      meta: { cellClassName: "font-mono text-zinc-400 tabular-nums", csv: (s) => formatDuration(s.duration) },
+      meta: {
+        cellClassName: "font-mono text-zinc-400 tabular-nums",
+        csv: (s) => formatDuration(s.duration),
+      },
       cell: ({ row }) => formatDuration(row.original.duration),
     },
     {
@@ -79,7 +94,11 @@ function columns(onRemove: ((s: PlaylistSong) => void) | undefined, removingId: 
       header: "Remove",
       enableSorting: false,
       enableHiding: false,
-      meta: { csv: false, headerClassName: "text-right", cellClassName: "text-right" },
+      meta: {
+        csv: false,
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+      },
       cell: ({ row }) => (
         <button
           type="button"
@@ -142,12 +161,22 @@ export function PlaylistTracksTable({
   onRemove?: (song: PlaylistSong) => void;
   removingId: string | null;
 }) {
-  const { search, setSearch, filter, setFilter, filtered } = usePlaylistTrackFilter(songs);
-  const [pagination, setPagination] = useState<PaginationState>({ pageIndex: 0, pageSize: 50 });
-  const cols = useMemo(() => columns(onRemove, removingId), [onRemove, removingId]);
+  const { search, setSearch, filter, setFilter, filtered } =
+    usePlaylistTrackFilter(songs);
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: 50,
+  });
+  const cols = useMemo(
+    () => columns(onRemove, removingId),
+    [onRemove, removingId],
+  );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: back to the first page when the filter changes
-  useEffect(() => setPagination((p) => ({ ...p, pageIndex: 0 })), [search, filter]);
+  useEffect(
+    () => setPagination((p) => ({ ...p, pageIndex: 0 })),
+    [search, filter],
+  );
 
   const start = pagination.pageIndex * pagination.pageSize;
   const page = filtered.slice(start, start + pagination.pageSize);
@@ -156,7 +185,9 @@ export function PlaylistTracksTable({
     <div className="p-16 text-center text-zinc-500 text-sm space-y-3">
       <Music className="w-12 h-12 text-zinc-600 mx-auto" />
       <h4 className="text-white font-bold text-base">
-        {songs.length === 0 ? "No tracks in this playlist yet" : "No matching tracks found"}
+        {songs.length === 0
+          ? "No tracks in this playlist yet"
+          : "No matching tracks found"}
       </h4>
       <p className="text-zinc-500 text-xs max-w-md mx-auto">
         {songs.length === 0
@@ -195,7 +226,9 @@ export function PlaylistTracksTable({
             label="Track filter"
             value={filter}
             onChange={setFilter}
-            options={FILTERS.map((f) => (f.value === "ALL" ? { ...f, label: `All (${songs.length})` } : f))}
+            options={FILTERS.map((f) =>
+              f.value === "ALL" ? { ...f, label: `All (${songs.length})` } : f,
+            )}
           />
         </>
       }

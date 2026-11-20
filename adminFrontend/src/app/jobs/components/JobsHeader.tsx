@@ -7,7 +7,9 @@ export type JobsTab = "INGESTION" | "DELETION";
 
 const tabBtn = (active: boolean) =>
   `flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-    active ? "bg-white text-black font-bold shadow-sm" : "text-zinc-400 hover:text-white"
+    active
+      ? "bg-white text-black font-bold shadow-sm"
+      : "text-zinc-400 hover:text-white"
   }`;
 
 export function JobsHeader({
@@ -57,7 +59,9 @@ export function JobsHeader({
                   : "bg-rose-500/15 text-rose-300 border-rose-500/30"
               }`}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${ingestion ? "bg-indigo-400" : "bg-rose-400"}`} />
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${ingestion ? "bg-indigo-400" : "bg-rose-400"}`}
+              />
               {activeCount} active
             </span>
           )}
@@ -70,12 +74,27 @@ export function JobsHeader({
       </div>
 
       <div className="flex items-center gap-2.5 flex-wrap">
-        <div className="flex bg-[#121215] p-1 rounded-xl border border-white/8" role="tablist">
-          <button type="button" role="tab" aria-selected={ingestion} onClick={() => onTabChange("INGESTION")} className={tabBtn(ingestion)}>
+        <div
+          className="flex bg-[#121215] p-1 rounded-xl border border-white/8"
+          role="tablist"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={ingestion}
+            onClick={() => onTabChange("INGESTION")}
+            className={tabBtn(ingestion)}
+          >
             <Workflow className="w-3.5 h-3.5" />
             <span>Ingestion</span>
           </button>
-          <button type="button" role="tab" aria-selected={!ingestion} onClick={() => onTabChange("DELETION")} className={tabBtn(!ingestion)}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={!ingestion}
+            onClick={() => onTabChange("DELETION")}
+            className={tabBtn(!ingestion)}
+          >
             <Trash2 className="w-3.5 h-3.5" />
             <span>Cascade Delete</span>
           </button>
@@ -87,10 +106,14 @@ export function JobsHeader({
           aria-pressed={live}
           title="Refreshes while this tab is visible and pauses when it is hidden"
           className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-2 border cursor-pointer ${
-            live ? "bg-white/10 text-white border-white/20" : "bg-[#141418] text-zinc-400 border-white/8"
+            live
+              ? "bg-white/10 text-white border-white/20"
+              : "bg-[#141418] text-zinc-400 border-white/8"
           }`}
         >
-          <span className={`w-2 h-2 rounded-full ${live ? "bg-white animate-ping" : "bg-zinc-600"}`} />
+          <span
+            className={`w-2 h-2 rounded-full ${live ? "bg-white animate-ping" : "bg-zinc-600"}`}
+          />
           <span>{live ? `Live ${JOBS_REFRESH_MS / 1000}s` : "Paused"}</span>
         </button>
 
@@ -102,7 +125,9 @@ export function JobsHeader({
           title="Refresh metrics now"
           className="p-2 rounded-xl bg-[#141418] hover:bg-[#1a1a20] border border-white/8 hover:border-white/14 text-zinc-400 hover:text-white transition-all disabled:opacity-50 cursor-pointer"
         >
-          <RotateCcw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-white" : ""}`} />
+          <RotateCcw
+            className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-white" : ""}`}
+          />
         </button>
 
         {onSyncMetadata && (
@@ -113,7 +138,9 @@ export function JobsHeader({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[#141418] hover:bg-[#1a1a20] border border-white/8 hover:border-white/14 text-zinc-300 hover:text-white transition-all disabled:opacity-50 cursor-pointer"
             title="Reconcile pagination metadata with actual PostgreSQL rows and flush caches"
           >
-            <Database className={`w-3.5 h-3.5 text-zinc-400 ${syncing ? "animate-spin text-white" : ""}`} />
+            <Database
+              className={`w-3.5 h-3.5 text-zinc-400 ${syncing ? "animate-spin text-white" : ""}`}
+            />
             <span>{syncing ? "Syncing..." : "Sync DB"}</span>
           </button>
         )}

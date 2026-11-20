@@ -13,7 +13,12 @@ export interface UploadProgressState {
   retrying: boolean;
 }
 
-const IDLE: UploadProgressState = { text: "", percent: null, retryText: "", retrying: false };
+const IDLE: UploadProgressState = {
+  text: "",
+  percent: null,
+  retryText: "",
+  retrying: false,
+};
 
 /** Progress, speed and retry status for a sequence of media uploads. */
 export function useUploadProgress() {
@@ -24,7 +29,12 @@ export function useUploadProgress() {
     setState({
       ...IDLE,
       text,
-      percent: typeof fileOrPercent === "number" ? fileOrPercent : fileOrPercent ? 0 : null,
+      percent:
+        typeof fileOrPercent === "number"
+          ? fileOrPercent
+          : fileOrPercent
+            ? 0
+            : null,
       fileName: fileOrPercent instanceof File ? fileOrPercent.name : undefined,
     });
   }, []);
@@ -48,7 +58,10 @@ export function useUploadProgress() {
     [],
   );
 
-  const settle = useCallback(() => setState((s) => ({ ...s, retrying: false, retryText: "" })), []);
+  const settle = useCallback(
+    () => setState((s) => ({ ...s, retrying: false, retryText: "" })),
+    [],
+  );
   const reset = useCallback(() => setState(IDLE), []);
 
   return { ...state, step, settle, reset, ...handlers };

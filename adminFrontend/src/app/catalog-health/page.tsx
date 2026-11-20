@@ -1,29 +1,29 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
-import { useConfirm } from "@/components/feedback/ConfirmProvider";
-import { apiGet, withQuery } from "@/lib/http";
-import { queryKeys } from "@/lib/query/keys";
 import {
-  Stethoscope,
-  RefreshCw,
-  UploadCloud,
-  RotateCcw,
-  Search,
-  Tag,
-  ImageOff,
   AudioWaveform,
   FileText,
+  ImageOff,
+  RefreshCw,
+  RotateCcw,
+  Search,
   SearchX,
+  Stethoscope,
+  Tag,
+  UploadCloud,
 } from "lucide-react";
-import { adminFetch } from "@/lib/adminFetch";
-import { getImageUrl } from "@/lib/image-utils";
-import { Button } from "@/components/ui/Button";
-import { Badge } from "@/components/ui/Badge";
+import { useEffect, useMemo, useState } from "react";
+import { useConfirm } from "@/components/feedback/ConfirmProvider";
 import { PaginationBar } from "@/components/PaginationBar";
 import { TableSkeleton } from "@/components/TableSkeleton";
-import { Toast, ToastType } from "@/components/Toast";
+import { Toast, type ToastType } from "@/components/Toast";
+import { Badge } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
+import { adminFetch } from "@/lib/adminFetch";
+import { apiGet, withQuery } from "@/lib/http";
+import { getImageUrl } from "@/lib/image-utils";
+import { queryKeys } from "@/lib/query/keys";
 
 type IssueKey =
   | "missingGenre"
@@ -132,8 +132,13 @@ export default function CatalogHealthPage() {
   const [pageSize, setPageSize] = useState(20);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [busyAction, setBusyAction] = useState<"resync" | "reprocess" | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  const [busyAction, setBusyAction] = useState<"resync" | "reprocess" | null>(
+    null,
+  );
+  const [toast, setToast] = useState<{
+    message: string;
+    type: ToastType;
+  } | null>(null);
 
   // Debounce free-text search
   useEffect(() => {
@@ -144,18 +149,32 @@ export default function CatalogHealthPage() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const params = { page, size: pageSize, status: statusFilter, match, issue: issues.join(","), search };
+  const params = {
+    page,
+    size: pageSize,
+    status: statusFilter,
+    match,
+    issue: issues.join(","),
+    search,
+  };
   const healthQuery = useQuery({
     queryKey: queryKeys.catalogHealth.list(params),
-    queryFn: ({ signal }) => apiGet<HealthResponse>(withQuery("/admin/catalog/health", params), signal),
+    queryFn: ({ signal }) =>
+      apiGet<HealthResponse>(
+        withQuery("/admin/catalog/health", params),
+        signal,
+      ),
     placeholderData: keepPreviousData,
   });
   const data = healthQuery.data ?? null;
   const loading = healthQuery.isFetching;
-  const error = healthQuery.error ? healthQuery.error.message || "Failed to load catalog health" : null;
+  const error = healthQuery.error
+    ? healthQuery.error.message || "Failed to load catalog health"
+    : null;
   const fetchHealth = () => healthQuery.refetch();
 
   // Selection only spans the visible page; clear it when the result set changes.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the dependencies are the triggers, not values read
   useEffect(() => {
     setSelected(new Set());
   }, [page, pageSize, statusFilter, match, issues, search]);
@@ -164,7 +183,9 @@ export default function CatalogHealthPage() {
   const allSelected = rows.length > 0 && rows.every((r) => selected.has(r.id));
 
   const toggleIssue = (key: IssueKey) => {
-    setIssues((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+    setIssues((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+    );
     setPage(0);
   };
 
@@ -204,8 +225,13 @@ export default function CatalogHealthPage() {
       });
       const body = await res.json().catch(() => ({}));
       if (action === "resync") {
-        if (!res.ok && !body?.errors) throw new Error(body?.error || `Re-sync failed (${res.status})`);
-        const errs = body.errors ? Object.entries(body.errors).map(([k, v]) => `${k}: ${v}`).join("; ") : "";
+        if (!res.ok && !body?.errors)
+          throw new Error(body?.error || `Re-sync failed (${res.status})`);
+        const errs = body.errors
+          ? Object.entries(body.errors)
+              .map(([k, v]) => `${k}: ${v}`)
+              .join("; ")
+          : "";
         setToast({
           type: errs ? "error" : "success",
           message: errs
@@ -213,7 +239,8 @@ export default function CatalogHealthPage() {
             : `Re-synced ${body.algolia ?? 0} to Algolia, ${body.recombee ?? 0} to Recombee.${describeSkipped(body.skipped ?? [])}`,
         });
       } else {
-        if (!res.ok) throw new Error(body?.error || `Reprocess failed (${res.status})`);
+        if (!res.ok)
+          throw new Error(body?.error || `Reprocess failed (${res.status})`);
         setToast({
           type: body.queued?.length ? "success" : "info",
           message: `Queued ${body.queued?.length ?? 0} job(s).${describeSkipped(body.skipped ?? [])}`,
@@ -222,7 +249,10 @@ export default function CatalogHealthPage() {
       setSelected(new Set());
       fetchHealth();
     } catch (err) {
-      setToast({ type: "error", message: err instanceof Error ? err.message : "Action failed" });
+      setToast({
+        type: "error",
+        message: err instanceof Error ? err.message : "Action failed",
+      });
     } finally {
       setBusyAction(null);
     }
@@ -242,7 +272,8 @@ export default function CatalogHealthPage() {
             Catalog Health
           </h1>
           <p className="text-xs text-zinc-500 mt-1.5">
-            Songs missing metadata, audio features, lyrics or search/recommendation indexing.
+            Songs missing metadata, audio features, lyrics or
+            search/recommendation indexing.
           </p>
         </div>
         <Button
@@ -259,12 +290,15 @@ export default function CatalogHealthPage() {
       {/* Summary cards (click to filter) */}
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
         <div className="rounded-2xl border border-white/8 bg-[#111114] p-4">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Songs with issues</div>
+          <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+            Songs with issues
+          </div>
           <div className="mt-2 text-2xl font-bold tabular-nums">
             {summary ? summary.songsWithIssues.toLocaleString() : "—"}
           </div>
           <div className="text-[11px] text-zinc-500 mt-0.5">
-            of {summary ? summary.totalSongs.toLocaleString() : "—"} {statusFilter === "ALL" ? "" : statusFilter.toLowerCase()} songs
+            of {summary ? summary.totalSongs.toLocaleString() : "—"}{" "}
+            {statusFilter === "ALL" ? "" : statusFilter.toLowerCase()} songs
           </div>
         </div>
         {ISSUE_KEYS.map((key) => {
@@ -291,7 +325,9 @@ export default function CatalogHealthPage() {
               <div className="mt-2 text-2xl font-bold tabular-nums">
                 {summary ? summary[key].toLocaleString() : "—"}
               </div>
-              <div className="text-[11px] text-zinc-500 mt-0.5 truncate">{meta.hint}</div>
+              <div className="text-[11px] text-zinc-500 mt-0.5 truncate">
+                {meta.hint}
+              </div>
             </button>
           );
         })}
@@ -337,14 +373,23 @@ export default function CatalogHealthPage() {
             </select>
           )}
           {issues.length > 0 && (
-            <Button variant="ghost" size="sm" onClick={() => { setIssues([]); setPage(0); }}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setIssues([]);
+                setPage(0);
+              }}
+            >
               Clear issue filters
             </Button>
           )}
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs text-zinc-500 tabular-nums">{selected.size} selected</span>
+          <span className="text-xs text-zinc-500 tabular-nums">
+            {selected.size} selected
+          </span>
           <Button
             variant="secondary"
             size="sm"
@@ -375,12 +420,20 @@ export default function CatalogHealthPage() {
         {error ? (
           <div className="p-8 text-center text-sm text-rose-400">{error}</div>
         ) : loading && !data ? (
-          <TableSkeleton />
+          <table className="w-full">
+            <tbody>
+              <TableSkeleton />
+            </tbody>
+          </table>
         ) : rows.length === 0 ? (
           <div className="p-12 text-center">
-            <div className="text-sm font-semibold text-zinc-200">No songs match these filters</div>
+            <div className="text-sm font-semibold text-zinc-200">
+              No songs match these filters
+            </div>
             <div className="text-xs text-zinc-500 mt-1">
-              {issues.length || search ? "Try clearing a filter." : "Every song in this view looks healthy."}
+              {issues.length || search
+                ? "Try clearing a filter."
+                : "Every song in this view looks healthy."}
             </div>
           </div>
         ) : (
@@ -406,7 +459,10 @@ export default function CatalogHealthPage() {
               </thead>
               <tbody className={loading ? "opacity-60 transition-opacity" : ""}>
                 {rows.map((song) => {
-                  const img = getImageUrl(song.imageKey, { width: 80, height: 80 });
+                  const img = getImageUrl(song.imageKey, {
+                    width: 80,
+                    height: 80,
+                  });
                   const checked = selected.has(song.id);
                   return (
                     <tr
@@ -416,7 +472,11 @@ export default function CatalogHealthPage() {
                         checked ? "bg-white/6" : "hover:bg-white/3"
                       }`}
                     >
-                      <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      {/* biome-ignore lint/a11y/useKeyWithClickEvents: only stops the row click; the checkbox inside is the control */}
+                      <td
+                        className="px-4 py-3"
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <input
                           type="checkbox"
                           checked={checked}
@@ -429,36 +489,58 @@ export default function CatalogHealthPage() {
                         <div className="flex items-center gap-3 min-w-0">
                           <div className="w-9 h-9 rounded-lg bg-[#1a1a1f] border border-white/8 overflow-hidden shrink-0 flex items-center justify-center">
                             {img ? (
-                              <img src={img} alt="" className="w-full h-full object-cover" />
+                              <img
+                                src={img}
+                                alt=""
+                                className="w-full h-full object-cover"
+                              />
                             ) : (
                               <ImageOff className="w-3.5 h-3.5 text-zinc-600" />
                             )}
                           </div>
                           <div className="min-w-0">
-                            <div className="font-semibold text-white truncate max-w-[280px]">{song.title}</div>
+                            <div className="font-semibold text-white truncate max-w-[280px]">
+                              {song.title}
+                            </div>
                             <div className="text-zinc-500 truncate max-w-[280px]">
-                              {[song.artistName, song.album].filter(Boolean).join(" • ")}
+                              {[song.artistName, song.album]
+                                .filter(Boolean)
+                                .join(" • ")}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-zinc-300">{song.genre || <span className="text-zinc-600">—</span>}</td>
+                      <td className="px-4 py-3 text-zinc-300">
+                        {song.genre || <span className="text-zinc-600">—</span>}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1.5">
                           {song.issues.map((key) => (
-                            <Badge key={key} variant={ISSUE_META[key].variant} size="xs" title={ISSUE_META[key].hint}>
+                            <Badge
+                              key={key}
+                              variant={ISSUE_META[key].variant}
+                              size="xs"
+                              title={ISSUE_META[key].hint}
+                            >
                               {ISSUE_META[key].short}
                             </Badge>
                           ))}
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <Badge variant={song.status === "ACTIVE" ? "success" : "neutral"} size="xs">
+                        <Badge
+                          variant={
+                            song.status === "ACTIVE" ? "success" : "neutral"
+                          }
+                          size="xs"
+                        >
                           {song.status}
                         </Badge>
                       </td>
                       <td className="px-4 py-3 text-zinc-500 tabular-nums whitespace-nowrap">
-                        {song.createdAt ? new Date(song.createdAt).toLocaleDateString() : "—"}
+                        {song.createdAt
+                          ? new Date(song.createdAt).toLocaleDateString()
+                          : "—"}
                       </td>
                     </tr>
                   );
@@ -486,7 +568,12 @@ export default function CatalogHealthPage() {
         />
       )}
 
-      <Toast message={toast?.message ?? null} type={toast?.type} onClose={() => setToast(null)} duration={6000} />
+      <Toast
+        message={toast?.message ?? null}
+        type={toast?.type}
+        onClose={() => setToast(null)}
+        duration={6000}
+      />
     </div>
   );
 }

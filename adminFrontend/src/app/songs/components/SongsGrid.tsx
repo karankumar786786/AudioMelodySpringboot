@@ -1,20 +1,20 @@
 "use client";
 
-import React from "react";
 import {
+  Edit2,
+  Film,
+  ListPlus,
   Loader2,
   Music,
-  Video,
-  Film,
-  Star,
-  Edit2,
-  Trash2,
-  Play,
   Pause,
-  ListPlus,
+  Play,
+  Star,
+  Trash2,
+  Video,
 } from "lucide-react";
-import { getImageUrl } from "@/lib/image-utils";
+import type React from "react";
 import { useAudio } from "@/lib/audio-context";
+import { getImageUrl } from "@/lib/image-utils";
 import type { Song } from "../types";
 
 interface SongsGridProps {
@@ -46,7 +46,8 @@ export function SongsGrid({
   onDeleteSong,
   onAddToPlaylist,
 }: SongsGridProps) {
-  const { currentTrack, isPlaying, playTrack, pauseTrack, resumeTrack } = useAudio();
+  const { currentTrack, isPlaying, playTrack, pauseTrack, resumeTrack } =
+    useAudio();
 
   const handlePlaySong = (song: Song, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -74,6 +75,7 @@ export function SongsGrid({
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {Array.from({ length: 8 }).map((_, i) => (
           <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: fixed-position placeholders never reorder
             key={i}
             className="bg-[#121215] border border-white/8 rounded-2xl p-4 animate-pulse space-y-3"
           >
@@ -103,7 +105,10 @@ export function SongsGrid({
       {songs.map((song) => {
         const isCurrentPlaying = currentTrack?.id === song.id && isPlaying;
         const genres = song.genre
-          ? song.genre.split(",").map((g) => g.trim()).filter(Boolean)
+          ? song.genre
+              .split(",")
+              .map((g) => g.trim())
+              .filter(Boolean)
           : [];
 
         return (
@@ -180,26 +185,26 @@ export function SongsGrid({
               {/* Bottom Quick Actions Bar */}
               <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/90 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-between p-2.5">
                 {onToggleFeatured ? (
-                <button
-                  type="button"
-                  disabled={togglingSongId === song.id}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleFeatured(song);
-                  }}
-                  title={song.isFeatured ? "Unfeature" : "Feature"}
-                  className="p-1.5 rounded-lg bg-white/20 backdrop-blur-md text-white hover:bg-white hover:text-black transition-all cursor-pointer"
-                >
-                  {togglingSongId === song.id ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Star
-                      className={`w-3.5 h-3.5 ${
-                        song.isFeatured ? "fill-amber-400 text-amber-400" : ""
-                      }`}
-                    />
-                  )}
-                </button>
+                  <button
+                    type="button"
+                    disabled={togglingSongId === song.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggleFeatured(song);
+                    }}
+                    title={song.isFeatured ? "Unfeature" : "Feature"}
+                    className="p-1.5 rounded-lg bg-white/20 backdrop-blur-md text-white hover:bg-white hover:text-black transition-all cursor-pointer"
+                  >
+                    {togglingSongId === song.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Star
+                        className={`w-3.5 h-3.5 ${
+                          song.isFeatured ? "fill-amber-400 text-amber-400" : ""
+                        }`}
+                      />
+                    )}
+                  </button>
                 ) : (
                   <span />
                 )}
@@ -221,36 +226,36 @@ export function SongsGrid({
                   )}
 
                   {onEditSong && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onEditSong(song);
-                    }}
-                    className="p-1.5 rounded-lg bg-white/20 backdrop-blur-md text-white hover:bg-white hover:text-black transition-all cursor-pointer"
-                    title="Edit track"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditSong(song);
+                      }}
+                      className="p-1.5 rounded-lg bg-white/20 backdrop-blur-md text-white hover:bg-white hover:text-black transition-all cursor-pointer"
+                      title="Edit track"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
                   )}
 
                   {onDeleteSong && (
-                  <button
-                    type="button"
-                    disabled={deletingSongId === song.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteSong(song.id, song.title);
-                    }}
-                    className="p-1.5 rounded-lg bg-rose-500/20 backdrop-blur-md text-rose-300 hover:bg-rose-600 hover:text-white transition-all cursor-pointer disabled:opacity-50"
-                    title="Delete track"
-                  >
-                    {deletingSongId === song.id ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-400" />
-                    ) : (
-                      <Trash2 className="w-3.5 h-3.5" />
-                    )}
-                  </button>
+                    <button
+                      type="button"
+                      disabled={deletingSongId === song.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteSong(song.id, song.title);
+                      }}
+                      className="p-1.5 rounded-lg bg-rose-500/20 backdrop-blur-md text-rose-300 hover:bg-rose-600 hover:text-white transition-all cursor-pointer disabled:opacity-50"
+                      title="Delete track"
+                    >
+                      {deletingSongId === song.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-400" />
+                      ) : (
+                        <Trash2 className="w-3.5 h-3.5" />
+                      )}
+                    </button>
                   )}
                 </div>
               </div>
@@ -269,7 +274,10 @@ export function SongsGrid({
                   {song.artistName}
                 </span>
                 {song.album && (
-                  <span className="truncate text-zinc-500 text-[10px] shrink-0 max-w-[45%]" title={song.album}>
+                  <span
+                    className="truncate text-zinc-500 text-[10px] shrink-0 max-w-[45%]"
+                    title={song.album}
+                  >
                     • {song.album}
                   </span>
                 )}

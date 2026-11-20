@@ -1,15 +1,22 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, Image as ImageIcon, Loader2, RotateCw, WifiOff, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Image as ImageIcon,
+  Loader2,
+  RotateCw,
+  WifiOff,
+  X,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useForm } from "react-hook-form";
 import { UploadProgressBar } from "@/components/UploadProgressBar";
 import { getImageUrl } from "@/lib/image-utils";
 import { MediaReplaceFields } from "./MediaReplaceFields";
-import { type EditSongValues, editSongSchema, toFormValues } from "./schema";
 import { SongMetadataFields } from "./SongMetadataFields";
+import { type EditSongValues, editSongSchema, toFormValues } from "./schema";
 import type { SaveError, SongData } from "./types";
 import { useSaveSong } from "./useSaveSong";
 
@@ -20,7 +27,15 @@ interface EditSongModalProps {
   onSuccess?: (updatedSong: SongData) => void;
 }
 
-function ErrorBanner({ error, onRetry, busy }: { error: SaveError; onRetry: () => void; busy: boolean }) {
+function ErrorBanner({
+  error,
+  onRetry,
+  busy,
+}: {
+  error: SaveError;
+  onRetry: () => void;
+  busy: boolean;
+}) {
   return (
     <div
       role="alert"
@@ -34,9 +49,14 @@ function ErrorBanner({ error, onRetry, busy }: { error: SaveError; onRetry: () =
         )}
         <div>
           <span className="font-bold text-rose-300 block">
-            {error.title || (error.isNetworkError ? "Network Connection Error" : "Save Failed")}
+            {error.title ||
+              (error.isNetworkError
+                ? "Network Connection Error"
+                : "Save Failed")}
           </span>
-          <span className="text-zinc-400 text-[11px] block mt-0.5">{error.message}</span>
+          <span className="text-zinc-400 text-[11px] block mt-0.5">
+            {error.message}
+          </span>
         </div>
       </div>
       {error.canRetry !== false && (
@@ -54,15 +74,27 @@ function ErrorBanner({ error, onRetry, busy }: { error: SaveError; onRetry: () =
   );
 }
 
-function ModalHeader({ song, onClose, saving }: { song: SongData; onClose: () => void; saving: boolean }) {
+function ModalHeader({
+  song,
+  onClose,
+  saving,
+}: {
+  song: SongData;
+  onClose: () => void;
+  saving: boolean;
+}) {
   return (
     <div className="px-6 py-4 border-b border-[#282828] flex items-center justify-between gap-4 bg-black/40 shrink-0">
       <div className="flex items-center gap-3.5 min-w-0">
         <div className="w-12 h-12 rounded-xl bg-black/60 border border-[#282828] overflow-hidden shrink-0 flex items-center justify-center">
           {song.imageKey ? (
-            // biome-ignore lint/performance/noImgElement: ImageKit already serves a resized thumbnail
             <img
-              src={getImageUrl(song.imageKey, { width: 100, height: 100, focus: "auto", aspectRatio: "1-1" })}
+              src={getImageUrl(song.imageKey, {
+                width: 100,
+                height: 100,
+                focus: "auto",
+                aspectRatio: "1-1",
+              })}
               alt={song.title}
               className="w-full h-full object-cover"
             />
@@ -71,12 +103,17 @@ function ModalHeader({ song, onClose, saving }: { song: SongData; onClose: () =>
           )}
         </div>
         <div className="min-w-0">
-          <h2 id="edit-song-heading" className="text-base font-bold text-white truncate">
+          <h2
+            id="edit-song-heading"
+            className="text-base font-bold text-white truncate"
+          >
             {song.title}
           </h2>
           <p className="text-xs text-zinc-400 truncate">
             {song.artistName} • ID: {song.id.slice(0, 8)}... •{" "}
-            <span className="text-white font-semibold">{(song.totalStreams || 0).toLocaleString()} streams</span>
+            <span className="text-white font-semibold">
+              {(song.totalStreams || 0).toLocaleString()} streams
+            </span>
           </p>
         </div>
       </div>
@@ -93,7 +130,12 @@ function ModalHeader({ song, onClose, saving }: { song: SongData; onClose: () =>
   );
 }
 
-export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModalProps) {
+export function EditSongModal({
+  song,
+  isOpen,
+  onClose,
+  onSuccess,
+}: EditSongModalProps) {
   const [mounted, setMounted] = useState(false);
   const { save, saving, error, dismissError, progress } = useSaveSong(song);
   const form = useForm<EditSongValues>({
@@ -104,10 +146,10 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
   useEffect(() => setMounted(true), []);
 
   // Reload the form whenever a different song is opened.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only reset when the song changes
   useEffect(() => {
     if (song) form.reset(toFormValues(song));
     dismissError();
-    // biome-ignore lint/correctness/useExhaustiveDependencies: only reset when the song changes
   }, [song]);
 
   useEffect(() => {
@@ -130,6 +172,7 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
   });
 
   return createPortal(
+    // biome-ignore lint/a11y/noStaticElementInteractions: clicking the backdrop closes; Escape is handled on window
     <div
       className="fixed inset-0 z-99999 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
       role="presentation"
@@ -144,7 +187,13 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
         className="bg-[#121212] w-full max-w-lg rounded-3xl shadow-2xl border border-[#282828] overflow-hidden text-white flex flex-col max-h-[85vh] my-auto min-h-0"
       >
         <ModalHeader song={song} onClose={onClose} saving={saving} />
-        {error && <ErrorBanner error={error} onRetry={() => submit()} busy={saving || progress.retrying} />}
+        {error && (
+          <ErrorBanner
+            error={error}
+            onRetry={() => submit()}
+            busy={saving || progress.retrying}
+          />
+        )}
 
         <form
           id="edit-song-form"
@@ -153,7 +202,12 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
           className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0"
         >
           <SongMetadataFields form={form} />
-          <MediaReplaceFields form={form} song={song} saving={saving} progress={progress} />
+          <MediaReplaceFields
+            form={form}
+            song={song}
+            saving={saving}
+            progress={progress}
+          />
         </form>
 
         {(saving || error) && (
@@ -188,7 +242,9 @@ export function EditSongModal({ song, isOpen, onClose, onSuccess }: EditSongModa
             disabled={saving}
             type="submit"
             className={`px-6 py-2.5 rounded-full font-bold text-black text-xs transition-all flex items-center justify-center gap-2 ${
-              saving ? "bg-zinc-400 cursor-not-allowed" : "bg-white hover:bg-zinc-200 active:scale-95 shadow-sm"
+              saving
+                ? "bg-zinc-400 cursor-not-allowed"
+                : "bg-white hover:bg-zinc-200 active:scale-95 shadow-sm"
             }`}
           >
             {saving ? (

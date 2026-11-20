@@ -8,7 +8,10 @@ import { FieldErrorText } from "@/components/forms/fields";
 import { requiredText } from "@/lib/forms/schemas";
 
 /** `PlaylistDetailView.put` accepts any name; the form keeps it non-blank like the create view. */
-const schema = z.object({ name: requiredText("Playlist name"), description: z.string().trim() });
+const schema = z.object({
+  name: requiredText("Playlist name"),
+  description: z.string().trim(),
+});
 export type PlaylistMetadata = z.infer<typeof schema>;
 
 export function PlaylistMetadataForm({
@@ -26,10 +29,17 @@ export function PlaylistMetadataForm({
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<PlaylistMetadata>({ resolver: zodResolver(schema), defaultValues: initial });
+  } = useForm<PlaylistMetadata>({
+    resolver: zodResolver(schema),
+    defaultValues: initial,
+  });
 
   return (
-    <form onSubmit={handleSubmit(onSave)} noValidate className="space-y-2 pt-1 max-w-xl">
+    <form
+      onSubmit={handleSubmit(onSave)}
+      noValidate
+      className="space-y-2 pt-1 max-w-xl"
+    >
       <input
         type="text"
         aria-label="Playlist name"
@@ -52,7 +62,11 @@ export function PlaylistMetadataForm({
           disabled={saving}
           className="px-3.5 py-1.5 bg-white hover:bg-zinc-200 text-black font-bold text-xs rounded-xl transition-all shadow-sm disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
         >
-          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+          {saving ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Check className="w-3.5 h-3.5" />
+          )}
           <span>Save</span>
         </button>
         <button

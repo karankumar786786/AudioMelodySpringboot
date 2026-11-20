@@ -2,12 +2,18 @@
 
 import { Loader2, Trash2, Video } from "lucide-react";
 import { useState } from "react";
-import { useToast } from "@/components/feedback/ToastProvider";
 import type { Playlist } from "@/app/playlists/types";
+import { useToast } from "@/components/feedback/ToastProvider";
 import { useUpdatePlaylist } from "@/lib/queries/playlists";
 import { uploadToImageKitWithProgress } from "@/lib/upload-utils";
 
-export function TeaserVideoControls({ playlist, editable }: { playlist: Playlist; editable: boolean }) {
+export function TeaserVideoControls({
+  playlist,
+  editable,
+}: {
+  playlist: Playlist;
+  editable: boolean;
+}) {
   const toast = useToast();
   const update = useUpdatePlaylist(playlist.id);
   const [uploading, setUploading] = useState(false);
@@ -19,7 +25,10 @@ export function TeaserVideoControls({ playlist, editable }: { playlist: Playlist
     if (!file) return;
     setUploading(true);
     try {
-      const videoKey = await uploadToImageKitWithProgress(file, "/playlists/videos");
+      const videoKey = await uploadToImageKitWithProgress(
+        file,
+        "/playlists/videos",
+      );
       await update.mutateAsync({ videoKey });
       toast("Playlist teaser video loop updated!");
     } catch (err) {
@@ -70,10 +79,18 @@ export function TeaserVideoControls({ playlist, editable }: { playlist: Playlist
             ) : (
               <>
                 <Video className="w-3.5 h-3.5 text-white" />
-                <span>{playlist.videoKey ? "Replace Video" : "Attach Loop"}</span>
+                <span>
+                  {playlist.videoKey ? "Replace Video" : "Attach Loop"}
+                </span>
               </>
             )}
-            <input type="file" accept="video/*" onChange={attach} disabled={uploading || removing} className="hidden" />
+            <input
+              type="file"
+              accept="video/*"
+              onChange={attach}
+              disabled={uploading || removing}
+              className="hidden"
+            />
           </label>
 
           {playlist.videoKey && (
@@ -85,7 +102,11 @@ export function TeaserVideoControls({ playlist, editable }: { playlist: Playlist
               title="Remove attached teaser video"
               aria-label="Remove teaser video"
             >
-              {removing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              {removing ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Trash2 className="w-4 h-4" />
+              )}
             </button>
           )}
         </div>

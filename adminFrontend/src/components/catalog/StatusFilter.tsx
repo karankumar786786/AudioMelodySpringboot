@@ -5,7 +5,13 @@ import { SegmentedFilter } from "@/components/data-table/Toolbar";
 export type CatalogStatus = "ACTIVE" | "DELETED" | "ALL";
 
 /** Status filter for catalog lists; the list views default to ACTIVE. */
-export function CatalogStatusFilter({ value, onChange }: { value: CatalogStatus; onChange: (v: CatalogStatus) => void }) {
+export function CatalogStatusFilter({
+  value,
+  onChange,
+}: {
+  value: CatalogStatus;
+  onChange: (v: CatalogStatus) => void;
+}) {
   return (
     <SegmentedFilter<CatalogStatus>
       label="Status"

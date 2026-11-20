@@ -10,9 +10,17 @@ import type { EditSongValues } from "./schema";
 import type { SongData } from "./types";
 
 const box = "border border-dashed border-[#282828] rounded-2xl p-3 bg-black/40";
-const optional = <span className="text-zinc-500 normal-case font-normal">(optional)</span>;
+const optional = (
+  <span className="text-zinc-500 normal-case font-normal">(optional)</span>
+);
 
-function InlineProgress({ progress, show }: { progress: UploadProgress; show: boolean }) {
+function InlineProgress({
+  progress,
+  show,
+}: {
+  progress: UploadProgress;
+  show: boolean;
+}) {
   if (!show) return null;
   return (
     <div className="mt-3">
@@ -30,14 +38,24 @@ function InlineProgress({ progress, show }: { progress: UploadProgress; show: bo
   );
 }
 
-function RemoveToggle({ active, onToggle, children }: { active: boolean; onToggle: () => void; children: ReactNode }) {
+function RemoveToggle({
+  active,
+  onToggle,
+  children,
+}: {
+  active: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
   return (
     <button
       type="button"
       onClick={onToggle}
       aria-pressed={active}
       className={`text-xs font-bold px-2.5 py-1 rounded-full transition-all ${
-        active ? "bg-zinc-800 text-white" : "bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20"
+        active
+          ? "bg-zinc-800 text-white"
+          : "bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20"
       }`}
     >
       {children}
@@ -63,7 +81,9 @@ export function MediaReplaceFields({
     "removeVideo",
     "removeFullVideo",
   ]);
-  const pick = (name: "imageFile" | "audioFile" | "videoFile" | "fullVideoFile") => ({
+  const pick = (
+    name: "imageFile" | "audioFile" | "videoFile" | "fullVideoFile",
+  ) => ({
     onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
       setValue(name, e.target.files?.[0] ?? null, { shouldDirty: true }),
   });
@@ -73,7 +93,10 @@ export function MediaReplaceFields({
     <div className="space-y-3 pt-1">
       <div className={box}>
         <div className="flex items-center justify-between mb-1">
-          <label htmlFor="edit-song-audio" className={`${labelCls} mb-0 flex items-center gap-1.5`}>
+          <label
+            htmlFor="edit-song-audio"
+            className={`${labelCls} mb-0 flex items-center gap-1.5`}
+          >
             <Music className="w-3.5 h-3.5 text-amber-400" />
             Replace / Recover Audio Track {optional}
           </label>
@@ -88,8 +111,8 @@ export function MediaReplaceFields({
           )}
         </div>
         <p className="text-[10px] text-zinc-400 mb-2">
-          Upload replacement audio (.mp3, .wav, .flac, .aac, .m4a) to replace corrupted media and trigger HLS
-          re-encoding.
+          Upload replacement audio (.mp3, .wav, .flac, .aac, .m4a) to replace
+          corrupted media and trigger HLS re-encoding.
         </p>
         <input
           id="edit-song-audio"
@@ -102,24 +125,37 @@ export function MediaReplaceFields({
           <div className="mt-2 text-[11px] font-mono text-zinc-300 flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5" />
             <span>
-              Selected: {audioFile.name} ({(audioFile.size / (1024 * 1024)).toFixed(2)} MB)
+              Selected: {audioFile.name} (
+              {(audioFile.size / (1024 * 1024)).toFixed(2)} MB)
             </span>
           </div>
         )}
-        <InlineProgress progress={progress} show={saving && Boolean(audioFile) && uploadingText.includes("audio")} />
+        <InlineProgress
+          progress={progress}
+          show={saving && Boolean(audioFile) && uploadingText.includes("audio")}
+        />
       </div>
 
       <div className={box}>
         <label htmlFor="edit-song-image" className={labelCls}>
           Replace Cover Image {optional}
         </label>
-        <input id="edit-song-image" type="file" accept="image/*" className={fileCls} {...pick("imageFile")} />
+        <input
+          id="edit-song-image"
+          type="file"
+          accept="image/*"
+          className={fileCls}
+          {...pick("imageFile")}
+        />
       </div>
 
       <div className={box}>
         <div className="flex items-center justify-between mb-1">
           <label htmlFor="edit-song-canvas" className={`${labelCls} mb-0`}>
-            {song.videoKey && !removeVideo ? "Replace Video Canvas" : "Attach Video Canvas"} {optional}
+            {song.videoKey && !removeVideo
+              ? "Replace Video Canvas"
+              : "Attach Video Canvas"}{" "}
+            {optional}
           </label>
           {song.videoKey && (
             <RemoveToggle
@@ -140,22 +176,35 @@ export function MediaReplaceFields({
           </p>
         )}
         {removeVideo ? (
-          <p className="text-[10px] text-rose-400 font-bold mb-2">Canvas will be removed on save</p>
+          <p className="text-[10px] text-rose-400 font-bold mb-2">
+            Canvas will be removed on save
+          </p>
         ) : (
-          <input id="edit-song-canvas" type="file" accept="video/mp4,video/*" className={fileCls} {...pick("videoFile")} />
+          <input
+            id="edit-song-canvas"
+            type="file"
+            accept="video/mp4,video/*"
+            className={fileCls}
+            {...pick("videoFile")}
+          />
         )}
       </div>
 
       <div className={box}>
         <div className="flex items-center justify-between mb-1">
           <label htmlFor="edit-song-full-video" className={`${labelCls} mb-0`}>
-            Full Music Video <span className="text-zinc-500 normal-case font-normal">(S3 Shaka Stream)</span>
+            Full Music Video{" "}
+            <span className="text-zinc-500 normal-case font-normal">
+              (S3 Shaka Stream)
+            </span>
           </label>
           {song.fullVideoKey && (
             <RemoveToggle
               active={removeFullVideo}
               onToggle={() => {
-                setValue("removeFullVideo", !removeFullVideo, { shouldDirty: true });
+                setValue("removeFullVideo", !removeFullVideo, {
+                  shouldDirty: true,
+                });
                 setValue("fullVideoFile", null);
               }}
             >
@@ -170,7 +219,9 @@ export function MediaReplaceFields({
           </p>
         )}
         {removeFullVideo ? (
-          <p className="text-[10px] text-rose-400 font-bold mb-2">Full video stream will be removed on save</p>
+          <p className="text-[10px] text-rose-400 font-bold mb-2">
+            Full video stream will be removed on save
+          </p>
         ) : (
           <div>
             <input
@@ -187,7 +238,11 @@ export function MediaReplaceFields({
             )}
             <InlineProgress
               progress={progress}
-              show={saving && Boolean(fullVideoFile) && uploadingText.includes("video")}
+              show={
+                saving &&
+                Boolean(fullVideoFile) &&
+                uploadingText.includes("video")
+              }
             />
           </div>
         )}

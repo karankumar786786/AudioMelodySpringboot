@@ -40,7 +40,7 @@ export class UploadError extends Error {
 }
 
 export function formatBytes(bytes: number, decimals = 1): string {
-  if (bytes <= 0 || isNaN(bytes)) return "0 B";
+  if (bytes <= 0 || Number.isNaN(bytes)) return "0 B";
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
   const sizes = ["B", "KB", "MB", "GB", "TB"];
@@ -446,7 +446,7 @@ export async function uploadWithProgress(
         onProgress,
         options,
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       attempt++;
 
       const isAborted =
@@ -457,7 +457,7 @@ export async function uploadWithProgress(
         attempt <= maxRetries &&
         (err instanceof UploadError
           ? err.canRetry
-          : String(err?.message || "")
+          : String((err as Error | undefined)?.message || "")
               .toLowerCase()
               .includes("network"));
 
@@ -467,7 +467,7 @@ export async function uploadWithProgress(
 
       const delayMs = Math.min(30000, initialDelay * 2 ** (attempt - 1));
       if (options?.onRetry) {
-        options.onRetry(attempt, maxRetries, delayMs, err);
+        options.onRetry(attempt, maxRetries, delayMs, err as Error);
       }
 
       await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -506,9 +506,9 @@ export async function uploadToS3WithProgress(
         urlRes = await adminFetch(getUrlEndpoint, {
           signal: options?.signal,
         });
-      } catch (fetchErr: any) {
+      } catch (fetchErr: unknown) {
         throw new UploadError(
-          `Failed to reach authorization endpoint: ${fetchErr?.message || "Network error"}`,
+          `Failed to reach authorization endpoint: ${(fetchErr as Error | undefined)?.message || "Network error"}`,
           { isNetworkError: true, canRetry: true },
         );
       }
@@ -546,7 +546,7 @@ export async function uploadToS3WithProgress(
       );
 
       return { key: urlData.key, status: result.status };
-    } catch (err: any) {
+    } catch (err: unknown) {
       attempt++;
 
       const isAborted =
@@ -557,7 +557,7 @@ export async function uploadToS3WithProgress(
         attempt <= maxRetries &&
         (err instanceof UploadError
           ? err.canRetry
-          : String(err?.message || "")
+          : String((err as Error | undefined)?.message || "")
               .toLowerCase()
               .includes("network"));
 
@@ -567,7 +567,7 @@ export async function uploadToS3WithProgress(
 
       const delayMs = Math.min(30000, initialDelay * 2 ** (attempt - 1));
       if (options?.onRetry) {
-        options.onRetry(attempt, maxRetries, delayMs, err);
+        options.onRetry(attempt, maxRetries, delayMs, err as Error);
       }
 
       await new Promise((resolve) => setTimeout(resolve, delayMs));
@@ -604,9 +604,9 @@ export async function uploadToImageKitWithProgress(
         sigRes = await adminFetch("/webhook/internal/image-upload-param", {
           signal: options?.signal,
         });
-      } catch (fetchErr: any) {
+      } catch (fetchErr: unknown) {
         throw new UploadError(
-          `Failed to reach authorization endpoint: ${fetchErr?.message || "Network error"}`,
+          `Failed to reach authorization endpoint: ${(fetchErr as Error | undefined)?.message || "Network error"}`,
           { isNetworkError: true, canRetry: true },
         );
       }
@@ -650,7 +650,7 @@ export async function uploadToImageKitWithProgress(
 
       const data = JSON.parse(result.responseText);
       return data.filePath || sigData.key;
-    } catch (err: any) {
+    } catch (err: unknown) {
       attempt++;
 
       const isAborted =
@@ -661,7 +661,7 @@ export async function uploadToImageKitWithProgress(
         attempt <= maxRetries &&
         (err instanceof UploadError
           ? err.canRetry
-          : String(err?.message || "")
+          : String((err as Error | undefined)?.message || "")
               .toLowerCase()
               .includes("network"));
 
@@ -671,7 +671,7 @@ export async function uploadToImageKitWithProgress(
 
       const delayMs = Math.min(30000, initialDelay * 2 ** (attempt - 1));
       if (options?.onRetry) {
-        options.onRetry(attempt, maxRetries, delayMs, err);
+        options.onRetry(attempt, maxRetries, delayMs, err as Error);
       }
 
       await new Promise((resolve) => setTimeout(resolve, delayMs));

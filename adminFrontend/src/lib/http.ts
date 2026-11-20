@@ -46,7 +46,10 @@ export interface RequestOptions {
  * Calls the admin backend through `adminFetch` (HttpOnly cookie session, refresh on 401/403)
  * and returns the parsed JSON body, or throws an `ApiError`.
  */
-export async function apiRequest<T = unknown>(path: string, options: RequestOptions = {}): Promise<T> {
+export async function apiRequest<T = unknown>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
   const { method = "GET", body, signal, errorMessage } = options;
   const init: RequestInit = { method, signal };
   if (body !== undefined) {
@@ -56,15 +59,23 @@ export async function apiRequest<T = unknown>(path: string, options: RequestOpti
   const res = await adminFetch(path, init);
   const data = await parseBody(res);
   if (!res.ok) {
-    throw new ApiError(res.status, messageFrom(data, errorMessage ?? `Request failed (${res.status})`), data);
+    throw new ApiError(
+      res.status,
+      messageFrom(data, errorMessage ?? `Request failed (${res.status})`),
+      data,
+    );
   }
   return data as T;
 }
 
-export const apiGet = <T>(path: string, signal?: AbortSignal) => apiRequest<T>(path, { signal });
+export const apiGet = <T>(path: string, signal?: AbortSignal) =>
+  apiRequest<T>(path, { signal });
 
 /** Builds `path?a=1&b=2`, dropping empty values. Every list view treats "ALL" as no filter. */
-export function withQuery(path: string, params: Record<string, string | number | boolean | null | undefined>): string {
+export function withQuery(
+  path: string,
+  params: Record<string, string | number | boolean | null | undefined>,
+): string {
   const qs = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined || value === null || value === "") continue;
@@ -89,14 +100,28 @@ export interface Page<T> {
 }
 
 export function toPage<T>(data: unknown, page: number, size: number): Page<T> {
-  const d = (data ?? {}) as Record<string, any>;
-  const rows: T[] = Array.isArray(d)
-    ? (d as T[])
-    : d.content ?? d.data?.content ?? (Array.isArray(d.data) ? d.data : []);
-  const meta = d.paginationMetaData ?? d.data?.paginationMetaData ?? d.metadata ?? {};
+  type Body = {
+    content?: T[];
+    data?: T[] | { content?: T[]; paginationMetaData?: Page<T>["meta"] };
+    paginationMetaData?: Page<T>["meta"];
+    metadata?: Page<T>["meta"];
+    totalElements?: number;
+    totalCount?: number;
+  };
+  const d = (data ?? {}) as Body;
+  const nested = d.data && !Array.isArray(d.data) ? d.data : undefined;
+  const rows: T[] = Array.isArray(data)
+    ? (data as T[])
+    : (d.content ?? nested?.content ?? (Array.isArray(d.data) ? d.data : []));
+  const meta: Page<T>["meta"] =
+    d.paginationMetaData ?? nested?.paginationMetaData ?? d.metadata ?? {};
   const metaTotal = Number(meta.totalCount ?? d.totalElements ?? d.totalCount);
   let total: number;
-  if (Number.isFinite(metaTotal) && metaTotal >= 0 && !(metaTotal === 0 && rows.length > 0)) {
+  if (
+    Number.isFinite(metaTotal) &&
+    metaTotal >= 0 &&
+    !(metaTotal === 0 && rows.length > 0)
+  ) {
     total = metaTotal;
   } else if (rows.length < size) {
     total = page * size + rows.length;

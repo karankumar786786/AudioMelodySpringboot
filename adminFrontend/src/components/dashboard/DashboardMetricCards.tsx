@@ -1,18 +1,17 @@
 "use client";
 
-import Link from "next/link";
-import { DashboardStats } from "@/lib/api";
-import { SkeletonCard } from "@/components/SkeletonCard";
 import {
-  Music,
   Activity,
-  Mic2,
-  ListMusic,
-  Users,
-  Cpu,
   ArrowUpRight,
-  TrendingUp,
+  Cpu,
+  ListMusic,
+  Mic2,
+  Music,
+  Users,
 } from "lucide-react";
+import Link from "next/link";
+import { SkeletonCard } from "@/components/SkeletonCard";
+import type { DashboardStats } from "@/lib/api";
 
 interface DashboardMetricCardsProps {
   stats: DashboardStats | null;
@@ -21,18 +20,21 @@ interface DashboardMetricCardsProps {
 
 export function formatCompactMetric(value: number): string {
   if (value >= 1_000_000_000) {
-    return (value / 1_000_000_000).toFixed(2).replace(/\.00$/, "") + "B";
+    return `${(value / 1_000_000_000).toFixed(2).replace(/\.00$/, "")}B`;
   }
   if (value >= 1_000_000) {
-    return (value / 1_000_000).toFixed(2).replace(/\.00$/, "") + "M";
+    return `${(value / 1_000_000).toFixed(2).replace(/\.00$/, "")}M`;
   }
   if (value >= 100_000) {
-    return (value / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
+    return `${(value / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
   }
   return value.toLocaleString();
 }
 
-export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsProps) {
+export function DashboardMetricCards({
+  stats,
+  loading,
+}: DashboardMetricCardsProps) {
   const statCards = [
     {
       name: "Songs Catalog",
@@ -80,7 +82,10 @@ export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsPro
       rawValue: stats?.totalUsers ?? 0,
       displayValue: formatCompactMetric(stats?.totalUsers ?? 0),
       subValue: `${stats?.activeUsers ?? 0} active`,
-      badge: (stats?.blockedUsers ?? 0) > 0 ? `${stats?.blockedUsers} blocked` : null,
+      badge:
+        (stats?.blockedUsers ?? 0) > 0
+          ? `${stats?.blockedUsers} blocked`
+          : null,
       badgeType: "warning",
       icon: Users,
       href: "/users",
@@ -95,8 +100,8 @@ export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsPro
         (stats?.failedJobs ?? 0) > 0
           ? `${stats?.failedJobs} failed`
           : (stats?.pendingJobs ?? 0) > 0
-          ? `${stats?.pendingJobs} pending`
-          : null,
+            ? `${stats?.pendingJobs} pending`
+            : null,
       badgeType: (stats?.failedJobs ?? 0) > 0 ? "danger" : "default",
       icon: Cpu,
       href: "/jobs",
@@ -133,8 +138,8 @@ export function DashboardMetricCards({ stats, loading }: DashboardMetricCardsPro
                     card.badgeType === "danger"
                       ? "bg-rose-500/15 text-rose-400 border-rose-500/30"
                       : card.badgeType === "warning"
-                      ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
-                      : "bg-white/10 text-zinc-300 border-white/20"
+                        ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+                        : "bg-white/10 text-zinc-300 border-white/20"
                   }`}
                 >
                   {card.badge}

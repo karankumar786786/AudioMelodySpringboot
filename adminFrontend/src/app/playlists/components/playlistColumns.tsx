@@ -26,7 +26,6 @@ export function playlistColumns({
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl overflow-hidden bg-black border border-white/10 shrink-0 flex items-center justify-center">
               {p.coverImageKey ? (
-                // biome-ignore lint/performance/noImgElement: ImageKit already serves a resized thumbnail
                 <img
                   src={getImageUrl(p.coverImageKey, { width: 80, height: 80 })}
                   alt={p.name}
@@ -38,7 +37,9 @@ export function playlistColumns({
             </div>
             <div className="min-w-0">
               <p className="font-bold text-white truncate max-w-60">{p.name}</p>
-              <p className="text-[11px] text-zinc-500 truncate max-w-60">{p.description || "No description"}</p>
+              <p className="text-[11px] text-zinc-500 truncate max-w-60">
+                {p.description || "No description"}
+              </p>
             </div>
           </div>
         );
@@ -76,7 +77,11 @@ export function playlistColumns({
       header: "Created",
       cell: ({ getValue }) => {
         const v = getValue<string>();
-        return <span className="text-zinc-500 text-[11px]">{v ? new Date(v).toLocaleDateString() : "—"}</span>;
+        return (
+          <span className="text-zinc-500 text-[11px]">
+            {v ? new Date(v).toLocaleDateString() : "—"}
+          </span>
+        );
       },
     },
     {
@@ -84,7 +89,12 @@ export function playlistColumns({
       header: () => <span className="sr-only">Actions</span>,
       enableSorting: false,
       enableHiding: false,
-      meta: { csv: false, label: "Actions", headerClassName: "text-right", cellClassName: "text-right" },
+      meta: {
+        csv: false,
+        label: "Actions",
+        headerClassName: "text-right",
+        cellClassName: "text-right",
+      },
       cell: ({ row }) =>
         onDelete ? (
           <button

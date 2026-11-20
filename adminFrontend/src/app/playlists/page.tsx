@@ -2,8 +2,11 @@
 
 import { ListMusic, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
-import { type CatalogStatus, CatalogStatusFilter } from "@/components/catalog/StatusFilter";
+import { useState } from "react";
+import {
+  type CatalogStatus,
+  CatalogStatusFilter,
+} from "@/components/catalog/StatusFilter";
 import { DataTable } from "@/components/data-table/DataTable";
 import { SearchInput } from "@/components/data-table/Toolbar";
 import { useServerTable } from "@/components/data-table/useServerTable";
@@ -20,7 +23,9 @@ export default function PlaylistsPage() {
   const router = useRouter();
   const { can } = usePermissions();
   const confirm = useConfirm();
-  const table = useServerTable({ initialFilters: { status: "ACTIVE" as CatalogStatus } });
+  const table = useServerTable({
+    initialFilters: { status: "ACTIVE" as CatalogStatus },
+  });
   const { pagination } = table;
   const playlistsQuery = usePlaylists({
     page: pagination.pageIndex,
@@ -34,7 +39,9 @@ export default function PlaylistsPage() {
   const [view, setView] = useState<ViewMode>("grid");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const deletePlaylist = useDeletePlaylist();
-  const deletingId = deletePlaylist.isPending ? (deletePlaylist.variables?.id ?? null) : null;
+  const deletingId = deletePlaylist.isPending
+    ? (deletePlaylist.variables?.id ?? null)
+    : null;
 
   const handleDelete = async (playlist: Pick<Playlist, "id" | "name">) => {
     const ok = await confirm({
@@ -48,8 +55,7 @@ export default function PlaylistsPage() {
   };
   const onDelete = can("playlist.delete") ? handleDelete : undefined;
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: handleDelete reads fresh state when called
-  const columns = useMemo(() => playlistColumns({ onDelete, deletingId }), [Boolean(onDelete), deletingId]);
+  const columns = playlistColumns({ onDelete, deletingId });
   const open = (p: Playlist) => router.push(`/playlists/${p.id}`);
 
   return (
@@ -62,7 +68,8 @@ export default function PlaylistsPage() {
           <div>
             <h1 className="text-lg font-bold text-white">Playlists Studio</h1>
             <p className="text-xs text-zinc-400">
-              {rows.length} of {total} {total === 1 ? "collection" : "collections"} curated
+              {rows.length} of {total}{" "}
+              {total === 1 ? "collection" : "collections"} curated
             </p>
           </div>
         </div>
@@ -93,11 +100,22 @@ export default function PlaylistsPage() {
         enableRowSelection={view === "table"}
         rowSelection={table.rowSelection}
         onRowSelectionChange={table.setRowSelection}
-        renderBulkActions={() => <span className="text-zinc-400">Export the selection with Export CSV.</span>}
+        renderBulkActions={() => (
+          <span className="text-zinc-400">
+            Export the selection with Export CSV.
+          </span>
+        )}
         toolbar={
           <>
-            <SearchInput value={table.search} onChange={table.setSearch} placeholder="Search playlists..." />
-            <CatalogStatusFilter value={table.filters.status} onChange={(v) => table.setFilter("status", v)} />
+            <SearchInput
+              value={table.search}
+              onChange={table.setSearch}
+              placeholder="Search playlists..."
+            />
+            <CatalogStatusFilter
+              value={table.filters.status}
+              onChange={(v) => table.setFilter("status", v)}
+            />
           </>
         }
         actions={<ViewToggle value={view} onChange={setView} />}
@@ -113,14 +131,19 @@ export default function PlaylistsPage() {
                   loading={loading}
                   deletingPlaylistId={deletingId}
                   onSelectPlaylist={open}
-                  onDeletePlaylist={onDelete ? (id, name) => onDelete({ id, name }) : undefined}
+                  onDeletePlaylist={
+                    onDelete ? (id, name) => onDelete({ id, name }) : undefined
+                  }
                 />
               )
             : undefined
         }
       />
 
-      <CreatePlaylistModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
+      <CreatePlaylistModal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+      />
     </div>
   );
 }

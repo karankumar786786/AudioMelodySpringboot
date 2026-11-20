@@ -1,6 +1,11 @@
 "use client";
 
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import type { Playlist, PlaylistSong } from "@/app/playlists/types";
 import { useToast } from "@/components/feedback/ToastProvider";
 import { ApiError, apiGet, apiRequest, fetchPage } from "@/lib/http";
@@ -15,10 +20,14 @@ export interface PlaylistListParams {
   status: string;
 }
 
-export function usePlaylists(params: PlaylistListParams, options?: { enabled?: boolean }) {
+export function usePlaylists(
+  params: PlaylistListParams,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: queryKeys.playlists.list({ ...params }),
-    queryFn: ({ signal }) => fetchPage<Playlist>("/admin/playlist", { ...params }, signal),
+    queryFn: ({ signal }) =>
+      fetchPage<Playlist>("/admin/playlist", { ...params }, signal),
     placeholderData: keepPreviousData,
     enabled: options?.enabled ?? true,
   });
@@ -28,7 +37,8 @@ export function usePlaylist(id: string) {
   return useQuery({
     queryKey: queryKeys.playlists.detail(id),
     queryFn: ({ signal }) => apiGet<Playlist>(`/admin/playlist/${id}`, signal),
-    retry: (count, err) => !(err instanceof ApiError && err.status === 404) && count < 2,
+    retry: (count, err) =>
+      !(err instanceof ApiError && err.status === 404) && count < 2,
   });
 }
 
@@ -37,7 +47,13 @@ export function usePlaylistSongs(id: string) {
   return useQuery({
     queryKey: queryKeys.playlists.songs(id),
     queryFn: async ({ signal }) =>
-      (await fetchPage<PlaylistSong>(`/admin/playlist/${id}/songs`, { page: 0, size: 500 }, signal)).rows,
+      (
+        await fetchPage<PlaylistSong>(
+          `/admin/playlist/${id}/songs`,
+          { page: 0, size: 500 },
+          signal,
+        )
+      ).rows,
   });
 }
 
@@ -52,7 +68,11 @@ export function useCreatePlaylist() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: PlaylistInput) =>
-      apiRequest<Playlist>("/admin/playlist", { method: "POST", body: input, errorMessage: "Failed to create playlist" }),
+      apiRequest<Playlist>("/admin/playlist", {
+        method: "POST",
+        body: input,
+        errorMessage: "Failed to create playlist",
+      }),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.playlists.all });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard.all });
@@ -66,7 +86,11 @@ export function useUpdatePlaylist(id: string) {
   const key = queryKeys.playlists.detail(id);
   return useMutation({
     mutationFn: (patch: Partial<PlaylistInput>) =>
-      apiRequest<Playlist>(`/admin/playlist/${id}`, { method: "PUT", body: patch, errorMessage: "Update failed" }),
+      apiRequest<Playlist>(`/admin/playlist/${id}`, {
+        method: "PUT",
+        body: patch,
+        errorMessage: "Update failed",
+      }),
     retry: retryIdempotent,
     onMutate: async (patch) => {
       await qc.cancelQueries({ queryKey: key });
@@ -75,7 +99,10 @@ export function useUpdatePlaylist(id: string) {
         qc.setQueryData<Playlist>(key, {
           ...previous,
           ...patch,
-          videoKey: patch.videoKey === null ? undefined : (patch.videoKey ?? previous.videoKey),
+          videoKey:
+            patch.videoKey === null
+              ? undefined
+              : (patch.videoKey ?? previous.videoKey),
         } as Playlist);
       }
       return { previous };
@@ -84,9 +111,11 @@ export function useUpdatePlaylist(id: string) {
       if (ctx?.previous) qc.setQueryData(key, ctx.previous);
     },
     onSuccess: (data) => {
-      if (data && typeof data === "object" && "id" in data) qc.setQueryData(key, data);
+      if (data && typeof data === "object" && "id" in data)
+        qc.setQueryData(key, data);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.playlists.lists() }),
+    onSettled: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.playlists.lists() }),
   });
 }
 
@@ -95,7 +124,10 @@ export function useDeletePlaylist() {
   const toast = useToast();
   return useMutation({
     mutationFn: (playlist: Pick<Playlist, "id" | "name">) =>
-      apiRequest(`/admin/playlist/${playlist.id}`, { method: "DELETE", errorMessage: "Failed to delete playlist" }),
+      apiRequest(`/admin/playlist/${playlist.id}`, {
+        method: "DELETE",
+        errorMessage: "Failed to delete playlist",
+      }),
     retry: retryIdempotent,
     onMutate: async (playlist) => ({
       snapshot: await patchPages<Playlist>(
@@ -120,7 +152,13 @@ export function useDeletePlaylist() {
 export function useAddSongToPlaylist() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ playlistId, songId }: { playlistId: string; songId: string }) =>
+    mutationFn: ({
+      playlistId,
+      songId,
+    }: {
+      playlistId: string;
+      songId: string;
+    }) =>
       apiRequest<Playlist>(`/admin/playlist/${playlistId}/songs`, {
         method: "POST",
         body: { songId },
@@ -130,7 +168,9 @@ export function useAddSongToPlaylist() {
     retry: retryIdempotent,
     onSettled: (_d, _e, { playlistId }) => {
       qc.invalidateQueries({ queryKey: queryKeys.playlists.songs(playlistId) });
-      qc.invalidateQueries({ queryKey: queryKeys.playlists.detail(playlistId) });
+      qc.invalidateQueries({
+        queryKey: queryKeys.playlists.detail(playlistId),
+      });
       qc.invalidateQueries({ queryKey: queryKeys.playlists.lists() });
     },
   });
@@ -152,7 +192,9 @@ export function useRemovePlaylistSong(playlistId: string) {
       await qc.cancelQueries({ queryKey: songsKey });
       const previousSongs = qc.getQueryData<PlaylistSong[]>(songsKey);
       const previousDetail = qc.getQueryData<Playlist>(detailKey);
-      qc.setQueryData<PlaylistSong[]>(songsKey, (old) => old?.filter((s) => s.id !== song.id));
+      qc.setQueryData<PlaylistSong[]>(songsKey, (old) =>
+        old?.filter((s) => s.id !== song.id),
+      );
       qc.setQueryData<Playlist>(detailKey, (old) =>
         old ? { ...old, totalSongs: Math.max(0, old.totalSongs - 1) } : old,
       );
@@ -163,11 +205,11 @@ export function useRemovePlaylistSong(playlistId: string) {
       qc.setQueryData(detailKey, ctx?.previousDetail);
       toast(err.message, "error");
     },
-    onSuccess: (_d, song) => toast(`Removed "${song.title || "track"}" from playlist`),
+    onSuccess: (_d, song) =>
+      toast(`Removed "${song.title || "track"}" from playlist`),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: songsKey });
       qc.invalidateQueries({ queryKey: queryKeys.playlists.lists() });
     },
   });
 }
-

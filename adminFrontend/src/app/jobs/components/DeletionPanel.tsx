@@ -1,7 +1,7 @@
 "use client";
 
 import type { UseQueryResult } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { DataTable } from "@/components/data-table/DataTable";
 import { SearchInput, SegmentedFilter } from "@/components/data-table/Toolbar";
 import type { useServerTable } from "@/components/data-table/useServerTable";
@@ -14,10 +14,18 @@ import { DeleteJobDetailModal } from "./DeleteJobDetailModal";
 import { JobMetricsCards } from "./JobMetricsCards";
 import { deletionColumns } from "./jobColumns";
 
-export type DeletionTable = ReturnType<typeof useServerTable<{ status: string; entityType: string }>>;
+export type DeletionTable = ReturnType<
+  typeof useServerTable<{ status: string; entityType: string }>
+>;
 
 // DeleteJob statuses and entity types as the delete pipeline stores them.
-const STATUSES = ["ALL", "PENDING", "IN_PROGRESS", "COMPLETED", "FAILED"] as const;
+const STATUSES = [
+  "ALL",
+  "PENDING",
+  "IN_PROGRESS",
+  "COMPLETED",
+  "FAILED",
+] as const;
 const TYPES = ["ALL", "SONG", "ARTIST", "PLAYLIST"] as const;
 
 export function DeletionPanel({
@@ -38,10 +46,14 @@ export function DeletionPanel({
   const remove = useDeleteJob("deletion");
 
   const rows = list.data?.rows ?? [];
-  const selectedJob = (selectedId && rows.find((j) => j.id === selectedId)) || null;
+  const selectedJob =
+    (selectedId && rows.find((j) => j.id === selectedId)) || null;
 
   const handleRetry = (id: string) =>
-    retry.mutate(id, { onError: (err) => toast(err.message || "Error retrying delete job", "error") });
+    retry.mutate(id, {
+      onError: (err) =>
+        toast(err.message || "Error retrying delete job", "error"),
+    });
 
   const handleDelete = async (id: string) => {
     const ok = await confirm({
@@ -56,17 +68,19 @@ export function DeletionPanel({
       onSuccess: () => {
         if (selectedId === id) setSelectedId(null);
       },
-      onError: (err) => toast(err.message || "Error deleting cascade delete job", "error"),
+      onError: (err) =>
+        toast(err.message || "Error deleting cascade delete job", "error"),
     });
   };
 
   const retryingId = retry.isPending ? (retry.variables ?? null) : null;
   const deletingId = remove.isPending ? (remove.variables ?? null) : null;
-  const columns = useMemo(
-    () => deletionColumns({ onRetry: handleRetry, onDelete: handleDelete, retryingId, deletingId }),
-    // biome-ignore lint/correctness/useExhaustiveDependencies: handlers read fresh state when called
-    [retryingId, deletingId],
-  );
+  const columns = deletionColumns({
+    onRetry: handleRetry,
+    onDelete: handleDelete,
+    retryingId,
+    deletingId,
+  });
 
   return (
     <>
@@ -96,19 +110,31 @@ export function DeletionPanel({
               label="Delete job status"
               value={table.filters.status}
               onChange={(s) => table.setFilter("status", s)}
-              options={STATUSES.map((s) => ({ value: s, label: s === "ALL" ? "All Status" : s.replace("_", " ") }))}
+              options={STATUSES.map((s) => ({
+                value: s,
+                label: s === "ALL" ? "All Status" : s.replace("_", " "),
+              }))}
             />
             <SegmentedFilter
               label="Entity type"
               value={table.filters.entityType}
               onChange={(t) => table.setFilter("entityType", t)}
-              options={TYPES.map((t) => ({ value: t, label: t === "ALL" ? "All Types" : t }))}
+              options={TYPES.map((t) => ({
+                value: t,
+                label: t === "ALL" ? "All Types" : t,
+              }))}
             />
-            <SearchInput value={table.search} onChange={table.setSearch} placeholder="Search entity ID, title, job ID..." />
+            <SearchInput
+              value={table.search}
+              onChange={table.setSearch}
+              placeholder="Search entity ID, title, job ID..."
+            />
           </>
         }
         emptyState={
-          <div className="py-12 text-center text-zinc-500 text-xs">No cascade delete jobs found matching filter criteria.</div>
+          <div className="py-12 text-center text-zinc-500 text-xs">
+            No cascade delete jobs found matching filter criteria.
+          </div>
         }
         exportFileName="delete-jobs"
         storageKey="delete-jobs"

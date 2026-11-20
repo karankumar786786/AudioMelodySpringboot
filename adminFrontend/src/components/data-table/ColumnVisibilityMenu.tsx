@@ -11,7 +11,8 @@ export function ColumnVisibilityMenu<T>({ table }: { table: Table<T> }) {
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node))
+        setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("mousedown", onDown);
@@ -43,7 +44,9 @@ export function ColumnVisibilityMenu<T>({ table }: { table: Table<T> }) {
         >
           {columns.map((column) => {
             const h = column.columnDef.header;
-            const label = column.columnDef.meta?.label ?? (typeof h === "string" ? h : column.id);
+            const label =
+              column.columnDef.meta?.label ??
+              (typeof h === "string" ? h : column.id);
             return (
               <label
                 key={column.id}

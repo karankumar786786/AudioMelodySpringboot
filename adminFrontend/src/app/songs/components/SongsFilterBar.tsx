@@ -1,9 +1,22 @@
 "use client";
 
-import React from "react";
-import { Plus, Search, Music, LayoutGrid, List, Star, Film, Video } from "lucide-react";
+import {
+  Film,
+  LayoutGrid,
+  List,
+  Music,
+  Plus,
+  Search,
+  Star,
+  Video,
+} from "lucide-react";
 
-export type SongPresetFilter = "ALL" | "FEATURED" | "CANVAS" | "FULL_VIDEO" | "LYRICS";
+export type SongPresetFilter =
+  | "ALL"
+  | "FEATURED"
+  | "CANVAS"
+  | "FULL_VIDEO"
+  | "LYRICS";
 
 interface SongsFilterBarProps {
   search: string;
@@ -97,7 +110,8 @@ export function SongsFilterBar({
           <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 bg-[#16161a] border border-white/8 rounded-xl text-xs text-zinc-400 font-mono">
             <Music className="w-3.5 h-3.5 text-zinc-300" />
             <span className="tabular-nums">
-              {totalSongs.toLocaleString()} {totalSongs === 1 ? "track" : "tracks"}
+              {totalSongs.toLocaleString()}{" "}
+              {totalSongs === 1 ? "track" : "tracks"}
             </span>
           </div>
 
@@ -117,14 +131,14 @@ export function SongsFilterBar({
 
           {/* Add Song Button */}
           {onOpenCreateModal && (
-          <button
-            type="button"
-            onClick={onOpenCreateModal}
-            className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white hover:bg-zinc-200 text-black font-bold text-xs rounded-xl transition-all shadow-sm active:scale-95 shrink-0 cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span>Add Song</span>
-          </button>
+            <button
+              type="button"
+              onClick={onOpenCreateModal}
+              className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white hover:bg-zinc-200 text-black font-bold text-xs rounded-xl transition-all shadow-sm active:scale-95 shrink-0 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>Add Song</span>
+            </button>
           )}
         </div>
       </div>
@@ -154,7 +168,9 @@ export function SongsFilterBar({
               : "bg-[#141418] text-zinc-400 hover:text-white hover:bg-[#1a1a20] border border-white/6"
           }`}
         >
-          <Star className={`w-3.5 h-3.5 ${presetFilter === "FEATURED" ? "fill-amber-500 text-amber-500" : "fill-amber-400 text-amber-400"}`} />
+          <Star
+            className={`w-3.5 h-3.5 ${presetFilter === "FEATURED" ? "fill-amber-500 text-amber-500" : "fill-amber-400 text-amber-400"}`}
+          />
           <span>Featured Only</span>
         </button>
         <button

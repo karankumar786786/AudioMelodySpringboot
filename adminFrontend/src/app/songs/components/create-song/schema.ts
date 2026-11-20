@@ -1,5 +1,11 @@
 import { z } from "zod";
-import { fileOrNull, lrclibId, minutes, requiredText, seconds } from "@/lib/forms/schemas";
+import {
+  fileOrNull,
+  lrclibId,
+  minutes,
+  requiredText,
+  seconds,
+} from "@/lib/forms/schemas";
 import type { UploadMode } from "../../types";
 
 /**
@@ -30,18 +36,33 @@ export const createSongSchema = z
     previewEndSec: seconds,
   })
   .superRefine((v, ctx) => {
-    if (!v.imageFile) ctx.addIssue({ code: "custom", path: ["imageFile"], message: "Please select a cover image" });
+    if (!v.imageFile)
+      ctx.addIssue({
+        code: "custom",
+        path: ["imageFile"],
+        message: "Please select a cover image",
+      });
     if (v.mode === "audio" && !v.songFile) {
-      ctx.addIssue({ code: "custom", path: ["songFile"], message: "Please select an audio file" });
+      ctx.addIssue({
+        code: "custom",
+        path: ["songFile"],
+        message: "Please select an audio file",
+      });
     }
     if (v.mode === "videoOnly" && !v.fullVideoFile) {
-      ctx.addIssue({ code: "custom", path: ["fullVideoFile"], message: "Please select a full video file" });
+      ctx.addIssue({
+        code: "custom",
+        path: ["fullVideoFile"],
+        message: "Please select a full video file",
+      });
     }
   });
 
 export type CreateSongValues = z.infer<typeof createSongSchema>;
 
-export const createSongDefaults = (mode: UploadMode = "audio"): CreateSongValues => ({
+export const createSongDefaults = (
+  mode: UploadMode = "audio",
+): CreateSongValues => ({
   mode,
   title: "",
   artistName: "",

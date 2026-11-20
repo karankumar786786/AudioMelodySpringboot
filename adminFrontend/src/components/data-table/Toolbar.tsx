@@ -57,7 +57,10 @@ export function SegmentedFilter<V extends string>({
   onChange: (value: V) => void;
 }) {
   return (
-    <fieldset className="flex items-center bg-[#141418] p-1 rounded-xl border border-white/8 text-xs" aria-label={label}>
+    <fieldset
+      className="flex items-center bg-[#141418] p-1 rounded-xl border border-white/8 text-xs"
+      aria-label={label}
+    >
       {options.map((opt) => (
         <button
           key={opt.value}
@@ -65,7 +68,9 @@ export function SegmentedFilter<V extends string>({
           aria-pressed={value === opt.value}
           onClick={() => onChange(opt.value)}
           className={`px-3 py-1 rounded-lg font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 ${
-            value === opt.value ? "bg-white text-black font-bold shadow-sm" : "text-zinc-400 hover:text-white"
+            value === opt.value
+              ? "bg-white text-black font-bold shadow-sm"
+              : "text-zinc-400 hover:text-white"
           }`}
         >
           {opt.label}

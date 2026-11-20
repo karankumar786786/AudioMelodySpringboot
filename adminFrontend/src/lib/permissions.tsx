@@ -70,14 +70,19 @@ export const ROLE_PERMISSIONS: Record<AdminRole, ReadonlySet<Permission>> = {
   SUPER_ADMIN: new Set([...ADMIN_PERMISSIONS, ...SUPER_ADMIN_ONLY]),
 };
 
-export function normalizeRole(role: string | null | undefined): AdminRole | null {
+export function normalizeRole(
+  role: string | null | undefined,
+): AdminRole | null {
   const r = (role ?? "").toUpperCase().replace(/[\s-]/g, "_");
   if (r === "SUPER_ADMIN" || r === "SUPERADMIN") return "SUPER_ADMIN";
   if (r === "ADMIN") return "ADMIN";
   return null;
 }
 
-export function can(role: string | null | undefined, permission: Permission): boolean {
+export function can(
+  role: string | null | undefined,
+  permission: Permission,
+): boolean {
   const r = normalizeRole(role);
   return r ? ROLE_PERMISSIONS[r].has(permission) : false;
 }
