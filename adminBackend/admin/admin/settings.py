@@ -288,9 +288,18 @@ RECOMBEE_DATABASE_REGION = os.getenv("RECOMBEE_DATABASE_REGION", "EU_WEST")
 AUDIO_PROCESSING_URL = os.getenv("AUDIO_PROCESSING_URL", "http://localhost:5010")
 AUDIO_PROCESSING_API_KEY = os.getenv("AUDIO_PROCESSING_API_KEY", "")
 APPLICATION_API_KEY = os.getenv("APPLICATION_API_KEY", os.getenv("SPRING_APPLICATION_API_KEY", AUDIO_PROCESSING_API_KEY))
-INNGEST_EVENT_KEY = os.getenv("INNGEST_EVENT_KEY", "gihqdXZwOpMNcHq3a1hZ9NjMFaM_WEydDXpVPI3q1h8jQRw37s-ZX9Y_MW4XoskIJ1tyvcDST8iPi0dpGdKzZw")
-INNGEST_SIGNING_KEY = os.getenv("INNGEST_SIGNING_KEY", "signkey-prod-e66ce5256a47a6fd9e45a1917c06f80f06a8dfb27cfa9432b5fef2283162fec9")
 INNGEST_DEV = os.getenv("INNGEST_DEV", "0") in ("1", "true", "True")
+# Inngest keys come only from the environment (Secrets Manager in production).
+# The local Inngest dev server needs neither, so dev, debug and test runs may omit them.
+INNGEST_EVENT_KEY = os.getenv("INNGEST_EVENT_KEY", "").strip()
+INNGEST_SIGNING_KEY = os.getenv("INNGEST_SIGNING_KEY", "").strip()
+_missing_inngest = [
+    name for name, value in (("INNGEST_EVENT_KEY", INNGEST_EVENT_KEY), ("INNGEST_SIGNING_KEY", INNGEST_SIGNING_KEY)) if not value
+]
+if _missing_inngest and not (INNGEST_DEV or DEBUG or _RUNNING_TESTS):
+    raise ImproperlyConfigured(
+        f"{', '.join(_missing_inngest)} not set. Set them in the environment, or set INNGEST_DEV=1 for local development."
+    )
 INNGEST_DEV_URL = os.getenv("INNGEST_DEV_URL", "http://localhost:8288")
 
 SILENCED_SYSTEM_CHECKS = ["fields.W342"]

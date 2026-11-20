@@ -88,9 +88,27 @@ class SecuritySettingsTests(SimpleTestCase):
         self.assertIn("DJANGO_SECRET_KEY is not set", result.stderr)
 
     def test_debug_defaults_to_off(self):
-        result = self._import_settings({"DJANGO_DEBUG": "", "DJANGO_SECRET_KEY": "x" * 64})
+        result = self._import_settings({
+            "DJANGO_DEBUG": "", "DJANGO_SECRET_KEY": "x" * 64,
+            "INNGEST_DEV": "0", "INNGEST_EVENT_KEY": "test-event", "INNGEST_SIGNING_KEY": "test-signing",
+        })
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("DEBUG=False", result.stdout)
+
+    def test_refuses_to_start_without_inngest_keys_in_production(self):
+        result = self._import_settings({
+            "DJANGO_DEBUG": "false", "DJANGO_SECRET_KEY": "x" * 64,
+            "INNGEST_DEV": "0", "INNGEST_EVENT_KEY": "", "INNGEST_SIGNING_KEY": "",
+        })
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("INNGEST_EVENT_KEY, INNGEST_SIGNING_KEY not set", result.stderr)
+
+    def test_inngest_dev_server_needs_no_keys(self):
+        result = self._import_settings({
+            "DJANGO_DEBUG": "false", "DJANGO_SECRET_KEY": "x" * 64,
+            "INNGEST_DEV": "1", "INNGEST_EVENT_KEY": "", "INNGEST_SIGNING_KEY": "",
+        })
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_otp_is_never_logged_or_printed_outside_debug(self):
         import io

@@ -138,3 +138,19 @@ logging:
     "[org.hibernate.SQL]": WARN
   pattern:
     console: "%clr(%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}){faint} %clr(%5p) %clr([${spring.application.name:core-engine},%X{trace_id:-0},%X{span_id:-0}]){yellow} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"
+---
+# Production secrets: AWS Secrets Manager, read with the EC2 instance role (no keys on disk).
+# Turn on with SPRING_PROFILES_ACTIVE=aws. SECRET_IDS is a ';'-separated list of JSON secrets
+# whose keys (DB_URL, JWT_SECRET, ...) become properties and fill the ${...} placeholders above.
+# The import is not optional: if a secret cannot be read the app stops instead of
+# starting against the localhost defaults. Without the profile, .env loading works as before.
+spring:
+  config:
+    activate:
+      on-profile: aws
+    import:
+      - aws-secretsmanager:${SECRET_IDS:onemelody/prod/db;onemelody/prod/redis;onemelody/prod/core}
+  cloud:
+    aws:
+      region:
+        static: ${AWS_REGION:ap-south-1}

@@ -27,6 +27,7 @@ resource "aws_instance" "ec2" {
   instance_type          = element(local.parsed_instance_types, count.index)
   key_name               = aws_key_pair.main.key_name
   vpc_security_group_ids = [aws_security_group.ec2_sg.id]
+  iam_instance_profile   = lookup(var.iam_instance_profiles, local.ec2_roles[count.index], null)
 
   # Distribute across available public subnets (ap-south-1a and ap-south-1b)
   subnet_id = count.index == 0 ? aws_subnet.public_1.id : aws_subnet.public_2.id
@@ -36,6 +37,20 @@ resource "aws_instance" "ec2" {
     volume_type           = var.root_volume_type
     delete_on_termination = true
     encrypted             = true
+  }
+
+  # IMDSv2 only: the instance role's credentials are served by the metadata
+  # endpoint, so block the v1 (no-token) path. Hop limit 2 lets containers reach it.
+  metadata_options {
+    http_endpoint               = "enabled"
+    http_tokens                 = "required"
+    http_put_response_hop_limit = 2
+  }
+
+  # The AMI data source tracks the newest Ubuntu image; without this every new
+  # Canonical release would make Terraform rebuild the running servers.
+  lifecycle {
+    ignore_changes = [ami]
   }
 
   tags = {

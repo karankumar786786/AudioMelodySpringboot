@@ -53,6 +53,10 @@ COPY --from=builder --chown=appuser:appgroup /app/.venv /app/.venv
 COPY --from=builder --chown=appuser:appgroup /app/admin /app/admin
 COPY --from=builder --chown=appuser:appgroup /app/pyproject.toml /app/pyproject.toml
 
+# Secrets Manager loader: runs only when SECRET_IDS is set (see entrypoint.sh)
+COPY --chmod=755 entrypoint.sh /app/entrypoint.sh
+COPY --chmod=644 load_secrets.py /app/load_secrets.py
+
 # Switch to non-root user
 USER appuser
 
@@ -70,4 +74,5 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=15s \
 # --no-control-socket: gunicorn >=25.1 opens a gunicornc control socket under
 # $HOME/.gunicorn by default; appuser is a system user without a home dir, which
 # logged "Control server error: Permission denied". We do not use gunicornc.
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["gunicorn", "admin.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--threads", "2", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "--no-control-socket"]
