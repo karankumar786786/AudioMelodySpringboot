@@ -256,6 +256,12 @@
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
 					<argLine>-XX:+EnableDynamicAgentLoading --enable-native-access=ALL-UNNAMED</argLine>
+					<!-- *IT tests use Testcontainers (Redpanda, Postgres) and skip themselves without Docker. -->
+					<includes>
+						<include>**/*Test.java</include>
+						<include>**/*Tests.java</include>
+						<include>**/*IT.java</include>
+					</includes>
 				</configuration>
 			</plugin>
 		</plugins>

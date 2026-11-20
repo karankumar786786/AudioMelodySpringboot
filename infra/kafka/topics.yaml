@@ -59,6 +59,9 @@ topics:
   - name: stats.song-daily.v1
     partitions: 3
     config: retention.ms=7776000000
+  - name: activity.session.v1
+    partitions: 3
+    config: cleanup.policy=compact
   - name: pipeline.dlq.v1
     partitions: 3
     config: retention.ms=1209600000
