@@ -22,7 +22,7 @@ export function partialListenRatio(currentTime: number, duration: number): numbe
 
 /**
  * Listening telemetry and resume-position persistence:
- * - saves the playback position locally every 5s and to the server every 20s,
+ * - saves the playback position locally every 5s and to the server every 60s,
  * - reports one listen per track (full on natural end, partial when skipped away).
  */
 export class ProgressReporter {
@@ -62,9 +62,10 @@ export class ProgressReporter {
 
   /** Records a full listen when the track reaches its end. */
   public reportFullListen(): void {
-    const songId = this.getCurrentSong()?.id;
+    const song = this.getCurrentSong();
+    const songId = song?.id;
     if (songId && !this.hasReportedListen) {
-      interactionService.recordPlay(songId, 1.0);
+      interactionService.recordPlay(songId, 1.0, song?.duration || undefined);
       this.hasReportedListen = true;
     }
   }
@@ -78,7 +79,7 @@ export class ProgressReporter {
     const duration = player.duration || song.duration || 0;
     const ratio = partialListenRatio(currentTime, duration);
     if (ratio !== null) {
-      interactionService.recordPlay(song.id, ratio);
+      interactionService.recordPlay(song.id, ratio, duration || undefined);
       this.hasReportedListen = true;
     }
   }
