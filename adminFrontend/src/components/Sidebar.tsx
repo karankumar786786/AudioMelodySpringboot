@@ -1,19 +1,19 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useAuth } from "@/lib/auth-context";
 import {
-  LayoutDashboard,
-  Music,
-  Cpu,
-  Mic2,
-  ListMusic,
-  ShieldAlert,
   ChevronRight,
+  Cpu,
+  LayoutDashboard,
+  ListMusic,
+  Mic2,
+  Music,
+  ShieldAlert,
   Sparkles,
   Stethoscope,
 } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 
 interface NavItem {
   name: string;

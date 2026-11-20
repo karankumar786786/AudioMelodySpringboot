@@ -1,8 +1,0 @@
-target
-.env
-.env.example
-.git
-*.md
-.DS_Store
-.idea
-.vscode

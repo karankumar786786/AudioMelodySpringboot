@@ -1,14 +1,14 @@
 "use client";
 
-import { LogOut, WifiOff, Plus } from "lucide-react";
+import { LogOut, Plus, WifiOff } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useAuth } from "@/lib/auth-context";
 import { useAudio } from "@/lib/audio-context";
+import { useAuth } from "@/lib/auth-context";
 import { AuthScreen } from "./AuthScreen";
-import { Sidebar } from "./Sidebar";
-import { MiniAudioDock } from "./audio/MiniAudioDock";
 import { CanvasPreviewModal } from "./audio/CanvasPreviewModal";
+import { MiniAudioDock } from "./audio/MiniAudioDock";
+import { Sidebar } from "./Sidebar";
 import { StatusPill } from "./ui/StatusPill";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -73,6 +73,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="max-w-md w-full text-center space-y-6 p-8 bg-[#121215] border border-white/8 rounded-3xl shadow-2xl">
           <div className="w-14 h-14 bg-rose-500/10 border border-rose-500/20 rounded-2xl flex items-center justify-center mx-auto text-rose-500 mb-2">
             <svg
+              aria-hidden="true"
               className="w-7 h-7"
               fill="none"
               stroke="currentColor"

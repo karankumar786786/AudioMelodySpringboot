@@ -1,3 +1,8 @@
+# Local development services. The apps themselves run on the host.
+#   docker compose up -d redpanda redpanda-init   # Kafka + Schema Registry + topics
+#   docker compose up -d inngest                  # Inngest dev server
+# From the host: Kafka localhost:19092, Schema Registry http://localhost:18081,
+# Redpanda Console http://localhost:8089 (docker compose up -d console).
 services:
   inngest:
     image: inngest/inngest:latest
@@ -7,3 +12,55 @@ services:
       inngest dev
       -u http://host.docker.internal:5010/api/inngest
       -u http://host.docker.internal:5020/api/inngest
+
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v26.1.20
+    command:
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --memory=1G
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+      - --schema-registry-addr=internal://0.0.0.0:8081,external://0.0.0.0:18081
+      - --pandaproxy-addr=internal://0.0.0.0:8082
+      - --rpc-addr=redpanda:33145
+      - --advertise-rpc-addr=redpanda:33145
+    ports:
+      - "19092:19092"
+      - "18081:18081"
+    volumes:
+      - redpanda-dev:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "health", "--exit-when-healthy"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redpanda-init:
+    image: docker.redpanda.com/redpandadata/redpanda:v26.1.20
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "/kafka/apply-topics.sh", "/kafka/topics.yaml"]
+    environment:
+      RPK_BROKERS: redpanda:9092
+    volumes:
+      - ./infra/kafka:/kafka:ro
+    restart: "no"
+
+  console:
+    image: docker.redpanda.com/redpandadata/console:v3.2.2
+    depends_on:
+      - redpanda
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+      SCHEMAREGISTRY_ENABLED: "true"
+      SCHEMAREGISTRY_URLS: http://redpanda:8081
+    ports:
+      - "8089:8080"
+    profiles: ["console"]
+
+volumes:
+  redpanda-dev:

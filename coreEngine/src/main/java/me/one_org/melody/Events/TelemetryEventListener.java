@@ -3,6 +3,7 @@ package me.one_org.melody.Events;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -20,8 +21,14 @@ import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Services.Api.ArtistApiService;
 import me.one_org.melody.Utils.RetryUtil;
 
+/**
+ * Legacy in-process path: Recombee, Algolia and stream counts updated straight from the
+ * core API. Runs in LEGACY and DUAL mode; in KAFKA mode syncStreams and activityStreams
+ * (streams/) do this work instead, so the bean isn't created.
+ */
 @Component
 @Slf4j
+@ConditionalOnExpression("'${melody.events.mode:LEGACY}'.toUpperCase() != 'KAFKA'")
 public class TelemetryEventListener {
 
     private final Recombee recombee;

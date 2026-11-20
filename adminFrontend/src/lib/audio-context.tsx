@@ -1,14 +1,14 @@
 "use client";
 
-import React, {
+import type React from "react";
+import {
   createContext,
-  useContext,
-  useState,
-  useRef,
-  useEffect,
   useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
 } from "react";
-import { getImageUrl } from "./image-utils";
 
 const S3_BASE_URL =
   process.env.NEXT_PUBLIC_S3_BASE_URL ||
@@ -55,6 +55,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Initialize audio element
+  // biome-ignore lint/correctness/useExhaustiveDependencies: create the element once; volume changes are applied by their own effect
   useEffect(() => {
     if (typeof window === "undefined") return;
     const audio = new Audio();
@@ -105,6 +106,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     return "";
   };
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: resolveStreamUrl only reads its argument and a constant
   const playTrack = useCallback((track: ActiveTrack) => {
     setCurrentTrack(track);
     const url = resolveStreamUrl(track);
@@ -116,13 +118,16 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       .play()
       .then(() => setIsPlaying(true))
       .catch((err) => {
-        console.warn("Autoplay was prevented or audio format requires HLS", err);
+        console.warn(
+          "Autoplay was prevented or audio format requires HLS",
+          err,
+        );
         // Still keep track active so admin can see metadata & trigger play manually
       });
 
     if (track.duration) {
       setDuration(
-        track.duration > 10000 ? track.duration / 1000 : track.duration
+        track.duration > 10000 ? track.duration / 1000 : track.duration,
       );
     }
   }, []);
@@ -206,4 +211,3 @@ export function useAudio() {
   }
   return context;
 }
-

@@ -1,14 +1,14 @@
 "use client";
 
-import React from "react";
-import { CheckSquare, Sparkles, Search, Trash2, X, RefreshCw } from "lucide-react";
+import { CheckSquare, Search, Sparkles, Trash2, X } from "lucide-react";
 
 interface BulkActionsBarProps {
   selectedCount: number;
   onClearSelection: () => void;
-  onBulkDelete: () => void;
-  onBulkSyncAlgolia: () => void;
-  onBulkSyncRecombee: () => void;
+  /** Each action is left out when the current role may not take it. */
+  onBulkDelete?: () => void;
+  onBulkSyncAlgolia?: () => void;
+  onBulkSyncRecombee?: () => void;
   isProcessing?: boolean;
 }
 
@@ -32,37 +32,43 @@ export function BulkActionsBar({
       </div>
 
       <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={onBulkSyncAlgolia}
-          disabled={isProcessing}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/25 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
-          title="Push selected songs to Algolia Search Index"
-        >
-          <Search className="w-3.5 h-3.5" />
-          <span>Sync Search</span>
-        </button>
+        {onBulkSyncAlgolia && (
+          <button
+            type="button"
+            onClick={onBulkSyncAlgolia}
+            disabled={isProcessing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/25 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+            title="Push selected songs to Algolia Search Index"
+          >
+            <Search className="w-3.5 h-3.5" />
+            <span>Sync Search</span>
+          </button>
+        )}
 
-        <button
-          type="button"
-          onClick={onBulkSyncRecombee}
-          disabled={isProcessing}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/25 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
-          title="Push selected songs to Recombee Recommendation Vectors"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span>Sync Recombee</span>
-        </button>
+        {onBulkSyncRecombee && (
+          <button
+            type="button"
+            onClick={onBulkSyncRecombee}
+            disabled={isProcessing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/25 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+            title="Push selected songs to Recombee Recommendation Vectors"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Sync Recombee</span>
+          </button>
+        )}
 
-        <button
-          type="button"
-          onClick={onBulkDelete}
-          disabled={isProcessing}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/25 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-          <span>Delete</span>
-        </button>
+        {onBulkDelete && (
+          <button
+            type="button"
+            onClick={onBulkDelete}
+            disabled={isProcessing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/25 text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Delete</span>
+          </button>
+        )}
 
         <div className="h-4 w-px bg-white/10" />
 
@@ -78,4 +84,3 @@ export function BulkActionsBar({
     </div>
   );
 }
-

@@ -1,0 +1,83 @@
+# One Melody stream services. SPRING_PROFILES_ACTIVE picks what this container runs:
+#   outbox-relay, stats, activity, sync, notification   (comma separated)
+spring:
+  application:
+    name: melody-streams
+  profiles:
+    active: ${STREAMS_PROFILES:outbox-relay,stats,activity,sync,notification}
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:streams/.env[.properties]
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:19092}
+    admin:
+      auto-create: false
+    producer:
+      compression-type: lz4
+      properties:
+        linger.ms: 20
+    properties:
+      security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+      sasl.mechanism: ${KAFKA_SASL_MECHANISM:SCRAM-SHA-256}
+      sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
+      auto.register.schemas: ${SCHEMA_AUTO_REGISTER:true}
+
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/melody}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    hikari:
+      pool-name: StreamsPool
+      minimum-idle: 0                  # no idle connections: let Neon sleep between batches
+      maximum-pool-size: 5
+      idle-timeout: 30000
+      max-lifetime: 240000
+      connection-timeout: 15000
+      initialization-fail-timeout: -1
+
+  mail:
+    host: ${SMTP_HOST:smtp.gmail.com}
+
+melody:
+  streams:
+    schema-registry-url: ${SCHEMA_REGISTRY_URL:http://localhost:18081}
+    state-dir: ${STREAMS_STATE_DIR:/tmp/kafka-streams}
+    replication-factor: ${KAFKA_REPLICATION_FACTOR:1}
+    # Turn these on when the core API switches to EVENTS_MODE=KAFKA (until then the core
+    # API still writes history and calls Recombee/Algolia itself).
+    history-sink-enabled: ${STREAMS_HISTORY_SINK_ENABLED:false}
+    sync-enabled: ${STREAMS_SYNC_ENABLED:false}
+    new-release-emails-enabled: ${STREAMS_NEW_RELEASE_EMAILS_ENABLED:false}
+    outbox-safety-sweep: ${OUTBOX_SAFETY_SWEEP:PT6H}
+    session-gap: PT30M
+
+recombee:
+  database-id: ${RECOMBEE_DATABASE_ID:}
+  secret-token: ${RECOMBEE_DATABASE_SECRET:}
+  region: ${RECOMBEE_DATABASE_REGION:EU_WEST}
+
+algolia:
+  app-id: ${ALGOLIA_APP_ID:}
+  api-key: ${ALGOLIA_API_KEY:}
+  index-name: ${ALGOLIA_INDEX_NAME:}
+
+server:
+  port: ${PORT:8095}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    db:
+      enabled: false        # no SELECT 1 every few seconds: Neon can sleep
+    mail:
+      enabled: false

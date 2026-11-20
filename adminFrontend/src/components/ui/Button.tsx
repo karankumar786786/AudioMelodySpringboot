@@ -1,7 +1,7 @@
 "use client";
 
-import React from "react";
 import { Loader2 } from "lucide-react";
+import React from "react";
 
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -26,7 +26,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       type = "button",
       ...props
     },
-    ref
+    ref,
   ) => {
     const baseStyles =
       "inline-flex items-center justify-center font-semibold transition-all duration-150 rounded-xl cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-white/30 disabled:opacity-50 disabled:pointer-events-none active:scale-[0.98]";
@@ -45,8 +45,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         "bg-[#16161a] hover:bg-[#202026] text-zinc-200 hover:text-white border border-white/8 hover:border-white/14",
       outline:
         "bg-transparent hover:bg-white/5 text-zinc-300 hover:text-white border border-white/10 hover:border-white/20",
-      ghost:
-        "bg-transparent hover:bg-white/6 text-zinc-400 hover:text-white",
+      ghost: "bg-transparent hover:bg-white/6 text-zinc-400 hover:text-white",
       danger:
         "bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 hover:border-rose-500/30",
     }[variant];
@@ -68,8 +67,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {!loading && rightIcon}
       </button>
     );
-  }
+  },
 );
 
 Button.displayName = "Button";
-

@@ -8,7 +8,8 @@ services:
       # Non-secret settings plus SECRET_IDS. Secret keys are read from AWS Secrets Manager
       # at start-up with the EC2 instance role (no keys on disk); see infra/SECRETS.md.
       SPRING_PROFILES_ACTIVE: aws
-      SECRET_IDS: onemelody/prod/db;onemelody/prod/redis;onemelody/prod/core
+      SECRET_IDS: onemelody/prod/db;onemelody/prod/redis;onemelody/prod/kafka;onemelody/prod/core
+      EVENTS_MODE: LEGACY
       AWS_REGION: ap-south-1
       APPLICATION_NAME: one_melody
       PORT: "9090"

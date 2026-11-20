@@ -1,116 +1,67 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
 import {
-  Smartphone,
+  AlertCircle,
+  Calendar,
+  Clock,
   Laptop,
+  Loader2,
+  RefreshCw,
   Shield,
+  Smartphone,
   Trash2,
   X,
-  RefreshCw,
-  Loader2,
-  Clock,
-  Calendar,
-  AlertCircle,
-  CheckCircle2,
 } from "lucide-react";
-import { adminFetch } from "@/lib/adminFetch";
-import { UserSession } from "@/lib/api";
-import { UserItem } from "../types";
+import type React from "react";
+import { useConfirm } from "@/components/feedback/ConfirmProvider";
+import { useToast } from "@/components/feedback/ToastProvider";
+import { useRevokeSession, useUserSessions } from "@/lib/queries/users";
+import type { UserItem } from "../types";
 
 export interface UserSessionsModalProps {
   user: UserItem | null;
   isOpen: boolean;
   onClose: () => void;
-  onNotify?: (message: string, type: "success" | "error") => void;
 }
 
 export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({
   user,
   isOpen,
   onClose,
-  onNotify,
 }) => {
-  const [sessions, setSessions] = useState<UserSession[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [revokingId, setRevokingId] = useState<string | null>(null);
-  const [revokingAll, setRevokingAll] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const toast = useToast();
+  const confirm = useConfirm();
+  const sessionsQuery = useUserSessions(isOpen ? user?.email : null);
+  const revoke = useRevokeSession(user?.email ?? "");
+  const sessions = sessionsQuery.data ?? [];
+  const loading = sessionsQuery.isFetching;
+  const error = sessionsQuery.error?.message ?? null;
+  const fetchSessions = () => sessionsQuery.refetch();
+  const revokingAll = revoke.isPending && revoke.variables === "all";
+  const revokingId =
+    revoke.isPending && revoke.variables !== "all" ? revoke.variables : null;
 
-  const fetchSessions = useCallback(async () => {
-    if (!user?.email) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await adminFetch(`/admin/account/${encodeURIComponent(user.email)}/sessions`);
-      if (res.ok) {
-        const data = await res.json();
-        setSessions(data.sessions || []);
-      } else {
-        const err = await res.json().catch(() => null);
-        setError(err?.error || err?.message || "Failed to load user device sessions");
-      }
-    } catch (e: any) {
-      setError(e.message || "Network error loading sessions");
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.email]);
-
-  useEffect(() => {
-    if (isOpen && user) {
-      fetchSessions();
-    } else {
-      setSessions([]);
-      setError(null);
-    }
-  }, [isOpen, user, fetchSessions]);
-
-  const handleRevokeSingle = async (sessionId: string) => {
-    if (!user?.email) return;
-    setRevokingId(sessionId);
-    try {
-      const res = await adminFetch(
-        `/admin/account/${encodeURIComponent(user.email)}/sessions/${sessionId}`,
-        { method: "DELETE" }
-      );
-      if (res.ok) {
-        setSessions((prev) => prev.filter((s) => s.id !== sessionId));
-        if (onNotify) onNotify("Device session revoked successfully", "success");
-      } else {
-        const err = await res.json().catch(() => null);
-        if (onNotify) onNotify(err?.error || "Failed to revoke session", "error");
-      }
-    } catch (e: any) {
-      if (onNotify) onNotify("Network error revoking session", "error");
-    } finally {
-      setRevokingId(null);
-    }
-  };
+  const handleRevokeSingle = (sessionId: string) =>
+    revoke.mutate(sessionId, {
+      onSuccess: () => toast("Device session revoked successfully"),
+      onError: (err) => toast(err.message, "error"),
+    });
 
   const handleRevokeAll = async () => {
     if (!user?.email) return;
-    if (!confirm(`Are you sure you want to log out all devices for ${user.email}?`)) {
-      return;
-    }
-    setRevokingAll(true);
-    try {
-      const res = await adminFetch(
-        `/admin/account/${encodeURIComponent(user.email)}/sessions/revoke-all`,
-        { method: "POST" }
-      );
-      if (res.ok) {
-        setSessions([]);
-        if (onNotify) onNotify("All device sessions revoked successfully", "success");
-      } else {
-        const err = await res.json().catch(() => null);
-        if (onNotify) onNotify(err?.error || "Failed to revoke all sessions", "error");
-      }
-    } catch (e: any) {
-      if (onNotify) onNotify("Network error revoking sessions", "error");
-    } finally {
-      setRevokingAll(false);
-    }
+    const ok = await confirm({
+      title: `Sign out every device for ${user.email}?`,
+      description:
+        "All of this user's sessions end; they must sign in again on each device.",
+      confirmLabel: "Revoke all",
+      destructive: true,
+      typeToConfirm: "revoke all",
+    });
+    if (!ok) return;
+    revoke.mutate("all", {
+      onSuccess: () => toast("All device sessions revoked successfully"),
+      onError: (err) => toast(err.message, "error"),
+    });
   };
 
   if (!isOpen || !user) return null;
@@ -164,7 +115,8 @@ export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({
         {/* Modal Toolbar */}
         <div className="px-6 py-3 bg-[#141418] border-b border-white/6 flex items-center justify-between gap-4">
           <p className="text-xs text-zinc-400">
-            Database-backed refresh sessions verified by <span className="font-semibold text-zinc-200">coreEngine</span>.
+            Database-backed refresh sessions verified by{" "}
+            <span className="font-semibold text-zinc-200">coreEngine</span>.
           </p>
           <div className="flex items-center gap-2 shrink-0">
             <button
@@ -173,7 +125,9 @@ export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({
               disabled={loading}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-zinc-300 bg-[#18181c] hover:bg-white hover:text-black border border-white/8 transition-all disabled:opacity-50 cursor-pointer"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
+              />
               <span>Refresh</span>
             </button>
             {sessions.length > 0 && (
@@ -211,7 +165,9 @@ export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({
           ) : sessions.length === 0 ? (
             <div className="py-16 text-center text-zinc-500">
               <Shield className="w-10 h-10 mx-auto mb-2 opacity-30 text-zinc-400" />
-              <p className="font-semibold text-sm text-zinc-300">No active device sessions</p>
+              <p className="font-semibold text-sm text-zinc-300">
+                No active device sessions
+              </p>
               <p className="text-xs mt-1 text-zinc-500">
                 This user has no active refresh tokens registered in PostgreSQL.
               </p>
@@ -260,6 +216,7 @@ export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({
                   </div>
 
                   <button
+                    type="button"
                     onClick={() => handleRevokeSingle(sess.id)}
                     disabled={isCurrentRevoking || revokingAll}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-zinc-300 hover:text-rose-400 bg-zinc-900 hover:bg-rose-500/10 border border-[#282828] hover:border-rose-500/30 transition-all shrink-0 disabled:opacity-40"
@@ -281,6 +238,7 @@ export const UserSessionsModal: React.FC<UserSessionsModalProps> = ({
         {/* Modal Footer */}
         <div className="p-4 border-t border-[#282828] bg-black/40 flex justify-end">
           <button
+            type="button"
             onClick={onClose}
             className="px-5 py-2 rounded-full text-xs font-bold text-black bg-white hover:bg-zinc-200 transition-all"
           >

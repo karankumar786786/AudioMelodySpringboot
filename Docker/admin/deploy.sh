@@ -80,13 +80,60 @@ scp -i "$KEY_PATH" -o StrictHostKeyChecking=no \
   "${SCRIPT_DIR}/otel-collector-config.yaml" \
   "ubuntu@${TARGET_IP}:~/app/"
 
+# Exception, for now: the streams service (Kafka work) still reads streams.env. Drop this
+# once streams loads onemelody/prod/streams itself (see infra/SECRETS.md, "Follow-ups").
+if [[ ! -f "${SCRIPT_DIR}/streams.env" ]]; then
+  echo -e "${RED}Error: ${SCRIPT_DIR}/streams.env is missing (copy streams.env.example and fill it in).${NC}"
+  exit 1
+fi
+scp -i "$KEY_PATH" -o StrictHostKeyChecking=no "${SCRIPT_DIR}/streams.env" "ubuntu@${TARGET_IP}:~/app/"
+
 # Old deploys left env files with secrets in ~/app. They are no longer read; say so
 # instead of deleting them, so removal stays a deliberate step (see infra/SECRETS.md).
-LEFTOVER_ENV=$(ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no "ubuntu@${TARGET_IP}" 'ls ~/app/*.env 2>/dev/null || true')
+LEFTOVER_ENV=$(ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no "ubuntu@${TARGET_IP}" 'ls ~/app/*.env 2>/dev/null | grep -v "/streams.env$" || true')
 if [[ -n "$LEFTOVER_ENV" ]]; then
   echo -e "${YELLOW}Warning: old env files are still on the server and should be removed once the stack is healthy:${NC}"
   echo "$LEFTOVER_ENV"
 fi
+
+# Kafka topic definitions, applied by the redpanda-init container on every deploy
+ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no "ubuntu@${TARGET_IP}" "mkdir -p ~/app/kafka"
+scp -i "$KEY_PATH" -o StrictHostKeyChecking=no \
+  "${REPO_ROOT}/infra/kafka/topics.yaml" \
+  "${REPO_ROOT}/infra/kafka/apply-topics.sh" \
+  "ubuntu@${TARGET_IP}:~/app/kafka/"
+
+# Mount the Kafka EBS volume at /mnt/kafka (formats it only the first time) and point
+# Redpanda's advertised address at this instance's private IP.
+KAFKA_VOLUME_ID=""
+if command -v terraform >/dev/null 2>&1 && [[ -d "$TF_DIR/.terraform" ]]; then
+  KAFKA_VOLUME_ID=$(terraform -chdir="$TF_DIR" output -json kafka 2>/dev/null | grep -Eo 'vol-[0-9a-f]+' | head -1 || true)
+fi
+echo -e "${BLUE}==>${NC} Preparing Kafka storage (volume: ${KAFKA_VOLUME_ID:-none, using the root disk})..."
+ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no "ubuntu@${TARGET_IP}" "KAFKA_VOLUME_ID='${KAFKA_VOLUME_ID}' bash -s" << 'KAFKA_STORAGE'
+set -euo pipefail
+if ! mountpoint -q /mnt/kafka; then
+  sudo mkdir -p /mnt/kafka
+  if [[ -n "${KAFKA_VOLUME_ID}" ]]; then
+    DEV="/dev/disk/by-id/nvme-Amazon_Elastic_Block_Store_${KAFKA_VOLUME_ID/-/}"
+    for i in $(seq 1 30); do [[ -e "$DEV" ]] && break; sleep 2; done
+    if [[ -e "$DEV" ]]; then
+      if ! sudo blkid "$DEV" >/dev/null 2>&1; then sudo mkfs.ext4 -q -L kafka "$DEV"; fi
+      grep -q "LABEL=kafka" /etc/fstab || echo "LABEL=kafka /mnt/kafka ext4 defaults,nofail 0 2" | sudo tee -a /etc/fstab >/dev/null
+      sudo mount /mnt/kafka
+    else
+      echo "Kafka volume device not found; using the root disk for /mnt/kafka"
+    fi
+  fi
+fi
+# Redpanda runs as uid 101, the streams app as the image's 'app' user (uid 999 on noble).
+sudo mkdir -p /mnt/kafka/redpanda /mnt/kafka/streams
+sudo chown -R 101:101 /mnt/kafka/redpanda
+sudo chmod 777 /mnt/kafka/streams
+PRIVATE_IP=$(hostname -I | awk '{print $1}')
+printf 'REDPANDA_ADVERTISED_HOST=%s\nREDPANDA_BIND_IP=%s\nKAFKA_DATA_DIR=/mnt/kafka\n' "$PRIVATE_IP" "$PRIVATE_IP" > ~/app/.env
+echo "Redpanda will advertise ${PRIVATE_IP}:9092"
+KAFKA_STORAGE
 
 # Deploy via Docker Compose
 echo -e "${BLUE}==>${NC} Pulling latest images and starting services..."

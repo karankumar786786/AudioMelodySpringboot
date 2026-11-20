@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Provider from "./provider";
 import { AppLayout } from "@/components/AppLayout";
+import Provider from "./provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -16,7 +16,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "One Melody - Administration Panel",
-  description: "System overview, tracks management, and user access control for One Melody.",
+  description:
+    "System overview, tracks management, and user access control for One Melody.",
   icons: {
     icon: "/image.png",
     apple: "/image.png",
@@ -36,9 +37,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-black text-white">
         <Provider>
-          <AppLayout>
-            {children}
-          </AppLayout>
+          <AppLayout>{children}</AppLayout>
         </Provider>
       </body>
     </html>

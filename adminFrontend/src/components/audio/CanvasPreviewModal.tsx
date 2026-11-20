@@ -1,7 +1,6 @@
 "use client";
 
-import React from "react";
-import { X, Film, Volume2 } from "lucide-react";
+import { Film, Volume2, X } from "lucide-react";
 import { useAudio } from "@/lib/audio-context";
 import { getImageUrl } from "@/lib/image-utils";
 
@@ -72,4 +71,3 @@ export function CanvasPreviewModal() {
     </div>
   );
 }
-

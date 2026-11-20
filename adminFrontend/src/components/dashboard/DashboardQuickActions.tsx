@@ -1,7 +1,7 @@
 "use client";
 
+import { ListMusic, Mic2, PlusCircle, Shield } from "lucide-react";
 import Link from "next/link";
-import { PlusCircle, Mic2, ListMusic, Shield } from "lucide-react";
 
 export function DashboardQuickActions() {
   const actions = [
@@ -36,7 +36,9 @@ export function DashboardQuickActions() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-base font-bold text-white">Quick Actions</h2>
-          <p className="text-xs text-zinc-400">Fast shortcuts to common admin workflows</p>
+          <p className="text-xs text-zinc-400">
+            Fast shortcuts to common admin workflows
+          </p>
         </div>
       </div>
 
@@ -52,8 +54,12 @@ export function DashboardQuickActions() {
               <div className="w-10 h-10 rounded-xl bg-white text-black flex items-center justify-center mb-3 group-hover:scale-105 transition-transform shadow-sm">
                 <Icon className="w-5 h-5" />
               </div>
-              <span className="font-bold text-sm text-white">{action.title}</span>
-              <span className="text-[11px] text-zinc-400 mt-1">{action.subtitle}</span>
+              <span className="font-bold text-sm text-white">
+                {action.title}
+              </span>
+              <span className="text-[11px] text-zinc-400 mt-1">
+                {action.subtitle}
+              </span>
             </Link>
           );
         })}
