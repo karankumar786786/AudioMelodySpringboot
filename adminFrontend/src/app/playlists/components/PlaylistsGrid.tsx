@@ -1,6 +1,6 @@
 "use client";
 
-import { ListMusic, Music, Trash2, Video, Loader2 } from "lucide-react";
+import { ListMusic, Loader2, Music, Trash2, Video } from "lucide-react";
 import { getImageUrl } from "@/lib/image-utils";
 import type { Playlist } from "../types";
 
@@ -10,7 +10,8 @@ interface PlaylistsGridProps {
   deletingPlaylistId: string | null;
   selectedPlaylistId?: string | null;
   onSelectPlaylist: (playlist: Playlist) => void;
-  onDeletePlaylist: (id: string, name: string) => void;
+  /** Left out when the current role may not delete playlists. */
+  onDeletePlaylist?: (id: string, name: string) => void;
 }
 
 export function PlaylistsGrid({
@@ -26,6 +27,7 @@ export function PlaylistsGrid({
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {Array.from({ length: 8 }).map((_, i) => (
           <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: fixed-position placeholders never reorder
             key={i}
             className="bg-[#121215] border border-white/8 rounded-2xl p-4 animate-pulse space-y-3"
           >
@@ -55,9 +57,22 @@ export function PlaylistsGrid({
       {playlists.map((playlist) => {
         const isSelected = selectedPlaylistId === playlist.id;
         return (
+          // biome-ignore lint/a11y/useSemanticElements: the card holds block layout and its own buttons, which a <button> cannot contain
           <div
             key={playlist.id}
+            role="button"
+            tabIndex={0}
+            aria-label={`Open playlist ${playlist.name}`}
             onClick={() => onSelectPlaylist(playlist)}
+            onKeyDown={(e) => {
+              if (
+                e.target === e.currentTarget &&
+                (e.key === "Enter" || e.key === " ")
+              ) {
+                e.preventDefault();
+                onSelectPlaylist(playlist);
+              }
+            }}
             className={`group relative bg-[#121215] hover:bg-[#16161b] border rounded-2xl p-3.5 transition-all duration-200 cursor-pointer flex flex-col justify-between shadow-sm hover:shadow-lg hover:shadow-black/50 ${
               isSelected
                 ? "border-white shadow-lg ring-1 ring-white"
@@ -101,22 +116,24 @@ export function PlaylistsGrid({
 
               {/* Delete action overlay */}
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-end justify-end p-2.5">
-                <button
-                  type="button"
-                  disabled={deletingPlaylistId === playlist.id}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeletePlaylist(playlist.id, playlist.name);
-                  }}
-                  className="p-1.5 rounded-lg bg-rose-500/20 backdrop-blur-md text-rose-300 hover:bg-rose-600 hover:text-white transition-all cursor-pointer disabled:opacity-50"
-                  title="Delete playlist"
-                >
-                  {deletingPlaylistId === playlist.id ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-400" />
-                  ) : (
-                    <Trash2 className="w-3.5 h-3.5" />
-                  )}
-                </button>
+                {onDeletePlaylist && (
+                  <button
+                    type="button"
+                    disabled={deletingPlaylistId === playlist.id}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeletePlaylist?.(playlist.id, playlist.name);
+                    }}
+                    className="p-1.5 rounded-lg bg-rose-500/20 backdrop-blur-md text-rose-300 hover:bg-rose-600 hover:text-white transition-all cursor-pointer disabled:opacity-50"
+                    title="Delete playlist"
+                  >
+                    {deletingPlaylistId === playlist.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-400" />
+                    ) : (
+                      <Trash2 className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                )}
               </div>
             </div>
 

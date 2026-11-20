@@ -1,7 +1,5 @@
 "use client";
 
-import React from "react";
-
 export type StatusType =
   | "online"
   | "offline"
@@ -77,8 +75,7 @@ export function StatusPill({
 
   const cfg = configs[status] || configs.offline;
   const displayLabel =
-    label ||
-    status.charAt(0).toUpperCase() + status.slice(1);
+    label || status.charAt(0).toUpperCase() + status.slice(1);
 
   const sizeClass =
     size === "xs"
@@ -103,4 +100,3 @@ export function StatusPill({
     </div>
   );
 }
-

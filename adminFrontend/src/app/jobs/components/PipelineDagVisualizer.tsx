@@ -1,16 +1,16 @@
 "use client";
 
-import React from "react";
 import {
-  UploadCloud,
-  Cpu,
-  Sparkles,
-  Search,
-  CheckCircle2,
   AlertCircle,
+  CheckCircle2,
   Clock,
+  Cpu,
+  Search,
+  Sparkles,
+  UploadCloud,
 } from "lucide-react";
-import { JobStage } from "@/lib/api";
+import React from "react";
+import type { JobStage } from "@/lib/api";
 import { formatMs } from "./jobHelpers";
 
 export interface PipelineDagVisualizerProps {
@@ -120,10 +120,10 @@ export function PipelineDagVisualizer({
                     stepStatus === "completed"
                       ? "bg-white/10 border-2 border-white text-white shadow-[0_0_12px_rgba(255,255,255,0.2)]"
                       : stepStatus === "in_progress"
-                      ? "bg-indigo-500/20 border-2 border-indigo-400 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.4)] animate-pulse"
-                      : stepStatus === "failed"
-                      ? "bg-rose-500/20 border-2 border-rose-500 text-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.3)]"
-                      : "bg-[#16161a] border border-white/8 text-zinc-600"
+                        ? "bg-indigo-500/20 border-2 border-indigo-400 text-indigo-300 shadow-[0_0_15px_rgba(99,102,241,0.4)] animate-pulse"
+                        : stepStatus === "failed"
+                          ? "bg-rose-500/20 border-2 border-rose-500 text-rose-400 shadow-[0_0_12px_rgba(244,63,94,0.3)]"
+                          : "bg-[#16161a] border border-white/8 text-zinc-600"
                   }`}
                 >
                   {stepStatus === "failed" ? (
@@ -138,17 +138,21 @@ export function PipelineDagVisualizer({
                     stepStatus === "completed"
                       ? "text-white"
                       : stepStatus === "in_progress"
-                      ? "text-indigo-300 font-bold"
-                      : stepStatus === "failed"
-                      ? "text-rose-400 font-bold"
-                      : "text-zinc-500"
+                        ? "text-indigo-300 font-bold"
+                        : stepStatus === "failed"
+                          ? "text-rose-400 font-bold"
+                          : "text-zinc-500"
                   }`}
                 >
                   {step.label}
                 </span>
 
                 <span className="text-[10px] font-mono text-zinc-400 mt-0.5 tabular-nums">
-                  {durationMs ? formatMs(durationMs) : stepStatus === "completed" ? "Done" : "—"}
+                  {durationMs
+                    ? formatMs(durationMs)
+                    : stepStatus === "completed"
+                      ? "Done"
+                      : "—"}
                 </span>
               </div>
 
