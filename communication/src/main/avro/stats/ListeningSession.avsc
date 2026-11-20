@@ -1,0 +1,13 @@
+{
+  "type": "record", "name": "ListeningSession", "namespace": "me.oneorg.melody.events.stats",
+  "doc": "A run of plays and skips with gaps under 30 minutes, from activityStreams. Topic activity.session.v1 (compacted), key session_id; a null value removes a session merged into a later one.",
+  "fields": [
+    {"name": "session_id", "type": "string", "doc": "user_id:start-epoch-ms"},
+    {"name": "user_id", "type": "string"},
+    {"name": "started_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+    {"name": "ended_at", "type": {"type": "long", "logicalType": "timestamp-millis"}},
+    {"name": "plays", "type": "int", "default": 0},
+    {"name": "skips", "type": "int", "default": 0},
+    {"name": "listened_ms", "type": "long", "default": 0}
+  ]
+}

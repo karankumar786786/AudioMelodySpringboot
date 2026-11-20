@@ -52,6 +52,28 @@ spring:
       ssl:
         enabled: ${REDIS_SSL_ENABLED:true}
 
+  # Event pipeline (Redpanda). Producers connect lazily, so an empty broker list is fine
+  # while melody.events.mode is LEGACY.
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:19092}
+    admin:
+      auto-create: false
+    producer:
+      acks: all
+      compression-type: lz4
+      properties:
+        enable.idempotence: true
+        linger.ms: 5
+        max.block.ms: 2000           # never block a request thread long on metadata
+        request.timeout.ms: 5000
+        delivery.timeout.ms: 10000
+    properties:
+      schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:18081}
+      auto.register.schemas: ${SCHEMA_AUTO_REGISTER:true}
+      security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+      sasl.mechanism: ${KAFKA_SASL_MECHANISM:SCRAM-SHA-256}
+      sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
+
   jpa:
     open-in-view: false                  # don't hold a connection for the whole request
     database-platform: org.hibernate.dialect.PostgreSQLDialect
@@ -69,6 +91,16 @@ spring:
 
   lifecycle:
     timeout-per-shutdown-phase: 30s
+
+# LEGACY (default) | DUAL | KAFKA. See Events/Kafka/EventsMode.java.
+melody:
+  events:
+    mode: ${EVENTS_MODE:LEGACY}
+    source: core-api
+    produce-timeout: 3s
+    max-batch-size: 50
+    telemetry-per-user-per-minute: 300
+    otp-fallback-after: 30s
 
 jwt:
   secret: ${JWT_SECRET:super_secret_jwt_key_that_is_at_least_32_bytes_long_and_very_secure_12345}

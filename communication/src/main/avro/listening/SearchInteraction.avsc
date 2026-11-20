@@ -1,0 +1,11 @@
+{
+  "type": "record", "name": "SearchInteraction", "namespace": "me.oneorg.melody.events",
+  "doc": "A search result was played or clicked. Topic search.interaction.v1, key user_id (or 'anonymous').",
+  "fields": [
+    {"name": "meta", "type": "EventMeta"},
+    {"name": "user_id", "type": ["null", "string"], "default": null},
+    {"name": "action", "type": {"type": "enum", "name": "SearchAction", "symbols": ["PLAY", "CLICK"]}},
+    {"name": "entity_type", "type": "string", "doc": "SONG, ARTIST, PLAYLIST, ..."},
+    {"name": "entity_id", "type": "string"}
+  ]
+}

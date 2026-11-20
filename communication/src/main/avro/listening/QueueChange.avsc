@@ -1,0 +1,10 @@
+{
+  "type": "record", "name": "QueueChange", "namespace": "me.oneorg.melody.events",
+  "doc": "A song was added to or removed from the play queue. Topic queue.change.v1, key user_id.",
+  "fields": [
+    {"name": "meta", "type": "EventMeta"},
+    {"name": "user_id", "type": "string"},
+    {"name": "song_id", "type": "string"},
+    {"name": "action", "type": {"type": "enum", "name": "QueueAction", "symbols": ["ADD", "REMOVE"]}}
+  ]
+}

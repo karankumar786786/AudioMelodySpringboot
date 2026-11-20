@@ -57,3 +57,13 @@ output "ec2_processing_elastic_ip" {
   description = "Elastic IP attached to the processing EC2 instance"
   value       = aws_eip.ec2_eip[1].public_ip
 }
+
+output "ec2_processing_private_ip" {
+  description = "Private IP of the processing instance (Redpanda's advertised address)"
+  value       = aws_instance.ec2[1].private_ip
+}
+
+output "kafka_volume_id" {
+  description = "EBS volume holding Redpanda data and Kafka Streams state"
+  value       = aws_ebs_volume.kafka.id
+}

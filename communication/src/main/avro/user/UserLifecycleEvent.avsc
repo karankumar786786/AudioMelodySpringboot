@@ -1,0 +1,10 @@
+{
+  "type": "record", "name": "UserLifecycleEvent", "namespace": "me.oneorg.melody.events",
+  "doc": "Sign-up and onboarding (outbox). Topic user.lifecycle.v1, key user_id.",
+  "fields": [
+    {"name": "meta", "type": "EventMeta"},
+    {"name": "user_id", "type": "string"},
+    {"name": "type", "type": {"type": "enum", "name": "UserLifecycleType", "symbols": ["SIGNED_UP", "ONBOARDED"]}},
+    {"name": "followed_artist_ids", "type": {"type": "array", "items": "string"}, "default": []}
+  ]
+}
