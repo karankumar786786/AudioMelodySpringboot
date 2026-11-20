@@ -15,6 +15,9 @@ COPY . .
 # Compile TypeScript into optimized production bundle in ./dist
 RUN bun run build
 
+# Secrets Manager loader used by entrypoint.sh (bundled, so no node_modules at runtime)
+RUN bun build load-secrets.ts --outfile ./dist/load-secrets.js --target bun
+
 
 # =========================================================
 # Stage 2: Minimal Runtime Runner
@@ -49,6 +52,7 @@ RUN ffmpeg -version && packager --version && bun --version
 # Copy ONLY compiled dist bundle and package.json from builder stage — NO source code
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./package.json
+COPY --chmod=755 entrypoint.sh /app/entrypoint.sh
 
 # Environment variables
 ENV NODE_ENV=production
@@ -60,5 +64,6 @@ EXPOSE 5010
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=10s \
     CMD curl -f http://localhost:5010/health || exit 1
 
-# Start the compiled bundle
+# Load secrets when SECRET_IDS is set, then start the compiled bundle
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["bun", "run", "start"]

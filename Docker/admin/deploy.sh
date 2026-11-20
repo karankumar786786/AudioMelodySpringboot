@@ -71,15 +71,22 @@ fi
 echo -e "${BLUE}==>${NC} Preparing remote deploy directory (~/app)..."
 ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no "ubuntu@${TARGET_IP}" "mkdir -p ~/app"
 
-# Copy deployment bundle
-echo -e "${BLUE}==>${NC} Transferring docker-compose, Caddyfile, and environment files..."
+# Copy deployment bundle. No env files: secrets live in AWS Secrets Manager and the
+# containers read them at start-up with this server's IAM instance role (infra/SECRETS.md).
+echo -e "${BLUE}==>${NC} Transferring docker-compose, Caddyfile and OTel collector config..."
 scp -i "$KEY_PATH" -o StrictHostKeyChecking=no \
   "${SCRIPT_DIR}/docker-compose.yml" \
   "${SCRIPT_DIR}/Caddyfile" \
-  "${SCRIPT_DIR}/admin.env" \
-  "${SCRIPT_DIR}/process.env" \
-  "${SCRIPT_DIR}/watchtower.env" \
+  "${SCRIPT_DIR}/otel-collector-config.yaml" \
   "ubuntu@${TARGET_IP}:~/app/"
+
+# Old deploys left env files with secrets in ~/app. They are no longer read; say so
+# instead of deleting them, so removal stays a deliberate step (see infra/SECRETS.md).
+LEFTOVER_ENV=$(ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no "ubuntu@${TARGET_IP}" 'ls ~/app/*.env 2>/dev/null || true')
+if [[ -n "$LEFTOVER_ENV" ]]; then
+  echo -e "${YELLOW}Warning: old env files are still on the server and should be removed once the stack is healthy:${NC}"
+  echo "$LEFTOVER_ENV"
+fi
 
 # Deploy via Docker Compose
 echo -e "${BLUE}==>${NC} Pulling latest images and starting services..."

@@ -4,8 +4,35 @@ services:
     container_name: admin
     pull_policy: always
     restart: unless-stopped
-    env_file:
-      - admin.env
+    environment:
+      # Non-secret settings plus SECRET_IDS. Secret keys are read from AWS Secrets Manager
+      # at start-up with the EC2 instance role (no keys on disk); see infra/SECRETS.md.
+      SECRET_IDS: onemelody/prod/db,onemelody/prod/redis,onemelody/prod/admin
+      AWS_REGION: ap-south-1
+      APPLICATION_NAME: one_melody
+      PORT: "8000"
+      REDIS_PORT: "6379"
+      REDIS_SSL_ENABLED: "true"
+      REDIS_MAIL_QUEUE: mail_queue
+      REDIS_AUDIO_PROCESSING_QUEUE: audio_processing_queue
+      REDIS_DELETE_QUEUE: delete_event_queue
+      REDIS_CANCEL_QUEUE: audio_cancel_queue
+      ALGOLIA_INDEX_NAME: one_melody_springboot
+      RECOMBEE_DATABASE_REGION: EU_WEST
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: "465"
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: "465"
+      AUDIO_PROCESSING_URL: http://process:5010
+      AWS_ENDPOINT: ""
+      S3_TEMP_BUCKET: audiomelody-temp-storage-oneorg
+      S3_PRODUCTION_BUCKET: audiomelody-prod-storage-oneorg
+      INNGEST_DEV: "0"
+      INNGEST_DEV_URL: http://localhost:8288
+      OTEL_SERVICE_NAME: admin-backend
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      DJANGO_DEBUG: "false"
     expose:
       - "8000"
     labels:
@@ -18,8 +45,29 @@ services:
     container_name: process
     pull_policy: always
     restart: unless-stopped
-    env_file:
-      - process.env
+    environment:
+      # Non-secret settings plus SECRET_IDS. Secret keys are read from AWS Secrets Manager
+      # at start-up with the EC2 instance role (no keys on disk); see infra/SECRETS.md.
+      SECRET_IDS: onemelody/prod/redis,onemelody/prod/processing
+      AWS_REGION: ap-south-1
+      JOB_PROCESSING_QUEUE: audio_processing_queue
+      DELETE_EVENT_QUEUE: delete_event_queue
+      CANCEL_EVENT_QUEUE: audio_cancel_queue
+      QUEUE_EMPTY_DELAY_MS: "2000"
+      QUEUE_POLL_TIMEOUT_SECS: "2"
+      REDIS_PORT: "6379"
+      REDIS_SSL_ENABLED: "true"
+      APPLICATION_URL: http://admin:8000/webhook/job
+      APPLICATION_DELETE_URL: http://admin:8000/webhook/delete
+      REGION: ap-south-1
+      TEMP_BUCKET_NAME: audiomelody-temp-storage-oneorg
+      PRODUCTION_BUCKET_NAME: audiomelody-prod-storage-oneorg
+      BASE_PATH: audios
+      VIDEO_BASE_PATH: videos
+      INNGEST_DEV: "0"
+      ALGOLIA_INDEX_NAME: one_melody_springboot
+      OTEL_SERVICE_NAME: audio-processing
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     expose:
       - "5010"
     labels:
@@ -47,8 +95,17 @@ services:
     image: containrrr/watchtower
     container_name: watchtower
     restart: unless-stopped
-    env_file:
-      - watchtower.env
+    environment:
+      # Non-secret settings only. Secrets (and anything not listed here) come from
+      # AWS Secrets Manager at start-up via the EC2 instance role; see infra/SECRETS.md.
+      DOCKER_API_VERSION: "1.44"
+      WATCHTOWER_POLL_INTERVAL: "3"
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_ROLLING_RESTART: "true"
+      WATCHTOWER_INCLUDE_RESTARTING: "true"
+      WATCHTOWER_INCLUDE_STOPPED: "false"
+      WATCHTOWER_LOG_LEVEL: info
+      WATCHTOWER_LABEL_ENABLE: "true"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     labels:
