@@ -119,8 +119,8 @@ class AdminAuthService:
             print("=" * 60 + "\n")
         logger.info("[ADMIN AUTH] Generated OTP for %s (%s)", email, purpose)
 
-        # 2. Push to Redis mail queue if running
-        try:
+        # 2. Send it: through the event pipeline when it's on, else the Redis mail queue.
+        def push_to_redis_queue():
             r = RedisService.get_client()
             payload = {
                 "to": email,
@@ -128,9 +128,19 @@ class AdminAuthService:
                 "otp": otp,
             }
             r.rpush(settings.REDIS_MAIL_QUEUE, json.dumps(payload))
+
+        try:
+            from core.services.outbox_service import OutboxService, events_enabled
+
+            if events_enabled():
+                # Same subject and body as the mail worker sends today. If the relay hasn't
+                # published it within 30 s, the Redis queue sends it instead (never both).
+                OutboxService.write_email(email, purpose, purpose, otp, fallback=push_to_redis_queue)
+            else:
+                push_to_redis_queue()
         except Exception as e:
-            logger.warning("Failed to push OTP to mail queue: %s", e)
-            print(f" [WARN] Could not push OTP to Redis mail queue: {e}")
+            logger.warning("Failed to queue OTP email: %s", e)
+            print(f" [WARN] Could not queue OTP email: {e}")
 
     @classmethod
     def issue_tokens_for_admin(cls, admin: Admin, request=None) -> Dict[str, Any]:

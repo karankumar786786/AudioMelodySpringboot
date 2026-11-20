@@ -44,7 +44,6 @@ public class MoodRadioService {
     private final UsersRepository usersRepository;
     private final RecommendationRankingEngine rankingEngine;
 
-    @Autowired
     public MoodRadioService(
             SongsRepository songsRepository,
             UserHistoryRepository userHistoryRepository,
