@@ -26,6 +26,10 @@ jobs:
       admin: ${{ steps.filter.outputs.admin }}
       audioprocessing: ${{ steps.filter.outputs.audioprocessing }}
       mail: ${{ steps.filter.outputs.mail }}
+      adminfrontend: ${{ steps.filter.outputs.adminfrontend }}
+      audiofrontend: ${{ steps.filter.outputs.audiofrontend }}
+      mobileapp: ${{ steps.filter.outputs.mobileapp }}
+      streams: ${{ steps.filter.outputs.streams }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -37,6 +41,14 @@ jobs:
           filters: |
             core:
               - 'coreEngine/**'
+              - 'communication/**'
+              - 'pom.xml'
+              - '.github/workflows/work.yml'
+            streams:
+              - 'streams/**'
+              - 'communication/**'
+              - 'migration/src/main/resources/db/migration/**'
+              - 'pom.xml'
               - '.github/workflows/work.yml'
             admin:
               - 'adminBackend/**'
@@ -46,6 +58,15 @@ jobs:
               - '.github/workflows/work.yml'
             mail:
               - 'workers/mailEvents/**'
+              - '.github/workflows/work.yml'
+            adminfrontend:
+              - 'adminFrontend/**'
+              - '.github/workflows/work.yml'
+            audiofrontend:
+              - 'audioFrontend/**'
+              - '.github/workflows/work.yml'
+            mobileapp:
+              - 'audioApp/**'
               - '.github/workflows/work.yml'
 
   # =========================================================================
@@ -68,11 +89,14 @@ jobs:
           cache: 'maven'
 
       - name: Make Maven Wrapper Executable
-        run: chmod +x coreEngine/mvnw
+        run: chmod +x mvnw
 
+      # From the repo root, so the shared Avro contracts (communication/) build first.
+      # Includes the schema compatibility check and the Testcontainers Redpanda test.
       - name: Run Spring Boot Unit & Integration Tests
-        working-directory: ./coreEngine
-        run: ./mvnw test --batch-mode --no-transfer-progress
+        run: |
+          ./mvnw --version >/dev/null || (sleep 10 && ./mvnw --version >/dev/null)
+          ./mvnw -pl coreEngine -am test --batch-mode --no-transfer-progress
 
       - name: Upload Core Engine Test Reports
         if: always()
@@ -80,6 +104,40 @@ jobs:
         with:
           name: core-engine-test-reports
           path: coreEngine/target/surefire-reports/
+          retention-days: 7
+
+  # =========================================================================
+  # 1b. Stream services Tests (Spring Boot + Kafka Streams / Java 21)
+  #     Topology tests, plus Postgres (all Flyway migrations) and Redpanda containers.
+  # =========================================================================
+  test-streams:
+    name: Test Stream Services
+    needs: changes
+    if: needs.changes.outputs.streams == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run Stream Services Tests
+        run: |
+          chmod +x mvnw
+          ./mvnw --version >/dev/null || (sleep 10 && ./mvnw --version >/dev/null)
+          ./mvnw -pl streams -am test --batch-mode --no-transfer-progress
+
+      - name: Upload Stream Services Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: streams-test-reports
+          path: streams/target/surefire-reports/
           retention-days: 7
 
   # =========================================================================
@@ -115,6 +173,9 @@ jobs:
           # Validate the production configuration (debug off) with a throwaway CI-only key.
           DJANGO_DEBUG: "false"
           DJANGO_SECRET_KEY: ci-only-not-a-real-secret-${{ github.run_id }}-${{ github.run_attempt }}
+          # Production settings now require the Inngest keys; CI uses throwaway values.
+          INNGEST_EVENT_KEY: ci-only-not-a-real-key
+          INNGEST_SIGNING_KEY: signkey-test-ci-only-not-a-real-key
         run: uv run python manage.py check
 
       - name: Run Django Test Suite
@@ -182,7 +243,123 @@ jobs:
         working-directory: ./workers/mailEvents
         run: |
           bun install --frozen-lockfile
+          bun test
           bun run build
+
+  # =========================================================================
+  # 4b. Frontend Checks (type check + production build; lint is report-only)
+  # =========================================================================
+  check-adminfrontend:
+    name: Check Admin Frontend
+    needs: changes
+    if: needs.changes.outputs.adminfrontend == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      # Placeholder public config so the production build can run in CI.
+      NEXT_PUBLIC_API_URL: https://ci.invalid/api
+      NEXT_PUBLIC_APP_URL: https://ci.invalid
+      NEXT_PUBLIC_S3_BASE_URL: https://ci.invalid
+      NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY: ci-placeholder
+      NEXT_PUBLIC_ALGOLIA_APP_ID: CIPLACEHOLDER
+      NEXT_PUBLIC_ALGOLIA_SEARCH_KEY: ci-placeholder
+      NEXT_PUBLIC_ALGOLIA_INDEX_NAME: ci-placeholder
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Bun Runtime
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+
+      - name: Install Dependencies
+        working-directory: ./adminFrontend
+        run: bun install --frozen-lockfile
+
+      - name: Type Check
+        working-directory: ./adminFrontend
+        run: bunx tsc --noEmit
+
+      - name: Production Build
+        working-directory: ./adminFrontend
+        run: bun run build
+
+      # Report-only until the existing Biome errors are cleaned up; then remove continue-on-error.
+      - name: Lint (Biome, report only)
+        working-directory: ./adminFrontend
+        continue-on-error: true
+        run: bunx biome ci .
+
+  check-audiofrontend:
+    name: Check Web Player
+    needs: changes
+    if: needs.changes.outputs.audiofrontend == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      # Placeholder public config so the production build can run in CI.
+      NEXT_PUBLIC_API_URL: https://ci.invalid/api
+      NEXT_PUBLIC_APP_URL: https://ci.invalid
+      NEXT_PUBLIC_S3_BASE_URL: https://ci.invalid
+      NEXT_PUBLIC_IMAGEKIT_PUBLIC_KEY: ci-placeholder
+      NEXT_PUBLIC_ALGOLIA_APP_ID: CIPLACEHOLDER
+      NEXT_PUBLIC_ALGOLIA_SEARCH_KEY: ci-placeholder
+      NEXT_PUBLIC_ALGOLIA_INDEX_NAME: ci-placeholder
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Bun Runtime
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+
+      - name: Install Dependencies
+        working-directory: ./audioFrontend
+        run: bun install --frozen-lockfile
+
+      - name: Type Check
+        working-directory: ./audioFrontend
+        run: bunx tsc --noEmit
+
+      - name: Production Build
+        working-directory: ./audioFrontend
+        run: bun run build
+
+      # Report-only until the existing Biome errors are cleaned up; then remove continue-on-error.
+      - name: Lint (Biome, report only)
+        working-directory: ./audioFrontend
+        continue-on-error: true
+        run: bunx biome ci .
+
+  check-mobileapp:
+    name: Check Mobile App
+    needs: changes
+    if: needs.changes.outputs.mobileapp == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: audioApp/package-lock.json
+
+      - name: Install Dependencies
+        working-directory: ./audioApp
+        run: npm ci
+
+      - name: Type Check
+        working-directory: ./audioApp
+        run: npx tsc --noEmit
+
+      - name: Unit Tests
+        working-directory: ./audioApp
+        run: npm test -- --ci
 
   # =========================================================================
   # 5. Selective Docker Build & Push (Only rebuilt when service files change)
@@ -218,13 +395,54 @@ jobs:
       - name: Build and Push Core Docker Image
         uses: docker/build-push-action@v5
         with:
-          context: ./coreEngine
+          context: .
+          file: ./coreEngine/Dockerfile
           platforms: linux/amd64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=core
           cache-to: type=gha,mode=max,scope=core
+
+  build-streams:
+    name: Docker Build & Push (streams)
+    needs: [changes, test-streams]
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') && (needs.changes.outputs.streams == 'true' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Extract Docker Metadata & Tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKER_USERNAME }}/streams
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+            type=ref,event=branch
+
+      - name: Build and Push Streams Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./streams/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=streams
+          cache-to: type=gha,mode=max,scope=streams
 
   build-admin:
     name: Docker Build & Push (admin)

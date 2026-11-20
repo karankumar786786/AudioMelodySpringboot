@@ -60,6 +60,7 @@ export interface PlayerState {
   selectedQuality: VideoQuality; // default: "auto"
   audioQuality: AudioQuality; // default: "auto"
   sleepTimer: number | null; // in minutes, null = off
+  crossfadeSeconds: number; // 0 = off (gapless), up to 12
   dominantColor: string;
   playbackMode: PlaybackMode;
 }

@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Activity, Cpu, HardDrive, RefreshCw, Server, Zap } from "lucide-react";
 import Link from "next/link";
-import { Activity, Cpu, Server, HardDrive, Zap, CheckCircle2, AlertCircle, RefreshCw } from "lucide-react";
-import { QueueBackpressureSummary, SystemHealthTelemetry, adminClient } from "@/lib/api";
+import { useEffect, useState } from "react";
+import {
+  adminClient,
+  type QueueBackpressureSummary,
+  type SystemHealthTelemetry,
+} from "@/lib/api";
 
 interface SystemStatusWidgetProps {
   queueStats?: QueueBackpressureSummary;
@@ -15,7 +19,7 @@ export function SystemStatusWidget({
   systemHealth: initialSystemHealth,
 }: SystemStatusWidgetProps) {
   const [telemetry, setTelemetry] = useState<SystemHealthTelemetry | undefined>(
-    initialSystemHealth
+    initialSystemHealth,
   );
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -39,7 +43,10 @@ export function SystemStatusWidget({
 
   const adminStatus = telemetry?.adminBackend?.status || "UP";
   const audioStatus = telemetry?.audioProcessing?.status || "UP";
-  const cpuPercent = Math.min(100, Math.max(0, telemetry?.audioProcessing?.cpuUtilization ?? 0));
+  const cpuPercent = Math.min(
+    100,
+    Math.max(0, telemetry?.audioProcessing?.cpuUtilization ?? 0),
+  );
   const activeJobs = telemetry?.audioProcessing?.activeJobs ?? 0;
   const concurrencyLimit = telemetry?.audioProcessing?.concurrencyLimit ?? 2;
   const memoryUsed = telemetry?.audioProcessing?.memoryUsedMb;
@@ -131,15 +138,20 @@ export function SystemStatusWidget({
             <h2 className="text-base font-bold text-white">System Telemetry</h2>
           </div>
           <button
+            type="button"
             onClick={refreshHealth}
             disabled={isRefreshing}
             className="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
             title="Refresh system telemetry"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-white" : ""}`} />
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-white" : ""}`}
+            />
           </button>
         </div>
-        <p className="text-xs text-zinc-400 mb-5">Bidirectional health & CPU monitor</p>
+        <p className="text-xs text-zinc-400 mb-5">
+          Bidirectional health & CPU monitor
+        </p>
 
         <div className="space-y-3">
           {/* Admin Backend Node */}
@@ -147,7 +159,9 @@ export function SystemStatusWidget({
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Server className="w-4 h-4 text-zinc-400" />
-                <span className="text-xs font-semibold text-zinc-200">Admin Backend</span>
+                <span className="text-xs font-semibold text-zinc-200">
+                  Admin Backend
+                </span>
               </div>
               {getStatusBadge(adminStatus)}
             </div>
@@ -155,7 +169,9 @@ export function SystemStatusWidget({
               <span className="flex items-center gap-1">
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    telemetry?.adminBackend?.dbConnected !== false ? "bg-white" : "bg-rose-400"
+                    telemetry?.adminBackend?.dbConnected !== false
+                      ? "bg-white"
+                      : "bg-rose-400"
                   }`}
                 />
                 PostgreSQL DB
@@ -163,7 +179,9 @@ export function SystemStatusWidget({
               <span className="flex items-center gap-1">
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    telemetry?.adminBackend?.redisConnected !== false ? "bg-white" : "bg-rose-400"
+                    telemetry?.adminBackend?.redisConnected !== false
+                      ? "bg-white"
+                      : "bg-rose-400"
                   }`}
                 />
                 Redis Cache
@@ -176,7 +194,9 @@ export function SystemStatusWidget({
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <Zap className="w-4 h-4 text-amber-400" />
-                <span className="text-xs font-semibold text-zinc-200">Audio Processing</span>
+                <span className="text-xs font-semibold text-zinc-200">
+                  Audio Processing
+                </span>
               </div>
               {getStatusBadge(audioStatus)}
             </div>
@@ -198,7 +218,9 @@ export function SystemStatusWidget({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Cpu className="w-4 h-4 text-white" />
-                <span className="text-xs font-semibold text-zinc-200">Worker CPU Usage</span>
+                <span className="text-xs font-semibold text-zinc-200">
+                  Worker CPU Usage
+                </span>
               </div>
               <span className={`text-xs font-mono font-bold ${cpuStyles.text}`}>
                 {cpuPercent.toFixed(1)}%
@@ -209,13 +231,19 @@ export function SystemStatusWidget({
             <div className="w-full h-2 rounded-full bg-zinc-800/80 overflow-hidden">
               <div
                 className={`h-full transition-all duration-500 rounded-full ${cpuStyles.bar}`}
-                style={{ width: `${cpuPercent > 0 ? Math.max(2, cpuPercent) : 0}%` }}
+                style={{
+                  width: `${cpuPercent > 0 ? Math.max(2, cpuPercent) : 0}%`,
+                }}
               />
             </div>
 
             <div className="flex items-center justify-between text-[11px] text-zinc-400">
               <span>
-                Slots: <span className="text-zinc-200 font-semibold">{activeJobs}</span> / {concurrencyLimit} active
+                Slots:{" "}
+                <span className="text-zinc-200 font-semibold">
+                  {activeJobs}
+                </span>{" "}
+                / {concurrencyLimit} active
               </span>
               <span>
                 {memoryUsed ? `RAM: ${memoryUsed} MB` : "Normal Load"}
@@ -229,18 +257,24 @@ export function SystemStatusWidget({
             className="flex items-center justify-between p-3.5 rounded-xl bg-black/60 border border-white/8 hover:border-white/16 hover:bg-[#18181c] transition-all group"
           >
             <div className="flex items-center gap-2.5">
-              <span className={`w-2 h-2 rounded-full ${getQueuePulseColor()}`} />
+              <span
+                className={`w-2 h-2 rounded-full ${getQueuePulseColor()}`}
+              />
               <div>
                 <span className="text-xs font-semibold text-zinc-200 group-hover:text-white transition-colors block">
                   Mail Queue Buffer
                 </span>
                 <span className="text-[10px] text-zinc-400">
-                  {queueStats?.mailQueueSize ?? 0} queued • {queueStats?.mailDlqSize ?? 0} failed
+                  {queueStats?.mailQueueSize ?? 0} queued •{" "}
+                  {queueStats?.mailDlqSize ?? 0} failed
                 </span>
               </div>
             </div>
-            <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${getQueueBadgeStyle()}`}>
-              {(queueStats?.mailQueueSize ?? 0) === 0 && (queueStats?.mailDlqSize ?? 0) === 0
+            <span
+              className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full border ${getQueueBadgeStyle()}`}
+            >
+              {(queueStats?.mailQueueSize ?? 0) === 0 &&
+              (queueStats?.mailDlqSize ?? 0) === 0
                 ? "Optimal (Idle)"
                 : queueStats?.overallStatus || "Active"}
             </span>
@@ -251,7 +285,9 @@ export function SystemStatusWidget({
       {/* Footer */}
       <div className="pt-4 mt-6 border-t border-white/6 text-xs text-zinc-500 flex items-center justify-between">
         <span className="flex items-center gap-1.5">
-          <span className={`w-1.5 h-1.5 rounded-full ${isHealthy ? "bg-white" : "bg-amber-400"}`} />
+          <span
+            className={`w-1.5 h-1.5 rounded-full ${isHealthy ? "bg-white" : "bg-amber-400"}`}
+          />
           {isHealthy ? "Telemetry synced" : "Reviewing nodes"}
         </span>
         <span className="font-mono text-[11px]">Port 8000 & 5010</span>

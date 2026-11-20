@@ -3,6 +3,7 @@ package me.one_org.melody.Recommendation;
 import java.util.Map;
 
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
+import me.one_org.melody.Entity.Song;
 
 /**
  * Audio features of a song (tempo in BPM; energy, valence and danceability in 0..1).
@@ -20,6 +21,13 @@ public record AudioProfile(Double tempo, Double energy, Double valence, Double d
     public static AudioProfile of(SongDto dto) {
         if (dto == null) return null;
         AudioProfile p = new AudioProfile(dto.tempo(), dto.energy(), dto.valence(), dto.danceability());
+        return p.hasAny() ? p : null;
+    }
+
+    /** Profile stored on the song row (Flyway V15); null when the song has no features. */
+    public static AudioProfile of(Song song) {
+        if (song == null) return null;
+        AudioProfile p = new AudioProfile(song.getTempo(), song.getEnergy(), song.getValence(), song.getDanceability());
         return p.hasAny() ? p : null;
     }
 

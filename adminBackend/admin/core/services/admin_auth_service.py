@@ -42,13 +42,18 @@ class AdminAuthService:
     def decode_temp_token(cls, temp_token: str) -> Optional[Dict[str, Any]]:
         if not temp_token:
             return None
-        try:
-            r = RedisService.get_client()
-            raw = r.get(f"admin:temp_token:{temp_token}")
-            if raw:
-                return json.loads(raw)
-        except Exception:
-            pass
+        if not RedisService._memory_store_only():
+            # Redis is the source of truth; this worker's copy is only for when Redis is
+            # down. Otherwise a token used up on another worker would still work here.
+            try:
+                raw = RedisService.get_client().get(f"admin:temp_token:{temp_token}")
+            except Exception:
+                pass
+            else:
+                if raw:
+                    return json.loads(raw)
+                cls._MEMORY_TEMP_TOKENS.pop(temp_token, None)
+                return None
         cached = cls._MEMORY_TEMP_TOKENS.get(temp_token)
         if cached and cached.get("expiresAt", 0) > time.time():
             return cached
@@ -72,13 +77,19 @@ class AdminAuthService:
     def get_otp(cls, email: str) -> Optional[Dict[str, Any]]:
         norm_email = email.strip().lower()
         key = f"admin:otp:{norm_email}"
-        try:
-            r = RedisService.get_client()
-            raw = r.get(key)
-            if raw:
-                return json.loads(raw)
-        except Exception:
-            pass
+        if not RedisService._memory_store_only():
+            # Redis is the source of truth. Falling back to this worker's copy when the
+            # key is gone let a used or locked-out OTP work again here, with its failed
+            # attempt count reset. The copy is only for when Redis is down.
+            try:
+                raw = RedisService.get_client().get(key)
+            except Exception:
+                pass
+            else:
+                if raw:
+                    return json.loads(raw)
+                cls._MEMORY_OTP_CACHE.pop(norm_email, None)
+                return None
         cached = cls._MEMORY_OTP_CACHE.get(norm_email)
         if cached:
             if cached.get("expires_at", 0) > time.time():
@@ -108,8 +119,8 @@ class AdminAuthService:
             print("=" * 60 + "\n")
         logger.info("[ADMIN AUTH] Generated OTP for %s (%s)", email, purpose)
 
-        # 2. Push to Redis mail queue if running
-        try:
+        # 2. Send it: through the event pipeline when it's on, else the Redis mail queue.
+        def push_to_redis_queue():
             r = RedisService.get_client()
             payload = {
                 "to": email,
@@ -117,9 +128,19 @@ class AdminAuthService:
                 "otp": otp,
             }
             r.rpush(settings.REDIS_MAIL_QUEUE, json.dumps(payload))
+
+        try:
+            from core.services.outbox_service import OutboxService, events_enabled
+
+            if events_enabled():
+                # Same subject and body as the mail worker sends today. If the relay hasn't
+                # published it within 30 s, the Redis queue sends it instead (never both).
+                OutboxService.write_email(email, purpose, purpose, otp, fallback=push_to_redis_queue)
+            else:
+                push_to_redis_queue()
         except Exception as e:
-            logger.warning("Failed to push OTP to mail queue: %s", e)
-            print(f" [WARN] Could not push OTP to Redis mail queue: {e}")
+            logger.warning("Failed to queue OTP email: %s", e)
+            print(f" [WARN] Could not queue OTP email: {e}")
 
     @classmethod
     def issue_tokens_for_admin(cls, admin: Admin, request=None) -> Dict[str, Any]:

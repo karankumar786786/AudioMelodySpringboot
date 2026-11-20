@@ -9,6 +9,7 @@ from .admin_auth_service import AdminAuthService
 from .inngest_service import InngestService
 from .system_health_service import SystemHealthService
 from .catalog_sync_service import CatalogSyncService
+from .lyrics_service import LyricsService
 
 __all__ = [
     "RedisService",
@@ -22,6 +23,7 @@ __all__ = [
     "InngestService",
     "SystemHealthService",
     "CatalogSyncService",
+    "LyricsService",
 ]
 
 

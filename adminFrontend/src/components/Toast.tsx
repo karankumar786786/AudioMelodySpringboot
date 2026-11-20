@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, AlertCircle, Info, X } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { AlertCircle, CheckCircle2, Info, X } from "lucide-react";
+import { useEffect } from "react";
 
 export type ToastType = "success" | "error" | "info";
 
@@ -69,6 +69,7 @@ export function Toast({
             <Icon className={`w-5 h-5 shrink-0 ${config.iconColor}`} />
             <p className="text-sm font-medium pr-2 leading-snug">{message}</p>
             <button
+              type="button"
               onClick={onClose}
               className="ml-auto p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition-colors opacity-70 hover:opacity-100"
               aria-label="Dismiss"

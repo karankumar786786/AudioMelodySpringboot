@@ -1,11 +1,44 @@
 services:
   core:
-    image: karankumar9955/core:latest
+    image: karankumar9955/core:stable
     container_name: core
     pull_policy: always
     restart: unless-stopped
-    env_file:
-      - core.env
+    environment:
+      # Non-secret settings plus SECRET_IDS. Secret keys are read from AWS Secrets Manager
+      # at start-up with the EC2 instance role (no keys on disk); see infra/SECRETS.md.
+      SPRING_PROFILES_ACTIVE: aws
+      SECRET_IDS: onemelody/prod/db;onemelody/prod/redis;onemelody/prod/kafka;onemelody/prod/core
+      EVENTS_MODE: LEGACY
+      AWS_REGION: ap-south-1
+      APPLICATION_NAME: one_melody
+      PORT: "9090"
+      REDIS_PORT: "6379"
+      REDIS_SSL_ENABLED: "true"
+      REDIS_MAIL_QUEUE: mail_queue
+      REDIS_AUDIO_PROCESSING_QUEUE: audio_processing_queue
+      ALGOLIA_INDEX_NAME: one_melody_springboot
+      RECOMBEE_DATABASE_REGION: EU_WEST
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: "465"
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: "465"
+      AUDIO_PROCESSING_URL: https://audio-processing.one-org.me
+      AWS_ENDPOINT: ""
+      S3_TEMP_BUCKET: audiomelody-temp-storage-oneorg
+      S3_PRODUCTION_BUCKET: audiomelody-prod-storage-oneorg
+      OTEL_SERVICE_NAME: core-engine
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_METRICS_EXPORTER: otlp
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_TRACES_EXPORTER: otlp
+      COOKIE_DOMAIN: .one-org.me
+      COOKIE_SECURE: "true"
+      COOKIE_SAME_SITE: None
+      COOKIE_ACCESS_MAX_AGE: "300"
+      COOKIE_REFRESH_MAX_AGE: "604800"
+      CORS_ALLOWED_ORIGINS: https://one-melody.one-org.me,https://www.one-melody.one-org.me,https://*.one-org.me,http://localhost:3000,http://localhost:5173
     expose:
       - "9090"
     labels:
@@ -14,12 +47,20 @@ services:
       - app
 
   mail:
-    image: karankumar9955/mail:latest
+    image: karankumar9955/mail:stable
     container_name: mail
     pull_policy: always
     restart: unless-stopped
-    env_file:
-      - mail.env
+    environment:
+      # Non-secret settings plus SECRET_IDS. Secret keys are read from AWS Secrets Manager
+      # at start-up with the EC2 instance role (no keys on disk); see infra/SECRETS.md.
+      SECRET_IDS: onemelody/prod/redis,onemelody/prod/mail
+      AWS_REGION: ap-south-1
+      REDIS_PORT: "6379"
+      REDIS_SSL_ENABLED: "true"
+      MAIL_QUEUE: mail_queue
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: "465"
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     networks:
@@ -45,8 +86,17 @@ services:
     image: containrrr/watchtower
     container_name: watchtower
     restart: unless-stopped
-    env_file:
-      - watchtower.env
+    environment:
+      # Non-secret settings only. Secrets (and anything not listed here) come from
+      # AWS Secrets Manager at start-up via the EC2 instance role; see infra/SECRETS.md.
+      DOCKER_API_VERSION: "1.44"
+      WATCHTOWER_POLL_INTERVAL: "30"
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_ROLLING_RESTART: "true"
+      WATCHTOWER_INCLUDE_RESTARTING: "true"
+      WATCHTOWER_INCLUDE_STOPPED: "false"
+      WATCHTOWER_LOG_LEVEL: info
+      WATCHTOWER_LABEL_ENABLE: "true"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     labels:

@@ -180,7 +180,7 @@ export function AddToPlaylistModal({
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.backdrop}
       >
-        <Pressable style={styles.dismissArea} onPress={onClose} />
+        <Pressable style={styles.dismissArea} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" />
 
         <View
           style={[
@@ -214,6 +214,8 @@ export function AddToPlaylistModal({
             </View>
 
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Close"
               onPress={onClose}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               style={styles.closeButton}

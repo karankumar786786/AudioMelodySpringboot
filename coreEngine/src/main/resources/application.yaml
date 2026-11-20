@@ -52,6 +52,28 @@ spring:
       ssl:
         enabled: ${REDIS_SSL_ENABLED:true}
 
+  # Event pipeline (Redpanda). Producers connect lazily, so an empty broker list is fine
+  # while melody.events.mode is LEGACY.
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:19092}
+    admin:
+      auto-create: false
+    producer:
+      acks: all
+      compression-type: lz4
+      properties:
+        enable.idempotence: true
+        linger.ms: 5
+        max.block.ms: 2000           # never block a request thread long on metadata
+        request.timeout.ms: 5000
+        delivery.timeout.ms: 10000
+    properties:
+      schema.registry.url: ${SCHEMA_REGISTRY_URL:http://localhost:18081}
+      auto.register.schemas: ${SCHEMA_AUTO_REGISTER:true}
+      security.protocol: ${KAFKA_SECURITY_PROTOCOL:PLAINTEXT}
+      sasl.mechanism: ${KAFKA_SASL_MECHANISM:SCRAM-SHA-256}
+      sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
+
   jpa:
     open-in-view: false                  # don't hold a connection for the whole request
     database-platform: org.hibernate.dialect.PostgreSQLDialect
@@ -70,8 +92,36 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 30s
 
+# Spring Cloud AWS: only the 'aws' profile (below) talks to Secrets Manager. Without this,
+# its auto-configuration builds a client at start-up and fails where no AWS region is set.
+---
+spring:
+  cloud:
+    aws:
+      secretsmanager:
+        enabled: false
+---
+# LEGACY (default) | DUAL | KAFKA. See Events/Kafka/EventsMode.java.
+melody:
+  events:
+    mode: ${EVENTS_MODE:LEGACY}
+    source: core-api
+    produce-timeout: 3s
+    max-batch-size: 50
+    telemetry-per-user-per-minute: 300
+    otp-fallback-after: 30s
+
 jwt:
   secret: ${JWT_SECRET:super_secret_jwt_key_that_is_at_least_32_bytes_long_and_very_secure_12345}
+
+# HttpOnly auth cookies for the web app (see Security/AuthCookies). The mobile app uses bearer tokens.
+auth:
+  cookie:
+    domain: ${COOKIE_DOMAIN:}
+    secure: ${COOKIE_SECURE:true}
+    same-site: ${COOKIE_SAME_SITE:Lax}
+    access-max-age: ${COOKIE_ACCESS_MAX_AGE:3600}
+    refresh-max-age: ${COOKIE_REFRESH_MAX_AGE:604800}
 
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,https://one-melody.one-org.me,https://*.one-org.me}
@@ -129,3 +179,21 @@ logging:
     "[org.hibernate.SQL]": WARN
   pattern:
     console: "%clr(%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}){faint} %clr(%5p) %clr([${spring.application.name:core-engine},%X{trace_id:-0},%X{span_id:-0}]){yellow} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"
+---
+# Production secrets: AWS Secrets Manager, read with the EC2 instance role (no keys on disk).
+# Turn on with SPRING_PROFILES_ACTIVE=aws. SECRET_IDS is a ';'-separated list of JSON secrets
+# whose keys (DB_URL, JWT_SECRET, ...) become properties and fill the ${...} placeholders above.
+# The import is not optional: if a secret cannot be read the app stops instead of
+# starting against the localhost defaults. Without the profile, .env loading works as before.
+spring:
+  config:
+    activate:
+      on-profile: aws
+    import:
+      - aws-secretsmanager:${SECRET_IDS:onemelody/prod/db;onemelody/prod/redis;onemelody/prod/kafka;onemelody/prod/core}
+  cloud:
+    aws:
+      secretsmanager:
+        enabled: true
+      region:
+        static: ${AWS_REGION:ap-south-1}

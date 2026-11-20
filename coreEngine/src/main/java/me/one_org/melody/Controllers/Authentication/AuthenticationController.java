@@ -7,6 +7,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import me.one_org.melody.Dto.Controllers.Authentication.AuthTempTokenResponse;
 import me.one_org.melody.Dto.Controllers.Authentication.LoginRequestDto;
@@ -16,7 +18,9 @@ import me.one_org.melody.Dto.Controllers.Authentication.RegisterRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.ResendOtpRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpRequest;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpResponse;
+import me.one_org.melody.Dto.Controllers.Authentication.WebLogoutRequestDto;
 import me.one_org.melody.Dto.Internal.ClientInfo;
+import me.one_org.melody.Security.AuthCookies;
 import me.one_org.melody.Services.Authentication.AuthenticationService;
 
 @RestController
@@ -24,9 +28,11 @@ import me.one_org.melody.Services.Authentication.AuthenticationService;
 public class AuthenticationController {
 
     private final AuthenticationService authenticationService;
+    private final AuthCookies authCookies;
 
-    public AuthenticationController(AuthenticationService authenticationService) {
+    public AuthenticationController(AuthenticationService authenticationService, AuthCookies authCookies) {
         this.authenticationService = authenticationService;
+        this.authCookies = authCookies;
     }
 
     @PostMapping("/register")
@@ -41,7 +47,9 @@ public class AuthenticationController {
     @PostMapping("/verify-otp")
     public ResponseEntity<VerifyOtpResponse> verifyOtp(
             @Valid @RequestBody VerifyOtpRequest verifyRequest,
-            ClientInfo clientInfo) {
+            ClientInfo clientInfo,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
         String clientIp = clientInfo != null ? clientInfo.ipAddress() : null;
         String deviceName = clientInfo != null ? clientInfo.deviceName() : "Web Browser";
         String location = clientInfo != null ? clientInfo.location() : "Unknown Location";
@@ -54,6 +62,11 @@ public class AuthenticationController {
                 clientIp,
                 location
         );
+        if (AuthCookies.isWebClient(httpRequest)) {
+            // Web: tokens live only in HttpOnly cookies, never in script-readable JSON.
+            authCookies.writeTokens(httpResponse, response.accessToken(), response.refreshToken());
+            return ResponseEntity.ok(new VerifyOtpResponse(null, null, response.isNewUser()));
+        }
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
@@ -78,13 +91,49 @@ public class AuthenticationController {
     @PostMapping("/refresh-token")
     public ResponseEntity<RefreshTokenResponseDto> refreshToken(
             @Valid @RequestBody RefreshTokenRequestDto request,
-            ClientInfo clientInfo) {
+            ClientInfo clientInfo,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
         String clientIp = clientInfo != null ? clientInfo.ipAddress() : null;
+        boolean web = AuthCookies.isWebClient(httpRequest);
+        String refreshToken = request.refreshToken();
+        if ((refreshToken == null || refreshToken.isBlank()) && web) {
+            refreshToken = AuthCookies.readCookie(httpRequest, AuthCookies.REFRESH_COOKIE);
+        }
         RefreshTokenResponseDto response = authenticationService.refreshToken(
-                request.refreshToken(),
+                refreshToken,
                 request.deviceId(),
                 clientIp
         );
+        if (web) {
+            authCookies.writeTokens(httpResponse, response.accessToken(), response.refreshToken());
+            return ResponseEntity.ok(new RefreshTokenResponseDto(null, null));
+        }
         return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
+    /**
+     * Web logout: revokes the session identified by the auth cookies (blacklisting the
+     * access token) and clears them. Public so it still clears cookies when the access
+     * token has already expired; requires the web client header like every cookie request.
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            @Valid @RequestBody WebLogoutRequestDto request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
+        if (!AuthCookies.isWebClient(httpRequest)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+        String accessToken = AuthCookies.readCookie(httpRequest, AuthCookies.ACCESS_COOKIE);
+        String refreshToken = AuthCookies.readCookie(httpRequest, AuthCookies.REFRESH_COOKIE);
+        try {
+            if (accessToken != null || refreshToken != null) {
+                authenticationService.logout(accessToken, refreshToken, request.deviceId(), request.isAllDevices());
+            }
+        } finally {
+            authCookies.clear(httpResponse);
+        }
+        return ResponseEntity.noContent().build();
     }
 }

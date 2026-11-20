@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { ListMusic, Plus, Check, Loader2, X, Search, Music } from "lucide-react";
-import { adminFetch } from "@/lib/adminFetch";
-import { getImageUrl } from "@/lib/image-utils";
+import { ListMusic, Loader2, Music, Plus, Search, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import type { Song } from "@/app/songs/types";
+import { getImageUrl } from "@/lib/image-utils";
+import { useAddSongToPlaylist, usePlaylists } from "@/lib/queries/playlists";
 
 interface BasicPlaylist {
   id: string;
@@ -26,74 +26,47 @@ export function AddToPlaylistModal({
   onClose,
   onSuccess,
 }: AddToPlaylistModalProps) {
-  const [playlists, setPlaylists] = useState<BasicPlaylist[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [addingToId, setAddingToId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const playlistsQuery = usePlaylists(
+    { page: 0, size: 100, search: "", status: "" },
+    { enabled: isOpen },
+  );
+  const addSong = useAddSongToPlaylist();
+  const playlists: BasicPlaylist[] = playlistsQuery.data?.rows ?? [];
+  const loading = playlistsQuery.isPending && isOpen;
+  const addingToId = addSong.isPending
+    ? (addSong.variables?.playlistId ?? null)
+    : null;
+  const shownError =
+    error ?? (playlistsQuery.error ? "Error loading playlists" : null);
 
   useEffect(() => {
     if (!isOpen) {
       setSearch("");
       setError(null);
-      setAddingToId(null);
-      return;
     }
-
-    const fetchPlaylists = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await adminFetch("/admin/playlist?page=0&size=100");
-        if (res.ok) {
-          const data = await res.json();
-          const list =
-            data.content ||
-            data.data?.content ||
-            (Array.isArray(data.data) ? data.data : []);
-          setPlaylists(list);
-        } else {
-          setError("Failed to fetch playlists");
-        }
-      } catch (err) {
-        console.error("Failed to load playlists", err);
-        setError("Error loading playlists");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchPlaylists();
   }, [isOpen]);
 
   if (!isOpen || !song) return null;
 
   const filteredPlaylists = playlists.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase().trim())
+    p.name.toLowerCase().includes(search.toLowerCase().trim()),
   );
 
-  const handleSelectPlaylist = async (playlist: BasicPlaylist) => {
-    try {
-      setAddingToId(playlist.id);
-      const res = await adminFetch(`/admin/playlist/${playlist.id}/songs`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ songId: song.id }),
-      });
-
-      if (res.ok) {
-        onSuccess(playlist.name);
-        onClose();
-      } else {
-        const data = await res.json().catch(() => null);
-        setError(data?.message || "Failed to add track to playlist");
-      }
-    } catch (err: any) {
-      console.error("Add to playlist error:", err);
-      setError(err.message || "Failed to add track to playlist");
-    } finally {
-      setAddingToId(null);
-    }
+  const handleSelectPlaylist = (playlist: BasicPlaylist) => {
+    setError(null);
+    addSong.mutate(
+      { playlistId: playlist.id, songId: song.id },
+      {
+        onSuccess: () => {
+          onSuccess(playlist.name);
+          onClose();
+        },
+        onError: (err) =>
+          setError(err.message || "Failed to add track to playlist"),
+      },
+    );
   };
 
   return (
@@ -148,9 +121,9 @@ export function AddToPlaylistModal({
 
         {/* Playlists list */}
         <div className="p-3 overflow-y-auto space-y-1.5 flex-1 custom-scrollbar min-h-55">
-          {error && (
+          {shownError && (
             <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-300 text-xs mb-2">
-              {error}
+              {shownError}
             </div>
           )}
 
@@ -182,7 +155,10 @@ export function AddToPlaylistModal({
                     <div className="w-9 h-9 rounded-lg bg-black border border-white/10 overflow-hidden shrink-0 flex items-center justify-center">
                       {p.coverImageKey ? (
                         <img
-                          src={getImageUrl(p.coverImageKey, { width: 72, height: 72 })}
+                          src={getImageUrl(p.coverImageKey, {
+                            width: 72,
+                            height: 72,
+                          })}
                           alt={p.name}
                           className="w-full h-full object-cover"
                         />

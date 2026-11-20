@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
+import { ArrowUpRight, Music, Pause, Play, Sparkles } from "lucide-react";
 import Image from "next/image";
-import { Music, ArrowUpRight, Sparkles, Play, Pause } from "lucide-react";
-import { Song } from "@/lib/api";
+import Link from "next/link";
 import { SkeletonCard } from "@/components/SkeletonCard";
-import { getImageUrl } from "@/lib/image-utils";
+import type { Song } from "@/lib/api";
 import { useAudio } from "@/lib/audio-context";
+import { getImageUrl } from "@/lib/image-utils";
 
 interface RecentSongsWidgetProps {
   songs: Song[] | undefined;
@@ -14,7 +14,8 @@ interface RecentSongsWidgetProps {
 }
 
 export function RecentSongsWidget({ songs, loading }: RecentSongsWidgetProps) {
-  const { currentTrack, isPlaying, playTrack, pauseTrack, resumeTrack } = useAudio();
+  const { currentTrack, isPlaying, playTrack, pauseTrack, resumeTrack } =
+    useAudio();
 
   const formatDuration = (seconds?: number) => {
     if (!seconds) return "--:--";
@@ -53,7 +54,9 @@ export function RecentSongsWidget({ songs, loading }: RecentSongsWidgetProps) {
           </div>
           <div>
             <h2 className="text-base font-bold text-white">Recent Songs</h2>
-            <p className="text-xs text-zinc-400">Latest additions to the music catalog</p>
+            <p className="text-xs text-zinc-400">
+              Latest additions to the music catalog
+            </p>
           </div>
         </div>
         <Link
@@ -85,7 +88,11 @@ export function RecentSongsWidget({ songs, loading }: RecentSongsWidgetProps) {
                   <div className="relative w-10 h-10 rounded-xl overflow-hidden bg-black border border-white/10 shrink-0 group/cover">
                     {song.imageKey ? (
                       <Image
-                        src={getImageUrl(song.imageKey, { width: 88, height: 88, quality: 75 })}
+                        src={getImageUrl(song.imageKey, {
+                          width: 88,
+                          height: 88,
+                          quality: 75,
+                        })}
                         alt={song.title}
                         fill
                         className="object-cover"

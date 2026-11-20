@@ -120,7 +120,13 @@ EXPO_PUBLIC_ALGOLIA_INDEX_NAME=one_melody_songs
 EXPO_PUBLIC_RECOMBEE_DATABASE_ID=your_recombee_db_id
 EXPO_PUBLIC_RECOMBEE_PUBLIC_TOKEN=your_recombee_public_token
 EXPO_PUBLIC_RECOMBEE_REGION=ap-se
+
+# Optional crash reporting: OTLP/HTTP JSON logs endpoint (e.g. an OpenTelemetry
+# Collector's /v1/logs). Unset = no reports are sent. Bundled into the app, so no secrets.
+EXPO_PUBLIC_CRASH_REPORT_URL=
 ```
+
+Run the unit tests with `npm test`.
 
 ---
 

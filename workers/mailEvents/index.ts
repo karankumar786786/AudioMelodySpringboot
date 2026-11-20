@@ -1,75 +1,70 @@
 import { redis } from "./Redis";
-import { sendMail } from "./NodeMailer";
+import { createMailProvider } from "./providers";
+import { blockTimeoutSeconds, createRedisStore, handleRawJob, MAX_BLOCK_SECONDS } from "./lib/queue";
 import { config } from "dotenv";
+import { startTelemetry, recordSent, recordFailure } from "./telemetry"; // metrics only
 config();
 
-interface MailJob {
-    to: string;
-    subject: string;
-    otp: string;
-    retries?: number;
+const provider = createMailProvider();
+
+async function sendMail(to: string, subject: string, text: string) {
+    try {
+        const { messageId } = await provider.send({ to, subject, text });
+        console.log("Mail sent successfully via %s to %s: %s", provider.name, to, messageId);
+    } catch (err) {
+        console.error("Failed to send mail via %s to %s:", provider.name, to, err);
+        throw err;
+    }
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const MAX_RETRIES = 3;
-const EMPTY_QUEUE_DELAY_MS = Number(process.env.QUEUE_EMPTY_DELAY_MS) || 2000;
-const POLL_TIMEOUT_SECONDS = Number(process.env.QUEUE_POLL_TIMEOUT_SECS) || 2;
+const ERROR_BACKOFF_MS = 5000;
+const AUTH_FAILURE_PAUSE_MS = 30000;
+
+// Upstash bills every command, including a BLPOP that times out empty. One long
+// blocking wait keeps an idle worker at a few commands a minute while still picking up
+// a new job the moment it is pushed; the wait is cut short when a delayed retry is
+// due. Clamped so a small value in an old env file (the previous
+// QUEUE_POLL_TIMEOUT_SECS=2) can't bring back fast polling.
+const MAX_BLOCK = Math.min(Math.max(Number(process.env.QUEUE_BLOCK_TIMEOUT_SECS) || MAX_BLOCK_SECONDS, 30), 300);
 
 ;(async (mailQueue: string) => {
-    const dlqQueue = `${mailQueue}_dlq`;
-    console.log(`Mail worker started. Listening on queue: "${mailQueue}", DLQ: "${dlqQueue}" (idle wait: ${EMPTY_QUEUE_DELAY_MS}ms)`);
+    const store = createRedisStore(redis, mailQueue);
+    startTelemetry(async () => ({
+        [mailQueue]: await redis.llen(mailQueue),
+        [store.dlqKey]: await redis.llen(store.dlqKey),
+    }));
+    console.log(
+        `Mail worker started (provider: ${provider.name}). Listening on queue: "${mailQueue}", delayed: "${store.delayedKey}", DLQ: "${store.dlqKey}" (blocking wait up to ${MAX_BLOCK}s)`
+    );
 
     while (true) {
         try {
-            const result = await redis.blpop(mailQueue, POLL_TIMEOUT_SECONDS);
-            if (result && result[1]) {
-                let data: MailJob;
-                try {
-                    data = JSON.parse(result[1]);
-                } catch (parseErr) {
-                    console.error("Malformed mail job payload. Discarding:", result[1], parseErr);
-                    continue;
-                }
+            await store.promoteDue(Date.now());
 
-                try {
-                    await sendMail(data.to, data.subject, data.otp);
-                } catch (error: any) {
-                    data.retries = (data.retries || 0) + 1;
+            const timeout = blockTimeoutSeconds(Date.now(), await store.nextDueAt(), MAX_BLOCK);
+            const raw = await store.pop(timeout);
+            if (raw === null) {
+                // BLPOP already waited; loop straight back to promote any retry now due.
+                continue;
+            }
 
-                    const isAuthError =
-                        error?.code === "EAUTH" ||
-                        error?.responseCode === 454 ||
-                        error?.responseCode === 535 ||
-                        /Too many login attempts/i.test(error?.message || "");
+            const outcome = await handleRawJob(raw, { send: sendMail, isAuthError: (e) => provider.isAuthError(e), store });
+            if (outcome.kind === "sent") recordSent();
+            else if (outcome.kind === "retry") recordFailure("retry");
+            else if (outcome.kind === "dlq") recordFailure("dlq", outcome.reason === "auth" ? "auth" : "max_retries");
 
-                    if (isAuthError) {
-                        console.error(
-                            `[AUTH FAILURE] Google SMTP rejected authentication (Code: ${error?.code || error?.responseCode}). ` +
-                            `Moving job to DLQ (${dlqQueue}) and pausing worker for 30s to prevent rate-limit lockout.`
-                        );
-                        await redis.rpush(dlqQueue, JSON.stringify(data));
-                        await sleep(30000);
-                    } else if (data.retries >= MAX_RETRIES) {
-                        console.error(
-                            `[MAX RETRIES REACHED] Failed to send email to ${data.to} after ${data.retries} attempts. Moving to DLQ (${dlqQueue}).`
-                        );
-                        await redis.rpush(dlqQueue, JSON.stringify(data));
-                    } else {
-                        const delayMs = Math.min(5000 * Math.pow(2, data.retries - 1), 30000);
-                        console.warn(
-                            `[RETRY ${data.retries}/${MAX_RETRIES}] Retrying mail to ${data.to} in ${delayMs / 1000}s...`
-                        );
-                        await sleep(delayMs);
-                        await redis.rpush(mailQueue, JSON.stringify(data));
-                    }
-                }
-            } else {
-                // Queue is empty: back off for 1-3 seconds to prevent continuous polling
-                await sleep(EMPTY_QUEUE_DELAY_MS);
+            if (outcome.kind === "dlq" && outcome.reason === "auth") {
+                // Credentials are rejected for every message, so pause the provider
+                // briefly rather than hammering it into a rate-limit lockout.
+                console.error(
+                    `[AUTH FAILURE] Mail provider rejected authentication. Job moved to DLQ (${store.dlqKey}); pausing ${AUTH_FAILURE_PAUSE_MS / 1000}s.`
+                );
+                await sleep(AUTH_FAILURE_PAUSE_MS);
             }
         } catch (error) {
             console.error("Mail worker poll error:", error);
-            await sleep(EMPTY_QUEUE_DELAY_MS);
+            await sleep(ERROR_BACKOFF_MS);
         }
     }
 })(process.env.MAIL_QUEUE || "mail_queue");

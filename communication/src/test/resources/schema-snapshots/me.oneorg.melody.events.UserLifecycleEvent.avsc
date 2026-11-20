@@ -1,0 +1,66 @@
+{
+  "type" : "record",
+  "name" : "UserLifecycleEvent",
+  "namespace" : "me.oneorg.melody.events",
+  "doc" : "Sign-up and onboarding (outbox). Topic user.lifecycle.v1, key user_id.",
+  "fields" : [ {
+    "name" : "meta",
+    "type" : {
+      "type" : "record",
+      "name" : "EventMeta",
+      "doc" : "Embedded in every event. Consumers drop duplicates by event_id.",
+      "fields" : [ {
+        "name" : "event_id",
+        "type" : {
+          "type" : "string",
+          "avro.java.string" : "String"
+        },
+        "doc" : "UUID v7; made by the client for telemetry, by the server for state changes."
+      }, {
+        "name" : "occurred_at",
+        "type" : {
+          "type" : "long",
+          "logicalType" : "timestamp-millis"
+        },
+        "doc" : "When it happened on the device or server."
+      }, {
+        "name" : "received_at",
+        "type" : {
+          "type" : "long",
+          "logicalType" : "timestamp-millis"
+        },
+        "doc" : "When the core API accepted it."
+      }, {
+        "name" : "source",
+        "type" : {
+          "type" : "string",
+          "avro.java.string" : "String"
+        },
+        "doc" : "Who produced it, e.g. app, web, core-api, admin-api."
+      } ]
+    }
+  }, {
+    "name" : "user_id",
+    "type" : {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }
+  }, {
+    "name" : "type",
+    "type" : {
+      "type" : "enum",
+      "name" : "UserLifecycleType",
+      "symbols" : [ "SIGNED_UP", "ONBOARDED" ]
+    }
+  }, {
+    "name" : "followed_artist_ids",
+    "type" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string",
+        "avro.java.string" : "String"
+      }
+    },
+    "default" : [ ]
+  } ]
+}

@@ -6,11 +6,23 @@ from typing import Any, Dict, Optional
 import requests
 from django.conf import settings
 from django.db import connection
+from opentelemetry import metrics
 
 logger = logging.getLogger(__name__)
 
+# Alerting signal: incremented once per heartbeat received from audioProcessing.
+# Uptrace alerts when its per-minute rate drops to zero (see infra/observability/alerts.yml).
+# Uses the global (proxy) meter, so it is a no-op until core.otel sets a MeterProvider.
+HEARTBEAT_COUNTER = metrics.get_meter("admin-backend.telemetry").create_counter(
+    "audio_processing.heartbeats_received",
+    unit="{heartbeat}",
+    description="Heartbeats received from the audioProcessing worker",
+)
+
 REDIS_TELEMETRY_KEY = "system:telemetry:audio_processing"
-TELEMETRY_TTL_SECONDS = 45
+# audioProcessing sends a heartbeat every 60 s; keep each one for 2.5 intervals so a
+# single late beat does not show the service as down.
+TELEMETRY_TTL_SECONDS = 150
 
 
 class SystemHealthService:
@@ -39,6 +51,7 @@ class SystemHealthService:
             "receivedAt": datetime.now(timezone.utc).isoformat(),
             "timestamp": data.get("timestamp", datetime.now(timezone.utc).isoformat()),
         }
+        HEARTBEAT_COUNTER.add(1, {"status": str(telemetry["status"])})
 
         try:
             r = RedisService.get_client()
@@ -152,7 +165,7 @@ class SystemHealthService:
                     "memoryUsedMb": 0,
                     "activeJobs": 0,
                     "concurrencyLimit": 2,
-                    "error": ping_res.get("error", "No heartbeat received in last 45 seconds"),
+                    "error": ping_res.get("error", f"No heartbeat received in the last {TELEMETRY_TTL_SECONDS} seconds"),
                 }
 
         return {

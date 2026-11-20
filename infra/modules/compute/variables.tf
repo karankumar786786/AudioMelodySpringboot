@@ -99,3 +99,15 @@ variable "allowed_app_cidr_blocks" {
   description = "List of CIDR blocks allowed for application port access"
   default     = ["0.0.0.0/0"]
 }
+
+variable "iam_instance_profiles" {
+  type        = map(string)
+  description = "Server role (core, processing) => IAM instance profile name attached to that EC2 instance"
+  default     = {}
+}
+
+variable "kafka_volume_size" {
+  description = "Size in GB of the EBS volume for Redpanda data and Kafka Streams state"
+  type        = number
+  default     = 30
+}

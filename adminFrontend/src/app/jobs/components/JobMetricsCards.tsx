@@ -1,23 +1,14 @@
 "use client";
 
-import React from "react";
-import { JobSummaryMetrics, DeleteJobSummaryMetrics } from "@/lib/api";
 import {
   Activity,
-  Clock,
-  CheckCircle2,
   AlertTriangle,
+  CheckCircle2,
+  Clock,
   Layers,
   Trash2,
-  Cpu,
-  Sparkles,
-  Search,
-  Database,
-  Radio,
-  CloudLightning,
-  HardDrive,
-  Workflow,
 } from "lucide-react";
+import type { DeleteJobSummaryMetrics, JobSummaryMetrics } from "@/lib/api";
 import { formatMs } from "./jobHelpers";
 
 interface IngestionMetricsCardsProps {
@@ -36,7 +27,9 @@ interface DeletionMetricsCardsProps {
   isRefreshing?: boolean;
 }
 
-export type JobMetricsCardsProps = IngestionMetricsCardsProps | DeletionMetricsCardsProps;
+export type JobMetricsCardsProps =
+  | IngestionMetricsCardsProps
+  | DeletionMetricsCardsProps;
 
 export function JobMetricsCards(props: JobMetricsCardsProps) {
   const { type, metrics, loading } = props;
@@ -48,6 +41,7 @@ export function JobMetricsCards(props: JobMetricsCardsProps) {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           {Array.from({ length: 5 }).map((_, idx) => (
             <div
+              // biome-ignore lint/suspicious/noArrayIndexKey: fixed-position placeholders never reorder
               key={idx}
               className="animate-pulse p-5 rounded-2xl bg-[#121215] border border-white/8 space-y-3"
             >
@@ -84,7 +78,9 @@ export function JobMetricsCards(props: JobMetricsCardsProps) {
             <div className="text-3xl font-bold text-white tabular-nums">
               {ingMetrics?.currentlyProcessing ?? 0}
             </div>
-            <p className="text-[11px] text-zinc-400 mt-1">Active transcode &amp; sync</p>
+            <p className="text-[11px] text-zinc-400 mt-1">
+              Active transcode &amp; sync
+            </p>
           </div>
 
           {/* Queued / Pending */}
@@ -100,7 +96,9 @@ export function JobMetricsCards(props: JobMetricsCardsProps) {
             <div className="text-3xl font-bold text-white tabular-nums">
               {ingMetrics?.pendingQueued ?? 0}
             </div>
-            <p className="text-[11px] text-zinc-400 mt-1">Waiting for worker pick</p>
+            <p className="text-[11px] text-zinc-400 mt-1">
+              Waiting for worker pick
+            </p>
           </div>
 
           {/* Completed Successfully */}
@@ -116,7 +114,9 @@ export function JobMetricsCards(props: JobMetricsCardsProps) {
             <div className="text-3xl font-bold text-white tabular-nums">
               {ingMetrics?.completed ?? 0}
             </div>
-            <p className="text-[11px] text-zinc-400 mt-1">Finished &amp; indexed</p>
+            <p className="text-[11px] text-zinc-400 mt-1">
+              Finished &amp; indexed
+            </p>
           </div>
 
           {/* Failed / Needs Attention */}
@@ -233,7 +233,9 @@ export function JobMetricsCards(props: JobMetricsCardsProps) {
           <div className="text-3xl font-bold text-white tabular-nums">
             {delMetrics?.pendingQueued ?? 0}
           </div>
-          <p className="text-[11px] text-zinc-400 mt-1">Waiting in deletion queue</p>
+          <p className="text-[11px] text-zinc-400 mt-1">
+            Waiting in deletion queue
+          </p>
         </div>
 
         {/* Completed */}
@@ -249,7 +251,9 @@ export function JobMetricsCards(props: JobMetricsCardsProps) {
           <div className="text-3xl font-bold text-white tabular-nums">
             {delMetrics?.completed ?? 0}
           </div>
-          <p className="text-[11px] text-zinc-400 mt-1">Hard deleted across all tiers</p>
+          <p className="text-[11px] text-zinc-400 mt-1">
+            Hard deleted across all tiers
+          </p>
         </div>
 
         {/* Failed */}
@@ -271,7 +275,9 @@ export function JobMetricsCards(props: JobMetricsCardsProps) {
           <div className="text-3xl font-bold tabular-nums">
             {delMetrics?.failed ?? 0}
           </div>
-          <p className="text-[11px] text-zinc-400 mt-1">Orphaned cleanup jobs</p>
+          <p className="text-[11px] text-zinc-400 mt-1">
+            Orphaned cleanup jobs
+          </p>
         </div>
 
         {/* Total Deletions */}

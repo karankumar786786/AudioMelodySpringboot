@@ -86,6 +86,11 @@ public record SongDto(
         return fromEntity(song, null, null);
     }
 
+    /** True when at least one audio feature is known. */
+    public boolean hasAudioFeatures() {
+        return tempo != null || energy != null || valence != null || danceability != null;
+    }
+
     /** Returns a copy of this DTO with the given audio features. */
     public SongDto withAudioFeatures(Double tempo, Double energy, Double valence, Double danceability) {
         return new SongDto(id, title, artistName, duration, songKey, imageKey, videoKey, fullVideoKey,
@@ -120,10 +125,10 @@ public record SongDto(
             song.getCreatedAt(),
             isLiked,
             likesCount,
-            null,
-            null,
-            null,
-            null
+            song.getTempo(),
+            song.getEnergy(),
+            song.getValence(),
+            song.getDanceability()
         );
     }
 }

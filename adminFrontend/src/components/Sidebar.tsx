@@ -1,18 +1,19 @@
 "use client";
 
+import {
+  ChevronRight,
+  Cpu,
+  LayoutDashboard,
+  ListMusic,
+  Mic2,
+  Music,
+  ShieldAlert,
+  Sparkles,
+  Stethoscope,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import {
-  LayoutDashboard,
-  Music,
-  Cpu,
-  Mic2,
-  ListMusic,
-  ShieldAlert,
-  ChevronRight,
-  Sparkles,
-} from "lucide-react";
 
 interface NavItem {
   name: string;
@@ -37,6 +38,11 @@ const baseNavItems: NavItem[] = [
     name: "Processing",
     href: "/jobs",
     icon: Cpu,
+  },
+  {
+    name: "Catalog Health",
+    href: "/catalog-health",
+    icon: Stethoscope,
   },
   {
     name: "Artists",

@@ -1,0 +1,87 @@
+{
+  "type" : "record",
+  "name" : "SongChanged",
+  "namespace" : "me.oneorg.melody.events",
+  "doc" : "Catalog change written by the admin API (outbox). Topic catalog.song.v1 (compacted), key song_id.",
+  "fields" : [ {
+    "name" : "meta",
+    "type" : {
+      "type" : "record",
+      "name" : "EventMeta",
+      "doc" : "Embedded in every event. Consumers drop duplicates by event_id.",
+      "fields" : [ {
+        "name" : "event_id",
+        "type" : {
+          "type" : "string",
+          "avro.java.string" : "String"
+        },
+        "doc" : "UUID v7; made by the client for telemetry, by the server for state changes."
+      }, {
+        "name" : "occurred_at",
+        "type" : {
+          "type" : "long",
+          "logicalType" : "timestamp-millis"
+        },
+        "doc" : "When it happened on the device or server."
+      }, {
+        "name" : "received_at",
+        "type" : {
+          "type" : "long",
+          "logicalType" : "timestamp-millis"
+        },
+        "doc" : "When the core API accepted it."
+      }, {
+        "name" : "source",
+        "type" : {
+          "type" : "string",
+          "avro.java.string" : "String"
+        },
+        "doc" : "Who produced it, e.g. app, web, core-api, admin-api."
+      } ]
+    }
+  }, {
+    "name" : "song_id",
+    "type" : {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }
+  }, {
+    "name" : "change",
+    "type" : {
+      "type" : "enum",
+      "name" : "SongChangeType",
+      "symbols" : [ "CREATED", "UPDATED", "PUBLISHED", "UNPUBLISHED", "DELETED" ]
+    }
+  }, {
+    "name" : "title",
+    "type" : [ "null", {
+      "type" : "string",
+      "avro.java.string" : "String"
+    } ],
+    "default" : null
+  }, {
+    "name" : "artist_name",
+    "type" : [ "null", {
+      "type" : "string",
+      "avro.java.string" : "String"
+    } ],
+    "default" : null
+  }, {
+    "name" : "artist_ids",
+    "type" : {
+      "type" : "array",
+      "items" : {
+        "type" : "string",
+        "avro.java.string" : "String"
+      }
+    },
+    "default" : [ ]
+  }, {
+    "name" : "status",
+    "type" : [ "null", {
+      "type" : "string",
+      "avro.java.string" : "String"
+    } ],
+    "default" : null
+  } ]
+}

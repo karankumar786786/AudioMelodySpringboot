@@ -2,9 +2,9 @@ import "./lib/otel";
 import { setupConsoleLogger } from "./lib/logger";
 setupConsoleLogger();
 import express from "express";
-import { timingSafeEqual } from "crypto";
 import { serve } from "inngest/express";
 import { inngest } from "./inngest";
+import { requireApiKey } from "./lib/apiKeyAuth";
 import { config } from "dotenv";
 import { fetchJob } from "./functions/fetchJob";
 import { transcodeSong } from "./functions/transcode";
@@ -20,7 +20,6 @@ import { deleteFromRecombee } from "./functions/deleteFromRecombee";
 import { deleteFromImageKit } from "./functions/deleteFromImageKit";
 import { deleteFromS3 } from "./functions/deleteFromS3";
 import { finalizeDelete } from "./functions/finalizeDelete";
-import { fetchCancelEventsFromList } from "./jobseeker/cancelWorker";
 import {
   setupGracefulShutdownCleanup,
   cleanupStaleTmpFiles,
@@ -77,41 +76,6 @@ const functions = [
   deleteFromS3,
   finalizeDelete,
 ];
-
-// Security middleware: Protect internal API endpoints with API key
-const requireApiKey: express.RequestHandler = (req, res, next) => {
-  const configuredKey =
-    process.env.AUDIO_PROCESSING_API_KEY ||
-    process.env.APPLICATION_API_KEY;
-
-  const providedKey = req.header("X-API-KEY") || req.header("x-api-key");
-
-  if (!configuredKey) {
-    console.warn(
-      "[AUTH WARN] Neither AUDIO_PROCESSING_API_KEY nor APPLICATION_API_KEY is configured in audioProcessing environment."
-    );
-    return next();
-  }
-
-  const isValid =
-    Boolean(providedKey) &&
-    Boolean(configuredKey) &&
-    providedKey!.length === configuredKey.length &&
-    timingSafeEqual(Buffer.from(providedKey!), Buffer.from(configuredKey));
-
-  if (!isValid) {
-    console.warn(
-      `[AUTH REJECT] Unauthorized attempt from ${req.ip} for ${req.method} ${req.originalUrl}`
-    );
-    return res.status(401).json({
-      status: 401,
-      error: "Unauthorized",
-      message: "Invalid or missing X-API-KEY header",
-    });
-  }
-
-  next();
-};
 
 // Protect all internal job management endpoints with API key authentication
 app.use("/api/jobs", requireApiKey);
@@ -200,9 +164,10 @@ app.listen(5010, () => {
   );
 
   // Start bidirectional telemetry heartbeat worker to adminBackend
-  startHeartbeatWorker(10000);
-
-  // Still observe cancel events if any in queue
-  fetchCancelEventsFromList();
+  // Every 60 s: the admin dashboard only needs "alive in the last few minutes", and each
+  // heartbeat costs a Redis write on the admin side (Upstash bills per command).
+  // Cancellation needs no Redis worker: the admin API and POST /cancel send
+  // audio/job.cancel to Inngest, and every job function lists it in cancelOn.
+  startHeartbeatWorker(60000);
 });
 

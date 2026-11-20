@@ -9,6 +9,12 @@ module "s3" {
   is_public                   = var.is_public
 }
 
+module "secrets" {
+  source = "../../modules/secrets"
+
+  project_name = var.project_name
+}
+
 module "compute" {
   source = "../../modules/compute"
 
@@ -29,4 +35,5 @@ module "compute" {
   allowed_http_cidr_blocks = var.allowed_http_cidr_blocks
   app_port                 = var.app_port
   allowed_app_cidr_blocks  = var.allowed_app_cidr_blocks
+  iam_instance_profiles    = module.secrets.instance_profile_names
 }

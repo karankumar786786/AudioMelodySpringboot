@@ -49,6 +49,10 @@ class AlgoliaSearchTest {
         IndexSettings settings = settingsCaptor.getValue();
         assertThat(settings.getCustomRanking()).containsExactly("desc(searchCount)", "desc(totalStreams)");
         assertThat(settings.getSearchableAttributes()).contains("title", "artistName", "album");
+        assertThat(settings.getSearchableAttributes()).last().isEqualTo("unordered(lyrics)");
+        assertThat(settings.getAttributesToRetrieve()).containsExactly("*", "-lyrics");
+        assertThat(settings.getAttributesToHighlight()).doesNotContain("lyrics");
+        assertThat(settings.getAttributesToSnippet()).containsExactly("lyrics:12");
     }
 
     @Test

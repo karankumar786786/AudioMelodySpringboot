@@ -1,5 +1,6 @@
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { withAdminHeaders } from "./adminFetch";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export interface Song {
   id: string;
@@ -322,7 +323,10 @@ export const adminClient = {
       });
       if (!res.ok) {
         let msg = "Login failed";
-        try { const d = await res.json(); msg = d.message || msg; } catch {}
+        try {
+          const d = await res.json();
+          msg = d.message || msg;
+        } catch {}
         throw new Error(msg);
       }
       const data = await res.json();
@@ -337,42 +341,48 @@ export const adminClient = {
       });
       if (!res.ok) {
         let msg = "Registration failed";
-        try { const d = await res.json(); msg = d.message || msg; } catch {}
+        try {
+          const d = await res.json();
+          msg = d.message || msg;
+        } catch {}
         throw new Error(msg);
       }
       const data = await res.json();
       return { data: { token: data.tempToken } };
     },
     verifyOtp: async (token: string, otp: string, email: string) => {
-      // 1. Verify OTP with the real backend (sets HTTP-only session cookies)
+      // 1. Verify OTP with the real backend. It sets the HttpOnly session cookies and,
+      //    because of X-Admin-Client: web, leaves the session IDs out of the body.
       const verifyRes = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
         method: "POST",
-        headers: {
+        headers: withAdminHeaders({
           "Content-Type": "application/json",
           "X-TEMP-TOKEN": token,
-        },
+        }),
         body: JSON.stringify({ otp }),
         credentials: "include",
       });
       if (!verifyRes.ok) {
         let msg = "OTP verification failed";
-        try { const d = await verifyRes.json(); msg = d.message || msg; } catch {}
+        try {
+          const d = await verifyRes.json();
+          msg = d.message || msg;
+        } catch {}
         throw new Error(msg);
       }
-      const verifyData = await verifyRes.json();
-      const sessionId = verifyData.sessionId || verifyData.accessToken;
-      const refreshSessionId = verifyData.refreshSessionId || verifyData.refreshToken;
 
-      // 2. Fetch user profile with the stateful Redis session
+      // 2. Fetch user profile using the session cookie
       const profileRes = await fetch(`${API_BASE_URL}/api/user/profile`, {
-        headers: {
-          "X-Session-Id": sessionId,
-          "Authorization": `Session ${sessionId}`,
-        },
+        headers: withAdminHeaders(),
         credentials: "include",
       });
 
-      let user: any = { id: "unknown", email, name: "Admin", role: "admin" };
+      let user: { id: string; email: string; name: string; role: string } = {
+        id: "unknown",
+        email,
+        name: "Admin",
+        role: "admin",
+      };
       if (profileRes.ok) {
         const profile = await profileRes.json();
         user = {
@@ -380,21 +390,12 @@ export const adminClient = {
           email: profile.email,
           name: profile.userName || profile.name || "Admin",
           role: profile.role || "user",
-          sessionId: profile.sessionId || sessionId,
         };
       }
 
-      return {
-        data: {
-          sessionId,
-          refreshSessionId,
-          accessToken: sessionId,
-          refreshToken: refreshSessionId,
-          user,
-        },
-      };
+      return { data: { user } };
     },
-    resendOtp: async (token: string, email: string) => {
+    resendOtp: async (token: string, _email: string) => {
       const res = await fetch(`${API_BASE_URL}/auth/resend-otp`, {
         method: "POST",
         headers: {
@@ -405,7 +406,10 @@ export const adminClient = {
       });
       if (!res.ok) {
         let msg = "Failed to resend OTP";
-        try { const d = await res.json(); msg = d.message || msg; } catch {}
+        try {
+          const d = await res.json();
+          msg = d.message || msg;
+        } catch {}
         throw new Error(msg);
       }
       return { data: { token } };

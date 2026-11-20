@@ -1,0 +1,11 @@
+{
+  "type": "record", "name": "PlaylistSongChanged", "namespace": "me.oneorg.melody.events",
+  "doc": "A song was added to or removed from a user's own playlist (outbox). Topic engagement.playlist-song.v1, key user_id.",
+  "fields": [
+    {"name": "meta", "type": "EventMeta"},
+    {"name": "user_id", "type": "string"},
+    {"name": "song_id", "type": "string"},
+    {"name": "playlist_id", "type": ["null", "string"], "default": null},
+    {"name": "added", "type": "boolean"}
+  ]
+}

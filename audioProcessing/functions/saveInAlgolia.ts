@@ -1,6 +1,7 @@
 import { inngest } from "../inngest";
 import { api } from "../axios";
 import { extractMeaningfulError } from "../lib/errorUtils";
+import { fetchSearchableLyrics } from "../lib/lyrics";
 
 export const indexAlgolia = inngest.createFunction(
     {
@@ -48,6 +49,8 @@ export const indexAlgolia = inngest.createFunction(
                     const songId = job?.songId || job?.song_id || job?.id;
 
                     if (songId) {
+                        // Plain, size-capped lyrics so songs are searchable by a line of the song.
+                        const lyrics = await fetchSearchableLyrics(job.lrclibId ?? job.lrclib_id);
                         const record = {
                             objectID: String(songId),
                             type: "song",
@@ -62,6 +65,7 @@ export const indexAlgolia = inngest.createFunction(
                             previewEndTime: typeof job.previewEndTime === "number" ? job.previewEndTime : (typeof job.preview_end_time === "number" ? job.preview_end_time : null),
                             totalStreams: Number(job.totalStreams || job.total_streams || 0),
                             searchCount: Number(job.searchCount || job.search_count || 0),
+                            lyrics,
                         };
 
                         const directUrl = `https://${appId}.algolia.net/1/indexes/${encodeURIComponent(indexName)}/${encodeURIComponent(songId)}`;

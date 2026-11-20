@@ -1,0 +1,134 @@
+name: Promote to Production
+
+# Production containers (Docker/*/docker-compose.yml) run the `:stable` tag, and
+# Watchtower restarts them when `:stable` moves. CI on main only publishes
+# `:latest` and `:sha-<short sha>`, so nothing reaches production until this
+# workflow points `:stable` at a build. Run it again with an older SHA to roll back.
+
+on:
+  workflow_dispatch:
+    inputs:
+      services:
+        description: "Services to promote"
+        type: choice
+        default: all
+        options: [all, core, admin, audioprocessing, mail, streams]
+      sha:
+        description: "Short commit SHA (7 chars) of the build to promote. Leave empty to promote the current :latest."
+        type: string
+        required: false
+        default: ""
+      verify:
+        description: "Check the public health endpoints after promoting"
+        type: boolean
+        default: true
+
+concurrency:
+  group: promote-production
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Point :stable at the chosen build
+    runs-on: ubuntu-latest
+    outputs:
+      promoted: ${{ steps.retag.outputs.promoted }}
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Retag images
+        id: retag
+        env:
+          REPO: ${{ secrets.DOCKER_USERNAME }}
+          SERVICES: ${{ inputs.services }}
+          SHA: ${{ inputs.sha }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$SHA" && ! "$SHA" =~ ^[0-9a-f]{7}$ ]]; then
+            echo "::error::sha must be a 7-character lowercase hex commit SHA, got '$SHA'"
+            exit 1
+          fi
+          if [[ "$SERVICES" == "all" ]]; then
+            list="core admin audioprocessing mail streams"
+          else
+            list="$SERVICES"
+          fi
+          source_tag="latest"
+          [[ -n "$SHA" ]] && source_tag="sha-$SHA"
+
+          promoted=""
+          for svc in $list; do
+            src="$REPO/$svc:$source_tag"
+            if ! docker buildx imagetools inspect "$src" >/dev/null 2>&1; then
+              # CI only builds services whose files changed, so a SHA may not exist for every service.
+              echo "::notice::$svc has no $source_tag image; leaving its :stable unchanged"
+              continue
+            fi
+            # Keep the current stable as stable-previous for a one-step rollback.
+            if docker buildx imagetools inspect "$REPO/$svc:stable" >/dev/null 2>&1; then
+              docker buildx imagetools create -t "$REPO/$svc:stable-previous" "$REPO/$svc:stable"
+            fi
+            docker buildx imagetools create -t "$REPO/$svc:stable" "$src"
+            digest=$(docker buildx imagetools inspect "$REPO/$svc:stable" --format '{{json .Manifest.Digest}}' | tr -d '"')
+            echo "Promoted $svc: $source_tag -> stable ($digest)"
+            echo "- **$svc**: \`$source_tag\` → \`stable\` (\`$digest\`)" >> "$GITHUB_STEP_SUMMARY"
+            promoted="$promoted $svc"
+          done
+
+          if [[ -z "$promoted" ]]; then
+            echo "::error::Nothing was promoted"
+            exit 1
+          fi
+          echo "promoted=${promoted# }" >> "$GITHUB_OUTPUT"
+
+  verify:
+    name: Check production health
+    needs: promote
+    if: inputs.verify
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Watchtower and check health endpoints
+        env:
+          PROMOTED: ${{ needs.promote.outputs.promoted }}
+        run: |
+          set -euo pipefail
+          urls=()
+          for svc in $PROMOTED; do
+            case "$svc" in
+              core)            urls+=("https://api-one-melody.one-org.me/actuator/health") ;;
+              admin)           urls+=("https://api-admin-one-melody.one-org.me/health") ;;
+              audioprocessing) urls+=("https://audio-processing.one-org.me/health") ;;
+              mail)            echo "::notice::mail has no public health endpoint; check its container logs" ;;
+              streams)         echo "::notice::streams has no public health endpoint; check its container logs" ;;
+            esac
+          done
+          [[ ${#urls[@]} -eq 0 ]] && exit 0
+
+          # Watchtower polls every 30s, then pulls and restarts; give it time before checking.
+          sleep 90
+          failed=0
+          for url in "${urls[@]}"; do
+            ok=0
+            for attempt in $(seq 1 20); do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "$url" || true)
+              if [[ "$code" == "200" ]]; then ok=1; break; fi
+              sleep 15
+            done
+            if [[ $ok -eq 1 ]]; then
+              echo "OK   $url" | tee -a "$GITHUB_STEP_SUMMARY"
+            else
+              echo "FAIL $url (last status $code)" | tee -a "$GITHUB_STEP_SUMMARY"
+              failed=1
+            fi
+          done
+          if [[ $failed -eq 1 ]]; then
+            echo "::error::A service is unhealthy after promotion. Roll back by promoting the previous SHA."
+            exit 1
+          fi

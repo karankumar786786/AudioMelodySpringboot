@@ -1,5 +1,4 @@
 "use client";
-import React, { useState, useEffect } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -7,6 +6,7 @@ import {
   ChevronsRight,
   Loader2,
 } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export interface PaginationBarProps {
   page: number; // 0-indexed
@@ -45,7 +45,8 @@ export function PaginationBar({
   }, [loading]);
 
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-  const startItem = totalItems === 0 || currentCount === 0 ? 0 : page * pageSize + 1;
+  const startItem =
+    totalItems === 0 || currentCount === 0 ? 0 : page * pageSize + 1;
   const endItem =
     totalItems === 0 || currentCount === 0 ? 0 : page * pageSize + currentCount;
 
@@ -62,7 +63,7 @@ export function PaginationBar({
 
   const handleNav = (
     targetPage: number,
-    navType: "first" | "prev" | "next" | "last"
+    navType: "first" | "prev" | "next" | "last",
   ) => {
     if (loading || targetPage === page) return;
     setPendingNav(navType);
@@ -81,9 +82,11 @@ export function PaginationBar({
       {/* Left: Item Counter and Page Size Select */}
       <div className="flex items-center gap-3">
         <span>
-          Showing <strong className="text-white font-semibold">{startItem}</strong> to{" "}
+          Showing{" "}
+          <strong className="text-white font-semibold">{startItem}</strong> to{" "}
           <strong className="text-white font-semibold">{endItem}</strong> of{" "}
-          <strong className="text-white font-semibold">{totalItems}</strong> {itemLabel}
+          <strong className="text-white font-semibold">{totalItems}</strong>{" "}
+          {itemLabel}
         </span>
         <select
           value={pageSize}
@@ -104,6 +107,7 @@ export function PaginationBar({
       {/* Right: Navigation Controls */}
       <div className="flex items-center gap-1.5">
         <button
+          type="button"
           onClick={() => handleNav(0, "first")}
           disabled={isFirstDisabled}
           className="p-1.5 rounded-lg border border-[#282828] bg-[#181818] text-zinc-400 hover:text-white hover:border-zinc-500 disabled:opacity-30 disabled:hover:border-[#282828] disabled:hover:text-zinc-400 transition-all cursor-pointer disabled:cursor-not-allowed"
@@ -116,6 +120,7 @@ export function PaginationBar({
           )}
         </button>
         <button
+          type="button"
           onClick={() => handleNav(Math.max(0, page - 1), "prev")}
           disabled={isPrevDisabled}
           className="p-1.5 rounded-lg border border-[#282828] bg-[#181818] text-zinc-400 hover:text-white hover:border-zinc-500 disabled:opacity-30 disabled:hover:border-[#282828] disabled:hover:text-zinc-400 transition-all cursor-pointer disabled:cursor-not-allowed"
@@ -140,6 +145,7 @@ export function PaginationBar({
         </span>
 
         <button
+          type="button"
           onClick={() => handleNav(page + 1, "next")}
           disabled={isNextDisabled}
           className="p-1.5 rounded-lg border border-[#282828] bg-[#181818] text-zinc-400 hover:text-white hover:border-zinc-500 disabled:opacity-30 disabled:hover:border-[#282828] disabled:hover:text-zinc-400 transition-all cursor-pointer disabled:cursor-not-allowed"
@@ -152,6 +158,7 @@ export function PaginationBar({
           )}
         </button>
         <button
+          type="button"
           onClick={() => handleNav(Math.max(0, totalPages - 1), "last")}
           disabled={isLastDisabled}
           className="p-1.5 rounded-lg border border-[#282828] bg-[#181818] text-zinc-400 hover:text-white hover:border-zinc-500 disabled:opacity-30 disabled:hover:border-[#282828] disabled:hover:text-zinc-400 transition-all cursor-pointer disabled:cursor-not-allowed"

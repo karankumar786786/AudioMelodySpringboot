@@ -15,12 +15,16 @@ import me.one_org.melody.Dto.Controllers.Authentication.LoginRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.RefreshTokenResponseDto;
 import me.one_org.melody.Dto.Controllers.Authentication.RegisterRequestDto;
 import me.one_org.melody.Dto.Controllers.Authentication.VerifyOtpResponse;
+import me.one_org.melody.Security.AuthCookies;
 import me.one_org.melody.Security.ClientInfoArgumentResolver;
 import me.one_org.melody.Services.Authentication.AuthenticationService;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.hamcrest.Matchers.*;
+import jakarta.servlet.http.Cookie;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -32,9 +36,11 @@ class AuthenticationControllerIntegrationTest {
     @Mock
     private AuthenticationService authenticationService;
 
+    private final AuthCookies authCookies = new AuthCookies("", true, "Lax", 3600, 604800);
+
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new AuthenticationController(authenticationService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new AuthenticationController(authenticationService, authCookies))
                 .setCustomArgumentResolvers(new ClientInfoArgumentResolver())
                 .build();
     }
@@ -108,5 +114,67 @@ class AuthenticationControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").value("new-access-token"))
                 .andExpect(jsonPath("$.refreshToken").value("new-refresh-token"));
+    }
+
+    @Test
+    @DisplayName("Web verify-otp sets HttpOnly cookies and omits tokens from the body")
+    void webVerifyOtpSetsCookies() throws Exception {
+        when(authenticationService.verifyOtp(eq("temp"), eq("123456"), eq("web-device"), any(), any(), any()))
+                .thenReturn(new VerifyOtpResponse("access-token-123", "refresh-token-456", true));
+
+        mockMvc.perform(post("/auth/verify-otp")
+                        .header(AuthCookies.CLIENT_HEADER, AuthCookies.WEB_CLIENT)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"tempToken\":\"temp\",\"otp\":\"123456\",\"deviceId\":\"web-device\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").doesNotExist())
+                .andExpect(jsonPath("$.refreshToken").doesNotExist())
+                .andExpect(jsonPath("$.isNewUser").value(true))
+                .andExpect(header().stringValues("Set-Cookie", hasItems(
+                        allOf(startsWith("melody_access=access-token-123"), containsString("HttpOnly"), containsString("Secure"), containsString("Path=/;")),
+                        allOf(startsWith("melody_refresh=refresh-token-456"), containsString("HttpOnly"), containsString("Path=/auth")))));
+    }
+
+    @Test
+    @DisplayName("Web refresh-token reads the refresh cookie and rotates both cookies")
+    void webRefreshUsesCookie() throws Exception {
+        when(authenticationService.refreshToken(eq("cookie-refresh"), eq("web-device"), any()))
+                .thenReturn(new RefreshTokenResponseDto("new-access", "new-refresh"));
+
+        mockMvc.perform(post("/auth/refresh-token")
+                        .header(AuthCookies.CLIENT_HEADER, AuthCookies.WEB_CLIENT)
+                        .cookie(new Cookie(AuthCookies.REFRESH_COOKIE, "cookie-refresh"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"deviceId\":\"web-device\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").doesNotExist())
+                .andExpect(header().stringValues("Set-Cookie", hasItems(
+                        startsWith("melody_access=new-access"), startsWith("melody_refresh=new-refresh"))));
+    }
+
+    @Test
+    @DisplayName("Refresh cookie is ignored without the web client header")
+    void refreshCookieIgnoredWithoutWebHeader() throws Exception {
+        mockMvc.perform(post("/auth/refresh-token")
+                        .cookie(new Cookie(AuthCookies.REFRESH_COOKIE, "cookie-refresh"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"deviceId\":\"dev\"}"))
+                .andExpect(header().doesNotExist("Set-Cookie"));
+        verify(authenticationService).refreshToken(org.mockito.ArgumentMatchers.isNull(), eq("dev"), any());
+    }
+
+    @Test
+    @DisplayName("Web logout revokes the cookie session and clears both cookies")
+    void webLogoutClearsCookies() throws Exception {
+        mockMvc.perform(post("/auth/logout")
+                        .header(AuthCookies.CLIENT_HEADER, AuthCookies.WEB_CLIENT)
+                        .cookie(new Cookie(AuthCookies.ACCESS_COOKIE, "acc"), new Cookie(AuthCookies.REFRESH_COOKIE, "ref"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"deviceId\":\"web-device\"}"))
+                .andExpect(status().isNoContent())
+                .andExpect(header().stringValues("Set-Cookie", hasItems(
+                        allOf(startsWith("melody_access=;"), containsString("Max-Age=0")),
+                        allOf(startsWith("melody_refresh=;"), containsString("Max-Age=0")))));
+        verify(authenticationService).logout("acc", "ref", "web-device", false);
     }
 }

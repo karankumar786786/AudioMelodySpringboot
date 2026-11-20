@@ -88,6 +88,7 @@ export function SearchHistoryItem({
       </View>
 
       <TouchableOpacity
+        accessibilityRole="button"
         style={styles.deleteButton}
         onPress={(e) => {
           e.stopPropagation?.();

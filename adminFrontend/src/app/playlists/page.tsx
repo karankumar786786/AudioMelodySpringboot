@@ -1,105 +1,65 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { ListMusic, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Plus, ListMusic, Search, X } from "lucide-react";
-import { Toast, type ToastType } from "@/components/Toast";
-import { PaginationBar } from "@/components/PaginationBar";
-import { adminFetch } from "@/lib/adminFetch";
-import type { Playlist } from "./types";
-import { PlaylistsGrid } from "./components/PlaylistsGrid";
+import { useState } from "react";
+import {
+  type CatalogStatus,
+  CatalogStatusFilter,
+} from "@/components/catalog/StatusFilter";
+import { DataTable } from "@/components/data-table/DataTable";
+import { SearchInput } from "@/components/data-table/Toolbar";
+import { useServerTable } from "@/components/data-table/useServerTable";
+import { type ViewMode, ViewToggle } from "@/components/data-table/ViewToggle";
+import { useConfirm } from "@/components/feedback/ConfirmProvider";
+import { usePermissions } from "@/lib/permissions";
+import { useDeletePlaylist, usePlaylists } from "@/lib/queries/playlists";
 import { CreatePlaylistModal } from "./components/CreatePlaylistModal";
+import { PlaylistsGrid } from "./components/PlaylistsGrid";
+import { playlistColumns } from "./components/playlistColumns";
+import type { Playlist } from "./types";
 
 export default function PlaylistsPage() {
   const router = useRouter();
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [page, setPage] = useState(0);
-  const [pageSize, setPageSize] = useState(20);
-  const [totalPlaylists, setTotalPlaylists] = useState(0);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [deletingPlaylistId, setDeletingPlaylistId] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ message: string; type: ToastType } | null>(null);
+  const { can } = usePermissions();
+  const confirm = useConfirm();
+  const table = useServerTable({
+    initialFilters: { status: "ACTIVE" as CatalogStatus },
+  });
+  const { pagination } = table;
+  const playlistsQuery = usePlaylists({
+    page: pagination.pageIndex,
+    size: pagination.pageSize,
+    search: table.debouncedSearch,
+    status: table.filters.status,
+  });
+  const rows = playlistsQuery.data?.rows ?? [];
+  const total = playlistsQuery.data?.total ?? 0;
 
-  const showToast = useCallback((message: string, type: ToastType = "info") => {
-    setToast({ message, type });
-  }, []);
+  const [view, setView] = useState<ViewMode>("grid");
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const deletePlaylist = useDeletePlaylist();
+  const deletingId = deletePlaylist.isPending
+    ? (deletePlaylist.variables?.id ?? null)
+    : null;
 
-  // Debounce search input
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(search);
-      setPage(0);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [search]);
-
-  const fetchPlaylists = useCallback(async () => {
-    try {
-      setLoading(true);
-      const searchParam = debouncedSearch.trim()
-        ? `&search=${encodeURIComponent(debouncedSearch.trim())}`
-        : "";
-      const res = await adminFetch(`/admin/playlist?page=${page}&size=${pageSize}${searchParam}`);
-      if (res.ok) {
-        const data = await res.json();
-        const content = data.content || data.data?.content || data.data || [];
-        setPlaylists(content);
-        const metaTotal = data.paginationMetaData?.totalCount ?? data.totalElements;
-        if (metaTotal !== undefined && metaTotal !== null) {
-          setTotalPlaylists(Number(metaTotal));
-        } else if (content.length < pageSize) {
-          setTotalPlaylists(page * pageSize + content.length);
-        } else {
-          setTotalPlaylists((page + 1) * pageSize);
-        }
-      }
-    } catch (err) {
-      console.error("Failed to fetch playlists:", err);
-      showToast("Failed to load playlists", "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [page, pageSize, debouncedSearch, showToast]);
-
-  useEffect(() => {
-    fetchPlaylists();
-  }, [fetchPlaylists]);
-
-  const handleSelectPlaylist = (playlist: Playlist) => {
-    router.push(`/playlists/${playlist.id}`);
+  const handleDelete = async (playlist: Pick<Playlist, "id" | "name">) => {
+    const ok = await confirm({
+      title: `Delete playlist "${playlist.name}"?`,
+      description: "The playlist and its cover and teaser media are removed.",
+      confirmLabel: "Delete playlist",
+      destructive: true,
+      typeToConfirm: playlist.name,
+    });
+    if (ok) deletePlaylist.mutate(playlist);
   };
+  const onDelete = can("playlist.delete") ? handleDelete : undefined;
 
-  const handleDeletePlaylist = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete playlist "${name}"?`)) return;
-    setDeletingPlaylistId(id);
-    try {
-      const res = await adminFetch(`/admin/playlist/${id}`, {
-        method: "DELETE",
-      });
-      if (res.ok) {
-        setPlaylists((prev) => prev.filter((p) => p.id !== id));
-        showToast(`Playlist "${name}" deleted successfully`, "success");
-      } else {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.message || "Delete failed");
-      }
-    } catch (err: any) {
-      showToast(err.message || "Failed to delete playlist", "error");
-    } finally {
-      setDeletingPlaylistId(null);
-    }
-  };
+  const columns = playlistColumns({ onDelete, deletingId });
+  const open = (p: Playlist) => router.push(`/playlists/${p.id}`);
 
   return (
     <div className="space-y-6">
-      {toast && (
-        <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />
-      )}
-
-      {/* Header */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-[#121215] p-4 rounded-2xl border border-white/8">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
@@ -108,76 +68,81 @@ export default function PlaylistsPage() {
           <div>
             <h1 className="text-lg font-bold text-white">Playlists Studio</h1>
             <p className="text-xs text-zinc-400">
-              {playlists.length} of {totalPlaylists} {totalPlaylists === 1 ? "collection" : "collections"} curated
+              {rows.length} of {total}{" "}
+              {total === 1 ? "collection" : "collections"} curated
             </p>
           </div>
         </div>
-
-        <div className="flex items-center gap-3">
-          <div className="relative min-w-50 sm:w-64">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-            <input
-              type="text"
-              placeholder="Search playlists..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-9 py-2 bg-black/60 border border-white/8 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-white/30 transition-colors"
-            />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-
+        {can("playlist.create") && (
           <button
             type="button"
-            onClick={() => setIsCreateModalOpen(true)}
+            onClick={() => setIsCreateOpen(true)}
             className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white hover:bg-zinc-200 text-black font-bold text-sm rounded-xl transition-all shadow-lg active:scale-95 shrink-0 cursor-pointer"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>New Playlist</span>
           </button>
-        </div>
+        )}
       </div>
 
-      {/* Main Full-Width Playlists Grid */}
-      <div className="space-y-4">
-        <PlaylistsGrid
-          playlists={playlists}
-          loading={loading}
-          deletingPlaylistId={deletingPlaylistId}
-          onSelectPlaylist={handleSelectPlaylist}
-          onDeletePlaylist={handleDeletePlaylist}
-        />
-        <PaginationBar
-          page={page}
-          pageSize={pageSize}
-          totalItems={totalPlaylists}
-          currentCount={playlists.length}
-          itemLabel="playlists"
-          onPageChange={setPage}
-          onPageSizeChange={(newSize) => {
-            setPageSize(newSize);
-            setPage(0);
-          }}
-          pageSizeOptions={[10, 20, 50, 100]}
-          loading={loading}
-        />
-      </div>
+      <DataTable<Playlist>
+        columns={columns}
+        data={rows}
+        getRowId={(p) => p.id}
+        rowCount={total}
+        pagination={pagination}
+        onPaginationChange={table.setPagination}
+        loading={playlistsQuery.isPending}
+        fetching={playlistsQuery.isFetching}
+        error={playlistsQuery.error}
+        onRetry={() => playlistsQuery.refetch()}
+        onRowClick={open}
+        enableRowSelection={view === "table"}
+        rowSelection={table.rowSelection}
+        onRowSelectionChange={table.setRowSelection}
+        renderBulkActions={() => (
+          <span className="text-zinc-400">
+            Export the selection with Export CSV.
+          </span>
+        )}
+        toolbar={
+          <>
+            <SearchInput
+              value={table.search}
+              onChange={table.setSearch}
+              placeholder="Search playlists..."
+            />
+            <CatalogStatusFilter
+              value={table.filters.status}
+              onChange={(v) => table.setFilter("status", v)}
+            />
+          </>
+        }
+        actions={<ViewToggle value={view} onChange={setView} />}
+        exportFileName="playlists"
+        storageKey="playlists"
+        defaultHiddenColumns={["createdAt"]}
+        itemLabel="playlists"
+        renderRows={
+          view === "grid"
+            ? (tableRows, loading) => (
+                <PlaylistsGrid
+                  playlists={tableRows.map((r) => r.original)}
+                  loading={loading}
+                  deletingPlaylistId={deletingId}
+                  onSelectPlaylist={open}
+                  onDeletePlaylist={
+                    onDelete ? (id, name) => onDelete({ id, name }) : undefined
+                  }
+                />
+              )
+            : undefined
+        }
+      />
 
-      {/* Create Playlist Modal */}
       <CreatePlaylistModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={() => {
-          fetchPlaylists();
-        }}
-        showToast={showToast}
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
       />
     </div>
   );

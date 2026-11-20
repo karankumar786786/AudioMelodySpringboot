@@ -1,15 +1,9 @@
-import { AppState, Platform } from "react-native";
 import { AudioPlayer, AudioStatus } from "expo-audio";
-import { Song, PlayerSong, RepeatMode, AudioQuality } from "@/types";
+import { Song, PlayerSong, AudioQuality } from "@/types";
 import { store } from "@/store/hook";
-import {
-  configureAudioPriority,
-  safeSetActiveForLockScreen,
-  getImageUrl,
-} from "@/utils";
+import { configureAudioPriority } from "@/utils";
 export { configureAudioPriority };
 import { mapToPlayerSong } from "@/utils/playerUtils";
-import { selectCurrentSongFromQueue } from "@/store/queueSlice";
 import { homeService } from "./homeService";
 import {
   setCurrentTime,
@@ -20,54 +14,72 @@ import {
   setCurrentSong,
   setSleepTimer,
   setAudioQuality,
+  setCrossfadeSeconds,
 } from "@/store/playerSlice";
 import { PlayerStore } from "@/storage/PlayerStore";
-import { audioPlayerPool, resolveStreamUrl } from "./audioPlayerPool";
-import { interactionService } from "./interactionService";
-import { userProgressService } from "./userProgressService";
+import { audioPlayerPool } from "./audioPlayerPool";
+import { LockScreenController } from "./player/lockScreenController";
+import { ProgressReporter } from "./player/progressReporter";
+import { QueueAdvancer, decideTrackEndAction } from "./player/queueAdvancer";
+import { SeekGuard } from "./player/seekGuard";
+import { SleepTimer } from "./player/sleepTimer";
+import { TransitionController } from "./player/transitionController";
+import { clampCrossfadeSeconds } from "./player/transitionMath";
+import {
+  estimateBufferedSeconds,
+  finiteOrNull,
+  getRemoteCommand,
+  isNaturalTrackEnd,
+  resolveDuration,
+  shouldShowLoading,
+} from "./player/playbackStatus";
 
+/**
+ * Public facade for audio playback. Owns the player lifecycle (init, play, pause,
+ * resume, seek) and routes native status updates to the focused modules in
+ * `./player/`: queue advancement, lock screen, sleep timer, progress reporting.
+ */
 export class AudioPlayerService {
   private pool = audioPlayerPool;
   private isInitialized = false;
   private currentPlayingSong: PlayerSong | null = null;
   private onTrackEndCallback: (() => void) | null = null;
-  private isAdvancingTrack = false;
-  private isSeeking = false;
-  private seekTargetTime: number | null = null;
-  private seekToResolved = false;
-  private seekResolvedTimestamp = 0;
-  private currentSeekId = 0;
-  private seekTimeout: any = null;
-  private lastPositionSaveTimestamp = 0;
-  private lastServerProgressTimestamp = 0;
-  private unsubscribeQueue: (() => void) | null = null;
-  private lastPlayedSongId: string | null = null;
-  private lastPlayedIndex: number = -1;
-  private isAutoPlaySuppressed = false;
+  private onRemoteNextTrack: (() => void) | null = null;
+  private onRemotePreviousTrack: (() => void) | null = null;
   private remoteSyncInterval: ReturnType<typeof setInterval> | null = null;
   private currentQuality: AudioQuality = "auto";
-  private hasSyncedActiveLockScreen = false;
-  private lastReportedPlayingState: boolean | null = null;
-  private appStateSubscription: { remove: () => void } | null = null;
   private playRequestId = 0;
   private bufferedSeconds = 0;
   private lastLoggedBuffering: boolean | null = null;
   private lastTrackChangeAt = 0;
-  private resumeTimer: ReturnType<typeof setTimeout> | null = null;
   private lastProgressRatio = 0;
   private preloadedForSongId: string | null = null;
-  private onRemoteNextTrack: (() => void) | null = null;
-  private onRemotePreviousTrack: (() => void) | null = null;
-  private hasReportedListen = false;
-  private lastSavedQueueLength = 0;
   private isExplicitlyPaused = false;
+
+  private seekGuard = new SeekGuard();
+  private sleepTimer = new SleepTimer();
+  private queue = new QueueAdvancer(this.pool);
+  private progress = new ProgressReporter(() => this.currentPlayingSong);
+  private lockScreen = new LockScreenController({
+    getActivePlayer: () => this.activePlayer,
+    getCurrentSong: () => this.currentPlayingSong,
+  });
+  private transition = new TransitionController({
+    pool: this.pool,
+    isSeeking: () => this.seekGuard.isSeeking,
+    isAdvancing: () => this.queue.isAdvancing,
+    isExplicitlyPaused: () => this.isExplicitlyPaused,
+    onHandoverDue: () => this.handleTransitionHandover(),
+    onSettled: () => this.syncUpcomingPreload(),
+    ensurePreload: () => this.syncUpcomingPreload(),
+  });
 
   public get currentSong(): PlayerSong | null {
     return this.currentPlayingSong;
   }
 
   public markCurrentTrackReported(): void {
-    this.hasReportedListen = true;
+    this.progress.markReported();
   }
 
   public setRemoteCommandHandlers(handlers: {
@@ -99,7 +111,8 @@ export class AudioPlayerService {
 
       this.initQueueSubscription();
       this.startRemoteSyncHeartbeat();
-      this.initAppStateSubscription();
+      this.lockScreen.subscribeToAppState();
+      this.restoreCrossfadeSetting();
 
       this.isInitialized = true;
       console.log(
@@ -117,7 +130,7 @@ export class AudioPlayerService {
     if (this.remoteSyncInterval) return;
     this.remoteSyncInterval = setInterval(() => {
       const player = this.activePlayer;
-      if (!player || this.isAdvancingTrack || this.isSeeking) return;
+      if (!player || this.queue.isAdvancing || this.seekGuard.isSeeking) return;
       const isReduxPlaying = store.getState().player.isPlaying;
       const isNativePlaying = Boolean((player as any).playing);
 
@@ -130,156 +143,53 @@ export class AudioPlayerService {
     }, 1000);
   }
 
-  private initAppStateSubscription(): void {
-    if (this.appStateSubscription) return;
-    this.appStateSubscription = AppState.addEventListener("change", (nextState) => {
-      console.log(`[AudioPlayerService] AppState -> ${nextState}`);
-      if (this.resumeTimer) {
-        clearTimeout(this.resumeTimer);
-        this.resumeTimer = null;
-      }
-      if (!this.activePlayer || !this.currentPlayingSong) return;
-      if (nextState === "active") {
-        // Back in foreground: iOS may have dropped Now Playing / remote commands.
-        // Re-assert both after a short delay so iOS finishes unlock transitions.
-        this.resumeTimer = setTimeout(() => {
-          this.resumeTimer = null;
-          configureAudioPriority(true)
-            .catch(() => {})
-            .finally(() => this.refreshLockScreen(true));
-        }, 300);
-      } else if (nextState === "inactive") {
-        if (Platform.OS === "ios") {
-          // iOS: "inactive" fires BEFORE "background" during lock.
-          // Re-assert audio session and ensure lock screen controls are active.
-          configureAudioPriority(true).catch(() => {});
-          this.refreshLockScreen(true);
-        }
-      } else {
-        // "background":
-        if (Platform.OS === "ios") {
-          this.refreshLockScreen(true);
-          // One single safety retry after transition stabilizes
-          setTimeout(() => {
-            if (AppState.currentState !== "active") {
-              this.refreshLockScreen(true);
-            }
-          }, 350);
-        } else {
-          // Android: AudioControlsService remains running in the foreground.
-          // Safe in-place metadata sync without tearing down the MediaSession / notification.
-          this.refreshLockScreen(false);
-        }
-      }
-    });
-  }
-
   public suppressAutoPlayOnce(): void {
-    this.isAutoPlaySuppressed = true;
+    this.queue.suppressAutoPlayOnce();
   }
 
   public setLastPlayed(songId: string, index: number): void {
-    this.lastPlayedSongId = songId;
-    this.lastPlayedIndex = index;
+    this.queue.setLastPlayed(songId, index);
   }
 
   public initQueueSubscription(): void {
-    if (this.unsubscribeQueue) return;
+    this.queue.subscribe((song) => this.play(song));
+  }
 
-    this.unsubscribeQueue = store.subscribe(() => {
-      const state = store.getState();
-      const { queue, currentIndex } = state.queue;
-
-      if (
-        !queue ||
-        queue.length === 0 ||
-        currentIndex < 0 ||
-        currentIndex >= queue.length
-      ) {
-        return;
-      }
-
-      const currentSong = selectCurrentSongFromQueue(state.queue);
-      if (!currentSong) return;
-
-      const hasIndexChanged = currentIndex !== this.lastPlayedIndex;
-      const hasSongChanged = currentSong.id !== this.lastPlayedSongId;
-      const hasQueueLengthChanged = queue.length !== this.lastSavedQueueLength;
-
-      if (hasQueueLengthChanged || hasIndexChanged) {
-        this.lastSavedQueueLength = queue.length;
-        PlayerStore.saveLastQueue(queue, currentIndex);
-      }
-
-      if (hasIndexChanged || hasSongChanged) {
-        this.lastPlayedIndex = currentIndex;
-        this.lastPlayedSongId = currentSong.id;
-
-        if (this.isAutoPlaySuppressed) {
-          this.isAutoPlaySuppressed = false;
-          return;
-        }
-
-        this.play(currentSong).catch((err) => {
-          console.warn("[AudioPlayerService] Auto-play from queue error:", err);
-        });
-      }
-    });
+  private handleRemoteCommand(status: AudioStatus): boolean {
+    const command = getRemoteCommand(status);
+    if (!command) return false;
+    const cur = typeof status.currentTime === "number" ? status.currentTime : 0;
+    switch (command) {
+      case "nextTrack":
+        console.log("[AudioPlayerService] Remote next track command from lock screen");
+        this.onRemoteNextTrack?.();
+        break;
+      case "previousTrack":
+        console.log("[AudioPlayerService] Remote previous track command from lock screen");
+        this.onRemotePreviousTrack?.();
+        break;
+      case "skipForward":
+        this.seek(cur + 10);
+        break;
+      case "skipBackward":
+        this.seek(Math.max(0, cur - 10));
+        break;
+    }
+    return true;
   }
 
   private handlePlaybackStatusUpdate(status: AudioStatus, slotSong: PlayerSong | null): void {
     if (!status) return;
 
-    // Handle remote lock screen scrub & skip commands
-    if ((status as any).remoteCommand === "nextTrack") {
-      console.log("[AudioPlayerService] Remote next track command from lock screen");
-      if (this.onRemoteNextTrack) {
-        this.onRemoteNextTrack();
-      }
-      return;
-    }
-    if ((status as any).remoteCommand === "previousTrack") {
-      console.log("[AudioPlayerService] Remote previous track command from lock screen");
-      if (this.onRemotePreviousTrack) {
-        this.onRemotePreviousTrack();
-      }
-      return;
-    }
-    if ((status as any).remoteCommand === "skipForward") {
-      const cur = typeof status.currentTime === "number" ? status.currentTime : 0;
-      this.seek(cur + 10);
-      return;
-    }
-    if ((status as any).remoteCommand === "skipBackward") {
-      const cur = typeof status.currentTime === "number" ? status.currentTime : 0;
-      this.seek(Math.max(0, cur - 10));
-      return;
-    }
+    // Lock screen scrub & skip commands
+    if (this.handleRemoteCommand(status)) return;
 
     const dispatch = store.dispatch;
+    const reportedTime = finiteOrNull(status.currentTime);
 
     // Sync current time with seek guard
-    if (typeof status.currentTime === "number" && !isNaN(status.currentTime)) {
-      if (this.isSeeking && this.seekTargetTime !== null) {
-        const diff = Math.abs(status.currentTime - this.seekTargetTime);
-        const elapsedSinceResolve =
-          this.seekResolvedTimestamp > 0
-            ? Date.now() - this.seekResolvedTimestamp
-            : 0;
-
-        if (this.seekToResolved && (diff <= 2.5 || elapsedSinceResolve > 400)) {
-          this.isSeeking = false;
-          this.seekTargetTime = null;
-          this.seekToResolved = false;
-          if (this.seekTimeout) {
-            clearTimeout(this.seekTimeout);
-            this.seekTimeout = null;
-          }
-          dispatch(setCurrentTime(status.currentTime));
-        }
-      } else {
-        dispatch(setCurrentTime(status.currentTime));
-      }
+    if (reportedTime !== null && this.seekGuard.acceptTime(reportedTime)) {
+      dispatch(setCurrentTime(reportedTime));
     }
 
     // Sync duration
@@ -304,17 +214,18 @@ export class AudioPlayerService {
     }
     dispatch(setIsPlaying(isPlaying));
 
-    // A paused song is NEVER loading.
-    // During active playback, only show loading on initial track load (!isLoaded)
-    // or if genuine buffer starvation occurs (buffer is within 0.8s of current time).
-    const isBufferingStarvation =
-      isPlaying &&
-      !this.isExplicitlyPaused &&
-      isBuffering &&
-      this.bufferedSeconds <= (status.currentTime ?? 0) + 0.8;
-
-    const shouldShowLoading = !isLoaded || isBufferingStarvation;
-    dispatch(setIsLoading(shouldShowLoading));
+    dispatch(
+      setIsLoading(
+        shouldShowLoading({
+          isLoaded,
+          isPlaying,
+          isBuffering,
+          isExplicitlyPaused: this.isExplicitlyPaused,
+          bufferedSeconds: this.bufferedSeconds,
+          currentTime: status.currentTime ?? 0,
+        })
+      )
+    );
 
     // One-time preload trigger: start buffering upcoming songs into Standby 1 & 2
     // only AFTER current song is actually playing, so it never competes for bandwidth
@@ -329,21 +240,8 @@ export class AudioPlayerService {
     }
 
     // Confirm lock screen active status once playback actually starts emitting audio & duration is known
-    const dur =
-      typeof status.duration === "number" && status.duration > 0
-        ? status.duration
-        : (this.currentPlayingSong?.duration || 0);
-
-    if (isPlaying && dur > 0 && !this.hasSyncedActiveLockScreen) {
-      this.hasSyncedActiveLockScreen = true;
-      this.lastReportedPlayingState = true;
-      this.refreshLockScreen(true);
-    } else if (this.lastReportedPlayingState !== isPlaying) {
-      this.lastReportedPlayingState = isPlaying;
-      if (this.hasSyncedActiveLockScreen || isPlaying) {
-        this.refreshLockScreen(true);
-      }
-    }
+    const dur = resolveDuration(status, this.currentPlayingSong?.duration || 0);
+    this.lockScreen.onStatus(isPlaying, dur);
 
     // Save playback position periodically (local + server sync)
     if (
@@ -351,86 +249,81 @@ export class AudioPlayerService {
       typeof status.currentTime === "number" &&
       status.currentTime > 0
     ) {
-      if (Date.now() - this.lastPositionSaveTimestamp > 5000) {
-        this.lastPositionSaveTimestamp = Date.now();
-        PlayerStore.savePlaybackPosition(status.currentTime);
-      }
-      if (Date.now() - this.lastServerProgressTimestamp > 20000) {
-        this.lastServerProgressTimestamp = Date.now();
-        this.syncServerProgress(status.currentTime, status.duration);
-      }
+      this.progress.onPlayingStatus(status.currentTime, status.duration);
     }
 
     // Sync buffered time to Redux
-    const nativeBuffered =
-      (status as any)?.bufferedPosition ??
-      (this.activePlayer as any)?.bufferedPosition;
-
-    const curr =
-      typeof status.currentTime === "number" && !isNaN(status.currentTime)
-        ? status.currentTime
-        : 0;
-
-    if (typeof nativeBuffered === "number" && nativeBuffered > 0) {
-      this.bufferedSeconds = nativeBuffered;
-      dispatch(setBufferedTime(nativeBuffered));
-    } else if (dur > 0) {
-      const lead = isBuffering ? 12 : 25;
-      const step = isPlaying ? 1.5 : 0.2;
-      this.bufferedSeconds = Math.min(
-        dur,
-        Math.max(curr + lead, this.bufferedSeconds + step)
-      );
-      dispatch(setBufferedTime(this.bufferedSeconds));
+    const buffered = estimateBufferedSeconds({
+      nativeBuffered:
+        (status as any)?.bufferedPosition ?? (this.activePlayer as any)?.bufferedPosition,
+      previousEstimate: this.bufferedSeconds,
+      currentTime: reportedTime ?? 0,
+      duration: dur,
+      isPlaying,
+      isBuffering,
+    });
+    if (buffered !== null) {
+      this.bufferedSeconds = buffered;
+      dispatch(setBufferedTime(buffered));
     }
 
-    if (dur > 0 && typeof status.currentTime === "number" && !isNaN(status.currentTime)) {
-      this.lastProgressRatio = Math.min(1, status.currentTime / dur);
+    if (dur > 0 && reportedTime !== null) {
+      this.lastProgressRatio = Math.min(1, reportedTime / dur);
     }
+
+    // Gapless / crossfade: watch the play head and hand over to the preloaded next track
+    this.transition.onStatus();
 
     // Handle track completion on natural track end
-    const isNaturalTrackEnd =
-      Boolean(status.didJustFinish) &&
-      (typeof status.duration === "number" && status.duration > 0
-        ? (status.currentTime ?? 0) >= Math.max(0, status.duration - 2)
-        : true);
-
     if (
-      isNaturalTrackEnd &&
-      !this.isSeeking &&
-      !this.isAdvancingTrack
+      isNaturalTrackEnd(status) &&
+      !this.seekGuard.isSeeking &&
+      !this.queue.isAdvancing &&
+      !this.transition.isHandoverPending
     ) {
-      this.isAdvancingTrack = true;
-      setTimeout(() => {
-        this.isAdvancingTrack = false;
-      }, 1200);
+      this.handleNaturalTrackEnd();
+    }
+  }
 
-      if (this.currentPlayingSong?.id && !this.hasReportedListen) {
-        interactionService.recordPlay(this.currentPlayingSong.id, 1.0);
-        this.hasReportedListen = true;
-      }
+  /**
+   * A gapless/crossfade transition reached its handover point: advance the queue as a
+   * natural track end would. The queue calls play(next), which promotes the incoming
+   * player without stopping the outgoing one (see play()).
+   */
+  private handleTransitionHandover(): void {
+    this.queue.beginAdvance();
+    this.progress.reportFullListen();
+    this.onTrackEndCallback?.();
+  }
 
+  private handleNaturalTrackEnd(): void {
+    this.queue.beginAdvance();
+    this.progress.reportFullListen();
+
+    console.log(
+      "[AudioPlayerService] Reached end of track. Determining next action..."
+    );
+    const state = store.getState();
+    const action = decideTrackEndAction({
+      sleepTimer: state.player.sleepTimer,
+      repeatMode: state.queue.repeatMode,
+      hasActivePlayer: Boolean(this.activePlayer),
+    });
+
+    if (action === "pause-for-sleep") {
       console.log(
-        "[AudioPlayerService] Reached end of track. Determining next action..."
+        "[AudioPlayerService] Sleep timer reached (End of track). Pausing playback."
       );
-      const state = store.getState();
-      const sleepTimer = state.player.sleepTimer;
-      if (sleepTimer === -1) {
-        console.log(
-          "[AudioPlayerService] Sleep timer reached (End of track). Pausing playback."
-        );
-        this.pause();
-        store.dispatch(setSleepTimer(null));
-        return;
-      }
+      this.pause();
+      store.dispatch(setSleepTimer(null));
+      return;
+    }
 
-      const repeatMode: RepeatMode = state.queue.repeatMode;
-      if (repeatMode === "one" && this.activePlayer) {
-        this.hasReportedListen = false;
-        this.activePlayer.seekTo(0).then(() => this.activePlayer?.play());
-      } else {
-        this.onTrackEndCallback?.();
-      }
+    if (action === "repeat-one") {
+      this.progress.resetForNewTrack();
+      this.activePlayer?.seekTo(0).then(() => this.activePlayer?.play());
+    } else {
+      this.onTrackEndCallback?.();
     }
   }
 
@@ -438,20 +331,33 @@ export class AudioPlayerService {
    * Synchronizes the upcoming 2 songs in the Redux queue into Standby 1 & 2.
    */
   public syncUpcomingPreload(): void {
-    const state = store.getState();
-    const { queue, currentIndex } = state.queue;
-    const quality = state.player.audioQuality || "auto";
+    this.queue.syncUpcomingPreload();
+  }
 
-    if (queue && queue.length > 0 && currentIndex >= 0) {
-      const next1 = queue[currentIndex + 1] || null;
-      const next2 = queue[currentIndex + 2] || null;
-      console.log(
-        `[AudioPlayerPool:PRELOAD] Queue Pos: ${currentIndex}/${queue.length - 1} | Standby 1: ${next1 ? `"${next1.title}" (${next1.id})` : "None"} | Standby 2: ${next2 ? `"${next2.title}" (${next2.id})` : "None"}`
-      );
-      this.pool.syncPreloadQueue(queue, currentIndex, quality).catch((err) => {
-        console.warn("[AudioPlayerPool] syncPreloadQueue error:", err);
-      });
+  /**
+   * Maps to a PlayerSong and, when the stream key is missing, fetches the full song.
+   * `fetched` says whether a network round-trip happened (so callers can re-check
+   * that their play request is still current).
+   */
+  private async hydrate(
+    song: Song | PlayerSong
+  ): Promise<{ playerSong: PlayerSong; fetched: boolean }> {
+    let playerSong: PlayerSong = (song as PlayerSong).audioStreamUrl
+      ? (song as PlayerSong)
+      : mapToPlayerSong(song);
+
+    if (!playerSong.songKey && playerSong.id) {
+      try {
+        const fullSong = await homeService.getSongById(playerSong.id);
+        if (fullSong?.songKey) {
+          playerSong = mapToPlayerSong(fullSong);
+        }
+      } catch (e) {
+        console.warn("[AudioPlayerService] Hydration fallback note:", e);
+      }
+      return { playerSong, fetched: true };
     }
+    return { playerSong, fetched: false };
   }
 
   /**
@@ -466,28 +372,15 @@ export class AudioPlayerService {
     autoplay = true
   ): Promise<void> {
     const requestId = ++this.playRequestId;
-    this.lastPlayedSongId = song.id;
+    this.queue.setLastPlayedSongId(song.id);
 
     await this.init();
     if (requestId !== this.playRequestId) return;
 
-    this.reportPartialListen();
+    this.progress.reportPartialListen(this.activePlayer);
 
-    let playerSong: PlayerSong = (song as PlayerSong).audioStreamUrl
-      ? (song as PlayerSong)
-      : mapToPlayerSong(song);
-
-    if (!playerSong.songKey && playerSong.id) {
-      try {
-        const fullSong = await homeService.getSongById(playerSong.id);
-        if (fullSong?.songKey) {
-          playerSong = mapToPlayerSong(fullSong);
-        }
-      } catch (e) {
-        console.warn("[AudioPlayerService] Hydration fallback note:", e);
-      }
-      if (requestId !== this.playRequestId) return;
-    }
+    const { playerSong, fetched } = await this.hydrate(song);
+    if (fetched && requestId !== this.playRequestId) return;
 
     console.log(
       `▶ [AudioPlayerService:PLAY] "${playerSong.title}" - ${playerSong.artistName} [ID: ${playerSong.id}]`
@@ -518,16 +411,14 @@ export class AudioPlayerService {
       return;
     }
 
-    this.isAdvancingTrack = false;
+    this.queue.isAdvancing = false;
     this.isExplicitlyPaused = false;
     this.currentPlayingSong = playerSong;
-    this.hasReportedListen = false;
-    this.lastPlayedIndex = targetIndex;
-    this.lastPlayedSongId = playerSong.id;
+    this.progress.resetForNewTrack();
+    this.queue.setLastPlayed(playerSong.id, targetIndex);
     this.lastProgressRatio = 0;
     this.bufferedSeconds = startTime;
-    this.hasSyncedActiveLockScreen = false;
-    this.lastReportedPlayingState = null;
+    this.lockScreen.resetSync(null);
 
     store.dispatch(setCurrentSong(playerSong));
     store.dispatch(setCurrentTime(startTime));
@@ -543,13 +434,15 @@ export class AudioPlayerService {
     );
     this.lastTrackChangeAt = now;
 
-    // ─────────────────────────────────────────────────────────────
-    // 1. CHECK IF SONG IS READY IN STANDBY 1 (0ms Instant Handover!)
-    // ─────────────────────────────────────────────────────────────
-    const standby1 = this.pool.getStandbySlot("standby1");
-    if (startTime === 0 && !force && standby1.song?.id === playerSong.id) {
+    // 0. Gapless / crossfade handover: the incoming player is already playing.
+    //    Promote it without stopping the outgoing one, which fades out / plays to its end.
+    const handover =
+      startTime === 0 && !force && this.transition.isHandoverFor(playerSong.id)
+        ? this.transition.handoverTarget()
+        : null;
+    if (handover) {
       console.log(
-        `[AudioPlayerPool] ⚡ Zero-delay gapless handover! Playing "${playerSong.title}" from Standby 1.`
+        `[AudioPlayerPool] ⚡ Transition handover to "${playerSong.title}" from ${handover.role} (volume ${handover.volume.toFixed(2)}).`
       );
       this.preloadedForSongId = playerSong.id;
       this.bufferedSeconds = 10;
@@ -557,39 +450,41 @@ export class AudioPlayerService {
       store.dispatch(setIsPlaying(autoplay));
       store.dispatch(setIsLoading(false));
 
-      await this.pool.promoteStandby("standby1", currentQuality);
+      this.transition.markHandedOver();
+      await this.pool.promoteStandby(handover.role, currentQuality, {
+        keepOutgoingPlaying: true,
+        incomingVolume: handover.volume,
+      });
       PlayerStore.saveLastSong(playerSong, 0);
-
-      // Re-prime pool for newly upcoming songs
       this.syncUpcomingPreload();
       return;
     }
+    // Any other play request (skip, jump, quality change) cancels a running transition.
+    if (this.transition.isRunning) await this.transition.cancel("skip");
 
-    // ─────────────────────────────────────────────────────────────
-    // 2. CHECK IF SONG IS READY IN STANDBY 2 (0ms Handover on rapid skip!)
-    // ─────────────────────────────────────────────────────────────
-    const standby2 = this.pool.getStandbySlot("standby2");
-    if (startTime === 0 && !force && standby2.song?.id === playerSong.id) {
-      console.log(
-        `[AudioPlayerPool] ⚡ Zero-delay gapless handover! Playing "${playerSong.title}" from Standby 2.`
-      );
-      this.preloadedForSongId = playerSong.id;
-      this.bufferedSeconds = 10;
-      store.dispatch(setBufferedTime(10));
-      store.dispatch(setIsPlaying(autoplay));
-      store.dispatch(setIsLoading(false));
+    // 1 & 2. Song is ready in Standby 1 or Standby 2: 0ms instant handover
+    for (const role of ["standby1", "standby2"] as const) {
+      const standby = this.pool.getStandbySlot(role);
+      if (startTime === 0 && !force && standby.song?.id === playerSong.id) {
+        console.log(
+          `[AudioPlayerPool] ⚡ Zero-delay gapless handover! Playing "${playerSong.title}" from ${role === "standby1" ? "Standby 1" : "Standby 2"}.`
+        );
+        this.preloadedForSongId = playerSong.id;
+        this.bufferedSeconds = 10;
+        store.dispatch(setBufferedTime(10));
+        store.dispatch(setIsPlaying(autoplay));
+        store.dispatch(setIsLoading(false));
 
-      await this.pool.promoteStandby("standby2", currentQuality);
-      PlayerStore.saveLastSong(playerSong, 0);
+        await this.pool.promoteStandby(role, currentQuality);
+        PlayerStore.saveLastSong(playerSong, 0);
 
-      // Re-prime pool for newly upcoming songs
-      this.syncUpcomingPreload();
-      return;
+        // Re-prime pool for newly upcoming songs
+        this.syncUpcomingPreload();
+        return;
+      }
     }
 
-    // ─────────────────────────────────────────────────────────────
     // 3. FALLBACK: Load directly into Active slot (cold start / random jump)
-    // ─────────────────────────────────────────────────────────────
     await this.pool.loadActive(playerSong, currentQuality, startTime, autoplay);
 
     store.dispatch(setIsPlaying(autoplay));
@@ -600,17 +495,7 @@ export class AudioPlayerService {
     this.syncUpcomingPreload();
 
     if (autoplay) {
-      setTimeout(() => {
-        if (store.getState().player.isPlaying) {
-          this.refreshLockScreen(true);
-        }
-      }, 100);
-
-      setTimeout(() => {
-        if (store.getState().player.isPlaying) {
-          this.refreshLockScreen(true);
-        }
-      }, 300);
+      this.lockScreen.refreshStaggered(() => store.getState().player.isPlaying);
     }
   }
 
@@ -622,27 +507,13 @@ export class AudioPlayerService {
     startTime = 0
   ): Promise<void> {
     await this.init();
-    let playerSong: PlayerSong = (song as PlayerSong).audioStreamUrl
-      ? (song as PlayerSong)
-      : mapToPlayerSong(song);
-
-    if (!playerSong.songKey && playerSong.id) {
-      try {
-        const fullSong = await homeService.getSongById(playerSong.id);
-        if (fullSong?.songKey) {
-          playerSong = mapToPlayerSong(fullSong);
-        }
-      } catch (e) {
-        console.warn("[AudioPlayerService] Hydration fallback note:", e);
-      }
-    }
+    const { playerSong } = await this.hydrate(song);
 
     this.currentPlayingSong = playerSong;
-    this.hasReportedListen = false;
-    this.lastPlayedSongId = playerSong.id;
+    this.progress.resetForNewTrack();
+    this.queue.setLastPlayedSongId(playerSong.id);
     this.bufferedSeconds = startTime;
-    this.hasSyncedActiveLockScreen = false;
-    this.lastReportedPlayingState = false;
+    this.lockScreen.resetSync(false);
 
     const quality = store.getState().player.audioQuality || "auto";
     await this.pool.loadActive(playerSong, quality, startTime, false);
@@ -654,13 +525,13 @@ export class AudioPlayerService {
     if (!player) return;
     this.isExplicitlyPaused = true;
     player.pause();
-    this.hasSyncedActiveLockScreen = false;
-    this.lastReportedPlayingState = false;
+    this.transition.pause();
+    this.lockScreen.resetSync(false);
     store.dispatch(setIsPlaying(false));
     store.dispatch(setIsLoading(false));
     if (typeof player.currentTime === "number" && player.currentTime >= 0) {
       PlayerStore.savePlaybackPosition(player.currentTime);
-      this.syncServerProgress(player.currentTime, player.duration);
+      this.progress.syncServerProgress(player.currentTime, player.duration);
     }
     this.refreshLockScreen(true);
   }
@@ -668,8 +539,7 @@ export class AudioPlayerService {
   public resume(): void {
     this.isExplicitlyPaused = false;
     configureAudioPriority(true).catch(() => {});
-    this.hasSyncedActiveLockScreen = false;
-    this.lastReportedPlayingState = null;
+    this.lockScreen.resetSync(null);
 
     const activeSlot = this.pool.getActiveSlot();
     const hasSongLoaded = Boolean(activeSlot?.song && activeSlot?.resolvedUri);
@@ -691,11 +561,13 @@ export class AudioPlayerService {
     const player = this.activePlayer;
     if (!player) return;
 
-    // Un-mute active player (in case it was loaded in muted/standby state)
-    player.volume = 1.0;
+    // Un-mute active player (in case it was loaded in muted/standby state),
+    // or restore its place on the curve if a crossfade is paused mid-way.
+    player.volume = this.transition.activeVolume() ?? 1.0;
+    this.transition.resume();
     const curTime = player.currentTime || 0;
     const dur = player.duration || 0;
-    if (dur > 0 && curTime >= dur - 0.5) {
+    if (dur > 0 && curTime >= dur - 0.5 && !this.transition.isRunning) {
       player.seekTo(0).then(() => {
         player.play();
         this.refreshLockScreen(true);
@@ -708,65 +580,15 @@ export class AudioPlayerService {
     store.dispatch(setIsLoading(false));
 
     // Staggered refresh after native AVPlayer/ExoPlayer transitions to rate = 1.0
-    setTimeout(() => {
-      if (store.getState().player.isPlaying) {
-        this.refreshLockScreen(true);
-      }
-    }, 100);
-
-    setTimeout(() => {
-      if (store.getState().player.isPlaying) {
-        this.refreshLockScreen(true);
-      }
-    }, 300);
+    this.lockScreen.refreshStaggered(() => store.getState().player.isPlaying);
   }
 
   public updateLockScreen(song?: PlayerSong | Song | null, force = true): void {
-    const targetSong = song || this.currentPlayingSong;
-    const player = this.activePlayer;
-    if (!player || !targetSong) return;
-
-    const rawImage =
-      (targetSong as any).coverUrl ||
-      (targetSong as any).posterUrl ||
-      (targetSong as any).imageKey ||
-      (targetSong as any).image_key ||
-      (targetSong as any).imageUrl;
-
-    const artworkUrl =
-      (typeof rawImage === "string" && rawImage.startsWith("http")
-        ? rawImage
-        : getImageUrl(rawImage, {
-            width: 500,
-            height: 500,
-            focus: "auto",
-            aspectRatio: "1-1",
-            format: "jpg",
-            quality: 85,
-          })) || undefined;
-
-    safeSetActiveForLockScreen(
-      player,
-      true,
-      {
-        title: targetSong.title || "One Melody",
-        artist: targetSong.artistName || "Unknown Artist",
-        albumTitle: targetSong.album || "Melody",
-        artworkUrl,
-      },
-      {
-        showSeekForward: false,
-        showSeekBackward: false,
-        showNextTrack: true,
-        showPreviousTrack: true,
-      },
-      force
-    );
+    this.lockScreen.update(song, force);
   }
 
   public refreshLockScreen(force = true): void {
-    if (!this.activePlayer || !this.currentPlayingSong) return;
-    this.updateLockScreen(this.currentPlayingSong, force);
+    this.lockScreen.refresh(force);
   }
 
   public togglePlay(): void {
@@ -786,24 +608,10 @@ export class AudioPlayerService {
     const player = this.activePlayer;
     if (!player) return;
     const safeTime = Math.max(0, seconds);
-    const seekId = ++this.currentSeekId;
-
-    this.isSeeking = true;
-    this.seekTargetTime = safeTime;
-    this.seekToResolved = false;
-    this.seekResolvedTimestamp = 0;
-
-    if (this.seekTimeout) {
-      clearTimeout(this.seekTimeout);
-    }
-    this.seekTimeout = setTimeout(() => {
-      if (this.currentSeekId === seekId) {
-        this.isSeeking = false;
-        this.seekTargetTime = null;
-        this.seekToResolved = false;
-        this.seekTimeout = null;
-      }
-    }, 1500);
+    const seekId = this.seekGuard.begin(safeTime);
+    // Seeking mid-transition: before the midpoint roll the fade back (it restarts if the
+    // new position is still in the fade window); after it, finish on the incoming track.
+    if (this.transition.isRunning) await this.transition.cancel("seek");
 
     this.bufferedSeconds = Math.max(this.bufferedSeconds, safeTime + 20);
     store.dispatch(setCurrentTime(safeTime));
@@ -812,21 +620,10 @@ export class AudioPlayerService {
 
     try {
       await player.seekTo(safeTime);
-      if (this.currentSeekId === seekId) {
-        this.seekToResolved = true;
-        this.seekResolvedTimestamp = Date.now();
-      }
+      this.seekGuard.markResolved(seekId);
     } catch (err) {
       console.warn(`[AudioPlayerService] seekTo(${safeTime}) error:`, err);
-      if (this.currentSeekId === seekId) {
-        this.isSeeking = false;
-        this.seekTargetTime = null;
-        this.seekToResolved = false;
-        if (this.seekTimeout) {
-          clearTimeout(this.seekTimeout);
-          this.seekTimeout = null;
-        }
-      }
+      this.seekGuard.fail(seekId);
     }
   }
 
@@ -837,8 +634,6 @@ export class AudioPlayerService {
     }
   }
 
-  private sleepTimerTimeout: any = null;
-
   public setPlaybackRate(rate: number): void {
     const player = this.activePlayer;
     if (player) {
@@ -846,18 +641,37 @@ export class AudioPlayerService {
     }
   }
 
+  /**
+   * Crossfade length in seconds: 0 (off, gapless) to 12. Saved with the player storage.
+   */
+  public setCrossfade(seconds: number): void {
+    const value = clampCrossfadeSeconds(seconds);
+    store.dispatch(setCrossfadeSeconds(value));
+    PlayerStore.saveCrossfadeSeconds(value);
+  }
+
+  public getCrossfade(): number {
+    return store.getState().player.crossfadeSeconds ?? 0;
+  }
+
+  private restoreCrossfadeSetting(): void {
+    PlayerStore.getCrossfadeSeconds().then((saved) => {
+      if (saved !== null) {
+        store.dispatch(setCrossfadeSeconds(clampCrossfadeSeconds(saved)));
+      }
+    });
+  }
+
+  /**
+   * Timed sleep timer. If it fires mid-crossfade, both players pause together and the
+   * fade resumes where it stopped on the next play.
+   */
   public setSleepTimer(minutes: number | null): void {
-    if (this.sleepTimerTimeout) {
-      clearTimeout(this.sleepTimerTimeout);
-      this.sleepTimerTimeout = null;
-    }
-    if (typeof minutes === "number" && minutes > 0) {
-      this.sleepTimerTimeout = setTimeout(() => {
-        console.log(`[AudioPlayerService] Sleep timer finished (${minutes}m). Pausing.`);
-        this.pause();
-        store.dispatch(setSleepTimer(null));
-      }, minutes * 60 * 1000);
-    }
+    this.sleepTimer.set(minutes, (m) => {
+      console.log(`[AudioPlayerService] Sleep timer finished (${m}m). Pausing.`);
+      this.pause();
+      store.dispatch(setSleepTimer(null));
+    });
   }
 
   public setAudioQuality(quality: AudioQuality): void {
@@ -891,59 +705,21 @@ export class AudioPlayerService {
         clearInterval(this.remoteSyncInterval);
         this.remoteSyncInterval = null;
       }
-      if (this.resumeTimer) {
-        clearTimeout(this.resumeTimer);
-        this.resumeTimer = null;
-      }
-      if (this.seekTimeout) {
-        clearTimeout(this.seekTimeout);
-        this.seekTimeout = null;
-      }
-      if (this.sleepTimerTimeout) {
-        clearTimeout(this.sleepTimerTimeout);
-        this.sleepTimerTimeout = null;
-      }
-      this.reportPartialListen();
+      this.lockScreen.clearResumeTimer();
+      this.seekGuard.clear();
+      this.sleepTimer.clear();
+      this.transition.reset();
+      this.progress.reportPartialListen(this.activePlayer);
       this.currentPlayingSong = null;
-      this.hasReportedListen = false;
-      this.lastPlayedSongId = null;
-      this.lastPlayedIndex = -1;
-      this.hasSyncedActiveLockScreen = false;
-      this.lastReportedPlayingState = null;
+      this.progress.resetForNewTrack();
+      this.queue.reset();
+      this.lockScreen.resetSync(null);
       this.bufferedSeconds = 0;
-      this.isAdvancingTrack = false;
-      this.isSeeking = false;
       this.preloadedForSongId = null;
       this.pool.resetAll();
     } catch (e) {
       console.warn("[AudioPlayerService] Error during stopAndReset:", e);
     }
-  }
-
-  private reportPartialListen(): void {
-    const player = this.activePlayer;
-    if (!this.currentPlayingSong?.id || !player || this.hasReportedListen) return;
-
-    const currentTime = player.currentTime || 0;
-    const duration = player.duration || this.currentPlayingSong.duration || 0;
-    if (duration <= 0 || currentTime <= 0) return;
-
-    const percentage = Math.min(1.0, currentTime / duration);
-    if (percentage >= 0.05) {
-      interactionService.recordPlay(this.currentPlayingSong.id, percentage);
-      this.hasReportedListen = true;
-    }
-  }
-
-  private syncServerProgress(currentTime: number, duration?: number): void {
-    const songId = this.currentPlayingSong?.id;
-    if (!songId || currentTime < 2) return;
-    const dur = duration && duration > 0 ? duration : this.currentPlayingSong?.duration || 0;
-    userProgressService.saveProgress({
-      songId,
-      currentTime: Math.round(currentTime * 10) / 10,
-      duration: dur,
-    }).catch(() => {});
   }
 }
 

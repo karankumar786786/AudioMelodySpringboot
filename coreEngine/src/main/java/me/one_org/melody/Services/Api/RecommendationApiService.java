@@ -173,9 +173,15 @@ public class RecommendationApiService {
         return new RadioResponseDto(fallbackCatalog(count), null);
     }
 
-    /** Audio features of a real (persisted) seed song, looked up in Recombee; null if unavailable. */
-    private AudioProfile seedAudioProfile(Song seedSong) {
-        if (seedSong == null || seedSong.getId() == null || recombee == null) return null;
+    /**
+     * Audio features of a real (persisted) seed song. Uses the features stored on the song row
+     * and only asks Recombee when the row has none (e.g. analysed before V15 and not backfilled);
+     * null if unavailable. Transient genre seeds have no id and get no profile.
+     */
+    AudioProfile seedAudioProfile(Song seedSong) {
+        if (seedSong == null || seedSong.getId() == null) return null;
+        AudioProfile stored = AudioProfile.of(seedSong);
+        if (stored != null || recombee == null) return stored;
         return recombee.getAudioProfile(seedSong.getId());
     }
 
@@ -245,6 +251,9 @@ public class RecommendationApiService {
         List<SongDto> recombeeUserSongs = new ArrayList<>();
         try {
             Map<String, AudioProfile> recs = recombee.recommendForUserWithAudio(userId, Math.max(count * 3, 20));
+            if (recs == null) {
+                return recombeeUserSongs;
+            }
             List<String> songIds = recs != null ? new ArrayList<>(recs.keySet()) : List.of();
             if (!songIds.isEmpty() && songsRepository != null) {
                 Map<String, Song> songMap = songsRepository.findAllByIds(songIds).stream()
@@ -254,10 +263,10 @@ public class RecommendationApiService {
                 for (String id : songIds) {
                     Song song = songMap.get(id);
                     if (song != null) {
-                        // DB entities carry no audio features — attach the ones Recombee returned
+                        // Prefer the features stored on the song; fall back to the ones Recombee returned
                         SongDto dto = SongDto.fromEntity(song);
                         AudioProfile audio = recs.get(id);
-                        if (audio != null) {
+                        if (audio != null && !dto.hasAudioFeatures()) {
                             dto = dto.withAudioFeatures(audio.tempo(), audio.energy(), audio.valence(), audio.danceability());
                         }
                         recombeeUserSongs.add(dto);

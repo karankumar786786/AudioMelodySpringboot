@@ -23,6 +23,7 @@ import {
   ArtistCircleCard,
   SectionHeader,
   HomeSkeleton,
+  MoodChips,
 } from "@/components";
 import { homeStyles as styles } from "@/styles";
 import { hapticFeedback } from "@/utils/haptics";
@@ -294,6 +295,12 @@ export default function HomeScreen() {
                   />
                 );
               })}
+            </View>
+
+            {/* Mood radio: one tap starts a queue matching the mood's sound */}
+            <View style={styles.section}>
+              <SectionHeader title="Pick a mood" subtitle="Radio tuned to how it sounds" />
+              <MoodChips />
             </View>
 
             {/* 1. Jump Back In Shelf (User Listening History or Featured Fallback) */}

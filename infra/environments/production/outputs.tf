@@ -80,3 +80,23 @@ output "prod_s3_bucket_arn" {
   description = "Production S3 Bucket ARN"
   value       = module.s3.prod_bucket_arn
 }
+
+output "secret_arns" {
+  description = "Secrets Manager secret name => ARN (containers only; values are set by hand, see infra/SECRETS.md)"
+  value       = module.secrets.secret_arns
+}
+
+output "server_instance_profiles" {
+  description = "IAM instance profile attached to each EC2 server"
+  value       = module.secrets.instance_profile_names
+}
+
+output "kafka" {
+  description = "Where the core API finds Kafka: the processing instance's private IP"
+  value = {
+    private_ip          = module.compute.ec2_processing_private_ip
+    bootstrap_servers   = "${module.compute.ec2_processing_private_ip}:9092"
+    schema_registry_url = "http://${module.compute.ec2_processing_private_ip}:8081"
+    volume_id           = module.compute.kafka_volume_id
+  }
+}

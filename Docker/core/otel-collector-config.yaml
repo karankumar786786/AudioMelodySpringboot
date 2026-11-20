@@ -16,6 +16,16 @@ processors:
     spike_limit_mib: 128
   resourcedetection:
     detectors: [env, system]
+  # Tags every signal with the EC2 server it came from, for alert routing/filters
+  # (server_role in Uptrace). "insert" never overwrites a value the service set.
+  resource/server:
+    attributes:
+      - key: server.role
+        value: core
+        action: insert
+      - key: deployment.environment
+        value: production
+        action: insert
   cumulativetodelta:
   batch:
     send_batch_size: 10000
@@ -35,13 +45,13 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
+      processors: [memory_limiter, resource/server, batch]
       exporters: [otlp/uptrace, debug]
     metrics:
       receivers: [otlp]
-      processors: [memory_limiter, resourcedetection, cumulativetodelta, batch]
+      processors: [memory_limiter, resourcedetection, resource/server, cumulativetodelta, batch]
       exporters: [otlp/uptrace, debug]
     logs:
       receivers: [otlp]
-      processors: [memory_limiter, batch]
+      processors: [memory_limiter, resource/server, batch]
       exporters: [otlp/uptrace, debug]

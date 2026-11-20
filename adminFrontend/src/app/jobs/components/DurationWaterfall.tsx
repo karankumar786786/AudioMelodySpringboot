@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { formatMs } from "./jobHelpers";
 
 export interface DurationWaterfallProps {

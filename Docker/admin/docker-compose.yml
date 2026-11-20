@@ -1,11 +1,41 @@
 services:
   admin:
-    image: karankumar9955/admin:latest
+    image: karankumar9955/admin:stable
     container_name: admin
     pull_policy: always
     restart: unless-stopped
-    env_file:
-      - admin.env
+    environment:
+      # Non-secret settings plus SECRET_IDS. Secret keys are read from AWS Secrets Manager
+      # at start-up with the EC2 instance role (no keys on disk); see infra/SECRETS.md.
+      SECRET_IDS: onemelody/prod/db,onemelody/prod/redis,onemelody/prod/admin
+      AWS_REGION: ap-south-1
+      APPLICATION_NAME: one_melody
+      PORT: "8000"
+      REDIS_PORT: "6379"
+      REDIS_SSL_ENABLED: "true"
+      REDIS_MAIL_QUEUE: mail_queue
+      REDIS_AUDIO_PROCESSING_QUEUE: audio_processing_queue
+      REDIS_DELETE_QUEUE: delete_event_queue
+      REDIS_CANCEL_QUEUE: audio_cancel_queue
+      ALGOLIA_INDEX_NAME: one_melody_springboot
+      RECOMBEE_DATABASE_REGION: EU_WEST
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: "465"
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: "465"
+      AUDIO_PROCESSING_URL: http://process:5010
+      AWS_ENDPOINT: ""
+      S3_TEMP_BUCKET: audiomelody-temp-storage-oneorg
+      S3_PRODUCTION_BUCKET: audiomelody-prod-storage-oneorg
+      INNGEST_DEV: "0"
+      INNGEST_DEV_URL: http://localhost:8288
+      OTEL_SERVICE_NAME: admin-backend
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      DJANGO_DEBUG: "false"
+      EVENTS_MODE: LEGACY
+      KAFKA_REST_PROXY_URL: http://redpanda:8082
+      EVENTS_OTP_FALLBACK_SECONDS: "30"
     expose:
       - "8000"
     labels:
@@ -14,14 +44,117 @@ services:
       - app
 
   process:
-    image: karankumar9955/audioprocessing:latest
+    image: karankumar9955/audioprocessing:stable
     container_name: process
     pull_policy: always
     restart: unless-stopped
-    env_file:
-      - process.env
+    environment:
+      # Non-secret settings plus SECRET_IDS. Secret keys are read from AWS Secrets Manager
+      # at start-up with the EC2 instance role (no keys on disk); see infra/SECRETS.md.
+      SECRET_IDS: onemelody/prod/redis,onemelody/prod/processing
+      AWS_REGION: ap-south-1
+      JOB_PROCESSING_QUEUE: audio_processing_queue
+      DELETE_EVENT_QUEUE: delete_event_queue
+      CANCEL_EVENT_QUEUE: audio_cancel_queue
+      QUEUE_EMPTY_DELAY_MS: "2000"
+      QUEUE_POLL_TIMEOUT_SECS: "2"
+      REDIS_PORT: "6379"
+      REDIS_SSL_ENABLED: "true"
+      APPLICATION_URL: http://admin:8000/webhook/job
+      APPLICATION_DELETE_URL: http://admin:8000/webhook/delete
+      REGION: ap-south-1
+      TEMP_BUCKET_NAME: audiomelody-temp-storage-oneorg
+      PRODUCTION_BUCKET_NAME: audiomelody-prod-storage-oneorg
+      BASE_PATH: audios
+      VIDEO_BASE_PATH: videos
+      INNGEST_DEV: "0"
+      ALGOLIA_INDEX_NAME: one_melody_springboot
+      OTEL_SERVICE_NAME: audio-processing
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
     expose:
       - "5010"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    networks:
+      - app
+
+  # --- Event pipeline -------------------------------------------------------
+  # Redpanda (Kafka API + Schema Registry + HTTP proxy), one node. Data lives on the
+  # dedicated EBS volume mounted at /mnt/kafka (deploy.sh mounts it). Kafka and the
+  # registry listen on the private IP only; the security group admits only our two
+  # instances. Inside this network, services use redpanda:29092 / :8081 / :8082.
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v26.1.20
+    container_name: redpanda
+    restart: unless-stopped
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --default-log-level=warn
+      - --kafka-addr=internal://0.0.0.0:29092,external://0.0.0.0:9092
+      - --advertise-kafka-addr=internal://redpanda:29092,external://${REDPANDA_ADVERTISED_HOST:-127.0.0.1}:9092
+      - --schema-registry-addr=0.0.0.0:8081
+      - --pandaproxy-addr=0.0.0.0:8082
+      - --rpc-addr=redpanda:33145
+      - --advertise-rpc-addr=redpanda:33145
+    ports:
+      - "${REDPANDA_BIND_IP:-127.0.0.1}:9092:9092"
+      - "${REDPANDA_BIND_IP:-127.0.0.1}:8081:8081"
+    volumes:
+      - ${KAFKA_DATA_DIR:-/mnt/kafka}/redpanda:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "health", "--exit-when-healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    mem_limit: 1536m
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    networks:
+      - app
+
+  # Creates missing topics from kafka/topics.yaml on every deploy, then exits.
+  redpanda-init:
+    image: docker.redpanda.com/redpandadata/redpanda:v26.1.20
+    container_name: redpanda-init
+    depends_on:
+      redpanda:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "/kafka/apply-topics.sh", "/kafka/topics.yaml"]
+    environment:
+      RPK_BROKERS: redpanda:29092
+    volumes:
+      - ./kafka:/kafka:ro
+    restart: "no"
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    networks:
+      - app
+
+  # Outbox relay + Kafka Streams services (one JVM; STREAMS_PROFILES picks them).
+  streams:
+    image: karankumar9955/streams:stable
+    container_name: streams
+    pull_policy: always
+    restart: unless-stopped
+    depends_on:
+      redpanda-init:
+        condition: service_completed_successfully
+    env_file:
+      - streams.env
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:29092
+      SCHEMA_REGISTRY_URL: http://redpanda:8081
+      STREAMS_STATE_DIR: /var/lib/streams
+    volumes:
+      - ${KAFKA_DATA_DIR:-/mnt/kafka}/streams:/var/lib/streams
+    expose:
+      - "8095"
+    mem_limit: 768m
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     networks:
@@ -47,8 +180,17 @@ services:
     image: containrrr/watchtower
     container_name: watchtower
     restart: unless-stopped
-    env_file:
-      - watchtower.env
+    environment:
+      # Non-secret settings only. Secrets (and anything not listed here) come from
+      # AWS Secrets Manager at start-up via the EC2 instance role; see infra/SECRETS.md.
+      DOCKER_API_VERSION: "1.44"
+      WATCHTOWER_POLL_INTERVAL: "3"
+      WATCHTOWER_CLEANUP: "true"
+      WATCHTOWER_ROLLING_RESTART: "true"
+      WATCHTOWER_INCLUDE_RESTARTING: "true"
+      WATCHTOWER_INCLUDE_STOPPED: "false"
+      WATCHTOWER_LOG_LEVEL: info
+      WATCHTOWER_LABEL_ENABLE: "true"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     labels:
