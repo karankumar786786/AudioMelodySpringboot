@@ -1,15 +1,48 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  AlertCircle,
+  ArrowRight,
+  Mail,
+  RefreshCw,
+  ShieldCheck,
+  User,
+} from "lucide-react";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 import { useAuth } from "@/lib/auth-context";
-import { Mail, User, ArrowRight, RefreshCw, ShieldCheck, AlertCircle } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { emailField } from "@/lib/forms/schemas";
+
+/** Mirrors /auth/login and /auth/register: email always, name when registering. */
+const emailFormSchema = z
+  .object({
+    mode: z.enum(["login", "register"]),
+    email: emailField,
+    name: z.string().trim(),
+  })
+  .refine((v) => v.mode === "login" || v.name.length > 0, {
+    path: ["name"],
+    message: "Name is required",
+  });
+type EmailForm = z.infer<typeof emailFormSchema>;
+
+/** /auth/verify-otp expects the six-digit code. */
+const otpSchema = z.string().regex(/^\d{6}$/, "Enter the 6-digit code");
 
 export function AuthScreen() {
   const { login, register, verifyOtp, resendOtp } = useAuth();
   const [mode, setMode] = useState<"login" | "register" | "otp">("login");
-  const [email, setEmail] = useState("");
-  const [name, setName] = useState("");
+  const emailForm = useForm<EmailForm>({
+    resolver: zodResolver(emailFormSchema),
+    defaultValues: { mode: "login", email: "", name: "" },
+  });
+  const email = emailForm.watch("email");
+  const name = emailForm.watch("name");
+  const formErrors = emailForm.formState.errors;
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const [emailToken, setEmailToken] = useState("");
   const [resendCooldown, setResendCooldown] = useState(30); // 30 seconds cooldown for resending
@@ -29,40 +62,40 @@ export function AuthScreen() {
     return () => clearInterval(timer);
   }, [mode]);
 
-  const handleEmailSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-    setLoading(true);
-    setError(null);
+  // Keep the schema's mode in step with the tab.
+  useEffect(() => {
+    if (mode !== "otp") emailForm.setValue("mode", mode);
+  }, [mode, emailForm]);
 
-    try {
-      if (mode === "login") {
-        const res = await login(email);
+  const handleEmailSubmit = emailForm.handleSubmit(
+    async ({ mode: formMode, email: addr, name: fullName }) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res =
+          formMode === "login"
+            ? await login(addr)
+            : await register(fullName, addr);
         setEmailToken(res.token);
-      } else {
-        if (!name) {
-          setError("Name is required");
-          setLoading(false);
-          return;
-        }
-        const res = await register(name, email);
-        setEmailToken(res.token);
+        setMode("otp");
+        setResendCooldown(30);
+        setExpiresIn(300);
+        setOtp(Array(6).fill(""));
+      } catch (err) {
+        setError(
+          err instanceof Error && err.message
+            ? err.message
+            : "Something went wrong. Please try again.",
+        );
+      } finally {
+        setLoading(false);
       }
-      setMode("otp");
-      setResendCooldown(30);
-      setExpiresIn(300);
-      // Reset OTP fields
-      setOtp(Array(6).fill(""));
-    } catch (err: any) {
-      setError(err.message || "Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+  );
 
   const handleOtpChange = (index: number, value: string) => {
     if (!/^[0-9]?$/.test(value)) return; // Allow numbers only (or backspace)
-    
+
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
@@ -73,7 +106,10 @@ export function AuthScreen() {
     }
   };
 
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleOtpKeyDown = (
+    index: number,
+    e: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
     if (e.key === "Backspace" && !otp[index] && index > 0) {
       // Focus previous input on backspace if current is empty
       otpInputsRef.current[index - 1]?.focus();
@@ -81,6 +117,7 @@ export function AuthScreen() {
   };
 
   // Trigger verify automatically when 6 digits are typed
+  // biome-ignore lint/correctness/useExhaustiveDependencies: verify only when the digits change, not when the handler is recreated
   useEffect(() => {
     if (mode === "otp" && otp.every((digit) => digit !== "")) {
       handleOtpVerify();
@@ -88,14 +125,21 @@ export function AuthScreen() {
   }, [otp, mode]);
 
   const handleOtpVerify = async () => {
+    const otpCode = otp.join("");
+    const parsed = otpSchema.safeParse(otpCode);
+    if (!parsed.success) {
+      setError(parsed.error.issues[0]?.message ?? "Invalid OTP code");
+      return;
+    }
     setLoading(true);
     setError(null);
-    const otpCode = otp.join("");
     try {
-      await verifyOtp(email, otpCode, emailToken);
+      await verifyOtp(email.trim().toLowerCase(), otpCode, emailToken);
       // Auth context will automatically update user state, closing this screen
-    } catch (err: any) {
-      setError(err.message || "Invalid OTP code");
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message ? err.message : "Invalid OTP code",
+      );
     } finally {
       setLoading(false);
     }
@@ -106,7 +150,7 @@ export function AuthScreen() {
     setLoading(true);
     setError(null);
     try {
-      const res = await resendOtp(email, emailToken);
+      const res = await resendOtp(email.trim().toLowerCase(), emailToken);
       if (res.token) {
         setEmailToken(res.token);
       }
@@ -114,12 +158,22 @@ export function AuthScreen() {
       setExpiresIn(300);
       setOtp(Array(6).fill(""));
       otpInputsRef.current[0]?.focus();
-    } catch (err: any) {
-      setError(err.message || "Failed to resend OTP");
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message
+          ? err.message
+          : "Failed to resend OTP",
+      );
     } finally {
       setLoading(false);
     }
   };
+
+  const shownError =
+    error ??
+    (mode !== "otp"
+      ? (formErrors.email?.message ?? formErrors.name?.message ?? null)
+      : null);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -165,7 +219,7 @@ export function AuthScreen() {
 
         {/* Error message */}
         <AnimatePresence>
-          {error && (
+          {shownError && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
@@ -173,16 +227,19 @@ export function AuthScreen() {
               className="mb-6 p-3.5 bg-red-950/40 border border-red-800/50 rounded-2xl flex items-center gap-3 text-red-300 text-xs font-medium"
             >
               <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
-              <span>{error}</span>
+              <span role="alert">{shownError}</span>
             </motion.div>
           )}
         </AnimatePresence>
 
         {mode !== "otp" ? (
-          <form onSubmit={handleEmailSubmit} className="space-y-4">
+          <form onSubmit={handleEmailSubmit} noValidate className="space-y-4">
             {mode === "register" && (
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider pl-1">
+                <label
+                  htmlFor="auth-name"
+                  className="text-xs font-semibold text-zinc-300 uppercase tracking-wider pl-1"
+                >
                   Full Name
                 </label>
                 <div className="relative group">
@@ -190,11 +247,12 @@ export function AuthScreen() {
                     <User className="w-4 h-4" />
                   </span>
                   <input
+                    id="auth-name"
                     type="text"
-                    required
+                    autoComplete="name"
                     placeholder="Admin Name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    aria-invalid={Boolean(formErrors.name)}
+                    {...emailForm.register("name")}
                     className="w-full bg-black/60 border border-[#282828] rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-white focus:ring-1 focus:ring-white/20 transition-all"
                   />
                 </div>
@@ -202,7 +260,10 @@ export function AuthScreen() {
             )}
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider pl-1">
+              <label
+                htmlFor="auth-email"
+                className="text-xs font-semibold text-zinc-300 uppercase tracking-wider pl-1"
+              >
                 Email Address
               </label>
               <div className="relative group">
@@ -210,11 +271,12 @@ export function AuthScreen() {
                   <Mail className="w-4 h-4" />
                 </span>
                 <input
+                  id="auth-email"
                   type="email"
-                  required
+                  autoComplete="email"
                   placeholder="admin@onemelody.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  aria-invalid={Boolean(formErrors.email)}
+                  {...emailForm.register("email")}
                   className="w-full bg-black/60 border border-[#282828] rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-white focus:ring-1 focus:ring-white/20 transition-all"
                 />
               </div>
@@ -273,11 +335,17 @@ export function AuthScreen() {
             <div className="flex justify-between gap-2">
               {otp.map((digit, idx) => (
                 <input
+                  // biome-ignore lint/suspicious/noArrayIndexKey: fixed-position placeholders never reorder
                   key={idx}
                   type="text"
+                  inputMode="numeric"
+                  autoComplete={idx === 0 ? "one-time-code" : "off"}
+                  aria-label={`Verification code digit ${idx + 1}`}
                   maxLength={1}
                   required
-                  ref={(el) => { otpInputsRef.current[idx] = el; }}
+                  ref={(el) => {
+                    otpInputsRef.current[idx] = el;
+                  }}
                   value={digit}
                   onChange={(e) => handleOtpChange(idx, e.target.value)}
                   onKeyDown={(e) => handleOtpKeyDown(idx, e)}
@@ -323,6 +391,7 @@ export function AuthScreen() {
             </div>
 
             <button
+              type="button"
               onClick={handleOtpVerify}
               disabled={loading || otp.some((d) => d === "")}
               className="w-full bg-white text-black hover:bg-zinc-200 font-bold text-sm tracking-wide py-3.5 rounded-full transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center gap-2"

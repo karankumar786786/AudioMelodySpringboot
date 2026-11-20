@@ -22,9 +22,10 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
       id,
       ...props
     },
-    ref
+    ref,
   ) => {
-    const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
+    const inputId =
+      id || (label ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
 
     return (
       <div className="w-full space-y-1.5">
@@ -59,11 +60,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
             </div>
           )}
         </div>
-        {error && <p className="text-[11px] text-rose-400 font-medium">{error}</p>}
+        {error && (
+          <p className="text-[11px] text-rose-400 font-medium">{error}</p>
+        )}
       </div>
     );
-  }
+  },
 );
 
 Input.displayName = "Input";
-

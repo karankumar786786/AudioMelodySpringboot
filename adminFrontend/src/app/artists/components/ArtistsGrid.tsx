@@ -1,14 +1,15 @@
 "use client";
 
+import { ExternalLink, Mic2, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { Trash2, Music, ExternalLink, Mic2 } from "lucide-react";
 import { getImageUrl } from "@/lib/image-utils";
 import type { Artist } from "../types";
 
 interface ArtistsGridProps {
   artists: Artist[];
   loading: boolean;
-  onDelete: (id: string) => void;
+  /** Left out when the current role may not delete artists. */
+  onDelete?: (id: string) => void;
 }
 
 export function ArtistsGrid({ artists, loading, onDelete }: ArtistsGridProps) {
@@ -17,6 +18,7 @@ export function ArtistsGrid({ artists, loading, onDelete }: ArtistsGridProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {Array.from({ length: 6 }).map((_, i) => (
           <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: fixed-position placeholders never reorder
             key={i}
             className="bg-[#121215] rounded-3xl border border-white/8 p-6 animate-pulse"
           >
@@ -93,14 +95,16 @@ export function ArtistsGrid({ artists, loading, onDelete }: ArtistsGridProps) {
                 <span>Discography</span>
                 <ExternalLink className="w-3 h-3" />
               </Link>
-              <button
-                type="button"
-                onClick={() => onDelete(artist.id)}
-                className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all cursor-pointer"
-                title="Delete Artist"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={() => onDelete?.(artist.id)}
+                  className="p-1.5 text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all cursor-pointer"
+                  title="Delete Artist"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
         </div>

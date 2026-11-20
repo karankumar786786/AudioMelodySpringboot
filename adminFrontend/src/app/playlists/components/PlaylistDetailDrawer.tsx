@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2, Video, Music, Loader2, X } from "lucide-react";
+import { Loader2, Music, Trash2, Video, X } from "lucide-react";
 import { getImageUrl } from "@/lib/image-utils";
 import type { Playlist, PlaylistSong } from "../types";
 
@@ -96,7 +96,9 @@ export function PlaylistDetailDrawer({
             ) : (
               <>
                 <Video className="w-3.5 h-3.5 text-white" />
-                <span>{playlist.videoKey ? "Replace Video" : "Attach Video"}</span>
+                <span>
+                  {playlist.videoKey ? "Replace Video" : "Attach Video"}
+                </span>
               </>
             )}
             <input
@@ -133,7 +135,8 @@ export function PlaylistDetailDrawer({
           </div>
         ) : songs.length === 0 ? (
           <div className="border border-dashed border-[#282828] rounded-2xl p-8 text-center text-zinc-500 text-xs">
-            No tracks in this playlist yet. Add songs using the &quot;+&quot; button on any song in the Songs catalog.
+            No tracks in this playlist yet. Add songs using the &quot;+&quot;
+            button on any song in the Songs catalog.
           </div>
         ) : (
           <div className="space-y-2 max-h-100 overflow-y-auto pr-1">

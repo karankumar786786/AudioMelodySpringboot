@@ -1,16 +1,15 @@
 "use client";
 
-import React from "react";
 import {
-  Play,
+  Film,
+  Music,
   Pause,
+  Play,
   RotateCcw,
   RotateCw,
   Volume2,
   VolumeX,
   X,
-  Film,
-  Music,
 } from "lucide-react";
 import { useAudio } from "@/lib/audio-context";
 import { getImageUrl } from "@/lib/image-utils";
@@ -38,7 +37,7 @@ export function MiniAudioDock() {
 
   if (!currentTrack) return null;
 
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const _progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
   const coverUrl = currentTrack.imageKey
     ? getImageUrl(currentTrack.imageKey, { width: 100, height: 100 })
     : "";
@@ -182,4 +181,3 @@ export function MiniAudioDock() {
     </div>
   );
 }
-

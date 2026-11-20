@@ -1,10 +1,9 @@
 "use client";
 
-import React from "react";
-import Image from "next/image";
-import { JobProgress } from "@/lib/api";
-import { getImageUrl } from "@/lib/image-utils";
 import { ChevronRight, Cpu } from "lucide-react";
+import Image from "next/image";
+import type { JobProgress } from "@/lib/api";
+import { getImageUrl } from "@/lib/image-utils";
 import { formatMs, getStageBadge } from "./jobHelpers";
 
 export interface ActiveJobsLiveMonitorProps {
@@ -42,16 +41,28 @@ export function ActiveJobsLiveMonitor({
         {activeJobs.map((job) => {
           const stageBadge = getStageBadge(job.currentStage);
           return (
+            // biome-ignore lint/a11y/useSemanticElements: the card holds block layout and its own buttons, which a <button> cannot contain
             <div
               key={job.id}
+              role="button"
+              tabIndex={0}
               onClick={() => onSelectJob(job)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelectJob(job);
+                }
+              }}
               className="p-4 rounded-xl bg-[#141418] border border-white/8 shadow-sm cursor-pointer hover:border-indigo-500/40 hover:bg-[#191920] transition-all space-y-3 group"
             >
               <div className="flex items-center gap-3">
                 <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-black shrink-0 border border-white/10">
                   {job.imageKey ? (
                     <Image
-                      src={getImageUrl(job.imageKey, { width: 100, height: 100 })}
+                      src={getImageUrl(job.imageKey, {
+                        width: 100,
+                        height: 100,
+                      })}
                       alt={job.title}
                       fill
                       className="object-cover"

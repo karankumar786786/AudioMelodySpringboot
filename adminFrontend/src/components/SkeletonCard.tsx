@@ -1,7 +1,5 @@
 "use client";
 
-import React from "react";
-
 interface SkeletonCardProps {
   variant?: "stat" | "table-row" | "activity" | "card";
   count?: number;
@@ -19,6 +17,7 @@ export function SkeletonCard({
     return (
       <>
         {items.map((_, idx) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: fixed-position placeholders never reorder
           <tr key={idx} className="animate-pulse border-b border-[#282828]">
             <td className="px-6 py-4">
               <div className="flex items-center gap-3">
@@ -55,6 +54,7 @@ export function SkeletonCard({
       <div className={`space-y-3 ${className}`}>
         {items.map((_, idx) => (
           <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: fixed-position placeholders never reorder
             key={idx}
             className="animate-pulse flex items-center justify-between p-3.5 rounded-2xl bg-black/60 border border-[#282828]"
           >
@@ -74,9 +74,12 @@ export function SkeletonCard({
 
   if (variant === "card") {
     return (
-      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${className}`}>
+      <div
+        className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${className}`}
+      >
         {items.map((_, idx) => (
           <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: fixed-position placeholders never reorder
             key={idx}
             className="animate-pulse bg-[#121212] rounded-3xl p-6 border border-[#282828] space-y-4"
           >
@@ -96,6 +99,7 @@ export function SkeletonCard({
     <>
       {items.map((_, idx) => (
         <div
+          // biome-ignore lint/suspicious/noArrayIndexKey: fixed-position placeholders never reorder
           key={idx}
           className={`animate-pulse relative overflow-hidden bg-[#121212] p-7 rounded-3xl border border-[#282828] shadow-sm ${className}`}
         >

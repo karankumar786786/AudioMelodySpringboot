@@ -1,7 +1,5 @@
 "use client";
 
-import React from "react";
-
 export interface TableSkeletonProps {
   columns?: number;
   rows?: number;
@@ -19,6 +17,7 @@ export function TableSkeleton({
     return (
       <>
         {rowList.map((_, rIdx) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: fixed-position placeholders never reorder
           <tr key={rIdx} className="animate-pulse border-b border-[#282828]">
             <td className="py-3 px-4">
               <div className="flex items-center gap-3">
@@ -63,6 +62,7 @@ export function TableSkeleton({
     return (
       <>
         {rowList.map((_, rIdx) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: fixed-position placeholders never reorder
           <tr key={rIdx} className="animate-pulse border-b border-[#282828]">
             <td className="px-6 py-4">
               <div className="flex items-center gap-3.5">
@@ -98,6 +98,7 @@ export function TableSkeleton({
     return (
       <>
         {rowList.map((_, rIdx) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: fixed-position placeholders never reorder
           <tr key={rIdx} className="animate-pulse border-b border-[#282828]">
             <td className="py-3 px-4">
               <div className="flex items-center gap-2">
@@ -133,8 +134,10 @@ export function TableSkeleton({
   return (
     <>
       {rowList.map((_, rIdx) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: fixed-position placeholders never reorder
         <tr key={rIdx} className="animate-pulse border-b border-[#282828]">
           {Array.from({ length: columns }).map((_, cIdx) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: fixed-position placeholders never reorder
             <td key={cIdx} className="py-3.5 px-4">
               <div className="h-4 bg-zinc-800 rounded w-3/4" />
             </td>

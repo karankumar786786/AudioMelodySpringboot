@@ -1,6 +1,6 @@
 import { withAdminHeaders } from "./adminFetch";
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export interface Song {
   id: string;
@@ -323,7 +323,10 @@ export const adminClient = {
       });
       if (!res.ok) {
         let msg = "Login failed";
-        try { const d = await res.json(); msg = d.message || msg; } catch {}
+        try {
+          const d = await res.json();
+          msg = d.message || msg;
+        } catch {}
         throw new Error(msg);
       }
       const data = await res.json();
@@ -338,7 +341,10 @@ export const adminClient = {
       });
       if (!res.ok) {
         let msg = "Registration failed";
-        try { const d = await res.json(); msg = d.message || msg; } catch {}
+        try {
+          const d = await res.json();
+          msg = d.message || msg;
+        } catch {}
         throw new Error(msg);
       }
       const data = await res.json();
@@ -358,7 +364,10 @@ export const adminClient = {
       });
       if (!verifyRes.ok) {
         let msg = "OTP verification failed";
-        try { const d = await verifyRes.json(); msg = d.message || msg; } catch {}
+        try {
+          const d = await verifyRes.json();
+          msg = d.message || msg;
+        } catch {}
         throw new Error(msg);
       }
 
@@ -368,7 +377,12 @@ export const adminClient = {
         credentials: "include",
       });
 
-      let user: any = { id: "unknown", email, name: "Admin", role: "admin" };
+      let user: { id: string; email: string; name: string; role: string } = {
+        id: "unknown",
+        email,
+        name: "Admin",
+        role: "admin",
+      };
       if (profileRes.ok) {
         const profile = await profileRes.json();
         user = {
@@ -381,7 +395,7 @@ export const adminClient = {
 
       return { data: { user } };
     },
-    resendOtp: async (token: string, email: string) => {
+    resendOtp: async (token: string, _email: string) => {
       const res = await fetch(`${API_BASE_URL}/auth/resend-otp`, {
         method: "POST",
         headers: {
@@ -392,7 +406,10 @@ export const adminClient = {
       });
       if (!res.ok) {
         let msg = "Failed to resend OTP";
-        try { const d = await res.json(); msg = d.message || msg; } catch {}
+        try {
+          const d = await res.json();
+          msg = d.message || msg;
+        } catch {}
         throw new Error(msg);
       }
       return { data: { token } };
