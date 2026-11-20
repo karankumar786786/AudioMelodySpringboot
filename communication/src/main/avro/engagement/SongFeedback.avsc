@@ -1,0 +1,10 @@
+{
+  "type": "record", "name": "SongFeedback", "namespace": "me.oneorg.melody.events",
+  "doc": "Explicit dislike or share. Topic engagement.feedback.v1, key user_id.",
+  "fields": [
+    {"name": "meta", "type": "EventMeta"},
+    {"name": "user_id", "type": "string"},
+    {"name": "song_id", "type": "string"},
+    {"name": "action", "type": {"type": "enum", "name": "FeedbackAction", "symbols": ["DISLIKE", "SHARE"]}}
+  ]
+}

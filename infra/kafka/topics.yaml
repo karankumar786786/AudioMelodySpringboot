@@ -1,0 +1,64 @@
+# Every Kafka topic, applied by apply-topics.sh (the redpanda-init container runs it on
+# each deploy; it only creates missing topics and updates configs, never deletes).
+# Must match communication/src/main/java/me/oneorg/melody/events/Topics.java.
+#
+# Replication factor is 1 on the single self-hosted Redpanda node. On a managed
+# cluster set REPLICATION_FACTOR=3 when running the script.
+#
+# Retention: 1 day = 86400000, 3 days = 259200000, 7 days = 604800000,
+#            14 days = 1209600000, 90 days = 7776000000
+topics:
+  # Telemetry from the core API
+  - name: listening.play.v1
+    partitions: 3
+    config: retention.ms=604800000
+  - name: listening.skip.v1
+    partitions: 3
+    config: retention.ms=604800000
+  - name: search.interaction.v1
+    partitions: 3
+    config: retention.ms=604800000
+  - name: queue.change.v1
+    partitions: 3
+    config: retention.ms=259200000
+  - name: engagement.feedback.v1
+    partitions: 3
+    config: retention.ms=604800000
+
+  # State changes through the outbox
+  - name: engagement.favourite.v1
+    partitions: 3
+    config: retention.ms=604800000
+  - name: engagement.playlist-song.v1
+    partitions: 3
+    config: retention.ms=604800000
+  - name: social.artist-follow.v1
+    partitions: 3
+    config: retention.ms=604800000
+  - name: user.lifecycle.v1
+    partitions: 3
+    config: retention.ms=604800000
+  - name: catalog.song.v1
+    partitions: 3
+    config: cleanup.policy=compact
+  # Carries one-time codes: keep 1 day only.
+  - name: notification.email.v1
+    partitions: 3
+    config: retention.ms=86400000
+  - name: notification.email.retry.v1
+    partitions: 3
+    config: retention.ms=86400000
+
+  # Produced by the stream services
+  - name: stats.song.v1
+    partitions: 3
+    config: cleanup.policy=compact
+  - name: stats.artist.v1
+    partitions: 3
+    config: cleanup.policy=compact
+  - name: stats.song-daily.v1
+    partitions: 3
+    config: retention.ms=7776000000
+  - name: pipeline.dlq.v1
+    partitions: 3
+    config: retention.ms=1209600000

@@ -1,0 +1,10 @@
+{
+  "type": "record", "name": "ArtistFollowChanged", "namespace": "me.oneorg.melody.events",
+  "doc": "A user followed or unfollowed an artist (outbox). Topic social.artist-follow.v1, key user_id.",
+  "fields": [
+    {"name": "meta", "type": "EventMeta"},
+    {"name": "user_id", "type": "string"},
+    {"name": "artist_id", "type": "string"},
+    {"name": "followed", "type": "boolean"}
+  ]
+}

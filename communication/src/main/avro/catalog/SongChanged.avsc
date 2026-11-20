@@ -1,0 +1,13 @@
+{
+  "type": "record", "name": "SongChanged", "namespace": "me.oneorg.melody.events",
+  "doc": "Catalog change written by the admin API (outbox). Topic catalog.song.v1 (compacted), key song_id.",
+  "fields": [
+    {"name": "meta", "type": "EventMeta"},
+    {"name": "song_id", "type": "string"},
+    {"name": "change", "type": {"type": "enum", "name": "SongChangeType", "symbols": ["CREATED", "UPDATED", "PUBLISHED", "UNPUBLISHED", "DELETED"]}},
+    {"name": "title", "type": ["null", "string"], "default": null},
+    {"name": "artist_name", "type": ["null", "string"], "default": null},
+    {"name": "artist_ids", "type": {"type": "array", "items": "string"}, "default": []},
+    {"name": "status", "type": ["null", "string"], "default": null}
+  ]
+}
