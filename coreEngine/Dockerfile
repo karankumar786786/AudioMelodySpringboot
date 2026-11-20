@@ -19,7 +19,7 @@ COPY communication/src communication/src
 COPY coreEngine/src coreEngine/src
 
 # Package standalone executable JAR (unit tests run in CI workflow)
-RUN mvn -q -pl coreEngine -am clean package -DskipTests
+RUN mvn -B -pl coreEngine -am clean package -DskipTests
 
 
 # ---------- Runner (Ubuntu 24.04 LTS Noble - Rock-Solid Mirror Stability) ----------
