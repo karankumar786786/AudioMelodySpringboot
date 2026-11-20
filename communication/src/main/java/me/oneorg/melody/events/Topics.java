@@ -29,4 +29,7 @@ public final class Topics {
     public static final String STATS_SONG_DAILY = "stats.song-daily.v1";
     public static final String STATS_ARTIST = "stats.artist.v1";
     public static final String DLQ = "pipeline.dlq.v1";
+
+    /** Plain-string nudge to outboxRelay after a commit; not Avro, not consumed by anything else. */
+    public static final String OUTBOX_WAKEUP = "outbox.wakeup.v1";
 }
