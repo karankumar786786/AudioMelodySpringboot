@@ -206,3 +206,40 @@ test.describe("admin smoke", () => {
     });
   }
 });
+
+test.describe("shorts", () => {
+  test("hide a listener's short from the shorts page", async ({ page }) => {
+    const api = new MockApi(page);
+    await api.install();
+    await api.signIn("ADMIN");
+
+    await page.goto("/shorts");
+    await expect(page.getByRole("heading", { name: "Shorts" })).toBeVisible();
+    await expect(page.getByText("Night drive vibes")).toBeVisible();
+    await expect(
+      page.getByText("♪ Midnight Drive", { exact: false }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "Hide" }).click();
+    await expect(page.getByText("Short hidden")).toBeVisible();
+    expect(api.callsTo("POST", "/admin/shorts/short-1/hide")).toHaveLength(1);
+
+    await page.getByRole("tab", { name: "Reports" }).click();
+    await expect(page.getByRole("tab", { name: "Reports" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  test("the upload dialog opens and needs a video", async ({ page }) => {
+    const api = new MockApi(page);
+    await api.install();
+    await api.signIn("ADMIN");
+
+    await page.goto("/shorts");
+    await page.getByRole("button", { name: "Upload short" }).click();
+    const dialog = page.getByRole("dialog", { name: "Upload a short" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Upload" })).toBeDisabled();
+  });
+});

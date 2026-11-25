@@ -66,15 +66,17 @@ export function MediaSection({
           "videoFile",
           "video/*",
           <>
-            Canvas Video Loop{" "}
-            <span className="text-zinc-500 font-normal">(Optional)</span>
+            Player background loop{" "}
+            <span className="text-zinc-500 font-normal">
+              (Optional, silent, plays behind the player. Not a short)
+            </span>
           </>,
         )}
 
       {(mode === "videoOnly" || videoFile) && (
         <TimeRangeFields
           control={control}
-          title="Canvas Loop"
+          title="Player background loop"
           hint={
             mode === "videoOnly"
               ? "Extract from full video"

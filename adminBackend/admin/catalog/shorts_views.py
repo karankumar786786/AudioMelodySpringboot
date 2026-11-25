@@ -26,14 +26,25 @@ def _page_params(request):
 
 
 class ShortUploadUrlView(BaseAdminView):
-    """POST: a pre-signed PUT URL for the raw video (temp bucket, 30 minutes)."""
+    """A pre-signed PUT URL for the raw video (temp bucket, 30 minutes).
 
-    def post(self, request):
-        content_type = (request.data.get("contentType") or "video/mp4").strip().lower()
+    GET ?contentType=... answers in the shape the dashboard's uploadToS3WithProgress
+    helper expects ({key, preSignedUrl}); POST {contentType} does the same.
+    """
+
+    def _issue(self, content_type: str) -> Response:
+        content_type = (content_type or "video/mp4").strip().lower()
         if content_type not in ALLOWED_CONTENT_TYPES:
             return Response({"message": "Only MP4 or MOV videos can be uploaded"}, status=status.HTTP_400_BAD_REQUEST)
         key = new_raw_key(content_type)
-        return Response({"rawKey": key, "uploadUrl": S3Service.generate_presigned_upload_url(key)}, status=status.HTTP_200_OK)
+        url = S3Service.generate_presigned_upload_url(key)
+        return Response({"key": key, "preSignedUrl": url, "rawKey": key, "uploadUrl": url}, status=status.HTTP_200_OK)
+
+    def get(self, request):
+        return self._issue(request.query_params.get("contentType"))
+
+    def post(self, request):
+        return self._issue(request.data.get("contentType"))
 
 
 class ShortListView(BaseAdminView):

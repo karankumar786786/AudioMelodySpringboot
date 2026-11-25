@@ -183,7 +183,7 @@ export function SongsFilterBar({
           }`}
         >
           <Film className="w-3.5 h-3.5 text-zinc-300" />
-          <span>Vertical Canvas</span>
+          <span>Background Loop</span>
         </button>
         <button
           type="button"

@@ -34,6 +34,12 @@ export type Permission =
   | "job.delete"
   | "job.purgeFailed"
   | "catalog.resync"
+  /** Upload a short as One Melody. */
+  | "short.create"
+  /** Hide, unhide or delete shorts, and resolve reports. */
+  | "short.moderate"
+  /** Stop an account from posting shorts. */
+  | "short.ban"
   /** POST /admin/jobs/sync-metadata: reconcile counts and resync search/recommendations. */
   | "system.syncMetadata";
 
@@ -54,6 +60,9 @@ const ADMIN_PERMISSIONS: Permission[] = [
   "job.recover",
   "job.delete",
   "catalog.resync",
+  "short.create",
+  "short.moderate",
+  "short.ban",
 ];
 
 const SUPER_ADMIN_ONLY: Permission[] = [

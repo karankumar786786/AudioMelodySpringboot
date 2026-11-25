@@ -125,6 +125,12 @@ class ShortViewsTests(SimpleTestCase):
         self.assertTrue(ok.data["rawKey"].startswith("shorts-raw/"))
         bad = self._call(ShortUploadUrlView, "post", "/admin/shorts/upload-url", {"contentType": "image/png"})
         self.assertEqual(bad.status_code, 400)
+        request = self.factory.get("/admin/shorts/upload-url", {"contentType": "video/quicktime"})
+        force_authenticate(request, user=self.admin)
+        get = ShortUploadUrlView.as_view()(request)
+        self.assertEqual(get.status_code, 200)
+        self.assertTrue(get.data["key"].endswith(".mov"))
+        self.assertEqual(get.data["preSignedUrl"], "https://s3/put")
 
     def test_create_maps_errors_to_status_codes(self):
         with mock.patch.object(ShortService, "create_admin_short", side_effect=ShortError("Song not found", 404)):

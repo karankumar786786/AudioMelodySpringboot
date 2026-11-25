@@ -88,6 +88,30 @@ interface Call {
 export class MockApi {
   readonly calls: Call[] = [];
   songs: MockSong[] = makeSongs();
+  shorts: Array<Record<string, unknown>> = [
+    {
+      id: "short-1",
+      ownerType: "LISTENER",
+      userId: "listener-1",
+      adminId: null,
+      songId: "song-1",
+      songTitle: "Midnight Drive",
+      caption: "Night drive vibes",
+      status: "READY",
+      hlsKey: "shorts/short-1/master.m3u8",
+      thumbnailKey: null,
+      durationMs: 18000,
+      width: 720,
+      height: 1280,
+      likesCount: 4,
+      viewsCount: 40,
+      reportsCount: 1,
+      failureReason: null,
+      hiddenReason: null,
+      createdAt: "2026-11-24T10:00:00Z",
+      publishedAt: "2026-11-24T10:01:00Z",
+    },
+  ];
   role: Role = "SUPER_ADMIN";
 
   constructor(private readonly page: Page) {}
@@ -232,6 +256,31 @@ export class MockApi {
     if (songDetail && method === "GET") {
       const song = this.songs.find((s) => s.id === songDetail[1]);
       return song ? json(200, song) : json(404, { error: "Not found" });
+    }
+
+    // --- shorts ---
+    if (p === "/admin/shorts" && method === "GET") {
+      const status = url.searchParams.get("status");
+      const rows = this.shorts.filter((x) => !status || x.status === status);
+      return json(200, {
+        content: rows.slice(page * size, page * size + size),
+        page,
+        size,
+        paginationMetaData: {
+          totalCount: rows.length,
+          activeCount: rows.length,
+          blockedCount: 0,
+          deletedCount: 0,
+        },
+      });
+    }
+    if (p === "/admin/shorts/reports") return json(200, emptyPage(page, size));
+    const shortAction = p.match(/^\/admin\/shorts\/([^/]+)\/(hide|unhide)$/);
+    if (shortAction && method === "POST") {
+      const short = this.shorts.find((x) => x.id === shortAction[1]);
+      if (!short) return json(404, { message: "Short not found" });
+      short.status = shortAction[2] === "hide" ? "HIDDEN" : "READY";
+      return json(200, short);
     }
 
     // --- uploads ---

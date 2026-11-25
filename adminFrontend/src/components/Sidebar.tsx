@@ -2,6 +2,7 @@
 
 import {
   ChevronRight,
+  Clapperboard,
   Cpu,
   LayoutDashboard,
   ListMusic,
@@ -43,6 +44,11 @@ const baseNavItems: NavItem[] = [
     name: "Catalog Health",
     href: "/catalog-health",
     icon: Stethoscope,
+  },
+  {
+    name: "Shorts",
+    href: "/shorts",
+    icon: Clapperboard,
   },
   {
     name: "Artists",

@@ -153,8 +153,8 @@ export function MediaReplaceFields({
         <div className="flex items-center justify-between mb-1">
           <label htmlFor="edit-song-canvas" className={`${labelCls} mb-0`}>
             {song.videoKey && !removeVideo
-              ? "Replace Video Canvas"
-              : "Attach Video Canvas"}{" "}
+              ? "Replace Background Loop"
+              : "Attach Background Loop"}{" "}
             {optional}
           </label>
           {song.videoKey && (
@@ -165,7 +165,7 @@ export function MediaReplaceFields({
                 setValue("videoFile", null);
               }}
             >
-              {removeVideo ? "Undo Remove" : "Remove Canvas"}
+              {removeVideo ? "Undo Remove" : "Remove Background Loop"}
             </RemoveToggle>
           )}
         </div>
@@ -177,7 +177,7 @@ export function MediaReplaceFields({
         )}
         {removeVideo ? (
           <p className="text-[10px] text-rose-400 font-bold mb-2">
-            Canvas will be removed on save
+            Background loop will be removed on save
           </p>
         ) : (
           <input
