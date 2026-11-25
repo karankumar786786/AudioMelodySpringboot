@@ -62,5 +62,36 @@ services:
       - "8089:8080"
     profiles: ["console"]
 
+  # --- S3 data lake (docker compose --profile lake up -d) ---
+  # Local S3 stand-in (MinIO no longer publishes free images). Any credentials work.
+  s3:
+    image: adobe/s3mock:5.2.3
+    environment:
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: onemelody-lake-dev
+      COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT: "true"
+    ports:
+      - "9090:9090"
+    profiles: ["lake"]
+
+  lake-writer:
+    image: docker.redpanda.com/redpandadata/connect:4.115.2
+    command: ["run", "/lake/connect.yaml"]
+    depends_on:
+      - redpanda
+      - s3
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+      SCHEMA_REGISTRY_URL: http://redpanda:8081
+      LAKE_BUCKET: onemelody-lake-dev
+      LAKE_S3_ENDPOINT: http://s3:9090
+      LAKE_S3_PATH_STYLE: "true"
+      AWS_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      LAKE_BATCH_PERIOD: 10s
+    volumes:
+      - ./infra/lake:/lake:ro
+    profiles: ["lake"]
+
 volumes:
   redpanda-dev:

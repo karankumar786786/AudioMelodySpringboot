@@ -12,3 +12,8 @@ output "role_arns" {
   description = "Server role (core, processing) => IAM role ARN"
   value       = { for k, r in aws_iam_role.server : k => r.arn }
 }
+
+output "role_names" {
+  description = "Server role (core, processing) => IAM role name"
+  value       = { for k, r in aws_iam_role.server : k => r.name }
+}

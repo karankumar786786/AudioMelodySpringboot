@@ -160,6 +160,29 @@ services:
     networks:
       - app
 
+  # Copies listening events from Kafka into the S3 data lake as Parquet
+  # (infra/lake/connect.yaml). Uses the instance role for S3; no keys on disk.
+  lake-writer:
+    image: docker.redpanda.com/redpandadata/connect:4.115.2
+    container_name: lake-writer
+    restart: unless-stopped
+    command: ["run", "/lake/connect.yaml"]
+    depends_on:
+      redpanda-init:
+        condition: service_completed_successfully
+    environment:
+      KAFKA_BROKERS: redpanda:29092
+      SCHEMA_REGISTRY_URL: http://redpanda:8081
+      LAKE_BUCKET: ${LAKE_BUCKET:-onemelody-lake-production}
+      AWS_REGION: ${AWS_REGION:-ap-south-1}
+    volumes:
+      - ./lake:/lake:ro
+    mem_limit: 256m
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"
+    networks:
+      - app
+
   caddy:
     image: caddy:2
     container_name: caddy

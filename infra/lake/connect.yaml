@@ -1,0 +1,125 @@
+# Redpanda Connect: copies listening and engagement events from Kafka into the S3 data
+# lake as Parquet, partitioned by topic and UTC day:
+#   s3://$LAKE_BUCKET/lake/events/topic=<topic>/dt=YYYY-MM-DD/<ts>-<uuid>.parquet
+# Every event becomes one row with the same columns (see parquet_encode below):
+# play-specific fields get their own columns and the whole event is kept as JSON.
+# Delivery is at least once (offsets commit after the upload): queries drop duplicates
+# by event_id. Anything that can't be encoded goes to pipeline.dlq.v1, never to S3.
+input:
+  kafka_franz:
+    seed_brokers: ["${KAFKA_BROKERS:redpanda:29092}"]
+    topics:
+      - listening.play.v1
+      - listening.skip.v1
+      - search.interaction.v1
+      - queue.change.v1
+      - engagement.feedback.v1
+      - engagement.favourite.v1
+      - engagement.playlist-song.v1
+      - social.artist-follow.v1
+      - user.lifecycle.v1
+    consumer_group: melody-lake-writer
+    start_from_oldest: true
+    # One flush = one set of files. Larger batches mean fewer, bigger Parquet files.
+    batching:
+      count: ${LAKE_BATCH_COUNT:50000}
+      period: ${LAKE_BATCH_PERIOD:15m}
+
+pipeline:
+  processors:
+    # Avro -> plain JSON (raw_unions: nullable fields are plain values, not {"long": n}).
+    - schema_registry_decode:
+        url: "${SCHEMA_REGISTRY_URL:http://redpanda:8081}"
+        avro:
+          raw_unions: true
+    - mapping: |
+        let ts = this.meta.occurred_at.number(0)
+        root.event_id = this.meta.event_id
+        root.topic = @kafka_topic
+        root.occurred_at = $ts
+        root.received_at = this.meta.received_at.number(0)
+        root.source = this.meta.source
+        root.dt = ($ts / 1000).ts_format("2006-01-02", "UTC")
+        root.user_id = this.user_id
+        root.song_id = this.song_id
+        root.entity_type = this.entity_type
+        root.entity_id = this.entity_id | this.artist_id | this.song_id
+        root.action = this.action | this.type
+        root.listened_ratio = this.listened_ratio
+        root.duration_ms = this.duration_ms
+        root.exit_ms = this.exit_ms | this.position_ms
+        root.skipped = this.skipped
+        root.quality = this.quality
+        root.platform = this.platform
+        root.startup_ms = this.startup_ms
+        root.rebuffer_count = this.rebuffer_count
+        root.rebuffer_ms = this.rebuffer_ms
+        root.listened_ms = if this.ranges.type() == "array" && this.ranges.length() > 0 {
+          this.ranges.map_each(r -> r.end_ms - r.start_ms).sum()
+        } else { null }
+        root.flag = this.added | this.followed
+        root.payload = this.format_json(no_indent: true).string()
+        meta lake_topic = @kafka_topic
+        meta lake_dt = ($ts / 1000).ts_format("2006-01-02", "UTC")
+    # One Parquet file per topic and day in each flush.
+    - group_by_value:
+        value: '${! @lake_topic }/${! @lake_dt }'
+    - parquet_encode:
+        default_compression: zstd
+        schema:
+          - { name: event_id, type: UTF8 }
+          - { name: topic, type: UTF8 }
+          - { name: occurred_at, type: INT64 }
+          - { name: received_at, type: INT64 }
+          - { name: source, type: UTF8, optional: true }
+          - { name: dt, type: UTF8 }
+          - { name: user_id, type: UTF8, optional: true }
+          - { name: song_id, type: UTF8, optional: true }
+          - { name: entity_type, type: UTF8, optional: true }
+          - { name: entity_id, type: UTF8, optional: true }
+          - { name: action, type: UTF8, optional: true }
+          - { name: listened_ratio, type: DOUBLE, optional: true }
+          - { name: duration_ms, type: INT64, optional: true }
+          - { name: exit_ms, type: INT64, optional: true }
+          - { name: skipped, type: BOOLEAN, optional: true }
+          - { name: quality, type: UTF8, optional: true }
+          - { name: platform, type: UTF8, optional: true }
+          - { name: startup_ms, type: INT64, optional: true }
+          - { name: rebuffer_count, type: INT32, optional: true }
+          - { name: rebuffer_ms, type: INT64, optional: true }
+          - { name: listened_ms, type: INT64, optional: true }
+          - { name: flag, type: BOOLEAN, optional: true }
+          - { name: payload, type: UTF8 }
+
+output:
+  switch:
+    cases:
+      # Decode or encode failed: keep the event for inspection instead of writing bad files.
+      - check: errored()
+        output:
+          kafka_franz:
+            seed_brokers: ["${KAFKA_BROKERS:redpanda:29092}"]
+            topic: pipeline.dlq.v1
+            key: '${! @lake_topic }'
+            metadata:
+              include_patterns: ["^lake_"]
+          processors:
+            - log:
+                level: ERROR
+                message: 'lake: event could not be written: ${! error() }'
+      - output:
+          aws_s3:
+            bucket: "${LAKE_BUCKET:onemelody-lake-dev}"
+            region: "${AWS_REGION:ap-south-1}"
+            endpoint: "${LAKE_S3_ENDPOINT:}"
+            force_path_style_urls: ${LAKE_S3_PATH_STYLE:false}
+            path: 'lake/events/topic=${! @lake_topic }/dt=${! @lake_dt }/${! timestamp_unix_milli() }-${! uuid_v4() }.parquet'
+            content_type: application/vnd.apache.parquet
+            max_in_flight: 4
+
+logger:
+  level: ${LAKE_LOG_LEVEL:INFO}
+  format: logfmt
+
+http:
+  address: 0.0.0.0:4195   # /ready and /metrics
