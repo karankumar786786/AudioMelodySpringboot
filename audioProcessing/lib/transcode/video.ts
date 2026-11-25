@@ -41,23 +41,46 @@ export const VIDEO_QUALITY_PROFILES: VideoQualityProfile[] = [
     { label: "360p",  width: 640,  height: 360,  bitrate: "600k",  maxrate: "800k",  bufsize: "1200k", bandwidth: 750000 },
 ];
 
+/** Portrait 9:16 ladder for Shorts (vertical video with its own audio). */
+export const SHORT_QUALITY_PROFILES: VideoQualityProfile[] = [
+    { label: "1280p", width: 720, height: 1280, bitrate: "2200k", maxrate: "2600k", bufsize: "4400k", bandwidth: 2400000 },
+    { label: "960p",  width: 540, height: 960,  bitrate: "1200k", maxrate: "1500k", bufsize: "2400k", bandwidth: 1400000 },
+    { label: "640p",  width: 360, height: 640,  bitrate: "600k",  maxrate: "800k",  bufsize: "1200k", bandwidth: 750000 },
+];
+
+export interface VideoTranscoderOptions {
+    /** Quality ladder; defaults to the landscape music-video ladder. */
+    profiles?: VideoQualityProfile[];
+    /** Tallest rendition to produce (never above the source). Defaults to 720. */
+    maxHeight?: number;
+    /** "cover" crops to fill each rendition (Shorts); "contain" letterboxes (default). */
+    fitMode?: "contain" | "cover";
+}
+
 export class VideoTranscoder {
     private readonly segmentTime: number;
     private readonly client: S3Client;
     private readonly basePath: string;
     private readonly limit = pLimit(5);
     private readonly bucketName: string;
+    private readonly profiles: VideoQualityProfile[];
+    private readonly maxHeight: number;
+    private readonly fitMode: "contain" | "cover";
 
     constructor(
         segmentTime: number = 4,
         client: S3Client,
         basePath: string = "videos",
         bucketName: string,
+        options: VideoTranscoderOptions = {},
     ) {
         this.segmentTime = segmentTime;
         this.client = client;
         this.basePath = basePath;
         this.bucketName = bucketName;
+        this.profiles = options.profiles ?? VIDEO_QUALITY_PROFILES;
+        this.maxHeight = options.maxHeight ?? 720;
+        this.fitMode = options.fitMode ?? "contain";
     }
 
     async transcode(inputVideo: string, outputDir: string, s3DirName: string): Promise<{ duration: number }> {
@@ -74,12 +97,12 @@ export class VideoTranscoder {
 
             console.log(`Video Info: ${info.width}x${info.height}, ${info.duration.toFixed(2)}s, segment size: ${this.segmentTime}s`);
 
-            // Select profiles: only profiles with height <= source height, capped at 720p max
-            const effectiveMaxHeight = Math.min(720, info.height);
-            const applicableProfiles = VIDEO_QUALITY_PROFILES.filter(p => p.height <= effectiveMaxHeight);
+            // Select profiles: only profiles with height <= source height, capped at maxHeight
+            const effectiveMaxHeight = Math.min(this.maxHeight, info.height);
+            const applicableProfiles = this.profiles.filter(p => p.height <= effectiveMaxHeight);
             const profilesToEncode = applicableProfiles.length > 0
                 ? applicableProfiles
-                : [VIDEO_QUALITY_PROFILES[VIDEO_QUALITY_PROFILES.length - 1]!];
+                : [this.profiles[this.profiles.length - 1]!];
 
             console.log(`Selected profiles for packaging:`, profilesToEncode.map(p => p.label));
 
@@ -189,8 +212,8 @@ export class VideoTranscoder {
                 const outPath = path.join(renditionsDir, `raw_video_${profile.label}.mp4`);
                 console.log(`[VIDEO] Transcoding rendition -> ${profile.label} (${profile.bitrate})...`);
 
-                const primaryArgs = buildVideoEncoderArgs(inputVideo, outPath, profile, hwCaps);
-                const fallbackArgs = buildSoftwareVideoArgs(inputVideo, outPath, profile);
+                const primaryArgs = buildVideoEncoderArgs(inputVideo, outPath, profile, hwCaps, { fitMode: this.fitMode });
+                const fallbackArgs = buildSoftwareVideoArgs(inputVideo, outPath, profile, { fitMode: this.fitMode });
 
                 await executeFFmpegWithFallback(
                     primaryArgs,
