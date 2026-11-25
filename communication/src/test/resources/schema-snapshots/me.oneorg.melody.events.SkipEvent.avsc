@@ -51,5 +51,10 @@
       "type" : "string",
       "avro.java.string" : "String"
     }
+  }, {
+    "name" : "position_ms",
+    "type" : [ "null", "long" ],
+    "doc" : "Track position when skipped, if known.",
+    "default" : null
   } ]
 }

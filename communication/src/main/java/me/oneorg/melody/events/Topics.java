@@ -31,6 +31,11 @@ public final class Topics {
     public static final String ACTIVITY_SESSION = "activity.session.v1";
     public static final String DLQ = "pipeline.dlq.v1";
 
+    // Song analytics (analytics profile in streams/).
+    public static final String ANALYTICS_SONG_TIMELINE = "analytics.song-timeline.v1";
+    public static final String ANALYTICS_SONG_DAILY = "analytics.song-daily.v1";
+    public static final String ANALYTICS_SONG_QUALITY = "analytics.song-quality.v1";
+
     /** Plain-string nudge to outboxRelay after a commit; not Avro, not consumed by anything else. */
     public static final String OUTBOX_WAKEUP = "outbox.wakeup.v1";
 }

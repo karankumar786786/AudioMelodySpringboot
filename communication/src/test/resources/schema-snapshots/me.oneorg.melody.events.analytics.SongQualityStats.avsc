@@ -1,0 +1,55 @@
+{
+  "type" : "record",
+  "name" : "SongQualityStats",
+  "namespace" : "me.oneorg.melody.events.analytics",
+  "doc" : "Daily delivery totals for one song, quality and platform. Topic analytics.song-quality.v1, key song_id|day|quality|platform.",
+  "fields" : [ {
+    "name" : "song_id",
+    "type" : {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }
+  }, {
+    "name" : "day",
+    "type" : {
+      "type" : "int",
+      "logicalType" : "date"
+    }
+  }, {
+    "name" : "quality",
+    "type" : {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }
+  }, {
+    "name" : "platform",
+    "type" : {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }
+  }, {
+    "name" : "plays",
+    "type" : "long",
+    "default" : 0
+  }, {
+    "name" : "listened_ms",
+    "type" : "long",
+    "default" : 0
+  }, {
+    "name" : "startup_ms_sum",
+    "type" : "long",
+    "default" : 0
+  }, {
+    "name" : "startup_samples",
+    "type" : "long",
+    "default" : 0
+  }, {
+    "name" : "rebuffer_count",
+    "type" : "long",
+    "default" : 0
+  }, {
+    "name" : "rebuffer_ms",
+    "type" : "long",
+    "default" : 0
+  } ]
+}

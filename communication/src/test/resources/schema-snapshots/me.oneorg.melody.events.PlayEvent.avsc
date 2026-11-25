@@ -2,7 +2,7 @@
   "type" : "record",
   "name" : "PlayEvent",
   "namespace" : "me.oneorg.melody.events",
-  "doc" : "A listen of one track, sent when the track ends or is replaced. Topic listening.play.v1, key user_id.",
+  "doc" : "A listen of one track, sent when the track ends or is replaced. Topic listening.play.v1, key user_id. Fields after duration_ms are optional listening detail for analytics (heatmap, drop-off, delivery quality); older clients leave them at their defaults.",
   "fields" : [ {
     "name" : "meta",
     "type" : {
@@ -60,5 +60,80 @@
     "type" : [ "null", "long" ],
     "doc" : "Track length if the client knows it.",
     "default" : null
+  }, {
+    "name" : "ranges",
+    "type" : {
+      "type" : "array",
+      "items" : {
+        "type" : "record",
+        "name" : "ListenRange",
+        "fields" : [ {
+          "name" : "start_ms",
+          "type" : "long"
+        }, {
+          "name" : "end_ms",
+          "type" : "long"
+        } ]
+      }
+    },
+    "doc" : "Parts of the track actually played, merged, in track time.",
+    "default" : [ ]
+  }, {
+    "name" : "exit_ms",
+    "type" : [ "null", "long" ],
+    "doc" : "Track position where listening stopped.",
+    "default" : null
+  }, {
+    "name" : "skipped",
+    "type" : "boolean",
+    "doc" : "The skip button ended this listen.",
+    "default" : false
+  }, {
+    "name" : "seeks",
+    "type" : {
+      "type" : "array",
+      "items" : {
+        "type" : "record",
+        "name" : "SeekMove",
+        "fields" : [ {
+          "name" : "from_ms",
+          "type" : "long"
+        }, {
+          "name" : "to_ms",
+          "type" : "long"
+        } ]
+      }
+    },
+    "doc" : "Seeks during the listen, in order.",
+    "default" : [ ]
+  }, {
+    "name" : "quality",
+    "type" : [ "null", {
+      "type" : "string",
+      "avro.java.string" : "String"
+    } ],
+    "doc" : "128kbps | 240kbps | 320kbps | auto",
+    "default" : null
+  }, {
+    "name" : "platform",
+    "type" : [ "null", {
+      "type" : "string",
+      "avro.java.string" : "String"
+    } ],
+    "doc" : "ios | android | web",
+    "default" : null
+  }, {
+    "name" : "startup_ms",
+    "type" : [ "null", "long" ],
+    "doc" : "From pressing play to the first audio.",
+    "default" : null
+  }, {
+    "name" : "rebuffer_count",
+    "type" : "int",
+    "default" : 0
+  }, {
+    "name" : "rebuffer_ms",
+    "type" : "long",
+    "default" : 0
   } ]
 }

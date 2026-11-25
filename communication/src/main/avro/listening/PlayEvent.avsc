@@ -1,11 +1,28 @@
 {
   "type": "record", "name": "PlayEvent", "namespace": "me.oneorg.melody.events",
-  "doc": "A listen of one track, sent when the track ends or is replaced. Topic listening.play.v1, key user_id.",
+  "doc": "A listen of one track, sent when the track ends or is replaced. Topic listening.play.v1, key user_id. Fields after duration_ms are optional listening detail for analytics (heatmap, drop-off, delivery quality); older clients leave them at their defaults.",
   "fields": [
     {"name": "meta", "type": "EventMeta"},
     {"name": "user_id", "type": "string"},
     {"name": "song_id", "type": "string"},
     {"name": "listened_ratio", "type": "double", "doc": "0.0-1.0 of the track that was played."},
-    {"name": "duration_ms", "type": ["null", "long"], "default": null, "doc": "Track length if the client knows it."}
+    {"name": "duration_ms", "type": ["null", "long"], "default": null, "doc": "Track length if the client knows it."},
+    {"name": "ranges", "doc": "Parts of the track actually played, merged, in track time.",
+     "type": {"type": "array", "items": {"type": "record", "name": "ListenRange", "fields": [
+        {"name": "start_ms", "type": "long"},
+        {"name": "end_ms", "type": "long"}]}},
+     "default": []},
+    {"name": "exit_ms", "type": ["null", "long"], "default": null, "doc": "Track position where listening stopped."},
+    {"name": "skipped", "type": "boolean", "default": false, "doc": "The skip button ended this listen."},
+    {"name": "seeks", "doc": "Seeks during the listen, in order.",
+     "type": {"type": "array", "items": {"type": "record", "name": "SeekMove", "fields": [
+        {"name": "from_ms", "type": "long"},
+        {"name": "to_ms", "type": "long"}]}},
+     "default": []},
+    {"name": "quality", "type": ["null", "string"], "default": null, "doc": "128kbps | 240kbps | 320kbps | auto"},
+    {"name": "platform", "type": ["null", "string"], "default": null, "doc": "ios | android | web"},
+    {"name": "startup_ms", "type": ["null", "long"], "default": null, "doc": "From pressing play to the first audio."},
+    {"name": "rebuffer_count", "type": "int", "default": 0},
+    {"name": "rebuffer_ms", "type": "long", "default": 0}
   ]
 }

@@ -36,7 +36,10 @@ class SchemaCompatibilityTest {
             PlayEvent.class, SkipEvent.class, SearchInteraction.class, QueueChange.class, SongFeedback.class,
             FavouriteChanged.class, PlaylistSongChanged.class, ArtistFollowChanged.class, UserLifecycleEvent.class,
             SongChanged.class, EmailRequested.class, SongStatDelta.class, SongStats.class, SongDailyStats.class,
-            ArtistStats.class, ListeningSession.class);
+            ArtistStats.class, ListeningSession.class,
+            me.oneorg.melody.events.analytics.SongSecondStats.class,
+            me.oneorg.melody.events.analytics.SongDayStats.class,
+            me.oneorg.melody.events.analytics.SongQualityStats.class);
 
     static final Path SNAPSHOTS = Path.of("src/test/resources/schema-snapshots");
 

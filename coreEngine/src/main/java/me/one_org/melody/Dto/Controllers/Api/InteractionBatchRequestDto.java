@@ -26,6 +26,24 @@ public record InteractionBatchRequestDto(
             /** search-click only: SONG, ARTIST, PLAYLIST, ... */
             String entityType,
             /** search-click only. */
-            String entityId) {
+            String entityId,
+            // Optional listening detail for "play" (see TrackPlayRequestDto); "skip" uses positionMs.
+            List<List<Long>> ranges,
+            Long exitMs,
+            Boolean skipped,
+            List<List<Long>> seeks,
+            String quality,
+            String platform,
+            Long startupMs,
+            Integer rebufferCount,
+            Long rebufferMs,
+            Long positionMs) {
+
+        /** The original eight fields, for callers that don't send listening detail. */
+        public Event(String type, String eventId, Long occurredAt, String songId, Double percentage,
+                     Long durationMs, String entityType, String entityId) {
+            this(type, eventId, occurredAt, songId, percentage, durationMs, entityType, entityId,
+                    null, null, null, null, null, null, null, null, null, null);
+        }
     }
 }
