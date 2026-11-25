@@ -1,0 +1,1081 @@
+<meta charset="utf-8">
+<title>One Melody Architecture Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: sticky top bar with tabs; each tab is a full-width view. Explorer = sidebar | graph canvas | detail panel. */
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #eef1f5;
+  --line: #d9dee6;
+  --line-strong: #b9c1cd;
+  --fg: #141a22;
+  --fg-2: #4a5462;
+  --fg-3: #6f7987;
+  --accent: #2a63c9;
+  --accent-soft: #e3ecfb;
+  /* tiers (dataviz categorical slots 1,2,3,7) */
+  --t-client: #2a78d6;
+  --t-api: #eb6834;
+  --t-pipe: #1baf7a;
+  --t-contract: #6250d6;
+  --t-store: #6b7583;
+  --e-call: #9aa4b2;
+  --e-hop: #2a63c9;
+  --e-data: #7d8794;
+  --fail: #d03b3b;
+  --fail-soft: #fbe9e9;
+  --warn: #b07800;
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1318; --surface: #161b22; --surface-2: #1d232c; --line: #2a323d; --line-strong: #3b4552;
+    --fg: #e7ebf0; --fg-2: #aab3bf; --fg-3: #8590a0; --accent: #6ea0f0; --accent-soft: #1b2a44;
+    --t-client: #3987e5; --t-api: #d95926; --t-pipe: #199e70; --t-contract: #9085e9; --t-store: #8a94a3;
+    --e-call: #566070; --e-hop: #6ea0f0; --e-data: #7d8794; --fail: #e66767; --fail-soft: #3a1f22; --warn: #e0a72a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1318; --surface: #161b22; --surface-2: #1d232c; --line: #2a323d; --line-strong: #3b4552;
+  --fg: #e7ebf0; --fg-2: #aab3bf; --fg-3: #8590a0; --accent: #6ea0f0; --accent-soft: #1b2a44;
+  --t-client: #3987e5; --t-api: #d95926; --t-pipe: #199e70; --t-contract: #9085e9; --t-store: #8a94a3;
+  --e-call: #566070; --e-hop: #6ea0f0; --e-data: #7d8794; --fail: #e66767; --fail-soft: #3a1f22; --warn: #e0a72a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-sans); font-size: 14px; line-height: 1.5; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+code, .mono { font-family: var(--font-mono); font-size: 12.5px; }
+a { color: var(--accent); }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--surface); border-bottom: 1px solid var(--line);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.top-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding-block: 10px 0; }
+.brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.brand h1 { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+.brand .meta { color: var(--fg-3); font-size: 12px; }
+.gsearch { margin-left: auto; position: relative; flex: 1 1 260px; max-width: 420px; }
+.gsearch input { width: 100%; padding: 7px 10px 7px 30px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface-2); }
+.gsearch svg { position: absolute; left: 9px; top: 9px; width: 14px; height: 14px; color: var(--fg-3); }
+.results { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r);
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.14); max-height: 60vh; overflow: auto; z-index: 40; }
+.results button { display: flex; flex-direction: column; align-items: flex-start; width: 100%; text-align: left; padding: 7px 10px; border: 0; background: none; cursor: pointer; border-bottom: 1px solid var(--line); }
+.results button:hover, .results button.on { background: var(--accent-soft); }
+.results .r-file { color: var(--fg-3); font-size: 11.5px; font-family: var(--font-mono); }
+nav.tabs { display: flex; gap: 2px; overflow-x: auto; margin-top: 8px; scrollbar-width: none; }
+nav.tabs a { padding: 8px 12px; color: var(--fg-2); text-decoration: none; border-bottom: 2px solid transparent; white-space: nowrap; font-weight: 500; }
+nav.tabs a[aria-current="page"] { color: var(--fg); border-bottom-color: var(--accent); }
+
+main { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 40px; }
+.view { display: none; }
+.view.on { display: block; }
+.lede { max-width: 72ch; color: var(--fg-2); margin: 0 0 18px; }
+.section-h { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-3); font-weight: 600; margin: 26px 0 10px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 1px 8px; border-radius: 999px; font-size: 11.5px; border: 1px solid var(--line); background: var(--surface); white-space: nowrap; color: var(--fg-2); }
+.dot { width: 8px; height: 8px; border-radius: 2px; display: inline-block; flex: none; }
+.kind { font-family: var(--font-mono); font-size: 11px; padding: 0 6px; border-radius: 4px; background: var(--surface-2); color: var(--fg-2); }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: var(--r); padding: 5px 10px; cursor: pointer; font-size: 13px; }
+.btn:hover { border-color: var(--line-strong); }
+.btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.linkish { border: 0; background: none; padding: 0; color: var(--accent); cursor: pointer; text-align: left; font: inherit; }
+.linkish:hover { text-decoration: underline; }
+.muted { color: var(--fg-3); }
+.tabular { font-variant-numeric: tabular-nums; }
+table.t { border-collapse: collapse; width: 100%; font-size: 13px; }
+table.t th, table.t td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.t th { color: var(--fg-3); font-weight: 600; font-size: 12px; position: sticky; top: 0; background: var(--surface); }
+.scroll-x { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+
+/* overview */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 18px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; }
+.stat b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--fg-3); font-size: 12px; }
+.hld-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+.hld { display: block; min-width: 980px; width: 100%; height: auto; color: var(--fg); }
+.hld .box { cursor: pointer; }
+.hld .box rect { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.2; }
+.hld .box:hover rect, .hld .box:focus rect { stroke: var(--accent); stroke-width: 2; }
+.hld .zone { fill: var(--surface-2); stroke: none; }
+.hld text { fill: currentColor; font-family: var(--font-sans); }
+.hld .t1 { font-size: 13px; font-weight: 600; }
+.hld .t2 { font-size: 11px; fill: var(--fg-3); }
+.hld .zl { font-size: 11px; font-weight: 600; fill: var(--fg-3); letter-spacing: 0.06em; text-transform: uppercase; }
+.hld .ar { stroke: var(--fg-3); stroke-width: 1.3; fill: none; }
+.hld .ar.hop { stroke: var(--e-hop); }
+.hld .ar.k { stroke: var(--t-contract); }
+.hld .ar.f { stroke: var(--fail); stroke-dasharray: 4 3; }
+.hld .al { font-size: 10.5px; fill: var(--fg-2); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 10px 0; font-size: 12px; color: var(--fg-2); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; width: 22px; height: 0; border-top: 2px solid; }
+
+/* services */
+.svc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 14px; }
+.svc { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; min-width: 0; }
+.svc h3 { font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.svc .role { color: var(--fg-2); margin: 4px 0 10px; }
+.svc dl { display: grid; grid-template-columns: 92px 1fr; gap: 4px 10px; margin: 0 0 10px; font-size: 12.5px; }
+.svc dt { color: var(--fg-3); }
+.svc dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.svc details { border-top: 1px solid var(--line); padding-top: 6px; margin-top: 6px; }
+.svc summary { cursor: pointer; font-size: 13px; font-weight: 500; padding: 2px 0; }
+.svc .list { max-height: 260px; overflow: auto; font-size: 12.5px; margin-top: 6px; }
+.svc .list div { display: flex; gap: 8px; padding: 2px 0; align-items: baseline; }
+.svc .list .m { font-family: var(--font-mono); font-size: 11px; color: var(--fg-3); width: 52px; flex: none; }
+
+/* explorer */
+.explorer { display: grid; grid-template-columns: 280px minmax(0, 1fr) 360px; gap: 0; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); height: calc(100vh - 160px); min-height: 520px; overflow: hidden; }
+.side { border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.side .ctl { padding: 10px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+.side .ctl label { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--fg-2); }
+.tree { overflow: auto; padding: 6px 4px 20px; font-size: 13px; min-height: 0; }
+.tree details > summary { list-style: none; cursor: pointer; padding: 2px 6px; border-radius: 4px; display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+.tree details > summary::before { content: "▸"; color: var(--fg-3); font-size: 10px; width: 10px; }
+.tree details[open] > summary::before { content: "▾"; }
+.tree summary:hover, .tree .fn:hover { background: var(--surface-2); }
+.tree .kids { padding-left: 12px; }
+.tree .fn { display: block; width: 100%; text-align: left; border: 0; background: none; cursor: pointer; padding: 1px 6px 1px 22px; border-radius: 4px; font-family: var(--font-mono); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--fg-2); }
+.tree .cnt { color: var(--fg-3); font-size: 11px; margin-left: auto; padding-left: 8px; }
+.canvas-wrap { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.crumbs { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.crumbs .sep { color: var(--fg-3); }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 6px 12px; border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--fg-2); }
+.toolbar label { display: inline-flex; gap: 5px; align-items: center; }
+.toolbar input[type=range] { width: 90px; }
+#cy { flex: 1; min-height: 0; }
+.cy-empty { position: absolute; inset: 90px 0 0; display: grid; place-items: center; color: var(--fg-3); pointer-events: none; text-align: center; padding: 20px; }
+.panel { border-left: 1px solid var(--line); overflow: auto; padding: 14px; min-width: 0; font-size: 13px; }
+.panel h2 { font-size: 15px; font-family: var(--font-mono); overflow-wrap: anywhere; }
+.panel .sub { color: var(--fg-3); font-size: 12px; margin: 2px 0 10px; overflow-wrap: anywhere; }
+.panel .blk { margin: 12px 0; }
+.panel .blk h4 { margin: 0 0 6px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-3); }
+.panel pre { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--surface-2); border-radius: 4px; padding: 8px; font-family: var(--font-mono); font-size: 11.5px; max-height: 260px; overflow: auto; }
+.panel ol, .panel ul { margin: 0; padding-left: 22px; }
+.panel li { margin: 2px 0; overflow-wrap: anywhere; }
+.panel .ek { font-family: var(--font-mono); font-size: 10.5px; color: var(--fg-3); }
+.fail-tag { color: var(--fail); font-size: 11px; font-weight: 600; }
+.tip { position: fixed; z-index: 50; pointer-events: none; max-width: 420px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.18); padding: 10px 12px; font-size: 12.5px; }
+.tip h5 { margin: 0; font-family: var(--font-mono); font-size: 13px; }
+.tip pre { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 11px; background: var(--surface-2); padding: 6px; border-radius: 4px; max-height: 160px; overflow: hidden; }
+.tip .row { color: var(--fg-3); font-size: 11.5px; overflow-wrap: anywhere; }
+
+/* flows */
+.flows { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 16px; }
+.flow-list { display: grid; gap: 4px; align-content: start; }
+.flow-list button { text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: var(--r); padding: 8px 10px; cursor: pointer; }
+.flow-list button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.flow { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; min-width: 0; }
+.flow h2 { font-size: 18px; }
+.steps { list-style: none; margin: 14px 0 0; padding: 0; counter-reset: s; }
+.steps li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; position: relative; padding-bottom: 6px; }
+.steps li .n { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 600; background: var(--surface-2); border: 1px solid var(--line-strong); font-variant-numeric: tabular-nums; }
+.steps li:not(:last-child)::after { content: ""; position: absolute; left: 13px; top: 28px; bottom: 0; border-left: 2px solid var(--line); }
+.steps .card { border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; min-width: 0; }
+.steps .card .fn { font-family: var(--font-mono); font-size: 12.5px; overflow-wrap: anywhere; }
+.steps .hop { font-size: 11.5px; color: var(--fg-3); margin: 4px 0 6px; }
+.steps .hop b { color: var(--e-hop); font-weight: 600; }
+
+/* data */
+.data-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 12px; }
+.tcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 10px 12px; min-width: 0; }
+.tcard h3 { font-size: 13.5px; font-family: var(--font-mono); display: flex; justify-content: space-between; gap: 8px; }
+.tcard .cols { font-family: var(--font-mono); font-size: 11.5px; color: var(--fg-2); margin: 6px 0; max-height: 150px; overflow: auto; }
+.tcard .cols span { display: inline-block; margin-right: 10px; }
+.tcard .who { font-size: 12px; }
+.pk { color: var(--warn); }
+
+@media (max-width: 1100px) {
+  .explorer { grid-template-columns: 240px minmax(0, 1fr); }
+  .panel { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--line); max-height: 50vh; }
+  .explorer { height: auto; }
+  #cy { height: 60vh; flex: none; }
+}
+@media (max-width: 720px) {
+  .explorer { grid-template-columns: minmax(0, 1fr); }
+  .side { border-right: 0; border-bottom: 1px solid var(--line); max-height: 40vh; }
+  .flows { grid-template-columns: minmax(0, 1fr); }
+  .gsearch { max-width: none; }
+  .svc dl { grid-template-columns: 80px 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<header class="top">
+  <div class="top-row">
+    <div class="brand"><h1>One Melody Architecture Map</h1><span class="meta" id="genmeta"></span></div>
+    <div class="gsearch">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7" cy="7" r="5"/><path d="M11 11l3.5 3.5"/></svg>
+      <input id="q" type="search" placeholder="Find any function, endpoint, table or topic" autocomplete="off" aria-label="Search the code map">
+      <div class="results" id="qres" hidden></div>
+    </div>
+  </div>
+  <nav class="tabs" aria-label="Views">
+    <a href="#overview">System</a>
+    <a href="#services">Services</a>
+    <a href="#flows">Flows</a>
+    <a href="#explorer">Code graph</a>
+    <a href="#data">Data &amp; events</a>
+    <a href="#failures">Failures</a>
+  </nav>
+</header>
+
+<main>
+  <section class="view" id="v-overview">
+    <p class="lede">How the whole platform fits together. Listeners use the mobile app and the website; both talk to the core API. Admins use the dashboard, which talks to the admin API. Media work runs in the Inngest pipeline, and events flow through Kafka into the stream processors. Click any box to open it in the code graph.</p>
+    <div class="stats" id="stats"></div>
+    <div class="hld-wrap"><svg class="hld" id="hld" viewBox="0 0 1200 790" role="img" aria-label="System diagram: three clients call two APIs; APIs use Postgres, Redis and S3; the core API publishes events to Kafka, consumed by the stream processors; the admin API triggers the media pipeline through Inngest, which calls back over webhooks."></svg></div>
+    <div class="legend" aria-label="Arrow legend">
+      <span><i style="border-color:var(--fg-3)"></i>HTTP request</span>
+      <span><i style="border-color:var(--e-hop)"></i>Webhook / Inngest event</span>
+      <span><i style="border-color:var(--t-contract)"></i>Kafka topic</span>
+      <span><i style="border-color:var(--fail);border-top-style:dashed"></i>Failure / fallback path</span>
+    </div>
+    <h2 class="section-h">Tiers</h2>
+    <div class="legend" id="tierlegend"></div>
+  </section>
+
+  <section class="view" id="v-services">
+    <p class="lede">Low-level design per service: how the code is layered, how it runs, the switches that change its behaviour, and everything it exposes and touches. Counts and lists come straight from the code.</p>
+    <div class="svc-grid" id="svcgrid"></div>
+  </section>
+
+  <section class="view" id="v-flows">
+    <p class="lede">The main journeys, step by step across services. Each step is a real function; the line between two steps names how control moves (a call, an HTTP request, a Kafka topic, an Inngest event). Open any step in the code graph to see everything around it.</p>
+    <div class="flows"><div class="flow-list" id="flowlist"></div><div class="flow" id="flow"></div></div>
+  </section>
+
+  <section class="view" id="v-explorer">
+    <div class="explorer">
+      <aside class="side">
+        <div class="ctl">
+          <input id="treefilter" type="search" placeholder="Filter files and functions" aria-label="Filter the file tree" class="btn" style="text-align:left">
+          <label><input type="checkbox" id="showTrivial"> Show getters, setters and tiny helpers</label>
+        </div>
+        <div class="tree" id="tree"></div>
+      </aside>
+      <div class="canvas-wrap">
+        <div class="crumbs" id="crumbs"></div>
+        <div class="toolbar" id="toolbar"></div>
+        <div id="cy" aria-label="Code graph"></div>
+        <div class="cy-empty" id="cyempty" hidden></div>
+      </div>
+      <aside class="panel" id="panel"></aside>
+    </div>
+  </section>
+
+  <section class="view" id="v-data">
+    <p class="lede">Every Postgres table (parsed from the Flyway migrations), Kafka topic (from <code>infra/kafka/topics.yaml</code>), Redis key and outside service, with the functions that read and write them.</p>
+    <h2 class="section-h">Kafka topics</h2>
+    <div class="scroll-x"><table class="t" id="topics"></table></div>
+    <h2 class="section-h">Postgres tables</h2>
+    <div class="data-grid" id="tables"></div>
+    <h2 class="section-h">Redis, S3 and outside services</h2>
+    <div class="data-grid" id="others"></div>
+  </section>
+
+  <section class="view" id="v-failures">
+    <p class="lede">What happens when something goes wrong: who catches it and what the user or system sees instead. The first table is the curated catalogue; the second lists every failure path found in the code (exception handlers, retry hooks, catch blocks that call other code).</p>
+    <div class="scroll-x"><table class="t" id="failcat"></table></div>
+    <h2 class="section-h">Failure paths found in the code</h2>
+    <div class="scroll-x"><table class="t" id="failauto"></table></div>
+    <h2 class="section-h">What static analysis could not link</h2>
+    <div id="gaps" class="muted"></div>
+  </section>
+</main>
+<div class="tip" id="tip" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.30.2/cytoscape.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dagre/0.8.5/dagre.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/cytoscape-dagre@2.5.0/cytoscape-dagre.min.js"></script>
+<script>
+const INLINE = /*__GRAPH__*/null;
+(async function main() {
+const G = INLINE || await fetch("graph.json").then((r) => r.json());
+try { if (window.cytoscapeDagre) cytoscape.use(window.cytoscapeDagre); } catch (e) {}
+
+// ------------------------------------------------------------------ model
+const N = G.nodes, K = G.kinds, STR = G.strs;
+const E = G.edges.map((r, i) => ({ i, s: r[0], t: r[1], k: K[r[2]], o: r[3], l: r[4] >= 0 ? STR[r[4]] : "", ctx: r[5] >= 0 ? STR[r[5]] : "", f: r[6] }));
+const OUT = N.map(() => []), IN = N.map(() => []);
+for (const e of E) { OUT[e.s].push(e); IN[e.t].push(e); }
+for (const l of OUT) l.sort((a, b) => (a.o || 999) - (b.o || 999));
+const byId = new Map(N.map((n, i) => [n.id, i]));
+
+const TIER = {
+  audioApp: "client", audioFrontend: "client", adminFrontend: "client",
+  coreEngine: "api", adminBackend: "api",
+  streams: "pipe", audioProcessing: "pipe", mailEvents: "pipe", util: "pipe",
+  communication: "contract", migration: "contract",
+};
+const TIER_NAME = { client: "Clients", api: "APIs", pipe: "Pipelines & workers", contract: "Contracts & schema", store: "Data stores & outside services" };
+const SVC_ORDER = ["audioApp", "audioFrontend", "adminFrontend", "coreEngine", "adminBackend", "audioProcessing", "streams", "mailEvents", "util", "communication", "migration"];
+const STORE_GROUPS = { postgres: "Postgres", redis: "Redis", kafka: "Kafka topics", s3: "S3", inngest: "Inngest events", external: "Outside services", errors: "Exceptions", "spring-events": "Spring events" };
+const svcTitle = (s) => G.services?.[s]?.title || STORE_GROUPS[s] || s;
+const tierOf = (n) => TIER[n.svc] || "store";
+const isFn = (n) => n.lang !== "store";
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const short = (s, n = 80) => (s && s.length > n ? s.slice(0, n - 1) + "…" : s || "");
+const label = (n) => (isFn(n) ? (n.cls && !n.name.startsWith(n.cls) ? `${n.cls.split(".").pop()}.${n.name}` : n.name) : n.name);
+const svcRoot = { audioApp: "audioApp/", audioFrontend: "audioFrontend/", adminFrontend: "adminFrontend/", audioProcessing: "audioProcessing/", mailEvents: "workers/mailEvents/", util: "util/" };
+function pkgKey(n) {
+  if (n.lang === "java") return (n.pkg || "").replace(/^me\.one_?org\.melody\.(streams\.|events\.)?/, "").replace(/^me\.one_org\.melody$/, "(root)") || "(root)";
+  if (n.lang === "py") return (n.pkg || "").split(".").slice(0, 2).join(".") || "(root)";
+  const r = (n.file || "").slice((svcRoot[n.svc] || "").length);
+  const segs = r.split("/").slice(0, -1);
+  if (segs[0] === "src") return segs.slice(0, 2).join("/") || "src";
+  return segs.slice(0, 1).join("/") || "(root)";
+}
+const EDGE_TEXT = { call: "calls", render: "renders", http: "HTTP", kafka: "Kafka", inngest: "Inngest", event: "Spring event", db: "Postgres", redis: "Redis", s3: "S3", ext: "outside service", throws: "throws", fail: "on failure" };
+
+// ------------------------------------------------------------------ header
+const fnCount = N.filter(isFn).length;
+document.getElementById("genmeta").textContent = `generated from commit ${G.commit} · ${new Date(G.generatedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}`;
+const endpoints = N.filter((n) => n.kind === "endpoint");
+const stats = [
+  [SVC_ORDER.length, "services"], [fnCount.toLocaleString(), "functions mapped"], [E.length.toLocaleString(), "links between them"],
+  [endpoints.length, "HTTP endpoints"], [Object.keys(G.tables).length, "Postgres tables"], [Object.keys(G.topics).length, "Kafka topics"],
+  [N.filter((n) => n.kind === "inngest-fn").length, "Inngest functions"],
+];
+document.getElementById("stats").innerHTML = stats.map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join("");
+document.getElementById("tierlegend").innerHTML = Object.entries(TIER_NAME).map(([t, name]) => {
+  const svcs = t === "store" ? "Postgres, Redis, S3, Kafka, Inngest, outside APIs" : SVC_ORDER.filter((s) => TIER[s] === t).map(svcTitle).join(", ");
+  return `<span><span class="dot" style="background:var(--t-${t})"></span><b>${name}</b>&nbsp;<span class="muted">${esc(svcs)}</span></span>`;
+}).join("");
+
+// ------------------------------------------------------------------ HLD diagram
+(function drawHld() {
+  const B = {}; // id -> [x,y,w,h]
+  const boxes = [
+    // id, x, y, w, h, title, sub, target, tier
+    ["app", 40, 60, 200, 56, "Mobile app", "Expo · React Native", "svc:audioApp", "client"],
+    ["web", 270, 60, 200, 56, "Web player", "Next.js on Vercel", "svc:audioFrontend", "client"],
+    ["adminui", 760, 60, 220, 56, "Admin dashboard", "Next.js on Vercel", "svc:adminFrontend", "client"],
+    ["caddy", 40, 180, 430, 40, "Caddy (TLS) · api-one-melody", "", null, "store"],
+    ["caddy2", 760, 180, 220, 40, "Caddy · api-admin", "", null, "store"],
+    ["core", 40, 260, 430, 76, "Core API", "Spring Boot · /api/*, /auth · JWT · Redis cache", "svc:coreEngine", "api"],
+    ["admin", 760, 260, 220, 76, "Admin API", "Django REST · /admin/*, /webhook/*", "svc:adminBackend", "api"],
+    ["inngest", 1010, 180, 160, 40, "Inngest · audio/*, shorts/*", "", "inngest", "store"],
+    ["media", 1010, 260, 160, 76, "Media pipeline", "Bun · FFmpeg · 16 fns", "svc:audioProcessing", "pipe"],
+    ["kafka", 300, 420, 260, 56, "Redpanda (Kafka)", "21 topics · Avro + Schema Registry", "kafka", "contract"],
+    ["streams", 40, 420, 230, 56, "Stream processors", "Kafka Streams + sinks", "svc:streams", "pipe"],
+    ["lake", 590, 420, 200, 56, "lake-writer", "Redpanda Connect → Parquet", "lake", "pipe"],
+    ["mail", 820, 420, 160, 56, "Mail worker", "Bun · Redis BLPOP", "svc:mailEvents", "pipe"],
+    ["pg", 40, 580, 230, 64, "Postgres (Neon)", "Flyway V1–V19 · 30+ tables", "postgres", "store"],
+    ["redis", 300, 580, 180, 64, "Redis (Upstash)", "cache · OTP · rate limits · queues", "redis", "store"],
+    ["s3", 510, 580, 280, 64, "Amazon S3", "HLS (read by apps) · uploads · lake", "s3", "store"],
+    ["ext", 820, 580, 350, 64, "Outside services", "Recombee · Algolia · ImageKit · SES / Resend", "external", "store"],
+  ];
+  const svg = document.getElementById("hld");
+  let s = `<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="currentColor"/></marker></defs>`;
+  s += `<rect class="zone" x="20" y="34" width="1160" height="96" rx="8"/><text class="zl" x="32" y="52">Clients</text>`;
+  s += `<rect class="zone" x="20" y="160" width="1160" height="196" rx="8"/><text class="zl" x="32" y="176" dy="-4">APIs · edge</text>`;
+  s += `<rect class="zone" x="20" y="396" width="1160" height="100" rx="8"/><text class="zl" x="32" y="412" dy="-2">Events</text>`;
+  s += `<rect class="zone" x="20" y="556" width="1160" height="108" rx="8"/><text class="zl" x="32" y="572" dy="-2">Data · outside</text>`;
+  for (const [id, x, y, w, h, t1, t2, target, tier] of boxes) {
+    B[id] = [x, y, w, h];
+    s += `<g class="box" tabindex="0" role="button" data-target="${target || ""}" aria-label="${esc(t1)}"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6"/>`;
+    s += `<rect x="${x}" y="${y}" width="5" height="${h}" rx="2" style="fill:var(--t-${tier});stroke:none"/>`;
+    s += `<text class="t1" x="${x + 14}" y="${y + (t2 ? 22 : h / 2 + 5)}">${esc(t1)}</text>${t2 ? `<text class="t2" x="${x + 14}" y="${y + 40}">${esc(t2)}</text>` : ""}</g>`;
+  }
+  const P = (id, side, f = 0.5) => { const [x, y, w, h] = B[id]; return side === "t" ? [x + w * f, y] : side === "b" ? [x + w * f, y + h] : side === "l" ? [x, y + h * f] : [x + w, y + h * f]; };
+  const arrow = (a, b, cls, lbl, lx, ly, bend) => {
+    const [x1, y1] = a, [x2, y2] = b;
+    const d = bend ? `M${x1} ${y1} C ${x1} ${(y1 + y2) / 2 + bend}, ${x2} ${(y1 + y2) / 2 - bend}, ${x2} ${y2}` : `M${x1} ${y1} L ${x2} ${y2}`;
+    s += `<path class="ar ${cls}" d="${d}" marker-end="url(#ah)" style="color:var(${cls === "hop" ? "--e-hop" : cls === "k" ? "--t-contract" : cls === "f" ? "--fail" : "--fg-3"})"/>`;
+    if (lbl) s += `<text class="al" x="${lx ?? (x1 + x2) / 2 + 6}" y="${ly ?? (y1 + y2) / 2}">${esc(lbl)}</text>`;
+  };
+  arrow(P("app", "b"), P("caddy", "t", 0.23), "", "HTTPS /api · JWT", 60, 152);
+  arrow(P("web", "b"), P("caddy", "t", 0.77), "", "HTTPS · cookies", 360, 152);
+  arrow(P("caddy", "b"), P("core", "t"), "", "", 0, 0);
+  arrow(P("adminui", "b"), P("caddy2", "t"), "", "HTTPS /admin · session cookie", 780, 152);
+  arrow(P("caddy2", "b"), P("admin", "t"), "", "");
+  arrow(P("admin", "r", 0.3), P("inngest", "l", 0.6), "hop", "");
+  arrow(P("inngest", "b"), P("media", "t"), "hop", "");
+  arrow(P("media", "l", 0.75), P("admin", "r", 0.75), "hop", "webhooks /webhook/job/{id}/…", 988, 352);
+  arrow(P("core", "b", 0.7), P("kafka", "t", 0.3), "k", "telemetry + outbox", 355, 372);
+  arrow(P("admin", "b", 0.2), P("kafka", "t", 0.85), "k", "catalog.song.v1 (outbox)", 590, 372);
+  arrow(P("kafka", "l"), P("streams", "r"), "k", "");
+  arrow(P("kafka", "r"), P("lake", "l"), "k", "");
+  arrow(P("streams", "b"), P("pg", "t"), "", "stats · history · analytics", 50, 540);
+  arrow(P("lake", "b"), P("s3", "t", 0.7), "", "Parquet / 15 min", 700, 540);
+  arrow(P("core", "b", 0.15), P("pg", "t", 0.4), "", "", 0, 0);
+  arrow(P("core", "b", 0.5), P("redis", "t", 0.3), "", "", 0, 0);
+  arrow(P("admin", "b", 0.6), P("pg", "t", 0.9), "", "", 0, 0, -40);
+  arrow(P("core", "b", 0.95), P("mail", "t", 0.3), "f", "mail_queue (fallback)", 700, 392);
+  arrow(P("media", "b"), P("ext", "t", 0.8), "", "Recombee · Algolia · ImageKit", 1000, 540);
+  arrow(P("media", "b", 0.2), P("s3", "t", 0.95), "", "", 0, 0);
+  arrow(P("streams", "b", 0.9), P("ext", "t", 0.1), "", "", 0, 0, 30);
+  s += `<text class="al" x="40" y="700">Deployed on 2 EC2 hosts by Terraform: <tspan font-weight="600">core host</tspan> (core API, mail worker, Caddy) and <tspan font-weight="600">admin host</tspan> (admin API, media pipeline, Redpanda, stream processors, lake-writer, Caddy).</text>`;
+  s += `<text class="al" x="40" y="720">EVENTS_MODE on the core API decides the telemetry path: LEGACY (direct Recombee/Algolia/DB calls), DUAL (both) or KAFKA (Kafka only, 503 when Kafka is down).</text>`;
+  s += `<text class="al" x="40" y="740">Apps stream audio straight from S3 (HLS master.m3u8 + 4 s chunks); the APIs only hand out the song key. Postgres is written by the core API (JPA), the admin API (Django ORM, unmanaged models), and the stream sinks (JdbcTemplate). Only Flyway changes the schema.</text>`;
+  svg.innerHTML = s;
+  svg.addEventListener("click", (ev) => { const g = ev.target.closest(".box"); if (g?.dataset.target) openTarget(g.dataset.target); });
+  svg.addEventListener("keydown", (ev) => { const g = ev.target.closest(".box"); if (g && (ev.key === "Enter" || ev.key === " ") && g.dataset.target) { ev.preventDefault(); openTarget(g.dataset.target); } });
+})();
+function openTarget(t) {
+  if (t.startsWith("svc:")) { go("explorer"); showService(t.slice(4)); }
+  else if (t === "lake") { go("explorer"); trace(byId.get("lake:redpanda-connect")); }
+  else { go("data"); }
+}
+
+// ------------------------------------------------------------------ services (LLD)
+function aggregateFor(svc) {
+  const out = { tables: new Map(), topicsP: new Set(), topicsC: new Set(), redis: new Set(), inngestS: new Set(), inngestH: new Set(), ext: new Set(), httpOut: new Map() };
+  N.forEach((n, i) => {
+    if (n.svc !== svc) return;
+    for (const e of OUT[i]) {
+      const t = N[e.t];
+      if (e.k === "db") { const m = out.tables.get(t.name) || new Set(); m.add(/write/.test(e.l) ? "write" : "read"); out.tables.set(t.name, m); }
+      if (e.k === "kafka" && t.kind === "topic") out.topicsP.add(t.name);
+      if (e.k === "redis") out.redis.add(t.name);
+      if (e.k === "inngest" && t.kind === "inngest") out.inngestS.add(t.name);
+      if (e.k === "ext" || e.k === "s3") out.ext.add(t.name);
+      if (e.k === "http" && isFn(t) && t.svc !== svc) out.httpOut.set(t.svc, (out.httpOut.get(t.svc) || 0) + 1);
+    }
+    for (const e of IN[i]) {
+      const s = N[e.s];
+      if (e.k === "kafka" && s.kind === "topic") out.topicsC.add(s.name);
+      if (s.kind === "inngest") out.inngestH.add(s.name);
+    }
+  });
+  return out;
+}
+(function drawServices() {
+  const grid = document.getElementById("svcgrid");
+  grid.innerHTML = SVC_ORDER.map((svc) => {
+    const info = G.services?.[svc] || {};
+    const fns = N.filter((n) => n.svc === svc);
+    const eps = fns.filter((n) => n.kind === "endpoint").sort((a, b) => (a.route || "").localeCompare(b.route || ""));
+    const inn = fns.filter((n) => n.kind === "inngest-fn");
+    const kinds = {};
+    for (const n of fns) kinds[n.kind] = (kinds[n.kind] || 0) + 1;
+    const a = aggregateFor(svc);
+    const pkgs = {};
+    for (const n of fns) pkgs[pkgKey(n)] = (pkgs[pkgKey(n)] || 0) + 1;
+    const list = (items) => `<div class="list">${items.join("") || '<div class="muted">none</div>'}</div>`;
+    const fnLink = (n, pre = "") => `<div>${pre}<button class="linkish mono" data-fn="${esc(n.id)}">${esc(short(label(n), 60))}</button></div>`;
+    return `<article class="svc"><h3><span class="dot" style="background:var(--t-${TIER[svc]})"></span>${esc(info.title || svc)}</h3>
+      <p class="role">${esc(info.role || "")}</p>
+      <dl><dt>Runs</dt><dd>${esc(info.run || "")}</dd><dt>Layers</dt><dd>${esc(info.layers || "")}</dd>${info.switches ? `<dt>Switches</dt><dd class="mono">${esc(info.switches)}</dd>` : ""}
+      <dt>Code</dt><dd class="tabular">${fns.length} functions · ${Object.entries(kinds).sort((x, y) => y[1] - x[1]).slice(0, 5).map(([k, v]) => `${v} ${k}`).join(" · ")}</dd>
+      ${a.httpOut.size ? `<dt>Calls</dt><dd>${[...a.httpOut].map(([s, c]) => `${esc(svcTitle(s))} (${c} call sites)`).join(", ")}</dd>` : ""}</dl>
+      <button class="btn" data-svc="${svc}">Open in code graph</button>
+      <details><summary>Packages / folders (${Object.keys(pkgs).length})</summary>${list(Object.entries(pkgs).sort((x, y) => y[1] - x[1]).map(([p, c]) => `<div><span class="m tabular">${c}</span><span class="mono">${esc(p)}</span></div>`))}</details>
+      ${eps.length ? `<details><summary>HTTP endpoints (${eps.length})</summary>${list(eps.map((n) => `<div><span class="m">${esc(n.http)}</span><button class="linkish mono" data-fn="${esc(n.id)}">${esc(n.route)}</button></div>`))}</details>` : ""}
+      ${inn.length ? `<details><summary>Inngest functions (${inn.length})</summary>${list(inn.map((n) => fnLink(n, `<span class="m">fn</span>`)))}</details>` : ""}
+      ${a.tables.size ? `<details><summary>Postgres tables (${a.tables.size})</summary>${list([...a.tables].sort().map(([t, m]) => `<div><span class="m">${[...m].sort().join("+")}</span><span class="mono">${esc(t)}</span></div>`))}</details>` : ""}
+      ${a.topicsP.size + a.topicsC.size ? `<details><summary>Kafka topics (${a.topicsP.size} produced, ${a.topicsC.size} consumed)</summary>${list([...[...a.topicsP].map((t) => `<div><span class="m">out</span><span class="mono">${esc(t)}</span></div>`), ...[...a.topicsC].map((t) => `<div><span class="m">in</span><span class="mono">${esc(t)}</span></div>`)])}</details>` : ""}
+      ${a.inngestS.size + a.inngestH.size ? `<details><summary>Inngest events (${a.inngestS.size} sent, ${a.inngestH.size} handled)</summary>${list([...[...a.inngestS].map((t) => `<div><span class="m">send</span><span class="mono">${esc(t)}</span></div>`), ...[...a.inngestH].map((t) => `<div><span class="m">on</span><span class="mono">${esc(t)}</span></div>`)])}</details>` : ""}
+      ${a.redis.size ? `<details><summary>Redis keys and caches (${a.redis.size})</summary>${list([...a.redis].sort().map((t) => `<div class="mono">${esc(t)}</div>`))}</details>` : ""}
+      ${a.ext.size ? `<details><summary>S3 and outside services (${a.ext.size})</summary>${list([...a.ext].sort().map((t) => `<div>${esc(t)}</div>`))}</details>` : ""}
+    </article>`;
+  }).join("");
+  grid.addEventListener("click", (ev) => {
+    const f = ev.target.closest("[data-fn]");
+    if (f) { go("explorer"); trace(byId.get(f.dataset.fn)); return; }
+    const s = ev.target.closest("[data-svc]");
+    if (s) { go("explorer"); showService(s.dataset.svc); }
+  });
+})();
+
+// ------------------------------------------------------------------ "what the output looks like"
+const PLACEHOLDER = (name, type) => {
+  const n = (name || "").toLowerCase().replace("?", ""), t = (type || "").toLowerCase();
+  if (/list|\[\]|array|set</.test(t)) return [];
+  if (/bool/.test(t) || /^(is|has|can)[a-z]/.test(n)) return true;
+  if (/(^|_)id$|id$/.test(n) || t === "uuid") return n.includes("song") ? "a3f0c2e1-…" : "7c1e…";
+  if (/(at|date|time)$/.test(n) || /instant|date|timestamp|localdatetime/.test(t)) return "2026-11-26T10:15:00Z";
+  if (/url|uri|link/.test(n)) return "https://…";
+  if (/email/.test(n)) return "listener@example.com";
+  if (/key$/.test(n)) return "songs/a3f0…";
+  if (/(count|total|plays|streams|size|page|duration|ms|seconds|sec|bitrate|kbps|limit|rank|score|ratio|percent)/.test(n) || /int|long|number|double|float|decimal/.test(t)) return /ratio|score|percent/.test(n) ? 0.82 : /duration|ms/.test(n) ? 214000 : 42;
+  if (/status|state/.test(n)) return "ACTIVE";
+  if (/name|title|artist|album|genre/.test(n)) return "Midnight Drive";
+  if (/map|record|object|json|dict/.test(t)) return {};
+  return "…";
+};
+function typeNames(ret) {
+  if (!ret) return [];
+  return [...new Set((ret.match(/[A-Z][A-Za-z0-9_]+/g) || []).filter((x) => G.types[x] && !/^(Promise|ResponseEntity|List|Map|Set|Optional|Page|Record|Partial|Array|Readonly)$/.test(x)))];
+}
+function exampleOf(typeName, depth = 0) {
+  const t = G.types[typeName];
+  if (!t || depth > 1) return "…";
+  const o = {};
+  for (const [f, ty] of t.fields.slice(0, 18)) {
+    const inner = typeNames(ty)[0];
+    let v = inner && inner !== typeName ? exampleOf(inner, depth + 1) : PLACEHOLDER(f, ty);
+    if (Array.isArray(v) && inner) v = [exampleOf(inner, depth + 1)];
+    o[f.replace("?", "")] = v;
+  }
+  if (t.fields.length > 18) o["…"] = `${t.fields.length - 18} more fields`;
+  return o;
+}
+function outputOf(n) {
+  const parts = [];
+  if (n.example) parts.push({ h: "Example output", body: n.example });
+  const tn = typeNames(n.ret);
+  if (tn.length) {
+    const ex = exampleOf(tn[0]);
+    const wrapped = /^(List|Set)<|\[\]$|Array</.test(n.ret || "") ? [ex] : /^Page</.test(n.ret || "") ? { content: [ex], totalElements: 120, number: 0 } : ex;
+    parts.push({ h: `Shape of ${tn[0]} (example values)`, body: JSON.stringify(wrapped, null, 2), file: G.types[tn[0]].file });
+  }
+  if (n.returns?.length) parts.push({ h: "Returns (from the code)", body: n.returns.join("\n") });
+  if (n.kind === "table" && n.cols) parts.push({ h: "Row", body: n.cols.map((c) => `${c[0]}  ${c[1]}${c[2] === "pk" ? "  PK" : c[2]?.startsWith("fk:") ? "  → " + c[2].slice(3) : ""}`).join("\n") });
+  return parts;
+}
+
+// ------------------------------------------------------------------ search
+const SEARCH = N.map((n, i) => ({ i, s: `${n.name} ${n.cls || ""} ${n.file || ""} ${n.route || ""} ${n.kind}`.toLowerCase(), name: (n.name || "").toLowerCase() }));
+function search(q, limit = 30) {
+  q = q.trim().toLowerCase();
+  if (!q) return [];
+  const terms = q.split(/\s+/);
+  const scored = [];
+  for (const x of SEARCH) {
+    if (!terms.every((t) => x.s.includes(t))) continue;
+    const n = N[x.i];
+    let sc = 0;
+    if (x.name === q) sc += 100;
+    else if (x.name.startsWith(q)) sc += 50;
+    if (n.kind === "endpoint" || n.kind === "inngest-fn") sc += 8;
+    if (n.trivial) sc -= 20;
+    sc -= (n.name || "").length / 10;
+    scored.push([sc, x.i]);
+  }
+  return scored.sort((a, b) => b[0] - a[0]).slice(0, limit).map((x) => x[1]);
+}
+const qEl = document.getElementById("q"), qRes = document.getElementById("qres");
+let qSel = 0, qItems = [];
+function renderResults() {
+  qItems = search(qEl.value);
+  qSel = 0;
+  if (!qItems.length) { qRes.hidden = !qEl.value; qRes.innerHTML = qEl.value ? `<div class="muted" style="padding:8px 10px">No match</div>` : ""; return; }
+  qRes.hidden = false;
+  qRes.innerHTML = qItems.map((i, k) => { const n = N[i]; return `<button data-i="${i}" class="${k === 0 ? "on" : ""}"><span><span class="dot" style="background:var(--t-${tierOf(n)})"></span> <b class="mono">${esc(short(label(n), 60))}</b> <span class="kind">${esc(n.kind)}</span>${n.route ? ` <span class="mono muted">${esc(n.http || "")} ${esc(short(n.route, 50))}</span>` : ""}</span><span class="r-file">${esc(n.file ? `${n.file}:${n.line}` : svcTitle(n.svc))}</span></button>`; }).join("");
+}
+qEl.addEventListener("input", renderResults);
+qEl.addEventListener("keydown", (ev) => {
+  const btns = [...qRes.querySelectorAll("button")];
+  if (ev.key === "ArrowDown" || ev.key === "ArrowUp") { ev.preventDefault(); qSel = Math.max(0, Math.min(btns.length - 1, qSel + (ev.key === "ArrowDown" ? 1 : -1))); btns.forEach((b, k) => b.classList.toggle("on", k === qSel)); btns[qSel]?.scrollIntoView({ block: "nearest" }); }
+  if (ev.key === "Enter" && qItems[qSel] != null) { pick(qItems[qSel]); }
+  if (ev.key === "Escape") { qRes.hidden = true; }
+});
+qRes.addEventListener("click", (ev) => { const b = ev.target.closest("button[data-i]"); if (b) pick(+b.dataset.i); });
+document.addEventListener("click", (ev) => { if (!ev.target.closest(".gsearch")) qRes.hidden = true; });
+function pick(i) { qRes.hidden = true; go("explorer"); trace(i); }
+
+// ------------------------------------------------------------------ explorer: tree
+const showTrivialEl = document.getElementById("showTrivial");
+try { showTrivialEl.checked = localStorage.getItem("am.trivial") === "1"; } catch (e) {}
+showTrivialEl.addEventListener("change", () => { try { localStorage.setItem("am.trivial", showTrivialEl.checked ? "1" : "0"); } catch (e) {} buildTree(); rerender(); });
+const visibleFn = (n) => showTrivialEl.checked || !n.trivial;
+function buildTree() {
+  const filter = document.getElementById("treefilter").value.trim().toLowerCase();
+  const tree = {};
+  N.forEach((n, i) => {
+    if (!isFn(n) || !visibleFn(n)) return;
+    if (filter && !`${n.name} ${n.file}`.toLowerCase().includes(filter)) return;
+    const s = (tree[n.svc] ||= {});
+    const p = (s[pkgKey(n)] ||= {});
+    (p[n.file] ||= []).push(i);
+  });
+  const el = document.getElementById("tree");
+  el.innerHTML = SVC_ORDER.filter((s) => tree[s]).map((svc) => {
+    const pk = tree[svc];
+    const total = Object.values(pk).reduce((a, f) => a + Object.values(f).reduce((b, l) => b + l.length, 0), 0);
+    return `<details ${filter ? "open" : ""} data-svc="${svc}"><summary><span class="dot" style="background:var(--t-${TIER[svc]})"></span>${esc(svcTitle(svc))}<span class="cnt">${total}</span></summary><div class="kids">${
+      Object.keys(pk).sort().map((p) => `<details ${filter ? "open" : ""} data-pkg="${esc(p)}" data-svc="${svc}"><summary class="mono" style="font-size:12px">${esc(p)}<span class="cnt">${Object.values(pk[p]).reduce((b, l) => b + l.length, 0)}</span></summary><div class="kids">${
+        Object.keys(pk[p]).sort().map((f) => `<details ${filter ? "open" : ""} data-file="${esc(f)}"><summary class="mono" style="font-size:12px">${esc(f.split("/").pop())}<span class="cnt">${pk[p][f].length}</span></summary>${
+          pk[p][f].sort((a, b) => N[a].line - N[b].line).map((i) => `<button class="fn" data-i="${i}" title="${esc(N[i].sig || N[i].name)}">${esc(label(N[i]))}</button>`).join("")
+        }</details>`).join("")
+      }</div></details>`).join("")
+    }</div></details>`;
+  }).join("") || `<div class="muted" style="padding:10px">Nothing matches.</div>`;
+}
+document.getElementById("treefilter").addEventListener("input", () => { clearTimeout(window.__tf); window.__tf = setTimeout(buildTree, 150); });
+document.getElementById("tree").addEventListener("click", (ev) => {
+  const b = ev.target.closest("button.fn");
+  if (b) { trace(+b.dataset.i); return; }
+  const sum = ev.target.closest("summary");
+  if (!sum) return;
+  const d = sum.parentElement;
+  if (d.dataset.file) showFile(d.dataset.file);
+  else if (d.dataset.pkg) showPackage(d.dataset.svc, d.dataset.pkg);
+  else if (d.dataset.svc) showService(d.dataset.svc);
+});
+
+// ------------------------------------------------------------------ explorer: graph
+let cy = null;
+let state = { mode: "services" };
+const depthDefault = 3;
+function cyStyle() {
+  const c = (v) => css(v) || "#888";
+  return [
+    { selector: "node", style: { "label": "data(label)", "font-family": "IBM Plex Mono, ui-monospace, monospace", "font-size": 11, "color": c("--fg"), "text-valign": "center", "text-halign": "center",
+      "background-color": c("--surface"), "border-width": 1.5, "border-color": "data(color)", "shape": "round-rectangle", "width": "label", "height": 26, "padding": "8px", "text-wrap": "ellipsis", "text-max-width": 220 } },
+    { selector: "node[tier='client']", style: { "border-color": c("--t-client") } },
+    { selector: "node[tier='api']", style: { "border-color": c("--t-api") } },
+    { selector: "node[tier='pipe']", style: { "border-color": c("--t-pipe") } },
+    { selector: "node[tier='contract']", style: { "border-color": c("--t-contract") } },
+    { selector: "node[tier='store']", style: { "border-color": c("--t-store"), "background-color": c("--surface-2") } },
+    { selector: "node[shape]", style: { "shape": "data(shape)" } },
+    { selector: "node.group", style: { "font-family": "IBM Plex Sans, system-ui, sans-serif", "font-size": 13, "font-weight": 600, "height": 40, "padding": "12px", "border-width": 2 } },
+    { selector: "node.root", style: { "border-width": 3, "background-color": c("--accent-soft") } },
+    { selector: "node.fail", style: { "border-color": c("--fail"), "background-color": c("--fail-soft") } },
+    { selector: "node:selected", style: { "border-color": c("--accent"), "border-width": 3 } },
+    { selector: "node.dim", style: { "opacity": 0.25 } },
+    { selector: "edge", style: { "width": 1.4, "line-color": c("--e-call"), "target-arrow-color": c("--e-call"), "target-arrow-shape": "triangle", "arrow-scale": 0.9, "curve-style": "bezier",
+      "label": "data(label)", "font-size": 9.5, "color": c("--fg-2"), "text-background-color": c("--surface"), "text-background-opacity": 0.92, "text-background-padding": 2, "font-family": "IBM Plex Mono, ui-monospace, monospace", "text-rotation": "autorotate" } },
+    { selector: "edge[kind='http'], edge[kind='kafka'], edge[kind='inngest'], edge[kind='event']", style: { "width": 2.2, "line-color": c("--e-hop"), "target-arrow-color": c("--e-hop") } },
+    { selector: "edge[kind='kafka']", style: { "line-color": c("--t-contract"), "target-arrow-color": c("--t-contract") } },
+    { selector: "edge[kind='db'], edge[kind='redis'], edge[kind='s3'], edge[kind='ext']", style: { "line-style": "dotted", "line-color": c("--e-data"), "target-arrow-color": c("--e-data") } },
+    { selector: "edge[kind='render']", style: { "line-style": "dashed", "line-dash-pattern": [2, 3] } },
+    { selector: "edge[kind='fail'], edge[kind='throws'], edge.onfail", style: { "line-color": c("--fail"), "target-arrow-color": c("--fail"), "line-style": "dashed" } },
+    { selector: "edge.guess", style: { "opacity": 0.55 } },
+    { selector: "edge.dim", style: { "opacity": 0.12 } },
+  ];
+}
+function ensureCy() {
+  if (cy) return cy;
+  cy = cytoscape({ container: document.getElementById("cy"), style: cyStyle(), wheelSensitivity: 0.25, minZoom: 0.08, maxZoom: 3, boxSelectionEnabled: false });
+  const tip = document.getElementById("tip");
+  cy.on("mouseover", "node", (ev) => { const d = ev.target.data(); if (d.fi != null) showTip(d.fi, ev.originalEvent); else if (d.tipHtml) showTipHtml(d.tipHtml, ev.originalEvent); });
+  cy.on("mousemove", "node", (ev) => moveTip(ev.originalEvent));
+  cy.on("mouseout", "node", () => { tip.hidden = true; });
+  cy.on("mouseover", "edge", (ev) => { const d = ev.target.data(); if (d.tipHtml) showTipHtml(d.tipHtml, ev.originalEvent); });
+  cy.on("mouseout", "edge", () => { tip.hidden = true; });
+  cy.on("tap", "node", (ev) => {
+    tip.hidden = true;
+    const d = ev.target.data();
+    if (d.go) return d.go();
+    if (d.fi != null) { if (state.mode === "trace" && state.root === d.fi) return; details(d.fi); highlight(ev.target); }
+  });
+  cy.on("dbltap", "node", (ev) => { const d = ev.target.data(); if (d.fi != null) trace(d.fi); });
+  cy.on("tap", (ev) => { if (ev.target === cy) { cy.elements().removeClass("dim"); } });
+  const mq = matchMedia("(prefers-color-scheme: dark)");
+  const restyle = () => setTimeout(() => cy && cy.style(cyStyle()), 30);
+  mq.addEventListener?.("change", restyle);
+  new MutationObserver(restyle).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+  return cy;
+}
+function highlight(node) {
+  const nb = node.closedNeighborhood();
+  cy.elements().addClass("dim");
+  nb.removeClass("dim");
+}
+function shapeFor(n) {
+  return { table: "barrel", topic: "hexagon", redis: "ellipse", s3: "cut-rectangle", ext: "octagon", inngest: "tag", exception: "vee", springevent: "rhomboid", lake: "cut-rectangle", httpx: "octagon", "http-unresolved": "octagon" }[n.kind];
+}
+function nodeData(i, extra = {}) {
+  const n = N[i];
+  return { id: "n" + i, fi: i, label: short(label(n), 42), tier: tierOf(n), shape: shapeFor(n), ...extra };
+}
+function edgeData(e, extra = {}) {
+  const lbl = e.k === "call" ? (e.o ? String(e.o) : "") : `${e.o ? e.o + " · " : ""}${short(e.l || EDGE_TEXT[e.k], 40)}`;
+  return { id: "e" + e.i, source: "n" + e.s, target: "n" + e.t, kind: e.k, label: lbl, tipHtml: edgeTip(e), ...extra };
+}
+function edgeTip(e) {
+  return `<h5>${esc(EDGE_TEXT[e.k])}${e.o ? ` · step ${e.o}` : ""}</h5><div class="row">${esc(label(N[e.s]))} → ${esc(label(N[e.t]))}</div>${e.l && e.l !== "guess" ? `<div class="row">${esc(e.l)}</div>` : ""}${e.ctx ? `<div class="fail-tag">runs only on failure: ${esc(e.ctx)}</div>` : ""}${e.f & 2 ? `<div class="row">matched by name only</div>` : ""}${e.f & 4 ? `<div class="row">added by hand (overlay.json)</div>` : ""}`;
+}
+function runLayout(kind = "dagre", opts = {}) {
+  const els = cy.elements();
+  const empty = document.getElementById("cyempty");
+  empty.hidden = els.length > 0;
+  const has = !!cy.layout && window.cytoscapeDagre;
+  const lay = kind === "dagre" && has ? { name: "dagre", rankDir: "LR", nodeSep: 14, rankSep: 70, edgeSep: 8, ...opts } : kind === "grid" ? { name: "grid", avoidOverlap: true, ...opts } : { name: "breadthfirst", directed: true, spacingFactor: 1.1, ...opts };
+  cy.layout({ ...lay, animate: false, fit: true, padding: 24 }).run();
+}
+function setCrumbs(items) {
+  document.getElementById("tip").hidden = true;
+  document.getElementById("crumbs").innerHTML = items.map((it, k) => (k ? `<span class="sep">/</span>` : "") + (it.fn ? `<button class="linkish" data-k="${k}">${esc(it.t)}</button>` : `<b>${esc(it.t)}</b>`)).join("");
+  document.getElementById("crumbs").onclick = (ev) => { const b = ev.target.closest("[data-k]"); if (b) items[+b.dataset.k].fn(); };
+}
+function setToolbar(html, bind) { const t = document.getElementById("toolbar"); t.innerHTML = html; bind?.(t); }
+function rerender() { if (state.mode === "trace") trace(state.root, true); else if (state.mode === "service") showService(state.svc); else if (state.mode === "pkg") showPackage(state.svc, state.pkg); else if (state.mode === "file") showFile(state.file); else showServices(); }
+
+// aggregated views ----------------------------------------------------
+function groupKeyFor(n, level, ctx) {
+  const store = !isFn(n);
+  if (store) return "st:" + n.svc;
+  if (level === "services") return "svc:" + n.svc;
+  if (n.svc !== ctx.svc) return "svc:" + n.svc;
+  if (level === "service") return "pkg:" + pkgKey(n);
+  if (pkgKey(n) !== ctx.pkg) return "pkg:" + pkgKey(n);
+  return "file:" + n.file;
+}
+function aggregate(level, ctx, include) {
+  const groups = new Map(), links = new Map();
+  N.forEach((n, i) => {
+    if (isFn(n) && !include(n)) return;
+    const g = groupKeyFor(n, level, ctx);
+    if (!groups.has(g)) groups.set(g, { key: g, count: 0, sample: n });
+    if (isFn(n)) groups.get(g).count++;
+  });
+  for (const e of E) {
+    const a = N[e.s], b = N[e.t];
+    if (isFn(a) && !include(a) && isFn(b) && !include(b)) continue;
+    if (!(include(a) || include(b)) && level !== "services") continue;
+    const ga = groupKeyFor(a, level, ctx), gb = groupKeyFor(b, level, ctx);
+    if (ga === gb) continue;
+    const key = ga + "→" + gb;
+    const l = links.get(key) || { a: ga, b: gb, kinds: {}, n: 0 };
+    l.kinds[e.k] = (l.kinds[e.k] || 0) + 1;
+    l.n++;
+    links.set(key, l);
+  }
+  return { groups, links };
+}
+function groupLabel(key) {
+  const [t, v] = [key.slice(0, key.indexOf(":")), key.slice(key.indexOf(":") + 1)];
+  if (t === "svc") return svcTitle(v);
+  if (t === "st") return STORE_GROUPS[v] || v;
+  if (t === "file") return v.split("/").pop();
+  return v;
+}
+function drawAggregate(level, ctx) {
+  ensureCy();
+  const inScope = (n) => visibleFn(n) && (level === "services" || (n.svc === ctx.svc && (level === "service" || pkgKey(n) === ctx.pkg)));
+  const { groups, links } = aggregate(level, ctx, inScope);
+  // keep only groups that are in scope or linked to scope
+  const keep = new Set();
+  for (const [k, g] of groups) {
+    const inside = level === "services" ? true : k.startsWith(level === "service" ? "pkg:" : "file:") && g.sample.svc === ctx.svc && (level === "service" || pkgKey(g.sample) === ctx.pkg);
+    if (inside) keep.add(k);
+  }
+  for (const l of links.values()) if (keep.has(l.a) || keep.has(l.b)) { keep.add(l.a); keep.add(l.b); }
+  if (level === "services") for (const k of [...keep]) if (k === "st:errors" || k === "st:spring-events" || k === "st:config") keep.delete(k);
+  const els = [];
+  for (const k of keep) {
+    const g = groups.get(k) || { count: 0, sample: null };
+    const t = k.slice(0, k.indexOf(":")), v = k.slice(k.indexOf(":") + 1);
+    const tier = t === "st" ? "store" : t === "svc" ? (TIER[v] || "store") : tierOf(g.sample);
+    const inside = !(t === "svc" && level !== "services") && t !== "st";
+    els.push({ group: "nodes", classes: "group", data: { id: k, label: `${groupLabel(k)}${g.count ? `  ${g.count}` : ""}`, tier, shape: t === "st" ? { postgres: "barrel", redis: "ellipse", kafka: "hexagon", s3: "cut-rectangle", inngest: "tag", external: "octagon" }[v] : undefined,
+      tipHtml: `<h5>${esc(groupLabel(k))}</h5><div class="row">${t === "st" ? "data store / outside" : g.count + " functions"}${inside ? " · click to open" : ""}</div>`,
+      go: () => t === "svc" ? showService(v) : t === "pkg" ? showPackage(ctx.svc, v) : t === "file" ? showFile(v) : t === "st" ? go("data") : null } });
+  }
+  for (const l of links.values()) {
+    if (!keep.has(l.a) || !keep.has(l.b)) continue;
+    const top = Object.entries(l.kinds).sort((x, y) => y[1] - x[1]);
+    const main = top.find(([k]) => k !== "call" && k !== "render") || top[0];
+    els.push({ group: "edges", data: { id: l.a + "→" + l.b, source: l.a, target: l.b, kind: main[0], label: `${l.n}`, tipHtml: `<h5>${esc(groupLabel(l.a))} → ${esc(groupLabel(l.b))}</h5>${top.map(([k, c]) => `<div class="row">${c} × ${esc(EDGE_TEXT[k])}</div>`).join("")}` } });
+  }
+  cy.elements().remove();
+  cy.add(els);
+  if (level === "services") {
+    // tiers as rows: clients, APIs, pipelines, contracts, stores
+    const rows = { client: [], api: [], pipe: [], contract: [], store: [] };
+    cy.nodes().forEach((nd) => rows[nd.data("tier")]?.push(nd));
+    const order = (nd) => { const id = nd.id(); const v = id.slice(id.indexOf(":") + 1); const k = SVC_ORDER.indexOf(v); return k >= 0 ? k : 50 + Object.keys(STORE_GROUPS).indexOf(v); };
+    Object.values(rows).forEach((r, y) => r.sort((a, b) => order(a) - order(b)).forEach((nd, x) => nd.position({ x: (x - (r.length - 1) / 2) * 230, y: y * 150 })));
+    document.getElementById("cyempty").hidden = true;
+    cy.layout({ name: "preset", fit: true, padding: 30 }).run();
+  } else {
+    runLayout("dagre", { rankDir: "TB", rankSep: 70, nodeSep: 18 });
+  }
+}
+function showServices() {
+  state = { mode: "services" };
+  setCrumbs([{ t: "All services" }]);
+  setToolbar(`<span>Every box is a service or a data store; a line is the number of links between them (calls, HTTP, Kafka, Inngest, data access). Click a box to open it.</span>`);
+  drawAggregate("services", {});
+  panelIntro();
+}
+function showService(svc) {
+  state = { mode: "service", svc };
+  setCrumbs([{ t: "All services", fn: showServices }, { t: svcTitle(svc) }]);
+  setToolbar(`<span>Packages / folders of ${esc(svcTitle(svc))} and what they connect to. Click a package to see its files.</span>`);
+  drawAggregate("service", { svc });
+  const d = document.querySelector(`#tree details[data-svc="${svc}"]:not([data-pkg])`); if (d) d.open = true;
+  panelService(svc);
+}
+function showPackage(svc, pkg) {
+  state = { mode: "pkg", svc, pkg };
+  setCrumbs([{ t: "All services", fn: showServices }, { t: svcTitle(svc), fn: () => showService(svc) }, { t: pkg }]);
+  setToolbar(`<span>Files in <code>${esc(pkg)}</code>. Click a file to see its functions.</span>`);
+  drawAggregate("pkg", { svc, pkg });
+  panelService(svc);
+}
+function showFile(file) {
+  ensureCy();
+  const ids = N.map((n, i) => (n.file === file && isFn(n) && visibleFn(n) ? i : -1)).filter((i) => i >= 0);
+  if (!ids.length) return;
+  const svc = N[ids[0]].svc, pkg = pkgKey(N[ids[0]]);
+  state = { mode: "file", file, svc, pkg };
+  setCrumbs([{ t: "All services", fn: showServices }, { t: svcTitle(svc), fn: () => showService(svc) }, { t: pkg, fn: () => showPackage(svc, pkg) }, { t: file.split("/").pop() }]);
+  setToolbar(`<span>Functions in <code>${esc(file)}</code> with everything they call and everything that calls them. Hover for details; double-click to trace.</span>`);
+  const nodesSet = new Set(ids), els = [];
+  const edges = [];
+  for (const i of ids) {
+    for (const e of OUT[i]) if (visibleFn(N[e.t])) { nodesSet.add(e.t); edges.push(e); }
+    for (const e of IN[i]) if (visibleFn(N[e.s])) { nodesSet.add(e.s); edges.push(e); }
+  }
+  for (const i of nodesSet) els.push({ group: "nodes", data: nodeData(i), classes: ids.includes(i) ? "root" : "" });
+  for (const e of edges) els.push({ group: "edges", data: edgeData(e), classes: classesFor(e) });
+  cy.elements().remove();
+  cy.add(dedupeEls(els));
+  runLayout("dagre");
+  details(ids[0]);
+}
+function classesFor(e) { return [e.f & 1 ? "onfail" : "", e.f & 2 ? "guess" : ""].join(" "); }
+function dedupeEls(els) { const seen = new Set(); return els.filter((x) => (seen.has(x.data.id) ? false : (seen.add(x.data.id), true))); }
+
+// trace ---------------------------------------------------------------
+let traceOpts = { depth: depthDefault, up: false, hops: true, data: true, fails: true, render: false };
+try { Object.assign(traceOpts, JSON.parse(localStorage.getItem("am.trace") || "{}")); } catch (e) {}
+function edgeAllowed(e) {
+  if (e.k === "render" && !traceOpts.render) return false;
+  if (["db", "redis", "s3", "ext"].includes(e.k) && !traceOpts.data) return false;
+  if ((e.k === "fail" || e.k === "throws" || e.f & 1) && !traceOpts.fails) return false;
+  if (["http", "kafka", "inngest", "event"].includes(e.k) && !traceOpts.hops) return false;
+  return true;
+}
+function trace(i, keepView) {
+  if (i == null || i < 0) return;
+  ensureCy();
+  state = { mode: "trace", root: i };
+  const n = N[i];
+  setCrumbs([{ t: "All services", fn: showServices }, { t: svcTitle(n.svc), fn: () => isFn(n) ? showService(n.svc) : go("data") }, ...(n.file ? [{ t: n.file.split("/").pop(), fn: () => showFile(n.file) }] : []), { t: label(n) }]);
+  setToolbar(`<label>Depth <input type="range" id="tdepth" min="1" max="8" value="${traceOpts.depth}"> <span class="tabular" id="tdv">${traceOpts.depth}</span></label>
+    <label><input type="checkbox" id="tup" ${traceOpts.up ? "checked" : ""}> Callers</label>
+    <label><input type="checkbox" id="thops" ${traceOpts.hops ? "checked" : ""}> Cross-service hops</label>
+    <label><input type="checkbox" id="tdata" ${traceOpts.data ? "checked" : ""}> Data stores</label>
+    <label><input type="checkbox" id="tfail" ${traceOpts.fails ? "checked" : ""}> Failure paths</label>
+    <label><input type="checkbox" id="trender" ${traceOpts.render ? "checked" : ""}> UI renders</label>
+    <span class="muted" id="tcount"></span>`, (t) => {
+      const save = () => { try { localStorage.setItem("am.trace", JSON.stringify(traceOpts)); } catch (e) {} trace(state.root, true); };
+      t.querySelector("#tdepth").oninput = (ev) => { t.querySelector("#tdv").textContent = ev.target.value; };
+      t.querySelector("#tdepth").onchange = (ev) => { traceOpts.depth = +ev.target.value; save(); };
+      for (const [id, k] of [["tup", "up"], ["thops", "hops"], ["tdata", "data"], ["tfail", "fails"], ["trender", "render"]]) t.querySelector("#" + id).onchange = (ev) => { traceOpts[k] = ev.target.checked; save(); };
+    });
+  const LIMIT = 260;
+  const nodesSet = new Set([i]), edges = [];
+  let frontier = [i];
+  for (let d = 0; d < traceOpts.depth && frontier.length && nodesSet.size < LIMIT; d++) {
+    const next = [];
+    for (const x of frontier) for (const e of OUT[x]) {
+      if (!edgeAllowed(e) || !visibleFn(N[e.t])) continue;
+      edges.push(e);
+      if (!nodesSet.has(e.t)) { nodesSet.add(e.t); if (isFn(N[e.t]) || N[e.t].kind === "topic" || N[e.t].kind === "inngest" || N[e.t].kind === "springevent" || N[e.t].kind === "exception" || N[e.t].kind === "lake") next.push(e.t); }
+      if (nodesSet.size >= LIMIT) break;
+    }
+    frontier = next;
+  }
+  if (traceOpts.up) {
+    let up = [i];
+    for (let d = 0; d < 2 && up.length; d++) {
+      const next = [];
+      for (const x of up) for (const e of IN[x]) { if (!edgeAllowed(e) || !visibleFn(N[e.s])) continue; edges.push(e); if (!nodesSet.has(e.s)) { nodesSet.add(e.s); next.push(e.s); } }
+      up = next.slice(0, 40);
+    }
+  }
+  const els = [];
+  for (const x of nodesSet) els.push({ group: "nodes", data: nodeData(x), classes: x === i ? "root" : N[x].kind === "failure-handler" || N[x].kind === "exception" ? "fail" : "" });
+  for (const e of edges) if (nodesSet.has(e.s) && nodesSet.has(e.t)) els.push({ group: "edges", data: edgeData(e), classes: classesFor(e) });
+  cy.elements().remove();
+  cy.add(dedupeEls(els));
+  document.getElementById("tcount").textContent = `${nodesSet.size} nodes${nodesSet.size >= LIMIT ? " (limit reached: lower the depth)" : ""}`;
+  runLayout("dagre");
+  details(i);
+}
+
+// ------------------------------------------------------------------ hover card + detail panel
+const tipEl = document.getElementById("tip");
+function tipHtmlFor(i) {
+  const n = N[i];
+  const outs = OUT[i].filter((e) => e.k !== "render");
+  const out = outputOf(n)[0];
+  return `<h5>${esc(label(n))}</h5>
+    <div class="row"><span class="kind">${esc(n.kind)}</span> ${esc(svcTitle(n.svc))}${n.route ? ` · <b class="mono">${esc(n.http || "")} ${esc(n.route)}</b>` : ""}</div>
+    ${n.file ? `<div class="row mono">${esc(n.file)}:${n.line}</div>` : ""}
+    ${n.sig ? `<div class="row mono" style="color:var(--fg-2)">${esc(short(n.sig, 220))}</div>` : ""}
+    ${n.doc ? `<div class="row" style="color:var(--fg-2);margin-top:4px">${esc(short(n.doc, 220))}</div>` : ""}
+    ${out ? `<pre>${esc(short(out.body, 600))}</pre>` : ""}
+    <div class="row" style="margin-top:6px">${IN[i].length} incoming · ${outs.length} outgoing${outs.some((e) => e.f & 1 || e.k === "fail") ? ' · <span class="fail-tag">has failure paths</span>' : ""}</div>`;
+}
+function showTip(i, ev) { tipEl.innerHTML = tipHtmlFor(i); tipEl.hidden = false; moveTip(ev); }
+function showTipHtml(h, ev) { tipEl.innerHTML = h; tipEl.hidden = false; moveTip(ev); }
+function moveTip(ev) {
+  if (!ev) return;
+  const w = tipEl.offsetWidth, h = tipEl.offsetHeight;
+  let x = ev.clientX + 16, y = ev.clientY + 16;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - 16;
+  if (y + h > innerHeight - 8) y = Math.max(8, innerHeight - h - 8);
+  tipEl.style.left = Math.max(8, x) + "px";
+  tipEl.style.top = y + "px";
+}
+const panel = document.getElementById("panel");
+function edgeLine(e, other, dir) {
+  const n = N[other];
+  return `<li><span class="ek">${dir === "out" && e.o ? e.o + ". " : ""}${esc(EDGE_TEXT[e.k])}${e.ctx ? ` · <span class="fail-tag">on ${esc(e.ctx)}</span>` : ""}</span><br><button class="linkish mono" data-i="${other}">${esc(short(label(n), 70))}</button> <span class="muted">${esc(isFn(n) ? svcTitle(n.svc) : n.kind)}</span>${e.l && e.l !== "guess" && e.k !== "call" ? `<div class="muted mono" style="font-size:11px">${esc(short(e.l, 120))}</div>` : ""}</li>`;
+}
+function details(i) {
+  const n = N[i];
+  const outs = OUT[i], ins = IN[i];
+  const fails = outs.filter((e) => e.k === "fail" || e.f & 1 || e.k === "throws");
+  const normal = outs.filter((e) => !fails.includes(e));
+  const stores = normal.filter((e) => ["db", "redis", "s3", "ext"].includes(e.k));
+  const calls = normal.filter((e) => !stores.includes(e));
+  const out = outputOf(n);
+  panel.innerHTML = `<h2>${esc(label(n))}</h2>
+    <div class="sub"><span class="kind">${esc(n.kind)}</span> <span class="dot" style="background:var(--t-${tierOf(n)})"></span> ${esc(svcTitle(n.svc))}${n.file ? ` · <span class="mono">${esc(n.file)}:${n.line}</span> <button class="linkish" id="copyloc">copy</button>` : ""}</div>
+    ${n.route ? `<div class="blk"><h4>${n.kind === "inngest-fn" ? "Triggered by" : "Route"}</h4><code>${esc(n.http || "")} ${esc(n.route)}</code></div>` : ""}
+    ${n.sig ? `<div class="blk"><h4>Signature</h4><pre>${esc(n.sig)}</pre></div>` : ""}
+    ${n.doc ? `<div class="blk"><h4>What it does</h4><div>${esc(n.doc)}</div></div>` : ""}
+    ${n.ann?.length ? `<div class="blk"><h4>Annotations</h4><pre>${esc(n.ann.join("\n"))}</pre></div>` : ""}
+    ${n.config ? `<div class="blk"><h4>Topic config</h4><code>${esc(n.config)}</code>${n.lake ? " · copied to the S3 lake" : ""}</div>` : ""}
+    ${out.map((o) => `<div class="blk"><h4>${esc(o.h)}</h4><pre>${esc(o.body)}</pre>${o.file ? `<div class="muted mono" style="font-size:11px">${esc(o.file)}</div>` : ""}</div>`).join("")}
+    ${calls.length ? `<div class="blk"><h4>Calls, in order (${calls.length})</h4><ol style="list-style:none;padding-left:0">${calls.slice(0, 80).map((e) => edgeLine(e, e.t, "out")).join("")}</ol></div>` : ""}
+    ${stores.length ? `<div class="blk"><h4>Data it touches (${stores.length})</h4><ul style="list-style:none;padding-left:0">${stores.map((e) => edgeLine(e, e.t, "out")).join("")}</ul></div>` : ""}
+    ${fails.length ? `<div class="blk"><h4 style="color:var(--fail)">If it fails (${fails.length})</h4><ul style="list-style:none;padding-left:0">${fails.map((e) => edgeLine(e, e.t, "out")).join("")}</ul></div>` : ""}
+    ${ins.length ? `<div class="blk"><h4>Called by (${ins.length})</h4><ul style="list-style:none;padding-left:0">${ins.slice(0, 80).map((e) => edgeLine(e, e.s, "in")).join("")}</ul></div>` : ""}
+    ${n.cols ? `<div class="blk"><h4>Created in</h4>${esc(n.since)} · primary key <code>${esc(n.pk || "?")}</code></div>` : ""}
+    <div class="blk"><button class="btn primary" id="dtrace">Trace from here</button></div>`;
+  panel.querySelector("#dtrace").onclick = () => trace(i);
+  const cp = panel.querySelector("#copyloc");
+  if (cp) cp.onclick = () => { const txt = `${n.file}:${n.line}`; navigator.clipboard?.writeText(txt).then(() => (cp.textContent = "copied"), () => (cp.textContent = txt)); };
+}
+panel.addEventListener("click", (ev) => { const b = ev.target.closest("button[data-i]"); if (b) trace(+b.dataset.i); });
+function panelIntro() {
+  panel.innerHTML = `<h2 style="font-family:var(--font-sans)">How to read this</h2>
+    <div class="blk">Start from a service, drill into packages and files, or search for any function at the top. <b>Double-click</b> a function (or use <b>Trace from here</b>) to follow everything it sets off, in call order, across services.</div>
+    <div class="blk"><h4>Lines</h4><div class="legend" style="display:grid;gap:6px">
+      <span><i style="border-color:var(--e-call)"></i>function call (number = order inside the caller)</span>
+      <span><i style="border-color:var(--e-hop);border-top-width:3px"></i>HTTP request, Inngest event or Spring event</span>
+      <span><i style="border-color:var(--t-contract);border-top-width:3px"></i>Kafka topic</span>
+      <span><i style="border-color:var(--e-data);border-top-style:dotted"></i>Postgres, Redis, S3 or an outside service</span>
+      <span><i style="border-color:var(--fail);border-top-style:dashed"></i>runs only when something fails</span></div></div>
+    <div class="blk"><h4>Shapes</h4><div class="muted">Rounded box: function · barrel: table · hexagon: topic · ellipse: Redis key · cut box: S3 · octagon: outside service · tag: Inngest event · V: exception</div></div>
+    <div class="blk"><h4>Colour</h4><div class="legend" style="display:grid;gap:6px">${Object.entries(TIER_NAME).map(([t, nme]) => `<span><span class="dot" style="background:var(--t-${t})"></span>${nme}</span>`).join("")}</div></div>
+    <div class="blk muted">Everything here is extracted from the code by <code>docs/architecture/gen</code>; links found only by matching a name are drawn faded.</div>`;
+}
+function panelService(svc) {
+  const info = G.services?.[svc] || {};
+  const fns = N.map((n, i) => (n.svc === svc ? i : -1)).filter((i) => i >= 0);
+  const top = fns.filter((i) => N[i].kind === "endpoint" || N[i].kind === "inngest-fn" || N[i].kind === "listener" || N[i].kind === "screen").slice(0, 60);
+  panel.innerHTML = `<h2 style="font-family:var(--font-sans)">${esc(info.title || svc)}</h2><div class="sub">${esc(info.role || "")}</div>
+    <div class="blk"><h4>Layers</h4>${esc(info.layers || "")}</div>
+    <div class="blk"><h4>Entry points (${top.length})</h4><ul style="list-style:none;padding-left:0">${top.map((i) => `<li><button class="linkish mono" data-i="${i}">${esc(short(N[i].route ? `${N[i].http || ""} ${N[i].route}` : label(N[i]), 70))}</button> <span class="kind">${esc(N[i].kind)}</span></li>`).join("")}</ul></div>`;
+}
+
+// ------------------------------------------------------------------ flows
+(function drawFlows() {
+  const list = document.getElementById("flowlist"), box = document.getElementById("flow");
+  const flows = G.flows || [];
+  list.innerHTML = flows.map((f, k) => `<button data-k="${k}" aria-pressed="${k === 0}"><b>${esc(f.title)}</b><br><span class="muted" style="font-size:12px">${f.steps.length} steps</span></button>`).join("");
+  const hopBetween = (a, b) => {
+    if (a == null || b == null) return null;
+    const direct = OUT[a].find((e) => e.t === b);
+    if (direct) return direct;
+    for (const e of OUT[a]) { const d2 = OUT[e.t].find((x) => x.t === b); if (d2) return { ...d2, via: e.t, k: d2.k === "call" ? e.k : d2.k }; }
+    return null;
+  };
+  const show = (k) => {
+    const f = flows[k];
+    [...list.children].forEach((b, j) => b.setAttribute("aria-pressed", String(j === k)));
+    const idx = f.steps.map((s) => (s.id ? byId.get(s.id) : undefined));
+    box.innerHTML = `<h2>${esc(f.title)}</h2><p class="muted" style="margin:6px 0 0">${esc(f.summary || "")}</p><ol class="steps">${f.steps.map((s, j) => {
+      const i = idx[j], n = i != null ? N[i] : null;
+      const h = j < f.steps.length - 1 ? hopBetween(i, idx[j + 1]) : null;
+      const hop = j < f.steps.length - 1 ? `<div class="hop">${h ? `then <b>${esc(EDGE_TEXT[h.k])}</b>${h.l && h.l !== "guess" && h.k !== "call" ? ` · <span class="mono">${esc(short(h.l, 70))}</span>` : ""}${h.via != null ? ` <span>(via ${esc(label(N[h.via]))})</span>` : ""}` : "then, further down the chain"}</div>` : "";
+      return `<li><span class="n">${j + 1}</span><div style="min-width:0"><div class="card">${n ? `<div><span class="dot" style="background:var(--t-${tierOf(n)})"></span> <span class="muted" style="font-size:12px">${esc(svcTitle(n.svc))}</span></div><button class="linkish fn" data-i="${i}">${esc(label(n))}</button>${n.file ? ` <span class="muted mono" style="font-size:11px">${esc(n.file)}:${n.line}</span>` : ""}` : `<span class="muted">${esc(s.ref)}</span>`}<div>${esc(s.text)}</div></div>${hop}</div></li>`;
+    }).join("")}</ol>`;
+  };
+  list.addEventListener("click", (ev) => { const b = ev.target.closest("button[data-k]"); if (b) show(+b.dataset.k); });
+  box.addEventListener("click", (ev) => { const b = ev.target.closest("button[data-i]"); if (b) { go("explorer"); trace(+b.dataset.i); } });
+  if (flows.length) show(0);
+})();
+
+// ------------------------------------------------------------------ data & events
+(function drawData() {
+  const who = (i, dirIn) => {
+    const es = dirIn ? IN[i] : OUT[i];
+    const rd = new Map(), wr = new Map();
+    for (const e of es) { const o = dirIn ? e.s : e.t; if (!isFn(N[o])) continue; ((/write|produce|relays|RPUSH|ZADD|INCR|SET/i.test(e.l) || e.k === "kafka" && dirIn) ? wr : rd).set(o, e); }
+    return { rd: [...rd.keys()], wr: [...wr.keys()] };
+  };
+  const fnList = (arr, max = 12) => arr.slice(0, max).map((i) => `<button class="linkish mono" data-i="${i}" title="${esc(N[i].file || "")}">${esc(short(label(N[i]), 40))}</button>`).join(", ") + (arr.length > max ? ` <span class="muted">+${arr.length - max} more</span>` : "");
+  // topics
+  const topicRows = Object.entries(G.topics).map(([name, t]) => {
+    const i = byId.get("topic:" + name);
+    const prod = i != null ? [...new Set(IN[i].map((e) => e.s).filter((x) => isFn(N[x])))] : [];
+    const cons = i != null ? [...new Set(OUT[i].map((e) => e.t))] : [];
+    const ret = (t.config.match(/retention\.ms=(\d+)/) || [])[1];
+    const cfg = /compact/.test(t.config) ? "compacted" : ret ? `${Math.round(+ret / 86400000)} days` : t.config;
+    return `<tr><td><button class="linkish mono" data-i="${i}">${esc(name)}</button><div class="muted" style="font-size:11.5px">${esc(t.group || "")}${t.note ? " · " + esc(t.note) : ""}</div></td><td class="tabular">${esc(cfg)}</td><td>${fnList(prod) || '<span class="muted">—</span>'}</td><td>${cons.map((c) => isFn(N[c]) ? `<button class="linkish mono" data-i="${c}">${esc(short(label(N[c]), 40))}</button>` : `<span>${esc(N[c].name)}</span>`).join(", ") || '<span class="muted">—</span>'}</td></tr>`;
+  });
+  document.getElementById("topics").innerHTML = `<thead><tr><th>Topic</th><th>Keeps</th><th>Written by</th><th>Read by</th></tr></thead><tbody>${topicRows.join("")}</tbody>`;
+  // tables
+  const tbl = Object.keys(G.tables).sort().map((name) => {
+    const i = byId.get("table:" + name);
+    const t = G.tables[name];
+    const w = i != null ? who(i, true) : { rd: [], wr: [] };
+    return `<div class="tcard"><h3><button class="linkish" data-i="${i}">${esc(name)}</button><span class="muted" style="font-family:var(--font-sans);font-size:11px">${esc(t.since)}</span></h3>
+      <div class="cols">${t.cols.map((c) => `<span class="${c[2] === "pk" || (t.pk || "").split(",").includes(c[0]) ? "pk" : ""}">${esc(c[0])}<span class="muted">:${esc(c[1])}</span></span>`).join("")}</div>
+      <div class="who"><b>Writes</b> ${fnList(w.wr) || '<span class="muted">—</span>'}</div><div class="who"><b>Reads</b> ${fnList(w.rd) || '<span class="muted">—</span>'}</div></div>`;
+  });
+  document.getElementById("tables").innerHTML = tbl.join("");
+  // others
+  const others = N.map((n, i) => (["redis", "s3", "ext", "lake", "inngest"].includes(n.kind) ? i : -1)).filter((i) => i >= 0).sort((a, b) => N[a].kind.localeCompare(N[b].kind) || N[a].name.localeCompare(N[b].name));
+  document.getElementById("others").innerHTML = others.map((i) => {
+    const n = N[i];
+    const users = [...new Set([...IN[i].map((e) => e.s), ...OUT[i].map((e) => e.t)].filter((x) => isFn(N[x])))];
+    return `<div class="tcard"><h3><button class="linkish" data-i="${i}">${esc(n.name)}</button><span class="kind">${esc(n.kind)}</span></h3><div class="who">${fnList(users) || '<span class="muted">—</span>'}</div></div>`;
+  }).join("");
+  document.getElementById("v-data").addEventListener("click", (ev) => { const b = ev.target.closest("button[data-i]"); if (b && b.dataset.i !== "undefined") { go("explorer"); trace(+b.dataset.i); } });
+})();
+
+// ------------------------------------------------------------------ failures
+(function drawFailures() {
+  const cat = G.failures || [];
+  document.getElementById("failcat").innerHTML = `<thead><tr><th>Where</th><th>What goes wrong</th><th>Caught by</th><th>What happens instead</th></tr></thead><tbody>${cat.map((f) => {
+    const i = f.id ? byId.get(f.id) : undefined;
+    return `<tr><td>${esc(f.area)}</td><td>${esc(f.what)}</td><td>${i != null ? `<button class="linkish mono" data-i="${i}">${esc(label(N[i]))}</button>` : `<span class="mono">${esc(f.handled)}</span>`}</td><td>${esc(f.result)}</td></tr>`;
+  }).join("")}</tbody>`;
+  const rows = [];
+  for (const e of E) {
+    if (!(e.k === "fail" || e.f & 1)) continue;
+    const a = N[e.s], b = N[e.t];
+    rows.push([svcTitle(isFn(a) ? a.svc : b.svc), e]);
+  }
+  rows.sort((x, y) => x[0].localeCompare(y[0]));
+  document.getElementById("failauto").innerHTML = `<thead><tr><th>Service</th><th>From</th><th>When</th><th>Goes to</th></tr></thead><tbody>${rows.slice(0, 600).map(([s, e]) => `<tr><td>${esc(s)}</td><td><button class="linkish mono" data-i="${e.s}">${esc(short(label(N[e.s]), 50))}</button></td><td>${esc(e.ctx || e.l || "on failure")}</td><td><button class="linkish mono" data-i="${e.t}">${esc(short(label(N[e.t]), 50))}</button></td></tr>`).join("")}</tbody>`;
+  const gaps = G.gaps || {};
+  document.getElementById("gaps").innerHTML = `<p>Calls resolved through dependency injection, reflection, dynamic imports or URLs built at runtime may be missing; links that were matched only by function name are drawn faded. HTTP calls that matched no endpoint (mostly outside sites and URLs built at runtime):</p><div class="scroll-x" style="padding:8px 12px"><code style="white-space:pre">${esc((gaps.unmatchedHttp || []).join("\n"))}</code></div>`;
+  document.getElementById("v-failures").addEventListener("click", (ev) => { const b = ev.target.closest("button[data-i]"); if (b) { go("explorer"); trace(+b.dataset.i); } });
+})();
+
+// ------------------------------------------------------------------ routing
+const VIEWS = ["overview", "services", "flows", "explorer", "data", "failures"];
+let explorerReady = false;
+function go(v) { if (location.hash !== "#" + v) location.hash = v; else route(); }
+function route() {
+  const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "overview";
+  for (const x of VIEWS) document.getElementById("v-" + x).classList.toggle("on", x === v);
+  document.querySelectorAll("nav.tabs a").forEach((a) => { if (a.getAttribute("href") === "#" + v) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
+  if (v === "explorer") {
+    if (!explorerReady) { explorerReady = true; buildTree(); ensureCy(); if (state.mode === "services") showServices(); }
+    setTimeout(() => { if (!cy) return; cy.resize(); if (state.mode === "services" && !cy.elements().length) showServices(); else cy.fit(undefined, 24); }, 0);
+  }
+}
+addEventListener("hashchange", route);
+route();
+})().catch((err) => {
+  document.querySelector("main").innerHTML = `<p style="color:var(--fail)">The map data could not be loaded: ${String(err && err.message || err)}. Rebuild it with <code>node docs/architecture/gen/build.mjs</code>.</p>`;
+});
+</script>
