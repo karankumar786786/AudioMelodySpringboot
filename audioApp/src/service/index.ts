@@ -14,6 +14,6 @@ export * from "./interactionService";
 export * from "./albumService";
 export * from "./videoService";
 export * from "./lyricsService";
-export * from "./canvasService";
+export * from "./shortsService";
 export * from "./userProgressService";
 export * from "./genrePreferenceService";

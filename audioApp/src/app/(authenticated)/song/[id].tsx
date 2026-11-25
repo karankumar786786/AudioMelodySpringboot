@@ -20,6 +20,7 @@ import {
   PlayerArtistAbout,
 } from "@/components";
 import { PlayerBackdrop } from "@/components/player/PlayerBackdrop";
+import { SongShortsLink } from "@/components/shorts/SongShortsLink";
 import { PlayerModeSwitcher } from "@/components/player/PlayerModeSwitcher";
 import { PlayerArtworkStage } from "@/components/player/PlayerArtworkStage";
 import { ArtistImageModal } from "@/components/player/ArtistImageModal";
@@ -283,6 +284,9 @@ export default function SongDetailScreen() {
               }
             }}
           />
+
+          {/* Shorts that use this song (hidden when there are none) */}
+          <SongShortsLink songId={activeSong?.id} />
 
           {/* About the Track Section (Plays count, album/genre pills, story) */}
           <PlayerTrackAbout

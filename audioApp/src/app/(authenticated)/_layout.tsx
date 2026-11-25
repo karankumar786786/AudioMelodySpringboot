@@ -86,6 +86,22 @@ export default function AuthenticatedLayout() {
         }}
       />
       <Stack.Screen
+        name="shorts-upload"
+        options={{
+          headerShown: false,
+          presentation: "modal",
+          animation: "slide_from_bottom",
+        }}
+      />
+      <Stack.Screen
+        name="my-shorts"
+        options={{
+          headerShown: false,
+          presentation: "card",
+          animation: "slide_from_right",
+        }}
+      />
+      <Stack.Screen
         name="favourites"
         options={{
           headerShown: false,
