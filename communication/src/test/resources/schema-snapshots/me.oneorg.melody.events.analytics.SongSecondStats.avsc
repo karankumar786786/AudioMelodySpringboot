@@ -2,7 +2,7 @@
   "type" : "record",
   "name" : "SongSecondStats",
   "namespace" : "me.oneorg.melody.events.analytics",
-  "doc" : "Running totals for one second of one song. Topic analytics.song-timeline.v1 (compacted), key song_id|sec. Also the per-play delta inside the analytics topology.",
+  "doc" : "Counts for one second of one song, carried inside SongTimeline (a delta inside the analytics topology, a running total on the topic).",
   "fields" : [ {
     "name" : "song_id",
     "type" : {

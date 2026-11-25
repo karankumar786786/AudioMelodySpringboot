@@ -1,0 +1,54 @@
+{
+  "type" : "record",
+  "name" : "SongTimeline",
+  "namespace" : "me.oneorg.melody.events.analytics",
+  "doc" : "Per-second listening counts for one song. On topic analytics.song-timeline.v1 (key song_id) it carries running totals for only the seconds that changed in the last one-minute window. Inside the analytics topology it is also the window's sum and the song's full totals.",
+  "fields" : [ {
+    "name" : "song_id",
+    "type" : {
+      "type" : "string",
+      "avro.java.string" : "String"
+    }
+  }, {
+    "name" : "seconds",
+    "type" : {
+      "type" : "array",
+      "items" : {
+        "type" : "record",
+        "name" : "SongSecondStats",
+        "doc" : "Counts for one second of one song, carried inside SongTimeline (a delta inside the analytics topology, a running total on the topic).",
+        "fields" : [ {
+          "name" : "song_id",
+          "type" : {
+            "type" : "string",
+            "avro.java.string" : "String"
+          }
+        }, {
+          "name" : "sec",
+          "type" : "int"
+        }, {
+          "name" : "listens",
+          "type" : "long",
+          "default" : 0
+        }, {
+          "name" : "exits",
+          "type" : "long",
+          "default" : 0
+        }, {
+          "name" : "skips",
+          "type" : "long",
+          "default" : 0
+        }, {
+          "name" : "seeks_away",
+          "type" : "long",
+          "default" : 0
+        }, {
+          "name" : "seeks_into",
+          "type" : "long",
+          "default" : 0
+        } ]
+      }
+    },
+    "default" : [ ]
+  } ]
+}

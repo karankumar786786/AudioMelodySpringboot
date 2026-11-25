@@ -1,0 +1,8 @@
+{
+  "type": "record", "name": "SongTimeline", "namespace": "me.oneorg.melody.events.analytics",
+  "doc": "Per-second listening counts for one song. On topic analytics.song-timeline.v1 (key song_id) it carries running totals for only the seconds that changed in the last one-minute window. Inside the analytics topology it is also the window's sum and the song's full totals.",
+  "fields": [
+    {"name": "song_id", "type": "string"},
+    {"name": "seconds", "type": {"type": "array", "items": "SongSecondStats"}, "default": []}
+  ]
+}

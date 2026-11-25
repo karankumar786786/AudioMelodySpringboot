@@ -14,10 +14,13 @@ import me.oneorg.melody.events.Topics;
 import me.oneorg.melody.events.analytics.SongDayStats;
 import me.oneorg.melody.events.analytics.SongQualityStats;
 import me.oneorg.melody.events.analytics.SongSecondStats;
+import me.oneorg.melody.events.analytics.SongTimeline;
 
 /**
- * Writes the analytics topics into the V19 tables. Values are running totals, written as
- * absolute values (never increments), so a replay or redelivery can't double-count.
+ * Writes the analytics topics into the V19 tables, one batched upsert per poll. The
+ * topology already windows and rate-limits updates (one record per key per minute), and
+ * values are running totals written as absolute values (never increments), so a replay
+ * or redelivery can't double-count.
  */
 @Component
 @Profile("analytics")
@@ -30,8 +33,8 @@ public class AnalyticsSink {
     }
 
     @KafkaListener(id = "analytics-sink-timeline", topics = Topics.ANALYTICS_SONG_TIMELINE, containerFactory = "analyticsSinkFactory")
-    public void timeline(List<ConsumerRecord<String, SongSecondStats>> records) {
-        List<SongSecondStats> rows = latest(records);
+    public void timeline(List<ConsumerRecord<String, SongTimeline>> records) {
+        List<SongSecondStats> rows = latestSeconds(records);
         if (rows.isEmpty()) return;
         jdbc.batchUpdate("""
                 INSERT INTO song_timeline (song_id, sec, listens, exits, skips, seeks_away, seeks_into)
@@ -94,6 +97,21 @@ public class AnalyticsSink {
             ps.setLong(9, r.getRebufferCount());
             ps.setLong(10, r.getRebufferMs());
         });
+    }
+
+    /**
+     * Each record holds the running totals of the seconds one window changed; flatten them
+     * and keep the newest total per second (records of one song share a partition, in order).
+     */
+    static List<SongSecondStats> latestSeconds(List<ConsumerRecord<String, SongTimeline>> records) {
+        Map<String, SongSecondStats> bySecond = new LinkedHashMap<>();
+        for (ConsumerRecord<String, SongTimeline> r : records) {
+            if (r.value() == null) continue;
+            for (SongSecondStats sec : r.value().getSeconds()) {
+                if (sec != null) bySecond.put(sec.getSongId() + "|" + sec.getSec(), sec);
+            }
+        }
+        return List.copyOf(bySecond.values());
     }
 
     /** Newest value per key within the batch. */
