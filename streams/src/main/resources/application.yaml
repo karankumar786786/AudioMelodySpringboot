@@ -4,7 +4,7 @@ spring:
   application:
     name: melody-streams
   profiles:
-    active: ${STREAMS_PROFILES:outbox-relay,stats,activity,sync,notification}
+    active: ${STREAMS_PROFILES:outbox-relay,stats,activity,sync,notification,analytics}
   config:
     import:
       - optional:file:.env[.properties]

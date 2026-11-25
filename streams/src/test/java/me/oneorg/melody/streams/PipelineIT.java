@@ -162,6 +162,31 @@ class PipelineIT {
         assertThat(jdbc.queryForObject("SELECT total_count FROM pagination_metadata WHERE entity_name = 'UserHistory_u-it'", Long.class)).isEqualTo(2);
     }
 
+    @Test
+    void analyticsSinkWritesAbsoluteTotals() {
+        var sink = new me.oneorg.melody.streams.analytics.AnalyticsSink(jdbc);
+        var first = me.oneorg.melody.events.analytics.SongSecondStats.newBuilder()
+                .setSongId("s-a").setSec(3).setListens(2).setExits(1).build();
+        var later = me.oneorg.melody.events.analytics.SongSecondStats.newBuilder(first).setListens(5).build();
+        sink.timeline(List.of(
+                new org.apache.kafka.clients.consumer.ConsumerRecord<>("t", 0, 0, "s-a|3", first),
+                new org.apache.kafka.clients.consumer.ConsumerRecord<>("t", 0, 1, "s-a|3", later)));
+        sink.timeline(List.of(new org.apache.kafka.clients.consumer.ConsumerRecord<>("t", 0, 2, "s-a|3", later))); // replay
+
+        assertThat(jdbc.queryForObject("SELECT listens FROM song_timeline WHERE song_id = 's-a' AND sec = 3", Long.class)).isEqualTo(5);
+
+        var day = me.oneorg.melody.events.analytics.SongDayStats.newBuilder().setSongId("s-a")
+                .setDay(java.time.LocalDate.parse("2026-11-25")).setPlays(7).setSkips(2).build();
+        sink.daily(List.of(new org.apache.kafka.clients.consumer.ConsumerRecord<>("t", 0, 0, "s-a|2026-11-25", day)));
+        assertThat(jdbc.queryForObject("SELECT plays FROM song_listen_daily WHERE song_id = 's-a'", Long.class)).isEqualTo(7);
+
+        var q = me.oneorg.melody.events.analytics.SongQualityStats.newBuilder().setSongId("s-a")
+                .setDay(java.time.LocalDate.parse("2026-11-25")).setQuality("320kbps").setPlatform("web")
+                .setPlays(3).setStartupMsSum(900).setStartupSamples(3).build();
+        sink.quality(List.of(new org.apache.kafka.clients.consumer.ConsumerRecord<>("t", 0, 0, "k", q)));
+        assertThat(jdbc.queryForObject("SELECT startup_ms_sum FROM song_quality_daily WHERE song_id = 's-a'", Long.class)).isEqualTo(900);
+    }
+
     private static void invoke(java.lang.reflect.Method m, Object target, Object arg) {
         try {
             m.invoke(target, arg);
