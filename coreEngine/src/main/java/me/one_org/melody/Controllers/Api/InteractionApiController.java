@@ -15,6 +15,7 @@ import me.one_org.melody.Dto.Controllers.Api.TrackSearchPlayRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.TrackSkipRequestDto;
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Events.Kafka.EventsMode;
+import me.one_org.melody.Events.Kafka.ListenDetail;
 import me.one_org.melody.Events.Kafka.TelemetryProducer;
 import me.one_org.melody.Events.Kafka.TelemetryRateLimiter;
 import me.one_org.melody.Exceptions.UnauthorizedException;
@@ -72,7 +73,10 @@ public class InteractionApiController {
         String userId = requireUser(currentUser);
         if (sendsEvents()) {
             rateLimiter.consume(userId, 1);
-            telemetry.play(userId, data.songId(), data.percentage(), data.durationMs());
+            ListenDetail detail = ListenDetail.of(data.ranges(), data.exitMs(), data.skipped(), data.seeks(),
+                    data.quality(), data.platform(), data.startupMs(), data.rebufferCount(), data.rebufferMs(),
+                    data.durationMs());
+            telemetry.play(userId, data.songId(), data.percentage(), data.durationMs(), detail);
         }
         if (mode.runsLegacyPath()) {
             interactionAppService.trackPlay(userId, data.songId(), data.percentage());
@@ -87,7 +91,7 @@ public class InteractionApiController {
         String userId = requireUser(currentUser);
         if (sendsEvents()) {
             rateLimiter.consume(userId, 1);
-            telemetry.skip(userId, data.songId());
+            telemetry.skip(userId, data.songId(), data.positionMs());
         }
         if (mode.runsLegacyPath()) {
             interactionAppService.trackSkip(userId, data.songId());

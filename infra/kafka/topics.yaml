@@ -62,6 +62,16 @@ topics:
   - name: activity.session.v1
     partitions: 3
     config: cleanup.policy=compact
+  # Song analytics: per-second heatmap totals, daily totals, delivery quality
+  - name: analytics.song-timeline.v1
+    partitions: 3
+    config: cleanup.policy=compact
+  - name: analytics.song-daily.v1
+    partitions: 3
+    config: cleanup.policy=compact
+  - name: analytics.song-quality.v1
+    partitions: 3
+    config: cleanup.policy=compact
   - name: pipeline.dlq.v1
     partitions: 3
     config: retention.ms=1209600000

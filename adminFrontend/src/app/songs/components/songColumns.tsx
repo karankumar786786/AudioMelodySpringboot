@@ -1,7 +1,8 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { Edit2, ListPlus, Star, Trash2 } from "lucide-react";
+import { BarChart3, Edit2, ListPlus, Star, Trash2 } from "lucide-react";
+import Link from "next/link";
 import {
   AssetIndicators,
   formatDuration,
@@ -32,7 +33,15 @@ export function songColumns(
       accessorFn: (s) => s.title,
       header: "Track / Artist",
       meta: { label: "Title" },
-      cell: ({ row }) => <SongTitleCell song={row.original} />,
+      cell: ({ row }) => (
+        <Link
+          href={`/songs/${row.original.id}`}
+          className="block rounded-md hover:bg-white/4"
+          title="Open analytics"
+        >
+          <SongTitleCell song={row.original} />
+        </Link>
+      ),
     },
     {
       id: "artistName",
@@ -143,6 +152,14 @@ export function songColumns(
         const busy = actions.busyId === song.id;
         return (
           <div className="flex items-center justify-end gap-1">
+            <Link
+              href={`/songs/${song.id}`}
+              className={`${iconButton} text-zinc-400 hover:text-white hover:bg-white/10`}
+              title="Analytics and chunk inspector"
+              aria-label={`Analytics for ${song.title}`}
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+            </Link>
             {actions.onAddToPlaylist && (
               <button
                 type="button"

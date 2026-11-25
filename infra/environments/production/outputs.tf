@@ -100,3 +100,8 @@ output "kafka" {
     volume_id           = module.compute.kafka_volume_id
   }
 }
+
+output "lake_bucket" {
+  description = "S3 data lake bucket (raw events as Parquet)"
+  value       = module.lake.bucket_name
+}

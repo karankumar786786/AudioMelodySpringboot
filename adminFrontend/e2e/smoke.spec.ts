@@ -243,3 +243,54 @@ test.describe("shorts", () => {
     await expect(dialog.getByRole("button", { name: "Upload" })).toBeDisabled();
   });
 });
+
+test.describe("song analytics", () => {
+  test("dashboard shows listening, linked to the song page", async ({ page }) => {
+    const api = new MockApi(page);
+    await api.install();
+    await api.signIn();
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "Listening" })).toBeVisible();
+    await expect(page.getByText("Most skipped intros")).toBeVisible();
+    await page.getByRole("link", { name: /Midnight Drive/ }).first().click();
+    await expect(page).toHaveURL(/\/songs\/song-1$/);
+  });
+
+  test("song page: KPIs, heatmap and quality", async ({ page }) => {
+    const api = new MockApi(page);
+    await api.install();
+    await api.signIn();
+    await page.goto("/songs/song-1");
+    await expect(page.getByRole("heading", { name: "Midnight Drive" })).toBeVisible();
+    await expect(page.getByText("Completion rate")).toBeVisible();
+    await expect(page.getByText("50%").first()).toBeVisible();
+    expect(api.callsTo("GET", "/admin/song/song-1/analytics")).not.toHaveLength(0);
+
+    await page.getByRole("tab", { name: "Listening heatmap" }).click();
+    await expect(page.getByRole("img", { name: "Listens per second of the song" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Hook 1: 0:06/ })).toBeVisible();
+
+    await page.getByRole("tab", { name: "Delivery & quality" }).click();
+    await expect(page.getByText("Delivery by quality and platform")).toBeVisible();
+    await expect(page.getByRole("cell", { name: "610 ms" })).toBeVisible();
+  });
+
+  test("chunk inspector fetches every chunk and flags the missing one", async ({ page }) => {
+    const api = new MockApi(page);
+    await api.install();
+    await api.signIn();
+    await page.goto("/songs/song-1");
+    await page.getByRole("tab", { name: "Chunk inspector" }).click();
+    await expect(page.getByText("3 renditions")).toBeVisible();
+
+    await page.getByRole("button", { name: "Run test" }).click();
+    await expect(page.getByText("12 / 12 chunks")).toBeVisible();
+    await expect(page.getByText("Integrity checks")).toBeVisible();
+    // 240kbps chunk 2 is a 404 in the fixture.
+    await expect(page.getByText("1 failed: #2 (404)")).toBeVisible();
+    await expect(page.getByText(/320 kbps measured vs 320 kbps nominal/)).toBeVisible();
+
+    const table = page.getByTestId("chunk-table");
+    await expect(table.getByRole("row")).toHaveCount(5); // header + init + 3 chunks
+  });
+});

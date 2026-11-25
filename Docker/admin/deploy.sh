@@ -103,6 +103,12 @@ scp -i "$KEY_PATH" -o StrictHostKeyChecking=no \
   "${REPO_ROOT}/infra/kafka/apply-topics.sh" \
   "ubuntu@${TARGET_IP}:~/app/kafka/"
 
+# Data lake writer config (Redpanda Connect)
+ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no "ubuntu@${TARGET_IP}" "mkdir -p ~/app/lake"
+scp -i "$KEY_PATH" -o StrictHostKeyChecking=no \
+  "${REPO_ROOT}/infra/lake/connect.yaml" \
+  "ubuntu@${TARGET_IP}:~/app/lake/"
+
 # Mount the Kafka EBS volume at /mnt/kafka (formats it only the first time) and point
 # Redpanda's advertised address at this instance's private IP.
 KAFKA_VOLUME_ID=""

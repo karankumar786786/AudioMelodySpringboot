@@ -18,6 +18,7 @@ jest.mock("@/service/audioPlayerService", () => ({
     getCurrentTime: jest.fn(() => 0),
     setLastPlayed: jest.fn(),
     markCurrentTrackReported: jest.fn(),
+    reportSkippedListen: jest.fn(),
     syncUpcomingPreload: jest.fn(),
     setOnTrackEnd: jest.fn(),
     setRemoteCommandHandlers: jest.fn(),
@@ -115,8 +116,8 @@ describe("nextTrack", () => {
   it("records a skip only for manual skips", async () => {
     const store = storeWith(["a", "b", "c", "d", "e", "f"]);
     await run(store, nextTrack(true));
-    expect(interactions.recordSkip).toHaveBeenCalledWith("a");
-    expect(player.markCurrentTrackReported).toHaveBeenCalled();
+    expect(interactions.recordSkip).toHaveBeenCalledWith("a", 0);
+    expect(player.reportSkippedListen).toHaveBeenCalled();
   });
 
   it("repeat one restarts the song when it ends naturally", async () => {
@@ -174,7 +175,7 @@ describe("prevTrack", () => {
     await run(store, prevTrack());
     expect(current(store)).toBe("a");
     expect(playedIds()).toEqual(["a"]);
-    expect(interactions.recordSkip).toHaveBeenCalledWith("b");
+    expect(interactions.recordSkip).toHaveBeenCalledWith("b", expect.any(Number));
   });
 
   it("forceSkip goes back even late in the track", async () => {

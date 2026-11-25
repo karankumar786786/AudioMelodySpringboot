@@ -1,4 +1,5 @@
 import { AudioPlayer, AudioStatus } from "expo-audio";
+import { Platform } from "react-native";
 import { Song, PlayerSong, AudioQuality } from "@/types";
 import { store } from "@/store/hook";
 import { configureAudioPriority } from "@/utils";
@@ -19,7 +20,7 @@ import {
 import { PlayerStore } from "@/storage/PlayerStore";
 import { audioPlayerPool } from "./audioPlayerPool";
 import { LockScreenController } from "./player/lockScreenController";
-import { ProgressReporter } from "./player/progressReporter";
+import { ProgressReporter, serverQuality } from "./player/progressReporter";
 import { QueueAdvancer, decideTrackEndAction } from "./player/queueAdvancer";
 import { SeekGuard } from "./player/seekGuard";
 import { SleepTimer } from "./player/sleepTimer";
@@ -59,7 +60,11 @@ export class AudioPlayerService {
   private seekGuard = new SeekGuard();
   private sleepTimer = new SleepTimer();
   private queue = new QueueAdvancer(this.pool);
-  private progress = new ProgressReporter(() => this.currentPlayingSong);
+  private progress = new ProgressReporter(
+    () => this.currentPlayingSong,
+    () => store.getState().player.audioQuality,
+    Platform.OS === "ios" ? "ios" : Platform.OS === "android" ? "android" : "web"
+  );
   private lockScreen = new LockScreenController({
     getActivePlayer: () => this.activePlayer,
     getCurrentSong: () => this.currentPlayingSong,
@@ -79,6 +84,16 @@ export class AudioPlayerService {
   }
 
   public markCurrentTrackReported(): void {
+    this.progress.markReported();
+  }
+
+  /**
+   * The user skipped the current track: report what they heard (when it's at least 5%,
+   * flagged as skipped, so the song's heatmap and drop-off include skipped listens),
+   * then mark it reported so the track change doesn't report it again.
+   */
+  public reportSkippedListen(): void {
+    this.progress.reportPartialListen(this.activePlayer, true);
     this.progress.markReported();
   }
 
@@ -204,6 +219,11 @@ export class AudioPlayerService {
     const isPlaying = Boolean(status.playing);
     const isBuffering = Boolean(status.isBuffering);
     const isLoaded = Boolean((status as any).isLoaded ?? true);
+
+    // Listening detail (what was played, seeks, stalls) for the track on screen only.
+    if (!slotSong || slotSong.id === this.currentPlayingSong?.id) {
+      this.progress.onStatus(reportedTime, isPlaying, isBuffering);
+    }
 
     // Only log buffer transitions during active playback to prevent noise while paused
     if (isPlaying && isBuffering !== this.lastLoggedBuffering) {
@@ -377,7 +397,8 @@ export class AudioPlayerService {
     await this.init();
     if (requestId !== this.playRequestId) return;
 
-    this.progress.reportPartialListen(this.activePlayer);
+    // Replaying the same track (quality change, restart) isn't a skip.
+    this.progress.reportPartialListen(this.activePlayer, song.id !== this.currentPlayingSong?.id);
 
     const { playerSong, fetched } = await this.hydrate(song);
     if (fetched && requestId !== this.playRequestId) return;
@@ -617,6 +638,7 @@ export class AudioPlayerService {
     store.dispatch(setCurrentTime(safeTime));
     store.dispatch(setBufferedTime(this.bufferedSeconds));
     PlayerStore.savePlaybackPosition(safeTime);
+    this.progress.listen.seek((player.currentTime || 0) * 1000, safeTime * 1000);
 
     try {
       await player.seekTo(safeTime);
@@ -680,6 +702,7 @@ export class AudioPlayerService {
       `[AudioPlayerService] Audio quality preference set to "${quality}". Applies to streaming tracks.`
     );
     this.currentQuality = quality;
+    this.progress.listen.setQuality(serverQuality(quality));
     if (this.currentPlayingSong) {
       const curTime = this.activePlayer?.currentTime || 0;
       const wasPlaying = Boolean(this.activePlayer?.playing);
@@ -709,7 +732,7 @@ export class AudioPlayerService {
       this.seekGuard.clear();
       this.sleepTimer.clear();
       this.transition.reset();
-      this.progress.reportPartialListen(this.activePlayer);
+      this.progress.reportPartialListen(this.activePlayer, false);
       this.currentPlayingSong = null;
       this.progress.resetForNewTrack();
       this.queue.reset();

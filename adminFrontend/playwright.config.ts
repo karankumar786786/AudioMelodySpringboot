@@ -28,6 +28,7 @@ export default defineConfig({
     env: {
       // Points the app at a host that only the route mocks answer.
       NEXT_PUBLIC_API_URL: "http://api.test",
+      NEXT_PUBLIC_S3_BASE_URL: "http://s3.test",
       NEXT_TELEMETRY_DISABLED: "1",
     },
   },

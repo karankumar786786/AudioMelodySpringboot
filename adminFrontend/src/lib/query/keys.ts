@@ -67,4 +67,10 @@ export const queryKeys = {
   search: {
     global: (q: string) => ["search", q] as const,
   },
+  analytics: {
+    all: ["analytics"] as const,
+    song: (id: string, range: string) =>
+      ["analytics", "song", id, range] as const,
+    overview: (range: string) => ["analytics", "overview", range] as const,
+  },
 } as const;

@@ -1,0 +1,13 @@
+{
+  "type": "record", "name": "SongSecondStats", "namespace": "me.oneorg.melody.events.analytics",
+  "doc": "Running totals for one second of one song. Topic analytics.song-timeline.v1 (compacted), key song_id|sec. Also the per-play delta inside the analytics topology.",
+  "fields": [
+    {"name": "song_id", "type": "string"},
+    {"name": "sec", "type": "int"},
+    {"name": "listens", "type": "long", "default": 0},
+    {"name": "exits", "type": "long", "default": 0},
+    {"name": "skips", "type": "long", "default": 0},
+    {"name": "seeks_away", "type": "long", "default": 0},
+    {"name": "seeks_into", "type": "long", "default": 0}
+  ]
+}

@@ -123,3 +123,9 @@ variable "is_public" {
   description = "Whether to configure both buckets for complete public access"
   default     = true
 }
+
+variable "lake_bucket_name" {
+  description = "S3 data lake bucket for raw listening events (Parquet)"
+  type        = string
+  default     = "onemelody-lake-production"
+}

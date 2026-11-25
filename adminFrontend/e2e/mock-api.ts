@@ -134,6 +134,11 @@ export class MockApi {
     await this.page.route("http://s3.test/**", (route) =>
       route.fulfill({ status: 200, body: "" }),
     );
+    // A 12 s song in three 4 s chunks per quality; 240kbps chunk 2 is missing (404).
+    // Registered after the catch-all above, so it wins for these paths.
+    await this.page.route(`${S3}/${HLS_KEY}/**`, (route, request) =>
+      fulfillHls(route, new URL(request.url()).pathname),
+    );
     await this.page.route("https://upload.imagekit.io/**", (route) =>
       route.fulfill({
         status: 200,
@@ -247,6 +252,13 @@ export class MockApi {
       song.isFeatured = b?.featured ?? !song.isFeatured;
       return json(200, song);
     }
+    // --- analytics ---
+    if (p === "/admin/analytics/overview") return json(200, analyticsOverview());
+    const analytics = p.match(/^\/admin\/song\/([^/]+)\/analytics$/);
+    if (analytics) {
+      const song = this.songs.find((s) => s.id === analytics[1]);
+      return song ? json(200, songAnalytics(song)) : json(404, { error: "Not found" });
+    }
     const songDetail = p.match(/^\/admin\/song\/([^/]+)$/);
     if (songDetail && method === "DELETE") {
       const song = this.songs.find((s) => s.id === songDetail[1]);
@@ -336,5 +348,139 @@ function cors(): Record<string, string> {
     "Access-Control-Allow-Credentials": "true",
     "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type,X-Admin-Client,X-TEMP-TOKEN",
+  };
+}
+
+// ---- HLS + analytics fixtures ----------------------------------------------------------
+
+export const S3 = "http://s3.test";
+export const HLS_KEY = "songs/hls-test";
+const QUALITIES = ["128kbps", "240kbps", "320kbps"];
+
+function fulfillHls(route: Route, path: string) {
+  const rel = path.slice(`/${HLS_KEY}/`.length);
+  const headers = { "Access-Control-Allow-Origin": "*" };
+  const text = (body: string) =>
+    route.fulfill({ status: 200, headers, contentType: "application/vnd.apple.mpegurl", body });
+  if (rel === "master.m3u8") {
+    return text(
+      [
+        "#EXTM3U",
+        "#EXT-X-VERSION:7",
+        ...QUALITIES.flatMap((q) => [
+          `#EXT-X-STREAM-INF:BANDWIDTH=${Number.parseInt(q, 10) * 1000},CODECS="mp4a.40.2"`,
+          `audio/${q}/playlist.m3u8`,
+        ]),
+      ].join("\n"),
+    );
+  }
+  const m = rel.match(/^audio\/(\d+kbps)\/(.+)$/);
+  if (!m) return route.fulfill({ status: 404, headers, body: "" });
+  const [, q, file] = m;
+  if (file === "playlist.m3u8") {
+    return text(
+      [
+        "#EXTM3U",
+        "#EXT-X-VERSION:7",
+        "#EXT-X-TARGETDURATION:4",
+        "#EXT-X-PLAYLIST-TYPE:VOD",
+        '#EXT-X-MAP:URI="init.mp4"',
+        ...[0, 1, 2].flatMap((i) => ["#EXTINF:4.000,", `${q}_${String(i).padStart(5, "0")}.m4s`]),
+        "#EXT-X-ENDLIST",
+      ].join("\n"),
+    );
+  }
+  if (file === "init.mp4") return route.fulfill({ status: 200, headers, body: Buffer.alloc(800) });
+  if (q === "240kbps" && file.endsWith("_00002.m4s")) return route.fulfill({ status: 404, headers, body: "" });
+  // Bytes for exactly the nominal bitrate over 4 s.
+  return route.fulfill({ status: 200, headers, body: Buffer.alloc((Number.parseInt(q, 10) * 1000 * 4) / 8) });
+}
+
+function days(n: number) {
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(Date.UTC(2026, 10, 20 + i));
+    return d.toISOString().slice(0, 10);
+  });
+}
+
+const kpis = {
+  current: {
+    source: "events",
+    plays: 120,
+    listeners: 45,
+    qualifiedStreams: 100,
+    completions: 60,
+    completionRate: 0.5,
+    skips: 30,
+    skipRate: 0.25,
+    avgListened: 0.62,
+    listenedHours: 4.2,
+    returningListeners: 12,
+    playsPerListener: 2.67,
+  },
+  previous: null,
+  change: { plays: 0.2, listeners: null, qualifiedStreams: 0.1, completions: 0, completionRate: -0.05, skips: null, listenedHours: 0.3 },
+};
+
+export function songAnalytics(song: MockSong) {
+  const seconds = Array.from({ length: 12 }, (_, sec) => {
+    const listens = sec >= 6 && sec < 9 ? 90 : 100 - sec * 4;
+    return { sec, listens, exits: 2, skips: sec === 3 ? 5 : 0, seeksAway: 0, seeksInto: sec === 6 ? 8 : 0, retention: listens / 100 };
+  });
+  return {
+    song: {
+      id: song.id,
+      title: song.title,
+      artistName: song.artistName,
+      duration: 12,
+      songKey: HLS_KEY,
+      imageKey: "",
+      status: song.status,
+      totalStreams: song.totalStreams ?? 0,
+    },
+    range: { label: "30d", start: "2026-10-28", end: "2026-11-26" },
+    kpis,
+    engagement: { favourites: 7, playlistAdds: 3, shorts: 1 },
+    daily: days(5).map((day, i) => ({ day, plays: 20 + i * 2, completions: 10 + i, skips: 5, qualifiedStreams: 18, listenedHours: 0.8 })),
+    timeline: {
+      seconds,
+      hooks: [{ startSec: 6, endSec: 9, score: 40 }],
+      summary: { trackedPlays: 100, peakSec: 0, earlyExitRate: 1, totalSkips: 5, totalSeeks: 8 },
+    },
+    quality: [
+      { quality: "auto", platform: "ios", plays: 80, listenedHours: 3, avgStartupMs: 420, rebuffersPerPlay: 0.1, rebufferMsPerPlay: 120, stallRatio: 0.002 },
+      { quality: "320kbps", platform: "web", plays: 40, listenedHours: 1.2, avgStartupMs: 610, rebuffersPerPlay: 0.3, rebufferMsPerPlay: 400, stallRatio: 0.01 },
+    ],
+    lake: {
+      available: true,
+      error: null,
+      audience: { plays: 120, listeners: 45, returningListeners: 12, playsPerListener: 2.67 },
+      whenListened: [
+        { weekday: 0, hour: 9, plays: 12 },
+        { weekday: 4, hour: 21, plays: 30 },
+      ],
+      platforms: [
+        { platform: "ios", plays: 80, avgListened: 0.7 },
+        { platform: "web", plays: 40, avgListened: 0.5 },
+      ],
+    },
+  };
+}
+
+export function analyticsOverview() {
+  return {
+    range: { label: "30d", start: "2026-10-28", end: "2026-11-26" },
+    kpis,
+    daily: days(5).map((day, i) => ({ day, plays: 100 + i * 10, listeners: 40 + i, completions: 50, skips: 20 })),
+    topSongs: [
+      { songId: "song-1", title: "Midnight Drive", artistName: "The Testers", imageKey: null, plays: 120, completionRate: 0.5, skipRate: 0.25, listenedHours: 4.2 },
+    ],
+    topCompletion: [],
+    skippedIntros: [
+      { songId: "song-2", title: "Morning Light", artistName: "Dawn Chorus", imageKey: null, plays: 40, earlyExits: 20, earlyExitRate: 0.5 },
+    ],
+    qualityMix: [{ quality: "auto", plays: 80, avgStartupMs: 420, rebuffersPerPlay: 0.1 }],
+    retention: [{ cohort: "2026-11-02", size: 10, weeks: [{ week: 0, listeners: 10, rate: 1 }, { week: 1, listeners: 4, rate: 0.4 }] }],
+    lake: { available: true, error: null },
   };
 }

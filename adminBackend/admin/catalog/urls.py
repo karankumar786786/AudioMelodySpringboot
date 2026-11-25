@@ -1,4 +1,5 @@
 from django.urls import path
+from .analytics_views import AnalyticsOverviewView, SongAnalyticsView
 from .shorts_views import (
     ShortBanView,
     ShortDetailView,
@@ -80,6 +81,8 @@ urlpatterns = [
     path("admin/song/jobs", SongJobsListView.as_view(), name="admin-song-jobs"),
     path("admin/song/job/<str:pk>", SongJobDetailView.as_view(), name="admin-song-job-detail"),
     path("admin/song", SongListView.as_view(), name="admin-song-list"),
+    path("admin/analytics/overview", AnalyticsOverviewView.as_view(), name="admin-analytics-overview"),
+    path("admin/song/<str:pk>/analytics", SongAnalyticsView.as_view(), name="admin-song-analytics"),
     path("admin/song/<str:pk>/featured", SongToggleFeaturedView.as_view(), name="admin-song-featured"),
     path("admin/song/<str:pk>/reprocess-audio", SongReprocessAudioView.as_view(), name="admin-song-reprocess-audio"),
     path("admin/song/<str:pk>/reprocess-video", SongReprocessVideoView.as_view(), name="admin-song-reprocess-video"),

@@ -44,7 +44,7 @@ class InteractionApiControllerEventsTest {
                         .contentType(MediaType.APPLICATION_JSON).content(PLAY))
                 .andExpect(status().isAccepted());
 
-        verify(telemetry).play("u-1", "song-1", 0.85, 180000L);
+        verify(telemetry).play(org.mockito.ArgumentMatchers.eq("u-1"), org.mockito.ArgumentMatchers.eq("song-1"), org.mockito.ArgumentMatchers.eq(0.85), org.mockito.ArgumentMatchers.eq(180000L), any(ListenDetail.class));
         verify(service, never()).trackPlay(anyString(), anyString(), anyDouble());
     }
 
@@ -54,14 +54,14 @@ class InteractionApiControllerEventsTest {
                         .contentType(MediaType.APPLICATION_JSON).content(PLAY))
                 .andExpect(status().isOk());
 
-        verify(telemetry).play("u-1", "song-1", 0.85, 180000L);
+        verify(telemetry).play(org.mockito.ArgumentMatchers.eq("u-1"), org.mockito.ArgumentMatchers.eq("song-1"), org.mockito.ArgumentMatchers.eq(0.85), org.mockito.ArgumentMatchers.eq(180000L), any(ListenDetail.class));
         verify(service).trackPlay("u-1", "song-1", 0.85);
     }
 
     @Test
     void kafkaOutageAnswers503SoTheAppRetries() throws Exception {
         org.mockito.Mockito.doThrow(new EventsUnavailableException("down", null))
-                .when(telemetry).skip("u-1", "song-1");
+                .when(telemetry).skip("u-1", "song-1", null);
 
         mvc(EventsMode.KAFKA).perform(post("/api/interaction/skip").requestAttr("userId", "u-1")
                         .contentType(MediaType.APPLICATION_JSON).content("{\"songId\":\"song-1\"}"))

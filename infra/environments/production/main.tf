@@ -15,6 +15,16 @@ module "secrets" {
   project_name = var.project_name
 }
 
+module "lake" {
+  source = "../../modules/lake"
+
+  project_name = var.project_name
+  environment  = var.environment
+  bucket_name  = var.lake_bucket_name
+  # The processing server runs Redpanda Connect (writes) and the admin API (reads, archives).
+  reader_writer_role_names = [module.secrets.role_names["processing"]]
+}
+
 module "compute" {
   source = "../../modules/compute"
 

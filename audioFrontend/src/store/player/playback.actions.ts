@@ -1,3 +1,5 @@
+import type { ListenDetail } from "@/lib/listenTracker";
+import { markWebSkip } from "@/lib/web-listen";
 import { toast } from "sonner";
 import { musicApi } from "@/lib/api";
 import { mapToPlayerSong, type PlayerSong } from "@/lib/player-utils";
@@ -337,11 +339,11 @@ export const playbackActions = {
     });
   },
 
-  recordListen: async (songId: string, part: number) => {
+  recordListen: async (songId: string, part: number, detail?: ListenDetail | null, durationSec?: number) => {
     const { systemUser } = playerStore.state;
     if (systemUser?.id && songId) {
       try {
-        await musicApi.interactions.recordListen(songId, part);
+        await musicApi.interactions.recordListen(songId, part, detail, durationSec);
       } catch {
         // Ignored unmount / offline telemetry drop
       }
@@ -351,8 +353,9 @@ export const playbackActions = {
   recordSkip: async (songId: string) => {
     const { systemUser } = playerStore.state;
     if (systemUser?.id && songId) {
+      markWebSkip();
       try {
-        await musicApi.interactions.recordSkip(songId);
+        await musicApi.interactions.recordSkip(songId, playerStore.state.currentTime);
       } catch {
         // Ignored unmount / offline telemetry drop
       }

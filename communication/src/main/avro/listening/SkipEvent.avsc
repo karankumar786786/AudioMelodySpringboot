@@ -4,6 +4,7 @@
   "fields": [
     {"name": "meta", "type": "EventMeta"},
     {"name": "user_id", "type": "string"},
-    {"name": "song_id", "type": "string"}
+    {"name": "song_id", "type": "string"},
+    {"name": "position_ms", "type": ["null", "long"], "default": null, "doc": "Track position when skipped, if known."}
   ]
 }

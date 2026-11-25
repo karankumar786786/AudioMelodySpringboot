@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
+import { qualityLabel, webListen } from "@/lib/web-listen";
 import { toast } from "sonner";
 import { playerActions, playerStore } from "../../../store/player.store";
 import { mapToPlayerSong, type QualityTrack } from "@/lib/player-utils";
@@ -359,6 +360,7 @@ export function useHlsPlayer(
     // Only apply if levels are loaded
     if (!hls.levels || hls.levels.length === 0) return;
 
+    webListen.setQuality(qualityLabel(selectedQuality));
     if (selectedQuality === "auto") {
       hls.currentLevel = -1; // -1 represents AUTO level selection
     } else {

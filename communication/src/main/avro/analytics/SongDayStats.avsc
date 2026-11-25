@@ -1,0 +1,13 @@
+{
+  "type": "record", "name": "SongDayStats", "namespace": "me.oneorg.melody.events.analytics",
+  "doc": "Daily totals for one song (UTC). Topic analytics.song-daily.v1, key song_id|yyyy-MM-dd.",
+  "fields": [
+    {"name": "song_id", "type": "string"},
+    {"name": "day", "type": {"type": "int", "logicalType": "date"}},
+    {"name": "plays", "type": "long", "default": 0},
+    {"name": "qualified_streams", "type": "long", "default": 0},
+    {"name": "completions", "type": "long", "default": 0},
+    {"name": "skips", "type": "long", "default": 0},
+    {"name": "listened_ms", "type": "long", "default": 0}
+  ]
+}

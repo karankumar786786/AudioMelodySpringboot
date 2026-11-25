@@ -43,11 +43,19 @@ public class TelemetryProducer {
     }
 
     public void play(String userId, String songId, double ratio, Long durationMs) {
-        sendPlay(userId, songId, ratio, durationMs, serverMeta());
+        play(userId, songId, ratio, durationMs, ListenDetail.EMPTY);
+    }
+
+    public void play(String userId, String songId, double ratio, Long durationMs, ListenDetail detail) {
+        sendPlay(userId, songId, ratio, durationMs, detail, serverMeta());
     }
 
     public void skip(String userId, String songId) {
-        sendSkip(userId, songId, serverMeta());
+        skip(userId, songId, null);
+    }
+
+    public void skip(String userId, String songId, Long positionMs) {
+        sendSkip(userId, songId, positionMs, serverMeta());
     }
 
     public void search(String userId, SearchAction action, String entityType, String entityId) {
@@ -82,9 +90,15 @@ public class TelemetryProducer {
                 double ratio = e.percentage() == null ? 0.0 : e.percentage();
                 if (ratio < 0.0 || ratio > 1.0) throw new BadRequestException("percentage must be between 0 and 1");
                 Long duration = e.durationMs() != null && e.durationMs() > 0 ? e.durationMs() : null;
-                yield () -> sendPlay(userId, e.songId(), ratio, duration, meta);
+                ListenDetail detail = ListenDetail.of(e.ranges(), e.exitMs(), e.skipped(), e.seeks(), e.quality(),
+                        e.platform(), e.startupMs(), e.rebufferCount(), e.rebufferMs(), duration);
+                yield () -> sendPlay(userId, e.songId(), ratio, duration, detail, meta);
             }
-            case "skip" -> { requireSong(e.songId()); yield () -> sendSkip(userId, e.songId(), meta); }
+            case "skip" -> {
+                requireSong(e.songId());
+                if (e.positionMs() != null && e.positionMs() < 0) throw new BadRequestException("positionMs can't be negative");
+                yield () -> sendSkip(userId, e.songId(), e.positionMs(), meta);
+            }
             case "search-play" -> { requireSong(e.songId()); yield () -> sendSearch(userId, SearchAction.PLAY, "SONG", e.songId(), meta); }
             case "search-click" -> {
                 requireId(e.entityId(), "entityId");
@@ -100,17 +114,27 @@ public class TelemetryProducer {
         };
     }
 
-    private void sendPlay(String userId, String songId, double ratio, Long durationMs, EventMeta meta) {
+    private void sendPlay(String userId, String songId, double ratio, Long durationMs, ListenDetail d, EventMeta meta) {
         PlayEvent event = PlayEvent.newBuilder()
                 .setMeta(meta).setUserId(userId).setSongId(songId)
                 .setListenedRatio(Math.max(0.0, Math.min(1.0, ratio)))
                 .setDurationMs(durationMs)
+                .setRanges(d.ranges())
+                .setExitMs(d.exitMs())
+                .setSkipped(d.skipped())
+                .setSeeks(d.seeks())
+                .setQuality(d.quality())
+                .setPlatform(d.platform())
+                .setStartupMs(d.startupMs())
+                .setRebufferCount(d.rebufferCount())
+                .setRebufferMs(d.rebufferMs())
                 .build();
         publisher.publish(Topics.PLAY, userId, event, meta.getOccurredAt());
     }
 
-    private void sendSkip(String userId, String songId, EventMeta meta) {
-        SkipEvent event = SkipEvent.newBuilder().setMeta(meta).setUserId(userId).setSongId(songId).build();
+    private void sendSkip(String userId, String songId, Long positionMs, EventMeta meta) {
+        SkipEvent event = SkipEvent.newBuilder().setMeta(meta).setUserId(userId).setSongId(songId)
+                .setPositionMs(positionMs).build();
         publisher.publish(Topics.SKIP, userId, event, meta.getOccurredAt());
     }
 

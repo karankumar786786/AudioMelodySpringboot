@@ -1,7 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { AppState, AppStateStatus } from "react-native";
 import { api } from "./baseApi";
-import { createTelemetryQueue, FLUSH_INTERVAL_MS, TelemetryType } from "./telemetryQueue";
+import type { ListenDetail } from "./player/listenTracker";
+import { createTelemetryQueue, FLUSH_INTERVAL_MS, TelemetryEvent, TelemetryType } from "./telemetryQueue";
 
 const LEGACY_QUEUE_KEY = "audiomelody_telemetry_outbox";
 
@@ -31,11 +32,9 @@ if (typeof AppState !== "undefined" && AppState.addEventListener) {
   });
 }
 
-async function record(
-  type: TelemetryType,
-  fields: { songId?: string; percentage?: number; durationMs?: number; entityType?: string; entityId?: string },
-  flushNow = false,
-): Promise<void> {
+type EventFields = Omit<TelemetryEvent, "type" | "eventId" | "occurredAt">;
+
+async function record(type: TelemetryType, fields: EventFields, flushNow = false): Promise<void> {
   await telemetry.enqueue({ type, ...fields });
   if (flushNow) flushTelemetryQueue().catch(() => {});
 }
@@ -53,18 +52,23 @@ export const interactionService = {
    * @param songId — ID of the song that was played
    * @param percentage — 0.0 to 1.0 of the track that was listened to
    * @param durationSec — track length, if known (lets the server apply the 30-second rule)
+   * @param detail — what was played, seeks, quality and stalls (song analytics)
    */
-  async recordPlay(songId: string, percentage: number, durationSec?: number): Promise<void> {
+  async recordPlay(songId: string, percentage: number, durationSec?: number, detail?: ListenDetail | null): Promise<void> {
     if (!songId) return;
     const safePercentage = Math.min(1.0, Math.max(0.0, isNaN(percentage) ? 0.05 : percentage));
     const durationMs = durationSec && durationSec > 0 ? Math.round(durationSec * 1000) : undefined;
-    await record("play", { songId, percentage: safePercentage, durationMs }, true);
+    await record("play", { songId, percentage: safePercentage, durationMs, ...(detail ?? {}) }, true);
   },
 
-  /** Records a skip (the user pressed next). */
-  async recordSkip(songId: string): Promise<void> {
+  /** Records a skip (the user pressed next), with the position it happened at if known. */
+  async recordSkip(songId: string, positionSec?: number): Promise<void> {
     if (!songId) return;
-    await record("skip", { songId });
+    const positionMs =
+      positionSec !== undefined && Number.isFinite(positionSec) && positionSec >= 0
+        ? Math.round(positionSec * 1000)
+        : undefined;
+    await record("skip", { songId, positionMs });
   },
 
   /** Records a play that started from a search result. */

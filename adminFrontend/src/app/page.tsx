@@ -5,6 +5,7 @@ import Link from "next/link";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardMetricCards } from "@/components/dashboard/DashboardMetricCards";
 import { DashboardQuickActions } from "@/components/dashboard/DashboardQuickActions";
+import { ListeningOverview } from "@/components/dashboard/ListeningOverview";
 import { RecentJobsWidget } from "@/components/dashboard/RecentJobsWidget";
 import { RecentSongsWidget } from "@/components/dashboard/RecentSongsWidget";
 import { SystemStatusWidget } from "@/components/dashboard/SystemStatusWidget";
@@ -67,6 +68,8 @@ export default function DashboardPage() {
 
       {/* Metrics Cards Grid */}
       <DashboardMetricCards stats={stats} loading={loading} />
+
+      <ListeningOverview />
 
       {/* Primary Catalog & Pipeline Ingestion Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
