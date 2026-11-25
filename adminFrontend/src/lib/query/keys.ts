@@ -54,6 +54,12 @@ export const queryKeys = {
       list: (params: Params) => ["jobs", "deletion", "list", params] as const,
     },
   },
+  shorts: {
+    all: ["shorts"] as const,
+    lists: () => ["shorts", "list"] as const,
+    list: (params: Params) => ["shorts", "list", params] as const,
+    reports: (params: Params) => ["shorts", "reports", params] as const,
+  },
   catalogHealth: {
     all: ["catalog-health"] as const,
     list: (params: Params) => ["catalog-health", "list", params] as const,

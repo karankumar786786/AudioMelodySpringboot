@@ -87,14 +87,19 @@ That meant answering questions like these:
   screen is cached, so the app opens instantly even offline.
 - **Your library:** favourites, followed artists, listening and search history, and
   personal playlists. Playlists can be private or shared by link, saved by others, or duplicated.
-- **Shorts and canvas:** a vertical video feed, and looping visuals behind the player.
+- **Shorts:** a vertical video feed of short clips with their own sound, posted by One
+  Melody or by listeners and optionally linked to a song. There's a "For you" ranking,
+  likes, sharing and reporting, plus uploads straight from the camera roll.
+- **Canvas:** silent looping visuals behind the player and on playlist pages.
 - **Onboarding:** pick favourite artists and genres, and recommendations work from the first play.
 - **Share:** song links open a public page with artwork and Open Graph previews.
 
 ### For the team: admin dashboard
 
-- **Upload and publish:** upload audio, video, cover art and canvas, then watch each
+- **Upload and publish:** upload audio, video, cover art and a background loop, then watch each
   processing step live, with timings. Failed jobs can be retried, cancelled or recovered.
+- **Shorts moderation:** upload official shorts, hide or delete any short, work through
+  listener reports, and ban accounts from posting.
 - **Catalog management:** songs, artists, playlists and featured content, with bulk-friendly
   data tables, server-side filters and CSV export.
 - **Catalog health:** automatically finds songs missing media, lyrics, audio features or

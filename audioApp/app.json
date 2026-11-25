@@ -60,6 +60,14 @@
           "microphonePermission": false,
           "recordAudioAndroid": false
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow One Melody to use videos from your library to post shorts.",
+          "cameraPermission": "Allow One Melody to use the camera to record shorts.",
+          "microphonePermission": "Allow One Melody to record sound for your shorts."
+        }
       ]
     ],
     "experiments": {

@@ -20,6 +20,8 @@ import { deleteFromRecombee } from "./functions/deleteFromRecombee";
 import { deleteFromImageKit } from "./functions/deleteFromImageKit";
 import { deleteFromS3 } from "./functions/deleteFromS3";
 import { finalizeDelete } from "./functions/finalizeDelete";
+import { processShort } from "./functions/processShort";
+import { deleteShort } from "./functions/deleteShort";
 import {
   setupGracefulShutdownCleanup,
   cleanupStaleTmpFiles,
@@ -75,6 +77,8 @@ const functions = [
   deleteFromImageKit,
   deleteFromS3,
   finalizeDelete,
+  processShort,
+  deleteShort,
 ];
 
 // Protect all internal job management endpoints with API key authentication

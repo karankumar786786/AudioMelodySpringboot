@@ -152,7 +152,7 @@ export function SongsGrid({
                 {song.videoKey && (
                   <span className="flex items-center gap-1 bg-white/20 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md backdrop-blur-sm border border-white/20">
                     <Film className="w-2.5 h-2.5" />
-                    <span>Canvas</span>
+                    <span>Loop</span>
                   </span>
                 )}
                 {song.fullVideoKey && (

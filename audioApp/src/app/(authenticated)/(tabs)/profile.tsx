@@ -305,6 +305,19 @@ export default function ProfileScreen() {
             <Text style={styles.statNumber}>{totalPlaylists}</Text>
             <Text style={styles.statLabel}>Playlists</Text>
           </TouchableOpacity>
+
+          <View style={styles.statDivider} />
+
+          <TouchableOpacity
+            style={styles.stat}
+            onPress={() => router.push("/(authenticated)/my-shorts" as any)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="My shorts"
+          >
+            <Text style={styles.statNumber}>▶</Text>
+            <Text style={styles.statLabel}>My shorts</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Account */}

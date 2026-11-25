@@ -13,7 +13,7 @@ const TABS: {
   {
     mode: "videoOnly",
     label: "Video Only",
-    hint: "(Auto-Audio & Canvas)",
+    hint: "(Auto-Audio & Background Loop)",
     Icon: Film,
   },
 ];

@@ -1,4 +1,14 @@
 from django.urls import path
+from .shorts_views import (
+    ShortBanView,
+    ShortDetailView,
+    ShortHideView,
+    ShortListView,
+    ShortReportListView,
+    ShortReportResolveView,
+    ShortUnhideView,
+    ShortUploadUrlView,
+)
 from .views import (
     ArtistDetailView,
     ArtistListView,
@@ -55,6 +65,16 @@ urlpatterns = [
     path("admin/playlist/<str:pk>/songs/add", PlaylistAddSongView.as_view(), name="admin-playlist-add-song"),
     path("admin/playlist/<str:pk>/songs", PlaylistSongsView.as_view(), name="admin-playlist-songs"),
     path("admin/playlist/<str:pk>", PlaylistDetailView.as_view(), name="admin-playlist-detail"),
+
+    # Shorts (static routes first)
+    path("admin/shorts/upload-url", ShortUploadUrlView.as_view(), name="admin-shorts-upload-url"),
+    path("admin/shorts/reports", ShortReportListView.as_view(), name="admin-shorts-reports"),
+    path("admin/shorts/reports/<str:report_id>/resolve", ShortReportResolveView.as_view(), name="admin-shorts-report-resolve"),
+    path("admin/shorts/ban/<str:user_id>", ShortBanView.as_view(), name="admin-shorts-ban"),
+    path("admin/shorts", ShortListView.as_view(), name="admin-shorts-list"),
+    path("admin/shorts/<str:pk>/hide", ShortHideView.as_view(), name="admin-shorts-hide"),
+    path("admin/shorts/<str:pk>/unhide", ShortUnhideView.as_view(), name="admin-shorts-unhide"),
+    path("admin/shorts/<str:pk>", ShortDetailView.as_view(), name="admin-shorts-detail"),
 
     # Songs (static routes first)
     path("admin/song/jobs", SongJobsListView.as_view(), name="admin-song-jobs"),

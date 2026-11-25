@@ -1,7 +1,6 @@
 import React from "react";
-import CanvasShortsScreen from "../canvas/index";
+import { ShortsFeedScreen } from "@/components/shorts/ShortsFeedScreen";
 
 export default function ShortsTabScreen() {
-  return <CanvasShortsScreen isTab={false} />;
+  return <ShortsFeedScreen />;
 }
-

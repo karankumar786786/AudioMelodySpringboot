@@ -1,112 +1,72 @@
 package me.one_org.melody.Controllers.Api;
 
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Dto.Controllers.Api.ShortsLikeStatusDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
-import me.one_org.melody.Security.CurrentUser;
-import me.one_org.melody.Security.CustomUserDetails;
-import me.one_org.melody.Services.Api.CanvasApiService;
-import me.one_org.melody.Services.Api.ShortsLikesApiService;
 
+/**
+ * Retired: Shorts used to be songs with a canvas loop plus their preview window. Shorts
+ * are now their own uploads under /api/shorts; the canvas stays as the player background.
+ * These routes answer empty for app versions that still call them, and will be removed
+ * together with the user_shorts_likes table.
+ */
 @RestController
 @RequestMapping("/api/canvas")
-@Validated
 public class CanvasApiController {
 
-    private final CanvasApiService canvasApiService;
-    private final ShortsLikesApiService shortsLikesApiService;
+    private static final String DEPRECATION = "true";
+    private static final String SUCCESSOR = "</api/shorts/feed>; rel=\"successor-version\"";
 
-    public CanvasApiController(CanvasApiService canvasApiService, ShortsLikesApiService shortsLikesApiService) {
-        this.canvasApiService = canvasApiService;
-        this.shortsLikesApiService = shortsLikesApiService;
+    private static <T> ResponseEntity<T> retired(T body) {
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .header("Deprecation", DEPRECATION)
+                .header("Link", SUCCESSOR)
+                .body(body);
     }
 
-    /**
-     * Vertical Shorts / Canvas feed for looping visual music experience.
-     */
     @GetMapping("/feed")
     public ResponseEntity<PaginatedResponseDto<SongDto>> getCanvasFeed(
-            @CurrentUser CustomUserDetails currentUser,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String genre,
-            @RequestParam(defaultValue = "latest") String sort
-    ) {
-        String userId = currentUser != null ? currentUser.getId() : null;
-        // If sorting randomly on refresh, do not cache anywhere (no-store) so each fetch is completely fresh
-        CacheControl cache = "random".equalsIgnoreCase(sort) || "discover".equalsIgnoreCase(sort)
-                ? CacheControl.noStore()
-                : CacheControl.maxAge(5, TimeUnit.MINUTES).cachePublic();
-
-        return ResponseEntity.ok()
-                .cacheControl(cache)
-                .body(canvasApiService.getCanvasFeed(userId, page, size, genre, sort));
+            @RequestParam(defaultValue = "10") int size) {
+        return retired(PaginatedResponseDto.empty(page, size));
     }
 
-    /**
-     * Featured vertical canvas tracks for home preview.
-     */
     @GetMapping("/featured")
-    public ResponseEntity<List<SongDto>> getFeaturedCanvas(
-            @RequestParam(defaultValue = "10") int limit
-    ) {
-        return ResponseEntity.ok()
-                .cacheControl(CacheControl.maxAge(10, TimeUnit.MINUTES).cachePublic())
-                .body(canvasApiService.getFeaturedCanvas(limit));
+    public ResponseEntity<List<SongDto>> getFeaturedCanvas() {
+        return retired(List.of());
     }
 
-    /**
-     * Toggle like on a short (separate from library favourites).
-     */
     @PostMapping("/{songId}/like")
-    public ResponseEntity<ShortsLikeStatusDto> toggleLike(
-            @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String songId
-    ) {
-        return ResponseEntity.ok(shortsLikesApiService.toggleLike(currentUser.getId(), songId));
+    public ResponseEntity<ShortsLikeStatusDto> toggleLike(@PathVariable String songId) {
+        return retired(new ShortsLikeStatusDto(songId, false, 0L));
     }
 
-    /**
-     * Check if a short is liked by the current user and get total likes count.
-     */
     @GetMapping("/{songId}/like")
-    public ResponseEntity<ShortsLikeStatusDto> getLikeStatus(
-            @CurrentUser CustomUserDetails currentUser,
-            @PathVariable String songId
-    ) {
-        String userId = currentUser != null ? currentUser.getId() : null;
-        return ResponseEntity.ok(shortsLikesApiService.getLikeStatus(userId, songId));
+    public ResponseEntity<ShortsLikeStatusDto> getLikeStatus(@PathVariable String songId) {
+        return retired(new ShortsLikeStatusDto(songId, false, 0L));
     }
 
-    /**
-     * Get list of song IDs for shorts liked by the current user.
-     */
     @GetMapping("/liked")
-    public ResponseEntity<List<String>> getLikedShortSongIds(
-            @CurrentUser CustomUserDetails currentUser
-    ) {
-        return ResponseEntity.ok(shortsLikesApiService.getLikedSongIds(currentUser.getId()));
+    public ResponseEntity<List<String>> getLikedShortSongIds() {
+        return retired(List.of());
     }
 
-    /**
-     * Get paginated songs for shorts liked by the current user.
-     */
     @GetMapping("/liked/songs")
     public ResponseEntity<PaginatedResponseDto<SongDto>> getLikedShortSongs(
-            @CurrentUser CustomUserDetails currentUser,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size
-    ) {
-        return ResponseEntity.ok(shortsLikesApiService.getLikedShortSongs(currentUser.getId(), page, size));
+            @RequestParam(defaultValue = "10") int size) {
+        return retired(PaginatedResponseDto.empty(page, size));
     }
 }
-
-

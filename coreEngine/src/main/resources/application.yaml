@@ -107,6 +107,17 @@ spring:
 ---
 # LEGACY (default) | DUAL | KAFKA. See Events/Kafka/EventsMode.java.
 melody:
+  shorts:
+    temp-bucket: ${S3_TEMP_BUCKET:audiomelodyspringboottemp}
+    region: ${AWS_REGION:ap-south-1}
+    max-upload-bytes: ${SHORTS_MAX_UPLOAD_BYTES:104857600}   # 100 MB
+    max-uploads-per-day: ${SHORTS_MAX_UPLOADS_PER_DAY:5}
+    upload-url-ttl: 15m
+    auto-hide-reports: ${SHORTS_AUTO_HIDE_REPORTS:3}
+    # Inngest Event API. Leave the URL empty in production (Inngest Cloud + the event key);
+    # for the local dev server use http://localhost:8288/e/dev
+    inngest-event-url: ${INNGEST_EVENT_URL:}
+    inngest-event-key: ${INNGEST_EVENT_KEY:}
   events:
     mode: ${EVENTS_MODE:LEGACY}
     source: core-api
