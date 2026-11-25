@@ -3,6 +3,7 @@ import { playerActions, playerStore } from "../../../store/player.store";
 import { useAppSelector } from "@/store/hooks";
 import { toast } from "sonner";
 import { progressApi } from "@/lib/api/progress";
+import { beginWebListen, finishWebListen, tickWebListen } from "@/lib/web-listen";
 
 export function useAudioSync(
   audioElement: HTMLAudioElement | null,
@@ -321,7 +322,8 @@ export function useAudioSync(
       const last = lastStateRef.current;
       const curId = last.id || currentSongRef.current?.id;
       if (curId) {
-        playerActions.recordListen(curId, 1.0);
+        const dur = isFinite(audioElement.duration) ? audioElement.duration : undefined;
+        playerActions.recordListen(curId, 1.0, finishWebListen(dur ?? audioElement.currentTime), dur);
         lastStateRef.current = { id: "", time: 0, duration: 0 };
       }
 
@@ -353,6 +355,7 @@ export function useAudioSync(
         if (replayId) {
           playerActions.recordListen(replayId, 1.0);
         }
+        beginWebListen(playerStore.state.selectedQuality);
 
         hasFadedOutRef.current = false;
         audioElement.currentTime = 0;
@@ -435,6 +438,17 @@ export function useAudioSync(
     };
   }, [audioElement, isInternalChange, isVideoActive, crossfadeDuration]);
 
+  // Listening detail (played ranges, seeks, stalls) for song analytics.
+  useEffect(() => {
+    if (!audioElement) return;
+    const tick = () => {
+      if (!playerStore.state.isVideoActive) tickWebListen(audioElement);
+    };
+    const events = ["timeupdate", "playing", "waiting", "pause", "seeked", "stalled"] as const;
+    events.forEach((e) => audioElement.addEventListener(e, tick));
+    return () => events.forEach((e) => audioElement.removeEventListener(e, tick));
+  }, [audioElement]);
+
   // 4. Listen Recording & Song Change Fade-In Logic
   useEffect(() => {
     const last = lastStateRef.current;
@@ -458,13 +472,19 @@ export function useAudioSync(
       if (last.id) {
         const rawDuration = last.duration > 0 ? last.duration : (audioElement?.duration || 0);
         const ratio = rawDuration > 0 ? Math.min(1.0, Math.max(0.01, last.time / rawDuration)) : 0.5;
-        playerActions.recordListen(last.id, Number(ratio.toFixed(2)));
+        playerActions.recordListen(
+          last.id,
+          Number(ratio.toFixed(2)),
+          finishWebListen(last.time),
+          rawDuration > 0 ? rawDuration : undefined,
+        );
       }
       lastStateRef.current = {
         id: currentSong?.id || "",
         time: 0,
         duration: currentSong?.duration || 0,
       };
+      if (currentSong?.id) beginWebListen(playerStore.state.selectedQuality);
     }
   }, [currentSong?.id, crossfadeDuration, setLocalTime, setBuffered, audioElement]);
 
@@ -475,7 +495,12 @@ export function useAudioSync(
       if (last.id) {
         const rawDuration = last.duration > 0 ? last.duration : 0;
         const ratio = rawDuration > 0 ? Math.min(1.0, Math.max(0.01, last.time / rawDuration)) : 0.5;
-        playerActions.recordListen(last.id, Number(ratio.toFixed(2)));
+        playerActions.recordListen(
+          last.id,
+          Number(ratio.toFixed(2)),
+          finishWebListen(last.time),
+          rawDuration > 0 ? rawDuration : undefined,
+        );
       }
       if (typeof window !== "undefined" && last.time > 0) {
         localStorage.setItem("last_current_time", last.time.toFixed(2));

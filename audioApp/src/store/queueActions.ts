@@ -227,8 +227,8 @@ export const nextTrack =
 
     // Report skip telemetry for the song being skipped (manual user action only)
     if (manualUserAction && playingSong) {
-      interactionService.recordSkip(playingSong.id);
-      audioPlayerService.markCurrentTrackReported();
+      interactionService.recordSkip(playingSong.id, audioPlayerService.getCurrentTime());
+      audioPlayerService.reportSkippedListen();
     }
 
     // Trigger refill proactively if nearing end (not needed when looping the queue)
@@ -286,8 +286,8 @@ export const prevTrack =
       // Report skip telemetry for the song being skipped backward
       const currentSong = queue[currentIndex];
       if (currentSong) {
-        interactionService.recordSkip(currentSong.id);
-        audioPlayerService.markCurrentTrackReported();
+        interactionService.recordSkip(currentSong.id, audioPlayerService.getCurrentTime());
+        audioPlayerService.reportSkippedListen();
       }
 
       const prevIndex = currentIndex - 1;

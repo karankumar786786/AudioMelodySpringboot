@@ -1,3 +1,4 @@
+import type { ListenDetail } from "@/lib/listenTracker";
 import { request } from "./client";
 import type { Song } from "./types";
 
@@ -82,7 +83,7 @@ export const interactionsApi = {
     // 2. Direct fallback: Backend similar songs
     return interactionsApi.getSimilarSongs(seedSongId, count);
   },
-  recordListen: async (songId: string, percentage = 0.05) => {
+  recordListen: async (songId: string, percentage = 0.05, detail?: ListenDetail | null, durationSec?: number) => {
     if (!songId) return;
 
     try {
@@ -99,14 +100,19 @@ export const interactionsApi = {
       );
       await request("/api/interaction/play", {
         method: "POST",
-        body: JSON.stringify({ songId, percentage: safePercentage }),
+        body: JSON.stringify({
+          songId,
+          percentage: safePercentage,
+          durationMs: durationSec && durationSec > 0 ? Math.round(durationSec * 1000) : undefined,
+          ...(detail ?? {}),
+        }),
         keepalive: true,
       });
     } catch {
       // Silently catch background telemetry drops
     }
   },
-  recordSkip: async (songId: string) => {
+  recordSkip: async (songId: string, positionSec?: number) => {
     try {
       const { playerStore } = await import("@/store/player.store");
       const userId = playerStore.state.systemUser?.id;
@@ -116,7 +122,13 @@ export const interactionsApi = {
 
       await request("/api/interaction/skip", {
         method: "POST",
-        body: JSON.stringify({ songId }),
+        body: JSON.stringify({
+          songId,
+          positionMs:
+            positionSec !== undefined && Number.isFinite(positionSec) && positionSec >= 0
+              ? Math.round(positionSec * 1000)
+              : undefined,
+        }),
         keepalive: true,
       });
     } catch {

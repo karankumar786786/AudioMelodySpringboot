@@ -109,4 +109,27 @@ describe("createTelemetryQueue", () => {
       body: { songId: "s" },
     });
   });
+
+  it("keeps listening detail on the old play and skip endpoints", () => {
+    const play = legacyRequest({
+      type: "play",
+      eventId: "x",
+      occurredAt: 0,
+      songId: "s",
+      percentage: 0.5,
+      durationMs: 200_000,
+      ranges: [[0, 100_000]],
+      exitMs: 100_000,
+      skipped: true,
+      quality: "auto",
+      platform: "ios",
+    });
+    expect(play.url).toBe("/interaction/play");
+    expect(play.body).toMatchObject({ ranges: [[0, 100_000]], exitMs: 100_000, skipped: true, platform: "ios" });
+    expect(play.body).not.toHaveProperty("startupMs");
+    expect(legacyRequest({ type: "skip", eventId: "y", occurredAt: 0, songId: "s", positionMs: 12_000 })).toEqual({
+      url: "/interaction/skip",
+      body: { songId: "s", positionMs: 12_000 },
+    });
+  });
 });

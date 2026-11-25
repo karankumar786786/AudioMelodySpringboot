@@ -30,6 +30,36 @@ export interface TelemetryEvent {
   durationMs?: number;
   entityType?: string;
   entityId?: string;
+  // Optional listening detail on "play" (see player/listenTracker.ts); "skip" sends positionMs.
+  ranges?: [number, number][];
+  exitMs?: number;
+  skipped?: boolean;
+  seeks?: [number, number][];
+  quality?: string;
+  platform?: string;
+  startupMs?: number;
+  rebufferCount?: number;
+  rebufferMs?: number;
+  positionMs?: number;
+}
+
+/** Listening-detail fields, copied as-is to both the batch and the single-event bodies. */
+const DETAIL_KEYS = [
+  "ranges",
+  "exitMs",
+  "skipped",
+  "seeks",
+  "quality",
+  "platform",
+  "startupMs",
+  "rebufferCount",
+  "rebufferMs",
+] as const;
+
+function detailOf(e: TelemetryEvent): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const k of DETAIL_KEYS) if (e[k] !== undefined) out[k] = e[k];
+  return out;
 }
 
 export interface QueueStorage {
@@ -72,7 +102,12 @@ export function uuidv7(now: number, random: () => number = Math.random): string 
 export function legacyRequest(e: TelemetryEvent): { url: string; body: Record<string, unknown> } {
   switch (e.type) {
     case "play":
-      return { url: "/interaction/play", body: { songId: e.songId, percentage: e.percentage ?? 0 } };
+      return {
+        url: "/interaction/play",
+        body: { songId: e.songId, percentage: e.percentage ?? 0, durationMs: e.durationMs, ...detailOf(e) },
+      };
+    case "skip":
+      return { url: "/interaction/skip", body: { songId: e.songId, positionMs: e.positionMs } };
     case "search-click":
       return { url: "/interaction/search-click", body: { type: e.entityType ?? "SONG", id: e.entityId } };
     default:
