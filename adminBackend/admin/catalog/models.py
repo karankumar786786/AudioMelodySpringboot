@@ -162,3 +162,55 @@ class UserPlaylist(models.Model):
     def __str__(self):
         return f"{self.name} ({self.privacy})"
 
+
+
+class Short(models.Model):
+    """A standalone vertical video (own audio), optionally linked to a song. See V18__add_shorts.sql."""
+
+    STATUSES = ("UPLOADING", "PROCESSING", "READY", "FAILED", "HIDDEN", "DELETED")
+
+    id = models.CharField(primary_key=True, max_length=36, default=generate_uuid)
+    owner_type = models.CharField(max_length=16, db_column="owner_type")
+    user = models.ForeignKey(
+        "accounts.User", on_delete=models.CASCADE, db_column="user_id", null=True, blank=True, related_name="shorts"
+    )
+    admin_id = models.CharField(max_length=255, null=True, blank=True, db_column="admin_id")
+    song = models.ForeignKey(
+        Song, on_delete=models.SET_NULL, db_column="song_id", null=True, blank=True, related_name="shorts"
+    )
+    caption = models.CharField(max_length=300, null=True, blank=True)
+    status = models.CharField(max_length=16, default="UPLOADING")
+    raw_key = models.CharField(max_length=512, null=True, blank=True, db_column="raw_key")
+    hls_key = models.CharField(max_length=512, null=True, blank=True, db_column="hls_key")
+    thumbnail_key = models.CharField(max_length=512, null=True, blank=True, db_column="thumbnail_key")
+    duration_ms = models.IntegerField(null=True, blank=True, db_column="duration_ms")
+    width = models.IntegerField(null=True, blank=True)
+    height = models.IntegerField(null=True, blank=True)
+    likes_count = models.BigIntegerField(default=0, db_column="likes_count")
+    views_count = models.BigIntegerField(default=0, db_column="views_count")
+    reports_count = models.IntegerField(default=0, db_column="reports_count")
+    failure_reason = models.CharField(max_length=500, null=True, blank=True, db_column="failure_reason")
+    hidden_reason = models.CharField(max_length=300, null=True, blank=True, db_column="hidden_reason")
+    created_at = models.DateTimeField(auto_now_add=True, db_column="created_at")
+    updated_at = models.DateTimeField(auto_now=True, db_column="updated_at")
+    published_at = models.DateTimeField(null=True, blank=True, db_column="published_at")
+
+    class Meta:
+        managed = False
+        db_table = "shorts"
+
+
+class ShortReport(models.Model):
+    REASONS = ("SPAM", "NUDITY", "VIOLENCE", "HATE", "COPYRIGHT", "OTHER")
+
+    id = models.BigAutoField(primary_key=True)
+    short = models.ForeignKey(Short, on_delete=models.CASCADE, db_column="short_id", related_name="reports")
+    reporter = models.ForeignKey("accounts.User", on_delete=models.CASCADE, db_column="reporter_id", related_name="+")
+    reason = models.CharField(max_length=32)
+    note = models.CharField(max_length=500, null=True, blank=True)
+    resolved = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True, db_column="created_at")
+
+    class Meta:
+        managed = False
+        db_table = "short_reports"

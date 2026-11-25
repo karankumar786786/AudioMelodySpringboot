@@ -1,5 +1,7 @@
 from django.urls import path
 from .views import (
+    WebhookShortFailedView,
+    WebhookShortProcessedView,
     ImageUploadParamWebhookView,
     SongUploadUrlWebhookView,
     VideoUploadParamWebhookView,
@@ -38,6 +40,10 @@ urlpatterns = [
     path("webhook/job/<str:job_id>/finalize", WebhookJobFinalizeView.as_view(), name="webhook-job-finalize"),
     path("webhook/job/<str:job_id>/failed", WebhookJobFailedView.as_view(), name="webhook-job-failed"),
     path("webhook/job/<str:job_id>", WebhookJobDetailView.as_view(), name="webhook-job-detail"),
+
+    # Shorts Webhooks (/webhook/short/*)
+    path("webhook/short/<str:short_id>/processed", WebhookShortProcessedView.as_view(), name="webhook-short-processed"),
+    path("webhook/short/<str:short_id>/failed", WebhookShortFailedView.as_view(), name="webhook-short-failed"),
 
     # Delete Cascade Webhooks (/webhook/delete/*)
     path("webhook/delete/<str:entity_type>/<str:entity_id>/delete-search", WebhookDeleteSearchView.as_view(), name="webhook-delete-search"),

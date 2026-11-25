@@ -776,3 +776,40 @@ class WebhookDeleteFailedView(BaseAdminView):
             PaginationMetadataService.transition_delete_job(old_status, "FAILED")
 
         return Response(status=status.HTTP_200_OK)
+
+
+# ==============================================================================
+# Shorts Webhooks (/webhook/short/*), called by the media pipeline (X-API-KEY)
+# ==============================================================================
+
+class WebhookShortProcessedView(APIView):
+    authentication_classes = [AdminSessionAuthentication]
+    permission_classes = [IsAdminUserPermission]
+
+    def post(self, request, short_id):
+        from core.services.short_service import ShortError, ShortService, serialize
+
+        data = request.data or {}
+        if not data.get("hlsKey"):
+            return Response({"message": "hlsKey is required"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            short = ShortService.mark_processed(short_id, data)
+        except ShortError as e:
+            return Response({"message": str(e)}, status=e.status_code)
+        logger.info("[SHORT] %s processed -> %s", short_id, short.status)
+        return Response(serialize(short), status=status.HTTP_200_OK)
+
+
+class WebhookShortFailedView(APIView):
+    authentication_classes = [AdminSessionAuthentication]
+    permission_classes = [IsAdminUserPermission]
+
+    def post(self, request, short_id):
+        from core.services.short_service import ShortError, ShortService
+
+        try:
+            ShortService.mark_failed(short_id, (request.data or {}).get("reason"))
+        except ShortError as e:
+            return Response({"message": str(e)}, status=e.status_code)
+        logger.warning("[SHORT] %s failed: %s", short_id, (request.data or {}).get("reason"))
+        return Response({"status": "FAILED"}, status=status.HTTP_200_OK)
