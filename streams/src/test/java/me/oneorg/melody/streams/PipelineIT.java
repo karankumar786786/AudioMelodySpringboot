@@ -168,12 +168,16 @@ class PipelineIT {
         var first = me.oneorg.melody.events.analytics.SongSecondStats.newBuilder()
                 .setSongId("s-a").setSec(3).setListens(2).setExits(1).build();
         var later = me.oneorg.melody.events.analytics.SongSecondStats.newBuilder(first).setListens(5).build();
+        var sec4 = me.oneorg.melody.events.analytics.SongSecondStats.newBuilder().setSongId("s-a").setSec(4).setListens(1).build();
+        java.util.function.Function<List<me.oneorg.melody.events.analytics.SongSecondStats>, me.oneorg.melody.events.analytics.SongTimeline> tl =
+                secs -> me.oneorg.melody.events.analytics.SongTimeline.newBuilder().setSongId("s-a").setSeconds(secs).build();
         sink.timeline(List.of(
-                new org.apache.kafka.clients.consumer.ConsumerRecord<>("t", 0, 0, "s-a|3", first),
-                new org.apache.kafka.clients.consumer.ConsumerRecord<>("t", 0, 1, "s-a|3", later)));
-        sink.timeline(List.of(new org.apache.kafka.clients.consumer.ConsumerRecord<>("t", 0, 2, "s-a|3", later))); // replay
+                new org.apache.kafka.clients.consumer.ConsumerRecord<>("t", 0, 0, "s-a", tl.apply(List.of(first, sec4))),
+                new org.apache.kafka.clients.consumer.ConsumerRecord<>("t", 0, 1, "s-a", tl.apply(List.of(later)))));
+        sink.timeline(List.of(new org.apache.kafka.clients.consumer.ConsumerRecord<>("t", 0, 1, "s-a", tl.apply(List.of(later))))); // replay
 
         assertThat(jdbc.queryForObject("SELECT listens FROM song_timeline WHERE song_id = 's-a' AND sec = 3", Long.class)).isEqualTo(5);
+        assertThat(jdbc.queryForObject("SELECT listens FROM song_timeline WHERE song_id = 's-a' AND sec = 4", Long.class)).isEqualTo(1);
 
         var day = me.oneorg.melody.events.analytics.SongDayStats.newBuilder().setSongId("s-a")
                 .setDay(java.time.LocalDate.parse("2026-11-25")).setPlays(7).setSkips(2).build();

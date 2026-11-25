@@ -1,6 +1,6 @@
 {
   "type": "record", "name": "SongDayStats", "namespace": "me.oneorg.melody.events.analytics",
-  "doc": "Daily totals for one song (UTC). Topic analytics.song-daily.v1, key song_id|yyyy-MM-dd.",
+  "doc": "Daily totals for one song (UTC). Topic analytics.song-daily.v1, key song_id|yyyy-MM-dd. Emitted at most once a minute per key.",
   "fields": [
     {"name": "song_id", "type": "string"},
     {"name": "day", "type": {"type": "int", "logicalType": "date"}},

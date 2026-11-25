@@ -38,6 +38,7 @@ class SchemaCompatibilityTest {
             SongChanged.class, EmailRequested.class, SongStatDelta.class, SongStats.class, SongDailyStats.class,
             ArtistStats.class, ListeningSession.class,
             me.oneorg.melody.events.analytics.SongSecondStats.class,
+            me.oneorg.melody.events.analytics.SongTimeline.class,
             me.oneorg.melody.events.analytics.SongDayStats.class,
             me.oneorg.melody.events.analytics.SongQualityStats.class);
 

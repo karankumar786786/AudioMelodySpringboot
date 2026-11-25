@@ -16,7 +16,7 @@ public class AnalyticsConfig {
 
     @Bean
     public StreamsBuilderFactoryBean analyticsStreams(StreamsTopologyFactory factory) throws Exception {
-        AnalyticsTopology.Serdes5 serdes = new AnalyticsTopology.Serdes5(
+        AnalyticsTopology.AnalyticsSerdes serdes = new AnalyticsTopology.AnalyticsSerdes(
                 factory.serde(), factory.serde(), factory.serde(), factory.serde(), factory.serde());
         return factory.create("melody-analytics", builder -> AnalyticsTopology.build(builder, serdes));
     }
