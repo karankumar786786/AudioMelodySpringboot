@@ -1,0 +1,219 @@
+package me.one_org.melody.Shorts;
+
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import lombok.extern.slf4j.Slf4j;
+import me.one_org.melody.Exceptions.BadRequestException;
+import me.one_org.melody.Exceptions.ForbiddenException;
+import me.one_org.melody.Exceptions.ResourceNotFoundException;
+import me.one_org.melody.Services.Authentication.RateLimiterService;
+
+/**
+ * Listener-facing Shorts: the feed, uploads, likes, reports and views. Processing state
+ * is owned by the admin API, which the media pipeline reports to.
+ */
+@Service
+@Slf4j
+public class ShortsService {
+
+    static final Set<String> CONTENT_TYPES = Set.of("video/mp4", "video/quicktime");
+    static final Set<String> REPORT_REASONS = Set.of("SPAM", "NUDITY", "VIOLENCE", "HATE", "COPYRIGHT", "OTHER");
+    static final int MAX_PAGE = 30;
+
+    private final ShortsRepository repo;
+    private final ShortStorage storage;
+    private final ShortEvents events;
+    private final RateLimiterService rateLimiter;
+    private final ShortsProperties props;
+
+    public ShortsService(ShortsRepository repo, ShortStorage storage, ShortEvents events,
+                         RateLimiterService rateLimiter, ShortsProperties props) {
+        this.repo = repo;
+        this.storage = storage;
+        this.events = events;
+        this.rateLimiter = rateLimiter;
+        this.props = props;
+    }
+
+    // ---- Feed and lists -------------------------------------------------------------------
+
+    public ShortDtos.Page feed(String viewer, String sort, String cursor, int size) {
+        ShortsRepository.Sort s = parseSort(sort);
+        int limit = clamp(size);
+        ShortCursor c = ShortCursor.decode(cursor);
+        List<ShortDtos.Short> items = repo.feed(viewer, s, c, limit);
+        String next = null;
+        if (items.size() == limit) {
+            ShortDtos.Short last = items.get(items.size() - 1);
+            next = (s == ShortsRepository.Sort.LATEST && last.publishedAt() != null)
+                    ? ShortCursor.time(last.publishedAt().toInstant(), last.id()).encode()
+                    : ShortCursor.offset(c.offset() + items.size()).encode();
+        }
+        return new ShortDtos.Page(items, next);
+    }
+
+    public ShortDtos.Short get(String id, String viewer) {
+        ShortsRepository.Row row = repo.findById(id, viewer).orElseThrow(() -> new ResourceNotFoundException("Short not found"));
+        // Others only see published shorts; owners see theirs in any state.
+        if (!"READY".equals(row.dto().status()) && !row.dto().mine()) throw new ResourceNotFoundException("Short not found");
+        return row.dto();
+    }
+
+    public ShortDtos.Page byUser(String userId, String viewer, String cursor, int size) {
+        return offsetPage(cursor, size, (off, lim) -> repo.byUser(userId, viewer, off, lim));
+    }
+
+    public ShortDtos.Page bySong(String songId, String viewer, String cursor, int size) {
+        return offsetPage(cursor, size, (off, lim) -> repo.bySong(songId, viewer, off, lim));
+    }
+
+    public ShortDtos.Page liked(String userId, String cursor, int size) {
+        return offsetPage(cursor, size, (off, lim) -> repo.likedBy(userId, off, lim));
+    }
+
+    private interface OffsetQuery {
+        List<ShortDtos.Short> run(int offset, int limit);
+    }
+
+    private ShortDtos.Page offsetPage(String cursor, int size, OffsetQuery query) {
+        ShortCursor c = ShortCursor.decode(cursor);
+        int limit = clamp(size);
+        List<ShortDtos.Short> items = query.run(c.offset(), limit);
+        String next = items.size() == limit ? ShortCursor.offset(c.offset() + limit).encode() : null;
+        return new ShortDtos.Page(items, next);
+    }
+
+    // ---- Uploads ----------------------------------------------------------------------------
+
+    @Transactional
+    public ShortDtos.UploadResponse startUpload(String userId, ShortDtos.UploadRequest request) {
+        String contentType = request.contentType().trim().toLowerCase(Locale.ROOT);
+        if (!CONTENT_TYPES.contains(contentType)) throw new BadRequestException("Only MP4 or MOV videos can be uploaded");
+        if (request.sizeBytes() > props.maxUploadBytes()) {
+            throw new BadRequestException("Videos can be at most " + (props.maxUploadBytes() / 1024 / 1024) + " MB");
+        }
+        OffsetDateTime banned = repo.bannedUntil(userId).orElse(null);
+        if (banned != null && banned.isAfter(OffsetDateTime.now())) {
+            throw new ForbiddenException("You can't post shorts right now");
+        }
+        String songId = blankToNull(request.songId());
+        if (songId != null && !repo.songExists(songId)) throw new ResourceNotFoundException("Song not found");
+        rateLimiter.checkRateLimit("ratelimit:shorts:upload:" + userId, props.maxUploadsPerDay(), Duration.ofDays(1));
+
+        String id = UUID.randomUUID().toString();
+        String rawKey = "shorts-raw/" + id + ("video/quicktime".equals(contentType) ? ".mov" : ".mp4");
+        repo.insertUpload(id, userId, rawKey, cleanCaption(request.caption()), songId);
+        String url = storage.presignUpload(rawKey, contentType, request.sizeBytes(), props.uploadUrlTtl());
+        return new ShortDtos.UploadResponse(id, url, "PUT", contentType, props.uploadUrlTtl().toSeconds());
+    }
+
+    /** Called by the app once the PUT to the upload URL succeeded. */
+    public ShortDtos.Short completeUpload(String id, String userId) {
+        String rawKey = repo.markProcessing(id, userId)
+                .orElseThrow(() -> new ResourceNotFoundException("No upload in progress for this short"));
+        events.send("shorts/process", Map.of("shortId", id, "rawKey", rawKey), "short-" + id);
+        return get(id, userId);
+    }
+
+    public ShortDtos.Short update(String id, String userId, ShortDtos.UpdateRequest request) {
+        boolean setCaption = request.caption() != null;
+        boolean clearSong = Boolean.TRUE.equals(request.clearSong());
+        String songId = clearSong ? null : blankToNull(request.songId());
+        boolean setSong = clearSong || songId != null;
+        if (songId != null && !repo.songExists(songId)) throw new ResourceNotFoundException("Song not found");
+        int updated = repo.updateOwned(id, userId, setCaption ? cleanCaption(request.caption()) : null, setCaption, songId, setSong);
+        if (updated == 0) throw new ResourceNotFoundException("Short not found");
+        return get(id, userId);
+    }
+
+    public void delete(String id, String userId) {
+        String[] prev = repo.markDeleted(id, userId).orElseThrow(() -> new ResourceNotFoundException("Short not found"));
+        String previousStatus = prev[0];
+        String rawKey = prev[1];
+        if ("PROCESSING".equals(previousStatus)) {
+            sendQuietly("shorts/cancel", Map.of("shortId", id));
+        }
+        Map<String, Object> data = new HashMap<>();
+        data.put("shortId", id);
+        data.put("rawKey", rawKey);
+        sendQuietly("shorts/delete", data);
+    }
+
+    // ---- Engagement -------------------------------------------------------------------------
+
+    @Transactional
+    public ShortDtos.LikeStatus like(String id, String userId) {
+        long count = repo.like(id, userId).orElseThrow(() -> new ResourceNotFoundException("Short not found"));
+        return new ShortDtos.LikeStatus(id, true, count);
+    }
+
+    @Transactional
+    public ShortDtos.LikeStatus unlike(String id, String userId) {
+        long count = repo.unlike(id, userId).orElseThrow(() -> new ResourceNotFoundException("Short not found"));
+        return new ShortDtos.LikeStatus(id, false, count);
+    }
+
+    @Transactional
+    public void report(String id, String userId, ShortDtos.ReportRequest request) {
+        String reason = request.reason().trim().toUpperCase(Locale.ROOT);
+        if (!REPORT_REASONS.contains(reason)) throw new BadRequestException("Unknown report reason");
+        ShortsRepository.Row row = repo.findById(id, userId).orElseThrow(() -> new ResourceNotFoundException("Short not found"));
+        if (row.dto().mine()) throw new BadRequestException("You can't report your own short");
+        String status = repo.report(id, userId, reason, blankToNull(request.note()), props.autoHideReports())
+                .orElseThrow(() -> new ResourceNotFoundException("Short not found"));
+        if ("HIDDEN".equals(status)) log.warn("Short {} hidden after reports, pending admin review", id);
+    }
+
+    public void recordViews(ShortDtos.ViewBatch batch) {
+        Map<String, Long> counts = new HashMap<>();
+        // A view counts once the viewer watched a second or more.
+        batch.views().stream().filter(v -> v.watchedMs() >= 1000).forEach(v -> counts.merge(v.shortId(), 1L, Long::sum));
+        if (!counts.isEmpty()) repo.addViews(counts);
+    }
+
+    // ---- Helpers ----------------------------------------------------------------------------
+
+    static ShortsRepository.Sort parseSort(String sort) {
+        if (sort == null || sort.isBlank()) return ShortsRepository.Sort.FOR_YOU;
+        return switch (sort.trim().toLowerCase(Locale.ROOT)) {
+            case "latest" -> ShortsRepository.Sort.LATEST;
+            case "popular" -> ShortsRepository.Sort.POPULAR;
+            case "foryou", "for-you", "for_you" -> ShortsRepository.Sort.FOR_YOU;
+            default -> throw new BadRequestException("sort must be foryou, latest or popular");
+        };
+    }
+
+    static int clamp(int size) {
+        return Math.max(1, Math.min(MAX_PAGE, size));
+    }
+
+    static String cleanCaption(String caption) {
+        if (caption == null) return null;
+        String text = caption.trim().replaceAll("\\s+", " ");
+        if (text.length() > 300) throw new BadRequestException("Caption can be at most 300 characters");
+        return text.isEmpty() ? null : text;
+    }
+
+    private static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s.trim();
+    }
+
+    private void sendQuietly(String name, Map<String, Object> data) {
+        try {
+            events.send(name, data, null);
+        } catch (RuntimeException e) {
+            // The short is already gone for listeners; files are cleaned up on a retry by the admin.
+            log.warn("Could not send {} for short {}: {}", name, data.get("shortId"), e.getMessage());
+        }
+    }
+}

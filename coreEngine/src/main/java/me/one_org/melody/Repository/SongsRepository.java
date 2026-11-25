@@ -250,7 +250,7 @@ public interface SongsRepository extends JpaRepository<Song, String> {
     List<Song> findFeatured();
 
     @EntityGraph(attributePaths = {"songMetadata"})
-    @Query("SELECT s FROM Song s WHERE ((s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '') OR (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '')) AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt DESC")
+    @Query("SELECT s FROM Song s WHERE (s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '') AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE ORDER BY s.createdAt DESC")
     List<Song> findSongsWithVideo(Pageable pageable);
 
     default List<Song> findSongsWithVideo(int limit) {
@@ -258,14 +258,14 @@ public interface SongsRepository extends JpaRepository<Song, String> {
     }
 
     @EntityGraph(attributePaths = {"songMetadata"})
-    @Query("SELECT s FROM Song s WHERE ((s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '') OR (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '')) " +
+    @Query("SELECT s FROM Song s WHERE (s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '') " +
            "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
            "AND (:genre IS NULL OR LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%'))) " +
            "AND (:language IS NULL OR LOWER(s.language) = LOWER(:language)) " +
            "ORDER BY s.createdAt DESC")
     List<Song> findVideosLatest(@Param("genre") String genre, @Param("language") String language, Pageable pageable);
 
-    @Query("SELECT COUNT(s) FROM Song s WHERE ((s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '') OR (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '')) " +
+    @Query("SELECT COUNT(s) FROM Song s WHERE (s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '') " +
            "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
            "AND (:genre IS NULL OR LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%'))) " +
            "AND (:language IS NULL OR LOWER(s.language) = LOWER(:language))")
@@ -323,7 +323,7 @@ public interface SongsRepository extends JpaRepository<Song, String> {
 
     @EntityGraph(attributePaths = {"songMetadata"})
     @Query("SELECT s FROM Song s LEFT JOIN s.songMetadata sm " +
-           "WHERE ((s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '') OR (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '')) " +
+           "WHERE (s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '') " +
            "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
            "AND (:genre IS NULL OR LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%'))) " +
            "AND (:language IS NULL OR LOWER(s.language) = LOWER(:language)) " +
@@ -331,20 +331,20 @@ public interface SongsRepository extends JpaRepository<Song, String> {
     List<Song> findVideosPopular(@Param("genre") String genre, @Param("language") String language, Pageable pageable);
 
     @EntityGraph(attributePaths = {"songMetadata"})
-    @Query("SELECT s FROM Song s WHERE ((s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '') OR (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '')) " +
+    @Query("SELECT s FROM Song s WHERE (s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '') " +
            "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
            "AND (LOWER(s.artistName) = LOWER(:artistName) OR LOWER(s.artistName) LIKE LOWER(CONCAT('%', :artistName, '%'))) " +
            "ORDER BY s.createdAt DESC")
     List<Song> findVideosByArtist(@Param("artistName") String artistName, Pageable pageable);
 
-    @Query("SELECT COUNT(s) FROM Song s WHERE ((s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '') OR (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '')) " +
+    @Query("SELECT COUNT(s) FROM Song s WHERE (s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '') " +
            "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
            "AND (LOWER(s.artistName) = LOWER(:artistName) OR LOWER(s.artistName) LIKE LOWER(CONCAT('%', :artistName, '%')))")
     long countVideosByArtist(@Param("artistName") String artistName);
 
     @Query("SELECT h.song.id FROM UserHistory h " +
            "WHERE h.song.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
-           "AND ((h.song.fullVideoKey IS NOT NULL AND TRIM(h.song.fullVideoKey) <> '') OR (h.song.videoKey IS NOT NULL AND TRIM(h.song.videoKey) <> '')) " +
+           "AND (h.song.fullVideoKey IS NOT NULL AND TRIM(h.song.fullVideoKey) <> '') " +
            "AND h.listenedAt >= :since " +
            "GROUP BY h.song.id " +
            "ORDER BY (SUM(h.part + 50) + COUNT(DISTINCT h.user.id) * 200) DESC")
@@ -352,14 +352,14 @@ public interface SongsRepository extends JpaRepository<Song, String> {
 
     @Query("SELECT h.song.id FROM UserHistory h " +
            "WHERE h.song.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
-           "AND ((h.song.fullVideoKey IS NOT NULL AND TRIM(h.song.fullVideoKey) <> '') OR (h.song.videoKey IS NOT NULL AND TRIM(h.song.videoKey) <> '')) " +
+           "AND (h.song.fullVideoKey IS NOT NULL AND TRIM(h.song.fullVideoKey) <> '') " +
            "GROUP BY h.song.id " +
            "ORDER BY (SUM(h.part + 50) + COUNT(DISTINCT h.user.id) * 200) DESC")
     List<String> findTrendingVideoIdsAllTime(Pageable pageable);
 
     @Query("SELECT h.song.id FROM UserHistory h " +
            "WHERE h.song.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
-           "AND ((h.song.fullVideoKey IS NOT NULL AND TRIM(h.song.fullVideoKey) <> '') OR (h.song.videoKey IS NOT NULL AND TRIM(h.song.videoKey) <> '')) " +
+           "AND (h.song.fullVideoKey IS NOT NULL AND TRIM(h.song.fullVideoKey) <> '') " +
            "AND h.listenedAt >= :since " +
            "AND (LOWER(h.song.genre) = LOWER(:genre) OR LOWER(h.song.genre) LIKE LOWER(CONCAT('%', :genre, '%'))) " +
            "GROUP BY h.song.id " +
@@ -368,14 +368,14 @@ public interface SongsRepository extends JpaRepository<Song, String> {
 
     @Query("SELECT h.song.id FROM UserHistory h " +
            "WHERE h.song.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
-           "AND ((h.song.fullVideoKey IS NOT NULL AND TRIM(h.song.fullVideoKey) <> '') OR (h.song.videoKey IS NOT NULL AND TRIM(h.song.videoKey) <> '')) " +
+           "AND (h.song.fullVideoKey IS NOT NULL AND TRIM(h.song.fullVideoKey) <> '') " +
            "AND (LOWER(h.song.genre) = LOWER(:genre) OR LOWER(h.song.genre) LIKE LOWER(CONCAT('%', :genre, '%'))) " +
            "GROUP BY h.song.id " +
            "ORDER BY (SUM(h.part + 50) + COUNT(DISTINCT h.user.id) * 200) DESC")
     List<String> findTrendingVideoIdsAllTimeAndGenre(@Param("genre") String genre, Pageable pageable);
 
     @EntityGraph(attributePaths = {"songMetadata"})
-    @Query("SELECT s FROM Song s WHERE ((s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '') OR (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '')) " +
+    @Query("SELECT s FROM Song s WHERE (s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '') " +
            "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
            "AND s.id NOT IN :excluded " +
            "AND (LOWER(s.artistName) = LOWER(:artistName) OR LOWER(s.artistName) LIKE LOWER(CONCAT('%', :artistName, '%'))) " +
@@ -383,7 +383,7 @@ public interface SongsRepository extends JpaRepository<Song, String> {
     List<Song> findActiveVideosByArtistExcluding(@Param("artistName") String artistName, @Param("excluded") List<String> excluded, Pageable pageable);
 
     @EntityGraph(attributePaths = {"songMetadata"})
-    @Query("SELECT s FROM Song s WHERE ((s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '') OR (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '')) " +
+    @Query("SELECT s FROM Song s WHERE (s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '') " +
            "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
            "AND s.id NOT IN :excluded " +
            "AND (LOWER(s.genre) = LOWER(:genre) OR LOWER(s.genre) LIKE LOWER(CONCAT('%', :genre, '%'))) " +
@@ -392,7 +392,7 @@ public interface SongsRepository extends JpaRepository<Song, String> {
 
     @EntityGraph(attributePaths = {"songMetadata"})
     @Query("SELECT s FROM Song s LEFT JOIN s.songMetadata sm " +
-           "WHERE ((s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '') OR (s.videoKey IS NOT NULL AND TRIM(s.videoKey) <> '')) " +
+           "WHERE (s.fullVideoKey IS NOT NULL AND TRIM(s.fullVideoKey) <> '') " +
            "AND s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE " +
            "AND s.id NOT IN :excluded " +
            "ORDER BY COALESCE(sm.totalStreams, 0) DESC, s.createdAt DESC")
