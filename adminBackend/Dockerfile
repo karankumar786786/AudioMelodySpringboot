@@ -23,6 +23,10 @@ COPY . .
 # Install application package
 RUN uv sync --frozen --no-dev
 
+# DuckDB extensions for the data lake (S3 reads, Postgres attach), installed at build
+# time so the running container never downloads code.
+RUN /app/.venv/bin/python -c "import duckdb; c = duckdb.connect(); c.execute(\"SET extension_directory = '/app/duckdb_extensions'\"); c.install_extension('httpfs'); c.install_extension('postgres')"
+
 # Compile all Python source code into bytecode (.pyc) and remove raw .py source files
 RUN python -m compileall -b /app/admin && \
     find /app/admin -type f -name "*.py" ! -name "manage.py" -delete
@@ -52,6 +56,8 @@ RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 COPY --from=builder --chown=appuser:appgroup /app/.venv /app/.venv
 COPY --from=builder --chown=appuser:appgroup /app/admin /app/admin
 COPY --from=builder --chown=appuser:appgroup /app/pyproject.toml /app/pyproject.toml
+COPY --from=builder --chown=appuser:appgroup /app/duckdb_extensions /app/duckdb_extensions
+ENV DUCKDB_EXTENSION_DIRECTORY=/app/duckdb_extensions
 
 # Secrets Manager loader: runs only when SECRET_IDS is set (see entrypoint.sh)
 COPY --chmod=755 entrypoint.sh /app/entrypoint.sh

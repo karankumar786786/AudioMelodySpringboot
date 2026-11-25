@@ -36,6 +36,8 @@ services:
       EVENTS_MODE: LEGACY
       KAFKA_REST_PROXY_URL: http://redpanda:8082
       EVENTS_OTP_FALLBACK_SECONDS: "30"
+      # S3 data lake for the analytics pages (read with the instance role).
+      LAKE_BUCKET: ${LAKE_BUCKET:-onemelody-lake-production}
     expose:
       - "8000"
     labels:

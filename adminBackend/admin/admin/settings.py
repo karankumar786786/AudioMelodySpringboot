@@ -279,6 +279,17 @@ AWS_ENDPOINT = os.getenv("AWS_ENDPOINT", None) or None
 S3_TEMP_BUCKET = os.getenv("S3_TEMP_BUCKET", os.getenv("TEMP_BUCKET_NAME", "audiomelodyspringboottemp"))
 S3_PRODUCTION_BUCKET = os.getenv("S3_PRODUCTION_BUCKET", os.getenv("PRODUCTION_BUCKET_NAME", "audiomelodyspringboot"))
 
+# S3 data lake of raw listening events (Parquet, written by Redpanda Connect: infra/lake).
+# Read with DuckDB for the analytics pages. Empty LAKE_URI = lake-backed numbers are hidden.
+# On AWS the instance role is used; LAKE_S3_ENDPOINT is only for local S3-compatible stores.
+LAKE_BUCKET = os.getenv("LAKE_BUCKET", "")
+LAKE_URI = os.getenv("LAKE_URI", f"s3://{LAKE_BUCKET}/lake" if LAKE_BUCKET else "")
+LAKE_S3_ENDPOINT = os.getenv("LAKE_S3_ENDPOINT", "")
+LAKE_S3_URL_STYLE = os.getenv("LAKE_S3_URL_STYLE", "path")
+LAKE_S3_USE_SSL = os.getenv("LAKE_S3_USE_SSL", "false")
+LAKE_CREDENTIAL_CHAIN = os.getenv("LAKE_CREDENTIAL_CHAIN", "instance;env;config")
+DUCKDB_EXTENSION_DIRECTORY = os.getenv("DUCKDB_EXTENSION_DIRECTORY", "")
+
 IMAGEKIT_PUBLIC_KEY = os.getenv("IMAGEKIT_PUBLIC_KEY", "")
 IMAGEKIT_PRIVATE_KEY = os.getenv("IMAGEKIT_PRIVATE_KEY", "")
 IMAGEKIT_URL_ENDPOINT = os.getenv("IMAGEKIT_URL_ENDPOINT", "")
