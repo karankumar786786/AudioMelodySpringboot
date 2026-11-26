@@ -12,15 +12,15 @@ import java.util.regex.*;
 import java.util.stream.*;
 
 /**
- * Extracts a call graph from Java sources with the javac parser (no type attribution, so
- * Lombok and missing classpaths don't matter). Calls are resolved from the declared types
- * of fields, parameters and locals, which fits this codebase's constructor-injected style.
+ * Java code se call graph nikalta hai, javac ke parser se (type checking nahi, isliye Lombok ya missing
+ * classpath se farak nahi padta). Calls fields, parameters aur locals ke declared types se resolve hoti hain -
+ * ye codebase constructor injection use karta hai, to ye tareeka kaam karta hai.
  *
  *   java docs/architecture/gen/JavaGraph.java <out.json> <service>=<srcDir> ...
  */
 public class JavaGraph {
 
-    // ---------- model ----------
+    // ---------- model (data structures) ----------
     static final class ClassInfo {
         String name, fqn, pkg, file, service, kind = "class", superName, tableName, cacheNote;
         List<String> interfaces = new ArrayList<>(), annotations = new ArrayList<>(), typeArgsOfSuper = new ArrayList<>();
@@ -140,7 +140,7 @@ public class JavaGraph {
                     if (it instanceof ParameterizedTypeTree pt && c.isInterface) for (Tree ta : pt.getTypeArguments()) c.typeArgsOfSuper.add(simple(rawType(ta.toString())));
                 }
                 if (c.isInterface && ct.getExtendsClause() == null) {
-                    // interfaces put "extends" in implements clause in the tree API
+                    // interfaces ka "extends" tree API me implements clause me aata hai
                 }
                 if (ct.getKind() == Tree.Kind.RECORD) c.kind = "record";
                 if (ct.getKind() == Tree.Kind.ENUM) c.kind = "enum";
@@ -164,7 +164,7 @@ public class JavaGraph {
                         addMethod(c, mt, lines, docs, mp);
                     }
                 }
-                // record a type for output examples
+                // output examples ke liye type yaad rakho
                 if (!c.recordFields.isEmpty() || (c.lombokData && !c.fields.isEmpty()) || c.annotations.contains("Entity")
                         || c.pkg.contains("Dto") || c.pkg.contains("dto") || c.name.endsWith("Dto") || c.name.endsWith("Response") || c.name.endsWith("Request")) {
                     Map<String, Object> t = new LinkedHashMap<>();
@@ -228,7 +228,7 @@ public class JavaGraph {
             if (c.name.endsWith("Topology")) c.kind = "topology";
             if (c.kind.equals("entity") && c.tableName == null) c.tableName = snake(c.name);
         }
-        // repositories: entity table from JpaRepository<Entity, Id>
+        // repositories: JpaRepository<Entity, Id> se entity ki table
         for (ClassInfo c : allClasses) {
             if (!c.kind.equals("repository")) continue;
             String entity = c.typeArgsOfSuper.isEmpty() ? null : c.typeArgsOfSuper.get(0);
@@ -255,7 +255,7 @@ public class JavaGraph {
         return n;
     }
 
-    // ---------- pass 2: bodies ----------
+    // ---------- pass 2: method bodies ----------
     static void scanBodies(CompilationUnitTree cu, JavacTask task) {
         String file = rel(cu.getSourceFile().toUri().getPath());
         Map<String, String> staticImports = new HashMap<>();
@@ -347,7 +347,7 @@ public class JavaGraph {
 
             @Override
             public Void visitMethodInvocation(MethodInvocationTree mi, Void v) {
-                // scan receiver/args first so inner calls are ordered before the outer one
+                // pehle receiver/arguments scan karo, taaki andar ki calls bahar wali se pehle gine
                 super.visitMethodInvocation(mi, v);
                 ExpressionTree sel = mi.getMethodSelect();
                 String name; String recvType = null; boolean resolvedRecv = false; String recvText = null;
@@ -375,7 +375,7 @@ public class JavaGraph {
                     else recvType = m.owner.name;
                     resolvedRecv = true;
                 }
-                // topic usage with direction
+                // topic use: bhej raha hai ya padh raha hai
                 for (ExpressionTree arg : mi.getArguments()) {
                     String a = arg.toString();
                     Matcher tm = Pattern.compile("Topics\\.([A-Z_0-9]+)").matcher(a);
@@ -414,7 +414,7 @@ public class JavaGraph {
                 return null;
             }
         }.scan(m.tree.getBody(), null);
-        // annotations: caches, listeners
+        // annotations se: caches, listeners
         for (String a : m.annotations) {
             Matcher cm = Pattern.compile("@(Cacheable|CacheEvict|CachePut)\\((?:value\\s*=\\s*|cacheNames\\s*=\\s*)?\\{?\"([^\"]+)\"").matcher(a);
             if (cm.find()) edge(m.id, "redis:cache:" + cm.group(2), "redis", 0, cm.group(1).replace("Cacheable", "cache read-through").replace("CacheEvict", "cache evict"), null);
@@ -428,7 +428,7 @@ public class JavaGraph {
                 while (lit.find()) edge("topic:" + lit.group(1), m.id, "kafka", 0, lit.group(1), null);
             }
             if (a.startsWith("@TransactionalEventListener") || a.startsWith("@EventListener")) {
-                // listener for a Spring application event: param type
+                // Spring event listener: parameter ka type = event
                 if (!m.tree.getParameters().isEmpty()) {
                     String evt = simple(rawType(m.tree.getParameters().get(0).getType().toString()));
                     edge("springevent:" + evt, m.id, "event", 0, evt + (a.contains("AFTER_COMMIT") ? " (after commit)" : a.contains("BEFORE_COMMIT") ? " (before commit)" : ""), null);
@@ -504,7 +504,7 @@ public class JavaGraph {
                 q.addAll(c.interfaces);
             }
         }
-        // interface → single implementation
+        // interface → uski implementation(s)
         List<MethodInfo> withImpl = new ArrayList<>(found);
         for (MethodInfo f : found) {
             if (!f.owner.isInterface) continue;
@@ -523,7 +523,7 @@ public class JavaGraph {
         edges.add(e);
     }
 
-    // ---------- helpers ----------
+    // ---------- chhote helpers ----------
     static String firstSentence(DocTrees docs, TreePath path) {
         try {
             DocCommentTree d = docs.getDocCommentTree(path);
@@ -590,7 +590,7 @@ public class JavaGraph {
         return p.startsWith(ROOT) ? p.substring(ROOT.length()) : p;
     }
 
-    // ---------- tiny JSON writer ----------
+    // ---------- chhota JSON writer (library ke bina) ----------
     static final class Json {
         static String write(Object o) {
             StringBuilder sb = new StringBuilder();

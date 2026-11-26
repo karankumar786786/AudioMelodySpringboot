@@ -1,12 +1,12 @@
-// Call graph for a TypeScript project, using that project's own TypeScript compiler and
-// type checker (so `@/` path aliases and imports resolve to real declarations).
+// Ek TypeScript project ka call graph, usi project ke TypeScript compiler aur type checker se
+// (isliye `@/` aliases aur imports asli declarations tak resolve hote hain).
 //
 //   node docs/architecture/gen/ts_graph.mjs <out.json> <service> <projectDir>
 //
-// Nodes: named functions, arrow-function consts (at any depth, e.g. handlers inside a
-// component), class and object-literal methods, Inngest functions. Edges: calls and JSX
-// renders in source order, outbound HTTP (method + path), Inngest events, Redis, S3 and
-// third-party calls, with code inside `catch` / `.catch()` / `onFailure` marked.
+// Nodes: naam wale functions, arrow-function consts (kitne bhi andar, jaise component ke handlers),
+// class aur object methods, Inngest functions. Edges: calls aur JSX renders (code ke order me),
+// bahar HTTP (method + path), Inngest events, Redis, S3 aur bahar ki services; `catch` / `.catch()` /
+// `onFailure` ke andar ka code alag mark hota hai.
 import { createRequire } from "node:module";
 import fs from "node:fs";
 import path from "node:path";
@@ -26,7 +26,7 @@ const isOwn = (f) =>
   !f.endsWith(".d.ts") &&
   !/(\.test\.|\.spec\.|__tests__|[\\/]e2e[\\/]|[\\/]test[\\/]|[\\/]tests[\\/]|[\\/]dist[\\/]|[\\/]\.next[\\/]|[\\/]\.expo[\\/])/.test(f);
 
-// Make sure every own source file is in the program even if the tsconfig "include" is narrow.
+// Project ki har source file program me ho, chahe tsconfig ka "include" chhota ho.
 function walk(dir, acc) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     if (["node_modules", ".next", "dist", ".expo", ".git", "android", "ios", "coverage", "test-results", "playwright-report"].includes(e.name)) continue;
@@ -128,7 +128,7 @@ function register(fnNode, name, owner, sf, extra = {}) {
 }
 
 const isFn = (n) => n && (ts.isArrowFunction(n) || ts.isFunctionExpression(n));
-// unwrap forwardRef(function X(){}), memo(() => {}), useCallback(() => {}, [])
+// forwardRef(function X(){}), memo(() => {}), useCallback(() => {}, []) ke andar ka function nikalo
 function unwrapFn(init) {
   if (!init) return undefined;
   if (isFn(init)) return init;
@@ -142,7 +142,7 @@ function unwrapFn(init) {
   return undefined;
 }
 
-// ---------- pass 1: declarations ----------
+// ---------- pass 1: declarations ki list ----------
 const inngestFns = []; // {id, call}
 for (const sf of program.getSourceFiles()) {
   if (!isOwn(sf.fileName)) continue;
@@ -179,7 +179,7 @@ for (const sf of program.getSourceFiles()) {
           const node = register(handler, name, owner, sf, { kind: "inngest-fn", inngestId: idProp?.initializer?.getText(sf).replace(/["'`]/g, "") });
           inngestFns.push({ id: node.id, call: init, sf });
           ts.forEachChild(handler.body, (c) => visit(c, name));
-          // onFailure handler
+          // onFailure handler (saare retries fail hone ke baad chalta hai)
           if (cfgObj && ts.isObjectLiteralExpression(cfgObj)) {
             for (const p of cfgObj.properties) {
               const pn = p.name?.getText(sf);
@@ -200,7 +200,7 @@ for (const sf of program.getSourceFiles()) {
         if (fn.body) ts.forEachChild(fn.body, (c) => visit(c, owner ? owner + "." + name : name));
         return;
       }
-      // object literal of functions: export const songsApi = { getById: async () => ... }
+      // functions wala object: export const songsApi = { getById: async () => ... }
       if (ts.isObjectLiteralExpression(init)) {
         for (const p of init.properties) {
           const pn = p.name?.getText(sf);
@@ -218,7 +218,7 @@ for (const sf of program.getSourceFiles()) {
     if (ts.isExportAssignment(n) && isFn(n.expression)) {
       register(n.expression, "default", owner, sf);
     }
-    // types for "what the output looks like"
+    // "output kaisa dikhta hai" ke liye types
     if (!owner && (ts.isInterfaceDeclaration(n) || (ts.isTypeAliasDeclaration(n) && ts.isTypeLiteralNode(n.type)))) {
       const members = ts.isInterfaceDeclaration(n) ? n.members : n.type.members;
       const fields = [];
@@ -230,7 +230,7 @@ for (const sf of program.getSourceFiles()) {
   ts.forEachChild(sf, (c) => visit(c, undefined));
 }
 
-// ---------- pass 2: bodies ----------
+// ---------- pass 2: function bodies ----------
 function resolveDecl(expr) {
   let sym = checker.getSymbolAtLocation(expr);
   if (!sym) return undefined;
@@ -348,7 +348,7 @@ for (const sf of program.getSourceFiles()) {
     let pushedCtx = false;
     if (ts.isCatchClause(n)) { ctxStack.push("catch " + (n.variableDeclaration?.type?.getText(sf) || "error")); pushedCtx = true; }
     if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === "catch") {
-      // visit receiver normally, handler as failure path
+      // receiver normal scan, handler ko failure path maano
       visit(n.expression.expression);
       ctxStack.push(".catch()");
       n.arguments.forEach(visit);
@@ -359,7 +359,7 @@ for (const sf of program.getSourceFiles()) {
     if (cur) {
       const ctx = ctxStack[ctxStack.length - 1];
       if (ts.isCallExpression(n) || ts.isNewExpression(n)) {
-        // children first so inner calls are ordered before the outer call
+        // pehle bachche nodes, taaki andar ki calls bahar wali se pehle gine
         ts.forEachChild(n, visit);
         const callee = n.expression;
         const http = ts.isCallExpression(n) ? httpInfo(n, sf) : undefined;
@@ -372,7 +372,7 @@ for (const sf of program.getSourceFiles()) {
           if (ext) add(cur, { ...ext, ctx });
           if (ts.isNewExpression(n) && /Command$/.test(callee.getText(sf)) && /Object|Upload|Multipart/.test(callee.getText(sf))) add(cur, { t: "s3:client", k: "s3", l: "new " + callee.getText(sf), ctx });
         }
-        // step.invoke("x", { function: transcodeAudioTask })
+        // step.invoke("x", { function: transcodeAudioTask }) - doosra Inngest function chalana
         if (ts.isCallExpression(n) && /\.invoke$/.test(callee.getText(sf))) {
           const o = n.arguments[1];
           if (o && ts.isObjectLiteralExpression(o)) {
@@ -407,7 +407,7 @@ for (const sf of program.getSourceFiles()) {
   visit(sf);
 }
 
-// Inngest triggers and cancellations
+// Inngest triggers aur cancellations
 for (const { id, call, sf } of inngestFns) {
   const [cfgObj, trig] = call.arguments;
   const evs = [];
