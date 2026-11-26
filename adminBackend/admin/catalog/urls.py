@@ -1,3 +1,4 @@
+"""catalog ke URL routes: artists, playlists, songs, shorts, analytics aur reindex / health."""
 from django.urls import path
 from .analytics_views import AnalyticsOverviewView, SongAnalyticsView
 from .shorts_views import (

@@ -1,3 +1,4 @@
+"""jobs ke URL routes: /admin/jobs/* aur /admin/delete-jobs/*."""
 from django.urls import path
 from .views import (
     DeleteJobActiveView,

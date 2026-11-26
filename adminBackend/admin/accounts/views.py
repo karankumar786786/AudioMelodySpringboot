@@ -1,3 +1,8 @@
+"""accounts ke views (API endpoints): admin login (email + password -> OTP -> session), refresh, logout,
+admin ke sessions, aur app users ko block / unblock / delete / admin banana.
+
+Flow: admin dashboard -> yeh views -> AdminAuthService / RedisService (sessions Redis me) -> Postgres.
+"""
 import json
 import logging
 import uuid

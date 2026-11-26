@@ -1,3 +1,4 @@
+"""catalog app ka Django config (ready() me signals jodta hai)."""
 from django.apps import AppConfig
 
 

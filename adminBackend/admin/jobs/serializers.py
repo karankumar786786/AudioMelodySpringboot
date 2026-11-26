@@ -1,3 +1,4 @@
+"""jobs ke serializers: Job aur DeleteJob ka JSON."""
 from rest_framework import serializers
 from .models import DeleteJob, Job
 

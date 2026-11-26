@@ -1,3 +1,4 @@
+"""Django admin panel me artists, songs aur playlists kaise dikhein."""
 from django.contrib import admin
 from .models import Artist, Playlist, Song
 

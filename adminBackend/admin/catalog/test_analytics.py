@@ -1,3 +1,4 @@
+"""Analytics ke tests: timeline / hooks ka hisaab, KPI fallback aur DuckDB lake queries."""
 import shutil
 import tempfile
 from datetime import date, datetime, timedelta, timezone
@@ -57,7 +58,7 @@ class TimelineTests(SimpleTestCase):
         self.assertEqual([s["listens"] for s in t["seconds"]], [4, 0, 0, 2, 0])
 
     def test_hooks_are_where_listeners_come_back(self):
-        # 60 s song: steady decay, then a replayed chorus at 30-39 s.
+        # 60 second ka song: dheere dheere listeners kam, phir 30-39 s pe chorus dobara suna gaya.
         rows = []
         for s in range(60):
             listens = 100 - s
@@ -88,7 +89,7 @@ class RangeTests(SimpleTestCase):
 
 
 class LakeServiceTests(SimpleTestCase):
-    """DuckDB over local Parquet files laid out the way the lake writer does."""
+    """Local Parquet files pe DuckDB, usi folder layout me jaisa lake writer likhta hai."""
 
     @classmethod
     def setUpClass(cls):
@@ -106,7 +107,7 @@ class LakeServiceTests(SimpleTestCase):
         days = {
             today: [
                 ("e1", "u1", "song1", ms(today, 9), 0.95, 200000, 190000, "ios"),
-                ("e1", "u1", "song1", ms(today, 9), 0.95, 200000, 190000, "ios"),  # duplicate delivery
+                ("e1", "u1", "song1", ms(today, 9), 0.95, 200000, 190000, "ios"),  # wahi event do baar aaya
                 ("e2", "u2", "song1", ms(today, 21), 0.05, 200000, 10000, "web"),
                 ("e3", "u3", "song2", ms(today, 21), 0.5, 200000, 100000, "android"),
             ],
@@ -143,7 +144,7 @@ class LakeServiceTests(SimpleTestCase):
         a = lake_service.song_audience("song1", today - timedelta(days=6), today)
         self.assertEqual(a["plays"], 2)
         self.assertEqual(a["listeners"], 2)
-        self.assertEqual(a["returningListeners"], 1)  # u1 also listened 40 days ago
+        self.assertEqual(a["returningListeners"], 1)  # u1 ne 40 din pehle bhi suna tha
 
     def test_missing_days_are_empty_not_errors(self):
         today = date.today()
@@ -228,7 +229,7 @@ class AnalyticsViewTests(TestCase):
         self.assertEqual(data["kpis"]["change"]["plays"], 5.0)
         self.assertEqual(len(data["daily"]), 3)
         self.assertEqual(data["engagement"], {"favourites": 1, "playlistAdds": 1, "shorts": 1})
-        self.assertEqual(len(data["timeline"]["seconds"]), 40)  # padded to the song length
+        self.assertEqual(len(data["timeline"]["seconds"]), 40)  # song ki lambai tak 0 se bhara
         q = data["quality"][0]
         self.assertEqual((q["quality"], q["avgStartupMs"], q["rebuffersPerPlay"]), ("320kbps", 400, 0.2))
         self.assertFalse(data["lake"]["available"])

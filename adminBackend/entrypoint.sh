@@ -1,13 +1,13 @@
 #!/bin/sh
-# Container entrypoint: load runtime secrets from AWS Secrets Manager, then exec the app.
+# Container ka entrypoint: pehle AWS Secrets Manager se secrets lao, phir app chalao (exec).
 #
-# SECRET_IDS: comma- or semicolon-separated secret names, e.g.
+# SECRET_IDS: comma ya semicolon se alag secret naam, jaise
 #   SECRET_IDS=onemelody/prod/db,onemelody/prod/redis,onemelody/prod/admin
-# Each secret is a JSON object of env-var keys. Keys are exported in order, so a later
-# secret overrides an earlier one, and any secret key overrides the compose environment.
-# Credentials come from the EC2 instance role (IMDSv2); no AWS keys are needed.
-# When SECRET_IDS is unset or empty this only runs the command, exactly as before.
-# Values are never printed: the loader writes shell-quoted exports to a pipe for eval.
+# Har secret env-var keys ka ek JSON object hai. Keys order me export hoti hain, isliye baad wala
+# secret pehle wale ko override karta hai, aur secret ki key compose ke environment ko override karti hai.
+# Credentials EC2 instance role (IMDSv2) se aate hain; AWS keys ki zaroorat nahi.
+# SECRET_IDS khaali ho to ye sirf command chalata hai, bilkul pehle jaisa.
+# Values kabhi print nahi hoti: loader shell-quoted exports pipe me likhta hai, jise yahan eval karte hain.
 set -eu
 
 if [ -n "${SECRET_IDS:-}" ]; then
@@ -15,8 +15,9 @@ if [ -n "${SECRET_IDS:-}" ]; then
     echo "entrypoint: could not load secrets from AWS Secrets Manager (SECRET_IDS=${SECRET_IDS})" >&2
     exit 1
   fi
-  eval "$exports"
+  eval "$exports"  # exports ko isi shell me chalao taaki variables app tak pahunchein
   unset exports
 fi
 
+# exec: shell ki jagah app hi PID 1 ban jaata hai, taaki docker stop ka signal seedha app ko mile
 exec "$@"

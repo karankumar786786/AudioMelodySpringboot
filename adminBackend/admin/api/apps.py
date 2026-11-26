@@ -1,3 +1,4 @@
+"""Purane api app ka Django config."""
 from django.apps import AppConfig
 
 

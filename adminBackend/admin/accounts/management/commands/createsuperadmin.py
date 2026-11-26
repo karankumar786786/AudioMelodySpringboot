@@ -1,3 +1,4 @@
+"""Management command: terminal se SUPER_ADMIN banao ya kisi admin ko SUPER_ADMIN banao."""
 import re
 import uuid
 from django.core.management.base import BaseCommand, CommandError

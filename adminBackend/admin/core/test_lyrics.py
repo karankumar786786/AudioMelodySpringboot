@@ -1,3 +1,4 @@
+"""lyrics_service ke tests: timestamps hatana, byte limit me kaatna, Redis cache / LRCLIB fallback aur Algolia me lyrics."""
 import json
 from unittest.mock import MagicMock, patch
 
@@ -31,11 +32,11 @@ class LyricsNormalisationTests(SimpleTestCase):
         self.assertEqual(strip_lrc_timestamps(None), "")
 
     def test_truncate_respects_byte_budget_and_multibyte_chars(self):
-        text = "तुम ही हो " * 500  # Devanagari: 3 bytes per char
+        text = "तुम ही हो " * 500  # Devanagari: ek akshar = 3 bytes
         out = truncate_utf8(text, 1000)
         self.assertLessEqual(len(out.encode("utf-8")), 1000)
         self.assertTrue(text.startswith(out))
-        # never splits a code point
+        # kisi character ko beech se nahi kaatta
         out.encode("utf-8").decode("utf-8")
 
     def test_truncate_prefers_word_boundary(self):

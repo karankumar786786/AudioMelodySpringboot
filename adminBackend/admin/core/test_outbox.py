@@ -1,3 +1,4 @@
+"""Outbox ke tests: EVENTS_MODE (LEGACY / DUAL / KAFKA), hashed email key, uuid7, relay ko jagana aur fallback."""
 import uuid
 from unittest import mock
 

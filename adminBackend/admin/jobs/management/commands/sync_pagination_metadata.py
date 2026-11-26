@@ -1,3 +1,4 @@
+"""Management command: pagination counters ko asli DB counts se milao aur Redis cache saaf karo."""
 import json
 from django.core.management.base import BaseCommand
 from core.services import PaginationMetadataService

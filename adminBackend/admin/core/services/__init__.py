@@ -1,3 +1,4 @@
+"""core.services package: saari services ek jagah se import karne ke liye (from core.services import X)."""
 from .redis_service import RedisService
 from .s3_service import S3Service
 from .imagekit_service import ImageKitService

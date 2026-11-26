@@ -1,3 +1,4 @@
+"""Django ke built-in admin panel (/django-admin) me admins, users aur sessions kaise dikhein."""
 from django.contrib import admin
 from .models import Admin, Session, User
 

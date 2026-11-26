@@ -1,3 +1,4 @@
+"""accounts ke models: admin_users, users aur sessions tables (Flyway banata hai, isliye managed=False)."""
 from django.db import models
 # pyrefly: ignore[missing-import]
 from core.models import generate_uuid

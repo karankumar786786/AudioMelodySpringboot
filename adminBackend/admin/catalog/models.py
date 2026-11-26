@@ -1,3 +1,4 @@
+"""catalog ke models: artists, songs, playlists, shorts aur unke metadata / jod wali tables (sab Flyway banata hai)."""
 from django.db import models
 from core.models import generate_uuid
 

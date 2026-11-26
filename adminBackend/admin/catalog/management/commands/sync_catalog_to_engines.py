@@ -1,3 +1,4 @@
+"""Management command: DB ka catalog Algolia aur Recombee me sync karo (cron ya haath se)."""
 import time
 import logging
 from typing import Dict, Any, Optional

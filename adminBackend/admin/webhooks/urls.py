@@ -1,3 +1,4 @@
+"""webhooks ke URL routes: /webhook/internal/*, /webhook/job/*, /webhook/short/*, /webhook/delete/*."""
 from django.urls import path
 from .views import (
     WebhookShortFailedView,

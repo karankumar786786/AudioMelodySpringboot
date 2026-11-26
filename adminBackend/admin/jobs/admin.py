@@ -1,3 +1,4 @@
+"""Django admin panel me upload jobs aur delete jobs kaise dikhein."""
 from django.contrib import admin
 from .models import DeleteJob, Job
 

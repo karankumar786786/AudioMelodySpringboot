@@ -1,3 +1,9 @@
+"""webhooks ke views: media pipeline (audioProcessing) har step ke baad yahan callback karti hai.
+
+Upload flow: transcoding-started -> transcoded -> save-recommendation -> save-search -> finalize (ya failed).
+Delete flow: delete-search -> delete-recommendation -> delete-imagekit -> delete-s3 -> hard-delete (ya failed).
+Saath me dashboard ke liye presigned upload URLs bhi yahin se milte hain.
+"""
 import logging
 import sys
 import uuid

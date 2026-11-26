@@ -1,3 +1,4 @@
+"""jobs ke models: jobs (upload pipeline) aur delete_jobs (delete chain) tables."""
 from django.db import models
 # pyrefly: ignore[missing-import]
 from core.models import generate_uuid

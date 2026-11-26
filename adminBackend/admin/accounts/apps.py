@@ -1,3 +1,4 @@
+"""accounts app ka Django config."""
 from django.apps import AppConfig
 
 

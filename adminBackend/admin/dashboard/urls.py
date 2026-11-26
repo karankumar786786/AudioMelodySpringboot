@@ -1,3 +1,4 @@
+"""dashboard ke URL routes: health, telemetry heartbeat, system health, search aur stats."""
 from django.urls import path
 from .views import DashboardStatsView, GlobalSearchView, HealthCheckView, SystemHealthView, TelemetryHeartbeatView
 

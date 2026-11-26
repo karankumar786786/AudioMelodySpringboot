@@ -1,3 +1,4 @@
+"""catalog ke serializers: song, artist, playlist aur catalog health ka JSON."""
 from rest_framework import serializers
 from .models import Artist, Playlist, Song
 

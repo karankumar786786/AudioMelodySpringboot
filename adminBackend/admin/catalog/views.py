@@ -1,3 +1,8 @@
+"""catalog ke views (API endpoints): artists, playlists aur songs ka CRUD, upload / reprocess jobs,
+Algolia / Recombee reindex aur catalog health.
+
+Flow: admin dashboard -> yeh views -> Postgres + Algolia / Recombee / ImageKit, aur naye uploads ke liye Inngest (media pipeline).
+"""
 import logging
 import uuid
 from django.db import models

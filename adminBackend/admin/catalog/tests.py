@@ -1,3 +1,4 @@
+"""catalog app ke tests: song / artist / playlist serializers, Algolia record aur sync health."""
 from datetime import datetime
 from unittest.mock import patch
 from django.test import SimpleTestCase

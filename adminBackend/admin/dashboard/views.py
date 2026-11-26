@@ -1,3 +1,7 @@
+"""dashboard ke views: health check, media pipeline ka heartbeat, system health, global search aur stats.
+
+Flow: admin dashboard (aur media pipeline ka heartbeat) -> yeh views -> SystemHealthService / Postgres.
+"""
 from django.db.models import Q, Sum
 from rest_framework import status
 from rest_framework.permissions import AllowAny

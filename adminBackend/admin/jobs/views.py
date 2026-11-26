@@ -1,3 +1,7 @@
+"""jobs ke views: upload jobs aur delete jobs dekhna, retry, recover media aur saaf karna.
+
+Flow: admin dashboard -> yeh views -> Postgres + Inngest (dobara bhejne ke liye) + S3 / ImageKit / Algolia / Recombee (saaf karne ke liye).
+"""
 import logging
 from django.conf import settings
 from django.db import models

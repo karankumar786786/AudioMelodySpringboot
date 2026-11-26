@@ -1,3 +1,4 @@
+"""accounts ke serializers: model rows ko JSON me badalte hain."""
 from rest_framework import serializers
 from .models import Admin, Session, User
 

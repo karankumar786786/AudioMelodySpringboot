@@ -1,3 +1,4 @@
+"""Purane imports ke liye: api.services.* ko core.services.* ki taraf bhejta hai."""
 from core.services import (
     AdminAuthService,
     AlgoliaService,

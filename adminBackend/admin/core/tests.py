@@ -1,3 +1,4 @@
+"""core ke tests: security settings, API key auth, session renew aur Redis session store."""
 from django.test import SimpleTestCase
 # pyrefly: ignore[missing-import]
 from core.helpers import format_ms, format_paginated_response, safe_diff_ms
@@ -61,7 +62,7 @@ class CoreAppTests(SimpleTestCase):
 
 
 class SecuritySettingsTests(SimpleTestCase):
-    """Production-safety checks for settings and admin OTP handling."""
+    """Production me safe settings aur admin OTP handling ke checks."""
 
     def _import_settings(self, env):
         import os
@@ -72,7 +73,7 @@ class SecuritySettingsTests(SimpleTestCase):
         base_env = {k: v for k, v in os.environ.items()
                     if k not in ("DJANGO_DEBUG", "DJANGO_SECRET_KEY")}
         base_env.update(env)
-        # Run outside "manage.py test" so the test-mode key fallback doesn't apply.
+        # "manage.py test" ke bahar chalao taaki test-mode wali key fallback lagu na ho.
         code = ("import sys; sys.argv=['gunicorn'];"
                 "import admin.settings as s; print('DEBUG=' + str(s.DEBUG))")
         return subprocess.run(
@@ -82,7 +83,7 @@ class SecuritySettingsTests(SimpleTestCase):
         )
 
     def test_refuses_to_start_without_secret_key_when_not_debug(self):
-        # Empty values override anything load_dotenv would pick up from local .env files.
+        # Khaali values, local .env se load_dotenv jo bhi uthata, use override kar deti hain.
         result = self._import_settings({"DJANGO_DEBUG": "false", "DJANGO_SECRET_KEY": ""})
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("DJANGO_SECRET_KEY is not set", result.stderr)
@@ -130,7 +131,7 @@ class SecuritySettingsTests(SimpleTestCase):
 
 
 class InternalApiKeyAuthenticationTests(SimpleTestCase):
-    """Service-to-service API key handling in AdminSessionAuthentication."""
+    """AdminSessionAuthentication me service-to-service API key ka handling."""
 
     def _auth(self, headers):
         from django.test import override_settings
@@ -153,7 +154,7 @@ class InternalApiKeyAuthenticationTests(SimpleTestCase):
         self.assertEqual(user.id, "system-api")
 
     def test_wrong_key_does_not_authenticate(self):
-        # No session supplied either, so authentication falls through to None.
+        # Session bhi nahi diya, isliye authentication None pe gir jaata hai.
         self.assertIsNone(self._auth({"HTTP_X_API_KEY": "app-kez"}))
         self.assertIsNone(self._auth({"HTTP_X_API_KEY": "app-key-longer"}))
 
@@ -166,7 +167,7 @@ class InternalApiKeyAuthenticationTests(SimpleTestCase):
 
 
 class AdminSessionTouchTests(SimpleTestCase):
-    """The session is renewed at most every SESSION_TOUCH_INTERVAL_SECONDS (each renewal costs Redis commands)."""
+    """Session zyada se zyada har SESSION_TOUCH_INTERVAL_SECONDS pe renew hota hai (har renew me Redis commands lagti hain)."""
 
     TTL = 7 * 86400
 
@@ -208,7 +209,7 @@ class AdminSessionTouchTests(SimpleTestCase):
         written = json.loads(payload)
         self.assertGreater(written["expiresAt"], time.time() + self.TTL - 5)
         self.assertEqual(written["email"], "a@example.com")
-        # The worker's in-memory copy moves with it, so the next request skips the write.
+        # Worker ki memory copy bhi saath badalti hai, isliye agli request write skip karti hai.
         self.assertEqual(self.RedisService._MEMORY_SESSIONS["sess-1"]["expiresAt"], written["expiresAt"])
 
     def test_without_session_data_it_reads_then_writes(self):
@@ -226,10 +227,8 @@ class AdminSessionTouchTests(SimpleTestCase):
 
 
 class AdminSessionStoreTests(SimpleTestCase):
-    """
-    With several gunicorn workers, Redis is the source of truth for sessions, refresh
-    sessions, blocks, OTPs and temp tokens. A worker's in-memory copy may only be used
-    while Redis is unreachable, never to revive something Redis says is gone.
+    """Kai gunicorn workers hon to sessions, refresh sessions, blocks, OTPs aur temp tokens ka asli source Redis hai.
+    Worker ki memory copy sirf tab use ho sakti hai jab Redis na mile - Redis jise khatam bole use zinda karne ke liye kabhi nahi.
     """
 
     def setUp(self):

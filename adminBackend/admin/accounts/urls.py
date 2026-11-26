@@ -1,3 +1,4 @@
+"""accounts ke URL routes: admin login / OTP / refresh, profile, sessions aur app users ke accounts."""
 from django.urls import path
 from .views import (
     AccountBlockView,
