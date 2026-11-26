@@ -22,9 +22,11 @@ import me.one_org.melody.Repository.UserHistoryRepository;
 import me.one_org.melody.Repository.UsersRepository;
 
 /**
- * Mood radio: a queue of songs that sound like a {@link Mood}. Candidates come from the database by
- * the mood's feature ranges and are ranked by the shared engine with the mood's target profile as
- * the seed audio, so ordering and artist/album diversity match the other radios. No Recombee call.
+ * Mood radio: aise gaano ki queue jo ek {@link Mood} (chill, workout, focus, happy, sad) jaise sunai dein.
+ * Candidates database se aate hain - mood ki energy / valence / tempo range ke hisaab se.
+ * Phir wahi ranking engine (RecommendationRankingEngine) unhe sort karta hai, jisme mood ka "target sound"
+ * seed ki tarah kaam karta hai - isliye order aur artist/album variety baaki radios jaisi rehti hai.
+ * Isme Recombee call nahi hoti.
  */
 @Service
 @Slf4j
@@ -33,9 +35,9 @@ public class MoodRadioService {
 
     public static final int DEFAULT_COUNT = 20;
     public static final int MAX_COUNT = 50;
-    /** How many of the user's most recent distinct plays are kept out of the queue. */
+    /** User ke haal ke kitne alag gaane queue se bahar rakhne hain (taaki wahi gaane dobara na aayein). */
     static final int RECENTLY_PLAYED_WINDOW = 50;
-    /** Candidate pool size: enough headroom for diversity quotas and recently-played exclusion. */
+    /** Kitne candidates laane hain: itne ki variety rules aur recently-played hatane ke baad bhi kaafi bachein. */
     static final int MIN_CANDIDATE_POOL = 100;
     static final int CANDIDATE_POOL_MULTIPLIER = 5;
 
@@ -55,6 +57,7 @@ public class MoodRadioService {
         this.rankingEngine = rankingEngine != null ? rankingEngine : new RecommendationRankingEngine();
     }
 
+    /** Mood ke liye count gaane (max 50). User diya ho to uske haal ke sune gaane pehle bahar rakhte hain. */
     public List<SongDto> recommendMood(Mood mood, String userId, int count) {
         if (mood == null) throw new IllegalArgumentException("Mood is required");
         int target = count <= 0 ? DEFAULT_COUNT : Math.min(count, MAX_COUNT);
@@ -73,7 +76,7 @@ public class MoodRadioService {
         List<SongDto> ranked = new ArrayList<>(rankingEngine.rankAndDiversify(
                 null, mood.target(), List.of(), candidates, recentlyPlayed, target));
 
-        // Small catalog: rather than return a short queue, top up with recently played matches
+        // Catalog chhota hai: chhoti queue dene ke bajaye haal me sune matching gaane bhi jod do
         if (ranked.size() < target && !recentlyPlayed.isEmpty()) {
             Set<String> alreadyQueued = new HashSet<>();
             for (SongDto dto : ranked) alreadyQueued.add(dto.id());
@@ -83,6 +86,7 @@ public class MoodRadioService {
         return ranked;
     }
 
+    /** User ne haal me jo gaane sune unki ids (login na ho to khaali). */
     private Set<String> recentlyPlayedIds(String userId) {
         if (userId == null || userId.isBlank() || "anonymous".equalsIgnoreCase(userId.trim())) {
             return Set.of();

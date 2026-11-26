@@ -36,6 +36,15 @@ import me.one_org.melody.Services.General.PaginationMetaDataService;
 
 import me.one_org.melody.Repository.UsersRepository;
 
+/**
+ * Artists ka logic: list, details, artist ke songs, follow/unfollow (followers count ke saath), onboarding.
+ *
+ * Service = asli business logic. Controller isko call karta hai, ye repositories (DB), cache aur
+ * bahar ki services (Recombee, Algolia) ko use karta hai.
+ * @Transactional(readOnly = true) = by default sirf padhne wale DB transactions (thode fast);
+ * jo methods data badalte hain un pe alag se @Transactional laga hai.
+ * @Cacheable = result Redis me cache hota hai (RedisConfig dekho).
+ */
 @Service
 @Slf4j
 @Transactional(readOnly = true)
@@ -68,6 +77,7 @@ public class ArtistApiService {
         this.eventPublisher = eventPublisher;
     }
 
+    /** Artists page by page. Page total se bahar ho to khaali list. */
     public List<ArtistDto> getArtistsPaginated(int page, int size) {
         if (size <= 0 || page < 0) return List.of();
 
@@ -81,11 +91,13 @@ public class ArtistApiService {
                 .toList();
     }
 
+    /** Artists ke counts (pagination ke liye). */
     public PaginationMetaDataDto getPaginationMetaData() {
         PaginationMetaData meta = paginationMetaDataService.getMetaData("ArtistsEntity");
         return PaginationMetaDataDto.fromEntity(meta);
     }
 
+    /** Saare artists (Redis cache me). */
     @Cacheable(value = "artist_lists", key = "'all'")
     public List<ArtistDto> getAllArtists() {
         return artistsRepository.findAllPaginated(0, 100).stream()
@@ -93,6 +105,7 @@ public class ArtistApiService {
                 .toList();
     }
 
+    /** Id se artist (cache me). Na mile to 404. */
     @Cacheable(value = "artists", key = "#id")
     public ArtistDto getArtistById(String id) {
         Artist artist = artistsRepository.findById(id)
@@ -101,6 +114,7 @@ public class ArtistApiService {
         return ArtistDto.fromEntity(artist);
     }
 
+    /** Artist ke songs. Input id ho ya naam - dono chalte hain (cache me). */
     @Cacheable(value = "artist_songs", key = "#artistIdOrQuery + '_' + #page + '_' + #size")
     public List<SongDto> getArtistSongsPaginated(String artistIdOrQuery, int page, int size) {
         if (artistIdOrQuery == null || artistIdOrQuery.isBlank()) {
@@ -116,6 +130,7 @@ public class ArtistApiService {
                 .toList();
     }
 
+    /** Artist ke kitne songs hain. */
     public PaginationMetaDataDto getArtistSongsPaginationMetaData(String artistId) {
         String searchQuery = artistId;
         Optional<Artist> artistOpt = artistsRepository.findById(artistId);
@@ -134,22 +149,27 @@ public class ArtistApiService {
         );
     }
 
-    // ── Artist Follow & Metadata Operations ──
+    // ── Artist follow / unfollow ──
 
+    /** Id ya naam se artist dhoondo. */
     public Optional<Artist> findArtist(String artistIdOrName) {
         if (artistIdOrName == null || artistIdOrName.isBlank()) {
             return Optional.empty();
         }
-        // 1. Try finding by ID
+        // 1. Pehle id se dhoondo
         Optional<Artist> byId = artistsRepository.findById(artistIdOrName);
         if (byId.isPresent()) {
             return byId;
         }
 
-        // 2. Try finding by Name (case-insensitive)
+        // 2. Na mile to naam se (chhote-bade akshar ignore)
         return artistsRepository.findByNameIgnoreCase(artistIdOrName);
     }
 
+    /**
+     * Follow karo: follow event row likho, followers +1, Recombee/Kafka ke liye event bhejo.
+     * Pehle se follow hai to kuch nahi badalta.
+     */
     @Transactional
     public ArtistFollowStatusDto followArtist(String userId, String artistIdOrName) {
         if (userId == null || userId.isBlank()) {
@@ -184,6 +204,7 @@ public class ArtistApiService {
         return new ArtistFollowStatusDto(artistId, artistName, followersCount, true);
     }
 
+    /** Unfollow karo: UNFOLLOW row, followers -1, event bhejo. Follow hi nahi tha to kuch nahi. */
     @Transactional
     public ArtistFollowStatusDto unfollowArtist(String userId, String artistIdOrName) {
         if (userId == null || userId.isBlank()) {
@@ -218,6 +239,7 @@ public class ArtistApiService {
         return new ArtistFollowStatusDto(artistId, artistName, followersCount, false);
     }
 
+    /** Kya user follow karta hai + followers count. */
     public ArtistFollowStatusDto getFollowStatus(String userId, String artistIdOrName) {
         Optional<Artist> artistOpt = findArtist(artistIdOrName);
         if (artistOpt.isEmpty()) {
@@ -234,18 +256,21 @@ public class ArtistApiService {
         return new ArtistFollowStatusDto(artistId, artistName, followersCount, isFollowing);
     }
 
-    // ── Cold-Start Artist Onboarding ──
+    // ── Naye user ki onboarding (artists chunna) ──
 
+    /** Onboarding screen ke artists (default page). */
     public List<ArtistDto> getOnboardingArtists() {
         return getOnboardingArtists(0, 100);
     }
 
+    /** Onboarding ke artists, page by page. */
     public List<ArtistDto> getOnboardingArtists(int page, int size) {
         return artistsRepository.findAllPaginated(page, size).stream()
                 .map(ArtistDto::fromEntity)
                 .toList();
     }
 
+    /** Artists search: pehle DB, phir Algolia - dono ke results bina duplicate ke. */
     public List<ArtistDto> searchArtists(String query) {
         if (query == null || query.isBlank()) {
             return getOnboardingArtists();
@@ -254,7 +279,7 @@ public class ArtistApiService {
         Set<String> seenNames = new HashSet<>();
         List<Artist> results = new ArrayList<>();
 
-        // 1. Search DB artists table by name
+        // 1. Database ki artists table me naam se dhoondo
         List<Artist> fromArtists = artistsRepository.searchByName(cleanQuery, 20);
         for (Artist a : fromArtists) {
             if (a.getName() != null && seenNames.add(a.getName().trim().toLowerCase())) {
@@ -262,7 +287,7 @@ public class ArtistApiService {
             }
         }
 
-        // 2. Search Algolia for artists
+        // 2. Phir Algolia me artists dhoondo
         try {
             var algoliaRes = algoliaSearch.search(cleanQuery);
             List<String> algoliaArtistIds = algoliaRes.artists().stream().map(a -> a.id()).toList();
@@ -281,6 +306,10 @@ public class ArtistApiService {
                 .toList();
     }
 
+    /**
+     * Onboarding khatam: chune artists follow karo, aur commit ke baad Recombee seed karne ka event bhejo.
+     * Ek bhi artist follow na ho paaye to 400.
+     */
     public Map<String, Object> completeOnboarding(String userId, List<String> artistIds) {
         if (userId == null || userId.isBlank()) {
             throw new ResourceNotFoundException("User must be authenticated to complete onboarding");
@@ -307,13 +336,13 @@ public class ArtistApiService {
             }
         }
 
-        // Require at least one artist to have been successfully followed
+        // Kam se kam ek artist follow hona chahiye
         if (followedNames.isEmpty()) {
             throw new BadRequestException(
                 "None of the selected artists could be found. Please search and select valid artists.");
         }
 
-        // Decoupled telemetry: provision user and seed recommendation profile AFTER transaction commits
+        // Recombee me user banana aur seed karna commit ke BAAD hoga (event se), taaki request slow na ho
         eventPublisher.publishEvent(new TelemetryEvents.OnboardingSeededEvent(userId, followedArtistIds));
 
         Map<String, Object> response = new HashMap<>();

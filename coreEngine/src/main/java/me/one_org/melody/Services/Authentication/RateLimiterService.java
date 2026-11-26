@@ -8,6 +8,13 @@ import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
 import me.one_org.melody.Exceptions.TooManyRequestsException;
 
+/**
+ * Redis wali rate limit (login, OTP jaise endpoints ke liye).
+ *
+ * Tareeka (fixed window counter): key ka count +1 (INCR). Pehli request pe key ki expiry = window.
+ * Count max se zyada = 429. Window khatam -> key apne aap delete -> count dobara 0.
+ * Redis down ho to request ko jaane dete hain (block karne se behtar hai).
+ */
 @Service
 @Slf4j
 public class RateLimiterService {
@@ -18,6 +25,7 @@ public class RateLimiterService {
         this.redisTemplate = redisTemplate;
     }
 
+    /** Is key pe window me maxRequests se zyada hue to 429. */
     public void checkRateLimit(String key, int maxRequests, Duration window) {
         try {
             Long count = redisTemplate.opsForValue().increment(key);
@@ -35,6 +43,7 @@ public class RateLimiterService {
         }
     }
 
+    /** Cooldown chal raha hai to 429 ("X seconds wait karo"). */
     public void checkCooldown(String key) {
         try {
             Boolean hasCooldown = redisTemplate.hasKey(key);
@@ -50,6 +59,7 @@ public class RateLimiterService {
         }
     }
 
+    /** Cooldown shuru karo (jaise OTP resend ke baad 60 second). */
     public void setCooldown(String key, Duration duration) {
         try {
             redisTemplate.opsForValue().set(key, "1", duration);

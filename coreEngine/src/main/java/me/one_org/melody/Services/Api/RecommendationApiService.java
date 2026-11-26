@@ -26,6 +26,19 @@ import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserHistoryRepository;
 import me.one_org.melody.Repository.UsersRepository;
 
+/**
+ * Recommendations ka dimaag: similar songs, radio, session radio, aur "For you".
+ *
+ * Tareeka (radio): Recombee ke suggestions + database ke candidates (same genre/artist/album/language)
+ * -> RecommendationRankingEngine se score aur variety -> agar kuch na bache to catalog fallback.
+ * "For you": Recombee -> nahi to user ki history ka vibe -> naya user ho to onboarding genres.
+ *
+ * Service = asli business logic. Controller isko call karta hai, ye repositories (DB), cache aur
+ * bahar ki services (Recombee, Algolia) ko use karta hai.
+ * @Transactional(readOnly = true) = by default sirf padhne wale DB transactions (thode fast);
+ * jo methods data badalte hain un pe alag se @Transactional laga hai.
+ * @Cacheable = result Redis me cache hota hai (RedisConfig dekho).
+ */
 @Service
 @Slf4j
 @Transactional(readOnly = true)
@@ -37,10 +50,10 @@ public class RecommendationApiService {
     private final UsersRepository usersRepository;
     private final RecommendationRankingEngine rankingEngine;
 
-    // P6: cold-start genre preferences
+    // Naye user ke chune hue genres (cold start)
     private final UserGenrePreferenceService genrePreferenceService;
 
-    // P9: Micrometer observability counters
+    // Metrics counters (Micrometer): kitni recommendations kahan se aayin
     private final Counter recServCounter;
     private final Counter recFallbackCounter;
     private final Counter recColdStartCounter;
@@ -60,7 +73,7 @@ public class RecommendationApiService {
         this.usersRepository = usersRepository;
         this.rankingEngine = (rankingEngine != null) ? rankingEngine : new RecommendationRankingEngine();
         this.genrePreferenceService = genrePreferenceService;
-        // P9: safe no-op counters when MeterRegistry is absent (e.g. in tests)
+        // Tests me MeterRegistry nahi hota - tab "kuch na karne wale" counters
         if (meterRegistry != null) {
             this.recServCounter    = meterRegistry.counter("recommendations.served",   "source", "recombee");
             this.recFallbackCounter= meterRegistry.counter("recommendations.served",   "source", "fallback");
@@ -74,6 +87,7 @@ public class RecommendationApiService {
         }
     }
 
+    /** Tests ke liye chhote constructors (kam dependencies ke saath). */
     public RecommendationApiService(Recombee recombee) {
         this(recombee, null, null, null, null, null, null);
     }
@@ -91,17 +105,19 @@ public class RecommendationApiService {
         this(recombee, songsRepository, userHistoryRepository, usersRepository, rankingEngine, null, null);
     }
 
+    /** Is gaane jaise gaane (radio hi, bina exclude list ke). */
     public List<SongDto> recommendSimilar(String songId, int count) {
         return recommendRadio(songId, List.of(), count);
     }
 
+    /** Seed gaane se radio queue: Recombee + DB candidates -> rank + variety -> fallback. */
     public List<SongDto> recommendRadio(String seedSongId, List<String> excludeIds, int count) {
         Song seedSong = null;
         if (songsRepository != null && seedSongId != null && !seedSongId.isBlank()) {
             seedSong = songsRepository.findById(seedSongId).orElse(null);
         }
 
-        // 1. Gather Recombee AI candidate recommendations (oversampling count for diversity filtering)
+        // 1. Recombee se suggestions lo (zaroorat se zyada maangte hain, taaki diversity filter ke baad bhi kaafi bachein)
         List<SongDto> recombeeHits = List.of();
         if (seedSongId != null && !seedSongId.isBlank()) {
             try {
@@ -111,10 +127,10 @@ public class RecommendationApiService {
             }
         }
 
-        // 2. Gather Database candidate songs across genre, language, artist, and album
+        // 2. Database se bhi candidates lo: same genre, language, artist, album
         List<Song> dbCandidates = getDatabaseCandidates(seedSong, seedSongId);
 
-        // 3. Prepare exclusions (exclude seed song and client excludeIds)
+        // 3. Kaunse gaane nahi chahiye: seed song aur app ne jo excludeIds bheje
         Set<String> excludes = new HashSet<>();
         if (excludeIds != null) {
             excludes.addAll(excludeIds);
@@ -123,7 +139,7 @@ public class RecommendationApiService {
             excludes.add(seedSongId);
         }
 
-        // 4. Rank, score, and enforce artist & album diversity constraints
+        // 4. Score do, rank karo, aur ek artist/album ke zyada gaane na aane do
         List<SongDto> diverseRecommendations = rankingEngine.rankAndDiversify(
                 seedSong,
                 seedAudioProfile(seedSong),
@@ -137,10 +153,14 @@ public class RecommendationApiService {
             return diverseRecommendations;
         }
 
-        // 5. Fallback: Catalog active songs if candidate pool was completely empty
+        // 5. Kuch bhi na mile to catalog ke active songs
         return fallbackCatalog(count);
     }
 
+    /**
+     * Session radio: recommRadio jaisa, par Recombee ka recommId bhi lautata hai
+     * taaki agla batch pichle ke aage se aaye.
+     */
     public RadioResponseDto recommendRadioSession(String seedSongId, List<String> excludeIds, int count) {
         Song seedSong = null;
         if (songsRepository != null && seedSongId != null && !seedSongId.isBlank()) {
@@ -159,7 +179,7 @@ public class RecommendationApiService {
         List<SongDto> recombeeSongs = recombeeResult != null ? recombeeResult.songs() : List.of();
         String recommId = recombeeResult != null ? recombeeResult.recommId() : null;
 
-        // DB candidates fallback same as recommendRadio
+        // Database candidates bhi, bilkul recommendRadio jaise
         List<Song> dbCandidates = getDatabaseCandidates(seedSong, seedSongId);
 
         Set<String> excludes = new HashSet<>(excludeIds != null ? excludeIds : List.of());
@@ -174,9 +194,9 @@ public class RecommendationApiService {
     }
 
     /**
-     * Audio features of a real (persisted) seed song. Uses the features stored on the song row
-     * and only asks Recombee when the row has none (e.g. analysed before V15 and not backfilled);
-     * null if unavailable. Transient genre seeds have no id and get no profile.
+     * Seed song ke audio features (energy, valence, tempo...).
+     * Pehle song row me rakhe features use karte hain; row me na hon (purane songs) tabhi Recombee se maangte hain.
+     * Kuch na mile to null. Genre se bane "nakli" seed (jinki id nahi) ka koi profile nahi hota.
      */
     AudioProfile seedAudioProfile(Song seedSong) {
         if (seedSong == null || seedSong.getId() == null) return null;
@@ -185,11 +205,12 @@ public class RecommendationApiService {
         return recombee.getAudioProfile(seedSong.getId());
     }
 
+    /** Database se candidates: same genre (sabse zyada), language, artist(s), album, country, phir koi bhi. */
     private List<Song> getDatabaseCandidates(Song seedSong, String seedSongId) {
         List<Song> dbCandidates = new ArrayList<>();
         if (songsRepository != null && seedSong != null) {
             try {
-                // Genre candidates (highest relevance)
+                // Same genre ke gaane (sabse relevant)
                 if (seedSong.getGenre() != null && !seedSong.getGenre().isBlank()) {
                     List<String> genreTokens = Arrays.stream(seedSong.getGenre().split(","))
                             .map(String::trim)
@@ -205,11 +226,11 @@ public class RecommendationApiService {
                         }
                     }
                 }
-                // Language candidates
+                // Same language ke gaane
                 if (seedSong.getLanguage() != null && !seedSong.getLanguage().isBlank()) {
                     dbCandidates.addAll(songsRepository.findActiveByLanguage(seedSong.getLanguage().trim(), PageRequest.of(0, 20)));
                 }
-                // Artist candidates (controlled sample across all comma-separated artists)
+                // Same artist(s) ke gaane (har artist se thode thode)
                 if (seedSong.getArtistName() != null && !seedSong.getArtistName().isBlank()) {
                     List<String> artistTokens = Arrays.stream(seedSong.getArtistName().split("[,/&]|\\b(?:ft|feat)(?:\\.|\\b)"))
                             .map(s -> s.replaceAll("^[.\\s]+|[.\\s]+$", "").trim())
@@ -225,15 +246,15 @@ public class RecommendationApiService {
                         }
                     }
                 }
-                // Album candidates
+                // Same album ke gaane
                 if (seedSong.getAlbum() != null && !seedSong.getAlbum().isBlank()) {
                     dbCandidates.addAll(songsRepository.findByAlbum(seedSong.getAlbum().trim()));
                 }
-                // Country candidates (regional relevance)
+                // Same country ke gaane (local pasand)
                 if (seedSong.getCountry() != null && !seedSong.getCountry().isBlank()) {
                     dbCandidates.addAll(songsRepository.findByCountry(seedSong.getCountry().trim(), PageRequest.of(0, 15)));
                 }
-                // General active catalog tracks
+                // Koi bhi active gaane
                 dbCandidates.addAll(songsRepository.findActiveSongs(PageRequest.of(0, 20)));
             } catch (Exception ex) {
                 log.warn("Error gathering DB candidates for seed {}: {}", seedSongId, ex.getMessage());
@@ -242,12 +263,13 @@ public class RecommendationApiService {
         return dbCandidates;
     }
 
+    /** "For you" list: Recombee -> history vibe -> onboarding genres -> catalog. Kaunsa source chala, metrics me ginte hain. */
     public List<SongDto> recommendForUser(String userId, int count) {
         if (userId == null || userId.isBlank() || "anonymous".equalsIgnoreCase(userId.trim())) {
             return fallbackCatalog(count);
         }
 
-        // 1. Primary: Recombee AI Personalized Recommendations for User
+        // 1. Pehla source: Recombee ke is user ke liye personal suggestions
         List<SongDto> recombeeUserSongs = new ArrayList<>();
         try {
             Map<String, AudioProfile> recs = recombee.recommendForUserWithAudio(userId, Math.max(count * 3, 20));
@@ -263,7 +285,7 @@ public class RecommendationApiService {
                 for (String id : songIds) {
                     Song song = songMap.get(id);
                     if (song != null) {
-                        // Prefer the features stored on the song; fall back to the ones Recombee returned
+                        // Song row ke audio features pehle; na hon to Recombee wale
                         SongDto dto = SongDto.fromEntity(song);
                         AudioProfile audio = recs.get(id);
                         if (audio != null && !dto.hasAudioFeatures()) {
@@ -277,23 +299,23 @@ public class RecommendationApiService {
             log.warn("Recombee user recommendation failed for user {}: {}", userId, e.getMessage());
         }
 
-        // 2. User History Vibe Seed: Extract recent genres/artists to provide context
+        // 2. User ki history se "vibe": haal me sune genres/artists nikalo
         List<Song> dbCandidates = new ArrayList<>();
         Song vibeSeed = null;
         if (userHistoryRepository != null && usersRepository != null && songsRepository != null) {
             try {
                 User user = usersRepository.findById(userId).orElse(null);
                 if (user != null) {
-                    // P8: Fire repeat-listen rating signals asynchronously (best-effort)
+                    // Baar baar sune gaanon ka signal Recombee ko (fail ho to koi baat nahi)
                     fireRepeatListenSignals(user, userId);
                     List<UserHistory> recent = userHistoryRepository.findRecentByUser(user, 20);
                     if (recent == null || recent.isEmpty()) {
-                        // P6: Cold-start — no history yet, use onboarding genre prefs
+                        // Cold start: history abhi nahi hai, onboarding me chune genres use karo
                         List<String> prefGenres = genrePreferenceService != null
                                 ? genrePreferenceService.getPreferences(user)
                                 : List.of();
                         if (!prefGenres.isEmpty()) {
-                            // Rank candidates by affinity to the picked genres, not popularity alone
+                            // Sirf popularity nahi - chune genres se kitna milta hai, us hisaab se rank
                             vibeSeed = RecommendationRankingEngine.genreSeed(prefGenres);
                             int pg = Math.max(5, 20 / Math.max(1, prefGenres.size()));
                             for (String g : prefGenres) {
@@ -310,20 +332,20 @@ public class RecommendationApiService {
                             UserHistory h = recent.get(i);
                             if (h.getSong() == null) continue;
 
-                            // Recency decay: index 0 = most recent → weight 1.0, decays 10% per position
+                            // Naya suna zyada important: sabse naya = 1.0, har purane pe 10% kam
                             double recencyWeight = Math.pow(0.90, i);
-                            // Completion boost: ≥90% = 1.5×, ≥50% = 1.2×, <25% = 0.6×
+                            // Poora suna to zyada weight: 90%+ = 1.5x, 50%+ = 1.2x, 25% se kam = 0.6x
                             int part = h.getPart() != null ? h.getPart() : 0;
                             double completionWeight = part >= 90 ? 1.5 : part >= 50 ? 1.2 : 0.6;
                             double weight = recencyWeight * completionWeight;
 
-                            // Track best vibeSeed directly as the most-completed recent track
+                            // Sabse zyada poora suna haal ka gaana = vibe seed
                             if (part > bestPart) {
                                 bestPart = part;
                                 vibeSeed = h.getSong();
                             }
 
-                            // Accumulate weighted genre scores
+                            // Har genre ke points jodo
                             if (h.getSong().getGenre() != null && !h.getSong().getGenre().isBlank()) {
                                 List<String> tokens = Arrays.stream(h.getSong().getGenre().split(","))
                                         .map(String::trim)
@@ -336,7 +358,7 @@ public class RecommendationApiService {
                             }
                         }
 
-                        // Fetch DB candidates for top 3 weighted genres
+                        // Top 3 genres ke gaane database se lao
                         List<String> topGenres = genreWeights.entrySet().stream()
                                 .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
                                 .limit(3)
@@ -357,7 +379,7 @@ public class RecommendationApiService {
             dbCandidates.addAll(songsRepository.findActiveSongs(PageRequest.of(0, 20)));
         }
 
-        // 3. Multi-factor rank and enforce artist diversity for home user feed
+        // 3. Kai factors se rank karo aur dhyan rakho ki ek hi artist ke bahut gaane na hon
         List<SongDto> diverseUserFeed = rankingEngine.rankAndDiversify(
                 vibeSeed,
                 seedAudioProfile(vibeSeed),
@@ -376,7 +398,8 @@ public class RecommendationApiService {
         return fallbackCatalog(count);
     }
 
-    // ── P8: Send repeat-listen strong signals to Recombee (songs played 3+ times with ≥70% avg completion) ──
+    // ── Baar baar sune gaane (3+ baar, avg 70%+) ka strong signal Recombee ko ──
+    /** User ke 3+ baar, 70%+ sune gaanon ka strong signal Recombee ko (async, fail ho to ignore). */
     private void fireRepeatListenSignals(User user, String userId) {
         if (userHistoryRepository == null || user == null) return;
         try {
@@ -397,6 +420,7 @@ public class RecommendationApiService {
         }
     }
 
+    /** Kuch kaam na kare to bas catalog ke active songs. */
     private List<SongDto> fallbackCatalog(int count) {
         if (songsRepository != null) {
             try {

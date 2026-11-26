@@ -30,6 +30,15 @@ import me.one_org.melody.Repository.UserPlaylistsRepository;
 import me.one_org.melody.Repository.UserSearchHistoryRepository;
 import me.one_org.melody.Repository.UsersRepository;
 
+/**
+ * Listening history aur recent searches ka logic.
+ *
+ * Service = asli business logic. Controller isko call karta hai, ye repositories (DB), cache aur
+ * bahar ki services (Recombee, Algolia) ko use karta hai.
+ * @Transactional(readOnly = true) = by default sirf padhne wale DB transactions (thode fast);
+ * jo methods data badalte hain un pe alag se @Transactional laga hai.
+ * @Cacheable = result Redis me cache hota hai (RedisConfig dekho).
+ */
 @Service
 @Transactional(readOnly = true)
 public class UserHistoryApiService {
@@ -58,6 +67,7 @@ public class UserHistoryApiService {
         this.userPlaylistsRepository = userPlaylistsRepository;
     }
 
+    /** History page by page. */
     public List<UserHistoryResponseDto> getHistory(String userId, int page, int size) {
         if (userId == null || userId.isBlank() || size <= 0 || page < 0) {
             return java.util.Collections.emptyList();
@@ -70,6 +80,7 @@ public class UserHistoryApiService {
                 .toList();
     }
 
+    /** User ke kitne history rows. */
     public PaginationMetaDataDto getPaginationMetaData(String userId) {
         if (userId == null || userId.isBlank()) {
             return null;
@@ -87,6 +98,7 @@ public class UserHistoryApiService {
         );
     }
 
+    /** Recent searches: sab mila ke + type ke hisaab se. Jo playlist ab private ho gayi, wo entry saaf. */
     public UserSearchHistoryGroupedResponseDto getSearchHistory(String userId) {
         User user = usersRepository.getReferenceById(userId);
         List<UserSearchHistory> histories = searchHistoryRepository.findByUser(user);
@@ -98,7 +110,7 @@ public class UserHistoryApiService {
         List<UserPlaylistDto> userPlaylists = new ArrayList<>();
 
         for (UserSearchHistory h : histories) {
-            // If user playlist is private and viewer is not the owner, delete & skip
+            // Playlist ab private hai aur ye user owner nahi - entry hatao aur chhod do
             if (h.getUserPlaylist() != null) {
                 if (h.getUserPlaylist().getPrivacy() == PlaylistPrivacyEnum.PRIVATE
                         && !h.getUserPlaylist().getUser().getId().equals(userId)) {
@@ -144,6 +156,7 @@ public class UserHistoryApiService {
         );
     }
 
+    /** Recently played (har gaana ek baar). */
     public List<UserHistoryResponseDto> getRecentlyPlayed(String userId) {
         User user = usersRepository.getReferenceById(userId);
         List<UserHistory> recent = userHistoryRepository.findRecentByUser(user, 10);
@@ -152,6 +165,10 @@ public class UserHistoryApiService {
                 .toList();
     }
 
+    /**
+     * Recent search save karo. Type ke hisaab se sahi cheez honi chahiye; same cheez pehle se ho to
+     * purani entry hata ke nayi (taaki upar aaye).
+     */
     @Transactional
     public void saveSearchHistory(String userId, SaveSearchHistoryRequestDto request) {
         if (request == null) return;
@@ -191,7 +208,7 @@ public class UserHistoryApiService {
             String upid = request.userPlaylistId().trim();
             UserPlaylist userPlaylist = userPlaylistsRepository.findById(upid).orElse(null);
             if (userPlaylist == null) return;
-            // Only allow saving public user playlists or user's own playlist
+            // Sirf public playlist ya apni playlist hi save ho sakti hai
             if (userPlaylist.getPrivacy() == PlaylistPrivacyEnum.PRIVATE && !userPlaylist.getUser().getId().equals(userId)) {
                 return;
             }
@@ -204,12 +221,14 @@ public class UserHistoryApiService {
         searchHistoryRepository.save(builder.build());
     }
 
+    /** Ek recent search hatao (sirf apni). */
     @Transactional
     public void deleteSearchHistoryItem(String userId, String id) {
         User user = usersRepository.getReferenceById(userId);
         searchHistoryRepository.deleteByIdAndUser(id, user);
     }
 
+    /** Saari recent searches hatao. */
     @Transactional
     public void clearSearchHistory(String userId) {
         User user = usersRepository.getReferenceById(userId);
@@ -217,6 +236,7 @@ public class UserHistoryApiService {
     }
 
 
+    /** History row -> response DTO. */
     private UserHistoryResponseDto mapToDto(UserHistory history) {
         var song = history.getSong();
         if (song == null) {

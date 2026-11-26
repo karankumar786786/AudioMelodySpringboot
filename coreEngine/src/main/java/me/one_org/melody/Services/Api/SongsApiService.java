@@ -15,6 +15,15 @@ import me.one_org.melody.Services.General.PaginationMetaDataService;
 
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * Songs padhne ka logic: browse, trending, featured, videos, album, country (zyadatar cache ke saath).
+ *
+ * Service = asli business logic. Controller isko call karta hai, ye repositories (DB), cache aur
+ * bahar ki services (Recombee, Algolia) ko use karta hai.
+ * @Transactional(readOnly = true) = by default sirf padhne wale DB transactions (thode fast);
+ * jo methods data badalte hain un pe alag se @Transactional laga hai.
+ * @Cacheable = result Redis me cache hota hai (RedisConfig dekho).
+ */
 @Service
 @Transactional(readOnly = true)
 public class SongsApiService {
@@ -27,10 +36,11 @@ public class SongsApiService {
         this.paginationMetaDataService = paginationMetaDataService;
     }
 
+    /** Songs page by page. */
     public List<SongDto> browseSongs(int page, int size) {
         if (size <= 0 || page < 0) return List.of();
 
-        // Early guard against out-of-bounds page requests via cached Redis metadata
+        // Page number total se bahar hai to DB query chalaye bina hi khaali list (count Redis cache se)
         PaginationMetaData meta = paginationMetaDataService.getMetaData("SongsEntity");
         if (meta != null && meta.getTotalCount() > 0 && (long) page * size >= meta.getTotalCount()) {
             return List.of();
@@ -41,6 +51,7 @@ public class SongsApiService {
                 .toList();
     }
 
+    /** Trending songs (cache me, window + genre ke hisaab se). */
     @Cacheable(
         value = "trending_songs",
         key = "#limit + '_' + (#window != null ? #window : '7d') + '_' + (#genre != null ? #genre : 'all') + '_' + (#language != null ? #language : 'all')"
@@ -51,10 +62,12 @@ public class SongsApiService {
                 .toList();
     }
 
+    /** 7 din ka trending. */
     public List<SongDto> getTrendingSongs(int limit) {
         return getTrendingSongs(limit, "7d", null, null);
     }
 
+    /** Id se song (cache me). Na mile to 404. */
     @Cacheable(value = "songs", key = "#id")
     public SongDto getSongById(String id) {
         Song song = songsRepository.findById(id)
@@ -62,11 +75,13 @@ public class SongsApiService {
         return SongDto.fromEntity(song);
     }
 
+    /** Songs ke counts. */
     public PaginationMetaDataDto getPaginationMetaData() {
         PaginationMetaData meta = paginationMetaDataService.getMetaData("SongsEntity");
         return PaginationMetaDataDto.fromEntity(meta);
     }
 
+    /** Featured songs (cache me). */
     @Cacheable(value = "featured_songs", key = "'all'")
     public List<SongDto> getFeaturedSongs() {
         return songsRepository.findFeatured().stream()
@@ -74,6 +89,7 @@ public class SongsApiService {
                 .toList();
     }
 
+    /** Video wale songs (cache me). */
     @Cacheable(value = "video_songs", key = "#limit")
     public List<SongDto> getSongsWithVideo(int limit) {
         int safeLimit = Math.max(1, Math.min(limit, 50));
@@ -82,12 +98,14 @@ public class SongsApiService {
                 .toList();
     }
 
+    /** Album ke songs. */
     public List<SongDto> getSongsByAlbum(String albumName) {
         return songsRepository.findByAlbum(albumName).stream()
                 .map(SongDto::fromEntity)
                 .toList();
     }
 
+    /** Country ke songs. */
     public List<SongDto> getSongsByCountry(String countryName) {
         if (countryName == null || countryName.isBlank()) return List.of();
         return songsRepository.findByCountry(countryName.trim()).stream()
@@ -95,6 +113,7 @@ public class SongsApiService {
                 .toList();
     }
 
+    /** Saare albums (DB ki group-by rows ko AlbumDto me badal ke). */
     public List<me.one_org.melody.Dto.Controllers.AlbumDto> getAllAlbums() {
         return songsRepository.findDistinctAlbums().stream()
                 .map(row -> new me.one_org.melody.Dto.Controllers.AlbumDto(
