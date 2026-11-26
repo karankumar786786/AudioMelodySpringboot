@@ -17,10 +17,11 @@ import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;
 
 /**
- * Drops records whose event_id was already seen in the last 24 hours. Producers retry
- * and the outbox relay is at-least-once, so the same event can arrive more than once.
- * Must run before any repartition: the source key (user id) keeps duplicates on the
- * same partition, so one store sees them all.
+ * Duplicate events hatata hai (DEDUPE): pichle 24 ghante me jo event_id aa chuka, wo dobara aaye to drop.
+ * Producers retry karte hain aur outbox relay "at-least-once" hai (kam se kam ek baar, kabhi do baar),
+ * isliye same event do baar aa sakta hai.
+ * Isse kisi bhi repartition (key badalne) se PEHLE chalana zaroori hai: tab tak key = user id hai, to
+ * ek event ke saare duplicates ek hi partition pe aate hain aur ek hi state store sabko dekh leta hai.
  */
 public final class Dedupe {
 
@@ -28,12 +29,17 @@ public final class Dedupe {
 
     private Dedupe() {}
 
+    /** Event ids yaad rakhne wala state store (RocksDB) topology me jodo. */
     public static void addStore(StreamsBuilder builder, String storeName) {
         StoreBuilder<KeyValueStore<String, Long>> store = Stores.keyValueStoreBuilder(
                 Stores.persistentKeyValueStore(storeName), Serdes.String(), Serdes.Long());
         builder.addStateStore(store);
     }
 
+    /**
+     * Processor jo duplicate event_id wale records drop karta hai.
+     * Har 30 minute (wall clock) 24 ghante se purani ids store se saaf karta hai.
+     */
     public static <V> FixedKeyProcessorSupplier<String, V, V> byEventId(String storeName, Function<V, String> eventId) {
         return () -> new FixedKeyProcessor<>() {
             private KeyValueStore<String, Long> seen;
@@ -54,6 +60,7 @@ public final class Dedupe {
                 });
             }
 
+            /** Id pehle dekhi hai to drop; nahi to yaad rakho aur aage bhejo. */
             @Override
             public void process(FixedKeyRecord<String, V> record) {
                 if (record.value() == null) return;

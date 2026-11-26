@@ -1,4 +1,4 @@
-# Build from the repository root (the image needs communication/ too):
+# Repo ke root se build karo (image ko communication/ module bhi chahiye):
 #   docker build -f streams/Dockerfile .
 FROM maven:3.9-eclipse-temurin-21 AS builder
 WORKDIR /app

@@ -1,15 +1,14 @@
-// Builds docs/architecture/architecture-map.html from the code.
+// Code padh ke docs/architecture/architecture-map.html (interactive architecture map) banata hai.
 //
 //   node docs/architecture/gen/build.mjs            (from the repo root)
 //
-// 1. Runs the per-language extractors (Java via javac's parser, Python via ast,
-//    TypeScript via each project's own compiler) into a temp folder.
-// 2. Links them: HTTP calls to the endpoint that serves them, Kafka producers to topics
-//    to consumers, Inngest events to the functions they trigger, code to Postgres tables
-//    (parsed from the Flyway migrations), Redis keys, S3 and third-party services, and
-//    exceptions to the handler that turns them into a response.
-// 3. Adds overlay.json (hand-written: links static analysis can't see, flows, examples).
-// 4. Writes graph.json and inlines it into template.html.
+// 1. Har language ka extractor chalata hai (Java: javac parser, Python: ast, TypeScript: har project ka
+// apna compiler) aur output ek temp folder me.
+// 2. Sabko jodta hai: HTTP calls -> unhe serve karne wala endpoint, Kafka producer -> topic -> consumer,
+// Inngest event -> uska function, code -> Postgres tables (Flyway migrations se), Redis keys, S3,
+// bahar ki services, aur exceptions -> unhe response me badalne wala handler.
+// 3. overlay.json jodta hai (haath se likha: jo links code se nahi dikhte, flows, examples).
+// 4. graph.json likhta hai aur use template.html me daal deta hai.
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -47,7 +46,7 @@ for (const p of parts) {
 }
 const javaConstants = parts[0].constants || {};
 
-// ---------------------------------------------------------------- data stores
+// ---------------------------------------------------------------- data stores (tables, topics, lake)
 const MIG = path.join(REPO, "migration/src/main/resources/db/migration");
 const tables = {};
 const migFiles = fs.readdirSync(MIG).filter((f) => f.endsWith(".sql")).sort((a, b) => parseInt(a.slice(1)) - parseInt(b.slice(1)));
@@ -75,7 +74,7 @@ for (const f of migFiles) {
   }
   for (const m of sql.matchAll(/DROP TABLE(?: IF EXISTS)?\s+(\w+)/gi)) delete tables[m[1].toLowerCase()];
 }
-// JPQL uses entity names ("FROM Song s"); map them to tables
+// JPQL me entity ke naam hote hain ("FROM Song s"); unhe asli table naam se jodo
 const entityTable = {};
 for (const c of classes) if (c.table) entityTable[c.name.toLowerCase()] = c.table;
 
@@ -93,7 +92,7 @@ for (const line of topicsYaml.split("\n")) {
 }
 const lakeTopics = [...fs.readFileSync(path.join(REPO, "infra/lake/connect.yaml"), "utf8").matchAll(/^\s+- ([a-z]+\.[\w.\-]+v\d)$/gm)].map((m) => m[1]);
 
-// ---------------------------------------------------------------- normalise targets
+// ---------------------------------------------------------------- targets ko ek jaisa banao
 const STORE_LABEL = {
   "ext:recombee": "Recombee (recommendations)", "ext:algolia": "Algolia (search)", "ext:imagekit": "ImageKit (canvas clips, images)",
   "ext:mail": "Mail provider (SES / Resend / SMTP)", "ext:http": "Outbound HTTP", "ext:ffmpeg": "FFmpeg / Shaka (local process)",
@@ -124,7 +123,7 @@ function normTarget(t) {
 }
 edges = edges.map((e) => ({ ...e, s: normTarget(e.s), t: normTarget(e.t) })).filter((e) => e.s && e.t);
 
-// ---------------------------------------------------------------- HTTP: client call -> endpoint
+// ---------------------------------------------------------------- HTTP: client ki call -> endpoint
 const endpoints = [...nodes.values()].filter((n) => n.route && n.http && (n.lang === "java" || n.lang === "py"));
 const CLIENT_TARGET = { audioApp: "coreEngine", audioFrontend: "coreEngine", adminFrontend: "adminBackend", audioProcessing: "adminBackend", util: null, mailEvents: null };
 function clientPath(svc, url, recv) {
@@ -177,7 +176,7 @@ for (const e of edges) {
 }
 edges = linked;
 
-// ---------------------------------------------------------------- exceptions -> handlers (with inheritance)
+// ---------------------------------------------------------------- exceptions -> handlers (parent class ke handler bhi)
 const javaSuper = {};
 for (const c of classes) if (c.extends) javaSuper[c.name] = c.extends;
 const handled = {};
@@ -190,7 +189,7 @@ for (const ex of thrown) {
   }
 }
 
-// anything a core API endpoint throws without a specific handler ends in handleUncaughtException
+// core API me jis exception ka apna handler nahi, wo handleUncaughtException (500) me jaata hai
 const uncaught = [...nodes.values()].find((n) => n.cls === "GlobalExceptionHandler" && n.name === "handleUncaughtException");
 if (uncaught) {
   const handledNow = new Set(edges.filter((e) => e.k === "fail" && e.s.startsWith("exception:")).map((e) => e.s));
@@ -198,7 +197,7 @@ if (uncaught) {
   for (const ex of coreThrown) if (!handledNow.has(ex)) edges.push({ s: ex, t: uncaught.id, k: "fail", l: "500 (no specific handler)" });
 }
 
-// ---------------------------------------------------------------- overlay
+// ---------------------------------------------------------------- overlay (haath se likhe links)
 const overlay = JSON.parse(fs.readFileSync(path.join(GEN, "overlay.json"), "utf8"));
 const findId = (ref) => {
   if (nodes.has(ref)) return ref;
@@ -206,7 +205,7 @@ const findId = (ref) => {
     const hit = [...nodes.values()].find((n) => n.id.endsWith("." + ref) || n.id.endsWith(":" + ref));
     return hit?.id;
   }
-  // "path/file.ts#name" or "Class#method" shorthand
+  // "path/file.ts#name" ya "Class#method" jaisa chhota naam
   const [f, name] = ref.split("#");
   const cands = [...nodes.values()].filter((n) => (n.file === f || n.cls === f || n.file?.endsWith("/" + f) || n.id.includes(f)) && (n.name === name || n.id.endsWith("#" + name) || n.id.endsWith("." + name)));
   return cands[0]?.id;
@@ -232,7 +231,7 @@ const flows = (overlay.flows || []).map((f) => ({
   steps: f.steps.map((st) => ({ ...st, id: st.ref ? resolveRef(st.ref) : undefined })),
 }));
 
-// ---------------------------------------------------------------- store nodes
+// ---------------------------------------------------------------- store nodes (tables, topics, redis...)
 const storeNodes = new Map();
 const ensure = (id) => {
   if (nodes.has(id) || storeNodes.has(id) || httpNodes.has(id)) return;
@@ -247,7 +246,7 @@ edges = edges.filter((e) => !(e.k === "env"));
 for (const e of edges) { ensure(e.s); ensure(e.t); }
 for (const t of Object.keys(tables)) ensure("table:" + t);
 for (const t of Object.keys(topics)) ensure("topic:" + t);
-// lake writer
+// lake-writer (Kafka -> S3)
 for (const t of lakeTopics) edges.push({ s: "topic:" + t, t: "lake:redpanda-connect", k: "kafka", l: "lake-writer reads (Parquet, every 15 min)" });
 ensure("lake:redpanda-connect");
 storeNodes.get("lake:redpanda-connect").name = "lake-writer (Redpanda Connect → S3 Parquet)";
@@ -255,7 +254,7 @@ edges.push({ s: "lake:redpanda-connect", t: "s3:lake", k: "s3", l: "s3://…-lak
 ensure("s3:lake");
 storeNodes.get("s3:lake").name = "S3 data lake (Parquet)";
 
-// drop exact duplicate edges
+// bilkul same edges hatao
 const seenE = new Set();
 edges = edges.filter((e) => {
   const k = `${e.s}|${e.t}|${e.k}|${e.ctx || ""}|${e.l || ""}`;
@@ -264,14 +263,14 @@ edges = edges.filter((e) => {
   return true;
 });
 
-// ---------------------------------------------------------------- trivial flag & degrees
+// ---------------------------------------------------------------- chhote helpers ko "trivial" mark karo
 const outDeg = new Map(), inDeg = new Map();
 for (const e of edges) { outDeg.set(e.s, (outDeg.get(e.s) || 0) + 1); inDeg.set(e.t, (inDeg.get(e.t) || 0) + 1); }
 for (const n of nodes.values()) {
   if (!n.trivial && !outDeg.get(n.id) && (n.lines ?? 2) <= 3 && !n.route) n.trivial = true;
 }
 
-// ---------------------------------------------------------------- compact output
+// ---------------------------------------------------------------- output ko chhota (compact) karo
 const allNodes = [...nodes.values(), ...storeNodes.values(), ...httpNodes.values()];
 const index = new Map(allNodes.map((n, i) => [n.id, i]));
 const KINDS = ["call", "render", "http", "kafka", "inngest", "event", "db", "redis", "s3", "ext", "throws", "fail"];

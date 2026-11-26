@@ -3,14 +3,14 @@ locals {
   local_pub_key     = local.has_local_pub_key ? file("${path.root}/${var.key_name}.pub") : ""
 }
 
-# Generate private key if neither public_key variable nor local public key file exists
+# Na public_key variable diya, na local public key file hai - to nayi private key banao
 resource "tls_private_key" "ssh" {
   count     = var.public_key == "" && !local.has_local_pub_key ? 1 : 0
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
-# AWS Key Pair - shared for both EC2 instances
+# AWS Key Pair - dono EC2 servers ke liye ek hi (SSH ke liye)
 resource "aws_key_pair" "main" {
   key_name = var.key_name
   public_key = var.public_key != "" ? var.public_key : (
@@ -24,7 +24,7 @@ resource "aws_key_pair" "main" {
   }
 }
 
-# Save generated private key to local .pem file with restricted permissions (0400)
+# Bani hui private key local .pem file me save (0400 = sirf owner padh sake)
 resource "local_file" "private_key" {
   count           = var.public_key == "" && !local.has_local_pub_key ? 1 : 0
   content         = tls_private_key.ssh[0].private_key_pem
@@ -32,7 +32,7 @@ resource "local_file" "private_key" {
   file_permission = "0400"
 }
 
-# Save generated public key to local .pub file (0644)
+# Bani hui public key local .pub file me save (0644)
 resource "local_file" "public_key" {
   count           = var.public_key == "" && !local.has_local_pub_key ? 1 : 0
   content         = tls_private_key.ssh[0].public_key_openssh

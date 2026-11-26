@@ -34,10 +34,10 @@ import me.oneorg.melody.events.Topics;
 import me.oneorg.melody.streams.config.PipelineProperties;
 
 /**
- * syncStreams: keeps Recombee and Algolia in step with what listeners do, in batches.
- * Replaces the core API's per-event calls (TelemetryEventListener and the direct
- * Recombee/Algolia calls in InteractionApiService). Off until the core API runs in KAFKA
- * mode (melody.streams.sync-enabled), so nothing is sent twice during the DUAL week.
+ * syncStreams: listeners jo karte hain uske hisaab se Recombee aur Algolia ko batches me update rakhta hai.
+ * Core API ki per-event calls (TelemetryEventListener aur InteractionApiService ki seedhi Recombee/Algolia
+ * calls) ki jagah leta hai. Jab tak core API KAFKA mode me nahi tab tak band (melody.streams.sync-enabled),
+ * taaki DUAL mode me kuch do baar na jaaye.
  */
 @Component
 @Profile("sync")
@@ -52,7 +52,7 @@ public class SyncService {
     private final JdbcTemplate jdbc;
     private final NamedParameterJdbcTemplate named;
     private final PipelineProperties props;
-    /** Event ids sent recently: a redelivered batch after a rebalance isn't sent again. */
+    /** Haal me bheje event ids: rebalance ke baad wahi batch dobara aaye to dobara nahi bhejte. */
     private final Cache<String, Boolean> sent = Caffeine.newBuilder().maximumSize(200_000)
             .expireAfterWrite(Duration.ofHours(6)).build();
 
@@ -66,6 +66,7 @@ public class SyncService {
         this.props = props;
     }
 
+    /** Events ka batch: duplicates hatao, plan banao, Recombee aur Algolia ko bhejo. */
     @KafkaListener(id = "sync", containerFactory = "syncFactory", autoStartup = "${melody.streams.sync-enabled:false}",
             topics = {Topics.PLAY, Topics.SKIP, Topics.SEARCH_INTERACTION, Topics.QUEUE_CHANGE, Topics.FEEDBACK,
                     Topics.FAVOURITE, Topics.PLAYLIST_SONG, Topics.ARTIST_FOLLOW, Topics.USER_LIFECYCLE})
@@ -90,6 +91,7 @@ public class SyncService {
                 fresh.size(), plan.ratings.size(), plan.searchCounts.size(), plan.streamedSongs.size());
     }
 
+    /** Plan ki ratings / views / bookmarks ek Batch request me Recombee ko. */
     private void sendToRecombee(SyncPlan plan) throws Exception {
         List<Request> requests = new ArrayList<>();
         plan.newUsers.forEach(u -> requests.add(new AddUser(u)));
@@ -106,22 +108,24 @@ public class SyncService {
             requests.add(new SetItemValues(songId, values).setCascadeCreate(true));
         });
         for (int i = 0; i < requests.size(); i += RECOMBEE_BATCH_MAX) {
-            // A failed item inside a batch (e.g. deleting a bookmark that doesn't exist) is reported
-            // per request and ignored, like the core API did; a failed call is retried by the container.
+            // Batch ke andar ek item fail ho (jaise aisa bookmark delete karna jo hai hi nahi) to wo alag se report
+            // hota hai aur ignore - core API bhi yahi karta tha. Poori call fail ho to container retry karta hai.
             recombee.send(new Batch(requests.subList(i, Math.min(requests.size(), i + RECOMBEE_BATCH_MAX))));
         }
     }
 
+    /** searchCount aur totalStreams ke partial updates Algolia ko. */
     private void sendToAlgolia(SyncPlan plan) {
         List<Map<String, Object>> updates = new ArrayList<>();
         plan.searchCounts.forEach((id, n) -> updates.add(Map.of("objectID", id,
                 "searchCount", Map.of("_operation", "Increment", "value", n))));
         totals(plan).forEach((songId, total) -> updates.add(Map.of("objectID", songId, "totalStreams", total)));
         if (updates.isEmpty()) return;
-        // createIfNotExists=false: telemetry must never create half-empty search records.
+        // createIfNotExists=false: telemetry se kabhi adhoora search record nahi banna chahiye.
         algolia.partialUpdateObjects(indexName, updates, false);
     }
 
+    /** Badle hue songs ke naye totalStreams Postgres se padho. */
     private Map<String, Long> totals(SyncPlan plan) {
         if (plan.streamedSongs.isEmpty()) return Map.of();
         Map<String, Long> totals = new HashMap<>();
@@ -131,7 +135,7 @@ public class SyncService {
         return totals;
     }
 
-    /** Up to 3 most-streamed active songs for each artist, the same seed the core API used. */
+    /** Har artist ke max 3 sabse zyada sune gaane - core API jaisa hi seed. */
     private List<String> topSongs(List<String> artistIds) {
         return named.queryForList("""
                 SELECT id FROM (
@@ -144,6 +148,7 @@ public class SyncService {
                 """, Map.of("ids", artistIds), String.class);
     }
 
+    /** Kisi bhi Avro event se uska event_id. */
     private static String eventId(SpecificRecord value) {
         Object meta = value.getSchema().getField("meta") == null ? null : value.get(value.getSchema().getField("meta").pos());
         return meta instanceof EventMeta m ? m.getEventId() : null;

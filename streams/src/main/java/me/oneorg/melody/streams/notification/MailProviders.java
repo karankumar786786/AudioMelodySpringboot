@@ -25,11 +25,12 @@ import software.amazon.awssdk.services.sesv2.model.Message;
 import software.amazon.awssdk.services.sesv2.model.SendEmailRequest;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Picks the transport from MAIL_PROVIDER, with the same env names as the Bun mail worker. */
+/** MAIL_PROVIDER env se transport chunta hai - wahi env naam jo Bun mail worker use karta hai. */
 public final class MailProviders {
 
     private MailProviders() {}
 
+    /** MAIL_PROVIDER se provider banao: smtp (default) / ses / resend / log. Galat naam = error. */
     public static MailProvider fromEnv(Map<String, String> env) {
         String name = env.getOrDefault("MAIL_PROVIDER", "smtp").trim().toLowerCase();
         return switch (name) {
@@ -41,6 +42,7 @@ public final class MailProviders {
         };
     }
 
+    /** SMTP se email (jaise Gmail SMTP). */
     static MailProvider smtp(Map<String, String> env) {
         String user = env.getOrDefault("SMTP_USER", "");
         String pass = env.getOrDefault("SMTP_PASS", "").replaceAll("\\s+", "");
@@ -82,6 +84,7 @@ public final class MailProviders {
             "InvalidClientTokenId", "InvalidSignatureException", "SignatureDoesNotMatch", "ExpiredTokenException",
             "AccountSuspendedException", "SendingPausedException", "MailFromDomainNotVerifiedException");
 
+    /** Amazon SES se email. */
     static MailProvider ses(Map<String, String> env) {
         String region = env.getOrDefault("SES_REGION", env.get("AWS_REGION"));
         if (region == null || region.isBlank()) throw new IllegalArgumentException("MAIL_PROVIDER=ses requires AWS_REGION (or SES_REGION)");
@@ -125,6 +128,7 @@ public final class MailProviders {
         }
     }
 
+    /** Resend (HTTP API) se email. */
     static MailProvider resend(Map<String, String> env, HttpClient http) {
         String apiKey = env.get("RESEND_API_KEY");
         if (apiKey == null || apiKey.isBlank()) throw new IllegalArgumentException("MAIL_PROVIDER=resend requires RESEND_API_KEY");
@@ -156,7 +160,7 @@ public final class MailProviders {
         };
     }
 
-    /** Local development: logs that an email would be sent, without its body (it may hold a code). */
+    /** Local development: sirf log karo ki email jaata (body nahi - usme OTP ho sakta hai). */
     static MailProvider logOnly() {
         return new MailProvider() {
             public String name() { return "log"; }

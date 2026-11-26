@@ -10,9 +10,12 @@ import me.oneorg.melody.streams.config.KafkaPipelineConfig;
 
 @Configuration
 @Profile("outbox-relay")
+/**
+ * outbox-relay profile ki Kafka setting (wake-up topic ka listener).
+ */
 public class OutboxRelayConfig {
 
-    /** Wake-up records are plain strings; a burst of them becomes one sweep. */
+    /** Wake-up messages simple strings hain; ek saath bahut aayein to bhi ek hi sweep chalta hai. */
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, Object> wakeupFactory(
             KafkaPipelineConfig config, DeadLetterPublishingRecoverer recoverer) {

@@ -4,10 +4,13 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
 
+/**
+ * Kafka keys banane ka helper.
+ */
 final class Keys {
     private Keys() {}
 
-    /** Same key the core and admin APIs use: SHA-256 of the lower-cased address. */
+    /** Wahi key jo core aur admin API use karte hain: email (lowercase) ka SHA-256 hash. */
     static String addressKey(String email) {
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")

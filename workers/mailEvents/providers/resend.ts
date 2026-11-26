@@ -1,5 +1,6 @@
 import { formatFrom, type Env, type MailProvider } from "./types";
 
+/** Resend API ka error, HTTP status ke saath (401/403 = credentials galat). */
 export class ResendError extends Error {
     constructor(message: string, readonly status: number, readonly code?: string) {
         super(message);
@@ -7,7 +8,7 @@ export class ResendError extends Error {
     }
 }
 
-/** Resend via its HTTP API (https://resend.com/docs/api-reference/emails/send-email). */
+/** Resend ke HTTP API se email (https://resend.com/docs/api-reference/emails/send-email). 15 second timeout. */
 export function createResendProvider(env: Env, fetchImpl: typeof fetch = fetch): MailProvider {
     const apiKey = env.RESEND_API_KEY;
     if (!apiKey) throw new Error("MAIL_PROVIDER=resend requires RESEND_API_KEY");

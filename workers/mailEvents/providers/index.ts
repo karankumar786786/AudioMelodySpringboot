@@ -5,7 +5,7 @@ import type { Env, MailProvider } from "./types";
 
 export type { MailProvider, MailMessage } from "./types";
 
-/** Pick the transport from MAIL_PROVIDER (smtp | ses | resend). Defaults to smtp (Gmail). */
+/** MAIL_PROVIDER se transport chuno (smtp | ses | resend). Default smtp (Gmail). */
 export function createMailProvider(env: Env = process.env): MailProvider {
     const name = (env.MAIL_PROVIDER || "smtp").trim().toLowerCase();
     switch (name) {

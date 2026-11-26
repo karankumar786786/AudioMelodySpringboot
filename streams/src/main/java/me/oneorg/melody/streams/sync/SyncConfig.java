@@ -19,8 +19,12 @@ import me.oneorg.melody.streams.config.KafkaPipelineConfig;
 
 @Configuration
 @Profile("sync")
+/**
+ * sync profile ki setting: Recombee aur Algolia clients, aur batch listener.
+ */
 public class SyncConfig {
 
+    /** Recombee client. */
     @Bean
     public RecombeeClient recombeeClient(@Value("${recombee.database-id}") String databaseId,
                                          @Value("${recombee.secret-token}") String secretToken,
@@ -28,6 +32,7 @@ public class SyncConfig {
         return new RecombeeClient(databaseId, secretToken).setRegion(Region.valueOf(region));
     }
 
+    /** Algolia client. */
     @Bean
     public SearchClient searchClient(@Value("${algolia.app-id}") String appId, @Value("${algolia.api-key}") String apiKey) {
         ClientOptions options = ClientOptions.builder()
@@ -39,7 +44,7 @@ public class SyncConfig {
         return new SearchClient(appId, apiKey, options);
     }
 
-    /** Waits up to 5 s per poll, so each call to Recombee and Algolia carries a batch. */
+    /** Har poll 5 second tak wait karta hai, taaki Recombee aur Algolia ki har call me ek batch jaaye. */
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, Object> syncFactory(
             KafkaPipelineConfig config, DeadLetterPublishingRecoverer recoverer) {

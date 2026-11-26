@@ -17,10 +17,9 @@ import me.oneorg.melody.events.analytics.SongSecondStats;
 import me.oneorg.melody.events.analytics.SongTimeline;
 
 /**
- * Writes the analytics topics into the V19 tables, one batched upsert per poll. The
- * topology already windows and rate-limits updates (one record per key per minute), and
- * values are running totals written as absolute values (never increments), so a replay
- * or redelivery can't double-count.
+ * Analytics topics ko V19 tables me likhta hai - har poll pe ek batched upsert.
+ * Topology pehle hi updates ko window aur rate-limit karti hai (har key ka minute me ek record), aur values
+ * running totals hain jo absolute likhe jaate hain (kabhi +1 nahi), isliye replay se double-count nahi hota.
  */
 @Component
 @Profile("analytics")
@@ -32,6 +31,7 @@ public class AnalyticsSink {
         this.jdbc = jdbc;
     }
 
+    /** analytics.song-timeline.v1 -> song_timeline (har second ka upsert). */
     @KafkaListener(id = "analytics-sink-timeline", topics = Topics.ANALYTICS_SONG_TIMELINE, containerFactory = "analyticsSinkFactory")
     public void timeline(List<ConsumerRecord<String, SongTimeline>> records) {
         List<SongSecondStats> rows = latestSeconds(records);
@@ -52,6 +52,7 @@ public class AnalyticsSink {
         });
     }
 
+    /** analytics.song-daily.v1 -> song_listen_daily (upsert). */
     @KafkaListener(id = "analytics-sink-daily", topics = Topics.ANALYTICS_SONG_DAILY, containerFactory = "analyticsSinkFactory")
     public void daily(List<ConsumerRecord<String, SongDayStats>> records) {
         List<SongDayStats> rows = latest(records);
@@ -73,6 +74,7 @@ public class AnalyticsSink {
         });
     }
 
+    /** analytics.song-quality.v1 -> song_quality_daily (upsert). */
     @KafkaListener(id = "analytics-sink-quality", topics = Topics.ANALYTICS_SONG_QUALITY, containerFactory = "analyticsSinkFactory")
     public void quality(List<ConsumerRecord<String, SongQualityStats>> records) {
         List<SongQualityStats> rows = latest(records);
@@ -100,8 +102,8 @@ public class AnalyticsSink {
     }
 
     /**
-     * Each record holds the running totals of the seconds one window changed; flatten them
-     * and keep the newest total per second (records of one song share a partition, in order).
+     * Har record me ek window ne jo seconds badle unke running totals hain; sabko flat karo aur har second
+     * ka sabse naya total rakho (ek song ke records ek hi partition pe, order me aate hain).
      */
     static List<SongSecondStats> latestSeconds(List<ConsumerRecord<String, SongTimeline>> records) {
         Map<String, SongSecondStats> bySecond = new LinkedHashMap<>();
@@ -114,7 +116,7 @@ public class AnalyticsSink {
         return List.copyOf(bySecond.values());
     }
 
-    /** Newest value per key within the batch. */
+    /** Batch me har key ki sabse nayi value. */
     static <V> List<V> latest(List<ConsumerRecord<String, V>> records) {
         Map<String, V> byKey = new LinkedHashMap<>();
         for (ConsumerRecord<String, V> r : records) {

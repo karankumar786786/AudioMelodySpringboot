@@ -18,9 +18,8 @@ import me.oneorg.melody.events.stats.SongDailyStats;
 import me.oneorg.melody.events.stats.SongStats;
 
 /**
- * Writes the stats topics into Postgres. Values are totals, written as absolute values,
- * so a replay or a redelivered batch can't double-count. Only the newest record per key
- * in each batch is written.
+ * Stats topics ko Postgres me likhta hai. Values totals hain aur absolute likhi jaati hain (+1 nahi),
+ * isliye replay ya dobara aaya batch double-count nahi kar sakta. Har batch me har key ka sirf sabse naya record likhte hain.
  */
 @Component
 @Profile("stats")
@@ -33,6 +32,7 @@ public class StatsSink {
         this.jdbc = jdbc;
     }
 
+    /** stats.song.v1 -> song_stats (upsert). */
     @KafkaListener(id = "stats-sink-song", topics = Topics.STATS_SONG, containerFactory = "statsSinkFactory")
     public void songs(List<ConsumerRecord<String, SongStats>> records) {
         List<SongStats> latest = latest(records);
@@ -56,6 +56,7 @@ public class StatsSink {
         log.debug("song_stats: wrote {} songs", latest.size());
     }
 
+    /** stats.song-daily.v1 -> song_daily_stats (upsert). */
     @KafkaListener(id = "stats-sink-song-daily", topics = Topics.STATS_SONG_DAILY, containerFactory = "statsSinkFactory")
     public void daily(List<ConsumerRecord<String, SongDailyStats>> records) {
         List<SongDailyStats> latest = latest(records);
@@ -76,6 +77,7 @@ public class StatsSink {
         });
     }
 
+    /** stats.artist.v1 -> artist_stats (upsert). */
     @KafkaListener(id = "stats-sink-artist", topics = Topics.STATS_ARTIST, containerFactory = "statsSinkFactory")
     public void artists(List<ConsumerRecord<String, ArtistStats>> records) {
         List<ArtistStats> latest = latest(records);
@@ -94,6 +96,7 @@ public class StatsSink {
         });
     }
 
+    /** Batch me har key ki sabse nayi value. */
     static <V> List<V> latest(List<ConsumerRecord<String, V>> records) {
         Map<String, V> byKey = new LinkedHashMap<>();
         for (ConsumerRecord<String, V> r : records) {

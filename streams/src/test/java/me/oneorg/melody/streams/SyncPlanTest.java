@@ -18,6 +18,10 @@ import me.oneorg.melody.events.UserLifecycleEvent;
 import me.oneorg.melody.events.UserLifecycleType;
 import me.oneorg.melody.streams.sync.SyncPlan;
 
+/**
+ * Unit test: SyncPlan ko akele check karta hai.
+ * Har @Test method ek behaviour check karta hai - method ka naam batata hai kya.
+ */
 class SyncPlanTest {
 
     private final EventMeta meta = EventIds.meta(EventIds.newId(), Instant.now(), Instant.now(), "t");

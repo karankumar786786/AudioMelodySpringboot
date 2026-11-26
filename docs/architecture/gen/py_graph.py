@@ -61,7 +61,7 @@ def unparse(n, limit=240):
     return s if len(s) <= limit else s[:limit] + "…"
 
 
-# ---------------- pass 1: modules, classes, functions ----------------
+# ---------------- pass 1: modules, classes, functions ki list ----------------
 for dirpath, dirnames, filenames in os.walk(ROOT):
     dirnames[:] = [d for d in dirnames if d not in ("migrations", "__pycache__", "tests", ".venv", "venv")]
     for f in filenames:
@@ -234,7 +234,7 @@ INNGEST = re.compile(r"^(audio|shorts)/[a-z.\-]+$")
 REDIS = re.compile(r"^(admin|blocked_user|paginationMetaData|lake|system|mail_queue|audio_processing|delete_event)[:_a-zA-Z]*:?")
 
 
-# ---------------- pass 2: bodies ----------------
+# ---------------- pass 2: function bodies me calls dhoondo ----------------
 class BodyScanner(ast.NodeVisitor):
     def __init__(self, fid, m, ckey, fn):
         self.fid, self.m, self.ckey, self.fn = fid, m, ckey, fn
@@ -408,7 +408,7 @@ for m, info in modules.items():
                         s.visit(stmt)
 
 
-# ---------------- Django routes ----------------
+# ---------------- Django routes (URL -> view) ----------------
 def collect_urls(m, prefix):
     info = modules.get(m)
     if not info:

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Create missing topics from topics.yaml and bring configs in line. Never deletes.
-# Usage: apply-topics.sh [topics.yaml]   (env: RPK_BROKERS, REPLICATION_FACTOR)
+# topics.yaml ke missing topics banao aur configs match karo. Kabhi delete nahi karta.
+# Kaise chalayein: apply-topics.sh [topics.yaml]   (env: RPK_BROKERS, REPLICATION_FACTOR)
 set -euo pipefail
 
 FILE="${1:-$(dirname "$0")/topics.yaml}"
 RF="${REPLICATION_FACTOR:-1}"
 BROKERS="${RPK_BROKERS:-localhost:9092}"
 
-# Wait for the broker (the init container starts alongside it).
+# Broker ke ready hone ka wait (init container uske saath hi start hota hai).
 for i in $(seq 1 60); do
   if rpk topic list -X brokers="$BROKERS" >/dev/null 2>&1; then break; fi
   sleep 2

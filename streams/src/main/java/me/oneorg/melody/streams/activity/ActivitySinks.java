@@ -22,15 +22,13 @@ import me.oneorg.melody.streams.config.PipelineProperties;
 import me.oneorg.melody.streams.stats.StatsTopology;
 
 /**
- * Postgres sinks for activityStreams.
+ * activityStreams ke Postgres sinks (Kafka se padh ke DB me likhne wale).
  * <ul>
- *   <li>listening_sessions from activity.session.v1 (upsert; null = delete merged session).</li>
- *   <li>user_history from listening.play.v1, keyed on event_id so redelivery inserts nothing
- *       twice; for each newly inserted qualified play the song's total_streams and the
- *       user's history count go up by one in the same transaction. Off until the core API
- *       runs in KAFKA mode (melody.streams.history-sink-enabled), because before that the
- *       core API still writes history itself.</li>
- * </ul>
+ * <li>listening_sessions: activity.session.v1 se (upsert; null aaye = merge hua session delete).</li>
+ *   <li>user_history: listening.play.v1 se, event_id ke hisaab se - dobara aaye to kuch insert nahi hota.
+ *       Har naye "qualified" play pe usi transaction me song ka total_streams aur user ka history count +1.
+ *       Jab tak core API KAFKA mode me nahi hai tab tak band (melody.streams.history-sink-enabled),
+ *       kyunki tab tak core API khud history likhta hai.</li>
  */
 @Component
 @Profile("activity")
@@ -47,6 +45,7 @@ public class ActivitySinks {
         this.props = props;
     }
 
+    /** Sessions ko listening_sessions me upsert (null = delete). */
     @KafkaListener(id = "activity-session-sink", topics = Topics.ACTIVITY_SESSION, containerFactory = "sessionSinkFactory")
     public void sessions(List<ConsumerRecord<String, ListeningSession>> records) {
         Map<String, ListeningSession> latest = new LinkedHashMap<>();
@@ -83,6 +82,7 @@ public class ActivitySinks {
         });
     }
 
+    /** Plays ko user_history me likho (sirf jab history sink on ho). */
     @KafkaListener(id = "activity-history-sink", topics = Topics.PLAY, containerFactory = "historySinkFactory",
             autoStartup = "${melody.streams.history-sink-enabled:false}")
     public void history(List<ConsumerRecord<String, PlayEvent>> records) {
@@ -90,6 +90,7 @@ public class ActivitySinks {
         tx.executeWithoutResult(status -> writeHistory(records.stream().map(ConsumerRecord::value).filter(v -> v != null).toList()));
     }
 
+    /** Ek transaction me: history rows insert (event_id pe duplicate skip), naye qualified plays pe streams +1, history count +1. */
     void writeHistory(List<PlayEvent> plays) {
         Map<String, Long> streamsBySong = new HashMap<>();
         Map<String, Long> historyByUser = new HashMap<>();

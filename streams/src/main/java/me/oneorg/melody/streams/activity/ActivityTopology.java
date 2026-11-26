@@ -24,20 +24,23 @@ import me.oneorg.melody.events.stats.ListeningSession;
 import me.oneorg.melody.streams.config.Dedupe;
 
 /**
- * activityStreams: listening sessions per user. Plays and skips less than 30 minutes
- * apart belong to one session. When two sessions merge, Kafka Streams emits a null for
- * the old one, which the sink turns into a delete.
+ * activityStreams: har user ke listening sessions. Jo plays/skips 30 minute se kam ke gap pe hain
+ * wo ek hi session hain (SESSION WINDOW). Do sessions jud jaayein to Kafka Streams purane ke liye null
+ * bhejta hai, jise sink delete me badal deta hai.
  */
 public final class ActivityTopology {
 
+    /** Topology ke liye zaroori serdes (Avro converters). */
     public record Serdes3(Serde<PlayEvent> play, Serde<SkipEvent> skip, Serde<ListeningSession> session) {}
 
     private ActivityTopology() {}
 
+    /** Session ki id: userId + start time. */
     public static String sessionId(String userId, long startMs) {
         return userId + ":" + startMs;
     }
 
+    /** Topology: plays + skips -> dedupe -> user ke hisaab se session windows (gap ke andar) -> activity.session.v1. */
     public static void build(StreamsBuilder builder, Serdes3 s, Duration gap) {
         Serde<String> str = Serdes.String();
         Dedupe.addStore(builder, "activity-seen-plays");
@@ -74,11 +77,13 @@ public final class ActivityTopology {
                 .to(Topics.ACTIVITY_SESSION, Produced.with(str, s.session()));
     }
 
+    /** Play me kitne ms sune (ratio × duration). */
     static long listenedMs(PlayEvent e) {
         long duration = e.getDurationMs() != null && e.getDurationMs() > 0 ? e.getDurationMs() : 180_000L;
         return Math.round(e.getListenedRatio() * duration);
     }
 
+    /** Ek event ka session hissa. */
     private static ListeningSession tick(String userId, int plays, int skips, long listenedMs) {
         Instant epoch = Instant.EPOCH;
         return ListeningSession.newBuilder().setSessionId("").setUserId(userId)
@@ -86,6 +91,7 @@ public final class ActivityTopology {
                 .setPlays(plays).setSkips(skips).setListenedMs(listenedMs).build();
     }
 
+    /** Do session hisson ko jodo. */
     private static ListeningSession sum(ListeningSession a, ListeningSession b) {
         if (a == null) return b;
         if (b == null) return a;

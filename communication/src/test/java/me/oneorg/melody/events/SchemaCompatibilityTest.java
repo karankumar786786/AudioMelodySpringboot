@@ -23,12 +23,12 @@ import me.oneorg.melody.events.stats.SongStatDelta;
 import me.oneorg.melody.events.stats.SongStats;
 
 /**
- * Schema Registry runs with BACKWARD compatibility. This test enforces the same rule
- * before merge, offline: every schema must be able to read data written with the last
- * released version (src/test/resources/schema-snapshots). After a compatible change,
- * refresh the snapshots with
+ * Schema Registry BACKWARD compatibility pe chalti hai: naya schema purane data ko padh sake.
+ * Ye test wahi rule merge se pehle, offline check karta hai: har schema ko pichle released version
+ * (src/test/resources/schema-snapshots) ka likha data padh paana chahiye. Compatible change ke baad snapshots
+ * refresh karo:
  *   ./mvnw -pl communication test -Dschemas.update=true
- * and commit them with the change.
+ * aur change ke saath commit karo.
  */
 class SchemaCompatibilityTest {
 

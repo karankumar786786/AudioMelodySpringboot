@@ -29,17 +29,17 @@ import me.oneorg.melody.events.Topics;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * outboxRelay: publishes outbox_events rows written by the core and admin APIs.
+ * outboxRelay: core API aur admin API ne jo outbox_events rows likhi hain, unhe Kafka pe publish karta hai
+ * (outbox pattern: DB change + event ek transaction me, publish baad me yahan se).
  *
- * <p>It doesn't poll Postgres (that would keep Neon awake all day). It sweeps when a
- * writer's wake-up record arrives on outbox.wakeup.v1, once at start-up, and on a slow
- * safety timer (default every 6 h) for rows whose wake-up was lost.
+ * <p>Ye Postgres ko baar baar check (poll) nahi karta - warna Neon din bhar jaga rehta. Ye sweep karta hai jab:
+ * kisi writer ka wake-up message outbox.wakeup.v1 pe aaye, app start hote waqt ek baar, aur ek dheeme
+ * safety timer pe (default har 6 ghante) - un rows ke liye jinka wake-up kho gaya.
  *
- * <p>Each sweep locks a batch with FOR UPDATE SKIP LOCKED, publishes it with an idempotent
- * producer, waits for the acks, then marks the rows sent in the same transaction. A crash
- * between the ack and the commit republishes the batch; consumers drop duplicates by
- * event_id, which is the row id. A row that can't be converted is tried 5 times, then
- * sent to the DLQ as raw JSON and marked sent.
+ * <p>Har sweep: ek batch rows ko FOR UPDATE SKIP LOCKED se lock karo (doosra relay same rows na uthaye),
+ * idempotent producer se publish karo, Kafka ke ack ka wait karo, phir usi transaction me rows ko "sent" mark karo.
+ * Ack aur commit ke beech crash ho to batch dobara publish hoga; consumers event_id (= row id) se duplicate hata dete hain.
+ * Jo row Avro me convert na ho paaye use 5 baar try karte hain, phir raw JSON ke saath DLQ me bhej ke sent mark kar dete hain.
  */
 @Component
 @Profile("outbox-relay")
@@ -68,17 +68,19 @@ public class OutboxRelay {
 
     record Row(UUID id, String topic, String key, String payload, String source, Instant createdAt, int attempts) {}
 
+    /** Wake-up message aaya -> sweep chalao. */
     @KafkaListener(id = "outbox-wakeup", topics = Topics.OUTBOX_WAKEUP, containerFactory = "wakeupFactory")
     public void onWakeup(List<String> signals) {
         sweep();
     }
 
+    /** Safety timer: start ke 5 second baad, phir har 6 ghante -> sweep (khoye hue wake-ups ke liye). */
     @Scheduled(initialDelayString = "PT5S", fixedDelayString = "${melody.streams.outbox-safety-sweep:PT6H}")
     public void safetySweep() {
         sweep();
     }
 
-    /** Publishes everything pending. Concurrent calls collapse into one more pass. */
+    /** Jo bhi pending hai sab publish karo. Ek saath kai calls aayein to bas ek extra round chalta hai. */
     public int sweep() {
         if (!running.compareAndSet(false, true)) {
             again.set(true);
@@ -136,7 +138,7 @@ public class OutboxRelay {
         try {
             CompletableFuture.allOf(acks.toArray(CompletableFuture[]::new)).get(30, TimeUnit.SECONDS);
         } catch (Exception e) {
-            // Roll back: nothing is marked sent; the whole batch is retried next time.
+            // Rollback: kuch bhi sent mark nahi hua; poora batch agli baar dobara.
             throw new IllegalStateException("Kafka did not acknowledge the outbox batch", e);
         }
         markSent(published);
@@ -150,6 +152,7 @@ public class OutboxRelay {
         return OutboxPayloads.toAvro(row.topic(), payload, meta);
     }
 
+    /** Rows ko sent mark karo. Email rows ka payload khaali kar dete hain (OTP DB me na pada rahe). */
     private void markSent(List<Row> rows) {
         if (rows.isEmpty()) return;
         jdbc.batchUpdate("""
@@ -160,6 +163,7 @@ public class OutboxRelay {
                 """, rows, rows.size(), (ps, r) -> ps.setObject(1, r.id()));
     }
 
+    /** Row fail hui: attempts +1 aur error likho. 5 attempts ke baad DLQ me bhejo (email ho to body chhupa ke) aur sent mark. */
     private void failed(Row row, Exception e) {
         String error = String.valueOf(e.getMessage());
         if (error.length() > 450) error = error.substring(0, 450);
@@ -182,7 +186,7 @@ public class OutboxRelay {
         }
     }
 
-    /** Deletes rows published more than 3 days ago, at most once an hour, while the database is awake anyway. */
+    /** 3 din se purani published rows hatao - ghante me max ek baar, aur tabhi jab DB waise bhi jaga hua ho. */
     private void cleanupIfDue() {
         if (Instant.now().isBefore(lastCleanup.plusSeconds(3600))) return;
         lastCleanup = Instant.now();

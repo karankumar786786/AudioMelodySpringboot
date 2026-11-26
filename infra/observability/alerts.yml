@@ -1,25 +1,25 @@
-# One Melody — production alert rules for Uptrace (Uptrace YAML monitor format).
+# One Melody - production ke alert rules, Uptrace ke YAML monitor format me.
 #
-# Import: Uptrace → Alerting → Monitors → New monitor → "From YAML", paste ONE
-# monitor entry (or the whole list if your Uptrace version accepts it).
-# What each alert means and what to check first: infra/observability/README.md
+# Import kaise karein: Uptrace → Alerting → Monitors → New monitor → "From YAML", aur EK
+# monitor entry paste karo (ya poori list, agar aapka Uptrace version le leta hai).
+# Har alert ka matlab aur pehle kya check karna hai: infra/observability/README.md
 #
 # ─────────────────────────────────────────────────────────────────────────────
-# NOTIFICATION CHANNEL — PLACEHOLDER, NOT CONFIGURED YET
-#   No email/Slack destination has been chosen. Until one is created in
-#   Uptrace → Alerting → Notification channels and attached to these monitors,
-#   alerts only show up in the Uptrace UI. See README.md "Connecting a channel".
+# NOTIFICATION CHANNEL - abhi set NAHI hua (placeholder)
+#   Abhi koi email/Slack destination nahi chuna gaya. Jab tak
+#   Uptrace → Alerting → Notification channels me ek banake in monitors se joda nahi jaata,
+#   alerts sirf Uptrace UI me dikhenge. README.md ka "Connecting a channel" dekho.
 #   notification_channel: TODO_CHOOSE_EMAIL_OR_SLACK
 # ─────────────────────────────────────────────────────────────────────────────
 #
-# Conventions
-# - Uptrace writes OTel names with underscores: http.server.request.duration →
+# Niyam (conventions)
+# - Uptrace OTel naamon me dot ki jagah underscore likhta hai: http.server.request.duration →
 #   http_server_request_duration, service.name → service_name.
-# - Evaluation resolution is 1 minute, so num_eval_points = minutes in the window;
-#   min_breach_points = num_eval_points means "every minute of the window breached".
-# - Service names come from OTEL_SERVICE_NAME: core-engine, admin-backend,
+# - Har 1 minute pe check hota hai, to num_eval_points = window ke minutes;
+#   min_breach_points = num_eval_points matlab "window ka har minute limit ke paar tha".
+# - Service naam OTEL_SERVICE_NAME se aate hain: core-engine, admin-backend,
 #   audio-processing, mail-worker.
-# - Metric sources:
+# - Metrics kahan se aate hain:
 #     uptrace_tracing_spans                  Uptrace's metric derived from spans (all traced services)
 #     http_server_request_duration (s)       OTel Java agent in coreEngine (http_route, http_response_status_code)
 #     audio_processing_runs / _steps         audioProcessing/lib/jobMetrics.ts
@@ -28,9 +28,9 @@
 #                                            workers/mailEvents/telemetry.ts
 
 monitors:
-  # ── 1. HTTP 5xx rate > 2% for 5 minutes, per service ──────────────────────
-  # Server spans get status "error" only for 5xx responses (4xx stay unset), so
-  # the error ratio of httpserver spans is the 5xx ratio. Fires per service_name.
+  # ── 1. HTTP 5xx rate 5 minute tak 2% se zyada (har service) ─────────────────
+  # Server spans ka status "error" sirf 5xx pe hota hai (4xx pe nahi), isliye
+  # httpserver spans ka error ratio = 5xx ratio. Har service_name ke liye alag alert.
   - name: "HTTP 5xx rate > 2% (5m)"
     type: threshold
     metrics:
@@ -47,9 +47,9 @@ monitors:
     num_eval_points: 5
     min_breach_points: 5
 
-  # ── 2. p95 latency of core home / recommendation endpoints > 1.5s for 10m ──
-  # Routes (coreEngine controllers): GET /api/home/stream (SSE: the span covers the
-  # whole feed until the emitter completes), /api/recommendations/user,
+  # ── 2. Home / recommendation endpoints ki p95 latency 10 min tak 1.5s se zyada ──
+  # Routes (coreEngine controllers): GET /api/home/stream (SSE: span poora feed
+  # khatam hone tak chalta hai), /api/recommendations/user,
   # /api/recommendations/similar/{songId}, /api/recommendations/radio,
   # /api/recommendations/radio/session.
   - name: "Core home/recommendations p95 > 1.5s (10m)"
@@ -68,8 +68,8 @@ monitors:
     num_eval_points: 10
     min_breach_points: 10
 
-  # ── 3. Any audio processing job failure ───────────────────────────────────
-  # outcome="failure" is only recorded once Inngest has exhausted retries.
+  # ── 3. Koi bhi audio processing job fail ─────────────────────────────────────
+  # outcome="failure" tabhi likha jaata hai jab Inngest ke saare retries khatam ho jaayein.
   - name: "Audio processing job failed"
     type: threshold
     metrics:
@@ -84,8 +84,8 @@ monitors:
     num_eval_points: 1
     min_breach_points: 1
 
-  # Companion: a step that keeps retrying (flaky S3/ImageKit/coreEngine callback)
-  # before it turns into a failure. Lower urgency.
+  # Saathi alert: koi step baar baar retry ho raha hai (S3 / ImageKit / callback kabhi chalta kabhi nahi)
+  # fail hone se pehle hi pata chal jaaye. Kam urgent.
   - name: "Audio processing step retries > 10/min"
     type: threshold
     metrics:
@@ -100,10 +100,10 @@ monitors:
     num_eval_points: 1
     min_breach_points: 1
 
-  # ── 4. No audio-processing heartbeat for 3 minutes ────────────────────────
-  # audioProcessing POSTs a heartbeat every 10s (≈6/min). `default 0` turns
-  # empty buckets into zero so silence (worker down, admin down, auth/network
-  # failure) breaches instead of producing a gap.
+  # ── 4. 3 minute tak audio-processing ka heartbeat nahi aaya ──────────────────
+  # audioProcessing har 10 second heartbeat bhejta hai (≈6/minute). `default 0`
+  # khaali buckets ko 0 bana deta hai, taaki chuppi (worker down, admin down, auth/network
+  # fail) bhi alert de, graph me sirf khaali jagah na bane.
   - name: "No audio-processing heartbeat (3m)"
     type: threshold
     metrics:
@@ -117,7 +117,7 @@ monitors:
     num_eval_points: 3
     min_breach_points: 3
 
-  # ── 5. Mail: DLQ growth and send failures ────────────────────────────────
+  # ── 5. Mail: DLQ badh rahi hai ya sends fail ho rahe hain ───────────────────
   - name: "Mail moved to DLQ"
     type: threshold
     metrics:
@@ -158,12 +158,12 @@ monitors:
     num_eval_points: 10
     min_breach_points: 10
 
-  # ── 6. Restarts / crash loops (proxy) ─────────────────────────────────────
-  # Container restart counts are NOT collected (the collector has no Docker
-  # socket; see README "Container restarts"). These "went silent" monitors catch
-  # a crashed or crash-looping service instead.
-  # core-engine: Docker HEALTHCHECK hits /actuator/health every 30s → ≥2 spans/min.
-  # admin-backend: heartbeats + /health checks → ≥6 spans/min.
+  # ── 6. Restarts / crash loops (andaze se) ────────────────────────────────────
+  # Container restart counts collect NAHI hote (collector ke paas Docker
+  # socket nahi; README ka "Container restarts" dekho). Ye "chup ho gaya" monitors
+  # crash hui ya baar baar crash hoti service pakadte hain.
+  # core-engine: Docker HEALTHCHECK har 30 sec /actuator/health hit karta hai → minute me ≥2 spans.
+  # admin-backend: heartbeats + /health checks → minute me ≥6 spans.
   - name: "core-engine sent no spans (5m)"
     type: threshold
     metrics:
@@ -190,7 +190,7 @@ monitors:
     num_eval_points: 5
     min_breach_points: 5
 
-  # mail-worker exports mail_queue_length every 15s while it is alive.
+  # mail-worker zinda rehte har 15 sec mail_queue_length bhejta hai.
   - name: "Mail worker silent (5m)"
     type: threshold
     metrics:

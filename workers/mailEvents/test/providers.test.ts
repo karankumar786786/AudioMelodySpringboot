@@ -1,3 +1,4 @@
+/** Test: mail providers (smtp / ses / resend) ke unit tests - nakli clients ke saath, koi asli email nahi jaata. */
 import { describe, it, expect } from "bun:test";
 import { createMailProvider } from "../providers";
 import { createResendProvider, ResendError } from "../providers/resend";

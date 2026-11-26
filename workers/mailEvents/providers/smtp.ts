@@ -1,10 +1,10 @@
 import nodemailer from "nodemailer";
 import { formatFrom, type Env, type MailProvider } from "./types";
 
-/** Gmail (or any SMTP) via nodemailer. Behaviour matches the original worker. */
+/** Gmail (ya koi bhi SMTP) nodemailer se. Ek connection, second me max 1 email (Gmail limits ke liye). */
 export function createSmtpProvider(env: Env): MailProvider {
     const smtpUser = env.SMTP_USER || "";
-    // Strip any spaces from the App Password (e.g. "abcd efgh ijkl mnop" -> "abcdefghijklmnop")
+    // App Password ke spaces hatao ("abcd efgh ijkl mnop" -> "abcdefghijklmnop")
     const smtpPass = (env.SMTP_PASS || "").replace(/\s+/g, "");
     const smtpHost = env.SMTP_HOST || "smtp.gmail.com";
     const smtpPort = Number(env.SMTP_PORT) || 465;

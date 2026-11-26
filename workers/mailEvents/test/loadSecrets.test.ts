@@ -1,3 +1,4 @@
+/** Test: load-secrets.ts ke unit tests (secret ids, quoting, exports). */
 import { describe, expect, test } from "bun:test";
 import { secretIds, shellQuote, toExports } from "../load-secrets";
 

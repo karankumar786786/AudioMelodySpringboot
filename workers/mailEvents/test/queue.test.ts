@@ -1,3 +1,4 @@
+/** Test: queue logic (lib/queue.ts) ke unit tests - nakli in-memory store ke saath, bina Redis ke. */
 import { describe, it, expect, spyOn, afterEach } from "bun:test";
 import { blockTimeoutSeconds, handleRawJob, parseJob, buildDlqEntry, retryDelayMs, type MailJob, type MailQueueStore, type DlqEntry } from "../lib/queue";
 
@@ -30,7 +31,7 @@ describe("mail queue handling", () => {
         const errSpy = spyOn(console, "error").mockImplementation(() => {});
         spies.push(errSpy);
         const store = new MemoryStore();
-        const raw = '{"to":"a@b.com","otp":"987654"'; // truncated JSON
+        const raw = '{"to":"a@b.com","otp":"987654"'; // adhoora JSON
         const outcome = await handleRawJob(raw, { send: async () => {}, isAuthError: neverAuth, store });
         expect(outcome.kind).toBe("malformed");
         const logged = errSpy.mock.calls.flat().map(String).join(" ");
@@ -62,9 +63,9 @@ describe("mail queue handling", () => {
         expect(second.kind).toBe("sent");
         expect(sent).toEqual(["good@b.com"]);
 
-        // Not due yet
+        // Abhi time nahi hua
         expect(await store.promoteDue(now + retryDelayMs(1) - 1)).toBe(0);
-        // Due: moved back to the ready queue with its retry count
+        // Time ho gaya: retry count ke saath wapas ready queue me
         expect(await store.promoteDue(now + retryDelayMs(1))).toBe(1);
         const requeued = JSON.parse(store.ready[0]!);
         expect(requeued.retries).toBe(1);

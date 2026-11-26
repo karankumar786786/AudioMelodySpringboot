@@ -1,7 +1,7 @@
 ########################################
-# S3 data lake: raw listening events as Parquet (written by Redpanda Connect on the
-# processing server), plus archived user_history. Private, encrypted, kept forever;
-# objects move to Glacier Instant Retrieval after a year.
+# S3 data lake: raw listening events Parquet files me (processing server pe Redpanda Connect likhta hai),
+# aur archive ki hui user_history. Private, encrypted, hamesha ke liye;
+# ek saal baad files Glacier Instant Retrieval (sasta storage) me chali jaati hain.
 ########################################
 
 resource "aws_s3_bucket" "lake" {
@@ -64,8 +64,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "lake" {
   }
 }
 
-# Read and write for the roles that need it (the processing server: Redpanda Connect
-# writes events, the admin API reads them with DuckDB and archives history).
+# Padhne-likhne ki permission sirf zaroori roles ko (processing server: Redpanda Connect events likhta hai,
+# admin API DuckDB se padhta hai aur history archive karta hai).
 data "aws_iam_policy_document" "lake_access" {
   statement {
     sid       = "ListLake"

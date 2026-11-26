@@ -21,10 +21,10 @@ import me.oneorg.melody.events.Topics;
 import me.oneorg.melody.streams.config.PipelineProperties;
 
 /**
- * When a song is published, queue one email per follower of its artists. Followers come
- * from Postgres (each user's latest follow/unfollow event), so people who followed before
- * Kafka existed are included. Each email is its own notification.email.v1 event, sent by
- * EmailSender with the usual retries. Off by default (melody.streams.new-release-emails-enabled).
+ * Naya gaana publish ho to uske artists ke har follower ke liye ek email line me lagao.
+ * Followers Postgres se aate hain (har user ka sabse naya follow/unfollow event), to Kafka aane se pehle
+ * follow karne wale bhi shaamil hain. Har email ek alag notification.email.v1 event hai, jise EmailSender
+ * retries ke saath bhejta hai. Default me band (melody.streams.new-release-emails-enabled).
  */
 @Component
 @Profile("notification")
@@ -42,6 +42,7 @@ public class NewReleaseNotifier {
         this.props = props;
     }
 
+    /** catalog.song.v1 aaya: gaana PUBLISHED hua ho (aur feature on) to artists ke ACTIVE followers ke emails line me lagao. */
     @KafkaListener(id = "new-release", topics = Topics.CATALOG_SONG, containerFactory = "releaseFactory",
             autoStartup = "${melody.streams.new-release-emails-enabled:false}")
     public void onSongChanged(ConsumerRecord<String, SongChanged> record) {

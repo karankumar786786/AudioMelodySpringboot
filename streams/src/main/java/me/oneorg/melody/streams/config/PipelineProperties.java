@@ -4,17 +4,17 @@ import java.time.Duration;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-/** melody.streams.* settings shared by the stream services. */
+/** melody.streams.* settings - saari stream services ke liye common. */
 @ConfigurationProperties(prefix = "melody.streams")
 public record PipelineProperties(
         String schemaRegistryUrl,
         String stateDir,
         int replicationFactor,
-        /** Write plays into user_history and stream counts (enable when the core API runs in KAFKA mode). */
+        /** Plays ko user_history aur stream counts me likho (tab on karo jab core API KAFKA mode me ho). */
         boolean historySinkEnabled,
-        /** Send interactions to Recombee and Algolia (enable when the core API runs in KAFKA mode). */
+        /** Interactions Recombee aur Algolia ko bhejo (tab on karo jab core API KAFKA mode me ho). */
         boolean syncEnabled,
-        /** Email followers when an artist releases a song. */
+        /** Artist naya gaana laaye to followers ko email bhejo. */
         boolean newReleaseEmailsEnabled,
         Duration outboxSafetySweep,
         Duration sessionGap) {

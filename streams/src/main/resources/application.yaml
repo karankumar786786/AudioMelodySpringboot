@@ -1,5 +1,5 @@
-# One Melody stream services. SPRING_PROFILES_ACTIVE picks what this container runs:
-#   outbox-relay, stats, activity, sync, notification   (comma separated)
+# One Melody stream services. SPRING_PROFILES_ACTIVE batata hai ki ye container kya chalaye:
+#   outbox-relay, stats, activity, sync, notification, analytics   (comma se alag)
 spring:
   application:
     name: melody-streams
@@ -30,7 +30,7 @@ spring:
     password: ${DB_PASSWORD:postgres}
     hikari:
       pool-name: StreamsPool
-      minimum-idle: 0                  # no idle connections: let Neon sleep between batches
+      minimum-idle: 0                  # koi idle connection nahi: batches ke beech Neon so sake
       maximum-pool-size: 5
       idle-timeout: 30000
       max-lifetime: 240000
@@ -45,8 +45,8 @@ melody:
     schema-registry-url: ${SCHEMA_REGISTRY_URL:http://localhost:18081}
     state-dir: ${STREAMS_STATE_DIR:/tmp/kafka-streams}
     replication-factor: ${KAFKA_REPLICATION_FACTOR:1}
-    # Turn these on when the core API switches to EVENTS_MODE=KAFKA (until then the core
-    # API still writes history and calls Recombee/Algolia itself).
+    # Inhe tab on karo jab core API EVENTS_MODE=KAFKA pe aaye (tab tak core API khud
+    # history likhta hai aur Recombee/Algolia ko call karta hai).
     history-sink-enabled: ${STREAMS_HISTORY_SINK_ENABLED:false}
     sync-enabled: ${STREAMS_SYNC_ENABLED:false}
     new-release-emails-enabled: ${STREAMS_NEW_RELEASE_EMAILS_ENABLED:false}
@@ -78,6 +78,6 @@ management:
         enabled: true
   health:
     db:
-      enabled: false        # no SELECT 1 every few seconds: Neon can sleep
+      enabled: false        # har kuch second me SELECT 1 nahi: Neon so sake
     mail:
       enabled: false

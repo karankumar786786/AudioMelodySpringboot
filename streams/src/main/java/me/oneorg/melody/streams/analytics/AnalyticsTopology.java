@@ -46,41 +46,43 @@ import me.oneorg.melody.streams.config.Dedupe;
 import me.oneorg.melody.streams.stats.StatsTopology;
 
 /**
- * Song analytics for the admin dashboard. Every branch groups and windows its updates, so
- * the sink (and Postgres) sees one record per key per minute instead of one per play.
+ * Admin dashboard ke song analytics. Har branch apne updates ko group aur window karti hai, to sink (aur Postgres)
+ * ko har play pe nahi, har key ka minute me ek record milta hai.
  *
- *   plays --dedupe--> stamp arrival time --groupBy song--> 1-min window: sum per-second deltas
- *         --> emit when the window closes --> add to the song's totals --> changed seconds
+ *   plays --dedupe--> pahunchne ka time --groupBy song--> 1-min window: per-second deltas jodo
+ *         --> window band ho tab bhejo --> song ke totals me jodo --> badle hue seconds
  *         (running totals) --> analytics.song-timeline.v1
- *   plays + skips --groupBy song--> 1-day window (UTC) --> at most one update a minute --> analytics.song-daily.v1
- *   plays --groupBy song|quality|platform--> 1-day window --> at most one a minute    --> analytics.song-quality.v1
+ *   plays + skips --groupBy song--> 1-din window (UTC) --> minute me max ek update --> analytics.song-daily.v1
+ *   plays --groupBy song|quality|platform--> 1-din window --> minute me max ek        --> analytics.song-quality.v1
  *
- * Only plays that report the parts listened ("ranges") feed the heatmap; older clients
- * still count in the daily totals. Suppression runs on stream time, so on a quiet
- * partition the last minute is written when the next event arrives.
+ * Heatmap me sirf wo plays aate hain jo "ranges" (kaunse hisse sune) bhejte hain; purane apps ke plays
+ * daily totals me phir bhi ginte hain. Suppression "stream time" pe chalta hai, isliye shaant partition pe
+ * aakhri minute tab likha jaata hai jab agla event aaye.
  */
 public final class AnalyticsTopology {
 
-    /** No play contributes more than an hour of seconds, whatever it claims. */
+    /** Ek play ek ghante se zyada seconds nahi jod sakta, client kuch bhi bheje. */
     static final int MAX_SECONDS_PER_PLAY = 3600;
     static final double COMPLETION_RATIO = 0.9;
 
-    /** Heatmap deltas are summed per song over this window, then added to the totals once. */
+    /** Heatmap ke deltas is window me har song ke liye jode jaate hain, phir totals me ek hi baar. */
     static final Duration TIMELINE_WINDOW = Duration.ofMinutes(1);
     static final Duration TIMELINE_GRACE = Duration.ofSeconds(10);
-    /** Daily windows accept events up to the core API's maximum client clock skew (24 h) late. */
+    /** Daily windows 24 ghante (core API ki max clock skew) tak der se aaye events bhi le lete hain. */
     static final Duration DAY_GRACE = Duration.ofHours(25);
-    /** Daily totals go out at most this often per key. */
+    /** Daily totals har key ke liye max itni baar bheje jaate hain. */
     static final Duration EMIT_EVERY = Duration.ofMinutes(1);
     static final long MAX_BUFFERED = 20_000;
 
     static final String TIMELINE_TOTALS = "song-timeline-totals";
 
+    /** Topology ke liye zaroori serdes. */
     public record AnalyticsSerdes(Serde<PlayEvent> play, Serde<SkipEvent> skip, Serde<SongTimeline> timeline,
                                   Serde<SongDayStats> day, Serde<SongQualityStats> quality) {}
 
     private AnalyticsTopology() {}
 
+    /** Teeno branches wali topology banao (diagram upar). */
     public static void build(StreamsBuilder builder, AnalyticsSerdes s) {
         Serde<String> str = Serdes.String();
         Dedupe.addStore(builder, "analytics-seen-plays");
@@ -93,8 +95,8 @@ public final class AnalyticsTopology {
         KStream<String, SkipEvent> skips = builder.stream(Topics.SKIP, Consumed.with(str, s.skip()))
                 .processValues(Dedupe.<SkipEvent>byEventId("analytics-seen-skips", e -> e.getMeta().getEventId()), "analytics-seen-skips");
 
-        // 1. Per-second timeline. The heatmap isn't split by day, so windows use arrival time:
-        //    a play sent late from an offline phone still lands in an open window.
+        // 1. Har second ki timeline. Heatmap din ke hisaab se nahi bata, isliye window "pahunchne ke time" pe hai:
+        // offline phone se der se aaya play bhi khuli window me aa jaata hai.
         plays.filter((k, e) -> !e.getRanges().isEmpty() || !e.getSeeks().isEmpty())
                 .processValues(AnalyticsTopology::arrivalTime)
                 .mapValues(AnalyticsTopology::timelineDelta)
@@ -110,7 +112,7 @@ public final class AnalyticsTopology {
                 .processValues(addToTotals(), TIMELINE_TOTALS)
                 .to(Topics.ANALYTICS_SONG_TIMELINE, Produced.with(str, s.timeline()));
 
-        // 2. Daily totals (plays and skips), one UTC-day window per song.
+        // 2. Daily totals (plays aur skips), har song ki ek UTC-din window.
         KStream<String, SongDayStats> playDays = plays.mapValues(AnalyticsTopology::playDay);
         KStream<String, SongDayStats> skipDays = skips.mapValues(e -> SongDayStats.newBuilder()
                 .setSongId(e.getSongId()).setDay(utcDay(e.getMeta().getOccurredAt())).setSkips(1).build());
@@ -128,7 +130,7 @@ public final class AnalyticsTopology {
                 })
                 .to(Topics.ANALYTICS_SONG_DAILY, Produced.with(str, s.day()));
 
-        // 3. Delivery quality per day, quality and platform.
+        // 3. Streaming quality - har din, quality aur platform ke hisaab se.
         plays.mapValues(AnalyticsTopology::qualityDelta)
                 .groupBy((k, q) -> q.getSongId() + "|" + q.getQuality() + "|" + q.getPlatform(),
                         Grouped.with("analytics-quality-by-song", str, s.quality()))
@@ -146,13 +148,13 @@ public final class AnalyticsTopology {
                 .to(Topics.ANALYTICS_SONG_QUALITY, Produced.with(str, s.quality()));
     }
 
-    /** Latest value per key at most once a minute; a full buffer emits early rather than failing. */
+    /** Har key ki sabse nayi value minute me max ek baar; buffer bhar jaaye to fail hone ke bajaye jaldi bhej do. */
     private static <K, V> Suppressed<Windowed<K>> rateLimited(String name) {
         return Suppressed.<Windowed<K>>untilTimeLimit(EMIT_EVERY,
                 Suppressed.BufferConfig.maxRecords(MAX_BUFFERED).emitEarlyWhenFull()).withName(name);
     }
 
-    /** Re-stamps each play with the time it was processed (the test driver's clock in tests). */
+    /** Har play pe processing ka time laga do (tests me test driver ki ghadi). */
     private static FixedKeyProcessor<String, PlayEvent, PlayEvent> arrivalTime() {
         return new FixedKeyProcessor<>() {
             private FixedKeyProcessorContext<String, PlayEvent> context;
@@ -170,9 +172,8 @@ public final class AnalyticsTopology {
     }
 
     /**
-     * Adds a closed window's deltas to the song's totals (kept in this task's store; each
-     * window closes exactly once under exactly-once processing) and emits the new totals
-     * for just the seconds that window touched.
+     * Band hui window ke deltas song ke totals me jodta hai (totals isi task ke store me; exactly-once me har window
+     * ek hi baar band hoti hai) aur sirf us window ke chhue seconds ke naye totals bhejta hai.
      */
     private static FixedKeyProcessorSupplier<String, SongTimeline, SongTimeline> addToTotals() {
         return () -> new FixedKeyProcessor<>() {
@@ -196,23 +197,25 @@ public final class AnalyticsTopology {
         };
     }
 
+    /** Instant -> UTC tareekh. */
     static LocalDate utcDay(Instant at) {
         return LocalDate.ofInstant(at, ZoneOffset.UTC);
     }
 
+    /** Window ke start ka UTC din. */
     static LocalDate windowDay(Windowed<String> w) {
         return utcDay(Instant.ofEpochMilli(w.window().start()));
     }
 
-    // ---- Pure mapping, unit-tested -----------------------------------------------------------
+    // ---- Pure functions (koi bahar ki call nahi), unit tests se check -----------------------------
 
-    /** One play's contribution to each second it touched, keyed by second. */
+    /** Ek play ne jis jis second ko chhua, har second me uska hissa (second ke hisaab se). */
     public static Map<Integer, SongSecondStats> secondDeltas(PlayEvent e) {
-        Map<Integer, long[]> acc = new LinkedHashMap<>(); // [listens, exits, skips, away, into]
+        Map<Integer, long[]> acc = new LinkedHashMap<>(); // [listens, exits, skips, seek se gaye, seek se aaye]
         int budget = MAX_SECONDS_PER_PLAY;
         for (ListenRange r : e.getRanges()) {
             int from = (int) (r.getStartMs() / 1000);
-            int to = (int) ((r.getEndMs() - 1) / 1000); // last second actually reached
+            int to = (int) ((r.getEndMs() - 1) / 1000); // aakhri second jahan tak sach me pahuncha
             for (int sec = from; sec <= to && budget > 0; sec++, budget--) {
                 acc.computeIfAbsent(sec, x -> new long[5])[0]++;
             }
@@ -237,14 +240,14 @@ public final class AnalyticsTopology {
         return out;
     }
 
-    /** One play's per-second contributions as a single record, seconds in order. */
+    /** Ek play ke per-second hisse ek record me, seconds order me. */
     public static SongTimeline timelineDelta(PlayEvent e) {
         List<SongSecondStats> secs = new ArrayList<>(secondDeltas(e).values());
         secs.sort(Comparator.comparingInt(SongSecondStats::getSec));
         return SongTimeline.newBuilder().setSongId(e.getSongId()).setSeconds(secs).build();
     }
 
-    /** Totals from {@code total} for the seconds present in {@code delta}. */
+    /** {@code delta} me jo seconds hain, unke {@code total} wale totals. */
     static SongTimeline changedSeconds(SongTimeline total, SongTimeline delta) {
         Map<Integer, SongSecondStats> bySec = new HashMap<>();
         for (SongSecondStats x : total.getSeconds()) bySec.put(x.getSec(), x);
@@ -253,7 +256,7 @@ public final class AnalyticsTopology {
         return SongTimeline.newBuilder().setSongId(total.getSongId()).setSeconds(out).build();
     }
 
-    /** Milliseconds actually heard: the ranges if sent, else ratio × duration. */
+    /** Asal me kitne milliseconds sune: ranges bheje hon to unse, warna ratio × duration. */
     public static long listenedMs(PlayEvent e) {
         if (!e.getRanges().isEmpty()) {
             return e.getRanges().stream().mapToLong(r -> r.getEndMs() - r.getStartMs()).sum();
@@ -262,6 +265,7 @@ public final class AnalyticsTopology {
         return Math.round(e.getListenedRatio() * duration);
     }
 
+    /** Ek play ka din wala hissa: 1 play, stream hua?, poora suna?, kitne ms. */
     public static SongDayStats playDay(PlayEvent e) {
         LocalDate day = utcDay(e.getMeta().getOccurredAt());
         return SongDayStats.newBuilder()
@@ -273,6 +277,7 @@ public final class AnalyticsTopology {
                 .build();
     }
 
+    /** Ek play ka quality wala hissa: quality, platform, startup time, buffering. */
     public static SongQualityStats qualityDelta(PlayEvent e) {
         LocalDate day = utcDay(e.getMeta().getOccurredAt());
         return SongQualityStats.newBuilder()
@@ -288,6 +293,7 @@ public final class AnalyticsTopology {
                 .build();
     }
 
+    /** Do second-stats ko jodo. */
     static SongSecondStats sum(SongSecondStats a, SongSecondStats b) {
         return SongSecondStats.newBuilder(a)
                 .setListens(a.getListens() + b.getListens())
@@ -298,7 +304,7 @@ public final class AnalyticsTopology {
                 .build();
     }
 
-    /** Seconds merged and added; either side may be null (an empty store slot). */
+    /** Seconds jodo aur add karo; koi bhi side null ho sakti hai (khaali store slot). */
     static SongTimeline sum(SongTimeline a, SongTimeline b) {
         if (a == null) return b;
         if (b == null) return a;
@@ -308,6 +314,7 @@ public final class AnalyticsTopology {
         return SongTimeline.newBuilder().setSongId(a.getSongId()).setSeconds(new ArrayList<>(bySec.values())).build();
     }
 
+    /** Do day-stats ko jodo. */
     static SongDayStats sum(SongDayStats a, SongDayStats b) {
         return SongDayStats.newBuilder(a)
                 .setPlays(a.getPlays() + b.getPlays())
@@ -318,6 +325,7 @@ public final class AnalyticsTopology {
                 .build();
     }
 
+    /** Do quality-stats ko jodo. */
     static SongQualityStats sum(SongQualityStats a, SongQualityStats b) {
         return SongQualityStats.newBuilder(a)
                 .setPlays(a.getPlays() + b.getPlays())

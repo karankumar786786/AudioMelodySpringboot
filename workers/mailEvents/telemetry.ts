@@ -1,16 +1,14 @@
 /**
- * Metrics-only OpenTelemetry setup for the mail worker (alerting signals, see
- * infra/observability/alerts.yml). Kept separate from the sending logic in
- * index.ts: the worker only calls the record* helpers below.
+ * Mail worker ke liye sirf metrics (OpenTelemetry) - alerts ke liye (infra/observability/alerts.yml dekho).
+ * Bhejne wale logic (index.ts) se alag rakha hai: worker bas neeche ke record* helpers call karta hai.
  *
- *   mail.sent            counter                 emails accepted by SMTP
- *   mail.send_failures   counter {disposition}   failed attempts: retry | dlq
- *   mail.dlq_pushed      counter {reason}        jobs moved to the DLQ: auth | max_retries
- *   mail.queue_length    gauge   {queue}         LLEN of the main queue and the DLQ
+ *   mail.sent            counter                 kitne emails provider ne le liye
+ *   mail.send_failures   counter {disposition}   fail koshishein: retry | dlq
+ *   mail.dlq_pushed      counter {reason}        DLQ me gaye jobs: auth | max_retries
+ *   mail.queue_length    gauge   {queue}         main queue aur DLQ ki length (LLEN)
  *
- * Exports via OTLP/HTTP to the collector on the same compose network
- * (OTEL_EXPORTER_OTLP_ENDPOINT, default http://otel-collector:4318).
- * Set OTEL_SDK_DISABLED=true to turn it off.
+ * OTLP/HTTP se same compose network ke collector ko bhejta hai
+ * (OTEL_EXPORTER_OTLP_ENDPOINT, default http://otel-collector:4318). Band karna ho to OTEL_SDK_DISABLED=true.
  */
 import { metrics, type Counter } from "@opentelemetry/api";
 import { MeterProvider, PeriodicExportingMetricReader } from "@opentelemetry/sdk-metrics";
@@ -22,6 +20,7 @@ type Instruments = { sent: Counter; failures: Counter; dlq: Counter };
 let provider: MeterProvider | undefined;
 let instruments: Instruments | undefined;
 
+/** Metrics shuru karo: counters + queue length gauge, har minute export. */
 export function startTelemetry(queueLengths: () => Promise<Record<string, number>>) {
   if (/^(true|1|yes)$/i.test(process.env.OTEL_SDK_DISABLED || "")) return;
 
@@ -34,7 +33,7 @@ export function startTelemetry(queueLengths: () => Promise<Record<string, number
       readers: [
         new PeriodicExportingMetricReader({
           exporter: new OTLPMetricExporter({ url }),
-          exportIntervalMillis: 60000, // each export reads 2 queue lengths from Redis (billed per command)
+          exportIntervalMillis: 60000, // har minute 2 queue lengths Redis se padhta hai (har command ka paisa lagta hai)
         }),
       ],
     });
@@ -61,7 +60,7 @@ export function startTelemetry(queueLengths: () => Promise<Record<string, number
             result.observe(length, { queue });
           }
         } catch {
-          // Redis unavailable: report nothing rather than a misleading zero.
+          // Redis nahi mila: kuch report mat karo (galat 0 se behtar).
         }
       });
 
@@ -72,10 +71,12 @@ export function startTelemetry(queueLengths: () => Promise<Record<string, number
   }
 }
 
+/** Ek email bheja gaya (+1). */
 export function recordSent() {
   instruments?.sent.add(1);
 }
 
+/** Ek fail attempt (+1): retry ya dlq (dlq ka reason bhi). */
 export function recordFailure(disposition: "retry" | "dlq", dlqReason?: "auth" | "max_retries") {
   instruments?.failures.add(1, { disposition });
   if (disposition === "dlq") instruments?.dlq.add(1, { reason: dlqReason ?? "unknown" });

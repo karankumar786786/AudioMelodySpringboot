@@ -21,7 +21,7 @@ module "lake" {
   project_name = var.project_name
   environment  = var.environment
   bucket_name  = var.lake_bucket_name
-  # The processing server runs Redpanda Connect (writes) and the admin API (reads, archives).
+  # Processing server pe Redpanda Connect (lake me likhta hai) aur admin API (padhta + history archive karta hai) chalte hain.
   reader_writer_role_names = [module.secrets.role_names["processing"]]
 }
 

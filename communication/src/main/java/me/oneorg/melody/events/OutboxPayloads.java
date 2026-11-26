@@ -18,13 +18,14 @@ import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificRecord;
 
 /**
- * Converts an outbox row's plain-JSON payload (snake_case Avro field names, no union
- * wrappers, already parsed into Maps/Lists) into the topic's generated Avro class.
- * The "meta" field is filled from the outbox row, so writers never build EventMeta.
- * Missing fields take the schema default; unknown fields are ignored.
+ * Outbox row ke simple JSON payload (Avro wale snake_case field naam, bina union wrappers, Map/List me parse
+ * hua) ko us topic ki generated Avro class me badalta hai.
+ * "meta" field outbox row se bharti hai, isliye likhne walon ko EventMeta banana nahi padta.
+ * Jo field missing hai uski schema wali default value; anjaan fields ignore.
  */
 public final class OutboxPayloads {
 
+    /** Kaunse topic ka payload kis Avro class me badalna hai. */
     private static final Map<String, Class<? extends SpecificRecord>> TOPIC_TYPES = Map.of(
             Topics.FAVOURITE, FavouriteChanged.class,
             Topics.PLAYLIST_SONG, PlaylistSongChanged.class,
@@ -35,10 +36,12 @@ public final class OutboxPayloads {
 
     private OutboxPayloads() {}
 
+    /** Is topic ke liye converter hai? */
     public static boolean supports(String topic) {
         return TOPIC_TYPES.containsKey(topic);
     }
 
+    /** Payload (Map) + meta -> us topic ka Avro object. Unknown topic = error. */
     public static SpecificRecord toAvro(String topic, Map<String, Object> payload, EventMeta meta) {
         Class<? extends SpecificRecord> type = TOPIC_TYPES.get(topic);
         if (type == null) throw new IllegalArgumentException("No Avro type for outbox topic " + topic);
@@ -47,6 +50,7 @@ public final class OutboxPayloads {
         return toSpecific(generic, schema, type);
     }
 
+    /** Avro class ka schema (uske SCHEMA$ field se). */
     private static Schema schemaOf(Class<? extends SpecificRecord> type) {
         try {
             return (Schema) type.getField("SCHEMA$").get(null);
@@ -55,6 +59,7 @@ public final class OutboxPayloads {
         }
     }
 
+    /** Map se schema ke hisaab se GenericRecord banao (missing field = default). */
     private static GenericRecord record(Schema schema, Map<String, Object> values, EventMeta meta) {
         GenericData.Record record = new GenericData.Record(schema);
         for (Schema.Field field : schema.getFields()) {
@@ -75,6 +80,7 @@ public final class OutboxPayloads {
         return record;
     }
 
+    /** EventMeta ko schema wale record me badlo. */
     private static GenericRecord metaRecord(Schema schema, EventMeta meta) {
         GenericData.Record r = new GenericData.Record(schema);
         r.put("event_id", meta.getEventId());
@@ -84,6 +90,7 @@ public final class OutboxPayloads {
         return r;
     }
 
+    /** Ek field ki value schema type ke hisaab se badlo (union, array, enum, timestamp...). */
     @SuppressWarnings("unchecked")
     private static Object value(Schema schema, Object raw, String name) {
         switch (schema.getType()) {
@@ -132,16 +139,19 @@ public final class OutboxPayloads {
         }
     }
 
+    /** Field ka logical type (jaise timestamp-millis), na ho to null. */
     private static String logical(Schema schema) {
         return schema.getLogicalType() == null ? null : schema.getLogicalType().getName();
     }
 
+    /** JSON number ko sahi Java number me badlo. */
     private static Object number(Object raw) {
         if (raw instanceof Number) return raw;
         return Double.valueOf(raw.toString());
     }
 
-    /** Round-trips through Avro binary so logical types become Instant/LocalDate on the generated class. */
+    /** Ek baar Avro binary me likh ke wapas padhte hain, taaki logical types (timestamp, date) generated class me Instant / LocalDate ban jaayein. */
+    /** GenericRecord -> generated Avro class (binary me likh ke wapas padh ke). */
     private static <T extends SpecificRecord> T toSpecific(GenericRecord generic, Schema schema, Class<T> type) {
         try {
             ByteArrayOutputStream out = new ByteArrayOutputStream();

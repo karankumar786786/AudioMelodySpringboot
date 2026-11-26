@@ -1,14 +1,19 @@
 /**
- * Print shell `export` lines for the JSON secrets named in SECRET_IDS.
+ * SECRET_IDS me diye JSON secrets (AWS Secrets Manager) ki shell `export` lines print karta hai.
  *
- * Built to dist/load-secrets.js and run only by entrypoint.sh, which evals the output.
- * Values go to stdout (a pipe), never to logs; errors name the secret and key, never a value.
- * Keep in sync with audioProcessing/load-secrets.ts and adminBackend/load_secrets.py.
+ * dist/load-secrets.js me build hota hai aur sirf entrypoint.sh chalata hai, jo output ko eval karta hai.
+ * Values stdout (pipe) pe jaati hain, logs me kabhi nahi; errors me secret aur key ka naam hota hai, value nahi.
+ * audioProcessing/load-secrets.ts aur adminBackend/load_secrets.py ke saath same rakhna.
+ *
+ * dist/load-secrets.js me build hota hai aur sirf entrypoint.sh chalata hai, jo output ko eval karta hai.
+ * Values stdout (pipe) pe jaati hain, logs me kabhi nahi; errors me secret aur key ka naam hota hai, value nahi.
+ * audioProcessing/load-secrets.ts aur adminBackend/load_secrets.py ke saath same rakhna.
  */
 import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 
 const KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
+/** "a,b;c" -> ["a", "b", "c"] (comma ya semicolon se alag). */
 export function secretIds(raw: string | undefined): string[] {
   return (raw ?? "")
     .split(/[,;]/)
@@ -16,10 +21,12 @@ export function secretIds(raw: string | undefined): string[] {
     .filter(Boolean);
 }
 
+/** Value ko single quotes me safe banao (shell injection se bachne ke liye). */
 export function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'"'"'`)}'`;
 }
 
+/** Ek secret ka JSON -> `export KEY='value'` lines. Galat JSON / galat key / object value = error. */
 export function toExports(secretId: string, payload: string): string[] {
   let data: unknown;
   try {
@@ -41,6 +48,7 @@ export function toExports(secretId: string, payload: string): string[] {
   });
 }
 
+/** Saare secrets padho aur exports print karo. Koi bhi fail ho to 1 (container start nahi hoga). */
 async function main(): Promise<number> {
   const ids = secretIds(process.env.SECRET_IDS);
   if (ids.length === 0) return 0;

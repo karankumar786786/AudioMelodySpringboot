@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Copy One Melody's runtime secrets from the old env files into AWS Secrets Manager.
+"""One Melody ke runtime secrets purani env files se AWS Secrets Manager me copy karta hai.
 
-One-time migration helper for infra/SECRETS.md. Values are read from the env files and
-piped to `aws secretsmanager put-secret-value` on stdin: they are never printed,
-logged or passed on a command line.
+Ek baar ka migration helper (infra/SECRETS.md dekho). Values env files se padh ke
+`aws secretsmanager put-secret-value` ko stdin se di jaati hain: kabhi print, log ya
+command line pe pass nahi hoti.
 
-    python3 infra/scripts/put-secrets.py --dry-run          # key names per secret, nothing sent
-    python3 infra/scripts/put-secrets.py                    # write every onemelody/prod/* secret
-    python3 infra/scripts/put-secrets.py --only core,mail   # write just these
+    python3 infra/scripts/put-secrets.py --dry-run          # har secret ki key names dikhao, kuch bhejo mat
+    python3 infra/scripts/put-secrets.py                    # saare onemelody/prod/* secrets likho
+    python3 infra/scripts/put-secrets.py --only core,mail   # sirf ye wale likho
 
-The env files default to Docker/core/{core,mail}.env and Docker/admin/{admin,process}.env.
-Uses your own AWS CLI credentials (an admin user), not the servers' instance roles.
+Default env files: Docker/core/{core,mail}.env aur Docker/admin/{admin,process}.env.
+Aapke apne AWS CLI credentials (admin user) use hote hain, servers ke instance roles nahi.
 """
 
 import argparse
@@ -22,9 +22,9 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 
-# secret name -> (env file it is read from, keys). Keep in sync with infra/SECRETS.md.
-# Non-secret settings (ports, queue names, bucket names, OTel, cookies, CORS for core)
-# are set in Docker/*/docker-compose.yml instead and are deliberately not listed here.
+# secret ka naam -> (kis env file se padhna hai, kaunsi keys). infra/SECRETS.md ke saath same rakho.
+# Non-secret settings (ports, queue names, bucket names, OTel, cookies, core ka CORS) Docker/*/docker-compose.yml
+# me set hoti hain aur jaan-boojh ke yahan nahi hain.
 SECRETS: dict[str, tuple[str, list[str]]] = {
     "db": ("core/core.env", ["DB_URL", "DB_USER", "DB_PASSWORD"]),
     "redis": ("core/core.env", ["REDIS_HOST", "REDIS_PASSWORD", "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"]),
@@ -65,14 +65,14 @@ SECRETS: dict[str, tuple[str, list[str]]] = {
         "ALGOLIA_APP_ID", "ALGOLIA_API_KEY",
         "CONCURRENT_TRANSCODING_LIMIT", "MAX_CONCURRENT_JOBS",
     ]),
-    # Kafka client settings for core (Redpanda on the processing server's private IP;
-    # `terraform output kafka`) and the stream services. Written as {} while unset, so
-    # core's required import of this secret still succeeds.
+    # Core aur stream services ki Kafka client settings (Redpanda processing server ke private IP pe;
+    # `terraform output kafka`). Jab tak set na ho {} likhte hain, taaki core ka is secret ka zaroori import
+    # fir bhi chal jaaye.
     "kafka": ("core/core.env", [
         "KAFKA_BOOTSTRAP_SERVERS", "SCHEMA_REGISTRY_URL",
         "KAFKA_SECURITY_PROTOCOL", "KAFKA_SASL_MECHANISM", "KAFKA_SASL_JAAS_CONFIG",
     ]),
-    # streams/ still reads streams.env today; this prepares its secret for the switch.
+    # streams/ abhi streams.env padhta hai; ye uske switch ke liye secret taiyaar karta hai.
     "streams": ("admin/streams.env", [
         "RECOMBEE_DATABASE_ID", "RECOMBEE_DATABASE_SECRET",
         "ALGOLIA_APP_ID", "ALGOLIA_API_KEY",
@@ -80,7 +80,7 @@ SECRETS: dict[str, tuple[str, list[str]]] = {
     ]),
 }
 
-# Secrets whose env file may not exist yet; they are written as {} instead of failing.
+# Jin secrets ki env file shayad abhi na ho; fail hone ke bajaye {} likhte hain.
 MAY_BE_EMPTY = {"kafka", "streams"}
 
 LINE_RE = re.compile(r"^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$")
@@ -144,7 +144,7 @@ def main() -> int:
             input=json.dumps(payload), text=True, capture_output=True,
         )
         if result.returncode != 0:
-            # The AWS CLI error names the secret and the reason, never the value.
+            # AWS CLI ka error secret ka naam aur wajah batata hai, value kabhi nahi.
             print(f"  FAILED: {result.stderr.strip()}", file=sys.stderr)
             failed = True
         else:
