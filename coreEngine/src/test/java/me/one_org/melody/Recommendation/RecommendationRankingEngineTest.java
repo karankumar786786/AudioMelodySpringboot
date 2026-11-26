@@ -67,8 +67,8 @@ class RecommendationRankingEngineTest {
                 List.of(),
                 Set.of("seed-1"),
                 5,
-                2, // max 2 per artist
-                2  // max 2 per album
+                2, // ek artist ke max 2
+                2  // ek album ke max 2
         );
 
         assertThat(results).hasSize(5);
@@ -105,8 +105,8 @@ class RecommendationRankingEngineTest {
                 List.of(),
                 Set.of("seed-1"),
                 4,
-                2, // max 2 per artist
-                2  // max 2 per album
+                2, // ek artist ke max 2
+                2  // ek album ke max 2
         );
 
         assertThat(results).hasSize(4);
@@ -148,7 +148,7 @@ class RecommendationRankingEngineTest {
                 List.of(),
                 Set.of("seed-1"),
                 3,
-                2, // max 2 per artist strictly
+                2, // ek artist ke max 2, strictly
                 2
         );
 
@@ -245,7 +245,7 @@ class RecommendationRankingEngineTest {
                 List.of(),
                 Set.of("seed-1"),
                 4,
-                2, // max 2 per artist
+                2, // ek artist ke max 2
                 2
         );
 
@@ -414,7 +414,7 @@ class RecommendationRankingEngineTest {
         Song far = buildSongEntity("far", "Far", "Artist F", "Pop", null, "English");
         far.setTempo(140.0); far.setEnergy(0.95); far.setValence(0.9); far.setDanceability(0.9);
 
-        for (int i = 0; i < 20; i++) { // jitter (0..3) must never flip a ~28-point gap
+        for (int i = 0; i < 20; i++) { // random jitter (0..3) ~28 points ke fark ko kabhi ulat nahi sakta
             List<SongDto> ranked = engine.rankAndDiversify(null, chill, List.of(), List.of(far, near), Set.of(), 2);
             assertThat(ranked).extracting(SongDto::id).containsExactly("near", "far");
         }
