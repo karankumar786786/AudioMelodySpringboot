@@ -21,7 +21,13 @@ import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Enums.StatusEnum;
 import java.time.LocalDateTime;
 
-/*
+/**
+ * Recombee (recommendation service) ka client: songs/users ka data bhejna, user ke actions ko "rating"
+ * ki tarah bhejna, aur recommendations lena. Har call ka timeout 3 second hai.
+ *
+ * Recombee har user-song jodi ki rating (-1 se +1) se seekhta hai ki kise kya pasand hai.
+ * Hum user ke actions ko is table ke hisaab se rating me badalte hain:
+ *
  * ╔══════════════════════════════════════════════════════════════╗
  * ║                    RATING SCALE (-1.0 to 1.0)               ║
  * ╠══════════════════════════════════════════════════════════════╣
@@ -43,7 +49,7 @@ import java.time.LocalDateTime;
 @Slf4j
 public class Recombee {
 
-    private static final long DEFAULT_TIMEOUT_MS = 3000L; // 3 seconds resilient timeout
+    private static final long DEFAULT_TIMEOUT_MS = 3000L; // har Recombee call max 3 second
 
     private final RecombeeClient recombeeClient;
 
@@ -51,6 +57,7 @@ public class Recombee {
         this.recombeeClient = recombeeClient;
     }
 
+    /** Har request pe 3 second ka timeout laga do. */
     private <T extends Request> T withTimeout(T request) {
         if (request != null) {
             request.setTimeout(DEFAULT_TIMEOUT_MS);
@@ -58,12 +65,14 @@ public class Recombee {
         return request;
     }
 
+    /** Recombee ka booster formula: zyada streams wale gaane thode upar (5000+ = 1.4x, 500+ = 1.25x, 50+ = 1.1x). */
     private static final String TOTAL_STREAMS_BOOSTER =
             "if 'totalStreams' != null and 'totalStreams' > 0 then (if 'totalStreams' > 5000 then 1.4 else if 'totalStreams' > 500 then 1.25 else if 'totalStreams' > 50 then 1.1 else 1.03) else 1.0";
 
+    /** Startup pe Recombee me song ki properties (title, artist, genre, audio features...) register karo. */
     @PostConstruct
     public void configureSchema() {
-        // Register each item property independently so existence of one does not abort remaining registrations
+        // Har property alag alag register karo - ek pehle se ho (error) to baaki rukni nahi chahiye
         registerPropertySafely("title", "string");
         registerPropertySafely("artistName", "string");
         registerPropertySafely("artists", "set");
@@ -92,7 +101,7 @@ public class Recombee {
         registerPropertySafely("jobId", "string");
         registerPropertySafely("createdAt", "string");
 
-        // Audio feature properties for content-based recommendations
+        // Audio features bhi - taaki Recombee awaaz ke hisaab se bhi milte-julte gaane de
         registerPropertySafely("tempo", "double");
         registerPropertySafely("danceability", "double");
         registerPropertySafely("energy", "double");
@@ -106,18 +115,20 @@ public class Recombee {
         registerPropertySafely("mode", "int");
     }
 
+    /** Ek property register karo; pehle se ho to error ignore. */
     private void registerPropertySafely(String name, String type) {
         try {
             recombeeClient.send(withTimeout(new AddItemProperty(name, type)));
             log.info("Recombee item property '{}' ({}) registered successfully", name, type);
         } catch (Exception e) {
-            // Property already exists or transient network note
+            // Property pehle se hai (ya network ki chhoti dikkat) - koi baat nahi
             log.debug("Recombee property '{}' check/register note: {}", name, e.getMessage());
         }
     }
 
-    // ── Save song item with properties ──
+    // ── Song ko Recombee me item ki tarah save karna ──
 
+    /** "Pop, Rock" -> ["Pop", "Rock"]. */
     public static List<String> parseGenres(String genreStr) {
         if (genreStr == null || genreStr.isBlank()) {
             return List.of();
@@ -129,6 +140,7 @@ public class Recombee {
                 .toList();
     }
 
+    /** "A ft. B & C" -> ["A", "B", "C"]. */
     public static List<String> parseArtists(String artistStr) {
         if (artistStr == null || artistStr.isBlank()) {
             return List.of();
@@ -140,6 +152,7 @@ public class Recombee {
                 .toList();
     }
 
+    /** Song se Recombee ke item values (Map) banao. */
     public Map<String, Object> buildSongValues(Song song) {
         Map<String, Object> values = new HashMap<>();
         values.put("title", song.getTitle());
@@ -207,11 +220,13 @@ public class Recombee {
         return values;
     }
 
+    /** Song Recombee me save/update karo (item na ho to ban jaata hai). */
     public void saveSong(Song song) throws Exception {
         Map<String, Object> values = buildSongValues(song);
         recombeeClient.send(withTimeout(new SetItemValues(song.getId(), values).setCascadeCreate(true)));
     }
 
+    /** Sirf streams count update karo. */
     public void updateTotalStreams(String songId, long totalStreams) throws Exception {
         Map<String, Object> values = new HashMap<>();
         int streams = (int) Math.min(totalStreams, Integer.MAX_VALUE);
@@ -219,14 +234,17 @@ public class Recombee {
         recombeeClient.send(withTimeout(new SetItemValues(songId, values).setCascadeCreate(true)));
     }
 
+    /** Kam values ke saath song save (baaki null). */
     public void saveSong(String songId, String title, String artistName, String language, String genre) throws Exception {
         saveSong(songId, title, artistName, language, genre, null, null, null, 0L);
     }
 
+    /** Kam values ke saath song save. */
     public void saveSong(String songId, String title, String artistName, String language, String genre, Integer duration) throws Exception {
         saveSong(songId, title, artistName, language, genre, null, null, duration, 0L);
     }
 
+    /** Saari values ke saath song save. */
     public void saveSong(String songId, String title, String artistName, String language, String genre, String album, String country, String imageKey, Integer duration, Long totalStreams) throws Exception {
         Map<String, Object> values = new HashMap<>();
         values.put("title", title);
@@ -262,123 +280,128 @@ public class Recombee {
         recombeeClient.send(withTimeout(new SetItemValues(songId, values).setCascadeCreate(true)));
     }
 
+    /** Bina country ke song save. */
     public void saveSong(String songId, String title, String artistName, String language, String genre, String album, String imageKey, Integer duration, Long totalStreams) throws Exception {
         saveSong(songId, title, artistName, language, genre, album, "India", imageKey, duration, totalStreams);
     }
 
+    /** Song Recombee se hatao. */
     public void delete(String songId) throws Exception {
         recombeeClient.send(withTimeout(new DeleteItem(songId)));
     }
 
+    /** Naya user Recombee me banao. */
     public void addUser(String userId) throws Exception {
         recombeeClient.send(withTimeout(new AddUser(userId)));
     }
 
+    /** User Recombee se hatao. */
     public void deleteUser(String userId) throws Exception {
         recombeeClient.send(withTimeout(new DeleteUser(userId)));
     }
 
-    // ── Interaction tracking ──
+    // ── User ke actions (ratings / bookmarks) bhejna ──
 
-    // percentage: 0.0 - 1.0 (e.g. 0.87 means 87% of song was listened)
+    // percentage: 0.0 - 1.0 (0.87 = gaane ka 87% suna). Upar table ke hisaab se rating banti hai.
     public void trackPlay(String userId, String songId, double percentage) throws Exception {
         double rating;
         if (percentage >= 0.90) {
-            rating = 0.7; // completed — strong positive
+            rating = 0.7; // poora suna - strong positive
         } else if (percentage >= 0.50) {
-            rating = 0.3; // good listen — moderate positive
+            rating = 0.3; // achha khaasa suna - moderate positive
         } else if (percentage >= 0.25) {
-            rating = 0.1; // partial — weak positive
+            rating = 0.1; // thoda suna - weak positive
         } else {
-            rating = -0.3; // drop-off — soft negative
+            rating = -0.3; // jaldi chhod diya - halka negative
         }
         recombeeClient.send(withTimeout(new AddRating(userId, songId, rating).setCascadeCreate(true)));
     }
 
-    // explicit skip button pressed
+    // Skip button dabaya: -1.0 (sabse strong negative)
     public void trackSkip(String userId, String songId) throws Exception {
         recombeeClient.send(withTimeout(new AddRating(userId, songId, -1.0).setCascadeCreate(true)));
     }
 
-    // user played a song that appeared in search results — strong active-discovery signal
+    // Search karke play kiya - user ne khud dhoondha, strong positive
     public void trackSearchPlay(String userId, String songId) throws Exception {
         recombeeClient.send(withTimeout(new AddDetailView(userId, songId).setCascadeCreate(true)));
     }
 
-    // user explicitly added a song to their queue — strong intent signal
+    // Khud queue me joda - strong intent
     public void trackQueueAdd(String userId, String songId) throws Exception {
         recombeeClient.send(withTimeout(new AddBookmark(userId, songId).setCascadeCreate(true)));
     }
 
-    // user explicitly removed a song from their queue — negative intent signal
+    // Queue se hataya - negative intent
     public void trackQueueRemove(String userId, String songId) throws Exception {
         try {
             recombeeClient.send(withTimeout(new DeleteBookmark(userId, songId)));
         } catch (Exception ignored) {
-            // Bookmark may not exist if song was queued from radio/playlist
+            // Radio/playlist se queue hua tha to bookmark tha hi nahi - error ignore
         }
         recombeeClient.send(withTimeout(new AddRating(userId, songId, -0.4).setCascadeCreate(true)));
     }
 
-    // added to favourites
+    // Favourite me joda: +1.0
     public void trackFavouriteAdd(String userId, String songId) throws Exception {
         recombeeClient.send(withTimeout(new AddRating(userId, songId, 1.0).setCascadeCreate(true)));
     }
 
-    // removed from favourites
+    // Favourite se hataya: -0.5
     public void trackFavouriteRemove(String userId, String songId) throws Exception {
         recombeeClient.send(withTimeout(new AddRating(userId, songId, -0.5).setCascadeCreate(true)));
     }
 
-    // added to user's own playlist
+    // Apni playlist me joda: +0.8
     public void trackPlaylistAdd(String userId, String songId) throws Exception {
         recombeeClient.send(withTimeout(new AddRating(userId, songId, 0.8).setCascadeCreate(true)));
     }
 
-    // removed from user's own playlist
+    // Apni playlist se hataya: -0.4
     public void trackPlaylistRemove(String userId, String songId) throws Exception {
         recombeeClient.send(withTimeout(new AddRating(userId, songId, -0.4).setCascadeCreate(true)));
     }
 
-    // user explicitly disliked / hid a song — strong negative signal
+    // Dislike / chhupaya - strong negative
     public void trackDislike(String userId, String songId) throws Exception {
         recombeeClient.send(withTimeout(new AddRating(userId, songId, -1.0).setCascadeCreate(true)));
     }
 
-    // user shared a song — high intent advocacy signal
+    // Share kiya - user ko bahut pasand hai
     public void trackShare(String userId, String songId) throws Exception {
         recombeeClient.send(withTimeout(new AddRating(userId, songId, 0.6).setCascadeCreate(true)));
     }
 
-    // added to artist follow — highest user advocacy signal
+    // Artist follow kiya (Recombee me user-artist ka signal)
     public void trackArtistFollow(String userId, String artistId) throws Exception {
         recombeeClient.send(withTimeout(new AddRating(userId, artistId, 1.0).setCascadeCreate(true)));
     }
 
-    // removed from artist follow — negative preference adjustment
+    // Artist unfollow kiya
     public void trackArtistUnfollow(String userId, String artistId) throws Exception {
         recombeeClient.send(withTimeout(new AddRating(userId, artistId, -0.5).setCascadeCreate(true)));
     }
 
-    // explicit rating signal (e.g. repeat-listen strong positive signals)
+    // Seedhi rating bhejo (jaise baar baar sune gaanon ka strong positive)
     public void trackRating(String userId, String songId, double rating) throws Exception {
         recombeeClient.send(withTimeout(new AddRating(userId, songId, rating).setCascadeCreate(true)));
     }
 
-    // detail view / short preview interaction
+    // Gaane ka detail page / preview dekha (halka signal)
     public void trackDetailView(String userId, String songId) throws Exception {
         recombeeClient.send(withTimeout(new AddDetailView(userId, songId).setCascadeCreate(true)));
     }
 
-    // ── Recommendations — return only IDs, caller fetches from DB ──
+    // ── Recommendations lena (zyadatar sirf ids; details caller DB se laata hai) ──
 
+    /** User ke liye song ids. */
     public List<String> recommendForUser(String userId, int count) throws Exception {
         return new ArrayList<>(recommendForUserWithAudio(userId, count).keySet());
     }
 
     /**
-     * Personalized recommendations for a user, in Recombee rank order, mapped to each item's
-     * audio features (value is null when the item has none). Only audio properties are returned.
+     * User ke liye recommendations, Recombee ke order me, har song id ke saath uske audio features
+     * (na hon to null). Recombee se sirf audio properties maangte hain (response chhota rahe).
      */
     public Map<String, AudioProfile> recommendForUserWithAudio(String userId, int count) throws Exception {
         RecommendationResponse response;
@@ -409,8 +432,7 @@ public class Recombee {
     }
 
     /**
-     * Fetches a song's audio features from Recombee. Best-effort: returns null when the item
-     * is unknown, has no audio data, or the request fails.
+     * Recombee se ek gaane ke audio features. Koshish bhar: gaana na ho, data na ho, ya call fail ho to null.
      */
     public AudioProfile getAudioProfile(String songId) {
         if (songId == null || songId.isBlank()) return null;
@@ -422,6 +444,7 @@ public class Recombee {
         }
     }
 
+    /** Recombee ke result (values ke saath) se SongDto banao. */
     public SongDto mapHitToSongDto(Recommendation hit) {
         if (hit == null || hit.getId() == null) return null;
         String id = hit.getId();
@@ -478,6 +501,7 @@ public class Recombee {
         );
     }
 
+    /** Seed gaane se radio (poori details ke saath), excludeIds chhod ke. */
     public List<SongDto> recommendRadioDetailed(String seedSongId, List<String> excludeIds, int count) throws Exception {
         java.util.Set<String> excludedSet = new java.util.HashSet<>();
         if (excludeIds != null) {
@@ -518,8 +542,8 @@ public class Recombee {
     }
 
     /**
-     * P4: Returns radio recommendations along with the Recombee recommId for session-continuity.
-     * The recommId can be passed to recommendNextItems() for sequential auto-play recommendations.
+     * Radio recommendations + Recombee ka recommId. Ye recommId recommendNextItems() ko dene se
+     * agle gaane pichle batch ke aage se aate hain (session yaad rehta hai).
      */
     public RadioResponseDto recommendRadioWithRecommId(String seedSongId, List<String> excludeIds, int count) throws Exception {
         java.util.Set<String> excludedSet = new java.util.HashSet<>();
@@ -561,6 +585,7 @@ public class Recombee {
         return new RadioResponseDto(result, recommId);
     }
 
+    /** Similar gaane, poori details ke saath. */
     public List<SongDto> recommendSimilarDetailed(String songId, int count) throws Exception {
         RecommendationResponse response;
         try {
@@ -587,6 +612,7 @@ public class Recombee {
         return result;
     }
 
+    /** Similar gaano ki ids. */
     public List<String> recommendSimilar(String songId, int count) throws Exception {
         RecommendationResponse response;
         try {
@@ -606,9 +632,8 @@ public class Recombee {
     }
 
     /**
-     * Sequential "what to play next" recommendation.
-     * Uses RecommendNextItems which accounts for the user's current listening sequence,
-     * producing better auto-play transitions than generic item-to-item similarity.
+     * "Ab aage kya bajaayein" - Recombee ka RecommendNextItems, jo user ke abhi ke sequence ko dhyan me
+     * rakhta hai; isse auto-play ke gaane ek doosre se behtar jude lagte hain.
      */
     public List<String> recommendNextItems(String userId, String recommId, int count) throws Exception {
         RecommendationResponse response = recombeeClient.send(
@@ -620,8 +645,9 @@ public class Recombee {
         return songIds;
     }
 
-    // ── Bulk resync ──
+    // ── Saare songs ek saath dobara bhejna ──
 
+    /** Saare songs ek batch me Recombee ko bhejo. */
     public void reindexAll(List<Song> songs) throws Exception {
         ArrayList<Request> requests = new ArrayList<>();
         for (Song song : songs) {

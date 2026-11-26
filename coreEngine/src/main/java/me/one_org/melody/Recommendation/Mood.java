@@ -5,18 +5,19 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 
 /**
- * Moods offered by mood radio. Each mood has:
+ * Mood radio ke moods. Har mood ke paas:
  * <ul>
- *   <li>a <b>target</b> {@link AudioProfile} — the "ideal" sound, used as the seed audio when ranking;</li>
- *   <li><b>candidate ranges</b> — the window of energy, valence and tempo pulled from the database.
- *       Ranges are deliberately wider than the target so ranking (not the filter) decides order.</li>
+ *   <li>ek <b>target</b> {@link AudioProfile} - us mood ki "perfect" awaaz; ranking me isko seed ki tarah use karte hain;</li>
+ *   <li><b>candidate ranges</b> - energy, valence aur tempo ki range jiske gaane database se nikaalte hain.
+ *       Range jaan-boojh ke target se chaudi hai, taaki order filter nahi, ranking decide kare.</li>
  * </ul>
- * Scales follow the audio pipeline ({@code audioProcessing/lib/transcode/audioFeatures.ts}):
- * tempo in BPM, energy/valence/danceability in 0..1 (valence is clamped to 0.10–0.95 there).
- * Songs whose tempo is unknown still qualify on energy/valence, since beat tracking can fail.
+ * Scale media pipeline jaisa hi hai ({@code audioProcessing/lib/transcode/audioFeatures.ts}):
+ * tempo BPM me, energy/valence/danceability 0..1 me (wahan valence 0.10-0.95 me rakha jaata hai).
+ * Jinka tempo pata nahi wo bhi energy/valence se chal jaate hain, kyunki beat pakadna kabhi fail ho jaata hai.
  */
 public enum Mood {
     //            target: tempo, energy, valence, dance   energy range   valence range   tempo range
+    // (CHILL = shaant, WORKOUT = exercise ke liye tez, FOCUS = padhai, HAPPY = khush, SAD = udaas)
     CHILL(  new AudioProfile( 90.0, 0.30, 0.55, 0.45),   0.00, 0.50,     0.25, 0.85,     60, 115),
     WORKOUT(new AudioProfile(130.0, 0.85, 0.65, 0.75),   0.65, 1.00,     0.30, 1.00,    110, 185),
     FOCUS(  new AudioProfile(100.0, 0.35, 0.40, 0.35),   0.10, 0.55,     0.15, 0.65,     65, 125),
@@ -50,7 +51,7 @@ public enum Mood {
     public double minTempo() { return minTempo; }
     public double maxTempo() { return maxTempo; }
 
-    /** True when the profile falls inside this mood's candidate ranges (null tempo allowed). */
+    /** Profile is mood ki ranges me aata hai? (tempo null ho to bhi chalega) */
     public boolean matches(AudioProfile p) {
         if (p == null || p.energy() == null || p.valence() == null) return false;
         boolean tempoOk = p.tempo() == null || (p.tempo() >= minTempo && p.tempo() <= maxTempo);
@@ -59,7 +60,7 @@ public enum Mood {
                 && tempoOk;
     }
 
-    /** Case-insensitive lookup; throws {@link IllegalArgumentException} (HTTP 400) for unknown moods. */
+    /** Naam se mood (chhote-bade akshar ignore). Galat naam pe {@link IllegalArgumentException} (HTTP 400). */
     public static Mood parse(String value) {
         if (value != null) {
             String key = value.trim().toUpperCase(Locale.ROOT);

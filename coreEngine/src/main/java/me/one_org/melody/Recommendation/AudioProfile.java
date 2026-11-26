@@ -6,32 +6,38 @@ import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Entity.Song;
 
 /**
- * Audio features of a song (tempo in BPM; energy, valence and danceability in 0..1).
- * Any field may be null when the feature is unknown.
+ * Gaane ki "awaaz ki pehchaan" (audio features):
+ * - tempo: BPM (beats per minute) - gaana kitna tez hai
+ * - energy: 0..1 - kitna josh / shor
+ * - valence: 0..1 - kitna khush (1) ya udaas (0)
+ * - danceability: 0..1 - naachne layak kitna
+ * Pata na ho to koi bhi field null ho sakti hai.
  */
 public record AudioProfile(Double tempo, Double energy, Double valence, Double danceability) {
 
-    /** Recombee property names holding audio features. */
+    /** Recombee me in naamon se audio features rakhe hain. */
     public static final String[] PROPERTY_NAMES = {"tempo", "energy", "valence", "danceability"};
 
+    /** Kam se kam ek feature pata hai? */
     public boolean hasAny() {
         return tempo != null || energy != null || valence != null || danceability != null;
     }
 
+    /** SongDto se profile; kuch na ho to null. */
     public static AudioProfile of(SongDto dto) {
         if (dto == null) return null;
         AudioProfile p = new AudioProfile(dto.tempo(), dto.energy(), dto.valence(), dto.danceability());
         return p.hasAny() ? p : null;
     }
 
-    /** Profile stored on the song row (Flyway V15); null when the song has no features. */
+    /** Song row me rakha profile (Flyway V15); koi feature na ho to null. */
     public static AudioProfile of(Song song) {
         if (song == null) return null;
         AudioProfile p = new AudioProfile(song.getTempo(), song.getEnergy(), song.getValence(), song.getDanceability());
         return p.hasAny() ? p : null;
     }
 
-    /** Builds a profile from Recombee item values; returns null when no audio feature is present. */
+    /** Recombee ke item values se profile; ek bhi audio feature na ho to null. */
     public static AudioProfile fromValues(Map<String, Object> values) {
         if (values == null) return null;
         AudioProfile p = new AudioProfile(
@@ -42,6 +48,7 @@ public record AudioProfile(Double tempo, Double energy, Double valence, Double d
         return p.hasAny() ? p : null;
     }
 
+    /** Object number hai to Double, warna null. */
     private static Double number(Object o) {
         return o instanceof Number n ? n.doubleValue() : null;
     }

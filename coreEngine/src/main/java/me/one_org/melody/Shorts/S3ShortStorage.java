@@ -11,9 +11,13 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
 /**
- * Pre-signs uploads with the default AWS credential chain (instance role in production,
- * AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY locally). Built on first use, so the app
- * starts without AWS configuration.
+ * S3 ka "presigned" upload URL banata hai.
+ * PRESIGNED URL = ek temporary link jisse app seedha S3 me file PUT kar sakta hai, bina AWS keys ke
+ * aur bina hamare server se video guzre. Link thodi der (15 min) baad bekaar ho jaata hai.
+ *
+ * AWS credentials default chain se aate hain: production me EC2 ka instance role,
+ * local me AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY. Presigner pehli baar use pe banta hai,
+ * isliye AWS config ke bina bhi app start ho jaata hai.
  */
 @Component
 public class S3ShortStorage implements ShortStorage {
@@ -25,6 +29,7 @@ public class S3ShortStorage implements ShortStorage {
         this.properties = properties;
     }
 
+    /** Presigner ek hi baar banao aur reuse karo (lazy). */
     private S3Presigner presigner() {
         if (presigner == null) {
             synchronized (this) {
@@ -36,6 +41,7 @@ public class S3ShortStorage implements ShortStorage {
         return presigner;
     }
 
+    /** key pe PUT karne ka URL; content-type aur size fix hote hain, taaki koi aur file na daal sake. */
     @Override
     public String presignUpload(String key, String contentType, long contentLength, Duration ttl) {
         PutObjectRequest put = PutObjectRequest.builder()

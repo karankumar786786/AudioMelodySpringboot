@@ -2,8 +2,8 @@ package me.one_org.melody.Shorts;
 
 import java.time.Duration;
 
-/** Where listeners upload raw short videos. */
+/** Listeners raw short video kahan upload karein (asli kaam S3ShortStorage; tests me nakli). */
 public interface ShortStorage {
-    /** A pre-signed PUT URL for {@code key} in the temp bucket. */
+    /** Temp bucket me {@code key} pe PUT karne ka presigned URL. */
     String presignUpload(String key, String contentType, long contentLength, Duration ttl);
 }
