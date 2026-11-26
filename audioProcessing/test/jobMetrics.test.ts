@@ -1,3 +1,4 @@
+/** JobMetricsMiddleware ke tests: success / retry / failure ki ginti, memoized steps ignore. */
 import { describe, expect, it, spyOn, afterEach, mock } from "bun:test";
 import { JobMetricsMiddleware, jobCounters, functionName } from "../lib/jobMetrics";
 

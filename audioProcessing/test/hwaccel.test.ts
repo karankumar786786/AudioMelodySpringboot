@@ -1,3 +1,4 @@
+/** Hardware detection aur FFmpeg args builders ke tests. */
 import { describe, it, expect } from "bun:test";
 import {
     detectHardwareCapabilities,

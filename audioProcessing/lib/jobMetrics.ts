@@ -1,22 +1,24 @@
+/** Inngest jobs ke metrics (counters) - alerts ke liye. Neeche detail. */
 import { metrics, type Counter } from "@opentelemetry/api";
 import { Middleware } from "inngest";
 
 /**
- * Alerting signals for audio processing jobs (see infra/observability/alerts.yml).
+ * Audio processing jobs ke alerting metrics (dekho infra/observability/alerts.yml).
  *
- * - audio_processing.steps: one count per freshly executed Inngest step
+ * - audio_processing.steps: har naye chale Inngest step ki ek ginti
  *     attributes: function, step, outcome = success | retry | failure
- *     ("failure" means retries are exhausted; "retry" means Inngest will try again)
- * - audio_processing.runs: one count per finished function run
+ *     ("failure" = saare retries khatam; "retry" = Inngest dobara try karega)
+ * - audio_processing.runs: har khatam hue function run ki ek ginti
  *     attributes: function, outcome = success | failure
  *
- * Uses the global MeterProvider registered by lib/otel (no-op in tests).
+ * lib/otel ka global MeterProvider use hota hai (tests me ye kuch nahi karta).
  */
 
-// Created lazily: the JS metrics API has no proxy meter, so an instrument created
-// before lib/otel registers the MeterProvider would stay a no-op forever.
+// Der se (lazily) banate hain: JS metrics API me proxy meter nahi hota, isliye agar counter
+// lib/otel ke MeterProvider register karne se pehle ban gaya to hamesha ke liye no-op reh jaata.
 let counters: { steps: Counter; runs: Counter } | undefined;
 
+/** Dono counters lautao; pehli baar call par banao (upar wali wajah se). */
 export function jobCounters() {
   if (!counters) {
     const meter = metrics.getMeter("audio-processing.jobs");
@@ -36,6 +38,7 @@ export function jobCounters() {
 
 type FnLike = { id?: (...args: any[]) => string; opts?: { id?: string } };
 
+/** Inngest function ka id nikalo (naye / purane dono SDK shapes). Na mile to "unknown". */
 export function functionName(fn: unknown): string {
   const f = fn as FnLike;
   try {
@@ -45,10 +48,15 @@ export function functionName(fn: unknown): string {
   }
 }
 
+/** Step ka id, warna step ka type, warna "unknown". */
 function stepName(stepInfo: Middleware.OnStepCompleteArgs["stepInfo"]): string {
   return stepInfo?.options?.id ?? String(stepInfo?.stepType ?? "unknown");
 }
 
+/**
+ * Inngest middleware: har step / run khatam hone par upar ke counters badhata hai.
+ * memoized step = pehle hi chal chuka, Inngest bas result dobara de raha hai - use nahi ginte.
+ */
 export class JobMetricsMiddleware extends Middleware.BaseMiddleware {
   readonly id = "job-metrics";
 
@@ -75,6 +83,7 @@ export class JobMetricsMiddleware extends Middleware.BaseMiddleware {
   }
 
   override onRunError(arg: Middleware.OnRunErrorArgs) {
+    // Sirf aakhri attempt ki failure gino - beech ke retries "failure" nahi hain
     if (!arg.isFinalAttempt) return;
     jobCounters().runs.add(1, { function: functionName(arg.fn), outcome: "failure" });
   }

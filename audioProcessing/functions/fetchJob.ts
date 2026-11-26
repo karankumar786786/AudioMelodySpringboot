@@ -1,8 +1,19 @@
+/**
+ * Inngest function "fetch-job" - upload pipeline ka PEHLA step.
+ * Upload pipeline (Inngest): audio/fetchjob -> transcode -> index.recombee -> index.algolia -> final.create.
+ *
+ * Event "audio/fetchjob" (admin API bhejta hai) aata hai -> admin API se job ki detail lo -> transcode event bhejo.
+ */
 import { inngest } from "../inngest";
 import { api } from "../axios";
 import { NonRetriableError } from "inngest";
 import { extractMeaningfulError } from "../lib/errorUtils";
 
+/**
+ * Job ki detail admin API (GET /webhook/job/<id>) se lao aur "audio/song.transcode" bhejo.
+ * Job na mile (404) = NonRetriableError (retry bekaar). Saare retries fail = onFailure admin ko /failed batata hai.
+ * cancelOn: "audio/job.cancel" event (same jobId) aaye to ye run ruk jaata hai.
+ */
 export const fetchJob = inngest.createFunction(
     {
         id: "fetch-job",

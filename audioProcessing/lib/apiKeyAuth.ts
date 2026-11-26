@@ -1,13 +1,20 @@
+/**
+ * Internal API key check (X-API-KEY header) - admin API aur Inngest jab is service ke job endpoints
+ * call karte hain to ye key bhejte hain. Bina sahi key ke koi job trigger nahi kar sakta.
+ */
 import type { RequestHandler } from "express";
 import { timingSafeEqual } from "crypto";
 
-/** Resolve the internal API key, read at request time so env changes and tests are honoured. */
+/** Set ki hui API key lao. Har request pe padhte hain (start pe ek baar nahi) taaki env badle ya tests key badlein to asar ho. Khaali = undefined. */
 export function getConfiguredApiKey(env: NodeJS.ProcessEnv = process.env): string | undefined {
   const key = env.AUDIO_PROCESSING_API_KEY || env.APPLICATION_API_KEY;
   return key && key.length > 0 ? key : undefined;
 }
 
-/** Constant-time comparison; returns false for missing or differently sized keys. */
+/**
+ * Key match karo "constant time" me - har baar utna hi time lagta hai, chahe pehla akshar galat ho ya aakhri.
+ * Isse koi time naap ke key andaza nahi laga sakta (timing attack). Key na ho ya lambai alag ho to false.
+ */
 export function isValidApiKey(provided: string | undefined, expected: string): boolean {
   if (!provided) return false;
   const a = Buffer.from(provided);
@@ -17,8 +24,9 @@ export function isValidApiKey(provided: string | undefined, expected: string): b
 }
 
 /**
- * Protects internal job endpoints with the X-API-KEY header.
- * Fails closed: if no key is configured, every request is rejected with 503.
+ * Express middleware: X-API-KEY header check karta hai.
+ * "Fail closed": server pe key set hi nahi hai to har request 503 se mana - galti se khula na reh jaaye.
+ * Galat / missing key = 401. Sahi key = next() se aage.
  */
 export const requireApiKey: RequestHandler = (req, res, next) => {
   const configuredKey = getConfiguredApiKey();

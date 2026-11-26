@@ -1,3 +1,7 @@
+/**
+ * Transcoding ke liye global "limiter": ek saath kitne bhaari FFmpeg jobs chalein.
+ * Zyada jobs ek saath chalne se CPU / RAM khatam ho jaati hai aur sab dheema ho jaata hai.
+ */
 import pLimit from "p-limit";
 import { config } from "dotenv";
 import * as os from "node:os";
@@ -5,7 +9,7 @@ import * as os from "node:os";
 config();
 
 /**
- * Automatically detects the number of available physical/logical CPU cores on the host.
+ * Machine pe kitne CPU cores use ho sakte hain (naye Node me availableParallelism, warna cpus().length, warna 2).
  */
 const detectedCores = typeof os.availableParallelism === "function"
     ? os.availableParallelism()
@@ -14,10 +18,9 @@ const detectedCores = typeof os.availableParallelism === "function"
 export const SYSTEM_CPU_CORES = Math.max(1, detectedCores);
 
 /**
- * Dynamic concurrency limit for media transcoding and heavy audio processing.
- * Defaults to the exact number of CPU cores available on the system.
- * Can be explicitly overridden via CONCURRENT_TRANSCODING_LIMIT or MAX_CONCURRENT_JOBS
- * (unless set to "cores" or "auto").
+ * Ek saath kitne transcoding jobs: default = CPU cores jitne.
+ * CONCURRENT_TRANSCODING_LIMIT ya MAX_CONCURRENT_JOBS se badal sakte hain ("cores" / "auto" = default hi).
+ * Galat / 0 value ho to bhi cores jitne.
  */
 function resolveConcurrencyLimit(): number {
     const rawVal = process.env.CONCURRENT_TRANSCODING_LIMIT || process.env.MAX_CONCURRENT_JOBS;
@@ -32,6 +35,7 @@ function resolveConcurrencyLimit(): number {
 
 export const CONCURRENT_TRANSCODING_LIMIT = resolveConcurrencyLimit();
 
+// pLimit: isme daale kaam ek saath sirf LIMIT tak chalte hain, baaki line me intezaar karte hain
 export const globalTranscodeLimiter = pLimit(CONCURRENT_TRANSCODING_LIMIT);
 
 console.log(

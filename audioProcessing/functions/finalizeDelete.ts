@@ -1,8 +1,16 @@
+/**
+ * Inngest function "finalize-delete": admin API se DB row hamesha ke liye hatwao (hard delete).
+ * Delete chain (Inngest): delete.algolia -> delete.recombee -> delete.imagekit -> delete.s3 -> delete.finalize.
+ *
+ * Agla event: (aakhri step, aage kuch nahi). Saare retries fail = onFailure admin API ko /failed batata hai (DeleteJob FAILED).
+ */
 import { inngest } from "../inngest";
 import { deleteApi } from "../axios";
 import type { DeleteEventPayload } from "../types/delete";
+import { deleteJobParams } from "./deleteParams";
 import { extractMeaningfulError } from "../lib/errorUtils";
 
+/** Admin API /hard-delete call karo - DB se row hamesha ke liye hat jaati hai. entityId / entityType na ho to error. */
 export const finalizeDelete = inngest.createFunction(
     {
         id: "finalize-delete",
@@ -16,7 +24,7 @@ export const finalizeDelete = inngest.createFunction(
                     await deleteApi.post(`/${data.entityType}/${data.entityId}/failed`, {
                         reason: `Teardown finalization: ${reason}`,
                     }, {
-                        params: data.deleteJobId ? { deleteJobId: data.deleteJobId } : undefined
+                        params: deleteJobParams(data)
                     });
                 } catch (e) {
                     console.error(`Failed to notify coreEngine of delete failure:`, e);
@@ -33,7 +41,7 @@ export const finalizeDelete = inngest.createFunction(
         await step.run("final-delete-callback", async () => {
             console.log(`[FINALIZE-DELETE] Executing database hard delete for ${data.entityType}:${data.entityId}...`);
             await deleteApi.post(`/${data.entityType}/${data.entityId}/hard-delete`, null, {
-                params: data.deleteJobId ? { deleteJobId: data.deleteJobId } : undefined,
+                params: deleteJobParams(data),
             });
             console.log(`[FINALIZE-DELETE] Successfully finalized delete for ${data.entityType}:${data.entityId}`);
         });

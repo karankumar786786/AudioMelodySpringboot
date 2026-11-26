@@ -1,14 +1,16 @@
 /**
- * Print shell `export` lines for the JSON secrets named in SECRET_IDS.
+ * SECRET_IDS me diye har JSON secret ke liye shell ki `export KEY='value'` lines print karo.
  *
- * Built to dist/load-secrets.js and run only by entrypoint.sh, which evals the output.
- * Values go to stdout (a pipe), never to logs; errors name the secret and key, never a value.
- * Keep in sync with workers/mailEvents/load-secrets.ts and adminBackend/load_secrets.py.
+ * dist/load-secrets.js me build hota hai aur sirf entrypoint.sh chalata hai, jo output ko eval karta hai.
+ * Values stdout (ek pipe) pe jaati hain, logs me kabhi nahi; error me sirf secret / key ka naam, value kabhi nahi.
+ * workers/mailEvents/load-secrets.ts aur adminBackend/load_secrets.py ke saath ek jaisa rakho.
  */
 import { GetSecretValueCommand, SecretsManagerClient } from "@aws-sdk/client-secrets-manager";
 
+// Env variable ka sahi naam: akshar ya _ se shuru, phir akshar / number / _
 const KEY_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
+/** "a,b;c" jaisi string ko secret naamon ki list me todo (khaali hisse hata ke). */
 export function secretIds(raw: string | undefined): string[] {
   return (raw ?? "")
     .split(/[,;]/)
@@ -16,10 +18,12 @@ export function secretIds(raw: string | undefined): string[] {
     .filter(Boolean);
 }
 
+/** Value ko single quotes me lapeto taaki shell bilkul waisa hi le; andar ka ' bhi safe tareeke se. */
 export function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'"'"'`)}'`;
 }
 
+/** Ek secret ka JSON padh ke export lines banao. JSON galat / object nahi / key galat / value dict-list-null = error. */
 export function toExports(secretId: string, payload: string): string[] {
   let data: unknown;
   try {
@@ -41,6 +45,7 @@ export function toExports(secretId: string, payload: string): string[] {
   });
 }
 
+/** SECRET_IDS khaali = kuch nahi (0). Warna har secret padho aur exports print karo; koi bhi dikkat = 1. */
 async function main(): Promise<number> {
   const ids = secretIds(process.env.SECRET_IDS);
   if (ids.length === 0) return 0;
@@ -72,6 +77,7 @@ async function main(): Promise<number> {
   return 0;
 }
 
+// Sirf tab chalao jab ye file seedha run ho (import hone par nahi - tests import karte hain)
 if (import.meta.main) {
   process.exit(await main());
 }

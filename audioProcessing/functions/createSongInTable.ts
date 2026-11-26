@@ -1,7 +1,14 @@
+/**
+ * Inngest function "finalize-song": upload pipeline ka AAKHRI step.
+ * Upload pipeline (Inngest): audio/fetchjob -> transcode -> index.recombee -> index.algolia -> final.create.
+ *
+ * Admin API /finalize call karta hai - wahi songs table me song banata / update karta hai aur job COMPLETED.
+ */
 import { inngest } from "../inngest";
 import { api } from "../axios";
 import { extractMeaningfulError } from "../lib/errorUtils";
 
+/** Admin API /finalize call karo. Fail = onFailure admin ko /failed batata hai. */
 export const finalizeSong = inngest.createFunction(
     {
         id: "finalize-song",

@@ -1,3 +1,8 @@
+/**
+ * Telemetry: is worker ki CPU, memory aur chal rahe jobs ki jaankari jama karo, aur har 10 second
+ * admin API ko "heartbeat" bhejo (POST /api/telemetry/heartbeat). Admin dashboard isse dikhata hai ki
+ * media pipeline zinda hai ya nahi; admin ka jawab (ack) bhi yahan yaad rakhte hain.
+ */
 import os from "os";
 import axios from "axios";
 import { config } from "dotenv";
@@ -5,6 +10,7 @@ import { globalTranscodeLimiter, CONCURRENT_TRANSCODING_LIMIT } from "./transcod
 
 config();
 
+/** Heartbeat me jaane wala data. */
 export interface TelemetryPayload {
   service: string;
   status: "UP" | "DOWN" | "DEGRADED";
@@ -18,6 +24,7 @@ export interface TelemetryPayload {
   timestamp: string;
 }
 
+/** Admin API ka jawab (aur kitni der me aaya). */
 export interface AdminHealthAck {
   status?: string;
   ack?: boolean;
@@ -26,11 +33,13 @@ export interface AdminHealthAck {
   latencyMs?: number;
 }
 
+/** Ek pal pe saare CPU cores ka idle aur total time (ticks). */
 interface CpuSnapshot {
   idle: number;
   total: number;
 }
 
+/** Abhi ka CPU snapshot lo: saare cores ka idle time aur total time jodo. */
 function getCpuSnapshot(): CpuSnapshot {
   const cpus = os.cpus();
   let idle = 0;
@@ -50,7 +59,8 @@ let lastSnapshot: CpuSnapshot = getCpuSnapshot();
 let lastCpuUtilization = 0;
 
 /**
- * Calculates CPU utilization (%) based on ticks elapsed between sampling intervals.
+ * CPU kitna % busy hai: pichhle snapshot se ab tak jitna time beeta, usme idle kitna tha.
+ * usage = 1 - (idle ka badlav / total ka badlav). 0-100 ke beech, ek decimal tak.
  */
 export function sampleCpuUtilization(): number {
   const currentSnapshot = getCpuSnapshot();
@@ -66,13 +76,13 @@ export function sampleCpuUtilization(): number {
   return lastCpuUtilization;
 }
 
-// Continuous background CPU ticker every 3 seconds for smooth, accurate sampling
+// Har 3 second background me CPU naapo, taaki heartbeat ke waqt taaza aur smooth value mile
 setInterval(() => {
   sampleCpuUtilization();
 }, 3000);
 
 /**
- * Gathers complete runtime telemetry including CPU utilization, memory, active transcode jobs, and uptime.
+ * Poori telemetry ek object me: CPU %, memory (process ki aur machine ki), active jobs, limit aur uptime.
  */
 export function getSystemTelemetry(): TelemetryPayload {
   const totalMem = os.totalmem();
@@ -98,12 +108,14 @@ let lastAdminAck: AdminHealthAck = {
   adminStatus: "UNKNOWN",
 };
 
+/** Admin API ka pichhla jawab (koi na aaya ho to adminStatus "UNKNOWN"). */
 export function getLastAdminAck(): AdminHealthAck {
   return lastAdminAck;
 }
 
 /**
- * Resolves the admin backend endpoint for dispatching telemetry heartbeats.
+ * Heartbeat kahan bhejna hai: ADMIN_TELEMETRY_URL ho to wahi, warna APPLICATION_URL ke origin pe
+ * /api/telemetry/heartbeat. URL parse na ho to "/webhook" aur "/api" se pehle ka hissa le lete hain.
  */
 export function getAdminTelemetryUrl(): string {
   if (process.env.ADMIN_TELEMETRY_URL) {
@@ -122,8 +134,9 @@ export function getAdminTelemetryUrl(): string {
 }
 
 /**
- * Starts background heartbeat worker that regularly reports CPU and worker telemetry
- * to the admin backend, establishing bidirectional health verification.
+ * Background heartbeat shuru karo: har intervalMs (default 10s) admin API ko telemetry bhejo.
+ * Admin jawab de to uska ack yaad rakho; fail ho to adminStatus "DOWN" aur warning - kabhi crash nahi.
+ * Output: setInterval ka handle (band karne ke liye).
  */
 export function startHeartbeatWorker(intervalMs: number = 10000) {
   const targetUrl = getAdminTelemetryUrl();
@@ -136,6 +149,7 @@ export function startHeartbeatWorker(intervalMs: number = 10000) {
     `[TELEMETRY] Starting heartbeat worker -> ${targetUrl} (interval: ${intervalMs}ms)`
   );
 
+  /** Ek heartbeat bhejo (4 second timeout) aur admin ka jawab sambhalo. */
   const sendHeartbeat = async () => {
     const payload = getSystemTelemetry();
     const startTime = Date.now();
@@ -155,7 +169,7 @@ export function startHeartbeatWorker(intervalMs: number = 10000) {
         latencyMs,
       };
 
-      // Periodic debug logging
+      // Har baar log karne se logs bhar jaate, isliye ~20% heartbeats pe hi log karo
       if (Math.random() < 0.2) {
         console.log(
           `[TELEMETRY HEARTBEAT] Sent: CPU=${payload.cpuUtilization}%, activeJobs=${payload.activeJobs}/${payload.concurrencyLimit} -> Admin ack (${latencyMs}ms, adminStatus=${lastAdminAck.adminStatus})`
@@ -172,9 +186,9 @@ export function startHeartbeatWorker(intervalMs: number = 10000) {
     }
   };
 
-  // Immediate initial heartbeat after 1 second
+  // Start ke 1 second baad pehla heartbeat (poora interval intezaar mat karo)
   setTimeout(sendHeartbeat, 1000);
 
-  // Periodic heartbeat loop
+  // Phir har intervalMs pe
   return setInterval(sendHeartbeat, intervalMs);
 }

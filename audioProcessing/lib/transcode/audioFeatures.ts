@@ -1,3 +1,13 @@
+/**
+ * Audio features nikalna (Spotify jaise): tempo, danceability, energy, valence, wagairah.
+ *
+ * Kaise: FFmpeg se pehle 60 second ka mono audio (22,050 Hz) numbers me nikaalte hain, music-tempo
+ * library se beats dhoondte hain, FFmpeg ke ebur128 filter se loudness naapte hain, aur kuch simple
+ * signal statistics (RMS, peak, zero crossings) se andaze wale formulas lagate hain.
+ * Ye asli ML model nahi hai - sirf andaza (heuristic) hai, recommendation ke liye kaafi.
+ *
+ * Kaun call karta hai: functions/extractAudioFeatures.ts. Result admin API ke jobs table me jaata hai.
+ */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import MusicTempo from "music-tempo";
@@ -5,20 +15,22 @@ import * as fs from "node:fs";
 
 const execFileAsync = promisify(execFile);
 
+/** Ek gaane ke saare features (0.0-1.0 wale "kitna" batate hain). */
 export interface AudioFeatures {
-    tempo: number;            // BPM (e.g. 120.5)
-    danceability: number;     // 0.0 to 1.0 (rhythm stability, tempo suitability, beat strength)
-    energy: number;           // 0.0 to 1.0 (perceptual intensity, loudness, RMS power)
-    valence: number;          // 0.0 to 1.0 (musical positiveness: cheerfulness vs sadness)
-    acousticness: number;     // 0.0 to 1.0 (confidence track is acoustic)
-    instrumentalness: number; // 0.0 to 1.0 (absence of vocal content)
-    liveness: number;         // 0.0 to 1.0 (presence of audience / live acoustics)
-    speechiness: number;      // 0.0 to 1.0 (presence of spoken words vs music)
-    loudness: number;         // Overall loudness in dB (e.g. -8.5 dB)
-    key: number;              // Pitch class: 0 = C, 1 = C#, 2 = D, ..., 11 = B
-    mode: number;             // Modality: 1 = Major, 0 = Minor
+    tempo: number;            // BPM - ek minute me kitni beats (jaise 120.5)
+    danceability: number;     // 0.0-1.0: naachne layak (beat kitni steady, tempo kitna sahi)
+    energy: number;           // 0.0-1.0: kitna tez / josh wala (loudness, RMS power)
+    valence: number;          // 0.0-1.0: khushi (zyada) vs udaasi (kam)
+    acousticness: number;     // 0.0-1.0: kitna acoustic (bina electronic) lagta hai
+    instrumentalness: number; // 0.0-1.0: awaaz (vocals) kitni kam hai
+    liveness: number;         // 0.0-1.0: live performance / audience jaisa lagta hai
+    speechiness: number;      // 0.0-1.0: bolne wale shabd kitne (gaane ke mukable)
+    loudness: number;         // Poori awaaz dB me (jaise -8.5 dB; 0 ke paas = zyada tez)
+    key: number;              // Sur: 0 = C, 1 = C#, 2 = D, ..., 11 = B
+    mode: number;             // 1 = Major (khushnuma), 0 = Minor (gambhir)
 }
 
+/** FFmpeg ebur128 filter se mili loudness values. */
 interface Ebur128Stats {
     integratedLoudness: number; // LUFS / dB
     loudnessRange: number;      // LU
@@ -26,7 +38,8 @@ interface Ebur128Stats {
 }
 
 /**
- * Parses ITU-R BS.1770 EBUR128 loudness metrics from FFmpeg stderr output.
+ * FFmpeg ke stderr se EBU R128 (ITU-R BS.1770 standard) loudness values padho (regex se).
+ * Koi value na mile to normal default: -14 LUFS, LRA 6, peak -1 dBFS.
  */
 function parseEbur128Output(stderr: string): Ebur128Stats {
     let integratedLoudness = -14.0;
@@ -54,11 +67,22 @@ function parseEbur128Output(stderr: string): Ebur128Stats {
     return { integratedLoudness, loudnessRange, truePeak };
 }
 
+/** Value ko min aur max ke beech rakho. */
+function clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
+}
+
+/** 3 decimal tak round (jaise 0.12345 -> 0.123). */
+function round3(value: number): number {
+    return Math.round(value * 1000) / 1000;
+}
+
 /**
- * Extracts Spotify-like audio features from an audio file using FFmpeg and beat tracking.
+ * Audio file se saare features nikalo (upar file header me tareeka).
  *
- * @param inputAudioPath Path to local audio file (MP3, WAV, AAC, M4A, etc.)
- * @returns Fully computed AudioFeatures object
+ * @param inputAudioPath Local audio file ka path (MP3, WAV, AAC, M4A, wagairah)
+ * @returns Poora AudioFeatures object
+ * File na ho to error. Beat / loudness analysis fail ho to default values se kaam chala lete hain.
  */
 export async function extractAudioFeatures(inputAudioPath: string): Promise<AudioFeatures> {
     if (!fs.existsSync(inputAudioPath)) {
@@ -67,7 +91,8 @@ export async function extractAudioFeatures(inputAudioPath: string): Promise<Audi
 
     console.log(`[AUDIO-FEATURES] Starting feature extraction for: ${inputAudioPath}`);
 
-    // 1. Decode 60s mono PCM stream at 22,050 Hz into Float32Array for tempo & beat analysis
+    // 1. Pehle 60 second ko mono, 22,050 Hz ke float numbers (PCM) me decode karo - tempo / beat ke liye.
+    //    Poora gaana nahi: 60 second kaafi hai aur RAM / time bachta hai.
     const sampleRate = 22050;
     const analyzeSeconds = 60;
 
@@ -92,7 +117,7 @@ export async function extractAudioFeatures(inputAudioPath: string): Promise<Audi
         pcmBuffer.byteLength / 4
     );
 
-    // 2. Run music-tempo beat-tracking algorithm
+    // 2. music-tempo library se beats aur tempo dhoondo (2 second se kam audio ho to default 120 BPM)
     let detectedTempo = 120.0;
     let beats: number[] = [];
 
@@ -110,7 +135,7 @@ export async function extractAudioFeatures(inputAudioPath: string): Promise<Audi
         }
     }
 
-    // 3. Compute EBUR128 ITU-R BS.1770 Loudness via FFmpeg
+    // 3. FFmpeg ke ebur128 filter se loudness (fail ho to defaults)
     let eburStats: Ebur128Stats = { integratedLoudness: -14.0, loudnessRange: 6.0, truePeak: -1.0 };
     try {
         const { stderr: eburStderr } = await execFileAsync("ffmpeg", [
@@ -126,7 +151,8 @@ export async function extractAudioFeatures(inputAudioPath: string): Promise<Audi
         console.warn("[AUDIO-FEATURES] ebur128 filter warning:", err?.message || err);
     }
 
-    // 4. Time-domain signal statistical analysis
+    // 4. Signal ki simple statistics: RMS (average taakat), peak (sabse ooncha), zero crossings
+    //    (signal kitni baar 0 paar karta hai - zyada = tez / "hiss" wali awaaz, jaise bolna ya cymbals)
     let sumSq = 0;
     let peakVal = 0;
     let zeroCrossings = 0;
@@ -149,8 +175,8 @@ export async function extractAudioFeatures(inputAudioPath: string): Promise<Audi
     const crestFactor = rms > 1e-6 ? peakVal / rms : 3.0;
     const zcr = nSamples > 0 ? zeroCrossings / nSamples : 0.05;
 
-    // 5. Beat regularity & rhythm stability (for danceability)
-    let beatRegularity = 0.7; // default fallback
+    // 5. Beat kitni regular hai (danceability ke liye): do beats ke beech ka gap kitna badalta hai
+    let beatRegularity = 0.7; // kaafi beats na milein to ye default
     if (beats.length >= 4) {
         const intervals: number[] = [];
         for (let i = 1; i < beats.length; i++) {
@@ -167,62 +193,63 @@ export async function extractAudioFeatures(inputAudioPath: string): Promise<Audi
             const avgInterval = intervals.reduce((a, b) => a + b, 0) / intervals.length;
             const variance = intervals.reduce((acc, v) => acc + Math.pow(v - avgInterval, 2), 0) / intervals.length;
             const stdDev = Math.sqrt(variance);
-            // Lower interval variance means tighter, steadier beat
+            // Gap kam badle (kam variance) = steady beat = regularity zyada
             beatRegularity = Math.max(0.2, Math.min(1.0, 1.0 - (stdDev / (avgInterval + 1e-5)) * 1.5));
         }
     }
 
-    // 6. Spotify Feature Formulas:
-    // a) Tempo (BPM)
+    // 6. Features ke formulas (andaze wale weights):
+    // a) Tempo (BPM), 2 decimal tak
     const finalTempo = Math.round(detectedTempo * 100) / 100;
 
-    // b) Danceability (0.0 to 1.0): optimal around 100-130 BPM, weighted by beat regularity
+    // b) Danceability: ~118 BPM sabse achha (bell curve), saath me beat regularity ka sabse zyada weight
     const tempoDanceSuitability = Math.exp(-Math.pow(finalTempo - 118, 2) / (2 * Math.pow(35, 2)));
-    const danceability = Math.round(
-        Math.min(0.98, Math.max(0.15, 0.55 * beatRegularity + 0.35 * tempoDanceSuitability + 0.10 * (1.0 - Math.min(1.0, crestFactor / 10)))) * 1000
-    ) / 1000;
+    const danceability = round3(
+        clamp(0.55 * beatRegularity + 0.35 * tempoDanceSuitability + 0.10 * (1.0 - Math.min(1.0, crestFactor / 10)), 0.15, 0.98)
+    );
 
-    // c) Loudness (dB): clamped
+    // c) Loudness (dB): -60 se 0 ke beech
     const loudness = Math.round(Math.min(0.0, Math.max(-60.0, eburStats.integratedLoudness)) * 100) / 100;
 
-    // d) Energy (0.0 to 1.0): based on RMS, loudness, and dynamic loudness range
+    // d) Energy: loudness + RMS + (kam dynamic range = zyada energy)
     // -24 LUFS = ~0.2, -14 LUFS = ~0.65, -8 LUFS = ~0.92
-    const loudnessNorm = Math.min(1.0, Math.max(0.0, (loudness + 30) / 26));
-    const rmsNorm = Math.min(1.0, Math.max(0.0, rms * 3.5));
-    const energy = Math.round(
-        Math.min(0.99, Math.max(0.10, 0.55 * loudnessNorm + 0.35 * rmsNorm + 0.10 * (1.0 - Math.min(1.0, eburStats.loudnessRange / 20)))) * 1000
-    ) / 1000;
+    const loudnessNorm = clamp((loudness + 30) / 26, 0.0, 1.0);
+    const rmsNorm = clamp(rms * 3.5, 0.0, 1.0);
+    const energy = round3(
+        clamp(0.55 * loudnessNorm + 0.35 * rmsNorm + 0.10 * (1.0 - Math.min(1.0, eburStats.loudnessRange / 20)), 0.10, 0.99)
+    );
 
-    // e) Acousticness (0.0 to 1.0): high crest factor + high dynamic range + lower compression
-    const dynamicHeadroom = Math.min(1.0, Math.max(0.0, (crestFactor - 2.5) / 5.0));
-    const lraFactor = Math.min(1.0, Math.max(0.0, eburStats.loudnessRange / 15));
-    const acousticness = Math.round(
-        Math.min(0.98, Math.max(0.02, 0.45 * dynamicHeadroom + 0.35 * lraFactor + 0.20 * (1.0 - energy))) * 1000
-    ) / 1000;
+    // e) Acousticness: peak aur average me bada farak (crest factor) + zyada dynamic range + kam energy.
+    //    Electronic / heavily compressed gaano me ye farak kam hota hai.
+    const dynamicHeadroom = clamp((crestFactor - 2.5) / 5.0, 0.0, 1.0);
+    const lraFactor = clamp(eburStats.loudnessRange / 15, 0.0, 1.0);
+    const acousticness = round3(
+        clamp(0.45 * dynamicHeadroom + 0.35 * lraFactor + 0.20 * (1.0 - energy), 0.02, 0.98)
+    );
 
-    // f) Valence (0.0 to 1.0): musical positiveness (combination of brightness, energy, and rhythm)
-    const brightness = Math.min(1.0, Math.max(0.0, zcr * 10));
-    const valence = Math.round(
-        Math.min(0.95, Math.max(0.10, 0.40 * energy + 0.35 * danceability + 0.25 * brightness)) * 1000
-    ) / 1000;
+    // f) Valence (khushi): energy + danceability + "brightness" (zero crossing rate se)
+    const brightness = clamp(zcr * 10, 0.0, 1.0);
+    const valence = round3(
+        clamp(0.40 * energy + 0.35 * danceability + 0.25 * brightness, 0.10, 0.95)
+    );
 
-    // g) Instrumentalness (0.0 to 1.0): vocal energy reduction estimation
-    const instrumentalness = Math.round(
-        Math.min(0.95, Math.max(0.01, 0.50 * (1.0 - Math.min(1.0, zcr * 8)) + 0.50 * (acousticness > 0.6 ? 0.3 : 0.05))) * 1000
-    ) / 1000;
+    // g) Instrumentalness: kam zero crossings (kam vocals ka andaza) + acoustic ho to thoda zyada
+    const instrumentalness = round3(
+        clamp(0.50 * (1.0 - Math.min(1.0, zcr * 8)) + 0.50 * (acousticness > 0.6 ? 0.3 : 0.05), 0.01, 0.95)
+    );
 
-    // h) Liveness (0.0 to 1.0): presence of reverberant ambient crowd
-    const liveness = Math.round(
-        Math.min(0.90, Math.max(0.05, 0.12 + (eburStats.loudnessRange > 12 ? 0.25 : 0.05))) * 1000
-    ) / 1000;
+    // h) Liveness: loudness range bahut zyada (> 12 LU) ho to live / audience wala maan lo
+    const liveness = round3(
+        clamp(0.12 + (eburStats.loudnessRange > 12 ? 0.25 : 0.05), 0.05, 0.90)
+    );
 
-    // i) Speechiness (0.0 to 1.0): spoken word detection (high ZCR variance + low musical beat regularity)
-    const speechiness = Math.round(
-        Math.min(0.85, Math.max(0.03, (1.0 - beatRegularity) * 0.25 + (zcr > 0.15 ? 0.20 : 0.02))) * 1000
-    ) / 1000;
+    // i) Speechiness: beat irregular + zero crossings zyada (> 0.15) = bolne jaisa
+    const speechiness = round3(
+        clamp((1.0 - beatRegularity) * 0.25 + (zcr > 0.15 ? 0.20 : 0.02), 0.03, 0.85)
+    );
 
-    // j) Key & Mode estimation (0 to 11 and 0 or 1)
-    // Key pitch classes: C=0, C#=1, D=2, D#=3, E=4, F=5, F#=6, G=7, G#=8, A=9, A#=10, B=11
+    // j) Key (0-11) aur mode (0/1). Dhyan do: ye asli sur nahi naapta - tempo se ek pakka (deterministic)
+    //    number banata hai, aur mode valence se. Sur: C=0, C#=1, D=2, D#=3, E=4, F=5, F#=6, G=7, G#=8, A=9, A#=10, B=11
     const key = Math.abs(Math.round(finalTempo * 7)) % 12;
     const mode = valence >= 0.45 ? 1 : 0; // 1 = Major, 0 = Minor
 

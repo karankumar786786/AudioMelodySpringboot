@@ -1,11 +1,23 @@
+/**
+ * Local disk ki safai: transcoding ke temp files / folders (tmp/ ke andar) hatana.
+ *
+ * - Chal rahe jobs ke paths yaad rakhte hain, taaki process band ho (SIGINT / SIGTERM) to unhe bhi hata sakein.
+ * - Delete se pehle check: root, current folder ya tmp/ khud kabhi delete na ho.
+ * - Crash hue jobs ki 2 ghante se purani files bhi saaf karte hain, warna disk bhar jaati.
+ */
 import * as fs from "node:fs";
 import * as fsp from "node:fs/promises";
 import * as path from "node:path";
 
+// Abhi use ho rahe temp paths (poore / resolved path)
 const activePaths = new Set<string>();
 
+// Sirf inhi naamon se shuru hone wali cheezein pipeline ki hain - baaki ko stale cleanup kabhi nahi chhoota
+const PIPELINE_ARTIFACT_PREFIXES = ["raw_", "extracted_", "canvas_", "transcoded_"];
+const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+
 /**
- * Register a temporary file or directory currently in use so it can be cleaned up on process exit.
+ * Ek temp file / folder ko "abhi use me" list me daalo, taaki process band hote waqt use bhi hata sakein.
  */
 export function registerActiveTmpPath(targetPath: string): void {
     if (targetPath) {
@@ -14,7 +26,7 @@ export function registerActiveTmpPath(targetPath: string): void {
 }
 
 /**
- * Unregister a temporary file or directory after it has been properly cleaned up.
+ * Temp path ko list se hatao (jab wo saaf ho chuka ho).
  */
 export function unregisterActiveTmpPath(targetPath: string): void {
     if (targetPath) {
@@ -23,22 +35,22 @@ export function unregisterActiveTmpPath(targetPath: string): void {
 }
 
 /**
- * Validates that a path is safe to delete (not root, not system directories, inside designated working directory).
+ * Kya ye path delete karna safe hai? Filesystem root, current folder, uska parent, aur tmp/ folder khud = NAHI.
+ * (tmp/ ke andar ki cheezein delete ho sakti hain, tmp/ khud nahi.)
  */
 function isSafeToDelete(targetPath: string): boolean {
     const resolved = path.resolve(targetPath);
     const root = path.parse(resolved).root;
     const cwd = process.cwd();
 
-    // Prevent deleting filesystem root, current directory, or home dir
+    // Root, current folder ya uska parent kabhi delete nahi
     if (resolved === root || resolved === cwd || resolved === path.dirname(cwd)) {
         return false;
     }
 
-    // Must be inside process.cwd() or /tmp/ or system temp
     const baseTmpDir = path.resolve(cwd, "tmp");
     if (resolved === baseTmpDir) {
-        // Do not delete the base tmp folder itself, only its contents
+        // tmp/ folder khud nahi hatana - sirf uske andar ki cheezein
         return false;
     }
 
@@ -46,7 +58,8 @@ function isSafeToDelete(targetPath: string): boolean {
 }
 
 /**
- * Robustly removes a file or directory with retries, exponential backoff, and graceful error handling.
+ * File ya folder hatao, retries ke saath (har baar thoda zyada ruk ke: 250ms, 500ms, 750ms...).
+ * Output: hat gaya ya pehle se nahi tha = true; unsafe path ya saare retries fail = false. Kabhi error nahi phenkta.
  */
 export async function safeRemovePath(
     targetPath: string | undefined | null,
@@ -102,7 +115,8 @@ export async function safeRemovePath(
 }
 
 /**
- * Synchronous version of safe removal for emergency process exit handlers.
+ * safeRemovePath ka synchronous (bina await) version - process exit handlers ke liye, jahan async kaam
+ * poora hone ka intezaar nahi hota.
  */
 export function safeRemovePathSync(targetPath: string | undefined | null): boolean {
     if (!targetPath) return true;
@@ -128,7 +142,7 @@ export function safeRemovePathSync(targetPath: string | undefined | null): boole
 }
 
 /**
- * Safely removes a list of files or directories in parallel.
+ * Kai paths ek saath (parallel) hatao; null / undefined chhod do.
  */
 export async function safeCleanPaths(paths: (string | undefined | null)[]): Promise<void> {
     const validPaths = paths.filter((p): p is string => Boolean(p));
@@ -136,12 +150,12 @@ export async function safeCleanPaths(paths: (string | undefined | null)[]): Prom
 }
 
 /**
- * Scans the temporary directory and removes stale files/folders older than maxAgeMs (default: 2 hours).
- * This prevents disk leakage from crashed jobs or interrupted processes.
+ * tmp/ me maxAgeMs (default 2 ghante) se purani pipeline files / folders hatao.
+ * Crash hue ya beech me ruke jobs ka kachra isi se saaf hota hai. Output: kitne hataye.
  */
 export async function cleanupStaleTmpFiles(
     baseTmpDir: string = path.join(process.cwd(), "tmp"),
-    maxAgeMs: number = 2 * 60 * 60 * 1000 // 2 hours
+    maxAgeMs: number = TWO_HOURS_MS
 ): Promise<number> {
     if (!fs.existsSync(baseTmpDir)) return 0;
 
@@ -154,13 +168,9 @@ export async function cleanupStaleTmpFiles(
         for (const entry of entries) {
             const entryPath = path.join(baseTmpDir, entry.name);
 
-            // Only clean known pipeline artifacts (raw_*, extracted_*, canvas_*, transcoded_*)
-            if (
-                !entry.name.startsWith("raw_") &&
-                !entry.name.startsWith("extracted_") &&
-                !entry.name.startsWith("canvas_") &&
-                !entry.name.startsWith("transcoded_")
-            ) {
+            // Sirf pipeline ki jaani-pehchani cheezein (raw_*, extracted_*, canvas_*, transcoded_*)
+            const isPipelineArtifact = PIPELINE_ARTIFACT_PREFIXES.some((prefix) => entry.name.startsWith(prefix));
+            if (!isPipelineArtifact) {
                 continue;
             }
 
@@ -186,15 +196,17 @@ export async function cleanupStaleTmpFiles(
     return removedCount;
 }
 
-/**
- * Setup process exit handlers to gracefully purge active temporary directories on shutdown.
- */
 let shutdownHandlersInstalled = false;
 
+/**
+ * Process band hote waqt (Ctrl+C / SIGINT, docker stop / SIGTERM, ya normal exit) chal rahe jobs ke
+ * temp paths hata do. Do baar call karne par bhi handlers ek hi baar lagte hain.
+ */
 export function setupGracefulShutdownCleanup(): void {
     if (shutdownHandlersInstalled) return;
     shutdownHandlersInstalled = true;
 
+    /** Saare active temp paths sync tareeke se hatao. */
     const cleanupActiveSync = () => {
         if (activePaths.size > 0) {
             console.log(`[CLEANUP] Gracefully purging ${activePaths.size} active temporary paths on exit...`);
@@ -220,8 +232,8 @@ export function setupGracefulShutdownCleanup(): void {
 }
 
 /**
- * Immediately purges all local scratch directories and files matching a given jobId or songId.
- * This guarantees no half-transcoded FFmpeg chunks or raw downloaded audio/video files remain on disk.
+ * tmp/ me jinke naam me jobId ya songId hai, wo sab abhi hatao - taaki aadhe bane FFmpeg chunks ya
+ * download ki hui raw files disk pe na padi rahein. Output: kitne hataye. Error = log, phenkta nahi.
  */
 export async function purgeLocalJobArtifacts(
     jobId: string,

@@ -1,13 +1,18 @@
+/**
+ * Inngest function "delete-short": short ki published files (shorts/<id>/) aur raw upload hatao.
+ * Event "shorts/delete" (admin / core API bhejta hai).
+ */
 import { inngest } from "../inngest";
 import { deleteObject, deletePrefix } from "../lib/s3";
 import { SHORTS_BASE_PATH } from "./processShort";
 
+/** Event ka data. */
 export interface DeleteShortData {
     shortId: string;
     rawKey?: string | null;
 }
 
-/** delete-short: remove a short's published files and its raw upload. */
+/** shortId na ho to skip. Pehle published folder, phir (ho to) raw upload delete. */
 export const deleteShort = inngest.createFunction(
     {
         id: "delete-short",

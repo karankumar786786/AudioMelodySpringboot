@@ -1,3 +1,11 @@
+/**
+ * Inngest sub-task: poora music video HLS / DASH me badal ke S3 pe daalna.
+ * transcode-song (orchestrator) isko step.invoke se chalata hai (event "audio/song.transcode.video").
+ * Output: { duration, fullVideoKey }.
+ *
+ * Har run: temp folder me file download -> kaam -> finally me local files hamesha saaf.
+ * globalTranscodeLimiter: ek process me bhaari FFmpeg kaam limit se zyada ek saath nahi.
+ */
 import { inngest } from "../inngest";
 import { s3Client, downloadObject } from "../lib/s3";
 import { VideoTranscoder } from "../lib/transcode/video";
@@ -10,12 +18,14 @@ import { config } from "dotenv";
 import { CONCURRENT_TRANSCODING_LIMIT, globalTranscodeLimiter } from "../lib/transcode/limiter";
 config();
 
+/** Event ka data. */
 export interface TranscodeVideoData {
     jobId: string;
     songId: string;
     tempVideoKey: string;
 }
 
+/** Video download -> jaanch -> VideoTranscoder -> { duration, fullVideoKey }. */
 export const transcodeVideoTask = inngest.createFunction(
     {
         id: "transcode-video-task",
@@ -53,34 +63,34 @@ export const transcodeVideoTask = inngest.createFunction(
                     fs.mkdirSync(baseTmpDir, { recursive: true });
                 }
 
-            const localUuid = crypto.randomUUID();
-            const ext = path.extname(tempVideoKey) || ".mp4";
-            const localVideoDownloadPath = path.join(baseTmpDir, `raw_video_main_${localUuid}${ext}`);
-            const videoOutputDir = path.join(baseTmpDir, `transcoded_video_${localUuid}`);
+                const localUuid = crypto.randomUUID();
+                const ext = path.extname(tempVideoKey) || ".mp4";
+                const localVideoDownloadPath = path.join(baseTmpDir, `raw_video_main_${localUuid}${ext}`);
+                const videoOutputDir = path.join(baseTmpDir, `transcoded_video_${localUuid}`);
 
-            registerActiveTmpPath(localVideoDownloadPath);
-            registerActiveTmpPath(videoOutputDir);
+                registerActiveTmpPath(localVideoDownloadPath);
+                registerActiveTmpPath(videoOutputDir);
 
-            try {
-                console.log(`[VIDEO-WORKER] Downloading raw video for job ${jobId}...`);
-                await downloadObject(tempBucket, tempVideoKey, localVideoDownloadPath);
+                try {
+                    console.log(`[VIDEO-WORKER] Downloading raw video for job ${jobId}...`);
+                    await downloadObject(tempBucket, tempVideoKey, localVideoDownloadPath);
 
-                // Fail-fast integrity pre-flight check before heavy video encoding
-                console.log(`[VIDEO-WORKER] Running fail-fast integrity validation for job ${jobId}...`);
-                const validation = await validateMediaIntegrity(localVideoDownloadPath, "video");
-                console.log(`[VIDEO-WORKER] Video integrity verified (${validation.formatName}, ${validation.width}x${validation.height}, duration ${validation.duration.toFixed(2)}s)`);
+                    // Bhaari video encoding se pehle jaldi wali jaanch
+                    console.log(`[VIDEO-WORKER] Running fail-fast integrity validation for job ${jobId}...`);
+                    const validation = await validateMediaIntegrity(localVideoDownloadPath, "video");
+                    console.log(`[VIDEO-WORKER] Video integrity verified (${validation.formatName}, ${validation.width}x${validation.height}, duration ${validation.duration.toFixed(2)}s)`);
 
-                console.log(`[VIDEO-WORKER] Transcoding and packaging video with hardware acceleration...`);
-                const videoTranscoder = new VideoTranscoder(4, s3Client, videoBasePath, prodBucket);
-                const { duration } = await videoTranscoder.transcode(localVideoDownloadPath, videoOutputDir, songId);
+                    console.log(`[VIDEO-WORKER] Transcoding and packaging video with hardware acceleration...`);
+                    const videoTranscoder = new VideoTranscoder(4, s3Client, videoBasePath, prodBucket);
+                    const { duration } = await videoTranscoder.transcode(localVideoDownloadPath, videoOutputDir, songId);
 
-                const fullVideoKey = `${videoBasePath}/${songId}`;
-                console.log(`[VIDEO-WORKER] Video transcoding completed -> ${fullVideoKey} (${duration.toFixed(2)}s)`);
+                    const fullVideoKey = `${videoBasePath}/${songId}`;
+                    console.log(`[VIDEO-WORKER] Video transcoding completed -> ${fullVideoKey} (${duration.toFixed(2)}s)`);
 
-                return { duration, fullVideoKey };
-            } finally {
-                await safeCleanPaths([localVideoDownloadPath, videoOutputDir]);
-            }
+                    return { duration, fullVideoKey };
+                } finally {
+                    await safeCleanPaths([localVideoDownloadPath, videoOutputDir]);
+                }
             });
         });
     }

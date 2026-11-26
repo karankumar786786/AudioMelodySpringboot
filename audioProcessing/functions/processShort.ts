@@ -1,3 +1,7 @@
+/**
+ * Inngest function "process-short": user / admin ka upload kiya khada (vertical) video Short banao.
+ * Event "shorts/process"; "shorts/cancel" (same shortId) aaye to ruk jaata hai.
+ */
 import { NonRetriableError } from "inngest";
 import { inngest } from "../inngest";
 import { shortApi } from "../axios";
@@ -18,18 +22,19 @@ config();
 
 const execFileAsync = promisify(execFile);
 
-/** Longest short we accept, in seconds. */
+/** Sabse lamba short kitne second ka ho sakta hai. */
 export const MAX_SHORT_SECONDS = Number(process.env.SHORT_MAX_SECONDS) || 60;
-/** Raw uploads above this are rejected (the core API also checks before signing the upload). */
+/** Isse badi raw upload mana (core API bhi upload URL dene se pehle check karta hai). */
 export const MAX_SHORT_BYTES = (Number(process.env.SHORT_MAX_MB) || 100) * 1024 * 1024;
 export const SHORTS_BASE_PATH = process.env.SHORTS_BASE_PATH || "shorts";
 
+/** Event ka data. */
 export interface ProcessShortData {
     shortId: string;
     rawKey: string;
 }
 
-/** Pure: why a probed upload can't become a short, or null when it's acceptable. */
+/** Pure function (bas input se output): upload short kyun nahi ban sakta (wajah), ya theek ho to null. */
 export function shortRejectionReason(probe: { duration: number; hasVideo: boolean; hasAudio: boolean }, sizeBytes: number): string | null {
     if (sizeBytes > MAX_SHORT_BYTES) return `File is larger than ${Math.round(MAX_SHORT_BYTES / 1024 / 1024)} MB`;
     if (!probe.hasVideo) return "The file has no video track";
@@ -39,9 +44,9 @@ export function shortRejectionReason(probe: { duration: number; hasVideo: boolea
 }
 
 /**
- * process-short: turn one uploaded vertical video into a Short.
- * Validate → HLS ladder 720x1280 / 540x960 / 360x640 (cropped to 9:16, audio kept)
- * → thumbnail → report to the admin API, which marks the short READY or FAILED.
+ * Ek upload ko Short banao: jaanch -> HLS qualities 720x1280 / 540x960 / 360x640 (9:16 me crop, audio rehta hai)
+ * -> thumbnail -> admin API ko batao, jo short ko READY ya FAILED karta hai.
+ * Galat upload (badi / lambi / video nahi) = NonRetriableError, retry nahi.
  */
 export const processShort = inngest.createFunction(
     {
@@ -92,7 +97,7 @@ export const processShort = inngest.createFunction(
                     });
                     const { duration } = await transcoder.transcode(rawPath, outDir, shortId);
 
-                    // Poster frame at ~1 s (or the first frame of very short clips).
+                    // Thumbnail ~1 second pe (bahut chhote clip me beech ka frame)
                     const at = Math.min(1, Math.max(0, duration / 2)).toFixed(2);
                     await execFileAsync("ffmpeg", [
                         "-nostdin", "-y", "-loglevel", "error", "-ss", at, "-i", rawPath,
@@ -105,7 +110,7 @@ export const processShort = inngest.createFunction(
                         Key: thumbnailKey,
                         Body: fs.readFileSync(thumbPath),
                         ContentType: "image/jpeg",
-                        CacheControl: "public, max-age=31536000, immutable",
+                        CacheControl: "public, max-age=31536000, immutable", // 1 saal cache - file kabhi nahi badalti
                     }));
 
                     return {

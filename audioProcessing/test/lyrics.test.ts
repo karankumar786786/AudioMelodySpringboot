@@ -1,3 +1,4 @@
+/** Lyrics helpers ke tests: timestamps hatana, byte limit me kaatna (Hindi akshar na tootein), aur fallback. */
 import { describe, it, expect } from "bun:test";
 import { stripLrcTimestamps, truncateUtf8, toSearchableLyrics, fetchSearchableLyrics } from "../lib/lyrics";
 
