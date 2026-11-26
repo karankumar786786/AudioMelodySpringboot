@@ -20,6 +20,10 @@ import me.one_org.melody.Services.Api.ArtistApiService;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit test: TelemetryEventListener ko akele check karta hai (dependencies Mockito se nakli (mock) hain, taaki sirf isi class ka logic test ho).
+ * Har @Test method ek behaviour check karta hai - method ka naam batata hai kya.
+ */
 @ExtendWith(MockitoExtension.class)
 class TelemetryEventListenerTest {
 

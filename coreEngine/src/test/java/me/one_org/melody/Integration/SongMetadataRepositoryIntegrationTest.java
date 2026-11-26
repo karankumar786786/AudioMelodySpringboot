@@ -19,6 +19,10 @@ import me.one_org.melody.Repository.SongsRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Integration test: SongMetadataRepository ko poore Spring setup ke saath check karta hai (HTTP request -> controller -> service ->
+ * repository). Bahar ki services (Recombee, Algolia, Redis) zaroorat ho to nakli (mock) hain.
+ */
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional

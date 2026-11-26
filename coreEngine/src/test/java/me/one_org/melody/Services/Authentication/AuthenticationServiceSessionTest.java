@@ -36,6 +36,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit test: AuthenticationService ko akele check karta hai (dependencies Mockito se nakli (mock) hain, taaki sirf isi class ka logic test ho).
+ * Har @Test method ek behaviour check karta hai - method ka naam batata hai kya.
+ */
 @ExtendWith(MockitoExtension.class)
 class AuthenticationServiceSessionTest {
 
@@ -165,7 +169,7 @@ class AuthenticationServiceSessionTest {
                 .build();
         when(usersRepository.findById("user-100")).thenReturn(Optional.of(user));
 
-        // Session was already rotated to "rt-current-rotated"
+        // Session ka token pehle hi "rt-current-rotated" ho chuka hai
         Session session = Session.builder()
                 .id("sess-1")
                 .user(user)
@@ -179,7 +183,7 @@ class AuthenticationServiceSessionTest {
                 .isInstanceOf(UnauthorizedException.class)
                 .hasMessageContaining("Invalid or reused refresh token");
 
-        // Verify session was revoked to mitigate token theft
+        // Check: session band ho gaya (token chori ka khatra)
         verify(sessionRepository).delete(session);
     }
 
@@ -212,18 +216,18 @@ class AuthenticationServiceSessionTest {
         when(jwtUtil.generateAccessToken(any(Authentication.class))).thenReturn("acc-1", "acc-2");
         when(jwtUtil.generateRefreshToken(any(Authentication.class))).thenReturn("rt-rotated-2");
 
-        // 1. Initial refresh call rotates rt-original-1 -> rt-rotated-2
+        // 1. Pehla refresh: rt-original-1 -> rt-rotated-2
         RefreshTokenResponseDto firstResponse = authenticationService.refreshToken(originalToken, deviceId);
         assertThat(firstResponse.accessToken()).isEqualTo("acc-1");
         assertThat(firstResponse.refreshToken()).isEqualTo("rt-rotated-2");
         assertThat(session.getRefreshToken()).isEqualTo("rt-rotated-2");
 
-        // 2. Client retries with rt-original-1 because network dropped response before reaching client
+        // 2. Network me response kho gaya, to app dobara rt-original-1 bhejta hai
         RefreshTokenResponseDto retryResponse = authenticationService.refreshToken(originalToken, deviceId);
         assertThat(retryResponse.accessToken()).isEqualTo("acc-2");
         assertThat(retryResponse.refreshToken()).isEqualTo("rt-rotated-2");
 
-        // Session was NOT deleted because it was within the grace window
+        // Session delete NAHI hua kyunki grace time ke andar tha
         verify(sessionRepository, never()).delete(session);
     }
 

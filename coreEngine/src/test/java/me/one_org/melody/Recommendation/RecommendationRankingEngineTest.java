@@ -11,6 +11,10 @@ import me.one_org.melody.Enums.StatusEnum;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Unit test: RecommendationRankingEngine ko akele check karta hai (asli objects ke saath, bina database ke).
+ * Har @Test method ek behaviour check karta hai - method ka naam batata hai kya.
+ */
 class RecommendationRankingEngineTest {
 
     private RecommendationRankingEngine engine;
@@ -45,14 +49,14 @@ class RecommendationRankingEngineTest {
     void shouldStrictlyEnforceMaxTracksPerArtist() {
         Song seed = buildSongEntity("seed-1", "Seed Romantic", "Arijit Singh", "Romantic", "Album 1", "Hindi");
 
-        // 4 songs by Arijit Singh
+        // Arijit Singh ke 4 gaane
         List<SongDto> candidates = new ArrayList<>();
         candidates.add(buildSongDto("s-1", "Song 1", "Arijit Singh", "Romantic", "Album A", "Hindi", 1000L));
         candidates.add(buildSongDto("s-2", "Song 2", "Arijit Singh", "Romantic", "Album B", "Hindi", 800L));
         candidates.add(buildSongDto("s-3", "Song 3", "Arijit Singh", "Romantic", "Album C", "Hindi", 600L));
         candidates.add(buildSongDto("s-4", "Song 4", "Arijit Singh", "Romantic", "Album D", "Hindi", 400L));
 
-        // 3 songs by different artists in the same genre
+        // Same genre me alag alag artists ke 3 gaane
         candidates.add(buildSongDto("s-5", "Song 5", "Atif Aslam", "Romantic", "Album E", "Hindi", 900L));
         candidates.add(buildSongDto("s-6", "Song 6", "Mohit Chauhan", "Romantic", "Album F", "Hindi", 700L));
         candidates.add(buildSongDto("s-7", "Song 7", "Shreya Ghoshal", "Romantic", "Album G", "Hindi", 850L));
@@ -69,11 +73,11 @@ class RecommendationRankingEngineTest {
 
         assertThat(results).hasSize(5);
 
-        // Verify Arijit Singh has at most 2 tracks in the top 5
+        // Check: top 5 me Arijit Singh ke max 2 gaane
         long arijitCount = results.stream().filter(s -> s.artistName().contains("Arijit")).count();
         assertThat(arijitCount).isLessThanOrEqualTo(2);
 
-        // Verify other artists are included in the results
+        // Check: baaki artists bhi result me hain
         List<String> artists = results.stream().map(SongDto::artistName).toList();
         assertThat(artists).contains("Atif Aslam");
         assertThat(artists).contains("Shreya Ghoshal");
@@ -85,13 +89,13 @@ class RecommendationRankingEngineTest {
         Song seed = buildSongEntity("seed-1", "Soundtrack Title", "Singer A", "Bollywood", "Mega Movie OST", "Hindi");
 
         List<SongDto> candidates = new ArrayList<>();
-        // 4 songs from the same movie soundtrack
+        // Ek hi movie soundtrack ke 4 gaane
         candidates.add(buildSongDto("s-1", "Track 1", "Singer A", "Bollywood", "Mega Movie OST", "Hindi", 500L));
         candidates.add(buildSongDto("s-2", "Track 2", "Singer B", "Bollywood", "Mega Movie OST", "Hindi", 400L));
         candidates.add(buildSongDto("s-3", "Track 3", "Singer C", "Bollywood", "Mega Movie OST", "Hindi", 300L));
         candidates.add(buildSongDto("s-4", "Track 4", "Singer D", "Bollywood", "Mega Movie OST", "Hindi", 200L));
 
-        // Songs from different albums
+        // Alag albums ke gaane
         candidates.add(buildSongDto("s-5", "Track 5", "Singer E", "Bollywood", "Other Movie", "Hindi", 600L));
         candidates.add(buildSongDto("s-6", "Track 6", "Singer F", "Bollywood", "Another Movie", "Hindi", 700L));
 
@@ -122,7 +126,7 @@ class RecommendationRankingEngineTest {
         double scoreVibe = engine.scoreCandidate(matchingVibe, seed, null);
         double scoreSameArtist = engine.scoreCandidate(sameArtistWrongVibe, seed, null);
 
-        // Vibe match (genre 40 + lang 20) must beat same artist wrong vibe (artist 15)
+        // Vibe match (genre 40 + language 20) ko same artist par galat vibe (artist 15) se jeetna chahiye
         assertThat(scoreVibe).isGreaterThan(scoreSameArtist);
     }
 
@@ -131,7 +135,7 @@ class RecommendationRankingEngineTest {
     void shouldRelaxQuotasIfPoolIsSmall() {
         Song seed = buildSongEntity("seed-1", "Seed", "Solo Artist", "Pop", "Album", "English");
 
-        // Only 3 songs exist, all by the same artist
+        // Sirf 3 gaane hain, teeno ek hi artist ke
         List<SongDto> candidates = List.of(
                 buildSongDto("s-1", "Song 1", "Solo Artist", "Pop", "Album A", "English", 100L),
                 buildSongDto("s-2", "Song 2", "Solo Artist", "Pop", "Album B", "English", 80L),
@@ -148,7 +152,7 @@ class RecommendationRankingEngineTest {
                 2
         );
 
-        // In fallback pass, relaxes quota so user still gets 3 songs rather than 2
+        // Fallback me limit dheeli hoti hai, to user ko 2 nahi, 3 gaane milte hain
         assertThat(results).hasSize(3);
     }
 
@@ -157,15 +161,15 @@ class RecommendationRankingEngineTest {
     void shouldScoreHighForCommaSeparatedMultiGenreOverlap() {
         Song seed = buildSongEntity("seed-1", "Seed", "Artist Seed", "Pop, Dance, Electronic", "Album A", "English");
 
-        // Exact match with different order and whitespace
+        // Same genres, bas order aur spaces alag
         SongDto exactDifferentOrder = buildSongDto("c-1", "Dance All Night", "Artist B", "Electronic,  Pop, Dance", "Album B", "English", 500L);
-        // Partial overlap: shares "Pop" and "Dance"
+        // Thoda common: "Pop" aur "Dance"
         SongDto partialOverlap = buildSongDto("c-2", "Club Party", "Artist C", "Dance, Pop, House", "Album C", "English", 500L);
-        // Single shared genre: shares "Pop"
+        // Ek hi common genre: "Pop"
         SongDto singleOverlap = buildSongDto("c-3", "Acoustic Pop", "Artist D", "Pop", "Album D", "English", 500L);
-        // Subgenre substring overlap: "dance-pop" contains "dance" and "pop"
+        // Subgenre: "dance-pop" ke andar "dance" aur "pop" hain
         SongDto subgenreOverlap = buildSongDto("c-4", "Synth Anthem", "Artist E", "Synth-Pop", "Album E", "English", 500L);
-        // Zero overlap
+        // Kuch bhi common nahi
         SongDto unrelatedGenre = buildSongDto("c-5", "Dark Metal", "Artist F", "Black Metal", "Album F", "English", 500L);
 
         double scoreExact = engine.scoreCandidate(exactDifferentOrder, seed, null);
@@ -174,13 +178,13 @@ class RecommendationRankingEngineTest {
         double scoreSubgenre = engine.scoreCandidate(subgenreOverlap, seed, null);
         double scoreUnrelated = engine.scoreCandidate(unrelatedGenre, seed, null);
 
-        // Lang is 20 + streams boost for all, so compare relative genre contributions
+        // Language (20) + streams sabke same hain, to sirf genre ke points compare karo
         assertThat(scoreExact).isGreaterThan(scorePartial);
         assertThat(scorePartial).isGreaterThan(scoreSingle);
         assertThat(scoreSingle).isGreaterThan(scoreSubgenre);
         assertThat(scoreSubgenre).isGreaterThan(scoreUnrelated);
 
-        // Exact match of all comma-separated genres should achieve max 40 genre points (total score = 40 genre + 20 lang + stream boost)
+        // Saare genres match = poore 40 genre points (total = 40 genre + 20 language + streams)
         assertThat(scoreExact).isGreaterThanOrEqualTo(60.0);
     }
 
@@ -196,13 +200,13 @@ class RecommendationRankingEngineTest {
     void shouldScoreHighForMultiArtistMatches() {
         Song seed = buildSongEntity("seed-1", "Rich Flex", "Drake, 21 Savage", "Hip Hop", "Her Loss", "English");
 
-        // Exact match with different order: "21 Savage, Drake"
+        // Same artists, order alag: "21 Savage, Drake"
         SongDto reversedOrder = buildSongDto("c-1", "Spin Bout U", "21 Savage, Drake", "Hip Hop", "Album A", "English", 500L);
-        // Primary artist match: "Drake, Travis Scott"
+        // Main artist same: "Drake, Travis Scott"
         SongDto primaryMatch = buildSongDto("c-2", "Meltdown", "Drake, Travis Scott", "Hip Hop", "Album B", "English", 500L);
-        // Collaborator match: "Future, 21 Savage"
+        // Saath wala artist same: "Future, 21 Savage"
         SongDto collabMatch = buildSongDto("c-3", "Superhero", "Future, 21 Savage", "Hip Hop", "Album C", "English", 500L);
-        // Zero overlap
+        // Kuch bhi common nahi
         SongDto unrelatedArtist = buildSongDto("c-4", "Starboy", "The Weeknd", "Hip Hop", "Album D", "English", 500L);
 
         double scoreReversed = engine.scoreCandidate(reversedOrder, seed, null);
@@ -210,12 +214,12 @@ class RecommendationRankingEngineTest {
         double scoreCollab = engine.scoreCandidate(collabMatch, seed, null);
         double scoreUnrelated = engine.scoreCandidate(unrelatedArtist, seed, null);
 
-        // Reversed full duo match and primary match both earn maximum artist affinity (15 pts artist)
-        // Allow small tolerance for deterministic playback jitter (0-3 pts)
+        // Ulta poora duo aur main artist match - dono ko poore 15 artist points
+        // Random jitter (0-3 points) ke liye thodi chhoot
         assertThat(scoreReversed).isCloseTo(scorePrimary, org.assertj.core.data.Offset.offset(3.5));
-        // Shared collaborator (10 pts artist) should be higher than unrelated (0 pts artist)
+        // Common saath wala artist (10) bina rishte wale (0) se upar
         assertThat(scoreCollab).isGreaterThan(scoreUnrelated);
-        // Full duo/primary match (15 pts) should beat shared collaborator (10 pts)
+        // Poora duo / main artist (15) common saath wale (10) se upar
         assertThat(scorePrimary).isGreaterThan(scoreCollab);
     }
 
@@ -224,14 +228,14 @@ class RecommendationRankingEngineTest {
     void shouldEnforceMaxTracksAcrossAllCommaSeparatedArtists() {
         Song seed = buildSongEntity("seed-1", "Seed", "Seed Singer", "Pop", "Album", "English");
 
-        // Drake appears as primary or collaborator across 4 songs
+        // Drake 4 gaano me main ya saath wala artist hai
         List<SongDto> candidates = new ArrayList<>();
         candidates.add(buildSongDto("s-1", "Track 1", "Drake, 21 Savage", "Pop", "Album 1", "English", 1000L));
         candidates.add(buildSongDto("s-2", "Track 2", "Drake, Travis Scott", "Pop", "Album 2", "English", 900L));
         candidates.add(buildSongDto("s-3", "Track 3", "Future, Drake", "Pop", "Album 3", "English", 800L));
         candidates.add(buildSongDto("s-4", "Track 4", "Drake", "Pop", "Album 4", "English", 700L));
 
-        // Other artists
+        // Baaki artists
         candidates.add(buildSongDto("s-5", "Track 5", "Post Malone", "Pop", "Album 5", "English", 600L));
         candidates.add(buildSongDto("s-6", "Track 6", "The Weeknd", "Pop", "Album 6", "English", 500L));
 
@@ -295,13 +299,13 @@ class RecommendationRankingEngineTest {
         Song seed = buildSongEntity("seed-1", "Seed", "Artist A", "Pop", "Album A", "English");
         SongDto candidate = buildSongDto("c-1", "Cand", "Artist B", "Pop", "Album B", "English", 500L);
 
-        // Sample multiple times to verify non-deterministic behavior
+        // Kai baar score nikaalo - har baar thoda alag aana chahiye
         Set<Double> distinctScores = new HashSet<>();
         for (int i = 0; i < 20; i++) {
             double score = engine.scoreCandidate(candidate, seed, null);
             distinctScores.add(score);
         }
-        // With ThreadLocalRandom(0.0, 3.0), 20 samples should produce multiple distinct scores
+        // Random 0-3 ki wajah se 20 baar me kai alag scores aane chahiye
         assertThat(distinctScores.size()).isGreaterThan(1);
     }
 
@@ -313,7 +317,7 @@ class RecommendationRankingEngineTest {
         SongDto streams100 = buildSongDto("c-100", "Mid", "Artist B", "Pop", "A", "English", 100L);
         SongDto streams1M = buildSongDto("c-1m", "High", "Artist B", "Pop", "A", "English", 1_000_000L);
 
-        // When seedSong is null, scoreCandidate returns recombeeRank score + computeStreamBoost
+        // Seed gaana null ho to score = Recombee rank ke points + streams ke points
         double scoreZero = engine.scoreCandidate(zeroStreams, null, null);
         double scoreNull = engine.scoreCandidate(nullStreams, null, null);
         assertThat(scoreZero).isEqualTo(0.0);
@@ -374,7 +378,7 @@ class RecommendationRankingEngineTest {
 
         assertThat(engine.scoreAudioFeatures(withAudio("a", 120.0, 0.8, 0.6, 0.7), null)).isEqualTo(0.0);
         assertThat(engine.scoreAudioFeatures(noAudio, seed)).isEqualTo(7.5);
-        // Seed with only energy known: only energy contributes
+        // Seed ka sirf energy pata hai: sirf energy ke points aayenge
         assertThat(engine.scoreAudioFeatures(withAudio("a", 60.0, 0.8, 0.0, 0.0),
                 new AudioProfile(null, 0.8, null, null))).isEqualTo(4.0);
     }

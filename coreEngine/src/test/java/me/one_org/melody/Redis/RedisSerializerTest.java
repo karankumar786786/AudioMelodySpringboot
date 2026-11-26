@@ -12,12 +12,16 @@ import me.one_org.melody.Enums.StatusEnum;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Unit test: RedisSerializer ko akele check karta hai (asli objects ke saath, bina database ke).
+ * Har @Test method ek behaviour check karta hai - method ka naam batata hai kya.
+ */
 class RedisSerializerTest {
 
     @Test
     void testSerializationAndDeserializationOfSongList() throws Exception {
         RedisConfig config = new RedisConfig();
-        // Invoke createJsonRedisSerializer via reflection or by testing RedisTemplate
+        // createJsonRedisSerializer ko RedisTemplate ke through test karte hain
         var method = RedisConfig.class.getDeclaredMethod("createJsonRedisSerializer");
         method.setAccessible(true);
         GenericJacksonJsonRedisSerializer serializer = (GenericJacksonJsonRedisSerializer) method.invoke(config);
@@ -28,13 +32,13 @@ class RedisSerializerTest {
         );
         List<SongDto> list = java.util.stream.Stream.of(song).toList();
 
-        // 1. Test single object
+        // 1. Ek object
         byte[] songBytes = serializer.serialize(song);
         Object desSong = serializer.deserialize(songBytes);
         assertNotNull(desSong);
         assertTrue(desSong instanceof SongDto, "Expected SongDto but got: " + desSong.getClass());
 
-        // 2. Test PaginationMetaData
+        // 2. PaginationMetaData
         me.one_org.melody.Entity.PaginationMetaData meta = me.one_org.melody.Entity.PaginationMetaData.builder()
                 .id("1")
                 .tableName("SongsEntity")
@@ -45,7 +49,7 @@ class RedisSerializerTest {
         assertNotNull(desMeta);
         assertTrue(desMeta instanceof me.one_org.melody.Entity.PaginationMetaData, "Expected PaginationMetaData but got: " + desMeta.getClass());
 
-        // 3. Test stream.toList()
+        // 3. stream.toList() wali list
         byte[] listBytes = serializer.serialize(list);
         Object desList = serializer.deserialize(listBytes);
         assertNotNull(desList);
@@ -53,7 +57,7 @@ class RedisSerializerTest {
         assertEquals(1, ((List<?>) desList).size());
         assertTrue(((List<?>) desList).get(0) instanceof SongDto);
 
-        // 4. Test List.of()
+        // 4. List.of() (immutable list)
         List<SongDto> listOf = List.of(song);
         byte[] listOfBytes = serializer.serialize(listOf);
         Object desListOf = serializer.deserialize(listOfBytes);
@@ -62,7 +66,7 @@ class RedisSerializerTest {
         assertEquals(1, ((List<?>) desListOf).size());
         assertTrue(((List<?>) desListOf).get(0) instanceof SongDto);
 
-        // 5. Test Set.of()
+        // 5. Set.of() (immutable set)
         java.util.Set<String> setOf = java.util.Set.of("rock", "pop");
         byte[] setBytes = serializer.serialize(setOf);
         Object desSet = serializer.deserialize(setBytes);

@@ -20,6 +20,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+/**
+ * Integration test: UserController ko poore Spring setup ke saath check karta hai (HTTP request -> controller -> service ->
+ * repository). Bahar ki services (Recombee, Algolia, Redis) zaroorat ho to nakli (mock) hain.
+ */
 @ExtendWith(MockitoExtension.class)
 class UserControllerIntegrationTest {
 

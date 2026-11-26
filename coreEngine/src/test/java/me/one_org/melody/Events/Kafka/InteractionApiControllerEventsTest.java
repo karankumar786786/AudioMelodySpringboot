@@ -21,6 +21,10 @@ import me.one_org.melody.Exceptions.GlobalExceptionHandler;
 import me.one_org.melody.Services.Api.InteractionApiService;
 import me.one_org.melody.Utils.CurrentUserTestArgumentResolver;
 
+/**
+ * Unit test: InteractionApiControllerEvents ko akele check karta hai (dependencies Mockito se nakli (mock) hain, taaki sirf isi class ka logic test ho).
+ * Har @Test method ek behaviour check karta hai - method ka naam batata hai kya.
+ */
 class InteractionApiControllerEventsTest {
 
     private final InteractionApiService service = mock(InteractionApiService.class);

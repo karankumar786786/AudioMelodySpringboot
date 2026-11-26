@@ -31,6 +31,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import org.mockito.quality.Strictness;
 import org.mockito.junit.jupiter.MockitoSettings;
 
+/**
+ * Integration test: HomeApiController ko poore Spring setup ke saath check karta hai (HTTP request -> controller -> service ->
+ * repository). Bahar ki services (Recombee, Algolia, Redis) zaroorat ho to nakli (mock) hain.
+ */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class HomeApiControllerIntegrationTest {

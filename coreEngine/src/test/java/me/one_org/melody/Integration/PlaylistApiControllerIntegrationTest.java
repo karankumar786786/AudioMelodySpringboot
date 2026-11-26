@@ -23,6 +23,10 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+/**
+ * Integration test: PlaylistApiController ko poore Spring setup ke saath check karta hai (HTTP request -> controller -> service ->
+ * repository). Bahar ki services (Recombee, Algolia, Redis) zaroorat ho to nakli (mock) hain.
+ */
 @ExtendWith(MockitoExtension.class)
 class PlaylistApiControllerIntegrationTest {
 

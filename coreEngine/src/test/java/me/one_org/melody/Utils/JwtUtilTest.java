@@ -28,6 +28,10 @@ import me.one_org.melody.Security.CustomUserDetails;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+/**
+ * Unit test: JwtUtil ko akele check karta hai (asli objects ke saath, bina database ke).
+ * Har @Test method ek behaviour check karta hai - method ka naam batata hai kya.
+ */
 class JwtUtilTest {
 
     private JwtUtil jwtUtil;

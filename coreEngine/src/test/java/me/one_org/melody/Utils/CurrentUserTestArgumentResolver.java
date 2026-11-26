@@ -15,8 +15,8 @@ import me.one_org.melody.Security.CurrentUser;
 import me.one_org.melody.Security.CustomUserDetails;
 
 /**
- * Test argument resolver for standalone MockMvc setups that binds @CurrentUser / CustomUserDetails
- * from either the SecurityContextHolder or a request attribute named "userId".
+ * Tests ke liye argument resolver: akele MockMvc setup me @CurrentUser / CustomUserDetails bharta hai
+ * SecurityContextHolder se, ya request attribute "userId" se.
  */
 public class CurrentUserTestArgumentResolver implements HandlerMethodArgumentResolver {
 

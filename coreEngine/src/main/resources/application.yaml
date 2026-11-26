@@ -30,22 +30,22 @@ spring:
     username: ${DB_USER:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
-    # --- Hikari Connection Pool Config ---
+    # --- Database connection pool (HikariCP) ki setting ---
     hikari:
       pool-name: MelodyHikariPool
-      # No idle connections: Neon suspends compute only after 5 min without activity, and
-      # warm connections (recycled every max-lifetime) kept it awake around the clock, which
-      # used up the plan's compute quota. The first query after a quiet spell opens a fresh
-      # connection (and may wait for Neon to wake), which is the trade-off.
+      # Koi idle (khaali padi) connection nahi: Neon database 5 minute bina kaam ke "so" jaata hai.
+      # Khuli connections use din-raat jagaye rakhti thin, jisse plan ka compute quota
+      # khatam ho jaata tha. Ab der tak khaali rehne ke baad pehli query nayi connection kholti hai
+      # (aur Neon ke jaagne ka thoda wait) - ye chhota sa trade-off hai.
       minimum-idle: 0
-      maximum-pool-size: 20              # allow up to 20 concurrent queries without queuing
-      idle-timeout: 60000                # close idle connections after 1 min
+      maximum-pool-size: 20              # ek saath max 20 queries, line me lage bina
+      idle-timeout: 60000                # 1 minute khaali padi connection band
       max-lifetime: 240000
-      keepalive-time: 0                  # no keepalive pings
-      connection-timeout: 10000          # 10s connection timeout
-      initialization-fail-timeout: -1    # app can boot even if DB is asleep
-      leak-detection-threshold: 30000    # warn if a connection is held > 30s
-      # do NOT set connection-test-query
+      keepalive-time: 0                  # keepalive ping nahi (Neon ko jagaye rakhte)
+      connection-timeout: 10000          # connection 10 second me na mile to error
+      initialization-fail-timeout: -1    # DB so raha ho tab bhi app start ho jaaye
+      leak-detection-threshold: 30000    # koi connection 30 second se zyada pakde to warning (leak)
+      # connection-test-query set MAT karo (JDBC driver khud check kar leta hai)
 
   data:
     redis:
@@ -56,8 +56,8 @@ spring:
       ssl:
         enabled: ${REDIS_SSL_ENABLED:true}
 
-  # Event pipeline (Redpanda). Producers connect lazily, so an empty broker list is fine
-  # while melody.events.mode is LEGACY.
+  # Event pipeline (Redpanda / Kafka). Producers pehle message pe hi connect karte hain, isliye
+  # LEGACY mode me broker list khaali ho to bhi chalega.
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:19092}
     admin:
@@ -68,7 +68,7 @@ spring:
       properties:
         enable.idempotence: true
         linger.ms: 5
-        max.block.ms: 2000           # never block a request thread long on metadata
+        max.block.ms: 2000           # Kafka metadata ke liye request thread ko 2 second se zyada mat roko
         request.timeout.ms: 5000
         delivery.timeout.ms: 10000
     properties:
@@ -79,14 +79,14 @@ spring:
       sasl.jaas.config: ${KAFKA_SASL_JAAS_CONFIG:}
 
   jpa:
-    open-in-view: false                  # don't hold a connection for the whole request
+    open-in-view: false                  # poori request ke dauraan connection pakad ke mat rakho
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: validate                  # consider "none" or "validate" in production
+      ddl-auto: validate                  # validate = start pe entities ko DB tables se match karo (mismatch = app start nahi hoga)
     properties:
       hibernate:
         boot:
-          "[allow_jdbc_metadata_access]": false   # skip metadata connection at startup
+          "[allow_jdbc_metadata_access]": false   # startup pe metadata ke liye extra connection mat kholo
 
   jackson:
     deserialization:
@@ -96,8 +96,8 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 30s
 
-# Spring Cloud AWS: only the 'aws' profile (below) talks to Secrets Manager. Without this,
-# its auto-configuration builds a client at start-up and fails where no AWS region is set.
+# Spring Cloud AWS: sirf 'aws' profile (neeche) Secrets Manager se baat karta hai. Ye na ho to
+# startup pe AWS client banta hai aur jahan AWS region set nahi (local) wahan fail ho jaata.
 ---
 spring:
   cloud:
@@ -105,7 +105,7 @@ spring:
       secretsmanager:
         enabled: false
 ---
-# LEGACY (default) | DUAL | KAFKA. See Events/Kafka/EventsMode.java.
+# LEGACY (default) | DUAL | KAFKA - kya matlab hai, Events/Kafka/EventsMode.java me dekho.
 melody:
   shorts:
     temp-bucket: ${S3_TEMP_BUCKET:audiomelodyspringboottemp}
@@ -114,8 +114,8 @@ melody:
     max-uploads-per-day: ${SHORTS_MAX_UPLOADS_PER_DAY:5}
     upload-url-ttl: 15m
     auto-hide-reports: ${SHORTS_AUTO_HIDE_REPORTS:3}
-    # Inngest Event API. Leave the URL empty in production (Inngest Cloud + the event key);
-    # for the local dev server use http://localhost:8288/e/dev
+    # Inngest Event API. Production me URL khaali chhodo (Inngest Cloud + event key use hoga);
+    # local dev server ke liye http://localhost:8288/e/dev
     inngest-event-url: ${INNGEST_EVENT_URL:}
     inngest-event-key: ${INNGEST_EVENT_KEY:}
   events:
@@ -129,7 +129,7 @@ melody:
 jwt:
   secret: ${JWT_SECRET:super_secret_jwt_key_that_is_at_least_32_bytes_long_and_very_secure_12345}
 
-# HttpOnly auth cookies for the web app (see Security/AuthCookies). The mobile app uses bearer tokens.
+# Website ke liye HttpOnly login cookies (Security/AuthCookies dekho). Mobile app bearer token use karta hai.
 auth:
   cookie:
     domain: ${COOKIE_DOMAIN:}
@@ -148,7 +148,7 @@ server:
   port: ${PORT:8080}
   shutdown: graceful
 
-# Actuator: only safe endpoints, and NO database pings
+# Actuator (health/info): sirf safe endpoints, aur database ping NAHI (warna Neon kabhi nahi soyega)
 management:
   endpoints:
     web:
@@ -158,20 +158,20 @@ management:
     health:
       show-details: when_authorized
       probes:
-        enabled: true                    # /actuator/health/liveness and /readiness
+        enabled: true                    # /actuator/health/liveness aur /readiness
       group:
         liveness:
           include: livenessState
         readiness:
-          include: readinessState        # no db check, so Neon can sleep
+          include: readinessState        # DB check nahi, taaki Neon so sake
   health:
     db:
-      enabled: false                     # main culprit: stops "SELECT 1" every few seconds
+      enabled: false                     # asli wajah: har kuch second me "SELECT 1" band karta hai
     mail:
       enabled: false
     diskspace:
       enabled: false
-    # redis check is fine to keep: it hits Redis, not Neon
+    # Redis ka health check rakh sakte hain: ye Redis ko chhoota hai, Neon ko nahi
 
 algolia:
   app-id: ${ALGOLIA_APP_ID:default_algolia_app_id}
@@ -195,11 +195,11 @@ logging:
   pattern:
     console: "%clr(%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}){faint} %clr(%5p) %clr([${spring.application.name:core-engine},%X{trace_id:-0},%X{span_id:-0}]){yellow} %clr(---){faint} %clr([%15.15t]){faint} %clr(%-40.40logger{39}){cyan} %clr(:){faint} %m%n%wEx"
 ---
-# Production secrets: AWS Secrets Manager, read with the EC2 instance role (no keys on disk).
-# Turn on with SPRING_PROFILES_ACTIVE=aws. SECRET_IDS is a ';'-separated list of JSON secrets
-# whose keys (DB_URL, JWT_SECRET, ...) become properties and fill the ${...} placeholders above.
-# The import is not optional: if a secret cannot be read the app stops instead of
-# starting against the localhost defaults. Without the profile, .env loading works as before.
+# Production secrets: AWS Secrets Manager se, EC2 instance role ke through (disk pe koi key nahi).
+# SPRING_PROFILES_ACTIVE=aws se on hota hai. SECRET_IDS = ';' se alag JSON secrets ki list,
+# jinki keys (DB_URL, JWT_SECRET, ...) properties ban ke upar ke ${...} bhar deti hain.
+# Ye import zaroori hai: koi secret padh na paaye to app band ho jaata hai, taaki
+# galti se localhost defaults ke saath na chal jaaye. Profile ke bina .env file pehle jaisi chalti hai.
 spring:
   config:
     activate:
