@@ -2,6 +2,9 @@ package me.one_org.melody.Dto.Controllers.Api;
 
 import jakarta.validation.constraints.NotBlank;
 
+/**
+ * Telemetry: user ne search result pe click kiya (type + id + query).
+ */
 public record TrackSearchClickRequestDto(
     @NotBlank(message = "Search click type is required")
     String type,

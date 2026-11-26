@@ -15,6 +15,14 @@ import jakarta.persistence.Table;
 import lombok.Builder;
 import lombok.Data;
 
+/**
+ * Table: song_metadata
+ * Song ka counter data - abhi totalStreams (kitni baar suna gaya).
+ * Listen aane pe stream processor ye count badhata hai.
+ *
+ * Entity = Java class jo database ki ek table se juda hai; har object = table ki ek row.
+ * Table Flyway migrations (migration/ module) banate hain, ye class sirf usko map karti hai.
+ */
 @Entity 
 @Table(name = "song_metadata")
 @BatchSize(size = 50)

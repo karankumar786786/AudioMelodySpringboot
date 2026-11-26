@@ -17,6 +17,16 @@ import me.one_org.melody.Dto.Controllers.Api.UpdateProgressRequestDto;
 import me.one_org.melody.Dto.Controllers.Api.UserProgressDto;
 import me.one_org.melody.Repository.SongsRepository;
 
+/**
+ * Playback progress (resume): Redis me rakhte hain (key user:progress:<userId>), DB me nahi -
+ * kyunki ye har minute badalta hai aur sirf aakhri value chahiye.
+ *
+ * Service = asli business logic. Controller isko call karta hai, ye repositories (DB), cache aur
+ * bahar ki services (Recombee, Algolia) ko use karta hai.
+ * @Transactional(readOnly = true) = by default sirf padhne wale DB transactions (thode fast);
+ * jo methods data badalte hain un pe alag se @Transactional laga hai.
+ * @Cacheable = result Redis me cache hota hai (RedisConfig dekho).
+ */
 @Service
 @Transactional(readOnly = true)
 @Slf4j
@@ -39,6 +49,7 @@ public class UserProgressApiService {
         this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper();
     }
 
+    /** Progress save karo (song, kitne second, kis playlist se). Song hona chahiye. */
     public UserProgressDto saveProgress(String userId, UpdateProgressRequestDto request) {
         if (userId == null || userId.isBlank() || request == null) {
             return null;
@@ -79,6 +90,7 @@ public class UserProgressApiService {
         );
     }
 
+    /** Aakhri progress, song ki details ke saath. Kuch saved na ho to null; song delete ho gaya ho to song field null. */
     public UserProgressDto getProgress(String userId) {
         if (userId == null || userId.isBlank() || redisTemplate == null) {
             return null;
@@ -126,6 +138,7 @@ public class UserProgressApiService {
         }
     }
 
+    /** Progress hatao. */
     public void clearProgress(String userId) {
         if (userId == null || userId.isBlank() || redisTemplate == null) {
             return;

@@ -31,6 +31,15 @@ import me.one_org.melody.Enums.StatusEnum;
 import java.time.LocalDateTime;
 
 
+/**
+ * Algolia (search service) se saara kaam: index ki setting, records save/delete, search, counters badhana.
+ *
+ * Algolia me ek hi index hai jisme songs, artists aur playlists teeno hain - har record ka "type" field batata hai
+ * ki wo kya hai. Search bar ki query yahin aati hai.
+ *
+ * Ranking: pehle Algolia ka text match, phir searchCount (kitni baar search se khola gaya),
+ * phir totalStreams (kitni baar suna gaya).
+ */
 @Component
 @Slf4j
 public class AlgoliaSearch {
@@ -45,6 +54,10 @@ public class AlgoliaSearch {
         this.searchClient = searchClient;
     }
 
+    /**
+     * Server start pe Algolia index ki setting set karta hai: kin fields me search ho, kaunse highlight hon,
+     * filters (facets) aur ranking. Fail ho to sirf warning - search phir bhi purani setting se chalegi.
+     */
     @PostConstruct
     public void configureIndex() {
         try {
@@ -59,11 +72,11 @@ public class AlgoliaSearch {
                             "language",
                             "genre",
                             "genres",
-                            // Lowest priority so lyric matches never outrank title/artist matches.
+                            // Sabse kam priority: lyrics ka match kabhi title/artist ke match se upar na aaye.
                             "unordered(lyrics)"))
-                    // Lyrics are indexed by adminBackend/audioProcessing (capped ~6KB). Keep hits small:
-                    // never return them in full, only a short snippet. (unretrievableAttributes
-                    // would also suppress the snippet.) Keep in sync with AlgoliaService.configure_index.
+                    // Lyrics admin backend / media pipeline index karte hain (max ~6KB). Response chhota rakhne ke liye
+                    // poore lyrics kabhi wapas mat bhejo, sirf 12 shabd ka snippet. (unretrievableAttributes lagaya
+                    // to snippet bhi band ho jaata.) Ye setting AlgoliaService.configure_index (Python) se match honi chahiye.
                     .setAttributesToRetrieve(List.of("*", "-lyrics"))
                     .setAttributesToHighlight(List.of(
                             "title", "album", "artistName", "artist", "artists", "name",
@@ -88,6 +101,10 @@ public class AlgoliaSearch {
     }
 
 
+    /**
+     * Kisi result ka searchCount +1 (Algolia ka "Increment" operation, poora record bheje bina).
+     * Zyada search hone wali cheezein ranking me upar aati hain. Fail ho to sirf warning.
+     */
     public void incrementSearchCount(String objectId) {
         if (objectId == null || objectId.isBlank()) return;
         try {
@@ -105,6 +122,7 @@ public class AlgoliaSearch {
         }
     }
 
+    /** Song ka totalStreams +1 Algolia me bhi, taaki popular gaane search me upar aayein. */
     public void incrementTotalStreams(String songId) {
         if (songId == null || songId.isBlank()) return;
         try {
@@ -122,6 +140,7 @@ public class AlgoliaSearch {
         }
     }
 
+    /** Song entity se Algolia record (Map) banata hai: objectID, type=song, title, artist, keys, genre... */
     public Map<String, Object> buildSongRecord(Song song) {
         Map<String, Object> record = new HashMap<>();
         record.put("objectID", song.getId());
@@ -196,6 +215,7 @@ public class AlgoliaSearch {
         return record;
     }
 
+    /** Artist entity se Algolia record (type=artist). */
     public Map<String, Object> buildArtistRecord(Artist artist) {
         Map<String, Object> record = new HashMap<>();
         record.put("objectID", artist.getId());
@@ -224,6 +244,7 @@ public class AlgoliaSearch {
         return record;
     }
 
+    /** Official playlist se Algolia record (type=playlist). */
     public Map<String, Object> buildPlaylistRecord(Playlist playlist) {
         Map<String, Object> record = new HashMap<>();
         record.put("objectID", playlist.getId());
@@ -252,6 +273,7 @@ public class AlgoliaSearch {
         return record;
     }
 
+    /** User playlist se Algolia record (type=playlist, isUserPlaylist=true). */
     public Map<String, Object> buildUserPlaylistRecord(UserPlaylist playlist) {
         Map<String, Object> record = new HashMap<>();
         record.put("objectID", playlist.getId());
@@ -275,21 +297,25 @@ public class AlgoliaSearch {
         return record;
     }
 
+    /** Song Algolia me save/update karo. */
     public void save(Song song) throws Exception {
         Map<String, Object> record = buildSongRecord(song);
         searchClient.saveObject(indexName, record);
     }
 
+    /** Artist Algolia me save/update karo. */
     public void save(Artist artist) throws Exception {
         Map<String, Object> record = buildArtistRecord(artist);
         searchClient.saveObject(indexName, record);
     }
 
+    /** Official playlist Algolia me save/update karo. */
     public void save(Playlist playlist) throws Exception {
         Map<String, Object> record = buildPlaylistRecord(playlist);
         searchClient.saveObject(indexName, record);
     }
 
+    /** Sirf id + naam se playlist ka record update karo. */
     public void savePlaylist(String id, String name) throws Exception {
         Map<String, Object> record = new HashMap<>();
         record.put("objectID", id);
@@ -299,11 +325,13 @@ public class AlgoliaSearch {
         searchClient.saveObject(indexName, record);
     }
 
+    /** User playlist Algolia me save karo. */
     public void save(UserPlaylist playlist) throws Exception {
         Map<String, Object> record = buildUserPlaylistRecord(playlist);
         searchClient.saveObject(indexName, record);
     }
 
+    /** User playlist ki values se record banake save karo. */
     public void saveUserPlaylist(String id, String name, String privacy, String shareToken, int totalSongs, String ownerId, String ownerName) throws Exception {
         Map<String, Object> record = new HashMap<>();
         record.put("objectID", id);
@@ -327,10 +355,15 @@ public class AlgoliaSearch {
         searchClient.saveObject(indexName, record);
     }
 
+    /** Is id ka record index se hatao. */
     public void delete(String id) {
         searchClient.deleteObject(indexName, id);
     }
 
+    /**
+     * Simple search: har type ki sirf ids (max 100 hits).
+     * Algolia fail ho to RuntimeException.
+     */
     public AlgoliaSearchResult search(String query) {
         List<AlgoliaSearchSongDto> songs = new ArrayList<>();
         List<AlgoliaSearchArtistDto> artists = new ArrayList<>();
@@ -361,6 +394,10 @@ public class AlgoliaSearch {
         return new AlgoliaSearchResult(songs, artists, playlists);
     }
 
+    /**
+     * Poori details wala search: Algolia ke record se hi SongDto / ArtistDto / PlaylistDto bana lete hain
+     * (DB call ki zaroorat nahi). Playlist me isUserPlaylist true ho to user playlist list me jaati hai.
+     */
     public SearchResult searchDetailed(String query) {
         List<SongDto> songs = new ArrayList<>();
         List<ArtistDto> artists = new ArrayList<>();
@@ -406,6 +443,7 @@ public class AlgoliaSearch {
         return new SearchResult(songs, artists, playlists, userPlaylists);
     }
 
+    /** Algolia hit (Map) -> SongDto. artistName na ho to "artists" list ko comma se jod ke use karo. */
     private SongDto mapHitToSongDto(Map<String, Object> h) {
         String id = (String) h.get("objectID");
         if (id == null) return null;
@@ -451,6 +489,7 @@ public class AlgoliaSearch {
         );
     }
 
+    /** Algolia hit -> ArtistDto. */
     private ArtistDto mapHitToArtistDto(Map<String, Object> h) {
         String id = (String) h.get("objectID");
         if (id == null) return null;
@@ -473,6 +512,7 @@ public class AlgoliaSearch {
         return new ArtistDto(id, name, about, dob, coverImageKey, status, followersCount, createdAt);
     }
 
+    /** Algolia hit -> PlaylistDto. */
     private PlaylistDto mapHitToPlaylistDto(Map<String, Object> h) {
         String id = (String) h.get("objectID");
         if (id == null) return null;
@@ -496,6 +536,7 @@ public class AlgoliaSearch {
         return new PlaylistDto(id, name, description, coverImageKey, videoKey, totalSongs, status, createdAt, updatedAt);
     }
 
+    /** Algolia hit -> UserPlaylistDto. */
     private UserPlaylistDto mapHitToUserPlaylistDto(Map<String, Object> h) {
         String id = (String) h.get("objectID");
         if (id == null) return null;
@@ -512,8 +553,9 @@ public class AlgoliaSearch {
     }
 
 
-    // ── Bulk resync ──
+    // ── Poora index dobara bharna (bulk resync) ──
 
+    /** Saare songs ek saath Algolia me bhejo (batch). */
     public void reindexAllSongs(List<Song> songs) throws Exception {
         List<Map<String, Object>> records = songs.stream()
                 .map(this::buildSongRecord)
@@ -524,6 +566,7 @@ public class AlgoliaSearch {
         log.info("Reindexed {} songs in Algolia", songs.size());
     }
 
+    /** Saare artists ek saath bhejo. */
     public void reindexAllArtists(List<Artist> artists) throws Exception {
         List<Map<String, Object>> records = artists.stream()
                 .map(this::buildArtistRecord)
@@ -534,6 +577,7 @@ public class AlgoliaSearch {
         log.info("Reindexed {} artists in Algolia", artists.size());
     }
 
+    /** Saari official playlists ek saath bhejo. */
     public void reindexAllPlaylists(List<Playlist> playlists) throws Exception {
         List<Map<String, Object>> records = playlists.stream()
                 .map(this::buildPlaylistRecord)
@@ -544,6 +588,7 @@ public class AlgoliaSearch {
         log.info("Reindexed {} playlists in Algolia", playlists.size());
     }
 
+    /** Saari user playlists ek saath bhejo. */
     public void reindexAllUserPlaylists(List<UserPlaylist> playlists) throws Exception {
         List<Map<String, Object>> records = playlists.stream()
                 .map(this::buildUserPlaylistRecord)
@@ -554,6 +599,7 @@ public class AlgoliaSearch {
         log.info("Reindexed {} user playlists in Algolia", playlists.size());
     }
 
+    /** Poora index khaali karo (dhyan se!). */
     public void clearIndex() throws Exception {
         searchClient.clearObjects(indexName);
         log.info("Algolia index '{}' cleared", indexName);

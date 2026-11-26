@@ -13,6 +13,14 @@ import java.util.List;
 
 import me.one_org.melody.Enums.StatusEnum;
 
+/**
+ * Table: playlists
+ * Admin ki banayi official playlist (jaise "Top Hits"). Songs ka link playlist_songs
+ * join table me hai (many-to-many: ek playlist me bahut songs, ek song bahut playlists me).
+ *
+ * Entity = Java class jo database ki ek table se juda hai; har object = table ki ek row.
+ * Table Flyway migrations (migration/ module) banate hain, ye class sirf usko map karti hai.
+ */
 @Entity
 @Table(name = "playlists")
 @Data 

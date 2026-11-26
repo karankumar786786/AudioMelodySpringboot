@@ -3,6 +3,9 @@ package me.one_org.melody.Dto.Controllers.Api;
 import me.one_org.melody.Entity.UserPlaylist;
 import me.one_org.melody.Enums.PlaylistPrivacyEnum;
 
+/**
+ * API response me user ki playlist, owner ke naam ke saath.
+ */
 public record UserPlaylistDto(
     String id,
     String name,

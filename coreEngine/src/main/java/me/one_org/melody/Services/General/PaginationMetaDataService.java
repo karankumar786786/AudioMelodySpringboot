@@ -17,6 +17,11 @@ import me.one_org.melody.Entity.PaginationMetaData;
 import me.one_org.melody.Enums.StatusEnum;
 import me.one_org.melody.Repository.PaginationMetaDataRepository;
 
+/**
+ * Pagination ke counts (total / active / blocked / deleted) sambhalna.
+ * Har list ke liye har baar COUNT(*) chalane ke bajaye, add/delete pe ye counters badalte hain.
+ * Counts Redis me 5 minute cache rehte hain; badalte hi cache entry hata di jaati hai (@CacheEvict).
+ */
 @Service
 @Slf4j
 public class PaginationMetaDataService {
@@ -30,6 +35,7 @@ public class PaginationMetaDataService {
         this.repository = repository;
     }
 
+    /** Kisi entity ke counts (cache me). Row na ho to 0 counts wali nayi row bana do. */
     @Cacheable(value = "paginationMetaData", key = "#entityName")
     public PaginationMetaData getMetaData(String entityName) {
         Optional<PaginationMetaData> existing = repository.findByEntityName(entityName);
@@ -50,6 +56,7 @@ public class PaginationMetaDataService {
         }
     }
 
+    /** Saare counts seedha set karo. */
     @Transactional
     @CacheEvict(value = "paginationMetaData", key = "#entityName")
     public void updateCounts(String entityName, long totalCount, long activeCount, long blockedCount, long deletedCount) {
@@ -75,6 +82,7 @@ public class PaginationMetaDataService {
         repository.save(meta);
     }
 
+    /** Ek naya item aaya: total +1 aur us status ka count +1. */
     @Transactional
     @CacheEvict(value = "paginationMetaData", key = "#entityName")
     public void incrementStatus(String entityName, StatusEnum status) {
@@ -93,6 +101,7 @@ public class PaginationMetaDataService {
         repository.save(meta);
     }
 
+    /** Ek item gaya: total -1 aur us status ka count -1 (0 se neeche nahi). */
     @Transactional
     @CacheEvict(value = "paginationMetaData", key = "#entityName")
     public void decrementStatus(String entityName, StatusEnum status) {
@@ -111,6 +120,7 @@ public class PaginationMetaDataService {
         repository.save(meta);
     }
 
+    /** Item ka status badla (jaise ACTIVE -> BLOCKED): purane status ka -1, naye ka +1. */
     @Transactional
     @CacheEvict(value = "paginationMetaData", key = "#entityName")
     public void transitionStatus(String entityName, StatusEnum oldStatus, StatusEnum newStatus) {
@@ -133,13 +143,13 @@ public class PaginationMetaDataService {
     }
 
     /* -------------------------------------------------------------------------
-     * Full Database Synchronization
+     * Poore database se counts dobara ginna
      * ------------------------------------------------------------------------- */
 
     /**
-     * Re-calculates and persists exact counts across consumer-facing entity tables.
-     * Clears Redis caches so all pages immediately read synchronized numbers.
-     * Note: Jobs and DeleteJobs metadata is managed by Django admin.
+     * Songs, users, artists, playlists ke asli counts DB se dobara gin ke save karta hai,
+     * aur saara paginationMetaData cache saaf karta hai taaki sab jagah sahi number dikhe.
+     * Note: Jobs aur DeleteJobs ke counts Django admin sambhalta hai.
      */
     @Transactional
     @CacheEvict(value = "paginationMetaData", allEntries = true)
@@ -147,28 +157,28 @@ public class PaginationMetaDataService {
         log.info("Starting complete reconciliation of pagination_metadata table...");
         Map<String, PaginationMetaData> results = new LinkedHashMap<>();
 
-        // 1. Song
+        // 1. Songs
         results.put("SongsEntity", syncEntityCounts("SongsEntity",
                 "SELECT COUNT(s) FROM Song s",
                 "SELECT COUNT(s) FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.ACTIVE",
                 "SELECT COUNT(s) FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.BLOCKED",
                 "SELECT COUNT(s) FROM Song s WHERE s.status = me.one_org.melody.Enums.StatusEnum.DELETED"));
 
-        // 2. User
+        // 2. Users
         results.put("UsersEntity", syncEntityCounts("UsersEntity",
                 "SELECT COUNT(u) FROM User u",
                 "SELECT COUNT(u) FROM User u WHERE u.status = me.one_org.melody.Enums.StatusEnum.ACTIVE",
                 "SELECT COUNT(u) FROM User u WHERE u.status = me.one_org.melody.Enums.StatusEnum.BLOCKED",
                 "SELECT COUNT(u) FROM User u WHERE u.status = me.one_org.melody.Enums.StatusEnum.DELETED"));
 
-        // 3. Artist
+        // 3. Artists
         results.put("ArtistsEntity", syncEntityCounts("ArtistsEntity",
                 "SELECT COUNT(a) FROM Artist a",
                 "SELECT COUNT(a) FROM Artist a WHERE a.status = me.one_org.melody.Enums.StatusEnum.ACTIVE",
                 "SELECT COUNT(a) FROM Artist a WHERE a.status = me.one_org.melody.Enums.StatusEnum.BLOCKED",
                 "SELECT COUNT(a) FROM Artist a WHERE a.status = me.one_org.melody.Enums.StatusEnum.DELETED"));
 
-        // 4. Playlist
+        // 4. Playlists
         results.put("PlaylistsEntity", syncEntityCounts("PlaylistsEntity",
                 "SELECT COUNT(p) FROM Playlist p",
                 "SELECT COUNT(p) FROM Playlist p WHERE p.status = me.one_org.melody.Enums.StatusEnum.ACTIVE",
@@ -179,6 +189,7 @@ public class PaginationMetaDataService {
         return results;
     }
 
+    /** Diye gaye JPQL count queries chala ke ek entity ke counts save karo. */
     private PaginationMetaData syncEntityCounts(String entityName, String totalQuery, String activeQuery, String blockedQuery, String deletedQuery) {
         long total = entityManager.createQuery(totalQuery, Long.class).getSingleResult();
         long active = entityManager.createQuery(activeQuery, Long.class).getSingleResult();

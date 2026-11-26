@@ -8,6 +8,14 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 import java.time.LocalDateTime;
 
+/**
+ * Table: user_search_history
+ * User ne search karke kya khola (song / artist / playlist / user playlist) - recent searches ke liye.
+ * entityType batata hai ki kaunsa column bhara hai.
+ *
+ * Entity = Java class jo database ki ek table se juda hai; har object = table ki ek row.
+ * Table Flyway migrations (migration/ module) banate hain, ye class sirf usko map karti hai.
+ */
 @Entity
 @Table(name = "user_search_history")
 @Data
@@ -22,7 +30,7 @@ public class UserSearchHistory {
     private User user;
 
     @Column(name = "entity_type", nullable = false)
-    private String entityType; // "SONG", "ARTIST", "PLAYLIST", "USER_PLAYLIST"
+    private String entityType; // "SONG", "ARTIST", "PLAYLIST" ya "USER_PLAYLIST" - inme se ek hi neeche wala column bhara hoga
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "song_id")
@@ -68,6 +76,7 @@ public class UserSearchHistory {
         this.createdAt = createdAt;
     }
 
+    // Purane code ke liye entityType ka doosra naam.
     public String getTableName() {
         return this.entityType;
     }

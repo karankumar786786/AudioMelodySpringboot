@@ -1,14 +1,14 @@
-# Build from the repository root (the image needs communication/ too):
+# Repo ke root se build karo (image ko communication/ module bhi chahiye):
 #   docker build -f coreEngine/Dockerfile .
-# ---------- Builder ----------
+# ---------- Builder stage: code compile karke JAR banata hai ----------
 FROM maven:3.9-eclipse-temurin-21 AS builder
 
 WORKDIR /app
 
-# Download official OpenTelemetry Java instrumentation agent in builder
+# OpenTelemetry Java agent download karo (traces/metrics ke liye, code badle bina)
 ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar /app/opentelemetry-javaagent.jar
 
-# Poms first, so dependency downloads are cached until a pom changes.
+# Pehle sirf pom files copy - taaki jab tak pom na badle, dependencies ka download Docker cache se ho jaaye.
 COPY pom.xml .
 COPY communication/pom.xml communication/
 COPY coreEngine/pom.xml coreEngine/
@@ -18,24 +18,24 @@ RUN mvn -q -pl coreEngine -am dependency:go-offline -DexcludeArtifactIds=communi
 COPY communication/src communication/src
 COPY coreEngine/src coreEngine/src
 
-# Package standalone executable JAR (unit tests run in CI workflow)
+# Chalne layak JAR banao (tests CI me chalte hain, yahan skip)
 RUN mvn -B -pl coreEngine -am clean package -DskipTests
 
 
-# ---------- Runner (Ubuntu 24.04 LTS Noble - Rock-Solid Mirror Stability) ----------
+# ---------- Runner stage: sirf JAR chalane wali chhoti image (Ubuntu 24.04) ----------
 FROM eclipse-temurin:21-jre-noble AS runner
 
 WORKDIR /app
 
-# Install curl for container health checks with retry resilience
+# Health check ke liye curl install karo (fail ho to retry)
 RUN apt-get update -o Acquire::Retries=3 --fix-missing \
     && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Run as non-root for security
+# Security ke liye root user se nahi, normal user se chalao
 RUN addgroup --system app && adduser --system --ingroup app app
 
-# Copy ONLY the generated JAR and OpenTelemetry Java agent from builder
+# Builder stage se SIRF JAR aur OpenTelemetry agent copy karo (source code nahi)
 COPY --from=builder /app/coreEngine/target/*.jar app.jar
 COPY --from=builder /app/opentelemetry-javaagent.jar /app/opentelemetry-javaagent.jar
 RUN chmod 644 /app/opentelemetry-javaagent.jar
@@ -44,8 +44,8 @@ USER app
 
 EXPOSE 9090
 
-# Spring Boot Actuator health probe — permitted through Spring Security (permitAll).
-# Used by Docker, Kubernetes liveness/readiness probes, and load balancers.
+# Health check: /actuator/health (Spring Security me sabke liye khula hai).
+# Docker / load balancer isse dekhte hain ki app zinda hai ya nahi.
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 --start-period=40s \
   CMD curl -f http://localhost:9090/actuator/health || exit 1
 

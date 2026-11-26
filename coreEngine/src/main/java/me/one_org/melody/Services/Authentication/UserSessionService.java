@@ -10,6 +10,9 @@ import me.one_org.melody.Dto.Controllers.User.UserSessionDto;
 import me.one_org.melody.Exceptions.BadRequestException;
 import me.one_org.melody.Repository.SessionRepository;
 
+/**
+ * User ke login sessions: list, ek device ko logout, baaki sab ko logout.
+ */
 @Service
 @Slf4j
 public class UserSessionService {
@@ -20,6 +23,7 @@ public class UserSessionService {
         this.sessionRepository = sessionRepository;
     }
 
+    /** Saare sessions; jiska deviceId = currentDeviceId wo isCurrent = true. */
     @Transactional(readOnly = true)
     public List<UserSessionDto> getUserSessions(String userId, String currentDeviceId) {
         if (userId == null || userId.isBlank()) {
@@ -44,6 +48,7 @@ public class UserSessionService {
                 .toList();
     }
 
+    /** Ek session hatao (sirf apna). Na mile to bhi koi error nahi - bas 0 rows hatin. */
     @Transactional
     public void revokeSession(String userId, String sessionId) {
         if (userId == null || userId.isBlank()) {
@@ -56,6 +61,7 @@ public class UserSessionService {
         log.info("Revoked user session [{}] for user [{}], deleted count: {}", sessionId, userId, deleted);
     }
 
+    /** Is device ko chhod ke baaki sab sessions hatao. */
     @Transactional
     public void revokeOtherSessions(String userId, String currentDeviceId) {
         if (userId == null || userId.isBlank()) {
@@ -68,6 +74,7 @@ public class UserSessionService {
         log.info("Revoked {} other session(s) for user [{}] keeping device [{}]", deleted, userId, currentDeviceId);
     }
 
+    /** Logout: allDevices = true to saare, warna sirf is device ka session. */
     @Transactional
     public void logout(String userId, String deviceId, boolean allDevices) {
         if (userId == null || userId.isBlank()) {
@@ -85,6 +92,7 @@ public class UserSessionService {
         }
     }
 
+    /** Sirf is device se logout. */
     @Transactional
     public void logout(String userId, String deviceId) {
         logout(userId, deviceId, false);

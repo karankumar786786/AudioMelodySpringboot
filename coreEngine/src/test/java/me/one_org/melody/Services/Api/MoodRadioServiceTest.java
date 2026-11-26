@@ -28,6 +28,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit test: MoodRadioService ko akele check karta hai (dependencies Mockito se nakli (mock) hain, taaki sirf isi class ka logic test ho).
+ * Har @Test method ek behaviour check karta hai - method ka naam batata hai kya.
+ */
 @ExtendWith(MockitoExtension.class)
 class MoodRadioServiceTest {
 
@@ -39,7 +43,7 @@ class MoodRadioServiceTest {
 
     @BeforeEach
     void setUp() {
-        // Real engine: the point is that mood ranking goes through the shared scorer
+        // Asli ranking engine: check karna hai ki mood radio bhi wahi common scorer use karta hai
         service = new MoodRadioService(songsRepository, userHistoryRepository, usersRepository,
                 new RecommendationRankingEngine());
     }

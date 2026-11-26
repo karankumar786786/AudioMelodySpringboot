@@ -13,6 +13,11 @@ import me.one_org.melody.Dto.Internal.ClientInfo;
 import me.one_org.melody.Services.General.GeoIpService;
 import me.one_org.melody.Utils.ClientInfoExtractor;
 
+/**
+ * Controller method me agar parameter ClientInfo type ka hai, to Spring yahan se
+ * uski value bharta hai: user ka IP, User-Agent, device ka naam aur location.
+ * Login / sessions screen me "kaunse device se, kahan se login hua" isi se aata hai.
+ */
 @Component
 public class ClientInfoArgumentResolver implements HandlerMethodArgumentResolver {
 
@@ -23,15 +28,22 @@ public class ClientInfoArgumentResolver implements HandlerMethodArgumentResolver
         this.geoIpService = geoIpService;
     }
 
+    // Tests ke liye: GeoIpService ke bina (location "Unknown Location" aayegi).
     public ClientInfoArgumentResolver() {
         this(null);
     }
 
+    /** Kya ye parameter ClientInfo type ka hai? Haan to resolveArgument chalega. */
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
         return ClientInfo.class.isAssignableFrom(parameter.getParameterType());
     }
 
+    /**
+     * ClientInfo object banata hai.
+     * Location ke liye pehle Cloudflare/proxy ke city-country headers dekhte hain,
+     * phir GeoIpService IP se andaza lagata hai.
+     */
     @Override
     public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer,
                                   NativeWebRequest webRequest, WebDataBinderFactory binderFactory) {

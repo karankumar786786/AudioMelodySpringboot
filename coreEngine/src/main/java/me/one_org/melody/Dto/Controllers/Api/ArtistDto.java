@@ -4,6 +4,9 @@ import java.time.LocalDateTime;
 import me.one_org.melody.Entity.Artist;
 import me.one_org.melody.Enums.StatusEnum;
 
+/**
+ * API response me ek artist: details + followers ka count.
+ */
 public record ArtistDto(
     String id,
     String name,

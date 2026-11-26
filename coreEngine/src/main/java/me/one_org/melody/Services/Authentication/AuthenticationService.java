@@ -42,6 +42,23 @@ import me.one_org.melody.Utils.HmacUtil;
 import me.one_org.melody.Utils.JwtUtil;
 import me.one_org.melody.Utils.OtpUtil;
 
+/**
+ * Login ka poora logic (OTP se, password nahi):
+ *
+ * 1. register / login: OTP banao, Redis me 10 minute ke liye rakho (key otp:<email>), email queue me daalo,
+ *    aur tempToken (email chhupa hua signed token) lautao.
+ * 2. verifyOtp: tempToken se email nikalo, OTP match karo (5 galat try = OTP khatam).
+ *    Naya user ho to users table me banao. Phir access + refresh token, aur is device ka session save.
+ * 3. refreshToken: refresh token session se match karo, naye tokens do ("rotation" - purana bekaar).
+ *    Network glitch me app purana token dobara bheje to 7 din ki grace me maan lete hain.
+ * 4. logout: access token blacklist (Redis), session hatao.
+ *
+ * Rate limits (IP ke hisaab se, Redis me): register 10/min, login 15/min, verify 20/min, resend 5/min,
+ * aur resend ke beech 60 second cooldown.
+ *
+ * Service = asli business logic. Controller isko call karta hai, ye repositories (DB), Redis aur
+ * bahar ki services use karta hai.
+ */
 @Service
 @Slf4j
 public class AuthenticationService {
@@ -65,6 +82,7 @@ public class AuthenticationService {
 
     private record RotatedTokenGraceEntry(String sessionId, Instant expiresAt) {}
 
+    /** Main constructor (Spring isko use karta hai). */
     @Autowired
     public AuthenticationService(UsersRepository usersRepository, SessionRepository sessionRepository,
             JwtUtil jwtUtil, HmacUtil hmacUtil, OtpUtil otpUtil,
@@ -106,10 +124,12 @@ public class AuthenticationService {
              cache, paginationMetaDataService, mailQueue, eventPublisher, null, null, null);
     }
 
+    /** Register, bina IP ke (rate limit nahi lagti). */
     public String register(RegisterRequestDto request) {
         return register(request, null);
     }
 
+    /** Naya account: email pehle se ho to 409. OTP bhejo, tempToken lautao. */
     public String register(RegisterRequestDto request, String clientIp) {
         if (rateLimiterService != null && clientIp != null && !clientIp.isBlank()) {
             rateLimiterService.checkRateLimit("ratelimit:auth:register:" + clientIp, 10, Duration.ofMinutes(1));
@@ -130,10 +150,12 @@ public class AuthenticationService {
         return tempToken;
     }
 
+    /** Login, bina IP ke. */
     public String login(LoginRequestDto request) {
         return login(request, null);
     }
 
+    /** Login: user na mile to 404. OTP bhejo, tempToken lautao. */
     public String login(LoginRequestDto request, String clientIp) {
         if (rateLimiterService != null && clientIp != null && !clientIp.isBlank()) {
             rateLimiterService.checkRateLimit("ratelimit:auth:login:" + clientIp, 15, Duration.ofMinutes(1));
@@ -153,16 +175,22 @@ public class AuthenticationService {
         return tempToken;
     }
 
+    /** Verify, bina device details ke. */
     @Transactional
     public VerifyOtpResponse verifyOtp(String tempToken, String otp, String deviceId) {
         return verifyOtp(tempToken, otp, deviceId, null, null, null);
     }
 
+    /** Verify, bina location ke. */
     @Transactional
     public VerifyOtpResponse verifyOtp(String tempToken, String otp, String deviceId, String deviceName, String clientIp) {
         return verifyOtp(tempToken, otp, deviceId, deviceName, clientIp, null);
     }
 
+    /**
+     * OTP verify karke login karo (upar class doc ka step 2).
+     * Galat OTP: "X attempts remaining" (400); 5 galat = OTP delete. Expire = 400.
+     */
     @Transactional
     public VerifyOtpResponse verifyOtp(String tempToken, String otp, String deviceId, String deviceName, String clientIp, String location) {
         if (rateLimiterService != null && clientIp != null && !clientIp.isBlank()) {
@@ -216,7 +244,7 @@ public class AuthenticationService {
         CustomUserDetails userDetails = new CustomUserDetails(user);
         Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 
-        // 5-minute access token and 7-day refresh token
+        // Access token (1 ghanta) aur refresh token (7 din) banao
         String accessToken = jwtUtil.generateAccessToken(auth);
         String refreshToken = jwtUtil.generateRefreshToken(auth);
 
@@ -258,10 +286,15 @@ public class AuthenticationService {
         return new VerifyOtpResponse(accessToken, refreshToken, isNewUser);
     }
 
+    /** Resend, bina IP ke. */
     public String resendOtp(String tempToken) {
         return resendOtp(tempToken, null);
     }
 
+    /**
+     * Naya OTP bhejo. Pichla OTP data expire ho gaya ho par user exist kare to LOGIN maan lo.
+     * 60 second ka cooldown lagta hai. Naya tempToken lautata hai.
+     */
     public String resendOtp(String tempToken, String clientIp) {
         if (rateLimiterService != null && clientIp != null && !clientIp.isBlank()) {
             rateLimiterService.checkRateLimit("ratelimit:auth:resend-otp:" + clientIp, 5, Duration.ofMinutes(1));
@@ -318,11 +351,13 @@ public class AuthenticationService {
         return newTempToken;
     }
 
+    /** Refresh, bina IP ke. */
     @Transactional
     public RefreshTokenResponseDto refreshToken(String refreshToken, String deviceId) {
         return refreshToken(refreshToken, deviceId, null);
     }
 
+    /** Refresh token se naye tokens (upar class doc ka step 3). Galat / expire token = 401. */
     @Transactional
     public RefreshTokenResponseDto refreshToken(String refreshToken, String deviceId, String clientIp) {
         if (refreshToken == null || refreshToken.isBlank()) {
@@ -343,9 +378,9 @@ public class AuthenticationService {
             Session session = sessionRepository.findByUserIdAndDeviceId(user.getId(), deviceId)
                     .orElseThrow(() -> new UnauthorizedException("Session not found for device"));
 
-            // Verify refresh token match to prevent reuse of old/rotated tokens
+            // Refresh token session wale se match hona chahiye - purana (rotated) token dobara na chale
             if (!session.getRefreshToken().equals(refreshToken)) {
-                // Check if this token was rotated within the 7-day grace window (packet drop / network retry)
+                // Shayad ye token abhi abhi rotate hua tha aur app ko naya wala mila hi nahi (network drop) - 7 din ki grace me hai to maan lo
                 if (isTokenInGracePeriod(refreshToken, session.getId())) {
                     log.info("Refresh token grace period hit for user [{}] device [{}]", user.getId(), deviceId);
                     CustomUserDetails userDetails = new CustomUserDetails(user);
@@ -358,7 +393,7 @@ public class AuthenticationService {
                 throw new UnauthorizedException("Invalid or reused refresh token");
             }
 
-            // Check session expiration
+            // Session expire to nahi hua?
             if (session.getExpiresAt().isBefore(LocalDateTime.now())) {
                 sessionRepository.delete(session);
                 throw new UnauthorizedException("Session has expired");
@@ -367,11 +402,11 @@ public class AuthenticationService {
             CustomUserDetails userDetails = new CustomUserDetails(user);
             Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
 
-            // Reissue: 1-hour access token and rotated 7-day refresh token
+            // Naye tokens: 1 ghante ka access token aur naya 7 din ka refresh token (rotation)
             String newAccessToken = jwtUtil.generateAccessToken(auth);
             String newRefreshToken = jwtUtil.generateRefreshToken(auth);
 
-            // Record old token in grace cache for 7 days to absorb transient network drops/retries
+            // Purana token 7 din grace list me rakho, taaki network glitch me retry aaye to bhi user logout na ho
             recordRotatedToken(session.getRefreshToken(), session.getId());
 
             session.setRefreshToken(newRefreshToken);
@@ -390,18 +425,20 @@ public class AuthenticationService {
         }
     }
 
+    /** Is device se logout. */
     @Transactional
     public void logout(String accessToken, String refreshToken, String deviceId) {
         logout(accessToken, refreshToken, deviceId, false);
     }
 
+    /** Logout: access token blacklist karo, aur session(s) hatao. allDevices = true to har device se. */
     @Transactional
     public void logout(String accessToken, String refreshToken, String deviceId, boolean allDevices) {
         if (deviceId == null || deviceId.isBlank()) {
             throw new BadRequestException("Device ID is required");
         }
 
-        // Instant access token revocation via Redis blacklist
+        // Access token turant band: uski jti Redis blacklist me daalo
         if (accessToken != null && !accessToken.isBlank() && tokenBlacklistService != null) {
             String jti = jwtUtil.extractJti(accessToken);
             if (jti != null && !jti.isBlank()) {
@@ -446,6 +483,10 @@ public class AuthenticationService {
         }
     }
 
+    /**
+     * Purane (rotate hue) refresh token ko grace list me rakho: Redis me, aur backup ke liye
+     * server ki memory me bhi (Redis down ho to). Memory list 5000 se badi ho to expire hue hatao.
+     */
     private void recordRotatedToken(String oldToken, String sessionId) {
         if (oldToken == null || sessionId == null) return;
         try {
@@ -462,6 +503,7 @@ public class AuthenticationService {
         }
     }
 
+    /** Kya ye purana token isi session ka hai aur abhi grace me hai? Pehle Redis, phir memory. */
     private boolean isTokenInGracePeriod(String token, String sessionId) {
         if (token == null || sessionId == null) return false;
         try {
@@ -478,6 +520,7 @@ public class AuthenticationService {
         return entry != null && entry.sessionId().equals(sessionId) && entry.expiresAt().isAfter(Instant.now());
     }
 
+    /** Token ko grace list se hatao (Redis aur memory dono). */
     private void invalidateRotatedToken(String token) {
         if (token == null) return;
         try {
@@ -488,6 +531,7 @@ public class AuthenticationService {
         localGraceCache.remove(token);
     }
 
+    /** Website ke liye: ye access token valid hai? Blacklisted / galat / expire = logged-out. */
     public SessionStatusDto getSessionStatus(String accessToken) {
         if (accessToken == null || accessToken.isBlank()) {
             return SessionStatusDto.unauthenticated();

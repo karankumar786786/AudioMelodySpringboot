@@ -21,13 +21,14 @@ import me.one_org.melody.Repository.UserGenrePreferenceRepository;
 import me.one_org.melody.Repository.UsersRepository;
 
 /**
- * P6: Manages cold-start genre preferences saved during onboarding.
+ * Onboarding me chune genres save / padhna. Naye user ki history nahi hoti ("cold start"),
+ * tab recommendations inhi genres se bante hain.
  */
 @Service
 @Slf4j
 public class UserGenrePreferenceService {
 
-    /** Maximum number of genres a user can store. Keep in sync with the request validation. */
+    /** Ek user max kitne genres rakh sakta hai. Request validation ke saath match hona chahiye. */
     public static final int MAX_GENRES = 10;
     public static final int MAX_GENRE_LENGTH = 50;
 
@@ -44,9 +45,9 @@ public class UserGenrePreferenceService {
     }
 
     /**
-     * Save or replace genre preferences for the given user.
-     * Safe against concurrent first-time saves: if another request inserted the row first
-     * (unique user_id violation), the save is retried once as an update.
+     * User ke genres save karo (purane replace).
+     * Agar do requests ek saath pehli baar save karein, to ek ki insert unique user_id pe fail hogi -
+     * tab ek baar dobara try karte hain, jo ab update ban jaata hai.
      */
     public void savePreferences(String userId, List<String> genres) {
         List<String> clean = normalize(genres);
@@ -62,6 +63,7 @@ public class UserGenrePreferenceService {
         log.info("[P6] Genre preferences saved for user={}: {}", userId, clean);
     }
 
+    /** Row hai to update, nahi to insert ("upsert"). Genres comma se jod ke ek string me. */
     private void upsert(String userId, List<String> genres) {
         User user = usersRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
@@ -76,7 +78,7 @@ public class UserGenrePreferenceService {
         repo.saveAndFlush(pref);
     }
 
-    /** Trims, drops blanks and commas, de-duplicates (case-insensitive) and caps the list. */
+    /** List saaf karo: space hatao, khaali aur comma wale hatao, duplicate hatao (case ignore), max 10 rakho. */
     static List<String> normalize(List<String> genres) {
         if (genres == null) return List.of();
         Map<String, String> unique = new LinkedHashMap<>();
@@ -90,7 +92,7 @@ public class UserGenrePreferenceService {
         return new ArrayList<>(unique.values());
     }
 
-    /** Retrieve genre list (empty if not set). */
+    /** User id se genres (kuch na ho to khaali list). */
     @Transactional(readOnly = true)
     public List<String> getPreferences(String userId) {
         return usersRepository.findById(userId)
@@ -98,7 +100,7 @@ public class UserGenrePreferenceService {
                 .orElse(List.of());
     }
 
-    /** Retrieve genre list for an already-loaded user (empty if not set). Single query. */
+    /** Pehle se load hue user ke genres - sirf ek query. */
     @Transactional(readOnly = true)
     public List<String> getPreferences(User user) {
         if (user == null) return List.of();
@@ -110,7 +112,7 @@ public class UserGenrePreferenceService {
                 .orElse(List.of());
     }
 
-    /** True if user has completed genre onboarding. */
+    /** User ne genre onboarding kar li hai? */
     @Transactional(readOnly = true)
     public boolean hasPreferences(String userId) {
         return !getPreferences(userId).isEmpty();

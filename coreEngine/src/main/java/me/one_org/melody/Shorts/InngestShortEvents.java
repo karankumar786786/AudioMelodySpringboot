@@ -11,7 +11,12 @@ import org.springframework.web.client.RestClient;
 
 import lombok.extern.slf4j.Slf4j;
 
-/** Posts events to the Inngest Event API, the same way the admin API does (core/services/inngest_service.py). */
+/**
+ * Inngest ko events bhejta hai (HTTP POST), bilkul waise hi jaise admin API bhejta hai
+ * (adminBackend ka core/services/inngest_service.py).
+ * Inngest = background jobs chalane wali service; "shorts/process" event milte hi media pipeline
+ * video ko transcode karna shuru karti hai.
+ */
 @Component
 @Slf4j
 public class InngestShortEvents implements ShortEvents {
@@ -27,6 +32,7 @@ public class InngestShortEvents implements ShortEvents {
         this.http = RestClient.builder().requestFactory(factory).build();
     }
 
+    /** Event bhejo: name (jaise "shorts/process"), data, aur eventId (same id dobara aaye to Inngest use ek hi baar chalata hai). */
     @Override
     public void send(String name, Map<String, Object> data, String eventId) {
         Map<String, Object> body = new LinkedHashMap<>();

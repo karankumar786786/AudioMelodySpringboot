@@ -15,8 +15,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import me.one_org.melody.Dto.Error.ErrorResponseDto;
 
 /**
- * Handles unauthorized access attempts to restricted resources (403 Forbidden),
- * returning a structured JSON error response matching the application's ErrorResponseDto schema.
+ * 403 Forbidden ka jawab: user logged-in to hai, par is cheez ki permission nahi hai
+ * (jaise normal USER admin wala endpoint khole).
+ * Baaki errors jaisa hi JSON (ErrorResponseDto) bhejta hai, taaki app ek hi tarah se error padhe.
  */
 @Component
 public class JwtAccessDeniedHandler implements AccessDeniedHandler {

@@ -13,6 +13,12 @@ import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Services.Api.VideosApiService;
 
+/**
+ * Music videos ki API: browse, trending, popular, related, artist ke videos.
+ *
+ * Controller = HTTP request ka pehla stop. Ye sirf request padhta hai, service ko kaam deta hai,
+ * aur response (JSON) lautata hai. Asli logic service me hai.
+ */
 @RestController
 @RequestMapping("/api/videos")
 @Validated
@@ -25,7 +31,7 @@ public class VideosApiController {
     }
 
     /**
-     * Paginated videos browse endpoint with optional genre/language filters and sorting.
+     * GET /api/videos - videos page by page, optional genre/language filter.
      * sort: "latest" (default), "popular", "trending"
      */
     @GetMapping
@@ -41,9 +47,7 @@ public class VideosApiController {
                 .body(videosApiService.getVideos(page, size, genre, language, sort));
     }
 
-    /**
-     * Trending music videos based on playback and user history.
-     */
+    /** GET /api/videos/trending - trending videos (history ke score se). */
     @GetMapping("/trending")
     public ResponseEntity<List<SongDto>> getTrendingVideos(
             @RequestParam(defaultValue = "15") int limit,
@@ -56,9 +60,7 @@ public class VideosApiController {
                 .body(videosApiService.getTrendingVideos(limit, window, genre, language));
     }
 
-    /**
-     * Popular music videos sorted by total stream count.
-     */
+    /** GET /api/videos/popular - sabse zyada streams wale videos. */
     @GetMapping("/popular")
     public ResponseEntity<List<SongDto>> getPopularVideos(
             @RequestParam(defaultValue = "15") int limit,
@@ -70,9 +72,7 @@ public class VideosApiController {
                 .body(videosApiService.getPopularVideos(limit, genre, language));
     }
 
-    /**
-     * Contextual Up-Next / Related music videos for continuous watching.
-     */
+    /** GET /api/videos/{id}/related - "Up next": is video se jude videos (artist, genre, phir popular). */
     @GetMapping("/{id}/related")
     public ResponseEntity<List<SongDto>> getRelatedVideos(
             @PathVariable @NotBlank(message = "Song ID is required") String id,
@@ -83,9 +83,7 @@ public class VideosApiController {
                 .body(videosApiService.getRelatedVideos(id, limit));
     }
 
-    /**
-     * Paginated music videos for a specific artist.
-     */
+    /** GET /api/videos/artist/{artistName} - ek artist ke videos, page by page. */
     @GetMapping("/artist/{artistName}")
     public ResponseEntity<PaginatedResponseDto<SongDto>> getVideosByArtist(
             @PathVariable @NotBlank(message = "Artist name is required") String artistName,

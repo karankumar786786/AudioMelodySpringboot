@@ -20,7 +20,14 @@ import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Security.CustomUserDetails;
 
 /**
- * JWT token utility leveraging Spring Security OAuth2 Nimbus JwtEncoder and JwtDecoder.
+ * JWT tokens banana aur padhna.
+ *
+ * JWT (JSON Web Token) = ek signed string jisme user ki info (id, email, role) hoti hai.
+ * Login ke baad app ko do tokens milte hain:
+ * - access token  (1 ghanta) : har API request ke saath jaata hai
+ * - refresh token (7 din)    : access token khatam ho to naya lene ke kaam aata hai
+ * Server secret key se sign karta hai (HS256), isliye koi token ke andar ka data badal nahi sakta.
+ * Encoder/decoder SecurityConfig me bante hain.
  */
 @Component
 public class JwtUtil {
@@ -33,14 +40,21 @@ public class JwtUtil {
         this.jwtDecoder = jwtDecoder;
     }
 
+    /** 1 ghante wala access token. */
     public String generateAccessToken(Authentication authentication) {
         return generateToken(authentication, Duration.ofHours(1));
     }
 
+    /** 7 din wala refresh token. */
     public String generateRefreshToken(Authentication authentication) {
         return generateToken(authentication, Duration.ofDays(7));
     }
 
+    /**
+     * Logged-in user (Authentication) se token banata hai.
+     * Principal alag alag type ka ho sakta hai, to har type ko JwtPayloadDto me badal ke
+     * ek hi jagah (neeche wala generateToken) token banate hain.
+     */
     public String generateToken(Authentication authentication, Duration duration) {
         Object principal = authentication.getPrincipal();
         if (principal instanceof CustomUserDetails userDetails) {
@@ -59,6 +73,11 @@ public class JwtUtil {
         return generateToken(userDetails.toJwtPayload(), duration);
     }
 
+    /**
+     * Asli token yahan banta hai.
+     * Claims (token ke andar ka data): id, userName, email, role, jti, issue time, expiry.
+     * jti = har token ka unique id - logout pe isi id ko blacklist me daalte hain.
+     */
     public String generateToken(JwtPayloadDto payload, Duration duration) {
         Instant now = Instant.now();
         Instant expiresAt = now.plus(duration);
@@ -82,6 +101,7 @@ public class JwtUtil {
         return jwtEncoder.encode(JwtEncoderParameters.from(jwsHeader, claims)).getTokenValue();
     }
 
+    /** Token ka unique id (jti). Token kharab/expired ho to null. */
     public String extractJti(String token) {
         try {
             Jwt jwt = jwtDecoder.decode(token);
@@ -91,6 +111,8 @@ public class JwtUtil {
             return null;
         }
     }
+
+    // Neeche ke teen methods same kaam karte hain, bas expiry ghanton (int) me lete hain.
 
     public String generateToken(Authentication authentication, int expiryInHr) {
         return generateToken(authentication, Duration.ofHours(expiryInHr));
@@ -104,6 +126,11 @@ public class JwtUtil {
         return generateToken(payload, Duration.ofHours(expiryInHr));
     }
 
+    /**
+     * Token verify karke andar ka user data deta hai.
+     * Signature galat ho ya token expire ho gaya ho to decoder exception phenkta hai.
+     * Role na ho to USER maan lete hain.
+     */
     public JwtPayloadDto validateAndGetPayload(String token) {
         Jwt jwt = jwtDecoder.decode(token);
         String id = jwt.getClaimAsString("id");
@@ -120,12 +147,17 @@ public class JwtUtil {
         return new JwtPayloadDto(id, userName, email, role);
     }
 
+    /** Token kab expire hoga. */
     public Date getExpirationDate(String token) {
         Jwt jwt = jwtDecoder.decode(token);
         Instant exp = jwt.getExpiresAt();
         return exp != null ? Date.from(exp) : null;
     }
 
+    /**
+     * Token expire hone me kitne second bache hain (kabhi negative nahi).
+     * Logout pe token ko utni hi der ke liye blacklist me rakhte hain.
+     */
     public long getRemainingSeconds(String token) {
         try {
             Jwt jwt = jwtDecoder.decode(token);

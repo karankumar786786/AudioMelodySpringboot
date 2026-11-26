@@ -9,8 +9,8 @@ import me.one_org.melody.Entity.User;
 import me.one_org.melody.Repository.UsersRepository;
 
 /**
- * Spring Security UserDetailsService implementation to load user records
- * by email, username, or id from UsersRepository.
+ * Spring Security ko user dhoondh ke deta hai (email ya id se), UsersRepository ke through.
+ * User na mile to UsernameNotFoundException.
  */
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
@@ -21,6 +21,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         this.usersRepository = usersRepository;
     }
 
+    /** Pehle email se dhoondo, na mile to id se. */
     @Override
     public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
         User user = usersRepository.findByEmail(identifier)
@@ -30,6 +31,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         return new CustomUserDetails(user);
     }
 
+    /** Sirf id se user dhoondta hai. */
     public CustomUserDetails loadUserById(String id) throws UsernameNotFoundException {
         User user = usersRepository.findById(id)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with id: " + id));

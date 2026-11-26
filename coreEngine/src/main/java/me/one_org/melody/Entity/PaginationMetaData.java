@@ -6,6 +6,14 @@ import jakarta.persistence.*;
 import lombok.Builder;
 import lombok.Data;
 
+/**
+ * Table: pagination_metadata
+ * Har table ke total / active / blocked / deleted rows ka count pehle se gina hua.
+ * Pagination me "kul kitne pages" batane ke liye har baar COUNT(*) query nahi chalani padti.
+ *
+ * Entity = Java class jo database ki ek table se juda hai; har object = table ki ek row.
+ * Table Flyway migrations (migration/ module) banate hain, ye class sirf usko map karti hai.
+ */
 @Entity
 @Table(name = "pagination_metadata")
 @Data
@@ -49,6 +57,7 @@ public class PaginationMetaData {
         this.updatedAt = updatedAt != null ? updatedAt : LocalDateTime.now();
     }
 
+    // Column ka naam entity_name hai par field tableName hai - dono naamon se kaam chale isliye ye getter/setter.
     public String getEntityName() {
         return this.tableName;
     }

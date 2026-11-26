@@ -31,6 +31,17 @@ import org.springframework.context.ApplicationEventPublisher;
 import me.one_org.melody.Events.AlgoliaEvents;
 import me.one_org.melody.Events.TelemetryEvents;
 
+/**
+ * User playlists ka poora logic: banao, rename, privacy, delete, songs jodo/hatao, save, duplicate, share link.
+ * Permission rules: sirf owner badal sakta hai; private playlist sirf owner dekh sakta hai;
+ * share-link wali link se dikh sakti hai. Public playlists Algolia (search) me bhi rehti hain.
+ *
+ * Service = asli business logic. Controller isko call karta hai, ye repositories (DB), cache aur
+ * bahar ki services (Recombee, Algolia) ko use karta hai.
+ * @Transactional(readOnly = true) = by default sirf padhne wale DB transactions (thode fast);
+ * jo methods data badalte hain un pe alag se @Transactional laga hai.
+ * @Cacheable = result Redis me cache hota hai (RedisConfig dekho).
+ */
 @Service
 @Slf4j
 public class UserPlaylistApiService {
@@ -58,6 +69,7 @@ public class UserPlaylistApiService {
         this.eventPublisher = eventPublisher;
     }
 
+    /** User ki banayi saari playlists. */
     @Transactional(readOnly = true)
     public List<UserPlaylistDto> getUserPlaylists(String userId) {
         User user = usersRepository.getReferenceById(userId);
@@ -73,6 +85,7 @@ public class UserPlaylistApiService {
         return combined.stream().map(UserPlaylistDto::fromEntity).toList();
     }
 
+    /** User ki library (apni + saved), page by page. */
     @Transactional(readOnly = true)
     public List<UserPlaylistDto> getUserPlaylistsPaginated(String userId, int page, int size) {
         if (userId == null || userId.isBlank() || size <= 0 || page < 0) {
@@ -85,6 +98,7 @@ public class UserPlaylistApiService {
                 .toList();
     }
 
+    /** Library me kitni playlists. */
     public PaginationMetaDataDto getPaginationMetaData(String userId) {
         if (userId == null || userId.isBlank()) {
             return null;
@@ -102,6 +116,7 @@ public class UserPlaylistApiService {
         );
     }
 
+    /** Nayi playlist (privacy na di ho to PRIVATE). Share token bhi banta hai. */
     @Transactional
     public UserPlaylistDto createPlaylist(String userId, String name, PlaylistPrivacyEnum privacy) {
         User user = usersRepository.getReferenceById(userId);
@@ -120,7 +135,7 @@ public class UserPlaylistApiService {
         userPlaylistsRepository.save(playlist);
         paginationMetaDataService.incrementStatus("UserPlaylists_" + userId, null);
 
-        // If public, sync to Algolia AFTER_COMMIT
+        // Public hai to commit ke baad Algolia me update karo
         if (playlist.getPrivacy() == PlaylistPrivacyEnum.PUBLIC) {
             publishUserPlaylistSyncEvent(playlist);
         }
@@ -128,13 +143,14 @@ public class UserPlaylistApiService {
         return UserPlaylistDto.fromEntity(playlist);
     }
 
+    /** Naam badlo (sirf owner). */
     @Transactional
     public UserPlaylistDto renamePlaylist(String userId, String playlistId, String name) {
         UserPlaylist playlist = getPlaylistOwnedBy(userId, playlistId);
         playlist.setName(name);
         userPlaylistsRepository.save(playlist);
 
-        // If public, sync to Algolia AFTER_COMMIT
+        // Public hai to commit ke baad Algolia me update karo
         if (playlist.getPrivacy() == PlaylistPrivacyEnum.PUBLIC) {
             publishUserPlaylistSyncEvent(playlist);
         }
@@ -142,6 +158,7 @@ public class UserPlaylistApiService {
         return UserPlaylistDto.fromEntity(playlist);
     }
 
+    /** Privacy badlo. Private/link-only hui to doosron ki library, recent searches aur Algolia se hatao. */
     @Transactional
     public UserPlaylistDto updatePlaylistPrivacy(String userId, String playlistId, PlaylistPrivacyEnum privacy) {
         UserPlaylist playlist = getPlaylistOwnedBy(userId, playlistId);
@@ -152,46 +169,47 @@ public class UserPlaylistApiService {
         }
         userPlaylistsRepository.save(playlist);
 
-        // Algolia & Followers Sync:
-        // If public -> index in Algolia AFTER_COMMIT.
-        // If private or share by link -> delete all follower library references AND delete from Algolia AFTER_COMMIT.
+        // Algolia aur followers ko update karo:
+        // Public hui -> commit ke baad Algolia me daalo.
+        // Private ya share-link wali ho gayi -> doosron ki library se hatao, aur commit ke baad Algolia se bhi.
         final String pid = playlist.getId();
         if (newPrivacy == PlaylistPrivacyEnum.PUBLIC) {
             publishUserPlaylistSyncEvent(playlist);
         } else {
-            // Revoke followers: delete saved references from all other users' libraries
+            // Doosre users ki library se ye playlist hatao
             try {
                 userSavedPlaylistsRepository.deleteByPlaylist(playlist);
             } catch (Exception e) {
                 log.warn("Failed to delete follower references for non-public playlist: {}", e.getMessage());
             }
 
-            // Revoke search history: delete from userSearchHistory
+            // Recent searches se bhi hatao
             try {
                 userSearchHistoryRepository.deleteByUserPlaylist(playlist);
             } catch (Exception e) {
                 log.warn("Failed to delete search history for non-public playlist: {}", e.getMessage());
             }
 
-            // Revoke search index: delete from Algolia AFTER_COMMIT
+            // Commit ke baad Algolia search se hatao
             eventPublisher.publishEvent(new AlgoliaEvents.PlaylistIndexDeleteEvent(pid));
         }
 
         return UserPlaylistDto.fromEntity(playlist);
     }
 
+    /** Playlist delete (sirf owner): saves, recent searches, songs aur Algolia - sab jagah se. */
     @Transactional
     public void deletePlaylist(String userId, String playlistId) {
         UserPlaylist playlist = getPlaylistOwnedBy(userId, playlistId);
         
-        // Delete all follower references
+        // Jinhone save ki thi un sab ki library se hatao
         try {
             userSavedPlaylistsRepository.deleteByPlaylist(playlist);
         } catch (Exception e) {
             log.warn("Failed to delete follower references for deleted playlist: {}", e.getMessage());
         }
 
-        // Delete from search history
+        // Recent searches se bhi hatao
         try {
             userSearchHistoryRepository.deleteByUserPlaylistId(playlistId);
         } catch (Exception e) {
@@ -201,10 +219,14 @@ public class UserPlaylistApiService {
         userPlaylistsRepository.deletePlaylistByIdCascade(playlistId);
         paginationMetaDataService.decrementStatus("UserPlaylists_" + userId, null);
 
-        // Delete from Algolia search index AFTER_COMMIT
+        // Commit ke baad Algolia search se bhi hatao
         eventPublisher.publishEvent(new AlgoliaEvents.PlaylistIndexDeleteEvent(playlistId));
     }
 
+    /**
+     * Playlist me song jodo (sirf owner; song na ho to 404).
+     * Song pehle se ho to dobara nahi judta (count bhi nahi badhta). Recombee ko event jaata hai.
+     */
     @Transactional
     public UserPlaylistDto addSong(String userId, String playlistId, String songId) {
         UserPlaylist playlist = getPlaylistOwnedBy(userId, playlistId);
@@ -218,10 +240,10 @@ public class UserPlaylistApiService {
             paginationMetaDataService.incrementStatus("UserPlaylistSongs_" + playlistId, null);
         }
 
-        // Track in Recombee AFTER_COMMIT
+        // Commit ke baad Recombee ko batao
         eventPublisher.publishEvent(new TelemetryEvents.PlaylistSongEvent(userId, songId, true));
 
-        // If public, update totalSongs in Algolia
+        // Public hai to Algolia me songs ka count update karo
         if (playlist.getPrivacy() == PlaylistPrivacyEnum.PUBLIC) {
             publishUserPlaylistSyncEvent(playlist);
         }
@@ -229,6 +251,7 @@ public class UserPlaylistApiService {
         return UserPlaylistDto.fromEntity(playlist);
     }
 
+    /** Playlist dekho - private hai aur owner nahi to 403. */
     @Transactional(readOnly = true)
     public UserPlaylistDto getPlaylistById(String userId, String playlistId) {
         UserPlaylist playlist = userPlaylistsRepository.findById(playlistId)
@@ -241,6 +264,7 @@ public class UserPlaylistApiService {
         return UserPlaylistDto.fromEntity(playlist);
     }
 
+    /** Playlist ke songs (dekhne ki permission ho to). */
     @Transactional(readOnly = true)
     public List<SongDto> getPlaylistSongsPaginated(String userId, String playlistId, int page, int size) {
         if (playlistId == null || playlistId.isBlank() || size <= 0 || page < 0) {
@@ -256,6 +280,7 @@ public class UserPlaylistApiService {
                 .toList();
     }
 
+    /** Playlist me kitne songs. */
     public PaginationMetaDataDto getPlaylistSongsPaginationMetaData(String playlistId) {
         UserPlaylist playlist = userPlaylistsRepository.findById(playlistId)
                 .orElseThrow(() -> new ResourceNotFoundException("Playlist not found"));
@@ -271,6 +296,7 @@ public class UserPlaylistApiService {
         );
     }
 
+    /** Share link (ya id) se playlist. PRIVATE ho aur owner nahi to 403. */
     @Transactional(readOnly = true)
     public UserPlaylistDto getSharedPlaylist(String tokenOrId, String callerUserId) {
         UserPlaylist playlist = userPlaylistsRepository.findByIdOrShareToken(tokenOrId)
@@ -284,6 +310,7 @@ public class UserPlaylistApiService {
         return UserPlaylistDto.fromEntity(playlist);
     }
 
+    /** Share link wali playlist ke songs. */
     @Transactional(readOnly = true)
     public List<SongDto> getSharedPlaylistSongsPaginated(String tokenOrId, String callerUserId, int page, int size) {
         if (tokenOrId == null || tokenOrId.isBlank() || size <= 0 || page < 0) {
@@ -299,18 +326,19 @@ public class UserPlaylistApiService {
                 .toList();
     }
 
+    /** Doosre ki PUBLIC playlist library me save karo. */
     @Transactional
     public UserPlaylistDto savePlaylistToLibrary(String userId, String playlistId) {
         User user = usersRepository.getReferenceById(userId);
         UserPlaylist targetPlaylist = userPlaylistsRepository.findByIdOrShareToken(playlistId)
                 .orElseThrow(() -> new ResourceNotFoundException("Playlist not found"));
 
-        // If user already owns this playlist, it is already in their library
+        // Apni hi playlist hai to wo pehle se library me hai
         if (targetPlaylist.getUser().getId().equals(userId)) {
             return UserPlaylistDto.fromEntity(targetPlaylist);
         }
 
-        // Only PUBLIC playlists can be saved to user's library as dynamic playlists
+        // Sirf PUBLIC playlists hi library me save ho sakti hain
         if (targetPlaylist.getPrivacy() != PlaylistPrivacyEnum.PUBLIC) {
             throw new ForbiddenException("Only public playlists can be saved to your library");
         }
@@ -328,18 +356,24 @@ public class UserPlaylistApiService {
         return UserPlaylistDto.fromEntity(targetPlaylist);
     }
 
+    /** Library se hatao. */
     @Transactional
     public void unsavePlaylistFromLibrary(String userId, String playlistId) {
         if (userId == null || playlistId == null) return;
         userSavedPlaylistsRepository.deleteByUserIdAndPlaylistTokenOrId(userId, playlistId);
     }
 
+    /** Kya user ne ye playlist save ki hai? */
     @Transactional(readOnly = true)
     public boolean isPlaylistSaved(String userId, String playlistId) {
         if (userId == null || playlistId == null) return false;
         return userSavedPlaylistsRepository.isPlaylistSavedByUser(userId, playlistId);
     }
 
+    /**
+     * Playlist ki copy "<naam> (Copy)" naam se, PRIVATE banti hai, pehle 1000 songs ke saath.
+     * Kisi aur ki PRIVATE playlist copy nahi kar sakte (403).
+     */
     @Transactional
     public UserPlaylistDto duplicatePlaylist(String userId, String playlistId) {
         User user = usersRepository.getReferenceById(userId);
@@ -372,6 +406,7 @@ public class UserPlaylistApiService {
         return UserPlaylistDto.fromEntity(cloned);
     }
 
+    /** Playlist se song hatao (sirf owner). Recombee ko event. */
     @Transactional
     public UserPlaylistDto removeSong(String userId, String playlistId, String songId) {
         UserPlaylist playlist = getPlaylistOwnedBy(userId, playlistId);
@@ -382,10 +417,10 @@ public class UserPlaylistApiService {
             paginationMetaDataService.decrementStatus("UserPlaylistSongs_" + playlistId, null);
         }
 
-        // Track in Recombee AFTER_COMMIT
+        // Commit ke baad Recombee ko batao
         eventPublisher.publishEvent(new TelemetryEvents.PlaylistSongEvent(userId, songId, false));
 
-        // If public, update totalSongs in Algolia
+        // Public hai to Algolia me songs ka count update karo
         if (playlist.getPrivacy() == PlaylistPrivacyEnum.PUBLIC) {
             publishUserPlaylistSyncEvent(playlist);
         }
@@ -393,6 +428,7 @@ public class UserPlaylistApiService {
         return UserPlaylistDto.fromEntity(playlist);
     }
 
+    /** Algolia sync event bhejo (public ho to save, warna delete) - commit ke baad chalega. */
     private void publishUserPlaylistSyncEvent(UserPlaylist playlist) {
         if (playlist == null) return;
         String ownerId = playlist.getUser() != null ? playlist.getUser().getId() : null;
@@ -408,6 +444,7 @@ public class UserPlaylistApiService {
         ));
     }
 
+    /** Playlist lao aur check karo ki ye user hi owner hai - nahi to 403, mile hi nahi to 404. */
     private UserPlaylist getPlaylistOwnedBy(String userId, String playlistId) {
         UserPlaylist playlist = userPlaylistsRepository.findById(playlistId)
                 .orElseThrow(() -> new ResourceNotFoundException("Playlist not found"));

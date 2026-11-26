@@ -4,6 +4,9 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 
+/**
+ * Onboarding me user ne jo artists chune (1 se 15 tak) - recommendations shuru karne ke liye.
+ */
 public record ArtistOnboardingRequestDto(
     @NotEmpty(message = "Artist selection cannot be empty")
     @Size(min = 1, max = 15, message = "Please select between 1 and 15 artists")

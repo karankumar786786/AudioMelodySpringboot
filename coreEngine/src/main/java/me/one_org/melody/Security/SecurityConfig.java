@@ -40,6 +40,16 @@ import com.nimbusds.jose.proc.SecurityContext;
 import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Enums.StatusEnum;
 
+/**
+ * Poore core API ki security setting.
+ *
+ * - Login / refresh (/auth/**) aur health check sabke liye khule hain.
+ * - Baaki har endpoint pe valid JWT access token chahiye.
+ * - Server "stateless" hai: login ka koi server-side HTTP session nahi, har request
+ *   apna token khud laati hai.
+ * - JWT HS256 se sign hote hain (ek hi secret key se banana aur check karna).
+ * - Logout kiye hue tokens (blacklist me) reject ho jaate hain.
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -58,6 +68,11 @@ public class SecurityConfig {
         this.jwtAccessDeniedHandler = jwtAccessDeniedHandler;
     }
 
+    /**
+     * JWT sign karne ki secret key.
+     * HS256 ke liye key kam se kam 32 bytes ki honi chahiye; config wali chhoti ho to
+     * ek fixed lambi key use hoti hai (production me hamesha apna jwt.secret set karo).
+     */
     @Bean
     public SecretKey jwtSecretKey(@Value("${jwt.secret:defaultSecretKeyWhichShouldBeLongEnoughToWorkProperly}") String secret) {
         String effectiveSecret = (secret != null && secret.trim().length() >= 32)
@@ -66,6 +81,7 @@ public class SecurityConfig {
         return new SecretKeySpec(effectiveSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
     }
 
+    /** Token verify karne wala (signature + expiry check). */
     @Bean
     public JwtDecoder jwtDecoder(SecretKey secretKey) {
         return NimbusJwtDecoder.withSecretKey(secretKey)
@@ -73,12 +89,18 @@ public class SecurityConfig {
                 .build();
     }
 
+    /** Naya token banane wala (JwtUtil isko use karta hai). */
     @Bean
     public JwtEncoder jwtEncoder(SecretKey secretKey) {
         JWKSource<SecurityContext> immutableSecret = new ImmutableSecret<>(secretKey);
         return new NimbusJwtEncoder(immutableSecret);
     }
 
+    /**
+     * Verify hua JWT -> logged-in user (CustomUserDetails).
+     * Pehle check: token logout pe blacklist me to nahi daala gaya? Daala hai to reject.
+     * Phir claims (id, email, role) padh ke user object banate hain - har request pe DB call nahi.
+     */
     @Bean
     public Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthenticationConverter(
             me.one_org.melody.Services.Authentication.TokenBlacklistService tokenBlacklistService) {
@@ -105,6 +127,12 @@ public class SecurityConfig {
         };
     }
 
+    /**
+     * Security ke saare rules ek jagah.
+     * CSRF band hai kyunki hum cookie-session nahi, token use karte hain (website wali cookie
+     * X-Melody-Client header + CORS se protected hai, AuthCookies dekho).
+     * HSTS = browser ko bolta hai ki 1 saal tak is domain pe sirf HTTPS use karna.
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(
             HttpSecurity http,
@@ -146,12 +174,18 @@ public class SecurityConfig {
         return http.build();
     }
 
+    /** Username/password wala provider (BCrypt hash se check). */
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(customUserDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
 
+    /**
+     * CORS: kaunsi websites (origins) browser se hamari API call kar sakti hain.
+     * List config se aati hai (comma se alag), jaise localhost aur *.one-org.me.
+     * allowCredentials = true, taaki website ki cookies request ke saath jaa sakein.
+     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource(
             @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:5173,https://one-melody.one-org.me,https://*.one-org.me}") String allowedOriginsStr) {
@@ -174,6 +208,7 @@ public class SecurityConfig {
         return source;
     }
 
+    /** Password hash karne ke liye BCrypt (slow hash, brute force mushkil). */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();

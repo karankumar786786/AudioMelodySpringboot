@@ -18,6 +18,10 @@ import me.one_org.melody.Repository.UsersRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Integration test: SessionRepository ko poore Spring setup ke saath check karta hai (HTTP request -> controller -> service ->
+ * repository). Bahar ki services (Recombee, Algolia, Redis) zaroorat ho to nakli (mock) hain.
+ */
 @SpringBootTest
 @ActiveProfiles("test")
 @Transactional
@@ -54,7 +58,7 @@ class SessionRepositoryIntegrationTest {
         assertThat(found.get().getRefreshToken()).isEqualTo("rt-initial-token-123");
         assertThat(found.get().getDeviceId()).isEqualTo("mobile-ios-1");
 
-        // Rotate refresh token
+        // Refresh token rotate karo
         found.get().setRefreshToken("rt-rotated-token-456");
         sessionRepository.saveAndFlush(found.get());
 

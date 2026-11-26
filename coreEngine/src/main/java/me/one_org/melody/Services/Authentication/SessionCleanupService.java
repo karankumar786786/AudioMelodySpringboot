@@ -8,6 +8,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import me.one_org.melody.Repository.SessionRepository;
 
+/**
+ * Purane (expire ho chuke) login sessions ki safai - roz ek baar chalta hai (@Scheduled).
+ */
 @Service
 public class SessionCleanupService {
 
@@ -18,10 +21,10 @@ public class SessionCleanupService {
     }
 
     /**
-     * Purges expired sessions daily at 3:00 AM server time.
-     * Can also be triggered programmatically.
+     * Har raat 3 baje (server time) expire hue sessions database se hatata hai.
+     * Code se bhi seedha call kar sakte hain.
      *
-     * @return count of purged sessions
+     * @return kitne sessions hataye
      */
     @Scheduled(cron = "${melody.session.cleanup.cron:0 0 3 * * *}")
     @Transactional

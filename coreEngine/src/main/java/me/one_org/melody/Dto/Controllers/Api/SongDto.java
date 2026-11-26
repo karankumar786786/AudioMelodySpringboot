@@ -4,6 +4,11 @@ import java.time.LocalDateTime;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Enums.StatusEnum;
 
+/**
+ * API response me ek gaana - Song entity ki saari zaroori fields + streams count,
+ * user ne like kiya hai ya nahi, aur audio features.
+ * Neeche kai constructors hain taaki purana code kam fields ke saath bhi SongDto bana sake.
+ */
 public record SongDto(
     String id,
     String title,
@@ -33,8 +38,8 @@ public record SongDto(
     Double danceability
 ) {
     /**
-     * Convenience constructor accepting all original fields (without audio features),
-     * delegating to the full canonical constructor with nulls for audio features.
+     * Shortcut constructor: purani saari fields, bina audio features ke
+     * (audio features null rahenge).
      */
     public SongDto(
         String id, String title, String artistName, Integer duration, String songKey, String imageKey,
@@ -86,12 +91,12 @@ public record SongDto(
         return fromEntity(song, null, null);
     }
 
-    /** True when at least one audio feature is known. */
+    /** Kam se kam ek audio feature pata hai to true. */
     public boolean hasAudioFeatures() {
         return tempo != null || energy != null || valence != null || danceability != null;
     }
 
-    /** Returns a copy of this DTO with the given audio features. */
+    /** Isi DTO ki copy, bas audio features naye wale. (Record immutable hota hai, isliye copy banate hain.) */
     public SongDto withAudioFeatures(Double tempo, Double energy, Double valence, Double danceability) {
         return new SongDto(id, title, artistName, duration, songKey, imageKey, videoKey, fullVideoKey,
                 previewStartTime, previewEndTime, isFeatured, language, genre, album, country, lrclibId,
@@ -99,6 +104,7 @@ public record SongDto(
                 tempo, energy, valence, danceability);
     }
 
+    /** Song entity se DTO banata hai. Streams count metadata se, country na ho to "India". */
     public static SongDto fromEntity(Song song, Boolean isLiked, Long likesCount) {
         if (song == null) return null;
         Long streams = song.getSongMetadata() != null ? song.getSongMetadata().getTotalStreams() : 0L;

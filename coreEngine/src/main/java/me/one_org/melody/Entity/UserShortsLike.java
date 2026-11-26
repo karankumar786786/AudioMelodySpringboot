@@ -20,6 +20,14 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.Builder;
 import lombok.Data;
 
+/**
+ * Table: user_shorts_likes
+ * PURANA: canvas-wale shorts ke likes. Naye shorts ke likes short_likes table me hain;
+ * ye sirf purane app versions ke liye bacha hai aur baad me hata diya jaayega.
+ *
+ * Entity = Java class jo database ki ek table se juda hai; har object = table ki ek row.
+ * Table Flyway migrations (migration/ module) banate hain, ye class sirf usko map karti hai.
+ */
 @Entity
 @Table(
     name = "user_shorts_likes",

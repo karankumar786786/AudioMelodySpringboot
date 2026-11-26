@@ -30,7 +30,7 @@ import me.oneorg.melody.events.EventIds;
 import me.oneorg.melody.events.PlayEvent;
 import me.oneorg.melody.events.Topics;
 
-/** Produces a real Avro event through Redpanda + Schema Registry and reads it back. */
+/** Asli Redpanda + Schema Registry pe Avro event bhejta hai aur wapas padh ke check karta hai. */
 @Testcontainers(disabledWithoutDocker = true)
 class EventPublisherRedpandaIT {
 

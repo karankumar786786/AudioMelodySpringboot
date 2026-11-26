@@ -23,6 +23,15 @@ import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserShortsLikeRepository;
 import me.one_org.melody.Repository.UsersRepository;
 
+/**
+ * PURANE canvas-shorts ke likes (band ho chuka feature).
+ *
+ * Service = asli business logic. Controller isko call karta hai, ye repositories (DB), cache aur
+ * bahar ki services (Recombee, Algolia) ko use karta hai.
+ * @Transactional(readOnly = true) = by default sirf padhne wale DB transactions (thode fast);
+ * jo methods data badalte hain un pe alag se @Transactional laga hai.
+ * @Cacheable = result Redis me cache hota hai (RedisConfig dekho).
+ */
 @Service
 @Transactional
 @Slf4j
@@ -45,6 +54,7 @@ public class ShortsLikesApiService {
         this.usersRepository = usersRepository;
     }
 
+    /** Like hai to hatao, nahi hai to lagao. Naya status + count lautata hai. */
     public ShortsLikeStatusDto toggleLike(String userId, String songId) {
         if (userId == null || userId.isBlank() || songId == null || songId.isBlank()) {
             throw new IllegalArgumentException("userId and songId must not be blank");
@@ -87,6 +97,7 @@ public class ShortsLikesApiService {
         return new ShortsLikeStatusDto(songId, newLikedState, totalCount);
     }
 
+    /** Like kiya hai ya nahi + count. */
     @Transactional(readOnly = true)
     public ShortsLikeStatusDto getLikeStatus(String userId, String songId) {
         if (songId == null || songId.isBlank()) {
@@ -100,6 +111,7 @@ public class ShortsLikesApiService {
         return new ShortsLikeStatusDto(songId, liked, count);
     }
 
+    /** User ke liked songs ki ids. */
     @Transactional(readOnly = true)
     public List<String> getLikedSongIds(String userId) {
         if (userId == null || userId.isBlank()) {
@@ -108,6 +120,7 @@ public class ShortsLikesApiService {
         return shortsLikeRepository.findLikedSongIdsByUserId(userId);
     }
 
+    /** User ke liked songs, page by page. */
     @Transactional(readOnly = true)
     public PaginatedResponseDto<SongDto> getLikedShortSongs(String userId, int page, int size) {
         if (userId == null || userId.isBlank()) {

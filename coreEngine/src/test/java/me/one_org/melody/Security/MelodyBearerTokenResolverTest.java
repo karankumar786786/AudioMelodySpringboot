@@ -7,6 +7,10 @@ import jakarta.servlet.http.Cookie;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Unit test: MelodyBearerTokenResolver ko akele check karta hai (asli objects ke saath, bina database ke).
+ * Har @Test method ek behaviour check karta hai - method ka naam batata hai kya.
+ */
 class MelodyBearerTokenResolverTest {
 
     private final MelodyBearerTokenResolver resolver = new MelodyBearerTokenResolver();

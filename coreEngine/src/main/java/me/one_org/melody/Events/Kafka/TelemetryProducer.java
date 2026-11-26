@@ -21,8 +21,10 @@ import me.oneorg.melody.events.SongFeedback;
 import me.oneorg.melody.events.Topics;
 
 /**
- * Turns telemetry calls into Avro events. The user id always comes from the login
- * token, never from the request body, so a client can't send events as someone else.
+ * Telemetry (play, skip, search, queue, feedback) ko Avro events bana ke Kafka pe bhejta hai.
+ * User id hamesha login token se aata hai, request body se kabhi nahi - taaki koi doosre
+ * user ke naam se events na bhej sake.
+ * Har event ka key = userId, isliye ek user ke saare events ek hi Kafka partition me order me jaate hain.
  */
 @Service
 public class TelemetryProducer {
@@ -38,39 +40,54 @@ public class TelemetryProducer {
         this.properties = properties;
     }
 
+    /** Kafka pe bhejna on hai? (DUAL/KAFKA mode) */
     public boolean enabled() {
         return properties.mode().producesEvents();
     }
 
+    // ── Ek ek event bhejne wale methods (server ka time aur nayi event id lagti hai) ──
+
+    /** Play event, bina listening detail ke. */
     public void play(String userId, String songId, double ratio, Long durationMs) {
         play(userId, songId, ratio, durationMs, ListenDetail.EMPTY);
     }
 
+    /** Play event, listening detail ke saath. */
     public void play(String userId, String songId, double ratio, Long durationMs, ListenDetail detail) {
         sendPlay(userId, songId, ratio, durationMs, detail, serverMeta());
     }
 
+    /** Skip event, bina position ke. */
     public void skip(String userId, String songId) {
         skip(userId, songId, null);
     }
 
+    /** Skip event, position ke saath. */
     public void skip(String userId, String songId, Long positionMs) {
         sendSkip(userId, songId, positionMs, serverMeta());
     }
 
+    /** Search interaction (play ya click). */
     public void search(String userId, SearchAction action, String entityType, String entityId) {
         sendSearch(userId, action, entityType, entityId, serverMeta());
     }
 
+    /** Queue me song joda/hataya. */
     public void queue(String userId, String songId, QueueAction action) {
         sendQueue(userId, songId, action, serverMeta());
     }
 
+    /** Dislike ya share. */
     public void feedback(String userId, String songId, FeedbackAction action) {
         sendFeedback(userId, songId, action, serverMeta());
     }
 
-    /** Validates the whole batch first, so a bad event rejects the batch before anything is sent. */
+    /**
+     * App ki queue se aaya poora batch.
+     * Pehle SAARE events check karte hain (prepare), phir bhejte hain - taaki ek bhi galat event ho
+     * to kuch bhi na jaaye, aur app poora batch theek karke dobara bhej sake.
+     * Output: kitne events bheje.
+     */
     public int batch(String userId, List<InteractionBatchRequestDto.Event> events) {
         if (events.size() > properties.maxBatchSize()) {
             throw new BadRequestException("At most " + properties.maxBatchSize() + " events per batch");
@@ -81,6 +98,10 @@ public class TelemetryProducer {
         return sends.size();
     }
 
+    /**
+     * Ek batch event ko check karta hai aur "baad me bhejne wala kaam" (Runnable) lautata hai.
+     * Event type ke hisaab se zaroori fields check hoti hain; unknown type pe 400.
+     */
     private Runnable prepare(String userId, InteractionBatchRequestDto.Event e, Instant now) {
         EventMeta meta = clientMeta(e.eventId(), e.occurredAt(), now);
         String type = e.type().trim().toLowerCase(Locale.ROOT);
@@ -114,6 +135,9 @@ public class TelemetryProducer {
         };
     }
 
+    // ── Asli Avro events banane aur bhejne wale methods ──
+
+    /** PlayEvent -> listening.play.v1. ratio ko 0 se 1 ke beech rakhte hain. */
     private void sendPlay(String userId, String songId, double ratio, Long durationMs, ListenDetail d, EventMeta meta) {
         PlayEvent event = PlayEvent.newBuilder()
                 .setMeta(meta).setUserId(userId).setSongId(songId)
@@ -132,12 +156,14 @@ public class TelemetryProducer {
         publisher.publish(Topics.PLAY, userId, event, meta.getOccurredAt());
     }
 
+    /** SkipEvent -> listening.skip.v1 */
     private void sendSkip(String userId, String songId, Long positionMs, EventMeta meta) {
         SkipEvent event = SkipEvent.newBuilder().setMeta(meta).setUserId(userId).setSongId(songId)
                 .setPositionMs(positionMs).build();
         publisher.publish(Topics.SKIP, userId, event, meta.getOccurredAt());
     }
 
+    /** SearchInteraction -> search.interaction.v1 (login na ho to key "anonymous") */
     private void sendSearch(String userId, SearchAction action, String entityType, String entityId, EventMeta meta) {
         SearchInteraction event = SearchInteraction.newBuilder()
                 .setMeta(meta).setUserId(userId).setAction(action)
@@ -146,21 +172,28 @@ public class TelemetryProducer {
         publisher.publish(Topics.SEARCH_INTERACTION, userId != null ? userId : ANONYMOUS, event, meta.getOccurredAt());
     }
 
+    /** QueueChange -> queue.change.v1 */
     private void sendQueue(String userId, String songId, QueueAction action, EventMeta meta) {
         QueueChange event = QueueChange.newBuilder().setMeta(meta).setUserId(userId).setSongId(songId).setAction(action).build();
         publisher.publish(Topics.QUEUE_CHANGE, userId, event, meta.getOccurredAt());
     }
 
+    /** SongFeedback (dislike/share) -> engagement.feedback.v1 */
     private void sendFeedback(String userId, String songId, FeedbackAction action, EventMeta meta) {
         SongFeedback event = SongFeedback.newBuilder().setMeta(meta).setUserId(userId).setSongId(songId).setAction(action).build();
         publisher.publish(Topics.FEEDBACK, userId, event, meta.getOccurredAt());
     }
 
+    /** Server ki taraf se meta: nayi event id + abhi ka time. */
     private EventMeta serverMeta() {
         return EventIds.serverMeta(properties.source());
     }
 
-    /** Keeps the client's id and clock when they're sane; rejects timestamps far off "now". */
+    /**
+     * App ki event id aur time rakhte hain (offline queue se events der se aate hain, asli time chahiye).
+     * Par time "abhi" se 24 ghante se zyada door ho to reject - phone ki ghadi galat ho sakti hai.
+     * Id na di ho to nayi bana lete hain; di ho to valid UUID honi chahiye.
+     */
     EventMeta clientMeta(String eventId, Long occurredAtMs, Instant now) {
         String id = eventId == null || eventId.isBlank() ? EventIds.newId() : eventId.trim();
         if (!EventIds.isValid(id)) throw new BadRequestException("eventId must be a UUID");
@@ -172,10 +205,12 @@ public class TelemetryProducer {
         return EventIds.meta(id, occurredAt, now, properties.source());
     }
 
+    /** songId zaroori hai. */
     private static void requireSong(String songId) {
         requireId(songId, "songId");
     }
 
+    /** Value khaali ya bahut lambi (255+) na ho, warna 400. */
     private static void requireId(String value, String field) {
         if (value == null || value.isBlank() || value.length() > MAX_ID_LENGTH) {
             throw new BadRequestException(field + " is required");

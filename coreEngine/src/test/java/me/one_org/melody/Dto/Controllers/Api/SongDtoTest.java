@@ -11,6 +11,10 @@ import me.one_org.melody.Enums.StatusEnum;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Unit test: SongDto ko akele check karta hai (asli objects ke saath, bina database ke).
+ * Har @Test method ek behaviour check karta hai - method ka naam batata hai kya.
+ */
 class SongDtoTest {
 
     @Test

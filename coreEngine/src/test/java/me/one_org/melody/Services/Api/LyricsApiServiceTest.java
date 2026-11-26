@@ -22,6 +22,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit test: LyricsApiService ko akele check karta hai (dependencies Mockito se nakli (mock) hain, taaki sirf isi class ka logic test ho).
+ * Har @Test method ek behaviour check karta hai - method ka naam batata hai kya.
+ */
 @ExtendWith(MockitoExtension.class)
 class LyricsApiServiceTest {
 

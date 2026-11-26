@@ -14,8 +14,15 @@ import io.github.bucket4j.Bucket;
 import me.one_org.melody.Exceptions.TooManyRequestsException;
 
 /**
- * Per-user token bucket kept in this JVM's memory, so telemetry adds no Redis commands.
- * Each instance limits on its own; that's fine for abuse protection, not for billing.
+ * Har user ke liye telemetry ki rate limit (default 300 events / minute).
+ *
+ * TOKEN BUCKET: har user ki ek "baalti" me 300 tokens. Har event ek token leta hai, aur
+ * baalti har minute wapas bharti hai. Tokens khatam = 429 Too Many Requests.
+ *
+ * Baaltiyan isi server ki memory (Caffeine cache) me hain, Redis me nahi - taaki har telemetry
+ * call pe Redis command (aur uska bill) na lage. Har server apni alag limit lagata hai:
+ * abuse rokne ke liye ye kaafi hai.
+ * 10 minute tak use na hui baalti apne aap hat jaati hai (max 1 lakh users memory me).
  */
 @NoLogging
 @Component
@@ -31,7 +38,7 @@ public class TelemetryRateLimiter {
         this.perMinute = properties.telemetryPerUserPerMinute();
     }
 
-    /** Takes {@code events} tokens or throws 429. */
+    /** {@code events} jitne tokens lo, na milein to 429 (TooManyRequestsException). */
     public void consume(String userKey, int events) {
         Bucket bucket = buckets.get(userKey, k -> Bucket.builder()
                 .addLimit(Bandwidth.builder().capacity(perMinute).refillGreedy(perMinute, Duration.ofMinutes(1)).build())

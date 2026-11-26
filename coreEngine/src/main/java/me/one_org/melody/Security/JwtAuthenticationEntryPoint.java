@@ -15,8 +15,9 @@ import jakarta.servlet.http.HttpServletResponse;
 import me.one_org.melody.Dto.Error.ErrorResponseDto;
 
 /**
- * Handles unauthenticated access attempts (401 Unauthorized), returning
- * a structured JSON error response matching the application's ErrorResponseDto schema.
+ * 401 Unauthorized ka jawab: request me token nahi hai, ya token galat / expire / revoke ho gaya.
+ * App ko 401 milta hai to wo refresh token se naya access token leta hai.
+ * Response ErrorResponseDto wale JSON format me jaata hai.
  */
 @Component
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {

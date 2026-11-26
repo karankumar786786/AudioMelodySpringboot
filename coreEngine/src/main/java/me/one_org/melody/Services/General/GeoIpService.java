@@ -26,6 +26,17 @@ import com.maxmind.geoip2.model.CityResponse;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * IP address se location ("City, Country") nikalna - login sessions me dikhane ke liye.
+ *
+ * Is order me try karta hai (jo pehle mile):
+ * 1. Cloudflare / proxy ke headers
+ * 2. Local / private IP -> "Local Network"
+ * 3. MaxMind GeoLite2 file (server pe offline database, bahut fast)
+ * 4. Redis cache (geoip:cache:<ip>, 7 din)
+ * 5. ip-api.com online (max 1.5 second)
+ * Kuch na mile to "Unknown Location".
+ */
 @Service
 @Slf4j
 public class GeoIpService implements AutoCloseable {
@@ -51,6 +62,7 @@ public class GeoIpService implements AutoCloseable {
         initDatabaseReader(configuredDbPath);
     }
 
+    /** Tests ke liye chhote constructors. */
     public GeoIpService(StringRedisTemplate redisTemplate, ObjectMapper objectMapper) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = objectMapper != null ? objectMapper : new ObjectMapper();
@@ -65,9 +77,13 @@ public class GeoIpService implements AutoCloseable {
         this(null, new ObjectMapper());
     }
 
+    /**
+     * MaxMind GeoLite2-City.mmdb file dhoondh ke kholo: config path -> files -> classpath.
+     * Na mile to MaxMind skip (baaki tareeke chalenge).
+     */
     private void initDatabaseReader(String customPath) {
         try {
-            // 1. Try custom configured path if provided
+            // 1. Config me diya path try karo
             if (customPath != null && !customPath.isBlank()) {
                 File customFile = new File(customPath);
                 if (customFile.exists() && customFile.canRead()) {
@@ -79,7 +95,7 @@ public class GeoIpService implements AutoCloseable {
                 }
             }
 
-            // 2. Try filesystem development/production paths
+            // 2. Development / production ke file paths try karo
             Path[] candidatePaths = new Path[] {
                 Path.of("src/main/resources/geoip/GeoLite2-City.mmdb"),
                 Path.of("target/classes/geoip/GeoLite2-City.mmdb"),
@@ -97,7 +113,7 @@ public class GeoIpService implements AutoCloseable {
                 }
             }
 
-            // 3. Try classpath resource stream
+            // 3. JAR ke andar (classpath) rakhi file try karo
             InputStream is = getClass().getClassLoader().getResourceAsStream("geoip/GeoLite2-City.mmdb");
             if (is != null) {
                 this.databaseReader = new DatabaseReader.Builder(is)
@@ -113,8 +129,9 @@ public class GeoIpService implements AutoCloseable {
         }
     }
 
+    /** IP (aur headers) se "City, Country" (upar class doc ka order). */
     public String resolveLocation(String ipAddress, String cityHeader, String countryHeader) {
-        // 1. Prioritize upstream proxy geolocation headers (e.g. Cloudflare CF-IPCity, CF-IPCountry)
+        // 1. Sabse pehle proxy ke headers (Cloudflare CF-IPCity, CF-IPCountry) - ye sabse sahi hote hain
         if (cityHeader != null && !cityHeader.isBlank() && countryHeader != null && !countryHeader.isBlank()) {
             return cityHeader.trim() + ", " + countryHeader.trim();
         }
@@ -128,12 +145,12 @@ public class GeoIpService implements AutoCloseable {
 
         String ip = ipAddress.trim();
 
-        // 2. Local / Private IP detection
+        // 2. Local / private IP (jaise 192.168.x.x) ki location nahi hoti
         if (isLocalOrPrivateIp(ip)) {
             return "Local Network";
         }
 
-        // 3. Offline MaxMind GeoIP2 resolution (0 network calls, sub-millisecond in-memory speed)
+        // 3. MaxMind ki offline GeoIP file se dhoondo (koi network call nahi, bahut fast)
         if (databaseReader != null) {
             try {
                 InetAddress inetAddress = InetAddress.getByName(ip);
@@ -150,13 +167,13 @@ public class GeoIpService implements AutoCloseable {
                     }
                 }
             } catch (AddressNotFoundException ignored) {
-                // Address not present in local MaxMind database, proceed to online/cache fallback
+                // Ye IP local file me nahi hai - aage cache / online try karo
             } catch (Exception e) {
                 log.debug("MaxMind lookup error for IP [{}]: {}", ip, e.getMessage());
             }
         }
 
-        // 4. Check Redis cache (0ms latency hit)
+        // 4. Redis cache dekho (pehle kisi ne yahi IP dhoondha ho)
         String cacheKey = GEOIP_CACHE_PREFIX + ip;
         if (redisTemplate != null) {
             try {
@@ -169,7 +186,7 @@ public class GeoIpService implements AutoCloseable {
             }
         }
 
-        // 5. Remote Lookup via public GeoIP service (ip-api.com) with strict 1.5s timeout
+        // 5. Online GeoIP service (ip-api.com) se pucho, max 1.5 second wait
         String location = "Unknown Location";
         try {
             HttpRequest request = HttpRequest.newBuilder()
@@ -198,7 +215,7 @@ public class GeoIpService implements AutoCloseable {
             log.debug("GeoIP remote lookup failed for IP [{}]: {}", ip, e.getMessage());
         }
 
-        // 6. Cache resolved location in Redis
+        // 6. Mili hui location Redis me cache karo
         if (redisTemplate != null && !location.equals("Unknown Location")) {
             try {
                 redisTemplate.opsForValue().set(cacheKey, location, CACHE_TTL);
@@ -210,6 +227,7 @@ public class GeoIpService implements AutoCloseable {
         return location;
     }
 
+    /** localhost / ::1 / 10.x / 192.168.x / 172.16-31.x jaisa private IP hai? */
     public boolean isLocalOrPrivateIp(String ip) {
         if ("127.0.0.1".equals(ip) || "localhost".equalsIgnoreCase(ip)
                 || "0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip)) {
@@ -233,10 +251,12 @@ public class GeoIpService implements AutoCloseable {
         return false;
     }
 
+    /** MaxMind file load hui hai? */
     public boolean isMaxMindAvailable() {
         return databaseReader != null;
     }
 
+    /** App band hote waqt MaxMind file band karo. */
     @Override
     @PreDestroy
     public void close() {

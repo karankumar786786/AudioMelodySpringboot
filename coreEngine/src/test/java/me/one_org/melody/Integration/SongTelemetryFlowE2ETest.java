@@ -26,6 +26,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
+/**
+ * Integration test: SongTelemetryFlow ko poore Spring setup ke saath check karta hai (HTTP request -> controller -> service ->
+ * repository). Bahar ki services (Recombee, Algolia, Redis) zaroorat ho to nakli (mock) hain.
+ */
 @SpringBootTest
 @ActiveProfiles("test")
 class SongTelemetryFlowE2ETest {
@@ -62,7 +66,7 @@ class SongTelemetryFlowE2ETest {
     @Test
     @DisplayName("E2E: Complete song play lifecycle updates DB totalStreams, Algolia, and Recombee")
     void shouldExecuteFullSongPlayPipeline() throws Exception {
-        // 1. Seed user and song in database
+        // 1. Database me user aur song daalo
         User user = User.builder()
                 .id("e2e-user-1")
                 .userName("Alex")
@@ -94,10 +98,10 @@ class SongTelemetryFlowE2ETest {
                 .build();
         songMetadataRepository.saveAndFlush(metadata);
 
-        // 2. User plays the song with 95% completion (triggers event publish)
+        // 2. User gaana 95% sunta hai (event publish hota hai)
         interactionApiService.trackPlay("e2e-user-1", "e2e-song-1", 0.95);
 
-        // 3. Await async telemetry event listener processing
+        // 3. Async listener ke khatam hone ka wait
         long deadline = System.currentTimeMillis() + 4000;
         Optional<SongMetadata> updatedMetadata = Optional.empty();
         while (System.currentTimeMillis() < deadline) {
@@ -109,14 +113,14 @@ class SongTelemetryFlowE2ETest {
             Thread.sleep(50);
         }
 
-        // 4. Assert PostgreSQL streams incremented to 101
+        // 4. Check: Postgres me streams 101 ho gaye
         assertThat(updatedMetadata).isPresent();
         assertThat(updatedMetadata.get().getTotalStreams()).isEqualTo(101L);
 
-        // 5. Assert Algolia received atomic totalStreams increment
+        // 5. Check: Algolia ko totalStreams +1 mila
         verify(algoliaSearch, timeout(4000)).incrementTotalStreams("e2e-song-1");
 
-        // 6. Assert Recombee received strong positive rating and updated totalStreams
+        // 6. Check: Recombee ko strong positive rating aur naya totalStreams mila
         verify(recombee, timeout(4000)).trackPlay("e2e-user-1", "e2e-song-1", 0.95);
         verify(recombee, timeout(4000)).updateTotalStreams("e2e-song-1", 101L);
     }

@@ -8,6 +8,14 @@ import java.time.LocalDateTime;
 
 import me.one_org.melody.Enums.StatusEnum;
 
+/**
+ * Table: artists
+ * Ek artist (singer/band): naam, bio, janam tareekh, cover image ki S3 key, status.
+ * Followers ka count alag table artist_metadata (ArtistMetadata) me rakha hai.
+ *
+ * Entity = Java class jo database ki ek table se juda hai; har object = table ki ek row.
+ * Table Flyway migrations (migration/ module) banate hain, ye class sirf usko map karti hai.
+ */
 @Entity
 @Table(name = "artists")
 @Data

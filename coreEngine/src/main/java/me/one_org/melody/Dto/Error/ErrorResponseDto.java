@@ -3,6 +3,9 @@ package me.one_org.melody.Dto.Error;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Har error ka ek hi JSON format: status code, error naam, message, URL path, time, aur details list.
+ */
 public record ErrorResponseDto(
     int status,
     String error,

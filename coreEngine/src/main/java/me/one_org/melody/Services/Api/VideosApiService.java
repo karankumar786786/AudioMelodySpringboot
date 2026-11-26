@@ -14,6 +14,15 @@ import me.one_org.melody.Dto.Controllers.PaginatedResponseDto;
 import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Repository.SongsRepository;
 
+/**
+ * Music videos ka logic: browse (latest/popular/trending), trending, popular, related, artist ke videos.
+ *
+ * Service = asli business logic. Controller isko call karta hai, ye repositories (DB), cache aur
+ * bahar ki services (Recombee, Algolia) ko use karta hai.
+ * @Transactional(readOnly = true) = by default sirf padhne wale DB transactions (thode fast);
+ * jo methods data badalte hain un pe alag se @Transactional laga hai.
+ * @Cacheable = result Redis me cache hota hai (RedisConfig dekho).
+ */
 @Service
 @Transactional(readOnly = true)
 public class VideosApiService {
@@ -24,6 +33,7 @@ public class VideosApiService {
         this.songsRepository = songsRepository;
     }
 
+    /** Videos page by page; sort = latest / popular / trending; genre, language optional. */
     public PaginatedResponseDto<SongDto> getVideos(int page, int size, String genre, String language, String sort) {
         int safePage = Math.max(0, page);
         int safeSize = Math.max(1, Math.min(50, size));
@@ -37,7 +47,7 @@ public class VideosApiService {
         if ("popular".equals(effectiveSort)) {
             songs = songsRepository.findVideosPopular(cleanGenre, cleanLanguage, PageRequest.of(safePage, safeSize));
         } else if ("trending".equals(effectiveSort)) {
-            // Trending returns top ranked; for page 0 return trending, subsequent pages fallback to popular
+            // Trending sirf top list deta hai: page 0 pe trending, aage ke pages pe popular
             if (safePage == 0) {
                 songs = songsRepository.findTrendingVideos(safeSize, "7d", cleanGenre, cleanLanguage);
             } else {
@@ -65,6 +75,7 @@ public class VideosApiService {
         return new PaginatedResponseDto<>(dtos, safePage, safeSize, meta);
     }
 
+    /** Trending videos (cache me). */
     @Cacheable(
         value = "trending_videos",
         key = "#limit + '_' + (#window != null ? #window : '7d') + '_' + (#genre != null ? #genre : 'all') + '_' + (#language != null ? #language : 'all')"
@@ -81,6 +92,7 @@ public class VideosApiService {
                 .toList();
     }
 
+    /** Popular videos (cache me). */
     @Cacheable(
         value = "popular_videos",
         key = "#limit + '_' + (#genre != null ? #genre : 'all') + '_' + (#language != null ? #language : 'all')"
@@ -97,6 +109,7 @@ public class VideosApiService {
                 .toList();
     }
 
+    /** Related videos (cache me, max 30). Video na mile to bhi popular videos aa jaate hain. */
     @Cacheable(value = "related_videos", key = "#songId + '_' + #limit")
     public List<SongDto> getRelatedVideos(String songId, int limit) {
         int safeLimit = Math.max(1, Math.min(30, limit));
@@ -111,6 +124,7 @@ public class VideosApiService {
                 .toList();
     }
 
+    /** Artist ke videos page by page. */
     public PaginatedResponseDto<SongDto> getVideosByArtist(String artistName, int page, int size) {
         int safePage = Math.max(0, page);
         int safeSize = Math.max(1, Math.min(50, size));

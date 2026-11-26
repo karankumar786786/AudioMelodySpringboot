@@ -8,6 +8,9 @@ import me.one_org.melody.Exceptions.BadRequestException;
 import me.one_org.melody.Exceptions.ResourceNotFoundException;
 import me.one_org.melody.Repository.UsersRepository;
 
+/**
+ * User profile padhna aur update karna.
+ */
 @Service
 public class UserService {
 
@@ -17,6 +20,7 @@ public class UserService {
         this.usersRepository = usersRepository;
     }
 
+    /** User ki profile. Na mile to 404. */
     @Transactional(readOnly = true)
     public User getUserProfile(String userId) {
         if (userId == null || userId.isBlank()) {
@@ -26,6 +30,7 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 
+    /** Username badlo. Na mile to 404. */
     @Transactional
     public User updateProfile(String userId, String userName) {
         if (userId == null || userId.isBlank()) {

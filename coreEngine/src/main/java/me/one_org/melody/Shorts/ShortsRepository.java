@@ -12,16 +12,17 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
 /**
- * Plain SQL on the V18 shorts tables. Deliberately not JPA: Hibernate validates every
- * entity at start-up, and SQL keeps the core API booting on a database that hasn't
- * been migrated yet (these endpoints fail, nothing else does).
+ * Shorts tables (V18 migration: shorts, short_likes, short_reports) pe seedhi SQL queries (JdbcClient).
+ * Jaan-boojh ke JPA nahi: Hibernate start pe har entity ko DB se check karta hai. Agar DB me V18 abhi
+ * nahi chali, to JPA se poora core API start hi nahi hota. SQL ke saath sirf ye shorts endpoints fail
+ * honge, baaki app chalta rahega.
  */
 @Repository
 public class ShortsRepository {
 
     public enum Sort { LATEST, POPULAR, FOR_YOU }
 
-    /** Row plus raw_key and user_id, which never leave the server. */
+    /** DTO + raw_key aur user_id - ye do cheezein kabhi app tak nahi jaatin. */
     public record Row(ShortDtos.Short dto, String userId, String rawKey) {}
 
     private static final String SELECT = """
@@ -36,11 +37,14 @@ public class ShortsRepository {
               LEFT JOIN songs so ON so.id = s.song_id
             """;
 
-    /** Engagement with time decay, so new popular shorts beat old popular shorts. */
+    /**
+     * Popularity score: (likes*3 + views*0.1 + 1) / (ghante_purana + 2)^1.3
+     * Time ke saath score ghatta hai ("time decay"), isliye naya popular short purane popular short se upar aata hai.
+     */
     private static final String POPULARITY =
             "((s.likes_count * 3 + s.views_count * 0.1 + 1) / power(extract(epoch FROM (now() - s.published_at)) / 3600 + 2, 1.3))";
 
-    /** Boost shorts linked to songs the viewer saved or to artists they follow. */
+    /** "For you" boost: short ka gaana viewer ke favourites me hai (+1.5), ya uske followed artist ka hai (+1.0). */
     private static final String PERSONAL_BOOST = """
             (1
              + CASE WHEN s.song_id IN (SELECT f.song_id FROM user_favourite_songs f WHERE f.user_id = :viewer) THEN 1.5 ELSE 0 END
@@ -57,10 +61,12 @@ public class ShortsRepository {
 
     private final JdbcClient jdbc;
 
+    /** JdbcClient = Spring ka simple SQL chalane wala tool. */
     public ShortsRepository(JdbcClient jdbc) {
         this.jdbc = jdbc;
     }
 
+    /** SQL row -> Row (DTO). viewer owner ho tabhi failure reason dikhate hain. */
     private Row map(ResultSet rs, String viewer) throws SQLException {
         String userId = rs.getString("user_id");
         String songId = rs.getString("song_id");
@@ -81,8 +87,9 @@ public class ShortsRepository {
         return new Row(dto, userId, rs.getString("raw_key"));
     }
 
-    // ---- Reads --------------------------------------------------------------------------
+    // ---- Padhne wali queries ---------------------------------------------------------------
 
+    /** Feed: latest (time cursor se), popular (POPULARITY), foryou (POPULARITY * PERSONAL_BOOST). Sirf READY shorts. */
     public List<ShortDtos.Short> feed(String viewer, Sort sort, ShortCursor cursor, int limit) {
         String order;
         String where = "WHERE s.status = 'READY'";
@@ -105,13 +112,14 @@ public class ShortsRepository {
         return spec.query((rs, i) -> map(rs, viewer).dto()).list();
     }
 
+    /** Id se short (kisi bhi status me). */
     public Optional<Row> findById(String id, String viewer) {
         return jdbc.sql(SELECT + "WHERE s.id = :id AND s.status <> 'DELETED'")
                 .param("id", id).param("viewer", viewer)
                 .query((rs, i) -> map(rs, viewer)).optional();
     }
 
-    /** A user's shorts, newest first. The owner also sees their processing, failed and hidden ones. */
+    /** User ke shorts, naye pehle. Owner ko apne processing / failed / hidden shorts bhi dikhte hain. */
     public List<ShortDtos.Short> byUser(String userId, String viewer, int offset, int limit) {
         String statuses = userId.equals(viewer) ? "s.status <> 'DELETED'" : "s.status = 'READY'";
         return jdbc.sql(SELECT + "WHERE s.user_id = :userId AND " + statuses
@@ -120,6 +128,7 @@ public class ShortsRepository {
                 .query((rs, i) -> map(rs, viewer).dto()).list();
     }
 
+    /** Is gaane wale READY shorts, naye pehle. */
     public List<ShortDtos.Short> bySong(String songId, String viewer, int offset, int limit) {
         return jdbc.sql(SELECT + "WHERE s.song_id = :songId AND s.status = 'READY' ORDER BY " + POPULARITY
                         + " DESC, s.id DESC LIMIT :limit OFFSET :offset")
@@ -127,6 +136,7 @@ public class ShortsRepository {
                 .query((rs, i) -> map(rs, viewer).dto()).list();
     }
 
+    /** User ke liked shorts, haal me like kiye pehle. */
     public List<ShortDtos.Short> likedBy(String userId, int offset, int limit) {
         return jdbc.sql(SELECT + "JOIN short_likes lk ON lk.short_id = s.id AND lk.user_id = :viewer "
                         + "WHERE s.status = 'READY' ORDER BY lk.created_at DESC, s.id DESC LIMIT :limit OFFSET :offset")
@@ -134,6 +144,7 @@ public class ShortsRepository {
                 .query((rs, i) -> map(rs, userId).dto()).list();
     }
 
+    /** User shorts post karne se kab tak banned hai (admin set karta hai). */
     public Optional<OffsetDateTime> bannedUntil(String userId) {
         return jdbc.sql("SELECT shorts_banned_until FROM users WHERE id = :id")
                 .param("id", userId)
@@ -141,13 +152,15 @@ public class ShortsRepository {
                 .optional().flatMap(o -> o);
     }
 
+    /** Ye song hai? */
     public boolean songExists(String songId) {
         return jdbc.sql("SELECT EXISTS (SELECT 1 FROM songs WHERE id = :id AND status = 'ACTIVE')")
                 .param("id", songId).query(Boolean.class).single();
     }
 
-    // ---- Writes -------------------------------------------------------------------------
+    // ---- Likhne wali queries ---------------------------------------------------------------
 
+    /** Nayi short row, status UPLOADING. */
     public void insertUpload(String id, String userId, String rawKey, String caption, String songId) {
         jdbc.sql("""
                 INSERT INTO shorts (id, owner_type, user_id, song_id, caption, status, raw_key)
@@ -158,7 +171,7 @@ public class ShortsRepository {
                 .update();
     }
 
-    /** UPLOADING → PROCESSING for the owner. Returns the raw key, or empty if not theirs / not uploading. */
+    /** UPLOADING -> PROCESSING (sirf owner). raw key lautata hai; short uska nahi / UPLOADING nahi to empty. */
     public Optional<String> markProcessing(String id, String userId) {
         return jdbc.sql("""
                 UPDATE shorts SET status = 'PROCESSING', updated_at = now()
@@ -167,6 +180,7 @@ public class ShortsRepository {
                 """).param("id", id).param("userId", userId).query(String.class).optional();
     }
 
+    /** Caption / song update (sirf owner ka, deleted nahi). Kitni rows badlin. */
     public int updateOwned(String id, String userId, String caption, boolean setCaption, String songId, boolean setSong) {
         if (!setCaption && !setSong) return 1;
         StringBuilder sql = new StringBuilder("UPDATE shorts SET updated_at = now()");
@@ -178,7 +192,7 @@ public class ShortsRepository {
                 .update();
     }
 
-    /** Soft-deletes the owner's short; returns [previous status, raw key] or empty. */
+    /** Owner ka short "soft delete" (row rehti hai, status DELETED). [pichla status, raw key] lautata hai. */
     public Optional<String[]> markDeleted(String id, String userId) {
         return jdbc.sql("""
                 WITH prev AS (SELECT id, status FROM shorts WHERE id = :id AND user_id = :userId AND status <> 'DELETED' FOR UPDATE)
@@ -189,7 +203,7 @@ public class ShortsRepository {
                 .query((rs, i) -> new String[] {rs.getString(1), rs.getString(2)}).optional();
     }
 
-    /** Likes a READY short once; returns the new count, or empty if the short isn't available. */
+    /** READY short ko like (ek user ek hi baar). Naya likes count, ya short available na ho to empty. */
     public Optional<Long> like(String id, String userId) {
         int inserted = jdbc.sql("""
                 INSERT INTO short_likes (short_id, user_id)
@@ -200,6 +214,7 @@ public class ShortsRepository {
                 .param("n", inserted).param("id", id).query(Long.class).optional();
     }
 
+    /** Like hatao. Naya likes count. */
     public Optional<Long> unlike(String id, String userId) {
         int deleted = jdbc.sql("DELETE FROM short_likes WHERE short_id = :id AND user_id = :userId")
                 .param("id", id).param("userId", userId).update();
@@ -208,9 +223,9 @@ public class ShortsRepository {
     }
 
     /**
-     * Records one report per user. When the unresolved reports reach the threshold the
-     * short is hidden until an admin reviews it. Returns the short's status, or empty if
-     * there's nothing to report (missing, deleted, not published).
+     * Report likho (ek user ka ek report). Bina resolve hue reports threshold (3) tak pahunche to
+     * short HIDDEN ho jaata hai jab tak admin check na kare. Short ka status lautata hai;
+     * short hai hi nahi / deleted / published nahi to empty.
      */
     public Optional<String> report(String id, String reporterId, String reason, String note, int autoHideAt) {
         int inserted = jdbc.sql("""
@@ -233,6 +248,7 @@ public class ShortsRepository {
                 """).param("n", inserted).param("limit", autoHideAt).param("id", id).query(String.class).optional();
     }
 
+    /** Views count badhao: har short ke liye ek UPDATE. */
     public void addViews(Map<String, Long> viewsByShort) {
         viewsByShort.forEach((id, n) -> jdbc.sql(
                         "UPDATE shorts SET views_count = views_count + :n WHERE id = :id AND status = 'READY'")

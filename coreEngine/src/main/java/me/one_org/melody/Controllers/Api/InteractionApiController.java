@@ -32,6 +32,18 @@ import me.oneorg.melody.events.FeedbackAction;
 import me.oneorg.melody.events.QueueAction;
 import me.oneorg.melody.events.SearchAction;
 
+/**
+ * User ki activity (telemetry) aur favourites ki API: /api/interaction/...
+ * App har play, skip, search click, queue change, dislike, share yahan bhejta hai.
+ *
+ * EVENTS_MODE ke hisaab se:
+ * - LEGACY/DUAL: purani service kaam karti hai (DUAL me Kafka event bhi jaata hai) -> 200 OK
+ * - KAFKA: sirf Kafka event jaata hai -> 202 Accepted ("le liya, baad me process hoga")
+ * Har user ki rate limit lagti hai (TelemetryRateLimiter).
+ *
+ * Controller = HTTP request ka pehla stop. Ye sirf request padhta hai, service ko kaam deta hai,
+ * aur response (JSON) lautata hai. Asli logic service me hai.
+ */
 @RestController
 @RequestMapping("/api/interaction")
 @Validated
@@ -42,7 +54,7 @@ public class InteractionApiController {
     private final TelemetryRateLimiter rateLimiter;
     private final EventsMode mode;
 
-    /** LEGACY-only wiring, kept for standalone controller tests. */
+    /** Sirf LEGACY mode wala constructor - tests me controller ko akele chalane ke liye. */
     public InteractionApiController(InteractionApiService interactionAppService) {
         this(interactionAppService, null, null, EventsMode.LEGACY);
     }
@@ -63,9 +75,11 @@ public class InteractionApiController {
         this.mode = mode;
     }
 
-    // Telemetry endpoints. LEGACY/DUAL: the existing service does the work (and DUAL also
-    // sends the event). KAFKA: only the event is sent and the call answers 202 Accepted.
+    // ── Telemetry endpoints ──
+    // LEGACY/DUAL: purani service kaam karti hai (DUAL me event bhi jaata hai).
+    // KAFKA: sirf event jaata hai aur jawab 202 Accepted.
 
+    /** POST /api/interaction/play - ek gaana suna (kitna %, aur optional listening detail). */
     @PostMapping("/play")
     public ResponseEntity<Void> trackPlay(
             @CurrentUser CustomUserDetails currentUser,
@@ -84,6 +98,7 @@ public class InteractionApiController {
         return done();
     }
 
+    /** POST /api/interaction/skip - gaana skip kiya. */
     @PostMapping("/skip")
     public ResponseEntity<Void> trackSkip(
             @CurrentUser CustomUserDetails currentUser,
@@ -99,6 +114,7 @@ public class InteractionApiController {
         return done();
     }
 
+    /** POST /api/interaction/search-play - search result se gaana chalaya. */
     @PostMapping("/search-play")
     public ResponseEntity<Void> trackSearchPlay(
             @CurrentUser CustomUserDetails currentUser,
@@ -114,6 +130,7 @@ public class InteractionApiController {
         return done();
     }
 
+    /** POST /api/interaction/search-click - search result pe click kiya. */
     @PostMapping("/search-click")
     public ResponseEntity<Void> trackSearchClick(
             @CurrentUser CustomUserDetails currentUser,
@@ -130,6 +147,7 @@ public class InteractionApiController {
         return done();
     }
 
+    /** POST /api/interaction/queue-add - queue me gaana joda. */
     @PostMapping("/queue-add")
     public ResponseEntity<Void> trackQueueAdd(
             @CurrentUser CustomUserDetails currentUser,
@@ -146,6 +164,7 @@ public class InteractionApiController {
         return done();
     }
 
+    /** POST /api/interaction/queue-remove - queue se gaana hataya. */
     @PostMapping("/queue-remove")
     public ResponseEntity<Void> trackQueueRemove(
             @CurrentUser CustomUserDetails currentUser,
@@ -162,6 +181,7 @@ public class InteractionApiController {
         return done();
     }
 
+    /** POST /api/interaction/dislike - gaana pasand nahi aaya. */
     @PostMapping("/dislike")
     public ResponseEntity<Void> trackDislike(
             @CurrentUser CustomUserDetails currentUser,
@@ -178,6 +198,7 @@ public class InteractionApiController {
         return done();
     }
 
+    /** POST /api/interaction/share - gaana share kiya. */
     @PostMapping("/share")
     public ResponseEntity<Void> trackShare(
             @CurrentUser CustomUserDetails currentUser,
@@ -195,8 +216,9 @@ public class InteractionApiController {
     }
 
     /**
-     * Up to 50 events from the app's queue in one call. Only available once events go to
-     * Kafka (DUAL or KAFKA); in LEGACY mode it answers 404 so the app keeps single calls.
+     * POST /api/interaction/batch - app ki queue se ek call me 50 tak events.
+     * Sirf DUAL/KAFKA mode me chalta hai. LEGACY me 404 deta hai, to app samajh jaata hai
+     * ki batch nahi chalta aur ek ek event wale purane endpoints use karta hai.
      */
     @PostMapping("/batch")
     public ResponseEntity<Map<String, Integer>> trackBatch(
@@ -209,12 +231,13 @@ public class InteractionApiController {
         rateLimiter.consume(userId, data.events().size());
         int accepted = telemetry.batch(userId, data.events());
         if (mode == EventsMode.DUAL) {
-            // Keep the legacy path authoritative during the comparison week.
+            // DUAL mode me purana raasta hi asli hai, isliye har event purani service se bhi chalao.
             data.events().forEach(e -> replayLegacy(userId, e));
         }
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(Map.of("accepted", accepted));
     }
 
+    /** Batch ke ek event ko purani service se chalao (DUAL mode). Error aaye to ignore. */
     private void replayLegacy(String userId, InteractionBatchRequestDto.Event e) {
         try {
             switch (e.type().trim().toLowerCase()) {
@@ -229,27 +252,32 @@ public class InteractionApiController {
                 default -> { }
             }
         } catch (RuntimeException ex) {
-            // e.g. a song deleted since the event was queued; the event itself was accepted.
+            // Jaise: event queue me tha tab tak song delete ho gaya. Event to accept ho chuka hai, ignore karo.
         }
     }
 
+    /** Kafka pe events bhejne hain? */
     private boolean sendsEvents() {
         return mode.producesEvents() && telemetry != null;
     }
 
+    /** Telemetry ka jawab: KAFKA mode me 202 Accepted, warna 200 OK. */
     private ResponseEntity<Void> done() {
         return mode == EventsMode.KAFKA ? ResponseEntity.accepted().build() : ResponseEntity.ok().build();
     }
 
+    /** Login zaroori hai - nahi to 401. User ki id lautata hai. */
     private static String requireUser(CustomUserDetails currentUser) {
         if (currentUser == null) throw new UnauthorizedException("Login required");
         return currentUser.getId();
     }
 
+    /** Rate limit ki key: user id, ya login na ho to "anonymous". */
     private static String rateKey(String userId) {
         return userId != null ? userId : TelemetryProducer.ANONYMOUS;
     }
 
+    /** POST /api/interaction/favourite/{songId} - favourite me jodo. */
     @PostMapping("/favourite/{songId}")
     public ResponseEntity<Void> addFavourite(
             @CurrentUser CustomUserDetails currentUser,
@@ -258,6 +286,7 @@ public class InteractionApiController {
         return ResponseEntity.ok().build();
     }
 
+    /** DELETE /api/interaction/favourite/{songId} - favourite se hatao (204). */
     @DeleteMapping("/favourite/{songId}")
     public ResponseEntity<Void> removeFavourite(
             @CurrentUser CustomUserDetails currentUser,
@@ -266,6 +295,7 @@ public class InteractionApiController {
         return ResponseEntity.noContent().build();
     }
 
+    /** GET /api/interaction/favourites - user ke favourite songs, page by page. */
     @GetMapping("/favourites")
     public ResponseEntity<PaginatedResponseDto<SongDto>> getFavourites(
             @CurrentUser CustomUserDetails currentUser,

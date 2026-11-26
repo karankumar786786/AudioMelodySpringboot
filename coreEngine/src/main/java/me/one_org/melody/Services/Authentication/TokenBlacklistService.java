@@ -7,6 +7,13 @@ import org.springframework.stereotype.Service;
 
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Logout kiye access tokens ki blacklist (Redis key blacklist:token:<jti>).
+ *
+ * JWT khud expire hone tak valid rehta hai. Logout pe use turant band karne ke liye uski jti
+ * Redis me utni der ke liye daal dete hain jitna token me time bacha hai. Har request pe SecurityConfig
+ * yahan check karta hai. Redis down ho to "blacklisted nahi" maan lete hain.
+ */
 @Service
 @Slf4j
 public class TokenBlacklistService {
@@ -18,6 +25,7 @@ public class TokenBlacklistService {
         this.redisTemplate = redisTemplate;
     }
 
+    /** jti ko bache hue time (remainingTtl) ke liye blacklist me daalo. */
     public void blacklistToken(String jti, Duration remainingTtl) {
         if (jti == null || jti.isBlank()) {
             return;
@@ -33,6 +41,7 @@ public class TokenBlacklistService {
         }
     }
 
+    /** Kya ye token logout ho chuka hai? */
     public boolean isBlacklisted(String jti) {
         if (jti == null || jti.isBlank()) {
             return false;

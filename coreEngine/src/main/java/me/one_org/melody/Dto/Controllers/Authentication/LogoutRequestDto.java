@@ -2,6 +2,9 @@ package me.one_org.melody.Dto.Controllers.Authentication;
 
 import jakarta.validation.constraints.NotBlank;
 
+/**
+ * Logout request: kaunsa device, refresh token, aur kya saare devices se logout karna hai.
+ */
 public record LogoutRequestDto(
     String refreshToken,
     @NotBlank(message = "Device ID is required")

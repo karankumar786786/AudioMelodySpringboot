@@ -6,6 +6,10 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
+/**
+ * Seedha SMTP se plain text email bhejta hai (Spring JavaMailSender).
+ * "from" address spring.mail.username config se aata hai.
+ */
 @Service
 public class MailUtil {
     private final JavaMailSender mailSender;
@@ -14,6 +18,7 @@ public class MailUtil {
     public MailUtil(JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
+    /** Ek email bhejta hai. SMTP fail ho to Spring ka MailException aata hai. */
     public void mail(String to,String subject,String body){
         SimpleMailMessage mail = new SimpleMailMessage();
         mail.setFrom(from);

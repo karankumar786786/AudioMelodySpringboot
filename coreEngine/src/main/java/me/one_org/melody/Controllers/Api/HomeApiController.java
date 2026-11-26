@@ -26,17 +26,18 @@ import me.one_org.melody.Services.Api.RecommendationApiService;
 import me.one_org.melody.Services.Api.SongsApiService;
 
 /**
- * Server-Sent Events (SSE) streaming API for the Home feed.
- * Aggregates and streams each section progressively down a single HTTP connection.
+ * Home screen ka data SSE (Server-Sent Events) se, ek hi HTTP connection pe, section by section.
+ * SSE = server ek connection khula rakh ke data ke tukde (events) ek ek karke bhejta hai.
+ * Isse app pehla section (featured songs) turant dikha deta hai, baaki ke aane ka wait nahi karta.
  *
- * DB Resource Optimization:
- * Instead of firing concurrent background tasks that hoard pool connections simultaneously,
- * this stream processes each section sequentially:
- *   1. Borrow DB connection for Section N
- *   2. Execute query & immediately release connection back to HikariCP pool
- *   3. Send SSE event down the wire (0 DB connections held during network transmission)
- *   4. Proceed to Section N + 1
- * If the client aborts or navigates away, remaining DB fetches are cancelled immediately.
+ * Database connections bachane ka tareeka:
+ * Saare sections ek saath (parallel) laane se bahut saare DB connections ek saath pakde jaate.
+ * Isliye sections ek ke baad ek aate hain:
+ *   1. Section N ke liye DB connection lo
+ *   2. Query chalao aur connection turant pool me wapas do
+ *   3. SSE event bhejo (network pe bhejte waqt koi DB connection pakda hua nahi hai)
+ *   4. Agle section pe jao
+ * User beech me screen chhod de to baaki queries turant cancel.
  */
 @RestController
 @RequestMapping("/api/home")
@@ -48,7 +49,7 @@ public class HomeApiController {
     private final PlaylistApiService playlistApiService;
     private final RecommendationApiService recommendationApiService;
 
-    // Use Java 21 Virtual Threads for lightweight, non-blocking asynchronous streaming
+    // Java 21 ke virtual threads: bahut halke threads, har stream ke liye ek - hazaaron bhi chalein to dikkat nahi
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
 
     public HomeApiController(
@@ -62,12 +63,16 @@ public class HomeApiController {
         this.recommendationApiService = recommendationApiService;
     }
 
+    /**
+     * GET /api/home/stream - home feed ke saare sections SSE se bhejta hai.
+     * Koi ek section fail ho to baaki chalte rehte hain.
+     */
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter streamHomeFeed(@CurrentUser CustomUserDetails currentUser) {
         final String userId = (currentUser != null) ? currentUser.getId() : null;
         log.info("[HomeStream] Opening SSE stream for user [{}]", userId != null ? userId : "anonymous");
 
-        // 45 seconds timeout
+        // 45 second me poora feed na aaye to stream band
         SseEmitter emitter = new SseEmitter(45_000L);
         AtomicBoolean isClosed = new AtomicBoolean(false);
 
@@ -85,12 +90,12 @@ public class HomeApiController {
             log.debug("[HomeStream] SSE connection error for user [{}]: {}", userId, ex.getMessage());
         });
 
-        // Run sequentially on a single virtual thread:
-        // Each service call acquires and immediately releases its DB connection back to the Hikari pool.
-        // During sendEvent(), ZERO database connections are held!
+        // Ek hi virtual thread pe, ek ke baad ek:
+        // har service call DB connection leti hai aur turant wapas kar deti hai.
+        // sendEvent() ke time ek bhi DB connection pakda hua nahi hota!
         executor.submit(() -> {
             try {
-                // 1. Featured Songs
+                // 1. Featured songs
                 if (!isClosed.get()) {
                     try {
                         List<SongDto> featured = songsApiService.getFeaturedSongs();
@@ -100,7 +105,7 @@ public class HomeApiController {
                     }
                 }
 
-                // 2. Trending Songs (Limit 12)
+                // 2. Trending songs (12)
                 if (!isClosed.get()) {
                     try {
                         List<SongDto> trending = songsApiService.getTrendingSongs(12);
@@ -110,7 +115,7 @@ public class HomeApiController {
                     }
                 }
 
-                // 3. Full Music Videos (Limit 15)
+                // 3. Music videos (15)
                 if (!isClosed.get()) {
                     try {
                         List<SongDto> videos = songsApiService.getSongsWithVideo(15);
@@ -120,7 +125,7 @@ public class HomeApiController {
                     }
                 }
 
-                // 3. Top Artists (Page 0, Size 15)
+                // 4. Top artists (pehle 15)
                 if (!isClosed.get()) {
                     try {
                         List<ArtistDto> artists = artistApiService.getArtistsPaginated(0, 15);
@@ -131,7 +136,7 @@ public class HomeApiController {
                     }
                 }
 
-                // 4. Featured Playlists (Page 0, Size 15)
+                // 5. Playlists (pehli 15)
                 if (!isClosed.get()) {
                     try {
                         List<PlaylistDto> playlists = playlistApiService.getPlaylistsPaginated(0, 15);
@@ -142,7 +147,7 @@ public class HomeApiController {
                     }
                 }
 
-                // 5. Discover Feed Initial Page (Page 0, Size 15)
+                // 6. Discover feed ka pehla page (15)
                 if (!isClosed.get()) {
                     try {
                         List<SongDto> feed = songsApiService.browseSongs(0, 15);
@@ -153,9 +158,9 @@ public class HomeApiController {
                     }
                 }
 
-                // 6. User-Specific Personalized Content (if authenticated)
+                // 7. Logged-in user ke liye personal cheezein
                 if (userId != null && !userId.isBlank()) {
-                    // Personalized Recommendations
+                    // User ke liye recommendations
                     if (!isClosed.get()) {
                         try {
                             List<SongDto> recs = recommendationApiService.recommendForUser(userId, 10);
@@ -166,7 +171,7 @@ public class HomeApiController {
                     }
                 }
 
-                // 7. Complete Signal
+                // 8. "Sab aa gaya" signal, taaki app loading band kar de
                 if (!isClosed.get()) {
                     sendEvent(emitter, isClosed, "complete", Map.of("status", "SUCCESS"));
                     emitter.complete();

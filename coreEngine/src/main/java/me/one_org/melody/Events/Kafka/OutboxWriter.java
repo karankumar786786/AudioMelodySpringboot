@@ -13,10 +13,13 @@ import me.oneorg.melody.events.EventIds;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Writes a row to outbox_events inside the caller's transaction, so the event exists
- * exactly when the change it describes was committed. outboxRelay publishes it.
- * After commit it nudges the relay through Kafka (OutboxWakeup) so it publishes within
- * milliseconds without polling the database (which would keep Neon awake).
+ * outbox_events table me ek row likhta hai - caller ke transaction ke andar.
+ * Isliye event tabhi exist karega jab uska data change sach me commit hua ho.
+ * Row ko streams/ ka outboxRelay Kafka pe publish karta hai.
+ *
+ * Commit ke baad relay ko Kafka se "jaago" signal (OutboxWakeup) bhejte hain, taaki wo turant
+ * publish kare. Relay ko baar baar DB check (polling) nahi karna padta - polling se Neon
+ * database kabhi "so" nahi paata aur bill badhta hai.
  */
 @Component
 @Slf4j
@@ -33,7 +36,10 @@ public class OutboxWriter {
         this.wakeup = wakeup;
     }
 
-    /** @return the new row's id (also the event_id the consumers will see). */
+    /**
+     * Outbox row likhta hai. payload JSON (jsonb) me jaata hai.
+     * @return nayi row ki id - yahi event_id consumers ko dikhegi.
+     */
     public UUID write(String topic, String key, Map<String, Object> payload) {
         UUID id = UUID.fromString(EventIds.newId());
         jdbcClient.sql("""
@@ -47,6 +53,8 @@ public class OutboxWriter {
                 .param("source", properties.source())
                 .update();
 
+        // Transaction chal raha hai to commit ke BAAD signal bhejo (commit fail hua to signal nahi).
+        // Transaction nahi hai to row already save hai, turant signal bhej do.
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override

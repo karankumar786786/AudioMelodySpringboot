@@ -11,6 +11,12 @@ import me.one_org.melody.Security.CurrentUser;
 import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.Api.UserProgressApiService;
 
+/**
+ * Playback progress (resume) ki API - app band karke kholo to wahin se gaana chale, doosre device pe bhi.
+ *
+ * Controller = HTTP request ka pehla stop. Ye sirf request padhta hai, service ko kaam deta hai,
+ * aur response (JSON) lautata hai. Asli logic service me hai.
+ */
 @RestController
 @RequestMapping("/api/user/progress")
 @Validated
@@ -22,9 +28,7 @@ public class UserProgressApiController {
         this.progressApiService = progressApiService;
     }
 
-    /**
-     * Save playback progress for cross-device synchronization and resume.
-     */
+    /** POST /api/user/progress - gaana kahan tak suna, save karo (resume aur doosre device ke liye). */
     @PostMapping
     public ResponseEntity<UserProgressDto> updateProgress(
             @CurrentUser CustomUserDetails currentUser,
@@ -34,9 +38,7 @@ public class UserProgressApiController {
         return ResponseEntity.ok(progress);
     }
 
-    /**
-     * Get the last playback state to resume listening across devices.
-     */
+    /** GET /api/user/progress/resume - aakhri baar kya aur kahan tak baj raha tha. Kuch na ho to 204. */
     @GetMapping("/resume")
     public ResponseEntity<UserProgressDto> getProgress(
             @CurrentUser CustomUserDetails currentUser
@@ -48,9 +50,7 @@ public class UserProgressApiController {
         return ResponseEntity.ok(progress);
     }
 
-    /**
-     * Clear playback progress when queue finishes or user clears session.
-     */
+    /** DELETE /api/user/progress - progress saaf karo (queue khatam ya user ne clear kiya). */
     @DeleteMapping
     public ResponseEntity<Void> clearProgress(
             @CurrentUser CustomUserDetails currentUser

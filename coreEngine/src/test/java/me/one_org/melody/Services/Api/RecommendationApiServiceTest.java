@@ -28,13 +28,17 @@ import me.one_org.melody.Repository.UsersRepository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
+/**
+ * Unit test: RecommendationApiService ko akele check karta hai (dependencies Mockito se nakli (mock) hain, taaki sirf isi class ka logic test ho).
+ * Har @Test method ek behaviour check karta hai - method ka naam batata hai kya.
+ */
 @ExtendWith(MockitoExtension.class)
 class RecommendationApiServiceTest {
 
     @Mock
     private Recombee recombee;
 
-    /** Ordered Recombee user recommendations with no audio features. */
+    /** Recombee ke user recommendations (order me), bina audio features ke. */
     private static Map<String, AudioProfile> recs(String... ids) {
         Map<String, AudioProfile> m = new LinkedHashMap<>();
         for (String id : ids) m.put(id, null);
@@ -343,7 +347,7 @@ class RecommendationApiServiceTest {
         when(mockUsersRepo.findById("user-1")).thenReturn(Optional.of(user));
         when(recombee.recommendForUserWithAudio(eq("user-1"), anyInt())).thenReturn(recs());
 
-        // Frequent songs query: [songId, count, avgCompletion]
+        // Baar baar sune gaanon ki query: [songId, count, avgCompletion]
         Object[] row1 = new Object[]{"song-frequent-1", 5L, 85.0};
         Object[] row2 = new Object[]{"song-low-completion", 4L, 50.0};
         when(mockHistoryRepo.findFrequentlyPlayedSongs(eq(user), any(), eq(3L), any()))
@@ -371,7 +375,7 @@ class RecommendationApiServiceTest {
         when(mockHistoryRepo.findRecentByUser(eq(user), eq(20))).thenReturn(List.of());
         when(prefs.getPreferences(user)).thenReturn(List.of("Rock"));
 
-        // Recombee returns a very popular pop song; the DB returns a rock song with no streams.
+        // Recombee bahut popular pop gaana deta hai; DB bina streams wala rock gaana.
         Song popHit = Song.builder().id("pop-hit").title("Pop Hit").artistName("Pop Star")
                 .genre("Pop").status(StatusEnum.ACTIVE).build();
         Song rockSong = Song.builder().id("rock-1").title("Rock Song").artistName("Rock Band")

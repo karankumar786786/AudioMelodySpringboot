@@ -14,6 +14,12 @@ import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.Api.MoodRadioService;
 import me.one_org.melody.Services.Api.RecommendationApiService;
 
+/**
+ * Recommendations API (Recombee se): user ke liye, similar songs, radio, mood radio.
+ *
+ * Controller = HTTP request ka pehla stop. Ye sirf request padhta hai, service ko kaam deta hai,
+ * aur response (JSON) lautata hai. Asli logic service me hai.
+ */
 @RestController
 @RequestMapping("/api/recommendations")
 @Validated
@@ -28,7 +34,7 @@ public class RecombeeApiController {
         this.moodRadioService = moodRadioService;
     }
 
-    /** Mood radio: songs matching a mood's audio profile (chill, workout, focus, happy, sad). */
+    /** GET /api/recommendations/radio/mood - mood radio: mood (chill, workout, focus, happy, sad) ke audio profile wale songs. */
     @GetMapping("/radio/mood")
     public ResponseEntity<List<SongDto>> recommendMoodRadio(
             @CurrentUser CustomUserDetails currentUser,
@@ -38,6 +44,7 @@ public class RecombeeApiController {
         return ResponseEntity.ok(moodRadioService.recommendMood(Mood.parse(mood), userId, count));
     }
 
+    /** GET /api/recommendations/user - is user ke liye songs ("For you"). */
     @GetMapping("/user")
     public ResponseEntity<List<SongDto>> recommendForUser(
             @CurrentUser CustomUserDetails currentUser,
@@ -46,6 +53,7 @@ public class RecombeeApiController {
         return ResponseEntity.ok(recommendationApiService.recommendForUser(userId, count));
     }
 
+    /** GET /api/recommendations/similar/{songId} - is gaane jaise gaane. */
     @GetMapping("/similar/{songId}")
     public ResponseEntity<List<SongDto>> recommendSimilar(
             @PathVariable @NotBlank(message = "Song ID is required") String songId,
@@ -53,6 +61,7 @@ public class RecombeeApiController {
         return ResponseEntity.ok(recommendationApiService.recommendSimilar(songId, count));
     }
 
+    /** GET /api/recommendations/radio?seedSongId= - ek gaane se radio (queue bharne ke liye). */
     @GetMapping("/radio")
     public ResponseEntity<List<SongDto>> recommendRadio(
             @RequestParam @NotBlank(message = "Seed song ID is required") String seedSongId,
@@ -64,7 +73,10 @@ public class RecombeeApiController {
         return ResponseEntity.ok(recommendationApiService.recommendRadio(seedSongId, excludedList, count));
     }
 
-    // P4: Session-aware radio – returns recommId for sequential continuity
+    /**
+     * GET /api/recommendations/radio/session - radio jo session yaad rakhta hai.
+     * recommId wapas deta hai; agli baar wahi bhejo to Recombee pichle suggestions ke aage se continue karta hai.
+     */
     @GetMapping("/radio/session")
     public ResponseEntity<RadioResponseDto> recommendRadioSession(
             @RequestParam @NotBlank(message = "Seed song ID is required") String seedSongId,

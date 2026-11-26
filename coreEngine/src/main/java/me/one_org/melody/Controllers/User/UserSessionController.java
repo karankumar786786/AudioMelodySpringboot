@@ -23,6 +23,12 @@ import me.one_org.melody.Security.CurrentUser;
 import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.Authentication.UserSessionService;
 
+/**
+ * Login sessions ki API: kaunse devices pe login hai, kisi device ko logout karna.
+ *
+ * Controller = HTTP request ka pehla stop. Ye sirf request padhta hai, service ko kaam deta hai,
+ * aur response (JSON) lautata hai. Asli logic service me hai.
+ */
 @RestController
 @RequestMapping("/api/user/sessions")
 @Validated
@@ -34,6 +40,7 @@ public class UserSessionController {
         this.userSessionService = userSessionService;
     }
 
+    /** GET /api/user/sessions/status - website ke liye: logged-in hai ya nahi (token na ho to bhi 200). */
     @GetMapping({"/session", "/status"})
     public ResponseEntity<SessionStatusDto> getSession(@CurrentUser CustomUserDetails currentUser) {
         return ResponseEntity.ok(SessionStatusDto.authenticated(
@@ -43,6 +50,7 @@ public class UserSessionController {
         ));
     }
 
+    /** GET /api/user/sessions - user ke saare login sessions (kaunsa current hai, bhi batata hai). */
     @GetMapping
     public ResponseEntity<List<UserSessionDto>> getSessions(
             @CurrentUser CustomUserDetails currentUser,
@@ -51,6 +59,7 @@ public class UserSessionController {
         return ResponseEntity.ok(sessions);
     }
 
+    /** DELETE /api/user/sessions/{sessionId} - us device ko logout karo. */
     @DeleteMapping("/{sessionId}")
     public ResponseEntity<Void> revokeSession(
             @CurrentUser CustomUserDetails currentUser,
@@ -59,6 +68,7 @@ public class UserSessionController {
         return ResponseEntity.noContent().build();
     }
 
+    /** POST /api/user/sessions/revoke-others - is device ko chhod ke sab jagah se logout. */
     @PostMapping("/revoke-others")
     public ResponseEntity<Void> revokeOtherSessions(
             @CurrentUser CustomUserDetails currentUser,
@@ -67,6 +77,7 @@ public class UserSessionController {
         return ResponseEntity.noContent().build();
     }
 
+    /** POST /api/user/sessions/logout - is device se (ya saare devices se) logout. */
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(
             @CurrentUser CustomUserDetails currentUser,

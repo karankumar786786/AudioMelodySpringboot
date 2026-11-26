@@ -16,8 +16,12 @@ import io.github.resilience4j.bulkhead.BulkheadConfig;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Sends Avro events to Kafka. A bulkhead caps in-flight sends, so a slow or down broker
- * can't pile up work behind the request threads that serve playback and login.
+ * Kafka pe Avro events bhejta hai.
+ *
+ * Avro = ek compact binary format jiska schema (kaunse fields) Schema Registry me rakha hota hai.
+ * Bulkhead = ek limit ki ek saath kitne sends chal rahe ho sakte hain. Agar Kafka slow/down ho,
+ * to requests ki line lag ke playback/login wale threads ko block na karein, isliye limit cross
+ * hone pe turant mana kar dete hain.
  */
 @NoLogging
 @Component
@@ -37,14 +41,19 @@ public class EventPublisher {
                 .build());
     }
 
+    /** Abhi kaunsa events mode chal raha hai. */
     public EventsMode mode() {
         return properties.mode();
     }
 
     /**
-     * KAFKA mode: waits for the broker's ack and throws EventsUnavailableException on
-     * failure or timeout. DUAL mode: fire-and-forget; failures are only logged, because the
-     * legacy path still does the real work.
+     * Ek event bhejta hai.
+     * - LEGACY mode: kuch nahi karta.
+     * - KAFKA mode: Kafka ke "mil gaya" (ack) ka wait karta hai; fail ya timeout pe
+     *   EventsUnavailableException (503), taaki app event rakh ke baad me dobara bheje.
+     * - DUAL mode: bhej ke bhool jao (wait nahi). Fail ho to sirf log, kyunki asli kaam
+     *   abhi bhi legacy raasta kar raha hai.
+     * occurredAt Kafka record ka timestamp banta hai (event kab hua tha).
      */
     public void publish(String topic, String key, SpecificRecord value, Instant occurredAt) {
         if (!properties.mode().producesEvents()) return;
@@ -60,6 +69,7 @@ public class EventPublisher {
         try {
             ProducerRecord<String, SpecificRecord> record =
                     new ProducerRecord<>(topic, null, occurredAt.toEpochMilli(), key, value);
+            // Send khatam (success ya fail) hote hi bulkhead ki jagah khaali karo
             future = kafkaTemplate.send(record).whenComplete((r, e) -> bulkhead.onComplete());
         } catch (Exception e) {
             bulkhead.onComplete();

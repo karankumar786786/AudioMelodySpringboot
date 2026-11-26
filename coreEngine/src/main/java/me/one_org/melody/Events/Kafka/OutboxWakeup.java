@@ -15,11 +15,13 @@ import me.one_org.melody.Aspects.NoLogging;
 import me.oneorg.melody.events.Topics;
 
 /**
- * Tells outboxRelay that new rows are waiting. Sent on a background thread, so a cold or
- * slow broker never delays the request that wrote the row. While Kafka is down it keeps
- * one pending wake-up and retries with backoff (5 s doubling to 60 s, for up to 15 min),
- * so rows written during an outage are published soon after Kafka returns. Past that the
- * relay's safety sweep picks them up; OTP emails also have MailQueue's 30 s fallback.
+ * outboxRelay ko "naye outbox rows aaye hain, utha lo" ka signal bhejta hai (Kafka topic outbox.wakeup.v1).
+ *
+ * - Background thread pe chalta hai, to Kafka slow ho to bhi user ki request nahi rukti.
+ * - Kafka down ho to ek hi pending wake-up rakhta hai aur retry karta hai: 5s, 10s, 20s ... max 60s,
+ *   15 minute tak. Kafka wapas aate hi rows jaldi publish ho jaati hain.
+ * - 15 minute ke baad bhi na jaaye to relay ka "safety sweep" (har kuch ghante) rows utha leta hai.
+ *   OTP emails ke liye MailQueue ka 30 second wala fallback bhi hai.
  */
 @NoLogging
 @Component
@@ -34,19 +36,24 @@ public class OutboxWakeup {
         t.setDaemon(true);
         return t;
     });
-    /** A wake-up is queued or being retried; further signals ride along with it. */
+    /** Ek wake-up pehle se line me hai ya retry ho raha hai - naye signals usi ke saath chale jaayenge. */
     private final AtomicBoolean pending = new AtomicBoolean();
 
     public OutboxWakeup(KafkaTemplate<String, String> stringKafkaTemplate) {
         this.kafkaTemplate = stringKafkaTemplate;
     }
 
+    /**
+     * Wake-up bhejo. compareAndSet: agar pehle se koi pending nahi hai tabhi naya schedule karo
+     * (100 rows likhe to bhi ek hi wake-up jaata hai).
+     */
     public void signal() {
         if (pending.compareAndSet(false, true)) {
             sender.execute(() -> attempt(System.currentTimeMillis(), 5_000L));
         }
     }
 
+    /** Ek koshish: bhejo aur 5 second tak ack ka wait. Fail ho to delay double karke dobara schedule. */
     private void attempt(long firstTry, long nextDelayMs) {
         try {
             kafkaTemplate.send(Topics.OUTBOX_WAKEUP, "core-api", "1").get(5, TimeUnit.SECONDS);
@@ -65,6 +72,7 @@ public class OutboxWakeup {
         }
     }
 
+    /** App band hote waqt background thread rok do. */
     @PreDestroy
     void shutdown() {
         sender.shutdownNow();

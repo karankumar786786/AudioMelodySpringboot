@@ -20,6 +20,15 @@ import me.one_org.melody.Entity.Song;
 import me.one_org.melody.Repository.SongsRepository;
 import me.one_org.melody.Repository.UserShortsLikeRepository;
 
+/**
+ * PURANA canvas-shorts feed (band ho chuka feature, sirf purane app versions ke liye).
+ *
+ * Service = asli business logic. Controller isko call karta hai, ye repositories (DB), cache aur
+ * bahar ki services (Recombee, Algolia) ko use karta hai.
+ * @Transactional(readOnly = true) = by default sirf padhne wale DB transactions (thode fast);
+ * jo methods data badalte hain un pe alag se @Transactional laga hai.
+ * @Cacheable = result Redis me cache hota hai (RedisConfig dekho).
+ */
 @Service
 @Transactional(readOnly = true)
 public class CanvasApiService {
@@ -32,10 +41,12 @@ public class CanvasApiService {
         this.shortsLikeRepository = shortsLikeRepository;
     }
 
+    /** Canvas feed (bina user ke). */
     public PaginatedResponseDto<SongDto> getCanvasFeed(int page, int size, String genre, String sort) {
         return getCanvasFeed(null, page, size, genre, sort);
     }
 
+    /** Canvas feed: sort = latest / popular / random, genre filter optional; user ke likes bhi. */
     public PaginatedResponseDto<SongDto> getCanvasFeed(String userId, int page, int size, String genre, String sort) {
         int safePage = Math.max(0, page);
         int safeSize = Math.max(1, Math.min(50, size));
@@ -95,6 +106,7 @@ public class CanvasApiService {
         return new PaginatedResponseDto<>(dtos, safePage, safeSize, meta);
     }
 
+    /** Featured canvas songs (cache me). */
     @Cacheable(value = "canvas_featured", key = "#limit")
     public List<SongDto> getFeaturedCanvas(int limit) {
         int safeLimit = Math.max(1, Math.min(30, limit));

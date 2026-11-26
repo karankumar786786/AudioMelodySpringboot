@@ -10,6 +10,16 @@ import java.time.LocalDateTime;
 
 import me.one_org.melody.Enums.StatusEnum;
 
+/**
+ * Table: songs
+ * Ek gaana: title, artist, duration (seconds), S3 keys (audio HLS, image, video),
+ * preview ka start/end, genre, language, album, country, lyrics id aur audio features.
+ * songKey = S3 me us folder ka naam jisme master.m3u8 (HLS playlist) hai.
+ * Streams ka count alag table song_metadata (SongMetadata) me hai.
+ *
+ * Entity = Java class jo database ki ek table se juda hai; har object = table ki ek row.
+ * Table Flyway migrations (migration/ module) banate hain, ye class sirf usko map karti hai.
+ */
 @Entity
 @Table(name = "songs")
 @Data
@@ -64,8 +74,9 @@ public class Song{
     @Column(name = "job_id")
     private String jobId;
 
-    // Audio features (Flyway V15), copied from the producing job; null until analysed.
-    // Tempo is BPM; energy, valence and danceability are 0..1.
+    // Audio features (Flyway V15): media pipeline gaane ko analyse karke ye values deta hai.
+    // Analyse hone tak null rehte hain. tempo = BPM (beats per minute);
+    // energy, valence (khushi/udaasi), danceability = 0 se 1 ke beech.
     private Double tempo;
 
     private Double energy;
@@ -109,7 +120,7 @@ public class Song{
         this.language = language;
         this.genre = genre;
         this.album = album;
-        this.country = country != null ? country : "India";
+        this.country = country != null ? country : "India"; // country na di ho to default India
         this.lrclibId = lrclibId;
         this.jobId = jobId;
         this.status = status;

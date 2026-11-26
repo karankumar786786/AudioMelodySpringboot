@@ -2,6 +2,12 @@ package me.one_org.melody.Events;
 
 import java.util.List;
 
+/**
+ * User activity ke events (data holder records): follow, play, favourite, playlist, onboarding, register, login.
+ * Services inhe publishEvent() se bhejti hain. Inhe do jagah suna jaata hai:
+ * - TelemetryEventListener (LEGACY/DUAL: seedha Recombee/Algolia)
+ * - OutboxEventBridge (DUAL/KAFKA: outbox row -> Kafka)
+ */
 public final class TelemetryEvents {
 
     private TelemetryEvents() {}

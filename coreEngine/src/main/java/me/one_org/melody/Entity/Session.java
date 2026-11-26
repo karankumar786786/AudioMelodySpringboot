@@ -19,6 +19,15 @@ import jakarta.persistence.UniqueConstraint;
 import lombok.Builder;
 import lombok.Data;
 
+/**
+ * Table: sessions
+ * Ek device pe user ka login. Har user + device ka ek hi session hota hai (unique constraint).
+ * Refresh token, device ka naam, IP, location aur last active time yahan hai -
+ * "Active sessions" screen isi se banti hai, aur logout pe ye row hatti hai.
+ *
+ * Entity = Java class jo database ki ek table se juda hai; har object = table ki ek row.
+ * Table Flyway migrations (migration/ module) banate hain, ye class sirf usko map karti hai.
+ */
 @Entity
 @Table(
     name = "sessions",

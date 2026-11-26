@@ -11,9 +11,10 @@ import me.oneorg.melody.events.ListenRange;
 import me.oneorg.melody.events.SeekMove;
 
 /**
- * Optional listening detail sent with a play: which parts were played, seeks, skip and
- * exit position, the quality used and delivery health. Validated and normalised here so
- * the analytics stream only sees clean, merged ranges in track time.
+ * Ek play ke saath aane wali optional detail: gaane ke kaunse hisse baje, seeks, skip,
+ * kahan ruka, kis quality me baja, aur streaming kaisi rahi (startup time, buffering).
+ * Yahan sab check aur saaf hota hai, taaki analytics wale stream ko sirf sahi,
+ * merge kiye hue ranges milein. Galat data pe 400 (BadRequestException).
  */
 public record ListenDetail(
         List<ListenRange> ranges,
@@ -28,16 +29,18 @@ public record ListenDetail(
 
     public static final ListenDetail EMPTY = new ListenDetail(List.of(), null, false, List.of(), null, null, null, 0, 0);
 
+    // Ek play me max kitne ranges / seeks maante hain (bade, bekaar payloads se bachne ke liye)
     static final int MAX_RANGES = 200;
     static final int MAX_SEEKS = 100;
-    /** Longest track position we accept (3 hours), whatever the client claims. */
+    /** Gaane me sabse door ki position jo maanenge (3 ghante), client kuch bhi bheje. */
     static final long MAX_POSITION_MS = 3L * 60 * 60 * 1000;
     static final Set<String> QUALITIES = Set.of("128kbps", "240kbps", "320kbps", "auto");
     static final Set<String> PLATFORMS = Set.of("ios", "android", "web");
 
     /**
-     * Builds a detail from the raw request fields. {@code rawRanges} and {@code rawSeeks}
-     * are [[a, b], …] pairs. Ranges are clamped to the track, sorted and merged.
+     * Request ke raw fields se ListenDetail banata hai.
+     * {@code rawRanges} aur {@code rawSeeks} [[a, b], ...] jodiyan hain.
+     * Ranges ko gaane ki length tak kaat ke, sort karke, overlapping wale jod dete hain.
      */
     public static ListenDetail of(List<List<Long>> rawRanges, Long exitMs, Boolean skipped, List<List<Long>> rawSeeks,
                                   String quality, String platform, Long startupMs, Integer rebufferCount,
@@ -60,6 +63,7 @@ public record ListenDetail(
                 rebufferMs == null ? 0 : clamp(rebufferMs, 0, MAX_POSITION_MS, "rebufferMs"));
     }
 
+    /** [[a, b], ...] list check karta hai: har item me exactly 2 numbers, koi negative nahi, max count ke andar. */
     private static List<long[]> pairs(List<List<Long>> raw, int max, String field) {
         if (raw == null) return List.of();
         if (raw.size() > max) throw new BadRequestException("At most " + max + " " + field + " per play");
@@ -76,7 +80,12 @@ public record ListenDetail(
         return out;
     }
 
-    /** Pure: clamp to [0, limit], drop empty or reversed ranges, sort and merge overlaps. */
+    /**
+     * Ranges ko saaf karta hai (pure function - bahar kuch nahi badalta):
+     * 1. Har range ko [0, limit] me kaato, khaali ya ulti range hatao.
+     * 2. Start time se sort karo.
+     * 3. Jo ranges ek doosre pe chadhti hain unhe jod do. Example: [0-5s] + [3-8s] = [0-8s].
+     */
     static List<ListenRange> mergeRanges(List<long[]> raw, long limit) {
         List<long[]> cleaned = new ArrayList<>();
         for (long[] r : raw) {
@@ -104,11 +113,13 @@ public record ListenDetail(
         return merged;
     }
 
+    /** Negative value pe error, aur max se bada ho to max kar do. */
     private static long clamp(long v, long min, long max, String field) {
         if (v < min) throw new BadRequestException(field + " can't be negative");
         return Math.min(v, max);
     }
 
+    /** Value allowed list me honi chahiye (lowercase karke), warna error. Khaali ho to null. */
     private static String pick(String value, Set<String> allowed, String field) {
         if (value == null || value.isBlank()) return null;
         String v = value.trim().toLowerCase(Locale.ROOT);
