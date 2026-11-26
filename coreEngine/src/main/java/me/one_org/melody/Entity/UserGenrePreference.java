@@ -11,8 +11,10 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 /**
- * P6: Stores user genre preferences selected during cold-start onboarding.
- * Table is created by the Flyway migration V14__add_user_genre_preferences.sql in the migration module.
+ * Table: user_genre_preferences
+ * Naye user ne onboarding me jo genres chune (jaise Pop, Rock) - har user ki ek row.
+ * Shuru me user ki koi history nahi hoti ("cold start"), tab recommendations inhi genres se bante hain.
+ * Table Flyway migration V14 banata hai.
  */
 @Entity
 @Table(name = "user_genre_preferences")
@@ -27,7 +29,7 @@ public class UserGenrePreference {
     @OnDelete(action = OnDeleteAction.CASCADE)
     private User user;
 
-    /** Comma-separated genre names, e.g. "Pop,Hip-Hop,Rock" */
+    /** Comma se alag genre naam, jaise "Pop,Hip-Hop,Rock" */
     @Column(name = "genres", nullable = false, columnDefinition = "TEXT")
     private String genres;
 

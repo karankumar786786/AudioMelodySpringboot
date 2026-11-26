@@ -8,8 +8,8 @@ import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Dto.Controllers.Api.UserPlaylistDto;
 
 /**
- * Final search result after fetching full data from DB.
- * Algolia returns IDs -> DB fetch -> this DTO is returned to the client.
+ * Search ka final jawab jo app ko jaata hai.
+ * Flow: Algolia sirf ids deta hai -> un ids se DB se poora data laate hain -> ye DTO.
  */
 public record SearchResult(
     List<SongDto> songs,

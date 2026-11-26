@@ -11,6 +11,14 @@ import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.LocalDateTime;
 
+/**
+ * Table: user_history
+ * User ne kab kaunsa gaana suna - har play ki ek row.
+ * part = gaane ka kitna percent suna (0-100). "Recently played" aur recommendations isi se bante hain.
+ *
+ * Entity = Java class jo database ki ek table se juda hai; har object = table ki ek row.
+ * Table Flyway migrations (migration/ module) banate hain, ye class sirf usko map karti hai.
+ */
 @Entity
 @Table(name = "user_history")
 @Data 

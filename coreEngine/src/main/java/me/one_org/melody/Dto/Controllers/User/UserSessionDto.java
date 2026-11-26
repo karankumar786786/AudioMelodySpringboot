@@ -2,6 +2,9 @@ package me.one_org.melody.Dto.Controllers.User;
 
 import java.time.LocalDateTime;
 
+/**
+ * "Active sessions" screen ki ek row: device, IP, location, last active, aur kya ye current device hai.
+ */
 public record UserSessionDto(
     String id,
     String deviceId,

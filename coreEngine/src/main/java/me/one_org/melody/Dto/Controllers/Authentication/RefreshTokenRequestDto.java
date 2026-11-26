@@ -2,8 +2,11 @@ package me.one_org.melody.Dto.Controllers.Authentication;
 
 import jakarta.validation.constraints.NotBlank;
 
+/**
+ * Naya access token maangne ki request.
+ */
 public record RefreshTokenRequestDto(
-    /** Required for bearer clients (mobile); the web app sends it as an HttpOnly cookie instead. */
+    /** Mobile app ke liye zaroori; website ise HttpOnly cookie me bhejti hai, body me nahi. */
     String refreshToken,
     @NotBlank(message = "Device ID is required")
     String deviceId

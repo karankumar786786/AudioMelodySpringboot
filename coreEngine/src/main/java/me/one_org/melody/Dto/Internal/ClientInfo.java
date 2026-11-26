@@ -1,5 +1,9 @@
 package me.one_org.melody.Dto.Internal;
 
+/**
+ * Request bhejne wale client ki info: IP, User-Agent, device ka naam, location.
+ * Bahar API me nahi jaata - sirf andar sessions banane me kaam aata hai.
+ */
 public record ClientInfo(
     String ipAddress,
     String userAgent,

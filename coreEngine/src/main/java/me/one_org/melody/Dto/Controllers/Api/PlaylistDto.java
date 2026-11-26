@@ -4,6 +4,9 @@ import java.time.LocalDateTime;
 import me.one_org.melody.Entity.Playlist;
 import me.one_org.melody.Enums.StatusEnum;
 
+/**
+ * API response me ek official playlist.
+ */
 public record PlaylistDto(
     String id,
     String name,

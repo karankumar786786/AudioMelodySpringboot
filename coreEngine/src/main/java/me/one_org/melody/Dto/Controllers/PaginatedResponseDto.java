@@ -4,6 +4,9 @@ import java.util.List;
 import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
 import me.one_org.melody.Entity.PaginationMetaData;
 
+/**
+ * Page by page list ka standard jawab: items (content), page number, page size aur total counts.
+ */
 public record PaginatedResponseDto<T>(
     List<T> content,
     int page,

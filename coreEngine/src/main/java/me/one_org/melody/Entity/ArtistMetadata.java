@@ -9,6 +9,15 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
+/**
+ * Table: artist_metadata
+ * Artist ke counters (jaise followers_count) - artists table se alag rakhe hain
+ * taaki follow/unfollow pe badi artists row baar baar update na ho.
+ * @BatchSize(50): bahut saare artists ka metadata ek hi query me (50-50 karke) load hota hai.
+ *
+ * Entity = Java class jo database ki ek table se juda hai; har object = table ki ek row.
+ * Table Flyway migrations (migration/ module) banate hain, ye class sirf usko map karti hai.
+ */
 @Entity
 @Table(name = "artist_metadata")
 @BatchSize(size = 50)

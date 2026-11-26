@@ -11,6 +11,14 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
+/**
+ * Table: user_saved_playlists
+ * Kisi user ne doosre ki (public/shared) playlist apni library me save ki.
+ * Ek user ek playlist ko ek hi baar save kar sakta hai (unique constraint).
+ *
+ * Entity = Java class jo database ki ek table se juda hai; har object = table ki ek row.
+ * Table Flyway migrations (migration/ module) banate hain, ye class sirf usko map karti hai.
+ */
 @Entity
 @Table(
     name = "user_saved_playlists",

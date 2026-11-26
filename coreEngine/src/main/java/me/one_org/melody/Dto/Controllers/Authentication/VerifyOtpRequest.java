@@ -3,6 +3,9 @@ package me.one_org.melody.Dto.Controllers.Authentication;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
+/**
+ * OTP verify request: tempToken + 6 digit OTP + deviceId.
+ */
 public record VerifyOtpRequest(
     @NotBlank(message = "Verification token is required")
     String tempToken,

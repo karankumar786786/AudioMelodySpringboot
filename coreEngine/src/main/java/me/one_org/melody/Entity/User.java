@@ -10,6 +10,14 @@ import me.one_org.melody.Enums.StatusEnum;
 
 import java.time.LocalDateTime;
 
+/**
+ * Table: users
+ * App ka listener (user): id, naam, email, status.
+ * Login OTP se hota hai, isliye password column nahi hai. Har user ka role USER hai.
+ *
+ * Entity = Java class jo database ki ek table se juda hai; har object = table ki ek row.
+ * Table Flyway migrations (migration/ module) banate hain, ye class sirf usko map karti hai.
+ */
 @Entity
 @Table(name = "users")
 @Data
@@ -46,6 +54,7 @@ public class User {
         this.createdAt = createdAt;
     }
 
+    /** Har app user ka role USER hai (admins alag system me hain), isliye column nahi chahiye. */
     public RoleEnum getRole() {
         return RoleEnum.USER;
     }

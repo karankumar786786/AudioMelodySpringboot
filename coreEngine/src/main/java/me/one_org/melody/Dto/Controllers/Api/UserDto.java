@@ -5,6 +5,9 @@ import me.one_org.melody.Entity.User;
 import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Enums.StatusEnum;
 
+/**
+ * API response me ek user (bina kisi secret data ke).
+ */
 public record UserDto(
     String id,
     String userName,

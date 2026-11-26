@@ -2,6 +2,9 @@ package me.one_org.melody.Dto.Controllers.Authentication;
 
 import jakarta.validation.constraints.NotBlank;
 
+/**
+ * Website ka logout (token cookie me hai, isliye body me sirf deviceId).
+ */
 public record WebLogoutRequestDto(
     @NotBlank(message = "Device ID is required")
     String deviceId,
