@@ -1,6 +1,6 @@
 # Architecture map
 
-`architecture-map.html` is a single interactive page that covers the whole platform:
+The generator in `gen/` builds `architecture-map.html`, one interactive page that covers the whole platform. The page is about 2 MB and goes out of date with every code change, so it isn't committed: build it whenever you need it (see "Building it" below). The page covers:
 
 - **System:** the high-level design (clients, APIs, pipelines, data stores, deployment).
 - **Services:** the low-level design of each service. It shows the layers, how the service runs, its switches, endpoints, tables, topics, Redis keys and Inngest events.
@@ -11,11 +11,9 @@
 - **Data & events:** every Postgres table (from the Flyway migrations), Kafka topic, Redis key and outside service, with the functions that read and write it.
 - **Failures:** what catches each kind of error, and every failure path found in the code.
 
-Open `architecture-map.html` in a browser. It is self-contained, apart from Cytoscape and the fonts, which load from a CDN.
+## Building it
 
-## Rebuilding it
-
-Run this from the repo root after code changes:
+Run this from the repo root, then open `docs/architecture/architecture-map.html` in a browser. The page is self-contained, apart from Cytoscape and the fonts, which load from a CDN.
 
 ```bash
 node docs/architecture/gen/build.mjs
