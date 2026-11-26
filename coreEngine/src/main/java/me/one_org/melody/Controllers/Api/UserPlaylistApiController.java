@@ -21,6 +21,13 @@ import me.one_org.melody.Security.CurrentUser;
 import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.Api.UserPlaylistApiService;
 
+/**
+ * User ki apni playlists ki API: banao, rename, privacy, songs jodo/hatao, save, duplicate, share link.
+ * Doosre ki private playlist chhedne pe 403.
+ *
+ * Controller = HTTP request ka pehla stop. Ye sirf request padhta hai, service ko kaam deta hai,
+ * aur response (JSON) lautata hai. Asli logic service me hai.
+ */
 @RestController
 @RequestMapping("/api/user/playlists")
 @Validated
@@ -32,6 +39,7 @@ public class UserPlaylistApiController {
         this.userPlaylistAppService = userPlaylistAppService;
     }
 
+    /** GET /api/user/playlists - user ki library (apni + saved playlists). */
     @GetMapping
     public ResponseEntity<PaginatedResponseDto<UserPlaylistDto>> getUserPlaylists(
             @CurrentUser CustomUserDetails currentUser,
@@ -42,6 +50,7 @@ public class UserPlaylistApiController {
         return ResponseEntity.ok(new PaginatedResponseDto<>(playlists, page, size, metaData));
     }
 
+    /** POST /api/user/playlists - nayi playlist banao. */
     @PostMapping
     public ResponseEntity<UserPlaylistDto> createPlaylist(
             @CurrentUser CustomUserDetails currentUser,
@@ -49,6 +58,7 @@ public class UserPlaylistApiController {
         return ResponseEntity.status(HttpStatus.CREATED).body(userPlaylistAppService.createPlaylist(currentUser.getId(), data.name(), data.privacy()));
     }
 
+    /** PUT /api/user/playlists/{id} - naam badlo (sirf owner). */
     @PutMapping("/{id}")
     public ResponseEntity<UserPlaylistDto> renamePlaylist(
             @CurrentUser CustomUserDetails currentUser,
@@ -57,6 +67,7 @@ public class UserPlaylistApiController {
         return ResponseEntity.ok(userPlaylistAppService.renamePlaylist(currentUser.getId(), id, data.name()));
     }
 
+    /** PATCH /api/user/playlists/{id}/privacy - PUBLIC / PRIVATE / SHARE_BY_LINK karo. */
     @PatchMapping("/{id}/privacy")
     public ResponseEntity<UserPlaylistDto> updatePlaylistPrivacy(
             @CurrentUser CustomUserDetails currentUser,
@@ -65,6 +76,7 @@ public class UserPlaylistApiController {
         return ResponseEntity.ok(userPlaylistAppService.updatePlaylistPrivacy(currentUser.getId(), id, data.privacy()));
     }
 
+    /** GET /api/user/playlists/{id} - ek playlist (dekhne ki permission ho to). */
     @GetMapping("/{id}")
     public ResponseEntity<UserPlaylistDto> getPlaylistById(
             @CurrentUser CustomUserDetails currentUser,
@@ -73,6 +85,7 @@ public class UserPlaylistApiController {
         return ResponseEntity.ok(userPlaylistAppService.getPlaylistById(userId, id));
     }
 
+    /** GET /api/user/playlists/{id}/songs - playlist ke songs. */
     @GetMapping("/{id}/songs")
     public ResponseEntity<PaginatedResponseDto<SongDto>> getPlaylistSongs(
             @CurrentUser CustomUserDetails currentUser,
@@ -85,6 +98,7 @@ public class UserPlaylistApiController {
         return ResponseEntity.ok(new PaginatedResponseDto<>(songs, page, size, metaData));
     }
 
+    /** POST /api/user/playlists/{id}/save - doosre ki playlist apni library me save karo. */
     @PostMapping("/{id}/save")
     public ResponseEntity<UserPlaylistDto> savePlaylistToLibrary(
             @CurrentUser CustomUserDetails currentUser,
@@ -92,6 +106,7 @@ public class UserPlaylistApiController {
         return ResponseEntity.status(HttpStatus.CREATED).body(userPlaylistAppService.savePlaylistToLibrary(currentUser.getId(), id));
     }
 
+    /** DELETE /api/user/playlists/{id}/save - library se hatao (unsave). */
     @DeleteMapping("/{id}/save")
     public ResponseEntity<Void> unsavePlaylistFromLibrary(
             @CurrentUser CustomUserDetails currentUser,
@@ -100,6 +115,7 @@ public class UserPlaylistApiController {
         return ResponseEntity.noContent().build();
     }
 
+    /** GET /api/user/playlists/{id}/saved - kya maine ye playlist save ki hai? */
     @GetMapping("/{id}/saved")
     public ResponseEntity<java.util.Map<String, Boolean>> isPlaylistSaved(
             @CurrentUser CustomUserDetails currentUser,
@@ -109,6 +125,7 @@ public class UserPlaylistApiController {
         return ResponseEntity.ok(java.util.Map.of("isSaved", saved));
     }
 
+    /** POST /api/user/playlists/{id}/duplicate - playlist ki apni copy banao. */
     @PostMapping("/{id}/duplicate")
     public ResponseEntity<UserPlaylistDto> duplicatePlaylist(
             @CurrentUser CustomUserDetails currentUser,
@@ -116,6 +133,7 @@ public class UserPlaylistApiController {
         return ResponseEntity.status(HttpStatus.CREATED).body(userPlaylistAppService.duplicatePlaylist(currentUser.getId(), id));
     }
 
+    /** GET /api/user/playlists/shared/{tokenOrId} - share link se playlist kholo. */
     @GetMapping("/shared/{tokenOrId}")
     public ResponseEntity<UserPlaylistDto> getSharedPlaylist(
             @CurrentUser CustomUserDetails currentUser,
@@ -124,6 +142,7 @@ public class UserPlaylistApiController {
         return ResponseEntity.ok(userPlaylistAppService.getSharedPlaylist(tokenOrId, userId));
     }
 
+    /** GET /api/user/playlists/shared/{tokenOrId}/songs - share link wali playlist ke songs. */
     @GetMapping("/shared/{tokenOrId}/songs")
     public ResponseEntity<PaginatedResponseDto<SongDto>> getSharedPlaylistSongs(
             @CurrentUser CustomUserDetails currentUser,
@@ -137,6 +156,7 @@ public class UserPlaylistApiController {
         return ResponseEntity.ok(new PaginatedResponseDto<>(songs, page, size, metaData));
     }
 
+    /** DELETE /api/user/playlists/{id} - playlist delete (sirf owner). */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deletePlaylist(
             @CurrentUser CustomUserDetails currentUser,
@@ -145,6 +165,7 @@ public class UserPlaylistApiController {
         return ResponseEntity.noContent().build();
     }
 
+    /** POST /api/user/playlists/{id}/songs - playlist me song jodo. */
     @PostMapping("/{id}/songs")
     public ResponseEntity<UserPlaylistDto> addSong(
             @CurrentUser CustomUserDetails currentUser,
@@ -153,6 +174,7 @@ public class UserPlaylistApiController {
         return ResponseEntity.ok(userPlaylistAppService.addSong(currentUser.getId(), id, data.songId()));
     }
 
+    /** DELETE /api/user/playlists/{id}/songs/{songId} - playlist se song hatao. */
     @DeleteMapping("/{id}/songs/{songId}")
     public ResponseEntity<UserPlaylistDto> removeSong(
             @CurrentUser CustomUserDetails currentUser,

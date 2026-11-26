@@ -25,6 +25,12 @@ import me.one_org.melody.Security.CurrentUser;
 import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.Api.UserHistoryApiService;
 
+/**
+ * User ki listening history aur recent searches ki API.
+ *
+ * Controller = HTTP request ka pehla stop. Ye sirf request padhta hai, service ko kaam deta hai,
+ * aur response (JSON) lautata hai. Asli logic service me hai.
+ */
 @RestController
 @RequestMapping("/api/user/history")
 @Validated
@@ -36,6 +42,7 @@ public class UserHistoryApiController {
         this.userHistoryAppService = userHistoryAppService;
     }
 
+    /** GET /api/user/history - poori listening history, naya pehle, page by page. */
     @GetMapping
     public ResponseEntity<PaginatedResponseDto<UserHistoryResponseDto>> getHistory(
             @CurrentUser CustomUserDetails currentUser,
@@ -46,18 +53,21 @@ public class UserHistoryApiController {
         return ResponseEntity.ok(new PaginatedResponseDto<>(history, page, size, meta));
     }
 
+    /** GET /api/user/history/recent - recently played (har gaana ek baar). */
     @GetMapping("/recent")
     public ResponseEntity<List<UserHistoryResponseDto>> getRecentlyPlayed(
             @CurrentUser CustomUserDetails currentUser) {
         return ResponseEntity.ok(userHistoryAppService.getRecentlyPlayed(currentUser.getId()));
     }
 
+    /** GET /api/user/history/search - recent searches (type ke hisaab se group). */
     @GetMapping("/search")
     public ResponseEntity<UserSearchHistoryGroupedResponseDto> getSearchHistory(
             @CurrentUser CustomUserDetails currentUser) {
         return ResponseEntity.ok(userHistoryAppService.getSearchHistory(currentUser.getId()));
     }
 
+    /** POST /api/user/history/search - search se kholi cheez recent searches me save karo. */
     @PostMapping("/search")
     public ResponseEntity<Void> saveSearchHistory(
             @CurrentUser CustomUserDetails currentUser,
@@ -66,6 +76,7 @@ public class UserHistoryApiController {
         return ResponseEntity.ok().build();
     }
 
+    /** DELETE /api/user/history/search/{id} - ek recent search hatao. */
     @DeleteMapping("/search/{id}")
     public ResponseEntity<Void> deleteSearchHistoryItem(
             @CurrentUser CustomUserDetails currentUser,
@@ -74,6 +85,7 @@ public class UserHistoryApiController {
         return ResponseEntity.ok().build();
     }
 
+    /** DELETE /api/user/history/search - saari recent searches saaf karo. */
     @DeleteMapping("/search")
     public ResponseEntity<Void> clearSearchHistory(
             @CurrentUser CustomUserDetails currentUser) {

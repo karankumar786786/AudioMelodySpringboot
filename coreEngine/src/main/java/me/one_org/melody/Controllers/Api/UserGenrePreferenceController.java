@@ -23,9 +23,10 @@ import me.one_org.melody.Services.Api.UserGenrePreferenceService;
 
 
 /**
- * P6: Cold-start genre onboarding endpoints.
- * POST /api/preferences/genres  — save selected genres (after registration)
- * GET  /api/preferences/genres  — fetch current preferences
+ * Naye user ke genres (onboarding) ki API. Shuru me user ki history nahi hoti ("cold start"),
+ * tab recommendations inhi genres se bante hain.
+ * POST /api/preferences/genres - chune hue genres save karo (register ke baad)
+ * GET  /api/preferences/genres - abhi ke genres lao
  */
 @RestController
 @RequestMapping("/api/preferences")
@@ -47,6 +48,7 @@ public class UserGenrePreferenceController {
                  @Pattern(regexp = "[^,]+", message = "must not contain commas") String> genres) {}
     record GenrePreferenceResponse(List<String> genres) {}
 
+    /** Genres save karo (purane replace ho jaate hain). */
     @PostMapping("/genres")
     public ResponseEntity<Void> saveGenres(
             @CurrentUser CustomUserDetails currentUser,
@@ -56,6 +58,7 @@ public class UserGenrePreferenceController {
         return ResponseEntity.ok().build();
     }
 
+    /** User ke abhi ke genres. */
     @GetMapping("/genres")
     public ResponseEntity<GenrePreferenceResponse> getGenres(
             @CurrentUser CustomUserDetails currentUser) {

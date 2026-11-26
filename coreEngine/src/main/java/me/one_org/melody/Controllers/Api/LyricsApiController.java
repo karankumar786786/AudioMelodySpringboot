@@ -11,6 +11,12 @@ import jakarta.validation.constraints.NotBlank;
 import me.one_org.melody.Dto.Controllers.Api.LyricsDto;
 import me.one_org.melody.Services.Api.LyricsApiService;
 
+/**
+ * Lyrics API.
+ *
+ * Controller = HTTP request ka pehla stop. Ye sirf request padhta hai, service ko kaam deta hai,
+ * aur response (JSON) lautata hai. Asli logic service me hai.
+ */
 @RestController
 @RequestMapping("/api/lyrics")
 @Validated
@@ -23,8 +29,8 @@ public class LyricsApiController {
     }
 
     /**
-     * Get synchronized and plain lyrics for a song.
-     * Backed by Redis cache (30-day TTL for found lyrics) and LRCLIB fallback.
+     * GET /api/lyrics/{songId} - gaane ke lyrics (synced aur plain).
+     * Pehle Redis cache dekhte hain (mile hue lyrics 30 din cache rehte hain), nahi to lrclib.net se laate hain.
      */
     @GetMapping("/{songId}")
     public ResponseEntity<LyricsDto> getLyrics(

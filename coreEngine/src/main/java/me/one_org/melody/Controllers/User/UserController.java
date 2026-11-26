@@ -16,6 +16,12 @@ import me.one_org.melody.Security.CurrentUser;
 import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.General.UserService;
 
+/**
+ * User profile API: /api/user/profile
+ *
+ * Controller = HTTP request ka pehla stop. Ye sirf request padhta hai, service ko kaam deta hai,
+ * aur response (JSON) lautata hai. Asli logic service me hai.
+ */
 @RestController
 @RequestMapping("/api/user/profile")
 @Validated
@@ -27,12 +33,14 @@ public class UserController {
         this.userService = userService;
     }
 
+    /** GET /api/user/profile - logged-in user ki profile. */
     @GetMapping
     public ResponseEntity<UserDto> getProfile(@CurrentUser CustomUserDetails currentUser) {
         User user = userService.getUserProfile(currentUser.getId());
         return ResponseEntity.ok(UserDto.fromEntity(user));
     }
 
+    /** PUT /api/user/profile - username badlo. */
     @PutMapping
     public ResponseEntity<UserDto> updateProfile(
             @CurrentUser CustomUserDetails currentUser,

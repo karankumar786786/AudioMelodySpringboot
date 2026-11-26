@@ -16,10 +16,11 @@ import me.one_org.melody.Dto.Controllers.Api.ShortsLikeStatusDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
 
 /**
- * Retired: Shorts used to be songs with a canvas loop plus their preview window. Shorts
- * are now their own uploads under /api/shorts; the canvas stays as the player background.
- * These routes answer empty for app versions that still call them, and will be removed
- * together with the user_shorts_likes table.
+ * BAND HO CHUKA (retired) API.
+ * Pehle "short" matlab song ka canvas loop + uska preview hissa tha. Ab shorts alag upload hote
+ * hain (/api/shorts), aur canvas sirf player ke peeche chalne wala background loop hai.
+ * Purane app versions abhi bhi ye URLs call karte hain, isliye ye khaali jawab dete hain
+ * (crash na ho). user_shorts_likes table ke saath ye bhi hata diye jaayenge.
  */
 @RestController
 @RequestMapping("/api/canvas")

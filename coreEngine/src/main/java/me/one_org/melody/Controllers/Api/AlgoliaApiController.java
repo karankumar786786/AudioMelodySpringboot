@@ -13,6 +13,13 @@ import me.one_org.melody.Security.CurrentUser;
 import me.one_org.melody.Security.CustomUserDetails;
 import me.one_org.melody.Services.Api.SearchApiService;
 
+/**
+ * Search API: /api/search?q=...
+ * Flow: app -> yahan -> SearchApiService -> Algolia.
+ *
+ * Controller = HTTP request ka pehla stop. Ye sirf request padhta hai, service ko kaam deta hai,
+ * aur response (JSON) lautata hai. Asli logic service me hai.
+ */
 @RestController
 @RequestMapping("/api/search")
 @Validated
@@ -24,6 +31,7 @@ public class AlgoliaApiController {
         this.searchApiService = searchApiService;
     }
 
+    /** GET /api/search?q=... - songs, artists, playlists aur user playlists ek saath dhoondo. */
     @GetMapping
     public ResponseEntity<SearchResult> search(
             @RequestParam @NotBlank(message = "Search query is required") String q,

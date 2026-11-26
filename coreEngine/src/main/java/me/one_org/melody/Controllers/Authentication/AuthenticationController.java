@@ -23,6 +23,20 @@ import me.one_org.melody.Dto.Internal.ClientInfo;
 import me.one_org.melody.Security.AuthCookies;
 import me.one_org.melody.Services.Authentication.AuthenticationService;
 
+/**
+ * Login / register ki API (/auth/...) - ye sab bina token ke khule hain.
+ *
+ * Flow (OTP se login, password nahi hai):
+ * 1. /auth/register ya /auth/login -> email pe 6 digit OTP, app ko tempToken milta hai
+ * 2. /auth/verify-otp (tempToken + OTP + deviceId) -> access + refresh token
+ * 3. Access token khatam -> /auth/refresh-token -> naye tokens (purana refresh token bekaar)
+ * 4. /auth/logout
+ *
+ * Website ke liye tokens HttpOnly cookies me jaate hain, JSON body me nahi (AuthCookies dekho).
+ *
+ * Controller = HTTP request ka pehla stop. Ye sirf request padhta hai, service ko kaam deta hai,
+ * aur response (JSON) lautata hai. Asli logic service me hai.
+ */
 @RestController
 @RequestMapping("/auth")
 public class AuthenticationController {
@@ -35,6 +49,10 @@ public class AuthenticationController {
         this.authCookies = authCookies;
     }
 
+    /**
+     * POST /auth/register - naya account: OTP email pe bhejo, tempToken lautao.
+     * Email pehle se ho to 409, bahut jaldi jaldi try kiya to 429.
+     */
     @PostMapping("/register")
     public ResponseEntity<AuthTempTokenResponse> register(
             @Valid @RequestBody RegisterRequestDto request,
@@ -44,6 +62,10 @@ public class AuthenticationController {
         return ResponseEntity.status(HttpStatus.CREATED).body(new AuthTempTokenResponse(tempToken));
     }
 
+    /**
+     * POST /auth/verify-otp - OTP check karo; sahi ho to session banao aur tokens do.
+     * isNewUser = true ho to app onboarding dikhata hai.
+     */
     @PostMapping("/verify-otp")
     public ResponseEntity<VerifyOtpResponse> verifyOtp(
             @Valid @RequestBody VerifyOtpRequest verifyRequest,
@@ -63,13 +85,14 @@ public class AuthenticationController {
                 location
         );
         if (AuthCookies.isWebClient(httpRequest)) {
-            // Web: tokens live only in HttpOnly cookies, never in script-readable JSON.
+            // Website: tokens sirf HttpOnly cookies me, JSON me nahi (JavaScript unhe padh na sake).
             authCookies.writeTokens(httpResponse, response.accessToken(), response.refreshToken());
             return ResponseEntity.ok(new VerifyOtpResponse(null, null, response.isNewUser()));
         }
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
+    /** POST /auth/resend-otp - OTP dobara bhejo (cooldown ke baad hi). */
     @PostMapping("/resend-otp")
     public ResponseEntity<AuthTempTokenResponse> resendOtp(
             @Valid @RequestBody ResendOtpRequestDto request,
@@ -79,6 +102,7 @@ public class AuthenticationController {
         return ResponseEntity.status(HttpStatus.OK).body(new AuthTempTokenResponse(token));
     }
 
+    /** POST /auth/login - purane user ko OTP bhejo, tempToken lautao. */
     @PostMapping("/login")
     public ResponseEntity<AuthTempTokenResponse> login(
             @Valid @RequestBody LoginRequestDto request,
@@ -88,6 +112,10 @@ public class AuthenticationController {
         return ResponseEntity.status(HttpStatus.OK).body(new AuthTempTokenResponse(tempToken));
     }
 
+    /**
+     * POST /auth/refresh-token - refresh token se naya access + refresh token.
+     * Mobile body me refresh token bhejta hai, website cookie me.
+     */
     @PostMapping("/refresh-token")
     public ResponseEntity<RefreshTokenResponseDto> refreshToken(
             @Valid @RequestBody RefreshTokenRequestDto request,
@@ -113,9 +141,10 @@ public class AuthenticationController {
     }
 
     /**
-     * Web logout: revokes the session identified by the auth cookies (blacklisting the
-     * access token) and clears them. Public so it still clears cookies when the access
-     * token has already expired; requires the web client header like every cookie request.
+     * POST /auth/logout - website ka logout. Cookies se session pehchaan ke band karta hai
+     * (access token blacklist me) aur cookies mita deta hai.
+     * Ye endpoint bina login ke bhi khula hai, taaki token expire ho chuka ho tab bhi cookies saaf ho jaayein.
+     * Baaki cookie requests ki tarah X-Melody-Client header zaroori hai.
      */
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(

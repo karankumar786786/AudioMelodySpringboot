@@ -15,6 +15,12 @@ import me.one_org.melody.Dto.Controllers.Api.PaginationMetaDataDto;
 import me.one_org.melody.Dto.Controllers.Api.SongDto;
 import me.one_org.melody.Services.Api.SongsApiService;
 
+/**
+ * Songs API: list, trending, featured, videos, ek song, album, country.
+ *
+ * Controller = HTTP request ka pehla stop. Ye sirf request padhta hai, service ko kaam deta hai,
+ * aur response (JSON) lautata hai. Asli logic service me hai.
+ */
 @RestController
 @RequestMapping("/api/songs")
 @Validated
@@ -26,6 +32,7 @@ public class SongsApiController {
         this.songsAppService = songsAppService;
     }
 
+    /** GET /api/songs?page=&size= - saare songs, page by page. */
     @GetMapping
     public ResponseEntity<PaginatedResponseDto<SongDto>> getAllSongs(
             @RequestParam(defaultValue = "0") int page,
@@ -35,6 +42,7 @@ public class SongsApiController {
         return ResponseEntity.ok(new PaginatedResponseDto<>(songs, page, size, metaData));
     }
 
+    /** GET /api/songs/trending?limit=&window=&genre= - trending songs. */
     @GetMapping("/trending")
     public ResponseEntity<List<SongDto>> getTrendingSongs(
             @RequestParam(defaultValue = "10") int limit,
@@ -46,11 +54,13 @@ public class SongsApiController {
                 .body(songsAppService.getTrendingSongs(limit, window, genre, language));
     }
 
+    /** GET /api/songs/featured - admin ke featured songs. */
     @GetMapping("/featured")
     public ResponseEntity<List<SongDto>> getFeaturedSongs() {
         return ResponseEntity.ok(songsAppService.getFeaturedSongs());
     }
 
+    /** GET /api/songs/videos?limit= - jin songs ka music video hai. */
     @GetMapping("/videos")
     public ResponseEntity<List<SongDto>> getSongsWithVideo(@RequestParam(defaultValue = "15") int limit) {
         return ResponseEntity.ok()
@@ -58,6 +68,7 @@ public class SongsApiController {
                 .body(songsAppService.getSongsWithVideo(limit));
     }
 
+    /** GET /api/songs/{id} - ek song. Na mile to 404. */
     @GetMapping("/{id}")
     public ResponseEntity<SongDto> getSongById(@PathVariable @NotBlank(message = "Song ID is required") String id) {
         return ResponseEntity.ok()
@@ -65,16 +76,19 @@ public class SongsApiController {
                 .body(songsAppService.getSongById(id));
     }
 
+    /** GET /api/songs/album/{albumName} - album ke songs. */
     @GetMapping(value = {"/album/{albumName}", "/album/{albumName}/songs"})
     public ResponseEntity<List<SongDto>> getSongsByAlbum(@PathVariable @NotBlank(message = "Album name is required") String albumName) {
         return ResponseEntity.ok(songsAppService.getSongsByAlbum(albumName));
     }
 
+    /** GET /api/songs/country/{countryName} - ek country ke songs. */
     @GetMapping(value = {"/country/{countryName}", "/country/{countryName}/songs"})
     public ResponseEntity<List<SongDto>> getSongsByCountry(@PathVariable @NotBlank(message = "Country name is required") String countryName) {
         return ResponseEntity.ok(songsAppService.getSongsByCountry(countryName));
     }
 
+    /** GET /api/songs/albums - saare albums ki list. */
     @GetMapping("/albums")
     public ResponseEntity<List<me.one_org.melody.Dto.Controllers.AlbumDto>> getAllAlbums() {
         return ResponseEntity.ok()
