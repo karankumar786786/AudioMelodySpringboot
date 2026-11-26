@@ -52,6 +52,7 @@ jobs:
               - '.github/workflows/work.yml'
             admin:
               - 'adminBackend/**'
+              - 'migration/src/main/resources/db/migration/**'
               - '.github/workflows/work.yml'
             audioprocessing:
               - 'audioProcessing/**'
@@ -148,9 +149,33 @@ jobs:
     needs: changes
     if: needs.changes.outputs.admin == 'true' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    services:
+      # Throwaway Postgres with every Flyway migration applied, so the schema-drift test
+      # can check that Django's unmanaged models still match the real schema.
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: melody
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Apply Flyway Migrations
+        env:
+          PGPASSWORD: postgres
+        run: |
+          for f in $(ls migration/src/main/resources/db/migration/V*.sql | sort -V); do
+            echo "Applying $f"
+            psql -h localhost -U postgres -d melody -v ON_ERROR_STOP=1 -q -f "$f"
+          done
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -180,6 +205,8 @@ jobs:
 
       - name: Run Django Test Suite
         working-directory: ./adminBackend/admin
+        env:
+          SCHEMA_CHECK_DB_URL: postgresql://postgres:postgres@localhost:5432/melody
         run: uv run python manage.py test
 
   # =========================================================================
