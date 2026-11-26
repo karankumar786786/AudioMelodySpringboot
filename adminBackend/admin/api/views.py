@@ -1,12 +1,5 @@
-"""
-Backwards compatibility facade for views.
-All views have been decomposed and moved into dedicated domain apps:
-- dashboard.views
-- accounts.views
-- catalog.views
-- jobs.views
-- webhooks.views
-- core.views
+"""Purane imports ke liye "facade" (sirf aage bhejta hai).
+Saare views ab apne apps me hain: dashboard, accounts, catalog, jobs, webhooks, core.
 """
 from django.shortcuts import get_object_or_404
 

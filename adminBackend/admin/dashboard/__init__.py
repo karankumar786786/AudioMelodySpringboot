@@ -1,4 +1,2 @@
-"""
-Dashboard application providing system metrics, health probes, and global search.
-"""
+"""dashboard app: system metrics, health checks aur global search."""
 default_app_config = "dashboard.apps.DashboardConfig"

@@ -1,6 +1,5 @@
-"""
-Backwards compatibility facade for serializers.
-Distributed to:
+"""Purane imports ke liye "facade" (sirf aage bhejta hai).
+Asli serializers:
 - core.serializers (PaginationMetadataSerializer)
 - accounts.serializers (AdminSerializer, UserSerializer, UserSessionSerializer)
 - catalog.serializers (SongSerializer, ArtistSerializer, PlaylistSerializer)

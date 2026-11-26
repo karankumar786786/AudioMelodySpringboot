@@ -3,6 +3,7 @@ from .models import Admin, Session, User
 
 
 class AdminSerializer(serializers.ModelSerializer):
+    """Admin row ko JSON me badalta hai (admin dashboard ke profile ke liye)."""
     userName = serializers.CharField(source="name", required=False, allow_null=True)
     name = serializers.CharField(required=False, allow_null=True)
     createdAt = serializers.DateTimeField(source="created_at", format="%Y-%m-%dT%H:%M:%S", required=False)
@@ -23,6 +24,7 @@ class AdminSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    """User row ko JSON me badalta hai (accounts list ke liye)."""
     userName = serializers.CharField(source="user_name", required=False, allow_null=True)
     role = serializers.CharField(read_only=True)
     createdAt = serializers.DateTimeField(source="created_at", format="%Y-%m-%dT%H:%M:%S", required=False)
@@ -40,6 +42,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserSessionSerializer(serializers.ModelSerializer):
+    """User ke ek device session ko JSON me badalta hai."""
     deviceId = serializers.CharField(source="device_id")
     deviceName = serializers.CharField(source="device_name", required=False, allow_null=True)
     ipAddress = serializers.CharField(source="ip_address", required=False, allow_null=True)

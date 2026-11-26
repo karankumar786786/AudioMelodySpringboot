@@ -1,7 +1,4 @@
-"""
-Backwards compatibility facade for S3Service.
-Moved to core.services.s3_service
-"""
+"""Purane imports ke liye "facade" (sirf aage bhejta hai). Asli code ab core.services.s3_service me hai."""
 # pyrefly: ignore[missing-import]
 from core.services.s3_service import S3Service
 

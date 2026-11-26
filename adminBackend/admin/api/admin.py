@@ -1,3 +1,3 @@
 from django.contrib import admin
 
-# Register your models here.
+# Yahan models ko Django admin panel me register karte hain.

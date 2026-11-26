@@ -4,6 +4,9 @@ from core.models import generate_uuid
 
 
 class Job(models.Model):
+    """jobs table - ek gaana upload hone ka poora safar: keys, stage, timings, audio features.
+    status (PENDING/PROCESSING/COMPLETED/FAILED) aur current_stage (QUEUED -> TRANSCODING -> ... -> COMPLETED).
+    """
     id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
     title = models.CharField(max_length=255)
     artist_name = models.CharField(max_length=255, db_column="artist_name")
@@ -68,6 +71,7 @@ class Job(models.Model):
 
 
 class DeleteJob(models.Model):
+    """delete_jobs table - kisi song / playlist / artist ko har jagah se hatane ka safar (search, recommendation, ImageKit, S3, DB)."""
     id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
     entity_type = models.CharField(max_length=255, db_column="entity_type")
     entity_id = models.CharField(max_length=255, db_column="entity_id")

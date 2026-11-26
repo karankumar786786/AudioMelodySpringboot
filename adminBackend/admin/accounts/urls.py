@@ -23,7 +23,7 @@ from .views import (
 app_name = "accounts"
 
 urlpatterns = [
-    # Authentication & User Profile for adminFrontend
+    # Admin dashboard ke liye login aur profile
     path("auth/login", AdminLoginView.as_view(), name="auth-login"),
     path("auth/register", AdminRegisterView.as_view(), name="auth-register"),
     path("auth/verify-otp", AdminVerifyOtpView.as_view(), name="auth-verify-otp"),
@@ -32,7 +32,7 @@ urlpatterns = [
     path("auth/logout", AdminLogoutView.as_view(), name="auth-logout"),
     path("api/user/profile", AdminProfileView.as_view(), name="api-user-profile"),
 
-    # Admin prefixed aliases
+    # /admin/ ke aage wale doosre naam (aliases)
     path("admin/auth/login", AdminLoginView.as_view(), name="admin-auth-login"),
     path("admin/auth/register", AdminRegisterView.as_view(), name="admin-auth-register"),
     path("admin/auth/verify-otp", AdminVerifyOtpView.as_view(), name="admin-auth-verify-otp"),
@@ -41,12 +41,12 @@ urlpatterns = [
     path("admin/auth/profile", AdminProfileView.as_view(), name="admin-auth-profile"),
     path("admin/auth/me", AdminProfileView.as_view(), name="admin-auth-me"),
 
-    # Admin Sessions & Security Management
+    # Admin ke sessions aur security
     path("admin/auth/sessions/revoke-all", AdminSessionRevokeView.as_view(), name="admin-auth-sessions-revoke-all"),
     path("admin/auth/sessions/<str:session_id>", AdminSessionRevokeView.as_view(), name="admin-auth-session-revoke"),
     path("admin/auth/sessions", AdminSessionsListView.as_view(), name="admin-auth-sessions"),
 
-    # Account Management
+    # App users ke accounts
     path("admin/account/<str:email>/sessions/revoke-all", AccountSessionRevokeAllView.as_view(), name="admin-account-sessions-revoke-all"),
     path("admin/account/<str:email>/sessions/<str:session_id>", AccountSessionRevokeView.as_view(), name="admin-account-session-revoke"),
     path("admin/account/<str:email>/sessions", AccountSessionsListView.as_view(), name="admin-account-sessions"),

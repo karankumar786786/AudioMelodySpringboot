@@ -25,13 +25,12 @@ logger = logging.getLogger(__name__)
 
 
 def set_auth_cookies(response: Response, session_id: str, refresh_session_id: str = "") -> None:
-    """
-    Sets secure, HTTP-only authentication cookies on the HTTP response.
-    - admin_session: stateful Redis access session ID
-    - refresh_session: stateful Redis refresh session ID
+    """Response pe secure, HttpOnly login cookies lagao:
+    - admin_session: Redis access session id
+    - refresh_session: Redis refresh session id
     """
     is_secure = not settings.DEBUG
-    # admin_session cookie (HTTP-only)
+    # admin_session cookie (HttpOnly: browser ka JavaScript ise padh nahi sakta)
     response.set_cookie(
         key="admin_session",
         value=session_id,
@@ -67,38 +66,38 @@ _SESSION_BODY_KEYS = ("sessionId", "refreshSessionId", "accessToken", "refreshTo
 
 
 def is_web_cookie_client(request) -> bool:
-    """The admin web app opts in with X-Admin-Client: web and relies on the HttpOnly cookies."""
+    """Admin website "X-Admin-Client: web" header bhejti hai aur HttpOnly cookies pe chalti hai - wahi check."""
     return (request.headers.get(WEB_CLIENT_HEADER) or "").strip().lower() == "web"
 
 
 def session_body(request, tokens: dict) -> dict:
-    """Leave session IDs out of the JSON body for the web app; scripts never need them."""
+    """Website ke liye JSON body me session ids mat bhejo (cookies me hain); scripts ko inki zaroorat nahi."""
     if not is_web_cookie_client(request):
         return tokens
     return {k: v for k, v in tokens.items() if k not in _SESSION_BODY_KEYS}
 
 
 def clear_auth_cookies(response: Response) -> None:
-    """Clears all admin authentication cookies."""
+    """Saari admin login cookies mita do."""
     for key in ("admin_session", "session_id", "refresh_session", "refresh_token", "access_token"):
         response.delete_cookie(key, path="/", samesite="Lax")
 
 
 # ==============================================================================
-# Admin Authentication & Session Management
+# Admin login aur sessions
 # ==============================================================================
 
 class AdminLoginView(APIView):
-    """
-    POST /auth/login
-    Accepts { "email": "...", "password": "..." }
-    Verifies admin exists in admin_users table and generates an OTP.
-    Returns { "tempToken": "<tempToken>", "message": "OTP sent" }
+    """POST /auth/login
+    Body: { "email": "...", "password": "..." }
+    Check karta hai ki admin admin_users table me hai, phir OTP banata hai.
+    Jawab: { "tempToken": "<tempToken>", "message": "OTP sent" }
     """
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """Email + password check karo, sahi ho to OTP bhejo aur tempToken lautao. Galat ho to error."""
         email = (request.data.get("email") or "").strip().lower()
         if not email:
             return Response({"message": "Email is required"}, status=status.HTTP_400_BAD_REQUEST)
@@ -148,15 +147,15 @@ class AdminLoginView(APIView):
 
 
 class AdminRegisterView(APIView):
-    """
-    POST /auth/register
-    Accepts { "userName": "...", "email": "...", "password": "..." }
-    Initiates registration of a new admin in admin_users table via OTP.
+    """POST /auth/register
+    Body: { "userName": "...", "email": "...", "password": "..." }
+    Naya admin OTP ke through register karna shuru karta hai.
     """
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """Naye admin ka data rakh ke OTP bhejo; asli account OTP verify hone par banta hai."""
         email = (request.data.get("email") or "").strip().lower()
         name = (request.data.get("userName") or request.data.get("name") or "").strip()
 
@@ -171,7 +170,7 @@ class AdminRegisterView(APIView):
                 status=status.HTTP_409_CONFLICT,
             )
 
-        # First registered admin automatically becomes SUPER_ADMIN, otherwise ADMIN
+        # Sabse pehla admin apne aap SUPER_ADMIN banta hai, baaki ADMIN
         assigned_role = "SUPER_ADMIN" if Admin.objects.count() == 0 else "ADMIN"
         otp = AdminAuthService.generate_otp()
         temp_token = AdminAuthService.create_temp_token(email, purpose="REGISTER")
@@ -195,17 +194,16 @@ class AdminRegisterView(APIView):
 
 
 class AdminVerifyOtpView(APIView):
-    """
-    POST /auth/verify-otp
-    Header: X-TEMP-TOKEN: <tempToken> (or body { "token": "..." })
-    Body: { "otp": "..." }
-    Verifies OTP, establishes Redis session, sets HTTP-only cookies,
-    and returns { "sessionId": "...", "accessToken": "...", "refreshToken": "..." }
+    """POST /auth/verify-otp
+    Header: X-TEMP-TOKEN: <tempToken> (ya body { "token": "..." }), Body: { "otp": "..." }
+    OTP check, Redis session banao, HttpOnly cookies lagao,
+    aur { "sessionId", "accessToken", "refreshToken" } lautao.
     """
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """OTP check karo; sahi ho to sessions banao, web app ke liye cookies lagao aur tokens lautao."""
         temp_token = (
             request.headers.get("X-TEMP-TOKEN")
             or request.headers.get("x-temp-token")
@@ -296,15 +294,15 @@ class AdminVerifyOtpView(APIView):
 
 
 class AdminResendOtpView(APIView):
-    """
-    POST /auth/resend-otp
+    """POST /auth/resend-otp
     Header: X-TEMP-TOKEN: <tempToken>
-    Generates and resends a new OTP code.
+    Naya OTP bana ke dobara bhejo.
     """
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """Usi tempToken ke liye naya OTP bhejo."""
         temp_token = (
             request.headers.get("X-TEMP-TOKEN")
             or request.headers.get("x-temp-token")
@@ -341,15 +339,15 @@ class AdminResendOtpView(APIView):
 
 
 class AdminRefreshTokenView(APIView):
-    """
-    POST /auth/refresh-token
-    Accepts refreshSessionId from HTTP-Only cookie OR request body { "refreshSessionId": "..." }
-    Validates refresh session in Redis and issues a fresh pair of active Redis sessions.
+    """POST /auth/refresh-token
+    refreshSessionId HttpOnly cookie se ya body { "refreshSessionId": "..." } se.
+    Redis me refresh session check karke naye active sessions ka joda deta hai.
     """
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """Refresh session valid ho to purane band karke naya joda (access + refresh) do."""
         refresh_id = (
             request.COOKIES.get("refresh_session")
             or request.COOKIES.get("refresh_token")
@@ -372,7 +370,7 @@ class AdminRefreshTokenView(APIView):
         email = refresh_data.get("email")
         old_sid = refresh_data.get("sessionId")
 
-        # Invalidate old access session
+        # Purana access session band karo
         if old_sid:
             RedisService.revoke_admin_session(old_sid)
 
@@ -388,7 +386,7 @@ class AdminRefreshTokenView(APIView):
             clear_auth_cookies(res)
             return res
 
-        # Rotate: revoke old refresh session and issue new pair
+        # Rotation: purana refresh session band aur naya joda do
         RedisService.revoke_refresh_session(refresh_id)
         tokens = AdminAuthService.issue_tokens_for_admin(admin, request)
         res = Response(session_body(request, tokens), status=status.HTTP_200_OK)
@@ -398,11 +396,12 @@ class AdminRefreshTokenView(APIView):
 
 class AdminProfileView(BaseAdminView):
     """
-    GET /api/user/profile (and /auth/me, /admin/auth/me)
+    GET /api/user/profile (aur /admin/auth/profile, /admin/auth/me)
     PATCH /api/user/profile
-    Manages authenticated admin profile.
+    Logged-in admin ka apna profile dekhna aur badalna.
     """
     def get(self, request):
+        """Logged-in admin ka profile lautao."""
         user = request.user
         last_login = None
         if getattr(request, "session_id", None) not in RedisService._MEMORY_SESSIONS:
@@ -427,6 +426,7 @@ class AdminProfileView(BaseAdminView):
         return Response(session_body(request, body), status=status.HTTP_200_OK)
 
     def patch(self, request):
+        """Logged-in admin ka naam jaisi profile fields badlo."""
         user = request.user
         admin = Admin.objects.filter(id=user.id).first()
         if not admin and user.email:
@@ -454,14 +454,14 @@ class AdminProfileView(BaseAdminView):
 
 
 class AdminLogoutView(APIView):
-    """
-    POST /auth/logout
-    Instantly revokes Redis session and clears HTTP-only authentication cookies.
+    """POST /auth/logout
+    Redis session turant band aur login cookies saaf.
     """
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """Is admin ka session band karo aur cookies hatao."""
         session_id = (
             request.headers.get("X-Session-Id")
             or request.headers.get("X-Admin-Session")
@@ -493,11 +493,11 @@ class AdminLogoutView(APIView):
 
 
 class AdminSessionsListView(BaseAdminView):
-    """
-    GET /admin/auth/sessions
-    Returns all active Redis sessions for the current administrator.
+    """GET /admin/auth/sessions
+    Is admin ke saare active Redis sessions.
     """
     def get(self, request):
+        """Is admin ke saare active sessions lautao."""
         user = request.user
         current_sid = getattr(request, "session_id", None) or request.COOKIES.get("admin_session")
         sessions = RedisService.list_user_sessions(user.email, current_session_id=current_sid)
@@ -505,13 +505,11 @@ class AdminSessionsListView(BaseAdminView):
 
 
 class AdminSessionRevokeView(BaseAdminView):
-    """
-    DELETE /admin/auth/sessions/<session_id>
-    Revokes a specific session.
-    POST /admin/auth/sessions/revoke-all
-    Revokes all sessions except the current one.
+    """DELETE /admin/auth/sessions/<session_id> - ek session band karo.
+    POST /admin/auth/sessions/revoke-all - is wale ko chhod ke baaki sab band.
     """
     def delete(self, request, session_id):
+        """Ek session_id wala session band karo."""
         user = request.user
         sess = RedisService.get_admin_session(session_id)
         if sess and sess.get("email", "").lower() != user.email.lower() and not getattr(user, "is_super_admin", False):
@@ -521,6 +519,7 @@ class AdminSessionRevokeView(BaseAdminView):
         return Response({"message": f"Session {session_id} revoked successfully"}, status=status.HTTP_200_OK)
 
     def post(self, request):
+        """Abhi wale session ko chhod ke baaki saare band karo."""
         user = request.user
         current_sid = getattr(request, "session_id", None) or request.COOKIES.get("admin_session")
         revoked = RedisService.revoke_all_admin_sessions(user.email, except_session_id=current_sid)
@@ -528,11 +527,15 @@ class AdminSessionRevokeView(BaseAdminView):
 
 
 # ==============================================================================
-# End-User Accounts Management Views
+# App users ke accounts sambhalne wale views
 # ==============================================================================
 
 class AccountListView(BaseAdminView):
+    """GET /admin/account - app users ki list (search, role, status filter ke saath)."""
     def get(self, request):
+        """Filters lagao aur page karo. Koi filter na ho to total count pagination metadata se
+        (sasta), filter ho to asli COUNT query se.
+        """
         page = int(request.query_params.get("page", 0))
         size = int(request.query_params.get("size", 20))
         search = (request.query_params.get("search") or "").strip()
@@ -576,9 +579,13 @@ class AccountListView(BaseAdminView):
 
 
 class AccountDeleteView(BaseAdminView):
+    """DELETE (ya POST) /admin/account/<email>/delete - user ko poora hatao (sirf Super Admin)."""
     permission_classes = [IsSuperAdminUserPermission]
 
     def delete(self, request, email):
+        """Super Admin khud ko delete nahi kar sakta (400). Recombee, sessions, Redis block,
+        counter aur admin row ke baad user row hatao. Output: 204.
+        """
         user = get_object_or_404(User, email=email)
         admin_rec = Admin.objects.filter(email=email).first()
         if admin_rec and admin_rec.role == "SUPER_ADMIN" and user.id == request.user.id:
@@ -593,13 +600,16 @@ class AccountDeleteView(BaseAdminView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def post(self, request, email):
+        """POST bhi DELETE jaisa hi chalta hai."""
         return self.delete(request, email)
 
 
 class AccountUpgradeView(BaseAdminView):
+    """POST /admin/account/<email> - user ko ADMIN banao (sirf Super Admin). DELETE = user delete."""
     permission_classes = [IsSuperAdminUserPermission]
 
     def post(self, request, email):
+        """Pehle se admin ho to 409. Warna admin_users me ACTIVE ADMIN row banao / update karo. Output: 202."""
         user = get_object_or_404(User, email=email)
         admin_rec = Admin.objects.filter(email=email).first()
         if admin_rec and admin_rec.role in ("ADMIN", "SUPER_ADMIN"):
@@ -614,11 +624,16 @@ class AccountUpgradeView(BaseAdminView):
         return Response(status=status.HTTP_202_ACCEPTED)
 
     def delete(self, request, email):
+        """AccountDeleteView.delete ko hi chalata hai."""
         return AccountDeleteView().delete(request, email)
 
 
 class AccountBlockView(BaseAdminView):
+    """POST /admin/account/<email>/block - user ko block karo."""
     def post(self, request, email):
+        """Super Admin block nahi hota (409); admin ko sirf Super Admin block kar sakta hai (403).
+        Status BLOCKED, Redis me bhi block taaki core API turant mana kare.
+        """
         user = get_object_or_404(User, email=email)
         admin_rec = Admin.objects.filter(email=email).first()
         if admin_rec and admin_rec.role == "SUPER_ADMIN":
@@ -639,7 +654,9 @@ class AccountBlockView(BaseAdminView):
 
 
 class AccountUnblockView(BaseAdminView):
+    """POST /admin/account/<email>/unblock - user ko wapas ACTIVE karo."""
     def post(self, request, email):
+        """Admin ko sirf Super Admin unblock kar sakta hai (403). Status ACTIVE aur Redis block hatao."""
         user = get_object_or_404(User, email=email)
         admin_rec = Admin.objects.filter(email=email).first()
         if admin_rec and admin_rec.role == "ADMIN" and not getattr(request.user, "is_super_admin", False):
@@ -657,9 +674,11 @@ class AccountUnblockView(BaseAdminView):
 
 
 class AccountDemoteView(BaseAdminView):
+    """POST /admin/account/<email>/demote - admin ko wapas normal user banao (sirf Super Admin)."""
     permission_classes = [IsSuperAdminUserPermission]
 
     def post(self, request, email):
+        """Admin na ho to 400, Super Admin ho to 409; warna admin row hatao."""
         user = get_object_or_404(User, email=email)
         admin_rec = Admin.objects.filter(email=email).first()
         if not admin_rec:
@@ -671,11 +690,11 @@ class AccountDemoteView(BaseAdminView):
 
 
 class AccountSessionsListView(BaseAdminView):
-    """
-    GET /admin/account/<str:email>/sessions
-    Lists all active client sessions (devices) for a user.
+    """GET /admin/account/<email>/sessions
+    App user ke saare login sessions (devices).
     """
     def get(self, request, email):
+        """User ke saare device sessions lautao."""
         user = get_object_or_404(User, email=email)
         sessions = Session.objects.filter(user=user).order_by("-updated_at")
         return Response({
@@ -686,11 +705,11 @@ class AccountSessionsListView(BaseAdminView):
 
 
 class AccountSessionRevokeView(BaseAdminView):
-    """
-    DELETE /admin/account/<str:email>/sessions/<str:session_id>
-    Revokes a specific client device session.
+    """DELETE /admin/account/<email>/sessions/<session_id>
+    User ka ek device session band karo.
     """
     def delete(self, request, email, session_id):
+        """User ka ek device session band karo; na mile to 404."""
         user = get_object_or_404(User, email=email)
         deleted_count, _ = Session.objects.filter(user=user, id=session_id).delete()
         if deleted_count == 0:
@@ -699,11 +718,11 @@ class AccountSessionRevokeView(BaseAdminView):
 
 
 class AccountSessionRevokeAllView(BaseAdminView):
-    """
-    POST /admin/account/<str:email>/sessions/revoke-all
-    Revokes all client device sessions for the user.
+    """POST /admin/account/<email>/sessions/revoke-all
+    User ke saare device sessions band karo.
     """
     def post(self, request, email):
+        """User ke saare device sessions band karo aur kitne band hue wo batao."""
         user = get_object_or_404(User, email=email)
         deleted_count, _ = Session.objects.filter(user=user).delete()
         return Response({"message": f"Revoked {deleted_count} session(s) for {user.email}"}, status=status.HTTP_200_OK)

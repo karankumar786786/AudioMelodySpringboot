@@ -22,25 +22,24 @@ from django.conf import settings
 
 
 class HealthCheckView(APIView):
-    """
-    Lightweight, unauthenticated health check endpoint for container probes & Caddy.
-    """
+    """Bina login ka halka health check (container probes aur Caddy ke liye)."""
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def get(self, request):
+        """Hamesha { status: UP, service: admin } lautao - DB check nahi karta, bas process zinda hai ye batata hai."""
         return Response({"status": "UP", "service": "admin"}, status=status.HTTP_200_OK)
 
 
 class TelemetryHeartbeatView(APIView):
-    """
-    POST /api/telemetry/heartbeat/ and /webhook/telemetry/heartbeat/
-    Receives periodic health pings and CPU utilization telemetry from audioProcessing worker.
+    """POST /api/telemetry/heartbeat/ aur /webhook/telemetry/heartbeat/
+    Media pipeline ke heartbeats aur CPU telemetry yahan aate hain.
     """
     authentication_classes = []
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """X-API-KEY check karo (key set ho aur match na kare to 401), phir heartbeat save karke ack lautao."""
         api_key = request.headers.get("X-API-KEY") or request.headers.get("X-Api-Key")
         expected_key = getattr(settings, "APPLICATION_API_KEY", None)
         if expected_key and (not api_key or api_key != expected_key):
@@ -51,27 +50,27 @@ class TelemetryHeartbeatView(APIView):
 
 
 class SystemHealthView(BaseAdminView):
-    """
-    GET /admin/system/health and /api/system/health
-    Aggregated health and live CPU telemetry for admin frontend dashboards.
+    """GET /admin/system/health (aur /api/system/health)
+    Admin dashboard ke liye health aur live CPU telemetry.
     """
     def get(self, request):
+        """SystemHealthService se health ka poora summary lautao."""
         health_data = SystemHealthService.get_system_health()
         return Response(health_data, status=status.HTTP_200_OK)
 
 
 
 class GlobalSearchView(BaseAdminView):
-    """
-    GET /api/search?q=<query> and /admin/search?q=<query>
-    Unified multi-entity search for songs, artists, and playlists used by GlobalSearch component.
+    """GET /admin/search?q=<query> (aur /api/search)
+    Songs, artists, playlists ek saath dhoondo - dashboard ka GlobalSearch isko use karta hai.
     """
     def get(self, request):
+        """q 2 akshar se chhota ho to khaali lists. Warna songs, artists aur playlists DB me naam se dhoondo."""
         q = (request.query_params.get("q") or "").strip()
         if not q or len(q) < 2:
             return Response({"songs": [], "artists": [], "playlists": []}, status=status.HTTP_200_OK)
 
-        # 1. Search Songs
+        # 1. Songs dhoondo
         songs_qs = Song.objects.filter(
             Q(title__icontains=q)
             | Q(artist_name__icontains=q)
@@ -92,7 +91,7 @@ class GlobalSearchView(BaseAdminView):
             for s in songs_qs
         ]
 
-        # 2. Search Artists
+        # 2. Artists dhoondo
         artists_qs = Artist.objects.filter(
             name__icontains=q,
             status="ACTIVE",
@@ -107,7 +106,7 @@ class GlobalSearchView(BaseAdminView):
             for a in artists_qs
         ]
 
-        # 3. Search Playlists
+        # 3. Playlists dhoondo
         playlists_qs = Playlist.objects.filter(
             name__icontains=q,
             status="ACTIVE",
@@ -130,11 +129,11 @@ class GlobalSearchView(BaseAdminView):
 
 
 class DashboardStatsView(BaseAdminView):
-    """
-    GET /admin/dashboard/stats
-    Aggregated telemetry and entity counters for executive admin dashboards.
+    """GET /admin/dashboard/stats
+    Dashboard ke liye counts aur telemetry ek saath.
     """
     def get(self, request):
+        """Songs, artists, playlists, users ke counters aur jobs ke counts ek JSON me lautao."""
         songs_meta = PaginationMetadataService.get_metadata("SongsEntity")
         artists_meta = PaginationMetadataService.get_metadata("ArtistsEntity")
         playlists_meta = PaginationMetadataService.get_metadata("PlaylistsEntity")

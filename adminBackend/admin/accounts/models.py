@@ -4,6 +4,9 @@ from core.models import generate_uuid
 
 
 class Admin(models.Model):
+    """admin_users table ki ek row = ek admin (email, role ADMIN / SUPER_ADMIN, status).
+    managed=False: table Flyway banata hai, Django sirf padhta / likhta hai.
+    """
     id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
     email = models.CharField(unique=True, max_length=255)
     name = models.CharField(max_length=255, blank=True, null=True, db_column="name")
@@ -18,6 +21,7 @@ class Admin(models.Model):
 
     @property
     def user_name(self):
+        """Purana naam 'user_name' - asal column 'name' hai. Dono naam se kaam chale isliye property."""
         return self.name
 
     @user_name.setter
@@ -29,6 +33,7 @@ class Admin(models.Model):
 
 
 class User(models.Model):
+    """users table - app ke normal users (core API inhe banata hai)."""
     id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
     user_name = models.CharField(max_length=255, blank=True, null=True, db_column="user_name")
     email = models.CharField(unique=True, max_length=255)
@@ -41,6 +46,7 @@ class User(models.Model):
 
     @property
     def role(self):
+        """User ka role: admin_users me same email mile to wahi role, warna 'USER'. Har call pe ek DB query hoti hai."""
         if not self.email:
             return "USER"
         admin = Admin.objects.filter(email=self.email).first()
@@ -51,6 +57,7 @@ class User(models.Model):
 
 
 class Session(models.Model):
+    """sessions table - app user ka ek logged-in device (refresh token, expiry, IP, location)."""
     id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
     user = models.ForeignKey(User, on_delete=models.CASCADE, db_column="user_id", related_name="sessions")
     device_id = models.CharField(max_length=255, db_column="device_id")

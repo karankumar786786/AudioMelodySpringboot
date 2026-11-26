@@ -1,4 +1,2 @@
-"""
-Jobs application managing asynchronous transcoding jobs, media pipelines, and cascading deletions.
-"""
+"""jobs app: transcoding jobs (media pipeline) aur delete jobs (cleanup chain)."""
 default_app_config = "jobs.apps.JobsConfig"

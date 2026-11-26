@@ -19,7 +19,7 @@ from .views import (
 app_name = "jobs"
 
 urlpatterns = [
-    # Jobs (static routes first)
+    # Upload jobs (fixed routes pehle, warna <id> wale route unhe pakad lete)
     path("admin/jobs/summary", JobSummaryView.as_view(), name="admin-jobs-summary"),
     path("admin/jobs/queues", JobQueuesView.as_view(), name="admin-jobs-queues"),
     path("admin/jobs/active", JobActiveView.as_view(), name="admin-jobs-active"),
@@ -36,7 +36,7 @@ urlpatterns = [
     path("admin/jobs/<str:pk>/recover-media", JobRecoverMediaView.as_view(), name="admin-jobs-recover-media"),
     path("admin/jobs/<str:pk>", JobDetailView.as_view(), name="admin-jobs-detail"),
 
-    # Delete Jobs (static routes first)
+    # Delete jobs (fixed routes pehle)
     path("admin/delete-jobs/summary", DeleteJobSummaryView.as_view(), name="admin-delete-jobs-summary"),
     path("admin/delete-jobs/active", DeleteJobActiveView.as_view(), name="admin-delete-jobs-active"),
     path("admin/delete-jobs/status/<str:filter_status>", DeleteJobListView.as_view(), name="admin-delete-jobs-by-status"),

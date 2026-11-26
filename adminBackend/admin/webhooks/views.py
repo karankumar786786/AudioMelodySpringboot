@@ -38,10 +38,7 @@ logger = logging.getLogger(__name__)
 
 
 def find_delete_job(entity_type: str, entity_id: str, delete_job_id: Optional[str] = None) -> Optional[DeleteJob]:
-    """
-    Finds corresponding DeleteJob record, with dynamic fallback checking if
-    api.views.find_delete_job was mocked/patched in tests.
-    """
+    """DeleteJob record dhoondo; tests me api.views.find_delete_job patch kiya ho to wahi use karo."""
     if "api.views" in sys.modules and hasattr(sys.modules["api.views"], "find_delete_job"):
         patched = getattr(sys.modules["api.views"], "find_delete_job")
         if patched is not find_delete_job:
@@ -52,15 +49,14 @@ def find_delete_job(entity_type: str, entity_id: str, delete_job_id: Optional[st
     return DeleteJob.objects.filter(entity_type=entity_type.upper(), entity_id=entity_id).order_by("-created_at").first()
 
 
-# Audio features the core API ranks on; mirrored from jobs onto songs (Flyway V15).
+# Wo audio features jin pe core API ranking karta hai; job se song pe copy hote hain (Flyway V15).
 SONG_AUDIO_FEATURE_FIELDS = ("tempo", "energy", "valence", "danceability")
 
 
 def copy_audio_features_to_song(job, song) -> list:
-    """
-    Copies the job's non-null ranking features onto ``song`` in memory and returns the
-    names of fields that changed. Null job values never overwrite known song values, so a
-    video-only reprocess (which computes no features) keeps the song's existing ones.
+    """Job ke (null nahi) audio features ``song`` pe copy karo (memory me) aur badle fields ke naam lautao.
+    Job ki null value song ki pehle se pata value ko kabhi nahi mitati - isliye sirf video reprocess
+    (jisme features nahi bante) song ke purane features rakhta hai.
     """
     changed = []
     for field in SONG_AUDIO_FEATURE_FIELDS:
@@ -71,58 +67,95 @@ def copy_audio_features_to_song(job, song) -> list:
     return changed
 
 
+# Media pipeline jo saare audio features bhejti hai (Spotify jaise), is order me Job table me save hote hain.
+JOB_AUDIO_FEATURE_FIELDS = (
+    "tempo",
+    "danceability",
+    "energy",
+    "valence",
+    "acousticness",
+    "instrumentalness",
+    "liveness",
+    "speechiness",
+    "loudness",
+    "key",
+    "mode",
+)
+
+
+def apply_audio_features(job, source: dict) -> None:
+    """``source`` dict se har audio feature job pe set karo (save nahi karta).
+    Jo feature ``source`` me nahi hai, uski job wali purani value waisi hi rehti hai.
+    """
+    for name in JOB_AUDIO_FEATURE_FIELDS:
+        setattr(job, name, source.get(name, getattr(job, name)))
+
+
 # ==============================================================================
-# Internal Webhooks & Presigned Uploads (/webhook/internal/*)
+# Andar ke webhooks aur presigned uploads (/webhook/internal/*)
 # ==============================================================================
 
 class SongUploadUrlWebhookView(APIView):
-    # Issues upload credentials, so it must require an admin session. Never make this AllowAny.
+    # Upload ki permission deta hai, isliye admin login zaroori. Ise kabhi AllowAny mat banana.
+    """GET /webhook/internal/song-upload-url - gaana S3 temp bucket me seedha upload karne ke liye presigned URL.
+
+    Presigned URL = thodi der ke liye valid aisa link jisse browser bina AWS keys ke S3 me file daal sake.
+    """
     authentication_classes = [AdminSessionAuthentication]
     permission_classes = [IsAdminUserPermission]
 
     def get(self, request):
+        """Naya random key (uuid) banao aur us key ka upload URL do. Output: { key, preSignedUrl }."""
         key = str(uuid.uuid4())
         pre_signed_url = S3Service.generate_presigned_upload_url(key)
         return Response({"key": key, "preSignedUrl": pre_signed_url}, status=status.HTTP_200_OK)
 
 
 class VideoUploadUrlWebhookView(APIView):
-    # Issues upload credentials, so it must require an admin session. Never make this AllowAny.
+    # Upload ki permission deta hai, isliye admin login zaroori. Ise kabhi AllowAny mat banana.
+    """GET /webhook/internal/video-upload-url - video ke liye S3 presigned upload URL (song wale jaisa hi)."""
     authentication_classes = [AdminSessionAuthentication]
     permission_classes = [IsAdminUserPermission]
 
     def get(self, request):
+        """Naya uuid key aur uska upload URL do. Output: { key, preSignedUrl }."""
         key = str(uuid.uuid4())
         pre_signed_url = S3Service.generate_presigned_upload_url(key)
         return Response({"key": key, "preSignedUrl": pre_signed_url}, status=status.HTTP_200_OK)
 
 
 class ImageUploadParamWebhookView(APIView):
-    # Issues upload credentials, so it must require an admin session. Never make this AllowAny.
+    # Upload ki permission deta hai, isliye admin login zaroori. Ise kabhi AllowAny mat banana.
+    """GET /webhook/internal/image-upload-param - browser se ImageKit pe image upload karne ke signed params."""
     authentication_classes = [AdminSessionAuthentication]
     permission_classes = [IsAdminUserPermission]
 
     def get(self, request):
+        """ImageKit ke upload params (token, expire, signature...) lautao."""
         params = ImageKitService.generate_upload_params()
         return Response(params, status=status.HTTP_200_OK)
 
 
 class VideoUploadParamWebhookView(APIView):
-    # Issues upload credentials, so it must require an admin session. Never make this AllowAny.
+    # Upload ki permission deta hai, isliye admin login zaroori. Ise kabhi AllowAny mat banana.
+    """GET /webhook/internal/video-upload-param - ImageKit pe chhota video upload karne ke signed params."""
     authentication_classes = [AdminSessionAuthentication]
     permission_classes = [IsAdminUserPermission]
 
     def get(self, request):
+        """ImageKit ke upload params lautao (image wale jaise hi)."""
         params = ImageKitService.generate_upload_params()
         return Response(params, status=status.HTTP_200_OK)
 
 
 # ==============================================================================
-# Background Job Webhooks (/webhook/job/*)
+# Upload job ke callbacks (/webhook/job/*) - media pipeline X-API-KEY ke saath call karti hai
 # ==============================================================================
 
 class WebhookJobDetailView(BaseAdminView):
+    """GET /webhook/job/<job_id> - media pipeline ko job ki poori detail chahiye (keys, clip time, flags, features)."""
     def get(self, request, job_id):
+        """Job dhoondo (na mile to 404) aur camelCase JSON me saari fields lautao."""
         job = get_object_or_404(Job, id=job_id)
         data = {
             "id": job.id,
@@ -170,7 +203,11 @@ class WebhookJobDetailView(BaseAdminView):
 
 
 class WebhookJobTranscodingStartedView(BaseAdminView):
+    """POST /webhook/job/<job_id>/transcoding-started - pipeline ne transcoding shuru kar di."""
     def post(self, request, job_id):
+        """Job ko PROCESSING / TRANSCODING pe le jao, start time aur processingId save karo, attempt +1.
+        Dashboard ke counters bhi PROCESSING me shift hote hain. Output: khaali 200.
+        """
         job = get_object_or_404(Job, id=job_id)
         old_status = job.status
         processing_id = request.data.get("processingId")
@@ -186,7 +223,12 @@ class WebhookJobTranscodingStartedView(BaseAdminView):
 
 
 class WebhookJobTranscodedView(BaseAdminView):
+    """POST /webhook/job/<job_id>/transcoded - audio/video HLS me ban gaye; nayi keys aur features aaye."""
     def post(self, request, job_id):
+        """Body se songKey, duration, video keys aur audio features job pe likho, transcoding ka time naapo,
+        aur agla stage set karo (naya song: RECOMMENDATION_INDEXING, reprocess: seedha FINALIZING).
+        Body khaali ho to 400. Job pehle se COMPLETED ho to stage nahi badalta.
+        """
         job = get_object_or_404(Job, id=job_id)
         data = request.data
         if not data:
@@ -198,46 +240,14 @@ class WebhookJobTranscodedView(BaseAdminView):
         job.full_video_key = data.get("fullVideoKey", job.full_video_key)
         job.video_key = data.get("videoKey", job.video_key)
 
-        # Extract & persist Spotify-like audio features in the Job table
+        # Audio features (Spotify jaise: tempo, energy...) Job table me save karo
         features = data.get("audioFeatures")
         if isinstance(features, dict) and features:
-            job.tempo = features.get("tempo", job.tempo)
-            job.danceability = features.get("danceability", job.danceability)
-            job.energy = features.get("energy", job.energy)
-            job.valence = features.get("valence", job.valence)
-            job.acousticness = features.get("acousticness", job.acousticness)
-            job.instrumentalness = features.get("instrumentalness", job.instrumentalness)
-            job.liveness = features.get("liveness", job.liveness)
-            job.speechiness = features.get("speechiness", job.speechiness)
-            job.loudness = features.get("loudness", job.loudness)
-            job.key = features.get("key", job.key)
-            job.mode = features.get("mode", job.mode)
+            apply_audio_features(job, features)
             job.audio_features = features
         elif "tempo" in data:
-            job.tempo = data.get("tempo", job.tempo)
-            job.danceability = data.get("danceability", job.danceability)
-            job.energy = data.get("energy", job.energy)
-            job.valence = data.get("valence", job.valence)
-            job.acousticness = data.get("acousticness", job.acousticness)
-            job.instrumentalness = data.get("instrumentalness", job.instrumentalness)
-            job.liveness = data.get("liveness", job.liveness)
-            job.speechiness = data.get("speechiness", job.speechiness)
-            job.loudness = data.get("loudness", job.loudness)
-            job.key = data.get("key", job.key)
-            job.mode = data.get("mode", job.mode)
-            job.audio_features = {
-                "tempo": job.tempo,
-                "danceability": job.danceability,
-                "energy": job.energy,
-                "valence": job.valence,
-                "acousticness": job.acousticness,
-                "instrumentalness": job.instrumentalness,
-                "liveness": job.liveness,
-                "speechiness": job.speechiness,
-                "loudness": job.loudness,
-                "key": job.key,
-                "mode": job.mode,
-            }
+            apply_audio_features(job, data)
+            job.audio_features = {name: getattr(job, name) for name in JOB_AUDIO_FEATURE_FIELDS}
 
         job.transcoded = True
         job.transcoded_at = now
@@ -250,28 +260,22 @@ class WebhookJobTranscodedView(BaseAdminView):
 
 
 class WebhookJobAudioFeaturesView(BaseAdminView):
+    """POST /webhook/job/<job_id>/audio-features - audio features alag se (late) aaye."""
     def post(self, request, job_id):
+        """Features job pe save karo. Agar job COMPLETED ho chuka to song pe bhi copy karo.
+        Song update fail ho to sirf warning log, response phir bhi 200 { status: saved }.
+        """
         job = get_object_or_404(Job, id=job_id)
         data = request.data or {}
         features = data.get("audioFeatures", data)
         if isinstance(features, dict) and features:
-            job.tempo = features.get("tempo", job.tempo)
-            job.danceability = features.get("danceability", job.danceability)
-            job.energy = features.get("energy", job.energy)
-            job.valence = features.get("valence", job.valence)
-            job.acousticness = features.get("acousticness", job.acousticness)
-            job.instrumentalness = features.get("instrumentalness", job.instrumentalness)
-            job.liveness = features.get("liveness", job.liveness)
-            job.speechiness = features.get("speechiness", job.speechiness)
-            job.loudness = features.get("loudness", job.loudness)
-            job.key = features.get("key", job.key)
-            job.mode = features.get("mode", job.mode)
+            apply_audio_features(job, features)
             job.audio_features = features
             job.save()
             logger.info("Persisted audio features directly for job [%s]", job.id)
 
-            # Features normally land before finalize (which copies them onto the song).
-            # If this job already finalized, the song exists and must be updated here.
+            # Features aam taur pe finalize se pehle aate hain (finalize unhe song pe copy karta hai).
+            # Agar job pehle hi finalize ho chuka, to song ban chuka hai - use yahin update karo.
             if job.status == "COMPLETED":
                 try:
                     song = Song.objects.filter(id=job.song_id).first()
@@ -285,7 +289,11 @@ class WebhookJobAudioFeaturesView(BaseAdminView):
 
 
 class WebhookJobSaveRecommendationView(BaseAdminView):
+    """POST /webhook/job/<job_id>/save-recommendation - song ko Recombee (recommendation engine) me daalo."""
     def post(self, request, job_id):
+        """Job pe 'recommendation me save' mark karo, time naapo, stage SEARCH_INDEXING karo, phir Recombee me song bhejo.
+        Recombee fail ho to sirf warning - pipeline nahi rukti. Output: khaali 200.
+        """
         job = get_object_or_404(Job, id=job_id)
         now = datetime.now(timezone.utc)
         job.saved_in_recommendation = True
@@ -336,7 +344,11 @@ class WebhookJobSaveRecommendationView(BaseAdminView):
 
 
 class WebhookJobSaveSearchView(BaseAdminView):
+    """POST /webhook/job/<job_id>/save-search - song ko Algolia (search) me daalo."""
     def post(self, request, job_id):
+        """Job pe 'search me save' mark karo, time naapo, stage FINALIZING karo, phir Algolia me record bhejo.
+        Algolia fail ho to sirf warning. Output: { status: indexed, songId }.
+        """
         job = get_object_or_404(Job, id=job_id)
         now = datetime.now(timezone.utc)
         job.saved_in_search = True
@@ -381,7 +393,14 @@ class WebhookJobSaveSearchView(BaseAdminView):
 
 
 class WebhookJobFinalizeView(BaseAdminView):
+    """POST /webhook/job/<job_id>/finalize - pipeline ka aakhri step: songs table me song banao / update karo."""
     def post(self, request, job_id):
+        """Idempotent hai: job pehle se COMPLETED ho to kuch dobara nahi karta, bas { status: already_completed }.
+
+        Warna: temp S3 files hatao; reprocess ho to purani media hata ke song ki keys badlo; naya song ho to
+        Song + SongMetadata banao (pehle se ho to update). Phir Algolia/Recombee sync (fail = warning),
+        counters update aur job COMPLETED. Output: khaali 200.
+        """
         job = get_object_or_404(Job, id=job_id)
         if job.status == "COMPLETED":
             if job.current_stage != "COMPLETED":
@@ -399,13 +418,13 @@ class WebhookJobFinalizeView(BaseAdminView):
         if job.created_at:
             job.total_duration_ms = safe_diff_ms(now, job.created_at)
 
-        # Cleanup temporary audio & video files in S3 temp bucket
+        # S3 temp bucket se temporary audio/video files hatao
         if job.temp_song_key:
             S3Service.delete_object(job.temp_song_key, settings.S3_TEMP_BUCKET)
         if job.temp_video_key:
             S3Service.delete_object(job.temp_video_key, settings.S3_TEMP_BUCKET)
 
-        # Reprocess logic
+        # Reprocess (dobara process) wala raasta
         if job.is_video_reprocess or job.is_audio_reprocess:
             song = Song.objects.filter(id=job.song_id).first()
             if song:
@@ -459,7 +478,7 @@ class WebhookJobFinalizeView(BaseAdminView):
             PaginationMetadataService.transition_job(old_status, "COMPLETED")
             return Response(status=status.HTTP_200_OK)
 
-        # Standard new song creation (idempotent lookup or create)
+        # Naya song banao (idempotent: pehle se ho to wahi, warna naya)
         song = Song.objects.filter(id=job.song_id).first()
         created = False
         if not song:
@@ -561,7 +580,9 @@ class WebhookJobFinalizeView(BaseAdminView):
 
 
 class WebhookJobFailedView(BaseAdminView):
+    """POST /webhook/job/<job_id>/failed - pipeline me koi step fail ho gaya."""
     def post(self, request, job_id):
+        """Job ko FAILED karo, reason save karo (body me na ho to default message), total time naapo. Output: khaali 200."""
         job = get_object_or_404(Job, id=job_id)
         old_status = job.status
         now = datetime.now(timezone.utc)
@@ -578,11 +599,15 @@ class WebhookJobFailedView(BaseAdminView):
 
 
 # ==============================================================================
-# Delete Cascade Webhooks (/webhook/delete/*)
+# Delete chain ke callbacks (/webhook/delete/*)
 # ==============================================================================
 
 class WebhookDeleteSearchView(BaseAdminView):
+    """POST /webhook/delete/<type>/<id>/delete-search - delete chain ka pehla step: Algolia se record hatao."""
     def post(self, request, entity_type, entity_id):
+        """DeleteJob ko IN_PROGRESS / SEARCH_DELETED pe le jao, phir Algolia se record hatao.
+        DeleteJob na mile tab bhi Algolia delete chalta hai. Algolia fail = sirf warning. Output: khaali 200.
+        """
         delete_job_id = request.query_params.get("deleteJobId")
         job = find_delete_job(entity_type, entity_id, delete_job_id)
         now = datetime.now(timezone.utc)
@@ -607,7 +632,9 @@ class WebhookDeleteSearchView(BaseAdminView):
 
 
 class WebhookDeleteRecommendationView(BaseAdminView):
+    """POST /webhook/delete/<type>/<id>/delete-recommendation - Recombee se song hatao."""
     def post(self, request, entity_type, entity_id):
+        """DeleteJob ka stage RECOMMENDATION_DELETED karo; type SONG ho to Recombee se bhi hatao. Output: khaali 200."""
         delete_job_id = request.query_params.get("deleteJobId")
         job = find_delete_job(entity_type, entity_id, delete_job_id)
         now = datetime.now(timezone.utc)
@@ -629,7 +656,9 @@ class WebhookDeleteRecommendationView(BaseAdminView):
 
 
 class WebhookDeleteImageKitView(BaseAdminView):
+    """POST /webhook/delete/<type>/<id>/delete-imagekit - ImageKit se image/video hatao."""
     def post(self, request, entity_type, entity_id):
+        """Stage IMAGEKIT_DELETED karo. SONG: image + chhota video, PLAYLIST: cover + video, ARTIST: cover hatao. Output: khaali 200."""
         delete_job_id = request.query_params.get("deleteJobId")
         job = find_delete_job(entity_type, entity_id, delete_job_id)
         now = datetime.now(timezone.utc)
@@ -665,7 +694,9 @@ class WebhookDeleteImageKitView(BaseAdminView):
 
 
 class WebhookDeleteS3View(BaseAdminView):
+    """POST /webhook/delete/<type>/<id>/delete-s3 - S3 files (media pipeline khud hatati hai) ke baad ka record."""
     def post(self, request, entity_type, entity_id):
+        """Sirf DeleteJob ka stage S3_DELETED aur time save karta hai. Output: khaali 200."""
         delete_job_id = request.query_params.get("deleteJobId")
         job = find_delete_job(entity_type, entity_id, delete_job_id)
         now = datetime.now(timezone.utc)
@@ -681,7 +712,12 @@ class WebhookDeleteS3View(BaseAdminView):
 
 
 class WebhookDeleteHardDeleteView(BaseAdminView):
+    """POST /webhook/delete/<type>/<id>/hard-delete - aakhri step: DB se row hi hata do."""
     def post(self, request, entity_type, entity_id):
+        """SONG: playlists se hatao (total_songs -1, 0 se neeche nahi), song aur uske jobs delete.
+        PLAYLIST / ARTIST: row delete, unke pagination counters aur Redis cache saaf.
+        Phir DeleteJob COMPLETED. Output: khaali 200.
+        """
         delete_job_id = request.query_params.get("deleteJobId")
         job = find_delete_job(entity_type, entity_id, delete_job_id)
         now = datetime.now(timezone.utc)
@@ -759,7 +795,9 @@ class WebhookDeleteHardDeleteView(BaseAdminView):
 
 
 class WebhookDeleteFailedView(BaseAdminView):
+    """POST /webhook/delete/<type>/<id>/failed - delete chain me koi step fail hua."""
     def post(self, request, entity_type, entity_id):
+        """DeleteJob ko FAILED karo aur reason save karo (na ho to default). Output: khaali 200."""
         delete_job_id = request.query_params.get("deleteJobId")
         job = find_delete_job(entity_type, entity_id, delete_job_id)
         reason = request.data.get("reason", "Cascade delete failed") if request.data else "Cascade delete failed"
@@ -779,14 +817,18 @@ class WebhookDeleteFailedView(BaseAdminView):
 
 
 # ==============================================================================
-# Shorts Webhooks (/webhook/short/*), called by the media pipeline (X-API-KEY)
+# Shorts ke callbacks (/webhook/short/*), media pipeline X-API-KEY ke saath call karti hai
 # ==============================================================================
 
 class WebhookShortProcessedView(APIView):
+    """POST /webhook/short/<short_id>/processed - short video ka HLS ban gaya."""
     authentication_classes = [AdminSessionAuthentication]
     permission_classes = [IsAdminUserPermission]
 
     def post(self, request, short_id):
+        """hlsKey zaroori (na ho to 400). ShortService se short ko processed mark karo aur short ka JSON lautao.
+        ShortError aaye to uska message aur status code.
+        """
         from core.services.short_service import ShortError, ShortService, serialize
 
         data = request.data or {}
@@ -801,10 +843,12 @@ class WebhookShortProcessedView(APIView):
 
 
 class WebhookShortFailedView(APIView):
+    """POST /webhook/short/<short_id>/failed - short process nahi ho paya."""
     authentication_classes = [AdminSessionAuthentication]
     permission_classes = [IsAdminUserPermission]
 
     def post(self, request, short_id):
+        """ShortService se short ko FAILED mark karo (reason ke saath). Output: { status: FAILED }; ShortError = uska code."""
         from core.services.short_service import ShortError, ShortService
 
         try:

@@ -1,7 +1,4 @@
-"""
-Backwards compatibility facade for helpers.
-Distributed to core.helpers.
-"""
+"""Purane imports ke liye "facade" (sirf aage bhejta hai). Asli code ab core.helpers me hai."""
 from core.helpers import (
     format_ms,
     format_paginated_response,
