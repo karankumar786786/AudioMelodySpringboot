@@ -253,7 +253,7 @@ class AuthenticationServiceSessionTest {
                 .user(user)
                 .deviceId(deviceId)
                 .refreshToken(token)
-                .expiresAt(LocalDateTime.now().minusHours(1)) // Expired
+                .expiresAt(LocalDateTime.now().minusHours(1)) // Expire ho chuka
                 .build();
         when(sessionRepository.findByUserIdAndDeviceId("user-100", deviceId)).thenReturn(Optional.of(session));
 
