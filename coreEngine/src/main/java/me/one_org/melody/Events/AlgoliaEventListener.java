@@ -10,6 +10,14 @@ import me.one_org.melody.AlgoliaSearch.AlgoliaSearch;
 import me.one_org.melody.Enums.PlaylistPrivacyEnum;
 import me.one_org.melody.Utils.RetryUtil;
 
+/**
+ * Playlist badalne pe Algolia (search) ko update karta hai.
+ * Flow: service event publish karti hai -> commit ke baad yahan aata hai -> Algolia API (3 retries).
+ *
+ * @Async + @TransactionalEventListener(AFTER_COMMIT) ka matlab: jab DB transaction successfully commit ho
+ * jaaye, tab ye method alag thread pe chalta hai. Isliye user ki request ko Algolia/Recombee ka wait nahi karna padta,
+ * aur agar transaction fail hua to ye chalta hi nahi. fallbackExecution = true: transaction na ho tab bhi chalo.
+ */
 @Component
 @Slf4j
 public class AlgoliaEventListener {
@@ -20,6 +28,7 @@ public class AlgoliaEventListener {
         this.algoliaSearch = algoliaSearch;
     }
 
+    /** Official playlist ka naam/details Algolia me save karo. */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onPlaylistSync(AlgoliaEvents.PlaylistIndexSyncEvent event) {
@@ -29,6 +38,7 @@ public class AlgoliaEventListener {
         );
     }
 
+    /** User playlist: PUBLIC hai to search me daalo, PRIVATE/link wali hai to search se hata do. */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onUserPlaylistSync(AlgoliaEvents.UserPlaylistIndexSyncEvent event) {
@@ -49,6 +59,7 @@ public class AlgoliaEventListener {
         }, 3, 500L, "Algolia syncUserPlaylist [" + event.playlistId() + "]", log);
     }
 
+    /** Delete hui playlist ko Algolia se bhi hatao. */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onPlaylistDelete(AlgoliaEvents.PlaylistIndexDeleteEvent event) {

@@ -23,12 +23,15 @@ import me.one_org.melody.Events.Kafka.OutboxWriter;
 import me.oneorg.melody.events.Topics;
 
 /**
- * Sends OTP mail.
- * LEGACY mode: pushes to the Redis mail_queue for the Bun mail worker (as before).
- * DUAL/KAFKA: writes a notification.email.v1 outbox row, which outboxRelay publishes and
- * notificationStreams sends. Login can't wait on a broken pipeline, so if the row is
- * still unpublished after melody.events.otp-fallback-after (30 s) the core claims it and
- * pushes it to the Redis queue instead. Claiming sets sent_at, so it's never sent twice.
+ * OTP wala email bhejne ka kaam (email khud yahan se nahi jaata, queue me daalte hain).
+ *
+ * - LEGACY mode: Redis list "mail_queue" me daal do; Bun ka mail worker usse utha ke bhejta hai.
+ * - DUAL/KAFKA mode: notification.email.v1 ka outbox row likho; outboxRelay usse Kafka pe daalta hai
+ *   aur streams/ ka EmailSender email bhejta hai.
+ *
+ * Login Kafka ke kharab hone ka wait nahi kar sakta. Isliye 30 second baad bhi row publish nahi hui
+ * to core khud row ko "claim" karke Redis queue me daal deta hai. Claim me sent_at set hota hai,
+ * isliye email kabhi do baar nahi jaata.
  */
 @Component
 @Slf4j
@@ -55,6 +58,7 @@ public class MailQueue {
         this.jdbcClient = jdbcClient;
     }
 
+    /** OTP email ko line me lagao (mode ke hisaab se Redis ya outbox), aur 30 sec baad fallback check schedule karo. */
     public void queueMail(MailQueueDto data) {
         if (!eventsProperties.mode().producesEvents()) {
             redisTemplate.opsForList().rightPush(mailQueue, data);
@@ -63,7 +67,7 @@ public class MailQueue {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("to", data.to());
         payload.put("kind", data.subject());
-        // Same subject and body the Bun worker sends today.
+        // Wahi subject aur body jo Bun worker bhejta hai.
         payload.put("subject", data.subject());
         payload.put("body", data.otp());
         payload.put("attempt", 0);
@@ -73,6 +77,11 @@ public class MailQueue {
         fallbackTimer.schedule(() -> fallbackIfUnsent(id, data), delay, TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * 30 second baad chalta hai. "WHERE sent_at IS NULL" ke saath UPDATE: agar relay ne pehle hi
+     * bhej diya to 0 rows update hongi aur hum kuch nahi karenge. 1 row update hui = humne claim kiya,
+     * ab Redis se bhejo. payload khaali kar dete hain taaki OTP DB me na pada rahe.
+     */
     void fallbackIfUnsent(UUID id, MailQueueDto data) {
         try {
             int claimed = jdbcClient.sql("""
@@ -91,7 +100,7 @@ public class MailQueue {
         }
     }
 
-    /** Kafka key for email events: a hash, so addresses don't show up in topic keys. */
+    /** Email events ki Kafka key: email ka SHA-256 hash, taaki asli email address topic keys me na dikhe. */
     public static String addressKey(String email) {
         try {
             byte[] digest = MessageDigest.getInstance("SHA-256")
@@ -102,6 +111,7 @@ public class MailQueue {
         }
     }
 
+    /** App band hote waqt timer thread rok do. */
     @PreDestroy
     void shutdown() {
         fallbackTimer.shutdown();

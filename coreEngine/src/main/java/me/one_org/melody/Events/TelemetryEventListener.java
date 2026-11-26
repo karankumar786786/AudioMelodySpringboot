@@ -22,9 +22,15 @@ import me.one_org.melody.Services.Api.ArtistApiService;
 import me.one_org.melody.Utils.RetryUtil;
 
 /**
- * Legacy in-process path: Recombee, Algolia and stream counts updated straight from the
- * core API. Runs in LEGACY and DUAL mode; in KAFKA mode syncStreams and activityStreams
- * (streams/) do this work instead, so the bean isn't created.
+ * PURANA (LEGACY) raasta: user ki activity (play, follow, favourite...) pe core API khud hi
+ * Recombee, Algolia aur streams count update karta hai.
+ * LEGACY aur DUAL mode me chalta hai. KAFKA mode me ye kaam streams/ module ke stream
+ * processors karte hain, isliye tab ye class banti hi nahi (@ConditionalOnExpression).
+ *
+ * @Async + @TransactionalEventListener(AFTER_COMMIT) ka matlab: jab DB transaction successfully commit ho
+ * jaaye, tab ye method alag thread pe chalta hai. Isliye user ki request ko Algolia/Recombee ka wait nahi karna padta,
+ * aur agar transaction fail hua to ye chalta hi nahi. fallbackExecution = true: transaction na ho tab bhi chalo.
+ * Har bahar ki call RetryUtil se 3 baar try hoti hai; fail ho to sirf log.
  */
 @Component
 @Slf4j
@@ -49,6 +55,7 @@ public class TelemetryEventListener {
         this.songsRepository = songsRepository;
     }
 
+    /** User ne artist follow kiya -> Recombee ko batao. */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onArtistFollow(TelemetryEvents.ArtistFollowEvent event) {
@@ -58,6 +65,7 @@ public class TelemetryEventListener {
         );
     }
 
+    /** User ne artist unfollow kiya -> Recombee ko batao. */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onArtistUnfollow(TelemetryEvents.ArtistUnfollowEvent event) {
@@ -67,10 +75,15 @@ public class TelemetryEventListener {
         );
     }
 
+    /**
+     * Gaana suna: 30 second rule check karke streams count badhao (DB, Algolia, Recombee),
+     * aur Recombee ko listening signal bhejo.
+     */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onSongPlay(TelemetryEvents.SongPlayEvent event) {
-        // Evaluate industry-standard 30-second stream qualification rule
+        // "30 second rule" (music industry ka standard): 30 second se zyada suna tabhi 1 stream ginte hain.
+        // Duration pata na chale to 180 second (3 min) maan lete hain.
         int durationSec = 180;
         try {
             Song song = songsRepository.findById(event.songId()).orElse(null);
@@ -85,6 +98,8 @@ public class TelemetryEventListener {
         boolean qualifiesAsStream = (listenedSeconds >= 30.0) || (durationSec < 30 && event.percentage() >= 0.5);
 
         if (qualifiesAsStream) {
+            // DB me streams +1. Agar metadata row hi nahi hai (updated == 0), to nayi row banao.
+            // Nayi row banate waqt koi doosri request ne same time pe bana di ho to (catch) dobara +1 try karo.
             long currentStreams = 1L;
             try {
                 int updated = songMetadataRepository.incrementStreams(event.songId());
@@ -128,13 +143,14 @@ public class TelemetryEventListener {
                     event.songId(), listenedSeconds, durationSec);
         }
 
-        // Always inform Recombee of user listening signal (scaled rating based on completion percentage)
+        // Stream gina gaya ho ya nahi, Recombee ko hamesha batao ki user ne kitna suna (ye recommendations ke liye signal hai)
         RetryUtil.executeWithRetry(
                 () -> recombee.trackPlay(event.userId(), event.songId(), event.percentage()),
                 3, 500L, "Recombee trackPlay user [" + event.userId() + "] song [" + event.songId() + "]", log
         );
     }
 
+    /** Favourite me joda/hataya -> Recombee ko batao. */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onSongFavourite(TelemetryEvents.SongFavouriteEvent event) {
@@ -147,6 +163,7 @@ public class TelemetryEventListener {
         }, 3, 500L, "Recombee trackFavourite [" + event.songId() + "]", log);
     }
 
+    /** Playlist me song joda/hataya -> Recombee ko batao. */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onPlaylistSong(TelemetryEvents.PlaylistSongEvent event) {
@@ -159,6 +176,10 @@ public class TelemetryEventListener {
         }, 3, 500L, "Recombee trackPlaylistSong [" + event.songId() + "]", log);
     }
 
+    /**
+     * Onboarding khatam: user ko Recombee me jodo, aur chune hue har artist ke top 3 gaane
+     * "95% sune" maan ke bhejo, taaki pehle din se hi achhe recommendations milein (cold start).
+     */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onOnboardingSeeded(TelemetryEvents.OnboardingSeededEvent event) {
@@ -180,6 +201,7 @@ public class TelemetryEventListener {
         }
     }
 
+    /** Naya user -> Recombee me user banao. */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onUserRegistered(TelemetryEvents.UserRegisteredEvent event) {
@@ -189,6 +211,7 @@ public class TelemetryEventListener {
         );
     }
 
+    /** Login hua -> sirf log likho (koi bahar ki call nahi). */
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT, fallbackExecution = true)
     public void onUserLogin(TelemetryEvents.UserLoginEvent event) {

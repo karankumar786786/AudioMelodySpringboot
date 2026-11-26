@@ -13,8 +13,8 @@ import me.one_org.melody.Aspects.NoLogging;
 import me.oneorg.melody.events.Topics;
 
 /**
- * Opens the producers' connections and fetches topic metadata in the background at
- * start-up, so the first telemetry call or outbox write doesn't wait for it.
+ * App start hote hi background me Kafka se connection khol leta hai aur topics ki info le leta hai,
+ * taaki pehli telemetry request ko connection banne ka wait na karna pade ("warm up").
  */
 @NoLogging
 @Component
@@ -32,6 +32,10 @@ public class KafkaWarmup {
         this.strings = stringKafkaTemplate;
     }
 
+    /**
+     * App poora ready hone ke baad ek virtual thread pe chalta hai (startup ko rokta nahi).
+     * Kafka na mile to sirf warning - pehle send pe dobara try hoga.
+     */
     @EventListener(ApplicationReadyEvent.class)
     public void warmUp() {
         if (!properties.mode().producesEvents()) return;
