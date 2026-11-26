@@ -21,6 +21,10 @@ import me.oneorg.melody.events.EmailRequested;
 import me.oneorg.melody.events.EventIds;
 import me.oneorg.melody.events.Topics;
 
+/**
+ * Unit test: EmailSender ko akele check karta hai.
+ * Har @Test method ek behaviour check karta hai - method ka naam batata hai kya.
+ */
 class EmailSenderTest {
 
     @SuppressWarnings("unchecked")

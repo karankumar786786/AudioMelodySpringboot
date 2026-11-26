@@ -12,8 +12,12 @@ import me.oneorg.melody.streams.config.StreamsTopologyFactory;
 
 @Configuration
 @Profile("analytics")
+/**
+ * analytics profile ki setting: analytics topology aur sink listener.
+ */
 public class AnalyticsConfig {
 
+    /** Analytics wali Kafka Streams topology. */
     @Bean
     public StreamsBuilderFactoryBean analyticsStreams(StreamsTopologyFactory factory) throws Exception {
         AnalyticsTopology.AnalyticsSerdes serdes = new AnalyticsTopology.AnalyticsSerdes(
@@ -21,7 +25,7 @@ public class AnalyticsConfig {
         return factory.create("melody-analytics", builder -> AnalyticsTopology.build(builder, serdes));
     }
 
-    /** Sinks poll up to 10 s for data, so each write covers a batch of updates. */
+    /** Sinks 10 second tak data ka wait karte hain, to har write me updates ka ek batch jaata hai. */
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, Object> analyticsSinkFactory(
             KafkaPipelineConfig config, DeadLetterPublishingRecoverer recoverer) {

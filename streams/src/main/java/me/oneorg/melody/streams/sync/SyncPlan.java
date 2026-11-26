@@ -23,26 +23,30 @@ import me.oneorg.melody.events.UserLifecycleType;
 import me.oneorg.melody.streams.stats.StatsTopology;
 
 /**
- * What one batch of events means for Recombee and Algolia. Pure, so the mapping can be
- * tested without either service. Ratings match the core API's Recombee.java.
+ * Events ke ek batch ka Recombee aur Algolia ke liye kya matlab hai. Pure (koi bahar ki call nahi), to
+ * bina dono services ke test ho sakta hai. Ratings core API ke Recombee.java jaise hi hain.
  */
 public final class SyncPlan {
 
+    /** Recombee ko bhejne wali ek rating. */
     public record Rating(String userId, String itemId, double rating) {}
+    /** Recombee detail view. */
     public record DetailView(String userId, String itemId) {}
+    /** Recombee bookmark jodna/hatana. */
     public record Bookmark(String userId, String itemId, boolean add) {}
 
     public final List<Rating> ratings = new ArrayList<>();
     public final List<DetailView> detailViews = new ArrayList<>();
     public final List<Bookmark> bookmarks = new ArrayList<>();
     public final Set<String> newUsers = new LinkedHashSet<>();
-    /** user -> artists they followed during onboarding (seeded with plays of top songs). */
+    /** user -> onboarding me follow kiye artists (unke top gaano ke plays se seed karte hain). */
     public final Map<String, List<String>> onboarding = new LinkedHashMap<>();
-    /** Algolia searchCount increments per object id. */
+    /** Har object id ka Algolia searchCount kitna badhana hai. */
     public final Map<String, Long> searchCounts = new LinkedHashMap<>();
-    /** Songs whose total_streams changed; their new totals are read from Postgres. */
+    /** Jin songs ka total_streams badla; naye totals Postgres se padhte hain. */
     public final Set<String> streamedSongs = new LinkedHashSet<>();
 
+    /** Kitna suna -> rating: 90%+ = 0.7, 50%+ = 0.3, 25%+ = 0.1, warna -0.3. */
     public static double playRating(double ratio) {
         if (ratio >= 0.90) return 0.7;
         if (ratio >= 0.50) return 0.3;
@@ -50,12 +54,14 @@ public final class SyncPlan {
         return -0.3;
     }
 
+    /** Events ki list se plan banao. */
     public static SyncPlan of(List<SpecificRecord> events) {
         SyncPlan plan = new SyncPlan();
         for (SpecificRecord event : events) plan.add(event);
         return plan;
     }
 
+    /** Ek event ko plan me jodo (type ke hisaab se rating / bookmark / searchCount / streams). */
     void add(SpecificRecord event) {
         switch (event) {
             case PlayEvent e -> {
@@ -92,6 +98,7 @@ public final class SyncPlan {
         }
     }
 
+    /** Plan me kuch bhejna hai? */
     public boolean isEmpty() {
         return ratings.isEmpty() && detailViews.isEmpty() && bookmarks.isEmpty() && newUsers.isEmpty()
                 && onboarding.isEmpty() && searchCounts.isEmpty() && streamedSongs.isEmpty();

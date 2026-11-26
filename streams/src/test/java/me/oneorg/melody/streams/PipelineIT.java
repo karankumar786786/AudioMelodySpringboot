@@ -40,8 +40,8 @@ import me.oneorg.melody.streams.config.PipelineProperties;
 import me.oneorg.melody.streams.outbox.OutboxRelay;
 
 /**
- * Real Postgres (with every Flyway migration, V16/V17 included) and real Redpanda:
- * the outbox relay publishes rows as Avro and the history sink writes plays exactly once.
+ * Asli Postgres (saari Flyway migrations ke saath, V16/V17 bhi) aur asli Redpanda (Testcontainers):
+ * outbox relay rows ko Avro me publish karta hai aur history sink plays ko exactly once likhta hai.
  */
 @Testcontainers(disabledWithoutDocker = true)
 class PipelineIT {
@@ -119,9 +119,9 @@ class PipelineIT {
 
         assertThat(jdbc.queryForObject("SELECT sent_at IS NOT NULL FROM outbox_events WHERE id = ?", Boolean.class, songRow)).isTrue();
         assertThat(jdbc.queryForObject("SELECT payload::text FROM outbox_events WHERE id = ?", String.class, emailRow)).isEqualTo("{}");
-        // The malformed row stays pending with its error, to be retried and then dead-lettered.
+        // Kharab row error ke saath pending rehti hai - baad me retry, phir DLQ.
         assertThat(jdbc.queryForObject("SELECT sent_at IS NULL AND attempts = 1 FROM outbox_events WHERE id = ?", Boolean.class, badRow)).isTrue();
-        // A second sweep publishes nothing new.
+        // Doosra sweep kuch naya publish nahi karta.
         relay.sweep();
         assertThat(consume(Topics.CATALOG_SONG, 2)).hasSize(1);
     }
@@ -155,7 +155,7 @@ class PipelineIT {
         var method = ActivitySinks.class.getDeclaredMethod("writeHistory", List.class);
         method.setAccessible(true);
         tx.executeWithoutResult(s -> invoke(method, sinks, List.of(full, tooShort, unknownSong)));
-        tx.executeWithoutResult(s -> invoke(method, sinks, List.of(full)));   // redelivery
+        tx.executeWithoutResult(s -> invoke(method, sinks, List.of(full)));   // dobara aaya
 
         assertThat(jdbc.queryForObject("SELECT count(*) FROM user_history WHERE user_id = 'u-it'", Long.class)).isEqualTo(2);
         assertThat(jdbc.queryForObject("SELECT total_streams FROM song_metadata WHERE song_id = 's-it'", Long.class)).isEqualTo(1);
@@ -174,7 +174,7 @@ class PipelineIT {
         sink.timeline(List.of(
                 new org.apache.kafka.clients.consumer.ConsumerRecord<>("t", 0, 0, "s-a", tl.apply(List.of(first, sec4))),
                 new org.apache.kafka.clients.consumer.ConsumerRecord<>("t", 0, 1, "s-a", tl.apply(List.of(later)))));
-        sink.timeline(List.of(new org.apache.kafka.clients.consumer.ConsumerRecord<>("t", 0, 1, "s-a", tl.apply(List.of(later))))); // replay
+        sink.timeline(List.of(new org.apache.kafka.clients.consumer.ConsumerRecord<>("t", 0, 1, "s-a", tl.apply(List.of(later))))); // replay (dobara chalaya)
 
         assertThat(jdbc.queryForObject("SELECT listens FROM song_timeline WHERE song_id = 's-a' AND sec = 3", Long.class)).isEqualTo(5);
         assertThat(jdbc.queryForObject("SELECT listens FROM song_timeline WHERE song_id = 's-a' AND sec = 4", Long.class)).isEqualTo(1);

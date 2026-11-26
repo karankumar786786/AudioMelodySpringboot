@@ -19,8 +19,9 @@ import org.springframework.stereotype.Component;
 import io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde;
 
 /**
- * Builds one KafkaStreams instance per topology, each with its own application.id,
- * state directory and exactly-once processing. Unreadable records go to the DLQ.
+ * Har topology ke liye ek alag KafkaStreams instance banata hai - apni application.id, apni state directory
+ * aur exactly-once processing ke saath (exactly-once = har event ka asar ek hi baar, crash ke baad bhi).
+ * Jo records padhe nahi ja sakte wo DLQ (dead letter queue) me jaate hain.
  */
 @Component
 public class StreamsTopologyFactory {
@@ -36,6 +37,7 @@ public class StreamsTopologyFactory {
         this.recoverer = deadLetterRecoverer;
     }
 
+    /** Ek Kafka Streams app ki settings: exactly-once, state dir, 5 sec commit + 10 MB cache, DLQ handler. */
     public Map<String, Object> streamsProps(String applicationId) {
         Map<String, Object> props = new HashMap<>(kafkaProperties.buildStreamsProperties());
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, applicationId);
@@ -43,7 +45,7 @@ public class StreamsTopologyFactory {
         props.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE_V2);
         props.put(StreamsConfig.REPLICATION_FACTOR_CONFIG, pipeline.replicationFactor());
         props.put(StreamsConfig.STATE_DIR_CONFIG, pipeline.stateDir());
-        // Coalesce updates to the same key: fewer stats records, fewer sink writes.
+        // Same key ke updates ko jodo (cache): kam stats records, kam DB writes.
         props.put(StreamsConfig.COMMIT_INTERVAL_MS_CONFIG, 5000);
         props.put(StreamsConfig.STATESTORE_CACHE_MAX_BYTES_CONFIG, 10 * 1024 * 1024L);
         props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.StringSerde.class);
@@ -54,6 +56,7 @@ public class StreamsTopologyFactory {
         return props;
     }
 
+    /** Spring ka KafkaStreams bean banao jo di hui topology chalaye. */
     public StreamsBuilderFactoryBean create(String applicationId, Consumer<StreamsBuilder> topology) throws Exception {
         StreamsBuilderFactoryBean factory = new StreamsBuilderFactoryBean(new KafkaStreamsConfiguration(streamsProps(applicationId)));
         factory.setInfrastructureCustomizer(new org.springframework.kafka.config.KafkaStreamsInfrastructureCustomizer() {
@@ -65,6 +68,7 @@ public class StreamsTopologyFactory {
         return factory;
     }
 
+    /** Avro serde (Java object <-> bytes) jo Schema Registry use karta hai. */
     public <T extends SpecificRecord> SpecificAvroSerde<T> serde() {
         SpecificAvroSerde<T> serde = new SpecificAvroSerde<>();
         serde.configure(Map.of("schema.registry.url", pipeline.schemaRegistryUrl()), false);

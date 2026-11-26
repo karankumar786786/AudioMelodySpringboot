@@ -6,6 +6,9 @@ import org.apache.avro.specific.SpecificRecord;
 
 import io.confluent.kafka.streams.serdes.avro.SpecificAvroSerde;
 
+/**
+ * Tests ke liye Avro serdes banane ka helper (nakli / in-memory Schema Registry ke saath).
+ */
 public final class TestSerdes {
     private TestSerdes() {}
 

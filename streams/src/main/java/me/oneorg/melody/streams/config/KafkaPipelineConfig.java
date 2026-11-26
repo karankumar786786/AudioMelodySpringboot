@@ -28,8 +28,8 @@ import io.confluent.kafka.serializers.KafkaAvroSerializer;
 import me.oneorg.melody.events.Topics;
 
 /**
- * Producers and listener factories shared by every profile. Records that can't be read
- * or keep failing go to pipeline.dlq.v1 with the original bytes and error headers.
+ * Saare profiles ke common Kafka producers aur listener factories.
+ * Jo records padhe na ja sakein ya baar baar fail hon, wo pipeline.dlq.v1 me jaate hain - original bytes aur error headers ke saath.
  */
 @Configuration
 public class KafkaPipelineConfig {
@@ -42,6 +42,7 @@ public class KafkaPipelineConfig {
         this.pipeline = pipeline;
     }
 
+    /** Producer settings: idempotent (retry pe duplicate nahi) + acks=all. */
     private Map<String, Object> producerProps() {
         Map<String, Object> props = new HashMap<>(kafkaProperties.buildProducerProperties());
         props.put(ProducerConfig.ACKS_CONFIG, "all");
@@ -50,6 +51,7 @@ public class KafkaPipelineConfig {
         return props;
     }
 
+    /** Avro records bhejne ka template. */
     @Bean
     public KafkaTemplate<String, SpecificRecord> avroTemplate() {
         Map<String, Object> props = producerProps();
@@ -58,6 +60,7 @@ public class KafkaPipelineConfig {
         return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(props));
     }
 
+    /** DLQ me raw bytes bhejne ka template. */
     @Bean
     public KafkaTemplate<byte[], byte[]> dlqTemplate() {
         Map<String, Object> props = producerProps();
@@ -66,11 +69,13 @@ public class KafkaPipelineConfig {
         return new KafkaTemplate<>(new DefaultKafkaProducerFactory<>(props));
     }
 
+    /** Fail records ko pipeline.dlq.v1 me bhejne wala recoverer. */
     @Bean
     public DeadLetterPublishingRecoverer deadLetterRecoverer(KafkaTemplate<byte[], byte[]> dlqTemplate) {
         return new DeadLetterPublishingRecoverer(dlqTemplate, (record, ex) -> new TopicPartition(Topics.DLQ, -1));
     }
 
+    /** Consumer settings: group id, Avro ho to Schema Registry wala deserializer. */
     private Map<String, Object> consumerProps(String groupId, boolean avro) {
         Map<String, Object> props = new HashMap<>(kafkaProperties.buildConsumerProperties());
         props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
@@ -86,8 +91,8 @@ public class KafkaPipelineConfig {
     }
 
     /**
-     * Batch listener factory: each poll waits up to {@code fetchWaitMs} for data, which
-     * gives the sinks natural batches of a few seconds instead of one write per event.
+     * Batch listener: har poll {@code fetchWaitMs} tak data ka wait karta hai, isliye sinks ko har event pe ek write
+     * ke bajaye kuch second ka batch milta hai.
      */
     public ConcurrentKafkaListenerContainerFactory<String, Object> batchFactory(
             String groupId, boolean avro, int fetchWaitMs, DeadLetterPublishingRecoverer recoverer) {
@@ -102,7 +107,7 @@ public class KafkaPipelineConfig {
         return factory;
     }
 
-    /** Record-at-a-time factory (emails: each send is its own unit of work). */
+    /** Ek ek record wala listener (emails ke liye: har email apna alag kaam hai). */
     public ConcurrentKafkaListenerContainerFactory<String, Object> recordFactory(
             String groupId, boolean avro, DeadLetterPublishingRecoverer recoverer) {
         ConcurrentKafkaListenerContainerFactory<String, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();

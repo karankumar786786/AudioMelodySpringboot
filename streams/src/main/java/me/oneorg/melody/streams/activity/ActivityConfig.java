@@ -13,20 +13,26 @@ import me.oneorg.melody.streams.config.StreamsTopologyFactory;
 
 @Configuration
 @Profile("activity")
+/**
+ * activity profile ki setting: sessions wali topology aur sinks.
+ */
 public class ActivityConfig {
 
+    /** Listening sessions wali Kafka Streams topology. */
     @Bean
     public StreamsBuilderFactoryBean activityStreams(StreamsTopologyFactory factory, PipelineProperties props) throws Exception {
         ActivityTopology.Serdes3 serdes = new ActivityTopology.Serdes3(factory.serde(), factory.serde(), factory.serde());
         return factory.create("melody-activity", builder -> ActivityTopology.build(builder, serdes, props.sessionGap()));
     }
 
+    /** Sessions sink ka listener. */
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, Object> sessionSinkFactory(
             KafkaPipelineConfig config, DeadLetterPublishingRecoverer recoverer) {
         return config.batchFactory("melody-session-sink", true, 5000, recoverer);
     }
 
+    /** History sink ka listener. */
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, Object> historySinkFactory(
             KafkaPipelineConfig config, DeadLetterPublishingRecoverer recoverer) {

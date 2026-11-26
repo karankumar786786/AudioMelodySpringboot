@@ -23,6 +23,10 @@ import me.oneorg.melody.events.Topics;
 import me.oneorg.melody.events.stats.ListeningSession;
 import me.oneorg.melody.streams.activity.ActivityTopology;
 
+/**
+ * Unit test: ActivityTopology. Kafka Streams topologies TopologyTestDriver se chalti hain - asli Kafka ke bina,
+ * nakli input topics me records daal ke output topics padhte hain.
+ */
 class ActivityTopologyTest {
 
     @Test
@@ -56,7 +60,7 @@ class ActivityTopologyTest {
             assertThat(first.getPlays()).isEqualTo(3);
             assertThat(first.getListenedMs()).isEqualTo(360_000L);
             assertThat(first.getEndedAt()).isEqualTo(t0.plusSeconds(20 * 60));
-            // The intermediate sessions (start 10:00, ended 10:00 / 10:10) were merged: their last record is null.
+            // Beech ke sessions (start 10:00, khatam 10:00 / 10:10) jud gaye: unka aakhri record null hai.
             ListeningSession second = sessions.get(ActivityTopology.sessionId("u1", t0.plusSeconds(90 * 60).toEpochMilli()));
             assertThat(second.getPlays()).isEqualTo(1);
             assertThat(sessions.values().stream().filter(v -> v != null).count()).isEqualTo(2);

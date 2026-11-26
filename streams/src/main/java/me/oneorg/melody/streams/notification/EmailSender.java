@@ -23,11 +23,11 @@ import me.oneorg.melody.events.Topics;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * notificationStreams: sends every notification.email.v1 request. Replaces the Bun mail
- * worker's Redis loop with the same behaviour: 3 attempts with 5/10/20 s backoff on a
- * separate retry topic (so one bad address never blocks other mail), then the DLQ.
- * Rejected credentials go straight to the DLQ and pause sending for 30 s.
- * Bodies can hold one-time codes: they are never logged and never written to the DLQ.
+ * notificationStreams: notification.email.v1 ki har request pe email bhejta hai. Bun mail worker ke Redis loop ki
+ * jagah leta hai, same behaviour ke saath: 3 koshish, 5/10/20 second ke gap pe, ek alag retry topic par
+ * (taaki ek kharab address baaki emails ko na roke), phir DLQ.
+ * Credentials reject hon to seedha DLQ aur 30 second ke liye bhejna band.
+ * Body me OTP ho sakta hai: isliye body kabhi log nahi hoti, aur DLQ me bhi nahi jaati.
  */
 @Component
 @Profile("notification")
@@ -41,7 +41,7 @@ public class EmailSender {
     private final KafkaTemplate<String, SpecificRecord> avro;
     private final KafkaTemplate<byte[], byte[]> dlq;
     private final JsonMapper json = JsonMapper.builder().build();
-    /** event_id:attempt already sent, so a redelivery after a rebalance doesn't email twice. */
+    /** Kaunse event_id:attempt bhej chuke hain - rebalance ke baad dobara aaye to do baar email na jaaye. */
     private final Cache<String, Boolean> sent = Caffeine.newBuilder().maximumSize(100_000)
             .expireAfterWrite(Duration.ofHours(24)).build();
 
@@ -52,15 +52,18 @@ public class EmailSender {
         this.dlq = dlqTemplate;
     }
 
+    /** Retry ka wait: 5s, 10s, 20s ... max 30s. */
     public static long retryDelayMs(int attempt) {
         return Math.min(5000L * (1L << Math.max(0, attempt - 1)), 30_000L);
     }
 
+    /** notification.email.v1 pe naya email request. */
     @KafkaListener(id = "email", topics = Topics.EMAIL, containerFactory = "emailFactory")
     public void onEmail(ConsumerRecord<String, EmailRequested> record) throws InterruptedException {
         if (record.value() != null) handle(record.key(), record.value());
     }
 
+    /** Retry topic se aaya email: notBefore tak (max 30 sec) ruko, phir bhejo. */
     @KafkaListener(id = "email-retry", topics = Topics.EMAIL_RETRY, containerFactory = "emailRetryFactory")
     public void onRetry(ConsumerRecord<String, EmailRequested> record) throws InterruptedException {
         EmailRequested email = record.value();
@@ -107,6 +110,7 @@ public class EmailSender {
         }
     }
 
+    /** Email ko DLQ me bhejo - body ke bina (OTP leak na ho). */
     private void deadLetter(String key, EmailRequested email, int attempts, Exception e, String reason) {
         Map<String, Object> entry = new LinkedHashMap<>();
         entry.put("to", email.getTo());
@@ -124,6 +128,7 @@ public class EmailSender {
         dlq.send(record);
     }
 
+    /** Log ke liye email chhupao: abc@x.com -> a***@x.com. */
     static String maskedTo(String to) {
         int at = to == null ? -1 : to.indexOf('@');
         if (at <= 1) return "***";

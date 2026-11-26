@@ -30,6 +30,10 @@ import me.oneorg.melody.events.stats.SongDailyStats;
 import me.oneorg.melody.events.stats.SongStats;
 import me.oneorg.melody.streams.stats.StatsTopology;
 
+/**
+ * Unit test: StatsTopology. Kafka Streams topologies TopologyTestDriver se chalti hain - asli Kafka ke bina,
+ * nakli input topics me records daal ke output topics padhte hain.
+ */
 class StatsTopologyTest {
 
     private TopologyTestDriver driver;
@@ -90,8 +94,8 @@ class StatsTopologyTest {
     void countsPlaysStreamsSkipsAndFavouritesPerSongAndDropsDuplicates() {
         String dup = EventIds.newId();
         plays.pipeInput("u1", play(dup, "u1", "s1", 0.9, 200_000L), t0);
-        plays.pipeInput("u1", play(dup, "u1", "s1", 0.9, 200_000L), t0);          // producer retry: same id
-        plays.pipeInput("u2", play(EventIds.newId(), "u2", "s1", 0.05, 200_000L), t0); // 10 s: not a stream
+        plays.pipeInput("u1", play(dup, "u1", "s1", 0.9, 200_000L), t0);          // producer ka retry: same id
+        plays.pipeInput("u2", play(EventIds.newId(), "u2", "s1", 0.05, 200_000L), t0); // 10 s: stream nahi
         skips.pipeInput("u2", SkipEvent.newBuilder().setMeta(EventIds.meta(EventIds.newId(), t0, t0, "t"))
                 .setUserId("u2").setSongId("s1").build(), t0);
         favourites.pipeInput("u1", FavouriteChanged.newBuilder().setMeta(EventIds.meta(EventIds.newId(), t0, t0, "t"))
@@ -116,7 +120,7 @@ class StatsTopologyTest {
     void shortTracksCountAfterHalfAndUnknownDurationUsesThreeMinutes() {
         assertThat(StatsTopology.qualifies(0.6, 20_000L)).isTrue();
         assertThat(StatsTopology.qualifies(0.4, 20_000L)).isFalse();
-        assertThat(StatsTopology.qualifies(0.2, null)).isTrue();    // 36 s of an assumed 180 s
+        assertThat(StatsTopology.qualifies(0.2, null)).isTrue();    // maane hue 180 s me se 36 s
         assertThat(StatsTopology.qualifies(0.1, null)).isFalse();
     }
 

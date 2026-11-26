@@ -33,6 +33,10 @@ import me.oneorg.melody.events.analytics.SongSecondStats;
 import me.oneorg.melody.events.analytics.SongTimeline;
 import me.oneorg.melody.streams.analytics.AnalyticsTopology;
 
+/**
+ * Unit test: AnalyticsTopology. Kafka Streams topologies TopologyTestDriver se chalti hain - asli Kafka ke bina,
+ * nakli input topics me records daal ke output topics padhte hain.
+ */
 class AnalyticsTopologyTest {
 
     private TopologyTestDriver driver;
@@ -88,8 +92,8 @@ class AnalyticsTopologyTest {
     private Duration elapsed = Duration.ZERO;
 
     /**
-     * Moves both clocks forward and sends a play for another song: stream time only
-     * advances with records, and suppressed windows are released by stream time.
+     * Dono ghadiyan (wall clock aur stream time) aage badhao aur doosre gaane ka ek play bhejo: stream time sirf
+     * records se aage badhta hai, aur suppressed windows stream time se hi chhoot-ti hain.
      */
     private void tick(Duration by) {
         elapsed = elapsed.plus(by);
@@ -101,7 +105,7 @@ class AnalyticsTopologyTest {
         plays.pipeInput("u", other, at);
     }
 
-    /** Newest total per second of song s1 across everything emitted so far. */
+    /** Ab tak jo bhi bheja gaya, usme song s1 ke har second ka sabse naya total. */
     private Map<Integer, SongSecondStats> s1Seconds(List<SongTimeline> records) {
         Map<Integer, SongSecondStats> out = new HashMap<>();
         records.stream().filter(t -> t.getSongId().equals("s1"))
@@ -112,11 +116,11 @@ class AnalyticsTopologyTest {
     @Test
     void secondsCountOncePerPlayAndDuplicatesAreDropped() {
         String a = EventIds.newId();
-        // Listened 0-4 s, seeked from 4 s to 7 s, listened 7-9 s, skipped at 9 s.
+        // 0-4 s suna, 4 s se 7 s pe seek, 7-9 s suna, 9 s pe skip.
         PlayEvent first = play(a, List.of(r(0, 4_000), r(7_000, 9_000)), 9_000L, true,
                 List.of(SeekMove.newBuilder().setFromMs(4_000).setToMs(7_000).build()), "320kbps", 300L, 1);
         plays.pipeInput("u", first, t0);
-        plays.pipeInput("u", first, t0);                       // redelivery: same event id
+        plays.pipeInput("u", first, t0);                       // dobara aaya: same event id
         plays.pipeInput("u", play(EventIds.newId(), List.of(r(2_000, 5_500)), 5_500L, false, List.of(), "128kbps", 500L, 0), t0);
 
         assertThat(timeline.isEmpty()).as("nothing leaves until the minute closes").isTrue();
@@ -126,9 +130,9 @@ class AnalyticsTopologyTest {
         assertThat(out.stream().filter(x -> x.getSongId().equals("s1"))).as("one record for both plays").hasSize(1);
         Map<Integer, SongSecondStats> t = s1Seconds(out);
         assertThat(t.get(0).getListens()).isEqualTo(1);
-        assertThat(t.get(2).getListens()).isEqualTo(2);   // both plays covered 2-3 s
+        assertThat(t.get(2).getListens()).isEqualTo(2);   // dono plays ne 2-3 s cover kiya
         assertThat(t.get(3).getListens()).isEqualTo(2);
-        assertThat(t.get(5).getListens()).isEqualTo(1);   // second play ended at 5.5 s
+        assertThat(t.get(5).getListens()).isEqualTo(1);   // doosra play 5.5 s pe khatam
         assertThat(t.get(5).getExits()).isEqualTo(1);
         assertThat(t).doesNotContainKey(6).as("nobody heard 6 s except via the seek target");
         assertThat(t.get(4).getSeeksAway()).isEqualTo(1);
@@ -140,7 +144,7 @@ class AnalyticsTopologyTest {
     @Test
     void dailyTotalsCountPlaysSkipsAndListeningTime() {
         plays.pipeInput("u", play(EventIds.newId(), List.of(r(0, 4_000), r(7_000, 9_000)), 9_000L, false, List.of(), "320kbps", 300L, 0), t0);
-        plays.pipeInput("u", play(EventIds.newId(), List.of(), null, false, List.of(), null, null, 0), t0); // old client
+        plays.pipeInput("u", play(EventIds.newId(), List.of(), null, false, List.of(), null, null, 0), t0); // purana client
         skips.pipeInput("u", SkipEvent.newBuilder().setMeta(EventIds.meta(EventIds.newId(), t0, t0, "t"))
                 .setUserId("u").setSongId("s1").setPositionMs(1_000L).build(), t0);
 
@@ -150,7 +154,7 @@ class AnalyticsTopologyTest {
         SongDayStats d = daily.readKeyValuesToMap().get("s1|" + LocalDate.parse("2026-11-25"));
         assertThat(d.getPlays()).isEqualTo(2);
         assertThat(d.getSkips()).isEqualTo(1);
-        // 6 s from the ranges + 0.5 × 10 s estimated for the old client.
+        // Ranges se 6 s + purane client ka andaza 0.5 × 10 s.
         assertThat(d.getListenedMs()).isEqualTo(6_000 + 5_000);
     }
 

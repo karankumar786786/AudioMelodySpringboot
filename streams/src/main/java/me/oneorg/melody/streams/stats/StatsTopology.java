@@ -32,27 +32,29 @@ import me.oneorg.melody.events.stats.SongStats;
 import me.oneorg.melody.streams.config.Dedupe;
 
 /**
- * statsStreams: running totals per song and artist, and per-song daily windows.
+ * statsStreams: har song aur artist ke running totals, aur har song ke daily (1 din ke) windows.
  *
  *   plays, skips, favourites --dedupe--> SongStatDelta keyed by song --> totals  --> stats.song.v1
- *                                                                    \-> 1-day windows --> stats.song-daily.v1
+ *                                                                    \-> 1-din windows --> stats.song-daily.v1
  *   follows --dedupe--> keyed by artist --> totals --> stats.artist.v1
  */
 public final class StatsTopology {
 
-    /** A play counts as a stream after 30 s, or half of a track shorter than 30 s (the legacy rule). */
+    /** Play tab stream ginta hai jab 30 second suna ho, ya 30 second se chhote gaane ka aadha (purana rule). */
     public static boolean qualifies(double ratio, Long durationMs) {
         long duration = durationMs != null && durationMs > 0 ? durationMs : 180_000L;
         double listenedMs = ratio * duration;
         return listenedMs >= 30_000 || (duration < 30_000 && ratio >= 0.5);
     }
 
+    /** Topology ke liye zaroori serdes. */
     public record Serdes4(Serde<PlayEvent> play, Serde<SkipEvent> skip, Serde<FavouriteChanged> favourite,
                           Serde<ArtistFollowChanged> follow, Serde<SongStatDelta> delta, Serde<SongStats> songStats,
                           Serde<SongDailyStats> daily, Serde<ArtistStats> artistStats) {}
 
     private StatsTopology() {}
 
+    /** Stats topology banao (diagram upar). */
     public static void build(StreamsBuilder builder, Serdes4 s) {
         Serde<String> str = Serdes.String();
         Dedupe.addStore(builder, "stats-seen-plays");
@@ -121,6 +123,7 @@ public final class StatsTopology {
                 .to(Topics.STATS_ARTIST, Produced.with(str, s.artistStats()));
     }
 
+    /** Song ke totals me ek delta jodo. */
     static SongStats add(SongStats total, SongStatDelta d) {
         SongStats.Builder b = total == null
                 ? SongStats.newBuilder().setSongId(d.getSongId())
@@ -134,6 +137,7 @@ public final class StatsTopology {
                 .build();
     }
 
+    /** Din ke totals me ek delta jodo. */
     static SongDailyStats addDaily(SongDailyStats day, SongStatDelta d) {
         SongDailyStats.Builder b = day == null
                 ? SongDailyStats.newBuilder().setSongId(d.getSongId()).setDay(LocalDate.EPOCH)
