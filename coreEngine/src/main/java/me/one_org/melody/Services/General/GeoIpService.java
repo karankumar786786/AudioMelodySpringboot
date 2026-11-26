@@ -227,7 +227,7 @@ public class GeoIpService implements AutoCloseable {
         return location;
     }
 
-    /** localhost / 10.x / 192.168.x / 172.16-31.x jaisa private IP hai? */
+    /** localhost / ::1 / 10.x / 192.168.x / 172.16-31.x jaisa private IP hai? */
     public boolean isLocalOrPrivateIp(String ip) {
         if ("127.0.0.1".equals(ip) || "localhost".equalsIgnoreCase(ip)
                 || "0:0:0:0:0:0:0:1".equals(ip) || "::1".equals(ip)) {

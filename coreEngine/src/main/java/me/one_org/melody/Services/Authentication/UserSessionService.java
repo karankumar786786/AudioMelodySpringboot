@@ -48,7 +48,7 @@ public class UserSessionService {
                 .toList();
     }
 
-    /** Ek session hatao (sirf apna). Na mile to 404. */
+    /** Ek session hatao (sirf apna). Na mile to bhi koi error nahi - bas 0 rows hatin. */
     @Transactional
     public void revokeSession(String userId, String sessionId) {
         if (userId == null || userId.isBlank()) {
