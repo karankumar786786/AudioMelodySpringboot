@@ -12,13 +12,18 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 /**
- * HttpOnly auth cookies for the web app.
+ * Website (web player) ke liye login cookies.
  *
- * <p>The browser client sends {@value #CLIENT_HEADER}: {@value #WEB_CLIENT}. That header
- * (a) opts the request into cookie-based auth (tokens are set as cookies and left out of
- * the JSON body) and (b) acts as CSRF protection: a custom header forces a CORS preflight,
- * so only allowed origins can send a cookie-authenticated request. Requests without the
- * header (the mobile app) keep using bearer tokens in headers and bodies.
+ * Mobile app token ko apne paas rakhta hai aur har request me "Authorization: Bearer ..."
+ * header bhejta hai. Website me token JavaScript ki pahunch se door rakhna safe hai, isliye
+ * use HttpOnly cookie me rakhte hain (HttpOnly = JS us cookie ko padh nahi sakta).
+ *
+ * Website har request me header {@value #CLIENT_HEADER}: {@value #WEB_CLIENT} bhejti hai.
+ * Is header ke do kaam hain:
+ * (a) server ko batata hai ki tokens cookie me set karo, JSON body me mat bhejo;
+ * (b) CSRF se bachata hai - custom header ki wajah se browser pehle CORS "preflight" check
+ *     karta hai, to koi doosri website user ki cookie use karke request nahi bhej sakti.
+ * Jis request me ye header nahi hai (mobile app) wo bearer token hi use karti rahegi.
  */
 @Component
 public class AuthCookies {
@@ -27,7 +32,7 @@ public class AuthCookies {
     public static final String REFRESH_COOKIE = "melody_refresh";
     public static final String CLIENT_HEADER = "X-Melody-Client";
     public static final String WEB_CLIENT = "web";
-    /** The refresh cookie is only ever needed by /auth endpoints. */
+    /** Refresh cookie sirf /auth wale endpoints pe chahiye, isliye uska path /auth hai. */
     static final String REFRESH_PATH = "/auth";
 
     private final String domain;
@@ -36,6 +41,7 @@ public class AuthCookies {
     private final Duration accessMaxAge;
     private final Duration refreshMaxAge;
 
+    /** Cookie settings config se aati hain (domain, secure, SameSite, kitni der valid). */
     public AuthCookies(
             @Value("${auth.cookie.domain:}") String domain,
             @Value("${auth.cookie.secure:true}") boolean secure,
@@ -49,10 +55,12 @@ public class AuthCookies {
         this.refreshMaxAge = Duration.ofSeconds(refreshMaxAgeSeconds);
     }
 
+    /** Request website se aayi hai? (X-Melody-Client: web header check karta hai) */
     public static boolean isWebClient(HttpServletRequest request) {
         return request != null && WEB_CLIENT.equalsIgnoreCase(request.getHeader(CLIENT_HEADER));
     }
 
+    /** Response me access aur refresh token ki cookies set karta hai (jo token khaali hai use skip). */
     public void writeTokens(HttpServletResponse response, String accessToken, String refreshToken) {
         if (accessToken != null && !accessToken.isBlank()) {
             response.addHeader(HttpHeaders.SET_COOKIE, build(ACCESS_COOKIE, accessToken, "/", accessMaxAge).toString());
@@ -62,11 +70,13 @@ public class AuthCookies {
         }
     }
 
+    /** Logout: dono cookies ko khaali value aur 0 age ke saath bhejte hain, browser unhe delete kar deta hai. */
     public void clear(HttpServletResponse response) {
         response.addHeader(HttpHeaders.SET_COOKIE, build(ACCESS_COOKIE, "", "/", Duration.ZERO).toString());
         response.addHeader(HttpHeaders.SET_COOKIE, build(REFRESH_COOKIE, "", REFRESH_PATH, Duration.ZERO).toString());
     }
 
+    /** Request me se naam se cookie ki value padhta hai; na mile ya khaali ho to null. */
     public static String readCookie(HttpServletRequest request, String name) {
         if (request == null || request.getCookies() == null) {
             return null;
@@ -79,6 +89,11 @@ public class AuthCookies {
         return null;
     }
 
+    /**
+     * Ek cookie banata hai:
+     * httpOnly = JS nahi padh sakta, secure = sirf HTTPS pe jaayegi,
+     * sameSite = doosri sites se aane wali requests me cookie kab jaayegi.
+     */
     private ResponseCookie build(String name, String value, String path, Duration maxAge) {
         ResponseCookie.ResponseCookieBuilder builder = ResponseCookie.from(name, value)
                 .httpOnly(true)

@@ -14,8 +14,9 @@ import me.one_org.melody.Enums.RoleEnum;
 import me.one_org.melody.Enums.StatusEnum;
 
 /**
- * Clean Spring Security UserDetails implementation representing an authenticated user.
- * Contains no Jackson annotations (@JsonIgnore) or serialization leaks.
+ * Login kiya hua user, Spring Security ki bhasha me (UserDetails).
+ * Har authenticated request ke saath ye object milta hai: id, email, naam, role, status.
+ * Isme JSON wale annotations jaan-boojh ke nahi hain, taaki galti se ye API response me na chala jaaye.
  */
 public class CustomUserDetails implements UserDetails {
 
@@ -29,6 +30,7 @@ public class CustomUserDetails implements UserDetails {
     private final Collection<? extends GrantedAuthority> authorities;
     private transient User user;
 
+    /** Database ke User entity se banata hai (login ke time). */
     public CustomUserDetails(User user) {
         this.id = user.getId();
         this.email = user.getEmail();
@@ -41,6 +43,7 @@ public class CustomUserDetails implements UserDetails {
         this.user = user;
     }
 
+    /** JWT token ke andar ke data se banata hai (DB call ke bina). */
     public CustomUserDetails(JwtPayloadDto jwtPayload) {
         this.id = jwtPayload.id();
         this.email = jwtPayload.email();
@@ -51,6 +54,7 @@ public class CustomUserDetails implements UserDetails {
         this.user = null;
     }
 
+    /** Seedhe values se banata hai; role/status na ho to USER / ACTIVE maan lete hain. */
     public CustomUserDetails(String id, String email, String userName, RoleEnum role, StatusEnum status) {
         this.id = id;
         this.email = email;
@@ -85,16 +89,21 @@ public class CustomUserDetails implements UserDetails {
         return user;
     }
 
+    /** Naya JWT banane ke liye zaroori data. */
     public JwtPayloadDto toJwtPayload() {
         return new JwtPayloadDto(id, userName, email, role);
     }
 
+    // ── Neeche ke methods Spring Security ke UserDetails interface ki zaroorat hain ──
+
+    /** Permissions, jaise "ROLE_USER" / "ROLE_ADMIN". */
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return authorities;
     }
 
     @Override
+    // Hum OTP se login karwate hain, password store nahi karte - isliye khaali string.
     public String getPassword() {
         return "";
     }
@@ -110,6 +119,7 @@ public class CustomUserDetails implements UserDetails {
     }
 
     @Override
+    // BLOCKED user = locked account.
     public boolean isAccountNonLocked() {
         return status != StatusEnum.BLOCKED;
     }
@@ -120,6 +130,7 @@ public class CustomUserDetails implements UserDetails {
     }
 
     @Override
+    // Sirf ACTIVE user hi enabled hai.
     public boolean isEnabled() {
         return status == StatusEnum.ACTIVE;
     }

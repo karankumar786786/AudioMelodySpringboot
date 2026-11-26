@@ -11,12 +11,16 @@ import com.zaxxer.hikari.HikariDataSource;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Verifies and logs HikariCP connection pool configuration on boot.
+ * Server start hote hi database connection pool (HikariCP) ki settings log me print karta hai.
+ * Connection pool = pehle se bane hue DB connections ka group, jinko requests baari baari use karti hain,
+ * taaki har request pe naya connection na banana pade.
+ * Ye sirf debugging ke liye hai - behaviour pe koi asar nahi.
  */
 @Configuration
 @Slf4j
 public class DataSourceConfig {
 
+    /** Startup pe ek baar chalta hai aur pool ki settings print karta hai. */
     @Bean
     public CommandLineRunner logDataSourcePoolInfo(DataSource dataSource) {
         return args -> {

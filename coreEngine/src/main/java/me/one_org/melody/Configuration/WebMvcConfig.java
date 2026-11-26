@@ -14,6 +14,12 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import me.one_org.melody.Security.ClientInfoArgumentResolver;
 
+/**
+ * Spring MVC (web layer) ki extra settings.
+ * 1. Ek default ObjectMapper (JSON <-> Java object converter) deta hai.
+ * 2. ClientInfoArgumentResolver register karta hai, taaki controller methods
+ *    ko device / IP jaisi client info seedha parameter me mil jaaye.
+ */
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
 
@@ -23,6 +29,12 @@ public class WebMvcConfig implements WebMvcConfigurer {
         this.clientInfoArgumentResolver = clientInfoArgumentResolver;
     }
 
+    /**
+     * Main ObjectMapper.
+     * - JavaTimeModule: Instant / LocalDate jaise date types ko JSON me sahi se likhta hai.
+     * - FAIL_ON_UNKNOWN_PROPERTIES = false: client koi extra field bheje to error nahi,
+     *   bas us field ko ignore kar do (purane / naye app versions ke liye safe).
+     */
     @Bean
     @Primary
     public ObjectMapper objectMapper() {
@@ -31,6 +43,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
+    /** Hamara custom argument resolver Spring ki list me jod deta hai. */
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
         resolvers.add(clientInfoArgumentResolver);

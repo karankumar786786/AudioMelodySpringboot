@@ -3,25 +3,32 @@ package me.one_org.melody.Utils;
 import org.slf4j.Logger;
 
 /**
- * Utility for executing operations with exponential backoff retries.
+ * Kisi kaam ko fail hone par dobara try karne ka helper (retry with exponential backoff).
+ *
+ * Exponential backoff = har fail ke baad wait time double: 200ms, 400ms, 800ms...
+ * (max 10 second). Isse thoda down hua external service (Recombee, Algolia) sambhal
+ * leta hai, aur hum use lagataar requests se pareshan bhi nahi karte.
  */
 public final class RetryUtil {
 
     private RetryUtil() {}
 
+    /** Jo kaam retry karna hai - ek lambda jo exception phenk sakta hai. */
     @FunctionalInterface
     public interface RetryableAction {
         void execute() throws Exception;
     }
 
     /**
-     * Executes the given action with exponential backoff retries.
+     * Action ko maxAttempts baar tak chalata hai.
+     * Saare tries fail ho jaayein to sirf warning log karta hai, exception aage NAHI phenkta -
+     * yaani caller ka kaam rukta nahi.
      *
-     * @param action the action to execute
-     * @param maxAttempts maximum number of attempts
-     * @param initialDelayMs initial backoff delay in milliseconds
-     * @param actionDescription human-readable description for logging
-     * @param log logger instance
+     * @param action jo kaam karna hai
+     * @param maxAttempts total kitni baar try karna hai
+     * @param initialDelayMs pehle retry se pehle kitne ms rukna hai
+     * @param actionDescription log me dikhane ke liye kaam ka naam
+     * @param log logger (null ho sakta hai)
      */
     public static void executeWithRetry(
             RetryableAction action,
@@ -50,13 +57,14 @@ public final class RetryUtil {
                 try {
                     Thread.sleep(delay);
                 } catch (InterruptedException ie) {
+                    // Thread ko rokne ka signal aaya - flag wapas set karke retry band kar do.
                     Thread.currentThread().interrupt();
                     if (log != null) {
                         log.warn("Action [{}] retry interrupted", actionDescription);
                     }
                     break;
                 }
-                delay = Math.min(delay * 2, 10_000L);
+                delay = Math.min(delay * 2, 10_000L); // wait double karo, par 10 sec se zyada nahi
             }
         }
     }

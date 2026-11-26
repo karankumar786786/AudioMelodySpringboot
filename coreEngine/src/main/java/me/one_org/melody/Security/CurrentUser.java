@@ -9,9 +9,10 @@ import java.lang.annotation.Target;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 
 /**
- * Custom meta-annotation for injecting the authenticated CustomUserDetails into controller method parameters.
+ * Shortcut annotation: controller parameter pe lagao to login kiya hua user mil jaata hai.
  * Example:
  *   public ResponseEntity<?> getMyProfile(@CurrentUser CustomUserDetails currentUser)
+ * Andar se ye Spring ka @AuthenticationPrincipal hi hai, bas naam chhota aur saaf hai.
  */
 @Target({ElementType.PARAMETER, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)

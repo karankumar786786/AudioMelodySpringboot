@@ -6,7 +6,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation to exclude specific methods or classes from centralized AOP logging.
+ * Ye annotation kisi method ya class pe lagao to CentralizedLoggingAspect uski
+ * START / SUCCESS / FAILURE logging nahi karega.
+ * Kaam aata hai un methods pe jo bahut baar chalte hain (log spam) ya jinke
+ * arguments me sensitive data ho sakta hai.
  */
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
