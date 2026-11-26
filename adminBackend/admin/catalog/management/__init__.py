@@ -1,1 +1,1 @@
-# Catalog management package
+# catalog ke management commands

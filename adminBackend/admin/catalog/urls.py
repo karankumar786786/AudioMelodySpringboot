@@ -42,7 +42,7 @@ from .views import (
 app_name = "catalog"
 
 urlpatterns = [
-    # Reindex & Sync
+    # Reindex aur sync
     path("admin/catalog/reindex-all", CatalogReindexAllView.as_view(), name="admin-catalog-reindex-all"),
     path("admin/catalog/sync-streams", CatalogSyncStreamCountsView.as_view(), name="admin-catalog-sync-streams"),
     path("admin/catalog/sync-health", CatalogSyncHealthView.as_view(), name="admin-catalog-sync-health"),
@@ -67,7 +67,7 @@ urlpatterns = [
     path("admin/playlist/<str:pk>/songs", PlaylistSongsView.as_view(), name="admin-playlist-songs"),
     path("admin/playlist/<str:pk>", PlaylistDetailView.as_view(), name="admin-playlist-detail"),
 
-    # Shorts (static routes first)
+    # Shorts (fixed routes pehle, warna <id> wale unhe pakad lete)
     path("admin/shorts/upload-url", ShortUploadUrlView.as_view(), name="admin-shorts-upload-url"),
     path("admin/shorts/reports", ShortReportListView.as_view(), name="admin-shorts-reports"),
     path("admin/shorts/reports/<str:report_id>/resolve", ShortReportResolveView.as_view(), name="admin-shorts-report-resolve"),
@@ -77,7 +77,7 @@ urlpatterns = [
     path("admin/shorts/<str:pk>/unhide", ShortUnhideView.as_view(), name="admin-shorts-unhide"),
     path("admin/shorts/<str:pk>", ShortDetailView.as_view(), name="admin-shorts-detail"),
 
-    # Songs (static routes first)
+    # Songs (fixed routes pehle)
     path("admin/song/jobs", SongJobsListView.as_view(), name="admin-song-jobs"),
     path("admin/song/job/<str:pk>", SongJobDetailView.as_view(), name="admin-song-job-detail"),
     path("admin/song", SongListView.as_view(), name="admin-song-list"),

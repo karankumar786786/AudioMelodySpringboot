@@ -1,18 +1,16 @@
-"""
-Moves old listening history out of Postgres into the S3 data lake.
+"""Purani listening history Postgres se nikaal ke S3 data lake me le jaata hai.
 
-    python manage.py archive_user_history                 # dry run: counts only
-    python manage.py archive_user_history --execute       # copy, verify, then delete
-    python manage.py archive_user_history --backfill --execute   # copy everything, delete nothing
+    python manage.py archive_user_history                 # dry run: sirf ginti
+    python manage.py archive_user_history --execute       # copy, verify, phir delete
+    python manage.py archive_user_history --backfill --execute   # sab copy, delete kuch nahi
 
-Rows older than --days (default 180) are written with DuckDB straight from Postgres to
+--days (default 180) se purani rows DuckDB seedha Postgres se yahan likhta hai:
   <LAKE_URI>/user_history/dt=YYYY-MM-DD/archive-<uuid>.parquet
-and are deleted from Postgres only after the lake holds at least as many rows for that
-cutoff as were counted before the copy. total_streams lives in song_metadata, so stream
-counts are unaffected.
+Postgres se delete tabhi hoti hain jab lake me us cutoff ki kam se kam utni rows ho jitni copy se
+pehle gini thi. total_streams song_metadata me hai, isliye stream counts pe asar nahi.
 
-Note: core's recommendation queries (top songs per user, mood radio) read user_history
-without a time limit, so archiving changes what they see. Keep --days generous.
+Dhyan do: core ki recommendation queries (user ke top songs, mood radio) user_history bina time limit
+ke padhti hain, isliye archive karne se unka result badalta hai. --days bada rakho.
 """
 
 import os
@@ -25,13 +23,15 @@ from django.db import connection
 
 from core.services import lake_service
 
-DELETE_BATCH = 5000
+DELETE_BATCH = 5000  # ek baar me itni rows delete - chhote batch se table lamba lock nahi hota
 
 
 class Command(BaseCommand):
+    """python manage.py archive_user_history - purani user_history lake me le jao (dry run default)."""
     help = "Archive user_history rows older than N days to the S3 data lake (Parquet), then delete them"
 
     def add_arguments(self, parser):
+        """--days (Postgres me kitne din rakhne), --execute (sach me karo), --backfill (sab copy, delete nahi)."""
         parser.add_argument("--days", type=int, default=180, help="Keep this many days in Postgres (default 180)")
         parser.add_argument("--execute", action="store_true", help="Actually copy and delete (default: dry run)")
         parser.add_argument(
@@ -39,6 +39,9 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, days: int, execute: bool, backfill: bool, **kwargs):
+        """--days 30 se kam (backfill ke bina) ya LAKE_URI na ho to CommandError. Pehle rows gino; --execute ho to
+        copy karo, copy kam nikle to kuch delete nahi (error). Backfill me delete nahi, warna cutoff se purani rows delete.
+        """
         if days < 30 and not backfill:
             raise CommandError("--days must be at least 30")
         uri = lake_service.lake_uri()
@@ -74,8 +77,10 @@ class Command(BaseCommand):
         deleted = self._delete(cutoff)
         self.stdout.write(self.style.SUCCESS(f"Deleted {deleted} archived rows from Postgres"))
 
-    # DuckDB reads Postgres directly (postgres extension) and writes partitioned Parquet.
     def _copy(self, uri: str, cutoff, run_id: str) -> int:
+        """DuckDB seedha Postgres padhta hai (postgres extension, READ_ONLY) aur din (dt) ke hisaab se Parquet files likhta hai.
+        File naam me run_id hai, isliye wapas padh ke sirf is run ki rows gin sakte hain. Output: likhi gayi rows.
+        """
         conn = lake_service._connect()
         db = settings.DATABASES["default"]
         sslmode = (db.get("OPTIONS") or {}).get("sslmode")
@@ -109,13 +114,14 @@ class Command(BaseCommand):
                  FILENAME_PATTERN 'archive-{run_id}-{{i}}', OVERWRITE_OR_IGNORE)""",
             params,
         )
-        # Verify by reading back what this run wrote.
+        # Is run ne jo likha use wapas padh ke ginti check karo.
         row = conn.execute(
             f"SELECT COUNT(*) FROM read_parquet('{target}/*/archive-{run_id}-*.parquet', hive_partitioning = true)"
         ).fetchone()
         return int(row[0]) if row else 0
 
     def _delete(self, cutoff) -> int:
+        """cutoff se purani rows DELETE_BATCH ke tukdon me delete karo jab tak khatam na ho. Output: total delete hui rows."""
         total = 0
         while True:
             with connection.cursor() as cur:

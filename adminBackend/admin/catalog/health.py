@@ -1,15 +1,14 @@
-"""
-Catalog health: finds songs with missing metadata or missing downstream state.
+"""Catalog health: wo songs dhoondta hai jinka metadata adhoora hai ya jo baaki systems me nahi pahunche.
 
 Issues
-  missingGenre          songs.genre empty
-  missingCover          songs.image_key empty
-  missingLyrics         songs.lrclib_id empty or "0" (the upload form's "no lyrics" value)
-  missingAudioFeatures  no linked job has tempo/energy/valence/danceability
-  notIndexed            no linked job recorded both saved_in_search and saved_in_recommendation
+  missingGenre          songs.genre khaali
+  missingCover          songs.image_key khaali
+  missingLyrics         songs.lrclib_id khaali ya "0" (upload form me "no lyrics" ki value)
+  missingAudioFeatures  kisi linked job me tempo/energy/valence/danceability nahi
+  notIndexed            kisi linked job ne saved_in_search aur saved_in_recommendation dono record nahi kiye
 
-"Linked job" = any jobs row with jobs.song_id = songs.id or jobs.id = songs.job_id
-(the same join CatalogSyncService.build_jobs_map uses).
+"Linked job" = jobs ki koi bhi row jisme jobs.song_id = songs.id ya jobs.id = songs.job_id
+(wahi join jo CatalogSyncService.build_jobs_map use karta hai).
 """
 from typing import Dict, List, Optional
 
@@ -31,12 +30,18 @@ AUDIO_FEATURE_FIELDS = ("tempo", "energy", "valence", "danceability")
 
 
 def _linked_jobs() -> QuerySet:
+    """Subquery: is song se jude jobs (jobs.song_id = song.id ya jobs.id = song.job_id).
+    OuterRef = bahar wali query ka current song.
+    """
     return Job.objects.filter(Q(song_id=OuterRef("id")) | Q(id=OuterRef("job_id")))
 
 
 def annotate_health(qs: QuerySet) -> QuerySet:
-    # TODO(audio-features): once Flyway V15 (songs.tempo/energy/valence/danceability) lands,
-    # check those columns on `songs` directly instead of going through the jobs table.
+    # TODO(audio-features): Flyway V15 (songs.tempo/energy/valence/danceability) aa jaaye to
+    # jobs table ke bajaye seedha `songs` ke columns check karo.
+    """Har song pe do True/False columns jodo: _has_features (kisi job me saare features hain)
+    aur _is_indexed (kisi job ne search + recommendation dono save kiye). Exists = SQL EXISTS, tez hai.
+    """
     features = _linked_jobs().filter(**{f"{f}__isnull": False for f in AUDIO_FEATURE_FIELDS})
     indexed = _linked_jobs().filter(saved_in_search=True, saved_in_recommendation=True)
     return qs.annotate(_has_features=Exists(features), _is_indexed=Exists(indexed))
@@ -52,7 +57,7 @@ ISSUE_FILTERS: Dict[str, Q] = {
 
 
 def parse_issues(raw: Optional[str]) -> List[str]:
-    """Comma-separated issue keys -> validated list. Raises ValueError for unknown keys."""
+    """Comma wali issue keys -> check ki hui list. Anjaani key ho to ValueError."""
     if not raw:
         return []
     keys = [k.strip() for k in raw.split(",") if k.strip()]
@@ -63,7 +68,7 @@ def parse_issues(raw: Optional[str]) -> List[str]:
 
 
 def filter_by_issues(qs: QuerySet, issues: List[str], match: str = "any") -> QuerySet:
-    """Songs with any (default) / all of the given issues; with no issues, songs with at least one."""
+    """Diye issues me se koi bhi (default) / saare wale songs; koi issue na diya to kam se kam ek issue wale songs."""
     selected = issues or ISSUES
     combined = Q()
     for key in selected:
@@ -75,6 +80,7 @@ def filter_by_issues(qs: QuerySet, issues: List[str], match: str = "any") -> Que
 
 
 def summarize(qs: QuerySet) -> Dict[str, int]:
+    """Ek hi aggregate query me har issue ki ginti, kitne songs me koi issue hai, aur total songs."""
     any_issue = Q()
     for q in ISSUE_FILTERS.values():
         any_issue |= q
@@ -85,6 +91,7 @@ def summarize(qs: QuerySet) -> Dict[str, int]:
 
 
 def issues_for(song: Song) -> List[str]:
+    """Ek song ke issues ki list (Python me check). annotate_health na laga ho to features / index ko theek maan lete hain."""
     out = []
     if not (song.genre or "").strip():
         out.append("missingGenre")
