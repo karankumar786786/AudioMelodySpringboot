@@ -1,5 +1,5 @@
 ########################################
-# S3 Bucket - Temporary Storage
+# S3 bucket - temporary storage (raw uploads, thodi der ke liye)
 ########################################
 
 resource "aws_s3_bucket" "temp" {
@@ -92,7 +92,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "temp" {
 }
 
 ########################################
-# S3 Bucket - Production Storage
+# S3 bucket - production storage (HLS audio/video, images, shorts)
 ########################################
 
 resource "aws_s3_bucket" "prod" {

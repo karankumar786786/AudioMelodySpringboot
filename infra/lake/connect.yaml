@@ -1,10 +1,10 @@
-# Redpanda Connect: copies listening and engagement events from Kafka into the S3 data
-# lake as Parquet, partitioned by topic and UTC day:
+# Redpanda Connect: Kafka se listening aur engagement events copy karke S3 data lake me Parquet files
+# banata hai, topic aur UTC din ke hisaab se folders me:
 #   s3://$LAKE_BUCKET/lake/events/topic=<topic>/dt=YYYY-MM-DD/<ts>-<uuid>.parquet
-# Every event becomes one row with the same columns (see parquet_encode below):
-# play-specific fields get their own columns and the whole event is kept as JSON.
-# Delivery is at least once (offsets commit after the upload): queries drop duplicates
-# by event_id. Anything that can't be encoded goes to pipeline.dlq.v1, never to S3.
+# Har event ek row banta hai, sabke same columns (neeche parquet_encode dekho):
+# play wale fields ke apne columns hain aur poora event JSON me bhi rakha jaata hai.
+# Delivery "at least once" hai (upload ke baad offsets commit): queries event_id se duplicates hatati hain.
+# Jo encode na ho paaye wo pipeline.dlq.v1 me jaata hai, S3 me kabhi nahi.
 input:
   kafka_franz:
     seed_brokers: ["${KAFKA_BROKERS:redpanda:29092}"]
@@ -20,14 +20,14 @@ input:
       - user.lifecycle.v1
     consumer_group: melody-lake-writer
     start_from_oldest: true
-    # One flush = one set of files. Larger batches mean fewer, bigger Parquet files.
+    # Ek flush = files ka ek set. Bade batch = kam, badi Parquet files.
     batching:
       count: ${LAKE_BATCH_COUNT:50000}
       period: ${LAKE_BATCH_PERIOD:15m}
 
 pipeline:
   processors:
-    # Avro -> plain JSON (raw_unions: nullable fields are plain values, not {"long": n}).
+    # Avro -> simple JSON (raw_unions: nullable fields seedhi values bante hain, {"long": n} nahi).
     - schema_registry_decode:
         url: "${SCHEMA_REGISTRY_URL:http://redpanda:8081}"
         avro:
@@ -61,7 +61,7 @@ pipeline:
         root.payload = this.format_json(no_indent: true).string()
         meta lake_topic = @kafka_topic
         meta lake_dt = ($ts / 1000).ts_format("2006-01-02", "UTC")
-    # One Parquet file per topic and day in each flush.
+    # Har flush me har topic aur din ki ek Parquet file.
     - group_by_value:
         value: '${! @lake_topic }/${! @lake_dt }'
     - parquet_encode:
@@ -94,7 +94,7 @@ pipeline:
 output:
   switch:
     cases:
-      # Decode or encode failed: keep the event for inspection instead of writing bad files.
+      # Decode / encode fail: kharab file likhne ke bajaye event ko jaanch ke liye (DLQ me) rakho.
       - check: errored()
         output:
           kafka_franz:
@@ -122,4 +122,4 @@ logger:
   format: logfmt
 
 http:
-  address: 0.0.0.0:4195   # /ready and /metrics
+  address: 0.0.0.0:4195   # /ready aur /metrics

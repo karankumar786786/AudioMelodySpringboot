@@ -1,14 +1,14 @@
-# Every Kafka topic, applied by apply-topics.sh (the redpanda-init container runs it on
-# each deploy; it only creates missing topics and updates configs, never deletes).
+# Saare Kafka topics. apply-topics.sh inhe lagata hai (redpanda-init container har deploy pe chalata hai;
+# sirf missing topics banata hai aur configs update karta hai, kabhi delete nahi karta).
 # Must match communication/src/main/java/me/oneorg/melody/events/Topics.java.
 #
-# Replication factor is 1 on the single self-hosted Redpanda node. On a managed
-# cluster set REPLICATION_FACTOR=3 when running the script.
+# Ek hi apna Redpanda node hai, isliye replication factor 1. Managed cluster pe
+# script chalate waqt REPLICATION_FACTOR=3 do.
 #
-# Retention: 1 day = 86400000, 3 days = 259200000, 7 days = 604800000,
-#            14 days = 1209600000, 90 days = 7776000000
+# Retention (kitni der data rakhna, ms me): 1 din = 86400000, 3 din = 259200000, 7 din = 604800000,
+#            14 din = 1209600000, 90 din = 7776000000. compact = har key ki sirf aakhri value rakho.
 topics:
-  # Telemetry from the core API
+  # Core API ki telemetry
   - name: listening.play.v1
     partitions: 3
     config: retention.ms=604800000
@@ -25,7 +25,7 @@ topics:
     partitions: 3
     config: retention.ms=604800000
 
-  # State changes through the outbox
+  # Outbox se aane wale state changes
   - name: engagement.favourite.v1
     partitions: 3
     config: retention.ms=604800000
@@ -41,7 +41,7 @@ topics:
   - name: catalog.song.v1
     partitions: 3
     config: cleanup.policy=compact
-  # Carries one-time codes: keep 1 day only.
+  # Isme OTP hote hain: sirf 1 din rakho.
   - name: notification.email.v1
     partitions: 3
     config: retention.ms=86400000
@@ -49,7 +49,7 @@ topics:
     partitions: 3
     config: retention.ms=86400000
 
-  # Produced by the stream services
+  # Stream services inhe banati hain
   - name: stats.song.v1
     partitions: 3
     config: cleanup.policy=compact
@@ -62,8 +62,8 @@ topics:
   - name: activity.session.v1
     partitions: 3
     config: cleanup.policy=compact
-  # Song analytics: per-second heatmap totals, daily totals, delivery quality
-  - name: analytics.song-timeline.v1     # only changed seconds per record: not compactable
+  # Song analytics: har second ke heatmap totals, daily totals, streaming quality
+  - name: analytics.song-timeline.v1     # har record me sirf badle seconds: compact nahi kar sakte
     partitions: 3
     config: retention.ms=604800000
   - name: analytics.song-daily.v1
@@ -76,7 +76,7 @@ topics:
     partitions: 3
     config: retention.ms=1209600000
 
-  # Plain-string nudge to outboxRelay after a commit (1 hour)
+  # Commit ke baad outboxRelay ko simple "jaago" signal (1 ghanta)
   - name: outbox.wakeup.v1
     partitions: 1
     config: retention.ms=3600000

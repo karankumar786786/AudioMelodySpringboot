@@ -1,6 +1,6 @@
-# Secret *containers* only. Values are written out-of-band with
-# `aws secretsmanager put-secret-value` (see infra/SECRETS.md), so they never
-# appear in Terraform config, plans or state. Do not add aws_secretsmanager_secret_version here.
+# Sirf secret ke *dabbe* (containers) banata hai. Values alag se
+# `aws secretsmanager put-secret-value` se likhi jaati hain (infra/SECRETS.md), taaki wo kabhi
+# Terraform config, plans ya state me na aayein. Yahan aws_secretsmanager_secret_version MAT jodo.
 
 locals {
   secrets = {
@@ -26,9 +26,8 @@ resource "aws_secretsmanager_secret" "this" {
 }
 
 # ------------------------------------------------------------------------------
-# One IAM role + instance profile per EC2 server. Each may read only its own
-# secrets in runtime_environment; there are no access keys anywhere.
-# ------------------------------------------------------------------------------
+# Har EC2 server ka ek IAM role + instance profile. Har server sirf runtime_environment ke apne
+# secrets padh sakta hai; kahin bhi access keys nahi hain.
 
 data "aws_iam_policy_document" "ec2_assume" {
   statement {

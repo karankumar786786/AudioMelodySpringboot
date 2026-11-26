@@ -1,4 +1,4 @@
-# 2 Elastic IPs attached to the 2 EC2 instances ('core' and 'processing')
+# 2 Elastic IPs (fixed public IP) dono EC2 servers ('core' aur 'processing') ke liye
 resource "aws_eip" "ec2_eip" {
   count    = length(local.ec2_roles)
   domain   = "vpc"

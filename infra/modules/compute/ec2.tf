@@ -1,7 +1,7 @@
-# Fetch latest official Ubuntu 24.04 LTS AMI if ami_id is not specified
+# ami_id na diya ho to Ubuntu 24.04 LTS ki sabse nayi official AMI (server image) lo
 data "aws_ami" "ubuntu" {
   most_recent = true
-  owners      = ["099720109477"] # Canonical
+  owners      = ["099720109477"] # Canonical (Ubuntu banane wali company) ka account
 
   filter {
     name   = "name"
@@ -20,7 +20,7 @@ locals {
   ec2_roles             = ["core", "processing"]
 }
 
-# 2 EC2 instances: 'core' and 'processing' in order
+# 2 EC2 servers, is order me: 'core' aur 'processing'
 resource "aws_instance" "ec2" {
   count                  = length(local.ec2_roles)
   ami                    = local.selected_ami_id
@@ -29,7 +29,7 @@ resource "aws_instance" "ec2" {
   vpc_security_group_ids = [aws_security_group.ec2_sg.id]
   iam_instance_profile   = lookup(var.iam_instance_profiles, local.ec2_roles[count.index], null)
 
-  # Distribute across available public subnets (ap-south-1a and ap-south-1b)
+  # Public subnets me baant do (ap-south-1a aur ap-south-1b)
   subnet_id = count.index == 0 ? aws_subnet.public_1.id : aws_subnet.public_2.id
 
   root_block_device {
@@ -39,16 +39,16 @@ resource "aws_instance" "ec2" {
     encrypted             = true
   }
 
-  # IMDSv2 only: the instance role's credentials are served by the metadata
-  # endpoint, so block the v1 (no-token) path. Hop limit 2 lets containers reach it.
+  # Sirf IMDSv2: instance role ke credentials metadata endpoint se milte hain, isliye purana v1 (bina token)
+  # raasta band. Hop limit 2 = Docker containers bhi wahan tak pahunch sakein.
   metadata_options {
     http_endpoint               = "enabled"
     http_tokens                 = "required"
     http_put_response_hop_limit = 2
   }
 
-  # The AMI data source tracks the newest Ubuntu image; without this every new
-  # Canonical release would make Terraform rebuild the running servers.
+  # AMI hamesha sabse nayi Ubuntu image dhoondhta hai; ye na ho to har nayi Ubuntu release pe Terraform
+  # chalte hue servers dobara bana dega.
   lifecycle {
     ignore_changes = [ami]
   }

@@ -1,8 +1,7 @@
 # ------------------------------------------------------------------------------
-# Event pipeline: Redpanda runs on the processing instance (index 1).
-# Only members of this security group (the two instances) may reach Kafka (9092)
-# and Schema Registry (8081), over the VPC's private network. Never the internet.
-# ------------------------------------------------------------------------------
+# Event pipeline: Redpanda processing server (index 1) pe chalta hai.
+# Sirf is security group ke members (dono servers) Kafka (9092) aur Schema Registry (8081) tak pahunch sakte
+# hain, VPC ke private network se. Internet se kabhi nahi.
 
 resource "aws_security_group_rule" "kafka_from_self" {
   type              = "ingress"
@@ -24,8 +23,8 @@ resource "aws_security_group_rule" "schema_registry_from_self" {
   self              = true
 }
 
-# Redpanda data and Kafka Streams state live on their own volume: the root volume is
-# small and shared with transcoding scratch space.
+# Redpanda ka data aur Kafka Streams ki state alag disk (volume) pe: root disk chhoti hai aur
+# transcoding ki temp files bhi wahin hoti hain.
 resource "aws_ebs_volume" "kafka" {
   availability_zone = aws_instance.ec2[1].availability_zone
   size              = var.kafka_volume_size
