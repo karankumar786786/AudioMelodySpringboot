@@ -2,8 +2,10 @@ package me.oneorg.melody.streams;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -28,6 +30,7 @@ import me.oneorg.melody.events.Topics;
 import me.oneorg.melody.events.analytics.SongDayStats;
 import me.oneorg.melody.events.analytics.SongQualityStats;
 import me.oneorg.melody.events.analytics.SongSecondStats;
+import me.oneorg.melody.events.analytics.SongTimeline;
 import me.oneorg.melody.streams.analytics.AnalyticsTopology;
 
 class AnalyticsTopologyTest {
@@ -35,7 +38,7 @@ class AnalyticsTopologyTest {
     private TopologyTestDriver driver;
     private TestInputTopic<String, PlayEvent> plays;
     private TestInputTopic<String, SkipEvent> skips;
-    private TestOutputTopic<String, SongSecondStats> timeline;
+    private TestOutputTopic<String, SongTimeline> timeline;
     private TestOutputTopic<String, SongDayStats> daily;
     private TestOutputTopic<String, SongQualityStats> quality;
     private final Instant t0 = Instant.parse("2026-11-25T10:00:00Z");
@@ -45,17 +48,17 @@ class AnalyticsTopologyTest {
         String scope = "analytics-" + System.nanoTime();
         SpecificAvroSerde<PlayEvent> play = TestSerdes.serde(scope);
         SpecificAvroSerde<SkipEvent> skip = TestSerdes.serde(scope);
-        SpecificAvroSerde<SongSecondStats> second = TestSerdes.serde(scope);
+        SpecificAvroSerde<SongTimeline> second = TestSerdes.serde(scope);
         SpecificAvroSerde<SongDayStats> day = TestSerdes.serde(scope);
         SpecificAvroSerde<SongQualityStats> q = TestSerdes.serde(scope);
         StreamsBuilder builder = new StreamsBuilder();
-        AnalyticsTopology.build(builder, new AnalyticsTopology.Serdes5(play, skip, second, day, q));
+        AnalyticsTopology.build(builder, new AnalyticsTopology.AnalyticsSerdes(play, skip, second, day, q));
         Properties props = new Properties();
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "analytics-test");
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "dummy:9092");
         props.put(StreamsConfig.STATESTORE_CACHE_MAX_BYTES_CONFIG, 0);
         props.put(StreamsConfig.STATE_DIR_CONFIG, System.getProperty("java.io.tmpdir") + "/analytics-test-" + System.nanoTime());
-        driver = new TopologyTestDriver(builder.build(), props);
+        driver = new TopologyTestDriver(builder.build(), props, t0);
         var str = Serdes.String();
         plays = driver.createInputTopic(Topics.PLAY, str.serializer(), play.serializer());
         skips = driver.createInputTopic(Topics.SKIP, str.serializer(), skip.serializer());
@@ -82,6 +85,30 @@ class AnalyticsTopologyTest {
                 .build();
     }
 
+    private Duration elapsed = Duration.ZERO;
+
+    /**
+     * Moves both clocks forward and sends a play for another song: stream time only
+     * advances with records, and suppressed windows are released by stream time.
+     */
+    private void tick(Duration by) {
+        elapsed = elapsed.plus(by);
+        driver.advanceWallClockTime(by);
+        Instant at = t0.plus(elapsed);
+        PlayEvent other = PlayEvent.newBuilder().setMeta(EventIds.meta(EventIds.newId(), at, at, "test"))
+                .setUserId("u").setSongId("s-tick").setListenedRatio(0.1).setDurationMs(10_000L)
+                .setRanges(List.of(r(0, 1_000))).build();
+        plays.pipeInput("u", other, at);
+    }
+
+    /** Newest total per second of song s1 across everything emitted so far. */
+    private Map<Integer, SongSecondStats> s1Seconds(List<SongTimeline> records) {
+        Map<Integer, SongSecondStats> out = new HashMap<>();
+        records.stream().filter(t -> t.getSongId().equals("s1"))
+                .forEach(t -> t.getSeconds().forEach(x -> out.put(x.getSec(), x)));
+        return out;
+    }
+
     @Test
     void secondsCountOncePerPlayAndDuplicatesAreDropped() {
         String a = EventIds.newId();
@@ -92,17 +119,22 @@ class AnalyticsTopologyTest {
         plays.pipeInput("u", first, t0);                       // redelivery: same event id
         plays.pipeInput("u", play(EventIds.newId(), List.of(r(2_000, 5_500)), 5_500L, false, List.of(), "128kbps", 500L, 0), t0);
 
-        Map<String, SongSecondStats> t = timeline.readKeyValuesToMap();
-        assertThat(t.get("s1|0").getListens()).isEqualTo(1);
-        assertThat(t.get("s1|2").getListens()).isEqualTo(2);   // both plays covered 2-3 s
-        assertThat(t.get("s1|3").getListens()).isEqualTo(2);
-        assertThat(t.get("s1|5").getListens()).isEqualTo(1);   // second play ended at 5.5 s
-        assertThat(t.get("s1|5").getExits()).isEqualTo(1);
-        assertThat(t).doesNotContainKey("s1|6").as("nobody heard 6 s except via the seek target");
-        assertThat(t.get("s1|4").getSeeksAway()).isEqualTo(1);
-        assertThat(t.get("s1|7").getSeeksInto()).isEqualTo(1);
-        assertThat(t.get("s1|8").getExits()).isEqualTo(1);
-        assertThat(t.get("s1|8").getSkips()).isEqualTo(1);
+        assertThat(timeline.isEmpty()).as("nothing leaves until the minute closes").isTrue();
+        tick(Duration.ofMinutes(2));
+
+        List<SongTimeline> out = timeline.readValuesToList();
+        assertThat(out.stream().filter(x -> x.getSongId().equals("s1"))).as("one record for both plays").hasSize(1);
+        Map<Integer, SongSecondStats> t = s1Seconds(out);
+        assertThat(t.get(0).getListens()).isEqualTo(1);
+        assertThat(t.get(2).getListens()).isEqualTo(2);   // both plays covered 2-3 s
+        assertThat(t.get(3).getListens()).isEqualTo(2);
+        assertThat(t.get(5).getListens()).isEqualTo(1);   // second play ended at 5.5 s
+        assertThat(t.get(5).getExits()).isEqualTo(1);
+        assertThat(t).doesNotContainKey(6).as("nobody heard 6 s except via the seek target");
+        assertThat(t.get(4).getSeeksAway()).isEqualTo(1);
+        assertThat(t.get(7).getSeeksInto()).isEqualTo(1);
+        assertThat(t.get(8).getExits()).isEqualTo(1);
+        assertThat(t.get(8).getSkips()).isEqualTo(1);
     }
 
     @Test
@@ -111,6 +143,9 @@ class AnalyticsTopologyTest {
         plays.pipeInput("u", play(EventIds.newId(), List.of(), null, false, List.of(), null, null, 0), t0); // old client
         skips.pipeInput("u", SkipEvent.newBuilder().setMeta(EventIds.meta(EventIds.newId(), t0, t0, "t"))
                 .setUserId("u").setSongId("s1").setPositionMs(1_000L).build(), t0);
+
+        assertThat(daily.isEmpty()).as("rate-limited to one update a minute").isTrue();
+        tick(Duration.ofMinutes(2));
 
         SongDayStats d = daily.readKeyValuesToMap().get("s1|" + LocalDate.parse("2026-11-25"));
         assertThat(d.getPlays()).isEqualTo(2);
@@ -125,6 +160,8 @@ class AnalyticsTopologyTest {
         plays.pipeInput("u", play(EventIds.newId(), List.of(r(0, 1_000)), 1_000L, false, List.of(), "320kbps", 500L, 2), t0);
         plays.pipeInput("u", play(EventIds.newId(), List.of(r(0, 1_000)), 1_000L, false, List.of(), null, null, 0), t0);
 
+        tick(Duration.ofMinutes(2));
+
         Map<String, SongQualityStats> q = quality.readKeyValuesToMap();
         SongQualityStats high = q.get("s1|2026-11-25|320kbps|ios");
         assertThat(high.getPlays()).isEqualTo(2);
@@ -132,6 +169,34 @@ class AnalyticsTopologyTest {
         assertThat(high.getStartupSamples()).isEqualTo(2);
         assertThat(high.getRebufferCount()).isEqualTo(3);
         assertThat(q.get("s1|2026-11-25|unknown|ios").getStartupSamples()).isZero();
+    }
+
+    @Test
+    void laterWindowsAddToTheTotalsAndSendOnlyTheSecondsTheyChanged() {
+        plays.pipeInput("u", play(EventIds.newId(), List.of(r(0, 3_000)), 3_000L, false, List.of(), "320kbps", 300L, 0), t0);
+        tick(Duration.ofMinutes(2));
+        timeline.readValuesToList();
+
+        Instant later = t0.plus(elapsed);
+        PlayEvent second = PlayEvent.newBuilder(play(EventIds.newId(), List.of(r(1_000, 2_000)), 2_000L, false, List.of(), "320kbps", 300L, 0))
+                .setMeta(EventIds.meta(EventIds.newId(), later, later, "test")).build();
+        plays.pipeInput("u", second, later);
+        tick(Duration.ofMinutes(2));
+
+        SongTimeline update = timeline.readValuesToList().stream().filter(x -> x.getSongId().equals("s1")).findFirst().orElseThrow();
+        assertThat(update.getSeconds()).extracting(SongSecondStats::getSec).containsExactly(1);
+        assertThat(update.getSeconds().get(0).getListens()).as("running total, not the window's delta").isEqualTo(2);
+    }
+
+    @Test
+    void manyPlaysOfOneSongInAWindowBecomeOneDailyUpdate() {
+        for (int i = 0; i < 50; i++) {
+            plays.pipeInput("u", play(EventIds.newId(), List.of(r(0, 1_000)), 1_000L, false, List.of(), "128kbps", 100L, 0), t0);
+        }
+        tick(Duration.ofMinutes(2));
+        var records = daily.readRecordsToList().stream().filter(r -> r.key().startsWith("s1|")).toList();
+        assertThat(records).hasSize(1);
+        assertThat(records.get(0).value().getPlays()).isEqualTo(50);
     }
 
     @Test
