@@ -1,14 +1,11 @@
-"""
-Django's models here are unmanaged: Flyway (migration/) owns the schema, and Django only
-maps onto it. Nothing else checks that the mapping still matches, so a migration that
-renames or drops a column the admin API uses would only fail at runtime, on the first
-query that touches it. (The core API has the same protection built in, through
-Hibernate's `ddl-auto: validate`.)
+"""Yahan ke Django models unmanaged hain: schema Flyway (migration/) ka hai, Django sirf uspe map karta hai.
+Koi aur check nahi karta ki mapping ab bhi match karti hai, isliye agar koi migration admin API ka use kiya
+column rename / drop kar de to error sirf runtime pe aata, us column ko chhune wali pehli query pe.
+(Core API me yahi suraksha Hibernate ke `ddl-auto: validate` se already hai.)
 
-This test compares every unmanaged model with a real Postgres that Flyway has migrated:
-each model's table, and each of its columns (including many-to-many link tables), must
-exist. It runs when SCHEMA_CHECK_DB_URL points at that database (CI applies every
-migration first) and is skipped otherwise, since the normal test run uses SQLite.
+Ye test har unmanaged model ko ek asli, Flyway se migrate kiye Postgres se milata hai: har model ki table aur
+uske saare columns (many-to-many link tables bhi) hone chahiye. Ye tab chalta hai jab SCHEMA_CHECK_DB_URL us
+database ki taraf ho (CI pehle saari migrations chalata hai), warna skip - normal test run SQLite pe hota hai.
 
     SCHEMA_CHECK_DB_URL=postgresql://postgres:postgres@localhost:5432/melody \
         uv run python manage.py test core.test_schema_drift
@@ -24,7 +21,7 @@ SCHEMA_DB_URL = os.getenv("SCHEMA_CHECK_DB_URL")
 
 
 def expected_columns():
-    """{table: {column: "app.Model.field"}} for every unmanaged model and its link tables."""
+    """Har unmanaged model aur uski link tables ke liye {table: {column: "app.Model.field"}}."""
     tables = {}
     for model in apps.get_models(include_auto_created=True):
         meta = model._meta
@@ -70,7 +67,7 @@ def drift(expected, actual):
 
 
 class DriftDetectionTests(SimpleTestCase):
-    """The comparison itself, without a database."""
+    """Sirf comparison wala logic, bina database ke."""
 
     def test_reports_missing_tables_and_columns(self):
         expected = {"songs": {"id": "catalog.Song.id", "title": "catalog.Song.title"}, "gone": {"id": "x.Gone.id"}}

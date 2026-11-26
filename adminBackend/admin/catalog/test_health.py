@@ -1,3 +1,4 @@
+"""Catalog health ke tests: issues ki ginti, filters, permissions aur resync / reprocess."""
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -51,7 +52,7 @@ def job(id: str, song_id: str, features: bool = True, indexed: bool = True, stat
 
 
 class CatalogHealthTests(TestCase):
-    """Song/Job are unmanaged (Flyway owns the schema), so create their tables for the test DB."""
+    """Song/Job unmanaged hain (schema Flyway ka), isliye test DB ke liye unki tables yahin banate hain."""
 
     client: Any
 
@@ -72,22 +73,22 @@ class CatalogHealthTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.client.credentials(HTTP_X_SESSION_ID=make_session("ADMIN"))
-        # healthy
+        # sab theek
         song("ok", 1)
         job("job-ok", "ok")
-        # missing genre + cover
+        # genre aur cover nahi
         song("nogenre", 2, genre=None, image_key="")
         job("job-nogenre", "nogenre")
-        # missing lyrics ("0" is the upload form default) + no audio features
+        # lyrics nahi ("0" upload form ka default hai) + audio features nahi
         song("nolyrics", 3, lrclib_id="0")
         job("job-nolyrics", "nolyrics", features=False)
-        # not indexed, linked only via songs.job_id (job.song_id differs)
+        # index nahi hua, sirf songs.job_id se juda (job.song_id alag hai)
         song("noindex", 4, job_id="job-x")
         job("job-x", "other-id", indexed=False, status="FAILED")
-        # inactive songs are excluded by default
+        # INACTIVE songs default me shamil nahi
         song("inactive", 5, genre="", status="INACTIVE")
 
-    # --- permissions -----------------------------------------------------
+    # --- permissions (kaun kya kar sakta hai) ----------------------------
 
     def test_anonymous_rejected(self):
         resp = APIClient().get(URL)
@@ -100,7 +101,7 @@ class CatalogHealthTests(TestCase):
         self.assertIn(c.post(f"{URL}/resync", {"songIds": ["ok"]}, format="json").status_code, (401, 403))
         self.assertIn(c.post(f"{URL}/reprocess", {"songIds": ["ok"]}, format="json").status_code, (401, 403))
 
-    # --- summary + filters ----------------------------------------------
+    # --- summary aur filters --------------------------------------------
 
     def test_summary_counts(self):
         resp = self.client.get(URL)
@@ -144,7 +145,7 @@ class CatalogHealthTests(TestCase):
         self.assertEqual(self.client.get(f"{URL}?match=some").status_code, 400)
         self.assertEqual(self.client.get(f"{URL}?page=x").status_code, 400)
 
-    # --- actions ----------------------------------------------------------
+    # --- actions (resync / reprocess) ------------------------------------
 
     def test_resync_pushes_active_songs_and_marks_completed_jobs(self):
         Job.objects.filter(id="job-ok").update(saved_in_search=False, saved_in_recommendation=False)

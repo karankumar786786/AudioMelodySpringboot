@@ -1,3 +1,4 @@
+/** "music-tempo" library ke TypeScript types (library khud types nahi deti). */
 declare module "music-tempo" {
     export default class MusicTempo {
         constructor(audioData: Float32Array | number[], params?: any);

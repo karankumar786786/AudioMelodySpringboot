@@ -1,3 +1,4 @@
+"""accounts app ke tests: serializers, aur web app ko JSON me session IDs na milna."""
 from datetime import datetime
 from unittest.mock import patch
 from django.test import SimpleTestCase
@@ -59,7 +60,7 @@ class AccountsAppTests(SimpleTestCase):
 
 
 class WebSessionBodyTests(SimpleTestCase):
-    """The admin web app (X-Admin-Client: web) must never receive session IDs in JSON."""
+    """Admin web app (X-Admin-Client: web) ko JSON me session IDs kabhi nahi milne chahiye."""
 
     def test_session_ids_are_stripped_for_web_client(self):
         from rest_framework.test import APIRequestFactory

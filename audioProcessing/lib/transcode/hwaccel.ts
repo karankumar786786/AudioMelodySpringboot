@@ -1,3 +1,12 @@
+/**
+ * Hardware acceleration ka pata lagana + FFmpeg ke arguments banana.
+ *
+ * Machine pe kaunsa GPU encoder sach me chalta hai (Apple VideoToolbox, NVIDIA NVENC, Intel QSV, AMD AMF,
+ * ARM V4L2) ye 1-frame test chala ke check karte hain. Koi na chale to CPU wala libx264.
+ * Saath me video / audio encode ke FFmpeg args banate hain aur GPU fail ho to CPU pe dobara chalate hain.
+ *
+ * Kaun use karta hai: lib/transcode/* (audio, video, canvas, shorts transcoding).
+ */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import * as os from "node:os";
@@ -19,6 +28,7 @@ export type AudioEncoderType =
     | "aac_at"
     | "aac";
 
+/** Machine ke baare me jo pata chala: kaunsa encoder, kitne cores, ek saath kitne jobs. */
 export interface HardwareCapabilities {
     platform: NodeJS.Platform;
     arch: string;
@@ -33,12 +43,14 @@ export interface HardwareCapabilities {
     maxAudioConcurrency: number;
 }
 
+// Pehli detection ke baad yahan rakh lete hain - har job pe dobara ffmpeg test nahi chalana padta
 let cachedCapabilities: HardwareCapabilities | null = null;
 
 /**
- * Probes whether a specific video encoder actually functions on the host system
- * by running a 1-frame dummy encoding test using FFmpeg's null muxer.
- * Uses a short timeout (3.5s) to guarantee zero stalls or hangs.
+ * Check karo ki ye video encoder is machine pe sach me chalta hai ya nahi:
+ * FFmpeg se ek 64x64 kaala frame encode karke "null" output me phenk dete hain.
+ * Timeout 3.5s - taaki koi atka hua driver pura startup na rok de.
+ * Output: chala to true, koi bhi error / timeout to false.
  */
 async function probeVideoEncoder(encoder: VideoEncoderType, extraProbeArgs: string[] = []): Promise<boolean> {
     try {
@@ -65,8 +77,8 @@ async function probeVideoEncoder(encoder: VideoEncoderType, extraProbeArgs: stri
 }
 
 /**
- * Probes whether a specific audio encoder actually functions on the host system
- * by running a 50ms dummy encoding test using FFmpeg's null muxer.
+ * Audio encoder ka test: 50ms ki khaali (silent) audio encode karke dekho.
+ * Output: chala to true, warna false.
  */
 async function probeAudioEncoder(encoder: AudioEncoderType): Promise<boolean> {
     try {
@@ -92,11 +104,13 @@ async function probeAudioEncoder(encoder: AudioEncoderType): Promise<boolean> {
 }
 
 /**
- * Probes ffmpeg, the underlying operating system (Linux, macOS, Windows),
- * architecture (x86_64, ARM64/Apple Silicon), and available GPU devices.
- * Actively validates candidate encoders with a live 1-frame test to avoid
- * false positives (such as h264_nvenc compiled in ffmpeg on a machine without NVIDIA drivers).
- * Caches the result in memory for fast subsequent calls.
+ * Machine ki jaankari jodo: OS (Linux / macOS / Windows), CPU architecture (x86_64 / ARM64), GPU devices,
+ * aur ffmpeg me kaunse encoders hain. Har GPU encoder ko 1-frame test se sach me check karte hain, kyunki
+ * ffmpeg me h264_nvenc "listed" ho sakta hai par machine pe NVIDIA driver hi na ho.
+ *
+ * Output: HardwareCapabilities (encoder, naam, kitne video / audio jobs ek saath).
+ * Result memory me cache hota hai - doosri baar turant milta hai.
+ * Kuch bhi fail ho to CPU (libx264 / aac) pe aa jaate hain, error nahi phenkte.
  */
 export async function detectHardwareCapabilities(): Promise<HardwareCapabilities> {
     if (cachedCapabilities) {
@@ -109,7 +123,7 @@ export async function detectHardwareCapabilities(): Promise<HardwareCapabilities
     const cpuCount = Math.max(1, cpus.length || 2);
     const cpuModel = cpus[0]?.model?.trim() || "Unknown CPU";
 
-    // Check for manual software override via environment variables
+    // Env variable se GPU zabardasti band kar sakte hain (debugging ya kharab driver ke liye)
     const forceSoftware =
         process.env.FORCE_SOFTWARE_ENCODING === "true" ||
         process.env.DISABLE_HWACCEL === "true";
@@ -133,7 +147,7 @@ export async function detectHardwareCapabilities(): Promise<HardwareCapabilities
         hwaccelsOutput = "";
     }
 
-    // Diagnostic device inspection for Linux / Unix
+    // Linux pe /dev me GPU devices dekho (NVIDIA, Intel/AMD ka DRI, ARM ka V4L2)
     let hasNvidiaDevice = false;
     let hasDriDevice = false;
     let hasV4l2Device = false;
@@ -165,7 +179,7 @@ export async function detectHardwareCapabilities(): Promise<HardwareCapabilities
         }
     }
 
-    // Default baseline: software CPU encoding
+    // Shuru me maan lo: CPU (software) encoding. GPU mila to neeche badal denge.
     let videoEncoder: VideoEncoderType = "libx264";
     let audioEncoder: AudioEncoderType = "aac";
     let hwaccelMethod: string | undefined = undefined;
@@ -175,7 +189,7 @@ export async function detectHardwareCapabilities(): Promise<HardwareCapabilities
     if (forceSoftware) {
         console.log(`[HWACCEL] Hardware acceleration explicitly disabled via environment variable. Using software encoders.`);
     } else {
-        // --- 1. DETECT & PROBE VIDEO ENCODER ---
+        // --- 1. VIDEO ENCODER DHOONDO AUR TEST KARO ---
         interface Candidate {
             encoder: VideoEncoderType;
             name: string;
@@ -186,7 +200,7 @@ export async function detectHardwareCapabilities(): Promise<HardwareCapabilities
 
         const candidates: Candidate[] = [];
 
-        // macOS: Apple VideoToolbox (Apple Silicon M1-M4 & Intel Macs)
+        // macOS: Apple VideoToolbox (Apple Silicon M1-M4 aur Intel Macs)
         if (platform === "darwin") {
             candidates.push({
                 encoder: "h264_videotoolbox",
@@ -198,9 +212,9 @@ export async function detectHardwareCapabilities(): Promise<HardwareCapabilities
             });
         }
 
-        // Linux & Windows GPU candidates:
+        // Linux aur Windows ke GPU options (is order me try honge):
         if (platform === "linux" || platform === "win32") {
-            // Priority 1: NVIDIA NVENC
+            // Pehli pasand: NVIDIA NVENC
             candidates.push({
                 encoder: "h264_nvenc",
                 name: "NVIDIA NVENC (Hardware GPU)",
@@ -209,7 +223,7 @@ export async function detectHardwareCapabilities(): Promise<HardwareCapabilities
                 condition: platform === "win32" || hasNvidiaDevice || encodersOutput.includes("h264_nvenc"),
             });
 
-            // Priority 2: Intel Quick Sync Video (QSV)
+            // Doosri: Intel Quick Sync Video (QSV)
             candidates.push({
                 encoder: "h264_qsv",
                 name: "Intel Quick Sync Video (QSV)",
@@ -218,7 +232,7 @@ export async function detectHardwareCapabilities(): Promise<HardwareCapabilities
                 condition: platform === "win32" || hasDriDevice || encodersOutput.includes("h264_qsv"),
             });
 
-            // Priority 3: AMD AMF
+            // Teesri: AMD AMF
             candidates.push({
                 encoder: "h264_amf",
                 name: "AMD AMF (Hardware GPU)",
@@ -227,7 +241,7 @@ export async function detectHardwareCapabilities(): Promise<HardwareCapabilities
             });
         }
 
-        // Linux ARM V4L2 M2M (Raspberry Pi, SBCs)
+        // Linux ARM V4L2 M2M (Raspberry Pi jaise chhote boards)
         if (platform === "linux" && (arch === "arm64" || arch === "arm")) {
             candidates.push({
                 encoder: "h264_v4l2m2m",
@@ -237,7 +251,7 @@ export async function detectHardwareCapabilities(): Promise<HardwareCapabilities
             });
         }
 
-        // Active Probe Verification: Test candidates in order
+        // Har candidate ko order me test karo - jo pehla chal jaaye wahi use hoga
         for (const candidate of candidates) {
             if (candidate.condition === false) {
                 continue;
@@ -247,7 +261,7 @@ export async function detectHardwareCapabilities(): Promise<HardwareCapabilities
                 continue;
             }
 
-            // Perform live 1-frame probe test
+            // Asli 1-frame test chalao
             const probeSuccess = await probeVideoEncoder(candidate.encoder, candidate.probeArgs);
             if (probeSuccess) {
                 videoEncoder = candidate.encoder;
@@ -260,7 +274,7 @@ export async function detectHardwareCapabilities(): Promise<HardwareCapabilities
             }
         }
 
-        // --- 2. DETECT & PROBE AUDIO ENCODER ---
+        // --- 2. AUDIO ENCODER (macOS pe Apple ka aac_at, warna normal aac) ---
         if (platform === "darwin" && encodersOutput.includes("aac_at")) {
             const aacAtSuccess = await probeAudioEncoder("aac_at");
             if (aacAtSuccess) {
@@ -269,13 +283,13 @@ export async function detectHardwareCapabilities(): Promise<HardwareCapabilities
         }
     }
 
-    // --- 3. CONCURRENCY TUNING BASED ON ARCHITECTURE & ACCELERATION ---
-    // Video: On 1-2 cores = 1; on 4 cores = 2; on 8+ cores = up to 4.
+    // --- 3. EK SAATH KITNE JOBS (CONCURRENCY) ---
+    // Video: 1-2 cores = 1; 4 cores = 2; 8+ cores = GPU pe 4 tak, CPU pe 3 tak.
     const maxVideoConcurrency = isHardwareAccelerated
         ? Math.max(1, Math.min(4, Math.floor(cpuCount / 2)))
         : Math.max(1, Math.min(3, Math.floor(cpuCount / 2)));
 
-    // Audio: Fast AAC encoding scales with available CPU cores
+    // Audio: AAC encoding halka hai, cores ke hisaab se badhta hai (max 6)
     const maxAudioConcurrency = Math.max(1, Math.min(6, cpuCount));
 
     cachedCapabilities = {
@@ -305,6 +319,7 @@ export async function detectHardwareCapabilities(): Promise<HardwareCapabilities
     return cachedCapabilities;
 }
 
+/** Ek video quality: size aur bitrate (maxrate / bufsize = bitrate kitna upar-neeche ja sakta hai). */
 export interface VideoProfileOptions {
     width: number;
     height: number;
@@ -313,6 +328,7 @@ export interface VideoProfileOptions {
     bufsize: string;
 }
 
+/** Extra video options: kahan se shuru, kitni der, awaaz hatao, fit mode, movflags. */
 export interface VideoExtraOptions {
     duration?: number;
     startSec?: number;
@@ -322,21 +338,22 @@ export interface VideoExtraOptions {
 }
 
 /**
- * Builds FFmpeg argument list tailored for the detected hardware or software video encoder.
+ * Video ka scale filter banao.
+ * "cover": frame poora bharo, extra hissa kaat do (crop). "contain" (default): poora video dikhao,
+ * khaali jagah kaali patti (pad). format=yuv420p isliye taaki har player / phone chala sake.
  */
-export function buildVideoEncoderArgs(
-    inputPath: string,
-    outputPath: string,
-    profile: VideoProfileOptions,
-    hwCaps: HardwareCapabilities,
-    extraOptions: VideoExtraOptions = {}
-): string[] {
-    const { videoEncoder } = hwCaps;
-    const isCover = extraOptions.fitMode === "cover";
-    const scaleFilter = isCover
-        ? `scale=w=${profile.width}:h=${profile.height}:force_original_aspect_ratio=increase,crop=${profile.width}:${profile.height},format=yuv420p`
-        : `scale=w=${profile.width}:h=${profile.height}:force_original_aspect_ratio=decrease,pad=${profile.width}:${profile.height}:(ow-iw)/2:(oh-ih)/2,format=yuv420p`;
+function buildScaleFilter(profile: VideoProfileOptions, fitMode: VideoExtraOptions["fitMode"]): string {
+    if (fitMode === "cover") {
+        return `scale=w=${profile.width}:h=${profile.height}:force_original_aspect_ratio=increase,crop=${profile.width}:${profile.height},format=yuv420p`;
+    }
+    return `scale=w=${profile.width}:h=${profile.height}:force_original_aspect_ratio=decrease,pad=${profile.width}:${profile.height}:(ow-iw)/2:(oh-ih)/2,format=yuv420p`;
+}
 
+/**
+ * Har video command ke shuru ke args: input, start time (-ss), lambai (-t) aur scale filter.
+ * +discardcorrupt / ignore_err: thoda kharab packet ho to bhi encode chalta rahe, ruke nahi.
+ */
+function buildVideoInputArgs(inputPath: string, profile: VideoProfileOptions, extraOptions: VideoExtraOptions): string[] {
     const args: string[] = [
         "-nostdin",
         "-y",
@@ -354,7 +371,24 @@ export function buildVideoEncoderArgs(
     }
 
     args.push("-i", inputPath);
-    args.push("-vf", scaleFilter);
+    args.push("-vf", buildScaleFilter(profile, extraOptions.fitMode));
+    return args;
+}
+
+/**
+ * Detect hue encoder (GPU ya CPU) ke hisaab se poori FFmpeg argument list banao.
+ * -g 48 = har 48 frames pe ek keyframe (~2 second), taaki HLS chunks saaf jagah se kat sakein.
+ * Output: ffmpeg ko dene wala string array (sabse aakhir me outputPath).
+ */
+export function buildVideoEncoderArgs(
+    inputPath: string,
+    outputPath: string,
+    profile: VideoProfileOptions,
+    hwCaps: HardwareCapabilities,
+    extraOptions: VideoExtraOptions = {}
+): string[] {
+    const { videoEncoder } = hwCaps;
+    const args = buildVideoInputArgs(inputPath, profile, extraOptions);
 
     switch (videoEncoder) {
         case "h264_videotoolbox":
@@ -430,7 +464,7 @@ export function buildVideoEncoderArgs(
     }
 
     if (extraOptions.mute !== false) {
-        // Erase all audio, subtitle, and auxiliary data streams for purely silent, lightweight video
+        // Audio, subtitle aur baaki data streams hata do - video bilkul chup aur halka rahe
         args.push("-an", "-sn", "-dn");
     }
 
@@ -443,7 +477,8 @@ export function buildVideoEncoderArgs(
 }
 
 /**
- * Builds standard software fallback arguments using libx264.
+ * CPU (libx264) wale fallback args - GPU encoder fail ho jaaye tab ye chalte hain.
+ * buildVideoEncoderArgs ka libx264 wala raasta hi hai, isliye wahi function reuse karte hain.
  */
 export function buildSoftwareVideoArgs(
     inputPath: string,
@@ -451,55 +486,11 @@ export function buildSoftwareVideoArgs(
     profile: VideoProfileOptions,
     extraOptions: VideoExtraOptions = {}
 ): string[] {
-    const isCover = extraOptions.fitMode === "cover";
-    const scaleFilter = isCover
-        ? `scale=w=${profile.width}:h=${profile.height}:force_original_aspect_ratio=increase,crop=${profile.width}:${profile.height},format=yuv420p`
-        : `scale=w=${profile.width}:h=${profile.height}:force_original_aspect_ratio=decrease,pad=${profile.width}:${profile.height}:(ow-iw)/2:(oh-ih)/2,format=yuv420p`;
-
-    const args: string[] = [
-        "-nostdin",
-        "-y",
-        "-loglevel", "warning",
-        "-fflags", "+genpts+discardcorrupt",
-        "-err_detect", "ignore_err",
-    ];
-
-    if (typeof extraOptions.startSec === "number" && extraOptions.startSec >= 0) {
-        args.push("-ss", extraOptions.startSec.toString());
-    }
-
-    if (typeof extraOptions.duration === "number" && extraOptions.duration > 0) {
-        args.push("-t", extraOptions.duration.toString());
-    }
-
-    args.push("-i", inputPath);
-    args.push("-vf", scaleFilter);
-    args.push(
-        "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "22",
-        "-profile:v", "high",
-        "-b:v", profile.bitrate,
-        "-maxrate", profile.maxrate,
-        "-bufsize", profile.bufsize,
-        "-g", "48",
-        "-keyint_min", "48",
-        "-sc_threshold", "0"
-    );
-
-    if (extraOptions.mute !== false) {
-        // Erase all audio, subtitle, and auxiliary data streams for purely silent, lightweight video
-        args.push("-an", "-sn", "-dn");
-    }
-
-    if (extraOptions.movflags) {
-        args.push("-movflags", extraOptions.movflags);
-    }
-
-    args.push(outputPath);
-    return args;
+    const softwareCaps = { videoEncoder: "libx264" } as HardwareCapabilities;
+    return buildVideoEncoderArgs(inputPath, outputPath, profile, softwareCaps, extraOptions);
 }
 
+/** Ek audio quality: bitrate, sample rate, channels. */
 export interface AudioProfileOptions {
     bitrate: string;
     sampleRate: number;
@@ -507,7 +498,31 @@ export interface AudioProfileOptions {
 }
 
 /**
- * Builds FFmpeg argument list for audio encoding with corrupt packet tolerance.
+ * Audio encode ke FFmpeg args (kharab packets ko bardasht karte hue).
+ * loudnorm = saare gaano ki awaaz ek jaisi (-16 LUFS), taaki ek gaana dheema aur agla tez na lage.
+ * +faststart = file ka index shuru me, taaki download poora hone se pehle hi play ho sake.
+ */
+function buildAudioArgs(inputPath: string, outputPath: string, profile: AudioProfileOptions, encoder: AudioEncoderType): string[] {
+    return [
+        "-nostdin",
+        "-y",
+        "-loglevel", "warning",
+        "-fflags", "+genpts+discardcorrupt",
+        "-err_detect", "ignore_err",
+        "-i", inputPath,
+        "-vn",
+        "-af", "loudnorm=I=-16:TP=-1.5:LRA=11",
+        "-c:a", encoder,
+        "-b:a", profile.bitrate,
+        "-ar", profile.sampleRate.toString(),
+        "-ac", profile.channels.toString(),
+        "-movflags", "+faststart",
+        outputPath,
+    ];
+}
+
+/**
+ * Detect hue audio encoder (macOS pe aac_at, warna aac) se audio args banao.
  */
 export function buildAudioEncoderArgs(
     inputPath: string,
@@ -515,52 +530,23 @@ export function buildAudioEncoderArgs(
     profile: AudioProfileOptions,
     hwCaps: HardwareCapabilities
 ): string[] {
-    return [
-        "-nostdin",
-        "-y",
-        "-loglevel", "warning",
-        "-fflags", "+genpts+discardcorrupt",
-        "-err_detect", "ignore_err",
-        "-i", inputPath,
-        "-vn",
-        "-af", "loudnorm=I=-16:TP=-1.5:LRA=11",
-        "-c:a", hwCaps.audioEncoder,
-        "-b:a", profile.bitrate,
-        "-ar", profile.sampleRate.toString(),
-        "-ac", profile.channels.toString(),
-        "-movflags", "+faststart",
-        outputPath,
-    ];
+    return buildAudioArgs(inputPath, outputPath, profile, hwCaps.audioEncoder);
 }
 
 /**
- * Builds software fallback audio arguments using native aac codec with corrupt packet tolerance.
+ * Fallback audio args: hamesha normal "aac" codec (har jagah chalta hai).
  */
 export function buildSoftwareAudioArgs(
     inputPath: string,
     outputPath: string,
     profile: AudioProfileOptions
 ): string[] {
-    return [
-        "-nostdin",
-        "-y",
-        "-loglevel", "warning",
-        "-fflags", "+genpts+discardcorrupt",
-        "-err_detect", "ignore_err",
-        "-i", inputPath,
-        "-vn",
-        "-af", "loudnorm=I=-16:TP=-1.5:LRA=11",
-        "-c:a", "aac",
-        "-b:a", profile.bitrate,
-        "-ar", profile.sampleRate.toString(),
-        "-ac", profile.channels.toString(),
-        "-movflags", "+faststart",
-        outputPath,
-    ];
+    return buildAudioArgs(inputPath, outputPath, profile, "aac");
 }
 
 /**
- * Sanitizes FFmpeg execution errors to avoid exploding Inngest event payloads or DB columns with hundreds of KB of stderr.
+ * FFmpeg ka error chhota karo: poora stderr sau-sau KB ka ho sakta hai, jo Inngest event ya DB column
+ * me daalne se sab phool jaata. Sirf kaam ki line aur error code rakhte hain.
  */
 function sanitizeFFmpegError(err: any): Error {
     if (!err) return new Error("Unknown FFmpeg error");
@@ -571,8 +557,9 @@ function sanitizeFFmpegError(err: any): Error {
 }
 
 /**
- * Executes an FFmpeg command with automatic fallback to software encoding if hardware acceleration fails.
- * If the primary command is already using software encoding (libx264/aac), it does not redundantly re-run the same failing command.
+ * FFmpeg chalao; GPU wala command fail ho to apne aap CPU (software) wale args se dobara chalao.
+ * Agar pehla command already software hi tha (dono args same), to wahi fail command dobara nahi chalate.
+ * Dono fail hon to chhota kiya hua error phenkte hain.
  */
 export async function executeFFmpegWithFallback(
     primaryArgs: string[],

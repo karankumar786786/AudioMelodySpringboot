@@ -1,12 +1,11 @@
-"""
-Transactional outbox for the admin API (see migration V16__add_event_outbox.sql).
+"""Admin API ka transactional outbox (migration V16__add_event_outbox.sql dekho).
 
-Django writes plain-JSON rows into the same ``outbox_events`` table the core API uses;
-outboxRelay (streams/) adds EventMeta, converts each row to the topic's Avro schema and
-publishes it. Django therefore needs no Kafka or Avro code. After commit it nudges the
-relay through Redpanda's HTTP proxy (best effort), so nothing has to poll Postgres.
+Django wahi ``outbox_events`` table me simple JSON rows likhta hai jo core API use karta hai;
+streams/ ka outboxRelay EventMeta jodta hai, row ko topic ke Avro schema me badalta hai aur publish karta hai.
+Isliye Django ko Kafka ya Avro code nahi chahiye. Commit ke baad Redpanda ke HTTP proxy se relay ko
+"jaago" signal bhejta hai (koshish bhar), taaki kisi ko Postgres poll na karna pade.
 
-EVENTS_MODE: LEGACY (default, nothing is written) | DUAL | KAFKA, same as the core API.
+EVENTS_MODE: LEGACY (default, kuch nahi likhta) | DUAL | KAFKA - core API jaisa.
 """
 
 import hashlib
@@ -29,15 +28,17 @@ SOURCE = "admin-api"
 
 
 def events_enabled() -> bool:
+    """EVENTS_MODE DUAL ya KAFKA hai? (tabhi outbox likhna hai)"""
     return str(getattr(settings, "EVENTS_MODE", "LEGACY")).upper() in ("DUAL", "KAFKA")
 
 
 def address_key(email: str) -> str:
-    """Kafka key for email events: a hash, so addresses never appear in topic keys."""
+    """Email events ki Kafka key: email ka hash, taaki address topic keys me na dikhe."""
     return hashlib.sha256(email.strip().lower().encode("utf-8")).hexdigest()
 
 
 def _uuid7() -> uuid.UUID:
+    """UUID v7 banao (time ke order wala id)."""
     import os
     import time
 
@@ -48,9 +49,10 @@ def _uuid7() -> uuid.UUID:
 
 
 class OutboxService:
+    """Outbox me rows likhne wali service."""
     @staticmethod
     def write(topic: str, key: str, payload: Dict[str, Any]) -> uuid.UUID:
-        """Insert one row in the current transaction (or autocommit) and wake the relay after commit."""
+        """Current transaction me ek row likho (ya autocommit) aur commit ke baad relay ko jagao."""
         row_id = _uuid7()
         with connection.cursor() as cursor:
             cursor.execute(
@@ -63,6 +65,7 @@ class OutboxService:
 
     @staticmethod
     def wake() -> None:
+        """Relay ko Redpanda HTTP proxy se "jaago" message (fail ho to koi baat nahi)."""
         url = getattr(settings, "KAFKA_REST_PROXY_URL", "")
         if not url:
             return
@@ -73,12 +76,12 @@ class OutboxService:
                 headers={"Content-Type": "application/vnd.kafka.json.v2+json"},
                 timeout=2,
             )
-        except Exception as e:  # best effort: the relay's safety sweep picks the row up later
+        except Exception as e:  # koshish bhar: na pahunche to relay ka safety sweep row baad me utha lega
             logger.debug("Outbox wake-up not delivered: %s", e)
 
     @staticmethod
     def claim_unsent(row_id: uuid.UUID) -> bool:
-        """Mark a row as handled elsewhere. True only if it was still unsent (so it's never sent twice)."""
+        """Row ko "kahin aur se bhej diya" mark karo. True sirf tab jab wo abhi tak unsent thi (do baar kabhi nahi jaati)."""
         with connection.cursor() as cursor:
             cursor.execute(
                 "UPDATE outbox_events SET sent_at = now(), payload = '{}'::jsonb, "
@@ -90,10 +93,8 @@ class OutboxService:
 
     @staticmethod
     def write_email(to: str, kind: str, subject: str, body: str, fallback=None, fallback_after: Optional[float] = None) -> uuid.UUID:
-        """
-        Queue one email. ``fallback`` runs if the relay hasn't published it within
-        ``fallback_after`` seconds (default EVENTS_OTP_FALLBACK_SECONDS), so an admin
-        login code never waits on a broken pipeline.
+        """Ek email line me lagao. Relay ``fallback_after`` second (default EVENTS_OTP_FALLBACK_SECONDS) me publish
+        na kare to ``fallback`` chalta hai - admin ka login code kabhi tooti pipeline ka wait nahi karta.
         """
         row_id = OutboxService.write(
             TOPIC_EMAIL,
@@ -120,6 +121,7 @@ class OutboxService:
 
     @staticmethod
     def write_song_changed(song, change: str) -> Optional[uuid.UUID]:
+        """Song badla (publish/update/delete) -> catalog.song.v1 ka outbox row."""
         artist_ids = []
         try:
             from catalog.models import Artist

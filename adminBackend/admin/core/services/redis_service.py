@@ -1,3 +1,4 @@
+"""Redis ke saare kaam: admin sessions, block list, mail queue, pagination cache, Inngest dispatch."""
 import json
 import logging
 import secrets
@@ -12,10 +13,12 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 class RedisService:
+    """Redis helper (1 second timeouts; Redis down ho to kuch cheezein memory me)."""
     _client: Optional[redis.Redis] = None
 
     @classmethod
     def get_client(cls) -> redis.Redis:
+        """Redis client (ek baar banta hai)."""
         if cls._client is None:
             cls._client = redis.Redis(
                 host=settings.REDIS_HOST,
@@ -30,6 +33,7 @@ class RedisService:
 
     @classmethod
     def get_queue_size(cls, queue_key: str) -> int:
+        """Ek list (queue) ki length."""
         if not queue_key:
             return 0
         try:
@@ -42,6 +46,7 @@ class RedisService:
 
     @classmethod
     def get_queue_backpressure_summary(cls) -> Dict[str, Any]:
+        """Mail queue aur DLQ ka size aur halat (HEALTHY / ELEVATED / HIGH) dashboard ke liye."""
         mail_key = settings.REDIS_MAIL_QUEUE
         mail_dlq_key = f"{mail_key}_dlq"
 
@@ -49,6 +54,7 @@ class RedisService:
         mail_dlq_size = cls.get_queue_size(mail_dlq_key)
 
         def eval_status(sz: int) -> str:
+            """Size se halat: 50+ = HIGH, 10+ = ELEVATED, warna HEALTHY."""
             if sz >= 50:
                 return "HIGH"
             if sz >= 10:
@@ -101,8 +107,9 @@ class RedisService:
 
     @classmethod
     def queue_audio_processing(cls, job_id: str, attempt: Optional[int] = None) -> bool:
+        """Upload job shuru: Inngest ko 'audio/fetchjob'."""
         from .inngest_service import InngestService
-        # Direct durable dispatch to Inngest Cloud/Dev
+        # Seedha Inngest (Cloud/Dev) ko durable event
         try:
             success = InngestService.trigger_audio_job(job_id, attempt=attempt)
             if success:
@@ -117,11 +124,12 @@ class RedisService:
 
     @classmethod
     def remove_job_from_audio_queue(cls, job_id: str) -> None:
-        """No-op: Redis audio processing queue removed in favor of direct Inngest execution."""
+        """Ab kuch nahi karta: Redis wali audio queue hata di gayi, ab seedha Inngest chalta hai."""
         pass
 
     @classmethod
     def cancel_job(cls, job_id: str) -> None:
+        """Job cancel event bhejo."""
         from .inngest_service import InngestService
         try:
             InngestService.trigger_cancel_job(job_id)
@@ -131,6 +139,7 @@ class RedisService:
 
     @classmethod
     def queue_delete_event(cls, data: Dict[str, Any]) -> str:
+        """Delete chain shuru: Inngest ko 'audio/delete.algolia'."""
         from jobs.models import DeleteJob
         from .pagination_metadata_service import PaginationMetadataService
 
@@ -178,7 +187,7 @@ class RedisService:
             "fullVideoKey": data.get("fullVideoKey"),
         }
 
-        # Direct durable dispatch to Inngest Cloud/Dev
+        # Seedha Inngest (Cloud/Dev) ko durable event
         from .inngest_service import InngestService
         try:
             InngestService.trigger_delete_event(payload, attempt=job.attempt_count)
@@ -190,6 +199,7 @@ class RedisService:
 
     @classmethod
     def block_user_in_redis(cls, user_id: str) -> None:
+        """User ko block list me daalo (7 din)."""
         if not user_id:
             return
         cls._MEMORY_BLOCKED_USERS.add(user_id)
@@ -202,6 +212,7 @@ class RedisService:
 
     @classmethod
     def unblock_user_in_redis(cls, user_id: str) -> None:
+        """Block list se hatao."""
         if not user_id:
             return
         cls._MEMORY_BLOCKED_USERS.discard(user_id)
@@ -214,17 +225,18 @@ class RedisService:
 
     @classmethod
     def _memory_store_only(cls) -> bool:
-        """True when sessions live only in this process (tests). See ADMIN_SESSION_STORE."""
+        """Sessions sirf is process ki memory me hain? (tests) ADMIN_SESSION_STORE dekho."""
         return getattr(settings, "ADMIN_SESSION_STORE", "redis") == "memory"
 
     @classmethod
     def is_user_blocked(cls, user_id: str) -> bool:
+        """User blocked hai?"""
         if not user_id:
             return False
         if cls._memory_store_only():
             return user_id in cls._MEMORY_BLOCKED_USERS
-        # Redis is the source of truth: a block or unblock made by another worker must
-        # count here too. This worker's set is only a fallback while Redis is down.
+        # Redis hi asli source hai: doosre worker ne block/unblock kiya ho to wo
+        # yahan bhi maanna chahiye. Is worker ka set sirf Redis down hone par backup hai.
         try:
             r = cls.get_client()
             return bool(r.exists(f"blocked_user:{user_id}"))
@@ -234,9 +246,8 @@ class RedisService:
 
     @classmethod
     def evict_pagination_cache(cls, entity_name: str) -> None:
-        """
-        Evicts the Spring Boot / CoreEngine Redis cache entry for the specified pagination metadata entity.
-        Spring Data Redis cache key default format: 'paginationMetaData::<entityName>'
+        """Core API (Spring Boot) ke Redis cache se ek entity ki pagination entry hatao.
+        Spring ki cache key ka format: 'paginationMetaData::<entityName>'.
         """
         if not entity_name:
             return
@@ -249,9 +260,7 @@ class RedisService:
 
     @classmethod
     def evict_all_pagination_cache(cls) -> None:
-        """
-        Evicts all Spring Boot / CoreEngine Redis cache entries for pagination metadata.
-        """
+        """Core API ke saare pagination cache entries hatao."""
         try:
             r = cls.get_client()
             cursor = 0
@@ -268,7 +277,7 @@ class RedisService:
         except Exception as e:
             logger.warning("Failed to evict all Redis pagination cache: %s", e)
 
-    # In-memory session & blacklist fallbacks
+    # Memory wale session aur blacklist backups (Redis down ho to)
     _MEMORY_SESSIONS: Dict[str, Dict[str, Any]] = {}
     _MEMORY_USER_SESSIONS: Dict[str, set] = {}
     _MEMORY_REFRESH_SESSIONS: Dict[str, Dict[str, Any]] = {}
@@ -282,10 +291,7 @@ class RedisService:
         user_agent: str = "Unknown",
         ttl_seconds: int = 7 * 86400,
     ) -> str:
-        """
-        Creates a stateful admin session in Redis with 7-day TTL.
-        Returns the unique session_id.
-        """
+        """Redis me admin session banao (7 din TTL). Session id lautata hai."""
         session_id = str(uuid.uuid4())
         norm_email = admin.email.strip().lower()
         now_iso = datetime.now(timezone.utc).isoformat()
@@ -308,7 +314,7 @@ class RedisService:
             r = cls.get_client()
             r.setex(f"admin:session:{session_id}", ttl_seconds, json.dumps(session_data))
             r.sadd(f"admin:user_sessions:{norm_email}", session_id)
-            # Store last login summary for audit
+            # Audit ke liye aakhri login ki summary rakho
             r.set(f"admin:last_login:{norm_email}", json.dumps({"at": now_iso, "ip": ip_address, "ua": user_agent}))
             logger.info("Created Redis admin session [%s] for %s (%s)", session_id, norm_email, admin.role)
         except Exception as e:
@@ -320,17 +326,15 @@ class RedisService:
 
     @classmethod
     def get_admin_session(cls, session_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Retrieves active admin session from Redis. Returns None if revoked or expired.
-        """
+        """Redis se admin session lao. Revoke ya expire ho gaya ho to None."""
         if not session_id:
             return None
         if cls._memory_store_only():
             return cls._get_memory_session(session_id)
 
-        # Redis is the source of truth. Each gunicorn worker keeps its own memory copy of
-        # the sessions it created, so reading that copy first let a session revoked or
-        # logged out through another worker keep working here until it expired.
+        # Redis hi asli source hai. Har gunicorn worker apne banaye sessions ki memory copy rakhta hai;
+        # pehle wo copy padhne se, doosre worker se revoke ya logout hua session
+        # yahan expire hone tak chalta rehta.
         try:
             raw = cls.get_client().get(f"admin:session:{session_id}")
         except Exception as e:
@@ -339,12 +343,13 @@ class RedisService:
 
         if raw and isinstance(raw, (str, bytes, bytearray)):
             return json.loads(raw)
-        # Gone from Redis means revoked or expired, whichever worker did it.
+        # Redis me nahi hai = revoke ya expire ho gaya, kisi bhi worker ne kiya ho.
         cls._forget_memory_session(session_id)
         return None
 
     @classmethod
     def _get_memory_session(cls, session_id: str) -> Optional[Dict[str, Any]]:
+        """Memory wali session copy (Redis down ho to)."""
         cached = cls._MEMORY_SESSIONS.get(session_id)
         if not cached:
             return None
@@ -355,15 +360,16 @@ class RedisService:
 
     @classmethod
     def _forget_memory_session(cls, session_id: str) -> None:
+        """Memory copy hatao."""
         cached = cls._MEMORY_SESSIONS.pop(session_id, None)
         if cached:
             email = (cached.get("email") or "").lower()
             if email in cls._MEMORY_USER_SESSIONS:
                 cls._MEMORY_USER_SESSIONS[email].discard(session_id)
 
-    # Renew a session at most this often. Every admin request used to renew it (a GET
-    # and a SETEX), and Upstash bills per command; a 7-day window loses nothing by being
-    # renewed every 10 minutes, and lastActivityAt stays accurate to 10 minutes.
+    # Session ko max itni baar renew karo. Pehle har admin request pe renew hota tha (ek GET
+    # aur ek SETEX), aur Upstash har command ka paisa leta hai; 7 din ki window 10 minute me
+    # renew ho to kuch nahi bigadta, aur lastActivityAt 10 minute tak sahi rehta hai.
     SESSION_TOUCH_INTERVAL_SECONDS = 600
 
     @classmethod
@@ -373,11 +379,10 @@ class RedisService:
         sliding_window_ttl: int = 7 * 86400,
         session: Optional[Dict[str, Any]] = None,
     ) -> None:
-        """
-        Refreshes the session's lastActivityAt timestamp and resets its TTL in Redis.
+        """Session ka lastActivityAt update karo aur TTL dobara shuru karo.
 
-        Pass the session already read for this request to skip a second GET. The write
-        is skipped when the session was renewed within SESSION_TOUCH_INTERVAL_SECONDS.
+        Is request me pehle padha session pass karo to doosra GET bach jaata hai. Session pichle
+        SESSION_TOUCH_INTERVAL_SECONDS me renew hua ho to write skip.
         """
         if not session_id:
             return
@@ -399,8 +404,8 @@ class RedisService:
             if data is not None:
                 data = {**data, "lastActivityAt": now_iso, "expiresAt": now + sliding_window_ttl}
                 r.setex(f"admin:session:{session_id}", sliding_window_ttl, json.dumps(data))
-                # Keep this worker's in-memory copy in step, or its stale expiresAt
-                # would trigger a renewal write on every later request.
+                # Is worker ki memory copy bhi update karo, warna purana expiresAt
+                # har agli request pe renew write karwata.
                 if session_id in cls._MEMORY_SESSIONS:
                     cls._MEMORY_SESSIONS[session_id]["lastActivityAt"] = now_iso
                     cls._MEMORY_SESSIONS[session_id]["expiresAt"] = data["expiresAt"]
@@ -414,9 +419,7 @@ class RedisService:
 
     @classmethod
     def revoke_admin_session(cls, session_id: str) -> bool:
-        """
-        Instantly revokes a specific admin session.
-        """
+        """Ek admin session turant band karo."""
         if not session_id:
             return False
         email = None
@@ -442,10 +445,7 @@ class RedisService:
 
     @classmethod
     def revoke_all_admin_sessions(cls, email: str, except_session_id: Optional[str] = None) -> int:
-        """
-        Revokes all active sessions for an admin user (e.g. on logout all devices or block).
-        Optionally preserves except_session_id.
-        """
+        """Admin ke saare sessions band karo (jaise sab devices se logout ya block). except_session_id ko chhod sakte hain."""
         norm_email = email.strip().lower()
         count = 0
         try:
@@ -479,10 +479,7 @@ class RedisService:
         admin: Any,
         ttl_seconds: int = 30 * 86400,
     ) -> str:
-        """
-        Creates a stateful refresh session in Redis with 30-day TTL.
-        Tied to the access session_id and admin user.
-        """
+        """Redis me refresh session banao (30 din TTL), access session aur admin se juda."""
         refresh_id = f"ref_{secrets.token_urlsafe(32)}"
         norm_email = admin.email.strip().lower()
         now_iso = datetime.now(timezone.utc).isoformat()
@@ -509,14 +506,12 @@ class RedisService:
 
     @classmethod
     def get_refresh_session(cls, refresh_id: str) -> Optional[Dict[str, Any]]:
-        """
-        Retrieves active refresh session from Redis. Returns None if revoked or expired.
-        """
+        """Redis se refresh session lao. Revoke ya expire ho to None."""
         if not refresh_id:
             return None
         if not cls._memory_store_only():
-            # Redis is the source of truth: a refresh token revoked by another worker
-            # must not live on in this worker's memory copy.
+            # Redis hi asli source hai: doosre worker se revoke hua refresh token
+            # is worker ki memory copy me zinda nahi rehna chahiye.
             try:
                 raw = cls.get_client().get(f"admin:refresh:{refresh_id}")
             except Exception as e:
@@ -536,9 +531,7 @@ class RedisService:
 
     @classmethod
     def revoke_refresh_session(cls, refresh_id: str) -> bool:
-        """
-        Revokes a refresh session in Redis.
-        """
+        """Refresh session band karo."""
         if not refresh_id:
             return False
         try:
@@ -553,9 +546,7 @@ class RedisService:
 
     @classmethod
     def list_user_sessions(cls, email: str, current_session_id: Optional[str] = None) -> List[Dict[str, Any]]:
-        """
-        Returns all active sessions for an administrator.
-        """
+        """Admin ke saare active sessions."""
         norm_email = email.strip().lower()
         sessions = []
         try:
@@ -582,13 +573,11 @@ class RedisService:
 
     @classmethod
     def update_session_user_name(cls, session_id: str, new_name: str) -> None:
-        """
-        Updates display name in an active session.
-        """
+        """Active session me dikhne wala naam update karo."""
         if not session_id:
             return
-        # Update Redis even when this worker has a memory copy, or the other workers
-        # keep serving the old name.
+        # Memory copy ho tab bhi Redis update karo, warna doosre workers
+        # purana naam dikhate rahenge.
         if not cls._memory_store_only():
             try:
                 r = cls.get_client()

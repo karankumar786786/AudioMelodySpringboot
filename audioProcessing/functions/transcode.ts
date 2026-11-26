@@ -1,3 +1,10 @@
+/**
+ * Inngest function "transcode-song" - upload pipeline ka "orchestrator" (sabko kaam baantne wala).
+ * Upload pipeline (Inngest): audio/fetchjob -> transcode -> index.recombee -> index.algolia -> final.create.
+ *
+ * Ye khud encode nahi karta: canvas, video, audio aur audio features ke chhote tasks ko step.invoke se
+ * ek saath chalata hai, unke result jod ke admin API ko /transcoded batata hai, phir aage ka step.
+ */
 import { inngest } from "../inngest";
 import { api } from "../axios";
 import { transcodeAudioTask } from "./transcodeAudio";
@@ -9,6 +16,11 @@ import { extractMeaningfulError } from "../lib/errorUtils";
 import { config } from "dotenv";
 config();
 
+/**
+ * Kaun se tasks chahiye wo tay karo, sab ek saath chalao, aur result admin API ko bhejo.
+ * Naya song: aage Recombee indexing. Reprocess (sirf audio / video badla): seedha /finalize.
+ * Koi task 3 retries ke baad bhi fail = onFailure admin ko /failed batata hai.
+ */
 export const transcodeSong = inngest.createFunction(
     {
         id: "transcode-song",
@@ -62,7 +74,7 @@ export const transcodeSong = inngest.createFunction(
         const videoBasePath = process.env.VIDEO_BASE_PATH || "videos";
         const songKey = `${basePath}/${songId}`;
 
-        // 1. Notify Spring Boot that transcoding has started
+        // 1. Admin API ko batao ki transcoding shuru (job PROCESSING / TRANSCODING ho jaata hai)
         await step.run("notify-transcoding-started", async () => {
             console.log(`[ORCHESTRATOR] Notifying coreEngine transcoding-started for job ${jobId}...`);
             await api.post(`/${jobId}/transcoding-started`, {
@@ -71,8 +83,8 @@ export const transcodeSong = inngest.createFunction(
             console.log(`[ORCHESTRATOR] Successfully notified coreEngine transcoding-started for job ${jobId}`);
         });
 
-        // 2. Prepare distributed sub-tasks according to media requirements
-        // Do NOT generate canvas if start & end duration are 0, or end <= start
+        // 2. Kaun se chhote tasks chalane hain, media ke hisaab se.
+        // Canvas tabhi jab video ho aur clip ka time sahi ho (dono 0 ya end <= start = canvas nahi).
         const isExplicitZeroDuration =
             (clipStartSec === 0 && clipEndSec === 0) ||
             (typeof clipEndSec === "number" && clipEndSec === 0) ||
@@ -89,7 +101,9 @@ export const transcodeSong = inngest.createFunction(
             hasValidClipRange
         );
 
+        // Audio reprocess me video dobara nahi banana
         const shouldProcessVideo = Boolean(tempVideoKey) && !isAudioReprocess;
+        // Audio hamesha: alag audio file na ho to video se nikaal lenge
         const shouldProcessAudio = Boolean(isAudioReprocess) || Boolean(tempSongKey) || Boolean(tempVideoKey);
 
         console.log(`[ORCHESTRATOR] Job ${jobId} dispatching modular tasks:`);
@@ -97,7 +111,7 @@ export const transcodeSong = inngest.createFunction(
         console.log(`  - Video task:  ${shouldProcessVideo}`);
         console.log(`  - Audio task:  ${shouldProcessAudio}`);
 
-        // 3. Dispatch and execute tasks concurrently via step.invoke
+        // 3. Saare tasks ek saath (step.invoke = doosra Inngest function chalao aur uska result lo)
         const canvasPromise = shouldProcessCanvas
             ? step.invoke("transcode-canvas-subtask", {
                   function: transcodeCanvasTask,
@@ -134,7 +148,7 @@ export const transcodeSong = inngest.createFunction(
               })
             : Promise.resolve(null);
 
-        // Feature extraction task: extracts Spotify-like features (tempo, danceability, energy, etc.)
+        // Audio features (tempo, danceability, energy, wagairah) ka task
         const featuresPromise = shouldProcessAudio
             ? step.invoke("extract-audio-features-subtask", {
                   function: extractAudioFeaturesTask,
@@ -154,6 +168,7 @@ export const transcodeSong = inngest.createFunction(
             featuresPromise,
         ]);
 
+        // Results jodo (jo task nahi chala uska null)
         const duration = audioResult?.duration ?? videoResult?.duration ?? 0;
         const videoKey = canvasResult?.canvasVideoKey ?? initialVideoKey ?? null;
         const fullVideoKey = videoResult ? `${videoBasePath}/${songId}` : null;
@@ -161,7 +176,7 @@ export const transcodeSong = inngest.createFunction(
 
         console.log(`[ORCHESTRATOR] All modular tasks completed for job ${jobId}. Duration: ${duration}s, Canvas: ${videoKey}, FullVideo: ${fullVideoKey}, Features: ${Boolean(audioFeatures)}`);
 
-        // 4. Notify Spring Boot transcoded with audio features
+        // 4. Admin API ko /transcoded: nayi keys, duration aur audio features
         await step.run("notify-transcoded", async () => {
             console.log(`[ORCHESTRATOR] Notifying coreEngine transcoded for job ${jobId}...`);
             await api.post(`/${jobId}/transcoded`, {
@@ -174,7 +189,7 @@ export const transcodeSong = inngest.createFunction(
             console.log(`[ORCHESTRATOR] Successfully notified coreEngine transcoded for job ${jobId}`);
         });
 
-        // 5. Trigger downstream indexing/finalization
+        // 5. Aage ka kaam: naya song = indexing chain; reprocess = seedha finalize
         const isReprocess = Boolean(isVideoReprocess || isAudioReprocess);
         if (!isReprocess) {
             await step.sendEvent("trigger-recombee-indexing", {

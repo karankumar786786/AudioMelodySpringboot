@@ -1,8 +1,10 @@
+"""jobs ke serializers: Job aur DeleteJob ka JSON."""
 from rest_framework import serializers
 from .models import DeleteJob, Job
 
 
 class JobSerializer(serializers.ModelSerializer):
+    """Job row ko JSON me badalta hai."""
     artistName = serializers.CharField(source="artist_name")
     imageKey = serializers.CharField(source="image_key")
     songKey = serializers.CharField(source="song_key", required=False, allow_null=True)
@@ -71,6 +73,7 @@ class JobSerializer(serializers.ModelSerializer):
 
 
 class DeleteJobSerializer(serializers.ModelSerializer):
+    """DeleteJob row ko JSON me badalta hai."""
     entityType = serializers.CharField(source="entity_type")
     entityId = serializers.CharField(source="entity_id")
     entityTitle = serializers.CharField(source="entity_title", required=False, allow_null=True)

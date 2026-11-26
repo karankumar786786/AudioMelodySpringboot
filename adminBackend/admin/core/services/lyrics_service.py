@@ -1,14 +1,11 @@
-"""
-Lyrics lookup + normalisation for search indexing.
+"""Search indexing ke liye lyrics laana aur saaf karna.
 
-Lyrics text is not stored in Postgres. coreEngine's LyricsApiService fetches it
-from LRCLIB on demand and caches the LyricsDto JSON in Redis under
-``lyrics:<songId>``. For indexing we read that cache first and only fall back to
-LRCLIB ``/api/get/<lrclibId>`` when it is cold.
+Lyrics Postgres me nahi rakhte. coreEngine ka LyricsApiService unhe LRCLIB se maang pe laata hai aur LyricsDto JSON
+Redis me ``lyrics:<songId>`` pe cache karta hai. Indexing ke liye pehle wahi cache padhte hain, cache khaali ho tabhi
+LRCLIB ``/api/get/<lrclibId>`` pe jaate hain.
 
-The text stored in Algolia is plain (timestamps stripped) and truncated to a
-byte budget so the whole song record stays under Algolia's per-record limit
-(10KB on the Build/free plan; the rest of a song record is ~1.5-2KB).
+Algolia me plain text (timestamps hata ke) jaata hai, ek byte budget tak kaat ke, taaki poora song record Algolia ki
+per-record limit (free plan pe 10KB; baaki record ~1.5-2KB) ke andar rahe.
 """
 import json
 import logging
@@ -26,16 +23,16 @@ LRCLIB_BASE_URL = "https://lrclib.net/api"
 USER_AGENT = "AudioMelody/1.0 (https://audiomelody.me)"
 DEFAULT_MAX_BYTES = 6000
 
-# [00:12.34] / [00:12:34] / [00:12] / [1:02.345] line timestamps
+# [00:12.34] / [00:12:34] / [00:12] / [1:02.345] jaise line timestamps
 _LINE_TS = re.compile(r"\[\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?\]")
-# <00:12.34> enhanced-LRC word timestamps
+# <00:12.34> enhanced-LRC ke word timestamps
 _WORD_TS = re.compile(r"<\d{1,3}:\d{1,2}(?:[.:]\d{1,3})?>")
-# [ar:Artist] / [ti:Title] / [offset:+200] / [length: 3:20] metadata lines
+# [ar:Artist] / [ti:Title] / [offset:+200] / [length: 3:20] jaisi metadata lines
 _META_LINE = re.compile(r"^\s*\[[a-zA-Z#]+\s*:[^\]]*\]\s*$")
 
 
 def strip_lrc_timestamps(text: Optional[str]) -> str:
-    """Removes LRC line/word timestamps and metadata tags, collapsing blank lines."""
+    """LRC ke line/word timestamps aur metadata tags hatao, khaali lines kam karo."""
     if not text:
         return ""
     lines = []
@@ -50,8 +47,9 @@ def strip_lrc_timestamps(text: Optional[str]) -> str:
 
 
 def truncate_utf8(text: Optional[str], max_bytes: int = DEFAULT_MAX_BYTES) -> str:
-    """Truncates to at most ``max_bytes`` UTF-8 bytes without splitting a character,
-    preferring to cut at the last line break / space inside the budget."""
+    """Max ``max_bytes`` UTF-8 bytes tak kaato, kisi character ko beech se tode bina; budget ke andar aakhri
+    line break / space pe kaatna pasand karta hai.
+    """
     if not text:
         return ""
     encoded = text.encode("utf-8")
@@ -59,7 +57,7 @@ def truncate_utf8(text: Optional[str], max_bytes: int = DEFAULT_MAX_BYTES) -> st
         return text
     cut = encoded[: max(0, max_bytes)].decode("utf-8", errors="ignore")
     boundary = max(cut.rfind("\n"), cut.rfind(" "))
-    # Only back off to a word boundary if it doesn't throw away too much text.
+    # Word boundary pe tabhi kaato jab zyada text na chhootta ho.
     if boundary >= len(cut) * 0.8:
         cut = cut[:boundary]
     return cut.rstrip()
@@ -70,7 +68,7 @@ def to_searchable_lyrics(
     synced: Optional[str] = None,
     max_bytes: Optional[int] = None,
 ) -> Optional[str]:
-    """Plain lyrics (or stripped synced lyrics) truncated for Algolia; None when empty."""
+    """Algolia ke liye plain lyrics (ya synced lyrics se timestamps hata ke), kaat ke; khaali ho to None."""
     budget = max_bytes if max_bytes is not None else lyrics_max_bytes()
     text = strip_lrc_timestamps(plain) or strip_lrc_timestamps(synced)
     text = truncate_utf8(text, budget)
@@ -78,6 +76,7 @@ def to_searchable_lyrics(
 
 
 def lyrics_max_bytes() -> int:
+    """Algolia me lyrics ki max size (bytes), settings se."""
     try:
         return int(getattr(settings, "ALGOLIA_LYRICS_MAX_BYTES", DEFAULT_MAX_BYTES))
     except (TypeError, ValueError):
@@ -85,19 +84,23 @@ def lyrics_max_bytes() -> int:
 
 
 def has_lrclib_id(lrclib_id: Any) -> bool:
+    """lrclib id sach me hai? (khaali ya "0" nahi)"""
     val = str(lrclib_id or "").strip()
     return bool(val) and val != "0"
 
 
 class LyricsService:
+    """Lyrics laane wali service: pehle Redis (core API ka cache), phir LRCLIB."""
     @classmethod
     def _from_payload(cls, payload: Dict[str, Any]) -> Optional[str]:
+        """LyricsDto JSON se searchable lyrics."""
         if not isinstance(payload, dict) or payload.get("instrumental"):
             return None
         return to_searchable_lyrics(payload.get("plainLyrics"), payload.get("syncedLyrics"))
 
     @classmethod
     def _from_redis(cls, song_ids: Iterable[str]) -> Dict[str, Optional[str]]:
+        """Redis cache se lyrics."""
         ids = [s for s in song_ids if s]
         if not ids:
             return {}
@@ -115,13 +118,14 @@ class LyricsService:
                 payload = json.loads(raw)
             except (TypeError, ValueError):
                 continue
-            # coreEngine caches empty results for 6h; treat them as a miss so LRCLIB is retried.
+            # coreEngine khaali result 6 ghante cache karta hai; use "nahi mila" maano taaki LRCLIB dobara try ho.
             if payload.get("plainLyrics") or payload.get("syncedLyrics") or payload.get("instrumental"):
                 found[s_id] = cls._from_payload(payload)
         return found
 
     @classmethod
     def _from_lrclib(cls, lrclib_id: Any) -> Optional[str]:
+        """LRCLIB API se lyrics."""
         if not has_lrclib_id(lrclib_id):
             return None
         try:
@@ -138,11 +142,12 @@ class LyricsService:
 
     @classmethod
     def get_lyrics(cls, song_id: Optional[str], lrclib_id: Any = None) -> Optional[str]:
+        """Ek song ke searchable lyrics (ya None)."""
         return cls.get_many({song_id or "": lrclib_id}).get(song_id or "")
 
     @classmethod
     def get_many(cls, lrclib_by_song_id: Dict[str, Any], max_workers: int = 8) -> Dict[str, Optional[str]]:
-        """Returns {song_id: searchable lyrics or None}. Never raises."""
+        """{song_id: searchable lyrics ya None} lautata hai. Kabhi error nahi phenkta."""
         result: Dict[str, Optional[str]] = {s: None for s in lrclib_by_song_id if s}
         cached = cls._from_redis(result.keys())
         result.update(cached)

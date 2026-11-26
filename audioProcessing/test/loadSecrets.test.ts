@@ -1,3 +1,4 @@
+/** load-secrets ke tests: SECRET_IDS todna, shell quoting, export lines, aur galat secret me value na dikhana. */
 import { describe, expect, test } from "bun:test";
 import { secretIds, shellQuote, toExports } from "../load-secrets";
 

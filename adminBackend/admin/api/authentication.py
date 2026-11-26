@@ -1,7 +1,4 @@
-"""
-Backwards compatibility facade for authentication.
-Distributed to core.authentication.
-"""
+"""Purane imports ke liye "facade" (sirf aage bhejta hai). Asli code ab core.authentication me hai."""
 from core.authentication import (
     AdminJWTAuthentication,
     AdminSessionAuthentication,

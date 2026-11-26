@@ -1,9 +1,17 @@
+/**
+ * Inngest function "delete-from-s3": production S3 se audio / video chunks hatao.
+ * Delete chain (Inngest): delete.algolia -> delete.recombee -> delete.imagekit -> delete.s3 -> delete.finalize.
+ *
+ * Agla event: audio/delete.finalize. Saare retries fail = onFailure admin API ko /failed batata hai (DeleteJob FAILED).
+ */
 import { inngest } from "../inngest";
 import { deletePrefix } from "../lib/s3";
 import { deleteApi } from "../axios";
 import type { DeleteEventPayload } from "../types/delete";
+import { deleteJobParams } from "./deleteParams";
 import { extractMeaningfulError } from "../lib/errorUtils";
 
+/** S3 se files yahin hatao, admin ko /delete-s3 batao, phir agla step. entityId / entityType na ho to error. */
 export const deleteFromS3 = inngest.createFunction(
     {
         id: "delete-from-s3",
@@ -17,7 +25,7 @@ export const deleteFromS3 = inngest.createFunction(
                     await deleteApi.post(`/${data.entityType}/${data.entityId}/failed`, {
                         reason: `S3 deletion: ${reason}`,
                     }, {
-                        params: data.deleteJobId ? { deleteJobId: data.deleteJobId } : undefined
+                        params: deleteJobParams(data)
                     });
                 } catch (e) {
                     console.error(`Failed to notify coreEngine of delete failure:`, e);
@@ -31,6 +39,7 @@ export const deleteFromS3 = inngest.createFunction(
             throw new Error("Missing entityId or entityType in delete event data");
         }
 
+        // S3 files yahan (media pipeline) hi hatate hain; admin API ko sirf stage batate hain
         await step.run("delete-s3-assets", async () => {
             const productionBucket = process.env.PRODUCTION_BUCKET_NAME || "audiomelodyspringboot";
 
@@ -43,14 +52,15 @@ export const deleteFromS3 = inngest.createFunction(
                 console.log(`[DELETE-S3] Purging video S3 assets under prefix "${data.fullVideoKey}"...`);
                 await deletePrefix(productionBucket, data.fullVideoKey);
             } else if (data.entityId && data.entityType === "SONG") {
+                // fullVideoKey nahi pata to song ke default video folder ko hatao
                 const videoBasePath = process.env.VIDEO_BASE_PATH || "videos";
                 await deletePrefix(productionBucket, `${videoBasePath}/${data.entityId}`);
             }
 
-            // Notify coreEngine of S3 stage completion
+            // Admin API ko batao ki S3 stage ho gaya (fail = sirf warning, delete chain chalti rahe)
             try {
                 await deleteApi.post(`/${data.entityType}/${data.entityId}/delete-s3`, null, {
-                    params: data.deleteJobId ? { deleteJobId: data.deleteJobId } : undefined,
+                    params: deleteJobParams(data),
                 });
             } catch (notifyError) {
                 console.warn(`[DELETE-S3] Webhook stage notification warning for ${data.entityId}:`, notifyError);

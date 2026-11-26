@@ -1,8 +1,10 @@
+"""catalog ke models: artists, songs, playlists, shorts aur unke metadata / jod wali tables (sab Flyway banata hai)."""
 from django.db import models
 from core.models import generate_uuid
 
 
 class Artist(models.Model):
+    """artists table - ek singer / artist (naam, cover image, status)."""
     id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
     name = models.CharField(max_length=255)
     about = models.CharField(max_length=255, blank=True, null=True)
@@ -17,6 +19,7 @@ class Artist(models.Model):
 
     @property
     def followers_count(self) -> int:
+        """Followers ki ginti: pehle se set ho (annotate se) to wahi, warna artist_metadata se, kuch na mile to 0."""
         if hasattr(self, "_followers_count") and self._followers_count is not None:
             return self._followers_count
         try:
@@ -34,6 +37,7 @@ class Artist(models.Model):
 
 
 class ArtistMetadata(models.Model):
+    """artist_metadata table - artist ke counters (followers wagairah) alag table me."""
     artist_id = models.CharField(primary_key=True, max_length=255, db_column="artist_id")
     artist_name = models.CharField(max_length=255, db_column="artist_name")
     followers_count = models.BigIntegerField(default=0, db_column="followers_count")
@@ -49,6 +53,7 @@ class ArtistMetadata(models.Model):
 
 
 class ArtistFollowEvent(models.Model):
+    """Follow events ki table - kisi user ne artist ke saath kya kiya (event_type, jaise follow / unfollow)."""
     id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
     user_id = models.CharField(max_length=255, db_column="user_id")
     artist_id = models.CharField(max_length=255, db_column="artist_id")
@@ -64,6 +69,7 @@ class ArtistFollowEvent(models.Model):
 
 
 class Song(models.Model):
+    """songs table - ek gaana (keys, preview time, language, genre, status, audio features)."""
     id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
     title = models.CharField(max_length=255)
     artist_name = models.CharField(max_length=255, db_column="artist_name")
@@ -82,7 +88,7 @@ class Song(models.Model):
     lrclib_id = models.CharField(max_length=255, db_column="lrclib_id")
     status = models.CharField(max_length=255, default="ACTIVE")
     job_id = models.CharField(max_length=255, db_column="job_id")
-    # Ranking-relevant audio features copied from the producing job (V15); null until analysed
+    # Ranking wale audio features, job se copy hote hain (V15); analyse hone tak null
     tempo = models.FloatField(blank=True, null=True, db_column="tempo")
     energy = models.FloatField(blank=True, null=True, db_column="energy")
     valence = models.FloatField(blank=True, null=True, db_column="valence")
@@ -95,6 +101,7 @@ class Song(models.Model):
 
     @property
     def total_streams(self) -> int:
+        """Song kitni baar suna gaya (song_metadata se). Metadata na ho ya error aaye to 0."""
         try:
             return self.metadata.total_streams if hasattr(self, "metadata") and self.metadata else 0
         except Exception:
@@ -105,6 +112,7 @@ class Song(models.Model):
 
 
 class SongMetadata(models.Model):
+    """song_metadata table - song ke counters (total_streams wagairah)."""
     id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
     song = models.OneToOneField(Song, on_delete=models.CASCADE, db_column="song_id", related_name="metadata")
     total_streams = models.BigIntegerField(default=0, db_column="total_streams")
@@ -119,6 +127,7 @@ class SongMetadata(models.Model):
 
 
 class Playlist(models.Model):
+    """playlists table - catalog ki playlist (naam, cover, video, kitne songs, status)."""
     id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
     name = models.CharField(max_length=255)
     description = models.CharField(max_length=255, blank=True, null=True)
@@ -138,6 +147,7 @@ class Playlist(models.Model):
 
 
 class PlaylistSong(models.Model):
+    """playlist_songs table - kaunsa song kis playlist me hai (dono ka jod)."""
     playlist = models.ForeignKey(Playlist, on_delete=models.CASCADE, db_column="playlist_id", primary_key=True)
     song = models.ForeignKey(Song, on_delete=models.CASCADE, db_column="song_id")
 
@@ -148,6 +158,7 @@ class PlaylistSong(models.Model):
 
 
 class UserPlaylist(models.Model):
+    """App users ki apni playlists (privacy, share_token, kitne songs)."""
     id = models.CharField(primary_key=True, max_length=255, default=generate_uuid)
     name = models.CharField(max_length=255)
     privacy = models.CharField(max_length=50, blank=True, null=True)
@@ -165,7 +176,7 @@ class UserPlaylist(models.Model):
 
 
 class Short(models.Model):
-    """A standalone vertical video (own audio), optionally linked to a song. See V18__add_shorts.sql."""
+    """Ek akela vertical video (apna audio), chahe to kisi song se juda. Dekho V18__add_shorts.sql."""
 
     STATUSES = ("UPLOADING", "PROCESSING", "READY", "FAILED", "HIDDEN", "DELETED")
 
@@ -201,6 +212,7 @@ class Short(models.Model):
 
 
 class ShortReport(models.Model):
+    """Short reports ki table - kisi user ne short ko report kiya (reason, note, resolved hua ya nahi)."""
     REASONS = ("SPAM", "NUDITY", "VIOLENCE", "HATE", "COPYRIGHT", "OTHER")
 
     id = models.BigAutoField(primary_key=True)

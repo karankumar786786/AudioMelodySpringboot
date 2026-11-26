@@ -1,3 +1,4 @@
+/** shortRejectionReason ke tests: size, video track, duration limit (aadha second chhoot). */
 import { describe, expect, test } from "bun:test";
 import { MAX_SHORT_BYTES, MAX_SHORT_SECONDS, shortRejectionReason } from "../functions/processShort";
 import { SHORT_QUALITY_PROFILES } from "../lib/transcode/video";

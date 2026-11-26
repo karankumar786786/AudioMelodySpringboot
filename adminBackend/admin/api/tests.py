@@ -1,3 +1,4 @@
+"""Purane api raaston ke end-to-end tests: webhooks, delete chain, accounts, admin login flow aur OTP limit."""
 import os
 import django
 
@@ -307,16 +308,16 @@ class AdminEndpointRoutingTests(SimpleTestCase):
             self.assertEqual(res_fail.status_code, 200)
 
     def test_superadmin_role_enforcement(self):
-        # 1. Normal ADMIN cannot promote users (requires SUPER_ADMIN)
+        # 1. Normal ADMIN users ko promote nahi kar sakta (SUPER_ADMIN chahiye)
         fake_target = MagicMock()
         fake_target.role = "USER"
         with patch("accounts.views.get_object_or_404", return_value=fake_target), \
              patch("api.views.get_object_or_404", return_value=fake_target):
-            # self.client is configured with role="ADMIN"
+            # self.client role="ADMIN" ke saath set hai
             res_upgrade_denied = self.client.post("/admin/account/target@example.com")
             self.assertEqual(res_upgrade_denied.status_code, 403)
 
-        # 2. Authenticate as SUPER_ADMIN
+        # 2. SUPER_ADMIN ban ke login
         super_sid = make_test_session("user_super_1", "super@example.com", "SUPER_ADMIN")
         super_client = APIClient()
         super_client.credentials(HTTP_X_SESSION_ID=super_sid)
@@ -329,7 +330,7 @@ class AdminEndpointRoutingTests(SimpleTestCase):
             res_upgrade_ok = super_client.post("/admin/account/target@example.com")
             self.assertEqual(res_upgrade_ok.status_code, 202)
 
-        # 3. Super Admin deleting user via DELETE /admin/account/<email> and /admin/account/<email>/delete
+        # 3. Super Admin user delete karta hai: DELETE /admin/account/<email> aur /admin/account/<email>/delete
         with patch("accounts.views.get_object_or_404", return_value=fake_target), \
              patch("api.views.get_object_or_404", return_value=fake_target), \
              patch.object(RecombeeService, "delete_user"), \
@@ -465,13 +466,13 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
             self.assertIn("tempToken", data_login)
             temp_token = data_login["tempToken"]
 
-            # Read generated OTP from cache
+            # Bana hua OTP cache se padho
             from .services import AdminAuthService
             otp_data = AdminAuthService.get_otp("admin@example.com")
             self.assertIsNotNone(otp_data)
             otp_code = otp_data["otp"]
 
-            # 2. POST /auth/verify-otp with incorrect OTP
+            # 2. POST /auth/verify-otp galat OTP ke saath
             res_bad_otp = self.client.post(
                 "/auth/verify-otp",
                 {"otp": "000000"},
@@ -480,7 +481,7 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
             )
             self.assertEqual(res_bad_otp.status_code, 400)
 
-            # 3. POST /auth/verify-otp with correct OTP
+            # 3. POST /auth/verify-otp sahi OTP ke saath
             res_verify = self.client.post(
                 "/auth/verify-otp",
                 {"otp": otp_code},
@@ -494,30 +495,30 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
             self.assertIn("sessionId", tokens)
             self.assertIn("admin_session", res_verify.cookies)
 
-            # 4. Authenticate using HTTP-Only Cookie instead of Bearer token
+            # 4. Bearer token ke bajaye HttpOnly cookie se login
             cookie_client = APIClient()
             cookie_client.cookies["admin_session"] = res_verify.cookies["admin_session"].value
             res_cookie_profile = cookie_client.get("/api/user/profile")
             self.assertEqual(res_cookie_profile.status_code, 200)
             self.assertEqual(res_cookie_profile.json()["email"], "admin@example.com")
 
-            # 4b. The web app (X-Admin-Client: web) gets cookies only, no session IDs in bodies
+            # 4b. Web app (X-Admin-Client: web) ko sirf cookies milti hain, body me session IDs nahi
             res_cookie_profile_web = cookie_client.get("/api/user/profile", HTTP_X_ADMIN_CLIENT="web")
             self.assertEqual(res_cookie_profile_web.status_code, 200)
             self.assertNotIn("sessionId", res_cookie_profile_web.json())
             self.assertIn("sessionId", res_cookie_profile.json())
 
-            # 4b. The web app (X-Admin-Client: web) gets cookies only, no session IDs in bodies
+            # 4b. Web app (X-Admin-Client: web) ko sirf cookies milti hain, body me session IDs nahi
             res_cookie_profile_web = cookie_client.get("/api/user/profile", HTTP_X_ADMIN_CLIENT="web")
             self.assertEqual(res_cookie_profile_web.status_code, 200)
             self.assertNotIn("sessionId", res_cookie_profile_web.json())
             self.assertIn("sessionId", res_cookie_profile.json())
 
-            # 5. POST /auth/logout revokes the session
+            # 5. POST /auth/logout session band karta hai
             res_logout = cookie_client.post("/auth/logout")
             self.assertEqual(res_logout.status_code, 200)
 
-            # Verifying revoked session can no longer access protected views
+            # Check: band session se protected views nahi khulte
             res_revoked = cookie_client.get("/api/user/profile")
             self.assertIn(res_revoked.status_code, [401, 403])
 
@@ -538,12 +539,12 @@ class AdminAuthenticationFlowTests(SimpleTestCase):
             res_login = self.client.post("/auth/login", {"email": "lockout@example.com"}, format="json")
             temp_token = res_login.json()["tempToken"]
 
-            # Fail 4 times (400)
+            # 4 baar fail (400)
             for _ in range(4):
                 res_fail = self.client.post("/auth/verify-otp", {"otp": "000000"}, HTTP_X_TEMP_TOKEN=temp_token, format="json")
                 self.assertEqual(res_fail.status_code, 400)
 
-            # 5th failure exceeds max_attempts and returns 429
+            # 5vi baar max_attempts paar, isliye 429
             res_lockout = self.client.post("/auth/verify-otp", {"otp": "000000"}, HTTP_X_TEMP_TOKEN=temp_token, format="json")
             self.assertEqual(res_lockout.status_code, 429)
             self.assertIn("exceeded", res_lockout.json()["message"].lower())

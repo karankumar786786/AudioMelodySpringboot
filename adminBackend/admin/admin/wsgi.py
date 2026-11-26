@@ -1,10 +1,5 @@
-"""
-WSGI config for admin project.
-
-It exposes the WSGI callable as a module-level variable named ``application``.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/6.1/howto/deployment/wsgi/
+"""WSGI config (Gunicorn yahi chalata hai). Module level ``application`` variable deta hai.
+Details: https://docs.djangoproject.com/en/6.1/howto/deployment/wsgi/
 """
 
 import os

@@ -22,7 +22,7 @@ def clean_album_name(album: str) -> str:
     if not album:
         return ""
     cleaned = album
-    # Remove common soundtrack identifiers and suffixes
+    # Soundtrack wale aam shabd aur suffix hatao
     cleaned = re.sub(r"\s*[\(\[]Original Motion Picture Soundtrack[\)\]]", "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"\s*[\(\[]Soundtrack[\)\]]", "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"\s*[\(\[]Original Soundtrack[\)\]]", "", cleaned, flags=re.IGNORECASE)
@@ -51,11 +51,11 @@ def extract_movie_hint(title: str) -> Optional[str]:
 
 def clean_title_for_query(title: str) -> str:
     cleaned = title
-    # Remove version/rendering suffixes (e.g. - Female, - Male, - Audio, - Video, - Lyrical)
+    # Version wale suffix hatao (jaise - Female, - Male, - Audio, - Video, - Lyrical)
     cleaned = re.sub(r"\s*-\s*(?:Female|Male|Reprise|Duet|Slowed|Lofi|Version|Lyrical|Audio|Video|4K|Remix|Hook|Title Track).*", "", cleaned, flags=re.IGNORECASE)
-    # Remove parentheticals and square brackets
+    # ( ) aur [ ] ke andar ka text hatao
     cleaned = re.sub(r"\s*[\(\[].*?[\)\]]", "", cleaned)
-    # Remove trailing punctuation or whitespace
+    # Aakhir ke punctuation / space hatao
     cleaned = cleaned.strip(" -–—\t\r\n")
     return cleaned.strip() or title.strip()
 
@@ -90,7 +90,7 @@ def normalize_genre(raw_genre: str, title: str = "", existing_genre: str = "") -
     else:
         canonical = rg.title()
 
-    # Check if romantic keywords exist in title or existing genre
+    # Title ya purane genre me romantic shabd hain kya?
     romantic_keywords = [
         "pyar", "ishq", "dil", "mohabbat", "mehbooba", "sanware", "deewana", "tum",
         "hum", "romantic", "saathiya", "janam", "samjhawan", "kasam", "tere bina",
@@ -222,7 +222,7 @@ class Command(BaseCommand):
                     )
             else:
                 not_found_count += 1
-                # If not found on web, ensure country is set to default and clean up existing album/genre
+                # Web pe na mile to country default rakho aur purana album/genre saaf karo
                 fallback_album = clean_album_name(old_album) or old_album or "One Melody Edition"
                 fallback_genre = normalize_genre(old_genre, title, old_genre) or "Bollywood"
                 has_fallback_change = (
@@ -246,7 +246,7 @@ class Command(BaseCommand):
                         self.style.NOTICE(f"[{idx}/{total_songs}] ✗ \"{title}\" ({artist}) - No web match (retaining existing)")
                     )
 
-            # Politeness delay to prevent rate limiting
+            # Thoda ruko taaki bahar ki APIs rate limit na karein
             time.sleep(0.08)
 
         self.stdout.write("\n" + self.style.MIGRATE_HEADING("=== Execution Summary ==="))
@@ -275,17 +275,17 @@ class Command(BaseCommand):
             self.stdout.write(self.style.NOTICE("\n[DRY RUN] No database rows were modified. Run without --dry-run to commit changes."))
 
     def resolve_metadata_from_web(self, title: str, artist: str, min_score: float = 0.65) -> Optional[Dict[str, Any]]:
-        # 1. Try Apple Music / iTunes India
+        # 1. Apple Music / iTunes India try karo
         itunes_res = self._search_itunes(title, artist, min_score=min_score)
         if itunes_res:
             return itunes_res
 
-        # 2. Try Deezer API
+        # 2. Deezer API try karo
         deezer_res = self._search_deezer(title, artist, min_score=min_score)
         if deezer_res:
             return deezer_res
 
-        # 3. Try MusicBrainz API
+        # 3. MusicBrainz API try karo
         mb_res = self._search_musicbrainz(title, artist, min_score=min_score)
         if mb_res:
             return mb_res
@@ -321,10 +321,10 @@ class Command(BaseCommand):
                         track_name = r.get("trackName", "")
                         artist_name = r.get("artistName", "")
 
-                        # Title similarity
+                        # Title kitna milta hai
                         title_sim = SequenceMatcher(None, clean_title.lower(), track_name.lower()).ratio()
 
-                        # Artist similarity
+                        # Artist kitna milta hai
                         artist_sim = 0.5
                         if primary_artist:
                             if primary_artist.lower() in artist_name.lower():

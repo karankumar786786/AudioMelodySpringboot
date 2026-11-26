@@ -1,1 +1,1 @@
-# jobs management
+# jobs ke management commands

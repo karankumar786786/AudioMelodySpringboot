@@ -1,3 +1,4 @@
+"""Postgres catalog -> Algolia + Recombee sync (admin dashboard ke "Catalog health" se chalta hai)."""
 import time
 import logging
 from typing import Dict, Any, Optional, List
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class MergedJob:
+    """Song ke jobs ka mila-jula data (clip timestamps, audio features)."""
     id: Optional[str] = None
     song_id: Optional[str] = None
     clip_start_sec: Optional[int] = None
@@ -54,17 +56,13 @@ class MergedJob:
 
 
 class CatalogSyncService:
-    """
-    Centralized service for synchronizing PostgreSQL catalog data to Algolia and Recombee.
-    Handles full catalog reindexing, incremental stream count syncs, and purging inactive items.
+    """Postgres ka catalog Algolia aur Recombee ke saath sync rakhne wali service: poora reindex,
+    streams counts ka sync, aur inactive cheezein hatana.
     """
 
     @classmethod
     def build_jobs_map(cls, songs: List[Song]) -> Dict[str, Any]:
-        """
-        Prefetches transcoding & feature extraction jobs for songs,
-        providing audio features (danceability, tempo, etc.) and canvas clip timestamps.
-        """
+        """Songs ke transcoding/feature jobs pehle se laao (audio features aur canvas clip timestamps ke liye)."""
         song_ids = [s.id for s in songs if s.id]
         job_ids = [s.job_id for s in songs if getattr(s, "job_id", None)]
         if not song_ids and not job_ids:
@@ -103,14 +101,13 @@ class CatalogSyncService:
         purge_inactive: bool = True,
         configure_algolia: bool = True,
     ) -> Dict[str, Any]:
-        """
-        Performs a full catalog synchronization:
-        1. Configures Algolia index attributes & rankings
-        2. Syncs all ACTIVE songs (with audio features & clips) to Algolia & Recombee
-        3. Syncs all ACTIVE artists (with followers count) to Algolia
-        4. Syncs all ACTIVE curated playlists to Algolia
-        5. Syncs all PUBLIC user playlists to Algolia
-        6. Purges INACTIVE items from Algolia & Recombee
+        """Poora catalog sync:
+        1. Algolia index ki settings aur ranking
+        2. Saare ACTIVE songs (audio features + clips) -> Algolia aur Recombee
+        3. Saare ACTIVE artists (followers ke saath) -> Algolia
+        4. Saari ACTIVE official playlists -> Algolia
+        5. Saari PUBLIC user playlists -> Algolia
+        6. INACTIVE cheezein Algolia aur Recombee se hatao
         """
         start_time = time.time()
         logger.info("[CatalogSyncService] Starting full catalog synchronization...")
@@ -140,11 +137,11 @@ class CatalogSyncService:
 
         algolia_artists = AlgoliaService.reindex_all_artists(active_artists, batch_size=batch_size)
 
-        # 3. Active playlists (curated)
+        # 3. Active official playlists
         active_playlists = list(Playlist.objects.filter(status="ACTIVE"))
         algolia_playlists = AlgoliaService.reindex_all_playlists(active_playlists, batch_size=batch_size)
 
-        # 4. Public user playlists
+        # 4. Users ki public playlists
         public_user_playlists = list(
             UserPlaylist.objects.filter(privacy="PUBLIC").select_related("user")
         )
@@ -152,7 +149,7 @@ class CatalogSyncService:
             public_user_playlists, batch_size=batch_size
         )
 
-        # 5. Purge inactive items
+        # 5. Inactive cheezein hatao
         purged_counts = {"songs": 0, "artists": 0, "playlists": 0, "user_playlists": 0}
         if purge_inactive:
             # Inactive songs
@@ -183,7 +180,7 @@ class CatalogSyncService:
                 except Exception:
                     pass
 
-            # Non-public user playlists
+            # Jo user playlists public nahi
             private_user_playlists = list(
                 UserPlaylist.objects.exclude(privacy="PUBLIC").values_list("id", flat=True)
             )
@@ -214,9 +211,7 @@ class CatalogSyncService:
 
     @classmethod
     def sync_stream_counts(cls) -> Dict[str, Any]:
-        """
-        Incremental sync: updates totalStreams for all active songs in Algolia and Recombee.
-        """
+        """Sirf streams count: saare active songs ka totalStreams Algolia aur Recombee me update."""
         start_time = time.time()
         logger.info("[CatalogSyncService] Starting incremental stream count sync...")
 
@@ -226,9 +221,9 @@ class CatalogSyncService:
             streams = s.total_streams
             if streams is not None:
                 try:
-                    # Update in Recombee
+                    # Recombee me update
                     RecombeeService.update_total_streams(s.id, streams)
-                    # Update in Algolia (partial update totalStreams)
+                    # Algolia me update (sirf totalStreams, partial update)
                     client = AlgoliaService.get_client()
                     if client:
                         index_name = getattr(settings, "ALGOLIA_INDEX_NAME", "one_melody_springboot")
@@ -251,9 +246,7 @@ class CatalogSyncService:
 
     @classmethod
     def get_sync_health(cls) -> Dict[str, Any]:
-        """
-        Returns catalog counts across DB and current engine readiness.
-        """
+        """DB counts aur engines (Algolia/Recombee) ki readiness."""
         active_songs = Song.objects.filter(status="ACTIVE").count()
         inactive_songs = Song.objects.filter(status="INACTIVE").count()
         active_artists = Artist.objects.filter(status="ACTIVE").count()

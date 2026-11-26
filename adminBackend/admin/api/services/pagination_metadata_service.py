@@ -1,7 +1,4 @@
-"""
-Backwards compatibility facade for PaginationMetadataService.
-Moved to core.services.pagination_metadata_service
-"""
+"""Purane imports ke liye "facade" (sirf aage bhejta hai). Asli code ab core.services.pagination_metadata_service me hai."""
 # pyrefly: ignore[missing-import]
 from core.services.pagination_metadata_service import PaginationMetadataService
 

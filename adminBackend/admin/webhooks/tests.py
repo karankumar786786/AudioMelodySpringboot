@@ -1,3 +1,4 @@
+"""webhooks ke tests: upload URLs (sirf admin ko), aur audio features ka job se song pe copy hona."""
 from typing import Any
 from unittest.mock import patch
 from django.test import RequestFactory, SimpleTestCase
@@ -71,7 +72,7 @@ class WebhooksAppTests(SimpleTestCase):
         self.assertEqual(response.data["signature"], "vid_sig_def")
 
     def test_upload_endpoints_reject_anonymous_requests(self):
-        """Upload credentials must never be issued without an admin session."""
+        """Admin session ke bina upload ki permission kabhi nahi milni chahiye."""
         views = [
             SongUploadUrlWebhookView,
             VideoUploadUrlWebhookView,
@@ -92,7 +93,7 @@ class WebhooksAppTests(SimpleTestCase):
 
 
 class SongAudioFeatureSyncTests(SimpleTestCase):
-    """Audio features are mirrored from the job onto the song (Flyway V15)."""
+    """Audio features job se song pe copy hote hain (Flyway V15)."""
 
     def setUp(self):
         self.factory = RequestFactory()
@@ -190,5 +191,5 @@ class SongAudioFeatureSyncTests(SimpleTestCase):
             (kwargs["tempo"], kwargs["energy"], kwargs["valence"], kwargs["danceability"]),
             (128.0, 0.9, 0.7, 0.8),
         )
-        # Recombee still receives the features as before
+        # Recombee ko features pehle jaise hi milte hain
         self.assertEqual(mock_recombee.save_song.call_args.kwargs["tempo"], 128.0)

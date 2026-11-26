@@ -1,39 +1,39 @@
 # =========================================================
-# Stage 1: Build Stage (Tests run in CI workflow)
+# Stage 1: Build (tests CI workflow me chalte hain, yahan nahi)
 # =========================================================
 FROM oven/bun:1-debian AS builder
 
 WORKDIR /app
 
-# Install build dependencies
+# Dependencies install (lockfile ke bilkul hisaab se)
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
-# Copy application source code into builder stage
+# App ka source code copy
 COPY . .
 
-# Compile TypeScript into optimized production bundle in ./dist
+# TypeScript ko ./dist me ek production bundle me compile karo
 RUN bun run build
 
-# Secrets Manager loader used by entrypoint.sh (bundled, so no node_modules at runtime)
+# entrypoint.sh wala Secrets Manager loader (bundle - runtime pe node_modules nahi chahiye)
 RUN bun build load-secrets.ts --outfile ./dist/load-secrets.js --target bun
 
 
 # =========================================================
-# Stage 2: Minimal Runtime Runner
+# Stage 2: Chhota runtime image
 # =========================================================
 FROM oven/bun:1-debian AS runner
 
 WORKDIR /app
 
-# Install runtime media tools: FFmpeg, curl (for healthchecks), ca-certificates
+# Runtime tools: FFmpeg (encoding), curl (healthcheck), ca-certificates (HTTPS)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     curl \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Shaka Packager (multi-arch: x86_64 and arm64)
+# Shaka Packager install (HLS / DASH chunks banata hai) - x86_64 aur arm64 dono ke liye
 ARG SHAKA_VERSION=3.9.3
 RUN ARCH=$(dpkg --print-architecture) && \
     if [ "$ARCH" = "arm64" ]; then \
@@ -46,24 +46,24 @@ RUN ARCH=$(dpkg --print-architecture) && \
         -o /usr/local/bin/packager \
     && chmod +x /usr/local/bin/packager
 
-# Verify media tools in runtime environment
+# Check ki tools sach me chal rahe hain (warna build yahin fail)
 RUN ffmpeg -version && packager --version && bun --version
 
-# Copy ONLY compiled dist bundle and package.json from builder stage — NO source code
+# Builder se SIRF dist bundle aur package.json - source code nahi
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./package.json
 COPY --chmod=755 entrypoint.sh /app/entrypoint.sh
 
-# Environment variables
+# Environment variables (INNGEST_DEV=0 = asli Inngest cloud, dev server nahi)
 ENV NODE_ENV=production
 ENV INNGEST_DEV=0
 
 EXPOSE 5010
 
-# Health check probe
+# Container health check (har 30 second /health)
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 --start-period=10s \
     CMD curl -f http://localhost:5010/health || exit 1
 
-# Load secrets when SECRET_IDS is set, then start the compiled bundle
+# SECRET_IDS ho to secrets lao, phir compiled bundle chalao
 ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["bun", "run", "start"]

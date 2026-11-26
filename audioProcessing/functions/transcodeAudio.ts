@@ -1,3 +1,11 @@
+/**
+ * Inngest sub-task: audio ko HLS / DASH (3 qualities) me badal ke S3 pe daalna.
+ * transcode-song (orchestrator) isko step.invoke se chalata hai (event "audio/song.transcode.audio").
+ * Audio file na ho to video download karke usse audio nikaalte hain. Output: { duration, songKey }.
+ *
+ * Har run: temp folder me file download -> kaam -> finally me local files hamesha saaf.
+ * globalTranscodeLimiter: ek process me bhaari FFmpeg kaam limit se zyada ek saath nahi.
+ */
 import { inngest } from "../inngest";
 import { s3Client, downloadObject } from "../lib/s3";
 import { AudioTranscoder } from "../lib/transcode";
@@ -11,6 +19,7 @@ import { config } from "dotenv";
 import { CONCURRENT_TRANSCODING_LIMIT, globalTranscodeLimiter } from "../lib/transcode/limiter";
 config();
 
+/** Event ka data. */
 export interface TranscodeAudioData {
     jobId: string;
     songId: string;
@@ -18,6 +27,7 @@ export interface TranscodeAudioData {
     tempVideoKey?: string;
 }
 
+/** Audio download (ya video se nikaalo) -> jaanch -> AudioTranscoder -> { duration, songKey }. */
 export const transcodeAudioTask = inngest.createFunction(
     {
         id: "transcode-audio-task",
@@ -56,53 +66,53 @@ export const transcodeAudioTask = inngest.createFunction(
                     fs.mkdirSync(baseTmpDir, { recursive: true });
                 }
 
-            const localUuid = crypto.randomUUID();
-            const localAudioDownloadPath = path.join(baseTmpDir, `raw_audio_main_${localUuid}`);
-            const videoExt = tempVideoKey ? (path.extname(tempVideoKey) || ".mp4") : ".mp4";
-            const localVideoDownloadPath = path.join(baseTmpDir, `raw_video_extract_${localUuid}${videoExt}`);
-            const localExtractedAudioPath = path.join(baseTmpDir, `extracted_audio_${localUuid}.m4a`);
-            const audioOutputDir = path.join(baseTmpDir, `transcoded_audio_${localUuid}`);
+                const localUuid = crypto.randomUUID();
+                const localAudioDownloadPath = path.join(baseTmpDir, `raw_audio_main_${localUuid}`);
+                const videoExt = tempVideoKey ? (path.extname(tempVideoKey) || ".mp4") : ".mp4";
+                const localVideoDownloadPath = path.join(baseTmpDir, `raw_video_extract_${localUuid}${videoExt}`);
+                const localExtractedAudioPath = path.join(baseTmpDir, `extracted_audio_${localUuid}.m4a`);
+                const audioOutputDir = path.join(baseTmpDir, `transcoded_audio_${localUuid}`);
 
-            registerActiveTmpPath(localAudioDownloadPath);
-            registerActiveTmpPath(localVideoDownloadPath);
-            registerActiveTmpPath(localExtractedAudioPath);
-            registerActiveTmpPath(audioOutputDir);
+                registerActiveTmpPath(localAudioDownloadPath);
+                registerActiveTmpPath(localVideoDownloadPath);
+                registerActiveTmpPath(localExtractedAudioPath);
+                registerActiveTmpPath(audioOutputDir);
 
-            try {
-                let inputAudioPath: string;
+                try {
+                    let inputAudioPath: string;
 
-                if (tempSongKey) {
-                    console.log(`[AUDIO-WORKER] Downloading raw audio for job ${jobId}...`);
-                    await downloadObject(tempBucket, tempSongKey, localAudioDownloadPath);
-                    inputAudioPath = localAudioDownloadPath;
-                } else {
-                    console.log(`[AUDIO-WORKER] Video-only provided: downloading video and extracting audio track for job ${jobId}...`);
-                    await downloadObject(tempBucket, tempVideoKey!, localVideoDownloadPath);
-                    await extractAudioFromVideo(localVideoDownloadPath, localExtractedAudioPath);
-                    inputAudioPath = localExtractedAudioPath;
+                    if (tempSongKey) {
+                        console.log(`[AUDIO-WORKER] Downloading raw audio for job ${jobId}...`);
+                        await downloadObject(tempBucket, tempSongKey, localAudioDownloadPath);
+                        inputAudioPath = localAudioDownloadPath;
+                    } else {
+                        console.log(`[AUDIO-WORKER] Video-only provided: downloading video and extracting audio track for job ${jobId}...`);
+                        await downloadObject(tempBucket, tempVideoKey!, localVideoDownloadPath);
+                        await extractAudioFromVideo(localVideoDownloadPath, localExtractedAudioPath);
+                        inputAudioPath = localExtractedAudioPath;
                 }
 
-                // Fail-fast integrity pre-flight check before heavy encoding
-                console.log(`[AUDIO-WORKER] Running fail-fast integrity validation for job ${jobId}...`);
-                const validation = await validateMediaIntegrity(inputAudioPath, "audio");
-                console.log(`[AUDIO-WORKER] Media integrity verified (${validation.formatName}, duration ${validation.duration.toFixed(2)}s)`);
+                    // Bhaari encoding se pehle jaldi wali jaanch - kharab file yahin ruk jaaye
+                    console.log(`[AUDIO-WORKER] Running fail-fast integrity validation for job ${jobId}...`);
+                    const validation = await validateMediaIntegrity(inputAudioPath, "audio");
+                    console.log(`[AUDIO-WORKER] Media integrity verified (${validation.formatName}, duration ${validation.duration.toFixed(2)}s)`);
 
-                console.log(`[AUDIO-WORKER] Transcoding and packaging multi-bitrate audio with hardware acceleration...`);
-                const audioTranscoder = new AudioTranscoder(4, s3Client, basePath, prodBucket);
-                const { duration } = await audioTranscoder.transcode(inputAudioPath, audioOutputDir, songId);
+                    console.log(`[AUDIO-WORKER] Transcoding and packaging multi-bitrate audio with hardware acceleration...`);
+                    const audioTranscoder = new AudioTranscoder(4, s3Client, basePath, prodBucket);
+                    const { duration } = await audioTranscoder.transcode(inputAudioPath, audioOutputDir, songId);
 
-                const songKey = `${basePath}/${songId}`;
-                console.log(`[AUDIO-WORKER] Audio transcoding completed -> ${songKey} (${duration.toFixed(2)}s)`);
+                    const songKey = `${basePath}/${songId}`;
+                    console.log(`[AUDIO-WORKER] Audio transcoding completed -> ${songKey} (${duration.toFixed(2)}s)`);
 
-                return { duration: Math.round(duration), songKey };
-            } finally {
-                await safeCleanPaths([
-                    localAudioDownloadPath,
-                    localVideoDownloadPath,
-                    localExtractedAudioPath,
-                    audioOutputDir,
-                ]);
-            }
+                    return { duration: Math.round(duration), songKey };
+                } finally {
+                    await safeCleanPaths([
+                        localAudioDownloadPath,
+                        localVideoDownloadPath,
+                        localExtractedAudioPath,
+                        audioOutputDir,
+                    ]);
+                }
             });
         });
     }

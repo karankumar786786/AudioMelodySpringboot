@@ -1,8 +1,8 @@
-"""Print shell `export` lines for the JSON secrets named in SECRET_IDS.
+"""SECRET_IDS me diye har JSON secret ke liye shell ki `export KEY='value'` lines print karo.
 
-Used only by entrypoint.sh, which evals the output. Values go to stdout (a pipe),
-never to logs; errors name the secret and key, never a value.
-Keep in sync with audioProcessing/load-secrets.ts and workers/mailEvents/load-secrets.ts.
+Sirf entrypoint.sh use karta hai, jo output ko eval karta hai. Values stdout (ek pipe) pe jaati hain,
+logs me kabhi nahi; error me sirf secret aur key ka naam hota hai, value kabhi nahi.
+audioProcessing/load-secrets.ts aur workers/mailEvents/load-secrets.ts ke saath ek jaisa rakho.
 """
 
 import json
@@ -14,14 +14,20 @@ KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
 def secret_ids(raw: str) -> list[str]:
+    """"a,b;c" jaisi string ko secret naamon ki list me todo (khaali hisse hata ke)."""
     return [part.strip() for part in re.split(r"[,;]", raw) if part.strip()]
 
 
 def shell_quote(value: str) -> str:
+    """Value ko single quotes me lapeto taaki shell use bilkul waisa hi le. Andar ka ' bhi safe tareeke se band-khol hota hai."""
     return "'" + value.replace("'", "'\"'\"'") + "'"
 
 
 def to_exports(secret_id: str, payload: str) -> list[str]:
+    """Ek secret ka JSON padh ke export lines banao.
+    JSON galat ho, object na ho, key env naam jaisi na ho, ya value dict / list / null ho to ValueError.
+    true/false ko "true"/"false" string banata hai.
+    """
     try:
         data = json.loads(payload)
     except json.JSONDecodeError as exc:
@@ -41,10 +47,13 @@ def to_exports(secret_id: str, payload: str) -> list[str]:
 
 
 def main() -> int:
+    """SECRET_IDS khaali ho to kuch nahi (0). Warna AWS Secrets Manager se har secret padho aur exports print karo.
+    Kisi bhi secret me dikkat ho to stderr pe sirf naam + error code likh ke 1 lautao (entrypoint ruk jaata hai).
+    """
     ids = secret_ids(os.environ.get("SECRET_IDS", ""))
     if not ids:
         return 0
-    import boto3  # imported late so the helpers above work without it
+    import boto3  # der se import - taaki upar ke helpers (aur unke tests) boto3 ke bina chal sakein
 
     region = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION") or "ap-south-1"
     client = boto3.client("secretsmanager", region_name=region)
@@ -52,7 +61,7 @@ def main() -> int:
     for secret_id in ids:
         try:
             response = client.get_secret_value(SecretId=secret_id)
-        except Exception as exc:  # noqa: BLE001 - report the AWS error code only
+        except Exception as exc:  # noqa: BLE001 - sirf AWS error code batao, kuch aur nahi
             code = getattr(exc, "response", {}).get("Error", {}).get("Code", type(exc).__name__)
             print(f"load_secrets: cannot read {secret_id}: {code}", file=sys.stderr)
             return 1

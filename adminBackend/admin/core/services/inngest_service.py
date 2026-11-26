@@ -1,3 +1,4 @@
+"""Inngest (background jobs) ko events bhejna."""
 import logging
 import time
 from typing import Any, Dict, Optional
@@ -8,17 +9,13 @@ logger = logging.getLogger(__name__)
 
 
 class InngestService:
-    """
-    Direct Inngest Event Dispatcher service.
-    Replaces Redis polling queues by dispatching durable function triggers directly
-    to Inngest Cloud (or Inngest local dev server).
+    """Inngest ko seedha events bhejne wali service. Pehle Redis queue poll hoti thi; ab durable function
+    triggers seedha Inngest Cloud (ya local Inngest dev server) ko jaate hain.
     """
 
     @classmethod
     def get_inngest_endpoint(cls) -> str:
-        """
-        Determines the appropriate Inngest endpoint based on environment.
-        """
+        """Environment ke hisaab se Inngest URL: event key ho to Cloud, warna local dev server."""
         is_dev = getattr(settings, "INNGEST_DEV", False)
         dev_url = getattr(settings, "INNGEST_DEV_URL", None)
         event_key = getattr(settings, "INNGEST_EVENT_KEY", "").strip()
@@ -29,7 +26,7 @@ class InngestService:
         if event_key:
             return f"https://inn.gs/e/{event_key}"
 
-        # Fallback to dev url if no cloud key configured
+        # Cloud key na ho to local dev server ka URL
         if dev_url:
             return f"{dev_url.rstrip('/')}/e/dev"
 
@@ -37,9 +34,7 @@ class InngestService:
 
     @classmethod
     def send_event(cls, name: str, data: Dict[str, Any], event_id: Optional[str] = None) -> bool:
-        """
-        Sends an event directly to Inngest REST API.
-        """
+        """Inngest REST API ko ek event bhejo. Fail ho to False (exception nahi)."""
         endpoint = cls.get_inngest_endpoint()
         event_key = getattr(settings, "INNGEST_EVENT_KEY", "").strip()
 
@@ -75,10 +70,8 @@ class InngestService:
 
     @classmethod
     def trigger_audio_job(cls, job_id: str, attempt: Optional[int] = None) -> bool:
-        """
-        Dispatches 'audio/fetchjob' directly to Inngest to begin transcoding pipeline.
-        Includes attempt count or timestamp in event_id to prevent Inngest's 24-hour
-        deduplication cache from silently dropping retry attempts.
+        """'audio/fetchjob' bhejo - transcoding pipeline shuru. event_id me attempt number ya time daalte hain,
+        warna Inngest ka 24 ghante ka dedupe retry ko chupchaap drop kar deta.
         """
         if attempt is None:
             try:
@@ -100,11 +93,7 @@ class InngestService:
 
     @classmethod
     def trigger_delete_event(cls, data: Dict[str, Any], attempt: Optional[int] = None) -> bool:
-        """
-        Dispatches 'audio/delete.algolia' directly to Inngest for deletion workflow.
-        Includes attempt count or timestamp in event_id to prevent Inngest deduplication
-        from dropping retry executions.
-        """
+        """'audio/delete.algolia' bhejo - delete wali chain shuru. event_id me attempt / time, taaki retry drop na ho."""
         entity_id = data.get("entityId", "")
         delete_job_id = data.get("deleteJobId", "")
         event_key = delete_job_id or entity_id
@@ -119,9 +108,7 @@ class InngestService:
 
     @classmethod
     def trigger_cancel_job(cls, job_id: str) -> bool:
-        """
-        Dispatches 'audio/job.cancel' directly to Inngest to halt in-flight step functions.
-        """
+        """'audio/job.cancel' bhejo - chal rahe Inngest steps rok do."""
         logger.info("[INNGEST] Directly dispatching audio/job.cancel for job [%s]", job_id)
         return cls.send_event(
             name="audio/job.cancel",

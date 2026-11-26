@@ -1,14 +1,12 @@
-"""
-Queries over the S3 data lake (raw listening events as Parquet, see infra/lake/README.md)
-with DuckDB. Every query reads only the date partitions it needs, drops duplicate events
-by event_id (the writer is at-least-once) and is cached in Redis for 10 minutes, so the
-dashboard doesn't rescan S3 on every page view.
+"""S3 data lake pe DuckDB queries (raw listening events Parquet files me, infra/lake/README.md dekho).
+Har query sirf zaroori dino ke folders padhti hai, event_id se duplicate hatati hai (writer "at least once" hai),
+aur result Redis me 10 minute cache hota hai - taaki dashboard har page view pe S3 dobara scan na kare.
 
 Settings:
-  LAKE_URI            s3://<bucket>/lake (or a local directory in tests)
-  LAKE_S3_ENDPOINT    host:port for an S3-compatible store (local dev); empty for AWS
-  LAKE_S3_URL_STYLE   "path" for local stores, "vhost" for AWS
-  DUCKDB_EXTENSION_DIRECTORY  where httpfs/postgres are pre-installed in the image
+  LAKE_URI            s3://<bucket>/lake (tests me local folder)
+  LAKE_S3_ENDPOINT    S3 jaisa local store ho to host:port; AWS ke liye khaali
+  LAKE_S3_URL_STYLE   local stores ke liye "path", AWS ke liye "vhost"
+  DUCKDB_EXTENSION_DIRECTORY  image me httpfs/postgres extensions kahan install hain
 """
 
 import hashlib
@@ -27,19 +25,21 @@ _local = threading.local()
 
 
 class LakeUnavailable(Exception):
-    """The lake isn't configured or couldn't be read; callers show 'not available'."""
+    """Lake set nahi hai ya padh nahi paaye; caller "not available" dikhata hai."""
 
 
 def _settings(name: str, default: str = "") -> str:
+    """Lake ki settings (LAKE_URI, endpoint, url style...)."""
     return str(getattr(settings, name, default) or default)
 
 
 def lake_uri() -> str:
+    """Lake ka base URI; set nahi to LakeUnavailable."""
     return _settings("LAKE_URI").rstrip("/")
 
 
 def _connect():
-    """One DuckDB connection per thread (Gunicorn threads share nothing else)."""
+    """Har thread ka apna DuckDB connection (Gunicorn threads aur kuch share nahi karte)."""
     conn = getattr(_local, "conn", None)
     if conn is not None:
         return conn
@@ -67,8 +67,8 @@ def _connect():
                 ],
             )
         else:
-            # The EC2 instance role first: the container's static AWS keys (used for the
-            # media buckets) don't have access to the lake bucket.
+            # Pehle EC2 instance role: container ki static AWS keys (media buckets ke liye)
+            # ko lake bucket ki permission nahi hai.
             conn.execute(
                 "CREATE OR REPLACE SECRET lake (TYPE s3, PROVIDER credential_chain, CHAIN ?, REGION ?)",
                 [_settings("LAKE_CREDENTIAL_CHAIN", "instance;env;config"), _settings("AWS_REGION", "ap-south-1")],
@@ -78,6 +78,7 @@ def _connect():
 
 
 def reset_connection() -> None:
+    """Is thread ka DuckDB connection band karo (tests / settings badalne pe)."""
     conn = getattr(_local, "conn", None)
     if conn is not None:
         conn.close()
@@ -85,10 +86,12 @@ def reset_connection() -> None:
 
 
 def topic_glob(topic: str) -> str:
+    """Ek topic ki saari Parquet files ka glob pattern."""
     return f"{lake_uri()}/events/topic={topic}/*/*.parquet"
 
 
 def _cached(key_parts: Dict[str, Any], compute: Callable[[], Any]) -> Any:
+    """Result Redis me 10 minute cache karo (key = query + params ka hash)."""
     key = "lake:v1:" + hashlib.sha256(json.dumps(key_parts, sort_keys=True, default=str).encode()).hexdigest()[:32]
     client = None
     try:
@@ -110,10 +113,10 @@ def _cached(key_parts: Dict[str, Any], compute: Callable[[], Any]) -> Any:
 
 
 def _plays_source(start: Optional[date], end: date) -> str:
-    """Deduplicated plays in range as a SQL relation.
+    """Range ke plays, duplicates hata ke, SQL relation ki tarah.
 
-    One glob over the topic with a filter on the dt partition: DuckDB skips files from
-    other days (partition pruning), and days without files simply contribute nothing.
+    Topic pe ek glob + dt (date) folder pe filter: DuckDB baaki dino ki files chhod deta hai (partition pruning),
+    aur jin dino ki file nahi wo bas kuch add nahi karte.
     """
     path = topic_glob("listening.play.v1").replace("'", "''")
     where = f"dt <= DATE '{end.isoformat()}'"
@@ -127,6 +130,7 @@ def _plays_source(start: Optional[date], end: date) -> str:
 
 
 def _run(sql: str, params: List[Any]) -> List[tuple]:
+    """DuckDB pe query chalao aur rows (dicts) lautao."""
     if not lake_uri():
         raise LakeUnavailable("LAKE_URI is not set")
     try:
@@ -135,7 +139,7 @@ def _run(sql: str, params: List[Any]) -> List[tuple]:
         raise
     except Exception as e:
         msg = str(e)
-        # No files yet for the range is a normal, empty answer.
+        # Range ke liye abhi files nahi hain - ye normal hai, khaali jawab.
         if "No files found" in msg or "does not exist" in msg:
             return []
         logger.warning("Lake query failed: %s", msg[:300])
@@ -143,11 +147,11 @@ def _run(sql: str, params: List[Any]) -> List[tuple]:
         raise LakeUnavailable("The data lake could not be read") from e
 
 
-# ---- Song-level questions --------------------------------------------------------------
+# ---- Ek song ke sawaal ---------------------------------------------------------------------
 
 
 def song_audience(song_id: str, start: Optional[date], end: date) -> Dict[str, Any]:
-    """Unique listeners, returning listeners (also listened before the range) and plays per listener."""
+    """Unique listeners, returning listeners (range se pehle bhi sun chuke) aur har listener ke plays."""
 
     def compute():
         plays = _plays_source(start, end)
@@ -178,7 +182,7 @@ def song_audience(song_id: str, start: Optional[date], end: date) -> Dict[str, A
 
 
 def song_when_listened(song_id: str, start: Optional[date], end: date) -> List[Dict[str, int]]:
-    """Plays by weekday (0 = Monday) and hour of day, UTC."""
+    """Hafte ke din (0 = Monday) aur ghante ke hisaab se plays, UTC."""
 
     def compute():
         plays = _plays_source(start, end)
@@ -194,6 +198,7 @@ def song_when_listened(song_id: str, start: Optional[date], end: date) -> List[D
 
 
 def song_platforms(song_id: str, start: Optional[date], end: date) -> List[Dict[str, Any]]:
+    """Song ke plays platform ke hisaab se (ios / android / web)."""
     def compute():
         plays = _plays_source(start, end)
         rows = _run(
@@ -207,11 +212,11 @@ def song_platforms(song_id: str, start: Optional[date], end: date) -> List[Dict[
     return _cached({"q": "platforms", "song": song_id, "start": start, "end": end}, compute)
 
 
-# ---- Catalogue-level questions -----------------------------------------------------------
+# ---- Poore catalog ke sawaal ----------------------------------------------------------------
 
 
 def daily_audience(start: Optional[date], end: date) -> List[Dict[str, Any]]:
-    """Plays and unique listeners per day across the catalogue."""
+    """Poore catalog ke har din ke plays aur unique listeners."""
 
     def compute():
         plays = _plays_source(start, end)
@@ -222,7 +227,7 @@ def daily_audience(start: Optional[date], end: date) -> List[Dict[str, Any]]:
 
 
 def skipped_intros(start: Optional[date], end: date, limit: int = 10, min_plays: int = 20) -> List[Dict[str, Any]]:
-    """Songs most often abandoned in their first 30 seconds."""
+    """Wo gaane jo sabse zyada pehle 30 second me chhode gaye."""
 
     def compute():
         plays = _plays_source(start, end)
@@ -243,7 +248,7 @@ def skipped_intros(start: Optional[date], end: date, limit: int = 10, min_plays:
 
 
 def weekly_retention(weeks: int = 8) -> List[Dict[str, Any]]:
-    """Listener cohorts by first listening week: share still listening in each following week."""
+    """Listener cohorts (pehli baar sunne ka hafta): aage ke har hafte kitne % log abhi bhi sun rahe hain."""
 
     def compute():
         end = date.today()

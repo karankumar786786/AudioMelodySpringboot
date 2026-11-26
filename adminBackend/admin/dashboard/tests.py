@@ -1,3 +1,4 @@
+"""dashboard ke tests: health check bina login ke khula, aur khaali / chhoti search query."""
 import time
 from typing import Any
 from django.test import SimpleTestCase
@@ -23,7 +24,7 @@ class DashboardAppTests(SimpleTestCase):
         }
 
     def test_health_check_view_unauthenticated(self):
-        # Health check must be publicly accessible without session token
+        # Health check bina session token ke sabke liye khula hona chahiye
         response = self.client.get("/health")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"status": "UP", "service": "admin"})

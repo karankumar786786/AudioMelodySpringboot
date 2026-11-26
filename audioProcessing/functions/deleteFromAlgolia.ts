@@ -1,8 +1,16 @@
+/**
+ * Inngest function "delete-from-algolia": Algolia (search) se record hatao.
+ * Delete chain (Inngest): delete.algolia -> delete.recombee -> delete.imagekit -> delete.s3 -> delete.finalize.
+ *
+ * Agla event: audio/delete.recombee. Saare retries fail = onFailure admin API ko /failed batata hai (DeleteJob FAILED).
+ */
 import { inngest } from "../inngest";
 import { deleteApi } from "../axios";
 import type { DeleteEventPayload } from "../types/delete";
+import { deleteJobParams } from "./deleteParams";
 import { extractMeaningfulError } from "../lib/errorUtils";
 
+/** Admin API /delete-search call karo (wahi Algolia se hatata hai), phir agla step. entityId / entityType na ho to error. */
 export const deleteFromAlgolia = inngest.createFunction(
     {
         id: "delete-from-algolia",
@@ -16,7 +24,7 @@ export const deleteFromAlgolia = inngest.createFunction(
                     await deleteApi.post(`/${data.entityType}/${data.entityId}/failed`, {
                         reason: `Algolia teardown: ${reason}`,
                     }, {
-                        params: data.deleteJobId ? { deleteJobId: data.deleteJobId } : undefined
+                        params: deleteJobParams(data)
                     });
                 } catch (e) {
                     console.error(`Failed to notify coreEngine of delete failure:`, e);
@@ -33,10 +41,10 @@ export const deleteFromAlgolia = inngest.createFunction(
         await step.run("delete-algolia-record", async () => {
             console.log(`[DELETE-ALGOLIA] Removing ${data.entityType}:${data.entityId} from Algolia...`);
             await deleteApi.post(`/${data.entityType}/${data.entityId}/delete-search`, null, {
-                params: data.deleteJobId ? { deleteJobId: data.deleteJobId } : undefined,
+                params: deleteJobParams(data),
             });
 
-            // Direct Algolia purge fallback if credentials configured
+            // Algolia keys set hon to yahan se bhi seedha delete karo (backup; fail = sirf warning)
             const appId = process.env.ALGOLIA_APP_ID;
             const apiKey = process.env.ALGOLIA_API_KEY;
             const indexName = process.env.ALGOLIA_INDEX_NAME || "one_melody_springboot";

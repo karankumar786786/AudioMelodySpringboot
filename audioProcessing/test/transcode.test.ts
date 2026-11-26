@@ -1,3 +1,4 @@
+/** Asli FFmpeg + Shaka ke saath transcoding ke tests (S3 mock): audio HLS/DASH, video se audio, canvas clip. */
 import { describe, it, expect, afterAll } from "bun:test";
 import * as path from "node:path";
 import * as fs from "node:fs";
@@ -11,6 +12,7 @@ const VIDEO_ASSET = path.resolve(import.meta.dir, "../asset/test_video.mp4");
 
 const testTempDirs: string[] = [];
 
+/** OS ke temp folder me naya folder banao aur yaad rakho (afterAll me hatane ke liye). */
 function createTempDir(prefix: string): string {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
     testTempDirs.push(dir);
@@ -24,11 +26,12 @@ afterAll(() => {
                 fs.rmSync(d, { recursive: true, force: true });
             }
         } catch {
-            // ignore cleanup errors
+            // safai ke errors ignore
         }
     }
 });
 
+// Shaka packager install hai? Na ho to packaging wala test skip
 const hasPackager = (() => {
     try {
         const { execSync } = require("node:child_process");
@@ -52,7 +55,7 @@ describe("Transcoding Pipelines (HLS & Canvas Encoding)", () => {
             const outDir = createTempDir("audio-test-out-");
             const uploadedKeys: string[] = [];
 
-            // Mock S3 Client to capture packaged outputs
+            // Nakli (mock) S3 client - upload hui files ki list pakadne ke liye
             const mockS3Client: any = {
                 send: async (command: any) => {
                     if (command?.input?.Key) {
@@ -65,10 +68,10 @@ describe("Transcoding Pipelines (HLS & Canvas Encoding)", () => {
             const transcoder = new AudioTranscoder(4, mockS3Client, "songs", "mock-prod-bucket");
             const result = await transcoder.transcode(AUDIO_ASSET, outDir, "job-unit-test");
 
-            // Verify duration
+            // Duration check
             expect(result.duration).toBeGreaterThan(10);
 
-            // Verify expected HLS & DASH files were packaged and uploaded to S3
+            // Check: HLS aur DASH ki zaroori files bani aur S3 pe gayi
             expect(uploadedKeys.length).toBeGreaterThan(0);
 
             const hasMasterM3u8 = uploadedKeys.some((k) => k.endsWith("master.m3u8"));

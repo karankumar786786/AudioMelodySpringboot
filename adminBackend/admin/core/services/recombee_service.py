@@ -1,3 +1,4 @@
+"""Admin ki taraf se Recombee (recommendations) ka kaam: songs save/delete, reindex, streams update."""
 import logging
 import time
 from typing import Optional, List, Dict, Any
@@ -8,10 +9,12 @@ from catalog.models import Song
 logger = logging.getLogger(__name__)
 
 class RecombeeService:
+    """Recombee helper."""
     _client = None
 
     @classmethod
     def get_client(cls):
+        """Recombee client."""
         if cls._client is None and settings.RECOMBEE_DATABASE_ID and settings.RECOMBEE_DATABASE_SECRET:
             from recombee_api_client.api_client import RecombeeClient, Region
             region_str = getattr(settings, "RECOMBEE_DATABASE_REGION", "EU_WEST").upper()
@@ -23,6 +26,7 @@ class RecombeeService:
 
     @classmethod
     def ensure_audio_properties(cls, client) -> None:
+        """Recombee me audio feature properties register karo."""
         if cls._properties_ensured or not client:
             return
         from recombee_api_client.api_requests import AddItemProperty
@@ -118,6 +122,7 @@ class RecombeeService:
         mode: Optional[int] = None,
         **kwargs,
     ) -> None:
+        """Song Recombee me save (details + audio features)."""
         client = cls.get_client()
         if not client:
             return
@@ -217,7 +222,7 @@ class RecombeeService:
                     meta = getattr(song, "metadata", None)
                     total_streams = getattr(meta, "total_streams", 0) if meta else getattr(song, "total_streams", 0)
 
-        # Fallback to kwargs or matching Job
+        # Na ho to kwargs ya us song ka Job dekho
         if c_start is None:
             c_start = kwargs.get("clip_start_sec") if kwargs.get("clip_start_sec") is not None else (kwargs.get("clipStartSec") if kwargs.get("clipStartSec") is not None else kwargs.get("canvasStartTime"))
         if c_end is None:
@@ -331,7 +336,7 @@ class RecombeeService:
         if cat:
             values["createdAt"] = str(cat)
 
-        # Audio features for smart recommendations
+        # Audio features - awaaz ke hisaab se recommendations ke liye
         if tempo is not None:
             values["tempo"] = float(tempo)
         if danceability is not None:
@@ -365,6 +370,7 @@ class RecombeeService:
 
     @classmethod
     def delete_song(cls, song_id: str) -> None:
+        """Song Recombee se hatao."""
         client = cls.get_client()
         if not client or not song_id:
             return
@@ -377,6 +383,7 @@ class RecombeeService:
 
     @classmethod
     def delete_user(cls, user_id: str) -> None:
+        """User Recombee se hatao."""
         client = cls.get_client()
         if not client or not user_id:
             return
@@ -393,6 +400,7 @@ class RecombeeService:
         songs: List[Song],
         jobs_by_song_id: Optional[Dict[str, Any]] = None,
     ) -> int:
+        """Saare active songs dobara bhejo."""
         client = cls.get_client()
         if not client or not songs:
             return 0
@@ -497,7 +505,7 @@ class RecombeeService:
                 vals["album"] = s.album.strip()
             if s.image_key and s.image_key.strip():
                 vals["imageKey"] = s.image_key.strip()
-            # Audio features and canvas timestamps from matching Job
+            # Job se audio features aur canvas timestamps
             s_id_val = str(getattr(s, "id", None) or "")
             s_job_id_val = str(getattr(s, "job_id", None) or "")
             job = None
@@ -593,6 +601,7 @@ class RecombeeService:
 
     @classmethod
     def update_total_streams(cls, song_id: str, total_streams: int) -> None:
+        """Song ka totalStreams update."""
         client = cls.get_client()
         if not client or not song_id:
             return

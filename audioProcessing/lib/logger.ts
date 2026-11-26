@@ -1,8 +1,13 @@
+/**
+ * Logger: har log line me time, level aur trace id jodo, aur saath me OpenTelemetry (Uptrace) ko bhi bhejo.
+ * setupConsoleLogger() global console.* ko badal deta hai, taaki libraries ke logs bhi isi format me aayein.
+ */
 import { trace } from "@opentelemetry/api";
 import { logs, SeverityNumber } from "@opentelemetry/api-logs";
 
 const SERVICE_NAME = process.env.OTEL_SERVICE_NAME || "audio-processing";
 
+/** Abhi chal rahe span ka traceId / spanId; koi span na ho to "0". Isse ek request ke saare logs jod sakte hain. */
 function getTraceContext(): { traceId: string; spanId: string } {
   const activeSpan = trace.getActiveSpan();
   if (activeSpan) {
@@ -14,6 +19,7 @@ function getTraceContext(): { traceId: string; spanId: string } {
   return { traceId: "0", spanId: "0" };
 }
 
+/** Ek argument ko text banao: Error = stack trace, object = JSON (fail ho to String), baaki = String. */
 function stringifyArg(arg: any): string {
   if (arg instanceof Error) {
     return arg.stack || `${arg.name}: ${arg.message}`;
@@ -28,10 +34,12 @@ function stringifyArg(arg: any): string {
   return String(arg);
 }
 
+/** Saare arguments ko space se jod ke ek message. */
 function formatArgs(args: any[]): string {
   return args.map(stringifyArg).join(" ");
 }
 
+// Asli console methods sambhal ke rakho - patch ke baad bhi inhi se terminal pe likhenge (warna infinite loop)
 const originalConsole = {
   log: console.log.bind(console),
   info: console.info.bind(console),
@@ -40,6 +48,7 @@ const originalConsole = {
   debug: console.debug.bind(console),
 };
 
+/** Ek log line likho: terminal pe "time [LEVEL] [service,trace,span] message" aur OTel ko bhi. */
 function logRecord(
   level: "INFO" | "WARN" | "ERROR" | "DEBUG",
   severityNumber: SeverityNumber,
@@ -49,7 +58,7 @@ function logRecord(
   const { traceId, spanId } = getTraceContext();
   const timestamp = new Date().toISOString();
 
-  // Print structured log to stdout / stderr for container runtime & Docker logs
+  // Terminal (stdout / stderr) pe likho - Docker logs yahin se padhta hai
   const prefix = `${timestamp} [${level}] [${SERVICE_NAME},${traceId},${spanId}]`;
   if (level === "ERROR") {
     originalConsole.error(`${prefix} ${message}`);
@@ -59,7 +68,7 @@ function logRecord(
     originalConsole.log(`${prefix} ${message}`);
   }
 
-  // Dispatch to OpenTelemetry Logger Provider for Uptrace ingestion
+  // OpenTelemetry logger ko bhejo (Uptrace tak jaata hai)
   try {
     const otelLogger = logs.getLogger(SERVICE_NAME);
     otelLogger.emit({
@@ -72,10 +81,11 @@ function logRecord(
       },
     });
   } catch {
-    // Failsafe in case OpenTelemetry SDK has not finished initializing yet
+    // OTel SDK abhi tak shuru nahi hua ho to chup chap chhod do
   }
 }
 
+/** Seedha use karne wala logger: logger.info(...), logger.warn(...), wagairah. */
 export const logger = {
   info(...args: any[]) {
     logRecord("INFO", SeverityNumber.INFO, args);
@@ -91,12 +101,12 @@ export const logger = {
   },
 };
 
-/**
- * Patch global console methods so that all third-party libraries and
- * existing functions automatically output formatted logs with OTel context.
- */
 let isPatched = false;
 
+/**
+ * Global console.* methods ko logger se badal do, taaki saari libraries aur purana code bhi
+ * apne aap formatted (OTel context wale) logs likhe. Do baar call karne par bhi ek hi baar patch hota hai.
+ */
 export function setupConsoleLogger() {
   if (isPatched) return;
   isPatched = true;

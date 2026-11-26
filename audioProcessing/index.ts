@@ -1,3 +1,13 @@
+/**
+ * audioProcessing (media pipeline) ka entry point: Express server, port 5010.
+ *
+ * - /api/inngest: Inngest yahan se hamare saare functions (upload pipeline, delete chain, shorts) chalata hai.
+ * - /api/jobs/:jobId/cancel aur /cleanup: admin API job rokne / saaf karne ke liye (X-API-KEY zaroori).
+ * - /health: CPU / memory telemetry + admin API ka pichhla jawab.
+ *
+ * Start pe: OpenTelemetry, console logger, shutdown cleanup, purani temp files ki safai aur heartbeat.
+ */
+// OpenTelemetry sabse pehle import - taaki baaki libraries ke traces bhi pakde jaayein
 import "./lib/otel";
 import { setupConsoleLogger } from "./lib/logger";
 setupConsoleLogger();
@@ -36,15 +46,16 @@ import {
 
 config({ quiet: true });
 
-// Install process-level exit hooks for graceful temp directory cleanup
+// Process band ho to chal rahe jobs ki temp files hatane wale hooks
 setupGracefulShutdownCleanup();
 
 const app = express();
 
+// Body 1MB tak (Inngest step results bhi isi raaste aate hain)
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ limit: "1mb", extended: true }));
 
-// Bidirectional health check & CPU telemetry endpoint
+// Health check: is service ki telemetry + admin API ka pichhla jawab (dono taraf ki sehat)
 app.get("/health", (_req, res) => {
   const telemetry = getSystemTelemetry();
   const adminBackendAck = getLastAdminAck();
@@ -54,6 +65,7 @@ app.get("/health", (_req, res) => {
   });
 });
 
+// Simple "main zinda hoon" response
 app.get("/", (_req, res) => {
   res.json({
     status: "UP",
@@ -62,6 +74,7 @@ app.get("/", (_req, res) => {
   });
 });
 
+// Inngest ko dikhane wale saare functions
 const functions = [
   fetchJob,
   transcodeSong,
@@ -81,10 +94,10 @@ const functions = [
   deleteShort,
 ];
 
-// Protect all internal job management endpoints with API key authentication
+// /api/jobs/* sab pe X-API-KEY check
 app.use("/api/jobs", requireApiKey);
 
-// Explicit cancellation endpoint for halting Inngest runs & cleaning scratch space
+// Job cancel: Inngest ko "audio/job.cancel" bhejo (har job function cancelOn me sunta hai) aur purani temp files saaf
 app.post("/api/jobs/:jobId/cancel", async (req, res) => {
   const { jobId } = req.params;
   console.log(`[CANCEL API] Received cancellation request for job: ${jobId}`);
@@ -102,22 +115,22 @@ app.post("/api/jobs/:jobId/cancel", async (req, res) => {
   }
 });
 
-// Comprehensive cleanup endpoint: cancels Inngest run and purges all local disk & cloud S3 artifacts
+// Poori safai: Inngest run cancel + local disk + S3 (production aur temp) ki saari files
 app.post("/api/jobs/:jobId/cleanup", async (req, res) => {
   const { jobId } = req.params;
   const { songId, tempSongKey, tempVideoKey, songKey, fullVideoKey } = req.body || {};
   console.log(`[CLEANUP API] Purging all artifacts for job: ${jobId} (songId: ${songId})`);
   try {
-    // 1. Cancel in Inngest immediately
+    // 1. Pehle Inngest run roko
     await inngest.send({
       name: "audio/job.cancel",
       data: { jobId },
     });
 
-    // 2. Purge local disk artifacts (raw downloads, half-transcoded chunks)
+    // 2. Local disk ki files (downloads, aadhe bane chunks)
     const localRemoved = await purgeLocalJobArtifacts(jobId, songId);
 
-    // 3. Purge S3 production (audios/, videos/) and temp bucket artifacts
+    // 3. S3 production (audios/, videos/) aur temp bucket ki files
     await purgeJobCloudArtifacts({
       jobId,
       songId,
@@ -139,6 +152,7 @@ app.post("/api/jobs/:jobId/cleanup", async (req, res) => {
   }
 });
 
+// Inngest ka endpoint: yahin se Inngest hamare functions ko call karta hai
 app.use(
   "/api/inngest",
   serve({
@@ -150,7 +164,7 @@ app.use(
 app.listen(5010, () => {
   console.log("Server running on http://localhost:5010");
 
-  // Clean any orphaned artifacts left behind by previous crashes or interrupted runs
+  // Pichhle crash / ruke runs ki bachi hui files saaf karo
   cleanupStaleTmpFiles().then((cleaned) => {
     if (cleaned > 0) {
       console.log(
@@ -159,7 +173,7 @@ app.listen(5010, () => {
     }
   });
 
-  // Periodically clean stale temp files every 30 minutes
+  // Har 30 minute purani temp files ki safai
   setInterval(
     () => {
       cleanupStaleTmpFiles().catch(() => {});
@@ -167,11 +181,10 @@ app.listen(5010, () => {
     30 * 60 * 1000,
   );
 
-  // Start bidirectional telemetry heartbeat worker to adminBackend
-  // Every 60 s: the admin dashboard only needs "alive in the last few minutes", and each
-  // heartbeat costs a Redis write on the admin side (Upstash bills per command).
-  // Cancellation needs no Redis worker: the admin API and POST /cancel send
-  // audio/job.cancel to Inngest, and every job function lists it in cancelOn.
+  // Admin API ko heartbeat, har 60 second: dashboard ko bas "pichhle kuch minute me zinda tha" chahiye,
+  // aur har heartbeat admin side pe ek Redis write hai (Upstash har command ka paisa leta hai).
+  // Cancel ke liye Redis worker nahi chahiye: admin API aur POST /cancel Inngest ko audio/job.cancel
+  // bhejte hain, aur har job function use cancelOn me sunta hai.
   startHeartbeatWorker(60000);
 });
 

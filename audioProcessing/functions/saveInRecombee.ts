@@ -1,7 +1,14 @@
+/**
+ * Inngest function "index-recombee": song Recombee (recommendation engine) me daalo.
+ * Upload pipeline (Inngest): audio/fetchjob -> transcode -> index.recombee -> index.algolia -> final.create.
+ *
+ * Asli kaam admin API ka webhook karta hai; uske baad agla event "audio/song.index.algolia" bhejte hain.
+ */
 import { inngest } from "../inngest";
 import { api } from "../axios";
 import { extractMeaningfulError } from "../lib/errorUtils";
 
+/** Admin API /save-recommendation call karo, phir Algolia step shuru. Fail = onFailure /failed. */
 export const indexRecombee = inngest.createFunction(
     {
         id: "index-recombee",

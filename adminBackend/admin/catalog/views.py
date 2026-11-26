@@ -1,3 +1,8 @@
+"""catalog ke views (API endpoints): artists, playlists aur songs ka CRUD, upload / reprocess jobs,
+Algolia / Recombee reindex aur catalog health.
+
+Flow: admin dashboard -> yeh views -> Postgres + Algolia / Recombee / ImageKit, aur naye uploads ke liye Inngest (media pipeline).
+"""
 import logging
 import uuid
 from django.db import models
@@ -32,11 +37,15 @@ logger = logging.getLogger(__name__)
 
 
 # ==============================================================================
-# Artist Management
+# Artists sambhalna
 # ==============================================================================
 
 class ArtistListView(BaseAdminView):
+    """GET / POST /admin/artist - artists ki list, ya naya artist."""
     def get(self, request):
+        """status (default ACTIVE, ALL = sab) aur search (naam / about) se filter, naye pehle, pages me.
+        Filter na ho to total count sasti pagination metadata se.
+        """
         page = int(request.query_params.get("page", 0))
         size = int(request.query_params.get("size", 20))
         search = (request.query_params.get("search") or "").strip()
@@ -76,6 +85,7 @@ class ArtistListView(BaseAdminView):
         )
 
     def post(self, request):
+        """Naam zaroori (warna 400). Artist banao, counters set karo, Algolia me daalo. Output: 201."""
         name = request.data.get("name")
         about = request.data.get("about")
         cover_image_key = request.data.get("coverImageKey")
@@ -100,11 +110,14 @@ class ArtistListView(BaseAdminView):
 
 
 class ArtistDetailView(BaseAdminView):
+    """GET / PUT / DELETE /admin/artist/<id> - ek artist dekho, badlo ya delete karo."""
     def get(self, request, pk):
+        """Ek artist ka JSON; na mile to 404."""
         artist = get_object_or_404(Artist, pk=pk)
         return Response(ArtistSerializer(artist).data, status=status.HTTP_200_OK)
 
     def put(self, request, pk):
+        """Body me aaye fields badlo. Naya cover aaye to purana ImageKit se hatao. Algolia update. Output: 202."""
         artist = get_object_or_404(Artist, pk=pk)
         old_cover = artist.cover_image_key
 
@@ -126,6 +139,9 @@ class ArtistDetailView(BaseAdminView):
         return Response(ArtistSerializer(artist).data, status=status.HTTP_202_ACCEPTED)
 
     def delete(self, request, pk):
+        """Soft delete: status DELETED, counters update, aur delete chain (Inngest) shuru.
+        Pehle se DELETED ho to kuch nahi. Output: 202.
+        """
         artist = get_object_or_404(Artist, pk=pk)
         if artist.status != "DELETED":
             old_status = artist.status
@@ -143,11 +159,11 @@ class ArtistDetailView(BaseAdminView):
 
 
 class ArtistSongsView(BaseAdminView):
-    """
-    GET /api/artists/<pk>/songs and /admin/artist/<pk>/songs
-    Returns paginated songs for a specific artist.
+    """GET /api/artists/<pk>/songs aur /admin/artist/<pk>/songs
+    Ek artist ke songs pages me lautata hai.
     """
     def get(self, request, pk):
+        """Artist ke naam se mile ACTIVE songs (search title / album se), naye pehle, pages me."""
         artist = get_object_or_404(Artist, pk=pk)
         page = int(request.query_params.get("page", 0))
         size = int(request.query_params.get("size", 20))
@@ -182,11 +198,13 @@ class ArtistSongsView(BaseAdminView):
 
 
 # ==============================================================================
-# Playlist Management
+# Playlists sambhalna
 # ==============================================================================
 
 class PlaylistListView(BaseAdminView):
+    """GET / POST /admin/playlist - playlists ki list, ya nayi playlist."""
     def get(self, request):
+        """status (default ACTIVE) aur search (naam / description) se filter, naye pehle, pages me."""
         page = int(request.query_params.get("page", 0))
         size = int(request.query_params.get("size", 20))
         search = (request.query_params.get("search") or "").strip()
@@ -226,6 +244,7 @@ class PlaylistListView(BaseAdminView):
         )
 
     def post(self, request):
+        """Naam zaroori (warna 400). Playlist banao, counters set karo, Algolia me daalo. Output: 201."""
         name = request.data.get("name")
         description = request.data.get("description")
         cover_image_key = request.data.get("coverImageKey")
@@ -250,11 +269,16 @@ class PlaylistListView(BaseAdminView):
 
 
 class PlaylistDetailView(BaseAdminView):
+    """GET / PUT / DELETE /admin/playlist/<id> - ek playlist dekho, badlo ya delete karo."""
     def get(self, request, pk):
+        """Ek playlist ka JSON; na mile to 404."""
         playlist = get_object_or_404(Playlist, pk=pk)
         return Response(PlaylistSerializer(playlist).data, status=status.HTTP_200_OK)
 
     def put(self, request, pk):
+        """Body ke fields badlo. Cover badle to purana hatao. videoKey khaali / "null" = video hatao,
+        naya ho to purana hata ke naya lagao. Algolia update.
+        """
         playlist = get_object_or_404(Playlist, pk=pk)
         old_cover = playlist.cover_image_key
         old_video = playlist.video_key
@@ -285,6 +309,7 @@ class PlaylistDetailView(BaseAdminView):
         return Response(PlaylistSerializer(playlist).data, status=status.HTTP_200_OK)
 
     def delete(self, request, pk):
+        """Soft delete: status DELETED, counters update, delete chain shuru. Output: 204."""
         playlist = get_object_or_404(Playlist, pk=pk)
         if playlist.status != "DELETED":
             old_status = playlist.status
@@ -303,7 +328,9 @@ class PlaylistDetailView(BaseAdminView):
 
 
 class PlaylistSongsView(BaseAdminView):
+    """GET / POST /admin/playlist/<id>/songs - playlist ke songs, ya ek song jodo."""
     def get(self, request, pk):
+        """Playlist ke ACTIVE songs; featured aur search filter; naye pehle, pages me."""
         playlist = get_object_or_404(Playlist, pk=pk)
         page = int(request.query_params.get("page", 0))
         size = int(request.query_params.get("size", 20))
@@ -339,11 +366,16 @@ class PlaylistSongsView(BaseAdminView):
         )
 
     def post(self, request, pk):
+        """PlaylistAddSongView.post hi chalata hai."""
         return PlaylistAddSongView().post(request, pk)
 
 
 class PlaylistAddSongView(BaseAdminView):
+    """POST /admin/playlist/<id>/songs/add - playlist me song jodo."""
     def post(self, request, pk):
+        """songId zaroori (400). Song pehle se ho to kuch nahi; naya juda to total_songs +1
+        (F() se DB me hi +1, taaki do requests saath aayein to bhi ginti sahi rahe).
+        """
         playlist = get_object_or_404(Playlist, pk=pk)
         song_id = request.data.get("songId")
         if not song_id:
@@ -359,7 +391,9 @@ class PlaylistAddSongView(BaseAdminView):
 
 
 class PlaylistRemoveSongView(BaseAdminView):
+    """DELETE /admin/playlist/<id>/songs/<song_id> - playlist se song hatao."""
     def delete(self, request, pk, song_id):
+        """Jod hatao; hata to total_songs ghatao par 0 se neeche nahi (Case/When se DB me hi)."""
         playlist = get_object_or_404(Playlist, pk=pk)
         deleted_count, _ = PlaylistSong.objects.filter(playlist=playlist, song_id=song_id).delete()
         if deleted_count > 0:
@@ -376,11 +410,31 @@ class PlaylistRemoveSongView(BaseAdminView):
 
 
 # ==============================================================================
-# Song Management
+# Songs sambhalna
 # ==============================================================================
 
+def _is_true(value) -> bool:
+    """Query param "true" ya "1" hai? (None / khaali / baaki sab = False)"""
+    return bool(value) and str(value).lower() in ("true", "1")
+
+
+def _min_sec_total(data, prefix: str):
+    """Form ke <prefix>Min aur <prefix>Sec ko jod ke total seconds banao (jaise clipStartMin=1, clipStartSec=5 -> 65).
+    Dono me se koi bhi na aaya ho to None (matlab "set nahi kiya").
+    """
+    minutes = data.get(prefix + "Min")
+    seconds = data.get(prefix + "Sec")
+    if minutes is None and seconds is None:
+        return None
+    return int(minutes or 0) * 60 + int(seconds or 0)
+
+
 class SongListView(BaseAdminView):
+    """GET / POST /admin/song - songs ki list, ya naya song upload (job banta hai)."""
     def get(self, request):
+        """Bahut saare filters (status, genre, language, country, featured, video / full video / lyrics, search).
+        Naye pehle, pages me. Filter na ho to total count sasti pagination metadata se.
+        """
         page = int(request.query_params.get("page", 0))
         size = int(request.query_params.get("size", 20))
         search = (request.query_params.get("search") or "").strip()
@@ -409,11 +463,11 @@ class SongListView(BaseAdminView):
         if featured_param is not None and str(featured_param).strip() != "":
             is_feat = str(featured_param).lower() in ("true", "1")
             qs = qs.filter(is_featured=is_feat)
-        if has_video_param and str(has_video_param).lower() in ("true", "1"):
+        if _is_true(has_video_param):
             qs = qs.filter(video_key__isnull=False).exclude(video_key="")
-        if has_full_video_param and str(has_full_video_param).lower() in ("true", "1"):
+        if _is_true(has_full_video_param):
             qs = qs.filter(full_video_key__isnull=False).exclude(full_video_key="")
-        if has_lyrics_param and str(has_lyrics_param).lower() in ("true", "1"):
+        if _is_true(has_lyrics_param):
             qs = qs.filter(lrclib_id__isnull=False).exclude(lrclib_id=0)
 
         if search:
@@ -435,9 +489,9 @@ class SongListView(BaseAdminView):
             or (lang_param and lang_param.upper() != "ALL")
             or (country_param and country_param.upper() != "ALL")
             or (featured_param is not None and str(featured_param).strip() != "")
-            or (has_video_param and str(has_video_param).lower() in ("true", "1"))
-            or (has_full_video_param and str(has_full_video_param).lower() in ("true", "1"))
-            or (has_lyrics_param and str(has_lyrics_param).lower() in ("true", "1"))
+            or _is_true(has_video_param)
+            or _is_true(has_full_video_param)
+            or _is_true(has_lyrics_param)
             or (status_param and status_param.upper() != "ACTIVE")
         )
 
@@ -461,6 +515,9 @@ class SongListView(BaseAdminView):
         )
 
     def post(self, request):
+        """tempSongKey ya tempVideoKey me se ek zaroori (400). Clip aur preview time seconds me badlo,
+        naya Job (PENDING / QUEUED) banao aur Inngest ko bhejo. Song baad me finalize webhook banata hai. Output: 201 { jobId }.
+        """
         data = request.data
         temp_song_key = (data.get("tempSongKey") or "").strip()
         temp_video_key = (data.get("tempVideoKey") or "").strip()
@@ -471,27 +528,19 @@ class SongListView(BaseAdminView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        clip_start_sec = None
-        if data.get("clipStartMin") is not None or data.get("clipStartSec") is not None:
-            c_min = int(data.get("clipStartMin") or 0)
-            c_sec = int(data.get("clipStartSec") or 0)
-            clip_start_sec = c_min * 60 + c_sec
+        clip_start_sec = _min_sec_total(data, "clipStart")
+        clip_end_sec = _min_sec_total(data, "clipEnd")
 
-        clip_end_sec = None
-        if data.get("clipEndMin") is not None or data.get("clipEndSec") is not None:
-            c_min = int(data.get("clipEndMin") or 0)
-            c_sec = int(data.get("clipEndSec") or 0)
-            clip_end_sec = c_min * 60 + c_sec
-
+        # previewStartTime (seconds) seedha aaye to wahi, warna previewStartMin / previewStartSec se banao
         preview_start = data.get("previewStartTime")
-        if preview_start is None and (data.get("previewStartMin") is not None or data.get("previewStartSec") is not None):
-            preview_start = int(data.get("previewStartMin") or 0) * 60 + int(data.get("previewStartSec") or 0)
+        if preview_start is None:
+            preview_start = _min_sec_total(data, "previewStart")
         if preview_start is not None and preview_start < 0:
             preview_start = None
 
         preview_end = data.get("previewEndTime")
-        if preview_end is None and (data.get("previewEndMin") is not None or data.get("previewEndSec") is not None):
-            preview_end = int(data.get("previewEndMin") or 0) * 60 + int(data.get("previewEndSec") or 0)
+        if preview_end is None:
+            preview_end = _min_sec_total(data, "previewEnd")
         if preview_end is not None and preview_end < 0:
             preview_end = None
 
@@ -530,11 +579,16 @@ class SongListView(BaseAdminView):
 
 
 class SongDetailView(BaseAdminView):
+    """GET / PUT / DELETE /admin/song/<id> - ek song dekho, badlo ya delete karo."""
     def get(self, request, pk):
+        """Ek song ka JSON (stream count ke saath); na mile to 404."""
         song = get_object_or_404(Song.objects.select_related("metadata"), pk=pk)
         return Response(SongSerializer(song).data, status=status.HTTP_200_OK)
 
     def put(self, request, pk):
+        """Body me aaye fields badlo. Artist ya status badle to unke counters bhi shift karo.
+        Nayi image / video aaye to save ke baad purani ImageKit se hatao. Phir Recombee aur Algolia update.
+        """
         song = get_object_or_404(Song, pk=pk)
         data = request.data
 
@@ -628,6 +682,7 @@ class SongDetailView(BaseAdminView):
         return Response(SongSerializer(song).data, status=status.HTTP_200_OK)
 
     def delete(self, request, pk):
+        """Soft delete: status DELETED, artist / playlist counters update, delete chain shuru. Output: 204."""
         song = get_object_or_404(Song, pk=pk)
         if song.status != "DELETED":
             old_status = song.status
@@ -656,7 +711,9 @@ class SongDetailView(BaseAdminView):
 
 
 class SongToggleFeaturedView(BaseAdminView):
+    """PATCH /admin/song/<id>/featured - song ko featured / normal karo."""
     def patch(self, request, pk):
+        """Body ka featured do to wahi, warna ulta kar do (toggle). Algolia aur Recombee update."""
         song = get_object_or_404(Song, pk=pk)
         featured = bool(request.data.get("featured", not song.is_featured))
         song.is_featured = featured
@@ -667,13 +724,17 @@ class SongToggleFeaturedView(BaseAdminView):
 
 
 class SongJobDetailView(BaseAdminView):
+    """GET /admin/song/job/<id> - ek upload job ka poora JSON."""
     def get(self, request, pk):
+        """Job dhoondo (na mile to 404) aur JobSerializer se lautao."""
         job = get_object_or_404(Job, pk=pk)
         return Response(JobSerializer(job).data, status=status.HTTP_200_OK)
 
 
 class SongJobsListView(BaseAdminView):
+    """GET /admin/song/jobs - saare upload jobs ki list (search ke saath)."""
     def get(self, request):
+        """title / artist / id se search, naye pehle, pages me."""
         page = int(request.query_params.get("page", 0))
         size = int(request.query_params.get("size", 20))
         search = (request.query_params.get("search") or "").strip()
@@ -703,7 +764,9 @@ class SongJobsListView(BaseAdminView):
 
 
 class SongReprocessAudioView(BaseAdminView):
+    """POST /admin/song/<id>/reprocess-audio - song ki audio nayi file se badlo."""
     def post(self, request, pk):
+        """tempSongKey zaroori (400). Song ki info ke saath is_audio_reprocess wala naya Job banao aur bhejo. Output: 202."""
         song = get_object_or_404(Song, pk=pk)
         temp_song_key = (request.data.get("tempSongKey") or "").strip()
         temp_video_key = (request.data.get("tempVideoKey") or "").strip() or None
@@ -744,19 +807,16 @@ class SongReprocessAudioView(BaseAdminView):
 
 
 class SongReprocessVideoView(BaseAdminView):
+    """POST /admin/song/<id>/reprocess-video - song ka video nayi file se badlo."""
     def post(self, request, pk):
+        """tempVideoKey zaroori (400). Clip time ke saath is_video_reprocess wala Job banao aur bhejo. Output: 202."""
         song = get_object_or_404(Song, pk=pk)
         temp_video_key = (request.data.get("tempVideoKey") or "").strip()
         if not temp_video_key:
             return Response({"error": "tempVideoKey is required for video reprocessing"}, status=status.HTTP_400_BAD_REQUEST)
 
-        clip_start_sec = None
-        if request.data.get("clipStartMin") is not None or request.data.get("clipStartSec") is not None:
-            clip_start_sec = int(request.data.get("clipStartMin") or 0) * 60 + int(request.data.get("clipStartSec") or 0)
-
-        clip_end_sec = None
-        if request.data.get("clipEndMin") is not None or request.data.get("clipEndSec") is not None:
-            clip_end_sec = int(request.data.get("clipEndMin") or 0) * 60 + int(request.data.get("clipEndSec") or 0)
+        clip_start_sec = _min_sec_total(request.data, "clipStart")
+        clip_end_sec = _min_sec_total(request.data, "clipEnd")
 
         job_id = str(uuid.uuid4())
         job = Job.objects.create(
@@ -792,7 +852,9 @@ class SongReprocessVideoView(BaseAdminView):
 
 
 class SongRecoverMediaView(BaseAdminView):
+    """POST /admin/song/<id>/recover-media - kho gayi audio aur/ya video dobara upload karo."""
     def post(self, request, pk):
+        """Audio ya video me se ek zaroori (400). Jo diya uske hisaab se audio / video reprocess flags set karke Job bhejo. Output: 202."""
         song = get_object_or_404(Song, pk=pk)
         temp_song_key = (request.data.get("tempSongKey") or "").strip() or None
         temp_video_key = (request.data.get("tempVideoKey") or "").strip() or None
@@ -803,13 +865,8 @@ class SongRecoverMediaView(BaseAdminView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        clip_start_sec = None
-        if request.data.get("clipStartMin") is not None or request.data.get("clipStartSec") is not None:
-            clip_start_sec = int(request.data.get("clipStartMin") or 0) * 60 + int(request.data.get("clipStartSec") or 0)
-
-        clip_end_sec = None
-        if request.data.get("clipEndMin") is not None or request.data.get("clipEndSec") is not None:
-            clip_end_sec = int(request.data.get("clipEndMin") or 0) * 60 + int(request.data.get("clipEndSec") or 0)
+        clip_start_sec = _min_sec_total(request.data, "clipStart")
+        clip_end_sec = _min_sec_total(request.data, "clipEnd")
 
         job_id = str(uuid.uuid4())
         job = Job.objects.create(
@@ -846,7 +903,9 @@ class SongRecoverMediaView(BaseAdminView):
 
 
 class SongReindexRecombeeView(BaseAdminView):
+    """POST /admin/song/reindex-recombee - saare ACTIVE songs Recombee me dobara bhejo."""
     def post(self, request):
+        """Jobs se audio features jod ke reindex karo. Error ho to 500 + message."""
         active_songs = list(Song.objects.filter(status="ACTIVE").select_related("metadata"))
         jobs_map = CatalogSyncService.build_jobs_map(active_songs)
         try:
@@ -857,7 +916,9 @@ class SongReindexRecombeeView(BaseAdminView):
 
 
 class SongReindexAlgoliaView(BaseAdminView):
+    """POST /admin/song/reindex-algolia - saare ACTIVE songs Algolia me dobara bhejo."""
     def post(self, request):
+        """Jobs ki info jod ke reindex karo. Error ho to 500 + message."""
         active_songs = list(Song.objects.filter(status="ACTIVE").select_related("metadata"))
         jobs_map = CatalogSyncService.build_jobs_map(active_songs)
         try:
@@ -868,7 +929,9 @@ class SongReindexAlgoliaView(BaseAdminView):
 
 
 class ArtistReindexAlgoliaView(BaseAdminView):
+    """POST /admin/artist/reindex-algolia - saare ACTIVE artists Algolia me dobara bhejo."""
     def post(self, request):
+        """Followers count ek hi query me jodo (fail ho to bina uske), phir reindex. Error = 500."""
         active_artists = list(Artist.objects.filter(status="ACTIVE"))
         try:
             try:
@@ -885,7 +948,9 @@ class ArtistReindexAlgoliaView(BaseAdminView):
 
 
 class PlaylistReindexAlgoliaView(BaseAdminView):
+    """POST /admin/playlist/reindex-algolia - saari ACTIVE playlists Algolia me dobara bhejo."""
     def post(self, request):
+        """Reindex karo aur ginti lautao. Error = 500."""
         active_playlists = list(Playlist.objects.filter(status="ACTIVE"))
         try:
             count = AlgoliaService.reindex_all_playlists(active_playlists)
@@ -895,7 +960,9 @@ class PlaylistReindexAlgoliaView(BaseAdminView):
 
 
 class CatalogReindexAllView(BaseAdminView):
+    """POST /admin/catalog/reindex-all - poora catalog Algolia + Recombee me sync."""
     def post(self, request):
+        """purgeInactive (default True) ke saath CatalogSyncService.sync_full_catalog chalao. Error = 500."""
         try:
             purge_inactive = True
             if isinstance(request.data, dict) and "purgeInactive" in request.data:
@@ -907,7 +974,9 @@ class CatalogReindexAllView(BaseAdminView):
 
 
 class CatalogSyncStreamCountsView(BaseAdminView):
+    """POST /admin/catalog/sync-streams - sirf stream counts engines me sync karo."""
     def post(self, request):
+        """CatalogSyncService.sync_stream_counts ki report lautao. Error = 500."""
         try:
             report = CatalogSyncService.sync_stream_counts()
             return Response(report, status=status.HTTP_200_OK)
@@ -916,7 +985,9 @@ class CatalogSyncStreamCountsView(BaseAdminView):
 
 
 class CatalogSyncHealthView(BaseAdminView):
+    """GET /admin/catalog/sync-health - DB aur engines (Algolia / Recombee) me kitna farak hai."""
     def get(self, request):
+        """CatalogSyncService.get_sync_health ka result lautao. Error = 500."""
         try:
             health = CatalogSyncService.get_sync_health()
             return Response(health, status=status.HTTP_200_OK)
@@ -927,13 +998,16 @@ class CatalogSyncHealthView(BaseAdminView):
 
 
 # ==============================================================================
-# Catalog Health (/admin/catalog/health)
+# Catalog health (/admin/catalog/health)
 # ==============================================================================
 
 MAX_HEALTH_BULK_SONGS = 200
 
 
 def _parse_song_ids(data):
+    """Body se songIds nikalo: khaali na ho, duplicate hatao (order wahi), 200 se zyada nahi.
+    Output: (ids, None) ya (None, 400 wala Response).
+    """
     ids = data.get("songIds") if isinstance(data, dict) else None
     if not isinstance(ids, list) or not ids:
         return None, Response({"error": "songIds must be a non-empty list"}, status=status.HTTP_400_BAD_REQUEST)
@@ -947,13 +1021,14 @@ def _parse_song_ids(data):
 
 
 class CatalogHealthView(BaseAdminView):
-    """GET summary counts + paginated songs with problems.
+    """GET: summary counts + problem wale songs (pages me).
 
-    Query params: issue=<comma list of catalog_health.ISSUES> (default: any issue),
-    match=any|all, search, status=ACTIVE|INACTIVE|ALL (default ACTIVE), page (0-based), size.
+    Query params: issue=<catalog_health.ISSUES ki comma list> (default: koi bhi issue),
+    match=any|all, search, status=ACTIVE|INACTIVE|ALL (default ACTIVE), page (0 se shuru), size.
     """
 
     def get(self, request):
+        """page / size / issue / match check karo (galat = 400), summary aur problem wale songs lautao."""
         try:
             page = max(0, int(request.query_params.get("page", 0)))
             size = min(100, max(1, int(request.query_params.get("size", 20))))
@@ -996,9 +1071,12 @@ class CatalogHealthView(BaseAdminView):
 
 
 class CatalogHealthResyncView(BaseAdminView):
-    """POST {songIds: [...], targets?: ["algolia", "recombee"]} -> re-push selected ACTIVE songs."""
+    """POST {songIds: [...], targets?: ["algolia", "recombee"]} -> chune hue ACTIVE songs dobara bhejo."""
 
     def post(self, request):
+        """Sirf ACTIVE songs bhejo (baaki skipped). Sab kamyab ho to unke jobs pe 'saved' mark karo.
+        Kisi engine me error ho to 502 + errors.
+        """
         ids, error = _parse_song_ids(request.data)
         if error:
             return error
@@ -1026,8 +1104,8 @@ class CatalogHealthResyncView(BaseAdminView):
             except Exception as e:
                 errors["recombee"] = str(e)
 
-        # Record successful pushes on the songs' completed jobs so "notIndexed" clears.
-        # Counts of 0 mean the engine client isn't configured, so nothing is marked then.
+        # Kamyab push ko songs ke COMPLETED jobs pe record karo taaki "notIndexed" hat jaaye.
+        # Count 0 matlab engine ka client set hi nahi hai, tab kuch mark nahi karte.
         song_ids = list(found)
         completed_jobs = Job.objects.filter(Q(song_id__in=song_ids) | Q(id__in=[s.job_id for s in songs if s.job_id]), status="COMPLETED")
         if result["algolia"] == len(songs):
@@ -1042,20 +1120,24 @@ class CatalogHealthResyncView(BaseAdminView):
 
 
 class CatalogHealthReprocessView(BaseAdminView):
-    """POST {songIds: [...]} -> retry each song's latest FAILED ingestion job.
+    """POST {songIds: [...]} -> har song ka sabse naya FAILED upload job dobara chalao.
 
-    Completed jobs can't be re-run: finalize deletes their temp uploads, so those songs
-    are skipped and need a new file via Songs Studio -> Reprocess audio.
+    COMPLETED jobs dobara nahi chal sakte: finalize unki temp files hata deta hai, isliye aise songs
+    skip hote hain - unke liye Songs Studio -> Reprocess audio se nayi file chahiye.
     """
 
     def post(self, request):
         # pyrefly: ignore[missing-import]
+        """Har song ka sabse naya job dhoondo. FAILED ho to requeue_job, warna skip (wajah ke saath).
+        Output: { queued, skipped }.
+        """
         from jobs.views import requeue_job
 
         ids, error = _parse_song_ids(request.data)
         if error:
             return error
         songs = {s.id: s for s in Song.objects.filter(id__in=ids)}
+        # Jobs naye se purane order me aate hain, isliye har song ka pehla mila job hi uska sabse naya job hai.
         jobs_by_song = {}
         for job in Job.objects.filter(Q(song_id__in=list(songs)) | Q(id__in=[s.job_id for s in songs.values() if s.job_id])).order_by("-created_at"):
             for s_id, s in songs.items():

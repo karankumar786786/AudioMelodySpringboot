@@ -1,11 +1,10 @@
-"""
-Listening analytics for the admin dashboard.
+"""Admin dashboard ke liye listening analytics.
 
-Instant numbers come from the small tables the streams `analytics` profile keeps up to
-date (song_timeline, song_listen_daily, song_quality_daily: V19). Questions those can't
-answer (unique and returning listeners, when people listen, retention cohorts) go to the
-S3 data lake through DuckDB (core/services/lake_service.py). When the aggregates are
-still empty (events not flowing yet) plays and completion fall back to user_history.
+Turant wale numbers un chhoti tables se aate hain jinhe streams ka `analytics` profile update rakhta hai
+(song_timeline, song_listen_daily, song_quality_daily: V19). Jo sawaal ye tables nahi bata sakti
+(unique aur wapas aane wale listeners, log kab sunte hain, retention cohorts) wo DuckDB se S3 data lake
+pe jaate hain (core/services/lake_service.py). Agar aggregates abhi khaali hain (events aa hi nahi rahe)
+to plays aur completion user_history se nikalte hain.
 
 GET admin/song/<id>/analytics?range=7d|30d|90d|all
 GET admin/analytics/overview?range=7d|30d|90d|all
@@ -28,15 +27,18 @@ from .models import Song
 logger = logging.getLogger(__name__)
 
 RANGES = {"7d": 7, "30d": 30, "90d": 90, "all": None}
-COMPLETION_PART = 90  # user_history.part is 0-100
+COMPLETION_PART = 90  # user_history.part 0-100 hota hai (kitna % suna)
 HOOK_WINDOW_SEC = 10
+MS_PER_HOUR = 3_600_000  # 60 * 60 * 1000 - milliseconds ko ghante me badalne ke liye
 
 
-# ---- helpers ---------------------------------------------------------------------------
+# ---- chhote helpers ----------------------------------------------------------------------
 
 
 def parse_range(value: Optional[str]) -> Tuple[str, Optional[date], date, Optional[date], Optional[date]]:
-    """(label, start, end, prev_start, prev_end); start is None for 'all'."""
+    """(label, start, end, prev_start, prev_end) lautata hai; 'all' ke liye start None hota hai.
+    prev_* = isse pichhla utna hi lamba period (badlav % nikalne ke liye).
+    """
     label = value if value in RANGES else "30d"
     end = date.today()
     days = RANGES[label]
@@ -49,30 +51,37 @@ def parse_range(value: Optional[str]) -> Tuple[str, Optional[date], date, Option
 
 
 def _rows(sql: str, params: List[Any]) -> List[tuple]:
+    """SQL chalao aur saari rows lautao. DB error (jaise V19 table abhi nahi bani) par warning log karke []."""
     try:
         with connection.cursor() as cur:
             cur.execute(sql, params)
             return cur.fetchall()
     except DatabaseError as e:
-        # A missing V19 table (migration not applied yet) shouldn't break the page.
+        # V19 table na ho (migration abhi nahi chali) to bhi page nahi tootna chahiye.
         logger.warning("Analytics query failed: %s", str(e)[:200])
         return []
 
 
 def _one(sql: str, params: List[Any]) -> tuple:
+    """SQL ki pehli row lautao; kuch na mile to khaali tuple ()."""
     rows = _rows(sql, params)
     return rows[0] if rows else ()
 
 
 def _n(v: Any) -> int:
+    """None ya khaali value ko 0 maan ke int banao."""
     return int(v or 0)
 
 
 def _ratio(a: Any, b: Any) -> float:
+    """a / b, 4 decimal tak. b zero ya None ho to 0.0 (divide-by-zero se bachne ke liye)."""
     return round(float(a or 0) / float(b), 4) if b else 0.0
 
 
 def _day_filter(column: str, start: Optional[date], end: Optional[date]) -> Tuple[str, List[Any]]:
+    """SQL ka ' AND column >= start AND column < end+1 din' hissa aur uske params banao.
+    end+1 isliye taaki end wala poora din shamil ho. Dono None hon to khaali string.
+    """
     clauses, params = [], []
     if start is not None:
         clauses.append(f"{column} >= %s")
@@ -84,6 +93,9 @@ def _day_filter(column: str, start: Optional[date], end: Optional[date]) -> Tupl
 
 
 def _change(current: float, previous: Optional[float]) -> Optional[float]:
+    """Pichhle period se kitna badla (0.25 = 25% upar). Pichhla data na ho to None;
+    pichhla 0 aur ab bhi 0 to None, pichhla 0 aur ab kuch hai to 1.0.
+    """
     if previous is None:
         return None
     if not previous:
@@ -92,16 +104,20 @@ def _change(current: float, previous: Optional[float]) -> Optional[float]:
 
 
 def _lake(fn, *args) -> Tuple[Any, Optional[str]]:
+    """Data lake wala function chalao. Lake band ho (LakeUnavailable) to (None, error message), warna (result, None)."""
     try:
         return fn(*args), None
     except lake_service.LakeUnavailable as e:
         return None, str(e)
 
 
-# ---- period totals ---------------------------------------------------------------------
+# ---- period ke totals --------------------------------------------------------------------
 
 
 def _aggregate_totals(song_id: Optional[str], start: Optional[date], end: Optional[date]) -> Dict[str, int]:
+    """song_listen_daily se period ke total plays, qualified streams, completions, skips aur listened ms.
+    song_id None = saare songs.
+    """
     where, params = _day_filter("day", start, end)
     song_clause = ""
     if song_id:
@@ -124,6 +140,7 @@ def _aggregate_totals(song_id: Optional[str], start: Optional[date], end: Option
 
 
 def _history_totals(song_id: Optional[str], start: Optional[date], end: Optional[date]) -> Dict[str, Any]:
+    """user_history se period ke plays, unique listeners, completions (part >= 90) aur average kitna suna (0-1)."""
     where, params = _day_filter("listened_at", start, end)
     song_clause = ""
     if song_id:
@@ -145,6 +162,9 @@ def _history_totals(song_id: Optional[str], start: Optional[date], end: Optional
 
 
 def _period(song_id: Optional[str], start: Optional[date], end: Optional[date]) -> Dict[str, Any]:
+    """Ek period ka KPI dict. Events wali table me plays hon to wahan se, warna user_history se (source batata hai).
+    skipRate sirf events se milta hai, history me None.
+    """
     agg = _aggregate_totals(song_id, start, end)
     hist = _history_totals(song_id, start, end)
     from_events = agg["plays"] > 0
@@ -160,11 +180,12 @@ def _period(song_id: Optional[str], start: Optional[date], end: Optional[date]) 
         "skips": agg["skips"],
         "skipRate": _ratio(agg["skips"], plays) if from_events else None,
         "avgListened": hist["avgListened"],
-        "listenedHours": round(agg["listenedMs"] / 3_600_000, 2),
+        "listenedHours": round(agg["listenedMs"] / MS_PER_HOUR, 2),
     }
 
 
 def _kpis(song_id: Optional[str], start, end, prev_start, prev_end) -> Dict[str, Any]:
+    """Abhi ka period, pichhla period aur har KPI ka badlav (%). 'all' range me pichhla period nahi hota."""
     current = _period(song_id, start, end)
     previous = _period(song_id, prev_start, prev_end) if start is not None else None
     changes = {}
@@ -175,6 +196,9 @@ def _kpis(song_id: Optional[str], start, end, prev_start, prev_end) -> Dict[str,
 
 
 def _daily(song_id: Optional[str], start: Optional[date], end: date) -> List[Dict[str, Any]]:
+    """Har din ki series (plays, completions, skips, ghante). Events table khaali ho to user_history se
+    (tab skips None aur listeners milte hain).
+    """
     where, params = _day_filter("day", start, end)
     song_clause = ""
     if song_id:
@@ -193,11 +217,11 @@ def _daily(song_id: Optional[str], start: Optional[date], end: date) -> List[Dic
                 "qualifiedStreams": _n(q),
                 "completions": _n(c),
                 "skips": _n(s),
-                "listenedHours": round(_n(ms) / 3_600_000, 3),
+                "listenedHours": round(_n(ms) / MS_PER_HOUR, 3),
             }
             for d, p, q, c, s, ms in rows
         ]
-    # Fallback: user_history (no skips or listening time there).
+    # Fallback: user_history (usme skips aur listening time nahi hota).
     where, params = _day_filter("listened_at", start, end)
     if song_id:
         where += " AND song_id = %s"
@@ -218,9 +242,9 @@ def _daily(song_id: Optional[str], start: Optional[date], end: date) -> List[Dic
 
 
 def build_timeline(rows: List[tuple], duration_sec: int) -> Dict[str, Any]:
-    """Per-second series plus the derived retention curve and replay 'hooks'.
+    """Har second ki series, uske saath retention curve aur replay 'hooks'.
 
-    rows: (sec, listens, exits, skips, seeks_away, seeks_into). Seconds with no row are 0.
+    rows: (sec, listens, exits, skips, seeks_away, seeks_into). Jis second ki row nahi, wo 0 maana jaata hai.
     """
     by_sec = {int(r[0]): r for r in rows}
     last = max([duration_sec - 1] + list(by_sec.keys())) if (by_sec or duration_sec) else -1
@@ -238,12 +262,14 @@ def build_timeline(rows: List[tuple], duration_sec: int) -> Dict[str, Any]:
             }
         )
     starts = seconds[0]["listens"] if seconds else 0
+    # Retention = har second pe kitne log abhi bhi sun rahe hain, shuru ke listeners ke hisaab se.
+    # Shuru (sec 0) pe 0 ho to sabse bade second ko base maan lo, warna divide by 0.
     base = starts or max((x["listens"] for x in seconds), default=0)
     for x in seconds:
         x["retention"] = _ratio(x["listens"], base)
 
-    # Replays: listening above the lowest level reached earlier means people came back
-    # (seeked in or replayed). Windows with the most of it are the song's hooks.
+    # Replays: agar listeners pehle ke sabse kam level se upar chale gaye, matlab log wapas aaye
+    # (seek karke ya dobara chala ke). Jahan ye sabse zyada ho, wahi song ke 'hooks' hain.
     replay = []
     running_min = None
     for x in seconds:
@@ -252,6 +278,8 @@ def build_timeline(rows: List[tuple], duration_sec: int) -> Dict[str, Any]:
     hooks = []
     used = [False] * len(seconds)
     window = HOOK_WINDOW_SEC
+    # Har 10 second ki khidki (window) ka replay score jodo, phir sabse bade score wali
+    # 3 aisi khidkiyan chuno jo ek doosre pe overlap na karein - yahi 'hooks' hain.
     candidates = []
     for i in range(0, max(0, len(seconds) - window + 1)):
         candidates.append((sum(replay[i : i + window]), i))
@@ -266,7 +294,7 @@ def build_timeline(rows: List[tuple], duration_sec: int) -> Dict[str, Any]:
     hooks.sort(key=lambda h: h["startSec"])
 
     total_exits = sum(x["exits"] for x in seconds)
-    early_exits = sum(x["exits"] for x in seconds[:30])
+    early_exits = sum(x["exits"] for x in seconds[:30])  # pehle 30 second me chhod ke jaane wale
     peak = max(seconds, key=lambda x: x["listens"]) if seconds else None
     return {
         "seconds": seconds,
@@ -282,6 +310,7 @@ def build_timeline(rows: List[tuple], duration_sec: int) -> Dict[str, Any]:
 
 
 def _timeline(song_id: str, duration_sec: int) -> Dict[str, Any]:
+    """song_timeline se is song ki per-second rows padh ke build_timeline chalao; data na ho to khaali dhaancha."""
     rows = _rows(
         "SELECT sec, listens, exits, skips, seeks_away, seeks_into FROM song_timeline WHERE song_id = %s ORDER BY sec",
         [song_id],
@@ -291,10 +320,11 @@ def _timeline(song_id: str, duration_sec: int) -> Dict[str, Any]:
     return build_timeline(rows, duration_sec)
 
 
-# ---- delivery quality ------------------------------------------------------------------
+# ---- playback quality (buffering wagairah) ----------------------------------------------
 
 
 def _quality(song_id: Optional[str], start: Optional[date], end: date) -> List[Dict[str, Any]]:
+    """song_quality_daily se quality + platform ke hisaab se startup time, rebuffers aur stall ratio."""
     where, params = _day_filter("day", start, end)
     if song_id:
         where += " AND song_id = %s"
@@ -314,11 +344,11 @@ def _quality(song_id: Optional[str], start: Optional[date], end: date) -> List[D
                 "quality": q,
                 "platform": p,
                 "plays": _n(plays),
-                "listenedHours": round(listened / 3_600_000, 2),
+                "listenedHours": round(listened / MS_PER_HOUR, 2),
                 "avgStartupMs": round(_n(st_sum) / _n(st_n)) if _n(st_n) else None,
                 "rebuffersPerPlay": _ratio(rb_n, plays),
                 "rebufferMsPerPlay": round(_n(rb_ms) / _n(plays)) if _n(plays) else 0,
-                # Share of listening time spent stalled.
+                # Sunne ke time ka kitna hissa buffering (stall) me gaya.
                 "stallRatio": _ratio(rb_ms, listened + _n(rb_ms)),
             }
         )
@@ -326,6 +356,7 @@ def _quality(song_id: Optional[str], start: Optional[date], end: date) -> List[D
 
 
 def _engagement(song_id: str) -> Dict[str, int]:
+    """Song kitni baar favourite hua, playlists me juda, aur kitne READY shorts me use hua."""
     fav = _one("SELECT COUNT(*) FROM user_favourite_songs WHERE song_id = %s", [song_id])
     pl = _one("SELECT COUNT(*) FROM user_playlist_songs WHERE song_id = %s", [song_id])
     shorts = _one("SELECT COUNT(*) FROM shorts WHERE song_id = %s AND status = 'READY'", [song_id])
@@ -337,6 +368,7 @@ def _engagement(song_id: str) -> Dict[str, int]:
 
 
 def _song_titles(ids: List[str]) -> Dict[str, Dict[str, str]]:
+    """Song ids -> {title, artistName, imageKey}. DB error par {}."""
     if not ids:
         return {}
     try:
@@ -348,11 +380,15 @@ def _song_titles(ids: List[str]) -> Dict[str, Dict[str, str]]:
         return {}
 
 
-# ---- views -------------------------------------------------------------------------------
+# ---- views (API endpoints) ----------------------------------------------------------------
 
 
 class SongAnalyticsView(BaseAdminView):
+    """GET admin/song/<id>/analytics?range=... - ek song ka poora analytics page."""
     def get(self, request, pk):
+        """KPIs, daily series, per-second timeline, quality aur engagement jodo.
+        Lake chalu ho to audience, kab suna aur platforms bhi; lake band ho to sirf lake.error bharta hai.
+        """
         song = get_object_or_404(Song.objects.select_related("metadata"), pk=pk)
         label, start, end, prev_start, prev_end = parse_range(request.query_params.get("range"))
         duration_sec = int(song.duration or 0)
@@ -408,7 +444,11 @@ class SongAnalyticsView(BaseAdminView):
 
 
 class AnalyticsOverviewView(BaseAdminView):
+    """GET admin/analytics/overview?range=... - poore catalog ka analytics overview."""
     def get(self, request):
+        """Top 10 songs (plays se), top completion (kam se kam 20 plays), skip hone wale intros,
+        daily series, quality mix aur weekly retention. Events khaali hon to top songs user_history se.
+        """
         label, start, end, prev_start, prev_end = parse_range(request.query_params.get("range"))
         where, params = _day_filter("day", start, end)
 
@@ -442,6 +482,7 @@ class AnalyticsOverviewView(BaseAdminView):
         titles = _song_titles(list(ids))
 
         def with_title(sid: str) -> Dict[str, Any]:
+            """songId ke saath title / artist / image jodo (na mile to None)."""
             return {"songId": sid, **titles.get(sid, {"title": None, "artistName": None, "imageKey": None})}
 
         daily = _daily(None, start, end)
@@ -484,7 +525,7 @@ class AnalyticsOverviewView(BaseAdminView):
                         "plays": _n(p),
                         "completionRate": _ratio(c, p),
                         "skipRate": _ratio(s, p) if s is not None else None,
-                        "listenedHours": round(_n(ms) / 3_600_000, 2) if ms is not None else None,
+                        "listenedHours": round(_n(ms) / MS_PER_HOUR, 2) if ms is not None else None,
                     }
                     for sid, p, c, s, ms in top
                 ],

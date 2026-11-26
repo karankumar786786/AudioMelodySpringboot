@@ -1,8 +1,16 @@
+/**
+ * Inngest function "delete-from-recombee": Recombee se item hatao.
+ * Delete chain (Inngest): delete.algolia -> delete.recombee -> delete.imagekit -> delete.s3 -> delete.finalize.
+ *
+ * Agla event: audio/delete.imagekit. Saare retries fail = onFailure admin API ko /failed batata hai (DeleteJob FAILED).
+ */
 import { inngest } from "../inngest";
 import { deleteApi } from "../axios";
 import type { DeleteEventPayload } from "../types/delete";
+import { deleteJobParams } from "./deleteParams";
 import { extractMeaningfulError } from "../lib/errorUtils";
 
+/** Admin API /delete-recommendation call karo, phir agla step. entityId / entityType na ho to error. */
 export const deleteFromRecombee = inngest.createFunction(
     {
         id: "delete-from-recombee",
@@ -16,7 +24,7 @@ export const deleteFromRecombee = inngest.createFunction(
                     await deleteApi.post(`/${data.entityType}/${data.entityId}/failed`, {
                         reason: `Recombee teardown: ${reason}`,
                     }, {
-                        params: data.deleteJobId ? { deleteJobId: data.deleteJobId } : undefined
+                        params: deleteJobParams(data)
                     });
                 } catch (e) {
                     console.error(`Failed to notify coreEngine of delete failure:`, e);
@@ -33,7 +41,7 @@ export const deleteFromRecombee = inngest.createFunction(
         await step.run("delete-recommendation-record", async () => {
             console.log(`[DELETE-RECOMMENDATION] Removing ${data.entityType}:${data.entityId} from Recombee...`);
             await deleteApi.post(`/${data.entityType}/${data.entityId}/delete-recommendation`, null, {
-                params: data.deleteJobId ? { deleteJobId: data.deleteJobId } : undefined,
+                params: deleteJobParams(data),
             });
             console.log(`[DELETE-RECOMMENDATION] Successfully removed ${data.entityType}:${data.entityId} from Recombee`);
         });

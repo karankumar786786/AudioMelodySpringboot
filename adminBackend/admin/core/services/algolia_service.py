@@ -1,3 +1,4 @@
+"""Admin ki taraf se Algolia (search) ka kaam: songs/artists/playlists save, delete, poora reindex, index settings."""
 import logging
 from typing import Optional, List, Dict, Any
 from django.conf import settings
@@ -6,8 +7,8 @@ from django.conf import settings
 from catalog.models import Song, Artist, Playlist
 from core.services.lyrics_service import LyricsService, to_searchable_lyrics
 
-# Searchable attributes highlighted in hits. Listed explicitly so the (long) lyrics
-# attribute is never highlighted in full; clients get a short snippet of it instead.
+# Search hits me highlight hone wale attributes. Jaan-boojh ke list kiye taaki lambe lyrics
+# kabhi poore highlight na hon; clients ko unka chhota snippet milta hai.
 HIGHLIGHTED_ATTRIBUTES = [
     "title", "album", "artistName", "artist", "artists", "name",
     "genre", "genres", "country", "language",
@@ -18,10 +19,12 @@ logger = logging.getLogger(__name__)
 
 
 class AlgoliaService:
+    """Algolia helper."""
     _client = None
 
     @classmethod
     def get_client(cls):
+        """Algolia client."""
         if cls._client is None:
             app_id = getattr(settings, "ALGOLIA_APP_ID", None)
             api_key = getattr(settings, "ALGOLIA_API_KEY", None)
@@ -51,6 +54,7 @@ class AlgoliaService:
         total_streams: Optional[int] = None,
         **kwargs,
     ) -> None:
+        """Song Algolia me save (lyrics snippet ke saath)."""
         client = cls.get_client()
         if not client:
             logger.warning("Algolia client not configured, skipping save_song")
@@ -130,7 +134,7 @@ class AlgoliaService:
                 s_job_id = kwargs.get("job_id") or kwargs.get("jobId")
                 s_created_at = kwargs.get("created_at") or kwargs.get("createdAt")
 
-            # Look up associated Job if clip timestamps or video keys are missing
+            # Clip timestamps ya video keys na hon to us song ka Job dekho
             if s_clip_start is None or not s_video_key or s_prev_start is None:
                 try:
                     from jobs.models import Job
@@ -218,6 +222,7 @@ class AlgoliaService:
 
     @classmethod
     def save_artist(cls, artist: Any) -> None:
+        """Artist Algolia me save."""
         client = cls.get_client()
         if not client:
             return
@@ -256,6 +261,7 @@ class AlgoliaService:
 
     @classmethod
     def save_playlist(cls, playlist: Any) -> None:
+        """Playlist Algolia me save."""
         client = cls.get_client()
         if not client:
             return
@@ -313,8 +319,7 @@ class AlgoliaService:
     def build_song_record(
         cls, song: Any, job: Optional[Any] = None, lyrics: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
-        """Builds the Algolia song record. ``lyrics`` must already be normalised
-        (see ``to_searchable_lyrics``); it is stored as-is."""
+        """Algolia ka song record banao. ``lyrics`` pehle se normalise hone chahiye (``to_searchable_lyrics``); waise hi rakhe jaate hain."""
         s_clip_start = None
         s_clip_end = None
         if isinstance(song, dict):
@@ -426,6 +431,7 @@ class AlgoliaService:
 
     @classmethod
     def build_artist_record(cls, artist: Any) -> Optional[Dict[str, Any]]:
+        """Artist ka Algolia record."""
         if isinstance(artist, dict):
             a_id = artist.get("id")
             a_name = artist.get("name")
@@ -455,6 +461,7 @@ class AlgoliaService:
 
     @classmethod
     def build_playlist_record(cls, playlist: Any) -> Optional[Dict[str, Any]]:
+        """Official playlist ka Algolia record."""
         if isinstance(playlist, dict):
             p_id = playlist.get("id")
             p_name = playlist.get("name")
@@ -481,6 +488,7 @@ class AlgoliaService:
 
     @classmethod
     def build_user_playlist_record(cls, playlist: Any) -> Optional[Dict[str, Any]]:
+        """User playlist ka Algolia record."""
         if isinstance(playlist, dict):
             p_id = playlist.get("id")
             p_name = playlist.get("name")
@@ -527,6 +535,7 @@ class AlgoliaService:
         jobs_by_song_id: Optional[Dict[str, Any]] = None,
         lyrics_by_song_id: Optional[Dict[str, Optional[str]]] = None,
     ) -> int:
+        """Saare active songs dobara bhejo."""
         client = cls.get_client()
         if not client or not songs:
             return 0
@@ -640,6 +649,7 @@ class AlgoliaService:
 
     @classmethod
     def reindex_all_artists(cls, artists: List[Any], batch_size: int = 100) -> int:
+        """Saare artists dobara bhejo."""
         client = cls.get_client()
         if not client or not artists:
             return 0
@@ -660,6 +670,7 @@ class AlgoliaService:
 
     @classmethod
     def reindex_all_playlists(cls, playlists: List[Any], batch_size: int = 100) -> int:
+        """Saari playlists dobara bhejo."""
         client = cls.get_client()
         if not client or not playlists:
             return 0
@@ -680,6 +691,7 @@ class AlgoliaService:
 
     @classmethod
     def reindex_all_user_playlists(cls, playlists: List[Any], batch_size: int = 100) -> int:
+        """Saari public user playlists dobara bhejo."""
         client = cls.get_client()
         if not client or not playlists:
             return 0
@@ -700,6 +712,7 @@ class AlgoliaService:
 
     @classmethod
     def configure_index(cls) -> None:
+        """Index ki settings (searchable fields, ranking, snippets) - core API wali AlgoliaSearch.configureIndex jaisi."""
         client = cls.get_client()
         if not client:
             return
@@ -713,11 +726,11 @@ class AlgoliaService:
                     "genre,genres",
                     "country",
                     "language",
-                    # Lowest priority: a lyrics hit should never outrank a title/artist hit.
+                    # Sabse kam priority: lyrics ka match title/artist ke match se upar nahi aana chahiye.
                     "unordered(lyrics)",
                 ],
-                # Keep hits small: lyrics are searchable but never returned in full.
-                # (unretrievableAttributes would also suppress the snippet, so use this instead.)
+                # Hits chhote rakho: lyrics me search hota hai par poore lyrics kabhi wapas nahi aate.
+                # (unretrievableAttributes snippet bhi band kar deta, isliye ye tareeka.)
                 "attributesToRetrieve": ["*", "-lyrics"],
                 "attributesToHighlight": HIGHLIGHTED_ATTRIBUTES,
                 "attributesToSnippet": [f"lyrics:{LYRICS_SNIPPET_WORDS}"],
@@ -743,6 +756,7 @@ class AlgoliaService:
 
     @classmethod
     def delete_object(cls, object_id: str) -> None:
+        """Ek record delete."""
         client = cls.get_client()
         if not client or not object_id:
             return
@@ -755,6 +769,7 @@ class AlgoliaService:
 
     @classmethod
     def delete_record(cls, object_id: str) -> None:
+        """Ek record delete (doosra naam)."""
         cls.delete_object(object_id)
 
 

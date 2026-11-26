@@ -1,3 +1,7 @@
+/**
+ * Transcoding se pehle media file ki jaanch ("pre-flight check").
+ * Kharab file pe FFmpeg ghanton CPU jalata aur Inngest baar-baar retry karta - isliye pehle hi pakad lo.
+ */
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import * as fs from "node:fs";
@@ -5,6 +9,7 @@ import { NonRetriableError } from "inngest";
 
 const execFileAsync = promisify(execFile);
 
+/** Jaanch ka result: duration, audio / video hai ya nahi, codecs, size, wagairah. */
 export interface MediaValidationResult {
     isValid: boolean;
     duration: number;
@@ -21,19 +26,19 @@ export interface MediaValidationResult {
 }
 
 /**
- * Pre-flight media integrity validator implementing fail-fast strategy:
- * 1. Physical file presence and non-zero byte check.
- * 2. ffprobe container and stream inspection (verifies stream existence, channel count, duration).
- * 3. Rapid 1.5s bitstream decode smoke test via ffmpeg null muxer.
+ * "Jaldi fail karo" wali jaanch, 3 step me:
+ * 1. File hai aur khaali / bahut chhoti (2KB se kam) to nahi.
+ * 2. ffprobe se container aur streams dekho (audio / video stream hai? duration kitni?).
+ * 3. Pehle 1.5 second FFmpeg se decode karke dekho ki packets sach me khulte hain.
  *
- * If corruption, empty payload, or missing stream is detected, throws NonRetriableError
- * so Inngest halts immediately without wasting server CPU/GPU resources on futile retries.
+ * Kuch kharab mile to NonRetriableError phenkte hain - Inngest turant ruk jaata hai, bekaar retries
+ * me CPU/GPU nahi jalata. Sab theek = MediaValidationResult.
  */
 export async function validateMediaIntegrity(
     filePath: string,
     expectedType: "audio" | "video" | "any" = "any"
 ): Promise<MediaValidationResult> {
-    // 1. File existence & basic size check
+    // 1. File hai? Size theek hai?
     if (!fs.existsSync(filePath)) {
         throw new NonRetriableError(`Media validation failed: File not found at path: ${filePath}`);
     }
@@ -51,7 +56,7 @@ export async function validateMediaIntegrity(
         );
     }
 
-    // 2. ffprobe container and stream analysis
+    // 2. ffprobe se container aur streams ki jaankari (JSON me)
     let ffprobeOutput: any;
     try {
         const { stdout } = await execFileAsync("ffprobe", [
@@ -76,7 +81,7 @@ export async function validateMediaIntegrity(
     const hasAudio = audioStreams.length > 0;
     const hasVideo = videoStreams.length > 0;
 
-    // Type-specific requirements
+    // Audio job me audio stream, video job me video stream hona hi chahiye
     if (expectedType === "audio" && !hasAudio) {
         throw new NonRetriableError("Corrupted media: The uploaded container does not contain any decodable audio stream.");
     }
@@ -85,7 +90,7 @@ export async function validateMediaIntegrity(
         throw new NonRetriableError("Corrupted media: The uploaded container does not contain any decodable video stream.");
     }
 
-    // Duration extraction & validation
+    // Duration: pehle container se, na mile to audio stream se, phir video stream se
     let rawDuration = parseFloat(format.duration ?? "0");
     if ((isNaN(rawDuration) || rawDuration <= 0) && hasAudio) {
         rawDuration = parseFloat(audioStreams[0]?.duration ?? "0");
@@ -100,8 +105,9 @@ export async function validateMediaIntegrity(
         );
     }
 
-    // 3. Fast Bitstream Decode Smoke Test (first 1.5 seconds)
-    // Ensures audio/video packets can be decompressed by FFmpeg without fatal packet/PCE errors
+    // 3. Jaldi decode test (pehle 1.5 second): packets sach me decode hote hain ya kharab hain?
+    // -err_detect explode = chhoti si galti pe bhi ruk jao. Sirf "kharab data" wale errors pe fail karte hain,
+    // baaki errors (jaise timeout) ko ignore - asli transcoding unhe khud sambhal legi.
     try {
         await execFileAsync("ffmpeg", [
             "-v", "error",

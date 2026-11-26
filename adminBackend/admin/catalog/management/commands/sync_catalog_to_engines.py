@@ -1,3 +1,4 @@
+"""Management command: DB ka catalog Algolia aur Recombee me sync karo (cron ya haath se)."""
 import time
 import logging
 from typing import Dict, Any, Optional
@@ -14,9 +15,11 @@ logger = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
+    """python manage.py sync_catalog_to_engines - DB ka poora catalog Algolia (search) aur Recombee (recommendation) me bhejo."""
     help = "Fetch all catalog data from database and synchronize into Algolia and Recombee"
 
     def add_arguments(self, parser):
+        """--target, --batch-size, --dry-run, --configure-algolia, --purge-inactive, --sync-streams options."""
         parser.add_argument(
             "--target",
             type=str,
@@ -52,6 +55,10 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        """--sync-streams ho to sirf stream counts sync karke ruk jao. Warna DB se songs / artists / playlists lao,
+        jobs se audio features jodo, chune engines me bhejo, aur --purge-inactive ho to INACTIVE items hatao.
+        --dry-run me bahar kuch nahi bheja jaata.
+        """
         target = options["target"]
         batch_size = options["batch_size"]
         dry_run = options["dry_run"]
@@ -66,7 +73,7 @@ class Command(BaseCommand):
 
         start_time = time.time()
 
-        # Incremental streams shortcut
+        # --sync-streams: sirf stream counts sync karne ka chhota raasta
         if sync_streams:
             self.stdout.write(self.style.NOTICE("Running incremental stream count sync..."))
             if dry_run:
@@ -78,7 +85,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"✨ Stream sync finished in {elapsed:.2f} seconds."))
             return
 
-        # 1. Fetch data from DB
+        # 1. DB se data lao
         self.stdout.write("1. Fetching active records from database...")
         songs = list(Song.objects.filter(status="ACTIVE").select_related("metadata"))
         self.stdout.write(f"   - Active Songs: {len(songs)}")
@@ -99,11 +106,11 @@ class Command(BaseCommand):
         public_user_playlists = list(UserPlaylist.objects.filter(privacy="PUBLIC").select_related("user"))
         self.stdout.write(f"   - Public User Playlists: {len(public_user_playlists)}")
 
-        # 2. Fetch Jobs to get audio features & canvas clip timestamps
+        # 2. Jobs lao - audio features aur canvas clip ke time ke liye
         jobs_map = CatalogSyncService.build_jobs_map(songs)
         self.stdout.write(f"   - Transcoding & Audio Feature Jobs mapped: {len(jobs_map)}\n")
 
-        # 3. Synchronize Algolia
+        # 3. Algolia sync
         if target in ["all", "algolia"]:
             self.stdout.write(self.style.NOTICE("2. Synchronizing Algolia Search Index..."))
             if configure_algolia or target == "all":
@@ -136,7 +143,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"     ✓ Indexed {user_playlists_synced} public user playlists"))
             self.stdout.write("")
 
-        # 4. Synchronize Recombee
+        # 4. Recombee sync
         if target in ["all", "recombee"]:
             self.stdout.write(self.style.NOTICE("3. Synchronizing Recombee Recommendations Catalog..."))
             if dry_run:
@@ -147,7 +154,7 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.SUCCESS(f"     ✓ Ingested {recombee_synced} songs into Recombee"))
             self.stdout.write("")
 
-        # 5. Purge Inactive Items
+        # 5. INACTIVE items hatao
         if purge_inactive:
             self.stdout.write(self.style.NOTICE("4. Purging Inactive / Deleted Items from Engines..."))
             if dry_run:

@@ -1,3 +1,4 @@
+/** Media validator ke tests: audio / video assets sahi pass hote hain, galat type pe fail. */
 import { describe, it, expect } from "bun:test";
 import * as path from "node:path";
 import { validateMediaIntegrity } from "../lib/transcode/validator";

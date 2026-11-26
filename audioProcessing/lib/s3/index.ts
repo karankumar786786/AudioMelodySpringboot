@@ -1,3 +1,7 @@
+/**
+ * S3 helpers: file download, ek file delete, poora prefix (folder) delete, aur ek job ki saari
+ * cloud files saaf karna. Media pipeline ke functions aur cleanup isko use karte hain.
+ */
 import {
     S3Client,
     GetObjectCommand,
@@ -24,6 +28,10 @@ export const s3Client = new S3Client({
     },
 });
 
+/**
+ * S3 se file download karke downloadPath pe likho (stream se, taaki badi file bhi RAM me na bhare).
+ * Body khaali ho ya stream / write fail ho to error phenkta hai.
+ */
 export async function downloadObject(bucket: string, key: string, downloadPath: string): Promise<void> {
     const command = new GetObjectCommand({
         Bucket: bucket,
@@ -45,6 +53,7 @@ export async function downloadObject(bucket: string, key: string, downloadPath: 
     });
 }
 
+/** S3 se ek file delete karo. Fail ho to error phenkta hai. */
 export async function deleteObject(bucket: string, key: string): Promise<void> {
     const command = new DeleteObjectCommand({
         Bucket: bucket,
@@ -54,7 +63,9 @@ export async function deleteObject(bucket: string, key: string): Promise<void> {
 }
 
 /**
- * Deletes all objects matching a given prefix (e.g., all DASH/HLS chunks in audios/<songId>/).
+ * Ek prefix se shuru hone wali saari files delete karo (jaise audios/<songId>/ ke saare HLS/DASH chunks).
+ * S3 ek baar me 1000 tak hi list karta hai, isliye ContinuationToken se page-by-page chalte hain.
+ * Error aaye to sirf warning - phenkta nahi.
  */
 export async function deletePrefix(bucket: string, prefix: string): Promise<void> {
     try {
@@ -89,8 +100,8 @@ export async function deletePrefix(bucket: string, prefix: string): Promise<void
 }
 
 /**
- * Comprehensive cloud teardown for a job: purges half-transcoded or fully-transcoded
- * chunks from production S3 (audios/, videos/) and raw uploads from temp S3.
+ * Ek job ki saari cloud files saaf karo: production S3 ke (aadhe ya poore) transcoded chunks
+ * (audios/, videos/) aur temp S3 ki raw uploads. Temp wale deletes ke errors chupchap ignore.
  */
 export async function purgeJobCloudArtifacts(params: {
     jobId: string;
@@ -105,7 +116,7 @@ export async function purgeJobCloudArtifacts(params: {
 
     console.log(`[S3 PURGE] Purging cloud artifacts for job ${params.jobId} (songId: ${params.songId})...`);
 
-    // 1. Purge Production S3 chunks (audios/<songId>, videos/<songId>, etc.)
+    // 1. Production S3 ke chunks hatao (audios/<songId>, videos/<songId>, wagairah)
     if (params.songId) {
         const basePath = process.env.BASE_PATH || "audios";
         const videoBasePath = process.env.VIDEO_BASE_PATH || "videos";
@@ -120,7 +131,7 @@ export async function purgeJobCloudArtifacts(params: {
         await deletePrefix(prodBucket, params.fullVideoKey);
     }
 
-    // 2. Purge Temp S3 source files (tempSongKey, tempVideoKey, temp prefixes)
+    // 2. Temp S3 ki source files hatao (tempSongKey, tempVideoKey, temp prefixes)
     if (params.tempSongKey) {
         await deleteObject(tempBucket, params.tempSongKey).catch(() => {});
         await deletePrefix(tempBucket, params.tempSongKey).catch(() => {});

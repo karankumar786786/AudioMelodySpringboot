@@ -1,3 +1,4 @@
+"""Management command: terminal se SUPER_ADMIN banao ya kisi admin ko SUPER_ADMIN banao."""
 import re
 import uuid
 from django.core.management.base import BaseCommand, CommandError
@@ -9,9 +10,11 @@ EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
 
 class Command(BaseCommand):
+    """python manage.py createsuperadmin - admin_users table me SUPER_ADMIN banata hai, ya pehle se bane admin ko SUPER_ADMIN bana deta hai."""
     help = "Creates or promotes an admin to SUPER_ADMIN in the admin_users table."
 
     def add_arguments(self, parser):
+        """Command-line options register karo: --email aur --username."""
         parser.add_argument(
             "--email",
             type=str,
@@ -25,12 +28,13 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        """Values na di hon to terminal me pucho. Admin pehle se ho to use ACTIVE SUPER_ADMIN banao, warna naya Super Admin banao."""
         email = options.get("email")
         username = options.get("username")
 
         is_interactive = not options.get("email")
 
-        # 1. Prompt interactively if not provided
+        # 1. Values na di hon to terminal me pucho
         if is_interactive:
             self.stdout.write(self.style.NOTICE("=== AudioMelody Super Admin Creation ==="))
             while not email:
@@ -63,7 +67,7 @@ class Command(BaseCommand):
             else:
                 username = email.split("@")[0]
 
-        # 2. Check if admin user already exists in admin_users table
+        # 2. admin_users table me ye admin pehle se hai?
         existing_admin = Admin.objects.filter(email__iexact=email).first()
 
         if existing_admin:
@@ -88,7 +92,7 @@ class Command(BaseCommand):
                 )
             admin = existing_admin
         else:
-            # Create new Super Admin user in admin_users table
+            # admin_users table me naya Super Admin banao
             user_id = str(uuid.uuid4())
             admin = Admin.objects.create(
                 id=user_id,

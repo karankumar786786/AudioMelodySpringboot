@@ -1,21 +1,21 @@
 /**
- * Centralized Redis queue name constants.
+ * Redis queue ke naam ek hi jagah.
  *
- * These names MUST match the queue keys configured in:
+ * Ye naam in jagahon ki queue keys se MATCH hone chahiye:
  * - coreEngine: application.yaml (spring.data.redis.*)
  * - workers/mailEvents: process.env.MAIL_QUEUE
  *
- * Changing a queue name here will propagate to all workers
- * that import from this module, preventing silent mismatches.
+ * Yahan naam badlo to is module ko import karne wale saare workers me badal jaata hai -
+ * alag-alag jagah alag naam reh jaane wali chupi galti nahi hoti.
  */
 export const QUEUES = {
-  /** Ingestion & transcoding jobs */
+  /** Upload aur transcoding jobs */
   AUDIO_PROCESSING: process.env.JOB_PROCESSING_QUEUE || "audio_processing_queue",
 
-  /** Cloud resource deletion cascade events */
+  /** Cloud se files hatane wali delete chain ke events */
   DELETE_EVENT: process.env.DELETE_EVENT_QUEUE || "delete_event_queue",
 
-  /** Job cancellation events */
+  /** Job cancel karne ke events */
   CANCEL_EVENT: process.env.CANCEL_EVENT_QUEUE || "audio_cancel_queue",
 } as const;
 

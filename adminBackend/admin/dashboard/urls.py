@@ -1,3 +1,4 @@
+"""dashboard ke URL routes: health, telemetry heartbeat, system health, search aur stats."""
 from django.urls import path
 from .views import DashboardStatsView, GlobalSearchView, HealthCheckView, SystemHealthView, TelemetryHeartbeatView
 
@@ -8,11 +9,11 @@ urlpatterns = [
     path("health", HealthCheckView.as_view(), name="health"),
     path("api/health", HealthCheckView.as_view(), name="api-health"),
 
-    # Telemetry & Heartbeat (audioProcessing -> adminBackend)
+    # Telemetry aur heartbeat (media pipeline -> admin API)
     path("api/telemetry/heartbeat", TelemetryHeartbeatView.as_view(), name="api-telemetry-heartbeat"),
     path("webhook/telemetry/heartbeat", TelemetryHeartbeatView.as_view(), name="webhook-telemetry-heartbeat"),
 
-    # System Health & CPU Telemetry (adminBackend -> adminFrontend)
+    # System health aur CPU telemetry (admin API -> admin dashboard)
     path("admin/system/health", SystemHealthView.as_view(), name="admin-system-health"),
     path("api/system/health", SystemHealthView.as_view(), name="api-system-health"),
 

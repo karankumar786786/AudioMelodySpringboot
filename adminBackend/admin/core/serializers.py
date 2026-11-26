@@ -1,8 +1,10 @@
+"""core ke serializers (Python object <-> JSON)."""
 from rest_framework import serializers
 from .models import PaginationMetadata
 
 
 class PaginationMetadataSerializer(serializers.ModelSerializer):
+    """PaginationMetadata ko JSON me badalta hai."""
     entityName = serializers.CharField(source="entity_name")
     totalCount = serializers.IntegerField(source="total_count")
     activeCount = serializers.IntegerField(source="active_count")

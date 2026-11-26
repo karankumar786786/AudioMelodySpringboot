@@ -1,3 +1,12 @@
+/**
+ * AudioTranscoder: ek gaane ki audio file ko streaming ke layak banata hai.
+ *
+ * Flow: file check -> 3 quality (128 / 240 / 320 kbps) AAC me encode -> Shaka Packager se HLS (master.m3u8)
+ * aur DASH (master.mpd) ke chhote chunks (4 second) -> saare chunks production S3 me upload -> local safai.
+ *
+ * HLS / DASH = gaane ko chhote tukdon me baant ke bhejna, taaki player turant shuru ho aur net ke
+ * hisaab se quality badal sake. Kaun call karta hai: functions/transcodeAudio.ts.
+ */
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { execFile } from "node:child_process";
@@ -20,23 +29,29 @@ import {
     unregisterActiveTmpPath,
 } from "./cleanup";
 import { validateMediaIntegrity } from "./validator";
+import { getAllFiles, patchMpdForVod } from "./packaging";
 import { CONCURRENT_TRANSCODING_LIMIT } from "./limiter";
 
+/** Ek audio quality ki setting. */
 export interface AudioQualityProfile {
     label: string;
-    bitrate: string;    // e.g. "128k"
-    sampleRate: number; // Hz, e.g. 44100
+    bitrate: string;    // jaise "128k"
+    sampleRate: number; // Hz, jaise 44100
     channels: number;   // 1 = mono, 2 = stereo
-    bandwidth: number;  // bits/s declared in HLS/DASH manifests
+    bandwidth: number;  // bits/s jo HLS/DASH manifest me likha jaata hai (player quality chunne me use karta hai)
 }
 
-/** Multi-bitrate AAC profiles requested: 128, 240, 320 kbps. */
+/** Teen AAC qualities: 128, 240, 320 kbps. */
 export const AUDIO_QUALITY_PROFILES: AudioQualityProfile[] = [
     { label: "128kbps", bitrate: "128k", sampleRate: 44100, channels: 2, bandwidth: 128000 },
     { label: "240kbps", bitrate: "240k", sampleRate: 44100, channels: 2, bandwidth: 240000 },
     { label: "320kbps", bitrate: "320k", sampleRate: 44100, channels: 2, bandwidth: 320000 },
 ];
 
+/**
+ * Audio transcoding ka poora kaam (upar file header dekho).
+ * segmentTime = har chunk kitne second ka; S3 upload ek saath 5 files tak (pLimit(5)).
+ */
 export class AudioTranscoder {
     private readonly segmentTime: number;
     private readonly client: S3Client;
@@ -56,6 +71,11 @@ export class AudioTranscoder {
         this.bucketName = bucketName;
     }
 
+    /**
+     * Poora pipeline chalao: encode -> package -> S3 upload. Output: { duration } (seconds).
+     * s3DirName = S3 me folder ka naam (aam taur pe songId). Kuch bhi fail ho to error phenkta hai,
+     * par local folder finally me hamesha saaf hota hai.
+     */
     async transcode(inputAudio: string, outputDir: string, s3DirName?: string): Promise<{ duration: number }> {
         console.log(`--- Starting Audio Transcoding Process ---`);
         console.log(`Input:  ${inputAudio}`);
@@ -72,16 +92,16 @@ export class AudioTranscoder {
 
             const audioName = s3DirName || path.basename(outputDir);
 
-            // STEP 1 — Transcode input -> multi-bitrate AACs (in parallel with hardware acceleration)
+            // STEP 1: input -> 3 bitrate ki AAC files (ek saath, GPU / aac_at mile to wahi)
             const audioDir = path.join(outputDir, "audio");
             fs.mkdirSync(audioDir, { recursive: true });
             const rawAudioPaths = await this.transcodeAudio(inputAudio, audioDir);
 
-            // STEP 2 — Package -> master.m3u8 + master.mpd
+            // STEP 2: Shaka Packager -> master.m3u8 (HLS) + master.mpd (DASH) aur chunks
             await this.runShakaPackager(outputDir, rawAudioPaths);
 
-            // STEP 3 — Upload all packaged files to S3
-            const allFiles = this.getAllFiles(outputDir);
+            // STEP 3: chunks S3 pe upload (beech ki raw_audio_*.m4a files nahi - wo sirf packager ke liye thi)
+            const allFiles = getAllFiles(outputDir);
             const filesToUpload = allFiles.filter(fp => !/raw_audio_.*\.m4a$/.test(fp));
 
             const totalFiles = filesToUpload.length;
@@ -106,17 +126,19 @@ export class AudioTranscoder {
             console.log(`--- Audio Transcoding Completed ---`);
             return { duration };
         } finally {
-            // CLEANUP — Remove local transcoded files robustly (on success or error)
+            // SAFAI: kaam ho ya error, local files hamesha hatao
             await safeRemovePath(outputDir);
             console.log(`Local transcoding directory cleaned up: ${outputDir}`);
         }
     }
 
+    /** File ki jaanch (validator) karo aur duration lautao. Kharab file = NonRetriableError. */
     private async getAudioDuration(audioPath: string): Promise<number> {
         const validation = await validateMediaIntegrity(audioPath, "audio");
         return validation.duration;
     }
 
+    /** Har quality profile ki AAC file banao (ek saath kitne - hardware aur global limit me se kam). Output: file paths. */
     private async transcodeAudio(inputAudio: string, audioDir: string): Promise<string[]> {
         const hwCaps = await detectHardwareCapabilities();
         const concurrency = Math.max(1, Math.min(hwCaps.maxAudioConcurrency, CONCURRENT_TRANSCODING_LIMIT));
@@ -143,9 +165,11 @@ export class AudioTranscoder {
         return await Promise.all(transcodeTasks);
     }
 
+    /** Shaka Packager chalao: har quality ke chunks + playlist, aur master HLS / DASH files. Fail = error phenko. */
     private async runShakaPackager(outputDir: string, rawAudioPaths: string[]): Promise<void> {
         console.log(`Packaging with Shaka Packager...`);
 
+        // Shaka ko hamesha "/" wale paths chahiye (Windows ke "\\" nahi)
         const toShaka = (p: string) => p.replace(/\\/g, "/");
         const audioDir = path.join(outputDir, "audio");
 
@@ -178,7 +202,9 @@ export class AudioTranscoder {
 
         try {
             await execFileAsync(packagerBin, args, { maxBuffer: 10 * 1024 * 1024 });
-            await this.patchMpdForVod(path.join(outputDir, "master.mpd"));
+            if (patchMpdForVod(path.join(outputDir, "master.mpd"))) {
+                console.log(`MPD patched for VOD`);
+            }
             console.log(`Packaging complete`);
         } catch (err: any) {
             console.error(`Packaging failed: ${err.message ?? err}`);
@@ -186,45 +212,11 @@ export class AudioTranscoder {
         }
     }
 
-    private async patchMpdForVod(mpdPath: string): Promise<void> {
-        if (!fs.existsSync(mpdPath)) return;
-        let content = fs.readFileSync(mpdPath, "utf-8");
-
-        content = content.replace(/\btype="dynamic"/, 'type="static"');
-        content = content.replace(/\s*minimumUpdatePeriod="[^"]*"/, "");
-        content = content.replace(/\s*availabilityStartTime="[^"]*"/, "");
-        content = content.replace(/\s*timeShiftBufferDepth="[^"]*"/, "");
-        content = content.replace(/\s*suggestedPresentationDelay="[^"]*"/, "");
-
-        if (!content.includes("mediaPresentationDuration")) {
-            const periodDuration = content.match(/\bPeriod[^>]+\bduration="([^"]+)"/)?.[1];
-            if (periodDuration) {
-                content = content.replace(
-                    /<MPD /,
-                    `<MPD mediaPresentationDuration="${periodDuration}" `
-                );
-            }
-        }
-
-        fs.writeFileSync(mpdPath, content, "utf-8");
-        console.log(`MPD patched for VOD`);
-    }
-
-    private getAllFiles(dirPath: string, arrayOfFiles: string[] = []): string[] {
-        const files = fs.readdirSync(dirPath);
-
-        for (const file of files) {
-            const absolutePath = path.join(dirPath, file);
-            if (fs.statSync(absolutePath).isDirectory()) {
-                this.getAllFiles(absolutePath, arrayOfFiles);
-            } else {
-                arrayOfFiles.push(absolutePath);
-            }
-        }
-
-        return arrayOfFiles;
-    }
-
+    /**
+     * Ek file S3 pe daalo: key = basePath/audioName/<folder ke andar ka path>.
+     * Fail ho to maxRetries (10) tak dobara, har baar thoda zyada ruk ke (1s, 2s, 3s...). Phir bhi fail = error.
+     * CacheControl "no-transform": CDN / proxy chunks ko compress ya badle nahi.
+     */
     private async uploadFileToS3(
         filePath: string,
         outputDir: string,
@@ -260,6 +252,7 @@ export class AudioTranscoder {
         }
     }
 
+    /** File extension se sahi Content-Type (player isi se samajhta hai file kya hai). Anjaana = octet-stream. */
     private resolveContentType(filePath: string): string {
         const ext = path.extname(filePath).toLowerCase();
         const map: Record<string, string> = {

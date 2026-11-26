@@ -1,8 +1,10 @@
+"""Chhote common helpers: time ka fark, job ki progress ka DTO (dashboard ke progress bar ke liye), paginated response."""
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 
 def format_ms(ms: Optional[int]) -> str:
+    """Milliseconds ko padhne layak banao (jaise "1m 05s")."""
     if ms is None:
         return "-"
     if ms < 1000:
@@ -13,8 +15,7 @@ def format_ms(ms: Optional[int]) -> str:
 
 
 def safe_diff_ms(t2: Optional[datetime], t1: Optional[datetime]) -> Optional[int]:
-    """Calculates millisecond difference between two timestamps safely,
-    handling offset-naive and offset-aware datetimes across databases."""
+    """Do timestamps ka fark milliseconds me, safely - timezone wale aur bina timezone wale dono sambhalta hai."""
     if not t1 or not t2:
         return None
     try:
@@ -28,12 +29,13 @@ def safe_diff_ms(t2: Optional[datetime], t1: Optional[datetime]) -> Optional[int
 
 
 def to_job_progress_dto(job: Any) -> Dict[str, Any]:
+    """Upload job ko progress DTO me badlo: har stage (queued -> transcoding -> recombee -> algolia -> finalize) ka status aur time."""
     now = datetime.now(timezone.utc)
     current_stage = getattr(job, "current_stage", "QUEUED") or "QUEUED"
     status = getattr(job, "status", "PENDING") or "PENDING"
     is_reprocess = bool(getattr(job, "is_video_reprocess", False) or getattr(job, "is_audio_reprocess", False))
 
-    # Calculate total elapsed time
+    # Kul kitna time laga
     elapsed_total_ms = getattr(job, "total_duration_ms", None)
     created_at = getattr(job, "created_at", None)
     completed_at = getattr(job, "completed_at", None)
@@ -53,7 +55,7 @@ def to_job_progress_dto(job: Any) -> Dict[str, Any]:
         else:
             elapsed_total_ms = safe_diff_ms(now, created_at)
 
-    # Calculate current stage elapsed time
+    # Abhi wale stage me kitna time laga
     current_stage_elapsed_ms = None
     if status in ("PROCESSING", "PENDING"):
         stage_start = created_at
@@ -72,7 +74,7 @@ def to_job_progress_dto(job: Any) -> Dict[str, Any]:
 
     stages = []
 
-    # 1. QUEUED
+    # 1. QUEUED (line me)
     q_status = "COMPLETED"
     q_duration = None
     if transcoding_started_at:
@@ -95,7 +97,7 @@ def to_job_progress_dto(job: Any) -> Dict[str, Any]:
         "formattedDuration": format_ms(q_duration),
     })
 
-    # 2. TRANSCODING
+    # 2. TRANSCODING (audio/video convert ho raha)
     t_status = "PENDING"
     t_duration = getattr(job, "transcoding_duration_ms", None)
     if transcoded_at:
@@ -119,7 +121,7 @@ def to_job_progress_dto(job: Any) -> Dict[str, Any]:
         "formattedDuration": format_ms(t_duration),
     })
 
-    # 3. RECOMMENDATION INDEXING
+    # 3. RECOMMENDATION INDEXING (Recombee)
     r_status = "PENDING"
     r_duration = getattr(job, "recommendation_duration_ms", None)
     if is_reprocess:
@@ -145,7 +147,7 @@ def to_job_progress_dto(job: Any) -> Dict[str, Any]:
         "formattedDuration": format_ms(r_duration),
     })
 
-    # 4. SEARCH INDEXING
+    # 4. SEARCH INDEXING (Algolia)
     s_status = "PENDING"
     s_duration = getattr(job, "search_duration_ms", None)
     if is_reprocess:
@@ -171,7 +173,7 @@ def to_job_progress_dto(job: Any) -> Dict[str, Any]:
         "formattedDuration": format_ms(s_duration),
     })
 
-    # 5. FINALIZING
+    # 5. FINALIZING (song publish)
     f_status = "PENDING"
     f_duration = getattr(job, "finalize_duration_ms", None)
     if status == "COMPLETED":
@@ -229,6 +231,7 @@ def to_job_progress_dto(job: Any) -> Dict[str, Any]:
 
 
 def to_delete_job_progress_dto(job: Any) -> Dict[str, Any]:
+    """Delete job ko progress DTO me badlo: har stage (algolia -> recombee -> imagekit -> s3 -> done) ka status aur time."""
     now = datetime.now(timezone.utc)
     current_stage = getattr(job, "current_stage", "QUEUED") or "QUEUED"
     status = getattr(job, "status", "PENDING") or "PENDING"
@@ -273,7 +276,7 @@ def to_delete_job_progress_dto(job: Any) -> Dict[str, Any]:
 
     stages = []
 
-    # 1. QUEUED
+    # 1. QUEUED (line me)
     q_status = "COMPLETED"
     q_duration = None
     if started_at:
@@ -296,7 +299,7 @@ def to_delete_job_progress_dto(job: Any) -> Dict[str, Any]:
         "formattedDuration": format_ms(q_duration),
     })
 
-    # 2. SEARCH_DELETED
+    # 2. SEARCH_DELETED (Algolia se hata)
     s_status = "PENDING"
     s_duration = getattr(job, "search_duration_ms", None)
     if search_deleted_at:
@@ -320,7 +323,7 @@ def to_delete_job_progress_dto(job: Any) -> Dict[str, Any]:
         "formattedDuration": format_ms(s_duration),
     })
 
-    # 3. RECOMMENDATION_DELETED
+    # 3. RECOMMENDATION_DELETED (Recombee se hata)
     r_status = "PENDING"
     r_duration = getattr(job, "recommendation_duration_ms", None)
     entity_type = getattr(job, "entity_type", "")
@@ -347,7 +350,7 @@ def to_delete_job_progress_dto(job: Any) -> Dict[str, Any]:
         "formattedDuration": format_ms(r_duration),
     })
 
-    # 4. IMAGEKIT_DELETED
+    # 4. IMAGEKIT_DELETED (canvas clips hate)
     i_status = "PENDING"
     i_duration = getattr(job, "imagekit_duration_ms", None)
     if imagekit_deleted_at:
@@ -373,7 +376,7 @@ def to_delete_job_progress_dto(job: Any) -> Dict[str, Any]:
         "formattedDuration": format_ms(i_duration),
     })
 
-    # 5. S3_DELETED
+    # 5. S3_DELETED (files hati)
     s3_status = "PENDING"
     s3_duration = getattr(job, "s3_duration_ms", None)
     if s3_deleted_at:
@@ -397,7 +400,7 @@ def to_delete_job_progress_dto(job: Any) -> Dict[str, Any]:
         "formattedDuration": format_ms(s3_duration),
     })
 
-    # 6. COMPLETED
+    # 6. COMPLETED (poora hua)
     c_status = "PENDING"
     c_duration = getattr(job, "finalize_duration_ms", None)
     if status == "COMPLETED":
@@ -456,6 +459,7 @@ def to_delete_job_progress_dto(job: Any) -> Dict[str, Any]:
 
 
 def format_paginated_response(content: Any, page: int, size: int, metadata: Any) -> Dict[str, Any]:
+    """List ko standard paginated response me lapeto (items + page info + counts)."""
     meta_dict = None
     if metadata:
         if isinstance(metadata, dict):

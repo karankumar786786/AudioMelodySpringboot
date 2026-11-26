@@ -1,8 +1,10 @@
+"""catalog ke serializers: song, artist, playlist aur catalog health ka JSON."""
 from rest_framework import serializers
 from .models import Artist, Playlist, Song
 
 
 class SongSerializer(serializers.ModelSerializer):
+    """Song row -> JSON (camelCase fields, admin dashboard ke liye)."""
     artistName = serializers.CharField(source="artist_name")
     songKey = serializers.CharField(source="song_key")
     imageKey = serializers.CharField(source="image_key")
@@ -42,6 +44,7 @@ class SongSerializer(serializers.ModelSerializer):
         ]
 
     def get_totalStreams(self, obj) -> int:
+        """song_metadata se total_streams; na ho ya error aaye to 0."""
         try:
             return obj.metadata.total_streams if hasattr(obj, "metadata") and obj.metadata else 0
         except Exception:
@@ -49,6 +52,7 @@ class SongSerializer(serializers.ModelSerializer):
 
 
 class ArtistSerializer(serializers.ModelSerializer):
+    """Artist row -> JSON."""
     coverImageKey = serializers.CharField(source="cover_image_key", required=False, allow_null=True)
     createdAt = serializers.DateTimeField(source="created_at", format="%Y-%m-%dT%H:%M:%S", required=False)
 
@@ -66,6 +70,7 @@ class ArtistSerializer(serializers.ModelSerializer):
 
 
 class PlaylistSerializer(serializers.ModelSerializer):
+    """Playlist row -> JSON."""
     coverImageKey = serializers.CharField(source="cover_image_key")
     videoKey = serializers.CharField(source="video_key", required=False, allow_null=True)
     totalSongs = serializers.IntegerField(source="total_songs", read_only=True)
@@ -88,6 +93,7 @@ class PlaylistSerializer(serializers.ModelSerializer):
 
 
 class CatalogHealthSongSerializer(serializers.ModelSerializer):
+    """Catalog health page ke liye song + uske issues ki list."""
     artistName = serializers.CharField(source="artist_name")
     imageKey = serializers.CharField(source="image_key", allow_null=True)
     lrclibId = serializers.CharField(source="lrclib_id", allow_null=True)
@@ -103,5 +109,6 @@ class CatalogHealthSongSerializer(serializers.ModelSerializer):
         ]
 
     def get_issues(self, obj):
+        """health.issues_for se song ke issues nikalo."""
         from .health import issues_for
         return issues_for(obj)

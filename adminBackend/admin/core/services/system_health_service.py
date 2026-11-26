@@ -1,3 +1,4 @@
+"""System health: media pipeline ke heartbeats aur health page."""
 import json
 import logging
 import time
@@ -10,9 +11,9 @@ from opentelemetry import metrics
 
 logger = logging.getLogger(__name__)
 
-# Alerting signal: incremented once per heartbeat received from audioProcessing.
-# Uptrace alerts when its per-minute rate drops to zero (see infra/observability/alerts.yml).
-# Uses the global (proxy) meter, so it is a no-op until core.otel sets a MeterProvider.
+# Alert ke liye signal: media pipeline ka har heartbeat aane pe +1.
+# Minute ka rate 0 ho jaaye to Uptrace alert deta hai (infra/observability/alerts.yml).
+# Global (proxy) meter use karta hai, to core.otel MeterProvider set kare tab tak kuch nahi karta.
 HEARTBEAT_COUNTER = metrics.get_meter("admin-backend.telemetry").create_counter(
     "audio_processing.heartbeats_received",
     unit="{heartbeat}",
@@ -20,22 +21,17 @@ HEARTBEAT_COUNTER = metrics.get_meter("admin-backend.telemetry").create_counter(
 )
 
 REDIS_TELEMETRY_KEY = "system:telemetry:audio_processing"
-# audioProcessing sends a heartbeat every 60 s; keep each one for 2.5 intervals so a
-# single late beat does not show the service as down.
+# Media pipeline har 60 second heartbeat bhejta hai; har ek 2.5 intervals tak rakho taaki
+# ek late heartbeat se service down na dikhe.
 TELEMETRY_TTL_SECONDS = 150
 
 
 class SystemHealthService:
-    """
-    Manages bidirectional health pinging and CPU telemetry between
-    audioProcessing worker and adminBackend.
-    """
+    """Admin API aur media pipeline ke beech health ping aur CPU telemetry."""
 
     @classmethod
     def record_audio_processing_heartbeat(cls, data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Receives heartbeat and CPU telemetry from audioProcessing and stores in Redis with TTL.
-        """
+        """Media pipeline ka heartbeat (aur CPU info) lo aur Redis me TTL ke saath rakho."""
         from .redis_service import RedisService
 
         telemetry = {
@@ -69,9 +65,7 @@ class SystemHealthService:
 
     @classmethod
     def ping_audio_processing(cls) -> Dict[str, Any]:
-        """
-        Actively sends a ping from adminBackend to audioProcessing worker.
-        """
+        """Admin API se media pipeline ko khud ping bhejo."""
         base_url = getattr(settings, "AUDIO_PROCESSING_URL", "http://localhost:5010").strip().rstrip('/')
         if not base_url.startswith(("http://", "https://")):
             base_url = f"https://{base_url}" if "one-org.me" in base_url else f"http://{base_url}"
@@ -107,12 +101,10 @@ class SystemHealthService:
 
     @classmethod
     def get_system_health(cls) -> Dict[str, Any]:
-        """
-        Compiles health indicators and CPU telemetry for the admin frontend.
-        """
+        """Admin dashboard ke liye health aur CPU info jodo."""
         from .redis_service import RedisService
 
-        # 1. Admin Backend Health
+        # 1. Admin API ki health
         db_connected = False
         try:
             connection.ensure_connection()
@@ -130,7 +122,7 @@ class SystemHealthService:
 
         admin_status = "UP" if (db_connected and redis_connected) else ("DEGRADED" if (db_connected or redis_connected) else "DOWN")
 
-        # 2. Audio Processing Telemetry (from Redis heartbeat)
+        # 2. Media pipeline ki telemetry (Redis heartbeat se)
         audio_telemetry: Optional[Dict[str, Any]] = None
         try:
             r = RedisService.get_client()
@@ -140,7 +132,7 @@ class SystemHealthService:
         except Exception as e:
             logger.warning("Failed to read audioProcessing telemetry from Redis: %s", e)
 
-        # Fallback to active ping if heartbeat not in Redis
+        # Redis me heartbeat nahi to khud ping karke dekho
         if not audio_telemetry:
             ping_res = cls.ping_audio_processing()
             if ping_res.get("status") == "UP":

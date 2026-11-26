@@ -1,3 +1,11 @@
+/**
+ * Inngest sub-task: audio features (tempo, energy, ...) nikaal ke admin API ko bhejna.
+ * transcode-song (orchestrator) isko step.invoke se chalata hai (event "audio/song.extract.features").
+ * Ye "non-fatal" hai: fail ho to sirf warning, song pipeline nahi rukti.
+ *
+ * Har run: temp folder me file download -> kaam -> finally me local files hamesha saaf.
+ * globalTranscodeLimiter: ek process me bhaari FFmpeg kaam limit se zyada ek saath nahi.
+ */
 import { inngest } from "../inngest";
 import { api } from "../axios";
 import { downloadObject } from "../lib/s3";
@@ -13,6 +21,7 @@ import { config } from "dotenv";
 
 config();
 
+/** Event ka data. */
 export interface ExtractAudioFeaturesData {
     jobId: string;
     songId: string;
@@ -20,6 +29,7 @@ export interface ExtractAudioFeaturesData {
     tempVideoKey?: string;
 }
 
+/** Audio lao (ya video se nikaalo) -> features nikaalo -> admin API /audio-features -> features lautao. */
 export const extractAudioFeaturesTask = inngest.createFunction(
     {
         id: "extract-audio-features-task",
@@ -87,10 +97,10 @@ export const extractAudioFeaturesTask = inngest.createFunction(
                         inputAudioPath = localExtractedPath;
                     }
 
-                    // Extract Spotify-like features
+                    // Spotify jaise features nikaalo
                     const features: AudioFeatures = await extractAudioFeatures(inputAudioPath);
 
-                    // Persist to Job table via backend webhook
+                    // Admin API ke webhook se Job table me save karo (fail ho to sirf warning - result phir bhi lautate hain)
                     try {
                         console.log(`[AUDIO-FEATURES] Persisting features in Job table for job ${jobId}...`);
                         await api.post(`/${jobId}/audio-features`, {

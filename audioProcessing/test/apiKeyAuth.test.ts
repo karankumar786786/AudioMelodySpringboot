@@ -1,8 +1,10 @@
+/** X-API-KEY middleware ke tests: key set na ho to 503, galat / missing = 401, sahi = aage, aur fallback env. */
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
 import { requireApiKey, isValidApiKey, getConfiguredApiKey } from "../lib/apiKeyAuth";
 
 type MockRes = { statusCode?: number; body?: any; status: (c: number) => MockRes; json: (b: any) => MockRes };
 
+/** Nakli request / response bana ke middleware chalao; response aur next() hua ya nahi lautao. */
 function run(headers: Record<string, string>) {
   const req: any = {
     ip: "127.0.0.1",

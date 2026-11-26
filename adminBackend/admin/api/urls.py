@@ -1,6 +1,4 @@
-"""
-Backwards compatibility URLconf routing to domain app URLconfs.
-"""
+"""Purane URL imports ke liye: apps ke asli URLconfs pe bhejta hai."""
 from django.urls import include, path
 
 urlpatterns = [

@@ -1,3 +1,4 @@
+/** Global transcoding limiter ke tests: cores detect hote hain aur ek saath limit se zyada kaam nahi chalta. */
 import { describe, it, expect } from "bun:test";
 import { globalTranscodeLimiter, CONCURRENT_TRANSCODING_LIMIT, SYSTEM_CPU_CORES } from "../lib/transcode/limiter";
 

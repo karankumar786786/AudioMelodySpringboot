@@ -1,6 +1,5 @@
-"""
-Backwards compatibility facade for legacy imports.
-Models have been distributed to their respective domain apps:
+"""Purane imports ke liye "facade" (sirf aage bhejta hai).
+Models ab apne apne apps me hain:
 - accounts.models (Admin, User, Session)
 - catalog.models (Artist, ArtistMetadata, ArtistFollowEvent, Song, SongMetadata, Playlist, PlaylistSong)
 - jobs.models (Job, DeleteJob)

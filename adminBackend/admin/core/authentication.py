@@ -1,3 +1,6 @@
+"""Admin API ka login check (Redis sessions) aur permissions.
+Flow: request -> AdminSessionAuthentication (session dhoondo) -> IsAdminUserPermission (role check) -> view.
+"""
 import hmac
 import logging
 from django.conf import settings
@@ -8,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def _get_admin_model():
+    """AdminUser model lazily import karo (circular import se bachne ke liye)."""
     from django.apps import apps
     try:
         return apps.get_model("accounts", "Admin")
@@ -18,7 +22,7 @@ def _get_admin_model():
 
 
 def _matches_any_key(provided: str, expected_keys) -> bool:
-    """Constant-time comparison against every configured key (no early exit)."""
+    """Har configured key se "constant-time" compare (beech me ruke bina), taaki time naap ke key ka andaza na lage."""
     provided_b = provided.encode("utf-8")
     matched = False
     for key in expected_keys:
@@ -28,7 +32,7 @@ def _matches_any_key(provided: str, expected_keys) -> bool:
 
 
 class AdminUser:
-    """Lightweight user representation from validated Redis session."""
+    """Redis session se bana halka sa "user" object (DB model nahi) - request.user isi ka hota hai."""
     def __init__(self, user_id: str, email: str, role: str, user_name: str = "", status: str = "ACTIVE"):
         self.id = user_id
         self.pk = user_id
@@ -42,10 +46,12 @@ class AdminUser:
 
     @property
     def is_admin(self) -> bool:
+        """ADMIN ya SUPER_ADMIN hai?"""
         return self.role in ("ADMIN", "SUPER_ADMIN")
 
     @property
     def is_super_admin(self) -> bool:
+        """SUPER_ADMIN hai?"""
         return self.role == "SUPER_ADMIN"
 
     def __str__(self):
@@ -53,20 +59,23 @@ class AdminUser:
 
 
 class AdminSessionAuthentication(authentication.BaseAuthentication):
-    """
-    Validates stateful Redis admin sessions.
-    Completely eliminates JWT. Pure session storage in Redis.
-    Accepts session ID via:
-    1. X-Session-Id header (or X-Admin-Session / Session-Id)
-    2. Authorization header ("Session <session_id>" or "Bearer <session_id>")
-    3. HTTP-Only Cookie ("admin_session" or "session_id")
+    """Admin login check: Redis me rakhe session se (JWT nahi, sirf Redis session).
+    Session ID in jagahon se le sakte hain:
+    1. X-Session-Id header (ya X-Admin-Session / Session-Id)
+    2. Authorization header ("Session <id>" ya "Bearer <id>")
+    3. HttpOnly cookie ("admin_session" ya "session_id")
+    Media pipeline jaisi services X-API-KEY header se aati hain.
     """
 
     def authenticate_header(self, request):
+        """401 response ka WWW-Authenticate header."""
         return 'Session realm="admin"'
 
     def authenticate(self, request):
-        # 1. Check for Internal API Key header (service-to-service)
+        # 1. Andar ki service ka API key header (service-to-service, jaise media pipeline)
+        """Request se admin pehchaano: API key -> session id -> Redis session -> blacklist -> DB me admin ki halat.
+        Sab theek ho to (user, session) lautata hai; nahi to AuthenticationFailed (401).
+        """
         api_key = (
             request.headers.get("X-API-KEY")
             or request.headers.get("X-APPLICATION-API-KEY")
@@ -78,8 +87,8 @@ class AdminSessionAuthentication(authentication.BaseAuthentication):
         ]
         expected_keys = [k for k in expected_keys if k]
         if api_key and _matches_any_key(api_key, expected_keys):
-            # Service callers (audioProcessing webhooks) only need ADMIN-level
-            # endpoints; SUPER_ADMIN stays reserved for human operators.
+            # Services (audioProcessing webhooks) ko sirf ADMIN level chahiye;
+            # SUPER_ADMIN sirf insaan admins ke liye rakha hai.
             user = AdminUser(
                 user_id="system-api",
                 email="system@internal",
@@ -89,7 +98,7 @@ class AdminSessionAuthentication(authentication.BaseAuthentication):
             )
             return (user, api_key)
 
-        # 2. Extract Session ID (Header takes precedence over Cookies)
+        # 2. Session ID nikalo (header cookie se pehle dekha jaata hai)
         session_id = (
             request.headers.get("X-Session-Id")
             or request.headers.get("X-Admin-Session")
@@ -109,7 +118,7 @@ class AdminSessionAuthentication(authentication.BaseAuthentication):
         if not session_id:
             return None
 
-        # 3. Lookup session directly in Redis
+        # 3. Redis me session dhoondo
         session = RedisService.get_admin_session(session_id)
         if not session:
             raise exceptions.AuthenticationFailed("Admin session has expired or is invalid. Please log in again.")
@@ -120,7 +129,7 @@ class AdminSessionAuthentication(authentication.BaseAuthentication):
         user_name = session.get("userName", "")
         status_val = session.get("status", "ACTIVE")
 
-        # 4. Check real-time Redis blacklist
+        # 4. Redis blacklist check (blocked user?)
         if user_id and RedisService.is_user_blocked(user_id):
             logger.warning("Blocked user [%s - %s] attempted admin request", user_id, email)
             raise exceptions.AuthenticationFailed("Your account has been blocked or suspended.")
@@ -128,7 +137,7 @@ class AdminSessionAuthentication(authentication.BaseAuthentication):
         if status_val == "BLOCKED":
             raise exceptions.AuthenticationFailed("Your account has been blocked or suspended.")
 
-        # 5. Check PostgreSQL database state in admin_users table
+        # 5. Postgres ki admin_users table me admin ki halat check karo
         if user_id or email:
             try:
                 Admin = _get_admin_model()
@@ -142,7 +151,7 @@ class AdminSessionAuthentication(authentication.BaseAuthentication):
                     if getattr(db_admin, "status", "ACTIVE") == "BLOCKED":
                         RedisService.block_user_in_redis(db_admin.id)
                         raise exceptions.AuthenticationFailed("Your account has been blocked or suspended.")
-                    # Dynamically reflect live role changes (promotion/demotion)
+                    # Role badla ho (promote / demote) to turant wahi maano
                     role = db_admin.role
                     user_id = db_admin.id
                     email = db_admin.email
@@ -153,7 +162,7 @@ class AdminSessionAuthentication(authentication.BaseAuthentication):
             except Exception as e:
                 logger.debug("Database admin lookup during auth skipped: %s", e)
 
-        # 6. Slide Redis session window and set request context
+        # 6. Session ki expiry aage badhao aur request me user set karo
         RedisService.touch_admin_session(session_id, session=session)
         request.session_id = session_id
 
@@ -167,26 +176,23 @@ class AdminSessionAuthentication(authentication.BaseAuthentication):
         return (user, session_id)
 
 
-# Backward compatibility alias
+# Purane code ke liye doosra naam
 AdminJWTAuthentication = AdminSessionAuthentication
 
 
 class IsAdminUserPermission(permissions.BasePermission):
-    """
-    Allows access only to authenticated users with ADMIN or SUPER_ADMIN role.
-    """
+    """Sirf ADMIN ya SUPER_ADMIN role wale logged-in users ko aane do."""
     def has_permission(self, request, view) -> bool:
+        """Logged-in aur ADMIN/SUPER_ADMIN?"""
         if not request.user or not getattr(request.user, "is_authenticated", False):
             return False
         return bool(getattr(request.user, "is_admin", False))
 
 
 class IsSuperAdminUserPermission(permissions.BasePermission):
-    """
-    Allows access strictly to authenticated users with SUPER_ADMIN role.
-    Used for destructive cluster operations and managing other administrators.
-    """
+    """Sirf SUPER_ADMIN ko aane do - khatarnaak kaam (jaise doosre admins sambhalna) ke liye."""
     def has_permission(self, request, view) -> bool:
+        """Logged-in aur SUPER_ADMIN?"""
         if not request.user or not getattr(request.user, "is_authenticated", False):
             return False
         return bool(getattr(request.user, "is_super_admin", False))
