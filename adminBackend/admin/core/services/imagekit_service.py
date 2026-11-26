@@ -1,3 +1,4 @@
+"""ImageKit (images aur canvas clips ki CDN) ke kaam."""
 import hmac
 import hashlib
 import logging
@@ -10,8 +11,10 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 class ImageKitService:
+    """ImageKit helper."""
     @classmethod
     def generate_upload_params(cls) -> Dict[str, Any]:
+        """Browser se seedha ImageKit upload ke liye signed params (token, expire, signature)."""
         key = str(uuid.uuid4())
         token = str(uuid.uuid4())
         expire = int(time.time()) + 1800
@@ -34,13 +37,14 @@ class ImageKitService:
 
     @classmethod
     def delete_by_key(cls, key: str) -> None:
+        """File naam se dhoondh ke ImageKit se delete."""
         if not key or not settings.IMAGEKIT_PRIVATE_KEY:
             return
         try:
             file_name = key.split("/")[-1] if "/" in key else key
             auth = (settings.IMAGEKIT_PRIVATE_KEY, "")
 
-            # Search by fileName
+            # fileName se dhoondo
             res = requests.get(
                 "https://api.imagekit.io/v1/files",
                 params={"searchQuery": f'name = "{file_name}"'},
@@ -57,7 +61,7 @@ class ImageKitService:
                             logger.info("Deleted ImageKit file ID '%s' for key '%s'", file_id, key)
                     return
 
-            # Direct fallback deletion
+            # Na mile to seedha delete try karo
             requests.delete(f"https://api.imagekit.io/v1/files/{key}", auth=auth, timeout=5)
         except Exception as e:
             logger.warning("Failed to delete ImageKit asset for key '%s': %s", key, e)

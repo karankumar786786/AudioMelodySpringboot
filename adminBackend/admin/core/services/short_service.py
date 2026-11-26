@@ -1,10 +1,9 @@
-"""
-Shorts: standalone vertical videos with their own audio, optionally linked to a song.
+"""Shorts: khade chhote videos apni awaaz ke saath, optional kisi gaane se jude.
 
-The admin API owns a short's processing state. The media pipeline reports back through the
-`webhook/short/<id>/processed|failed` endpoints, and admins moderate shorts here
-(hide, unhide, delete, resolve reports, ban an account from posting). Listener uploads,
-likes and reports are handled by the core API on the same tables.
+Short ka processing status admin API sambhalta hai. Media pipeline
+`webhook/short/<id>/processed|failed` endpoints se report karti hai, aur admins yahan moderation karte hain
+(hide, unhide, delete, reports resolve, posting se ban). Listeners ke upload, like, report core API
+usi tables pe sambhalta hai.
 """
 
 import logging
@@ -22,7 +21,7 @@ ALLOWED_CONTENT_TYPES = {"video/mp4", "video/quicktime"}
 
 
 class ShortError(Exception):
-    """A request the admin can fix (bad state, bad input). Mapped to HTTP 400/409."""
+    """Aisi galti jo admin theek kar sakta hai (galat status, galat input). HTTP 400/409 banti hai."""
 
     def __init__(self, message: str, status_code: int = 400):
         super().__init__(message)
@@ -30,11 +29,13 @@ class ShortError(Exception):
 
 
 def new_raw_key(content_type: str = "video/mp4") -> str:
+    """Raw upload ki S3 key: shorts-raw/<uuid>.mp4 (ya .mov)."""
     ext = ".mov" if content_type == "video/quicktime" else ".mp4"
     return f"{RAW_PREFIX}/{uuid.uuid4()}{ext}"
 
 
 def clean_caption(caption: Optional[str]) -> Optional[str]:
+    """Caption saaf karo (extra spaces), bahut lamba ho to ShortError."""
     if caption is None:
         return None
     text = " ".join(str(caption).split())
@@ -44,6 +45,7 @@ def clean_caption(caption: Optional[str]) -> Optional[str]:
 
 
 def serialize(short) -> Dict[str, Any]:
+    """Short model -> admin dashboard ka JSON."""
     return {
         "id": short.id,
         "ownerType": short.owner_type,
@@ -69,20 +71,24 @@ def serialize(short) -> Dict[str, Any]:
 
 
 class ShortService:
+    """Admin ki taraf se shorts ka saara kaam."""
     @staticmethod
     def _events():
+        """Inngest ko events bhejne wala helper."""
         from core.services.inngest_service import InngestService
 
         return InngestService
 
     @staticmethod
     def _now() -> datetime:
+        """Abhi ka time (tests me badal sakte hain)."""
         return datetime.now(timezone.utc)
 
-    # ---- Admin uploads ----------------------------------------------------------------
+    # ---- Admin ke uploads -------------------------------------------------------------------
 
     @classmethod
     def create_admin_short(cls, admin_id: str, raw_key: str, caption: Optional[str], song_id: Optional[str]):
+        """Admin ka short banao (PROCESSING) aur 'shorts/process' event bhejo."""
         from catalog.models import Short, Song
 
         if not raw_key or not str(raw_key).startswith(f"{RAW_PREFIX}/"):
@@ -101,10 +107,11 @@ class ShortService:
         cls._events().send_event("shorts/process", {"shortId": short.id, "rawKey": raw_key}, event_id=f"short-{short.id}")
         return short
 
-    # ---- Pipeline callbacks -----------------------------------------------------------
+    # ---- Media pipeline ke callbacks ------------------------------------------------------
 
     @classmethod
     def mark_processed(cls, short_id: str, data: Dict[str, Any]):
+        """Pipeline ne bataya ki transcode ho gaya: READY (ya pehle se hidden ho to HIDDEN). Beech me delete hua ho to files hatao."""
         from catalog.models import Short
 
         with transaction.atomic():
@@ -112,7 +119,7 @@ class ShortService:
             if short is None:
                 raise ShortError("Short not found", 404)
             if short.status in ("DELETED",):
-                # Deleted while processing: don't resurrect it; clean up what was just written.
+                # Processing ke dauraan delete ho gaya: wapas zinda mat karo; jo abhi likha gaya use saaf karo.
                 cls._events().send_event("shorts/delete", {"shortId": short.id, "rawKey": short.raw_key})
                 return short
             short.hls_key = data.get("hlsKey")
@@ -129,6 +136,7 @@ class ShortService:
 
     @classmethod
     def mark_failed(cls, short_id: str, reason: Optional[str]):
+        """Pipeline fail hui: FAILED + wajah."""
         from catalog.models import Short
 
         short = Short.objects.filter(id=short_id).first()
@@ -140,10 +148,11 @@ class ShortService:
             short.save(update_fields=["status", "failure_reason", "updated_at"])
         return short
 
-    # ---- Moderation -------------------------------------------------------------------
+    # ---- Moderation (hide / unhide / ban) -------------------------------------------------
 
     @classmethod
     def hide(cls, short_id: str, reason: Optional[str]):
+        """Short chhupao (listeners ko nahi dikhega)."""
         from catalog.models import Short
 
         short = Short.objects.filter(id=short_id).first()
@@ -158,6 +167,7 @@ class ShortService:
 
     @classmethod
     def unhide(cls, short_id: str):
+        """Short wapas dikhao."""
         from catalog.models import Short
 
         short = Short.objects.filter(id=short_id).first()
@@ -168,12 +178,13 @@ class ShortService:
         short.status = "READY" if short.hls_key else "FAILED"
         short.hidden_reason = None
         short.save(update_fields=["status", "hidden_reason", "updated_at"])
-        # Reports that led to the hide are considered handled.
+        # Jin reports ki wajah se chhupa tha, unhe handled maan lo.
         short.reports.filter(resolved=False).update(resolved=True)
         return short
 
     @classmethod
     def delete(cls, short_id: str):
+        """Short delete: processing cancel aur files hatane ke events."""
         from catalog.models import Short
 
         short = Short.objects.filter(id=short_id).first()
@@ -188,6 +199,7 @@ class ShortService:
 
     @classmethod
     def update(cls, short_id: str, caption: Any = ..., song_id: Any = ...):
+        """Caption / linked song badlo."""
         from catalog.models import Short, Song
 
         short = Short.objects.filter(id=short_id).exclude(status="DELETED").first()
@@ -207,6 +219,7 @@ class ShortService:
 
     @classmethod
     def resolve_report(cls, report_id: int, action: str):
+        """Report ko resolve mark karo."""
         from catalog.models import ShortReport
 
         report = ShortReport.objects.select_related("short").filter(id=report_id).first()
@@ -225,7 +238,7 @@ class ShortService:
 
     @staticmethod
     def ban_until(days: Optional[int]) -> Optional[datetime]:
-        """None = lift the ban; 0 or negative = permanent (100 years)."""
+        """Ban kab tak: None = ban hatao; 0 ya negative = hamesha ke liye (100 saal)."""
         if days is None:
             return None
         if days <= 0:
@@ -234,6 +247,7 @@ class ShortService:
 
     @classmethod
     def set_ban(cls, user_id: str, days: Optional[int]) -> Optional[datetime]:
+        """User ko shorts post karne se ban karo (ya ban hatao)."""
         until = cls.ban_until(days)
         with connection.cursor() as cursor:
             cursor.execute("UPDATE users SET shorts_banned_until = %s WHERE id = %s", [until, user_id])

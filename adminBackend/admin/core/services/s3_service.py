@@ -1,3 +1,4 @@
+"""S3 (AWS file storage) ke kaam: presigned upload URL, file/folder delete."""
 import logging
 from typing import Optional, Dict, Any, List
 import boto3
@@ -7,12 +8,14 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 class S3Service:
+    """S3 helper."""
     _client = None
 
     @classmethod
     def get_client(cls):
+        """S3 client (region ap-south-1, SigV4)."""
         if cls._client is None:
-            # Enforce regional S3 endpoint (ap-south-1) and SigV4 to avoid 307 temporary redirects and socket drops
+            # Region wala S3 endpoint (ap-south-1) aur SigV4 zaroori - warna 307 redirects aur connection drops aate hain
             region = getattr(settings, "AWS_REGION", "ap-south-1") or "ap-south-1"
             endpoint_url = getattr(settings, "AWS_ENDPOINT", None) or f"https://s3.{region}.amazonaws.com"
             kwargs = {
@@ -30,6 +33,7 @@ class S3Service:
 
     @classmethod
     def generate_presigned_upload_url(cls, key: str, bucket: Optional[str] = None, expires_in_minutes: int = 30) -> str:
+        """Temp bucket me PUT karne ka presigned URL (30 minute)."""
         b = bucket or settings.S3_TEMP_BUCKET
         client = cls.get_client()
         url = client.generate_presigned_url(
@@ -41,6 +45,7 @@ class S3Service:
 
     @classmethod
     def delete_object(cls, key: str, bucket: Optional[str] = None) -> None:
+        """Ek file delete."""
         if not key:
             return
         b = bucket or settings.S3_PRODUCTION_BUCKET
@@ -53,6 +58,7 @@ class S3Service:
 
     @classmethod
     def delete_prefix(cls, prefix: str, bucket: Optional[str] = None) -> None:
+        """Ek folder (prefix) ki saari files delete."""
         if not prefix:
             return
         b = bucket or settings.S3_PRODUCTION_BUCKET

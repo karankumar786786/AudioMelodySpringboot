@@ -1,3 +1,4 @@
+"""Chal rahe media jobs ko cancel karna."""
 import logging
 from typing import Optional
 import requests
@@ -8,15 +9,17 @@ from .redis_service import RedisService
 logger = logging.getLogger(__name__)
 
 class ExternalJobDispatcher:
+    """Job cancel karne ka helper."""
     @classmethod
     def cancel_inngest_and_worker(cls, job_id: str, song_id: Optional[str] = None, job_obj: Optional[Job] = None) -> None:
-        # A. Remove from Redis list
+        # A. Redis list se hatao
+        """Job har jagah cancel: Inngest ko cancel event aur media pipeline ko HTTP cleanup."""
         RedisService.remove_job_from_audio_queue(job_id)
 
-        # B. Push cancel to Redis
+        # B. Redis me cancel daalo
         RedisService.cancel_job(job_id)
 
-        # C. HTTP cancel to audioProcessing worker
+        # C. Media pipeline ko HTTP se cancel bhejo
         if settings.AUDIO_PROCESSING_URL:
             try:
                 headers = {}
@@ -41,7 +44,7 @@ class ExternalJobDispatcher:
             except Exception as e:
                 logger.warning("Failed to notify audioProcessing worker of job [%s] cleanup: %s", job_id, e)
 
-        # D. Direct event to Inngest Cloud/Dev
+        # D. Inngest (Cloud/Dev) ko seedha cancel event
         try:
             from .inngest_service import InngestService
             InngestService.trigger_cancel_job(job_id)

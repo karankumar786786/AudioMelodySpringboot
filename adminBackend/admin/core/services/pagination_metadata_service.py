@@ -1,3 +1,4 @@
+"""Pagination counts (pagination_metadata table) badalna - core API ke saath same table."""
 import logging
 from typing import Optional, Dict, Any
 import uuid
@@ -12,8 +13,10 @@ from .redis_service import RedisService
 logger = logging.getLogger(__name__)
 
 class PaginationMetadataService:
+    """Pagination counts ka helper."""
     @classmethod
     def get_metadata(cls, entity_name: str) -> Optional[PaginationMetadata]:
+        """Ek entity ke counts (row na ho to bana do)."""
         try:
             return PaginationMetadata.objects.filter(entity_name=entity_name).first()
         except Exception as e:
@@ -22,6 +25,7 @@ class PaginationMetadataService:
 
     @classmethod
     def increment_status(cls, entity_name: str, status: str) -> None:
+        """Naya item: total +1 aur status count +1."""
         try:
             meta = PaginationMetadata.objects.filter(entity_name=entity_name).first()
             if not meta:
@@ -48,6 +52,7 @@ class PaginationMetadataService:
 
     @classmethod
     def decrement_status(cls, entity_name: str, status: str) -> None:
+        """Item gaya: total -1 aur status count -1."""
         try:
             meta = PaginationMetadata.objects.filter(entity_name=entity_name).first()
             if not meta:
@@ -67,6 +72,7 @@ class PaginationMetadataService:
 
     @classmethod
     def transition_status(cls, entity_name: str, old_status: str, new_status: str) -> None:
+        """Status badla: purane ka -1, naye ka +1."""
         try:
             if (old_status or "").upper() == (new_status or "").upper():
                 return
@@ -102,30 +108,37 @@ class PaginationMetadataService:
 
     @classmethod
     def increment_job(cls) -> None:
+        """Naya upload job."""
         cls.increment_status("JobsEntity", "ACTIVE")
 
     @classmethod
     def decrement_job(cls, status: Optional[str]) -> None:
+        """Upload job hata."""
         cls.decrement_status("JobsEntity", status or "ACTIVE")
 
     @classmethod
     def transition_job(cls, old_status: Optional[str], new_status: str) -> None:
+        """Upload job ka status badla."""
         cls.transition_status("JobsEntity", old_status or "PENDING", new_status)
 
     @classmethod
     def increment_delete_job(cls) -> None:
+        """Naya delete job."""
         cls.increment_status("DeleteJobsEntity", "ACTIVE")
 
     @classmethod
     def decrement_delete_job(cls, status: Optional[str]) -> None:
+        """Delete job hata."""
         cls.decrement_status("DeleteJobsEntity", status or "ACTIVE")
 
     @classmethod
     def transition_delete_job(cls, old_status: Optional[str], new_status: str) -> None:
+        """Delete job ka status badla."""
         cls.transition_status("DeleteJobsEntity", old_status or "PENDING", new_status)
 
     @classmethod
     def _save_or_update(cls, entity_name: str, total: int, active: int, blocked: int, deleted: int) -> PaginationMetadata:
+        """Row save karo aur core API ka cache entry hatao."""
         meta = PaginationMetadata.objects.filter(entity_name=entity_name).first()
         if meta:
             meta.total_count = total
@@ -147,12 +160,10 @@ class PaginationMetadataService:
 
     @classmethod
     def sync_all_metadata(cls) -> Dict[str, Any]:
-        """
-        Reconciles actual DB table counts with pagination_metadata rows and flushes Redis cache.
-        """
+        """DB tables ke asli counts se pagination_metadata rows theek karo aur Redis cache saaf karo."""
         results = {}
 
-        # 1. UsersEntity
+        # 1. Users
         users_total = User.objects.count()
         users_active = User.objects.filter(status="ACTIVE").count()
         users_blocked = User.objects.filter(status="BLOCKED").count()
@@ -167,7 +178,7 @@ class PaginationMetadataService:
             "deletedCount": u_meta.deleted_count,
         }
 
-        # 2. SongsEntity
+        # 2. Songs
         songs_total = Song.objects.count()
         songs_active = Song.objects.filter(status="ACTIVE").count()
         songs_blocked = Song.objects.filter(status="BLOCKED").count()
@@ -182,7 +193,7 @@ class PaginationMetadataService:
             "deletedCount": s_meta.deleted_count,
         }
 
-        # 3. ArtistsEntity
+        # 3. Artists
         artists_total = Artist.objects.count()
         artists_active = Artist.objects.filter(status="ACTIVE").count()
         artists_blocked = Artist.objects.filter(status="BLOCKED").count()
@@ -197,7 +208,7 @@ class PaginationMetadataService:
             "deletedCount": a_meta.deleted_count,
         }
 
-        # 4. PlaylistsEntity
+        # 4. Playlists
         playlists_total = Playlist.objects.count()
         playlists_active = Playlist.objects.filter(status="ACTIVE").count()
         playlists_blocked = Playlist.objects.filter(status="BLOCKED").count()
@@ -212,7 +223,7 @@ class PaginationMetadataService:
             "deletedCount": p_meta.deleted_count,
         }
 
-        # 5. JobsEntity
+        # 5. Jobs
         jobs_total = Job.objects.count()
         jobs_active = Job.objects.filter(status__in=["PENDING", "PROCESSING", "QUEUED"]).count()
         jobs_failed = Job.objects.filter(status="FAILED").count()
@@ -227,7 +238,7 @@ class PaginationMetadataService:
             "deletedCount": j_meta.deleted_count,
         }
 
-        # 6. DeleteJobsEntity
+        # 6. Delete jobs
         del_jobs_total = DeleteJob.objects.count()
         del_jobs_active = DeleteJob.objects.filter(status__in=["PENDING", "IN_PROGRESS"]).count()
         del_jobs_failed = DeleteJob.objects.filter(status="FAILED").count()
@@ -242,14 +253,14 @@ class PaginationMetadataService:
             "deletedCount": dj_meta.deleted_count,
         }
 
-        # 7. Reconcile PlaylistSongs metadata for all playlists
+        # 7. Har playlist ke songs ka count theek karo
         for pl in Playlist.objects.all():
             count = PlaylistSong.objects.filter(playlist=pl).count()
             if pl.total_songs != count:
                 Playlist.objects.filter(pk=pl.pk).update(total_songs=count)
             cls._save_or_update(f"PlaylistSongs_{pl.id}", count, count, 0, 0)
 
-        # 8. Reconcile ArtistSongs metadata for all artists
+        # 8. Har artist ke songs ka count theek karo
         for art in Artist.objects.all():
             count = Song.objects.filter(
                 Q(artist_name__iexact=art.name) | Q(artist_name__icontains=art.name),
@@ -257,7 +268,7 @@ class PaginationMetadataService:
             ).count()
             cls._save_or_update(f"ArtistSongs_{art.id}", count, count, 0, 0)
 
-        # Evict all Spring Boot / CoreEngine Redis cache entries
+        # Core API (Spring Boot) ke saare pagination cache entries hatao
         RedisService.evict_all_pagination_cache()
 
         logger.info("Pagination metadata reconciliation complete: %s", results)

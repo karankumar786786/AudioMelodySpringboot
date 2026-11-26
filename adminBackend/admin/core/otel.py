@@ -1,3 +1,4 @@
+"""OpenTelemetry (traces, metrics, logs) ki setup."""
 import logging
 import os
 from typing import Any
@@ -20,12 +21,12 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 class OpenTelemetryContextFilter(logging.Filter):
-    """Ensures otelServiceName, otelTraceID, and otelSpanID attributes are always present
-
-    on every LogRecord to prevent formatting key errors.
+    """Har log record me otelServiceName, otelTraceID, otelSpanID fields daal deta hai (na hon to khaali),
+    taaki log format me KeyError na aaye.
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Log record me missing otel fields khaali string se bhar do."""
         if not hasattr(record, "otelServiceName") or not record.otelServiceName:
             record.otelServiceName = "admin-backend"
         if not hasattr(record, "otelTraceID") or not record.otelTraceID:
@@ -41,9 +42,8 @@ _initialized = False
 
 
 def setup_opentelemetry() -> bool:
-    """Initializes OpenTelemetry traces, metrics, and logs export to the OTel collector
-
-    and instruments Django, Psycopg2, Redis, and Requests.
+    """OpenTelemetry shuru karo: traces, metrics aur logs OTel collector ko bhejo, aur Django, Psycopg2, Redis,
+    Requests ko instrument karo (unki calls apne aap trace hongi).
     """
     global _initialized
     if _initialized:
@@ -57,7 +57,7 @@ def setup_opentelemetry() -> bool:
     environment = os.getenv("ENVIRONMENT", os.getenv("DJANGO_ENV", "production"))
     endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-collector:4317")
 
-    # Format endpoint for gRPC client
+    # gRPC client ke liye endpoint ka format
     insecure = True
     clean_endpoint = endpoint
     if clean_endpoint.startswith("http://"):
@@ -75,13 +75,13 @@ def setup_opentelemetry() -> bool:
             }
         )
 
-        # 1. Traces
+        # 1. Traces (request kahan kahan gayi)
         trace_provider = TracerProvider(resource=resource)
         span_exporter = OTLPSpanExporter(endpoint=clean_endpoint, insecure=insecure)
         trace_provider.add_span_processor(BatchSpanProcessor(span_exporter))
         trace.set_tracer_provider(trace_provider)
 
-        # 2. Metrics
+        # 2. Metrics (numbers)
         metric_exporter = OTLPMetricExporter(endpoint=clean_endpoint, insecure=insecure)
         reader = PeriodicExportingMetricReader(metric_exporter, export_interval_millis=15000)
         meter_provider = MeterProvider(resource=resource, metric_readers=[reader])
@@ -93,11 +93,11 @@ def setup_opentelemetry() -> bool:
         logger_provider.add_log_record_processor(BatchLogRecordProcessor(log_exporter))
         _logs.set_logger_provider(logger_provider)
 
-        # Attach handler to root logger
+        # Root logger me handler jodo
         handler = LoggingHandler(level=logging.NOTSET, logger_provider=logger_provider)
         logging.getLogger().addHandler(handler)
 
-        # 4. Instrumentations
+        # 4. Libraries ko instrument karo (apne aap trace)
         LoggingInstrumentor().instrument(inject_trace_context=True, set_logging_format=False)
         DjangoInstrumentor().instrument(is_sql_commentor_enabled=True)
         Psycopg2Instrumentor().instrument(enable_commenter=True)
