@@ -1,13 +1,13 @@
 #!/bin/sh
-# Container entrypoint: load runtime secrets from AWS Secrets Manager, then exec the app.
+# Container ka entrypoint: pehle AWS Secrets Manager se secrets load karo, phir app chalao.
 #
-# SECRET_IDS: comma- or semicolon-separated secret names, e.g.
+# SECRET_IDS: comma ya semicolon se alag secret naam, jaise
 #   SECRET_IDS=onemelody/prod/db,onemelody/prod/redis,onemelody/prod/admin
-# Each secret is a JSON object of env-var keys. Keys are exported in order, so a later
-# secret overrides an earlier one, and any secret key overrides the compose environment.
-# Credentials come from the EC2 instance role (IMDSv2); no AWS keys are needed.
-# When SECRET_IDS is unset or empty this only runs the command, exactly as before.
-# Values are never printed: the loader writes shell-quoted exports to a pipe for eval.
+# Har secret env-var keys ka JSON object hai. Keys order me export hoti hain, to baad wala secret
+# pehle wale ko override karta hai, aur koi bhi secret key compose ke environment ko.
+# Credentials EC2 instance role (IMDSv2) se aate hain; AWS keys ki zaroorat nahi.
+# SECRET_IDS khaali ho to bas command chalata hai, pehle jaisa.
+# Values kabhi print nahi hoti: loader quoted exports pipe me likhta hai, jinhe eval karte hain.
 set -eu
 
 if [ -n "${SECRET_IDS:-}" ]; then

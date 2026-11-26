@@ -1,6 +1,7 @@
 import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
 import { formatFrom, type Env, type MailProvider } from "./types";
 
+// Ye AWS errors matlab credentials / account me dikkat - retry ka fayda nahi
 const AUTH_ERROR_NAMES = new Set([
     "AccessDeniedException",
     "UnrecognizedClientException",
@@ -14,9 +15,8 @@ const AUTH_ERROR_NAMES = new Set([
 ]);
 
 /**
- * Amazon SES via the SESv2 SendEmail API. Credentials come from the standard
- * AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION variables (or any
- * other source in the default AWS credential chain, e.g. an instance role).
+ * Amazon SES (SESv2 SendEmail API) se email. Credentials normal AWS env vars
+ * (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION) ya default chain (jaise EC2 instance role) se.
  */
 export function createSesProvider(env: Env, client?: Pick<SESv2Client, "send">): MailProvider {
     const region = env.SES_REGION || env.AWS_REGION;

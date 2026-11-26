@@ -1,5 +1,5 @@
-// Integration test for the Redis-backed store. Runs only when MAIL_TEST_REDIS_URL
-// points at a disposable Redis (e.g. redis://127.0.0.1:6390); keys are namespaced.
+// Asli Redis wale store ka integration test. Sirf tab chalta hai jab MAIL_TEST_REDIS_URL kisi
+// faltu (disposable) Redis ki taraf ho (jaise redis://127.0.0.1:6390); keys alag namespace me hoti hain.
 import { describe, it, expect, afterAll } from "bun:test";
 import { Redis } from "ioredis";
 import { createRedisStore } from "../lib/queue";
@@ -19,7 +19,7 @@ describe.skipIf(!url)("createRedisStore (redis)", () => {
     it("keeps retries off the ready queue until due, then promotes them", async () => {
         const job = { to: "a@b.com", subject: "LOGIN", otp: "123456", retries: 1 };
         await store.scheduleRetry(job, 1000);
-        await store.scheduleRetry(job, 1000); // identical job twice must not collapse
+        await store.scheduleRetry(job, 1000); // same job do baar - dono alag rehne chahiye
         await store.scheduleRetry({ ...job, to: "later@b.com" }, 5000);
 
         expect(await store.promoteDue(999)).toBe(0);

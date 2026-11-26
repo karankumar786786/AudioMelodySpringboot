@@ -1,3 +1,7 @@
+/**
+ * Redis connection (ioredis). REDIS_URL ho to wahi, warna host/port/password alag env vars se.
+ * Har command max 3 retry, connect timeout 10 second.
+ */
 import { Redis } from "ioredis";
 import { config } from "dotenv";
 config();
@@ -10,7 +14,7 @@ export const redis = process.env.REDIS_URL
       connectTimeout: 10000,
     })
   : new Redis({
-      host: process.env.REDIS_HOST!, // throw if missing, don't fall back
+      host: process.env.REDIS_HOST!, // na ho to error aane do, koi default nahi
       port: Number(process.env.REDIS_PORT) || 6379,
       password: process.env.REDIS_PASSWORD!,
       tls: isSsl ? { rejectUnauthorized: false } : undefined,
